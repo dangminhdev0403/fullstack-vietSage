@@ -1,0 +1,1776 @@
+{
+    "item": [
+        {
+            "name": "health",
+            "description": "",
+            "item": [
+                {
+                    "id": "0974002e-4113-4af4-9f0d-883094743ef3",
+                    "name": "Health Controller get Health",
+                    "request": {
+                        "name": "Health Controller get Health",
+                        "description": {},
+                        "url": {
+                            "path": [
+                                "health"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "method": "GET",
+                        "body": {},
+                        "auth": null
+                    },
+                    "response": [
+                        {
+                            "id": "acb185f7-5eb7-4263-a0ee-6bbcc6355376",
+                            "name": "200",
+                            "originalRequest": {
+                                "url": {
+                                    "path": [
+                                        "health"
+                                    ],
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "query": [],
+                                    "variable": []
+                                },
+                                "method": "GET",
+                                "body": {}
+                            },
+                            "status": "OK",
+                            "code": 200,
+                            "header": [],
+                            "cookie": [],
+                            "_postman_previewlanguage": "text"
+                        }
+                    ],
+                    "event": [],
+                    "protocolProfileBehavior": {
+                        "disableBodyPruning": true
+                    }
+                }
+            ]
+        },
+        {
+            "name": "auth",
+            "description": "",
+            "item": [
+                {
+                    "name": "login",
+                    "description": "",
+                    "item": [
+                        {
+                            "id": "1ade27b0-cd9c-41af-babd-3c8260fb80b6",
+                            "name": "Auth Controller login",
+                            "request": {
+                                "name": "Auth Controller login",
+                                "description": {},
+                                "url": {
+                                    "path": [
+                                        "auth",
+                                        "login"
+                                    ],
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "query": [],
+                                    "variable": []
+                                },
+                                "method": "POST",
+                                "body": {},
+                                "auth": null
+                            },
+                            "response": [
+                                {
+                                    "id": "995c0688-3160-4d23-9f84-a48ade62ee4e",
+                                    "name": "200",
+                                    "originalRequest": {
+                                        "url": {
+                                            "path": [
+                                                "auth",
+                                                "login"
+                                            ],
+                                            "host": [
+                                                "{{baseUrl}}"
+                                            ],
+                                            "query": [],
+                                            "variable": []
+                                        },
+                                        "method": "POST",
+                                        "body": {}
+                                    },
+                                    "status": "OK",
+                                    "code": 200,
+                                    "header": [],
+                                    "cookie": [],
+                                    "_postman_previewlanguage": "text"
+                                }
+                            ],
+                            "event": [],
+                            "protocolProfileBehavior": {
+                                "disableBodyPruning": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "refresh",
+                    "description": "",
+                    "item": [
+                        {
+                            "id": "db160b0e-7542-488c-9e02-51737278315e",
+                            "name": "Auth Controller refresh",
+                            "request": {
+                                "name": "Auth Controller refresh",
+                                "description": {},
+                                "url": {
+                                    "path": [
+                                        "auth",
+                                        "refresh"
+                                    ],
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "query": [],
+                                    "variable": []
+                                },
+                                "method": "POST",
+                                "body": {},
+                                "auth": null
+                            },
+                            "response": [
+                                {
+                                    "id": "c7995510-7293-4dd1-bad0-f7fb02d626d6",
+                                    "name": "201",
+                                    "originalRequest": {
+                                        "url": {
+                                            "path": [
+                                                "auth",
+                                                "refresh"
+                                            ],
+                                            "host": [
+                                                "{{baseUrl}}"
+                                            ],
+                                            "query": [],
+                                            "variable": []
+                                        },
+                                        "method": "POST",
+                                        "body": {}
+                                    },
+                                    "status": "Created",
+                                    "code": 201,
+                                    "header": [],
+                                    "cookie": [],
+                                    "_postman_previewlanguage": "text"
+                                }
+                            ],
+                            "event": [],
+                            "protocolProfileBehavior": {
+                                "disableBodyPruning": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "logout",
+                    "description": "",
+                    "item": [
+                        {
+                            "id": "6d066205-3577-42f4-8c24-7ac0dc578348",
+                            "name": "Auth Controller logout",
+                            "request": {
+                                "name": "Auth Controller logout",
+                                "description": {},
+                                "url": {
+                                    "path": [
+                                        "auth",
+                                        "logout"
+                                    ],
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "query": [],
+                                    "variable": []
+                                },
+                                "method": "POST",
+                                "body": {},
+                                "auth": null
+                            },
+                            "response": [
+                                {
+                                    "id": "47bd4d67-549f-456f-a2ee-8864cc77a511",
+                                    "name": "200",
+                                    "originalRequest": {
+                                        "url": {
+                                            "path": [
+                                                "auth",
+                                                "logout"
+                                            ],
+                                            "host": [
+                                                "{{baseUrl}}"
+                                            ],
+                                            "query": [],
+                                            "variable": []
+                                        },
+                                        "method": "POST",
+                                        "body": {}
+                                    },
+                                    "status": "OK",
+                                    "code": 200,
+                                    "header": [],
+                                    "cookie": [],
+                                    "_postman_previewlanguage": "text"
+                                }
+                            ],
+                            "event": [],
+                            "protocolProfileBehavior": {
+                                "disableBodyPruning": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "me",
+                    "description": "",
+                    "item": [
+                        {
+                            "id": "81af77b2-6111-4f64-a027-2e8b3b14f89f",
+                            "name": "Auth Controller me",
+                            "request": {
+                                "name": "Auth Controller me",
+                                "description": {},
+                                "url": {
+                                    "path": [
+                                        "auth",
+                                        "me"
+                                    ],
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "query": [],
+                                    "variable": []
+                                },
+                                "method": "GET",
+                                "body": {},
+                                "auth": null
+                            },
+                            "response": [
+                                {
+                                    "id": "9e76e80d-847d-4eda-b66d-aaf4c021cc0d",
+                                    "name": "200",
+                                    "originalRequest": {
+                                        "url": {
+                                            "path": [
+                                                "auth",
+                                                "me"
+                                            ],
+                                            "host": [
+                                                "{{baseUrl}}"
+                                            ],
+                                            "query": [],
+                                            "variable": []
+                                        },
+                                        "method": "GET",
+                                        "body": {}
+                                    },
+                                    "status": "OK",
+                                    "code": 200,
+                                    "header": [],
+                                    "cookie": [],
+                                    "_postman_previewlanguage": "text"
+                                }
+                            ],
+                            "event": [],
+                            "protocolProfileBehavior": {
+                                "disableBodyPruning": true
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "roles",
+            "description": "",
+            "item": [
+                {
+                    "id": "76d36e5b-eb0c-4084-855c-656cdd5b2076",
+                    "name": "Roles Controller create Role",
+                    "request": {
+                        "name": "Roles Controller create Role",
+                        "description": {},
+                        "url": {
+                            "path": [
+                                "roles"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "method": "POST",
+                        "body": {},
+                        "auth": null
+                    },
+                    "response": [
+                        {
+                            "id": "ca15bc73-c8a3-4c27-98cf-89b50e64a249",
+                            "name": "201",
+                            "originalRequest": {
+                                "url": {
+                                    "path": [
+                                        "roles"
+                                    ],
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "query": [],
+                                    "variable": []
+                                },
+                                "method": "POST",
+                                "body": {}
+                            },
+                            "status": "Created",
+                            "code": 201,
+                            "header": [],
+                            "cookie": [],
+                            "_postman_previewlanguage": "text"
+                        }
+                    ],
+                    "event": [],
+                    "protocolProfileBehavior": {
+                        "disableBodyPruning": true
+                    }
+                },
+                {
+                    "id": "2868863d-2218-4371-b008-763685b685c0",
+                    "name": "Roles Controller list Roles",
+                    "request": {
+                        "name": "Roles Controller list Roles",
+                        "description": {},
+                        "url": {
+                            "path": [
+                                "roles"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "method": "GET",
+                        "body": {},
+                        "auth": null
+                    },
+                    "response": [
+                        {
+                            "id": "75838202-6658-4a23-8a0a-4f3bbfefed72",
+                            "name": "200",
+                            "originalRequest": {
+                                "url": {
+                                    "path": [
+                                        "roles"
+                                    ],
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "query": [],
+                                    "variable": []
+                                },
+                                "method": "GET",
+                                "body": {}
+                            },
+                            "status": "OK",
+                            "code": 200,
+                            "header": [],
+                            "cookie": [],
+                            "_postman_previewlanguage": "text"
+                        }
+                    ],
+                    "event": [],
+                    "protocolProfileBehavior": {
+                        "disableBodyPruning": true
+                    }
+                },
+                {
+                    "name": "{id}",
+                    "description": "",
+                    "item": [
+                        {
+                            "id": "b4b7c4a8-8ea1-4038-b0e6-c64b708a5674",
+                            "name": "Roles Controller get Role",
+                            "request": {
+                                "name": "Roles Controller get Role",
+                                "description": {},
+                                "url": {
+                                    "path": [
+                                        "roles",
+                                        ":id"
+                                    ],
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "query": [],
+                                    "variable": [
+                                        {
+                                            "type": "any",
+                                            "value": "<string>",
+                                            "key": "id",
+                                            "disabled": false,
+                                            "description": {
+                                                "content": "(Required) ",
+                                                "type": "text/plain"
+                                            }
+                                        }
+                                    ]
+                                },
+                                "method": "GET",
+                                "body": {},
+                                "auth": null
+                            },
+                            "response": [
+                                {
+                                    "id": "f8ec4973-f0c8-43f1-b9f1-12043178f1a9",
+                                    "name": "200",
+                                    "originalRequest": {
+                                        "url": {
+                                            "path": [
+                                                "roles",
+                                                ":id"
+                                            ],
+                                            "host": [
+                                                "{{baseUrl}}"
+                                            ],
+                                            "query": [],
+                                            "variable": [
+                                                {
+                                                    "disabled": false,
+                                                    "description": {
+                                                        "content": "(Required) ",
+                                                        "type": "text/plain"
+                                                    },
+                                                    "type": "any",
+                                                    "value": "<string>",
+                                                    "key": "id"
+                                                }
+                                            ]
+                                        },
+                                        "method": "GET",
+                                        "body": {}
+                                    },
+                                    "status": "OK",
+                                    "code": 200,
+                                    "header": [],
+                                    "cookie": [],
+                                    "_postman_previewlanguage": "text"
+                                }
+                            ],
+                            "event": [],
+                            "protocolProfileBehavior": {
+                                "disableBodyPruning": true
+                            }
+                        },
+                        {
+                            "id": "021def41-1106-40b9-bcc5-b3682c30bc13",
+                            "name": "Roles Controller update Role",
+                            "request": {
+                                "name": "Roles Controller update Role",
+                                "description": {},
+                                "url": {
+                                    "path": [
+                                        "roles",
+                                        ":id"
+                                    ],
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "query": [],
+                                    "variable": [
+                                        {
+                                            "type": "any",
+                                            "value": "<string>",
+                                            "key": "id",
+                                            "disabled": false,
+                                            "description": {
+                                                "content": "(Required) ",
+                                                "type": "text/plain"
+                                            }
+                                        }
+                                    ]
+                                },
+                                "method": "PATCH",
+                                "body": {},
+                                "auth": null
+                            },
+                            "response": [
+                                {
+                                    "id": "a66a6f85-b4bf-4945-a787-924f8d644f6a",
+                                    "name": "200",
+                                    "originalRequest": {
+                                        "url": {
+                                            "path": [
+                                                "roles",
+                                                ":id"
+                                            ],
+                                            "host": [
+                                                "{{baseUrl}}"
+                                            ],
+                                            "query": [],
+                                            "variable": [
+                                                {
+                                                    "disabled": false,
+                                                    "description": {
+                                                        "content": "(Required) ",
+                                                        "type": "text/plain"
+                                                    },
+                                                    "type": "any",
+                                                    "value": "<string>",
+                                                    "key": "id"
+                                                }
+                                            ]
+                                        },
+                                        "method": "PATCH",
+                                        "body": {}
+                                    },
+                                    "status": "OK",
+                                    "code": 200,
+                                    "header": [],
+                                    "cookie": [],
+                                    "_postman_previewlanguage": "text"
+                                }
+                            ],
+                            "event": [],
+                            "protocolProfileBehavior": {
+                                "disableBodyPruning": true
+                            }
+                        },
+                        {
+                            "id": "5b331a10-42c4-4b63-9151-f3ee206dd0ce",
+                            "name": "Roles Controller delete Role",
+                            "request": {
+                                "name": "Roles Controller delete Role",
+                                "description": {},
+                                "url": {
+                                    "path": [
+                                        "roles",
+                                        ":id"
+                                    ],
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "query": [],
+                                    "variable": [
+                                        {
+                                            "type": "any",
+                                            "value": "<string>",
+                                            "key": "id",
+                                            "disabled": false,
+                                            "description": {
+                                                "content": "(Required) ",
+                                                "type": "text/plain"
+                                            }
+                                        }
+                                    ]
+                                },
+                                "method": "DELETE",
+                                "body": {},
+                                "auth": null
+                            },
+                            "response": [
+                                {
+                                    "id": "73894f32-4e0a-4737-805b-00235f266935",
+                                    "name": "200",
+                                    "originalRequest": {
+                                        "url": {
+                                            "path": [
+                                                "roles",
+                                                ":id"
+                                            ],
+                                            "host": [
+                                                "{{baseUrl}}"
+                                            ],
+                                            "query": [],
+                                            "variable": [
+                                                {
+                                                    "disabled": false,
+                                                    "description": {
+                                                        "content": "(Required) ",
+                                                        "type": "text/plain"
+                                                    },
+                                                    "type": "any",
+                                                    "value": "<string>",
+                                                    "key": "id"
+                                                }
+                                            ]
+                                        },
+                                        "method": "DELETE",
+                                        "body": {}
+                                    },
+                                    "status": "OK",
+                                    "code": 200,
+                                    "header": [],
+                                    "cookie": [],
+                                    "_postman_previewlanguage": "text"
+                                }
+                            ],
+                            "event": [],
+                            "protocolProfileBehavior": {
+                                "disableBodyPruning": true
+                            }
+                        },
+                        {
+                            "name": "permissions",
+                            "description": "",
+                            "item": [
+                                {
+                                    "id": "75cd02dd-86fe-4dd4-b655-6dbf1247545c",
+                                    "name": "Roles Controller list Role Permissions",
+                                    "request": {
+                                        "name": "Roles Controller list Role Permissions",
+                                        "description": {},
+                                        "url": {
+                                            "path": [
+                                                "roles",
+                                                ":id",
+                                                "permissions"
+                                            ],
+                                            "host": [
+                                                "{{baseUrl}}"
+                                            ],
+                                            "query": [],
+                                            "variable": [
+                                                {
+                                                    "type": "any",
+                                                    "value": "<string>",
+                                                    "key": "id",
+                                                    "disabled": false,
+                                                    "description": {
+                                                        "content": "(Required) ",
+                                                        "type": "text/plain"
+                                                    }
+                                                }
+                                            ]
+                                        },
+                                        "method": "GET",
+                                        "body": {},
+                                        "auth": null
+                                    },
+                                    "response": [
+                                        {
+                                            "id": "1e46928e-3feb-4220-b55e-75a490f45f5e",
+                                            "name": "200",
+                                            "originalRequest": {
+                                                "url": {
+                                                    "path": [
+                                                        "roles",
+                                                        ":id",
+                                                        "permissions"
+                                                    ],
+                                                    "host": [
+                                                        "{{baseUrl}}"
+                                                    ],
+                                                    "query": [],
+                                                    "variable": [
+                                                        {
+                                                            "disabled": false,
+                                                            "description": {
+                                                                "content": "(Required) ",
+                                                                "type": "text/plain"
+                                                            },
+                                                            "type": "any",
+                                                            "value": "<string>",
+                                                            "key": "id"
+                                                        }
+                                                    ]
+                                                },
+                                                "method": "GET",
+                                                "body": {}
+                                            },
+                                            "status": "OK",
+                                            "code": 200,
+                                            "header": [],
+                                            "cookie": [],
+                                            "_postman_previewlanguage": "text"
+                                        }
+                                    ],
+                                    "event": [],
+                                    "protocolProfileBehavior": {
+                                        "disableBodyPruning": true
+                                    }
+                                },
+                                {
+                                    "id": "4d2e5db7-823e-46c9-ac59-3fce59b5e548",
+                                    "name": "Roles Controller replace Permissions",
+                                    "request": {
+                                        "name": "Roles Controller replace Permissions",
+                                        "description": {},
+                                        "url": {
+                                            "path": [
+                                                "roles",
+                                                ":id",
+                                                "permissions"
+                                            ],
+                                            "host": [
+                                                "{{baseUrl}}"
+                                            ],
+                                            "query": [],
+                                            "variable": [
+                                                {
+                                                    "type": "any",
+                                                    "value": "<string>",
+                                                    "key": "id",
+                                                    "disabled": false,
+                                                    "description": {
+                                                        "content": "(Required) ",
+                                                        "type": "text/plain"
+                                                    }
+                                                }
+                                            ]
+                                        },
+                                        "method": "PUT",
+                                        "body": {},
+                                        "auth": null
+                                    },
+                                    "response": [
+                                        {
+                                            "id": "5d12feae-03f9-440f-b897-556838a2b0e9",
+                                            "name": "200",
+                                            "originalRequest": {
+                                                "url": {
+                                                    "path": [
+                                                        "roles",
+                                                        ":id",
+                                                        "permissions"
+                                                    ],
+                                                    "host": [
+                                                        "{{baseUrl}}"
+                                                    ],
+                                                    "query": [],
+                                                    "variable": [
+                                                        {
+                                                            "disabled": false,
+                                                            "description": {
+                                                                "content": "(Required) ",
+                                                                "type": "text/plain"
+                                                            },
+                                                            "type": "any",
+                                                            "value": "<string>",
+                                                            "key": "id"
+                                                        }
+                                                    ]
+                                                },
+                                                "method": "PUT",
+                                                "body": {}
+                                            },
+                                            "status": "OK",
+                                            "code": 200,
+                                            "header": [],
+                                            "cookie": [],
+                                            "_postman_previewlanguage": "text"
+                                        }
+                                    ],
+                                    "event": [],
+                                    "protocolProfileBehavior": {
+                                        "disableBodyPruning": true
+                                    }
+                                },
+                                {
+                                    "name": "grant",
+                                    "description": "",
+                                    "item": [
+                                        {
+                                            "id": "26b396e0-9a6a-4315-8d0e-8c3107924550",
+                                            "name": "Roles Controller grant Permissions",
+                                            "request": {
+                                                "name": "Roles Controller grant Permissions",
+                                                "description": {},
+                                                "url": {
+                                                    "path": [
+                                                        "roles",
+                                                        ":id",
+                                                        "permissions",
+                                                        "grant"
+                                                    ],
+                                                    "host": [
+                                                        "{{baseUrl}}"
+                                                    ],
+                                                    "query": [],
+                                                    "variable": [
+                                                        {
+                                                            "type": "any",
+                                                            "value": "<string>",
+                                                            "key": "id",
+                                                            "disabled": false,
+                                                            "description": {
+                                                                "content": "(Required) ",
+                                                                "type": "text/plain"
+                                                            }
+                                                        }
+                                                    ]
+                                                },
+                                                "method": "POST",
+                                                "body": {},
+                                                "auth": null
+                                            },
+                                            "response": [
+                                                {
+                                                    "id": "f29ab903-0010-414c-8e6f-f824262bfa32",
+                                                    "name": "201",
+                                                    "originalRequest": {
+                                                        "url": {
+                                                            "path": [
+                                                                "roles",
+                                                                ":id",
+                                                                "permissions",
+                                                                "grant"
+                                                            ],
+                                                            "host": [
+                                                                "{{baseUrl}}"
+                                                            ],
+                                                            "query": [],
+                                                            "variable": [
+                                                                {
+                                                                    "disabled": false,
+                                                                    "description": {
+                                                                        "content": "(Required) ",
+                                                                        "type": "text/plain"
+                                                                    },
+                                                                    "type": "any",
+                                                                    "value": "<string>",
+                                                                    "key": "id"
+                                                                }
+                                                            ]
+                                                        },
+                                                        "method": "POST",
+                                                        "body": {}
+                                                    },
+                                                    "status": "Created",
+                                                    "code": 201,
+                                                    "header": [],
+                                                    "cookie": [],
+                                                    "_postman_previewlanguage": "text"
+                                                }
+                                            ],
+                                            "event": [],
+                                            "protocolProfileBehavior": {
+                                                "disableBodyPruning": true
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "revoke",
+                                    "description": "",
+                                    "item": [
+                                        {
+                                            "id": "5e4f4f41-37f8-411d-82a7-3becd507a52e",
+                                            "name": "Roles Controller revoke Permissions",
+                                            "request": {
+                                                "name": "Roles Controller revoke Permissions",
+                                                "description": {},
+                                                "url": {
+                                                    "path": [
+                                                        "roles",
+                                                        ":id",
+                                                        "permissions",
+                                                        "revoke"
+                                                    ],
+                                                    "host": [
+                                                        "{{baseUrl}}"
+                                                    ],
+                                                    "query": [],
+                                                    "variable": [
+                                                        {
+                                                            "type": "any",
+                                                            "value": "<string>",
+                                                            "key": "id",
+                                                            "disabled": false,
+                                                            "description": {
+                                                                "content": "(Required) ",
+                                                                "type": "text/plain"
+                                                            }
+                                                        }
+                                                    ]
+                                                },
+                                                "method": "POST",
+                                                "body": {},
+                                                "auth": null
+                                            },
+                                            "response": [
+                                                {
+                                                    "id": "352d59b2-5bfa-4fdc-8da9-79073e294bb8",
+                                                    "name": "201",
+                                                    "originalRequest": {
+                                                        "url": {
+                                                            "path": [
+                                                                "roles",
+                                                                ":id",
+                                                                "permissions",
+                                                                "revoke"
+                                                            ],
+                                                            "host": [
+                                                                "{{baseUrl}}"
+                                                            ],
+                                                            "query": [],
+                                                            "variable": [
+                                                                {
+                                                                    "disabled": false,
+                                                                    "description": {
+                                                                        "content": "(Required) ",
+                                                                        "type": "text/plain"
+                                                                    },
+                                                                    "type": "any",
+                                                                    "value": "<string>",
+                                                                    "key": "id"
+                                                                }
+                                                            ]
+                                                        },
+                                                        "method": "POST",
+                                                        "body": {}
+                                                    },
+                                                    "status": "Created",
+                                                    "code": 201,
+                                                    "header": [],
+                                                    "cookie": [],
+                                                    "_postman_previewlanguage": "text"
+                                                }
+                                            ],
+                                            "event": [],
+                                            "protocolProfileBehavior": {
+                                                "disableBodyPruning": true
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "permissions",
+            "description": "",
+            "item": [
+                {
+                    "id": "4ec0683c-e770-4987-b9e3-eaa7766a2e33",
+                    "name": "Permissions Controller list Permissions",
+                    "request": {
+                        "name": "Permissions Controller list Permissions",
+                        "description": {},
+                        "url": {
+                            "path": [
+                                "permissions"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "method": "GET",
+                        "body": {},
+                        "auth": null
+                    },
+                    "response": [
+                        {
+                            "id": "86ade48d-a518-428d-8850-59b257254ea6",
+                            "name": "200",
+                            "originalRequest": {
+                                "url": {
+                                    "path": [
+                                        "permissions"
+                                    ],
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "query": [],
+                                    "variable": []
+                                },
+                                "method": "GET",
+                                "body": {}
+                            },
+                            "status": "OK",
+                            "code": 200,
+                            "header": [],
+                            "cookie": [],
+                            "_postman_previewlanguage": "text"
+                        }
+                    ],
+                    "event": [],
+                    "protocolProfileBehavior": {
+                        "disableBodyPruning": true
+                    }
+                },
+                {
+                    "name": "{id}",
+                    "description": "",
+                    "item": [
+                        {
+                            "id": "93b1f17a-9b35-4278-a3ef-574df18c2eb2",
+                            "name": "Permissions Controller get Permission",
+                            "request": {
+                                "name": "Permissions Controller get Permission",
+                                "description": {},
+                                "url": {
+                                    "path": [
+                                        "permissions",
+                                        ":id"
+                                    ],
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "query": [],
+                                    "variable": [
+                                        {
+                                            "type": "any",
+                                            "value": "<string>",
+                                            "key": "id",
+                                            "disabled": false,
+                                            "description": {
+                                                "content": "(Required) ",
+                                                "type": "text/plain"
+                                            }
+                                        }
+                                    ]
+                                },
+                                "method": "GET",
+                                "body": {},
+                                "auth": null
+                            },
+                            "response": [
+                                {
+                                    "id": "4b68fbea-012e-4137-baf1-ea2d745cf448",
+                                    "name": "200",
+                                    "originalRequest": {
+                                        "url": {
+                                            "path": [
+                                                "permissions",
+                                                ":id"
+                                            ],
+                                            "host": [
+                                                "{{baseUrl}}"
+                                            ],
+                                            "query": [],
+                                            "variable": [
+                                                {
+                                                    "disabled": false,
+                                                    "description": {
+                                                        "content": "(Required) ",
+                                                        "type": "text/plain"
+                                                    },
+                                                    "type": "any",
+                                                    "value": "<string>",
+                                                    "key": "id"
+                                                }
+                                            ]
+                                        },
+                                        "method": "GET",
+                                        "body": {}
+                                    },
+                                    "status": "OK",
+                                    "code": 200,
+                                    "header": [],
+                                    "cookie": [],
+                                    "_postman_previewlanguage": "text"
+                                }
+                            ],
+                            "event": [],
+                            "protocolProfileBehavior": {
+                                "disableBodyPruning": true
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "hotel-users",
+            "description": "",
+            "item": [
+                {
+                    "id": "f113348c-2c10-497a-86bd-31b0dce904aa",
+                    "name": "Hotel Users Controller create Hotel User",
+                    "request": {
+                        "name": "Hotel Users Controller create Hotel User",
+                        "description": {},
+                        "url": {
+                            "path": [
+                                "hotel-users"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "header": [
+                            {
+                                "disabled": false,
+                                "description": {
+                                    "content": "(Required) ",
+                                    "type": "text/plain"
+                                },
+                                "key": "x-tenant-id",
+                                "value": "<string>"
+                            }
+                        ],
+                        "method": "POST",
+                        "body": {},
+                        "auth": null
+                    },
+                    "response": [
+                        {
+                            "id": "c8932a6d-cb25-45c2-a8c5-c3bb845563d0",
+                            "name": "201",
+                            "originalRequest": {
+                                "url": {
+                                    "path": [
+                                        "hotel-users"
+                                    ],
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "query": [],
+                                    "variable": []
+                                },
+                                "header": [
+                                    {
+                                        "disabled": false,
+                                        "description": {
+                                            "content": "(Required) ",
+                                            "type": "text/plain"
+                                        },
+                                        "key": "x-tenant-id",
+                                        "value": "<string>"
+                                    }
+                                ],
+                                "method": "POST",
+                                "body": {}
+                            },
+                            "status": "Created",
+                            "code": 201,
+                            "header": [],
+                            "cookie": [],
+                            "_postman_previewlanguage": "text"
+                        }
+                    ],
+                    "event": [],
+                    "protocolProfileBehavior": {
+                        "disableBodyPruning": true
+                    }
+                },
+                {
+                    "id": "1dcc6cf3-688a-473c-96fc-552d51d07388",
+                    "name": "Hotel Users Controller list Hotel Users",
+                    "request": {
+                        "name": "Hotel Users Controller list Hotel Users",
+                        "description": {},
+                        "url": {
+                            "path": [
+                                "hotel-users"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "header": [
+                            {
+                                "disabled": false,
+                                "description": {
+                                    "content": "(Required) ",
+                                    "type": "text/plain"
+                                },
+                                "key": "x-tenant-id",
+                                "value": "<string>"
+                            }
+                        ],
+                        "method": "GET",
+                        "body": {},
+                        "auth": null
+                    },
+                    "response": [
+                        {
+                            "id": "72048fa0-ac3e-4b58-977a-51d7edcbef2c",
+                            "name": "200",
+                            "originalRequest": {
+                                "url": {
+                                    "path": [
+                                        "hotel-users"
+                                    ],
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "query": [],
+                                    "variable": []
+                                },
+                                "header": [
+                                    {
+                                        "disabled": false,
+                                        "description": {
+                                            "content": "(Required) ",
+                                            "type": "text/plain"
+                                        },
+                                        "key": "x-tenant-id",
+                                        "value": "<string>"
+                                    }
+                                ],
+                                "method": "GET",
+                                "body": {}
+                            },
+                            "status": "OK",
+                            "code": 200,
+                            "header": [],
+                            "cookie": [],
+                            "_postman_previewlanguage": "text"
+                        }
+                    ],
+                    "event": [],
+                    "protocolProfileBehavior": {
+                        "disableBodyPruning": true
+                    }
+                },
+                {
+                    "name": "{id}",
+                    "description": "",
+                    "item": [
+                        {
+                            "id": "41371e87-1899-45ab-8b16-0fd0c81b9948",
+                            "name": "Hotel Users Controller get Hotel User",
+                            "request": {
+                                "name": "Hotel Users Controller get Hotel User",
+                                "description": {},
+                                "url": {
+                                    "path": [
+                                        "hotel-users",
+                                        ":id"
+                                    ],
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "query": [
+                                        {
+                                            "disabled": false,
+                                            "description": {
+                                                "content": "(Required) ",
+                                                "type": "text/plain"
+                                            },
+                                            "key": "tenantId",
+                                            "value": "<string>"
+                                        }
+                                    ],
+                                    "variable": [
+                                        {
+                                            "type": "any",
+                                            "value": "<string>",
+                                            "key": "id",
+                                            "disabled": false,
+                                            "description": {
+                                                "content": "(Required) ",
+                                                "type": "text/plain"
+                                            }
+                                        }
+                                    ]
+                                },
+                                "header": [
+                                    {
+                                        "disabled": false,
+                                        "description": {
+                                            "content": "(Required) ",
+                                            "type": "text/plain"
+                                        },
+                                        "key": "x-tenant-id",
+                                        "value": "<string>"
+                                    }
+                                ],
+                                "method": "GET",
+                                "body": {},
+                                "auth": null
+                            },
+                            "response": [
+                                {
+                                    "id": "17ad6c7f-3fb9-4405-a374-fa92a63aa22f",
+                                    "name": "200",
+                                    "originalRequest": {
+                                        "url": {
+                                            "path": [
+                                                "hotel-users",
+                                                ":id"
+                                            ],
+                                            "host": [
+                                                "{{baseUrl}}"
+                                            ],
+                                            "query": [
+                                                {
+                                                    "disabled": false,
+                                                    "description": {
+                                                        "content": "(Required) ",
+                                                        "type": "text/plain"
+                                                    },
+                                                    "key": "tenantId",
+                                                    "value": "<string>"
+                                                }
+                                            ],
+                                            "variable": [
+                                                {
+                                                    "disabled": false,
+                                                    "description": {
+                                                        "content": "(Required) ",
+                                                        "type": "text/plain"
+                                                    },
+                                                    "type": "any",
+                                                    "value": "<string>",
+                                                    "key": "id"
+                                                }
+                                            ]
+                                        },
+                                        "header": [
+                                            {
+                                                "disabled": false,
+                                                "description": {
+                                                    "content": "(Required) ",
+                                                    "type": "text/plain"
+                                                },
+                                                "key": "x-tenant-id",
+                                                "value": "<string>"
+                                            }
+                                        ],
+                                        "method": "GET",
+                                        "body": {}
+                                    },
+                                    "status": "OK",
+                                    "code": 200,
+                                    "header": [],
+                                    "cookie": [],
+                                    "_postman_previewlanguage": "text"
+                                }
+                            ],
+                            "event": [],
+                            "protocolProfileBehavior": {
+                                "disableBodyPruning": true
+                            }
+                        },
+                        {
+                            "name": "status",
+                            "description": "",
+                            "item": [
+                                {
+                                    "id": "c9cbbe79-aed4-480f-80cf-6b9c4d3c1b0d",
+                                    "name": "Hotel Users Controller update Hotel User Status",
+                                    "request": {
+                                        "name": "Hotel Users Controller update Hotel User Status",
+                                        "description": {},
+                                        "url": {
+                                            "path": [
+                                                "hotel-users",
+                                                ":id",
+                                                "status"
+                                            ],
+                                            "host": [
+                                                "{{baseUrl}}"
+                                            ],
+                                            "query": [
+                                                {
+                                                    "disabled": false,
+                                                    "description": {
+                                                        "content": "(Required) ",
+                                                        "type": "text/plain"
+                                                    },
+                                                    "key": "tenantId",
+                                                    "value": "<string>"
+                                                }
+                                            ],
+                                            "variable": [
+                                                {
+                                                    "type": "any",
+                                                    "value": "<string>",
+                                                    "key": "id",
+                                                    "disabled": false,
+                                                    "description": {
+                                                        "content": "(Required) ",
+                                                        "type": "text/plain"
+                                                    }
+                                                }
+                                            ]
+                                        },
+                                        "header": [
+                                            {
+                                                "disabled": false,
+                                                "description": {
+                                                    "content": "(Required) ",
+                                                    "type": "text/plain"
+                                                },
+                                                "key": "x-tenant-id",
+                                                "value": "<string>"
+                                            }
+                                        ],
+                                        "method": "PATCH",
+                                        "body": {},
+                                        "auth": null
+                                    },
+                                    "response": [
+                                        {
+                                            "id": "09a31509-6142-4817-9729-677edd35d6f0",
+                                            "name": "200",
+                                            "originalRequest": {
+                                                "url": {
+                                                    "path": [
+                                                        "hotel-users",
+                                                        ":id",
+                                                        "status"
+                                                    ],
+                                                    "host": [
+                                                        "{{baseUrl}}"
+                                                    ],
+                                                    "query": [
+                                                        {
+                                                            "disabled": false,
+                                                            "description": {
+                                                                "content": "(Required) ",
+                                                                "type": "text/plain"
+                                                            },
+                                                            "key": "tenantId",
+                                                            "value": "<string>"
+                                                        }
+                                                    ],
+                                                    "variable": [
+                                                        {
+                                                            "disabled": false,
+                                                            "description": {
+                                                                "content": "(Required) ",
+                                                                "type": "text/plain"
+                                                            },
+                                                            "type": "any",
+                                                            "value": "<string>",
+                                                            "key": "id"
+                                                        }
+                                                    ]
+                                                },
+                                                "header": [
+                                                    {
+                                                        "disabled": false,
+                                                        "description": {
+                                                            "content": "(Required) ",
+                                                            "type": "text/plain"
+                                                        },
+                                                        "key": "x-tenant-id",
+                                                        "value": "<string>"
+                                                    }
+                                                ],
+                                                "method": "PATCH",
+                                                "body": {}
+                                            },
+                                            "status": "OK",
+                                            "code": 200,
+                                            "header": [],
+                                            "cookie": [],
+                                            "_postman_previewlanguage": "text"
+                                        }
+                                    ],
+                                    "event": [],
+                                    "protocolProfileBehavior": {
+                                        "disableBodyPruning": true
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "name": "roles",
+                            "description": "",
+                            "item": [
+                                {
+                                    "id": "6ffa0548-cf34-4090-b8ae-916b8d954bd3",
+                                    "name": "Hotel Users Controller assign Hotel User Roles",
+                                    "request": {
+                                        "name": "Hotel Users Controller assign Hotel User Roles",
+                                        "description": {},
+                                        "url": {
+                                            "path": [
+                                                "hotel-users",
+                                                ":id",
+                                                "roles"
+                                            ],
+                                            "host": [
+                                                "{{baseUrl}}"
+                                            ],
+                                            "query": [
+                                                {
+                                                    "disabled": false,
+                                                    "description": {
+                                                        "content": "(Required) ",
+                                                        "type": "text/plain"
+                                                    },
+                                                    "key": "tenantId",
+                                                    "value": "<string>"
+                                                }
+                                            ],
+                                            "variable": [
+                                                {
+                                                    "type": "any",
+                                                    "value": "<string>",
+                                                    "key": "id",
+                                                    "disabled": false,
+                                                    "description": {
+                                                        "content": "(Required) ",
+                                                        "type": "text/plain"
+                                                    }
+                                                }
+                                            ]
+                                        },
+                                        "header": [
+                                            {
+                                                "disabled": false,
+                                                "description": {
+                                                    "content": "(Required) ",
+                                                    "type": "text/plain"
+                                                },
+                                                "key": "x-tenant-id",
+                                                "value": "<string>"
+                                            }
+                                        ],
+                                        "method": "POST",
+                                        "body": {},
+                                        "auth": null
+                                    },
+                                    "response": [
+                                        {
+                                            "id": "e26c7d97-9c6a-4306-81c3-6b879da47744",
+                                            "name": "201",
+                                            "originalRequest": {
+                                                "url": {
+                                                    "path": [
+                                                        "hotel-users",
+                                                        ":id",
+                                                        "roles"
+                                                    ],
+                                                    "host": [
+                                                        "{{baseUrl}}"
+                                                    ],
+                                                    "query": [
+                                                        {
+                                                            "disabled": false,
+                                                            "description": {
+                                                                "content": "(Required) ",
+                                                                "type": "text/plain"
+                                                            },
+                                                            "key": "tenantId",
+                                                            "value": "<string>"
+                                                        }
+                                                    ],
+                                                    "variable": [
+                                                        {
+                                                            "disabled": false,
+                                                            "description": {
+                                                                "content": "(Required) ",
+                                                                "type": "text/plain"
+                                                            },
+                                                            "type": "any",
+                                                            "value": "<string>",
+                                                            "key": "id"
+                                                        }
+                                                    ]
+                                                },
+                                                "header": [
+                                                    {
+                                                        "disabled": false,
+                                                        "description": {
+                                                            "content": "(Required) ",
+                                                            "type": "text/plain"
+                                                        },
+                                                        "key": "x-tenant-id",
+                                                        "value": "<string>"
+                                                    }
+                                                ],
+                                                "method": "POST",
+                                                "body": {}
+                                            },
+                                            "status": "Created",
+                                            "code": 201,
+                                            "header": [],
+                                            "cookie": [],
+                                            "_postman_previewlanguage": "text"
+                                        }
+                                    ],
+                                    "event": [],
+                                    "protocolProfileBehavior": {
+                                        "disableBodyPruning": true
+                                    }
+                                },
+                                {
+                                    "name": "{roleId}",
+                                    "description": "",
+                                    "item": [
+                                        {
+                                            "id": "c4e70727-f491-496f-a450-d533344e5081",
+                                            "name": "Hotel Users Controller revoke Hotel User Role",
+                                            "request": {
+                                                "name": "Hotel Users Controller revoke Hotel User Role",
+                                                "description": {},
+                                                "url": {
+                                                    "path": [
+                                                        "hotel-users",
+                                                        ":id",
+                                                        "roles",
+                                                        ":roleId"
+                                                    ],
+                                                    "host": [
+                                                        "{{baseUrl}}"
+                                                    ],
+                                                    "query": [
+                                                        {
+                                                            "disabled": false,
+                                                            "description": {
+                                                                "content": "(Required) ",
+                                                                "type": "text/plain"
+                                                            },
+                                                            "key": "tenantId",
+                                                            "value": "<string>"
+                                                        }
+                                                    ],
+                                                    "variable": [
+                                                        {
+                                                            "type": "any",
+                                                            "value": "<string>",
+                                                            "key": "id",
+                                                            "disabled": false,
+                                                            "description": {
+                                                                "content": "(Required) ",
+                                                                "type": "text/plain"
+                                                            }
+                                                        },
+                                                        {
+                                                            "type": "any",
+                                                            "value": "<string>",
+                                                            "key": "roleId",
+                                                            "disabled": false,
+                                                            "description": {
+                                                                "content": "(Required) ",
+                                                                "type": "text/plain"
+                                                            }
+                                                        }
+                                                    ]
+                                                },
+                                                "header": [
+                                                    {
+                                                        "disabled": false,
+                                                        "description": {
+                                                            "content": "(Required) ",
+                                                            "type": "text/plain"
+                                                        },
+                                                        "key": "x-tenant-id",
+                                                        "value": "<string>"
+                                                    }
+                                                ],
+                                                "method": "DELETE",
+                                                "body": {},
+                                                "auth": null
+                                            },
+                                            "response": [
+                                                {
+                                                    "id": "4f416634-a833-4eb1-bc42-865f197eca6b",
+                                                    "name": "200",
+                                                    "originalRequest": {
+                                                        "url": {
+                                                            "path": [
+                                                                "hotel-users",
+                                                                ":id",
+                                                                "roles",
+                                                                ":roleId"
+                                                            ],
+                                                            "host": [
+                                                                "{{baseUrl}}"
+                                                            ],
+                                                            "query": [
+                                                                {
+                                                                    "disabled": false,
+                                                                    "description": {
+                                                                        "content": "(Required) ",
+                                                                        "type": "text/plain"
+                                                                    },
+                                                                    "key": "tenantId",
+                                                                    "value": "<string>"
+                                                                }
+                                                            ],
+                                                            "variable": [
+                                                                {
+                                                                    "disabled": false,
+                                                                    "description": {
+                                                                        "content": "(Required) ",
+                                                                        "type": "text/plain"
+                                                                    },
+                                                                    "type": "any",
+                                                                    "value": "<string>",
+                                                                    "key": "id"
+                                                                },
+                                                                {
+                                                                    "disabled": false,
+                                                                    "description": {
+                                                                        "content": "(Required) ",
+                                                                        "type": "text/plain"
+                                                                    },
+                                                                    "type": "any",
+                                                                    "value": "<string>",
+                                                                    "key": "roleId"
+                                                                }
+                                                            ]
+                                                        },
+                                                        "header": [
+                                                            {
+                                                                "disabled": false,
+                                                                "description": {
+                                                                    "content": "(Required) ",
+                                                                    "type": "text/plain"
+                                                                },
+                                                                "key": "x-tenant-id",
+                                                                "value": "<string>"
+                                                            }
+                                                        ],
+                                                        "method": "DELETE",
+                                                        "body": {}
+                                                    },
+                                                    "status": "OK",
+                                                    "code": 200,
+                                                    "header": [],
+                                                    "cookie": [],
+                                                    "_postman_previewlanguage": "text"
+                                                }
+                                            ],
+                                            "event": [],
+                                            "protocolProfileBehavior": {
+                                                "disableBodyPruning": true
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "event": [],
+    "variable": [
+        {
+            "key": "baseUrl",
+            "value": "/"
+        }
+    ],
+    "info": {
+        "_postman_id": "a811e0dd-467a-4464-a69d-b2e451c31fcc",
+        "name": "VietSage Auth Service API",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+        "description": {
+            "content": "HTTP API contract for auth, rbac, and hotel-users modules",
+            "type": "text/plain"
+        }
+    }
+}

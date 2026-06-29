@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "microservices-architecture": {
+      "source": "aj-geddes/useful-ai-prompts",
+      "sourceType": "github",
+      "skillPath": "skills/microservices-architecture/SKILL.md",
+      "computedHash": "4f309c256954a097a484c32fa8cc388e6d51ba9ed75c979a11cd1c33e2efe441"
+    }
+  }
+}

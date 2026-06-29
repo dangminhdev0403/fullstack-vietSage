@@ -1,0 +1,5129 @@
+openapi: 3.0.0
+paths:
+  /health:
+    get:
+      operationId: HealthController_getHealth
+      parameters: []
+      responses:
+        "200":
+          description: Bao phản hồi kiểm tra hệ thống
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Kiểm tra hệ thống thành công
+                  data:
+                    type: object
+                    properties:
+                      status:
+                        type: string
+                        enum:
+                          - ok
+                      service:
+                        type: string
+                        example: auth-service
+                      uptimeSeconds:
+                        type: number
+                        example: 1234
+                      timestamp:
+                        type: string
+                        format: date-time
+                    required:
+                      - status
+                      - service
+                      - uptimeSeconds
+                      - timestamp
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags:
+        - health
+  /auth/login:
+    post:
+      operationId: AuthController_login
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 1
+              required:
+                - email
+                - password
+      responses:
+        "200":
+          description: Bao phản hồi đăng nhập
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Đăng nhập thành công
+                  data:
+                    type: object
+                    properties:
+                      accessToken:
+                        type: string
+                      refreshToken:
+                        type: string
+                      tokenType:
+                        type: string
+                        enum:
+                          - Bearer
+                      accessTtl:
+                        type: string
+                        example: 15m
+                      refreshTtl:
+                        type: string
+                        example: 7d
+                    required:
+                      - accessToken
+                      - refreshToken
+                      - tokenType
+                      - accessTtl
+                      - refreshTtl
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: &a1
+        - auth
+  /auth/refresh:
+    post:
+      operationId: AuthController_refresh
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken:
+                  type: string
+                  minLength: 1
+              required:
+                - refreshToken
+      responses:
+        "201":
+          description: Bao phản hồi làm mới token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 201
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Làm mới token thành công
+                  data:
+                    type: object
+                    properties:
+                      accessToken:
+                        type: string
+                      refreshToken:
+                        type: string
+                      tokenType:
+                        type: string
+                        enum:
+                          - Bearer
+                      accessTtl:
+                        type: string
+                        example: 15m
+                      refreshTtl:
+                        type: string
+                        example: 7d
+                    required:
+                      - accessToken
+                      - refreshToken
+                      - tokenType
+                      - accessTtl
+                      - refreshTtl
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a1
+  /auth/logout:
+    post:
+      operationId: AuthController_logout
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken:
+                  type: string
+                  minLength: 1
+              required:
+                - refreshToken
+      responses:
+        "200":
+          description: Bao phản hồi đăng xuất
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Đăng xuất thành công
+                  data:
+                    type: object
+                    properties:
+                      success:
+                        type: boolean
+                        enum:
+                          - true
+                    required:
+                      - success
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a1
+  /auth/me:
+    get:
+      operationId: AuthController_me
+      parameters: []
+      responses:
+        "200":
+          description: Bao phản hồi hồ sơ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Lấy hồ sơ thành công
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      email:
+                        type: string
+                        format: email
+                      fullName:
+                        type: string
+                      status:
+                        type: string
+                        enum:
+                          - ACTIVE
+                          - LOCKED
+                          - DISABLED
+                      roles:
+                        type: array
+                        items:
+                          type: string
+                      menus:
+                        type: array
+                        items:
+                          type: string
+                      permissions:
+                        type: array
+                        items:
+                          type: string
+                      tenants:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            code:
+                              type: string
+                            name:
+                              type: string
+                            status:
+                              type: string
+                          required:
+                            - id
+                            - code
+                            - name
+                            - status
+                    required:
+                      - id
+                      - email
+                      - fullName
+                      - status
+                      - roles
+                      - menus
+                      - permissions
+                      - tenants
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a1
+  /roles:
+    post:
+      operationId: RolesController_createRole
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+                  minLength: 2
+                  maxLength: 80
+                name:
+                  type: string
+                  minLength: 2
+                  maxLength: 120
+                description:
+                  type: string
+                  maxLength: 255
+              required:
+                - code
+                - name
+      responses:
+        "201":
+          description: Bao phản hồi tạo vai trò
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 201
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Tạo vai trò thành công
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      code:
+                        type: string
+                      name:
+                        type: string
+                      description:
+                        type: string
+                        nullable: true
+                      status:
+                        type: string
+                        enum:
+                          - ACTIVE
+                          - DISABLED
+                      createdAt:
+                        type: string
+                        format: date-time
+                      updatedAt:
+                        type: string
+                        format: date-time
+                    required:
+                      - id
+                      - code
+                      - name
+                      - description
+                      - status
+                      - createdAt
+                      - updatedAt
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: &a2
+        - rbac.roles
+    get:
+      operationId: RolesController_listRoles
+      parameters: []
+      responses:
+        "200":
+          description: Bao phản hồi danh sách vai trò
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Lấy danh sách vai trò thành công
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        description:
+                          type: string
+                          nullable: true
+                        createdAt:
+                          type: string
+                          format: date-time
+                        name:
+                          type: string
+                        status:
+                          type: string
+                          enum:
+                            - ACTIVE
+                            - DISABLED
+                        menus:
+                          type: array
+                          items:
+                            type: string
+                        enabledCount:
+                          type: number
+                      required:
+                        - id
+                        - description
+                        - createdAt
+                        - name
+                        - status
+                        - menus
+                        - enabledCount
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a2
+  /roles/by-name/{name}:
+    get:
+      operationId: RolesController_getRoleByName
+      parameters:
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Bao phản hồi lấy vai trò theo tên
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Lấy chi tiết vai trò thành công
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      code:
+                        type: string
+                      name:
+                        type: string
+                      description:
+                        type: string
+                        nullable: true
+                      status:
+                        type: string
+                        enum:
+                          - ACTIVE
+                          - DISABLED
+                      createdAt:
+                        type: string
+                        format: date-time
+                      updatedAt:
+                        type: string
+                        format: date-time
+                      rolePermissions:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            roleId:
+                              type: string
+                            permissionId:
+                              type: string
+                            permission:
+                              type: object
+                              properties:
+                                id:
+                                  type: string
+                                method:
+                                  type: string
+                                  enum:
+                                    - GET
+                                    - POST
+                                    - PUT
+                                    - PATCH
+                                    - DELETE
+                                    - OPTIONS
+                                path:
+                                  type: string
+                                description:
+                                  type: string
+                                createdAt:
+                                  type: string
+                                  format: date-time
+                                updatedAt:
+                                  type: string
+                                  format: date-time
+                              required:
+                                - id
+                                - method
+                                - path
+                                - description
+                                - createdAt
+                                - updatedAt
+                          required:
+                            - id
+                            - roleId
+                            - permissionId
+                            - permission
+                      _count:
+                        type: object
+                        properties:
+                          userRoles:
+                            type: number
+                          rolePermissions:
+                            type: number
+                        required:
+                          - userRoles
+                          - rolePermissions
+                    required:
+                      - id
+                      - code
+                      - name
+                      - description
+                      - status
+                      - createdAt
+                      - updatedAt
+                      - rolePermissions
+                      - _count
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a2
+  /roles/menus:
+    get:
+      operationId: RolesController_getRoleMenus
+      parameters: []
+      responses:
+        "200":
+          description: Bao phản hồi danh sách menu của vai trò
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Lấy menu của vai trò thành công
+                  data:
+                    type: array
+                    items:
+                      type: string
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a2
+  /roles/{id}:
+    get:
+      operationId: RolesController_getRole
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Bao phản hồi lấy vai trò
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Lấy chi tiết vai trò thành công
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      code:
+                        type: string
+                      name:
+                        type: string
+                      description:
+                        type: string
+                        nullable: true
+                      status:
+                        type: string
+                        enum:
+                          - ACTIVE
+                          - DISABLED
+                      createdAt:
+                        type: string
+                        format: date-time
+                      updatedAt:
+                        type: string
+                        format: date-time
+                      rolePermissions:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            roleId:
+                              type: string
+                            permissionId:
+                              type: string
+                            permission:
+                              type: object
+                              properties:
+                                id:
+                                  type: string
+                                method:
+                                  type: string
+                                  enum:
+                                    - GET
+                                    - POST
+                                    - PUT
+                                    - PATCH
+                                    - DELETE
+                                    - OPTIONS
+                                path:
+                                  type: string
+                                description:
+                                  type: string
+                                createdAt:
+                                  type: string
+                                  format: date-time
+                                updatedAt:
+                                  type: string
+                                  format: date-time
+                              required:
+                                - id
+                                - method
+                                - path
+                                - description
+                                - createdAt
+                                - updatedAt
+                          required:
+                            - id
+                            - roleId
+                            - permissionId
+                            - permission
+                      _count:
+                        type: object
+                        properties:
+                          userRoles:
+                            type: number
+                          rolePermissions:
+                            type: number
+                        required:
+                          - userRoles
+                          - rolePermissions
+                    required:
+                      - id
+                      - code
+                      - name
+                      - description
+                      - status
+                      - createdAt
+                      - updatedAt
+                      - rolePermissions
+                      - _count
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a2
+    patch:
+      operationId: RolesController_updateRole
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 2
+                  maxLength: 120
+                description:
+                  type: string
+                  maxLength: 255
+      responses:
+        "200":
+          description: Bao phản hồi cập nhật vai trò
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Cập nhật vai trò thành công
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      code:
+                        type: string
+                      name:
+                        type: string
+                      description:
+                        type: string
+                        nullable: true
+                      status:
+                        type: string
+                        enum:
+                          - ACTIVE
+                          - DISABLED
+                      createdAt:
+                        type: string
+                        format: date-time
+                      updatedAt:
+                        type: string
+                        format: date-time
+                    required:
+                      - id
+                      - code
+                      - name
+                      - description
+                      - status
+                      - createdAt
+                      - updatedAt
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a2
+    delete:
+      operationId: RolesController_deleteRole
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Bao phản hồi xóa vai trò
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Xóa vai trò thành công
+                  data:
+                    type: object
+                    properties:
+                      deleted:
+                        type: boolean
+                        enum:
+                          - true
+                    required:
+                      - deleted
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a2
+  /roles/{id}/disable:
+    post:
+      operationId: RolesController_disableRole
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Bao phản hồi tắt vai trò
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Tắt vai trò thành công
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      code:
+                        type: string
+                      name:
+                        type: string
+                      description:
+                        type: string
+                        nullable: true
+                      status:
+                        type: string
+                        enum:
+                          - ACTIVE
+                          - DISABLED
+                      createdAt:
+                        type: string
+                        format: date-time
+                      updatedAt:
+                        type: string
+                        format: date-time
+                    required:
+                      - id
+                      - code
+                      - name
+                      - description
+                      - status
+                      - createdAt
+                      - updatedAt
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a2
+  /roles/{id}/permissions:
+    get:
+      operationId: RolesController_listRolePermissions
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Bao phản hồi danh sách quyền của vai trò
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Lấy danh sách quyền của vai trò thành công
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        method:
+                          type: string
+                          enum:
+                            - GET
+                            - POST
+                            - PUT
+                            - PATCH
+                            - DELETE
+                            - OPTIONS
+                        path:
+                          type: string
+                        description:
+                          type: string
+                        createdAt:
+                          type: string
+                          format: date-time
+                        updatedAt:
+                          type: string
+                          format: date-time
+                      required:
+                        - id
+                        - method
+                        - path
+                        - description
+                        - createdAt
+                        - updatedAt
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a2
+    put:
+      operationId: RolesController_replacePermissions
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                permissionIds:
+                  type: array
+                  items:
+                    type: string
+              required:
+                - permissionIds
+      responses:
+        "200":
+          description: Bao phản hồi thay thế quyền
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Thay thế toàn bộ quyền của vai trò thành công
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        method:
+                          type: string
+                          enum:
+                            - GET
+                            - POST
+                            - PUT
+                            - PATCH
+                            - DELETE
+                            - OPTIONS
+                        path:
+                          type: string
+                        description:
+                          type: string
+                        createdAt:
+                          type: string
+                          format: date-time
+                        updatedAt:
+                          type: string
+                          format: date-time
+                      required:
+                        - id
+                        - method
+                        - path
+                        - description
+                        - createdAt
+                        - updatedAt
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a2
+  /roles/me/permission-modules:
+    get:
+      operationId: RolesController_listRolePermissionModules
+      parameters: []
+      responses:
+        "200":
+          description: Bao phản hồi danh sách nhóm quyền của vai trò
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Lấy danh sách nhóm quyền của vai trò thành công
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        moduleKey:
+                          type: string
+                        moduleName:
+                          type: string
+                        totalPermissions:
+                          type: number
+                        enabledCount:
+                          type: number
+                        disabledCount:
+                          type: number
+                        allSelected:
+                          type: boolean
+                        allDisabled:
+                          type: boolean
+                      required:
+                        - moduleKey
+                        - moduleName
+                        - totalPermissions
+                        - enabledCount
+                        - disabledCount
+                        - allSelected
+                        - allDisabled
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a2
+  /roles/me/permission-modules/{moduleKey}/permissions:
+    get:
+      operationId: RolesController_listRolePermissionModulePermissions
+      parameters:
+        - name: limit
+          required: false
+          in: query
+          schema:
+            type: number
+            minimum: 1
+            maximum: 100
+        - name: page
+          required: false
+          in: query
+          schema:
+            type: number
+            minimum: 1
+        - name: moduleKey
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Bao phản hồi danh sách quyền theo nhóm quyền của vai trò
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Lấy danh sách quyền theo trang của nhóm quyền thành công
+                  data:
+                    type: object
+                    properties:
+                      page:
+                        type: number
+                      limit:
+                        type: number
+                      total:
+                        type: number
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            permissionId:
+                              type: string
+                            method:
+                              type: string
+                              enum:
+                                - GET
+                                - POST
+                                - PUT
+                                - PATCH
+                                - DELETE
+                                - OPTIONS
+                            description:
+                              type: string
+                            enabled:
+                              type: boolean
+                          required:
+                            - permissionId
+                            - method
+                            - description
+                            - enabled
+                    required:
+                      - page
+                      - limit
+                      - total
+                      - items
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a2
+  /roles/{roleId}/modules/{moduleKey}/permissions/grant:
+    post:
+      operationId: RolesController_grantRolePermissionModulePermissions
+      parameters:
+        - name: moduleKey
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: roleId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                permissionIds:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: string
+              required:
+                - permissionIds
+      responses:
+        "201":
+          description: Bao phản hồi cấp quyền theo nhóm quyền
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 201
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Cấp quyền theo nhóm quyền thành công
+                  data:
+                    type: object
+                    properties:
+                      moduleKey:
+                        type: string
+                      moduleName:
+                        type: string
+                      totalPermissions:
+                        type: number
+                      enabledCount:
+                        type: number
+                      disabledCount:
+                        type: number
+                      allSelected:
+                        type: boolean
+                      allDisabled:
+                        type: boolean
+                    required:
+                      - moduleKey
+                      - moduleName
+                      - totalPermissions
+                      - enabledCount
+                      - disabledCount
+                      - allSelected
+                      - allDisabled
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a2
+  /roles/{roleId}/modules/{moduleKey}/permissions/revoke:
+    post:
+      operationId: RolesController_revokeRolePermissionModulePermissions
+      parameters:
+        - name: moduleKey
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: roleId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                permissionIds:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: string
+              required:
+                - permissionIds
+      responses:
+        "201":
+          description: Bao phản hồi thu hồi quyền theo nhóm quyền
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 201
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Thu hồi quyền theo nhóm quyền thành công
+                  data:
+                    type: object
+                    properties:
+                      moduleKey:
+                        type: string
+                      moduleName:
+                        type: string
+                      totalPermissions:
+                        type: number
+                      enabledCount:
+                        type: number
+                      disabledCount:
+                        type: number
+                      allSelected:
+                        type: boolean
+                      allDisabled:
+                        type: boolean
+                    required:
+                      - moduleKey
+                      - moduleName
+                      - totalPermissions
+                      - enabledCount
+                      - disabledCount
+                      - allSelected
+                      - allDisabled
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a2
+  /permissions:
+    get:
+      operationId: PermissionsController_listPermissions
+      parameters:
+        - name: q
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: path
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: method
+          required: false
+          in: query
+          schema:
+            enum:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - OPTIONS
+            type: string
+      responses:
+        "200":
+          description: Bao phản hồi danh sách quyền
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Lấy danh sách quyền thành công
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        module:
+                          type: string
+                        name:
+                          type: string
+                      required:
+                        - id
+                        - module
+                        - name
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: &a3
+        - rbac.permissions
+  /permissions/{id}:
+    get:
+      operationId: PermissionsController_getPermission
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Bao phản hồi lấy quyền
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Lấy chi tiết quyền thành công
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      method:
+                        type: string
+                        enum:
+                          - GET
+                          - POST
+                          - PUT
+                          - PATCH
+                          - DELETE
+                          - OPTIONS
+                      path:
+                        type: string
+                      description:
+                        type: string
+                      createdAt:
+                        type: string
+                        format: date-time
+                      updatedAt:
+                        type: string
+                        format: date-time
+                    required:
+                      - id
+                      - method
+                      - path
+                      - description
+                      - createdAt
+                      - updatedAt
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a3
+  /tenant-owners:
+    get:
+      operationId: TenantOwnersController_listTenantOwners
+      parameters:
+        - name: q
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: limit
+          required: false
+          in: query
+          schema:
+            type: number
+        - name: page
+          required: false
+          in: query
+          schema:
+            type: number
+        - name: tenantUserStatus
+          required: false
+          in: query
+          schema:
+            enum:
+              - ACTIVE
+              - INVITED
+              - DISABLED
+            type: string
+        - name: ownerStatus
+          required: false
+          in: query
+          schema:
+            enum:
+              - ACTIVE
+              - LOCKED
+              - DISABLED
+            type: string
+        - name: tenantId
+          required: false
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Bao phản hồi danh sách chủ đơn vị
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Lấy danh sách chủ đơn vị thành công
+                  data:
+                    type: object
+                    properties:
+                      page:
+                        type: number
+                      limit:
+                        type: number
+                      total:
+                        type: number
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            email:
+                              type: string
+                              format: email
+                            fullName:
+                              type: string
+                            status:
+                              type: string
+                              enum:
+                                - ACTIVE
+                                - LOCKED
+                                - DISABLED
+                            userType:
+                              type: string
+                              example: PARTNER
+                            createdAt:
+                              type: string
+                              format: date-time
+                            updatedAt:
+                              type: string
+                              format: date-time
+                            tenant:
+                              type: object
+                              properties:
+                                id:
+                                  type: string
+                                code:
+                                  type: string
+                                name:
+                                  type: string
+                                createdAt:
+                                  type: string
+                                  format: date-time
+                                updatedAt:
+                                  type: string
+                                  format: date-time
+                              required:
+                                - id
+                                - code
+                                - name
+                                - createdAt
+                                - updatedAt
+                            tenantUser:
+                              type: object
+                              properties:
+                                id:
+                                  type: string
+                                status:
+                                  type: string
+                                  enum:
+                                    - ACTIVE
+                                    - INVITED
+                                    - DISABLED
+                                joinedAt:
+                                  type: string
+                                  format: date-time
+                                  nullable: true
+                                createdAt:
+                                  type: string
+                                  format: date-time
+                                updatedAt:
+                                  type: string
+                                  format: date-time
+                              required:
+                                - id
+                                - status
+                                - joinedAt
+                                - createdAt
+                                - updatedAt
+                            role:
+                              type: object
+                              properties:
+                                id:
+                                  type: string
+                                code:
+                                  type: string
+                                  example: TENANT_OWNER
+                                name:
+                                  type: string
+                                assignedAt:
+                                  type: string
+                                  format: date-time
+                                assignedById:
+                                  type: string
+                                  nullable: true
+                              required:
+                                - id
+                                - code
+                                - name
+                                - assignedAt
+                                - assignedById
+                          required:
+                            - id
+                            - email
+                            - fullName
+                            - status
+                            - userType
+                            - createdAt
+                            - updatedAt
+                            - tenant
+                            - tenantUser
+                            - role
+                    required:
+                      - page
+                      - limit
+                      - total
+                      - items
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: &a4
+        - tenant-owners
+    post:
+      operationId: TenantOwnersController_createTenantOwner
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                owner:
+                  type: object
+                  properties:
+                    fullName:
+                      type: string
+                      minLength: 2
+                      maxLength: 120
+                    email:
+                      type: string
+                      format: email
+                      maxLength: 320
+                    password:
+                      type: string
+                      minLength: 8
+                      maxLength: 128
+                  required:
+                    - fullName
+                    - email
+                    - password
+                tenant:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                      minLength: 2
+                      maxLength: 160
+                  required:
+                    - name
+              required:
+                - owner
+                - tenant
+      responses:
+        "201":
+          description: Bao phản hồi tạo chủ đơn vị
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 201
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Tạo chủ đơn vị thành công
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      email:
+                        type: string
+                        format: email
+                      fullName:
+                        type: string
+                      status:
+                        type: string
+                        enum:
+                          - ACTIVE
+                          - LOCKED
+                          - DISABLED
+                      userType:
+                        type: string
+                        example: PARTNER
+                      createdAt:
+                        type: string
+                        format: date-time
+                      updatedAt:
+                        type: string
+                        format: date-time
+                      tenant:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          code:
+                            type: string
+                          name:
+                            type: string
+                          createdAt:
+                            type: string
+                            format: date-time
+                          updatedAt:
+                            type: string
+                            format: date-time
+                        required:
+                          - id
+                          - code
+                          - name
+                          - createdAt
+                          - updatedAt
+                      tenantUser:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          status:
+                            type: string
+                            enum:
+                              - ACTIVE
+                              - INVITED
+                              - DISABLED
+                          joinedAt:
+                            type: string
+                            format: date-time
+                            nullable: true
+                          createdAt:
+                            type: string
+                            format: date-time
+                          updatedAt:
+                            type: string
+                            format: date-time
+                        required:
+                          - id
+                          - status
+                          - joinedAt
+                          - createdAt
+                          - updatedAt
+                      role:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          code:
+                            type: string
+                            example: TENANT_OWNER
+                          name:
+                            type: string
+                          assignedAt:
+                            type: string
+                            format: date-time
+                          assignedById:
+                            type: string
+                            nullable: true
+                        required:
+                          - id
+                          - code
+                          - name
+                          - assignedAt
+                          - assignedById
+                    required:
+                      - id
+                      - email
+                      - fullName
+                      - status
+                      - userType
+                      - createdAt
+                      - updatedAt
+                      - tenant
+                      - tenantUser
+                      - role
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a4
+  /tenant-owners/{id}:
+    get:
+      operationId: TenantOwnersController_getTenantOwner
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Bao phản hồi thông tin chủ đơn vị
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Lấy thông tin chủ đơn vị thành công
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      email:
+                        type: string
+                        format: email
+                      fullName:
+                        type: string
+                      status:
+                        type: string
+                        enum:
+                          - ACTIVE
+                          - LOCKED
+                          - DISABLED
+                      userType:
+                        type: string
+                        example: PARTNER
+                      createdAt:
+                        type: string
+                        format: date-time
+                      updatedAt:
+                        type: string
+                        format: date-time
+                      tenant:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          code:
+                            type: string
+                          name:
+                            type: string
+                          createdAt:
+                            type: string
+                            format: date-time
+                          updatedAt:
+                            type: string
+                            format: date-time
+                        required:
+                          - id
+                          - code
+                          - name
+                          - createdAt
+                          - updatedAt
+                      tenantUser:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          status:
+                            type: string
+                            enum:
+                              - ACTIVE
+                              - INVITED
+                              - DISABLED
+                          joinedAt:
+                            type: string
+                            format: date-time
+                            nullable: true
+                          createdAt:
+                            type: string
+                            format: date-time
+                          updatedAt:
+                            type: string
+                            format: date-time
+                        required:
+                          - id
+                          - status
+                          - joinedAt
+                          - createdAt
+                          - updatedAt
+                      role:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          code:
+                            type: string
+                            example: TENANT_OWNER
+                          name:
+                            type: string
+                          assignedAt:
+                            type: string
+                            format: date-time
+                          assignedById:
+                            type: string
+                            nullable: true
+                        required:
+                          - id
+                          - code
+                          - name
+                          - assignedAt
+                          - assignedById
+                    required:
+                      - id
+                      - email
+                      - fullName
+                      - status
+                      - userType
+                      - createdAt
+                      - updatedAt
+                      - tenant
+                      - tenantUser
+                      - role
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a4
+    patch:
+      operationId: TenantOwnersController_updateTenantOwner
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                owner:
+                  type: object
+                  properties:
+                    fullName:
+                      type: string
+                      minLength: 2
+                      maxLength: 120
+                    status:
+                      type: string
+                      enum:
+                        - ACTIVE
+                        - LOCKED
+                        - DISABLED
+                tenant:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                      minLength: 2
+                      maxLength: 160
+                tenantUserStatus:
+                  type: string
+                  enum:
+                    - ACTIVE
+                    - INVITED
+                    - DISABLED
+      responses:
+        "200":
+          description: Bao phản hồi cập nhật chủ đơn vị
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Cập nhật chủ đơn vị thành công
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      email:
+                        type: string
+                        format: email
+                      fullName:
+                        type: string
+                      status:
+                        type: string
+                        enum:
+                          - ACTIVE
+                          - LOCKED
+                          - DISABLED
+                      userType:
+                        type: string
+                        example: PARTNER
+                      createdAt:
+                        type: string
+                        format: date-time
+                      updatedAt:
+                        type: string
+                        format: date-time
+                      tenant:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          code:
+                            type: string
+                          name:
+                            type: string
+                          createdAt:
+                            type: string
+                            format: date-time
+                          updatedAt:
+                            type: string
+                            format: date-time
+                        required:
+                          - id
+                          - code
+                          - name
+                          - createdAt
+                          - updatedAt
+                      tenantUser:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          status:
+                            type: string
+                            enum:
+                              - ACTIVE
+                              - INVITED
+                              - DISABLED
+                          joinedAt:
+                            type: string
+                            format: date-time
+                            nullable: true
+                          createdAt:
+                            type: string
+                            format: date-time
+                          updatedAt:
+                            type: string
+                            format: date-time
+                        required:
+                          - id
+                          - status
+                          - joinedAt
+                          - createdAt
+                          - updatedAt
+                      role:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          code:
+                            type: string
+                            example: TENANT_OWNER
+                          name:
+                            type: string
+                          assignedAt:
+                            type: string
+                            format: date-time
+                          assignedById:
+                            type: string
+                            nullable: true
+                        required:
+                          - id
+                          - code
+                          - name
+                          - assignedAt
+                          - assignedById
+                    required:
+                      - id
+                      - email
+                      - fullName
+                      - status
+                      - userType
+                      - createdAt
+                      - updatedAt
+                      - tenant
+                      - tenantUser
+                      - role
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a4
+  /hotel-users:
+    post:
+      operationId: HotelUsersController_createHotelUser
+      parameters:
+        - name: x-tenant-id
+          required: false
+          in: header
+          description: Ghi đè đơn vị tùy chọn
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                  maxLength: 320
+                fullName:
+                  type: string
+                  minLength: 2
+                  maxLength: 120
+                password:
+                  type: string
+                  minLength: 8
+                  maxLength: 128
+                tenantId:
+                  type: string
+                  maxLength: 80
+                roleIds:
+                  type: array
+                  minItems: 1
+                  maxItems: 20
+                  items:
+                    type: string
+                    maxLength: 64
+              required:
+                - email
+                - fullName
+                - password
+      responses:
+        "201":
+          description: Bao phản hồi tạo người dùng khách sạn
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 201
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Tạo người dùng khách sạn thành công
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      email:
+                        type: string
+                        format: email
+                      fullName:
+                        type: string
+                      userStatus:
+                        type: string
+                        enum:
+                          - ACTIVE
+                          - LOCKED
+                          - DISABLED
+                      tenantStatus:
+                        type: string
+                        enum:
+                          - ACTIVE
+                          - INVITED
+                          - DISABLED
+                      tenantId:
+                        type: string
+                      joinedAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      roles:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            code:
+                              type: string
+                            name:
+                              type: string
+                            assignedAt:
+                              type: string
+                              format: date-time
+                            assignedById:
+                              type: string
+                              nullable: true
+                          required:
+                            - id
+                            - code
+                            - name
+                            - assignedAt
+                            - assignedById
+                    required:
+                      - id
+                      - email
+                      - fullName
+                      - userStatus
+                      - tenantStatus
+                      - tenantId
+                      - joinedAt
+                      - roles
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: &a6
+        - hotel-users
+    get:
+      operationId: HotelUsersController_listHotelUsers
+      parameters:
+        - name: x-tenant-id
+          required: false
+          in: header
+          description: Ghi đè đơn vị tùy chọn
+          schema:
+            type: string
+        - name: q
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: status
+          required: false
+          in: query
+          schema:
+            enum: &a5
+              - ACTIVE
+              - INVITED
+              - DISABLED
+            type: string
+        - name: limit
+          required: false
+          in: query
+          schema:
+            type: number
+        - name: page
+          required: false
+          in: query
+          schema:
+            type: number
+        - name: tenantId
+          required: false
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Bao phản hồi danh sách người dùng khách sạn
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Lấy danh sách người dùng khách sạn thành công
+                  data:
+                    type: object
+                    properties:
+                      page:
+                        type: number
+                      limit:
+                        type: number
+                      total:
+                        type: number
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            email:
+                              type: string
+                              format: email
+                            fullName:
+                              type: string
+                            userStatus:
+                              type: string
+                              enum:
+                                - ACTIVE
+                                - LOCKED
+                                - DISABLED
+                            tenantStatus:
+                              type: string
+                              enum: *a5
+                            tenantId:
+                              type: string
+                            joinedAt:
+                              type: string
+                              format: date-time
+                              nullable: true
+                            roles:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  id:
+                                    type: string
+                                  code:
+                                    type: string
+                                  name:
+                                    type: string
+                                  assignedAt:
+                                    type: string
+                                    format: date-time
+                                  assignedById:
+                                    type: string
+                                    nullable: true
+                                required:
+                                  - id
+                                  - code
+                                  - name
+                                  - assignedAt
+                                  - assignedById
+                          required:
+                            - id
+                            - email
+                            - fullName
+                            - userStatus
+                            - tenantStatus
+                            - tenantId
+                            - joinedAt
+                            - roles
+                    required:
+                      - page
+                      - limit
+                      - total
+                      - items
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a6
+  /hotel-users/{id}:
+    get:
+      operationId: HotelUsersController_getHotelUser
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: tenantId
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: x-tenant-id
+          required: false
+          in: header
+          description: Ghi đè đơn vị tùy chọn
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Bao phản hồi thông tin người dùng khách sạn
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Lấy thông tin người dùng khách sạn thành công
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      email:
+                        type: string
+                        format: email
+                      fullName:
+                        type: string
+                      userStatus:
+                        type: string
+                        enum:
+                          - ACTIVE
+                          - LOCKED
+                          - DISABLED
+                      tenantStatus:
+                        type: string
+                        enum:
+                          - ACTIVE
+                          - INVITED
+                          - DISABLED
+                      tenantId:
+                        type: string
+                      joinedAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      roles:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            code:
+                              type: string
+                            name:
+                              type: string
+                            assignedAt:
+                              type: string
+                              format: date-time
+                            assignedById:
+                              type: string
+                              nullable: true
+                          required:
+                            - id
+                            - code
+                            - name
+                            - assignedAt
+                            - assignedById
+                    required:
+                      - id
+                      - email
+                      - fullName
+                      - userStatus
+                      - tenantStatus
+                      - tenantId
+                      - joinedAt
+                      - roles
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a6
+  /hotel-users/{id}/status:
+    patch:
+      operationId: HotelUsersController_updateHotelUserStatus
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: tenantId
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: x-tenant-id
+          required: false
+          in: header
+          description: Ghi đè đơn vị tùy chọn
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum:
+                    - ACTIVE
+                    - DISABLED
+              required:
+                - status
+      responses:
+        "200":
+          description: Bao phản hồi cập nhật trạng thái người dùng khách sạn
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Cập nhật trạng thái người dùng khách sạn thành công
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      email:
+                        type: string
+                        format: email
+                      fullName:
+                        type: string
+                      userStatus:
+                        type: string
+                        enum:
+                          - ACTIVE
+                          - LOCKED
+                          - DISABLED
+                      tenantStatus:
+                        type: string
+                        enum:
+                          - ACTIVE
+                          - INVITED
+                          - DISABLED
+                      tenantId:
+                        type: string
+                      joinedAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      roles:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            code:
+                              type: string
+                            name:
+                              type: string
+                            assignedAt:
+                              type: string
+                              format: date-time
+                            assignedById:
+                              type: string
+                              nullable: true
+                          required:
+                            - id
+                            - code
+                            - name
+                            - assignedAt
+                            - assignedById
+                    required:
+                      - id
+                      - email
+                      - fullName
+                      - userStatus
+                      - tenantStatus
+                      - tenantId
+                      - joinedAt
+                      - roles
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a6
+  /hotel-users/{id}/roles:
+    post:
+      operationId: HotelUsersController_assignHotelUserRoles
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: tenantId
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: x-tenant-id
+          required: false
+          in: header
+          description: Ghi đè đơn vị tùy chọn
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                roleIds:
+                  type: array
+                  minItems: 1
+                  maxItems: 20
+                  items:
+                    type: string
+                    maxLength: 64
+              required:
+                - roleIds
+      responses:
+        "201":
+          description: Bao phản hồi gán vai trò người dùng khách sạn
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 201
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Gán vai trò người dùng khách sạn thành công
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      email:
+                        type: string
+                        format: email
+                      fullName:
+                        type: string
+                      userStatus:
+                        type: string
+                        enum:
+                          - ACTIVE
+                          - LOCKED
+                          - DISABLED
+                      tenantStatus:
+                        type: string
+                        enum:
+                          - ACTIVE
+                          - INVITED
+                          - DISABLED
+                      tenantId:
+                        type: string
+                      joinedAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      roles:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            code:
+                              type: string
+                            name:
+                              type: string
+                            assignedAt:
+                              type: string
+                              format: date-time
+                            assignedById:
+                              type: string
+                              nullable: true
+                          required:
+                            - id
+                            - code
+                            - name
+                            - assignedAt
+                            - assignedById
+                    required:
+                      - id
+                      - email
+                      - fullName
+                      - userStatus
+                      - tenantStatus
+                      - tenantId
+                      - joinedAt
+                      - roles
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a6
+  /hotel-users/{id}/roles/{roleId}:
+    delete:
+      operationId: HotelUsersController_revokeHotelUserRole
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: roleId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: tenantId
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: x-tenant-id
+          required: false
+          in: header
+          description: Ghi đè đơn vị tùy chọn
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Bao phản hồi thu hồi vai trò người dùng khách sạn
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Thu hồi vai trò người dùng khách sạn thành công
+                  data:
+                    type: object
+                    properties:
+                      revoked:
+                        type: boolean
+                        enum:
+                          - true
+                      userId:
+                        type: string
+                      roleId:
+                        type: string
+                    required:
+                      - revoked
+                      - userId
+                      - roleId
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a6
+  /hotels:
+    post:
+      operationId: HotelsController_createHotel
+      parameters:
+        - name: x-tenant-id
+          required: true
+          in: header
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tenantId:
+                  type: string
+                  maxLength: 80
+                name:
+                  type: string
+                  minLength: 2
+                  maxLength: 160
+                timezone:
+                  type: string
+                  minLength: 1
+                  maxLength: 80
+                  default: Asia/Saigon
+                brandSettings:
+                  type: object
+                  additionalProperties: true
+              required:
+                - name
+      responses:
+        "201":
+          description: Đã tạo khách sạn
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 201
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Tạo khách sạn thành công
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      tenantId:
+                        type: string
+                      name:
+                        type: string
+                      code:
+                        type: string
+                      timezone:
+                        type: string
+                      status:
+                        type: string
+                      brandSettings:
+                        type: object
+                        additionalProperties: true
+                        nullable: true
+                      createdAt:
+                        type: string
+                        format: date-time
+                      updatedAt:
+                        type: string
+                        format: date-time
+                      tenant:
+                        type: object
+                        nullable: true
+                        properties:
+                          id:
+                            type: string
+                          code:
+                            type: string
+                          name:
+                            type: string
+                          createdAt:
+                            type: string
+                            format: date-time
+                          updatedAt:
+                            type: string
+                            format: date-time
+                        required:
+                          - id
+                          - code
+                          - name
+                          - createdAt
+                          - updatedAt
+                    required:
+                      - id
+                      - tenantId
+                      - name
+                      - code
+                      - timezone
+                      - status
+                      - brandSettings
+                      - createdAt
+                      - updatedAt
+                      - tenant
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: &a7
+        - hotels
+    get:
+      operationId: HotelsController_listHotels
+      parameters:
+        - name: x-tenant-id
+          required: true
+          in: header
+          schema:
+            type: string
+        - name: q
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: limit
+          required: false
+          in: query
+          schema:
+            type: number
+        - name: page
+          required: false
+          in: query
+          schema:
+            type: number
+        - name: tenantId
+          required: false
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Đã lấy danh sách khách sạn
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Lấy danh sách khách sạn thành công
+                  data:
+                    type: object
+                    properties:
+                      page:
+                        type: number
+                      limit:
+                        type: number
+                      total:
+                        type: number
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            tenantId:
+                              type: string
+                            name:
+                              type: string
+                            code:
+                              type: string
+                            timezone:
+                              type: string
+                            status:
+                              type: string
+                            brandSettings:
+                              type: object
+                              additionalProperties: true
+                              nullable: true
+                            createdAt:
+                              type: string
+                              format: date-time
+                            updatedAt:
+                              type: string
+                              format: date-time
+                            tenant:
+                              type: object
+                              nullable: true
+                              properties:
+                                id:
+                                  type: string
+                                code:
+                                  type: string
+                                name:
+                                  type: string
+                                createdAt:
+                                  type: string
+                                  format: date-time
+                                updatedAt:
+                                  type: string
+                                  format: date-time
+                              required:
+                                - id
+                                - code
+                                - name
+                                - createdAt
+                                - updatedAt
+                          required:
+                            - id
+                            - tenantId
+                            - name
+                            - code
+                            - timezone
+                            - status
+                            - brandSettings
+                            - createdAt
+                            - updatedAt
+                            - tenant
+                    required:
+                      - page
+                      - limit
+                      - total
+                      - items
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a7
+  /hotels/{hotelId}:
+    get:
+      operationId: HotelsController_getHotel
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Đã lấy thông tin khách sạn
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Lấy thông tin khách sạn thành công
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      tenantId:
+                        type: string
+                      name:
+                        type: string
+                      code:
+                        type: string
+                      timezone:
+                        type: string
+                      status:
+                        type: string
+                      brandSettings:
+                        type: object
+                        additionalProperties: true
+                        nullable: true
+                      createdAt:
+                        type: string
+                        format: date-time
+                      updatedAt:
+                        type: string
+                        format: date-time
+                      tenant:
+                        type: object
+                        nullable: true
+                        properties:
+                          id:
+                            type: string
+                          code:
+                            type: string
+                          name:
+                            type: string
+                          createdAt:
+                            type: string
+                            format: date-time
+                          updatedAt:
+                            type: string
+                            format: date-time
+                        required:
+                          - id
+                          - code
+                          - name
+                          - createdAt
+                          - updatedAt
+                    required:
+                      - id
+                      - tenantId
+                      - name
+                      - code
+                      - timezone
+                      - status
+                      - brandSettings
+                      - createdAt
+                      - updatedAt
+                      - tenant
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a7
+    patch:
+      operationId: HotelsController_updateHotel
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 2
+                  maxLength: 160
+                timezone:
+                  type: string
+                  minLength: 1
+                  maxLength: 80
+                brandSettings:
+                  type: object
+                  additionalProperties: true
+                  nullable: true
+                status:
+                  type: string
+                  enum:
+                    - ACTIVE
+                    - DISABLED
+              minProperties: 1
+      responses:
+        "200":
+          description: Đã cập nhật khách sạn
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Cập nhật khách sạn thành công
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      tenantId:
+                        type: string
+                      name:
+                        type: string
+                      code:
+                        type: string
+                      timezone:
+                        type: string
+                      status:
+                        type: string
+                      brandSettings:
+                        type: object
+                        additionalProperties: true
+                        nullable: true
+                      createdAt:
+                        type: string
+                        format: date-time
+                      updatedAt:
+                        type: string
+                        format: date-time
+                      tenant:
+                        type: object
+                        nullable: true
+                        properties:
+                          id:
+                            type: string
+                          code:
+                            type: string
+                          name:
+                            type: string
+                          createdAt:
+                            type: string
+                            format: date-time
+                          updatedAt:
+                            type: string
+                            format: date-time
+                        required:
+                          - id
+                          - code
+                          - name
+                          - createdAt
+                          - updatedAt
+                    required:
+                      - id
+                      - tenantId
+                      - name
+                      - code
+                      - timezone
+                      - status
+                      - brandSettings
+                      - createdAt
+                      - updatedAt
+                      - tenant
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a7
+  /hotels/{hotelId}/rooms:
+    post:
+      operationId: HotelRoomsController_createRoom
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "201":
+          description: Đã tạo phòng
+      tags: &a8
+        - hotel-rooms
+    get:
+      operationId: HotelRoomsController_listRooms
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: q
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: limit
+          required: false
+          in: query
+          schema:
+            type: number
+        - name: page
+          required: false
+          in: query
+          schema:
+            type: number
+        - name: status
+          required: false
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Đã lấy danh sách phòng
+      tags: *a8
+  /hotels/{hotelId}/rooms/bulk:
+    post:
+      operationId: HotelRoomsController_createRooms
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "201":
+          description: Đã tạo danh sách phòng
+      tags: *a8
+  /hotels/{hotelId}/rooms/{roomId}:
+    patch:
+      operationId: HotelRoomsController_updateRoom
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: roomId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Đã cập nhật phòng
+      tags: *a8
+  /hotels/{hotelId}/stays:
+    post:
+      operationId: HotelRoomsController_createStay
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "201":
+          description: Đã tạo lượt lưu trú
+      tags: *a8
+  /hotels/{hotelId}/stays/check-in:
+    post:
+      operationId: HotelRoomsController_createAndCheckInStay
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "201":
+          description: Đã tạo và check-in lượt lưu trú
+      tags: *a8
+  /hotels/{hotelId}/stays/{stayId}/check-in:
+    post:
+      operationId: HotelRoomsController_checkInStay
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: stayId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Đã check-in lượt lưu trú
+      tags: *a8
+  /hotels/{hotelId}/stays/{stayId}/check-out:
+    post:
+      operationId: HotelRoomsController_checkOutStay
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: stayId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Đã check-out lượt lưu trú
+      tags: *a8
+  /hotels/{hotelId}/rooms/{roomId}/qr/rotate:
+    post:
+      operationId: HotelRoomsController_rotateQr
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: roomId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Đã xoay mã QR phòng
+      tags: *a8
+  /hotels/{hotelId}/rooms/{roomId}/qr/activate:
+    post:
+      operationId: HotelRoomsController_activateQr
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: roomId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Đã kích hoạt mã QR phòng
+      tags: *a8
+  /hotels/{hotelId}/rooms/{roomId}/qr/deactivate:
+    post:
+      operationId: HotelRoomsController_deactivateQr
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: roomId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Đã hủy kích hoạt mã QR phòng
+      tags: *a8
+  /hotels/{hotelId}/service-categories:
+    get:
+      operationId: HotelServicesController_listServiceCategories
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Đã lấy danh mục dịch vụ
+      tags: &a9
+        - hotel-services
+    post:
+      operationId: HotelServicesController_createServiceCategory
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "201":
+          description: Đã tạo danh mục dịch vụ
+      tags: *a9
+  /hotels/{hotelId}/service-categories/{categoryId}:
+    patch:
+      operationId: HotelServicesController_updateServiceCategory
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: categoryId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Đã cập nhật danh mục dịch vụ
+      tags: *a9
+  /hotels/{hotelId}/service-items:
+    get:
+      operationId: HotelServicesController_listServiceItems
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Đã lấy danh sách dịch vụ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Lay danh sach dich vu thanh cong
+                  data:
+                    type: object
+                    properties:
+                      page:
+                        type: number
+                      limit:
+                        type: number
+                      total:
+                        type: number
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            hotelId:
+                              type: string
+                            categoryId:
+                              type: string
+                            name:
+                              type: string
+                            description:
+                              type: string
+                              nullable: true
+                            priceOverride:
+                              type: number
+                              nullable: true
+                            effectivePrice:
+                              type: number
+                            effectiveCurrency:
+                              type: string
+                              example: VND
+                            quantityEnabled:
+                              type: boolean
+                              description: When true, guests must submit quantity within
+                                minQuantity/maxQuantity.
+                            minQuantity:
+                              type: integer
+                              minimum: 1
+                              description: Minimum guest-selectable quantity when quantityEnabled is true.
+                            maxQuantity:
+                              type: integer
+                              minimum: 1
+                              nullable: true
+                              description: Maximum guest-selectable quantity when quantityEnabled is true.
+                                Null means no cap.
+                            metadata:
+                              type: object
+                              additionalProperties: true
+                              nullable: true
+                            sortOrder:
+                              type: integer
+                            status:
+                              type: string
+                              enum:
+                                - ACTIVE
+                                - DISABLED
+                            createdAt:
+                              type: string
+                              format: date-time
+                            updatedAt:
+                              type: string
+                              format: date-time
+                            category:
+                              type: object
+                              properties:
+                                id:
+                                  type: string
+                                name:
+                                  type: string
+                                status:
+                                  type: string
+                                  enum:
+                                    - ACTIVE
+                                    - DISABLED
+                                defaultPrice:
+                                  type: number
+                                currency:
+                                  type: string
+                                  example: VND
+                                requestType:
+                                  type: string
+                                  enum:
+                                    - HOUSEKEEPING
+                                    - EXTRA_TOWELS
+                                    - LAUNDRY
+                                    - MAINTENANCE
+                                    - FOOD_ORDERING
+                                    - AIRPORT_TRANSFER
+                                    - TOUR_BOOKING
+                                    - ESIM_PURCHASE
+                                    - AI_CONCIERGE
+                              required:
+                                - id
+                                - name
+                                - status
+                                - defaultPrice
+                                - currency
+                                - requestType
+                          required:
+                            - id
+                            - hotelId
+                            - categoryId
+                            - name
+                            - description
+                            - priceOverride
+                            - effectivePrice
+                            - effectiveCurrency
+                            - quantityEnabled
+                            - minQuantity
+                            - maxQuantity
+                            - metadata
+                            - sortOrder
+                            - status
+                            - createdAt
+                            - updatedAt
+                            - category
+                    required:
+                      - page
+                      - limit
+                      - total
+                      - items
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a9
+    post:
+      operationId: HotelServicesController_createServiceItem
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                categoryId:
+                  type: string
+                  minLength: 1
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 160
+                description:
+                  type: string
+                  maxLength: 1000
+                priceOverride:
+                  type: number
+                  minimum: 0
+                quantityEnabled: &a10
+                  type: boolean
+                  description: When true, guests must submit quantity within
+                    minQuantity/maxQuantity.
+                minQuantity: &a11
+                  type: integer
+                  minimum: 1
+                  description: Minimum guest-selectable quantity when quantityEnabled is true.
+                maxQuantity: &a12
+                  type: integer
+                  minimum: 1
+                  nullable: true
+                  description: Maximum guest-selectable quantity when quantityEnabled is true.
+                    Null means no cap.
+                metadata:
+                  type: object
+                  additionalProperties: true
+                sortOrder:
+                  type: integer
+                  minimum: 0
+                status:
+                  type: string
+                  enum:
+                    - ACTIVE
+                    - DISABLED
+              required:
+                - categoryId
+                - name
+      responses:
+        "201":
+          description: Đã tạo dịch vụ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 201
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Tao dich vu thanh cong
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      hotelId:
+                        type: string
+                      categoryId:
+                        type: string
+                      name:
+                        type: string
+                      description:
+                        type: string
+                        nullable: true
+                      priceOverride:
+                        type: number
+                        nullable: true
+                      effectivePrice:
+                        type: number
+                      effectiveCurrency:
+                        type: string
+                        example: VND
+                      quantityEnabled: *a10
+                      minQuantity: *a11
+                      maxQuantity: *a12
+                      metadata:
+                        type: object
+                        additionalProperties: true
+                        nullable: true
+                      sortOrder:
+                        type: integer
+                      status:
+                        type: string
+                        enum:
+                          - ACTIVE
+                          - DISABLED
+                      createdAt:
+                        type: string
+                        format: date-time
+                      updatedAt:
+                        type: string
+                        format: date-time
+                      category:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          status:
+                            type: string
+                            enum:
+                              - ACTIVE
+                              - DISABLED
+                          defaultPrice:
+                            type: number
+                          currency:
+                            type: string
+                            example: VND
+                          requestType:
+                            type: string
+                            enum:
+                              - HOUSEKEEPING
+                              - EXTRA_TOWELS
+                              - LAUNDRY
+                              - MAINTENANCE
+                              - FOOD_ORDERING
+                              - AIRPORT_TRANSFER
+                              - TOUR_BOOKING
+                              - ESIM_PURCHASE
+                              - AI_CONCIERGE
+                        required:
+                          - id
+                          - name
+                          - status
+                          - defaultPrice
+                          - currency
+                          - requestType
+                    required:
+                      - id
+                      - hotelId
+                      - categoryId
+                      - name
+                      - description
+                      - priceOverride
+                      - effectivePrice
+                      - effectiveCurrency
+                      - quantityEnabled
+                      - minQuantity
+                      - maxQuantity
+                      - metadata
+                      - sortOrder
+                      - status
+                      - createdAt
+                      - updatedAt
+                      - category
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a9
+  /hotels/{hotelId}/service-items/{itemId}:
+    patch:
+      operationId: HotelServicesController_updateServiceItem
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: itemId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                categoryId:
+                  type: string
+                  minLength: 1
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 160
+                description:
+                  type: string
+                  maxLength: 1000
+                  nullable: true
+                priceOverride:
+                  type: number
+                  minimum: 0
+                  nullable: true
+                quantityEnabled: &a13
+                  type: boolean
+                  description: When true, guests must submit quantity within
+                    minQuantity/maxQuantity.
+                minQuantity: &a14
+                  type: integer
+                  minimum: 1
+                  description: Minimum guest-selectable quantity when quantityEnabled is true.
+                maxQuantity: &a15
+                  type: integer
+                  minimum: 1
+                  nullable: true
+                  description: Maximum guest-selectable quantity when quantityEnabled is true.
+                    Null means no cap.
+                metadata:
+                  type: object
+                  additionalProperties: true
+                  nullable: true
+                sortOrder:
+                  type: integer
+                  minimum: 0
+                status:
+                  type: string
+                  enum:
+                    - ACTIVE
+                    - DISABLED
+              minProperties: 1
+      responses:
+        "200":
+          description: Đã cập nhật dịch vụ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Cap nhat dich vu thanh cong
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      hotelId:
+                        type: string
+                      categoryId:
+                        type: string
+                      name:
+                        type: string
+                      description:
+                        type: string
+                        nullable: true
+                      priceOverride:
+                        type: number
+                        nullable: true
+                      effectivePrice:
+                        type: number
+                      effectiveCurrency:
+                        type: string
+                        example: VND
+                      quantityEnabled: *a13
+                      minQuantity: *a14
+                      maxQuantity: *a15
+                      metadata:
+                        type: object
+                        additionalProperties: true
+                        nullable: true
+                      sortOrder:
+                        type: integer
+                      status:
+                        type: string
+                        enum:
+                          - ACTIVE
+                          - DISABLED
+                      createdAt:
+                        type: string
+                        format: date-time
+                      updatedAt:
+                        type: string
+                        format: date-time
+                      category:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          status:
+                            type: string
+                            enum:
+                              - ACTIVE
+                              - DISABLED
+                          defaultPrice:
+                            type: number
+                          currency:
+                            type: string
+                            example: VND
+                          requestType:
+                            type: string
+                            enum:
+                              - HOUSEKEEPING
+                              - EXTRA_TOWELS
+                              - LAUNDRY
+                              - MAINTENANCE
+                              - FOOD_ORDERING
+                              - AIRPORT_TRANSFER
+                              - TOUR_BOOKING
+                              - ESIM_PURCHASE
+                              - AI_CONCIERGE
+                        required:
+                          - id
+                          - name
+                          - status
+                          - defaultPrice
+                          - currency
+                          - requestType
+                    required:
+                      - id
+                      - hotelId
+                      - categoryId
+                      - name
+                      - description
+                      - priceOverride
+                      - effectivePrice
+                      - effectiveCurrency
+                      - quantityEnabled
+                      - minQuantity
+                      - maxQuantity
+                      - metadata
+                      - sortOrder
+                      - status
+                      - createdAt
+                      - updatedAt
+                      - category
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a9
+  /hotels/{hotelId}/requests:
+    get:
+      operationId: HotelRequestsController_listRequests
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: priority
+          required: false
+          in: query
+          schema:
+            enum:
+              - NORMAL
+              - URGENT
+            type: string
+      responses:
+        "200":
+          description: Đã lấy danh sách yêu cầu của khách
+      tags: &a16
+        - hotel-requests
+  /hotels/{hotelId}/requests/summary:
+    get:
+      operationId: HotelRequestsController_getRequestsSummary
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Guest request summary
+      tags: *a16
+  /hotels/{hotelId}/requests/{requestId}:
+    get:
+      operationId: HotelRequestsController_getRequestDetail
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: requestId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Đã lấy yêu cầu của khách
+      tags: *a16
+  /hotels/{hotelId}/requests/{requestId}/status:
+    patch:
+      operationId: HotelRequestsController_updateRequestStatus
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: requestId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Đã cập nhật yêu cầu của khách
+      tags: *a16
+  /hotels/{hotelId}/requests/{requestId}/assignment:
+    patch:
+      operationId: HotelRequestsController_updateRequestAssignment
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: requestId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Đã cập nhật phân công yêu cầu của khách
+      tags: *a16
+  /hotels/{hotelId}/requests/{requestId}/events:
+    post:
+      operationId: HotelRequestsController_createRequestEvent
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: requestId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "201":
+          description: Đã tạo sự kiện yêu cầu của khách
+      tags: *a16
+  /hotels/{hotelId}/dashboard:
+    get:
+      operationId: HotelDashboardController_getDashboard
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Dashboard vận hành khách sạn
+      tags:
+        - hotel-dashboard
+  /hotels/{hotelId}/folios:
+    get:
+      operationId: FolioController_listFolios
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: status
+          required: false
+          in: query
+          schema:
+            enum:
+              - OPEN
+              - CLOSED
+            type: string
+      responses:
+        "200":
+          description: Danh sách folio
+      tags: &a17
+        - billing-folios
+  /hotels/{hotelId}/stays/{stayId}/active-folio:
+    get:
+      operationId: FolioController_getActiveFolioByStay
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: stayId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Folio đang mở
+      tags: *a17
+  /hotels/{hotelId}/folios/{folioId}/summary:
+    get:
+      operationId: FolioController_getFolioSummary
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: folioId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Tổng quan folio
+      tags: *a17
+  /hotels/{hotelId}/folios/{folioId}/checkout/issue-invoice:
+    post:
+      operationId: FolioController_issueInvoice
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: folioId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Invoice đã phát hành
+      tags: *a17
+  /hotels/{hotelId}/folios/{folioId}/items:
+    get:
+      operationId: FolioController_listFolioItems
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: folioId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Danh sách FolioItem
+      tags: *a17
+  /hotels/{hotelId}/folios/{folioId}:
+    get:
+      operationId: FolioController_getFolioDetail
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: folioId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Chi tiết folio
+      tags: *a17
+  /hotels/{hotelId}/invoices/{invoiceId}:
+    get:
+      operationId: InvoiceController_getInvoiceDetail
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: invoiceId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Chi tiết invoice
+      tags:
+        - billing-invoices
+  /hotels/{hotelId}/invoices/{invoiceId}/payments/session:
+    post:
+      operationId: PaymentController_createPaymentSession
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: invoiceId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Payment pending/session
+      tags: &a18
+        - billing-payments
+  /hotels/{hotelId}/payments/{paymentId}/status:
+    get:
+      operationId: PaymentController_getPaymentStatus
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: paymentId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Payment status
+      tags: *a18
+  /payments/webhook/{provider}:
+    post:
+      operationId: PaymentController_processWebhook
+      parameters:
+        - name: provider
+          required: true
+          in: path
+          schema:
+            enum:
+              - MANUAL
+              - MOMO
+              - VNPAY
+              - STRIPE
+              - BANK_TRANSFER
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Webhook đã xử lý
+      tags: *a18
+  /guest/qr/scan:
+    post:
+      operationId: GuestOsController_scanQr
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - qrCode
+              properties:
+                qrCode:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                  description: Opaque random room QR token. Not a JWT and does not encode IDs.
+                deviceFingerprint:
+                  type: string
+                  maxLength: 255
+                  description: Optional client/device identifier used for abuse correlation.
+                currentSessionToken:
+                  type: string
+                  maxLength: 255
+                  description: Existing guest session token on this device. Used to prevent silent
+                    room switching.
+                forceSwitch:
+                  type: boolean
+                  description: When true, closes the current session and switches this device to
+                    the scanned room.
+      responses:
+        "201":
+          description: Đã chấp nhận quét QR của khách
+      tags: &a19
+        - guest-os
+  /guest/session/me:
+    get:
+      operationId: GuestOsController_getCurrentSession
+      parameters: []
+      responses:
+        "200":
+          description: Đã lấy phiên khách
+      tags: *a19
+  /guest/services:
+    get:
+      operationId: GuestOsController_listServices
+      parameters: []
+      responses:
+        "200":
+          description: Đã lấy danh sách dịch vụ cho khách
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Lay danh sach dich vu cho khach thanh cong
+                  data:
+                    type: object
+                    properties:
+                      hotelId:
+                        type: string
+                      categories:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            hotelId:
+                              type: string
+                            name:
+                              type: string
+                            description:
+                              type: string
+                              nullable: true
+                            requestType:
+                              type: string
+                              enum:
+                                - HOUSEKEEPING
+                                - EXTRA_TOWELS
+                                - LAUNDRY
+                                - MAINTENANCE
+                                - FOOD_ORDERING
+                                - AIRPORT_TRANSFER
+                                - TOUR_BOOKING
+                                - ESIM_PURCHASE
+                                - AI_CONCIERGE
+                            defaultPrice:
+                              type: number
+                            currency:
+                              type: string
+                              example: VND
+                            sortOrder:
+                              type: integer
+                            status:
+                              type: string
+                              enum:
+                                - ACTIVE
+                                - DISABLED
+                            createdAt:
+                              type: string
+                              format: date-time
+                            updatedAt:
+                              type: string
+                              format: date-time
+                            items:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  id:
+                                    type: string
+                                  hotelId:
+                                    type: string
+                                  categoryId:
+                                    type: string
+                                  name:
+                                    type: string
+                                  description:
+                                    type: string
+                                    nullable: true
+                                  priceOverride:
+                                    type: number
+                                    nullable: true
+                                  effectivePrice:
+                                    type: number
+                                  effectiveCurrency:
+                                    type: string
+                                    example: VND
+                                  quantityEnabled:
+                                    type: boolean
+                                    description: When true, guests must submit quantity within
+                                      minQuantity/maxQuantity.
+                                  minQuantity:
+                                    type: integer
+                                    minimum: 1
+                                    description: Minimum guest-selectable quantity when quantityEnabled is true.
+                                  maxQuantity:
+                                    type: integer
+                                    minimum: 1
+                                    nullable: true
+                                    description: Maximum guest-selectable quantity when quantityEnabled is true.
+                                      Null means no cap.
+                                  metadata:
+                                    type: object
+                                    additionalProperties: true
+                                    nullable: true
+                                  sortOrder:
+                                    type: integer
+                                  status:
+                                    type: string
+                                    enum:
+                                      - ACTIVE
+                                      - DISABLED
+                                  createdAt:
+                                    type: string
+                                    format: date-time
+                                  updatedAt:
+                                    type: string
+                                    format: date-time
+                                required:
+                                  - id
+                                  - hotelId
+                                  - categoryId
+                                  - name
+                                  - description
+                                  - priceOverride
+                                  - effectivePrice
+                                  - effectiveCurrency
+                                  - quantityEnabled
+                                  - minQuantity
+                                  - maxQuantity
+                                  - metadata
+                                  - sortOrder
+                                  - status
+                                  - createdAt
+                                  - updatedAt
+                          required:
+                            - id
+                            - hotelId
+                            - name
+                            - description
+                            - requestType
+                            - defaultPrice
+                            - currency
+                            - sortOrder
+                            - status
+                            - createdAt
+                            - updatedAt
+                            - items
+                    required:
+                      - hotelId
+                      - categories
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a19
+  /guest/service-categories/{categoryId}/services:
+    get:
+      operationId: GuestOsController_listCategoryServices
+      parameters:
+        - name: categoryId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Đã lấy danh sách dịch vụ trong danh mục cho khách
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Lấy danh sách dịch vụ trong danh mục cho khách thành công
+                  data:
+                    type: object
+                    properties:
+                      page:
+                        type: number
+                      limit:
+                        type: number
+                      total:
+                        type: number
+                      category:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          description:
+                            type: string
+                            nullable: true
+                        required:
+                          - id
+                          - name
+                          - description
+                      services:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            name:
+                              type: string
+                            description:
+                              type: string
+                              nullable: true
+                            price:
+                              type: number
+                            currency:
+                              type: string
+                              example: VND
+                            quantityEnabled:
+                              type: boolean
+                              description: When true, guests must submit quantity within
+                                minQuantity/maxQuantity.
+                            minQuantity:
+                              type: integer
+                              minimum: 1
+                              description: Minimum guest-selectable quantity when quantityEnabled is true.
+                            maxQuantity:
+                              type: integer
+                              minimum: 1
+                              nullable: true
+                              description: Maximum guest-selectable quantity when quantityEnabled is true.
+                                Null means no cap.
+                          required:
+                            - id
+                            - name
+                            - description
+                            - price
+                            - currency
+                            - quantityEnabled
+                            - minQuantity
+                            - maxQuantity
+                    required:
+                      - page
+                      - limit
+                      - total
+                      - category
+                      - services
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a19
+  /guest/requests:
+    post:
+      operationId: GuestOsController_createRequest
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - serviceItemId
+              properties:
+                serviceItemId:
+                  type: string
+                  minLength: 1
+                description:
+                  type: string
+                  maxLength: 1000
+                details:
+                  type: string
+                  maxLength: 1000
+                quantity:
+                  type: integer
+                  minimum: 1
+                  description: Required only when the selected service item has
+                    quantityEnabled=true. Ignored and stored as 1 otherwise.
+                priority:
+                  type: string
+                  enum:
+                    - NORMAL
+                    - URGENT
+                metadata:
+                  type: object
+                  additionalProperties: true
+      responses:
+        "201":
+          description: Đã tạo yêu cầu của khách
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 201
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Tao yeu cau cua khach thanh cong
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      service:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            nullable: true
+                          name:
+                            type: string
+                            nullable: true
+                        required:
+                          - id
+                          - name
+                      status:
+                        type: string
+                        enum:
+                          - CREATED
+                          - ACKNOWLEDGED
+                          - IN_PROGRESS
+                          - COMPLETED
+                          - CANCELLED
+                          - FAILED
+                      priority:
+                        type: string
+                        enum:
+                          - NORMAL
+                          - URGENT
+                      quantity:
+                        type: integer
+                        minimum: 1
+                      note:
+                        type: string
+                        nullable: true
+                      answer:
+                        type: string
+                        nullable: true
+                      createdAt:
+                        type: string
+                        format: date-time
+                    required:
+                      - id
+                      - service
+                      - status
+                      - priority
+                      - quantity
+                      - note
+                      - answer
+                      - createdAt
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a19
+    get:
+      operationId: GuestOsController_listRequests
+      parameters: []
+      responses:
+        "200":
+          description: Đã lấy danh sách yêu cầu của khách
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Lay danh sach yeu cau cua khach thanh cong
+                  data:
+                    type: object
+                    properties:
+                      page:
+                        type: number
+                      limit:
+                        type: number
+                      total:
+                        type: number
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            displayName:
+                              type: string
+                            status:
+                              type: string
+                              enum:
+                                - CREATED
+                                - ACKNOWLEDGED
+                                - IN_PROGRESS
+                                - COMPLETED
+                                - CANCELLED
+                                - FAILED
+                            priority:
+                              type: string
+                              enum:
+                                - NORMAL
+                                - URGENT
+                            quantity:
+                              type: integer
+                              minimum: 1
+                            currency:
+                              type: string
+                              example: VND
+                            unitPrice:
+                              type: number
+                            estimatedTotalAmount:
+                              type: number
+                            service:
+                              type: object
+                              nullable: true
+                              properties:
+                                id:
+                                  type: string
+                                name:
+                                  type: string
+                                price:
+                                  type: number
+                                currency:
+                                  type: string
+                                  example: VND
+                              required:
+                                - id
+                                - name
+                                - price
+                                - currency
+                            description:
+                              type: string
+                              nullable: true
+                            answer:
+                              type: string
+                              nullable: true
+                            createdAt:
+                              type: string
+                              format: date-time
+                            canCancel:
+                              type: boolean
+                          required:
+                            - id
+                            - displayName
+                            - status
+                            - priority
+                            - quantity
+                            - currency
+                            - unitPrice
+                            - estimatedTotalAmount
+                            - description
+                            - answer
+                            - createdAt
+                            - canCancel
+                    required:
+                      - page
+                      - limit
+                      - total
+                      - items
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a19
+  /guest/requests/{requestId}/cancel:
+    patch:
+      operationId: GuestOsController_cancelRequest
+      parameters:
+        - name: requestId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Guest request cancelled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Cancel guest request successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      service:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            nullable: true
+                          name:
+                            type: string
+                            nullable: true
+                        required:
+                          - id
+                          - name
+                      status:
+                        type: string
+                        enum:
+                          - CREATED
+                          - ACKNOWLEDGED
+                          - IN_PROGRESS
+                          - COMPLETED
+                          - CANCELLED
+                          - FAILED
+                      priority:
+                        type: string
+                        enum:
+                          - NORMAL
+                          - URGENT
+                      quantity:
+                        type: integer
+                        minimum: 1
+                      note:
+                        type: string
+                        nullable: true
+                      answer:
+                        type: string
+                        nullable: true
+                      createdAt:
+                        type: string
+                        format: date-time
+                    required:
+                      - id
+                      - service
+                      - status
+                      - priority
+                      - quantity
+                      - note
+                      - answer
+                      - createdAt
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a19
+  /guest/session/close:
+    post:
+      operationId: GuestOsController_closeSession
+      parameters: []
+      responses:
+        "200":
+          description: Đã đóng phiên khách
+      tags: *a19
+  /emergency/guest/calls:
+    post:
+      operationId: EmergencyController_createGuestEmergencyCall
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "201":
+          description: Emergency call event accepted and linked to an incident
+      tags:
+        - emergency
+info:
+  title: VietSage Auth Service API
+  description: HTTP API contract for auth, rbac, and hotel-users modules
+  version: v1
+  contact: {}
+tags: []
+servers: []
+components:
+  securitySchemes:
+    bearer:
+      scheme: bearer
+      bearerFormat: JWT
+      type: http
+  schemas: {}
