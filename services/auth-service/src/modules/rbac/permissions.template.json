@@ -1,0 +1,25 @@
+{
+  "[module]": {
+    "name": "[ten-nhom-quyen]",
+    "description": "[mo-ta-nhom-quyen]",
+    "permissions": [
+      {
+        "id": "[permission-id]",
+        "code": "[module]_[action]",
+        "description": "[mo-ta-quyen]"
+      }
+    ]
+  },
+  "[module-2]": {
+    "name": "[ten-nhom-quyen-2]",
+    "description": "[mo-ta-nhom-quyen-2]",
+    "permissions": [
+      {
+        "id": "[permission-id]",
+        "code": "[module-2]_[action]",
+        "description": "[mo-ta-quyen]"
+      }
+    ]
+  }
+}
+

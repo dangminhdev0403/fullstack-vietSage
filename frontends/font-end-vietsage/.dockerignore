@@ -1,0 +1,11 @@
+node_modules
+.next
+out
+coverage
+.vercel
+.env
+.env.local
+.env.docker
+npm-debug.log*
+pnpm-debug.log*
+.DS_Store

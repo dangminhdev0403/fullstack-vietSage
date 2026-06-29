@@ -1,0 +1,58 @@
+{
+  "ok": true,
+  "result": [
+    {
+      "update_id": 819135814,
+      "message": {
+        "message_id": 7,
+        "from": {
+          "id": 1025394548,
+          "is_bot": false,
+          "first_name": "Ho\u00e0ng",
+          "last_name": "Nam",
+          "username": "thanhprovv1",
+          "language_code": "vi"
+        },
+        "chat": {
+          "id": 1025394548,
+          "first_name": "Ho\u00e0ng",
+          "last_name": "Nam",
+          "username": "thanhprovv1",
+          "type": "private"
+        },
+        "date": 1782670196,
+        "text": "l,,adad"
+      }
+    },
+    {
+      "update_id": 819135815,
+      "message": {
+        "message_id": 8,
+        "from": {
+          "id": 1025394548,
+          "is_bot": false,
+          "first_name": "Ho\u00e0ng",
+          "last_name": "Nam",
+          "username": "thanhprovv1",
+          "language_code": "vi"
+        },
+        "chat": {
+          "id": -5505745615,
+          "title": "VietSage Serivces",
+          "type": "group",
+          "all_members_are_administrators": false,
+          "accepted_gift_types": {
+            "unlimited_gifts": false,
+            "limited_gifts": false,
+            "unique_gifts": false,
+            "premium_subscription": false,
+            "gifts_from_channels": false
+          }
+        },
+        "date": 1782670286,
+        "text": "/hello",
+        "entities": [{ "offset": 0, "length": 6, "type": "bot_command" }]
+      }
+    }
+  ]
+}

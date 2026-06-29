@@ -21,3 +21,7 @@ coverage
 **/.pnpm-store
 
 *.log
+
+# nested repository backups
+**/.git.backup
+**/.git.backup.zip

@@ -1,0 +1,7 @@
+ALTER TABLE "HotelServiceItem"
+  ADD COLUMN "quantityEnabled" BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN "minQuantity" INTEGER NOT NULL DEFAULT 1,
+  ADD COLUMN "maxQuantity" INTEGER;
+
+ALTER TABLE "GuestRequest"
+  ADD COLUMN "quantity" INTEGER NOT NULL DEFAULT 1;
