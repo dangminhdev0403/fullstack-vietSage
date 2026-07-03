@@ -29,6 +29,7 @@ type CategoryFormState = {
   id?: string;
   name: string;
   description: string;
+  id_group: string;
   sortOrder: string;
   status: HotelServiceStatus;
 };
@@ -47,6 +48,7 @@ type ItemFormState = {
 const emptyCategoryForm: CategoryFormState = {
   name: "",
   description: "",
+  id_group: "",
   sortOrder: "0",
   status: "ACTIVE",
 };
@@ -124,6 +126,7 @@ export function ServiceCatalogClient({
       const payload = {
         name: categoryForm.name.trim(),
         description: categoryForm.description.trim() || null,
+        id_group: categoryForm.id_group.trim() || null,
         sortOrder: toNumber(categoryForm.sortOrder) ?? 0,
         status: categoryForm.status,
       };
@@ -206,6 +209,11 @@ export function ServiceCatalogClient({
       cell: (category) => category.description ?? "-",
     },
     {
+      key: "telegram",
+      header: "Telegram",
+      cell: (category) => category.id_group ? <span className="rounded-full bg-[var(--primary-fixed)] px-2.5 py-1 text-xs font-bold text-[var(--on-primary-fixed-variant)]">{category.id_group}</span> : <span className="text-xs text-[var(--on-surface-variant)]">Optional</span>,
+    },
+    {
       key: "sort",
       header: "Sort",
       cell: (category) => category.sortOrder,
@@ -222,7 +230,7 @@ export function ServiceCatalogClient({
       className: "text-right",
       cell: (category) => (
         <div className="flex justify-end gap-3">
-          <button type="button" onClick={() => setCategoryForm({ id: category.id, name: category.name, description: category.description ?? "", sortOrder: String(category.sortOrder), status: category.status })} className="text-sm font-semibold text-[var(--primary)]">Edit</button>
+          <button type="button" onClick={() => setCategoryForm({ id: category.id, name: category.name, description: category.description ?? "", id_group: category.id_group ?? "", sortOrder: String(category.sortOrder), status: category.status })} className="text-sm font-semibold text-[var(--primary)]">Edit</button>
           <button type="button" onClick={() => void toggleCategory(category)} className="text-sm font-semibold text-[var(--on-surface-variant)]">{category.status === "ACTIVE" ? "Disable" : "Activate"}</button>
         </div>
       ),
@@ -310,7 +318,7 @@ export function ServiceCatalogClient({
           data={filteredCategories}
           getRowKey={(category) => category.id}
           emptyMessage="No service categories match the current filters."
-          minWidth="760px"
+          minWidth="860px"
           rowClassName={(category) => category.status === "DISABLED" ? "bg-zinc-50 text-zinc-500" : ""}
         />
       ) : (
@@ -331,6 +339,8 @@ export function ServiceCatalogClient({
             <div className="space-y-4">
               <input required value={categoryForm.name} onChange={(event) => setCategoryForm({ ...categoryForm, name: event.target.value })} placeholder="Name" className="w-full rounded-lg border px-3 py-2" />
               <textarea value={categoryForm.description} onChange={(event) => setCategoryForm({ ...categoryForm, description: event.target.value })} placeholder="Description" className="w-full rounded-lg border px-3 py-2" />
+              <input value={categoryForm.id_group} onChange={(event) => setCategoryForm({ ...categoryForm, id_group: event.target.value })} placeholder="Telegram group ID (optional)" className="w-full rounded-lg border px-3 py-2" />
+              <p className="text-xs text-[var(--on-surface-variant)]">Only fill this when this service group needs its own Telegram notification group.</p>
               <input type="number" value={categoryForm.sortOrder} onChange={(event) => setCategoryForm({ ...categoryForm, sortOrder: event.target.value })} placeholder="Sort order" className="w-full rounded-lg border px-3 py-2" />
               <select value={categoryForm.status} onChange={(event) => setCategoryForm({ ...categoryForm, status: event.target.value as HotelServiceStatus })} className="w-full rounded-lg border px-3 py-2">
                 {hotelServiceStatuses.map((status) => <option key={status} value={status}>{serviceStatusLabelMap[status]}</option>)}

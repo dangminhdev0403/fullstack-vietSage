@@ -23,6 +23,7 @@ const updateCategorySchema = z
   .object({
     name: z.string().trim().min(1).optional(),
     description: z.string().trim().nullable().optional(),
+    id_group: z.string().trim().min(1).nullable().optional(),
     defaultPrice: z.number().min(0).nullable().optional(),
     currency: z.string().trim().min(1).optional(),
     priceUpdateMode: z.enum(["CATEGORY_ONLY", "OVERRIDE_ALL_ITEMS"]).optional(),

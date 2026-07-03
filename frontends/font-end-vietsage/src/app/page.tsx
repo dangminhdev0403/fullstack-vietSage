@@ -7,88 +7,95 @@ import {
   stats,
 } from "@/components/marketing/marketing-shell";
 import type { Metadata } from "next";
+
 export const metadata: Metadata = {
-  title: "VietSage | Hospitality Technology Platform",
+  title: "VietSage | In-room Concierge Platform",
   description:
-    "VietSage is a modern hospitality technology platform that helps hotels digitize operations, improve guest experiences, simplify management, support multilingual services, and scale with confidence.",
+    "VietSage helps hotels deliver in-room digital concierge, room service requests, multilingual support, and smoother guest comfort journeys without replacing the PMS.",
   openGraph: {
-    title: "VietSage Hospitality Technology Platform",
+    title: "VietSage In-room Concierge Platform",
     description:
-      "A premium platform for hotel operations, guest experience, multilingual service, management visibility, and business growth.",
-    images: ["/marketing/bay.jpg"],
+      "A premium digital concierge layer for in-room requests, amenities, service routing, multilingual support, and better guest comfort.",
+    images: ["/brand/register-hero.png"],
   },
 };
 
 const solutions = [
   {
-    title: "VietSage Hospitality",
-    text: "Help hotels digitize daily operations, simplify guest service, improve team coordination, and gain clearer visibility across the property.",
+    title: "Room concierge by QR",
+    text: "Guests scan in the room and request towels, amenities, housekeeping, dining, transport, or local help without downloading an app.",
   },
   {
-    title: "VietSage Commerce",
-    text: "A future service-commerce direction for businesses that want structured ordering, catalog management, customer journeys, and operational reporting.",
+    title: "Service routing for staff",
+    text: "Each request reaches the right team with room context, priority, language support, and a simple status flow from received to completed.",
   },
   {
-    title: "VietSage Health",
-    text: "A future vertical exploring digital service journeys, scheduling visibility, multilingual support, and operational coordination for healthcare providers.",
+    title: "Comfort-focused guest journey",
+    text: "The experience feels like a quiet digital front desk inside the room: helpful, premium, multilingual, and available exactly when guests need it.",
   },
 ];
 
 const why = [
   {
-    title: "Guest Experience",
-    text: "Give guests a smoother digital service journey with easier access, clearer communication, multilingual support, and faster follow-up.",
+    title: "Not hotel CRM",
+    text: "VietSage is not centered on managing guest profiles or marketing campaigns; it is built for active service moments during the stay.",
   },
   {
-    title: "Hotel Operations",
-    text: "Help teams coordinate guest requests, room activity, service delivery, and daily priorities through a clearer operating workflow.",
+    title: "Less friction at reception",
+    text: "Routine questions and requests move from phone calls or lobby queues into a clear guest self-service flow inside the room.",
   },
   {
-    title: "Multilingual",
-    text: "Support international guests and staff communication with multilingual experiences and optional AI assistance for translation and response preparation.",
+    title: "More comfortable stays",
+    text: "Guests can ask for what they need privately and quickly, while staff receive structured information instead of scattered messages.",
   },
   {
-    title: "Operational Visibility",
-    text: "View service activity, guest demand, team workload, business signals, and operational health from a management dashboard.",
+    title: "Multilingual service",
+    text: "International guests can understand services and submit requests more confidently, helping teams respond with fewer misunderstandings.",
   },
   {
-    title: "Enterprise Security",
-    text: "Support hotel owners, managers, and staff teams with role-based access and secure operating patterns for business environments.",
+    title: "Operational visibility",
+    text: "Owners and managers see request volume, service speed, guest demand, and team workload without turning the guest journey into a back-office CRM.",
   },
   {
-    title: "Scalable Platform",
-    text: "Start with core hotel workflows, then expand into broader services, reporting, integrations, and multi-property growth.",
+    title: "Works beside PMS",
+    text: "VietSage complements existing hotel systems by adding a guest-facing service layer for convenience, comfort, and better in-room hospitality.",
   },
+];
+
+const moments = [
+  "A guest needs extra towels after check-in and sends the request from the room QR.",
+  "A family orders in-room dining without calling reception during the evening rush.",
+  "A foreign guest asks for checkout guidance in their language and receives clear next steps.",
 ];
 
 const faqs = [
   [
-    "Who is VietSage designed for?",
-    "VietSage is designed for hotels and hospitality businesses that want to digitize operations, improve guest experiences, simplify management, and gain better operational visibility.",
+    "Is VietSage a CRM or PMS replacement?",
+    "No. VietSage is a guest-facing service and in-room concierge layer. It helps hotels improve comfort, service access, multilingual support, and operational follow-up during the stay.",
   ],
   [
-    "Can VietSage work alongside existing hotel systems?",
-    "Yes. VietSage is designed to complement existing hotel systems by strengthening guest service workflows, multilingual experiences, reporting, and management visibility. It does not claim to replace a PMS.",
+    "Do guests need to install an app?",
+    "No. The intended flow is simple QR access from the room, so guests can request services quickly without app download friction.",
   ],
   [
-    "Does VietSage support multiple languages?",
-    "Yes. VietSage supports multilingual hospitality experiences, with AI used only as optional support for translation, automation, and operational insights.",
+    "What does the hotel team receive?",
+    "The team receives structured room requests, service categories, statuses, and context so staff can coordinate more clearly and respond faster.",
   ],
 ];
+
 export default function Home() {
   return (
     <MarketingShell>
       <Hero
-        eyebrow="Hospitality Technology Platform"
-        title="Digitize hotel operations with a premium guest experience."
-        text="VietSage helps hotels modernize daily operations, improve guest service journeys, support multilingual communication, simplify management, and create clearer visibility for business growth."
-        image="/marketing/bay.jpg"
+        eyebrow="Digital front desk inside every room"
+        title="Bring reception, room service, and guest comfort into one calm in-room flow."
+        text="VietSage gives hotel guests a premium QR concierge for amenities, dining, housekeeping, local help, and multilingual support while giving staff a clearer way to route and complete every request."
       >
         <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {stats.map(([v, l]) => (
             <div
               key={l}
-              className="rounded-3xl border border-[#123d2a]/10 bg-white/70 p-4"
+              className="rounded-3xl border border-[#123d2a]/10 bg-white/70 p-4 shadow-sm shadow-[#123d2a]/5"
             >
               <strong className="text-3xl text-[#123d2a]">{v}</strong>
               <span className="block text-xs uppercase tracking-[.14em] text-[#627064]">
@@ -98,109 +105,88 @@ export default function Home() {
           ))}
         </div>
       </Hero>
+
       <section className="px-5 py-14 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <p className="text-center text-xs font-black uppercase tracking-[.28em] text-[#b8872f]">
-            Built for hospitality teams and business growth
+            Guest comfort, not guest database management
           </p>
           <div className="mt-8 grid gap-3 sm:grid-cols-4">
-            <span className="vs-logo-tile">GUEST SERVICE</span>
-            <span className="vs-logo-tile">OPERATIONS</span>
-            <span className="vs-logo-tile">VISIBILITY</span>
-            <span className="vs-logo-tile">GROWTH</span>
+            <span className="vs-logo-tile">IN-ROOM QR</span>
+            <span className="vs-logo-tile">AMENITIES</span>
+            <span className="vs-logo-tile">ROOM SERVICE</span>
+            <span className="vs-logo-tile">LOCAL HELP</span>
           </div>
         </div>
       </section>
+
       <section className="px-5 py-16 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <SectionHeader
-            eyebrow="Platform overview"
-            title="A company platform for modern hospitality operations."
-            text="VietSage brings together digital guest service, operational workflows, multilingual communication, management dashboards, and business visibility in a practical hospitality platform."
+            eyebrow="What VietSage adds"
+            title="A hospitality layer for the moments guests actually feel."
+            text="Instead of focusing on CRM-style customer management, VietSage focuses on the in-stay experience: what guests need now, who should handle it, and how smoothly the hotel can deliver."
           />
           <div className="mt-12">
             <CardGrid items={solutions} />
           </div>
         </div>
       </section>
+
+      <section className="px-5 py-16 lg:px-8">
+        <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.92fr_1.08fr]">
+          <div className="rounded-[2rem] bg-[#123d2a] p-8 text-white shadow-2xl shadow-[#123d2a]/18">
+            <p className="text-[#f3c66b]">From room to team</p>
+            <h2 className="vs-display mt-3 text-5xl font-black tracking-[-0.04em]">
+              Every small request becomes a clear service signal.
+            </h2>
+            <p className="mt-5 text-white/72">
+              The goal is not to copy a CRM page. The product direction is a quiet,
+              premium service layer that helps guests feel cared for without making
+              staff manage chaotic phone calls and chat threads.
+            </p>
+          </div>
+          <div className="grid gap-4">
+            {moments.map((moment, index) => (
+              <article
+                key={moment}
+                className="vs-landing-reveal rounded-[1.8rem] border border-[#123d2a]/10 bg-white/80 p-6 shadow-xl shadow-[#123d2a]/6"
+              >
+                <span className="text-xs font-black uppercase tracking-[0.2em] text-[#b8872f]">
+                  Stay moment {index + 1}
+                </span>
+                <p className="mt-3 text-xl font-black leading-8 text-[#123d2a]">
+                  {moment}
+                </p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <section className="px-5 py-16 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <SectionHeader
-            eyebrow="Why VietSage"
-            title="Built for trust, speed, and global hospitality standards."
-            text="VietSage is designed around operational clarity, guest convenience, secure access, multilingual service, and scalable growth for hospitality businesses."
+            eyebrow="Why this matters"
+            title="Less lobby friction. More in-room convenience. Better service rhythm."
+            text="Hotels can keep their existing management stack while adding a guest-facing experience that improves comfort, convenience, and staff coordination."
           />
           <div className="mt-12">
             <CardGrid items={why} />
           </div>
         </div>
       </section>
-      <section className="px-5 py-16 lg:px-8">
-        <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-2">
-          <div className="rounded-[2rem] bg-[#123d2a] p-8 text-white">
-            <p className="text-[#f3c66b]">Dashboard Preview</p>
-            <h2 className="vs-display mt-3 text-5xl font-black">
-              See the operational signals that shape each service day.
-            </h2>
-            <p className="mt-5 text-white/70">
-              Management views, service activity, guest demand, team workload,
-              and business signals help leaders understand where to focus.
-            </p>
-          </div>
-          <CardGrid
-            items={[
-              {
-                title: "Service coordination",
-                text: "Teams can organize guest needs, follow-up work, and service priorities with clearer daily accountability.",
-              },
-              {
-                title: "Digital guest journeys",
-                text: "Hotels can provide guests with easier digital access to services, information, and multilingual support.",
-              },
-              {
-                title: "Business visibility",
-                text: "Operational and service data help managers identify demand patterns, workload pressure, and growth opportunities.",
-              },
-            ]}
-          />
-        </div>
-      </section>
-      <section className="px-5 py-16 lg:px-8">
-        <div className="mx-auto max-w-7xl">
-          <SectionHeader
-            eyebrow="Benefits"
-            title="Designed for hospitality teams that need clarity and control."
-            text="Core benefits VietSage is built to support for hotels and service-led businesses."
-          />
-          <div className="mt-10 grid gap-4 md:grid-cols-3">
-            {[
-              "Bring guest service activity, staff follow-up, and management visibility into a more consistent workflow.",
-              "Support international guests with a digital journey that feels clear, premium, and easy to use.",
-              "Help owners and managers make decisions with better visibility into operations, demand, and service performance.",
-            ].map((q, i) => (
-              <blockquote
-                key={q}
-                className="rounded-[2rem] bg-white/80 p-6 shadow-xl shadow-[#123d2a]/5"
-              >
-                <p className="text-lg leading-8 text-[#4d5b50]">{q}</p>
-                <footer className="mt-5 font-black text-[#123d2a]">
-                  Platform benefit {i + 1}
-                </footer>
-              </blockquote>
-            ))}
-          </div>
-        </div>
-      </section>
+
       <section className="px-5 py-16 lg:px-8">
         <div className="mx-auto max-w-4xl">
           <SectionHeader
             eyebrow="FAQ"
-            title="Questions before a demo?"
-            text="A concise overview for investors, hotel owners, and business customers evaluating VietSage."
+            title="Clear positioning before a demo."
+            text="VietSage is designed around in-room hospitality and service delivery, not cloning a customer-care CRM narrative."
           />
           <div className="mt-10 space-y-3">
             {faqs.map(([q, a]) => (
-              <details key={q} className="rounded-3xl bg-white/82 p-6">
+              <details key={q} className="rounded-3xl bg-white/82 p-6 shadow-sm shadow-[#123d2a]/5">
                 <summary className="cursor-pointer font-black text-[#123d2a]">
                   {q}
                 </summary>

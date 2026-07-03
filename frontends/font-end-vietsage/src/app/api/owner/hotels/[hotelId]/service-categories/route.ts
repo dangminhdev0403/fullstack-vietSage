@@ -23,6 +23,7 @@ const createCategorySchema = z
   .object({
     name: z.string().trim().min(1),
     description: z.string().trim().optional(),
+    id_group: z.string().trim().min(1).nullable().optional(),
     defaultPrice: z.number().min(0),
     currency: z.string().trim().min(1).optional(),
     sortOrder: z.number().optional(),

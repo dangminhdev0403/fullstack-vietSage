@@ -38,6 +38,7 @@ type CategoryFormState = {
   id?: string;
   name: string;
   description: string;
+  id_group: string;
   defaultPrice: string;
   originalDefaultPrice: string;
   currency: string;
@@ -80,6 +81,7 @@ function emptyTranslations(): TranslationFormState {
 const emptyCategoryForm: CategoryFormState = {
   name: "",
   description: "",
+  id_group: "",
   defaultPrice: "",
   originalDefaultPrice: "",
   currency: "VND",
@@ -269,6 +271,7 @@ function categoryToForm(category: HotelServiceCategory): CategoryFormState {
     id: category.id,
     name: category.name,
     description: category.description ?? "",
+    id_group: category.id_group ?? "",
     defaultPrice,
     originalDefaultPrice: defaultPrice,
     currency: category.currency || "VND",
@@ -414,6 +417,11 @@ export function OwnerServiceCatalogClient({ hotelId, initialCategories, initialI
       ),
     },
     {
+      key: "telegram",
+      header: "Telegram",
+      cell: (category) => category.id_group ? <span className="rounded-full bg-[var(--primary-fixed)] px-2.5 py-1 text-xs font-bold text-[var(--on-primary-fixed-variant)]">{category.id_group}</span> : <span className="text-xs text-[var(--on-surface-variant)]">Tùy chọn</span>,
+    },
+    {
       key: "price",
       header: <button type="button" onClick={() => setCategorySort((current) => toggleSort(current, "price"))} className={sortableHeaderClass(categorySort.key === "price")}>Giá mặc định <span className="text-[10px] normal-case tracking-normal">{sortIndicator(categorySort, "price")}</span></button>,
       cell: (category) => <span className="font-semibold">{formatVnd(category.defaultPrice, category.currency)}</span>,
@@ -553,6 +561,7 @@ export function OwnerServiceCatalogClient({ hotelId, initialCategories, initialI
       const body = {
         name: categoryForm.name.trim(),
         description: categoryForm.description.trim() || undefined,
+        id_group: categoryForm.id_group.trim() || null,
         defaultPrice,
         currency: categoryForm.currency.trim().toUpperCase() || "VND",
         ...(categoryForm.id && priceChanged ? { priceUpdateMode: categoryForm.priceUpdateMode } : {}),
@@ -713,7 +722,7 @@ export function OwnerServiceCatalogClient({ hotelId, initialCategories, initialI
           data={paginatedCategories}
           getRowKey={(category) => category.id}
           emptyMessage="Chưa có nhóm dịch vụ phù hợp."
-          minWidth="760px"
+          minWidth="900px"
           footer={(
             <PaginationControls
               page={activeCategoryPage}
@@ -755,6 +764,7 @@ export function OwnerServiceCatalogClient({ hotelId, initialCategories, initialI
             <h2 className="mb-5 text-2xl font-semibold text-[var(--primary)]">{categoryForm.id ? "Sửa nhóm dịch vụ" : "Tạo nhóm dịch vụ"}</h2>
             <div className="grid gap-4 md:grid-cols-2">
               <label className="space-y-2 md:col-span-2"><span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">Tên nhóm dịch vụ</span><input required value={categoryForm.name} onChange={(event) => setCategoryForm({ ...categoryForm, name: event.target.value })} placeholder="VD: Housekeeping" className="w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 outline-none focus:border-[var(--primary)]" /></label>
+              <label className="space-y-2 md:col-span-2"><span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">ID group Telegram (tùy chọn)</span><input value={categoryForm.id_group} onChange={(event) => setCategoryForm({ ...categoryForm, id_group: event.target.value })} placeholder="VD: -1001234567890" className="w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 outline-none focus:border-[var(--primary)]" /><span className="block text-xs text-[var(--on-surface-variant)]">Chỉ nhập khi nhóm dịch vụ cần bắn thông báo vào group Telegram riêng.</span></label>
               <label className="space-y-2"><span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">Giá mặc định</span><input required type="text" inputMode="numeric" autoComplete="off" value={formatPriceInput(categoryForm.defaultPrice)} onChange={(event) => setCategoryForm({ ...categoryForm, defaultPrice: toRawPriceDigits(event.target.value) })} onBeforeInput={(event) => { if (event.data && /\D/.test(event.data)) event.preventDefault(); }} onPaste={(event) => { if (/\D/.test(event.clipboardData.getData("text"))) event.preventDefault(); }} placeholder="VD: 10000" className="w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 outline-none focus:border-[var(--primary)]" /></label>
               <label className="space-y-2"><span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">Tiền tệ</span><input required value={categoryForm.currency} onChange={(event) => setCategoryForm({ ...categoryForm, currency: event.target.value.toUpperCase() })} placeholder="VND" className="w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 outline-none focus:border-[var(--primary)]" /></label>
               <label className="space-y-2"><span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">Thứ tự hiển thị</span><input required type="number" min={0} step={1} value={categoryForm.sortOrder} onChange={(event) => setCategoryForm({ ...categoryForm, sortOrder: event.target.value })} placeholder="VD: 1" className="w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 outline-none focus:border-[var(--primary)]" /></label>

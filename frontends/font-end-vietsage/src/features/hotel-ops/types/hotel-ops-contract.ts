@@ -28,6 +28,7 @@ export type HotelServiceCategory = {
   hotelId: string;
   name: string;
   description: string | null;
+  id_group?: string | null;
   defaultPrice: string | number | null;
   currency: string;
   sortOrder: number;
@@ -220,6 +221,7 @@ export type ServiceCatalogTranslationsInput = Partial<Record<"en" | "zh" | "ko" 
 export type CreateServiceCategoryInput = {
   name: string;
   description?: string;
+  id_group?: string | null;
   defaultPrice?: number;
   currency?: string;
   sortOrder?: number;
@@ -230,6 +232,7 @@ export type CreateServiceCategoryInput = {
 export type UpdateServiceCategoryInput = {
   name?: string;
   description?: string | null;
+  id_group?: string | null;
   defaultPrice?: number | null;
   currency?: string;
   priceUpdateMode?: "CATEGORY_ONLY" | "OVERRIDE_ALL_ITEMS";

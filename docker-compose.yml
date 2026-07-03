@@ -20,71 +20,38 @@ services:
   auth-service:
     build:
       context: ./services/auth-service
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     container_name: vietsage-auth-service
     restart: unless-stopped
-    working_dir: /app
     env_file:
       - ./services/auth-service/.env.docker
     environment:
-      NODE_ENV: development
+      NODE_ENV: production
       PORT: "8080"
-      CHOKIDAR_USEPOLLING: "true"
-      CI: "true"
-      PNPM_CONFIG_CONFIRM_MODULES_PURGE: "false"
-      NODE_OPTIONS: --max-old-space-size=4096
-      PRISMA_MIGRATE_ON_START: "false"
     ports:
       - "8080:8080"
-    volumes:
-      - ./services/auth-service:/app
-      - ./services/auth-service/.env.docker:/app/.env:ro
-      - auth_service_node_modules:/app/node_modules
     depends_on:
       postgres:
         condition: service_healthy
-    command: >
-      sh -c "
-        if [ ! -d node_modules/.pnpm ]; then pnpm install --no-frozen-lockfile; fi &&
-        if [ "$$PRISMA_MIGRATE_ON_START" = "true" ]; then pnpm prisma:deploy; fi &&
-        pnpm prisma:generate &&
-        pnpm start:dev
-      "
 
   frontend:
     build:
       context: ./frontends/font-end-vietsage
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     container_name: vietsage-frontend
     restart: unless-stopped
-    working_dir: /app
     env_file:
       - ./frontends/font-end-vietsage/.env.docker
     environment:
-      NODE_ENV: development
+      NODE_ENV: production
       NEXTAUTH_URL: http://localhost:3000
       AUTH_SECRET: replace-with-local-docker-nextauth-secret
       AUTH_API_BASE_URL: http://auth-service:8080
       NEXT_PUBLIC_AUTH_API_BASE_URL: http://localhost:8080
-      WATCHPACK_POLLING: "true"
-      CI: "true"
-      PNPM_CONFIG_CONFIRM_MODULES_PURGE: "false"
     ports:
       - "3000:3000"
-    volumes:
-      - ./frontends/font-end-vietsage:/app
-      - frontend_node_modules:/app/node_modules
-      - frontend_next_cache:/app/.next
     depends_on:
       - auth-service
-    command: >
-      sh -c "
-        if [ ! -d node_modules/.pnpm ]; then pnpm install --frozen-lockfile; fi &&
-        pnpm dev --hostname 0.0.0.0
-      "
 
 volumes:
   vietsage_postgres_data:
-  auth_service_node_modules:
-  frontend_node_modules:
-  frontend_next_cache:

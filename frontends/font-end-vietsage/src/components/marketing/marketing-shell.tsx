@@ -9,10 +9,10 @@ export const solutionLinks = [
 ];
 
 export const stats = [
-  ["QR", "guest service access"],
-  ["Multi", "language support"],
-  ["Live", "operations visibility"],
-  ["Scale", "property growth"],
+  ["24/7", "in-room concierge"],
+  ["QR", "no app required"],
+  ["Live", "service routing"],
+  ["Multi", "guest languages"],
 ];
 
 type CardItem = { title: string; text: string };
@@ -73,33 +73,62 @@ export function SectionHeader({ eyebrow, title, text }: { eyebrow: string; title
   );
 }
 
-export function Hero({ eyebrow, title, text, image, children }: { eyebrow: string; title: string; text: string; image: string; children?: ReactNode }) {
+export function Hero({ eyebrow, title, text, children }: { eyebrow: string; title: string; text: string; image?: string; children?: ReactNode }) {
   return (
     <section className="relative overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_10%_10%,rgba(184,135,47,.22),transparent_32%),linear-gradient(135deg,#f7f3e8,#edf5ea)]" />
-      <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-5 py-16 lg:grid-cols-[1.04fr_.96fr] lg:px-8 lg:py-24">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_16%,rgba(215,168,77,.24),transparent_30%),radial-gradient(circle_at_86%_8%,rgba(52,103,75,.18),transparent_28%),linear-gradient(135deg,#fbf4e4_0%,#eef6ed_52%,#f8efe0_100%)]" />
+      <div className="vs-landing-grid absolute inset-0 opacity-70" />
+      <div className="vs-landing-orb left-[6%] top-24 h-28 w-28 bg-[#d7a84d]/24" />
+      <div className="vs-landing-orb bottom-14 right-[12%] h-40 w-40 bg-[#123d2a]/14 [animation-delay:1.4s]" />
+      <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-5 py-16 lg:grid-cols-[1.02fr_.98fr] lg:px-8 lg:py-24">
         <div className="vs-landing-reveal">
-          <p className="text-xs font-black uppercase tracking-[0.28em] text-[#b8872f]">{eyebrow}</p>
-          <h1 className="vs-display mt-5 text-5xl font-black leading-[.94] tracking-[-0.06em] text-[#123d2a] md:text-7xl">{title}</h1>
-          <p className="mt-6 max-w-2xl text-xl leading-9 text-[#4d5b50]">{text}</p>
+          <p className="inline-flex rounded-full border border-[#b8872f]/20 bg-white/60 px-4 py-2 text-xs font-black uppercase tracking-[0.26em] text-[#9b6a1d] shadow-sm shadow-[#123d2a]/5">{eyebrow}</p>
+          <h1 className="vs-display mt-6 text-5xl font-black leading-[.92] tracking-[-0.065em] text-[#123d2a] md:text-7xl">{title}</h1>
+          <p className="mt-6 max-w-2xl text-xl leading-9 text-[#405446]">{text}</p>
+          <p className="mt-4 max-w-xl rounded-2xl border border-[#123d2a]/10 bg-white/58 px-4 py-3 text-sm font-bold text-[#123d2a] shadow-sm shadow-[#123d2a]/5">
+            Guests scan a room QR, choose what they need, and your team receives a clean service task instantly.
+          </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Link className="rounded-full bg-[#123d2a] px-7 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-white shadow-xl shadow-[#123d2a]/20" href="/contact">Request Demo</Link>
-            <Link className="rounded-full border border-[#123d2a]/20 bg-white/70 px-7 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-[#123d2a]" href="/contact">Contact Sales</Link>
+            <Link className="rounded-full bg-[#123d2a] px-7 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-white shadow-xl shadow-[#123d2a]/20 transition hover:-translate-y-0.5 hover:bg-[#0d2f20]" href="/contact">Book a room demo</Link>
+            <Link className="rounded-full border border-[#123d2a]/20 bg-white/76 px-7 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-[#123d2a] shadow-sm transition hover:-translate-y-0.5 hover:bg-white" href="/g/home">View guest flow</Link>
           </div>
           {children}
         </div>
-        <div className="vs-landing-reveal relative min-h-[420px] overflow-hidden rounded-[2rem] shadow-2xl shadow-[#123d2a]/18">
-          <Image src={image} alt="VietSage platform visual" fill priority className="object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#123d2a]/88 via-[#123d2a]/14 to-transparent" />
-          <div className="absolute bottom-5 left-5 right-5 rounded-3xl bg-white/90 p-5 backdrop-blur">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#b8872f]">Live dashboard preview</p>
-            <div className="mt-4 grid grid-cols-3 gap-3">
-              {stats.slice(0, 3).map(([value, label]) => (
-                <div key={label} className="rounded-2xl bg-[#f7f3e8] p-3">
-                  <strong className="text-2xl text-[#123d2a]">{value}</strong>
-                  <span className="block text-xs text-[#627064]">{label}</span>
+        <div className="vs-landing-reveal relative">
+          <div className="absolute -left-3 -top-4 z-10 hidden rounded-3xl border border-white/70 bg-white/85 p-4 shadow-2xl shadow-[#123d2a]/12 backdrop-blur md:block">
+            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#9b6a1d]">Room 1208</p>
+            <p className="mt-1 text-sm font-black text-[#123d2a]">Pillow request routed</p>
+          </div>
+          <div className="absolute -right-2 bottom-8 z-10 hidden max-w-[220px] rounded-3xl bg-[#123d2a] p-4 text-white shadow-2xl shadow-[#123d2a]/20 md:block">
+            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#f3c66b]">Guest comfort</p>
+            <p className="mt-1 text-sm text-white/80">No call, no app, no waiting line.</p>
+          </div>
+          <div className="overflow-hidden rounded-[2.2rem] border border-white/70 bg-[#123d2a] p-4 shadow-2xl shadow-[#123d2a]/18">
+            <div className="rounded-[1.7rem] bg-[#f8f1df] p-4">
+              <div className="flex items-center justify-between rounded-3xl bg-white p-4 shadow-lg shadow-[#123d2a]/6">
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#b8872f]">VietSage Room Concierge</p>
+                  <h3 className="mt-2 text-2xl font-black text-[#123d2a]">How can we make your stay more comfortable?</h3>
                 </div>
-              ))}
+                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#123d2a] text-xl text-white">VS</span>
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {["Towels & amenities", "In-room dining", "Housekeeping", "Local assistance"].map((item) => (
+                  <div key={item} className="rounded-3xl border border-[#123d2a]/10 bg-white/82 p-4">
+                    <span className="text-xs font-black uppercase tracking-[0.18em] text-[#b8872f]">Request</span>
+                    <p className="mt-2 font-black text-[#123d2a]">{item}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 rounded-3xl bg-[#123d2a] p-5 text-white">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.2em] text-[#f3c66b]">Live service desk</p>
+                    <p className="mt-2 text-sm text-white/72">Guest request translated, assigned, and tracked by the hotel team.</p>
+                  </div>
+                  <strong className="text-4xl text-[#f3c66b]">3m</strong>
+                </div>
+              </div>
             </div>
           </div>
         </div>

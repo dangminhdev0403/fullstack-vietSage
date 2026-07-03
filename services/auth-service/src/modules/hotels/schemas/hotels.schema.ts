@@ -216,6 +216,7 @@ export const createServiceCategoryBodySchema = z
   .object({
     name: z.string().trim().min(1).max(120),
     description: z.string().trim().max(500).optional(),
+    id_group: z.string().trim().min(1).max(128).nullable().optional(),
     defaultPrice: z.number().nonnegative(),
     currency: z.string().trim().length(3).optional(),
     sortOrder: z.coerce.number().int().min(0).optional(),
@@ -228,6 +229,7 @@ export const updateServiceCategoryBodySchema = z
   .object({
     name: z.string().trim().min(1).max(120).optional(),
     description: z.string().trim().max(500).nullable().optional(),
+    id_group: z.string().trim().min(1).max(128).nullable().optional(),
     defaultPrice: z.number().nonnegative().optional(),
     currency: z.string().trim().length(3).optional(),
     priceUpdateMode: z.nativeEnum(CategoryPriceUpdateMode).optional(),

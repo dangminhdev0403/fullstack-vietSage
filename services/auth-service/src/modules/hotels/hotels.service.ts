@@ -321,7 +321,8 @@ export class HotelsService {
       limit,
     );
 
-    return { page, limit, total, items: rows.map((row) => this.toServiceCategoryData(row)) };
+    const items = await Promise.all(rows.map((row) => this.toServiceCategoryData(row)));
+    return { page, limit, total, items };
   }
 
   async createServiceCategory(
@@ -342,6 +343,14 @@ export class HotelsService {
       status: dto.status,
       translations: dto.translations,
     });
+
+    if (dto.id_group !== undefined) {
+      await this.hotelsRepository.syncServiceCategoryTelegramGroup({
+        hotelId,
+        serviceCategoryId: category.id,
+        telegramChatId: dto.id_group,
+      });
+    }
 
     return this.toServiceCategoryData(category);
   }
@@ -373,6 +382,14 @@ export class HotelsService {
       overrideAllItems: priceUpdateMode === CategoryPriceUpdateMode.OVERRIDE_ALL_ITEMS,
       overridePrice: dto.defaultPrice,
     });
+
+    if (dto.id_group !== undefined) {
+      await this.hotelsRepository.syncServiceCategoryTelegramGroup({
+        hotelId,
+        serviceCategoryId: category.id,
+        telegramChatId: dto.id_group,
+      });
+    }
 
     return this.toServiceCategoryData(category);
   }
@@ -1050,7 +1067,7 @@ export class HotelsService {
     };
   }
 
-  private toServiceCategoryData(row: {
+  private async toServiceCategoryData(row: {
     id: string;
     hotelId: string;
     name: string;
@@ -1063,11 +1080,14 @@ export class HotelsService {
     updatedAt: Date;
     translations?: Array<{ locale: string; name: string; description: string | null }>;
   }) {
+    const idGroup = await this.hotelsRepository.getServiceCategoryTelegramGroup(row.hotelId, row.id);
+
     return {
       id: row.id,
       hotelId: row.hotelId,
       name: row.name,
       description: row.description,
+      id_group: idGroup,
       defaultPrice: row.defaultPrice,
       currency: row.currency,
       sortOrder: row.sortOrder,

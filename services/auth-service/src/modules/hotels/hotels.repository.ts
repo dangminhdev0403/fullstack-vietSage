@@ -362,6 +362,54 @@ export class HotelsRepository {
     });
   }
 
+  async getServiceCategoryTelegramGroup(hotelId: string, serviceCategoryId: string) {
+    const route = await this.prisma.notificationRoute.findFirst({
+      where: { hotelId, serviceCategoryId, isActive: true },
+      orderBy: { updatedAt: "desc" },
+      select: { telegramChatId: true },
+    });
+
+    return route?.telegramChatId ?? null;
+  }
+
+  async syncServiceCategoryTelegramGroup(input: {
+    hotelId: string;
+    serviceCategoryId: string;
+    telegramChatId?: string | null;
+  }) {
+    const telegramChatId = input.telegramChatId?.trim();
+
+    if (!telegramChatId) {
+      await this.prisma.notificationRoute.updateMany({
+        where: { hotelId: input.hotelId, serviceCategoryId: input.serviceCategoryId, isActive: true },
+        data: { isActive: false },
+      });
+      return;
+    }
+
+    const existing = await this.prisma.notificationRoute.findFirst({
+      where: { hotelId: input.hotelId, serviceCategoryId: input.serviceCategoryId, isActive: true },
+      select: { id: true },
+    });
+
+    if (existing) {
+      await this.prisma.notificationRoute.update({
+        where: { id: existing.id },
+        data: { telegramChatId },
+      });
+      return;
+    }
+
+    await this.prisma.notificationRoute.create({
+      data: {
+        hotelId: input.hotelId,
+        serviceCategoryId: input.serviceCategoryId,
+        telegramChatId,
+        isActive: true,
+      },
+    });
+  }
+
   async createServiceCategory(input: {
     hotelId: string;
     tenantId: string;
