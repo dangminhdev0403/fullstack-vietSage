@@ -7,11 +7,9 @@ import path from "node:path";
 import { z } from "zod";
 
 const envPath = path.resolve(".env");
-if (!fs.existsSync(envPath)) {
-  throw new Error(".env file is missing. Please create one based on .env.example");
+if (fs.existsSync(envPath)) {
+  config({ path: envPath });
 }
-
-config({ path: envPath });
 
 const ConfigSchema = z.object({
   DATABASE_URL: z.string().min(1),

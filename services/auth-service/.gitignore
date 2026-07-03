@@ -57,3 +57,8 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 src/common/config/google-service-account.json
 .pnpm-store
+# generated build/config artifacts
+*.tsbuildinfo
+prisma.config.d.ts
+prisma.config.js
+prisma.config.js.map
