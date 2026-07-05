@@ -1,17 +1,18 @@
 ﻿import type { Metadata } from "next";
-import { Inter, Playfair_Display } from "next/font/google";
+import { Fraunces, Manrope } from "next/font/google";
 import "./globals.css";
 import { AppToaster } from "./_components/app-toaster";
 import { ReactQueryProvider } from "./_components/react-query-provider";
 
-const inter = Inter({
-  variable: "--font-inter",
+const manrope = Manrope({
+  variable: "--font-manrope",
   subsets: ["latin", "vietnamese"],
 });
 
-const playfairDisplay = Playfair_Display({
-  variable: "--font-playfair-display",
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
   subsets: ["latin", "vietnamese"],
+  axes: ["SOFT", "WONK", "opsz"],
 });
 export const metadata: Metadata = {
   metadataBase: new URL("https://vietsage.ai"),
@@ -43,7 +44,7 @@ export default function RootLayout({
   return (
     <html
       lang="vi"
-      className={`${inter.variable} ${playfairDisplay.variable} h-full antialiased`}
+      className={`${manrope.variable} ${fraunces.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="min-h-full">

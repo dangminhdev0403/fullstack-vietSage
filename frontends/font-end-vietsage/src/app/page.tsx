@@ -95,7 +95,7 @@ export default function Home() {
           {stats.map(([v, l]) => (
             <div
               key={l}
-              className="rounded-3xl border border-[#123d2a]/10 bg-white/70 p-4 shadow-sm shadow-[#123d2a]/5"
+              className="vs-mkt-card rounded-3xl border border-[#123d2a]/10 bg-white/70 p-4 shadow-sm shadow-[#123d2a]/5"
             >
               <strong className="text-3xl text-[#123d2a]">{v}</strong>
               <span className="block text-xs uppercase tracking-[.14em] text-[#627064]">

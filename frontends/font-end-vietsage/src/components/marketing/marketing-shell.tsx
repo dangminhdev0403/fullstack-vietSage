@@ -19,11 +19,11 @@ type CardItem = { title: string; text: string };
 
 export function MarketingShell({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen bg-[#f7f3e8] text-[#132119]">
-      <header className="sticky top-0 z-50 border-b border-[#132119]/10 bg-[#f7f3e8]/86 backdrop-blur-xl">
+    <div className="vs-mkt-shell min-h-screen text-[#132119]">
+      <header className="sticky top-0 z-50 border-b border-[#132119]/10 bg-[#faf2df]/82 shadow-sm shadow-[#123d2a]/5 backdrop-blur-2xl">
         <nav className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 lg:px-8" aria-label="Main navigation">
           <Link href="/" className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-2xl bg-[#123d2a]">
+            <span className="grid h-11 w-11 place-items-center rounded-[1.1rem] bg-[#123d2a] shadow-lg shadow-[#123d2a]/20 ring-1 ring-white/40">
               <Image src="/brand/vietsage-icon.png" alt="VietSage" width={25} height={25} />
             </span>
             <span>
@@ -53,7 +53,7 @@ export function MarketingShell({ children }: { children: ReactNode }) {
           </div>
           <div className="flex items-center gap-2">
             <Link className="hidden rounded-full px-4 py-2 text-sm font-bold text-[#123d2a] sm:inline-flex" href="/login">Sign in</Link>
-            <Link className="rounded-full bg-[#123d2a] px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-[#123d2a]/20" href="/contact">Request demo</Link>
+            <Link className="vs-mkt-primary-btn rounded-full bg-[#123d2a] px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-[#123d2a]/20" href="/contact">Request demo</Link>
           </div>
         </nav>
       </header>
@@ -89,8 +89,8 @@ export function Hero({ eyebrow, title, text, children }: { eyebrow: string; titl
             Guests scan a room QR, choose what they need, and your team receives a clean service task instantly.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Link className="rounded-full bg-[#123d2a] px-7 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-white shadow-xl shadow-[#123d2a]/20 transition hover:-translate-y-0.5 hover:bg-[#0d2f20]" href="/contact">Book a room demo</Link>
-            <Link className="rounded-full border border-[#123d2a]/20 bg-white/76 px-7 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-[#123d2a] shadow-sm transition hover:-translate-y-0.5 hover:bg-white" href="/g/home">View guest flow</Link>
+            <Link className="vs-mkt-primary-btn rounded-full bg-[#123d2a] px-7 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-white shadow-xl shadow-[#123d2a]/20" href="/contact">Book a room demo</Link>
+            <Link className="vs-mkt-secondary-btn rounded-full border border-[#123d2a]/20 bg-white/76 px-7 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-[#123d2a] shadow-sm" href="/g/home">View guest flow</Link>
           </div>
           {children}
         </div>
@@ -103,7 +103,7 @@ export function Hero({ eyebrow, title, text, children }: { eyebrow: string; titl
             <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#f3c66b]">Guest comfort</p>
             <p className="mt-1 text-sm text-white/80">No call, no app, no waiting line.</p>
           </div>
-          <div className="overflow-hidden rounded-[2.2rem] border border-white/70 bg-[#123d2a] p-4 shadow-2xl shadow-[#123d2a]/18">
+          <div className="vs-device-card overflow-hidden rounded-[2.2rem] border border-white/70 bg-[#123d2a] p-4 shadow-2xl shadow-[#123d2a]/18">
             <div className="rounded-[1.7rem] bg-[#f8f1df] p-4">
               <div className="flex items-center justify-between rounded-3xl bg-white p-4 shadow-lg shadow-[#123d2a]/6">
                 <div>
@@ -114,7 +114,7 @@ export function Hero({ eyebrow, title, text, children }: { eyebrow: string; titl
               </div>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 {["Towels & amenities", "In-room dining", "Housekeeping", "Local assistance"].map((item) => (
-                  <div key={item} className="rounded-3xl border border-[#123d2a]/10 bg-white/82 p-4">
+                  <div key={item} className="vs-service-tile rounded-3xl border border-[#123d2a]/10 bg-white/82 p-4">
                     <span className="text-xs font-black uppercase tracking-[0.18em] text-[#b8872f]">Request</span>
                     <p className="mt-2 font-black text-[#123d2a]">{item}</p>
                   </div>
@@ -141,7 +141,7 @@ export function CardGrid({ items }: { items: CardItem[] }) {
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {items.map((item) => (
-        <article key={item.title} className="vs-landing-reveal rounded-[1.7rem] border border-[#123d2a]/10 bg-white/78 p-6 shadow-xl shadow-[#123d2a]/6">
+        <article key={item.title} className="vs-landing-reveal vs-mkt-card rounded-[1.7rem] border border-[#123d2a]/10 bg-white/78 p-6 shadow-xl shadow-[#123d2a]/6">
           <div className="mb-5 h-2 w-16 rounded-full bg-[#d7a84d]" />
           <h3 className="text-2xl font-black text-[#123d2a]">{item.title}</h3>
           <p className="mt-3 leading-7 text-[#627064]">{item.text}</p>
