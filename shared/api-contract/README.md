@@ -29,3 +29,13 @@ npm run verify
 ```
 
 No SDK mirror is maintained in this package. Frontend tooling should consume `openapi/v1/openapi.json` directly.
+
+## Sync frontend OpenAPI types
+
+Run from `frontends/font-end-vietsage` after any OpenAPI contract change:
+
+```bash
+npm run sync:api:types
+```
+
+This regenerates `src/generated/openapi/v1.ts` from `shared/api-contract/openapi/v1/openapi.json`. Reviewers can verify generated types are current by running the same command and confirming Git reports no generated type diff.

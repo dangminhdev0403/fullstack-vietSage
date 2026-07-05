@@ -657,6 +657,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/hotels/{hotelId}/requests/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["HotelRequestsController_getRequestsSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/hotels/{hotelId}/requests/{requestId}": {
         parameters: {
             query?: never;
@@ -715,6 +731,182 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["HotelRequestsController_createRequestEvent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["HotelDashboardController_getDashboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/folios": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["FolioController_listFolios"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/stays/{stayId}/active-folio": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["FolioController_getActiveFolioByStay"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/folios/{folioId}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["FolioController_getFolioSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/folios/{folioId}/checkout/issue-invoice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["FolioController_issueInvoice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/folios/{folioId}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["FolioController_listFolioItems"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/folios/{folioId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["FolioController_getFolioDetail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/invoices/{invoiceId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["InvoiceController_getInvoiceDetail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/invoices/{invoiceId}/payments/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["PaymentController_createPaymentSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/payments/{paymentId}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["PaymentController_getPaymentStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payments/webhook/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["PaymentController_processWebhook"];
         delete?: never;
         options?: never;
         head?: never;
@@ -801,6 +993,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/guest/requests/{requestId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["GuestOsController_cancelRequest"];
+        trace?: never;
+    };
     "/guest/session/close": {
         parameters: {
             query?: never;
@@ -811,6 +1019,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["GuestOsController_closeSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/emergency/guest/calls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["EmergencyController_createGuestEmergencyCall"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3297,7 +3521,9 @@ export interface operations {
     };
     HotelRequestsController_listRequests: {
         parameters: {
-            query?: never;
+            query?: {
+                priority?: "NORMAL" | "URGENT";
+            };
             header?: never;
             path: {
                 hotelId: string;
@@ -3307,6 +3533,26 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Đã lấy danh sách yêu cầu của khách */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HotelRequestsController_getRequestsSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Guest request summary */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -3411,6 +3657,244 @@ export interface operations {
             };
         };
     };
+    HotelDashboardController_getDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Dashboard vận hành khách sạn */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FolioController_listFolios: {
+        parameters: {
+            query?: {
+                status?: "OPEN" | "CLOSED";
+            };
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Danh sách folio */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FolioController_getActiveFolioByStay: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                stayId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Folio đang mở */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FolioController_getFolioSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                folioId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tổng quan folio */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FolioController_issueInvoice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                folioId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Invoice đã phát hành */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FolioController_listFolioItems: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                folioId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Danh sách FolioItem */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FolioController_getFolioDetail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                folioId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Chi tiết folio */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    InvoiceController_getInvoiceDetail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                invoiceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Chi tiết invoice */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PaymentController_createPaymentSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                invoiceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Payment pending/session */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PaymentController_getPaymentStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                paymentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Payment status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PaymentController_processWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider: "MANUAL" | "MOMO" | "VNPAY" | "STRIPE" | "BANK_TRANSFER";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Webhook đã xử lý */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     GuestOsController_scanQr: {
         parameters: {
             query?: never;
@@ -3425,6 +3909,10 @@ export interface operations {
                     qrCode: string;
                     /** @description Optional client/device identifier used for abuse correlation. */
                     deviceFingerprint?: string;
+                    /** @description Existing guest session token on this device. Used to prevent silent room switching. */
+                    currentSessionToken?: string;
+                    /** @description When true, closes the current session and switches this device to the scanned room. */
+                    forceSwitch?: boolean;
                 };
             };
         };
@@ -3557,7 +4045,7 @@ export interface operations {
                         error: {
                             [key: string]: unknown;
                         } | null;
-                        /** @example Lay danh sach dich vu trong danh muc cho khach thanh cong */
+                        /** @example Lấy danh sách dịch vụ trong danh mục cho khách thành công */
                         message: string;
                         data: {
                             page: number;
@@ -3618,32 +4106,28 @@ export interface operations {
                             total: number;
                             items: {
                                 id: string;
-                                hotelId: string;
-                                roomId: string;
-                                stayId: string;
-                                sessionId: string | null;
-                                /** @enum {string} */
-                                type: "HOUSEKEEPING" | "EXTRA_TOWELS" | "LAUNDRY" | "MAINTENANCE" | "FOOD_ORDERING" | "AIRPORT_TRANSFER" | "TOUR_BOOKING" | "ESIM_PURCHASE" | "AI_CONCIERGE";
+                                displayName: string;
                                 /** @enum {string} */
                                 status: "CREATED" | "ACKNOWLEDGED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | "FAILED";
                                 /** @enum {string} */
-                                priority: "LOW" | "NORMAL" | "HIGH" | "URGENT";
-                                title: string | null;
-                                description: string | null;
-                                metadata: {
-                                    [key: string]: unknown;
-                                } | null;
+                                priority: "NORMAL" | "URGENT";
                                 quantity: number;
-                                serviceItemId: string | null;
-                                assignedToUserId: string | null;
+                                /** @example VND */
+                                currency: string;
+                                unitPrice: number;
+                                estimatedTotalAmount: number;
+                                service?: {
+                                    id: string;
+                                    name: string;
+                                    price: number;
+                                    /** @example VND */
+                                    currency: string;
+                                } | null;
+                                description: string | null;
+                                answer: string | null;
                                 /** Format: date-time */
                                 createdAt: string;
-                                /** Format: date-time */
-                                updatedAt: string;
-                                /** Format: date-time */
-                                completedAt: string | null;
-                                /** Format: date-time */
-                                cancelledAt: string | null;
+                                canCancel: boolean;
                             }[];
                         };
                     };
@@ -3661,20 +4145,17 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    /** @enum {string} */
-                    type?: "HOUSEKEEPING" | "EXTRA_TOWELS" | "LAUNDRY" | "MAINTENANCE" | "FOOD_ORDERING" | "AIRPORT_TRANSFER" | "TOUR_BOOKING" | "ESIM_PURCHASE" | "AI_CONCIERGE";
-                    serviceItemId?: string;
-                    title?: string;
+                    serviceItemId: string;
                     description?: string;
                     details?: string;
                     /** @description Required only when the selected service item has quantityEnabled=true. Ignored and stored as 1 otherwise. */
                     quantity?: number;
                     /** @enum {string} */
-                    priority?: "LOW" | "NORMAL" | "HIGH" | "URGENT";
+                    priority?: "NORMAL" | "URGENT";
                     metadata?: {
                         [key: string]: unknown;
                     };
-                } | unknown | unknown;
+                };
             };
         };
         responses: {
@@ -3695,32 +4176,66 @@ export interface operations {
                         message: string;
                         data: {
                             id: string;
-                            hotelId: string;
-                            roomId: string;
-                            stayId: string;
-                            sessionId: string | null;
-                            /** @enum {string} */
-                            type: "HOUSEKEEPING" | "EXTRA_TOWELS" | "LAUNDRY" | "MAINTENANCE" | "FOOD_ORDERING" | "AIRPORT_TRANSFER" | "TOUR_BOOKING" | "ESIM_PURCHASE" | "AI_CONCIERGE";
+                            service: {
+                                id: string | null;
+                                name: string | null;
+                            };
                             /** @enum {string} */
                             status: "CREATED" | "ACKNOWLEDGED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | "FAILED";
                             /** @enum {string} */
-                            priority: "LOW" | "NORMAL" | "HIGH" | "URGENT";
-                            title: string | null;
-                            description: string | null;
-                            metadata: {
-                                [key: string]: unknown;
-                            } | null;
+                            priority: "NORMAL" | "URGENT";
                             quantity: number;
-                            serviceItemId: string | null;
-                            assignedToUserId: string | null;
+                            note: string | null;
+                            answer: string | null;
                             /** Format: date-time */
                             createdAt: string;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    GuestOsController_cancelRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Guest request cancelled */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 200 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Cancel guest request successfully */
+                        message: string;
+                        data: {
+                            id: string;
+                            service: {
+                                id: string | null;
+                                name: string | null;
+                            };
+                            /** @enum {string} */
+                            status: "CREATED" | "ACKNOWLEDGED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | "FAILED";
+                            /** @enum {string} */
+                            priority: "NORMAL" | "URGENT";
+                            quantity: number;
+                            note: string | null;
+                            answer: string | null;
                             /** Format: date-time */
-                            updatedAt: string;
-                            /** Format: date-time */
-                            completedAt: string | null;
-                            /** Format: date-time */
-                            cancelledAt: string | null;
+                            createdAt: string;
                         };
                     };
                 };
@@ -3738,6 +4253,28 @@ export interface operations {
         responses: {
             /** @description Đã đóng phiên khách */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    EmergencyController_createGuestEmergencyCall: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Emergency call event accepted and linked to an incident */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };

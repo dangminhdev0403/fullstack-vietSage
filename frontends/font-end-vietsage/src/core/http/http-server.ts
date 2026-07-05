@@ -175,9 +175,6 @@ export async function request<TResponse, TBody = unknown>(
 
   if (authRequired) {
     authorizedSession = await getAuthorizedSession();
-    console.info("[HTTP_SERVER_AUTH_accessToken]", {
-      accessToken: authorizedSession.accessToken,
-    });
     headers.set("Authorization", `Bearer ${authorizedSession.accessToken}`);
   } else {
     headers.delete("Authorization");
