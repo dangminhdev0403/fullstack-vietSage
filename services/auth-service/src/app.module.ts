@@ -19,6 +19,7 @@ import { RequestRealtimeGateway } from "./request-realtime.gateway";
 import { BillingModule } from "./modules/billing/billing.module";
 import { LoggingModule } from "./common/logging/logging.module";
 import { TelegramModule } from "./modules/telegram/telegram.module";
+import { AuthRateLimitGuard } from "./common/security/auth-rate-limit.guard";
 
 @Module({
   imports: [
@@ -38,6 +39,10 @@ import { TelegramModule } from "./modules/telegram/telegram.module";
     TelegramModule,
   ],
   providers: [
+    {
+      provide: APP_GUARD,
+      useClass: AuthRateLimitGuard,
+    },
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,

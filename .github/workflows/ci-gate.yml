@@ -1,0 +1,138 @@
+name: CI Gate
+
+on:
+  pull_request:
+    paths:
+      - "services/auth-service/**"
+      - "frontends/font-end-vietsage/**"
+      - "shared/api-contract/**"
+      - "docker-compose*.yml"
+      - "docker-compose*.yaml"
+      - ".github/workflows/ci-gate.yml"
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - "services/auth-service/**"
+      - "frontends/font-end-vietsage/**"
+      - "shared/api-contract/**"
+      - "docker-compose*.yml"
+      - "docker-compose*.yaml"
+      - ".github/workflows/ci-gate.yml"
+
+jobs:
+  auth-service:
+    name: Backend auth-service
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/auth-service
+    env:
+      DATABASE_URL: ${{ secrets.AUTH_SERVICE_DATABASE_URL }}
+      AUTHZ_ROUTE_SYNC_ENABLED: "false"
+      AUTHZ_ENFORCEMENT_ENABLED: "false"
+      AUTHZ_STRICT_MODE: "false"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: services/auth-service/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prisma generate
+        run: npm run prisma:generate
+
+      - name: Prisma migration status
+        if: ${{ env.DATABASE_URL != '' }}
+        run: npm run prisma:status
+
+      - name: Lint
+        run: npx eslint "{src,apps,libs,test}/**/*.ts"
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test -- --runInBand
+
+  frontend:
+    name: Frontend font-end-vietsage
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontends/font-end-vietsage
+    env:
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: ci-nextauth-secret
+      AUTH_TRUST_HOST: "true"
+      AUTH_API_BASE_URL: http://localhost:8080
+      NEXT_PUBLIC_AUTH_API_BASE_URL: http://localhost:8080
+      NEXT_PUBLIC_GUEST_DEFAULT_SERVICE_CATEGORY_ID: svc_cat_housekeeping
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontends/font-end-vietsage/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+  api-contract:
+    name: Shared API contract
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: shared/api-contract
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Verify contract
+        run: npm run verify
+
+  compose:
+    name: Docker Compose config
+    runs-on: ubuntu-latest
+    env:
+      POSTGRES_PASSWORD: ci-postgres-password
+      NEXTAUTH_SECRET: ci-nextauth-secret
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare CI compose env files
+        run: |
+          cp .env.auth-service.docker.example .env.auth-service.docker
+          cp .env.frontend.docker.example .env.frontend.docker
+          cp .env.auth-service.production.example .env.auth-service.production
+          cp .env.frontend.production.example .env.frontend.production
+
+      - name: Validate docker-compose.yml
+        run: docker compose -f docker-compose.yml config
+
+      - name: Validate docker-compose.prod.yml
+        run: docker compose -f docker-compose.prod.yml config

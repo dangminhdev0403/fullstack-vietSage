@@ -15,6 +15,7 @@ import { GuestOsService } from "./modules/guest-os/guest-os.service";
 import { HotelAccessService } from "./modules/hotels/hotel-access.service";
 import { AppLogger } from "./common/logging/app-logger.service";
 import { RequestRealtimeEmitter } from "./request-realtime.emitter";
+import { loadAppConfig } from "./common/config/env.config";
 
 type AccessTokenPayload = {
   jti: string;
@@ -33,9 +34,14 @@ type JoinGuestSessionPayload = {
   sessionToken?: unknown;
 };
 
+const realtimeCorsOrigins = loadAppConfig().corsOrigins;
+
 @WebSocketGateway({
   namespace: "/request-realtime",
-  cors: { origin: true, credentials: true },
+  cors: {
+    origin: realtimeCorsOrigins,
+    credentials: realtimeCorsOrigins.length > 0,
+  },
 })
 export class RequestRealtimeGateway
   implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit

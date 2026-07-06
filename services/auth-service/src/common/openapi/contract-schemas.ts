@@ -931,7 +931,7 @@ export const guestServiceCatalogDataSchema = {
           hotelId: { type: "string" },
           name: { type: "string" },
           description: { type: "string", nullable: true },
-            defaultPrice: { type: "number" },
+          defaultPrice: { type: "number" },
           currency: { type: "string", example: "VND" },
           sortOrder: { type: "integer" },
           status: { type: "string", enum: [...serviceCatalogStatusEnum] },

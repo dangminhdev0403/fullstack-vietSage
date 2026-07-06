@@ -9,6 +9,7 @@ import {
   refreshTokenBodySchema as refreshTokenBodyOpenApiSchema,
   successEnvelopeSchema,
 } from "../../common/openapi/contract-schemas";
+import { AuthRateLimit } from "../../common/security/auth-rate-limit.decorator";
 import { parseWithZod } from "../../common/validation/parse-with-zod";
 import { ApiDescript } from "../../shared/decorators/api-descript.decorator";
 import { SkipAuthorization } from "../../shared/decorators/skip-authorization.decorator";
@@ -36,6 +37,7 @@ export class AuthController {
     description: "Bao phản hồi đăng nhập",
     schema: successEnvelopeSchema(authTokensDataSchema, 200, "Đăng nhập thành công"),
   })
+  @AuthRateLimit("login")
   @Post("login")
   async login(@Req() request: RequestWithUser): Promise<AuthTokensResponse> {
     return this.authService.login(request.user);
@@ -48,6 +50,7 @@ export class AuthController {
     description: "Bao phản hồi làm mới token",
     schema: successEnvelopeSchema(authTokensDataSchema, 201, "Làm mới token thành công"),
   })
+  @AuthRateLimit("refresh")
   @Post("refresh")
   async refresh(@Body() body: unknown): Promise<AuthTokensResponse> {
     const dto = parseWithZod(refreshTokenBodySchema, body);

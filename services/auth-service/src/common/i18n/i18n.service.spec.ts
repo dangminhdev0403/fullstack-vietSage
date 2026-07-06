@@ -17,20 +17,20 @@ describe("I18nService", () => {
         query: { lang: "vi" },
         headers: { "accept-language": "en-US,en;q=0.9" },
       }),
-    ).toBe("vi");
+    ).toBe("vi-VN");
   });
 
   it("translates catalog keys and interpolates params", () => {
     expect(service.t("errors.database.duplicateField", "en", { field: "email" })).toBe(
       "Duplicate value for field: email",
     );
-    expect(service.t("errors.database.duplicateField", "vi", { field: "email" })).toBe(
+    expect(service.t("errors.database.duplicateField", "vi-VN", { field: "email" })).toBe(
       "Giá trị bị trùng cho trường: email",
     );
   });
 
   it("translates legacy API details when a catalog key is known", () => {
-    expect(service.translateDetail("Required record not found", "vi")).toBe(
+    expect(service.translateDetail("Required record not found", "vi-VN")).toBe(
       "Không tìm thấy bản ghi bắt buộc",
     );
   });

@@ -431,16 +431,18 @@ export class GuestOsService {
       guestRequest: this.toGuestRequestListItem(request),
     });
 
-    void this.telegramNotificationService?.sendServiceRequestNotification(request.id).catch((error) =>
-      this.logger.error(error, {
-        module: "telegram",
-        service: "GuestOsService",
-        operation: "createRequest",
-        event: "TELEGRAM_NOTIFY_FAILED",
-        hotelId: current.hotelId,
-        guestRequestId: request.id,
-      }),
-    );
+    void this.telegramNotificationService
+      ?.sendServiceRequestNotification(request.id)
+      .catch((error) =>
+        this.logger.error(error, {
+          module: "telegram",
+          service: "GuestOsService",
+          operation: "createRequest",
+          event: "TELEGRAM_NOTIFY_FAILED",
+          hotelId: current.hotelId,
+          guestRequestId: request.id,
+        }),
+      );
 
     return guestRequest;
   }

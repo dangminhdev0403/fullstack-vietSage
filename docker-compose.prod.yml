@@ -3,10 +3,8 @@ services:
     image: postgres:16-alpine
     container_name: vietsage-postgres
     restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-vietsage_auth}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    env_file:
+      - ./secrets/production/postgres.env
     volumes:
       - vietsage_postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -22,7 +20,7 @@ services:
     container_name: vietsage-auth-service
     restart: unless-stopped
     env_file:
-      - ./services/auth-service/.env.docker
+      - ./secrets/production/auth-service.env
     environment:
       NODE_ENV: production
       PORT: "8080"
@@ -31,6 +29,11 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
 
   frontend:
     build:
@@ -39,18 +42,22 @@ services:
     container_name: vietsage-frontend
     restart: unless-stopped
     env_file:
-      - ./frontends/font-end-vietsage/.env.docker
+      - ./secrets/production/frontend.env
     environment:
       NODE_ENV: production
       PORT: "3000"
       HOSTNAME: 0.0.0.0
-      NEXTAUTH_URL: ${NEXTAUTH_URL:-https://vietsage.com}
       AUTH_API_BASE_URL: http://auth-service:8080
-      NEXT_PUBLIC_AUTH_API_BASE_URL: ${NEXT_PUBLIC_AUTH_API_BASE_URL:-https://vietsage.com/api}
     ports:
       - "127.0.0.1:${FRONTEND_PORT:-3000}:3000"
     depends_on:
-      - auth-service
+      auth-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
 
 volumes:
   vietsage_postgres_data:

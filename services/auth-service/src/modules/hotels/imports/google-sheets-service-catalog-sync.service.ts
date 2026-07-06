@@ -69,7 +69,11 @@ export class GoogleSheetsServiceCatalogSyncService {
     }
   }
 
-  private async runSync(hotelId: string, actorUserId: string, enforceConcurrency = true): Promise<SyncSummary> {
+  private async runSync(
+    hotelId: string,
+    actorUserId: string,
+    enforceConcurrency = true,
+  ): Promise<SyncSummary> {
     if (enforceConcurrency && this.isSyncing) {
       throw new BadRequestException("Google Sheets synchronization is already running");
     }
@@ -103,7 +107,12 @@ export class GoogleSheetsServiceCatalogSyncService {
 
       const validationErrors = preview.validation.filter((issue) => issue.severity === "error");
       if (validationErrors.length) {
-        errors.push(...validationErrors.map((issue) => `${issue.sheet}:${issue.row ?? "?"}:${issue.column ?? "?"} ${issue.code} - ${issue.message}`));
+        errors.push(
+          ...validationErrors.map(
+            (issue) =>
+              `${issue.sheet}:${issue.row ?? "?"}:${issue.column ?? "?"} ${issue.code} - ${issue.message}`,
+          ),
+        );
         throw new BadRequestException(errors.join("; "));
       }
 
@@ -116,12 +125,16 @@ export class GoogleSheetsServiceCatalogSyncService {
       const result = await this.importService.commit(preview);
       const durationMs = Date.now() - startedAt;
       const summary = {
-        categoriesProcessed: result.summary.byEntityType.serviceCategory?.create ?? 0
-          + (result.summary.byEntityType.serviceCategory?.update ?? 0)
-          + (result.summary.byEntityType.serviceCategory?.unchanged ?? 0),
-        itemsProcessed: result.summary.byEntityType.serviceItem?.create ?? 0
-          + (result.summary.byEntityType.serviceItem?.update ?? 0)
-          + (result.summary.byEntityType.serviceItem?.unchanged ?? 0),
+        categoriesProcessed:
+          result.summary.byEntityType.serviceCategory?.create ??
+          0 +
+            (result.summary.byEntityType.serviceCategory?.update ?? 0) +
+            (result.summary.byEntityType.serviceCategory?.unchanged ?? 0),
+        itemsProcessed:
+          result.summary.byEntityType.serviceItem?.create ??
+          0 +
+            (result.summary.byEntityType.serviceItem?.update ?? 0) +
+            (result.summary.byEntityType.serviceItem?.unchanged ?? 0),
         inserted: result.summary.create,
         updated: result.summary.update,
         skipped: result.summary.unchanged,
@@ -167,7 +180,9 @@ export class GoogleSheetsServiceCatalogSyncService {
       throw new BadRequestException("GOOGLE_APPLICATION_CREDENTIALS is not configured");
     }
 
-    const auth = new google.auth.GoogleAuth({ scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"] });
+    const auth = new google.auth.GoogleAuth({
+      scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
+    });
     const sheets = google.sheets({ version: "v4", auth });
     const response = await sheets.spreadsheets.values.batchGet({
       spreadsheetId: sheetId,
@@ -177,13 +192,15 @@ export class GoogleSheetsServiceCatalogSyncService {
 
     return {
       fileName: `google-sheet:${sheetId}`,
-      sheets: (response.data.valueRanges ?? []).map((range, index) => this.toParsedSheet(index === 0 ? "categories" : "items", range.values ?? [])),
+      sheets: (response.data.valueRanges ?? []).map((range, index) =>
+        this.toParsedSheet(index === 0 ? "categories" : "items", range.values ?? []),
+      ),
     };
   }
 
   private toParsedSheet(name: "categories" | "items", values: unknown[][]) {
     const [headers = [], ...rows] = values;
-    const keys = headers.map((header) => this.normalizeHeader(String(header ?? "")));
+    const keys = headers.map((header) => this.normalizeHeader(this.sheetCellText(header)));
     return {
       name,
       rows: rows
@@ -191,7 +208,9 @@ export class GoogleSheetsServiceCatalogSyncService {
           rowNumber: index + 2,
           values: Object.fromEntries(keys.map((key, columnIndex) => [key, row[columnIndex] ?? ""])),
         }))
-        .filter((row) => Object.values(row.values).some((value) => String(value ?? "").trim().length > 0)),
+        .filter((row) =>
+          Object.values(row.values).some((value) => this.sheetCellText(value).trim().length > 0),
+        ),
     };
   }
 
@@ -202,32 +221,32 @@ export class GoogleSheetsServiceCatalogSyncService {
       .replace(/[\r\n]+/g, " ")
       .replace(/\s+/g, "_");
     const aliases: Record<string, string> = {
-      "mã_danh_mục": "category_key",
-      "ma_danh_muc": "category_key",
+      mã_danh_mục: "category_key",
+      ma_danh_muc: "category_key",
       "tên_danh_mục_(tiếng_việt)": "name_vi",
       "ten_danh_muc_(tieng_viet)": "name_vi",
       "mô_tả_(tiếng_việt)": "description_vi",
       "mo_ta_(tieng_viet)": "description_vi",
-      "giá_mặc_định": "default_price",
-      "gia_mac_dinh": "default_price",
-      "đơn_vị_tiền_tệ": "currency",
-      "don_vi_tien_te": "currency",
-      "thứ_tự_hiển_thị": "sort_order",
-      "thu_tu_hien_thi": "sort_order",
-      "trạng_thái": "status",
-      "trang_thai": "status",
-      "mã_dịch_vụ": "item_key",
-      "ma_dich_vu": "item_key",
+      giá_mặc_định: "default_price",
+      gia_mac_dinh: "default_price",
+      đơn_vị_tiền_tệ: "currency",
+      don_vi_tien_te: "currency",
+      thứ_tự_hiển_thị: "sort_order",
+      thu_tu_hien_thi: "sort_order",
+      trạng_thái: "status",
+      trang_thai: "status",
+      mã_dịch_vụ: "item_key",
+      ma_dich_vu: "item_key",
       "tên_dịch_vụ_(tiếng_việt)": "name_vi",
       "ten_dich_vu_(tieng_viet)": "name_vi",
-      "giá_riêng_để_trống_nếu_dùng_giá_mặc_định_của_danh_mục": "price_override",
-      "gia_rieng_de_trong_neu_dung_gia_mac_dinh_cua_danh_muc": "price_override",
+      giá_riêng_để_trống_nếu_dùng_giá_mặc_định_của_danh_mục: "price_override",
+      gia_rieng_de_trong_neu_dung_gia_mac_dinh_cua_danh_muc: "price_override",
       "cho_phép_nhập_số_lượng_true/false_hoặc_có/không": "quantity_enabled",
       "cho_phep_nhap_so_luong_true/false_hoac_co/khong": "quantity_enabled",
-      "số_lượng_tối_thiểu": "min_quantity",
-      "so_luong_toi_thieu": "min_quantity",
-      "số_lượng_tối_đa": "max_quantity",
-      "so_luong_toi_da": "max_quantity",
+      số_lượng_tối_thiểu: "min_quantity",
+      so_luong_toi_thieu: "min_quantity",
+      số_lượng_tối_đa: "max_quantity",
+      so_luong_toi_da: "max_quantity",
       "ten_(tieng_anh)": "name_en",
       "ten_danh_muc_(tieng_anh)": "name_en",
       "ten_dich_vu_(tieng_anh)": "name_en",
@@ -262,5 +281,15 @@ export class GoogleSheetsServiceCatalogSyncService {
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/đ/g, "d")
       .replace(/Đ/g, "D");
+  }
+
+  private sheetCellText(value: unknown): string {
+    if (value === undefined || value === null) return "";
+    if (typeof value === "string") return value;
+    if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+      return String(value);
+    }
+    if (value instanceof Date) return value.toISOString();
+    return JSON.stringify(value);
   }
 }

@@ -37,7 +37,7 @@ export class AppLogger {
   }
 
   http(metadata: LogMetadata): void {
-    this.write("INFO", `${metadata.method ?? "HTTP"} ${metadata.url ?? ""}`.trim(), {
+    this.write("INFO", this.endpoint(metadata.method, metadata.url) ?? "HTTP", {
       module: "http",
       event: "HTTP_REQUEST_COMPLETED",
       ...metadata,
@@ -71,9 +71,7 @@ export class AppLogger {
       ...normalized.metadata,
     });
 
-    const line = this.formatEntry(
-      entry as LogMetadata & { timestamp: string; level: LogLevel; message: string },
-    );
+    const line = this.formatEntry(entry);
     if (level === "ERROR") {
       console.error(line);
       return;
@@ -214,7 +212,7 @@ export class AppLogger {
 
   private resolveTitle(entry: LogMetadata & { message: string }, domain: LogDomain): string {
     if (entry.exceptionType && entry.level === "ERROR") {
-      return String(entry.exceptionType);
+      return this.toText(entry.exceptionType) ?? "ERROR";
     }
 
     if (domain === "HTTP") {

@@ -467,6 +467,8 @@ describe("GuestOsService", () => {
         status,
         expiresAt: new Date(Date.now() + 60_000),
         hotel: { tenantId: "tenant-1" },
+        room: { status: "OCCUPIED", roomNumber: "402" },
+        stay: { status: "ACTIVE", guestDisplayName: "Jane Guest" },
       })),
       findActiveServiceItemInHotel: jest.fn().mockResolvedValue({
         id: "item-1",
@@ -487,14 +489,19 @@ describe("GuestOsService", () => {
         metadata: { internal: true },
         title: "Pho bo",
         description: "No onion please",
-        status: GuestRequestStatus.CREATED,
+        status: GuestRequestStatus.NEW,
         priority: "URGENT",
         quantity: 1,
         createdAt,
         updatedAt: createdAt,
         completedAt: null,
         cancelledAt: null,
-        serviceItem: { id: "item-1", name: "Pho bo" },
+        serviceItem: {
+          id: "item-1",
+          name: "Pho bo",
+          priceOverride: null,
+          category: { defaultPrice: new Prisma.Decimal(0), currency: "VND" },
+        },
         events: [],
       }),
     };
@@ -526,7 +533,7 @@ describe("GuestOsService", () => {
     expect(response).toEqual({
       id: "request-1",
       service: { id: "item-1", name: "Pho bo" },
-      status: "PENDING",
+      status: "NEW",
       priority: "URGENT",
       quantity: 1,
       note: "No onion please",
@@ -585,7 +592,7 @@ describe("GuestOsService", () => {
             metadata: { internal: true },
             title: "Extra toilet paper",
             description: "ok minh test ngay",
-            status: GuestRequestStatus.CREATED,
+            status: GuestRequestStatus.NEW,
             priority: GuestRequestPriority.URGENT,
             quantity: 1,
             createdAt,
@@ -628,7 +635,7 @@ describe("GuestOsService", () => {
         {
           id: "request-1",
           displayName: "Extra toilet paper",
-          status: "CREATED",
+          status: "NEW",
           priority: "URGENT",
           quantity: 1,
           currency: "VND",
@@ -690,9 +697,7 @@ describe("GuestOsService", () => {
       listRequests: jest.fn().mockResolvedValue([
         6,
         [
-          GuestRequestStatus.CREATED,
-          GuestRequestStatus.ACKNOWLEDGED,
-          GuestRequestStatus.IN_PROGRESS,
+          GuestRequestStatus.NEW,
           GuestRequestStatus.COMPLETED,
           GuestRequestStatus.CANCELLED,
           GuestRequestStatus.FAILED,
@@ -724,9 +729,7 @@ describe("GuestOsService", () => {
     );
 
     expect(response.items.map((item) => item.status)).toEqual([
-      "PENDING",
-      "PENDING",
-      "PENDING",
+      "NEW",
       "COMPLETED",
       "CANCELLED",
       "FAILED",
@@ -759,9 +762,9 @@ describe("GuestOsService", () => {
       listRequests: jest.fn().mockResolvedValue([
         4,
         [
-          GuestRequestStatus.CREATED,
-          GuestRequestStatus.ACKNOWLEDGED,
-          GuestRequestStatus.IN_PROGRESS,
+          GuestRequestStatus.NEW,
+          GuestRequestStatus.PENDING,
+          GuestRequestStatus.ACCEPTED,
           GuestRequestStatus.COMPLETED,
         ].map((status, index) => ({
           id: `request-${index + 1}`,
@@ -831,7 +834,7 @@ describe("GuestOsService", () => {
       {
         page: 2,
         limit: 10,
-        status: "PENDING",
+        status: "NEW",
         priority: "URGENT",
         id: "  request-1  ",
         search: "  pillow  ",
@@ -843,11 +846,7 @@ describe("GuestOsService", () => {
         stayId: "stay-1",
         id: "request-1",
         status: {
-          in: [
-            GuestRequestStatus.CREATED,
-            GuestRequestStatus.ACKNOWLEDGED,
-            GuestRequestStatus.IN_PROGRESS,
-          ],
+          in: [GuestRequestStatus.NEW],
         },
         priority: {
           in: [GuestRequestPriority.URGENT],
@@ -938,6 +937,8 @@ describe("GuestOsService", () => {
         status,
         expiresAt: new Date(Date.now() + 60_000),
         hotel: { tenantId: "tenant-1" },
+        room: { status: "OCCUPIED", roomNumber: "402" },
+        stay: { status: "ACTIVE", guestDisplayName: "Jane Guest" },
       })),
       findActiveServiceItemInHotel: jest.fn().mockResolvedValue({
         id: "item-1",
@@ -947,7 +948,17 @@ describe("GuestOsService", () => {
         maxQuantity: null,
         category: {},
       }),
-      createRequest: jest.fn().mockResolvedValue({ id: "request-1" }),
+      createRequest: jest.fn().mockResolvedValue({
+        id: "request-1",
+        title: "Request",
+        description: null,
+        status: GuestRequestStatus.NEW,
+        priority: GuestRequestPriority.NORMAL,
+        quantity: 1,
+        createdAt: new Date("2026-06-21T09:47:17.042Z"),
+        serviceItem: null,
+        events: [],
+      }),
     };
     const service = new GuestOsService(repository as never);
 
@@ -997,6 +1008,8 @@ describe("GuestOsService", () => {
         status,
         expiresAt: new Date(Date.now() + 60_000),
         hotel: { tenantId: "tenant-1" },
+        room: { status: "OCCUPIED", roomNumber: "402" },
+        stay: { status: "ACTIVE", guestDisplayName: "Jane Guest" },
       })),
       findActiveServiceItemInHotel: jest.fn().mockResolvedValue({
         id: "item-1",
@@ -1006,7 +1019,17 @@ describe("GuestOsService", () => {
         maxQuantity: 5,
         category: {},
       }),
-      createRequest: jest.fn().mockResolvedValue({ id: "request-1" }),
+      createRequest: jest.fn().mockResolvedValue({
+        id: "request-1",
+        title: "Request",
+        description: null,
+        status: GuestRequestStatus.NEW,
+        priority: GuestRequestPriority.NORMAL,
+        quantity: 1,
+        createdAt: new Date("2026-06-21T09:47:17.042Z"),
+        serviceItem: null,
+        events: [],
+      }),
     };
     const service = new GuestOsService(repository as never);
 
@@ -1056,6 +1079,8 @@ describe("GuestOsService", () => {
         status,
         expiresAt: new Date(Date.now() + 60_000),
         hotel: { tenantId: "tenant-1" },
+        room: { status: "OCCUPIED", roomNumber: "402" },
+        stay: { status: "ACTIVE", guestDisplayName: "Jane Guest" },
       })),
       findActiveServiceItemInHotel: jest.fn().mockResolvedValue({
         id: "item-1",
@@ -1065,7 +1090,17 @@ describe("GuestOsService", () => {
         maxQuantity: null,
         category: {},
       }),
-      createRequest: jest.fn().mockResolvedValue({ id: "request-1" }),
+      createRequest: jest.fn().mockResolvedValue({
+        id: "request-1",
+        title: "Request",
+        description: null,
+        status: GuestRequestStatus.NEW,
+        priority: GuestRequestPriority.NORMAL,
+        quantity: 1,
+        createdAt: new Date("2026-06-21T09:47:17.042Z"),
+        serviceItem: null,
+        events: [],
+      }),
     };
     const service = new GuestOsService(repository as never);
 
@@ -1115,6 +1150,8 @@ describe("GuestOsService", () => {
         status,
         expiresAt: new Date(Date.now() + 60_000),
         hotel: { tenantId: "tenant-1" },
+        room: { status: "OCCUPIED", roomNumber: "402" },
+        stay: { status: "ACTIVE", guestDisplayName: "Jane Guest" },
       })),
       findActiveServiceItemInHotel: jest.fn().mockResolvedValue({
         id: "item-1",
@@ -1124,7 +1161,17 @@ describe("GuestOsService", () => {
         maxQuantity: 5,
         category: {},
       }),
-      createRequest: jest.fn().mockResolvedValue({ id: "request-1" }),
+      createRequest: jest.fn().mockResolvedValue({
+        id: "request-1",
+        title: "Request",
+        description: null,
+        status: GuestRequestStatus.NEW,
+        priority: GuestRequestPriority.NORMAL,
+        quantity: 1,
+        createdAt: new Date("2026-06-21T09:47:17.042Z"),
+        serviceItem: null,
+        events: [],
+      }),
     };
     const service = new GuestOsService(repository as never);
     const context = {
@@ -1168,6 +1215,8 @@ describe("GuestOsService", () => {
         status,
         expiresAt: new Date(Date.now() + 60_000),
         hotel: { tenantId: "tenant-1" },
+        room: { status: "OCCUPIED", roomNumber: "402" },
+        stay: { status: "ACTIVE", guestDisplayName: "Jane Guest" },
       })),
       findActiveServiceItemInHotel: jest.fn().mockResolvedValue(null),
     };
@@ -1212,10 +1261,12 @@ describe("GuestOsService", () => {
         status,
         expiresAt: new Date(Date.now() + 60_000),
         hotel: { tenantId: "tenant-1" },
+        room: { status: "OCCUPIED", roomNumber: "402" },
+        stay: { status: "ACTIVE", guestDisplayName: "Jane Guest" },
       })),
       findRequestForGuest: jest.fn().mockResolvedValue({
         id: "request-1",
-        status: GuestRequestStatus.CREATED,
+        status: GuestRequestStatus.NEW,
       }),
       cancelCreatedRequest: jest.fn().mockResolvedValue({
         id: "request-1",
@@ -1287,6 +1338,8 @@ describe("GuestOsService", () => {
         status,
         expiresAt: new Date(Date.now() + 60_000),
         hotel: { tenantId: "tenant-1" },
+        room: { status: "OCCUPIED", roomNumber: "402" },
+        stay: { status: "ACTIVE", guestDisplayName: "Jane Guest" },
       })),
       findRequestForGuest: jest.fn().mockResolvedValue({
         id: "request-1",

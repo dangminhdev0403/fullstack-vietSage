@@ -122,7 +122,11 @@ export class HotelDashboardService {
         _count: { _all: true },
       }),
       this.prisma.guestRequest.count({
-        where: { hotelId, ...ACTIVE_REQUEST_STAY_FILTER, status: { in: REQUEST_INCOMPLETE_STATUSES } },
+        where: {
+          hotelId,
+          ...ACTIVE_REQUEST_STAY_FILTER,
+          status: { in: REQUEST_INCOMPLETE_STATUSES },
+        },
       }),
       this.prisma.guestRequest.count({
         where: {
@@ -140,10 +144,18 @@ export class HotelDashboardService {
         take: 5,
       }),
       this.prisma.guestRequest.count({
-        where: { hotelId, ...ACTIVE_REQUEST_STAY_FILTER, createdAt: { gte: todayStart, lt: tomorrowStart } },
+        where: {
+          hotelId,
+          ...ACTIVE_REQUEST_STAY_FILTER,
+          createdAt: { gte: todayStart, lt: tomorrowStart },
+        },
       }),
       this.prisma.guestRequest.count({
-        where: { hotelId, ...ACTIVE_REQUEST_STAY_FILTER, createdAt: { gte: yesterdayStart, lt: todayStart } },
+        where: {
+          hotelId,
+          ...ACTIVE_REQUEST_STAY_FILTER,
+          createdAt: { gte: yesterdayStart, lt: todayStart },
+        },
       }),
       this.prisma.guestRequest.count({
         where: {
@@ -190,7 +202,11 @@ export class HotelDashboardService {
       }),
       this.prisma.folio.count({ where: { hotelId, status: FolioStatus.CHECKOUT_PENDING } }),
       this.prisma.guestRequest.findMany({
-        where: { hotelId, ...ACTIVE_REQUEST_STAY_FILTER, status: { in: REQUEST_INCOMPLETE_STATUSES } },
+        where: {
+          hotelId,
+          ...ACTIVE_REQUEST_STAY_FILTER,
+          status: { in: REQUEST_INCOMPLETE_STATUSES },
+        },
         orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
         take: 8,
         select: {
@@ -226,7 +242,10 @@ export class HotelDashboardService {
         },
       }),
       this.prisma.guestRequestEvent.findMany({
-        where: { hotelId, request: { stay: { is: { status: { in: ACTIVE_STAY_STATUSES }, checkedOutAt: null } } } },
+        where: {
+          hotelId,
+          request: { stay: { is: { status: { in: ACTIVE_STAY_STATUSES }, checkedOutAt: null } } },
+        },
         orderBy: { createdAt: "desc" },
         take: 20,
         select: {
@@ -247,7 +266,12 @@ export class HotelDashboardService {
         _min: { createdAt: true },
       }),
       this.prisma.guestRequest.findMany({
-        where: { hotelId, ...ACTIVE_REQUEST_STAY_FILTER, status: GuestRequestStatus.COMPLETED, completedAt: { not: null } },
+        where: {
+          hotelId,
+          ...ACTIVE_REQUEST_STAY_FILTER,
+          status: GuestRequestStatus.COMPLETED,
+          completedAt: { not: null },
+        },
         select: { id: true, createdAt: true, completedAt: true },
         take: 500,
       }),

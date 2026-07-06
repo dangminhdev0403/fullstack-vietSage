@@ -573,7 +573,7 @@ export class BillingService {
   }
 
   async processPaymentWebhook(provider: PaymentProvider, body: Record<string, unknown>) {
-    const providerEventId = String(body.providerEventId ?? body.eventId ?? "").trim();
+    const providerEventId = this.webhookText(body.providerEventId ?? body.eventId).trim();
 
     if (!providerEventId) {
       throw new ConflictException("PAYMENT_WEBHOOK_MISSING_PROVIDER_EVENT_ID");
@@ -629,7 +629,8 @@ export class BillingService {
         const webhookAmount =
           body.amount === undefined
             ? lockedPayment.amount
-            : new Prisma.Decimal(String(body.amount));
+            : new Prisma.Decimal(this.webhookText(body.amount));
+
         if (
           !webhookAmount.equals(lockedPayment.amount) ||
           !webhookAmount.equals(lockedPayment.invoice.balanceAmount)
@@ -859,5 +860,15 @@ export class BillingService {
     if (!folio) {
       throw new NotFoundException("Không tìm thấy folio");
     }
+  }
+
+  private webhookText(value: unknown): string {
+    if (value === undefined || value === null) return "";
+    if (typeof value === "string") return value;
+    if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+      return String(value);
+    }
+    if (value instanceof Date) return value.toISOString();
+    return JSON.stringify(value);
   }
 }

@@ -82,8 +82,10 @@ describe("GuestOsRepository category service lookup", () => {
             quantityEnabled: true,
             minQuantity: true,
             maxQuantity: true,
+            translations: true,
           },
         },
+        translations: true,
       },
     });
     expect(prisma.hotelServiceItem.count).toHaveBeenCalledWith({
@@ -158,7 +160,7 @@ describe("GuestOsRepository request cancellation", () => {
         id: "request-1",
         hotelId: "hotel-1",
         stayId: "stay-1",
-        status: "CREATED",
+        status: "NEW",
       },
       data: {
         status: "CANCELLED",
@@ -172,7 +174,7 @@ describe("GuestOsRepository request cancellation", () => {
         actorType: "GUEST",
         sessionId: "session-1",
         eventType: "REQUEST_CANCELLED",
-        fromStatus: "CREATED",
+        fromStatus: "NEW",
         toStatus: "CANCELLED",
       }),
     });

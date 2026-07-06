@@ -373,7 +373,7 @@ export class HotelsService {
       data: {
         name: dto.name?.trim(),
         description: dto.description === null ? null : dto.description?.trim(),
-          defaultPrice: dto.defaultPrice,
+        defaultPrice: dto.defaultPrice,
         currency: dto.currency?.trim().toUpperCase(),
         sortOrder: dto.sortOrder,
         status: dto.status,
@@ -1080,7 +1080,10 @@ export class HotelsService {
     updatedAt: Date;
     translations?: Array<{ locale: string; name: string; description: string | null }>;
   }) {
-    const idGroup = await this.hotelsRepository.getServiceCategoryTelegramGroup(row.hotelId, row.id);
+    const idGroup = await this.hotelsRepository.getServiceCategoryTelegramGroup(
+      row.hotelId,
+      row.id,
+    );
 
     return {
       id: row.id,

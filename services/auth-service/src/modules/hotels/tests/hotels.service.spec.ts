@@ -22,6 +22,7 @@ function createRepository(overrides: Record<string, jest.Mock> = {}) {
       code: "hotel",
     }),
     findServiceCategoryInHotel: jest.fn().mockResolvedValue({ id: "category-1" }),
+    getServiceCategoryTelegramGroup: jest.fn().mockResolvedValue(null),
     findServiceItemInHotel: jest.fn().mockResolvedValue({ id: "item-1" }),
     findTenantById: jest.fn().mockResolvedValue({ id: "tenant-1" }),
     createHotel: jest.fn().mockImplementation((input) => ({
@@ -347,7 +348,6 @@ describe("HotelsService", () => {
       }),
     ).resolves.toMatchObject({
       hotelId: "hotel-1",
-      tenantId: "tenant-1",
       name: "Dining",
       defaultPrice: 100000,
       sortOrder: 1,
@@ -485,6 +485,8 @@ describe("HotelsService", () => {
       categoryName: "Housekeeping",
       assignedToName: "Minh Staff",
       actions: ["ACCEPT", "CANCEL"],
+      checkedOutAt: null,
+      stayStatus: null,
     };
 
     expect(response).toEqual({
@@ -537,6 +539,12 @@ describe("HotelsService", () => {
             GuestRequestStatus.IN_PROGRESS,
           ],
         },
+        stay: {
+          is: {
+            checkedOutAt: null,
+            status: { in: ["CHECKED_IN", "ACTIVE"] },
+          },
+        },
       },
       0,
       20,
@@ -561,6 +569,12 @@ describe("HotelsService", () => {
             GuestRequestStatus.ACKNOWLEDGED,
             GuestRequestStatus.IN_PROGRESS,
           ],
+        },
+        stay: {
+          is: {
+            checkedOutAt: null,
+            status: { in: ["CHECKED_IN", "ACTIVE"] },
+          },
         },
       },
       0,
@@ -662,9 +676,15 @@ describe("HotelsService", () => {
       total: 5,
       statuses: {
         CREATED: 4,
+        NEW: 0,
+        CONFIRMED: 0,
+        PENDING: 0,
+        ACCEPTED: 0,
+        ON_THE_WAY: 0,
         ACKNOWLEDGED: 0,
         IN_PROGRESS: 0,
         COMPLETED: 0,
+        REJECTED: 0,
         CANCELLED: 1,
         FAILED: 0,
       },
@@ -674,6 +694,12 @@ describe("HotelsService", () => {
       room: { is: { roomNumber: "402" } },
       serviceItemId: "item-1",
       assignedToUserId: "staff-1",
+      stay: {
+        is: {
+          checkedOutAt: null,
+          status: { in: ["CHECKED_IN", "ACTIVE"] },
+        },
+      },
     });
   });
 

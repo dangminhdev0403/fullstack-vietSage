@@ -56,7 +56,7 @@ describe("HealthController (e2e)", () => {
     expect(body).toMatchObject({
       status: 200,
       error: null,
-      message: "Health check successful",
+      message: "Ki\u1ec3m tra h\u1ec7 th\u1ed1ng th\u00e0nh c\u00f4ng",
     });
     expect(body.data).toMatchObject({
       status: "ok",
@@ -88,7 +88,7 @@ describe("HealthController (e2e)", () => {
       status: 401,
       message: "UNAUTHORIZED",
       data: {
-        detail: "Unauthorized",
+        detail: "No auth token",
       },
     });
   });
@@ -101,7 +101,7 @@ describe("HealthController (e2e)", () => {
       status: 401,
       message: "UNAUTHORIZED",
       data: {
-        detail: "Unauthorized",
+        detail: "No auth token",
       },
     });
   });
@@ -114,7 +114,7 @@ describe("HealthController (e2e)", () => {
       status: 401,
       message: "UNAUTHORIZED",
       data: {
-        detail: "Unauthorized",
+        detail: "No auth token",
       },
     });
   });
@@ -129,7 +129,7 @@ describe("HealthController (e2e)", () => {
       status: 401,
       message: "UNAUTHORIZED",
       data: {
-        detail: "Unauthorized",
+        detail: "No auth token",
       },
     });
   });
@@ -145,7 +145,7 @@ describe("HealthController (e2e)", () => {
       status: 401,
       message: "UNAUTHORIZED",
       data: {
-        detail: "Unauthorized",
+        detail: "No auth token",
       },
     });
   });
@@ -161,7 +161,7 @@ describe("HealthController (e2e)", () => {
       status: 401,
       message: "UNAUTHORIZED",
       data: {
-        detail: "Unauthorized",
+        detail: "No auth token",
       },
     });
   });
@@ -174,7 +174,7 @@ describe("HealthController (e2e)", () => {
       status: 401,
       message: "UNAUTHORIZED",
       data: {
-        detail: "Unauthorized",
+        detail: "No auth token",
       },
     });
   });
@@ -187,7 +187,7 @@ describe("HealthController (e2e)", () => {
       status: 401,
       message: "UNAUTHORIZED",
       data: {
-        detail: "Unauthorized",
+        detail: "No auth token",
       },
     });
   });
@@ -200,7 +200,7 @@ describe("HealthController (e2e)", () => {
       status: 401,
       message: "UNAUTHORIZED",
       data: {
-        detail: "Unauthorized",
+        detail: "No auth token",
       },
     });
   });
@@ -213,7 +213,7 @@ describe("HealthController (e2e)", () => {
       status: 401,
       message: "UNAUTHORIZED",
       data: {
-        detail: "Unauthorized",
+        detail: "No auth token",
       },
     });
   });
@@ -239,7 +239,7 @@ describe("HealthController (e2e)", () => {
       status: 401,
       message: "UNAUTHORIZED",
       data: {
-        detail: "Unauthorized",
+        detail: "No auth token",
       },
     });
   });
@@ -255,7 +255,7 @@ describe("HealthController (e2e)", () => {
       status: 401,
       message: "UNAUTHORIZED",
       data: {
-        detail: "Unauthorized",
+        detail: "No auth token",
       },
     });
   });
@@ -284,7 +284,7 @@ describe("HealthController (e2e)", () => {
       status: 400,
       message: "VALIDATION_ERROR",
       data: {
-        detail: "refreshToken: refreshToken là bắt buộc",
+        detail: "refreshToken: refreshToken l\u00e0 b\u1eaft bu\u1ed9c",
       },
     });
   });

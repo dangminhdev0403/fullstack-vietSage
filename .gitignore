@@ -1,13 +1,25 @@
+# Runtime secrets and env files
+secrets/**/*.env
+secrets/**/*.json
+!secrets/.gitkeep
+!secrets/**/.gitkeep
+!secrets/README.md
+
+# Root/runtime env files
 .env
 .env.*
 !.env.example
 !.env.docker.example
+!.env.production.example
+!.env.*.example
 
 **/.env
 **/.env.*
 !**/.env.example
 !**/.env.docker.example
-/secrets
+!**/.env.production.example
+!**/.env.*.example
+
 node_modules
 **/node_modules
 .next

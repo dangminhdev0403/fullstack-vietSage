@@ -16,63 +16,44 @@ cd /path/to/vietsageWeb
 git pull
 ```
 
-## 2. Create production env files
+## 2. Create production secret files
 
-Root Compose env:
-
-```bash
-cp .env.docker.example .env.production
-```
-
-Edit `.env.production` and set real values:
-
-```env
-POSTGRES_DB=vietsage_auth
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=replace-with-a-strong-password
-FRONTEND_PORT=3000
-AUTH_SERVICE_PORT=8080
-NEXTAUTH_URL=https://vietsage.com
-NEXT_PUBLIC_AUTH_API_BASE_URL=https://vietsage.com/api
-```
-
-Frontend env:
+Docker is the production deployment path. Runtime secrets live under `secrets/**` and are ignored by git.
 
 ```bash
-cp frontends/font-end-vietsage/.env.docker.example frontends/font-end-vietsage/.env.docker
+bash scripts/init-secrets.sh
 ```
 
-Set production-safe values in `frontends/font-end-vietsage/.env.docker`:
+Then edit these files directly on the VPS and fill real values:
 
-```env
-AUTH_API_BASE_URL=http://auth-service:8080
-NEXT_PUBLIC_AUTH_API_BASE_URL=https://vietsage.com/api
-NEXTAUTH_URL=https://vietsage.com
-NEXTAUTH_SECRET=replace-with-a-long-random-secret
-AUTH_SECRET=replace-with-a-long-random-secret
-AUTH_TRUST_HOST=true
-```
+- `secrets/production/postgres.env` — `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`
+- `secrets/production/auth-service.env` — `DATABASE_URL`, JWT secrets/TTLs, CORS, auth admin, rate limits, optional Google/Telegram values
+- `secrets/production/frontend.env` — `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, public frontend URLs/options
 
-Auth service env:
+See `secrets/README.md` for the full key inventory. Do not commit `secrets/**/*.env` or `secrets/**/*.json`.
+
+For local Docker, use the same shape under `secrets/docker/*.env`:
 
 ```bash
-cp services/auth-service/.env.docker.example services/auth-service/.env.docker
+bash scripts/init-secrets.sh
+docker compose -f docker-compose.yml config
+docker compose -f docker-compose.yml up -d --build
 ```
-
-Review `services/auth-service/.env.docker` and make sure database credentials match `.env.production`.
 
 ## 3. Start Docker services
 
 ```bash
-docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml config
+docker compose -f docker-compose.prod.yml up -d --build
 ```
 
 Check status:
 
 ```bash
-docker compose --env-file .env.production -f docker-compose.prod.yml ps
-curl -I http://127.0.0.1:3000
-curl -I http://127.0.0.1:8080
+docker compose -f docker-compose.prod.yml ps
+curl -fsS http://127.0.0.1:3000 >/dev/null
+curl -fsS http://127.0.0.1:8080/health
+docker compose -f docker-compose.prod.yml ps --format 'table {{.Name}}\t{{.Status}}\t{{.Ports}}'
 ```
 
 ## 4. Install and configure Nginx
@@ -120,9 +101,10 @@ Choose the Certbot redirect option to force HTTP -> HTTPS.
 
 ```bash
 curl -I http://vietsage.com
-curl -I https://vietsage.com
-curl -I https://www.vietsage.com
-curl -I https://stay.vietsage.com
+curl -fsSI https://vietsage.com
+curl -fsSI https://www.vietsage.com
+curl -fsSI https://stay.vietsage.com
+curl -fsS https://vietsage.com/api/health
 openssl s_client -connect vietsage.com:443 -servername vietsage.com </dev/null
 ```
 

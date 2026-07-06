@@ -75,13 +75,17 @@ describe("HotelsRepository stay creation", () => {
 });
 
 describe("HotelsRepository QR activation", () => {
-  it("translates missing ACTIVE stay into a business error", async () => {
+  it("activates the latest QR without an active stay and leaves it without expiry", async () => {
+    const qr = { id: "qr-1" };
     const tx = {
       guestStay: {
-        findFirstOrThrow: jest.fn().mockRejectedValue(prismaRecordNotFound()),
+        findFirst: jest.fn().mockResolvedValue(null),
       },
       roomQRCode: {
-        findFirstOrThrow: jest.fn(),
+        findFirst: jest.fn().mockResolvedValue(qr),
+        create: jest.fn(),
+        updateMany: jest.fn(),
+        update: jest.fn().mockImplementation(({ data }) => ({ ...qr, ...data })),
       },
       domainEvent: {
         create: jest.fn(),
@@ -94,32 +98,34 @@ describe("HotelsRepository QR activation", () => {
         hotelId: "hotel-1",
         roomId: "room-1",
         tenantId: "tenant-1",
+        publicCode: "token_new",
       }),
-    ).rejects.toThrow(
-      new BadRequestException("Không thể kích hoạt mã QR vì phòng chưa có khách đang lưu trú"),
-    );
+    ).resolves.toMatchObject({ id: "qr-1", status: "ACTIVE", expiresAt: null });
 
-    expect(tx.guestStay.findFirstOrThrow).toHaveBeenCalledWith({
+    expect(tx.guestStay.findFirst).toHaveBeenCalledWith({
       where: {
         hotelId: "hotel-1",
         roomId: "room-1",
         status: "ACTIVE",
       },
     });
-    expect(tx.roomQRCode.findFirstOrThrow).not.toHaveBeenCalled();
+    expect(tx.roomQRCode.create).not.toHaveBeenCalled();
   });
 
-  it("translates missing usable QR into a business error", async () => {
+  it("creates and activates a room QR when none exists", async () => {
+    const createdQr = { id: "qr-created" };
     const tx = {
       guestStay: {
-        findFirstOrThrow: jest.fn().mockResolvedValue({
+        findFirst: jest.fn().mockResolvedValue({
           id: "stay-1",
           plannedCheckOutAt: new Date("2026-06-10T05:00:00.000Z"),
         }),
       },
       roomQRCode: {
-        findFirstOrThrow: jest.fn().mockRejectedValue(prismaRecordNotFound()),
-        update: jest.fn(),
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue(createdQr),
+        updateMany: jest.fn(),
+        update: jest.fn().mockImplementation(({ data }) => ({ ...createdQr, ...data })),
       },
       domainEvent: {
         create: jest.fn(),
@@ -132,10 +138,15 @@ describe("HotelsRepository QR activation", () => {
         hotelId: "hotel-1",
         roomId: "room-1",
         tenantId: "tenant-1",
+        publicCode: "token_new",
       }),
-    ).rejects.toThrow(new BadRequestException("Không tìm thấy mã QR khả dụng cho phòng"));
+    ).resolves.toMatchObject({
+      id: "qr-created",
+      status: "ACTIVE",
+      expiresAt: new Date("2026-06-10T05:00:00.000Z"),
+    });
 
-    expect(tx.roomQRCode.findFirstOrThrow).toHaveBeenCalledWith({
+    expect(tx.roomQRCode.findFirst).toHaveBeenCalledWith({
       where: {
         hotelId: "hotel-1",
         roomId: "room-1",
@@ -143,17 +154,24 @@ describe("HotelsRepository QR activation", () => {
       },
       orderBy: { version: "desc" },
     });
-    expect(tx.roomQRCode.update).not.toHaveBeenCalled();
+    expect(tx.roomQRCode.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        hotelId: "hotel-1",
+        roomId: "room-1",
+        publicCode: "token_new",
+        status: "INACTIVE",
+        version: 1,
+      }),
+    });
   });
 });
-
 describe("HotelsRepository check-in QR creation", () => {
-  it("creates and activates a QR when check-in finds no usable room QR", async () => {
-    const createdQr = {
-      id: "qr-created",
+  it("activates an existing usable QR during check-in", async () => {
+    const existingQr = {
+      id: "qr-1",
       hotelId: "hotel-1",
       roomId: "room-1",
-      publicCode: "token_new",
+      publicCode: "token_existing",
       status: "INACTIVE",
       version: 1,
       activatedAt: null,
@@ -182,10 +200,10 @@ describe("HotelsRepository check-in QR creation", () => {
     };
     const tx = {
       roomQRCode: {
-        findFirst: jest.fn().mockResolvedValue(null),
-        create: jest.fn().mockResolvedValue(createdQr),
+        findFirst: jest.fn().mockResolvedValue(existingQr),
+        create: jest.fn(),
         updateMany: jest.fn(),
-        update: jest.fn().mockImplementation(({ data }) => ({ ...createdQr, ...data })),
+        update: jest.fn().mockImplementation(({ data }) => ({ ...existingQr, ...data })),
       },
       guestStay: {
         findFirst: jest.fn().mockResolvedValue({
@@ -217,29 +235,20 @@ describe("HotelsRepository check-in QR creation", () => {
       actorUserId: "actor-1",
       accessCodeHash: "hash",
       accessCodeExpiresAt: new Date("2026-06-11T07:00:00.000Z"),
-      publicCode: "token_new",
       tenantId: "tenant-1",
       generateFolioNumber: jest.fn().mockResolvedValue("VSH_FOLIO_0001"),
     });
 
-    expect(tx.roomQRCode.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        hotelId: "hotel-1",
-        roomId: "room-1",
-        publicCode: "token_new",
-        status: "INACTIVE",
-        version: 1,
-      }),
-    });
+    expect(tx.roomQRCode.create).not.toHaveBeenCalled();
     expect(tx.roomQRCode.update).toHaveBeenCalledWith({
-      where: { id: "qr-created" },
+      where: { id: "qr-1" },
       data: expect.objectContaining({
         status: "ACTIVE",
         deactivatedAt: null,
         expiresAt: stay.plannedCheckOutAt,
       }),
     });
-    expect(result.roomQrCode).toMatchObject({ id: "qr-created", status: "ACTIVE" });
+    expect(result.roomQrCode).toMatchObject({ id: "qr-1", status: "ACTIVE" });
   });
 
   it("fails before changing an AVAILABLE room when QR config is missing", async () => {
@@ -274,11 +283,12 @@ describe("HotelsRepository check-in QR creation", () => {
         actorUserId: "actor-1",
         accessCodeHash: "hash",
         accessCodeExpiresAt: new Date("2026-06-11T07:00:00.000Z"),
-        publicCode: "",
         tenantId: "tenant-1",
         generateReservationCode: jest.fn(),
       }),
-    ).rejects.toThrow(new BadRequestException("Thiếu cấu hình QR để check-in phòng"));
+    ).rejects.toThrow(
+      new BadRequestException("Phòng chưa có QR. Vui lòng tạo QR trước khi check-in."),
+    );
 
     expect(tx.room.updateMany).not.toHaveBeenCalled();
     expect(tx.guestStay.create).not.toHaveBeenCalled();

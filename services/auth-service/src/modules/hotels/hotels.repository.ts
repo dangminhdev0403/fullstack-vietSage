@@ -116,7 +116,7 @@ export const requestListInclude = {
           description: true,
           defaultPrice: true,
           currency: true,
-              sortOrder: true,
+          sortOrder: true,
           status: true,
           createdAt: true,
           updatedAt: true,
@@ -381,7 +381,11 @@ export class HotelsRepository {
 
     if (!telegramChatId) {
       await this.prisma.notificationRoute.updateMany({
-        where: { hotelId: input.hotelId, serviceCategoryId: input.serviceCategoryId, isActive: true },
+        where: {
+          hotelId: input.hotelId,
+          serviceCategoryId: input.serviceCategoryId,
+          isActive: true,
+        },
         data: { isActive: false },
       });
       return;
@@ -1529,7 +1533,7 @@ export class HotelsRepository {
                 name: true,
                 defaultPrice: true,
                 currency: true,
-                        },
+              },
             },
           },
         },

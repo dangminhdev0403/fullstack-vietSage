@@ -980,6 +980,33 @@ Remaining blockers/risks:
 - Visual QA in browser is still recommended against the static HTML templates at mobile, tablet, and desktop widths.
 - Admin/staff routes were intentionally not redesigned in this pass because the available templates target guest screens.
 
+## [complete] 2026-07-06 - Cutover UX readiness boundaries and smoke scaffold
+
+- Added shared App Router boundary UI in `src/app/(vietsage)/_components/route-boundary-state.tsx`.
+- Added route-level `loading.tsx` and `error.tsx` boundaries for high-risk app sections:
+  - `src/app/(vietsage)/admin`
+  - `src/app/(vietsage)/owner`
+  - `src/app/(vietsage)/hotels`
+  - `src/app/(vietsage)/staff`
+  - `src/app/(vietsage)/g`
+- Added dependency-free smoke readiness scripts in `package.json`:
+  - `npm run smoke:lint`
+  - `npm run smoke:build`
+- Added `docs/FRONTEND_SMOKE_TESTS.md` with protected-route, guest-flow, and error-boundary smoke coverage plus remaining large-component/a11y refactor backlog.
+- Completed the previously incomplete `src/app/(vietsage)/admin/_components/access-control-nav-header.tsx` export to clear its unused-symbol lint warnings.
+
+Verification result:
+
+- `npm run smoke:lint` passed.
+- `npm run lint` passed.
+- `npm run smoke:build` was blocked before compilation by an existing Next.js build lock: `Another next build process is already running`. Active Node processes and `.next/lock` were present, so the lock was not removed to avoid interrupting unrelated local work.
+
+Remaining blockers/risks:
+
+- Re-run `npm run smoke:build` after the active/stale Next build process is resolved.
+- Manual browser smoke from `docs/FRONTEND_SMOKE_TESTS.md` is still recommended for authenticated admin/owner/staff and QR-backed guest sessions.
+- Large component and a11y refactors remain tracked in `docs/FRONTEND_SMOKE_TESTS.md`.
+
 ## [complete] 2026-05-26 - Project rules execution contract update
 
 - Updated [project rules](./PROJECT_RULES.md) to add a mandatory execution contract for approved code tasks.

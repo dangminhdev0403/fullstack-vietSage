@@ -84,7 +84,12 @@ export class RoutePermissionSyncService implements OnApplicationBootstrap {
 
       for (const item of routePermissions) {
         const moduleKey = resolveModuleKeyFromPath(item.path);
-        await this.authRepository.upsertPermission(item.method, item.path, item.description, moduleKey);
+        await this.authRepository.upsertPermission(
+          item.method,
+          item.path,
+          item.description,
+          moduleKey,
+        );
       }
 
       for (const permission of BUSINESS_PERMISSIONS) {

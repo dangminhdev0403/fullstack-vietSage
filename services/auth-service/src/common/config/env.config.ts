@@ -25,6 +25,12 @@ const ConfigSchema = z.object({
   AUTH_ADMIN_EMAIL: z.string().optional(),
   AUTH_ADMIN_NAME: z.string().optional(),
   AUTH_ADMIN_PASSWORD: z.string().optional(),
+  CORS_ORIGINS: z.string().optional(),
+  SWAGGER_ENABLED: z.string().optional(),
+  AUTH_LOGIN_RATE_LIMIT_TTL_SECONDS: z.string().optional(),
+  AUTH_LOGIN_RATE_LIMIT_LIMIT: z.string().optional(),
+  AUTH_REFRESH_RATE_LIMIT_TTL_SECONDS: z.string().optional(),
+  AUTH_REFRESH_RATE_LIMIT_LIMIT: z.string().optional(),
   GOOGLE_APPLICATION_CREDENTIALS: z.string().optional(),
   GOOGLE_SHEET_ID: z.string().optional(),
   TELEGRAM_BOT_TOKEN: z.string().optional(),
@@ -65,6 +71,11 @@ export interface AuthAdminConfig {
   password: string | null;
 }
 
+export interface RateLimitConfig {
+  ttlSeconds: number;
+  limit: number;
+}
+
 export interface AppConfig {
   nodeEnv: string;
   port: number;
@@ -72,6 +83,12 @@ export interface AppConfig {
   auth: AuthConfig;
   authz: AuthzConfig;
   authAdmin: AuthAdminConfig;
+  corsOrigins: string[];
+  swaggerEnabled: boolean;
+  rateLimits: {
+    login: RateLimitConfig;
+    refresh: RateLimitConfig;
+  };
 }
 
 function parsePort(rawPort: string): number {
@@ -104,6 +121,23 @@ function parseBooleanEnv(
   throw new Error(`Invalid ${envName} environment variable. Expected true/false or 1/0.`);
 }
 
+function parsePositiveIntegerEnv(
+  rawValue: string | undefined,
+  defaultValue: number,
+  envName: string,
+): number {
+  if (rawValue === undefined || rawValue.trim() === "") {
+    return defaultValue;
+  }
+
+  const parsed = Number.parseInt(rawValue, 10);
+  if (!Number.isInteger(parsed) || parsed <= 0 || String(parsed) !== rawValue.trim()) {
+    throw new Error(`Invalid ${envName} environment variable. Expected a positive integer.`);
+  }
+
+  return parsed;
+}
+
 function normalizeOptionalEnvText(rawValue: string | undefined): string | null {
   if (rawValue === undefined) {
     return null;
@@ -111,6 +145,28 @@ function normalizeOptionalEnvText(rawValue: string | undefined): string | null {
 
   const trimmed = rawValue.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+export function parseCorsOrigins(rawValue: string | undefined): string[] {
+  if (rawValue === undefined || rawValue.trim() === "") {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      rawValue
+        .split(",")
+        .map((origin) => origin.trim())
+        .filter((origin) => origin.length > 0),
+    ),
+  );
+}
+
+export function shouldEnableSwagger(
+  nodeEnv: string,
+  rawSwaggerEnabled: string | undefined,
+): boolean {
+  return parseBooleanEnv(rawSwaggerEnabled, nodeEnv !== "production", "SWAGGER_ENABLED");
 }
 
 export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -143,6 +199,34 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       email: normalizeOptionalEnvText(validated.AUTH_ADMIN_EMAIL),
       name: normalizeOptionalEnvText(validated.AUTH_ADMIN_NAME),
       password: normalizeOptionalEnvText(validated.AUTH_ADMIN_PASSWORD),
+    },
+    corsOrigins: parseCorsOrigins(validated.CORS_ORIGINS),
+    swaggerEnabled: shouldEnableSwagger(validated.NODE_ENV, validated.SWAGGER_ENABLED),
+    rateLimits: {
+      login: {
+        ttlSeconds: parsePositiveIntegerEnv(
+          validated.AUTH_LOGIN_RATE_LIMIT_TTL_SECONDS,
+          60,
+          "AUTH_LOGIN_RATE_LIMIT_TTL_SECONDS",
+        ),
+        limit: parsePositiveIntegerEnv(
+          validated.AUTH_LOGIN_RATE_LIMIT_LIMIT,
+          10,
+          "AUTH_LOGIN_RATE_LIMIT_LIMIT",
+        ),
+      },
+      refresh: {
+        ttlSeconds: parsePositiveIntegerEnv(
+          validated.AUTH_REFRESH_RATE_LIMIT_TTL_SECONDS,
+          60,
+          "AUTH_REFRESH_RATE_LIMIT_TTL_SECONDS",
+        ),
+        limit: parsePositiveIntegerEnv(
+          validated.AUTH_REFRESH_RATE_LIMIT_LIMIT,
+          30,
+          "AUTH_REFRESH_RATE_LIMIT_LIMIT",
+        ),
+      },
     },
   };
 }

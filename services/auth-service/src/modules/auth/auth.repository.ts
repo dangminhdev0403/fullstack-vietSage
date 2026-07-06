@@ -1,11 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import {
-  HttpMethod,
-  RoleStatus,
-  UserRoleStatus,
-  UserStatus,
-  UserType,
-} from "@prisma/client";
+import { HttpMethod, RoleStatus, UserRoleStatus, UserStatus, UserType } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 
 @Injectable()
@@ -219,20 +213,11 @@ export class AuthRepository {
     });
   }
 
-  async upsertBusinessPermission(data: {
-    key: string;
-    description: string;
-    moduleKey: string;
-  }) {
+  async upsertBusinessPermission(data: { key: string; description: string; moduleKey: string }) {
     return this.upsertPermission(HttpMethod.OPTIONS, data.key, data.description, data.moduleKey);
   }
 
-  async upsertPermission(
-    method: HttpMethod,
-    path: string,
-    description: string,
-    moduleKey: string,
-  ) {
+  async upsertPermission(method: HttpMethod, path: string, description: string, moduleKey: string) {
     return this.prisma.permission.upsert({
       where: {
         method_path: {

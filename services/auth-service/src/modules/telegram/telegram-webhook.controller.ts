@@ -15,7 +15,13 @@ export class TelegramWebhookController {
       throw new ForbiddenException("Invalid Telegram webhook secret");
     }
 
-    const update = body as { callback_query?: { id: string; data?: string; from?: { id?: number; first_name?: string; last_name?: string; username?: string } } };
+    const update = body as {
+      callback_query?: {
+        id: string;
+        data?: string;
+        from?: { id?: number; first_name?: string; last_name?: string; username?: string };
+      };
+    };
     if (update.callback_query?.id) {
       await this.telegramNotificationService.handleCallback(update.callback_query);
     }

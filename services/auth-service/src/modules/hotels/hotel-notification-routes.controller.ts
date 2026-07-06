@@ -21,9 +21,11 @@ const routeBodySchema = z
   })
   .strict();
 
-const updateRouteBodySchema = routeBodySchema.partial().refine((value) => Object.keys(value).length > 0, {
-  message: "At least one field is required",
-});
+const updateRouteBodySchema = routeBodySchema
+  .partial()
+  .refine((value) => Object.keys(value).length > 0, {
+    message: "At least one field is required",
+  });
 
 @ApiTags("hotel-notification-routes")
 @Controller("hotels")
@@ -43,9 +45,17 @@ export class HotelNotificationRoutesController {
   @ApiDescript("Quản lý cấu hình Telegram")
   @ApiParam({ name: "hotelId", type: String })
   @Post(":hotelId/notification-routes")
-  async create(@Req() request: RequestWithUser, @Param("hotelId") hotelIdParam: string, @Body() body: unknown) {
+  async create(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Body() body: unknown,
+  ) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
-    return this.routesService.create(request.user.userId, hotelId, parseWithZod(routeBodySchema, body));
+    return this.routesService.create(
+      request.user.userId,
+      hotelId,
+      parseWithZod(routeBodySchema, body),
+    );
   }
 
   @SuccessMessage("Cập nhật cấu hình Telegram thành công")
@@ -60,6 +70,11 @@ export class HotelNotificationRoutesController {
     @Body() body: unknown,
   ) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
-    return this.routesService.update(request.user.userId, hotelId, routeId, parseWithZod(updateRouteBodySchema, body));
+    return this.routesService.update(
+      request.user.userId,
+      hotelId,
+      routeId,
+      parseWithZod(updateRouteBodySchema, body),
+    );
   }
 }

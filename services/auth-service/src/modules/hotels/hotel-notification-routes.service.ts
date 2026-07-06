@@ -24,7 +24,11 @@ export class HotelNotificationRoutesService {
     });
   }
 
-  async create(actorUserId: string, hotelId: string, input: Required<Pick<RouteInput, "telegramChatId">> & RouteInput) {
+  async create(
+    actorUserId: string,
+    hotelId: string,
+    input: Required<Pick<RouteInput, "telegramChatId">> & RouteInput,
+  ) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, hotelId);
     await this.assertCategoryInHotel(hotelId, input.serviceCategoryId);
     await this.assertNoDuplicateActiveRoute(hotelId, input);
@@ -40,12 +44,16 @@ export class HotelNotificationRoutesService {
 
   async update(actorUserId: string, hotelId: string, routeId: string, input: RouteInput) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, hotelId);
-    const route = await this.prisma.notificationRoute.findFirst({ where: { id: routeId, hotelId } });
+    const route = await this.prisma.notificationRoute.findFirst({
+      where: { id: routeId, hotelId },
+    });
     if (!route) throw new NotFoundException("Không tìm thấy cấu hình Telegram");
 
     const next = {
-      serviceCategoryId: input.serviceCategoryId === undefined ? route.serviceCategoryId : input.serviceCategoryId,
-      telegramChatId: input.telegramChatId === undefined ? route.telegramChatId : input.telegramChatId.trim(),
+      serviceCategoryId:
+        input.serviceCategoryId === undefined ? route.serviceCategoryId : input.serviceCategoryId,
+      telegramChatId:
+        input.telegramChatId === undefined ? route.telegramChatId : input.telegramChatId.trim(),
       isActive: input.isActive === undefined ? route.isActive : input.isActive,
     };
     await this.assertCategoryInHotel(hotelId, next.serviceCategoryId);
@@ -63,11 +71,18 @@ export class HotelNotificationRoutesService {
 
   private async assertCategoryInHotel(hotelId: string, serviceCategoryId?: string | null) {
     if (!serviceCategoryId) return;
-    const category = await this.prisma.hotelServiceCategory.findFirst({ where: { id: serviceCategoryId, hotelId }, select: { id: true } });
+    const category = await this.prisma.hotelServiceCategory.findFirst({
+      where: { id: serviceCategoryId, hotelId },
+      select: { id: true },
+    });
     if (!category) throw new NotFoundException("Không tìm thấy nhóm dịch vụ");
   }
 
-  private async assertNoDuplicateActiveRoute(hotelId: string, input: RouteInput, excludeId?: string) {
+  private async assertNoDuplicateActiveRoute(
+    hotelId: string,
+    input: RouteInput,
+    excludeId?: string,
+  ) {
     if (input.isActive === false) return;
     const where: Prisma.NotificationRouteWhereInput = {
       hotelId,
@@ -75,7 +90,11 @@ export class HotelNotificationRoutesService {
       id: excludeId ? { not: excludeId } : undefined,
       serviceCategoryId: input.serviceCategoryId ?? null,
     };
-    const duplicate = await this.prisma.notificationRoute.findFirst({ where, select: { id: true } });
-    if (duplicate) throw new BadRequestException("Đã tồn tại cấu hình Telegram đang hoạt động cho tuyến này");
+    const duplicate = await this.prisma.notificationRoute.findFirst({
+      where,
+      select: { id: true },
+    });
+    if (duplicate)
+      throw new BadRequestException("Đã tồn tại cấu hình Telegram đang hoạt động cho tuyến này");
   }
 }

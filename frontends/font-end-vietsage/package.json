@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "smoke:lint": "eslint src/app/(vietsage) src/app/page.tsx src/app/layout.tsx",
+    "smoke:build": "next build",
     "sync:api:types": "node ./scripts/sync-openapi-types.mjs"
   },
   "dependencies": {
