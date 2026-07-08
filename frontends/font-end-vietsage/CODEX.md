@@ -8,9 +8,9 @@ Always use `/next-best-practices` + `/design-taste-frontend`
 
 ## Required Reading
 - @CODEX-STITCH-SYNC.md
-- @docs/PROJECT_RULES.md
-- @docs/PROJECT_ARCHITECTURE.md
-- @docs/PROJECT_PLANS.md
+- @docs/RULES.md
+- @docs/ARCHITECTURE.md
+- @docs/PLANS.md
 
 ## Commands
 
@@ -43,7 +43,7 @@ Always use `/next-best-practices` + `/design-taste-frontend`
 
 Update:
 
-- @docs/PROJECT_PLANS.md
+- @docs/PLANS.md
 
 After feature completion send:
 

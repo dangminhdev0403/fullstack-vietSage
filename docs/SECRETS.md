@@ -4,7 +4,7 @@ Docker Compose là đường chạy production chính. Secret thật nằm trong
 
 ## Chính sách git
 
-- Commit được: `secrets/README.md`, `secrets/.gitkeep`, `secrets/docker/.gitkeep`, `secrets/production/.gitkeep`.
+- Commit được: `docs/SECRETS.md`, `secrets/.gitkeep`, `secrets/docker/.gitkeep`, `secrets/production/.gitkeep`.
 - Không commit: `secrets/**/*.env`, `secrets/**/*.json`, service account JSON, API keys, token, password, connection string.
 - Các file `.env` dưới `secrets/docker/` và `secrets/production/` có thể chứa key rỗng để nhắc cấu hình, nhưng vẫn bị ignore.
 

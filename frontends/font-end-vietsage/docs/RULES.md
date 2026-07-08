@@ -2,7 +2,7 @@
 
 ## Core Rules
 
-- Before starting implementation, read and follow `docs/PROJECT_RULES.md` plus any relevant file in `docs/` for the task.
+- Before starting implementation, read and follow `docs/RULES.md` plus any relevant file in `docs/` for the task.
 - For each implementation task, set a short mission name and keep the working plan aligned to that mission until completion.
 - Prefer Server Components by default
 - Do not fetch APIs directly inside UI components
@@ -110,13 +110,13 @@ Avoid duplicating query boilerplate already handled by the resource system.
 
 For every completed implementation/fix, you MUST update documentation in the same task:
 
-- update file `docs/PROJECT_PLANS.md` with:
+- update file `docs/PLANS.md` with:
   - date
   - what changed
   - verification result
   - remaining blockers/risks
-- if behavior/rules/process changed, update `docs/PROJECT_RULES.md` in the same PR/commit.
-- If `docs/PROJECT_PLANS.md` is not updated, the task is NOT considered complete.
+- if behavior/rules/process changed, update `docs/RULES.md` in the same PR/commit.
+- If `docs/PLANS.md` is not updated, the task is NOT considered complete.
   After complete a module, run a cleanup pass for lint warnings to keep the project clean.
 
 Do not mark work as complete until documentation sync is finished.
@@ -141,7 +141,7 @@ When the user approves a code task with phrases like `ok`, `do it`, `fix it`, `u
 - Inspect relevant files.
 - Apply the code change.
 - Run the smallest reliable validation command.
-- Update `docs/PROJECT_PLANS.md`.
+- Update `docs/PLANS.md`.
 - Only then provide the final report.
 
 A task is not complete until all completion evidence exists:
@@ -150,7 +150,7 @@ A task is not complete until all completion evidence exists:
 2. Files changed
 3. Validation command run
 4. Result captured
-5. `docs/PROJECT_PLANS.md` updated
+5. `docs/PLANS.md` updated
 6. Final report delivered
 
 Do not end with future-tense statements like:

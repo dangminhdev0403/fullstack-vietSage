@@ -30,7 +30,7 @@ Then edit these files directly on the VPS and fill real values:
 - `secrets/production/auth-service.env` — `DATABASE_URL`, JWT secrets/TTLs, CORS, auth admin, rate limits, optional Google/Telegram values
 - `secrets/production/frontend.env` — `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, public frontend URLs/options
 
-See `secrets/README.md` for the full key inventory. Do not commit `secrets/**/*.env` or `secrets/**/*.json`.
+See `docs/SECRETS.md` for the full key inventory. Do not commit `secrets/**/*.env` or `secrets/**/*.json`.
 
 For local Docker, use the same shape under `secrets/docker/*.env`:
 

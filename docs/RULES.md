@@ -1,12 +1,26 @@
 # VietSage Documentation Rules
 
-This file is the single place for documentation governance across frontend and backend.
+This file is the single place for documentation governance across frontend, backend, shared contracts, and root cross-system docs.
 
 ## Scope
 
-- Applies to all markdown files under `docs/`, `services/docs/`, and `frontends/font-end-vietsage/docs/`.
-- Use root `docs/` for cross-system documents (architecture, API contract, service boundary, event flow, validation).
-- Use service or frontend local docs only for implementation progress and local workflow details.
+Applies to markdown files under:
+
+- `docs/`
+- `services/docs/`
+- `frontends/font-end-vietsage/docs/`
+- `shared/api-contract/docs/`
+
+## Canonical Documentation Locations
+
+| Scope | Location | Examples |
+| --- | --- | --- |
+| Cross-system docs | `docs/` | `ARCHITECTURE.md`, `RULES.md`, `SERVICE_BOUNDARY.md`, `EVENT_FLOW.md`, `RBAC_ARCHITECTURE.md`, `DEPLOYMENT.md`, `SECRETS.md` |
+| Backend docs | `services/docs/` | `ARCHITECTURE.md`, `RULES.md`, `PLANS.md`, `MODULE_GUIDE.md`, `CONTRACT_GUIDE.md`, `EXTENSION_GUIDE.md` |
+| Frontend docs | `frontends/font-end-vietsage/docs/` | `ARCHITECTURE.md`, `RULES.md`, `PLANS.md`, `MODULE_GUIDE.md`, `CONTRACT_GUIDE.md`, `RUNTIME_UI_GUIDE.md`, `DESIGN.md` |
+| Shared API contract docs | `shared/api-contract/docs/` | `API_CATALOG.md`, `CONTRACT_CHANGES.md` |
+
+README files may remain at package/folder roots only when they are entry points for that package or directory. Detailed architecture, plans, rules, runbooks, and guides should live in the matching `docs/` folder.
 
 ## Global Execution Rule: STRICT PLAN MODE
 
@@ -72,23 +86,21 @@ Post-plan confirmation is mandatory:
 - Do not duplicate the same normative rule in multiple files.
 - If rules conflict, prioritize in this order:
   1. `docs/RULES.md`
-  2. `docs/API_SPEC.md`
-  3. `docs/SERVICE_BOUNDARY.md`
-  4. `docs/EVENT_FLOW.md`
-  5. local progress files (`services/docs/STATUS.md`, `frontends/font-end-vietsage/docs/PROJECT_STATUS.md`)
-- Keep API contract and runtime behavior aligned; update docs when code behavior changes.
+  2. nearest scope-specific `RULES.md`
+  3. nearest scope-specific `ARCHITECTURE.md`
+  4. task-specific guide in the same `docs/` folder
+  5. `PLANS.md` or historical notes
+- Keep API contract and runtime behavior aligned; update docs when behavior changes.
 
 ## Mandatory Update Rules
 
 After every completed implementation:
 
-- Update the corresponding status doc with date, changed files, validation commands, and risks.
-- If endpoint behavior changes, update `docs/API_SPEC.md` in the same task.
-- If ownership or module boundary changes, update `docs/SERVICE_BOUNDARY.md`.
-- If lifecycle/transaction/event behavior changes, update `docs/EVENT_FLOW.md`.
-- If architecture direction changes, update `docs/ARCHITECTURE.md`.
-
-Do not mark work complete when required docs are stale.
+- Update the corresponding `PLANS.md` only when the task affects tracked milestones/progress.
+- If endpoint behavior changes, update the relevant contract/API doc in the same task.
+- If ownership or module boundary changes, update the relevant `ARCHITECTURE.md` or guide.
+- If lifecycle/transaction/event behavior changes, update `docs/EVENT_FLOW.md` or the relevant backend guide.
+- Do not mark work complete when required docs are stale.
 
 ## Writing Standard
 
@@ -96,6 +108,7 @@ Do not mark work complete when required docs are stale.
 - Use concrete paths and commands that exist in the repository.
 - Prefer concise, testable statements over generic guidance.
 - Explicitly mark unknown items as `TBD` instead of guessing.
+- Keep core architecture files short; move details to topic-specific guide files in the same `docs/` folder.
 
 ## Validation Reference
 

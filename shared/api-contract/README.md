@@ -4,10 +4,10 @@ Shared contract package for frontend/backend synchronization.
 
 ## Structure
 
-- `API_CATALOG.md`: human-readable endpoint contract (module/request/response).
+- `docs/API_CATALOG.md`: human-readable endpoint contract (module/request/response).
 - `openapi/v1/openapi.json`: source of truth OpenAPI spec.
 - `openapi/v1/openapi.yaml`: YAML mirror of the same spec.
-- `changelog/CONTRACT_CHANGES.md`: contract change history.
+- `docs/CONTRACT_CHANGES.md`: contract change history.
 - `scripts/`: verification helpers.
 
 ## Export from auth-service

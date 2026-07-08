@@ -166,7 +166,7 @@ Use OpenAPI as the backend contract source of truth for frontend sync.
   - `npm run verify`
 - Do not maintain duplicated SDK schema mirrors; frontend tools must read `shared/api-contract/openapi/v1/openapi.json` directly.
 - Keep contract history updated in:
-  - `shared/api-contract/changelog/CONTRACT_CHANGES.md`
+  - `shared/api-contract/docs/CONTRACT_CHANGES.md`
 - Do not change tags, paths, or security schema silently; treat them as contract changes and log them.
 
 ## Testing Rules
