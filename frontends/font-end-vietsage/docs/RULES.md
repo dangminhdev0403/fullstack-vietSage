@@ -133,24 +133,34 @@ Do not mark work as complete until documentation sync is finished.
 
 ## Execution Contract (Mandatory)
 
-When the user approves a code task with phrases like `ok`, `do it`, `fix it`, `upgrade now`, `implement`, or equivalent:
+This frontend scope follows the repository-level `STRICT PLAN MODE` in `../../../../docs/RULES.md`.
+
+Do not switch from planning/analysis to editing unless the user writes exactly one approved command from the root rules:
+
+- `EXECUTE MODE`
+- `APPLY PLAN`
+- `CHO PHÉP SỬA`
+- `TIẾN HÀNH SỬA`
+
+Phrases like `ok`, `do it`, `fix it`, `upgrade now`, `implement`, `tiếp`, or `làm đi` are not enough by themselves.
+
+After explicit approval:
 
 - Do not stop after describing intent.
 - Do not answer with planning only.
-- Start execution immediately.
 - Inspect relevant files.
-- Apply the code change.
+- Apply the approved code/docs change only.
 - Run the smallest reliable validation command.
-- Update `docs/PLANS.md`.
+- Update `docs/PLANS.md` only when the task affects tracked milestones/progress.
 - Only then provide the final report.
 
 A task is not complete until all completion evidence exists:
 
 1. Files inspected
 2. Files changed
-3. Validation command run
+3. Validation command run, or a concrete blocker if validation cannot run
 4. Result captured
-5. `docs/PLANS.md` updated
+5. Required docs updated when applicable
 6. Final report delivered
 
 Do not end with future-tense statements like:
@@ -174,5 +184,3 @@ If blocked, report the concrete blocker:
 - permission issue
 - missing dependency
 - unclear required input
-
-Do not stop for generic planning once the user has approved execution.

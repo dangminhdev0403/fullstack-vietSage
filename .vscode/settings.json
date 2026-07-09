@@ -1,0 +1,7 @@
+{
+  "window.titleBarStyle": "custom",
+  "workbench.colorCustomizations": {
+    "window.activeBorder": "#b06cd0",
+    "window.inactiveBorder": "#3a1f46"
+  }
+}
