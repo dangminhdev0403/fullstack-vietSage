@@ -18,13 +18,11 @@ import {
   createRoomBodySchema,
   createRoomsBodySchema,
   createStayBodySchema,
-  hotelIdParamSchema,
   listRoomsQuerySchema,
   qrReasonBodySchema,
-  roomIdParamSchema,
-  stayIdParamSchema,
   updateRoomBodySchema,
-} from "./schemas/hotels.schema";
+} from "./schemas/rooms.schema";
+import { hotelIdParamSchema, roomIdParamSchema, stayIdParamSchema } from "./schemas/shared.schema";
 
 interface RequestWithUser extends Request {
   user: AuthenticatedUser;

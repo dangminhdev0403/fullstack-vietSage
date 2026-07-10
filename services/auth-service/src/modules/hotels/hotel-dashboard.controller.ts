@@ -6,7 +6,7 @@ import { ApiDescript } from "../../shared/decorators/api-descript.decorator";
 import { SuccessMessage } from "../../shared/decorators/success-message.decorator";
 import type { AuthenticatedUser } from "../auth/interfaces/authenticated-user.interface";
 import { HotelDashboardService } from "./hotel-dashboard.service";
-import { hotelIdParamSchema } from "./schemas/hotels.schema";
+import { hotelIdParamSchema } from "./schemas/shared.schema";
 
 interface RequestWithUser extends Request {
   user: AuthenticatedUser;

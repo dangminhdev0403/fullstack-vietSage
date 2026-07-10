@@ -1,4 +1,4 @@
-import { createStayBodySchema } from "../schemas/hotels.schema";
+import { createStayBodySchema } from "../schemas/rooms.schema";
 
 describe("hotel stay schemas", () => {
   it("rejects reservationCode in create stay requests", () => {

@@ -6,6 +6,9 @@ import {
   RoomQRCodeStatus,
   ServiceCatalogStatus,
 } from "@prisma/client";
+import { HotelRequestsService } from "../hotel-requests.service";
+import { HotelRoomsService } from "../hotel-rooms.service";
+import { HotelServicesService } from "../hotel-services.service";
 import { HotelsService } from "../hotels.service";
 
 function createRepository(overrides: Record<string, jest.Mock> = {}) {
@@ -260,7 +263,55 @@ function createService(
   codesService = createCodesService(),
   accessService = createAccessService(repository),
 ) {
-  return new HotelsService(repository as never, codesService as never, accessService as never);
+  const hotelsService = new HotelsService(
+    repository as never,
+    codesService as never,
+    accessService as never,
+  );
+  const hotelRoomsService = new HotelRoomsService(
+    repository as never,
+    codesService as never,
+    accessService as never,
+  );
+  const hotelServicesService = new HotelServicesService(
+    repository as never,
+    accessService as never,
+  );
+  const hotelRequestsService = new HotelRequestsService(
+    repository as never,
+    accessService as never,
+  );
+
+  return {
+    createHotel: hotelsService.createHotel.bind(hotelsService),
+    listHotels: hotelsService.listHotels.bind(hotelsService),
+    getHotel: hotelsService.getHotel.bind(hotelsService),
+    updateHotel: hotelsService.updateHotel.bind(hotelsService),
+    createRoom: hotelRoomsService.createRoom.bind(hotelRoomsService),
+    createRooms: hotelRoomsService.createRooms.bind(hotelRoomsService),
+    listRooms: hotelRoomsService.listRooms.bind(hotelRoomsService),
+    updateRoom: hotelRoomsService.updateRoom.bind(hotelRoomsService),
+    createStay: hotelRoomsService.createStay.bind(hotelRoomsService),
+    checkInStay: hotelRoomsService.checkInStay.bind(hotelRoomsService),
+    createAndCheckInStay: hotelRoomsService.createAndCheckInStay.bind(hotelRoomsService),
+    checkOutStay: hotelRoomsService.checkOutStay.bind(hotelRoomsService),
+    rotateQr: hotelRoomsService.rotateQr.bind(hotelRoomsService),
+    activateQr: hotelRoomsService.activateQr.bind(hotelRoomsService),
+    deactivateQr: hotelRoomsService.deactivateQr.bind(hotelRoomsService),
+    listServiceCategories: hotelServicesService.listServiceCategories.bind(hotelServicesService),
+    createServiceCategory: hotelServicesService.createServiceCategory.bind(hotelServicesService),
+    updateServiceCategory: hotelServicesService.updateServiceCategory.bind(hotelServicesService),
+    listServiceItems: hotelServicesService.listServiceItems.bind(hotelServicesService),
+    createServiceItem: hotelServicesService.createServiceItem.bind(hotelServicesService),
+    updateServiceItem: hotelServicesService.updateServiceItem.bind(hotelServicesService),
+    listRequests: hotelRequestsService.listRequests.bind(hotelRequestsService),
+    getRequestsSummary: hotelRequestsService.getRequestsSummary.bind(hotelRequestsService),
+    getRequestDetail: hotelRequestsService.getRequestDetail.bind(hotelRequestsService),
+    updateRequestStatus: hotelRequestsService.updateRequestStatus.bind(hotelRequestsService),
+    updateRequestAssignment:
+      hotelRequestsService.updateRequestAssignment.bind(hotelRequestsService),
+    createRequestEvent: hotelRequestsService.createRequestEvent.bind(hotelRequestsService),
+  };
 }
 
 describe("HotelsService", () => {

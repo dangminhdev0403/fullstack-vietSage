@@ -17,6 +17,10 @@ import { HotelsRepository } from "./hotels.repository";
 import { HotelsService } from "./hotels.service";
 import { GoogleSheetsServiceCatalogSyncService } from "./imports/google-sheets-service-catalog-sync.service";
 import { ServiceCatalogImportAdapter } from "./imports/service-catalog-import.adapter";
+import { HotelCoreRepository } from "./repositories/hotel-core.repository";
+import { HotelRequestsRepository } from "./repositories/hotel-requests.repository";
+import { HotelRoomsRepository } from "./repositories/hotel-rooms.repository";
+import { HotelServiceCatalogRepository } from "./repositories/hotel-service-catalog.repository";
 
 @Module({
   imports: [PrismaModule, ImportModule],
@@ -36,6 +40,10 @@ import { ServiceCatalogImportAdapter } from "./imports/service-catalog-import.ad
     HotelDashboardService,
     HotelNotificationRoutesService,
     HotelAccessService,
+    HotelCoreRepository,
+    HotelRoomsRepository,
+    HotelServiceCatalogRepository,
+    HotelRequestsRepository,
     HotelsRepository,
     GoogleSheetsServiceCatalogSyncService,
     ServiceCatalogImportAdapter,
@@ -46,6 +54,10 @@ import { ServiceCatalogImportAdapter } from "./imports/service-catalog-import.ad
     HotelServicesService,
     HotelRequestsService,
     HotelAccessService,
+    HotelCoreRepository,
+    HotelRoomsRepository,
+    HotelServiceCatalogRepository,
+    HotelRequestsRepository,
     HotelsRepository,
   ],
 })

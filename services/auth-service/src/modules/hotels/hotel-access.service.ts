@@ -4,8 +4,8 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import type { HotelDetailRow } from "./hotels.repository";
-import { HotelsRepository } from "./hotels.repository";
+import { HotelCoreRepository } from "./repositories/hotel-core.repository";
+import type { HotelDetailRow } from "./repositories/hotel-repository.types";
 
 const HOTEL_OPERATOR_ROLE_CODES = new Set([
   "SUPER_ADMIN",
@@ -25,10 +25,10 @@ export interface HotelActorContext {
 
 @Injectable()
 export class HotelAccessService {
-  constructor(private readonly hotelsRepository: HotelsRepository) {}
+  constructor(private readonly hotelCoreRepository: HotelCoreRepository) {}
 
   async loadActorContext(userId: string): Promise<HotelActorContext> {
-    const actor = await this.hotelsRepository.findActorById(userId);
+    const actor = await this.hotelCoreRepository.findActorById(userId);
     if (!actor) {
       throw new ForbiddenException("Không tìm thấy người thực hiện");
     }
@@ -89,7 +89,7 @@ export class HotelAccessService {
   }
 
   async assertTenantExists(tenantId: string) {
-    const tenant = await this.hotelsRepository.findTenantById(tenantId);
+    const tenant = await this.hotelCoreRepository.findTenantById(tenantId);
     if (!tenant) {
       throw new NotFoundException("Không tìm thấy tenant");
     }
@@ -99,7 +99,7 @@ export class HotelAccessService {
     const actor = await this.loadActorContext(actorUserId);
 
     if (actor.isTenantOwner) {
-      const hotel = await this.hotelsRepository.findHotelByIdAndTenantIds(
+      const hotel = await this.hotelCoreRepository.findHotelByIdAndTenantIds(
         hotelId,
         Array.from(actor.tenantIds),
       );
@@ -110,7 +110,7 @@ export class HotelAccessService {
       return hotel;
     }
 
-    const hotel = await this.hotelsRepository.findHotelById(hotelId);
+    const hotel = await this.hotelCoreRepository.findHotelById(hotelId);
     if (!hotel) {
       throw new NotFoundException("Không tìm thấy khách sạn");
     }

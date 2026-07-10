@@ -1,18 +1,20 @@
-import { CategoryPriceUpdateMode, ServiceCatalogStatus } from "@prisma/client";
+import { CategoryPriceUpdateMode } from "@prisma/client";
 import { parseWithZod } from "../../../../common/validation/parse-with-zod";
+import { createHotelBodySchema, updateHotelBodySchema } from "../../schemas/hotel.schema";
 import {
-  createHotelBodySchema,
+  listStaffRequestsQuerySchema,
+  updateRequestAssignmentBodySchema,
+} from "../../schemas/requests.schema";
+import {
   createRoomBodySchema,
   createRoomsBodySchema,
+  updateRoomBodySchema,
+} from "../../schemas/rooms.schema";
+import {
   createServiceCategoryBodySchema,
   createServiceItemBodySchema,
-  listStaffRequestsQuerySchema,
   updateServiceCategoryBodySchema,
-  listServiceItemsQuerySchema,
-  updateHotelBodySchema,
-  updateRequestAssignmentBodySchema,
-  updateRoomBodySchema,
-} from "../../schemas/hotels.schema";
+} from "../../schemas/service-catalog.schema";
 
 describe("hotels.schema", () => {
   it("phân tích dữ liệu tạo khách sạn không có mã do caller cung cấp", () => {

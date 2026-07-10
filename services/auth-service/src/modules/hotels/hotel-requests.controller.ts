@@ -16,13 +16,12 @@ import { HotelRequestsService } from "./hotel-requests.service";
 import {
   createRequestEventBodySchema,
   guestRequestPriorityValues,
-  hotelIdParamSchema,
   listStaffRequestsQuerySchema,
-  requestIdParamSchema,
   requestSummaryQuerySchema,
   updateRequestAssignmentBodySchema,
   updateRequestStatusBodySchema,
-} from "./schemas/hotels.schema";
+} from "./schemas/requests.schema";
+import { hotelIdParamSchema, requestIdParamSchema } from "./schemas/shared.schema";
 
 interface RequestWithUser extends Request {
   user: AuthenticatedUser;

@@ -17,14 +17,16 @@ import { GoogleSheetsServiceCatalogSyncService } from "./imports/google-sheets-s
 import {
   createServiceCategoryBodySchema,
   createServiceItemBodySchema,
-  hotelIdParamSchema,
   listServiceCategoriesQuerySchema,
   listServiceItemsQuerySchema,
-  serviceCategoryIdParamSchema,
-  serviceItemIdParamSchema,
   updateServiceCategoryBodySchema,
   updateServiceItemBodySchema,
-} from "./schemas/hotels.schema";
+} from "./schemas/service-catalog.schema";
+import {
+  hotelIdParamSchema,
+  serviceCategoryIdParamSchema,
+  serviceItemIdParamSchema,
+} from "./schemas/shared.schema";
 
 interface RequestWithUser extends Request {
   user: AuthenticatedUser;

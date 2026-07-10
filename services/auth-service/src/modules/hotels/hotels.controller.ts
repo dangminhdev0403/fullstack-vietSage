@@ -22,10 +22,10 @@ import type { AuthenticatedUser } from "../auth/interfaces/authenticated-user.in
 import { HotelsService } from "./hotels.service";
 import {
   createHotelBodySchema,
-  hotelIdParamSchema,
   listHotelsQuerySchema,
   updateHotelBodySchema,
-} from "./schemas/hotels.schema";
+} from "./schemas/hotel.schema";
+import { hotelIdParamSchema } from "./schemas/shared.schema";
 
 interface RequestWithUser extends Request {
   user: AuthenticatedUser;
