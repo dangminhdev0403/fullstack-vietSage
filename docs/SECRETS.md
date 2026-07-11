@@ -1,39 +1,53 @@
 # VietSage runtime secrets
 
-Docker Compose là đường chạy production chính. Secret thật nằm trong `secrets/**` trên máy local/VPS và không commit lên git.
+Docker Compose is the production/local-container runtime path. Real secrets live in ignored `secrets/docker/*.env` or `secrets/production/*.env` files on each machine/VPS and must not be committed.
 
-## Chính sách git
+## Git policy
 
-- Commit được: `docs/SECRETS.md`, `secrets/.gitkeep`, `secrets/docker/.gitkeep`, `secrets/production/.gitkeep`.
-- Không commit: `secrets/**/*.env`, `secrets/**/*.json`, service account JSON, API keys, token, password, connection string.
-- Các file `.env` dưới `secrets/docker/` và `secrets/production/` có thể chứa key rỗng để nhắc cấu hình, nhưng vẫn bị ignore.
+Commit allowed:
 
-## Cấu trúc
+- `docs/SECRETS.md`
+- `secrets/.gitkeep`
+- `secrets/docker/.gitkeep`
+- `secrets/production/.gitkeep`
+- non-secret skeleton/example files only
 
-```text
+Do not commit:
+
+- real `.env` files;
+- service account JSON;
+- API keys;
+- tokens;
+- passwords;
+- connection strings;
+- filled legacy files such as `secrets/env_backend` or `secrets/env_frontend`.
+
+## Current runtime secret files
+
+```txt
 secrets/
   docker/
     postgres.env
     auth-service.env
     frontend.env
-    google-service-account.json        # optional, không commit
+    google-service-account.json        # optional, ignored
   production/
     postgres.env
     auth-service.env
     frontend.env
-    google-service-account.json        # optional, không commit
+    google-service-account.json        # optional, ignored
 ```
 
-`docker-compose.yml` đọc `./secrets/docker/*.env`.
-`docker-compose.prod.yml` đọc `./secrets/production/*.env`.
+`docker-compose.yml` reads `./secrets/docker/*.env`.
+`docker-compose.prod.yml` reads `./secrets/production/*.env`.
 
-## Tạo file key rỗng
+## Create empty local files
 
 ```bash
 bash scripts/init-secrets.sh
 ```
 
-Script chỉ tạo file nếu chưa tồn tại và không ghi đè secret thật.
+The script creates files only when missing and does not overwrite existing real secrets.
 
 ## `postgres.env`
 
@@ -70,8 +84,6 @@ SWAGGER_ENABLED=
 LOG_LEVEL=
 ```
 
-Ghi chú: nếu bật Google Sheets sync, đặt credential JSON tại `secrets/<docker|production>/google-service-account.json` và set `GOOGLE_APPLICATION_CREDENTIALS` theo cách mount phù hợp trước khi chạy container. Compose hiện không mount file này mặc định để `docker compose config` không hỏng khi file vắng mặt.
-
 ## `frontend.env`
 
 ```dotenv
@@ -84,21 +96,25 @@ NEXT_PUBLIC_REALTIME_URL=
 NEXT_PUBLIC_GUEST_DEFAULT_SERVICE_CATEGORY_ID=
 ```
 
-Trong production Docker, `AUTH_API_BASE_URL` được compose set mặc định là `http://auth-service:8080`; nếu cần override thì đặt trong env file.
+## Legacy tracked files
+
+Historical files `secrets/env_backend` and `secrets/env_frontend` must contain only blank skeleton keys if they remain in git. Runtime values belong in ignored `secrets/docker/*.env` or `secrets/production/*.env` files.
+
+If a real value was ever committed, rotate that credential outside this repo.
 
 ## Deploy production
 
-Trên VPS:
+On VPS:
 
 ```bash
 git pull
 bash scripts/init-secrets.sh
-# Điền giá trị thật vào secrets/production/*.env trên VPS, không commit.
+# Fill real values directly in secrets/production/*.env on the VPS. Do not commit them.
 docker compose -f docker-compose.prod.yml config
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-Kiểm tra:
+Check:
 
 ```bash
 docker compose -f docker-compose.prod.yml ps

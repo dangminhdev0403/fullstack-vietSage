@@ -33,7 +33,7 @@ import {
 import { parseWithZod } from "../../common/validation/parse-with-zod";
 import { ApiDescript } from "../../shared/decorators/api-descript.decorator";
 import { SuccessMessage } from "../../shared/decorators/success-message.decorator";
-import type { AuthenticatedUser } from "../auth/interfaces/authenticated-user.interface";
+import type { AuthenticatedUser } from "../../shared/security";
 import { HotelUsersService } from "./hotel-users.service";
 import {
   assignHotelUserRolesBodySchema as assignHotelUserRolesBodyZodSchema,

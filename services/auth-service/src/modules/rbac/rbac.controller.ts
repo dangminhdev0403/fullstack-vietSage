@@ -31,7 +31,7 @@ import { ApiDescript } from "../../shared/decorators/api-descript.decorator";
 import { RequirePermission } from "../../shared/decorators/require-permission.decorator";
 import { SkipAuthorization } from "../../shared/decorators/skip-authorization.decorator";
 import { SuccessMessage } from "../../shared/decorators/success-message.decorator";
-import type { AuthenticatedUser } from "../auth/interfaces/authenticated-user.interface";
+import type { AuthenticatedUser } from "../../shared/security";
 import { RbacService } from "./rbac.service";
 import {
   createRoleBodySchema as createRoleBodyZodSchema,

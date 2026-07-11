@@ -1,74 +1,53 @@
 # VietSage Backend Plan
 
-Last updated: 2026-05-28
+Last updated: 2026-07-11
 
-## 1) Snapshot
+## 1. Snapshot
 
 - Workspace: `services/`
-- Main service: `services/auth-service/`
+- Current core API path: `services/auth-service/` (historical name)
 - Stack: NestJS 11, Prisma 7, PostgreSQL, Zod
-- Active modules: `health`, `auth`, `rbac`, `hotel-users`
-- API contract: Swagger UI at `/docs` and OpenAPI export via `npm run openapi:export`
-- Error contract (current standard):
-  - Shape: `{ status, message, data?: { detail } }`
-  - `message`: title/code only (example: `VALIDATION_ERROR`, `UNAUTHORIZED`)
-  - `data.detail`: `string` for a single issue, `string[]` for multiple issues
+- Runtime architecture: modular monolith
+- API contract: Swagger/OpenAPI export via `npm run openapi:export`
+- Current active contexts: identity/access, tenancy, property/hotels, GuestOS, billing, emergency, notifications, codes, health
 
-## 2) Milestone Status
+## 2. Architecture Refactor Status
 
 | Milestone | Status | Notes |
 | --- | --- | --- |
-| M0 - Foundation | Done | Health endpoint, config, request id/logging, global filter, validation pipeline |
-| M1 - DB Foundation | Done | Prisma 7 setup, migration flow, seed, CI migration gate |
-| M2 - Auth Core | Done | `/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/me` |
-| M3 - Route-based RBAC | Done | Route permission sync + route key authorization by `method:path` |
-| M4 - Hotel User Management | Done | Tenant-scoped staff APIs, soft-revoke role flow, Zod validation |
-| M5 - Hardening and Observability | In progress | Runtime hardening, contract tests, deployment safety |
+| M0 - Foundation | Done | Health, config, logging, global filter, validation pipeline |
+| M1 - DB Foundation | Done | Prisma 7 setup, migration flow, seed/CI migration gate |
+| M2 - Auth Core | Done | Login/refresh/logout/me bridge |
+| M3 - RBAC Bridge | Done/In progress | Business permission keys with route fallback |
+| M4 - Hotel/Guest/Billing Expansion | Done/In progress | Property, GuestOS, billing, emergency, Telegram modules exist |
+| M5 - DOCX Architecture Alignment | In progress | Modular-monolith docs, domain map, secret hygiene, module boundary cleanup |
 
-## 3) Completed Recently
+## 3. Current DOCX Refactor Focus
 
-- Refactored module structure to repository-first DB access (`*.repository.ts`) with business logic in services.
-- Consolidated module tests into local `tests/` folders to remove scattered test files.
-- Enabled Swagger/OpenAPI generation and shared API contract export flow.
-- Standardized exception payloads across auth/rbac/hotel-users with a single global format.
-- Improved Zod validation error mapping so field-level issues can be returned in `data.detail`.
-- Added explicit Swagger request/response schemas so OpenAPI export includes `requestBody` and non-empty `responses.content`.
-- Removed duplicated `sdk` mirror under `shared/api-contract`; frontend should consume `openapi/v1/openapi.json` directly.
+- [x] Align architecture docs to modular-monolith/current-runtime truth.
+- [x] Add domain map and service evolution criteria.
+- [x] Remove filled values from tracked legacy secret files.
+- [x] Hide Hotels repositories from module exports.
+- [x] Move shared authenticated-user contract to shared security boundary.
+- [x] Add `GuestRequestEventPublisher` shared port for GuestOS/Hotels/Telegram realtime publication.
+- [ ] Replace remaining cross-context implementation dependencies with public ports.
+- [ ] Split Identity/Auth folders after behavior tests cover seams.
+- [ ] Export OpenAPI after future HTTP contract changes.
 
-## 4) Current Focus (M5)
-
-- [x] RBAC lazy-load permission modules for role management:
-  - Add `moduleKey` persistence/indexing for route permissions.
-  - Add module summary/detail APIs with page/limit pagination.
-  - Add module-level bulk APIs (`select-all`, `disable-all`).
-- [ ] Environment schema alignment for permission sync:
-  - Run `npm run prisma:deploy` on each environment.
-  - Confirm `Permission.method` and `Permission.path` exist in the target DB.
-  - Keep `AUTHZ_ROUTE_SYNC_STRICT_MODE=false` only as temporary fallback.
-- [ ] Add/maintain e2e coverage for error contract consistency (`message` + `data.detail`).
-- [x] Keep OpenAPI output import-friendly for Postman and FE SDK sync.
-- [ ] Add operational runbook for route-permission sync and authz troubleshooting.
-
-## 7) GuestOS MVP
-
-- [x] Add hotel, room, room QR, stay, guest session, guest request, request event, and domain event schema.
-- [x] Add modular hotel operations APIs for rooms, stays, QR lifecycle, checkout revocation, and staff request queue.
-- [x] Add GuestOS APIs for QR scan, guest session access, guest requests, and session close.
-- [x] Complete full validation gate after GuestOS implementation.
-
-## 5) Release Gate
+## 4. Release Gate
 
 ```bash
-npm run prisma:check
 npm run build
-npm run test
+npm run test -- --runInBand
 npm run test:e2e
-npm run lint
+npx eslint "{src,apps,libs,test}/**/*.ts"
+git diff --check
 ```
 
-## 6) Non-Goals (V1)
+## 5. Non-Goals
 
-- No Redis/cache until a measured bottleneck exists.
-- No microservice split before domain and API contracts are stable.
-- No message broker in this phase.
-- No frontend scope in backend milestones.
+- No microservice split in this phase.
+- No message broker/cache by default.
+- No service rename in this phase.
+- No package/dependency changes without approval.
+- No frontend scope unless a contract change requires sync.

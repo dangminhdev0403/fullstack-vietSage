@@ -3,7 +3,7 @@ import { Reflector } from "@nestjs/core";
 import type { Request } from "express";
 import { loadAppConfig } from "../../common/config/env.config";
 import { publicMatcher } from "../../common/config/routes.config";
-import type { AuthenticatedUser } from "../../modules/auth/interfaces/authenticated-user.interface";
+import type { AuthenticatedUser } from "../security";
 import { AuthorizationService } from "../../modules/auth/services/authorization.service";
 import {
   isPermissionPathTooLong,

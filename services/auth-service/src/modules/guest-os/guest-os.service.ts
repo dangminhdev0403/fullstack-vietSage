@@ -2,8 +2,10 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
+  Optional,
   UnauthorizedException,
 } from "@nestjs/common";
 import {
@@ -21,7 +23,11 @@ import {
   hashOpaqueToken,
 } from "../../common/security/token-hash.util";
 import { AppLogger } from "../../common/logging/app-logger.service";
-import { RequestRealtimeEmitter } from "../../request-realtime.emitter";
+import {
+  GUEST_REQUEST_EVENT_PUBLISHER,
+  NOOP_GUEST_REQUEST_EVENT_PUBLISHER,
+  type GuestRequestEventPublisher,
+} from "../../shared/events";
 import { TelegramNotificationService } from "../telegram/telegram-notification.service";
 import {
   GuestOsRepository,
@@ -91,11 +97,19 @@ const SESSION_SWITCH_REQUIRED_CODE = "GUEST_SESSION_SWITCH_REQUIRED";
 export class GuestOsService {
   private readonly i18n = new I18nService();
 
+  private readonly guestRequestEventPublisher: GuestRequestEventPublisher;
+
   constructor(
     private readonly guestOsRepository: GuestOsRepository,
     private readonly logger: AppLogger = new AppLogger(),
     private readonly telegramNotificationService?: TelegramNotificationService,
-  ) {}
+    @Optional()
+    @Inject(GUEST_REQUEST_EVENT_PUBLISHER)
+    guestRequestEventPublisher?: GuestRequestEventPublisher,
+  ) {
+    this.guestRequestEventPublisher =
+      guestRequestEventPublisher ?? NOOP_GUEST_REQUEST_EVENT_PUBLISHER;
+  }
 
   async scanQr(dto: ScanQrBodyInput, request: Request) {
     const publicCode = dto.qrCode.trim();
@@ -410,9 +424,10 @@ export class GuestOsService {
       priority: request.priority,
       quantity: request.quantity,
     });
-    RequestRealtimeEmitter.emitGuestRequestCreated({
+    this.guestRequestEventPublisher.publishGuestRequestCreated({
       hotelId: current.hotelId,
       sessionId: current.id,
+      requestId: request.id,
       ownerRequest: {
         id: request.id,
         displayName: request.serviceItem?.name ?? request.title ?? "Request",

@@ -1,101 +1,48 @@
-# VietSage Service Boundary
+# VietSage Service and Module Boundary
 
-## Current Direction
+## Current boundary model
 
-Use modular monolith first inside `services/auth-service`, while keeping domain boundaries ready for a future service split.
+The current backend is one deployed NestJS core API located at `services/auth-service`. The folder name is historical; do not infer that the service owns only authentication.
 
-## Why
+Inside this core API, boundaries are enforced at the **module/context** level first. Service extraction is a future option, not the present runtime.
 
-The current backend is a NestJS starter. Splitting into deployed microservices now would add network, transaction, deployment, and observability complexity before the domain model is stable.
+## Boundary layers
 
-## Boundaries
+| Boundary | Present implementation | Rule |
+| --- | --- | --- |
+| HTTP/API | Controllers in `services/auth-service/src/modules/**` | OpenAPI export is the contract truth. |
+| Application | Module services | Own workflow, authorization/resource checks, and transactions. |
+| Persistence | Repositories and Prisma service | Repositories are internal to their owning module. |
+| Public module API | Explicit module exports and `index.ts`/public interfaces where needed | Other contexts import only public services/ports. |
+| Event/notification | In-process services/adapters today | Add versioned event envelope before async extraction. |
 
-### Auth / Identity
+## Public boundary rules
 
-Owns:
-- Users
-- Credentials
-- Roles
-- Access token issuing
-- Auth guards
+- A module must not export repositories just to let another module query its tables.
+- A module may export a public service/port that hides persistence details.
+- Cross-module imports from `repositories/`, `schemas/` implementation internals, or deep service helpers require refactor approval.
+- Controllers from one module must not call controllers from another module.
+- Shared guards/decorators should depend on shared security contracts and public Identity services only.
 
-Does not own:
-- Room lifecycle
-- Service request workflow
-- Admin operational metrics
+## Current approved public ports/services
 
-### Hotel Context
+| Owner context | Public export | Consumers | Reason |
+| --- | --- | --- | --- |
+| Property / Hotels | `HotelAccessService` | Billing and other resource-scoped modules | Validates actor access to hotel/tenant without exposing hotel repositories. |
+| Identity & Access | `AuthorizationService`, `AuthService` temporarily | Global guards/strategies/controllers | To be split into authentication/session/access-control ports in later phases. |
 
-Owns:
-- Hotel metadata
-- Rooms
-- Guest stay/session binding
+## Repository export policy
 
-Does not own:
-- User credentials
-- Request status workflow
+Repositories must remain internal. If a consumer needs a query, add a public application query/port to the owner context instead of exporting the repository.
 
-### Service Requests
+For example:
 
-Owns:
-- Service categories
-- Guest requests
-- Request status transitions
-- Request timeline/events
-- Staff queue filters
+```txt
+BillingService -> HotelAccessService        # allowed
+BillingService -> HotelCoreRepository       # forbidden
+BillingService -> Prisma hotel query direct # avoid unless it owns that data
+```
 
-Does not own:
-- Password/session management
-- Room master data except references
+## Future service extraction
 
-### Admin Reporting
-
-Owns:
-- Read-only operational aggregation
-- KPI calculation
-
-Does not own:
-- Source-of-truth writes for request lifecycle
-
-## Dependency Rules
-
-- Controllers depend on application services only.
-- Application services orchestrate domain rules and repositories.
-- Domain code does not depend on NestJS transport concerns.
-- Infrastructure implements persistence and external integrations.
-- No circular module dependency.
-- No business logic in controllers.
-
-## Data Ownership
-
-When split later:
-- Auth service owns user identity database.
-- Hotel service owns room/stay database.
-- Request service owns request/event database.
-- Reporting reads from events/projections, not by owning operational writes.
-
-For V1 modular monolith:
-- One PostgreSQL database is acceptable.
-- Keep table ownership clear by module.
-- Do not create cross-module writes without an application-level use case.
-
-## Transaction Boundaries
-
-Use DB transaction for:
-- Create service request + first request event.
-- Update service request status + append request event.
-- Create guest stay + required room occupancy update if implemented together.
-
-Avoid transaction for:
-- Simple read endpoints.
-- Dashboard aggregation reads.
-- Independent logging/telemetry.
-
-## Cache Boundary
-
-No Redis/cache by default.
-
-Only introduce cache when:
-- A real measured bottleneck exists.
-- Query/index optimization is not enough.
-- Cache key, TTL, invalidation, and stale-data risk are documented.
+Extraction requires stable ownership and operational need. See `SERVICE_EVOLUTION.md`.

@@ -1,5 +1,1 @@
-export interface AuthenticatedUser {
-  userId: string;
-  email: string;
-  roleId: string;
-}
+export type { AuthenticatedUser } from "../../../shared/security";

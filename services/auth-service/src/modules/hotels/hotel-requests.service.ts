@@ -1,6 +1,16 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  Optional,
+} from "@nestjs/common";
 import { GuestRequestPriority, GuestRequestStatus, GuestStayStatus, Prisma } from "@prisma/client";
-import { RequestRealtimeEmitter } from "../../request-realtime.emitter";
+import {
+  GUEST_REQUEST_EVENT_PUBLISHER,
+  NOOP_GUEST_REQUEST_EVENT_PUBLISHER,
+  type GuestRequestEventPublisher,
+} from "../../shared/events";
 import { HotelAccessService } from "./hotel-access.service";
 import { HotelRequestsRepository } from "./repositories/hotel-requests.repository";
 import type { StaffRequestListRow } from "./repositories/hotel-repository.types";
@@ -62,10 +72,18 @@ const activeStayRequestFilter = {
 
 @Injectable()
 export class HotelRequestsService {
+  private readonly guestRequestEventPublisher: GuestRequestEventPublisher;
+
   constructor(
     private readonly hotelRequestsRepository: HotelRequestsRepository,
     private readonly hotelAccessService: HotelAccessService,
-  ) {}
+    @Optional()
+    @Inject(GUEST_REQUEST_EVENT_PUBLISHER)
+    guestRequestEventPublisher?: GuestRequestEventPublisher,
+  ) {
+    this.guestRequestEventPublisher =
+      guestRequestEventPublisher ?? NOOP_GUEST_REQUEST_EVENT_PUBLISHER;
+  }
   async listRequests(actorUserId: string, hotelId: string, query: ListStaffRequestsQueryInput) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, hotelId);
     const page = query.page ?? 1;
@@ -172,9 +190,10 @@ export class HotelRequestsService {
       tenantId: hotel.tenantId,
     });
 
-    RequestRealtimeEmitter.emitGuestRequestUpdated({
+    this.guestRequestEventPublisher.publishGuestRequestUpdated({
       hotelId,
       sessionId: updated.session?.id,
+      requestId,
       ownerRequest: this.toStaffRequestListItem(updated),
       guestRequest: this.toGuestRequestRealtimeItem(updated),
       answered: Boolean(dto.note?.trim()),
@@ -215,9 +234,10 @@ export class HotelRequestsService {
       tenantId: hotel.tenantId,
     });
 
-    RequestRealtimeEmitter.emitGuestRequestUpdated({
+    this.guestRequestEventPublisher.publishGuestRequestUpdated({
       hotelId,
       sessionId: updated.session?.id,
+      requestId,
       ownerRequest: this.toStaffRequestListItem(updated),
       guestRequest: this.toGuestRequestRealtimeItem(updated),
       answered: Boolean(dto.note?.trim()),
@@ -252,9 +272,10 @@ export class HotelRequestsService {
       throw new NotFoundException("Không tìm thấy yêu cầu");
     }
 
-    RequestRealtimeEmitter.emitGuestRequestUpdated({
+    this.guestRequestEventPublisher.publishGuestRequestUpdated({
       hotelId,
       sessionId: updated.session?.id,
+      requestId,
       ownerRequest: this.toStaffRequestListItem(updated),
       guestRequest: this.toGuestRequestRealtimeItem(updated),
       answered: true,

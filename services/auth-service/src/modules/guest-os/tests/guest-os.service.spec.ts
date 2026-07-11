@@ -505,7 +505,11 @@ describe("GuestOsService", () => {
         events: [],
       }),
     };
-    const service = new GuestOsService(repository as never);
+    const eventPublisher = {
+      publishGuestRequestCreated: jest.fn(),
+      publishGuestRequestUpdated: jest.fn(),
+    };
+    const service = new GuestOsService(repository as never, undefined, undefined, eventPublisher);
 
     const response = await service.createRequest(
       {
@@ -553,6 +557,15 @@ describe("GuestOsService", () => {
     expect(response).not.toHaveProperty("updatedAt");
     expect(response).not.toHaveProperty("completedAt");
     expect(response).not.toHaveProperty("cancelledAt");
+    expect(eventPublisher.publishGuestRequestCreated).toHaveBeenCalledWith(
+      expect.objectContaining({
+        hotelId: "hotel-1",
+        sessionId: "session-1",
+        requestId: "request-1",
+        ownerRequest: expect.objectContaining({ id: "request-1" }),
+        guestRequest: expect.objectContaining({ id: "request-1" }),
+      }),
+    );
   });
 
   it("lists guest request history with only guest-facing fields", async () => {

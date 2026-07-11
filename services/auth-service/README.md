@@ -1,20 +1,20 @@
-# VietSage Auth Service
+# VietSage Core API (`auth-service` historical path)
 
-NestJS backend service for VietSage hotel operations.
+This NestJS service is the current VietSage backend core API. The folder/package name `auth-service` is historical; the runtime now includes identity/RBAC, tenant/hotel operations, GuestOS, billing, emergency workflows, notifications, health, and shared backend infrastructure.
 
-## Scope in current milestone
+## Architecture status
 
-Milestone 0 foundation includes:
-- `GET /health` endpoint
-- Global request validation
-- Global exception filter with consistent error shape
-- Request id middleware and request logging
-- Environment config via `PORT` and `NODE_ENV`
+- Runtime model: modular monolith.
+- Current service path: `services/auth-service`.
+- Do not split microservices, add a broker, or rename this service without a dedicated approved phase.
+- OpenAPI export is the HTTP contract source of truth.
+- Repositories are internal to modules; cross-module access should use public services/ports.
 
 ## Requirements
 
 - Node.js 20+
 - npm 10+
+- PostgreSQL for DB-backed flows
 
 ## Setup
 
@@ -22,20 +22,7 @@ Milestone 0 foundation includes:
 npm install
 ```
 
-## Environment
-
-Copy `.env.example` to `.env` and edit values if needed.
-
-```bash
-cp .env.example .env
-```
-
-Default values:
-
-```env
-NODE_ENV=development
-PORT=3000
-```
+Runtime environment values belong in ignored secret/env files, not in git. See root `docs/SECRETS.md`.
 
 ## Run
 
@@ -43,47 +30,27 @@ PORT=3000
 npm run start:dev
 ```
 
-Service starts on `http://localhost:3000` by default.
+Service starts on the configured `PORT`.
 
 ## Health check
 
 ```bash
-curl http://localhost:3000/health
+curl http://localhost:${PORT:-3000}/health
 ```
 
-Example response:
+## Contract export
 
-```json
-{
-  "status": "ok",
-  "service": "auth-service",
-  "uptimeSeconds": 42,
-  "timestamp": "2026-05-26T12:00:00.000Z"
-}
-```
-
-## Error response shape
-
-All errors are normalized to:
-
-```json
-{
-  "code": "NOT_FOUND_EXCEPTION",
-  "message": "Cannot GET /not-found",
-  "details": {
-    "statusCode": 404
-  },
-  "requestId": "a5e9cb95-7ac9-4f51-b90d-5fe3126f16f6",
-  "timestamp": "2026-05-26T12:00:00.000Z",
-  "path": "/not-found"
-}
+```bash
+npm run openapi:export
 ```
 
 ## Validation commands
 
 ```bash
 npm run build
-npm run test
+npm run test -- --runInBand
 npm run test:e2e
-npm run lint
+npx eslint "{src,apps,libs,test}/**/*.ts"
 ```
+
+Note: the package `lint` script currently includes `--fix`; use `npx eslint ...` for non-mutating checks during refactors.

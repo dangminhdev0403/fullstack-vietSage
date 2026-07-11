@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable, Optional } from "@nestjs/common";
 import {
   GuestRequestNotificationStatus,
   GuestRequestStatus,
@@ -6,7 +6,11 @@ import {
 } from "@prisma/client";
 import { AppLogger } from "../../common/logging/app-logger.service";
 import { PrismaService } from "../../prisma/prisma.service";
-import { RequestRealtimeEmitter } from "../../request-realtime.emitter";
+import {
+  GUEST_REQUEST_EVENT_PUBLISHER,
+  NOOP_GUEST_REQUEST_EVENT_PUBLISHER,
+  type GuestRequestEventPublisher,
+} from "../../shared/events";
 
 type InlineKeyboard = { inline_keyboard: Array<Array<{ text: string; callback_data: string }>> };
 
@@ -34,11 +38,18 @@ const STATUS_LABELS: Record<string, string> = {
 @Injectable()
 export class TelegramNotificationService {
   private readonly timeoutMs = 8000;
+  private readonly guestRequestEventPublisher: GuestRequestEventPublisher;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly logger: AppLogger,
-  ) {}
+    @Optional()
+    @Inject(GUEST_REQUEST_EVENT_PUBLISHER)
+    guestRequestEventPublisher?: GuestRequestEventPublisher,
+  ) {
+    this.guestRequestEventPublisher =
+      guestRequestEventPublisher ?? NOOP_GUEST_REQUEST_EVENT_PUBLISHER;
+  }
 
   async sendServiceRequestNotification(guestRequestId: string): Promise<void> {
     this.logger.info("Telegram notification started", {
@@ -221,9 +232,10 @@ export class TelegramNotificationService {
     ]);
 
     if (updated) {
-      RequestRealtimeEmitter.emitGuestRequestUpdated({
+      this.guestRequestEventPublisher.publishGuestRequestUpdated({
         hotelId: updated.hotelId,
         sessionId: updated.sessionId,
+        requestId,
         ownerRequest: this.toRealtimeOwnerRequest(updated),
         guestRequest: this.toRealtimeGuestRequest(updated),
       });

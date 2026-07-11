@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ImportModule } from "../../common/import/import.module";
 import { PrismaModule } from "../../prisma/prisma.module";
+import { GuestRequestEventsModule } from "../../shared/events";
 import { HotelAccessService } from "./hotel-access.service";
 import { HotelDashboardController } from "./hotel-dashboard.controller";
 import { HotelDashboardService } from "./hotel-dashboard.service";
@@ -23,7 +24,7 @@ import { HotelRoomsRepository } from "./repositories/hotel-rooms.repository";
 import { HotelServiceCatalogRepository } from "./repositories/hotel-service-catalog.repository";
 
 @Module({
-  imports: [PrismaModule, ImportModule],
+  imports: [PrismaModule, ImportModule, GuestRequestEventsModule],
   controllers: [
     HotelsController,
     HotelRoomsController,
@@ -48,17 +49,6 @@ import { HotelServiceCatalogRepository } from "./repositories/hotel-service-cata
     GoogleSheetsServiceCatalogSyncService,
     ServiceCatalogImportAdapter,
   ],
-  exports: [
-    HotelsService,
-    HotelRoomsService,
-    HotelServicesService,
-    HotelRequestsService,
-    HotelAccessService,
-    HotelCoreRepository,
-    HotelRoomsRepository,
-    HotelServiceCatalogRepository,
-    HotelRequestsRepository,
-    HotelsRepository,
-  ],
+  exports: [HotelAccessService],
 })
 export class HotelsModule {}
