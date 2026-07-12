@@ -30,7 +30,7 @@ Last updated: 2026-07-12
 - [x] Hide Hotels repositories from module exports.
 - [x] Move shared authenticated-user contract to shared security boundary.
 - [x] Add `GuestRequestEventPublisher` shared port for Guest Operations/Property/Notifications realtime publication.
-- [ ] Replace remaining cross-context implementation dependencies with public ports.
+- [x] Replace remaining cross-context implementation dependencies with public ports and final boundary regression tests.
 - [x] Split Identity/Auth folders into `src/modules/identity` after behavior tests covered seams.
 - [x] Split Hotels/Property folders into `src/modules/property` after behavior tests covered seams.
 - [x] Split legacy guest-facing folders into `src/modules/guest-operations` after behavior tests covered seams.
@@ -40,17 +40,31 @@ Last updated: 2026-07-12
 - [x] Harden `src/modules/emergency` into `api/application/domain/infrastructure/tests`, keep `/emergency/guest/calls`, and consume guest context through the Guest Operations public port.
 - [x] Split Telegram provider and notification route management into `src/modules/notifications` after boundary/webhook tests covered seams.
 - [x] Replace Telegram webhook URL-path secret with header secret validation on `/integrations/telegram/webhook`.
-- [ ] Export OpenAPI after future HTTP contract changes.
+- [x] Export OpenAPI and sync frontend generated types during final release gate.
 
 ## 4. Release Gate
 
+Backend:
+
 ```bash
 npm run build
-npm run test -- --runInBand
-npm run test:e2e
+npm run test -- --runInBand --silent
+npm run test:e2e -- --runInBand --silent
 npx eslint "{src,apps,libs,test}/**/*.ts"
+npm run openapi:export
 git diff --check
 ```
+
+Frontend contract consumers:
+
+```bash
+pnpm run sync:api:types
+pnpm exec tsc --noEmit
+pnpm run lint
+pnpm run build
+```
+
+The modular-monolith boundary consolidation is complete for the current codebase. Future service extraction still requires ADRs, operational readiness, data migration plans, and versioned contracts.
 
 ## 5. Non-Goals
 
