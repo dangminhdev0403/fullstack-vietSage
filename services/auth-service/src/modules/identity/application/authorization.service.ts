@@ -1,6 +1,6 @@
 import { HttpMethod } from "@prisma/client";
 import { Injectable } from "@nestjs/common";
-import { AuthRepository } from "../infrastructure/auth.repository";
+import { AuthRepository } from "../infrastructure/repositories/auth.repository";
 
 export interface PermissionCheckResult {
   allowed: boolean;

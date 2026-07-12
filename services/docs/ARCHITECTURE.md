@@ -40,7 +40,7 @@ services/auth-service/
       guest-operations/  # guest sessions/guest-facing request APIs
       billing/           # folio/invoice/payment workflows
       emergency/         # emergency workflows
-      telegram/          # provider notification/webhook adapter
+      notifications/     # notification routing, delivery, and provider webhook adapters
       codes/             # code generation
       health/            # health
     common/              # infrastructure

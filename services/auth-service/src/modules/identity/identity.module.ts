@@ -10,9 +10,9 @@ import { AuthorizationService } from "./application/authorization.service";
 import { HotelUsersService } from "./application/hotel-users.service";
 import { RbacService } from "./application/rbac.service";
 import { RoutePermissionSyncService } from "./application/route-permission-sync.service";
-import { AuthRepository } from "./infrastructure/auth.repository";
-import { HotelUsersRepository } from "./infrastructure/hotel-users.repository";
-import { RbacRepository } from "./infrastructure/rbac.repository";
+import { AuthRepository } from "./infrastructure/repositories/auth.repository";
+import { HotelUsersRepository } from "./infrastructure/repositories/hotel-users.repository";
+import { RbacRepository } from "./infrastructure/repositories/rbac.repository";
 import { JwtStrategy } from "./infrastructure/strategies/jwt.strategy";
 import { LocalStrategy } from "./infrastructure/strategies/local.strategy";
 

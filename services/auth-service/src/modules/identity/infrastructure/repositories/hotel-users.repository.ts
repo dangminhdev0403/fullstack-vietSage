@@ -7,7 +7,7 @@ import {
   UserStatus,
   UserType,
 } from "@prisma/client";
-import { PrismaService } from "../../../prisma/prisma.service";
+import { PrismaService } from "../../../../prisma/prisma.service";
 
 const tenantScopedUserInclude = {
   user: {

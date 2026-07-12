@@ -16,7 +16,7 @@ import {
 import { DEFAULT_NAVIGATION_MENU } from "../../../common/config/navigation.config";
 import { resolveBusinessPermissionMenuPath } from "../../../common/config/business-permission-menu.util";
 import { AppLogger } from "../../../common/logging/app-logger.service";
-import { RbacRepository } from "../infrastructure/rbac.repository";
+import { RbacRepository } from "../infrastructure/repositories/rbac.repository";
 import type {
   CreateRoleBodyInput,
   ListPermissionsQueryInput,

@@ -36,7 +36,7 @@ No API gateway, message broker, distributed cache, or database-per-service split
 | Guest Operations | `src/modules/guest-operations`; HTTP routes still use `/guest` for compatibility; staff request workflows currently parked in Property until extraction | Guest sessions, guest requests, request timeline/status | Public guest session/service ports are exported via `guest-operations-public.ts`; should publish notification intents instead of calling providers directly. |
 | Billing | `billing` | Folios, folio items, invoices, payments, checkout rules | Uses property access, should not depend on property persistence internals. |
 | Emergency | `emergency` | Emergency locations, incidents, call lifecycle, notifications | Should use guest/property resolver ports. |
-| Notifications | `telegram`, notification route pieces | Provider routing and delivery callbacks | Candidate for future extraction after contract and retry needs are proven. |
+| Notifications | `src/modules/notifications`; webhook route uses `/integrations/telegram/webhook`; staff route config still uses `/hotels/:hotelId/notification-routes*` for compatibility | Notification routing, provider delivery callbacks, delivery tracking | Telegram is the first provider adapter; webhook secrets are validated by header, not URL path. |
 | Platform/Common | `common`, `shared`, `prisma`, `codes`, `health` | Infrastructure, validation, logging, OpenAPI, code generation, health | Cross-cutting; keep generic and small. |
 
 See `DOMAIN_MAP.md` for ownership details.

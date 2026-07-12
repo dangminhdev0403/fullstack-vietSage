@@ -4,13 +4,13 @@ import {
   GuestRequestStatus,
   NotificationProvider,
 } from "@prisma/client";
-import { AppLogger } from "../../common/logging/app-logger.service";
-import { PrismaService } from "../../prisma/prisma.service";
+import { AppLogger } from "../../../common/logging/app-logger.service";
+import { PrismaService } from "../../../prisma/prisma.service";
 import {
   GUEST_REQUEST_EVENT_PUBLISHER,
   NOOP_GUEST_REQUEST_EVENT_PUBLISHER,
   type GuestRequestEventPublisher,
-} from "../../shared/events";
+} from "../../../shared/events";
 
 type InlineKeyboard = { inline_keyboard: Array<Array<{ text: string; callback_data: string }>> };
 

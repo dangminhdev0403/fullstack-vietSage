@@ -1,6 +1,6 @@
 ﻿import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { HttpMethod, RoleStatus } from "@prisma/client";
-import { RbacRepository } from "../infrastructure/rbac.repository";
+import { RbacRepository } from "../infrastructure/repositories/rbac.repository";
 import { RbacService } from "../application/rbac.service";
 
 describe("RbacService", () => {

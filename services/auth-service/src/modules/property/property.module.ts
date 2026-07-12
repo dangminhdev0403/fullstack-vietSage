@@ -5,8 +5,6 @@ import { GuestRequestEventsModule } from "../../shared/events";
 import { HotelAccessService } from "./application/hotel-access.service";
 import { HotelDashboardController } from "./api/hotel-dashboard.controller";
 import { HotelDashboardService } from "./application/hotel-dashboard.service";
-import { HotelNotificationRoutesController } from "./api/hotel-notification-routes.controller";
-import { HotelNotificationRoutesService } from "./application/hotel-notification-routes.service";
 import { HotelRequestsController } from "./api/hotel-requests.controller";
 import { HotelRequestsService } from "./application/hotel-requests.service";
 import { HotelRoomsController } from "./api/hotel-rooms.controller";
@@ -31,7 +29,6 @@ import { HotelServiceCatalogRepository } from "./infrastructure/repositories/hot
     HotelServicesController,
     HotelRequestsController,
     HotelDashboardController,
-    HotelNotificationRoutesController,
   ],
   providers: [
     HotelsService,
@@ -39,7 +36,6 @@ import { HotelServiceCatalogRepository } from "./infrastructure/repositories/hot
     HotelServicesService,
     HotelRequestsService,
     HotelDashboardService,
-    HotelNotificationRoutesService,
     HotelAccessService,
     HotelCoreRepository,
     HotelRoomsRepository,

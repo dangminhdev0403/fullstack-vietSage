@@ -3,7 +3,7 @@ import { UserStatus } from "@prisma/client";
 import { createHash } from "node:crypto";
 import * as argon2 from "argon2";
 import { JwtService } from "@nestjs/jwt";
-import { AuthRepository } from "../infrastructure/auth.repository";
+import { AuthRepository } from "../infrastructure/repositories/auth.repository";
 import { AuthService } from "../application/authentication.service";
 
 describe("AuthService", () => {

@@ -16,7 +16,7 @@ import { CodesModule } from "./modules/codes/codes.module";
 import { RequestRealtimeGateway } from "./request-realtime.gateway";
 import { BillingModule } from "./modules/billing/billing.module";
 import { LoggingModule } from "./common/logging/logging.module";
-import { TelegramModule } from "./modules/telegram/telegram.module";
+import { NotificationsModule } from "./modules/notifications/notifications.module";
 import { AuthRateLimitGuard } from "./common/security/auth-rate-limit.guard";
 
 @Module({
@@ -32,7 +32,7 @@ import { AuthRateLimitGuard } from "./common/security/auth-rate-limit.guard";
     BillingModule,
     GuestOperationsModule,
     EmergencyModule,
-    TelegramModule,
+    NotificationsModule,
   ],
   providers: [
     {

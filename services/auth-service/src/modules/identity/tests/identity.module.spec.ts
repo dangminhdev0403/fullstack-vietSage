@@ -5,9 +5,9 @@ import { JwtModule } from "@nestjs/jwt";
 import { AuthService } from "../application/authentication.service";
 import { AuthorizationService } from "../application/authorization.service";
 import { IdentityModule } from "../identity.module";
-import { AuthRepository } from "../infrastructure/auth.repository";
-import { HotelUsersRepository } from "../infrastructure/hotel-users.repository";
-import { RbacRepository } from "../infrastructure/rbac.repository";
+import { AuthRepository } from "../infrastructure/repositories/auth.repository";
+import { HotelUsersRepository } from "../infrastructure/repositories/hotel-users.repository";
+import { RbacRepository } from "../infrastructure/repositories/rbac.repository";
 
 describe("IdentityModule architecture boundary", () => {
   it("exports public identity services while keeping repositories hidden", () => {

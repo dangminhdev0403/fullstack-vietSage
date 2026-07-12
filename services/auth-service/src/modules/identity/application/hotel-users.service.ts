@@ -10,7 +10,7 @@ import * as argon2 from "argon2";
 import {
   HotelUsersRepository,
   type TenantScopedHotelUserRow,
-} from "../infrastructure/hotel-users.repository";
+} from "../infrastructure/repositories/hotel-users.repository";
 import type {
   AssignHotelUserRolesBodyInput,
   CreateHotelUserBodyInput,

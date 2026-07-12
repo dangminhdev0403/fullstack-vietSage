@@ -7,7 +7,7 @@ import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
 import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
 import type { AuthenticatedUser } from "../../../shared/security";
 import { HotelNotificationRoutesService } from "../application/hotel-notification-routes.service";
-import { hotelIdParamSchema } from "../domain/schemas/shared.schema";
+import { hotelIdParamSchema } from "../../property/domain/schemas/shared.schema";
 
 interface RequestWithUser extends Request {
   user: AuthenticatedUser;

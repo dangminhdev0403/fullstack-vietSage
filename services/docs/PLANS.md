@@ -29,11 +29,13 @@ Last updated: 2026-07-12
 - [x] Remove filled values from tracked legacy secret files.
 - [x] Hide Hotels repositories from module exports.
 - [x] Move shared authenticated-user contract to shared security boundary.
-- [x] Add `GuestRequestEventPublisher` shared port for Guest Operations/Property/Telegram realtime publication.
+- [x] Add `GuestRequestEventPublisher` shared port for Guest Operations/Property/Notifications realtime publication.
 - [ ] Replace remaining cross-context implementation dependencies with public ports.
 - [x] Split Identity/Auth folders into `src/modules/identity` after behavior tests covered seams.
 - [x] Split Hotels/Property folders into `src/modules/property` after behavior tests covered seams.
 - [x] Split legacy guest-facing folders into `src/modules/guest-operations` after behavior tests covered seams.
+- [x] Split Telegram provider and notification route management into `src/modules/notifications` after boundary/webhook tests covered seams.
+- [x] Replace Telegram webhook URL-path secret with header secret validation on `/integrations/telegram/webhook`.
 - [ ] Export OpenAPI after future HTTP contract changes.
 
 ## 4. Release Gate

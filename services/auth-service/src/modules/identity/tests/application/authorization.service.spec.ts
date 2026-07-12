@@ -1,5 +1,5 @@
 import type { HttpMethod } from "@prisma/client";
-import { AuthRepository } from "../../infrastructure/auth.repository";
+import { AuthRepository } from "../../infrastructure/repositories/auth.repository";
 import { AuthorizationService } from "../../application/authorization.service";
 
 describe("AuthorizationService", () => {

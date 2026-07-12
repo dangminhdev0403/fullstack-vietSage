@@ -28,7 +28,7 @@ import {
   NOOP_GUEST_REQUEST_EVENT_PUBLISHER,
   type GuestRequestEventPublisher,
 } from "../../../shared/events";
-import { TelegramNotificationService } from "../../telegram/telegram-notification.service";
+import { TelegramNotificationService } from "../../notifications/notifications-public";
 import {
   GuestOsRepository,
   type GuestRequestGuestRow,

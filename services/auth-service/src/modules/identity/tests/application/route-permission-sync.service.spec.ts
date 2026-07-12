@@ -2,7 +2,7 @@ import { RequestMethod } from "@nestjs/common";
 import { METHOD_METADATA, PATH_METADATA } from "@nestjs/common/constants";
 import { ModulesContainer } from "@nestjs/core/injector/modules-container";
 import { API_DESCRIPTION_KEY } from "../../../../shared/decorators/api-descript.decorator";
-import { AuthRepository } from "../../infrastructure/auth.repository";
+import { AuthRepository } from "../../infrastructure/repositories/auth.repository";
 import { RoutePermissionSyncService } from "../../application/route-permission-sync.service";
 
 describe("RoutePermissionSyncService", () => {

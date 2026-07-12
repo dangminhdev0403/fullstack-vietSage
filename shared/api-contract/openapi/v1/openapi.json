@@ -1712,6 +1712,9 @@
                                   "OPTIONS"
                                 ]
                               },
+                              "path": {
+                                "type": "string"
+                              },
                               "description": {
                                 "type": "string"
                               },
@@ -1722,6 +1725,234 @@
                             "required": [
                               "permissionId",
                               "method",
+                              "path",
+                              "description",
+                              "enabled"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "page",
+                        "limit",
+                        "total",
+                        "items"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "rbac.roles"
+        ]
+      }
+    },
+    "/roles/{id}/permission-modules": {
+      "get": {
+        "operationId": "RolesController_listPermissionModulesForRole",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bao phản hồi danh sách nhóm quyền của vai trò",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Lấy danh sách nhóm quyền của vai trò thành công"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "moduleKey": {
+                            "type": "string"
+                          },
+                          "moduleName": {
+                            "type": "string"
+                          },
+                          "totalPermissions": {
+                            "type": "number"
+                          },
+                          "enabledCount": {
+                            "type": "number"
+                          },
+                          "disabledCount": {
+                            "type": "number"
+                          },
+                          "allSelected": {
+                            "type": "boolean"
+                          },
+                          "allDisabled": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "moduleKey",
+                          "moduleName",
+                          "totalPermissions",
+                          "enabledCount",
+                          "disabledCount",
+                          "allSelected",
+                          "allDisabled"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "rbac.roles"
+        ]
+      }
+    },
+    "/roles/{id}/permission-modules/{moduleKey}/permissions": {
+      "get": {
+        "operationId": "RolesController_listPermissionModulePermissionsForRole",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "moduleKey",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bao phản hồi danh sách quyền theo nhóm quyền của vai trò",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Lấy danh sách quyền theo trang của nhóm quyền thành công"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "page": {
+                          "type": "number"
+                        },
+                        "limit": {
+                          "type": "number"
+                        },
+                        "total": {
+                          "type": "number"
+                        },
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "permissionId": {
+                                "type": "string"
+                              },
+                              "method": {
+                                "type": "string",
+                                "enum": [
+                                  "GET",
+                                  "POST",
+                                  "PUT",
+                                  "PATCH",
+                                  "DELETE",
+                                  "OPTIONS"
+                                ]
+                              },
+                              "path": {
+                                "type": "string"
+                              },
+                              "description": {
+                                "type": "string"
+                              },
+                              "enabled": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "permissionId",
+                              "method",
+                              "path",
                               "description",
                               "enabled"
                             ]
@@ -2174,944 +2405,6 @@
         },
         "tags": [
           "rbac.permissions"
-        ]
-      }
-    },
-    "/tenant-owners": {
-      "get": {
-        "operationId": "TenantOwnersController_listTenantOwners",
-        "parameters": [
-          {
-            "name": "q",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "limit",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "number"
-            }
-          },
-          {
-            "name": "page",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "number"
-            }
-          },
-          {
-            "name": "tenantUserStatus",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "enum": [
-                "ACTIVE",
-                "INVITED",
-                "DISABLED"
-              ],
-              "type": "string"
-            }
-          },
-          {
-            "name": "ownerStatus",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "enum": [
-                "ACTIVE",
-                "LOCKED",
-                "DISABLED"
-              ],
-              "type": "string"
-            }
-          },
-          {
-            "name": "tenantId",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Bao phản hồi danh sách chủ đơn vị",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "status": {
-                      "type": "number",
-                      "example": 200
-                    },
-                    "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true,
-                      "example": null
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Lấy danh sách chủ đơn vị thành công"
-                    },
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "page": {
-                          "type": "number"
-                        },
-                        "limit": {
-                          "type": "number"
-                        },
-                        "total": {
-                          "type": "number"
-                        },
-                        "items": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "id": {
-                                "type": "string"
-                              },
-                              "email": {
-                                "type": "string",
-                                "format": "email"
-                              },
-                              "fullName": {
-                                "type": "string"
-                              },
-                              "status": {
-                                "type": "string",
-                                "enum": [
-                                  "ACTIVE",
-                                  "LOCKED",
-                                  "DISABLED"
-                                ]
-                              },
-                              "userType": {
-                                "type": "string",
-                                "example": "PARTNER"
-                              },
-                              "createdAt": {
-                                "type": "string",
-                                "format": "date-time"
-                              },
-                              "updatedAt": {
-                                "type": "string",
-                                "format": "date-time"
-                              },
-                              "tenant": {
-                                "type": "object",
-                                "properties": {
-                                  "id": {
-                                    "type": "string"
-                                  },
-                                  "code": {
-                                    "type": "string"
-                                  },
-                                  "name": {
-                                    "type": "string"
-                                  },
-                                  "createdAt": {
-                                    "type": "string",
-                                    "format": "date-time"
-                                  },
-                                  "updatedAt": {
-                                    "type": "string",
-                                    "format": "date-time"
-                                  }
-                                },
-                                "required": [
-                                  "id",
-                                  "code",
-                                  "name",
-                                  "createdAt",
-                                  "updatedAt"
-                                ]
-                              },
-                              "tenantUser": {
-                                "type": "object",
-                                "properties": {
-                                  "id": {
-                                    "type": "string"
-                                  },
-                                  "status": {
-                                    "type": "string",
-                                    "enum": [
-                                      "ACTIVE",
-                                      "INVITED",
-                                      "DISABLED"
-                                    ]
-                                  },
-                                  "joinedAt": {
-                                    "type": "string",
-                                    "format": "date-time",
-                                    "nullable": true
-                                  },
-                                  "createdAt": {
-                                    "type": "string",
-                                    "format": "date-time"
-                                  },
-                                  "updatedAt": {
-                                    "type": "string",
-                                    "format": "date-time"
-                                  }
-                                },
-                                "required": [
-                                  "id",
-                                  "status",
-                                  "joinedAt",
-                                  "createdAt",
-                                  "updatedAt"
-                                ]
-                              },
-                              "role": {
-                                "type": "object",
-                                "properties": {
-                                  "id": {
-                                    "type": "string"
-                                  },
-                                  "code": {
-                                    "type": "string",
-                                    "example": "TENANT_OWNER"
-                                  },
-                                  "name": {
-                                    "type": "string"
-                                  },
-                                  "assignedAt": {
-                                    "type": "string",
-                                    "format": "date-time"
-                                  },
-                                  "assignedById": {
-                                    "type": "string",
-                                    "nullable": true
-                                  }
-                                },
-                                "required": [
-                                  "id",
-                                  "code",
-                                  "name",
-                                  "assignedAt",
-                                  "assignedById"
-                                ]
-                              }
-                            },
-                            "required": [
-                              "id",
-                              "email",
-                              "fullName",
-                              "status",
-                              "userType",
-                              "createdAt",
-                              "updatedAt",
-                              "tenant",
-                              "tenantUser",
-                              "role"
-                            ]
-                          }
-                        }
-                      },
-                      "required": [
-                        "page",
-                        "limit",
-                        "total",
-                        "items"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "status",
-                    "error",
-                    "message",
-                    "data"
-                  ]
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "tenant-owners"
-        ]
-      },
-      "post": {
-        "operationId": "TenantOwnersController_createTenantOwner",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "owner": {
-                    "type": "object",
-                    "properties": {
-                      "fullName": {
-                        "type": "string",
-                        "minLength": 2,
-                        "maxLength": 120
-                      },
-                      "email": {
-                        "type": "string",
-                        "format": "email",
-                        "maxLength": 320
-                      },
-                      "password": {
-                        "type": "string",
-                        "minLength": 8,
-                        "maxLength": 128
-                      }
-                    },
-                    "required": [
-                      "fullName",
-                      "email",
-                      "password"
-                    ]
-                  },
-                  "tenant": {
-                    "type": "object",
-                    "properties": {
-                      "name": {
-                        "type": "string",
-                        "minLength": 2,
-                        "maxLength": 160
-                      }
-                    },
-                    "required": [
-                      "name"
-                    ]
-                  }
-                },
-                "required": [
-                  "owner",
-                  "tenant"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Bao phản hồi tạo chủ đơn vị",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "status": {
-                      "type": "number",
-                      "example": 201
-                    },
-                    "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true,
-                      "example": null
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Tạo chủ đơn vị thành công"
-                    },
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string"
-                        },
-                        "email": {
-                          "type": "string",
-                          "format": "email"
-                        },
-                        "fullName": {
-                          "type": "string"
-                        },
-                        "status": {
-                          "type": "string",
-                          "enum": [
-                            "ACTIVE",
-                            "LOCKED",
-                            "DISABLED"
-                          ]
-                        },
-                        "userType": {
-                          "type": "string",
-                          "example": "PARTNER"
-                        },
-                        "createdAt": {
-                          "type": "string",
-                          "format": "date-time"
-                        },
-                        "updatedAt": {
-                          "type": "string",
-                          "format": "date-time"
-                        },
-                        "tenant": {
-                          "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "string"
-                            },
-                            "code": {
-                              "type": "string"
-                            },
-                            "name": {
-                              "type": "string"
-                            },
-                            "createdAt": {
-                              "type": "string",
-                              "format": "date-time"
-                            },
-                            "updatedAt": {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "code",
-                            "name",
-                            "createdAt",
-                            "updatedAt"
-                          ]
-                        },
-                        "tenantUser": {
-                          "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "string"
-                            },
-                            "status": {
-                              "type": "string",
-                              "enum": [
-                                "ACTIVE",
-                                "INVITED",
-                                "DISABLED"
-                              ]
-                            },
-                            "joinedAt": {
-                              "type": "string",
-                              "format": "date-time",
-                              "nullable": true
-                            },
-                            "createdAt": {
-                              "type": "string",
-                              "format": "date-time"
-                            },
-                            "updatedAt": {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "status",
-                            "joinedAt",
-                            "createdAt",
-                            "updatedAt"
-                          ]
-                        },
-                        "role": {
-                          "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "string"
-                            },
-                            "code": {
-                              "type": "string",
-                              "example": "TENANT_OWNER"
-                            },
-                            "name": {
-                              "type": "string"
-                            },
-                            "assignedAt": {
-                              "type": "string",
-                              "format": "date-time"
-                            },
-                            "assignedById": {
-                              "type": "string",
-                              "nullable": true
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "code",
-                            "name",
-                            "assignedAt",
-                            "assignedById"
-                          ]
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "email",
-                        "fullName",
-                        "status",
-                        "userType",
-                        "createdAt",
-                        "updatedAt",
-                        "tenant",
-                        "tenantUser",
-                        "role"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "status",
-                    "error",
-                    "message",
-                    "data"
-                  ]
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "tenant-owners"
-        ]
-      }
-    },
-    "/tenant-owners/{id}": {
-      "get": {
-        "operationId": "TenantOwnersController_getTenantOwner",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Bao phản hồi thông tin chủ đơn vị",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "status": {
-                      "type": "number",
-                      "example": 200
-                    },
-                    "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true,
-                      "example": null
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Lấy thông tin chủ đơn vị thành công"
-                    },
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string"
-                        },
-                        "email": {
-                          "type": "string",
-                          "format": "email"
-                        },
-                        "fullName": {
-                          "type": "string"
-                        },
-                        "status": {
-                          "type": "string",
-                          "enum": [
-                            "ACTIVE",
-                            "LOCKED",
-                            "DISABLED"
-                          ]
-                        },
-                        "userType": {
-                          "type": "string",
-                          "example": "PARTNER"
-                        },
-                        "createdAt": {
-                          "type": "string",
-                          "format": "date-time"
-                        },
-                        "updatedAt": {
-                          "type": "string",
-                          "format": "date-time"
-                        },
-                        "tenant": {
-                          "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "string"
-                            },
-                            "code": {
-                              "type": "string"
-                            },
-                            "name": {
-                              "type": "string"
-                            },
-                            "createdAt": {
-                              "type": "string",
-                              "format": "date-time"
-                            },
-                            "updatedAt": {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "code",
-                            "name",
-                            "createdAt",
-                            "updatedAt"
-                          ]
-                        },
-                        "tenantUser": {
-                          "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "string"
-                            },
-                            "status": {
-                              "type": "string",
-                              "enum": [
-                                "ACTIVE",
-                                "INVITED",
-                                "DISABLED"
-                              ]
-                            },
-                            "joinedAt": {
-                              "type": "string",
-                              "format": "date-time",
-                              "nullable": true
-                            },
-                            "createdAt": {
-                              "type": "string",
-                              "format": "date-time"
-                            },
-                            "updatedAt": {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "status",
-                            "joinedAt",
-                            "createdAt",
-                            "updatedAt"
-                          ]
-                        },
-                        "role": {
-                          "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "string"
-                            },
-                            "code": {
-                              "type": "string",
-                              "example": "TENANT_OWNER"
-                            },
-                            "name": {
-                              "type": "string"
-                            },
-                            "assignedAt": {
-                              "type": "string",
-                              "format": "date-time"
-                            },
-                            "assignedById": {
-                              "type": "string",
-                              "nullable": true
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "code",
-                            "name",
-                            "assignedAt",
-                            "assignedById"
-                          ]
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "email",
-                        "fullName",
-                        "status",
-                        "userType",
-                        "createdAt",
-                        "updatedAt",
-                        "tenant",
-                        "tenantUser",
-                        "role"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "status",
-                    "error",
-                    "message",
-                    "data"
-                  ]
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "tenant-owners"
-        ]
-      },
-      "patch": {
-        "operationId": "TenantOwnersController_updateTenantOwner",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "owner": {
-                    "type": "object",
-                    "properties": {
-                      "fullName": {
-                        "type": "string",
-                        "minLength": 2,
-                        "maxLength": 120
-                      },
-                      "status": {
-                        "type": "string",
-                        "enum": [
-                          "ACTIVE",
-                          "LOCKED",
-                          "DISABLED"
-                        ]
-                      }
-                    }
-                  },
-                  "tenant": {
-                    "type": "object",
-                    "properties": {
-                      "name": {
-                        "type": "string",
-                        "minLength": 2,
-                        "maxLength": 160
-                      }
-                    }
-                  },
-                  "tenantUserStatus": {
-                    "type": "string",
-                    "enum": [
-                      "ACTIVE",
-                      "INVITED",
-                      "DISABLED"
-                    ]
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Bao phản hồi cập nhật chủ đơn vị",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "status": {
-                      "type": "number",
-                      "example": 200
-                    },
-                    "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true,
-                      "example": null
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Cập nhật chủ đơn vị thành công"
-                    },
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string"
-                        },
-                        "email": {
-                          "type": "string",
-                          "format": "email"
-                        },
-                        "fullName": {
-                          "type": "string"
-                        },
-                        "status": {
-                          "type": "string",
-                          "enum": [
-                            "ACTIVE",
-                            "LOCKED",
-                            "DISABLED"
-                          ]
-                        },
-                        "userType": {
-                          "type": "string",
-                          "example": "PARTNER"
-                        },
-                        "createdAt": {
-                          "type": "string",
-                          "format": "date-time"
-                        },
-                        "updatedAt": {
-                          "type": "string",
-                          "format": "date-time"
-                        },
-                        "tenant": {
-                          "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "string"
-                            },
-                            "code": {
-                              "type": "string"
-                            },
-                            "name": {
-                              "type": "string"
-                            },
-                            "createdAt": {
-                              "type": "string",
-                              "format": "date-time"
-                            },
-                            "updatedAt": {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "code",
-                            "name",
-                            "createdAt",
-                            "updatedAt"
-                          ]
-                        },
-                        "tenantUser": {
-                          "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "string"
-                            },
-                            "status": {
-                              "type": "string",
-                              "enum": [
-                                "ACTIVE",
-                                "INVITED",
-                                "DISABLED"
-                              ]
-                            },
-                            "joinedAt": {
-                              "type": "string",
-                              "format": "date-time",
-                              "nullable": true
-                            },
-                            "createdAt": {
-                              "type": "string",
-                              "format": "date-time"
-                            },
-                            "updatedAt": {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "status",
-                            "joinedAt",
-                            "createdAt",
-                            "updatedAt"
-                          ]
-                        },
-                        "role": {
-                          "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "string"
-                            },
-                            "code": {
-                              "type": "string",
-                              "example": "TENANT_OWNER"
-                            },
-                            "name": {
-                              "type": "string"
-                            },
-                            "assignedAt": {
-                              "type": "string",
-                              "format": "date-time"
-                            },
-                            "assignedById": {
-                              "type": "string",
-                              "nullable": true
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "code",
-                            "name",
-                            "assignedAt",
-                            "assignedById"
-                          ]
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "email",
-                        "fullName",
-                        "status",
-                        "userType",
-                        "createdAt",
-                        "updatedAt",
-                        "tenant",
-                        "tenantUser",
-                        "role"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "status",
-                    "error",
-                    "message",
-                    "data"
-                  ]
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "tenant-owners"
         ]
       }
     },
@@ -4086,6 +3379,944 @@
         },
         "tags": [
           "hotel-users"
+        ]
+      }
+    },
+    "/tenant-owners": {
+      "get": {
+        "operationId": "TenantOwnersController_listTenantOwners",
+        "parameters": [
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "tenantUserStatus",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "ACTIVE",
+                "INVITED",
+                "DISABLED"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "ownerStatus",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "ACTIVE",
+                "LOCKED",
+                "DISABLED"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "tenantId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bao phản hồi danh sách chủ đơn vị",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Lấy danh sách chủ đơn vị thành công"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "page": {
+                          "type": "number"
+                        },
+                        "limit": {
+                          "type": "number"
+                        },
+                        "total": {
+                          "type": "number"
+                        },
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "email": {
+                                "type": "string",
+                                "format": "email"
+                              },
+                              "fullName": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "ACTIVE",
+                                  "LOCKED",
+                                  "DISABLED"
+                                ]
+                              },
+                              "userType": {
+                                "type": "string",
+                                "example": "PARTNER"
+                              },
+                              "createdAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "updatedAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "tenant": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "code": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "createdAt": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  },
+                                  "updatedAt": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "code",
+                                  "name",
+                                  "createdAt",
+                                  "updatedAt"
+                                ]
+                              },
+                              "tenantUser": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "status": {
+                                    "type": "string",
+                                    "enum": [
+                                      "ACTIVE",
+                                      "INVITED",
+                                      "DISABLED"
+                                    ]
+                                  },
+                                  "joinedAt": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "nullable": true
+                                  },
+                                  "createdAt": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  },
+                                  "updatedAt": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "status",
+                                  "joinedAt",
+                                  "createdAt",
+                                  "updatedAt"
+                                ]
+                              },
+                              "role": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "code": {
+                                    "type": "string",
+                                    "example": "TENANT_OWNER"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "assignedAt": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  },
+                                  "assignedById": {
+                                    "type": "string",
+                                    "nullable": true
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "code",
+                                  "name",
+                                  "assignedAt",
+                                  "assignedById"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "email",
+                              "fullName",
+                              "status",
+                              "userType",
+                              "createdAt",
+                              "updatedAt",
+                              "tenant",
+                              "tenantUser",
+                              "role"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "page",
+                        "limit",
+                        "total",
+                        "items"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "tenant-owners"
+        ]
+      },
+      "post": {
+        "operationId": "TenantOwnersController_createTenantOwner",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "owner": {
+                    "type": "object",
+                    "properties": {
+                      "fullName": {
+                        "type": "string",
+                        "minLength": 2,
+                        "maxLength": 120
+                      },
+                      "email": {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 320
+                      },
+                      "password": {
+                        "type": "string",
+                        "minLength": 8,
+                        "maxLength": 128
+                      }
+                    },
+                    "required": [
+                      "fullName",
+                      "email",
+                      "password"
+                    ]
+                  },
+                  "tenant": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 2,
+                        "maxLength": 160
+                      }
+                    },
+                    "required": [
+                      "name"
+                    ]
+                  }
+                },
+                "required": [
+                  "owner",
+                  "tenant"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Bao phản hồi tạo chủ đơn vị",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 201
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Tạo chủ đơn vị thành công"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string",
+                          "format": "email"
+                        },
+                        "fullName": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "ACTIVE",
+                            "LOCKED",
+                            "DISABLED"
+                          ]
+                        },
+                        "userType": {
+                          "type": "string",
+                          "example": "PARTNER"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "tenant": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "createdAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "code",
+                            "name",
+                            "createdAt",
+                            "updatedAt"
+                          ]
+                        },
+                        "tenantUser": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "ACTIVE",
+                                "INVITED",
+                                "DISABLED"
+                              ]
+                            },
+                            "joinedAt": {
+                              "type": "string",
+                              "format": "date-time",
+                              "nullable": true
+                            },
+                            "createdAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "status",
+                            "joinedAt",
+                            "createdAt",
+                            "updatedAt"
+                          ]
+                        },
+                        "role": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string",
+                              "example": "TENANT_OWNER"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "assignedAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "assignedById": {
+                              "type": "string",
+                              "nullable": true
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "code",
+                            "name",
+                            "assignedAt",
+                            "assignedById"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "email",
+                        "fullName",
+                        "status",
+                        "userType",
+                        "createdAt",
+                        "updatedAt",
+                        "tenant",
+                        "tenantUser",
+                        "role"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "tenant-owners"
+        ]
+      }
+    },
+    "/tenant-owners/{id}": {
+      "get": {
+        "operationId": "TenantOwnersController_getTenantOwner",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bao phản hồi thông tin chủ đơn vị",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Lấy thông tin chủ đơn vị thành công"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string",
+                          "format": "email"
+                        },
+                        "fullName": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "ACTIVE",
+                            "LOCKED",
+                            "DISABLED"
+                          ]
+                        },
+                        "userType": {
+                          "type": "string",
+                          "example": "PARTNER"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "tenant": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "createdAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "code",
+                            "name",
+                            "createdAt",
+                            "updatedAt"
+                          ]
+                        },
+                        "tenantUser": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "ACTIVE",
+                                "INVITED",
+                                "DISABLED"
+                              ]
+                            },
+                            "joinedAt": {
+                              "type": "string",
+                              "format": "date-time",
+                              "nullable": true
+                            },
+                            "createdAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "status",
+                            "joinedAt",
+                            "createdAt",
+                            "updatedAt"
+                          ]
+                        },
+                        "role": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string",
+                              "example": "TENANT_OWNER"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "assignedAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "assignedById": {
+                              "type": "string",
+                              "nullable": true
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "code",
+                            "name",
+                            "assignedAt",
+                            "assignedById"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "email",
+                        "fullName",
+                        "status",
+                        "userType",
+                        "createdAt",
+                        "updatedAt",
+                        "tenant",
+                        "tenantUser",
+                        "role"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "tenant-owners"
+        ]
+      },
+      "patch": {
+        "operationId": "TenantOwnersController_updateTenantOwner",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "owner": {
+                    "type": "object",
+                    "properties": {
+                      "fullName": {
+                        "type": "string",
+                        "minLength": 2,
+                        "maxLength": 120
+                      },
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "ACTIVE",
+                          "LOCKED",
+                          "DISABLED"
+                        ]
+                      }
+                    }
+                  },
+                  "tenant": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 2,
+                        "maxLength": 160
+                      }
+                    }
+                  },
+                  "tenantUserStatus": {
+                    "type": "string",
+                    "enum": [
+                      "ACTIVE",
+                      "INVITED",
+                      "DISABLED"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Bao phản hồi cập nhật chủ đơn vị",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Cập nhật chủ đơn vị thành công"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string",
+                          "format": "email"
+                        },
+                        "fullName": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "ACTIVE",
+                            "LOCKED",
+                            "DISABLED"
+                          ]
+                        },
+                        "userType": {
+                          "type": "string",
+                          "example": "PARTNER"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "tenant": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "createdAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "code",
+                            "name",
+                            "createdAt",
+                            "updatedAt"
+                          ]
+                        },
+                        "tenantUser": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "ACTIVE",
+                                "INVITED",
+                                "DISABLED"
+                              ]
+                            },
+                            "joinedAt": {
+                              "type": "string",
+                              "format": "date-time",
+                              "nullable": true
+                            },
+                            "createdAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "status",
+                            "joinedAt",
+                            "createdAt",
+                            "updatedAt"
+                          ]
+                        },
+                        "role": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string",
+                              "example": "TENANT_OWNER"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "assignedAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "assignedById": {
+                              "type": "string",
+                              "nullable": true
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "code",
+                            "name",
+                            "assignedAt",
+                            "assignedById"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "email",
+                        "fullName",
+                        "status",
+                        "userType",
+                        "createdAt",
+                        "updatedAt",
+                        "tenant",
+                        "tenantUser",
+                        "role"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "tenant-owners"
         ]
       }
     },
@@ -5140,6 +5371,29 @@
         ]
       }
     },
+    "/hotels/{hotelId}/service-catalog/sync": {
+      "post": {
+        "operationId": "HotelServicesController_syncServiceCatalogFromGoogleSheets",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Đã đồng bộ Google Sheets"
+          }
+        },
+        "tags": [
+          "hotel-services"
+        ]
+      }
+    },
     "/hotels/{hotelId}/service-categories": {
       "get": {
         "operationId": "HotelServicesController_listServiceCategories",
@@ -5374,20 +5628,6 @@
                                   "currency": {
                                     "type": "string",
                                     "example": "VND"
-                                  },
-                                  "requestType": {
-                                    "type": "string",
-                                    "enum": [
-                                      "HOUSEKEEPING",
-                                      "EXTRA_TOWELS",
-                                      "LAUNDRY",
-                                      "MAINTENANCE",
-                                      "FOOD_ORDERING",
-                                      "AIRPORT_TRANSFER",
-                                      "TOUR_BOOKING",
-                                      "ESIM_PURCHASE",
-                                      "AI_CONCIERGE"
-                                    ]
                                   }
                                 },
                                 "required": [
@@ -5395,8 +5635,7 @@
                                   "name",
                                   "status",
                                   "defaultPrice",
-                                  "currency",
-                                  "requestType"
+                                  "currency"
                                 ]
                               }
                             },
@@ -5633,20 +5872,6 @@
                             "currency": {
                               "type": "string",
                               "example": "VND"
-                            },
-                            "requestType": {
-                              "type": "string",
-                              "enum": [
-                                "HOUSEKEEPING",
-                                "EXTRA_TOWELS",
-                                "LAUNDRY",
-                                "MAINTENANCE",
-                                "FOOD_ORDERING",
-                                "AIRPORT_TRANSFER",
-                                "TOUR_BOOKING",
-                                "ESIM_PURCHASE",
-                                "AI_CONCIERGE"
-                              ]
                             }
                           },
                           "required": [
@@ -5654,8 +5879,7 @@
                             "name",
                             "status",
                             "defaultPrice",
-                            "currency",
-                            "requestType"
+                            "currency"
                           ]
                         }
                       },
@@ -5893,20 +6117,6 @@
                             "currency": {
                               "type": "string",
                               "example": "VND"
-                            },
-                            "requestType": {
-                              "type": "string",
-                              "enum": [
-                                "HOUSEKEEPING",
-                                "EXTRA_TOWELS",
-                                "LAUNDRY",
-                                "MAINTENANCE",
-                                "FOOD_ORDERING",
-                                "AIRPORT_TRANSFER",
-                                "TOUR_BOOKING",
-                                "ESIM_PURCHASE",
-                                "AI_CONCIERGE"
-                              ]
                             }
                           },
                           "required": [
@@ -5914,8 +6124,7 @@
                             "name",
                             "status",
                             "defaultPrice",
-                            "currency",
-                            "requestType"
+                            "currency"
                           ]
                         }
                       },
@@ -6638,20 +6847,6 @@
                                 "type": "string",
                                 "nullable": true
                               },
-                              "requestType": {
-                                "type": "string",
-                                "enum": [
-                                  "HOUSEKEEPING",
-                                  "EXTRA_TOWELS",
-                                  "LAUNDRY",
-                                  "MAINTENANCE",
-                                  "FOOD_ORDERING",
-                                  "AIRPORT_TRANSFER",
-                                  "TOUR_BOOKING",
-                                  "ESIM_PURCHASE",
-                                  "AI_CONCIERGE"
-                                ]
-                              },
                               "defaultPrice": {
                                 "type": "number"
                               },
@@ -6774,7 +6969,6 @@
                               "hotelId",
                               "name",
                               "description",
-                              "requestType",
                               "defaultPrice",
                               "currency",
                               "sortOrder",
@@ -7400,6 +7594,105 @@
         },
         "tags": [
           "guest-os"
+        ]
+      }
+    },
+    "/integrations/telegram/webhook": {
+      "post": {
+        "operationId": "TelegramWebhookController_handleWebhook",
+        "parameters": [
+          {
+            "name": "X-Telegram-Bot-Api-Secret-Token",
+            "in": "header",
+            "description": "Telegram webhook secret token configured via setWebhook secret_token.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "TelegramWebhook"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/notification-routes": {
+      "get": {
+        "operationId": "HotelNotificationRoutesController_list",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "hotel-notification-routes"
+        ]
+      },
+      "post": {
+        "operationId": "HotelNotificationRoutesController_create",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "hotel-notification-routes"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/notification-routes/{routeId}": {
+      "patch": {
+        "operationId": "HotelNotificationRoutesController_update",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "routeId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "hotel-notification-routes"
         ]
       }
     },

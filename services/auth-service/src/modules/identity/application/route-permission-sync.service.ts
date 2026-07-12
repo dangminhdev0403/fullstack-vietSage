@@ -9,7 +9,7 @@ import { resolveModuleKeyFromPath } from "../../../common/config/permission-modu
 import { BUSINESS_PERMISSIONS } from "../../../common/config/business-permissions.registry";
 import { publicMatcher } from "../../../common/config/routes.config";
 import { API_DESCRIPTION_KEY } from "../../../shared/decorators/api-descript.decorator";
-import { AuthRepository } from "../infrastructure/auth.repository";
+import { AuthRepository } from "../infrastructure/repositories/auth.repository";
 import {
   buildRoutePermissionKey,
   isPermissionPathTooLong,

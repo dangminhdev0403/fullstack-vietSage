@@ -100,6 +100,7 @@ Do not create empty folders. Let complexity justify structure.
 | --- | --- | --- |
 | Property | `HotelAccessService` via `src/modules/property/property-public.ts` | `infrastructure/repositories/*`, persistence query shapes |
 | Guest Operations | `GuestOsService`, `GuestSessionGuard` via `src/modules/guest-operations/guest-operations-public.ts` | `infrastructure/repositories/*`, guest session persistence |
+| Notifications | `TelegramNotificationService` via `src/modules/notifications/notifications-public.ts`; HTTP webhook uses `/integrations/telegram/webhook` with `X-Telegram-Bot-Api-Secret-Token` | provider adapters, delivery status persistence, notification route configuration internals |
 | Identity/Auth bridge | `AuthService`, `AuthorizationService`, shared `AuthenticatedUser` contract | `AuthRepository`, route permission sync internals |
 | Billing | Billing controllers/services | `BillingRepository`, Prisma financial snapshots |
 

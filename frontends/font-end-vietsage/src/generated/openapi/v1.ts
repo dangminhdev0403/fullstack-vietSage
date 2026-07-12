@@ -209,6 +209,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/roles/{id}/permission-modules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["RolesController_listPermissionModulesForRole"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/roles/{id}/permission-modules/{moduleKey}/permissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["RolesController_listPermissionModulePermissionsForRole"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/roles/{roleId}/modules/{moduleKey}/permissions/grant": {
         parameters: {
             query?: never;
@@ -271,38 +303,6 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
-        trace?: never;
-    };
-    "/tenant-owners": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["TenantOwnersController_listTenantOwners"];
-        put?: never;
-        post: operations["TenantOwnersController_createTenantOwner"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/tenant-owners/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["TenantOwnersController_getTenantOwner"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch: operations["TenantOwnersController_updateTenantOwner"];
         trace?: never;
     };
     "/hotel-users": {
@@ -383,6 +383,38 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/tenant-owners": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["TenantOwnersController_listTenantOwners"];
+        put?: never;
+        post: operations["TenantOwnersController_createTenantOwner"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tenant-owners/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["TenantOwnersController_getTenantOwner"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["TenantOwnersController_updateTenantOwner"];
         trace?: never;
     };
     "/hotels": {
@@ -571,6 +603,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["HotelRoomsController_deactivateQr"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/service-catalog/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["HotelServicesController_syncServiceCatalogFromGoogleSheets"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1023,6 +1071,54 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/integrations/telegram/webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["TelegramWebhookController_handleWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/notification-routes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["HotelNotificationRoutesController_list"];
+        put?: never;
+        post: operations["HotelNotificationRoutesController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/notification-routes/{routeId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["HotelNotificationRoutesController_update"];
         trace?: never;
     };
     "/emergency/guest/calls": {
@@ -1807,6 +1903,95 @@ export interface operations {
                                 permissionId: string;
                                 /** @enum {string} */
                                 method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "OPTIONS";
+                                path: string;
+                                description: string;
+                                enabled: boolean;
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+    };
+    RolesController_listPermissionModulesForRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bao phản hồi danh sách nhóm quyền của vai trò */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 200 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Lấy danh sách nhóm quyền của vai trò thành công */
+                        message: string;
+                        data: {
+                            moduleKey: string;
+                            moduleName: string;
+                            totalPermissions: number;
+                            enabledCount: number;
+                            disabledCount: number;
+                            allSelected: boolean;
+                            allDisabled: boolean;
+                        }[];
+                    };
+                };
+            };
+        };
+    };
+    RolesController_listPermissionModulePermissionsForRole: {
+        parameters: {
+            query?: {
+                limit?: number;
+                page?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+                moduleKey: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bao phản hồi danh sách quyền theo nhóm quyền của vai trò */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 200 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Lấy danh sách quyền theo trang của nhóm quyền thành công */
+                        message: string;
+                        data: {
+                            page: number;
+                            limit: number;
+                            total: number;
+                            items: {
+                                permissionId: string;
+                                /** @enum {string} */
+                                method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "OPTIONS";
+                                path: string;
                                 description: string;
                                 enabled: boolean;
                             }[];
@@ -1984,339 +2169,6 @@ export interface operations {
                             createdAt: string;
                             /** Format: date-time */
                             updatedAt: string;
-                        };
-                    };
-                };
-            };
-        };
-    };
-    TenantOwnersController_listTenantOwners: {
-        parameters: {
-            query?: {
-                q?: string;
-                limit?: number;
-                page?: number;
-                tenantUserStatus?: "ACTIVE" | "INVITED" | "DISABLED";
-                ownerStatus?: "ACTIVE" | "LOCKED" | "DISABLED";
-                tenantId?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Bao phản hồi danh sách chủ đơn vị */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @example 200 */
-                        status: number;
-                        /** @example null */
-                        error: {
-                            [key: string]: unknown;
-                        } | null;
-                        /** @example Lấy danh sách chủ đơn vị thành công */
-                        message: string;
-                        data: {
-                            page: number;
-                            limit: number;
-                            total: number;
-                            items: {
-                                id: string;
-                                /** Format: email */
-                                email: string;
-                                fullName: string;
-                                /** @enum {string} */
-                                status: "ACTIVE" | "LOCKED" | "DISABLED";
-                                /** @example PARTNER */
-                                userType: string;
-                                /** Format: date-time */
-                                createdAt: string;
-                                /** Format: date-time */
-                                updatedAt: string;
-                                tenant: {
-                                    id: string;
-                                    code: string;
-                                    name: string;
-                                    /** Format: date-time */
-                                    createdAt: string;
-                                    /** Format: date-time */
-                                    updatedAt: string;
-                                };
-                                tenantUser: {
-                                    id: string;
-                                    /** @enum {string} */
-                                    status: "ACTIVE" | "INVITED" | "DISABLED";
-                                    /** Format: date-time */
-                                    joinedAt: string | null;
-                                    /** Format: date-time */
-                                    createdAt: string;
-                                    /** Format: date-time */
-                                    updatedAt: string;
-                                };
-                                role: {
-                                    id: string;
-                                    /** @example TENANT_OWNER */
-                                    code: string;
-                                    name: string;
-                                    /** Format: date-time */
-                                    assignedAt: string;
-                                    assignedById: string | null;
-                                };
-                            }[];
-                        };
-                    };
-                };
-            };
-        };
-    };
-    TenantOwnersController_createTenantOwner: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    owner: {
-                        fullName: string;
-                        /** Format: email */
-                        email: string;
-                        password: string;
-                    };
-                    tenant: {
-                        name: string;
-                    };
-                };
-            };
-        };
-        responses: {
-            /** @description Bao phản hồi tạo chủ đơn vị */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @example 201 */
-                        status: number;
-                        /** @example null */
-                        error: {
-                            [key: string]: unknown;
-                        } | null;
-                        /** @example Tạo chủ đơn vị thành công */
-                        message: string;
-                        data: {
-                            id: string;
-                            /** Format: email */
-                            email: string;
-                            fullName: string;
-                            /** @enum {string} */
-                            status: "ACTIVE" | "LOCKED" | "DISABLED";
-                            /** @example PARTNER */
-                            userType: string;
-                            /** Format: date-time */
-                            createdAt: string;
-                            /** Format: date-time */
-                            updatedAt: string;
-                            tenant: {
-                                id: string;
-                                code: string;
-                                name: string;
-                                /** Format: date-time */
-                                createdAt: string;
-                                /** Format: date-time */
-                                updatedAt: string;
-                            };
-                            tenantUser: {
-                                id: string;
-                                /** @enum {string} */
-                                status: "ACTIVE" | "INVITED" | "DISABLED";
-                                /** Format: date-time */
-                                joinedAt: string | null;
-                                /** Format: date-time */
-                                createdAt: string;
-                                /** Format: date-time */
-                                updatedAt: string;
-                            };
-                            role: {
-                                id: string;
-                                /** @example TENANT_OWNER */
-                                code: string;
-                                name: string;
-                                /** Format: date-time */
-                                assignedAt: string;
-                                assignedById: string | null;
-                            };
-                        };
-                    };
-                };
-            };
-        };
-    };
-    TenantOwnersController_getTenantOwner: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Bao phản hồi thông tin chủ đơn vị */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @example 200 */
-                        status: number;
-                        /** @example null */
-                        error: {
-                            [key: string]: unknown;
-                        } | null;
-                        /** @example Lấy thông tin chủ đơn vị thành công */
-                        message: string;
-                        data: {
-                            id: string;
-                            /** Format: email */
-                            email: string;
-                            fullName: string;
-                            /** @enum {string} */
-                            status: "ACTIVE" | "LOCKED" | "DISABLED";
-                            /** @example PARTNER */
-                            userType: string;
-                            /** Format: date-time */
-                            createdAt: string;
-                            /** Format: date-time */
-                            updatedAt: string;
-                            tenant: {
-                                id: string;
-                                code: string;
-                                name: string;
-                                /** Format: date-time */
-                                createdAt: string;
-                                /** Format: date-time */
-                                updatedAt: string;
-                            };
-                            tenantUser: {
-                                id: string;
-                                /** @enum {string} */
-                                status: "ACTIVE" | "INVITED" | "DISABLED";
-                                /** Format: date-time */
-                                joinedAt: string | null;
-                                /** Format: date-time */
-                                createdAt: string;
-                                /** Format: date-time */
-                                updatedAt: string;
-                            };
-                            role: {
-                                id: string;
-                                /** @example TENANT_OWNER */
-                                code: string;
-                                name: string;
-                                /** Format: date-time */
-                                assignedAt: string;
-                                assignedById: string | null;
-                            };
-                        };
-                    };
-                };
-            };
-        };
-    };
-    TenantOwnersController_updateTenantOwner: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    owner?: {
-                        fullName?: string;
-                        /** @enum {string} */
-                        status?: "ACTIVE" | "LOCKED" | "DISABLED";
-                    };
-                    tenant?: {
-                        name?: string;
-                    };
-                    /** @enum {string} */
-                    tenantUserStatus?: "ACTIVE" | "INVITED" | "DISABLED";
-                };
-            };
-        };
-        responses: {
-            /** @description Bao phản hồi cập nhật chủ đơn vị */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @example 200 */
-                        status: number;
-                        /** @example null */
-                        error: {
-                            [key: string]: unknown;
-                        } | null;
-                        /** @example Cập nhật chủ đơn vị thành công */
-                        message: string;
-                        data: {
-                            id: string;
-                            /** Format: email */
-                            email: string;
-                            fullName: string;
-                            /** @enum {string} */
-                            status: "ACTIVE" | "LOCKED" | "DISABLED";
-                            /** @example PARTNER */
-                            userType: string;
-                            /** Format: date-time */
-                            createdAt: string;
-                            /** Format: date-time */
-                            updatedAt: string;
-                            tenant: {
-                                id: string;
-                                code: string;
-                                name: string;
-                                /** Format: date-time */
-                                createdAt: string;
-                                /** Format: date-time */
-                                updatedAt: string;
-                            };
-                            tenantUser: {
-                                id: string;
-                                /** @enum {string} */
-                                status: "ACTIVE" | "INVITED" | "DISABLED";
-                                /** Format: date-time */
-                                joinedAt: string | null;
-                                /** Format: date-time */
-                                createdAt: string;
-                                /** Format: date-time */
-                                updatedAt: string;
-                            };
-                            role: {
-                                id: string;
-                                /** @example TENANT_OWNER */
-                                code: string;
-                                name: string;
-                                /** Format: date-time */
-                                assignedAt: string;
-                                assignedById: string | null;
-                            };
                         };
                     };
                 };
@@ -2672,6 +2524,339 @@ export interface operations {
                             revoked: true;
                             userId: string;
                             roleId: string;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    TenantOwnersController_listTenantOwners: {
+        parameters: {
+            query?: {
+                q?: string;
+                limit?: number;
+                page?: number;
+                tenantUserStatus?: "ACTIVE" | "INVITED" | "DISABLED";
+                ownerStatus?: "ACTIVE" | "LOCKED" | "DISABLED";
+                tenantId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bao phản hồi danh sách chủ đơn vị */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 200 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Lấy danh sách chủ đơn vị thành công */
+                        message: string;
+                        data: {
+                            page: number;
+                            limit: number;
+                            total: number;
+                            items: {
+                                id: string;
+                                /** Format: email */
+                                email: string;
+                                fullName: string;
+                                /** @enum {string} */
+                                status: "ACTIVE" | "LOCKED" | "DISABLED";
+                                /** @example PARTNER */
+                                userType: string;
+                                /** Format: date-time */
+                                createdAt: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                                tenant: {
+                                    id: string;
+                                    code: string;
+                                    name: string;
+                                    /** Format: date-time */
+                                    createdAt: string;
+                                    /** Format: date-time */
+                                    updatedAt: string;
+                                };
+                                tenantUser: {
+                                    id: string;
+                                    /** @enum {string} */
+                                    status: "ACTIVE" | "INVITED" | "DISABLED";
+                                    /** Format: date-time */
+                                    joinedAt: string | null;
+                                    /** Format: date-time */
+                                    createdAt: string;
+                                    /** Format: date-time */
+                                    updatedAt: string;
+                                };
+                                role: {
+                                    id: string;
+                                    /** @example TENANT_OWNER */
+                                    code: string;
+                                    name: string;
+                                    /** Format: date-time */
+                                    assignedAt: string;
+                                    assignedById: string | null;
+                                };
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+    };
+    TenantOwnersController_createTenantOwner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    owner: {
+                        fullName: string;
+                        /** Format: email */
+                        email: string;
+                        password: string;
+                    };
+                    tenant: {
+                        name: string;
+                    };
+                };
+            };
+        };
+        responses: {
+            /** @description Bao phản hồi tạo chủ đơn vị */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 201 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Tạo chủ đơn vị thành công */
+                        message: string;
+                        data: {
+                            id: string;
+                            /** Format: email */
+                            email: string;
+                            fullName: string;
+                            /** @enum {string} */
+                            status: "ACTIVE" | "LOCKED" | "DISABLED";
+                            /** @example PARTNER */
+                            userType: string;
+                            /** Format: date-time */
+                            createdAt: string;
+                            /** Format: date-time */
+                            updatedAt: string;
+                            tenant: {
+                                id: string;
+                                code: string;
+                                name: string;
+                                /** Format: date-time */
+                                createdAt: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                            };
+                            tenantUser: {
+                                id: string;
+                                /** @enum {string} */
+                                status: "ACTIVE" | "INVITED" | "DISABLED";
+                                /** Format: date-time */
+                                joinedAt: string | null;
+                                /** Format: date-time */
+                                createdAt: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                            };
+                            role: {
+                                id: string;
+                                /** @example TENANT_OWNER */
+                                code: string;
+                                name: string;
+                                /** Format: date-time */
+                                assignedAt: string;
+                                assignedById: string | null;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+    };
+    TenantOwnersController_getTenantOwner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bao phản hồi thông tin chủ đơn vị */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 200 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Lấy thông tin chủ đơn vị thành công */
+                        message: string;
+                        data: {
+                            id: string;
+                            /** Format: email */
+                            email: string;
+                            fullName: string;
+                            /** @enum {string} */
+                            status: "ACTIVE" | "LOCKED" | "DISABLED";
+                            /** @example PARTNER */
+                            userType: string;
+                            /** Format: date-time */
+                            createdAt: string;
+                            /** Format: date-time */
+                            updatedAt: string;
+                            tenant: {
+                                id: string;
+                                code: string;
+                                name: string;
+                                /** Format: date-time */
+                                createdAt: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                            };
+                            tenantUser: {
+                                id: string;
+                                /** @enum {string} */
+                                status: "ACTIVE" | "INVITED" | "DISABLED";
+                                /** Format: date-time */
+                                joinedAt: string | null;
+                                /** Format: date-time */
+                                createdAt: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                            };
+                            role: {
+                                id: string;
+                                /** @example TENANT_OWNER */
+                                code: string;
+                                name: string;
+                                /** Format: date-time */
+                                assignedAt: string;
+                                assignedById: string | null;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+    };
+    TenantOwnersController_updateTenantOwner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    owner?: {
+                        fullName?: string;
+                        /** @enum {string} */
+                        status?: "ACTIVE" | "LOCKED" | "DISABLED";
+                    };
+                    tenant?: {
+                        name?: string;
+                    };
+                    /** @enum {string} */
+                    tenantUserStatus?: "ACTIVE" | "INVITED" | "DISABLED";
+                };
+            };
+        };
+        responses: {
+            /** @description Bao phản hồi cập nhật chủ đơn vị */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 200 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Cập nhật chủ đơn vị thành công */
+                        message: string;
+                        data: {
+                            id: string;
+                            /** Format: email */
+                            email: string;
+                            fullName: string;
+                            /** @enum {string} */
+                            status: "ACTIVE" | "LOCKED" | "DISABLED";
+                            /** @example PARTNER */
+                            userType: string;
+                            /** Format: date-time */
+                            createdAt: string;
+                            /** Format: date-time */
+                            updatedAt: string;
+                            tenant: {
+                                id: string;
+                                code: string;
+                                name: string;
+                                /** Format: date-time */
+                                createdAt: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                            };
+                            tenantUser: {
+                                id: string;
+                                /** @enum {string} */
+                                status: "ACTIVE" | "INVITED" | "DISABLED";
+                                /** Format: date-time */
+                                joinedAt: string | null;
+                                /** Format: date-time */
+                                createdAt: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                            };
+                            role: {
+                                id: string;
+                                /** @example TENANT_OWNER */
+                                code: string;
+                                name: string;
+                                /** Format: date-time */
+                                assignedAt: string;
+                                assignedById: string | null;
+                            };
                         };
                     };
                 };
@@ -3195,6 +3380,26 @@ export interface operations {
             };
         };
     };
+    HotelServicesController_syncServiceCatalogFromGoogleSheets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Đã đồng bộ Google Sheets */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     HotelServicesController_listServiceCategories: {
         parameters: {
             query?: never;
@@ -3328,8 +3533,6 @@ export interface operations {
                                     defaultPrice: number;
                                     /** @example VND */
                                     currency: string;
-                                    /** @enum {string} */
-                                    requestType: "HOUSEKEEPING" | "EXTRA_TOWELS" | "LAUNDRY" | "MAINTENANCE" | "FOOD_ORDERING" | "AIRPORT_TRANSFER" | "TOUR_BOOKING" | "ESIM_PURCHASE" | "AI_CONCIERGE";
                                 };
                             }[];
                         };
@@ -3419,8 +3622,6 @@ export interface operations {
                                 defaultPrice: number;
                                 /** @example VND */
                                 currency: string;
-                                /** @enum {string} */
-                                requestType: "HOUSEKEEPING" | "EXTRA_TOWELS" | "LAUNDRY" | "MAINTENANCE" | "FOOD_ORDERING" | "AIRPORT_TRANSFER" | "TOUR_BOOKING" | "ESIM_PURCHASE" | "AI_CONCIERGE";
                             };
                         };
                     };
@@ -3510,8 +3711,6 @@ export interface operations {
                                 defaultPrice: number;
                                 /** @example VND */
                                 currency: string;
-                                /** @enum {string} */
-                                requestType: "HOUSEKEEPING" | "EXTRA_TOWELS" | "LAUNDRY" | "MAINTENANCE" | "FOOD_ORDERING" | "AIRPORT_TRANSFER" | "TOUR_BOOKING" | "ESIM_PURCHASE" | "AI_CONCIERGE";
                             };
                         };
                     };
@@ -3975,8 +4174,6 @@ export interface operations {
                                 hotelId: string;
                                 name: string;
                                 description: string | null;
-                                /** @enum {string} */
-                                requestType: "HOUSEKEEPING" | "EXTRA_TOWELS" | "LAUNDRY" | "MAINTENANCE" | "FOOD_ORDERING" | "AIRPORT_TRANSFER" | "TOUR_BOOKING" | "ESIM_PURCHASE" | "AI_CONCIERGE";
                                 defaultPrice: number;
                                 /** @example VND */
                                 currency: string;
@@ -4252,6 +4449,84 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Đã đóng phiên khách */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TelegramWebhookController_handleWebhook: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Telegram webhook secret token configured via setWebhook secret_token. */
+                "X-Telegram-Bot-Api-Secret-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HotelNotificationRoutesController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HotelNotificationRoutesController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HotelNotificationRoutesController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                routeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
             200: {
                 headers: {
                     [name: string]: unknown;

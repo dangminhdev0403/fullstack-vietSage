@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { TenantUserStatus, UserType } from "@prisma/client";
-import { HotelUsersRepository } from "../infrastructure/hotel-users.repository";
+import { HotelUsersRepository } from "../infrastructure/repositories/hotel-users.repository";
 import { HotelUsersService } from "../application/hotel-users.service";
 
 describe("HotelUsersService", () => {

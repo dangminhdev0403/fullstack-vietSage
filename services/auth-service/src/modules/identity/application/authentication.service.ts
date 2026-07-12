@@ -10,7 +10,7 @@ import {
 } from "../../../common/config/permission-module.util";
 import { resolveBusinessPermissionMenuPath } from "../../../common/config/business-permission-menu.util";
 import { DEFAULT_NAVIGATION_MENU } from "../../../common/config/navigation.config";
-import { AuthRepository } from "../infrastructure/auth.repository";
+import { AuthRepository } from "../infrastructure/repositories/auth.repository";
 import type { AuthenticatedUser } from "../domain/authenticated-user";
 import { AppLogger } from "../../../common/logging/app-logger.service";
 
