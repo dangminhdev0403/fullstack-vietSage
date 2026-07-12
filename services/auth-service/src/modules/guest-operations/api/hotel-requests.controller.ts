@@ -20,8 +20,9 @@ import {
   requestSummaryQuerySchema,
   updateRequestAssignmentBodySchema,
   updateRequestStatusBodySchema,
+  hotelIdParamSchema,
+  requestIdParamSchema,
 } from "../domain/schemas/requests.schema";
-import { hotelIdParamSchema, requestIdParamSchema } from "../domain/schemas/shared.schema";
 
 interface RequestWithUser extends Request {
   user: AuthenticatedUser;

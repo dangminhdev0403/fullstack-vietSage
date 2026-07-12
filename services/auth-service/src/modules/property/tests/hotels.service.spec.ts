@@ -6,7 +6,7 @@ import {
   RoomQRCodeStatus,
   ServiceCatalogStatus,
 } from "@prisma/client";
-import { HotelRequestsService } from "../application/hotel-requests.service";
+import { HotelRequestsService } from "../../guest-operations/application/hotel-requests.service";
 import { HotelRoomsService } from "../application/hotel-rooms.service";
 import { HotelServicesService } from "../application/hotel-services.service";
 import { HotelsService } from "../application/hotels.service";

@@ -4,7 +4,7 @@ import { createHotelBodySchema, updateHotelBodySchema } from "../../../domain/sc
 import {
   listStaffRequestsQuerySchema,
   updateRequestAssignmentBodySchema,
-} from "../../../domain/schemas/requests.schema";
+} from "../../../../guest-operations/domain/schemas/requests.schema";
 import {
   createRoomBodySchema,
   createRoomsBodySchema,

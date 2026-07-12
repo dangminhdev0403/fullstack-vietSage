@@ -1,11 +1,11 @@
 import { TenantUserStatus, UserStatus } from "@prisma/client";
-import { parseWithZod } from "../../../../common/validation/parse-with-zod";
+import { parseWithZod } from "../../../../../common/validation/parse-with-zod";
 import {
   createTenantOwnerBodySchema,
   listTenantOwnersQuerySchema,
   tenantOwnerIdParamSchema,
   updateTenantOwnerBodySchema,
-} from "../../schemas/tenant-owners.schema";
+} from "../../../domain/schemas/tenant-owners.schema";
 
 describe("tenant-owners.schema", () => {
   it("parses list query filters", () => {

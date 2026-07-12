@@ -11,9 +11,9 @@ import {
   NOOP_GUEST_REQUEST_EVENT_PUBLISHER,
   type GuestRequestEventPublisher,
 } from "../../../shared/events";
-import { HotelAccessService } from "./hotel-access.service";
+import { HotelAccessService } from "../../property/property-public";
 import { HotelRequestsRepository } from "../infrastructure/repositories/hotel-requests.repository";
-import type { StaffRequestListRow } from "../infrastructure/repositories/hotel-repository.types";
+import type { StaffRequestListRow } from "../infrastructure/repositories/guest-request-repository.types";
 import type {
   CreateRequestEventBodyInput,
   ListStaffRequestsQueryInput,

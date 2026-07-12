@@ -6,17 +6,17 @@ import {
 } from "@nestjs/common";
 import { Prisma, TenantUserStatus, UserStatus, UserType } from "@prisma/client";
 import * as argon2 from "argon2";
-import { CodesService } from "../codes/codes.service";
+import { CodesService } from "../../codes/codes.service";
 import {
   TenantOwnerRoleNotConfiguredError,
   TenantOwnersRepository,
   type TenantOwnerRow,
-} from "./tenant-owners.repository";
+} from "../infrastructure/repositories/tenant-owners.repository";
 import type {
   CreateTenantOwnerBodyInput,
   ListTenantOwnersQueryInput,
   UpdateTenantOwnerBodyInput,
-} from "./schemas/tenant-owners.schema";
+} from "../domain/schemas/tenant-owners.schema";
 
 export interface TenantOwnerItem {
   id: string;

@@ -16,18 +16,18 @@ import {
   successEnvelopeSchema,
   tenantOwnerDataSchema,
   updateTenantOwnerBodySchema as updateTenantOwnerBodyOpenApiSchema,
-} from "../../common/openapi/contract-schemas";
-import { parseWithZod } from "../../common/validation/parse-with-zod";
-import { ApiDescript } from "../../shared/decorators/api-descript.decorator";
-import { SuccessMessage } from "../../shared/decorators/success-message.decorator";
-import type { AuthenticatedUser } from "../../shared/security";
+} from "../../../common/openapi/contract-schemas";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
+import type { AuthenticatedUser } from "../../../shared/security";
 import {
   createTenantOwnerBodySchema,
   listTenantOwnersQuerySchema,
   tenantOwnerIdParamSchema,
   updateTenantOwnerBodySchema,
-} from "./schemas/tenant-owners.schema";
-import { TenantOwnersService } from "./tenant-owners.service";
+} from "../domain/schemas/tenant-owners.schema";
+import { TenantOwnersService } from "../application/tenant-owners.service";
 
 interface RequestWithUser extends Request {
   user: AuthenticatedUser;

@@ -2,17 +2,17 @@ import { Body, Controller, Get, Param, Post, Req } from "@nestjs/common";
 import { ApiBody, ApiOkResponse, ApiParam, ApiTags } from "@nestjs/swagger";
 import { PaymentProvider } from "@prisma/client";
 import type { Request } from "express";
-import { parseWithZod } from "../../common/validation/parse-with-zod";
-import { ApiDescript } from "../../shared/decorators/api-descript.decorator";
-import { SuccessMessage } from "../../shared/decorators/success-message.decorator";
-import type { AuthenticatedUser } from "../../shared/security";
-import { BillingService } from "./billing.service";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
+import type { AuthenticatedUser } from "../../../shared/security";
+import { BillingService } from "../application/billing.service";
 import {
   billingIdParamSchema,
   createPaymentSessionBodySchema,
   paymentProviderParamSchema,
   paymentWebhookBodySchema,
-} from "./schemas/billing.schema";
+} from "../domain/schemas/billing.schema";
 
 interface RequestWithUser extends Request {
   user: AuthenticatedUser;

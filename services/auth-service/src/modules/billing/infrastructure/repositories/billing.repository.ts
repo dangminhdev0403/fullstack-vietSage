@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { FolioStatus, Prisma } from "@prisma/client";
-import { PrismaService } from "../../prisma/prisma.service";
+import { PrismaService } from "../../../../prisma/prisma.service";
 
 export const folioListSelect = {
   id: true,

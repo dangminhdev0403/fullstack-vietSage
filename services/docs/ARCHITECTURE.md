@@ -35,10 +35,10 @@ services/auth-service/
   src/
     modules/
       identity/          # authentication, RBAC, and user/hotel access boundary
-      tenant-owners/     # tenant ownership APIs
-      property/          # property, rooms, stays, service catalog, staff request workflow
-      guest-operations/  # guest sessions/guest-facing request APIs
-      billing/           # folio/invoice/payment workflows
+      organization/      # tenant ownership and tenant membership APIs
+      property/          # property, rooms, stays, service catalog
+      guest-operations/  # guest sessions and guest/staff request workflows
+      billing/           # folio/invoice/payment workflows (api/application/domain/infrastructure)
       emergency/         # emergency workflows
       notifications/     # notification routing, delivery, and provider webhook adapters
       codes/             # code generation

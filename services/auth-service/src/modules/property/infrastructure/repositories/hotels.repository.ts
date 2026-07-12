@@ -1,7 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../../../prisma/prisma.service";
 import { HotelCoreRepository } from "./hotel-core.repository";
-import { HotelRequestsRepository } from "./hotel-requests.repository";
 import { HotelRoomsRepository } from "./hotel-rooms.repository";
 import { HotelServiceCatalogRepository } from "./hotel-service-catalog.repository";
 
@@ -16,13 +15,11 @@ export class HotelsRepository {
   private readonly coreRepository: HotelCoreRepository;
   private readonly roomsRepository: HotelRoomsRepository;
   private readonly serviceCatalogRepository: HotelServiceCatalogRepository;
-  private readonly requestsRepository: HotelRequestsRepository;
 
   constructor(prisma: PrismaService) {
     this.coreRepository = new HotelCoreRepository(prisma);
     this.roomsRepository = new HotelRoomsRepository(prisma);
     this.serviceCatalogRepository = new HotelServiceCatalogRepository(prisma);
-    this.requestsRepository = new HotelRequestsRepository(prisma);
   }
 
   findActorById(...args: Parameters<HotelCoreRepository["findActorById"]>) {
@@ -161,47 +158,5 @@ export class HotelsRepository {
 
   updateServiceItem(...args: Parameters<HotelServiceCatalogRepository["updateServiceItem"]>) {
     return this.serviceCatalogRepository.updateServiceItem(...args);
-  }
-
-  listRequests(...args: Parameters<HotelRequestsRepository["listRequests"]>) {
-    return this.requestsRepository.listRequests(...args);
-  }
-
-  summarizeRequests(...args: Parameters<HotelRequestsRepository["summarizeRequests"]>) {
-    return this.requestsRepository.summarizeRequests(...args);
-  }
-
-  summarizeOperationalRequests(
-    ...args: Parameters<HotelRequestsRepository["summarizeOperationalRequests"]>
-  ) {
-    return this.requestsRepository.summarizeOperationalRequests(...args);
-  }
-
-  findRequestInHotel(...args: Parameters<HotelRequestsRepository["findRequestInHotel"]>) {
-    return this.requestsRepository.findRequestInHotel(...args);
-  }
-
-  findRequestDetailInHotel(
-    ...args: Parameters<HotelRequestsRepository["findRequestDetailInHotel"]>
-  ) {
-    return this.requestsRepository.findRequestDetailInHotel(...args);
-  }
-
-  findAssignableStaffInTenant(
-    ...args: Parameters<HotelRequestsRepository["findAssignableStaffInTenant"]>
-  ) {
-    return this.requestsRepository.findAssignableStaffInTenant(...args);
-  }
-
-  updateRequestStatus(...args: Parameters<HotelRequestsRepository["updateRequestStatus"]>) {
-    return this.requestsRepository.updateRequestStatus(...args);
-  }
-
-  updateRequestAssignment(...args: Parameters<HotelRequestsRepository["updateRequestAssignment"]>) {
-    return this.requestsRepository.updateRequestAssignment(...args);
-  }
-
-  createRequestEvent(...args: Parameters<HotelRequestsRepository["createRequestEvent"]>) {
-    return this.requestsRepository.createRequestEvent(...args);
   }
 }

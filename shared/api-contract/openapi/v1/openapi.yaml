@@ -4254,131 +4254,6 @@ paths:
                   - message
                   - data
       tags: *a9
-  /hotels/{hotelId}/requests:
-    get:
-      operationId: HotelRequestsController_listRequests
-      parameters:
-        - name: hotelId
-          required: true
-          in: path
-          schema:
-            type: string
-        - name: priority
-          required: false
-          in: query
-          schema:
-            enum:
-              - NORMAL
-              - URGENT
-            type: string
-      responses:
-        "200":
-          description: Đã lấy danh sách yêu cầu của khách
-      tags: &a16
-        - hotel-requests
-  /hotels/{hotelId}/requests/summary:
-    get:
-      operationId: HotelRequestsController_getRequestsSummary
-      parameters:
-        - name: hotelId
-          required: true
-          in: path
-          schema:
-            type: string
-      responses:
-        "200":
-          description: Guest request summary
-      tags: *a16
-  /hotels/{hotelId}/requests/{requestId}:
-    get:
-      operationId: HotelRequestsController_getRequestDetail
-      parameters:
-        - name: hotelId
-          required: true
-          in: path
-          schema:
-            type: string
-        - name: requestId
-          required: true
-          in: path
-          schema:
-            type: string
-      responses:
-        "200":
-          description: Đã lấy yêu cầu của khách
-      tags: *a16
-  /hotels/{hotelId}/requests/{requestId}/status:
-    patch:
-      operationId: HotelRequestsController_updateRequestStatus
-      parameters:
-        - name: hotelId
-          required: true
-          in: path
-          schema:
-            type: string
-        - name: requestId
-          required: true
-          in: path
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-      responses:
-        "200":
-          description: Đã cập nhật yêu cầu của khách
-      tags: *a16
-  /hotels/{hotelId}/requests/{requestId}/assignment:
-    patch:
-      operationId: HotelRequestsController_updateRequestAssignment
-      parameters:
-        - name: hotelId
-          required: true
-          in: path
-          schema:
-            type: string
-        - name: requestId
-          required: true
-          in: path
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-      responses:
-        "200":
-          description: Đã cập nhật phân công yêu cầu của khách
-      tags: *a16
-  /hotels/{hotelId}/requests/{requestId}/events:
-    post:
-      operationId: HotelRequestsController_createRequestEvent
-      parameters:
-        - name: hotelId
-          required: true
-          in: path
-          schema:
-            type: string
-        - name: requestId
-          required: true
-          in: path
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-      responses:
-        "201":
-          description: Đã tạo sự kiện yêu cầu của khách
-      tags: *a16
   /hotels/{hotelId}/dashboard:
     get:
       operationId: HotelDashboardController_getDashboard
@@ -4413,7 +4288,7 @@ paths:
       responses:
         "200":
           description: Danh sách folio
-      tags: &a17
+      tags: &a16
         - billing-folios
   /hotels/{hotelId}/stays/{stayId}/active-folio:
     get:
@@ -4432,7 +4307,7 @@ paths:
       responses:
         "200":
           description: Folio đang mở
-      tags: *a17
+      tags: *a16
   /hotels/{hotelId}/folios/{folioId}/summary:
     get:
       operationId: FolioController_getFolioSummary
@@ -4450,7 +4325,7 @@ paths:
       responses:
         "200":
           description: Tổng quan folio
-      tags: *a17
+      tags: *a16
   /hotels/{hotelId}/folios/{folioId}/checkout/issue-invoice:
     post:
       operationId: FolioController_issueInvoice
@@ -4468,7 +4343,7 @@ paths:
       responses:
         "200":
           description: Invoice đã phát hành
-      tags: *a17
+      tags: *a16
   /hotels/{hotelId}/folios/{folioId}/items:
     get:
       operationId: FolioController_listFolioItems
@@ -4486,7 +4361,7 @@ paths:
       responses:
         "200":
           description: Danh sách FolioItem
-      tags: *a17
+      tags: *a16
   /hotels/{hotelId}/folios/{folioId}:
     get:
       operationId: FolioController_getFolioDetail
@@ -4504,7 +4379,7 @@ paths:
       responses:
         "200":
           description: Chi tiết folio
-      tags: *a17
+      tags: *a16
   /hotels/{hotelId}/invoices/{invoiceId}:
     get:
       operationId: InvoiceController_getInvoiceDetail
@@ -4547,7 +4422,7 @@ paths:
       responses:
         "200":
           description: Payment pending/session
-      tags: &a18
+      tags: &a17
         - billing-payments
   /hotels/{hotelId}/payments/{paymentId}/status:
     get:
@@ -4566,7 +4441,7 @@ paths:
       responses:
         "200":
           description: Payment status
-      tags: *a18
+      tags: *a17
   /payments/webhook/{provider}:
     post:
       operationId: PaymentController_processWebhook
@@ -4591,7 +4466,7 @@ paths:
       responses:
         "200":
           description: Webhook đã xử lý
-      tags: *a18
+      tags: *a17
   /guest/qr/scan:
     post:
       operationId: GuestOsController_scanQr
@@ -4627,7 +4502,7 @@ paths:
       responses:
         "201":
           description: Đã chấp nhận quét QR của khách
-      tags: &a19
+      tags: &a18
         - guest-os
   /guest/session/me:
     get:
@@ -4636,7 +4511,7 @@ paths:
       responses:
         "200":
           description: Đã lấy phiên khách
-      tags: *a19
+      tags: *a18
   /guest/services:
     get:
       operationId: GuestOsController_listServices
@@ -4789,7 +4664,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a19
+      tags: *a18
   /guest/service-categories/{categoryId}/services:
     get:
       operationId: GuestOsController_listCategoryServices
@@ -4892,7 +4767,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a19
+      tags: *a18
   /guest/requests:
     post:
       operationId: GuestOsController_createRequest
@@ -5005,7 +4880,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a19
+      tags: *a18
     get:
       operationId: GuestOsController_listRequests
       parameters: []
@@ -5122,7 +4997,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a19
+      tags: *a18
   /guest/requests/{requestId}/cancel:
     patch:
       operationId: GuestOsController_cancelRequest
@@ -5208,7 +5083,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a19
+      tags: *a18
   /guest/session/close:
     post:
       operationId: GuestOsController_closeSession
@@ -5216,6 +5091,131 @@ paths:
       responses:
         "200":
           description: Đã đóng phiên khách
+      tags: *a18
+  /hotels/{hotelId}/requests:
+    get:
+      operationId: HotelRequestsController_listRequests
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: priority
+          required: false
+          in: query
+          schema:
+            enum:
+              - NORMAL
+              - URGENT
+            type: string
+      responses:
+        "200":
+          description: Đã lấy danh sách yêu cầu của khách
+      tags: &a19
+        - hotel-requests
+  /hotels/{hotelId}/requests/summary:
+    get:
+      operationId: HotelRequestsController_getRequestsSummary
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Guest request summary
+      tags: *a19
+  /hotels/{hotelId}/requests/{requestId}:
+    get:
+      operationId: HotelRequestsController_getRequestDetail
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: requestId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Đã lấy yêu cầu của khách
+      tags: *a19
+  /hotels/{hotelId}/requests/{requestId}/status:
+    patch:
+      operationId: HotelRequestsController_updateRequestStatus
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: requestId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Đã cập nhật yêu cầu của khách
+      tags: *a19
+  /hotels/{hotelId}/requests/{requestId}/assignment:
+    patch:
+      operationId: HotelRequestsController_updateRequestAssignment
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: requestId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Đã cập nhật phân công yêu cầu của khách
+      tags: *a19
+  /hotels/{hotelId}/requests/{requestId}/events:
+    post:
+      operationId: HotelRequestsController_createRequestEvent
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: requestId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "201":
+          description: Đã tạo sự kiện yêu cầu của khách
       tags: *a19
   /integrations/telegram/webhook:
     post:

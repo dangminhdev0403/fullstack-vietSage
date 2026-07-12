@@ -12,11 +12,11 @@ import {
   RoomQRCodeStatus,
   RoomStatus,
 } from "@prisma/client";
-import { PrismaService } from "../../prisma/prisma.service";
-import { AppLogger } from "../../common/logging/app-logger.service";
-import { CodesService } from "../codes/codes.service";
-import { HotelAccessService } from "../property/property-public";
-import { BillingRepository } from "./billing.repository";
+import { PrismaService } from "../../../prisma/prisma.service";
+import { AppLogger } from "../../../common/logging/app-logger.service";
+import { CodesService } from "../../codes/codes.service";
+import { HotelAccessService } from "../../property/property-public";
+import { BillingRepository } from "../infrastructure/repositories/billing.repository";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;

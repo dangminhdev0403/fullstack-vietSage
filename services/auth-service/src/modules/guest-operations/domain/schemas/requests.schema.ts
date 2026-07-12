@@ -1,6 +1,9 @@
 import { GuestRequestStatus } from "@prisma/client";
 import { z } from "zod";
-import { jsonRecordSchema } from "./shared.schema";
+
+export const jsonRecordSchema = z.record(z.string(), z.unknown());
+export const hotelIdParamSchema = z.string().trim().min(1, "hotelId là bắt buộc");
+export const requestIdParamSchema = z.string().trim().min(1, "requestId là bắt buộc");
 
 export const guestRequestPriorityValues = ["NORMAL", "URGENT"] as const;
 export const guestRequestPrioritySchema = z.enum(guestRequestPriorityValues);

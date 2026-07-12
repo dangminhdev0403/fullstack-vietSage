@@ -2,16 +2,16 @@ import { Controller, Get, Param, Post, Query, Req } from "@nestjs/common";
 import { ApiOkResponse, ApiParam, ApiQuery, ApiTags } from "@nestjs/swagger";
 import { FolioStatus } from "@prisma/client";
 import type { Request } from "express";
-import { parseWithZod } from "../../common/validation/parse-with-zod";
-import { ApiDescript } from "../../shared/decorators/api-descript.decorator";
-import { SuccessMessage } from "../../shared/decorators/success-message.decorator";
-import type { AuthenticatedUser } from "../../shared/security";
-import { BillingService } from "./billing.service";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
+import type { AuthenticatedUser } from "../../../shared/security";
+import { BillingService } from "../application/billing.service";
 import {
   billingIdParamSchema,
   listFolioItemsQuerySchema,
   listFoliosQuerySchema,
-} from "./schemas/billing.schema";
+} from "../domain/schemas/billing.schema";
 
 interface RequestWithUser extends Request {
   user: AuthenticatedUser;

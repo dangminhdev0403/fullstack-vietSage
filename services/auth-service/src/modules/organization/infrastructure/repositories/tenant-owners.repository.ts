@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { Prisma, RoleStatus, TenantUserStatus, UserRoleStatus, UserStatus } from "@prisma/client";
-import { PrismaService } from "../../prisma/prisma.service";
+import { PrismaService } from "../../../../prisma/prisma.service";
 
 const TENANT_OWNER_ROLE_CODE = "TENANT_OWNER";
 

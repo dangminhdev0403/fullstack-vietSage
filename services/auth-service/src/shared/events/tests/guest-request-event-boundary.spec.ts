@@ -5,7 +5,7 @@ const sourceRoot = join(__dirname, "..", "..", "..");
 
 const contextFiles = [
   "modules/guest-operations/application/guest-os.service.ts",
-  "modules/property/application/hotel-requests.service.ts",
+  "modules/guest-operations/application/hotel-requests.service.ts",
   "modules/notifications/application/telegram-notification.service.ts",
 ];
 

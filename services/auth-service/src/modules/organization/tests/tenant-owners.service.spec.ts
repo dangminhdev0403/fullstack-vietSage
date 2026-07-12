@@ -3,8 +3,8 @@ import { TenantUserStatus, UserStatus, UserType } from "@prisma/client";
 import {
   TenantOwnerRoleNotConfiguredError,
   TenantOwnersRepository,
-} from "../tenant-owners.repository";
-import { TenantOwnersService } from "../tenant-owners.service";
+} from "../infrastructure/repositories/tenant-owners.repository";
+import { TenantOwnersService } from "../application/tenant-owners.service";
 
 describe("TenantOwnersService", () => {
   let service: TenantOwnersService;

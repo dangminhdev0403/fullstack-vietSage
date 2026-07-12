@@ -9,7 +9,7 @@ import { EmergencyModule } from "./modules/emergency/emergency.module";
 import { JwtAuthGuard } from "./modules/identity/infrastructure/guards/jwt-auth.guard";
 import { HealthModule } from "./modules/health/health.module";
 import { PropertyModule } from "./modules/property/property.module";
-import { TenantOwnersModule } from "./modules/tenant-owners/tenant-owners.module";
+import { OrganizationModule } from "./modules/organization/organization.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { AuthorizationGuard } from "./shared/guard/authorization.guard";
 import { CodesModule } from "./modules/codes/codes.module";
@@ -26,7 +26,7 @@ import { AuthRateLimitGuard } from "./common/security/auth-rate-limit.guard";
     LoggingModule,
     PrismaModule,
     IdentityModule,
-    TenantOwnersModule,
+    OrganizationModule,
     PropertyModule,
     CodesModule,
     BillingModule,

@@ -48,7 +48,7 @@ async function bootstrap() {
       "HealthModule",
       "PrismaModule",
       "IdentityModule",
-      "TenantOwnersModule",
+      "OrganizationModule",
       "PropertyModule",
       "CodesModule",
       "BillingModule",

@@ -12,7 +12,7 @@ import {
   TenantUserStatus,
 } from "@prisma/client";
 import { PrismaService } from "../../../../prisma/prisma.service";
-import { requestDetailInclude, requestListInclude } from "./hotel-repository.types";
+import { requestDetailInclude, requestListInclude } from "./guest-request-repository.types";
 
 @Injectable()
 export class HotelRequestsRepository {
