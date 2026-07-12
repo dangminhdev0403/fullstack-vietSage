@@ -34,12 +34,10 @@ Rule: do not read all docs by default. Start with this file, then open only the 
 services/auth-service/
   src/
     modules/
-      auth/              # authentication/session bridge
-      rbac/              # roles/permissions bridge
-      hotel-users/       # user/tenant/hotel access APIs
+      identity/          # authentication, RBAC, and user/hotel access boundary
       tenant-owners/     # tenant ownership APIs
-      hotels/            # property, rooms, stays, service catalog, request workflow
-      guest-os/          # guest sessions/guest-facing requests
+      property/          # property, rooms, stays, service catalog, staff request workflow
+      guest-operations/  # guest sessions/guest-facing request APIs
       billing/           # folio/invoice/payment workflows
       emergency/         # emergency workflows
       telegram/          # provider notification/webhook adapter

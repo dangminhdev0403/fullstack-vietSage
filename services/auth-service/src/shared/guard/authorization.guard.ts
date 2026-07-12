@@ -4,11 +4,11 @@ import type { Request } from "express";
 import { loadAppConfig } from "../../common/config/env.config";
 import { publicMatcher } from "../../common/config/routes.config";
 import type { AuthenticatedUser } from "../security";
-import { AuthorizationService } from "../../modules/auth/services/authorization.service";
+import { AuthorizationService } from "../../modules/identity/identity-public";
 import {
   isPermissionPathTooLong,
   resolveRoutePermissionKeyFromRequest,
-} from "../../modules/auth/utils/route-permission-key.util";
+} from "../../modules/identity/domain/route-permission-key.util";
 import { AppLogger } from "../../common/logging/app-logger.service";
 import { REQUIRED_PERMISSION_KEY } from "../decorators/require-permission.decorator";
 import { SKIP_AUTHORIZATION_KEY } from "../decorators/skip-authorization.decorator";

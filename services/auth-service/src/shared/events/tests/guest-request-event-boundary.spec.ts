@@ -4,8 +4,8 @@ import { join } from "node:path";
 const sourceRoot = join(__dirname, "..", "..", "..");
 
 const contextFiles = [
-  "modules/guest-os/guest-os.service.ts",
-  "modules/hotels/hotel-requests.service.ts",
+  "modules/guest-operations/application/guest-os.service.ts",
+  "modules/property/application/hotel-requests.service.ts",
   "modules/telegram/telegram-notification.service.ts",
 ];
 

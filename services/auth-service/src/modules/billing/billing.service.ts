@@ -15,7 +15,7 @@ import {
 import { PrismaService } from "../../prisma/prisma.service";
 import { AppLogger } from "../../common/logging/app-logger.service";
 import { CodesService } from "../codes/codes.service";
-import { HotelAccessService } from "../hotels/hotel-access.service";
+import { HotelAccessService } from "../property/property-public";
 import { BillingRepository } from "./billing.repository";
 
 const DEFAULT_PAGE = 1;

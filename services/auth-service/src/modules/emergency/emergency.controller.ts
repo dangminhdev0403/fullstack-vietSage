@@ -5,7 +5,7 @@ import { SuccessMessage } from "../../shared/decorators/success-message.decorato
 import {
   GuestSessionGuard,
   type RequestWithGuestSession,
-} from "../guest-os/guards/guest-session.guard";
+} from "../guest-operations/guest-operations-public";
 import { EmergencyService } from "./emergency.service";
 import { createEmergencyCallBodySchema } from "./schemas/emergency.schema";
 

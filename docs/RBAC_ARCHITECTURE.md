@@ -107,11 +107,11 @@ identity/
   identity-public.ts
 ```
 
-First safe boundary slice:
+Current safe boundary slice:
 
 - shared `AuthenticatedUser` contract lives in `src/shared/security/`;
-- global guards/controllers import the shared contract, not a deep `modules/auth` path;
-- old auth-local import path may remain as a compatibility re-export while migration completes.
+- global guards/controllers import the shared contract or `src/modules/identity/identity-public.ts`, not legacy deep auth-module paths;
+- legacy `auth`, `rbac`, and `hotel-users` module folders have been consolidated into `src/modules/identity`.
 
 ## Security rules
 
@@ -128,7 +128,7 @@ First safe boundary slice:
 
 1. Keep bridge model and explicit `@RequirePermission(...)` support.
 2. Expand business permission coverage to hotel, billing, request, room, stay, service, and user routes.
-3. Move shared identity contracts out of deep auth module paths.
-4. Split auth/session/access-control services after tests cover behavior.
+3. Move shared identity contracts out of deep auth module paths. ✅
+4. Split auth/session/access-control services after tests cover behavior. ✅
 5. Add dedicated permission key column only in a DB migration phase.
 6. Design service-to-service auth only if Identity is extracted.

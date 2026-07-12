@@ -1,7 +1,7 @@
 ﻿import { ExecutionContext, ForbiddenException } from "@nestjs/common";
 import type { Request } from "express";
 import { publicMatcher } from "../../common/config/routes.config";
-import { AuthorizationService } from "../../modules/auth/services/authorization.service";
+import { AuthorizationService } from "../../modules/identity/identity-public";
 import { AuthorizationGuard } from "./authorization.guard";
 
 describe("AuthorizationGuard", () => {

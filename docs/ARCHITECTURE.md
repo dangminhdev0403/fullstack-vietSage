@@ -10,7 +10,7 @@ services/auth-service/              # current deployed core API (NestJS)
 shared/api-contract/                # exported OpenAPI/shared contract package
 ```
 
-Despite the historical folder name `auth-service`, the backend now owns more than authentication: identity/RBAC, tenant and hotel operations, GuestOS, billing, emergency workflows, notifications, health, and shared backend infrastructure. Treat it as the **VietSage core API** until a dedicated rename phase is approved.
+Despite the historical folder name `auth-service`, the backend now owns more than authentication: identity/RBAC, tenant and hotel operations, Guest Operations, billing, emergency workflows, notifications, health, and shared backend infrastructure. Treat it as the **VietSage core API** until a dedicated rename phase is approved.
 
 This repo should **not** be refactored by rebuilding from scratch or prematurely splitting services. The target is a production-grade modular monolith with clear domain boundaries that can be extracted later when there is a real operational reason.
 
@@ -30,10 +30,10 @@ No API gateway, message broker, distributed cache, or database-per-service split
 
 | Context | Current module area | Owns | Notes |
 | --- | --- | --- | --- |
-| Identity & Access | `auth`, `rbac`, `hotel-users`, shared guards/decorators | Authentication, sessions, users, roles, permissions, authorization checks | Should become the clearest platform boundary. |
+| Identity & Access | `src/modules/identity`, shared guards/decorators | Authentication, sessions, users, roles, permissions, authorization checks | Consolidated boundary; legacy `auth`, `rbac`, `hotel-users` folders should not be reintroduced. |
 | Organization / Tenancy | `tenant-owners`, tenant user relations | Tenant ownership, tenant membership, platform/tenant scopes | Depends on Identity for actor identity. |
-| Property | `hotels`, room/stay/service catalog subareas | Hotels, rooms, QR, stays, service catalog, hotel access checks | Public access port is exported; repositories are internal. |
-| Guest Operations | `guest-os`, request workflows under hotels | Guest sessions, guest requests, request timeline/status | Should publish notification intents instead of calling providers directly. |
+| Property | `src/modules/property`; HTTP routes still use `/hotels` for compatibility | Hotels, rooms, QR, stays, service catalog, hotel access checks | Public access port is exported via `property-public.ts`; repositories are internal. |
+| Guest Operations | `src/modules/guest-operations`; HTTP routes still use `/guest` for compatibility; staff request workflows currently parked in Property until extraction | Guest sessions, guest requests, request timeline/status | Public guest session/service ports are exported via `guest-operations-public.ts`; should publish notification intents instead of calling providers directly. |
 | Billing | `billing` | Folios, folio items, invoices, payments, checkout rules | Uses property access, should not depend on property persistence internals. |
 | Emergency | `emergency` | Emergency locations, incidents, call lifecycle, notifications | Should use guest/property resolver ports. |
 | Notifications | `telegram`, notification route pieces | Provider routing and delivery callbacks | Candidate for future extraction after contract and retry needs are proven. |

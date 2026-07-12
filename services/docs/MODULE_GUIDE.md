@@ -41,13 +41,13 @@ shared DTO/contract types
 Allowed:
 
 ```ts
-import { HotelAccessService } from "../hotels/hotel-access.service";
+import { HotelAccessService } from "../property/property-public";
 ```
 
 Forbidden unless explicitly approved:
 
 ```ts
-import { HotelCoreRepository } from "../hotels/repositories/hotel-core.repository";
+import { HotelCoreRepository } from "../property/infrastructure/repositories/hotel-core.repository";
 ```
 
 If another context needs owner data, create a public query/port on the owner context instead of exporting a repository.
@@ -98,7 +98,8 @@ Do not create empty folders. Let complexity justify structure.
 
 | Context | Public boundary now | Internal details |
 | --- | --- | --- |
-| Hotels/Property | `HotelAccessService` | `repositories/*`, persistence query shapes |
+| Property | `HotelAccessService` via `src/modules/property/property-public.ts` | `infrastructure/repositories/*`, persistence query shapes |
+| Guest Operations | `GuestOsService`, `GuestSessionGuard` via `src/modules/guest-operations/guest-operations-public.ts` | `infrastructure/repositories/*`, guest session persistence |
 | Identity/Auth bridge | `AuthService`, `AuthorizationService`, shared `AuthenticatedUser` contract | `AuthRepository`, route permission sync internals |
 | Billing | Billing controllers/services | `BillingRepository`, Prisma financial snapshots |
 

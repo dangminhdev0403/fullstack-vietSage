@@ -3,14 +3,12 @@ import { APP_GUARD } from "@nestjs/core";
 import { ScheduleModule } from "@nestjs/schedule";
 import { RequestLoggingMiddleware } from "./common/middleware/request-logging.middleware";
 import { RequestIdMiddleware } from "./common/middleware/request-id.middleware";
-import { AuthModule } from "./modules/auth/auth.module";
-import { GuestOsModule } from "./modules/guest-os/guest-os.module";
+import { IdentityModule } from "./modules/identity/identity.module";
+import { GuestOperationsModule } from "./modules/guest-operations/guest-operations.module";
 import { EmergencyModule } from "./modules/emergency/emergency.module";
-import { JwtAuthGuard } from "./modules/auth/guards/jwt-auth.guard";
+import { JwtAuthGuard } from "./modules/identity/infrastructure/guards/jwt-auth.guard";
 import { HealthModule } from "./modules/health/health.module";
-import { HotelUsersModule } from "./modules/hotel-users/hotel-users.module";
-import { HotelsModule } from "./modules/hotels/hotels.module";
-import { RbacModule } from "./modules/rbac/rbac.module";
+import { PropertyModule } from "./modules/property/property.module";
 import { TenantOwnersModule } from "./modules/tenant-owners/tenant-owners.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { AuthorizationGuard } from "./shared/guard/authorization.guard";
@@ -27,14 +25,12 @@ import { AuthRateLimitGuard } from "./common/security/auth-rate-limit.guard";
     HealthModule,
     LoggingModule,
     PrismaModule,
-    AuthModule,
-    RbacModule,
+    IdentityModule,
     TenantOwnersModule,
-    HotelUsersModule,
-    HotelsModule,
+    PropertyModule,
     CodesModule,
     BillingModule,
-    GuestOsModule,
+    GuestOperationsModule,
     EmergencyModule,
     TelegramModule,
   ],

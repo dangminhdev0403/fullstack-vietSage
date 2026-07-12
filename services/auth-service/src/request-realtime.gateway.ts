@@ -10,9 +10,9 @@ import {
   WebSocketServer,
 } from "@nestjs/websockets";
 import type { Server, Socket } from "socket.io";
-import { AuthService } from "./modules/auth/auth.service";
-import { GuestOsService } from "./modules/guest-os/guest-os.service";
-import { HotelAccessService } from "./modules/hotels/hotel-access.service";
+import { AuthService } from "./modules/identity/identity-public";
+import { GuestOsService } from "./modules/guest-operations/guest-operations-public";
+import { HotelAccessService } from "./modules/property/property-public";
 import { AppLogger } from "./common/logging/app-logger.service";
 import { RequestRealtimeEmitter } from "./request-realtime.emitter";
 import { loadAppConfig } from "./common/config/env.config";
@@ -111,7 +111,7 @@ export class RequestRealtimeGateway
       });
       socket.emit("request_realtime.joined", { room: "owner_hotel_requests", hotelId });
       return { ok: true, room: "owner_hotel_requests" };
-    } catch (error) {
+    } catch {
       socket.emit("request_realtime.error", { message: "Unauthorized hotel request room" });
       return { ok: false };
     }
@@ -142,7 +142,7 @@ export class RequestRealtimeGateway
       });
       socket.emit("request_realtime.joined", { room: "guest_session" });
       return { ok: true, room: "guest_session" };
-    } catch (error) {
+    } catch {
       socket.emit("request_realtime.error", { message: "Unauthorized guest request room" });
       return { ok: false };
     }

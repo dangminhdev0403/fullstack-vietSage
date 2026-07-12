@@ -1,12 +1,12 @@
 import { Module } from "@nestjs/common";
 import { PrismaModule } from "../../prisma/prisma.module";
-import { GuestOsModule } from "../guest-os/guest-os.module";
+import { GuestOperationsModule } from "../guest-operations/guest-operations.module";
 import { EmergencyController } from "./emergency.controller";
 import { EmergencyRepository } from "./emergency.repository";
 import { EmergencyService } from "./emergency.service";
 
 @Module({
-  imports: [PrismaModule, GuestOsModule],
+  imports: [PrismaModule, GuestOperationsModule],
   controllers: [EmergencyController],
   providers: [EmergencyService, EmergencyRepository],
   exports: [EmergencyService, EmergencyRepository],
