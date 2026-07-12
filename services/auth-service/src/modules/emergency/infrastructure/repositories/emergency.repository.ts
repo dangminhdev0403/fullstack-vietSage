@@ -7,18 +7,11 @@ import {
   EmergencyLocationSource,
   Prisma,
 } from "@prisma/client";
-import { PrismaService } from "../../prisma/prisma.service";
+import { PrismaService } from "../../../../prisma/prisma.service";
 
 @Injectable()
 export class EmergencyRepository {
   constructor(private readonly prisma: PrismaService) {}
-
-  findGuestSession(sessionId: string) {
-    return this.prisma.guestSession.findUnique({
-      where: { id: sessionId },
-      include: { hotel: true, room: true, stay: true, emergencyLocationContexts: true },
-    });
-  }
 
   findLocation(locationId: string) {
     return this.prisma.emergencyLocation.findUnique({ where: { id: locationId } });

@@ -9,7 +9,7 @@ Last updated: 2026-07-12
 - Stack: NestJS 11, Prisma 7, PostgreSQL, Zod
 - Runtime architecture: modular monolith
 - API contract: Swagger/OpenAPI export via `npm run openapi:export`
-- Current active contexts: identity/access (`src/modules/identity`), organization/tenancy (`src/modules/organization` with `/tenant-owners` API routes preserved), property (`src/modules/property` with `/hotels` API routes preserved), guest operations (`src/modules/guest-operations` with `/guest` and `/hotels/:hotelId/requests*` API routes preserved), billing (`src/modules/billing` with `api/application/domain/infrastructure` structure), emergency, notifications, codes, health
+- Current active contexts: identity/access (`src/modules/identity`), organization/tenancy (`src/modules/organization` with `/tenant-owners` API routes preserved), property (`src/modules/property` with `/hotels` API routes preserved), guest operations (`src/modules/guest-operations` with `/guest` and `/hotels/:hotelId/requests*` API routes preserved), billing (`src/modules/billing` with `api/application/domain/infrastructure` structure), emergency (`src/modules/emergency` with `api/application/domain/infrastructure` structure and `/emergency/guest/calls` route preserved), notifications, codes, health
 
 ## 2. Architecture Refactor Status
 
@@ -37,6 +37,7 @@ Last updated: 2026-07-12
 - [x] Move staff-side hotel request workflow into `src/modules/guest-operations` while preserving `/hotels/:hotelId/requests*` routes.
 - [x] Move tenant owner management into `src/modules/organization` while preserving `/tenant-owners` routes.
 - [x] Restructure `src/modules/billing` into `api/application/domain/infrastructure/tests` without API changes.
+- [x] Harden `src/modules/emergency` into `api/application/domain/infrastructure/tests`, keep `/emergency/guest/calls`, and consume guest context through the Guest Operations public port.
 - [x] Split Telegram provider and notification route management into `src/modules/notifications` after boundary/webhook tests covered seams.
 - [x] Replace Telegram webhook URL-path secret with header secret validation on `/integrations/telegram/webhook`.
 - [ ] Export OpenAPI after future HTTP contract changes.

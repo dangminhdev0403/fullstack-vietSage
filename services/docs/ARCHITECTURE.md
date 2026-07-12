@@ -39,7 +39,7 @@ services/auth-service/
       property/          # property, rooms, stays, service catalog
       guest-operations/  # guest sessions and guest/staff request workflows
       billing/           # folio/invoice/payment workflows (api/application/domain/infrastructure)
-      emergency/         # emergency workflows
+      emergency/         # emergency workflows (api/application/domain/infrastructure)
       notifications/     # notification routing, delivery, and provider webhook adapters
       codes/             # code generation
       health/            # health

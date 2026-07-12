@@ -1,13 +1,13 @@
 import { Body, Controller, Post, Req, UseGuards } from "@nestjs/common";
 import { ApiBody, ApiCreatedResponse, ApiTags } from "@nestjs/swagger";
-import { parseWithZod } from "../../common/validation/parse-with-zod";
-import { SuccessMessage } from "../../shared/decorators/success-message.decorator";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
 import {
   GuestSessionGuard,
   type RequestWithGuestSession,
-} from "../guest-operations/guest-operations-public";
-import { EmergencyService } from "./emergency.service";
-import { createEmergencyCallBodySchema } from "./schemas/emergency.schema";
+} from "../../guest-operations/guest-operations-public";
+import { EmergencyService } from "../application/emergency.service";
+import { createEmergencyCallBodySchema } from "../domain/schemas/emergency.schema";
 
 @ApiTags("emergency")
 @Controller("emergency")

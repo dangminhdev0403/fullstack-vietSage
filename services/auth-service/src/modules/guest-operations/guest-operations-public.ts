@@ -9,3 +9,8 @@ export {
   GuestSessionGuard,
   type RequestWithGuestSession,
 } from "./infrastructure/guards/guest-session.guard";
+
+export {
+  GuestEmergencyContextService,
+  type GuestEmergencyContext,
+} from "./application/guest-emergency-context.service";

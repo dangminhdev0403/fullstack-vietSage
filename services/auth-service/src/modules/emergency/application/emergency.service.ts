@@ -5,23 +5,27 @@ import {
   EmergencyLocationConfidence,
   EmergencyLocationSource,
 } from "@prisma/client";
-import { EmergencyRepository } from "./emergency.repository";
-import type { CreateEmergencyCallBodyInput } from "./schemas/emergency.schema";
+import { GuestEmergencyContextService } from "../../guest-operations/guest-operations-public";
+import { EmergencyRepository } from "../infrastructure/repositories/emergency.repository";
+import type { CreateEmergencyCallBodyInput } from "../domain/schemas/emergency.schema";
 
 const INCIDENT_WINDOW_MINUTES = 30;
 
 @Injectable()
 export class EmergencyService {
-  constructor(private readonly emergencyRepository: EmergencyRepository) {}
+  constructor(
+    private readonly emergencyRepository: EmergencyRepository,
+    private readonly guestEmergencyContextService: GuestEmergencyContextService,
+  ) {}
 
   async createGuestEmergencyCall(sessionId: string, dto: CreateEmergencyCallBodyInput) {
-    const session = await this.emergencyRepository.findGuestSession(sessionId);
+    const session = await this.guestEmergencyContextService.findBySessionId(sessionId);
     if (!session) {
       throw new NotFoundException("Guest session not found");
     }
 
     const resolvedLocation = await this.resolveLocation({
-      tenantId: session.hotel.tenantId,
+      tenantId: session.tenantId,
       hotelId: session.hotelId,
       requestedLocationId: dto.location?.emergencyLocationId,
       dispatchableAddress: dto.location?.dispatchableAddress,
@@ -30,15 +34,15 @@ export class EmergencyService {
     });
 
     const call = await this.emergencyRepository.createCallEvent({
-      tenantId: session.hotel.tenantId,
+      tenantId: session.tenantId,
       hotelId: session.hotelId,
       roomId: session.roomId,
-      sessionId: session.id,
+      sessionId: session.sessionId,
       emergencyLocationId: resolvedLocation.emergencyLocationId,
       sourceType: "GUEST",
-      callerReference: dto.callerReference ?? session.id,
+      callerReference: dto.callerReference ?? session.sessionId,
       dialedNumber: dto.dialedNumber,
-      callbackNumber: dto.callbackNumber ?? session.stay.guestPhone,
+      callbackNumber: dto.callbackNumber ?? session.stayGuestPhone,
       resolvedDispatchableLocation: resolvedLocation.dispatchableAddress,
       locationSource: resolvedLocation.source,
       locationConfidence: resolvedLocation.confidence,
@@ -47,17 +51,17 @@ export class EmergencyService {
       metadata: {
         ...dto.metadata,
         roomId: session.roomId,
-        roomNumber: session.room.roomNumber,
-        roomFloor: session.room.floor,
+        roomNumber: session.roomNumber,
+        roomFloor: session.roomFloor,
         safetyRule: "route-every-emergency-call-independently",
       },
     });
 
     const incident = await this.matchOrCreateIncident({
-      tenantId: session.hotel.tenantId,
+      tenantId: session.tenantId,
       hotelId: session.hotelId,
       primaryLocationId: resolvedLocation.emergencyLocationId,
-      floor: session.room.floor,
+      floor: session.roomFloor,
       callId: call.id,
       locationUncertain: resolvedLocation.uncertain,
     });
@@ -71,17 +75,17 @@ export class EmergencyService {
       {
         callId: call.id,
         roomId: session.roomId,
-        roomNumber: session.room.roomNumber,
+        roomNumber: session.roomNumber,
       },
     );
     await this.emergencyRepository.createNotification(incident.id, call.id, {
       incidentId: incident.id,
       callId: call.id,
       severity: updatedIncident.severity,
-      tenantId: session.hotel.tenantId,
+      tenantId: session.tenantId,
       hotelId: session.hotelId,
       roomId: session.roomId,
-      roomNumber: session.room.roomNumber,
+      roomNumber: session.roomNumber,
       locationUncertain: resolvedLocation.uncertain,
     });
 

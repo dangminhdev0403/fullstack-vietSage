@@ -5,6 +5,7 @@ import { NotificationsModule } from "../notifications/notifications.module";
 import { PropertyModule } from "../property/property.module";
 import { GuestOsController } from "./api/guest-os.controller";
 import { HotelRequestsController } from "./api/hotel-requests.controller";
+import { GuestEmergencyContextService } from "./application/guest-emergency-context.service";
 import { GuestOsService } from "./application/guest-os.service";
 import { HotelRequestsService } from "./application/hotel-requests.service";
 import { GuestSessionGuard } from "./infrastructure/guards/guest-session.guard";
@@ -16,11 +17,12 @@ import { HotelRequestsRepository } from "./infrastructure/repositories/hotel-req
   controllers: [GuestOsController, HotelRequestsController],
   providers: [
     GuestOsService,
+    GuestEmergencyContextService,
     HotelRequestsService,
     GuestOsRepository,
     HotelRequestsRepository,
     GuestSessionGuard,
   ],
-  exports: [GuestOsService, GuestSessionGuard],
+  exports: [GuestOsService, GuestSessionGuard, GuestEmergencyContextService],
 })
 export class GuestOperationsModule {}
