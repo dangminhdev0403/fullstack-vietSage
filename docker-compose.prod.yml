@@ -14,6 +14,7 @@ services:
       retries: 20
 
   auth-service:
+    image: vietsage-auth-service:prod
     build:
       context: ./services/auth-service
       dockerfile: Dockerfile
@@ -24,6 +25,13 @@ services:
     environment:
       NODE_ENV: production
       PORT: "8080"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     ports:
       - "127.0.0.1:${AUTH_SERVICE_PORT:-8080}:8080"
     depends_on:
@@ -36,6 +44,7 @@ services:
       retries: 12
 
   frontend:
+    image: vietsage-frontend:prod
     build:
       context: ./frontends/font-end-vietsage
       dockerfile: Dockerfile
@@ -48,13 +57,21 @@ services:
       PORT: "3000"
       HOSTNAME: 0.0.0.0
       AUTH_API_BASE_URL: http://auth-service:8080
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/.next/cache
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     ports:
       - "127.0.0.1:${FRONTEND_PORT:-3000}:3000"
     depends_on:
       auth-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/icon.png').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
       interval: 10s
       timeout: 5s
       retries: 12

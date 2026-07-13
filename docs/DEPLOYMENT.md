@@ -2,8 +2,10 @@
 
 This repo ships a production Docker Compose file and an Nginx reverse proxy template for:
 
-- `vietsage.com` -> frontend on `127.0.0.1:3000`
-- `www.vietsage.com` -> frontend on `127.0.0.1:3000`
+- `vietsage.com/` -> temporary launch-hold page served by Nginx, so the public landing page is hidden without rebuilding the frontend
+- `vietsage.com/preview` -> current landing page proxied to the frontend on `127.0.0.1:3000`
+- `www.vietsage.com/` -> temporary launch-hold page served by Nginx
+- `www.vietsage.com/preview` -> current landing page proxied to the frontend on `127.0.0.1:3000`
 - `stay.vietsage.com` -> dashboard/frontend on `127.0.0.1:3000`
 - `vietsage.com/api/*` -> auth service on `127.0.0.1:8080`
 
@@ -28,7 +30,7 @@ Then edit these files directly on the VPS and fill real values:
 
 - `secrets/production/postgres.env` — `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`
 - `secrets/production/auth-service.env` — `DATABASE_URL`, JWT secrets/TTLs, CORS, auth admin, rate limits, optional Google/Telegram values
-- `secrets/production/frontend.env` — `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, public frontend URLs/options
+- `secrets/production/frontend.env` — `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, `AUTH_SECRET`, `AUTH_TRUST_HOST`, public frontend URLs/options
 
 See `docs/SECRETS.md` for the full key inventory. Do not commit `secrets/**/*.env` or `secrets/**/*.json`.
 
@@ -46,6 +48,8 @@ docker compose -f docker-compose.yml up -d --build
 docker compose -f docker-compose.prod.yml config
 docker compose -f docker-compose.prod.yml up -d --build
 ```
+
+Production Compose builds stable local image tags (`vietsage-frontend:prod`, `vietsage-auth-service:prod`) instead of deploy-only `latest` tags. The frontend and auth-service containers run as the Node non-root user with `read_only`, `tmpfs`, `no-new-privileges`, `cap_drop: [ALL]`, and health checks. The frontend image uses Next.js standalone output and the existing `pnpm-lock.yaml`; no `package-lock.json` is required for the frontend Docker build.
 
 Check status:
 
@@ -110,7 +114,8 @@ openssl s_client -connect vietsage.com:443 -servername vietsage.com </dev/null
 
 Expected result:
 
-- HTTP returns a redirect to HTTPS.
+- HTTP returns a redirect to HTTPS after Certbot redirect mode is enabled.
 - HTTPS returns a valid certificate.
-- `vietsage.com` and `www.vietsage.com` show the marketing/frontend app.
+- `vietsage.com/` and `www.vietsage.com/` show the temporary launch-hold page.
+- `vietsage.com/preview` and `www.vietsage.com/preview` show the current marketing landing page through the frontend app.
 - `stay.vietsage.com` reaches the dashboard routes in the frontend app.
