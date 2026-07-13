@@ -46,6 +46,35 @@ Status labels:
 
 # Execution Log
 
+## [complete] 2026-07-13 - Phase 0 documentation path hygiene
+
+- Replaced stale markdown references to the old frontend folder name with `frontends/front-end-vietsage` in active documentation.
+- Updated Windows path snippets to use `.\frontends\front-end-vietsage`.
+
+Verification result:
+
+- `git diff --check` passed.
+- `rg -n "[f]ont-end-vietsage" --glob "*.md"` returned no matches.
+
+Remaining blockers/risks:
+
+- No blockers identified; this was a docs-only path hygiene pass.
+
+## [complete] 2026-07-13 - Delegation-aware approval rule for Codex workers
+
+- Updated root `docs/RULES.md` so direct user-facing sessions remain guarded, while delegated specialist/đệ/Kanban/Codex workers may execute when the launch prompt states user/Hermes already approved the scoped task.
+- Updated `frontends/front-end-vietsage/docs/RULES.md` to reference the delegation-aware approval rule and avoid asking for another interactive `CHO PHÉP SỬA` inside Codex after Hermes/user approval.
+- Clarified that stale Codex approval guards should be handled by restarting Codex with approved execution context at the top of the prompt.
+
+Verification result:
+
+- Workspace markdown search found no remaining active old approval-guard wording outside the new delegation-aware rule.
+- `git diff --check -- docs/RULES.md frontends/front-end-vietsage/docs/RULES.md` passed.
+
+Remaining blockers/risks:
+
+- Existing already-running Codex processes must be restarted to pick up the updated docs/profile instructions.
+
 ## [complete] 2026-07-13 - Mission: Frontend auth HTTP stabilization
 
 - Added browser-side single-flight refresh coordination for same-origin BFF calls through `src/core/http/internal-session-refresh.ts`.
@@ -56,13 +85,14 @@ Status labels:
 
 Verification result:
 
-- `npm run lint` was blocked because `node_modules/eslint/bin/eslint.js` is missing in this checkout.
-- `npx tsc --noEmit` was blocked because `node_modules/typescript/bin/tsc` is missing in this checkout.
+- `CI=true pnpm install --frozen-lockfile` restored the local `node_modules` tree from the existing lockfile after the renamed checkout had broken package links.
+- `npm run lint` passed.
+- `npx tsc --noEmit` passed.
+- `npm run build` passed; Next.js emitted only the known Node localStorage experimental warning during static generation.
 
 Remaining blockers/risks:
 
 - `session.accessToken` and `session.refreshToken` remain present for current server-only call sites; removing them globally needs a broader server-only token replacement pass.
-- Re-run lint and typecheck after dependencies are restored.
 
 ## [complete] 2026-06-13 - Mission: GuestOS top-left menu removal
 
@@ -920,11 +950,10 @@ Remaining blockers/risks:
 - Staff route screens are not implemented yet; staff guard is in place but full UX validation for staff pages is pending route implementation.
 - Access policy is still role-based from session claims; when backend permission keys are introduced, `canAccessPath` should be upgraded to permission-based checks.
 
-## [complete] 2026-05-27 - Strict plan mode post-plan confirmation update
+## [complete] 2026-05-27 - Legacy direct-approval guard update (superseded)
 
-- Updated `docs/RULES.md` to require a mandatory post-plan confirmation question: `Cho phï¿½p s?a?`.
-- Clarified that `Cho phï¿½p s?a?` is only a confirmation question and does not grant edit permission.
-- Kept the strict approval rule unchanged: edits are still allowed only after an exact approved command.
+- Historical note: this entry described the older direct-user confirmation guard in `docs/RULES.md`.
+- Superseded on 2026-07-13 by the delegation-aware approval rule: direct user-facing sessions remain guarded, but delegated specialist/đệ/Kanban/Codex workers do not ask for another confirmation when Hermes/user approval is already present in the launch prompt.
 
 Verification result:
 

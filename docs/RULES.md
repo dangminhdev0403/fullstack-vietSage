@@ -8,7 +8,7 @@ Applies to markdown files under:
 
 - `docs/`
 - `services/docs/`
-- `frontends/font-end-vietsage/docs/`
+- `frontends/front-end-vietsage/docs/`
 - `shared/api-contract/docs/`
 
 ## Canonical Documentation Locations
@@ -17,20 +17,22 @@ Applies to markdown files under:
 | --- | --- | --- |
 | Cross-system docs | `docs/` | `ARCHITECTURE.md`, `RULES.md`, `SERVICE_BOUNDARY.md`, `EVENT_FLOW.md`, `RBAC_ARCHITECTURE.md`, `DEPLOYMENT.md`, `SECRETS.md` |
 | Backend docs | `services/docs/` | `ARCHITECTURE.md`, `RULES.md`, `PLANS.md`, `MODULE_GUIDE.md`, `CONTRACT_GUIDE.md`, `EXTENSION_GUIDE.md` |
-| Frontend docs | `frontends/font-end-vietsage/docs/` | `ARCHITECTURE.md`, `RULES.md`, `PLANS.md`, `MODULE_GUIDE.md`, `CONTRACT_GUIDE.md`, `RUNTIME_UI_GUIDE.md`, `DESIGN.md` |
+| Frontend docs | `frontends/front-end-vietsage/docs/` | `ARCHITECTURE.md`, `RULES.md`, `PLANS.md`, `MODULE_GUIDE.md`, `CONTRACT_GUIDE.md`, `RUNTIME_UI_GUIDE.md`, `DESIGN.md` |
 | Shared API contract docs | `shared/api-contract/docs/` | `API_CATALOG.md`, `CONTRACT_CHANGES.md` |
 
 README files may remain at package/folder roots only when they are entry points for that package or directory. Detailed architecture, plans, rules, runbooks, and guides should live in the matching `docs/` folder.
 
-## Global Execution Rule: STRICT PLAN MODE
+## Global Execution Rule: Delegation-Aware Approval
 
-STRICT PLAN MODE.
+This repository uses a two-layer approval model: direct user-facing planning remains guarded, while delegated specialist/Codex workers may execute inside an already-approved scope.
 
-Read-only until explicit approval.
+### Direct user-facing sessions
 
-Do not edit, create, delete, move, rename, format, refactor, overwrite, install, migrate, auto-fix, update docs, update git state, or modify any file.
+When the assistant is speaking directly with the user and no prior approval has been granted for the current scope, stay read-only until explicit approval.
 
-Allowed only:
+Do not edit, create, delete, move, rename, format, refactor, overwrite, install, migrate, auto-fix, update docs, update git state, or modify any file before approval.
+
+Allowed before approval only:
 
 - read
 - search
@@ -49,16 +51,33 @@ Collaborate with the user before editing:
 6. state risks/trade-offs
 7. wait for explicit approval
 
-Do not switch to editing unless the user writes exactly one of:
+For direct user-facing sessions, approval may be an exact command such as:
 
 - EXECUTE MODE
 - APPLY PLAN
 - CHO PHÉP SỬA
 - TIẾN HÀNH SỬA
 
-Words like "ok", "tiếp", "làm đi", "được" are not enough.
+or an unambiguous user approval message that explicitly accepts execution for the proposed scope.
 
-PLAN MODE output format:
+### Delegated specialist / Codex worker sessions
+
+When a specialist/đệ, Kanban worker, or Codex process is launched by Hermes after the user has already approved the task, do not stop to request `PLAN MODE`, `EXECUTE MODE`, `CHO PHÉP SỬA`, or another confirmation from the user again.
+
+Treat the delegation prompt as approved execution context when it states that user/Hermes has approved the scoped task. Execute only that scoped task.
+
+The delegated worker must still:
+
+- preserve unrelated dirty worktree changes;
+- keep changes limited to the approved scope;
+- avoid destructive database, Prisma reset, Docker cleanup, deployment, credential, or git-history operations unless those are explicitly approved in the delegated prompt;
+- inspect the resulting diff;
+- run the smallest reliable validation command;
+- report files inspected, files changed, validation results, docs updated, and remaining risks/blockers.
+
+If a delegated Codex process still pauses at an approval guard, restart it with the approval context at the top of the prompt instead of waiting for an interactive approval inside the process.
+
+PLAN MODE output format for direct planning-only sessions:
 
 - Files inspected
 - Current issue
@@ -70,16 +89,6 @@ PLAN MODE output format:
 - Verification steps
 - Rollback strategy
 - Approval required
-
-Final line must be:
-
-`Plan complete. No files modified. Send EXECUTE MODE or CHO PHÉP SỬA to apply changes.`
-
-Post-plan confirmation is mandatory:
-
-- After the PLAN MODE output, the assistant must ask exactly: `Cho phép sửa?`
-- `Cho phép sửa?` is a confirmation question only and does not grant edit permission by itself.
-- Editing is still allowed only when the user then sends one exact approval command from the approved list.
 
 ## Source of Truth Rules
 

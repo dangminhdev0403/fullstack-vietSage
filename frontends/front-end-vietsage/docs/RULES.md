@@ -133,16 +133,13 @@ Do not mark work as complete until documentation sync is finished.
 
 ## Execution Contract (Mandatory)
 
-This frontend scope follows the repository-level `STRICT PLAN MODE` in `../../../../docs/RULES.md`.
+This frontend scope follows the repository-level delegation-aware approval rule in `../../../../docs/RULES.md`.
 
-Do not switch from planning/analysis to editing unless the user writes exactly one approved command from the root rules:
+For direct user-facing sessions, stay read-only until the user explicitly approves the proposed scope.
 
-- `EXECUTE MODE`
-- `APPLY PLAN`
-- `CHO PHÉP SỬA`
-- `TIẾN HÀNH SỬA`
+For delegated specialist/đệ/Kanban/Codex worker sessions, do not ask for another confirmation when the launch prompt states that user/Hermes has already approved execution. Treat that prompt as the approved execution context and work only inside the delegated scope.
 
-Phrases like `ok`, `do it`, `fix it`, `upgrade now`, `implement`, `tiếp`, or `làm đi` are not enough by themselves.
+If Codex stops at a stale approval guard, restart Codex with the approved execution context at the top of the prompt instead of waiting for an interactive `CHO PHÉP SỬA` inside the process.
 
 After explicit approval:
 
