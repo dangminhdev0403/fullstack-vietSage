@@ -5,7 +5,14 @@ import { getDefaultPathForRoles } from "./lib/rbac";
 
 const protectedPrefixes = ["/admin", "/owner", "/staff", "/hotels"] as const;
 const authRoutes = new Set(["/login", "/register"]);
-const nextAuthCookiePrefixes = ["next-auth.", "__Secure-next-auth.", "__Host-next-auth."] as const;
+const nextAuthCookiePrefixes = [
+  "next-auth.",
+  "__Secure-next-auth.",
+  "__Host-next-auth.",
+  "authjs.",
+  "__Secure-authjs.",
+  "__Host-authjs.",
+] as const;
 const REFRESH_SESSION_EARLY_MS = 10_000;
 
 function matchesPrefix(pathname: string, prefix: string): boolean {

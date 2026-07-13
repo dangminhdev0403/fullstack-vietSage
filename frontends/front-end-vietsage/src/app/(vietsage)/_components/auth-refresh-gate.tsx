@@ -2,12 +2,14 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 
-import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import {
+  AUTH_LOGOUT_REQUIRED_EVENT_NAME,
+  refreshInternalSession,
+} from "@/core/http/internal-session-refresh";
 
 const REFRESH_GATE_EARLY_MS = 10_000;
-const AUTH_LOGOUT_REQUIRED_EVENT = "vietsage:auth:logout-required";
 
 type AuthRefreshGateProps = {
   accessTokenExpiresAt: number | null;
@@ -30,9 +32,8 @@ export function AuthRefreshGate({
 }: AuthRefreshGateProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const refreshStartedRef = useRef(false);
   const logoutStartedRef = useRef(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     function handleLogoutRequired(event: Event) {
@@ -41,7 +42,6 @@ export function AuthRefreshGate({
       }
 
       logoutStartedRef.current = true;
-      setIsRefreshing(true);
 
       const detail = event instanceof CustomEvent ? event.detail : null;
       console.warn("[AUTH_LOGOUT_REQUIRED]", {
@@ -54,23 +54,21 @@ export function AuthRefreshGate({
       void logoutToLogin(pathname);
     }
 
-    window.addEventListener(AUTH_LOGOUT_REQUIRED_EVENT, handleLogoutRequired);
+    window.addEventListener(AUTH_LOGOUT_REQUIRED_EVENT_NAME, handleLogoutRequired);
     return () => {
-      window.removeEventListener(AUTH_LOGOUT_REQUIRED_EVENT, handleLogoutRequired);
+      window.removeEventListener(AUTH_LOGOUT_REQUIRED_EVENT_NAME, handleLogoutRequired);
     };
   }, [pathname]);
 
   useEffect(() => {
-    const shouldRefresh =
-      typeof accessTokenExpiresAt === "number" &&
-      accessTokenExpiresAt <= Date.now() + REFRESH_GATE_EARLY_MS;
-
-    if (!shouldRefresh || refreshStartedRef.current) {
-      return;
+    if (refreshTimerRef.current) {
+      clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = null;
     }
 
-    refreshStartedRef.current = true;
-    setIsRefreshing(true);
+    if (typeof accessTokenExpiresAt !== "number") {
+      return;
+    }
 
     async function refreshSession() {
       console.info("[AUTH_REFRESH_GATE_START]", {
@@ -80,14 +78,7 @@ export function AuthRefreshGate({
       });
 
       try {
-        const payload = await requestInternalApiEnvelope<{ accessTokenExpiresAt: number }>("/api/auth/refresh-session", {
-          method: "POST",
-        });
-
-        if ((payload as { ok?: unknown }).ok !== true) {
-          throw new Error(`Session refresh failed with status ${payload.status}`);
-        }
-
+        await refreshInternalSession();
         console.info("[AUTH_REFRESH_GATE_SUCCESS]", {
           pathname,
           timestamp: Date.now(),
@@ -102,17 +93,21 @@ export function AuthRefreshGate({
         });
 
         await logoutToLogin(pathname);
-      } finally {
-        setIsRefreshing(false);
       }
     }
 
-    void refreshSession();
-  }, [accessTokenExpiresAt, pathname, router]);
+    const delayMs = Math.max(0, accessTokenExpiresAt - Date.now() - REFRESH_GATE_EARLY_MS);
+    refreshTimerRef.current = setTimeout(() => {
+      void refreshSession();
+    }, delayMs);
 
-  if (isRefreshing) {
-    return null;
-  }
+    return () => {
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current);
+        refreshTimerRef.current = null;
+      }
+    };
+  }, [accessTokenExpiresAt, pathname, router]);
 
   return <>{children}</>;
 }

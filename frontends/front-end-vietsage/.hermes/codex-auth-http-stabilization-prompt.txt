@@ -1,0 +1,41 @@
+CHO PHÉP SỬA
+
+User has approved implementation using the exact repo-approved command above.
+
+Implement the approved VietSage frontend auth/HTTP stabilization phase with a narrow, safe scope.
+
+Workdir is the frontend repo root: C:\Users\Dangminhdev0403\Desktop\workspace\fullstack-vietSage\frontends\front-end-vietsage
+Work ONLY inside this frontend repo.
+Preserve all unrelated dirty files.
+Do not modify package.json, package-lock.json, backend services, deploy, docker, nginx, or root docs outside frontend unless already task-specific.
+Do not touch C:\Users\Dangminhdev0403\Desktop\workspace\fullstack-vietSage\frontends\font-end-vietsage; that is the old renamed path.
+
+Before changing files, read:
+- ../../AGENTS.md
+- AGENTS.md
+- docs/ARCHITECTURE.md
+- docs/RULES.md
+- docs/CONTRACT_GUIDE.md
+- docs/RUNTIME_UI_GUIDE.md
+- docs/PLANS.md
+
+Goal: reduce auth refresh instability without changing backend contracts.
+
+Required changes:
+1) Add a browser-side single-flight session refresh coordinator for same-origin BFF calls.
+2) Refactor src/core/http/internal-api-client.ts so browser calls to /api/... use same-origin fetch with credentials, retry exactly once after 401 by POSTing /api/auth/refresh-session, then dispatch a single auth logout/redirect signal if refresh/retry fails. Do not use backend HttpClient for internal BFF calls.
+3) Make /api/auth/refresh-session return only non-sensitive metadata such as accessTokenExpiresAt, never accessToken or refreshToken.
+4) Make /api/auth/refresh stop exposing raw accessToken/refreshToken to browser clients or safely delegate/deprecate it while preserving compatibility where possible.
+5) Adjust AuthRefreshGate so it performs background scheduled refresh and never renders null/blank UI during refresh.
+6) Update proxy cookie cleanup to include Auth.js v5 authjs cookie prefixes/chunks.
+7) Update frontend docs/PLANS.md with a completion entry for this mission.
+
+Constraints:
+- Do not remove session.accessToken/session.refreshToken globally unless you also implement a safe server-only token replacement for all current server call sites.
+- If full browser-token removal is not feasible in this phase, document it as a remaining risk.
+- Do not add dependencies.
+- Keep route handlers thin.
+- Keep transport free from UI routing where practical.
+- Run npm run lint and npx tsc --noEmit if feasible, and report any blockers.
+
+Return concise summary with files changed and verification results.

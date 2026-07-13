@@ -44,12 +44,9 @@ const LOG_REDACTED_KEYS = new Set(["accessToken", "refreshToken"]);
 const AUTH_LOGOUT_REQUIRED_EVENT = "vietsage:auth:logout-required";
 
 type ClientRefreshResult = {
-  accessToken: string;
-  refreshToken: string;
   accessTokenExpiresAt: number;
 };
 
-let clientAccessToken: string | null = null;
 let clientAccessTokenExpiresAt: number | null = null;
 let clientRefreshInFlight: Promise<ClientRefreshResult> | null = null;
 let lastClientRefreshResult: ClientRefreshResult | null = null;
@@ -135,8 +132,8 @@ function isClientRefreshEligible(options: {
   return typeof options.accessTokenExpiresAt === "number" || clientAccessTokenExpiresAt !== null;
 }
 
-function seedClientAuth(accessToken?: string, accessTokenExpiresAt?: number | null): void {
-  if (!accessToken || typeof accessTokenExpiresAt !== "number") {
+function seedClientAuth(accessTokenExpiresAt?: number | null): void {
+  if (typeof accessTokenExpiresAt !== "number") {
     return;
   }
 
@@ -144,12 +141,11 @@ function seedClientAuth(accessToken?: string, accessTokenExpiresAt?: number | nu
     return;
   }
 
-  clientAccessToken = accessToken;
   clientAccessTokenExpiresAt = accessTokenExpiresAt;
 }
 
 function getClientAccessToken(fallbackAccessToken?: string): string | undefined {
-  return clientAccessToken ?? fallbackAccessToken;
+  return fallbackAccessToken;
 }
 
 function shouldRefreshClientAccessToken(): boolean {
@@ -171,17 +167,11 @@ function parseClientRefreshResult(payload: unknown): ClientRefreshResult | null 
   }
 
   const result = data as Partial<ClientRefreshResult>;
-  if (
-    typeof result.accessToken !== "string" ||
-    typeof result.refreshToken !== "string" ||
-    typeof result.accessTokenExpiresAt !== "number"
-  ) {
+  if (typeof result.accessTokenExpiresAt !== "number") {
     return null;
   }
 
   return {
-    accessToken: result.accessToken,
-    refreshToken: result.refreshToken,
     accessTokenExpiresAt: result.accessTokenExpiresAt,
   };
 }
@@ -209,9 +199,10 @@ async function refreshClientAccessToken(): Promise<ClientRefreshResult> {
     timestamp: now,
   });
 
-  clientRefreshInFlight = fetch("/api/auth/refresh", {
+  clientRefreshInFlight = fetch("/api/auth/refresh-session", {
     method: "POST",
     headers: { Accept: "application/json" },
+    credentials: "same-origin",
     cache: "no-store",
   })
     .then(async (response) => {
@@ -225,7 +216,6 @@ async function refreshClientAccessToken(): Promise<ClientRefreshResult> {
         throw new Error("Client refresh response is invalid");
       }
 
-      clientAccessToken = refreshedTokens.accessToken;
       clientAccessTokenExpiresAt = refreshedTokens.accessTokenExpiresAt;
       lastClientRefreshResult = refreshedTokens;
       lastClientRefreshAt = Date.now();
@@ -274,12 +264,12 @@ async function refreshClientAccessTokenIfNeeded(options: {
     return options.accessToken;
   }
 
-  seedClientAuth(options.accessToken, options.accessTokenExpiresAt);
+  seedClientAuth(options.accessTokenExpiresAt);
 
   if (shouldRefreshClientAccessToken()) {
     try {
-      const refreshedTokens = await refreshClientAccessToken();
-      return refreshedTokens.accessToken;
+      await refreshClientAccessToken();
+      return getClientAccessToken(options.accessToken);
     } catch (error) {
       console.warn("[CLIENT_AUTH_REFRESH_FAILED]", {
         errorMessage: error instanceof Error ? error.message : "Unknown refresh error",
@@ -532,8 +522,6 @@ export class HttpClient {
             const refreshedTokens = isBrowserRuntime() ? await refreshClientAccessToken() : await refreshServerAccessToken();
 
             if (refreshedTokens) {
-              headers.set("Authorization", `Bearer ${refreshedTokens.accessToken}`);
-
               const retryResponse = await fetch(url, {
                 method: options.method,
                 headers,

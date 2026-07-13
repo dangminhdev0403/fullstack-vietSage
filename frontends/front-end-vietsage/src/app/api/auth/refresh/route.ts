@@ -63,10 +63,8 @@ export async function POST() {
     return NextResponse.json({
       status: 200,
       error: null,
-      message: "Token refreshed successfully",
+      message: "Session refreshed successfully",
       data: {
-        accessToken: refreshedTokens.accessToken,
-        refreshToken: refreshedTokens.refreshToken,
         accessTokenExpiresAt: refreshedTokens.accessTokenExpiresAt,
       },
     });

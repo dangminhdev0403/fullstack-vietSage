@@ -46,6 +46,24 @@ Status labels:
 
 # Execution Log
 
+## [complete] 2026-07-13 - Mission: Frontend auth HTTP stabilization
+
+- Added browser-side single-flight refresh coordination for same-origin BFF calls through `src/core/http/internal-session-refresh.ts`.
+- Refactored `src/core/http/internal-api-client.ts` to use same-origin `fetch` with credentials for `/api/...` calls, retry exactly once after `401` via `POST /api/auth/refresh-session`, and emit a single logout-required signal when refresh/retry fails.
+- Kept `/api/auth/refresh-session` browser response limited to `accessTokenExpiresAt`, and changed `/api/auth/refresh` compatibility output to stop returning raw `accessToken` / `refreshToken`.
+- Updated `AuthRefreshGate` to schedule background refresh without blanking protected UI while the refresh is in progress.
+- Extended proxy auth cookie cleanup to include Auth.js v5 `authjs` cookie prefixes and chunks.
+
+Verification result:
+
+- `npm run lint` was blocked because `node_modules/eslint/bin/eslint.js` is missing in this checkout.
+- `npx tsc --noEmit` was blocked because `node_modules/typescript/bin/tsc` is missing in this checkout.
+
+Remaining blockers/risks:
+
+- `session.accessToken` and `session.refreshToken` remain present for current server-only call sites; removing them globally needs a broader server-only token replacement pass.
+- Re-run lint and typecheck after dependencies are restored.
+
 ## [complete] 2026-06-13 - Mission: GuestOS top-left menu removal
 
 - Removed the top-left hamburger control from GuestOS Home, Services, and Requests pages by disabling the shared top-bar left control for those screens.
