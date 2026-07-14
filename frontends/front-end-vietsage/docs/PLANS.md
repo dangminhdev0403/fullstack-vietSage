@@ -1608,3 +1608,28 @@ Remaining blockers/risks:
 ### Remaining Blockers / Risks
 
 - Browser visual smoke testing was not run; desktop dropdown alignment should still be confirmed in a browser.
+
+## [complete] 2026-07-14 - Guest Experience Redesign (Phases 0-3)
+
+### What Changed
+
+- Added the approved exact `motion@12.42.2` dependency, Guest Experience product definition, and reduced-motion-aware Guest motion provider, page transition, reveal, stagger, and timing tokens.
+- Completed the phased Guest redesign across QR entry, language selection, home, services, requests, shared Guest states, top navigation, and bottom navigation while preserving existing sessions, APIs, contracts, auth, and realtime behavior.
+- Refactored `/g/requests` from an 810-line mixed route into a 119-line orchestration page plus feature presentation components for the hero, current request, semantic progress, filters, list, cards, loading/error/empty states, and CTA.
+- Preserved request list/cancel calls, realtime handlers, status mapping, `ENDED` semantics, search, selected-request priority, price calculations, SweetAlert confirmation, and toast feedback.
+- Removed nested interactive controls from request cards, added separate semantic select/cancel buttons, visible search labeling, `aria-pressed` filters, focus-visible states, 44px targets, safe mobile padding, and recovery actions.
+- Removed obsolete Guest legacy rise/delay/breathe/flow CSS after repository-wide usage checks, capped Guest comfort transitions at 300ms, and stopped the QR loading spinner from repeating when reduced motion is preferred.
+
+### Verification Result
+
+- Ran focused ESLint for all `/g` pages, all Guest components, and the changed shared top/bottom navigation successfully with zero errors or warnings.
+- Ran `pnpm exec tsc --noEmit` successfully.
+- Ran `pnpm build` successfully with Next.js 16.2.6.
+- Ran `git diff --check` successfully; only checkout LF-to-CRLF warnings were reported.
+- Verified no Guest usage remains for `.vs-rise-in`, `.vs-delay-*`, `.vs-breathe`, `.vs-flow-line`, `duration-500`, or `duration-1000`; the only remaining infinite Guest motion is the meaningful QR loader and its `useReducedMotion` branch does not repeat.
+- Verified no `role="button"` or manual `tabIndex={0}` interactive emulation remains in Guest routes/components.
+
+### Remaining Blockers / Risks
+
+- Physical-device browser QA remains recommended for narrow-screen wrapping, sticky bottom navigation safe areas, SweetAlert focus behavior, realtime status transitions, and reduced-motion behavior on iOS Safari and Android Chrome.
+- The CTA image remains remotely hosted, so browser QA should confirm loading behavior under slow hotel Wi-Fi.

@@ -59,7 +59,7 @@ export function VsTopBar({
             <button
               type="button"
               aria-label={icon === "arrow_back" ? "Quay lai" : "Mo menu"}
-              className="flex items-center justify-center rounded-full p-2 text-[#24473d] transition-colors hover:bg-[#24473d]/10"
+              className="flex size-11 items-center justify-center rounded-full text-[#24473d] transition-colors hover:bg-[#24473d]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b18b26]"
             >
               <VsIcon name={icon} className="text-[24px]" />
             </button>
@@ -99,14 +99,14 @@ export function VsTopBar({
           <Link
             href="/g/language"
             aria-label="Change language"
-            className="flex size-10 items-center justify-center rounded-full bg-[#e8e5dc] text-[11px] font-black uppercase tracking-[0.08em] text-[#24473d] shadow-[inset_0_0_0_1px_rgba(36,71,61,0.04)] transition-colors hover:bg-[#ded9cc]"
+            className="flex size-11 items-center justify-center rounded-full bg-[#e8e5dc] text-[11px] font-black uppercase tracking-[0.08em] text-[#24473d] shadow-[inset_0_0_0_1px_rgba(36,71,61,0.04)] transition-colors hover:bg-[#ded9cc] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b18b26]"
           >
             {languageBadge}
           </Link>
           <button
             type="button"
             aria-label="Tai khoan"
-            className="flex items-center justify-center rounded-full p-2 transition-colors hover:bg-[#24473d]/10"
+            className="flex size-11 items-center justify-center rounded-full transition-colors hover:bg-[#24473d]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b18b26]"
           >
             <VsIcon name="account_circle" className="text-[24px]" />
           </button>

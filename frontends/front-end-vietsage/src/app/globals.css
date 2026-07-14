@@ -470,31 +470,15 @@ button:disabled,
   line-height: 1.12;
 }
 
-.vs-rise-in {
-  animation: vs-rise-in 920ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.vs-delay-1 {
-  animation-delay: 140ms;
-}
-
-.vs-delay-2 {
-  animation-delay: 280ms;
-}
-
-.vs-delay-3 {
-  animation-delay: 420ms;
-}
-
 .vs-comfort-card {
   border: 1px solid rgba(37, 72, 63, 0.1);
   background: rgba(255, 255, 255, 0.84);
   box-shadow: 0 18px 46px rgba(31, 61, 53, 0.09);
   transition:
-    transform 360ms cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 360ms cubic-bezier(0.16, 1, 0.3, 1),
-    border-color 360ms ease,
-    background 360ms ease;
+    transform 300ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 300ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 300ms ease,
+    background 300ms ease;
 }
 
 .vs-comfort-card:hover {
@@ -518,16 +502,6 @@ button:disabled,
 
 .vs-touch-button:active {
   transform: translateY(1px) scale(0.99);
-}
-
-.vs-breathe {
-  animation: vs-breathe 7.2s ease-in-out infinite;
-}
-
-.vs-flow-line {
-  background-image: linear-gradient(90deg, #e8c65e, #25483f, #e8c65e);
-  background-size: 220% 100%;
-  animation: vs-flow-line 5.6s ease-in-out infinite;
 }
 
 .vs-owner-reveal {
@@ -604,43 +578,6 @@ button:disabled,
   display: inline-block;
   min-width: 1ch;
   font-variant-numeric: tabular-nums;
-}
-
-@keyframes vs-rise-in {
-  from {
-    opacity: 0;
-    transform: translateY(18px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes vs-breathe {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-
-  50% {
-    transform: translateY(-4px);
-  }
-}
-
-@keyframes vs-flow-line {
-  0% {
-    background-position: 0% 50%;
-  }
-
-  50% {
-    background-position: 100% 50%;
-  }
-
-  100% {
-    background-position: 0% 50%;
-  }
 }
 
 @keyframes vs-owner-rise {

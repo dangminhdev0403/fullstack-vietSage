@@ -22,22 +22,26 @@ export function VsBottomNav({ active }: VsBottomNavProps) {
   const { t } = useGuestI18n();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 h-20 rounded-t-xl border-t border-[color:rgba(198,197,213,0.2)] bg-[color:rgba(249,249,249,0.9)] px-4 shadow-lg backdrop-blur-xl md:hidden">
+    <nav
+      aria-label="Guest navigation"
+      className="fixed bottom-0 left-0 right-0 z-50 rounded-t-xl border-t border-[#25483f]/10 bg-[#fffdfa]/92 px-4 shadow-[0_-12px_36px_rgba(31,61,53,0.1)] backdrop-blur-xl md:hidden"
+      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+    >
       <ul
-        className="mx-auto flex h-full max-w-[390px] items-center justify-around"
-        style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0px)" }}
+        className="mx-auto flex h-20 max-w-[390px] items-center justify-around"
       >
         {navItems.map((item) => {
           const isActive = item.key === active;
 
           return (
-            <li key={item.key}>
+            <li key={item.key} className="flex-1">
               <Link
                 href={item.href}
-                className={`flex flex-col items-center justify-center rounded-lg p-2 text-[11px] font-semibold transition-all ${
+                aria-current={isActive ? "page" : undefined}
+                className={`mx-auto flex min-h-11 w-full max-w-24 flex-col items-center justify-center rounded-xl px-2 py-1.5 text-[11px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b18b26] ${
                   isActive
-                    ? "scale-110 text-[var(--primary)]"
-                    : "text-[color:rgba(70,70,83,0.7)] hover:bg-[color:rgba(226,226,226,0.2)]"
+                    ? "bg-[#25483f]/9 text-[#25483f]"
+                    : "text-[#66736b] hover:bg-[#25483f]/6 hover:text-[#25483f]"
                 }`}
               >
                 <VsIcon name={item.icon} className="text-[22px]" />

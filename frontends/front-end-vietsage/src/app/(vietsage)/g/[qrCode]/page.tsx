@@ -2,9 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { AnimatePresence, m, useReducedMotion } from "motion/react";
 
 import { VsIcon } from "../../_components/vs-icon";
 import { HttpError } from "@/core/http/http-error";
+import { guestMotionTokens } from "@/features/guest-os/components/motion/guest-motion-tokens";
+import { GuestStateCard } from "@/features/guest-os/components/shared/guest-state-card";
 import { useGuestI18n } from "@/features/guest-os/i18n/use-guest-i18n";
 import { guestOsService } from "@/features/guest-os/service/guest-os-service-instance";
 import { useGuestStore, useGuestStoreHydrated } from "@/features/guest-os/store/guest-store";
@@ -100,42 +103,27 @@ function getGuestQrErrorKey(error: unknown): string {
   return GUEST_QR_ERROR_KEYS[status] ?? GUEST_QR_ERROR_KEYS[500];
 }
 
-function QrStateCard({ title, message, isLoading = false }: { title: string; message: string; isLoading?: boolean }) {
-  return (
-    <main className="vs-guest-readable grid min-h-screen place-items-center bg-[#fffdfa] px-5 text-center text-[#121a35]">
-      <section className="max-w-md rounded-[28px] border border-[#e8edf5] bg-white p-8 shadow-[0_24px_70px_rgba(7,17,42,0.16)]">
-        <div className="mx-auto mb-4 grid size-14 place-items-center rounded-2xl bg-[#061437] text-[#f0b447]">
-          <VsIcon name={isLoading ? "sync" : "qr_code_scanner"} className={`text-3xl ${isLoading ? "animate-spin [animation-duration:1.8s]" : ""}`} />
-        </div>
-        <h1 className="vs-display text-3xl font-semibold text-[#061437]">{title}</h1>
-        <p className="mt-3 text-sm leading-6 text-[#667085]">{message}</p>
-      </section>
-    </main>
-  );
-}
-
 function QrSwitchCard({ onConfirm, title, message, confirmLabel }: { onConfirm: () => void; title: string; message: string; confirmLabel: string }) {
   return (
-    <main className="vs-guest-readable grid min-h-screen place-items-center bg-[#fffdfa] px-5 text-center text-[#121a35]">
-      <section className="max-w-md rounded-[28px] border border-[#e8edf5] bg-white p-8 shadow-[0_24px_70px_rgba(7,17,42,0.16)]">
-        <div className="mx-auto mb-4 grid size-14 place-items-center rounded-2xl bg-[#061437] text-[#f0b447]">
-          <VsIcon name="meeting_room" className="text-3xl" />
-        </div>
-        <h1 className="vs-display text-3xl font-semibold text-[#061437]">{title}</h1>
-        <p className="mt-3 text-sm leading-6 text-[#667085]">{message}</p>
+    <GuestStateCard
+      title={title}
+      message={message}
+      icon={<VsIcon name="meeting_room" className="text-3xl" />}
+      action={
         <button
           type="button"
           onClick={onConfirm}
-          className="mt-6 rounded-full bg-[#061437] px-5 py-3 text-sm font-semibold text-white shadow-[0_16px_34px_rgba(6,20,55,0.24)]"
+          className="min-h-11 rounded-full bg-[#25483f] px-6 py-3 text-sm font-semibold text-white shadow-[0_16px_34px_rgba(31,61,53,0.2)] transition-colors hover:bg-[#1d3932] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b18b26]"
         >
           {confirmLabel}
         </button>
-      </section>
-    </main>
+      }
+    />
   );
 }
 
 export default function GuestQrEntryPage() {
+  const prefersReducedMotion = useReducedMotion();
   const router = useRouter();
   const { locale, t } = useGuestI18n();
   const params = useParams<{ qrCode?: string | string[] }>();
@@ -195,17 +183,33 @@ export default function GuestQrEntryPage() {
     return <div className="min-h-screen bg-[#fffdfa]" />;
   }
 
-  if (!qrCode) {
-    return <QrStateCard title={t("qr.unavailable")} message={t("qr.retryMessage")} />;
-  }
+  const stateKey = !qrCode ? "missing" : scanError ? "error" : needsSwitchConfirmation ? "switch" : "loading";
 
-  if (scanError) {
-    return <QrStateCard title={t(scanError)} message={t("qr.errorMessage")} />;
-  }
-
-  if (needsSwitchConfirmation) {
-    return <QrSwitchCard onConfirm={() => scanRoomQr(true)} title={t("qr.switchTitle")} message={t("qr.switchMessage")} confirmLabel={t("qr.switchConfirm")} />;
-  }
-
-  return <QrStateCard title={t("qr.opening")} message={t("qr.wait")} isLoading />;
+  return (
+    <AnimatePresence mode="wait">
+      <m.div key={stateKey} className="min-h-screen" exit={{ opacity: 0 }} transition={{ duration: guestMotionTokens.duration.fast }}>
+        {!qrCode ? (
+          <GuestStateCard title={t("qr.unavailable")} message={t("qr.retryMessage")} icon={<VsIcon name="qr_code_scanner" className="text-3xl" />} live="assertive" />
+        ) : scanError ? (
+          <GuestStateCard title={t(scanError)} message={t("qr.errorMessage")} icon={<VsIcon name="qr_code_scanner" className="text-3xl" />} live="assertive" />
+        ) : needsSwitchConfirmation ? (
+          <QrSwitchCard onConfirm={() => scanRoomQr(true)} title={t("qr.switchTitle")} message={t("qr.switchMessage")} confirmLabel={t("qr.switchConfirm")} />
+        ) : (
+          <GuestStateCard
+            title={t("qr.opening")}
+            message={t("qr.wait")}
+            icon={
+              <m.span
+                animate={prefersReducedMotion ? { opacity: [0.65, 1] } : { rotate: 360 }}
+                transition={prefersReducedMotion ? { duration: 0.3 } : { duration: 1.4, repeat: Infinity, ease: "linear" }}
+              >
+                <VsIcon name="sync" className="text-3xl" />
+              </m.span>
+            }
+            live="polite"
+          />
+        )}
+      </m.div>
+    </AnimatePresence>
+  );
 }
