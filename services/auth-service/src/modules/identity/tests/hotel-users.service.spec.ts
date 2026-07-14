@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, NotFoundException } from "@nes
 import { TenantUserStatus, UserType } from "@prisma/client";
 import { HotelUsersRepository } from "../infrastructure/repositories/hotel-users.repository";
 import { HotelUsersService } from "../application/hotel-users.service";
+import { AuthService } from "../application/authentication.service";
 
 describe("HotelUsersService", () => {
   let service: HotelUsersService;
@@ -22,7 +23,10 @@ describe("HotelUsersService", () => {
       revokeActiveUserRole: jest.fn(),
     };
 
-    service = new HotelUsersService(hotelUsersRepository as unknown as HotelUsersRepository);
+    service = new HotelUsersService(
+      hotelUsersRepository as unknown as HotelUsersRepository,
+      { revokeUserRoleSessions: jest.fn() } as unknown as AuthService,
+    );
   });
 
   it("defaults list filter status to ACTIVE", async () => {

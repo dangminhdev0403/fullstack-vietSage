@@ -213,7 +213,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     return this.makeResponse({
       status: HttpStatus.UNAUTHORIZED,
-      title: "UNAUTHORIZED",
+      title:
+        typeof body.code === "string" && body.code.trim().length > 0
+          ? this.normalizeCode(body.code)
+          : "UNAUTHORIZED",
       detail: this.extractDetailFromHttpBody(body) ?? "Unauthorized",
     });
   }

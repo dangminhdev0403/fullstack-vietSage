@@ -1,14 +1,9 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { AuthSessionRevokeReason, AuthSessionStatus, UserStatus } from "@prisma/client";
 import { JwtService } from "@nestjs/jwt";
+import { Interval } from "@nestjs/schedule";
 import * as argon2 from "argon2";
-import {
-  createCipheriv,
-  createDecipheriv,
-  createHash,
-  randomBytes,
-  randomUUID,
-} from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from "node:crypto";
 import { loadAppConfig } from "../../../common/config/env.config";
 import { DEFAULT_NAVIGATION_MENU } from "../../../common/config/navigation.config";
 import { resolveBusinessPermissionMenuPath } from "../../../common/config/business-permission-menu.util";
@@ -141,10 +136,21 @@ export class AuthService {
     return response;
   }
 
-  async refresh(refreshToken: string, suppliedIdempotencyKey?: string): Promise<AuthTokensResponse> {
+  async refresh(
+    refreshToken: string,
+    suppliedIdempotencyKey?: string,
+  ): Promise<AuthTokensResponse> {
     const idempotencyKey = suppliedIdempotencyKey?.trim() || randomUUID();
     const tokenHash = this.hashToken(refreshToken);
     const fingerprint = this.hashToken(`refresh:${tokenHash}`);
+
+    if (!/^vsr_[A-Za-z0-9_-]{64}$/.test(refreshToken)) {
+      if (refreshToken.split(".").length !== 3) {
+        throw this.unauthorized("AUTH_REFRESH_INVALID", "Invalid refresh token");
+      }
+      return this.migrateLegacyRefresh(refreshToken, tokenHash, idempotencyKey, fingerprint);
+    }
+
     const current = await this.authRepository.findAuthSessionByCurrentRefreshHash(tokenHash);
 
     if (current) {
@@ -153,14 +159,10 @@ export class AuthService {
 
     const historical = await this.authRepository.findAuthSessionByHistoricalRefreshHash(tokenHash);
     if (historical) {
-      return this.resolveHistoricalRefresh(
-        historical.session,
-        idempotencyKey,
-        fingerprint,
-      );
+      return this.resolveHistoricalRefresh(historical.session, idempotencyKey, fingerprint);
     }
 
-    return this.migrateLegacyRefresh(refreshToken, tokenHash, idempotencyKey, fingerprint);
+    throw this.unauthorized("AUTH_REFRESH_INVALID", "Invalid refresh token");
   }
 
   async logout(sessionId: string): Promise<void> {
@@ -187,6 +189,11 @@ export class AuthService {
 
   async revokeUserRoleSessions(userId: string, roleId: string): Promise<void> {
     await this.authRepository.revokeAuthSessionsByUserRole(userId, roleId);
+  }
+
+  @Interval(300_000)
+  async cleanupExpiredRefreshArtifacts(): Promise<void> {
+    await this.authRepository.deleteExpiredAuthArtifacts(new Date());
   }
 
   async validateJwtPayload(payload: AccessTokenPayload): Promise<AuthenticatedUser> {
@@ -221,10 +228,7 @@ export class AuthService {
     }
 
     if ((await this.authRepository.countActiveRoleByUserId(session.userId, session.roleId)) === 0) {
-      await this.authRepository.revokeAuthSession(
-        session.id,
-        AuthSessionRevokeReason.ROLE_CHANGED,
-      );
+      await this.authRepository.revokeAuthSession(session.id, AuthSessionRevokeReason.ROLE_CHANGED);
       throw this.unauthorized("AUTH_ROLE_INACTIVE", "User role is no longer active");
     }
 
@@ -314,7 +318,11 @@ export class AuthService {
     if (rotated) return response;
 
     const retry = await this.authRepository.findRefreshIdempotency(session.id, idempotencyKey);
-    if (retry && retry.expiresAt.getTime() > Date.now() && retry.requestFingerprint === fingerprint) {
+    if (
+      retry &&
+      retry.expiresAt.getTime() > Date.now() &&
+      retry.requestFingerprint === fingerprint
+    ) {
       return this.decryptResponse(retry.encryptedResult);
     }
 
@@ -333,7 +341,11 @@ export class AuthService {
     fingerprint: string,
   ): Promise<AuthTokensResponse> {
     const retry = await this.authRepository.findRefreshIdempotency(session.id, idempotencyKey);
-    if (retry && retry.expiresAt.getTime() > Date.now() && retry.requestFingerprint === fingerprint) {
+    if (
+      retry &&
+      retry.expiresAt.getTime() > Date.now() &&
+      retry.requestFingerprint === fingerprint
+    ) {
       return this.decryptResponse(retry.encryptedResult);
     }
 
@@ -451,10 +463,7 @@ export class AuthService {
       throw this.unauthorized("AUTH_USER_INACTIVE", "User is not active");
     }
     if ((await this.authRepository.countActiveRoleByUserId(session.userId, session.roleId)) === 0) {
-      await this.authRepository.revokeAuthSession(
-        session.id,
-        AuthSessionRevokeReason.ROLE_CHANGED,
-      );
+      await this.authRepository.revokeAuthSession(session.id, AuthSessionRevokeReason.ROLE_CHANGED);
       throw this.unauthorized("AUTH_ROLE_INACTIVE", "User role is no longer active");
     }
   }
@@ -508,7 +517,9 @@ export class AuthService {
       cipher.update(JSON.stringify(response), "utf8"),
       cipher.final(),
     ]);
-    return [iv, cipher.getAuthTag(), ciphertext].map((part) => part.toString("base64url")).join(".");
+    return [iv, cipher.getAuthTag(), ciphertext]
+      .map((part) => part.toString("base64url"))
+      .join(".");
   }
 
   private decryptResponse(value: string): AuthTokensResponse {

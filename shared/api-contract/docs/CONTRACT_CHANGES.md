@@ -1,5 +1,12 @@
 # Contract Changes
 
+## 0.2.0
+
+- Added session-backed authentication with access JWT `sid` claims and opaque rotating refresh tokens.
+- Added `accessExpiresAt`, `refreshExpiresAt`, and `sessionId` to auth token responses.
+- Added optional refresh `Idempotency-Key`, replay detection, private session logout, and `POST /auth/logout-all`.
+- Retained one-time legacy refresh JWT migration during the configured compatibility window.
+
 ## 0.1.1
 
 - Added `API_CATALOG.md` with module-level request/response contract for frontend integration.

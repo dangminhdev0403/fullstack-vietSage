@@ -1,259 +1,237 @@
 import { UnauthorizedException } from "@nestjs/common";
-import { UserStatus } from "@prisma/client";
+import { AuthSessionStatus, UserStatus } from "@prisma/client";
+import { JwtService } from "@nestjs/jwt";
 import { createHash } from "node:crypto";
 import * as argon2 from "argon2";
-import { JwtService } from "@nestjs/jwt";
-import { AuthRepository } from "../infrastructure/repositories/auth.repository";
 import { AuthService } from "../application/authentication.service";
+import { AuthRepository } from "../infrastructure/repositories/auth.repository";
 
 describe("AuthService", () => {
   let service: AuthService;
-  let authRepository: {
-    findUserByEmail: jest.Mock;
-    findPrimaryActiveRoleIdByUserId: jest.Mock;
-    countActiveRoleByUserId: jest.Mock;
-    updateUserPasswordHash: jest.Mock;
-    findRefreshTokenWithUserByHash: jest.Mock;
-    rotateRefreshTokenById: jest.Mock;
-    createRefreshToken: jest.Mock;
-    findUserById: jest.Mock;
-    updateUserLastLogin: jest.Mock;
-    deleteRefreshTokenByHash: jest.Mock;
-    deleteRefreshTokensByUserId: jest.Mock;
-    findUserProfileWithRelations: jest.Mock;
-  };
-  let jwtService: {
-    signAsync: jest.Mock;
-    verifyAsync: jest.Mock;
-  };
+  let repository: Record<string, jest.Mock>;
+  let jwtService: { signAsync: jest.Mock; verifyAsync: jest.Mock };
 
   beforeEach(() => {
-    authRepository = {
+    repository = {
       findUserByEmail: jest.fn(),
       findPrimaryActiveRoleIdByUserId: jest.fn(),
-      countActiveRoleByUserId: jest.fn(),
+      countActiveRoleByUserId: jest.fn().mockResolvedValue(1),
       updateUserPasswordHash: jest.fn(),
-      findRefreshTokenWithUserByHash: jest.fn(),
-      rotateRefreshTokenById: jest.fn(),
-      createRefreshToken: jest.fn(),
-      findUserById: jest.fn(),
       updateUserLastLogin: jest.fn(),
-      deleteRefreshTokenByHash: jest.fn(),
-      deleteRefreshTokensByUserId: jest.fn(),
+      createAuthSession: jest.fn(),
+      findAuthSessionByCurrentRefreshHash: jest.fn(),
+      findAuthSessionByHistoricalRefreshHash: jest.fn(),
+      findRefreshIdempotency: jest.fn(),
+      rotateAuthSession: jest.fn(),
+      migrateLegacyRefreshToken: jest.fn(),
+      findRefreshTokenWithUserByHash: jest.fn(),
+      findAuthSessionById: jest.fn(),
+      revokeAuthSession: jest.fn(),
+      revokeAuthSessionFamily: jest.fn(),
+      revokeAuthSessionsByUserId: jest.fn(),
+      revokeAuthSessionsByRoleId: jest.fn(),
+      revokeAuthSessionsByUserRole: jest.fn(),
       findUserProfileWithRelations: jest.fn(),
     };
-
     jwtService = {
-      signAsync: jest.fn(),
+      signAsync: jest.fn().mockResolvedValue("access-token"),
       verifyAsync: jest.fn(),
     };
-
     service = new AuthService(
-      authRepository as unknown as AuthRepository,
+      repository as unknown as AuthRepository,
       jwtService as unknown as JwtService,
     );
   });
 
-  it("validates active user with argon2 password", async () => {
-    const passwordHash = await argon2.hash("Password123!");
-
-    authRepository.findUserByEmail.mockResolvedValue({
+  it("validates an active user and upgrades a legacy password hash", async () => {
+    repository.findUserByEmail.mockResolvedValue({
       id: "u1",
       email: "admin@vietsage.local",
       status: UserStatus.ACTIVE,
-      passwordHash,
+      passwordHash: createHash("sha256").update("Password123!").digest("hex"),
     });
-    authRepository.findPrimaryActiveRoleIdByUserId.mockResolvedValue({ roleId: "r1" });
+    repository.findPrimaryActiveRoleIdByUserId.mockResolvedValue({ roleId: "r1" });
 
-    const result = await service.validateUser("admin@vietsage.local", "Password123!");
-
-    expect(result).toEqual({ userId: "u1", email: "admin@vietsage.local", roleId: "r1" });
-    expect(authRepository.updateUserPasswordHash).not.toHaveBeenCalled();
-  });
-
-  it("upgrades legacy SHA-256 password hash after successful login", async () => {
-    const legacyHash = createHash("sha256").update("Password123!").digest("hex");
-
-    authRepository.findUserByEmail.mockResolvedValue({
-      id: "u2",
-      email: "legacy@vietsage.local",
-      status: UserStatus.ACTIVE,
-      passwordHash: legacyHash,
-    });
-    authRepository.findPrimaryActiveRoleIdByUserId.mockResolvedValue({ roleId: "r2" });
-
-    authRepository.updateUserPasswordHash.mockResolvedValue(undefined);
-
-    const result = await service.validateUser("legacy@vietsage.local", "Password123!");
-
-    expect(result).toEqual({ userId: "u2", email: "legacy@vietsage.local", roleId: "r2" });
-    expect(authRepository.updateUserPasswordHash).toHaveBeenCalledTimes(1);
-    const updateCall = authRepository.updateUserPasswordHash.mock.calls[0];
-    expect(updateCall[0]).toEqual("u2");
-    expect(updateCall[1]).toEqual(expect.stringContaining("$argon2"));
-  });
-
-  it("rejects refresh when token was already rotated by concurrent request", async () => {
-    jwtService.verifyAsync.mockResolvedValue({ sub: "u1", roleId: "r1", type: "refresh" });
-    jwtService.signAsync
-      .mockResolvedValueOnce("access-token-new")
-      .mockResolvedValueOnce("refresh-token-new");
-
-    authRepository.findRefreshTokenWithUserByHash.mockResolvedValue({
-      id: "rt-1",
-      userId: "u1",
-      expiresAt: new Date(Date.now() + 60_000),
-      user: {
-        id: "u1",
-        email: "admin@vietsage.local",
-        status: UserStatus.ACTIVE,
-      },
-    });
-
-    authRepository.countActiveRoleByUserId.mockResolvedValue(1);
-    authRepository.rotateRefreshTokenById.mockResolvedValue({ count: 0 });
-
-    await expect(service.refresh("refresh-token-value")).rejects.toThrow(
-      "Refresh token is no longer active",
-    );
-  });
-
-  it("rotates refresh token and returns new token pair", async () => {
-    const inputRefreshToken = "refresh-token-value";
-
-    jwtService.verifyAsync.mockResolvedValue({ sub: "u1", roleId: "r1", type: "refresh" });
-    jwtService.signAsync
-      .mockResolvedValueOnce("access-token-new")
-      .mockResolvedValueOnce("refresh-token-new");
-
-    authRepository.findRefreshTokenWithUserByHash.mockResolvedValue({
-      id: "rt-1",
-      userId: "u1",
-      expiresAt: new Date(Date.now() + 60_000),
-      user: {
-        id: "u1",
-        email: "admin@vietsage.local",
-        status: UserStatus.ACTIVE,
-      },
-    });
-
-    authRepository.countActiveRoleByUserId.mockResolvedValue(1);
-    authRepository.rotateRefreshTokenById.mockResolvedValue({ count: 1 });
-
-    const result = await service.refresh(inputRefreshToken);
-
-    expect(authRepository.rotateRefreshTokenById).toHaveBeenCalledWith(
-      "rt-1",
-      createHash("sha256").update(inputRefreshToken).digest("hex"),
-      expect.stringMatching(/^[a-f0-9]{64}$/),
-      expect.any(Date),
-    );
-
-    expect(authRepository.createRefreshToken).not.toHaveBeenCalled();
-
-    expect(result).toEqual({
-      accessToken: "access-token-new",
-      refreshToken: "refresh-token-new",
-      tokenType: "Bearer",
-      accessTtl: expect.any(String),
-      refreshTtl: expect.any(String),
-    });
-  });
-
-  it("includes roleId in access and refresh JWT payload", async () => {
-    jwtService.signAsync
-      .mockResolvedValueOnce("access-token")
-      .mockResolvedValueOnce("refresh-token");
-    authRepository.createRefreshToken.mockResolvedValue(undefined);
-    authRepository.updateUserLastLogin.mockResolvedValue(undefined);
-    authRepository.deleteRefreshTokensByUserId.mockResolvedValue({ count: 0 });
-
-    await service.login({
+    await expect(service.validateUser("admin@vietsage.local", "Password123!")).resolves.toEqual({
       userId: "u1",
       email: "admin@vietsage.local",
       roleId: "r1",
     });
+    expect(repository.updateUserPasswordHash.mock.calls[0][1]).toEqual(
+      expect.stringContaining("$argon2"),
+    );
+  });
 
+  it("validates an argon2 password without rewriting it", async () => {
+    repository.findUserByEmail.mockResolvedValue({
+      id: "u1",
+      email: "admin@vietsage.local",
+      status: UserStatus.ACTIVE,
+      passwordHash: await argon2.hash("Password123!"),
+    });
+    repository.findPrimaryActiveRoleIdByUserId.mockResolvedValue({ roleId: "r1" });
+
+    await service.validateUser("admin@vietsage.local", "Password123!");
+    expect(repository.updateUserPasswordHash).not.toHaveBeenCalled();
+  });
+
+  it("creates independent opaque sessions for repeated same-user login", async () => {
+    const user = { userId: "u1", email: "admin@vietsage.local", roleId: "r1" };
+    const [first, second] = await Promise.all([service.login(user), service.login(user)]);
+
+    expect(first.refreshToken).toMatch(/^vsr_[A-Za-z0-9_-]+$/);
+    expect(second.refreshToken).not.toBe(first.refreshToken);
+    expect(second.sessionId).not.toBe(first.sessionId);
+    expect(repository.createAuthSession).toHaveBeenCalledTimes(2);
+    expect(repository).not.toHaveProperty("deleteRefreshTokensByUserId");
     expect(jwtService.signAsync).toHaveBeenCalledWith(
-      expect.objectContaining({
-        jti: expect.any(String),
+      expect.objectContaining({ sid: expect.any(String), roleId: "r1", type: "access" }),
+      expect.objectContaining({ issuer: expect.any(String), audience: expect.any(String) }),
+    );
+  });
+
+  it("returns one rotation result to 20 concurrent retries with the same key", async () => {
+    const session = activeSession();
+    let stored: { encryptedResult: string; requestFingerprint: string; idempotencyExpiresAt: Date };
+    repository.findAuthSessionByCurrentRefreshHash.mockResolvedValue(session);
+    repository.rotateAuthSession.mockImplementation(async (input) => {
+      if (!stored) {
+        stored = input;
+        return true;
+      }
+      return false;
+    });
+    repository.findRefreshIdempotency.mockImplementation(async () => ({
+      encryptedResult: stored.encryptedResult,
+      requestFingerprint: stored.requestFingerprint,
+      expiresAt: stored.idempotencyExpiresAt,
+    }));
+
+    const results = await Promise.all(
+      Array.from({ length: 20 }, () => service.refresh(`vsr_${"a".repeat(64)}`, "retry-key")),
+    );
+
+    expect(repository.rotateAuthSession).toHaveBeenCalledTimes(20);
+    expect(new Set(results.map((result) => result.refreshToken)).size).toBe(1);
+    expect(new Set(results.map((result) => result.accessToken)).size).toBe(1);
+  });
+
+  it("revokes the refresh family when an old token is replayed with another key", async () => {
+    repository.findAuthSessionByCurrentRefreshHash.mockResolvedValue(null);
+    repository.findAuthSessionByHistoricalRefreshHash.mockResolvedValue({
+      session: { id: "s1", refreshFamilyId: "family-1" },
+    });
+    repository.findRefreshIdempotency.mockResolvedValue(null);
+
+    await expect(service.refresh(`vsr_${"b".repeat(64)}`, "different-key")).rejects.toThrow(
+      UnauthorizedException,
+    );
+    expect(repository.revokeAuthSessionFamily).toHaveBeenCalledWith(
+      "family-1",
+      "REFRESH_TOKEN_REPLAYED",
+    );
+  });
+
+  it("migrates a valid legacy refresh JWT once", async () => {
+    repository.findAuthSessionByCurrentRefreshHash.mockResolvedValue(null);
+    repository.findAuthSessionByHistoricalRefreshHash.mockResolvedValue(null);
+    jwtService.verifyAsync.mockResolvedValue({ sub: "u1", roleId: "r1", type: "refresh" });
+    repository.findRefreshTokenWithUserByHash.mockResolvedValue({
+      id: "legacy-1",
+      userId: "u1",
+      expiresAt: new Date(Date.now() + 60_000),
+      user: { id: "u1", email: "admin@vietsage.local", status: UserStatus.ACTIVE },
+    });
+    repository.migrateLegacyRefreshToken.mockResolvedValue(true);
+
+    const result = await service.refresh("legacy.jwt.token", "legacy-key");
+
+    expect(result.refreshToken).toMatch(/^vsr_/);
+    expect(repository.migrateLegacyRefreshToken).toHaveBeenCalledWith(
+      expect.objectContaining({ legacyTokenId: "legacy-1", legacyTokenHash: expect.any(String) }),
+    );
+  });
+
+  it("rejects an access JWT after its session is revoked", async () => {
+    repository.findAuthSessionById.mockResolvedValue({
+      ...activeSession(),
+      status: AuthSessionStatus.REVOKED,
+    });
+
+    await expect(
+      service.validateJwtPayload({
+        jti: "j1",
+        sid: "s1",
         sub: "u1",
         email: "admin@vietsage.local",
         roleId: "r1",
         type: "access",
       }),
-      expect.any(Object),
-    );
-
-    expect(jwtService.signAsync).toHaveBeenCalledWith(
-      expect.objectContaining({
-        jti: expect.any(String),
-        sub: "u1",
-        roleId: "r1",
-        type: "refresh",
-      }),
-      expect.any(Object),
-    );
-
-    expect(authRepository.deleteRefreshTokensByUserId).toHaveBeenCalledWith("u1");
-    expect(authRepository.createRefreshToken).toHaveBeenCalledWith(
-      "u1",
-      expect.stringMatching(/^[a-f0-9]{64}$/),
-      expect.any(Date),
-    );
-  });
-
-  it("generates unique refresh JWT payloads for repeated same-user issuance", async () => {
-    jwtService.signAsync.mockImplementation(async (payload: unknown) => JSON.stringify(payload));
-    authRepository.createRefreshToken.mockResolvedValue(undefined);
-    authRepository.updateUserLastLogin.mockResolvedValue(undefined);
-    authRepository.deleteRefreshTokensByUserId.mockResolvedValue({ count: 0 });
-
-    const user = {
-      userId: "u1",
-      email: "admin@vietsage.local",
-      roleId: "r1",
-    };
-
-    const first = await service.login(user);
-    const second = await service.login(user);
-
-    expect(first.refreshToken).not.toEqual(second.refreshToken);
-
-    const firstRefreshPayload = jwtService.signAsync.mock.calls[1][0];
-    const secondRefreshPayload = jwtService.signAsync.mock.calls[3][0];
-
-    expect(firstRefreshPayload).toEqual(
-      expect.objectContaining({
-        jti: expect.any(String),
-        sub: "u1",
-        roleId: "r1",
-        type: "refresh",
-      }),
-    );
-    expect(secondRefreshPayload).toEqual(
-      expect.objectContaining({
-        jti: expect.any(String),
-        sub: "u1",
-        roleId: "r1",
-        type: "refresh",
-      }),
-    );
-    expect(firstRefreshPayload.jti).not.toEqual(secondRefreshPayload.jti);
-    expect(authRepository.createRefreshToken.mock.calls[0][1]).not.toEqual(
-      authRepository.createRefreshToken.mock.calls[1][1],
-    );
-  });
-
-  it("rejects JWT payload with wrong token type", async () => {
-    await expect(
-      service.validateJwtPayload({
-        sub: "u1",
-        jti: "access-jti",
-        email: "admin@vietsage.local",
-        roleId: "r1",
-        type: "refresh" as "access",
-      }),
     ).rejects.toThrow(UnauthorizedException);
   });
+
+  it("expires a stale session during access validation", async () => {
+    repository.findAuthSessionById.mockResolvedValue({
+      ...activeSession(),
+      idleExpiresAt: new Date(Date.now() - 1),
+    });
+
+    await expect(service.validateJwtPayload(accessPayload())).rejects.toThrow(
+      UnauthorizedException,
+    );
+    expect(repository.revokeAuthSession).toHaveBeenCalledWith("s1", "EXPIRED", "EXPIRED");
+  });
+
+  it("revokes all sessions when the account is disabled", async () => {
+    repository.findAuthSessionById.mockResolvedValue({
+      ...activeSession(),
+      user: { ...activeSession().user, status: UserStatus.DISABLED },
+    });
+
+    await expect(service.validateJwtPayload(accessPayload())).rejects.toThrow(
+      UnauthorizedException,
+    );
+    expect(repository.revokeAuthSessionsByUserId).toHaveBeenCalledWith("u1", "USER_DISABLED");
+  });
+
+  it("revokes the session when its role assignment is removed", async () => {
+    repository.findAuthSessionById.mockResolvedValue(activeSession());
+    repository.countActiveRoleByUserId.mockResolvedValue(0);
+
+    await expect(service.validateJwtPayload(accessPayload())).rejects.toThrow(
+      UnauthorizedException,
+    );
+    expect(repository.revokeAuthSession).toHaveBeenCalledWith("s1", "ROLE_CHANGED");
+  });
+
+  it("treats logout of an already revoked session as idempotent", async () => {
+    repository.revokeAuthSession.mockResolvedValue({ count: 0 });
+    await expect(service.logout("s1")).resolves.toBeUndefined();
+  });
 });
+
+function activeSession() {
+  return {
+    id: "s1",
+    userId: "u1",
+    roleId: "r1",
+    status: AuthSessionStatus.ACTIVE,
+    version: 1,
+    refreshFamilyId: "family-1",
+    currentRefreshHash: "hash",
+    idleExpiresAt: new Date(Date.now() + 60_000),
+    absoluteExpiresAt: new Date(Date.now() + 120_000),
+    user: { id: "u1", email: "admin@vietsage.local", status: UserStatus.ACTIVE },
+  };
+}
+
+function accessPayload() {
+  return {
+    jti: "j1",
+    sid: "s1",
+    sub: "u1",
+    email: "admin@vietsage.local",
+    roleId: "r1",
+    type: "access" as const,
+  };
+}

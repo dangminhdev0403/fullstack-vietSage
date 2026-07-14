@@ -269,7 +269,7 @@ describe("HealthController (e2e)", () => {
 
     expect(body).toMatchObject({
       status: 401,
-      message: "UNAUTHORIZED",
+      message: "AUTH_REFRESH_INVALID",
       data: {
         detail: "Invalid refresh token",
       },

@@ -2,6 +2,7 @@
 import { HttpMethod, RoleStatus } from "@prisma/client";
 import { RbacRepository } from "../infrastructure/repositories/rbac.repository";
 import { RbacService } from "../application/rbac.service";
+import { AuthService } from "../application/authentication.service";
 
 describe("RbacService", () => {
   let service: RbacService;
@@ -62,7 +63,10 @@ describe("RbacService", () => {
       listActivePermissionIdsByUserId: jest.fn(),
     };
 
-    service = new RbacService(rbacRepository as unknown as RbacRepository);
+    service = new RbacService(
+      rbacRepository as unknown as RbacRepository,
+      { revokeRoleSessions: jest.fn() } as unknown as AuthService,
+    );
   });
 
   it("creates role with normalized code", async () => {

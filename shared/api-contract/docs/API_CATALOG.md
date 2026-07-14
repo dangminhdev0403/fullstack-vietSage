@@ -49,10 +49,13 @@ All errors are normalized by global exception filter:
 ```json
 {
   "accessToken": "jwt",
-  "refreshToken": "jwt",
+  "refreshToken": "vsr_opaque-token",
   "tokenType": "Bearer",
   "accessTtl": "15m",
-  "refreshTtl": "7d"
+  "refreshTtl": "30d",
+  "accessExpiresAt": "ISO",
+  "refreshExpiresAt": "ISO",
+  "sessionId": "uuid"
 }
 ```
 
@@ -145,22 +148,24 @@ All errors are normalized by global exception filter:
 
 ```json
 {
-  "refreshToken": "jwt"
+  "refreshToken": "vsr_opaque-token"
 }
 ```
 
 - Validation: `refreshToken` required string.
+- Optional header: `Idempotency-Key` (1-64 safe ASCII characters). Reusing the same key for the same token returns the original rotation result.
+- Replaying an already rotated token with a different key revokes its refresh family.
 - `data` response: `AuthTokens`.
 
-### `POST /auth/logout` (Public)
+### `POST /auth/logout` (Private)
 
-- Request body:
+- Revokes the session identified by the access JWT `sid` claim.
+- `data` response: `{ "success": true }`.
 
-```json
-{
-  "refreshToken": "jwt"
-}
-```
+### `POST /auth/logout-all` (Private)
+
+- Revokes every active auth session owned by the authenticated user.
+- `data` response: `{ "success": true }`.
 
 - Validation: same as refresh.
 - `data` response:
@@ -458,14 +463,13 @@ Current explicit public routes:
 - `GET /health`
 - `POST /auth/login`
 - `POST /auth/refresh`
-- `POST /auth/logout`
 
 All other routes are private by default.
 
 ## Quick Frontend Handshake
 
 1. Login via `POST /auth/login`.
-2. Store `accessToken` + `refreshToken`.
+2. Keep tokens in the trusted BFF/server session; do not expose refresh tokens to browser JavaScript.
 3. Send JWT access token in `Authorization` header for private routes.
 4. On 401 due token expiry, call `POST /auth/refresh` then retry original request.
-5. On logout, call `POST /auth/logout` with current refresh token.
+5. On logout, call private `POST /auth/logout` with the current access token; use `POST /auth/logout-all` to revoke every device.

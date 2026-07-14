@@ -107,12 +107,24 @@ paths:
                       refreshTtl:
                         type: string
                         example: 7d
+                      accessExpiresAt:
+                        type: string
+                        format: date-time
+                      refreshExpiresAt:
+                        type: string
+                        format: date-time
+                      sessionId:
+                        type: string
+                        format: uuid
                     required:
                       - accessToken
                       - refreshToken
                       - tokenType
                       - accessTtl
                       - refreshTtl
+                      - accessExpiresAt
+                      - refreshExpiresAt
+                      - sessionId
                 required:
                   - status
                   - error
@@ -123,7 +135,19 @@ paths:
   /auth/refresh:
     post:
       operationId: AuthController_refresh
-      parameters: []
+      parameters:
+        - name: idempotency-key
+          required: true
+          in: header
+          schema:
+            type: string
+        - name: Idempotency-Key
+          in: header
+          description: Stable key for retrying the same refresh request (maximum 64
+            characters)
+          required: false
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -172,12 +196,24 @@ paths:
                       refreshTtl:
                         type: string
                         example: 7d
+                      accessExpiresAt:
+                        type: string
+                        format: date-time
+                      refreshExpiresAt:
+                        type: string
+                        format: date-time
+                      sessionId:
+                        type: string
+                        format: uuid
                     required:
                       - accessToken
                       - refreshToken
                       - tokenType
                       - accessTtl
                       - refreshTtl
+                      - accessExpiresAt
+                      - refreshExpiresAt
+                      - sessionId
                 required:
                   - status
                   - error
@@ -188,18 +224,6 @@ paths:
     post:
       operationId: AuthController_logout
       parameters: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                refreshToken:
-                  type: string
-                  minLength: 1
-              required:
-                - refreshToken
       responses:
         "200":
           description: Bao phản hồi đăng xuất
@@ -219,6 +243,44 @@ paths:
                   message:
                     type: string
                     example: Đăng xuất thành công
+                  data:
+                    type: object
+                    properties:
+                      success:
+                        type: boolean
+                        enum:
+                          - true
+                    required:
+                      - success
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a1
+  /auth/logout-all:
+    post:
+      operationId: AuthController_logoutAll
+      parameters: []
+      responses:
+        "200":
+          description: Bao phản hồi đăng xuất tất cả phiên
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Đăng xuất tất cả thiết bị thành công
                   data:
                     type: object
                     properties:

@@ -1,3 +1,4 @@
+import { UnauthorizedException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { GlobalExceptionFilter } from "./global-exception.filter";
 
@@ -25,6 +26,25 @@ function createHost() {
 }
 
 describe("GlobalExceptionFilter", () => {
+  it("preserves stable auth error codes", () => {
+    const filter = new GlobalExceptionFilter();
+    const { host, response } = createHost();
+
+    filter.catch(
+      new UnauthorizedException({
+        code: "AUTH_REFRESH_INVALID",
+        message: "Invalid refresh token",
+      }),
+      host as never,
+    );
+
+    expect(response.json.mock.calls[0][0]).toMatchObject({
+      status: 401,
+      message: "AUTH_REFRESH_INVALID",
+      data: { detail: "Invalid refresh token" },
+    });
+  });
+
   it("does not expose raw Prisma record-not-found errors to API consumers", () => {
     const filter = new GlobalExceptionFilter();
     const { host, response } = createHost();

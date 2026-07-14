@@ -359,6 +359,13 @@ export class AuthRepository {
     });
   }
 
+  async deleteExpiredAuthArtifacts(now: Date) {
+    return this.prisma.$transaction([
+      this.prisma.authRefreshIdempotency.deleteMany({ where: { expiresAt: { lte: now } } }),
+      this.prisma.authRefreshTokenHistory.deleteMany({ where: { expiresAt: { lte: now } } }),
+    ]);
+  }
+
   async findUserProfileWithRelations(userId: string) {
     return this.prisma.user.findUnique({
       where: { id: userId },

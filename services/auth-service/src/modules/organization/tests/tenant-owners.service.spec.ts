@@ -5,6 +5,7 @@ import {
   TenantOwnersRepository,
 } from "../infrastructure/repositories/tenant-owners.repository";
 import { TenantOwnersService } from "../application/tenant-owners.service";
+import { AuthService } from "../../identity/application/authentication.service";
 
 describe("TenantOwnersService", () => {
   let service: TenantOwnersService;
@@ -77,6 +78,7 @@ describe("TenantOwnersService", () => {
     service = new TenantOwnersService(
       tenantOwnersRepository as unknown as TenantOwnersRepository,
       codesService as never,
+      { revokeUserSessions: jest.fn() } as unknown as AuthService,
     );
   });
 

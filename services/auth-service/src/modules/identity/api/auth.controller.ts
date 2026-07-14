@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Post, Req, UseGuards } from "@nestjs/common";
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Headers,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Req,
+  UseGuards,
+} from "@nestjs/common";
 import { ApiBody, ApiCreatedResponse, ApiHeader, ApiOkResponse, ApiTags } from "@nestjs/swagger";
 import type { Request } from "express";
 import {
@@ -85,7 +96,11 @@ export class AuthController {
   @ApiDescript("Đăng xuất tất cả phiên")
   @ApiOkResponse({
     description: "Bao phản hồi đăng xuất tất cả phiên",
-    schema: successEnvelopeSchema(authLogoutDataSchema, 200, "Đăng xuất tất cả thiết bị thành công"),
+    schema: successEnvelopeSchema(
+      authLogoutDataSchema,
+      200,
+      "Đăng xuất tất cả thiết bị thành công",
+    ),
   })
   @Post("logout-all")
   async logoutAll(@Req() request: RequestWithUser): Promise<{ success: true }> {
@@ -108,6 +123,12 @@ export class AuthController {
   private normalizeIdempotencyKey(value?: string): string | undefined {
     const normalized = value?.trim();
     if (!normalized) return undefined;
-    return normalized.slice(0, 64);
+    if (!/^[A-Za-z0-9._:-]{1,64}$/.test(normalized)) {
+      throw new BadRequestException({
+        code: "AUTH_IDEMPOTENCY_KEY_INVALID",
+        message: "Idempotency-Key must contain 1-64 safe ASCII characters",
+      });
+    }
+    return normalized;
   }
 }
