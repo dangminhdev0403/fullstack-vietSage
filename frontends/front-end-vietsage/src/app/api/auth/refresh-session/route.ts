@@ -1,7 +1,9 @@
-import { auth } from "@/auth";
 import { type NextRequest, NextResponse } from "next/server";
 
+import { AuthServiceError } from "@/features/auth/service/auth-service";
 import { refreshAndSaveSessionTokens } from "@/lib/auth-session-refresh";
+import { sanitizeInternalCallbackUrl } from "@/lib/rbac";
+import { readServerSessionTokens } from "@/lib/server-session-tokens";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +14,18 @@ function unauthorizedResponse() {
       status: 401,
       message: "UNAUTHORIZED",
       data: { detail: "Refresh token is required" },
+    },
+    { status: 401 },
+  );
+}
+
+function refreshFailureResponse() {
+  return NextResponse.json(
+    {
+      ok: false,
+      status: 401,
+      message: "REFRESH_TOKEN_FAILED",
+      data: { detail: "Unable to refresh session" },
     },
     { status: 401 },
   );
@@ -30,28 +44,29 @@ function serverErrorResponse() {
 }
 
 function getCallbackUrl(request: NextRequest): string {
-  const callbackUrl = request.nextUrl.searchParams.get("callbackUrl");
-
-  if (callbackUrl?.startsWith("/")) {
-    return callbackUrl;
-  }
-
-  return "/admin/dashboard";
+  return sanitizeInternalCallbackUrl(request.nextUrl.searchParams.get("callbackUrl"));
 }
 
 function buildLoginRedirect(request: NextRequest, callbackUrl: string): NextResponse {
   const loginUrl = new URL("/login", request.url);
 
   loginUrl.searchParams.set("reauth", "1");
-  loginUrl.searchParams.set("callbackUrl", callbackUrl);
+  loginUrl.searchParams.set("callbackUrl", sanitizeInternalCallbackUrl(callbackUrl));
 
   return NextResponse.redirect(loginUrl);
 }
 
+function isExpectedRefreshFailure(error: unknown): boolean {
+  return error instanceof AuthServiceError && (
+    error.code === "INVALID_CREDENTIALS" ||
+    error.code === "UNAUTHORIZED"
+  );
+}
+
 export async function GET(request: NextRequest) {
   const callbackUrl = getCallbackUrl(request);
-  const session = await auth();
-  const refreshToken = session?.refreshToken ?? null;
+  const tokens = await readServerSessionTokens();
+  const refreshToken = tokens.refreshToken;
 
   if (!refreshToken) {
     console.warn("[AUTH_REFRESH_GATE_FAILED]", {
@@ -87,8 +102,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST() {
-  const session = await auth();
-  const refreshToken = session?.refreshToken ?? null;
+  const tokens = await readServerSessionTokens();
+  const refreshToken = tokens.refreshToken;
 
   if (!refreshToken) {
     return unauthorizedResponse();
@@ -106,12 +121,14 @@ export async function POST() {
       },
     });
   } catch (error) {
+    const expectedRefreshFailure = isExpectedRefreshFailure(error);
     console.warn("[AUTH_REFRESH_GATE_FAILED]", {
       source: "refresh-session-route",
       errorMessage: error instanceof Error ? error.message : "Unknown refresh error",
+      expectedRefreshFailure,
       timestamp: Date.now(),
     });
 
-    return serverErrorResponse();
+    return expectedRefreshFailure ? refreshFailureResponse() : serverErrorResponse();
   }
 }

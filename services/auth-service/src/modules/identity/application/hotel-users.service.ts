@@ -17,6 +17,7 @@ import type {
   ListHotelUsersQueryInput,
   UpdateHotelUserStatusBodyInput,
 } from "../domain/schemas/hotel-users.schema";
+import { AuthService } from "./authentication.service";
 const ACTOR_ROLE_CODES = new Set(["SUPER_ADMIN", "HOTEL_OWNER", "HOTEL_MANAGER"]);
 const MANAGED_ROLE_CODES = new Set([
   "HOTEL_MANAGER",
@@ -52,7 +53,10 @@ export interface TenantScopedHotelUser {
 
 @Injectable()
 export class HotelUsersService {
-  constructor(private readonly hotelUsersRepository: HotelUsersRepository) {}
+  constructor(
+    private readonly hotelUsersRepository: HotelUsersRepository,
+    private readonly authService: AuthService,
+  ) {}
 
   async createHotelUser(
     actorUserId: string,
@@ -200,6 +204,8 @@ export class HotelUsersService {
     if (result.count === 0) {
       throw new NotFoundException("Không tìm thấy vai trò đang được gán");
     }
+
+    await this.authService.revokeUserRoleSessions(userId, role.id);
 
     return {
       revoked: true,

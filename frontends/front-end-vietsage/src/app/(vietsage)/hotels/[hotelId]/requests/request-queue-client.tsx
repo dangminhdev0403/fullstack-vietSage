@@ -103,7 +103,6 @@ type RequestQueueClientProps = {
   basePath?: string;
   serviceCatalogPath?: string;
   ownerApiBasePath?: string;
-  ownerAccessToken?: string | null;
   labels?: Partial<RequestQueueLabels>;
   detailMode?: "page" | "modal";
   initialDetailRequestId?: string;
@@ -574,7 +573,6 @@ export function RequestQueueClient({
   basePath = `/hotels/${hotelId}/requests`,
   serviceCatalogPath = `/hotels/${hotelId}/services`,
   ownerApiBasePath,
-  ownerAccessToken,
   labels,
   detailMode = "page",
   initialDetailRequestId,
@@ -768,7 +766,8 @@ export function RequestQueueClient({
     [applyLiveRequestChange, router],
   );
 
-  useOwnerRequestRealtime(hotelId, ownerAccessToken, ownerRealtimeHandlers, {
+  useOwnerRequestRealtime(hotelId, ownerRealtimeHandlers, {
+    enabled: false,
     showConnectionToasts: false,
   });
 

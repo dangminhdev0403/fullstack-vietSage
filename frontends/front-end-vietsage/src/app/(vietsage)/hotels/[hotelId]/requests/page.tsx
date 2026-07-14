@@ -6,7 +6,7 @@ import { VsTopBar } from "../../../_components/vs-top-bar";
 import { RequestQueueClient } from "./request-queue-client";
 import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
 import type { ListHotelRequestsQuery } from "@/features/hotel-ops/types/hotel-ops-contract";
-import { assertCanAccessHotelOps, canUseHotelId } from "@/features/hotel-ops/utils/hotel-route-auth";
+import { assertCanAccessHotelOps, canUseHotelId, requireHotelOpsServerTokens } from "@/features/hotel-ops/utils/hotel-route-auth";
 import { resolveDashboardNavigation, type DashboardNavItem } from "@/lib/frontend-navigation";
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
 
@@ -48,6 +48,7 @@ export default async function HotelRequestsPage({ params, searchParams }: Reques
   const callbackUrl = `/hotels/${hotelId}/requests` as const;
   const session = await auth();
   assertCanAccessHotelOps(session, callbackUrl);
+  const tokens = await requireHotelOpsServerTokens(callbackUrl);
 
   if (!canUseHotelId(session, hotelId)) {
     notFound();
@@ -81,9 +82,9 @@ export default async function HotelRequestsPage({ params, searchParams }: Reques
       userRole: "staff",
       assignedRoles: [],
       permissions: [],
-      accessToken: session.accessToken,
+      accessToken: tokens.accessToken,
       accessTokenExpiresAt: session.accessTokenExpiresAt,
-      refreshToken: session.refreshToken,
+      refreshToken: tokens.refreshToken,
       authError: session.authError,
     }),
   ]);

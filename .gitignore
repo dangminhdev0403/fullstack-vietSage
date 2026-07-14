@@ -4,6 +4,7 @@ secrets/**/*.json
 !secrets/.gitkeep
 !secrets/**/.gitkeep
 !secrets/README.md
+.vscode
 
 # Root/runtime env files
 .env

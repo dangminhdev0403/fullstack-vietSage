@@ -5,7 +5,7 @@
 VietSage currently runs as a **modular monolith**:
 
 ```txt
-frontends/font-end-vietsage/        # Next.js frontend
+frontends/front-end-vietsage/        # Next.js frontend
 services/auth-service/              # current deployed core API (NestJS)
 shared/api-contract/                # exported OpenAPI/shared contract package
 ```

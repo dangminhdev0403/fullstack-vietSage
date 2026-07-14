@@ -5,6 +5,11 @@ import { notFound, redirect } from "next/navigation";
 
 import { HttpError } from "@/core/http/http-error";
 import { hasAppRole } from "@/lib/rbac";
+import { requireRefreshableServerSession } from "@/lib/server-session-tokens";
+
+export async function requireOwnerServerTokens(callbackUrl: `/${string}`) {
+  return requireRefreshableServerSession(callbackUrl, "owner-auth");
+}
 
 export function redirectOwnerToLogin(callbackUrl: `/${string}`, reason: string): never {
   console.info("[AUTH_REDIRECT_LOGIN_SOURCE]", {
@@ -23,10 +28,6 @@ export function assertCanAccessOwner(session: Session | null, callbackUrl: `/${s
 
   if (session.authError) {
     redirectOwnerToLogin(callbackUrl, "auth_error");
-  }
-
-  if (!session.refreshToken) {
-    redirectOwnerToLogin(callbackUrl, "no_refresh_token");
   }
 
   if (!hasAppRole(session.user.roles, "tenant_owner")) {

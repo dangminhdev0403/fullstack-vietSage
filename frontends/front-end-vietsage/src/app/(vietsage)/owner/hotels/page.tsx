@@ -1,5 +1,6 @@
-﻿import { auth } from "@/auth";
+import { auth } from "@/auth";
 import { resolveDashboardNavigation } from "@/lib/frontend-navigation";
+import { readServerSessionTokens } from "@/lib/server-session-tokens";
 
 import { OwnerShell } from "../_components/owner-shell";
 import { OwnerHotelsClient } from "./owner-hotels-client";
@@ -8,13 +9,14 @@ export const dynamic = "force-dynamic";
 
 export default async function OwnerHotelsPage() {
   const session = await auth();
+  const tokens = await readServerSessionTokens();
   const callbackUrl = "/owner/hotels" as const;
 
   const sidebarItems = await resolveDashboardNavigation({
     roles: session?.user.roles ?? [],
-    accessToken: session?.accessToken ?? null,
-    accessTokenExpiresAt: session?.accessTokenExpiresAt ?? null,
-    refreshToken: session?.refreshToken ?? null,
+    accessToken: tokens.accessToken,
+    accessTokenExpiresAt: session?.accessTokenExpiresAt ?? tokens.accessTokenExpiresAt,
+    refreshToken: tokens.refreshToken,
     authError: session?.authError ?? null,
   });
 

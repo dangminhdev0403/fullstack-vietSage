@@ -9,6 +9,7 @@ import {
 import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
 import type { HotelRoomSummary } from "@/features/hotel-ops/types/hotel-ops-contract";
 import { resolveDashboardNavigation } from "@/lib/frontend-navigation";
+import { readServerSessionTokens } from "@/lib/server-session-tokens";
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
 
 import { VsIcon } from "../../../../_components/vs-icon";
@@ -223,15 +224,16 @@ export default async function OwnerHotelStayPage({
     ? requestedPageSize
     : stayPageSizeOptions[0];
   const session = await auth();
+  const tokens = await readServerSessionTokens();
   const callbackUrl = `/owner/hotels/${hotelId}/stay` as const;
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
 
   const [sidebarItems, roomsPage] = await Promise.all([
     resolveDashboardNavigation({
       roles: session?.user.roles ?? [],
-      accessToken: session?.accessToken ?? null,
-      accessTokenExpiresAt: session?.accessTokenExpiresAt ?? null,
-      refreshToken: session?.refreshToken ?? null,
+      accessToken: tokens.accessToken,
+      accessTokenExpiresAt: session?.accessTokenExpiresAt ?? tokens.accessTokenExpiresAt,
+      refreshToken: tokens.refreshToken,
       authError: session?.authError ?? null,
     }),
     authorizedApi("list owner rooms for stay manager", (accessToken) =>

@@ -19,6 +19,13 @@ const ConfigSchema = z.object({
   JWT_REFRESH_SECRET: z.string().min(1),
   JWT_ACCESS_TTL: z.string().min(1),
   JWT_REFRESH_TTL: z.string().min(1),
+  JWT_ISSUER: z.string().optional(),
+  JWT_AUDIENCE: z.string().optional(),
+  AUTH_SESSION_IDLE_TTL: z.string().optional(),
+  AUTH_SESSION_ABSOLUTE_TTL: z.string().optional(),
+  AUTH_REFRESH_IDEMPOTENCY_TTL_SECONDS: z.string().optional(),
+  AUTH_IDEMPOTENCY_ENCRYPTION_KEY: z.string().optional(),
+  AUTH_LEGACY_REFRESH_ACCEPT_UNTIL: z.string().optional(),
   AUTHZ_ENFORCEMENT_ENABLED: z.string().optional(),
   AUTHZ_ROUTE_SYNC_ENABLED: z.string().optional(),
   AUTHZ_STRICT_MODE: z.string().optional(),
@@ -57,6 +64,13 @@ export interface AuthConfig {
   jwtRefreshSecret: string;
   jwtAccessTtl: StringValue;
   jwtRefreshTtl: StringValue;
+  jwtIssuer: string;
+  jwtAudience: string;
+  sessionIdleTtl: StringValue;
+  sessionAbsoluteTtl: StringValue;
+  refreshIdempotencyTtlSeconds: number;
+  idempotencyEncryptionKey: string;
+  legacyRefreshAcceptUntil: Date | null;
 }
 
 export interface AuthzConfig {
@@ -147,6 +161,20 @@ function normalizeOptionalEnvText(rawValue: string | undefined): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function parseOptionalDateEnv(rawValue: string | undefined, envName: string): Date | null {
+  const normalized = normalizeOptionalEnvText(rawValue);
+  if (!normalized) {
+    return null;
+  }
+
+  const parsed = new Date(normalized);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error(`Invalid ${envName} environment variable. Expected an ISO date.`);
+  }
+
+  return parsed;
+}
+
 export function parseCorsOrigins(rawValue: string | undefined): string[] {
   if (rawValue === undefined || rawValue.trim() === "") {
     return [];
@@ -181,6 +209,24 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       jwtRefreshSecret: validated.JWT_REFRESH_SECRET,
       jwtAccessTtl: validated.JWT_ACCESS_TTL as StringValue,
       jwtRefreshTtl: validated.JWT_REFRESH_TTL as StringValue,
+      jwtIssuer: normalizeOptionalEnvText(validated.JWT_ISSUER) ?? "vietsage-auth",
+      jwtAudience: normalizeOptionalEnvText(validated.JWT_AUDIENCE) ?? "vietsage-web",
+      sessionIdleTtl: (normalizeOptionalEnvText(validated.AUTH_SESSION_IDLE_TTL) ??
+        "30d") as StringValue,
+      sessionAbsoluteTtl: (normalizeOptionalEnvText(validated.AUTH_SESSION_ABSOLUTE_TTL) ??
+        "90d") as StringValue,
+      refreshIdempotencyTtlSeconds: parsePositiveIntegerEnv(
+        validated.AUTH_REFRESH_IDEMPOTENCY_TTL_SECONDS,
+        300,
+        "AUTH_REFRESH_IDEMPOTENCY_TTL_SECONDS",
+      ),
+      idempotencyEncryptionKey:
+        normalizeOptionalEnvText(validated.AUTH_IDEMPOTENCY_ENCRYPTION_KEY) ??
+        validated.JWT_REFRESH_SECRET,
+      legacyRefreshAcceptUntil: parseOptionalDateEnv(
+        validated.AUTH_LEGACY_REFRESH_ACCEPT_UNTIL,
+        "AUTH_LEGACY_REFRESH_ACCEPT_UNTIL",
+      ),
     },
     authz: {
       routeSyncEnabled: parseBooleanEnv(

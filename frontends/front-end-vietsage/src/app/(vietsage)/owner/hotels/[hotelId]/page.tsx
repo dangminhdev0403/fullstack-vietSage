@@ -6,6 +6,7 @@ import { HttpError } from "@/core/http/http-error";
 import { adminService } from "@/features/admin/service/admin-service-instance";
 import type { Hotel } from "@/features/admin/types/admin-contract";
 import { resolveDashboardNavigation, type DashboardNavItem } from "@/lib/frontend-navigation";
+import { readServerSessionTokens } from "@/lib/server-session-tokens";
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
 
 import { VsIcon } from "../../../_components/vs-icon";
@@ -32,6 +33,7 @@ async function getOwnerVisibleHotel(hotelId: string, accessToken: string | undef
 export default async function OwnerHotelPage({ params }: OwnerHotelPageProps) {
   const { hotelId } = await Promise.resolve(params);
   const session = await auth();
+  const tokens = await readServerSessionTokens();
   const callbackUrl = `/owner/hotels/${hotelId}` as const;
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
 
@@ -42,9 +44,9 @@ export default async function OwnerHotelPage({ params }: OwnerHotelPageProps) {
     [sidebarItems, hotel] = await Promise.all([
       resolveDashboardNavigation({
         roles: session?.user.roles ?? [],
-        accessToken: session?.accessToken ?? null,
-        accessTokenExpiresAt: session?.accessTokenExpiresAt ?? null,
-        refreshToken: session?.refreshToken ?? null,
+        accessToken: tokens.accessToken,
+        accessTokenExpiresAt: session?.accessTokenExpiresAt ?? tokens.accessTokenExpiresAt,
+        refreshToken: tokens.refreshToken,
         authError: session?.authError ?? null,
       }),
       authorizedApi("get owner visible hotel", (accessToken) => getOwnerVisibleHotel(hotelId, accessToken)),

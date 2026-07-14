@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 
 import { resolveDashboardNavigation } from "@/lib/frontend-navigation";
+import { readServerSessionTokens } from "@/lib/server-session-tokens";
 
 import { VsDashboardSidebar } from "../../_components/vs-dashboard-sidebar";
 import { VsIcon } from "../../_components/vs-icon";
@@ -95,14 +96,15 @@ export default async function AdminDashboardPage({
       : "/admin/dashboard";
 
   const session = await auth();
+  const tokens = await readServerSessionTokens();
 
   const sidebarItems = await resolveDashboardNavigation({
     userRole: "admin",
     assignedRoles: [],
     permissions: [],
-    accessToken: session?.accessToken ?? null,
-    accessTokenExpiresAt: session?.accessTokenExpiresAt ?? null,
-    refreshToken: session?.refreshToken ?? null,
+    accessToken: tokens.accessToken,
+    accessTokenExpiresAt: session?.accessTokenExpiresAt ?? tokens.accessTokenExpiresAt,
+    refreshToken: tokens.refreshToken,
     authError: session?.authError ?? null,
   });
 

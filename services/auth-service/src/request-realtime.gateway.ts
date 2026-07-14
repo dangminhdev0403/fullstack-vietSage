@@ -19,6 +19,7 @@ import { loadAppConfig } from "./common/config/env.config";
 
 type AccessTokenPayload = {
   jti: string;
+  sid: string;
   sub: string;
   email: string;
   roleId: string;
@@ -35,6 +36,7 @@ type JoinGuestSessionPayload = {
 };
 
 const realtimeCorsOrigins = loadAppConfig().corsOrigins;
+const realtimeAuthConfig = loadAppConfig().auth;
 
 @WebSocketGateway({
   namespace: "/request-realtime",
@@ -98,6 +100,8 @@ export class RequestRealtimeGateway
     try {
       const jwtPayload = await this.jwtService.verifyAsync<AccessTokenPayload>(accessToken, {
         secret: this.authService.getAccessTokenSecret(),
+        issuer: realtimeAuthConfig.jwtIssuer,
+        audience: realtimeAuthConfig.jwtAudience,
       });
       const user = await this.authService.validateJwtPayload(jwtPayload);
       await this.hotelAccessService.assertHotelAccess(user.userId, hotelId);

@@ -3,6 +3,12 @@ import "server-only";
 import type { Session } from "next-auth";
 import { redirect } from "next/navigation";
 
+import { requireRefreshableServerSession } from "@/lib/server-session-tokens";
+
+export async function requireHotelOpsServerTokens(callbackUrl: `/${string}`) {
+  return requireRefreshableServerSession(callbackUrl, "hotel-route-auth");
+}
+
 function redirectToLogin(callbackUrl: `/${string}`, reason: string): never {
   console.info("[AUTH_REDIRECT_LOGIN_SOURCE]", {
     source: "hotel-route-auth",
@@ -22,9 +28,6 @@ export function assertCanAccessHotelOps(session: Session | null, callbackUrl: `/
     redirectToLogin(callbackUrl, "auth_error");
   }
 
-  if (!session.refreshToken) {
-    redirectToLogin(callbackUrl, "no_refresh_token");
-  }
 }
 
 export function getSessionHotelIds(session: Session): string[] {

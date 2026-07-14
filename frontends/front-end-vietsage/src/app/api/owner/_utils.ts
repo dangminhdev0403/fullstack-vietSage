@@ -5,30 +5,37 @@ import { auth } from "@/auth";
 import { HttpError } from "@/core/http/http-error";
 import { refreshAndSaveSessionTokens } from "@/lib/auth-session-refresh";
 import { hasAppRole } from "@/lib/rbac";
+import { readServerSessionTokens } from "@/lib/server-session-tokens";
 
 type OwnerAuthTokens = {
   accessToken: string;
   refreshToken: string | null;
 };
 
+type OwnerSessionTokenMetadata = {
+  accessToken: string | null;
+  refreshToken: string | null;
+  accessTokenExpiresAt: number | null;
+};
+
 type OwnerBackendRequest<T> = (accessToken: string) => Promise<T>;
 
 const OWNER_API_REFRESH_EARLY_MS = 30_000;
 
-function shouldRefreshOwnerSession(session: Session | null): session is Session & { refreshToken: string } {
-  if (!session?.refreshToken) {
+function shouldRefreshOwnerSession(tokens: OwnerSessionTokenMetadata, session: Session | null): boolean {
+  if (!tokens.refreshToken) {
     return false;
   }
 
-  if (!session.accessToken || session.authError) {
+  if (!tokens.accessToken || session?.authError) {
     return true;
   }
 
-  if (typeof session.accessTokenExpiresAt !== "number") {
+  if (typeof tokens.accessTokenExpiresAt !== "number") {
     return false;
   }
 
-  return Date.now() >= session.accessTokenExpiresAt - OWNER_API_REFRESH_EARLY_MS;
+  return Date.now() >= tokens.accessTokenExpiresAt - OWNER_API_REFRESH_EARLY_MS;
 }
 
 async function getOwnerAuthTokens(): Promise<OwnerAuthTokens | NextResponse> {
@@ -48,9 +55,11 @@ async function getOwnerAuthTokens(): Promise<OwnerAuthTokens | NextResponse> {
     );
   }
 
-  if (shouldRefreshOwnerSession(session)) {
+  const tokens = await readServerSessionTokens();
+
+  if (shouldRefreshOwnerSession(tokens, session)) {
     try {
-      const refreshedTokens = await refreshAndSaveSessionTokens(session.refreshToken);
+      const refreshedTokens = await refreshAndSaveSessionTokens(tokens.refreshToken!);
       return {
         accessToken: refreshedTokens.accessToken,
         refreshToken: refreshedTokens.refreshToken,
@@ -62,14 +71,14 @@ async function getOwnerAuthTokens(): Promise<OwnerAuthTokens | NextResponse> {
     }
   }
 
-  if (!session.accessToken || session.authError) {
+  if (!tokens.accessToken || session.authError) {
     return NextResponse.json(
       { status: 401, message: "UNAUTHORIZED", data: { detail: "Access token is required" } },
       { status: 401 },
     );
   }
 
-  return { accessToken: session.accessToken, refreshToken: session.refreshToken ?? null };
+  return { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken };
 }
 
 export async function getOwnerAccessToken(): Promise<string | NextResponse> {

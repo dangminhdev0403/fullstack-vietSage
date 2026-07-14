@@ -6,6 +6,7 @@ import { AuthService } from "../../application/authentication.service";
 
 interface AccessTokenPayload {
   jti: string;
+  sid: string;
   sub: string;
   email: string;
   roleId: string;
@@ -20,6 +21,8 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       secretOrKey: config.auth.jwtAccessSecret,
+      issuer: config.auth.jwtIssuer,
+      audience: config.auth.jwtAudience,
     });
   }
 

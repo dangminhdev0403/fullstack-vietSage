@@ -6,8 +6,6 @@ declare module "next-auth" {
       id: string;
       roles: string[];
     };
-    accessToken: string | null;
-    refreshToken: string | null;
     accessTokenExpiresAt: number | null;
     authError: string | null;
   }

@@ -1,7 +1,8 @@
 import "server-only";
 
-import { auth, unstable_update } from "@/auth";
+import { unstable_update } from "@/auth";
 import { authService } from "@/features/auth/service/auth-service-instance";
+import { readServerSessionTokens } from "@/lib/server-session-tokens";
 
 export type RefreshedSessionTokens = {
   accessToken: string;
@@ -16,20 +17,20 @@ function tokenTail(token: string): string {
 }
 
 function readCurrentSessionTokens(refreshToken: string): Promise<RefreshedSessionTokens | null> {
-  return auth().then((session) => {
+  return readServerSessionTokens().then((tokens) => {
     if (
-      !session?.accessToken ||
-      !session.refreshToken ||
-      typeof session.accessTokenExpiresAt !== "number" ||
-      session.refreshToken === refreshToken
+      !tokens.accessToken ||
+      !tokens.refreshToken ||
+      typeof tokens.accessTokenExpiresAt !== "number" ||
+      tokens.refreshToken === refreshToken
     ) {
       return null;
     }
 
     return {
-      accessToken: session.accessToken,
-      refreshToken: session.refreshToken,
-      accessTokenExpiresAt: session.accessTokenExpiresAt,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      accessTokenExpiresAt: tokens.accessTokenExpiresAt,
     };
   });
 }
@@ -71,12 +72,12 @@ export async function refreshAndSaveSessionTokens(
         refreshToken: refreshedTokens.refreshToken,
         accessTokenExpiresAt: refreshedTokens.accessTokenExpiresAt,
         authError: null,
-      });
-      const session = await auth();
+      } as never);
+      const tokens = await readServerSessionTokens();
 
       console.info("[SESSION_REFRESH_SAVED]", {
         saveLocation: "next-auth-jwt-session",
-        newAccessToken: session?.accessToken ? "updated" : "set",
+        newAccessToken: tokens.accessToken ? "updated" : "set",
         refreshTokenTail: tokenTail(refreshedTokens.refreshToken),
         timestamp: Date.now(),
       });

@@ -22,6 +22,7 @@ import type {
   RolePermissionsRevokeResponseEnvelope,
   RolesListResponseEnvelope,
 } from "@/features/rbac/types/rbac-contract";
+import { readServerSessionTokens } from "@/lib/server-session-tokens";
 
 export type RbacServiceOptions = {
   baseUrl: string;
@@ -90,10 +91,12 @@ export class RbacService {
       });
     }
 
+    const tokens = await readServerSessionTokens();
+
     return httpServer.request<TResponse, TBody>(options.method, options.path, options.body, {
       baseUrl: this.baseUrl,
       query: options.query,
-      isAuth: true,
+      accessToken: tokens.accessToken,
     });
   }
 

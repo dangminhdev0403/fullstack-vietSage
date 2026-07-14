@@ -32,7 +32,7 @@ No SDK mirror is maintained in this package. Frontend tooling should consume `op
 
 ## Sync frontend OpenAPI types
 
-Run from `frontends/font-end-vietsage` after any OpenAPI contract change:
+Run from `frontends/front-end-vietsage` after any OpenAPI contract change:
 
 ```bash
 npm run sync:api:types

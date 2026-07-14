@@ -175,14 +175,6 @@ export const authOptions = {
           : [];
       }
 
-      session.accessToken =
-        typeof token.authError === "string" && token.authError.length > 0
-          ? null
-          : typeof token.accessToken === "string"
-            ? token.accessToken
-            : null;
-      session.refreshToken =
-        typeof token.refreshToken === "string" ? token.refreshToken : null;
       session.accessTokenExpiresAt =
         typeof token.accessTokenExpiresAt === "number"
           ? token.accessTokenExpiresAt

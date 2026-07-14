@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { HttpError } from "@/core/http/http-error";
 import { refreshAndSaveSessionTokens, type RefreshedSessionTokens } from "@/lib/auth-session-refresh";
+import { readServerSessionTokens } from "@/lib/server-session-tokens";
 
 type AuthorizedApiCall<T> = (accessToken?: string) => Promise<T>;
 
@@ -33,12 +34,23 @@ export function createAuthorizedApiExecutor(options: AuthorizedApiExecutorOption
     redirectToLogin(options.callbackUrl, "auth_error");
   }
 
-  let currentAccessToken = options.session.accessToken ?? undefined;
-  let currentRefreshToken = options.session.refreshToken ?? undefined;
+  const tokensPromise = readServerSessionTokens();
+  let currentAccessToken: string | undefined;
+  let currentRefreshToken: string | undefined;
   let refreshInFlight: Promise<RefreshedSessionTokens> | null = null;
 
-  if (!currentAccessToken) {
-    redirectToLogin(options.callbackUrl, "no_access_token");
+  async function initializeExecutorTokens(): Promise<void> {
+    if (currentAccessToken || currentRefreshToken) {
+      return;
+    }
+
+    const tokens = await tokensPromise;
+    currentAccessToken = tokens.accessToken ?? undefined;
+    currentRefreshToken = tokens.refreshToken ?? undefined;
+
+    if (!currentAccessToken) {
+      redirectToLogin(options.callbackUrl, "no_access_token");
+    }
   }
 
   async function refreshExecutorTokens(): Promise<RefreshedSessionTokens | null> {
@@ -58,6 +70,8 @@ export function createAuthorizedApiExecutor(options: AuthorizedApiExecutorOption
   }
 
   return async <T>(operationName: string, call: AuthorizedApiCall<T>): Promise<T> => {
+    await initializeExecutorTokens();
+
     try {
       return await call(currentAccessToken);
     } catch (error) {

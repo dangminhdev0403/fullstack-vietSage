@@ -46,6 +46,166 @@ Status labels:
 
 # Execution Log
 
+## [complete] 2026-07-14 - Landing motion refactor
+
+- Replaced mount-time animation on all landing sections with one shared `IntersectionObserver` reveal controller that animates content only as it enters the viewport.
+- Added intentional hero sequencing, card/logo stagger, smoother navigation and CTA interactions, FAQ feedback, and focus-visible states without adding a motion dependency.
+- Removed the large continuously drifting device animation, slowed decorative orb movement, disabled continuous decoration motion on mobile, and limited primary reveals to compositor-friendly opacity/transform changes.
+- Preserved progressive enhancement and added full `prefers-reduced-motion` handling so content remains visible when motion is disabled or the observer is unavailable.
+
+Verification result:
+
+- `git diff --check -- src/app/page.tsx src/app/globals.css src/components/marketing/marketing-shell.tsx src/components/marketing/marketing-motion-root.tsx` passed with line-ending warnings only.
+- Focused ESLint and TypeScript checks could not run in the workspace sandbox because Windows returned `EPERM` while reading executables under `node_modules`; the requested unsandboxed validation was not approved.
+
+Remaining blockers/risks:
+
+- Run focused lint/typecheck and a browser smoke pass on desktop/mobile when executable access is available; no package or backend changes were made.
+
+## [complete] 2026-07-13 - Auth.js JWT reader Turbopack compatibility
+
+- Replaced the static named `next-auth/jwt` `getToken` import in the server-only session token helper with a focused `createRequire` compatibility loader.
+- Preserved raw token access behind `server-only`; browser `/api/auth/session` remains limited to safe session metadata.
+- Kept `/api/auth/refresh-session` missing-refresh-token handling on the existing `401` path while leaving unexpected helper failures as server errors.
+
+Verification result:
+
+- `npm run lint` passed.
+- `npx tsc --noEmit` passed.
+- `git diff --check` passed with line-ending warnings only.
+- Node sanity check confirmed `next-auth/jwt` exposes `getToken` as a function through the compatibility loader path.
+
+Remaining blockers/risks:
+
+- No code blocker identified. Runtime browser smoke against the already-running dev server is still recommended to verify the real Auth.js cookie refresh flow end-to-end.
+
+## [complete] 2026-07-13 - Phase 8 cleanup flags and final docs alignment
+
+- Removed the stale backend 401 retry config flag and the no-op auth-refresh bypass request option from browser transport code.
+- Removed guest service auth-refresh bypass call-site flags; guest/public flows now rely on `isPublic`, public allowlist behavior, or plain bearer transport behavior.
+- Aligned API transport rules to pure `http-client` / pure `http-server` boundaries and documented `internal-api-client` as the same-origin browser BFF refresh owner.
+- Kept `accessTokenExpiresAt` intentionally as session metadata and future cleanup surface; it is not a transport refresh owner.
+
+Verification result:
+
+- `node scripts/auth-refresh-smoke.mjs` passed.
+- `npm run lint` passed.
+- `npx tsc --noEmit` passed.
+- `npm run build` passed; Next.js emitted the known localStorage experimental warning.
+- `git diff --check` passed with line-ending warnings only.
+- UTF-8 scan for touched docs/src files returned `bad_utf8_count 0`.
+- Stale retry/bypass flag search across `src` and current docs returned no active implementation matches.
+- Browser transport invariant search confirmed `src/core/http/http-client.ts` has no refresh helpers, navigation side effects, logout dispatch, or refresh-route coupling.
+- Current transport docs no longer describe `http-client.ts` as the browser auth-refresh owner.
+
+Remaining blockers/risks:
+
+- No Phase 8 blockers identified. `accessTokenExpiresAt` remains intentionally as session metadata/future cleanup, not a transport refresh owner.
+
+## [complete] 2026-07-13 - Phase 7 concurrency refresh smoke harness
+
+- Added `scripts/auth-refresh-smoke.mjs`, a no-dependency Node harness that deterministically simulates concurrent browser BFF `401` recovery, single-flight refresh, one retry per logical request, and one logout-required signal on refresh failure.
+- Updated frontend smoke documentation with the script command, the exact guarantees it covers, and manual browser QA steps for real Auth.js cookies and backend refresh-token validation.
+
+Verification result:
+
+- `node scripts/auth-refresh-smoke.mjs` passed.
+- `npm run lint` passed.
+- `npx tsc --noEmit` passed.
+- `npm run build` passed.
+- `git diff --check` passed with line-ending warnings only.
+- UTF-8 scan for touched docs/scripts files returned `bad_utf8_count 0`.
+
+Remaining blockers/risks:
+
+- The harness validates the frontend recovery algorithm against a deterministic mock server only; manual browser QA remains required for real cookie expiry, Auth.js session behavior, and backend refresh-token rotation.
+
+## [complete] 2026-07-13 - Phase 6 hard refresh failure and callback safety smoke pass
+
+- Added shared internal callback sanitization that only accepts same-origin relative paths beginning with a single `/`, rejects protocol-relative and absolute external URLs, and removes nested `callbackUrl` query values.
+- Applied sanitized callback handling to proxy login redirects, proxy refresh-session redirects, and `/api/auth/refresh-session` GET/POST redirect construction.
+- Changed browser BFF `POST /api/auth/refresh-session` expected refresh failures, including missing/revoked refresh-token cases, to return `401` JSON envelopes without raw token fields; unexpected failures remain `500`.
+- Documented manual smoke coverage for stale Auth.js cookie cleanup, missing/revoked refresh tokens, callback nesting/external rejection, and single logout-required signaling.
+
+Verification result:
+
+- `npm run lint` passed.
+- `npx tsc --noEmit` passed.
+- `npm run build` passed; Next.js emitted the known localStorage experimental warning.
+- `git diff --check` passed with line-ending warnings only.
+- Callback sanitizer invariant search returned no naive `callbackUrl?.startsWith("/")` acceptance in `src/app/api/auth/refresh-session/route.ts` or `src/proxy.ts`.
+- `rg "serverErrorResponse\(\)" src/app/api/auth/refresh-session/route.ts` shows `500` remains only for the unexpected-error branch after expected refresh failures are classified as `401`.
+- `rg "accessToken|refreshToken" src/app/api/auth/refresh-session/route.ts` shows token variables/metadata only; the JSON response exposes only `accessTokenExpiresAt`, not raw tokens.
+- UTF-8 scan for touched `src` and `docs` files returned `bad_utf8_count 0`.
+
+Remaining blockers/risks:
+
+- Manual browser smoke is still required to observe real cookie expiration behavior, revoked backend refresh-token behavior, and single logout-required dispatch under concurrent BFF failures.
+
+## [complete] 2026-07-13 - Phase 1 Auth session token privacy
+
+- Removed raw `accessToken` and `refreshToken` from the client-visible Auth.js `Session` shape and session callback output.
+- Added server-only JWT token access in `src/lib/server-session-tokens.ts` using `next-auth/jwt` `getToken`, keeping raw token reads behind `server-only`.
+- Updated server refresh, BFF owner auth, server HTTP auth, protected layouts, and server pages to read/rotate raw tokens from server-only helpers instead of `/api/auth/session` data.
+- Preserved JWT-held raw tokens for HttpOnly/encrypted Auth.js cookie rotation while keeping `/api/auth/session` limited to safe metadata.
+- Fixed one Codex-introduced UTF-8 mojibake regression in `src/app/(vietsage)/owner/hotels/page.tsx` before final verification.
+
+Verification result:
+
+- `rg "session\\.accessToken|session\\.refreshToken|accessToken=\\{session\\.accessToken|refreshToken=\\{session\\.refreshToken" src` returned no raw `session.accessToken` / `session.refreshToken` reads.
+- `rg "accessToken: session\\.accessToken|refreshToken: session\\.refreshToken" src` returned no matches.
+- UTF-8 scan over `src` returned `bad_utf8_count 0`.
+- `npm run lint` passed.
+- `npx tsc --noEmit` passed.
+- `npm run build` passed; Next.js emitted the known localStorage experimental warning.
+- `git diff --check` passed.
+
+Remaining blockers/risks:
+
+- Some client components still receive a raw access token from server-only JWT helpers for hotel operations where full same-origin BFF migration is not complete. This is now documented as the planned BFF migration scope after transport cleanup; those tokens no longer come from client-visible Auth.js `Session` or `/api/auth/session`.
+
+## [complete] 2026-07-13 - Phase 2 pure server HTTP transport
+
+- Refactored `src/core/http/http-server.ts` into a pure server transport: callers now provide explicit `accessToken` or `Authorization` headers, non-2xx responses throw `HttpError`, and the transport no longer reads session/JWT data, refreshes tokens, or maps `403 GET` to `notFound()`.
+- Updated admin and RBAC service fallback paths to read server-only JWT tokens outside the transport and pass `accessToken` explicitly into `httpServer`.
+
+Verification result:
+
+- `rg "notFound|refreshAndSaveSessionTokens|readServerSessionTokens|auth\(|next/navigation" src/core/http/http-server.ts` returned no matches.
+- `rg "isAuth:\s*true|httpServer\.request|httpServer\.get|httpServer\.post|httpServer\.put|httpServer\.patch|httpServer\.delete" src` returned only the two expected direct `httpServer.request` service fallback call sites.
+- `rg "session\.accessToken|session\.refreshToken" src` returned no raw token matches; only `session.accessTokenExpiresAt` metadata matches.
+- `npm run lint` passed.
+- `npx tsc --noEmit --pretty false` passed.
+- `npm run build` passed; Next.js emitted the known localStorage experimental warning.
+- `git diff --check` passed.
+
+Remaining blockers/risks:
+
+- Browser `src/core/http/http-client.ts` still owned browser-side refresh/logging side effects at this point and remained the planned Phase 3 scope.
+
+## [complete] 2026-07-13 - Phase 3/4/5 browser transport, BFF migration, and realtime token policy
+
+- Refactored `src/core/http/http-client.ts` into a pure browser/backend transport: it now only builds requests, attaches an explicit bearer token when provided for non-public paths, parses/logs responses, and throws `HttpError` for non-OK responses.
+- Removed browser auth refresh ownership, 401 retry loops, logout event dispatching, and client navigation side effects from `HttpClient`; `accessTokenExpiresAt` remained accepted as deprecated no-op compatibility metadata.
+- Migrated staff hotel service catalog and request detail Client Components from raw token props to existing same-origin owner BFF routes through `requestInternalApi` / `requestInternalApiEnvelope`.
+- Removed raw owner realtime token payload usage from browser realtime hooks and disabled owner realtime subscription by default until a safe scoped realtime credential exists.
+
+Verification result:
+
+- `npm run lint` passed.
+- `npx tsc --noEmit` passed.
+- `npm run build` passed; Next.js emitted the known localStorage experimental warning.
+- `git diff --check` passed with line-ending warnings only.
+- The browser transport invariant search returned no refresh helpers, navigation, logout dispatch, retry config, or refresh-session matches in `src/core/http/http-client.ts`.
+- Scoped client-prop checks confirmed the concrete hotel service catalog and request detail pages no longer pass `tokens.accessToken` into Client Components; broader `src/app/(vietsage)` matches remain server-side data-loading/navigation call sites.
+- `owner:join_hotel_requests` emits only `{ hotelId }`; no `accessToken` is included in the socket payload, and owner realtime subscriptions are disabled by default.
+- UTF-8 scan over `src/**/*.{ts,tsx,js,jsx,css,md,json}` returned `bad_utf8_count 0`; focused mojibake pattern search returned no matches.
+
+Remaining blockers/risks:
+
+- Owner realtime remains disabled by default for browser owner/staff surfaces until backend/BFF provides a scoped realtime join token or cookie-authenticated socket join path that does not expose raw Auth.js/backend access tokens.
+- Other `src/app/(vietsage)` server pages still pass server-only raw tokens into server-side data loaders and navigation resolution; those are not Client Component raw-token props in this phase.
+
 ## [complete] 2026-07-13 - Phase 0 documentation path hygiene
 
 - Replaced stale markdown references to the old frontend folder name with `frontends/front-end-vietsage` in active documentation.
@@ -255,7 +415,7 @@ Remaining blockers/risks:
 - Added `GET /api/auth/refresh-session` for cookie-writable refresh + `unstable_update`, then redirect back to the original protected route.
 - Kept `POST /api/auth/refresh-session` available for client/manual refresh flows.
 - Kept server-side HTTP refresh blocked outside cookie-writable boundaries with `[API_AUTH] 401_server_refresh_blocked` logging.
-- Kept client-side refresh handled by `src/core/http/http-client.ts` with single-flight/cooldown behavior.
+- Historical note: this earlier phase still kept client-side refresh in the browser HTTP layer with single-flight/cooldown behavior; later phases moved same-origin BFF refresh ownership to `internal-api-client`.
 - Completed the API transport documentation rule requiring `httpClient` / `httpServer` for future backend API work.
 
 Verification result:
@@ -272,7 +432,7 @@ Remaining blockers/risks:
 
 - Updated `docs/RULES.md` to require reading `docs/RULES.md` and relevant files in `docs/` before implementation work.
 - Added a mandatory API transport rule requiring backend API calls to use the central HTTP transports:
-  - `src/core/http/http-client.ts` for client-side/public API flows and client refresh handling.
+  - `src/core/http/http-client.ts` for client-side/public API flows.
   - `src/core/http/http-server.ts` for server-side authenticated backend API calls.
 - Documented that raw `fetch`/`axios` calls must not be introduced in pages, layouts, UI components, or feature services.
 - Updated `docs/ARCHITECTURE.md` to mirror the `httpClient` / `httpServer` transport split and refresh boundary guidance.
@@ -1376,3 +1536,60 @@ Remaining blockers/risks:
 ### Verification Result (Permissions UI: Horizontal Nav Only)
 
 - Ran `npm run lint` successfully.
+
+## 2026-07-14 - Cinematic Landing Motion
+
+### What Changed
+
+- Completed the existing landing-page cinematic direction without replacing VietSage content or touching application business flows.
+- Added deterministic ambient particles, scene watermarks, section-aware backgrounds, a compact-on-scroll transparent navbar, scroll progress, scene rail, and responsive scroll snapping.
+- Reworked hero motion into independent entrance, damped pointer-parallax, and floating layers so transforms no longer compete or snap abruptly.
+- Added reusable in-view reveal timing, staggered cards, dark operations storytelling, scroll cue, hover depth, and mobile/reduced-motion fallbacks.
+- Kept the implementation dependency-free and limited browser work to passive listeners, IntersectionObserver, and requestAnimationFrame.
+
+### Verification Result
+
+- Ran `pnpm exec eslint src/app/page.tsx src/components/marketing/marketing-shell.tsx src/components/marketing/marketing-motion-root.tsx` successfully.
+- Ran `pnpm exec tsc --noEmit` successfully.
+- Ran `pnpm build` successfully.
+- Ran `git diff --check` for the landing-page files successfully; only existing LF-to-CRLF checkout warnings were reported.
+
+### Remaining Blockers / Risks
+
+- Visual QA in multiple physical mobile browsers is still recommended because device GPU performance and browser scroll-snap behavior vary.
+- The marketing copy remains English to preserve the current landing-page content scope.
+
+## 2026-07-14 - Restore Frontend Dev Task
+
+### What Changed
+
+- Added a repository-level VS Code task for `pnpm run dev`.
+- Fixed the task working directory to `frontends/front-end-vietsage` so Next.js discovers the existing `src/app` App Router.
+- Kept the application code, dependencies, and package scripts unchanged.
+
+### Verification Result
+
+- Ran `pnpm run dev` from `frontends/front-end-vietsage` and confirmed Next.js 16.2.6 reached `Ready` without the missing `pages` or `app` directory error.
+
+### Remaining Blockers / Risks
+
+- Developers opening only a nested folder instead of the repository root will not receive the repository-level task and should run the command from the frontend package root.
+
+## 2026-07-14 - Marketing Navigation Usability Fix
+
+### What Changed
+
+- Replaced the transparent fixed marketing header with a sticky, consistently readable cream navigation surface.
+- Added route-aware active states and kept the Solutions dropdown available for keyboard focus and pointer hover.
+- Added a responsive navigation menu with accessible labels, large tap targets, Escape handling, outside-click dismissal, and mobile sign-in/demo actions.
+- Adjusted the marketing hero height and spacing so the in-flow sticky header no longer occupies the hero content area.
+
+### Verification Result
+
+- Ran targeted ESLint for the marketing header, shell, and landing page successfully.
+- Ran `pnpm exec tsc --noEmit` successfully.
+- Ran `pnpm run build` successfully with Next.js 16.2.6.
+
+### Remaining Blockers / Risks
+
+- Physical-device visual QA is still recommended for browser-specific backdrop blur rendering and very narrow mobile viewports.

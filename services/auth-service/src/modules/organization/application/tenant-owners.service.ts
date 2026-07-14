@@ -17,6 +17,7 @@ import type {
   ListTenantOwnersQueryInput,
   UpdateTenantOwnerBodyInput,
 } from "../domain/schemas/tenant-owners.schema";
+import { AuthService } from "../../identity/identity-public";
 
 export interface TenantOwnerItem {
   id: string;
@@ -54,6 +55,7 @@ export class TenantOwnersService {
   constructor(
     private readonly tenantOwnersRepository: TenantOwnersRepository,
     private readonly codesService: CodesService,
+    private readonly authService: AuthService,
   ) {}
 
   async listTenantOwners(actorUserId: string, query: ListTenantOwnersQueryInput) {
@@ -138,6 +140,10 @@ export class TenantOwnersService {
             ? new Date()
             : undefined,
       });
+
+      if (dto.owner?.status && dto.owner.status !== UserStatus.ACTIVE) {
+        await this.authService.revokeUserSessions(userId);
+      }
 
       return this.toTenantOwnerItem(row);
     } catch (error) {

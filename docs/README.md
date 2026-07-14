@@ -13,7 +13,7 @@ VietSage is currently a **modular monolith**: one deployed NestJS core API under
 | Root / cross-system | `docs/` | System architecture, bounded contexts, service evolution, API/event/secret/RBAC policies, deployment and validation. |
 | Backend standards | `services/docs/` | Backend modular-monolith standards, module guide, contract/data guide, extension workflow, rules/plans/migration notes. |
 | Current backend core API | `services/auth-service/` | NestJS runtime service currently acting as VietSage core API. |
-| Frontend app | `frontends/font-end-vietsage/docs/` | Frontend architecture standard, module guide, contract guide, runtime/UI guide, rules/plans/design/smoke/i18n notes. |
+| Frontend app | `frontends/front-end-vietsage/docs/` | Frontend architecture standard, module guide, contract guide, runtime/UI guide, rules/plans/design/smoke/i18n notes. |
 | Shared API contract package | `shared/api-contract/docs/` | Generated/curated API catalog and contract changelog. |
 
 ## Read Order For AI Agents

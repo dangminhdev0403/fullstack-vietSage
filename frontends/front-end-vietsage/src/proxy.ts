@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { auth } from "./auth";
-import { getDefaultPathForRoles } from "./lib/rbac";
+import { getDefaultPathForRoles, sanitizeInternalCallbackUrl } from "./lib/rbac";
 
 const protectedPrefixes = ["/admin", "/owner", "/staff", "/hotels"] as const;
 const authRoutes = new Set(["/login", "/register"]);
@@ -56,7 +56,7 @@ function buildLoginRedirect(request: NextRequest): NextResponse {
   // Prevent callbackUrl nesting growth when a protected URL already carries callbackUrl
   callbackSource.searchParams.delete("callbackUrl");
 
-  const callbackUrl = `${callbackSource.pathname}${callbackSource.search}`;
+  const callbackUrl = sanitizeInternalCallbackUrl(`${callbackSource.pathname}${callbackSource.search}`);
 
   loginUrl.searchParams.set("callbackUrl", callbackUrl);
   loginUrl.searchParams.set("reauth", "1");
@@ -98,7 +98,10 @@ function buildRefreshSessionRedirect(request: NextRequest): NextResponse {
   const callbackSource = request.nextUrl.clone();
 
   callbackSource.searchParams.delete("callbackUrl");
-  refreshUrl.searchParams.set("callbackUrl", `${callbackSource.pathname}${callbackSource.search}`);
+  refreshUrl.searchParams.set(
+    "callbackUrl",
+    sanitizeInternalCallbackUrl(`${callbackSource.pathname}${callbackSource.search}`),
+  );
 
   return NextResponse.redirect(refreshUrl);
 }

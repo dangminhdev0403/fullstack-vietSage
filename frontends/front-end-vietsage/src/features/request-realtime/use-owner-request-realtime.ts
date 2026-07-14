@@ -15,15 +15,16 @@ type OwnerRequestRealtimeHandlers = {
 
 type OwnerRequestRealtimeOptions = {
   showConnectionToasts?: boolean;
+  enabled?: boolean;
 };
 
 export function useOwnerRequestRealtime(
   hotelId: string,
-  accessToken: string | null | undefined,
   handlers: OwnerRequestRealtimeHandlers,
   options: OwnerRequestRealtimeOptions = {},
 ) {
   const showConnectionToasts = options.showConnectionToasts ?? true;
+  const enabled = options.enabled ?? false;
   const handlersRef = useRef(handlers);
 
   useEffect(() => {
@@ -31,11 +32,11 @@ export function useOwnerRequestRealtime(
   }, [handlers]);
 
   useEffect(() => {
-    if (!hotelId || !accessToken) return;
+    if (!enabled || !hotelId) return;
 
     const socket = createRequestRealtimeSocket();
     const joinRoom = () => {
-      socket.emit("owner:join_hotel_requests", { hotelId, accessToken });
+      socket.emit("owner:join_hotel_requests", { hotelId });
     };
 
     socket.on("connect", joinRoom);
@@ -82,5 +83,5 @@ export function useOwnerRequestRealtime(
       socket.removeAllListeners();
       socket.disconnect();
     };
-  }, [hotelId, accessToken, showConnectionToasts]);
+  }, [enabled, hotelId, showConnectionToasts]);
 }

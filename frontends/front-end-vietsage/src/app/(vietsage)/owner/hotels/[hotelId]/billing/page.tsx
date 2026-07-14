@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { billingService } from "@/features/billing/service/billing-service-instance";
 import { resolveDashboardNavigation } from "@/lib/frontend-navigation";
+import { readServerSessionTokens } from "@/lib/server-session-tokens";
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
 
 import { withOwnerHotelNavigation } from "../../../_components/owner-navigation";
@@ -14,15 +15,16 @@ export const dynamic = "force-dynamic";
 export default async function OwnerBillingPage({ params }: PageProps) {
   const { hotelId } = await Promise.resolve(params);
   const session = await auth();
+  const tokens = await readServerSessionTokens();
   const callbackUrl = `/owner/hotels/${hotelId}/billing` as const;
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
 
   const [sidebarItems, folios] = await Promise.all([
     resolveDashboardNavigation({
       roles: session?.user.roles ?? [],
-      accessToken: session?.accessToken ?? null,
-      accessTokenExpiresAt: session?.accessTokenExpiresAt ?? null,
-      refreshToken: session?.refreshToken ?? null,
+      accessToken: tokens.accessToken,
+      accessTokenExpiresAt: session?.accessTokenExpiresAt ?? tokens.accessTokenExpiresAt,
+      refreshToken: tokens.refreshToken,
       authError: session?.authError ?? null,
     }),
     authorizedApi("list billing folios", (accessToken) =>

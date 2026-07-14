@@ -1,7 +1,7 @@
 import "server-only";
 
-import { auth } from "@/auth";
 import { refreshAndSaveSessionTokens } from "@/lib/auth-session-refresh";
+import { readServerSessionTokens } from "@/lib/server-session-tokens";
 
 export type ServerAuthRefreshResult = {
   accessToken: string;
@@ -10,8 +10,8 @@ export type ServerAuthRefreshResult = {
 };
 
 export async function refreshServerSessionAccessToken(): Promise<ServerAuthRefreshResult | null> {
-  const session = await auth();
-  const refreshToken = session?.refreshToken ?? null;
+  const tokens = await readServerSessionTokens();
+  const refreshToken = tokens.refreshToken;
 
   if (!refreshToken) {
     return null;

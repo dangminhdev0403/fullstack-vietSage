@@ -13,6 +13,7 @@ import type {
   TenantOwnerUpdateInput,
   UpdateHotelInput,
 } from "@/features/admin/types/admin-contract";
+import { readServerSessionTokens } from "@/lib/server-session-tokens";
 
 export type AdminServiceOptions = {
   baseUrl: string;
@@ -48,10 +49,12 @@ export class AdminService {
       });
     }
 
+    const tokens = await readServerSessionTokens();
+
     return httpServer.request<TResponse, TBody>(options.method, options.path, options.body, {
       baseUrl: this.baseUrl,
       query: options.query,
-      isAuth: true,
+      accessToken: tokens.accessToken,
     });
   }
 

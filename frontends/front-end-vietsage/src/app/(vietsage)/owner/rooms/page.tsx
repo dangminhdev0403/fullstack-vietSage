@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { adminService } from "@/features/admin/service/admin-service-instance";
 import type { Hotel } from "@/features/admin/types/admin-contract";
 import { resolveDashboardNavigation } from "@/lib/frontend-navigation";
+import { readServerSessionTokens } from "@/lib/server-session-tokens";
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
 
 import { VsIcon } from "../../_components/vs-icon";
@@ -30,15 +31,16 @@ function getActiveHotels(hotels: readonly Hotel[]): Hotel[] {
 
 export default async function OwnerRoomsPage() {
   const session = await auth();
+  const tokens = await readServerSessionTokens();
   const callbackUrl = "/owner/rooms" as const;
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
 
   const [sidebarItems, hotelsPage] = await Promise.all([
     resolveDashboardNavigation({
       roles: session?.user.roles ?? [],
-      accessToken: session?.accessToken ?? null,
-      accessTokenExpiresAt: session?.accessTokenExpiresAt ?? null,
-      refreshToken: session?.refreshToken ?? null,
+      accessToken: tokens.accessToken,
+      accessTokenExpiresAt: session?.accessTokenExpiresAt ?? tokens.accessTokenExpiresAt,
+      refreshToken: tokens.refreshToken,
       authError: session?.authError ?? null,
     }),
     authorizedApi("list owner hotels for room manager", (accessToken) =>

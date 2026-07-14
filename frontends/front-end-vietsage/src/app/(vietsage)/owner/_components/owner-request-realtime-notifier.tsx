@@ -47,13 +47,7 @@ function playUrgentRequestSound() {
   window.setTimeout(() => void context.close(), 2400);
 }
 
-function OwnerHotelRequestRealtimeNotifier({
-  accessToken,
-  hotelId,
-}: {
-  accessToken: string | null | undefined;
-  hotelId: string;
-}) {
+function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
   const router = useRouter();
 
   const handlers = useMemo(
@@ -87,31 +81,24 @@ function OwnerHotelRequestRealtimeNotifier({
     [hotelId, router],
   );
 
-  useOwnerRequestRealtime(hotelId, accessToken, handlers, {
+  useOwnerRequestRealtime(hotelId, handlers, {
+    enabled: false,
     showConnectionToasts: false,
   });
 
   return null;
 }
 
-export function OwnerRequestRealtimeNotifier({
-  accessToken,
-}: {
-  accessToken: string | null | undefined;
-}) {
+export function OwnerRequestRealtimeNotifier() {
   const hotelsQuery = useOwnerHotelsQuery();
   const hotels = hotelsQuery.data?.items ?? [];
 
-  if (!accessToken || hotels.length === 0) return null;
+  if (hotels.length === 0) return null;
 
   return (
     <>
       {hotels.map((hotel) => (
-        <OwnerHotelRequestRealtimeNotifier
-          key={hotel.id}
-          accessToken={accessToken}
-          hotelId={hotel.id}
-        />
+        <OwnerHotelRequestRealtimeNotifier key={hotel.id} hotelId={hotel.id} />
       ))}
     </>
   );

@@ -1,6 +1,39 @@
 import { Injectable } from "@nestjs/common";
-import { HttpMethod, RoleStatus, UserRoleStatus, UserStatus, UserType } from "@prisma/client";
+import {
+  AuthSessionRevokeReason,
+  AuthSessionStatus,
+  HttpMethod,
+  Prisma,
+  RoleStatus,
+  UserRoleStatus,
+  UserStatus,
+  UserType,
+} from "@prisma/client";
 import { PrismaService } from "../../../../prisma/prisma.service";
+
+interface CreateAuthSessionInput {
+  id: string;
+  userId: string;
+  roleId: string;
+  currentRefreshHash: string;
+  refreshFamilyId: string;
+  idleExpiresAt: Date;
+  absoluteExpiresAt: Date;
+}
+
+interface RotateAuthSessionInput {
+  sessionId: string;
+  expectedVersion: number;
+  currentRefreshHash: string;
+  nextRefreshHash: string;
+  nextIdleExpiresAt: Date;
+  rotatedAt: Date;
+  historyExpiresAt: Date;
+  idempotencyKey: string;
+  requestFingerprint: string;
+  encryptedResult: string;
+  idempotencyExpiresAt: Date;
+}
 
 @Injectable()
 export class AuthRepository {
@@ -122,6 +155,207 @@ export class AuthRepository {
         tokenHash,
         expiresAt,
       },
+    });
+  }
+
+  async createAuthSession(input: CreateAuthSessionInput) {
+    return this.prisma.authSession.create({ data: input });
+  }
+
+  async findAuthSessionById(sessionId: string) {
+    return this.prisma.authSession.findUnique({
+      where: { id: sessionId },
+      include: { user: true },
+    });
+  }
+
+  async findAuthSessionByCurrentRefreshHash(tokenHash: string) {
+    return this.prisma.authSession.findUnique({
+      where: { currentRefreshHash: tokenHash },
+      include: { user: true },
+    });
+  }
+
+  async findAuthSessionByHistoricalRefreshHash(tokenHash: string) {
+    return this.prisma.authRefreshTokenHistory.findUnique({
+      where: { tokenHash },
+      include: {
+        session: {
+          include: { user: true },
+        },
+      },
+    });
+  }
+
+  async findRefreshIdempotency(sessionId: string, idempotencyKey: string) {
+    return this.prisma.authRefreshIdempotency.findUnique({
+      where: {
+        sessionId_idempotencyKey: {
+          sessionId,
+          idempotencyKey,
+        },
+      },
+    });
+  }
+
+  async rotateAuthSession(input: RotateAuthSessionInput): Promise<boolean> {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const rotated = await tx.authSession.updateMany({
+          where: {
+            id: input.sessionId,
+            status: AuthSessionStatus.ACTIVE,
+            version: input.expectedVersion,
+            currentRefreshHash: input.currentRefreshHash,
+          },
+          data: {
+            currentRefreshHash: input.nextRefreshHash,
+            version: { increment: 1 },
+            idleExpiresAt: input.nextIdleExpiresAt,
+            lastUsedAt: input.rotatedAt,
+            rotatedAt: input.rotatedAt,
+          },
+        });
+
+        if (rotated.count !== 1) {
+          return false;
+        }
+
+        await tx.authRefreshTokenHistory.create({
+          data: {
+            sessionId: input.sessionId,
+            tokenHash: input.currentRefreshHash,
+            expiresAt: input.historyExpiresAt,
+          },
+        });
+        await tx.authRefreshIdempotency.create({
+          data: {
+            sessionId: input.sessionId,
+            idempotencyKey: input.idempotencyKey,
+            requestFingerprint: input.requestFingerprint,
+            encryptedResult: input.encryptedResult,
+            expiresAt: input.idempotencyExpiresAt,
+          },
+        });
+
+        return true;
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        return false;
+      }
+      throw error;
+    }
+  }
+
+  async migrateLegacyRefreshToken(input: {
+    legacyTokenId: string;
+    legacyTokenHash: string;
+    session: CreateAuthSessionInput;
+    historyExpiresAt: Date;
+    idempotencyKey: string;
+    requestFingerprint: string;
+    encryptedResult: string;
+    idempotencyExpiresAt: Date;
+  }): Promise<boolean> {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const consumed = await tx.refreshToken.deleteMany({
+          where: {
+            id: input.legacyTokenId,
+            tokenHash: input.legacyTokenHash,
+          },
+        });
+        if (consumed.count !== 1) {
+          return false;
+        }
+
+        await tx.authSession.create({ data: input.session });
+        await tx.authRefreshTokenHistory.create({
+          data: {
+            sessionId: input.session.id,
+            tokenHash: input.legacyTokenHash,
+            expiresAt: input.historyExpiresAt,
+          },
+        });
+        await tx.authRefreshIdempotency.create({
+          data: {
+            sessionId: input.session.id,
+            idempotencyKey: input.idempotencyKey,
+            requestFingerprint: input.requestFingerprint,
+            encryptedResult: input.encryptedResult,
+            expiresAt: input.idempotencyExpiresAt,
+          },
+        });
+        return true;
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        return false;
+      }
+      throw error;
+    }
+  }
+
+  async revokeAuthSession(
+    sessionId: string,
+    reason: AuthSessionRevokeReason,
+    status: AuthSessionStatus = AuthSessionStatus.REVOKED,
+  ) {
+    return this.prisma.authSession.updateMany({
+      where: { id: sessionId, status: AuthSessionStatus.ACTIVE },
+      data: { status, revokeReason: reason, revokedAt: new Date() },
+    });
+  }
+
+  async revokeAuthSessionFamily(refreshFamilyId: string, reason: AuthSessionRevokeReason) {
+    return this.prisma.authSession.updateMany({
+      where: { refreshFamilyId, status: AuthSessionStatus.ACTIVE },
+      data: {
+        status: AuthSessionStatus.COMPROMISED,
+        revokeReason: reason,
+        revokedAt: new Date(),
+      },
+    });
+  }
+
+  async revokeAuthSessionsByUserId(userId: string, reason: AuthSessionRevokeReason) {
+    return this.prisma.authSession.updateMany({
+      where: { userId, status: AuthSessionStatus.ACTIVE },
+      data: { status: AuthSessionStatus.REVOKED, revokeReason: reason, revokedAt: new Date() },
+    });
+  }
+
+  async revokeAuthSessionsByUserRole(userId: string, roleId: string) {
+    return this.prisma.authSession.updateMany({
+      where: { userId, roleId, status: AuthSessionStatus.ACTIVE },
+      data: {
+        status: AuthSessionStatus.REVOKED,
+        revokeReason: AuthSessionRevokeReason.ROLE_CHANGED,
+        revokedAt: new Date(),
+      },
+    });
+  }
+
+  async revokeAuthSessionsByRoleId(roleId: string) {
+    return this.prisma.authSession.updateMany({
+      where: { roleId, status: AuthSessionStatus.ACTIVE },
+      data: {
+        status: AuthSessionStatus.REVOKED,
+        revokeReason: AuthSessionRevokeReason.ROLE_CHANGED,
+        revokedAt: new Date(),
+      },
+    });
+  }
+
+  async touchAuthSession(sessionId: string, staleBefore: Date, idleExpiresAt: Date, now: Date) {
+    return this.prisma.authSession.updateMany({
+      where: {
+        id: sessionId,
+        status: AuthSessionStatus.ACTIVE,
+        lastUsedAt: { lt: staleBefore },
+      },
+      data: { lastUsedAt: now, idleExpiresAt },
     });
   }
 

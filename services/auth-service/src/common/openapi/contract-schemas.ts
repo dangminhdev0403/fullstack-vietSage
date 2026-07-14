@@ -67,8 +67,20 @@ export const authTokensDataSchema = {
     tokenType: { type: "string", enum: ["Bearer"] },
     accessTtl: { type: "string", example: "15m" },
     refreshTtl: { type: "string", example: "7d" },
+    accessExpiresAt: { type: "string", format: "date-time" },
+    refreshExpiresAt: { type: "string", format: "date-time" },
+    sessionId: { type: "string", format: "uuid" },
   },
-  required: ["accessToken", "refreshToken", "tokenType", "accessTtl", "refreshTtl"],
+  required: [
+    "accessToken",
+    "refreshToken",
+    "tokenType",
+    "accessTtl",
+    "refreshTtl",
+    "accessExpiresAt",
+    "refreshExpiresAt",
+    "sessionId",
+  ],
 };
 
 export const authLogoutDataSchema = {

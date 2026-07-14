@@ -4,7 +4,7 @@ Use this checklist for every frontend synchronization task to keep UI, route beh
 
 ## Scope
 
-- Frontend app: `frontends/font-end-vietsage`
+- Frontend app: `frontends/front-end-vietsage`
 - Main route group: `src/app/(vietsage)`
 - This guide applies to Stitch sync tasks and manual UI update tasks.
 
@@ -28,7 +28,7 @@ Use this checklist for every frontend synchronization task to keep UI, route beh
 
 ## Phase 3 - Validation Commands
 
-Run from `frontends/font-end-vietsage`:
+Run from `frontends/front-end-vietsage`:
 
 ```bash
 npm run lint
@@ -77,7 +77,7 @@ A sync task is complete only when all items below exist:
 2. Validation command result (`lint`, and `build` when relevant).
 3. Route QA result summary.
 4. Status document updated:
-   - `frontends/font-end-vietsage/docs/PROJECT_STATUS.md`
+   - `frontends/front-end-vietsage/docs/PROJECT_STATUS.md`
 5. If contracts changed, corresponding root docs updated.
 
 ## Report Template

@@ -12,6 +12,7 @@ import type {
 } from "@/features/rbac/types/rbac-contract";
 import type { DashboardNavItem } from "@/lib/frontend-navigation";
 import { resolveDashboardNavigation } from "@/lib/frontend-navigation";
+import { readServerSessionTokens } from "@/lib/server-session-tokens";
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
 
 import { VsDashboardSidebar } from "../../_components/vs-dashboard-sidebar";
@@ -189,6 +190,7 @@ export default async function AdminPermissionsPage({
   const selectedRoleId = extractRoleIdParam(resolvedSearchParams.roleId);
 
   const session = await auth();
+  const tokens = await readServerSessionTokens();
   const executeAuthorizedApi = createAuthorizedApiExecutor({
     session,
     callbackUrl: "/admin/permissions",
@@ -218,9 +220,9 @@ export default async function AdminPermissionsPage({
       userRole: "admin",
       assignedRoles: [],
       permissions: [],
-      accessToken: session?.accessToken ?? undefined,
-      accessTokenExpiresAt: session?.accessTokenExpiresAt ?? null,
-      refreshToken: session?.refreshToken ?? null,
+      accessToken: tokens.accessToken ?? undefined,
+      accessTokenExpiresAt: session?.accessTokenExpiresAt ?? tokens.accessTokenExpiresAt,
+      refreshToken: tokens.refreshToken,
       authError: session?.authError ?? null,
       rolesPayload: rolesResult.status === "fulfilled" ? rolesResult.value : [],
     }),

@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 
 import { refreshAndSaveSessionTokens } from "@/lib/auth-session-refresh";
+import { readServerSessionTokens } from "@/lib/server-session-tokens";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +36,8 @@ function tokenTail(token: string | null | undefined): string | null {
 
 export async function POST() {
   const session = await auth();
-  const refreshToken = session?.refreshToken ?? null;
+  const tokens = await readServerSessionTokens();
+  const refreshToken = tokens.refreshToken;
 
   if (!refreshToken) {
     return unauthorizedResponse();
@@ -44,9 +46,9 @@ export async function POST() {
   try {
     console.info("[AUTH_REFRESH_BEFORE]", {
       saveLocation: "next-auth-jwt-session",
-      accessTokenTail: tokenTail(session?.accessToken),
+      accessTokenTail: tokenTail(tokens.accessToken),
       refreshTokenTail: tokenTail(refreshToken),
-      accessTokenExpiresAt: session?.accessTokenExpiresAt ?? null,
+      accessTokenExpiresAt: session?.accessTokenExpiresAt ?? tokens.accessTokenExpiresAt,
       timestamp: Date.now(),
     });
 

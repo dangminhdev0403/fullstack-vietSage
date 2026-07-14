@@ -92,10 +92,12 @@ export default function Home() {
         text="VietSage gives hotel guests a premium QR concierge for amenities, dining, housekeeping, local help, and multilingual support while giving staff a clearer way to route and complete every request."
       >
         <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {stats.map(([v, l]) => (
+          {stats.map(([v, l], index) => (
             <div
               key={l}
-              className="vs-mkt-card rounded-3xl border border-[#123d2a]/10 bg-white/70 p-4 shadow-sm shadow-[#123d2a]/5"
+              data-reveal
+              data-reveal-order={index}
+              className="vs-stat-card rounded-3xl border border-[#123d2a]/10 bg-white/70 p-4 shadow-sm shadow-[#123d2a]/5"
             >
               <strong className="text-3xl text-[#123d2a]">{v}</strong>
               <span className="block text-xs uppercase tracking-[.14em] text-[#627064]">
@@ -106,22 +108,29 @@ export default function Home() {
         </div>
       </Hero>
 
-      <section className="px-5 py-14 lg:px-8">
+      <section className="vs-trust-strip px-5 py-12 lg:px-8">
         <div className="mx-auto max-w-7xl">
-          <p className="text-center text-xs font-black uppercase tracking-[.28em] text-[#b8872f]">
+          <p data-reveal className="text-center text-xs font-black uppercase tracking-[.28em] text-[#b8872f]">
             Guest comfort, not guest database management
           </p>
           <div className="mt-8 grid gap-3 sm:grid-cols-4">
-            <span className="vs-logo-tile">IN-ROOM QR</span>
-            <span className="vs-logo-tile">AMENITIES</span>
-            <span className="vs-logo-tile">ROOM SERVICE</span>
-            <span className="vs-logo-tile">LOCAL HELP</span>
+            {["IN-ROOM QR", "AMENITIES", "ROOM SERVICE", "LOCAL HELP"].map((item, index) => (
+              <span
+                key={item}
+                data-reveal
+                data-reveal-order={index}
+                className="vs-logo-tile"
+              >
+                {item}
+              </span>
+            ))}
           </div>
         </div>
       </section>
 
-      <section className="px-5 py-16 lg:px-8">
-        <div className="mx-auto max-w-7xl">
+      <section id="concierge" data-scene="concierge" className="vs-cinematic-scene relative overflow-hidden px-5 py-24 lg:px-8 lg:py-32">
+        <div className="vs-scene-watermark vs-scene-watermark-right" aria-hidden="true">STAY</div>
+        <div className="relative mx-auto max-w-7xl">
           <SectionHeader
             eyebrow="What VietSage adds"
             title="A hospitality layer for the moments guests actually feel."
@@ -133,11 +142,12 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="px-5 py-16 lg:px-8">
-        <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.92fr_1.08fr]">
-          <div className="rounded-[2rem] bg-[#123d2a] p-8 text-white shadow-2xl shadow-[#123d2a]/18">
-            <p className="text-[#f3c66b]">From room to team</p>
-            <h2 className="vs-display mt-3 text-5xl font-black tracking-[-0.04em]">
+      <section id="operations" data-scene="operations" className="vs-cinematic-scene vs-operations-scene relative overflow-hidden px-5 py-24 lg:px-8 lg:py-32">
+        <div className="vs-scene-watermark" aria-hidden="true">FLOW</div>
+        <div className="relative mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.92fr_1.08fr]">
+          <div data-reveal className="vs-story-panel rounded-[2rem] p-8 text-white lg:sticky lg:top-32 lg:self-start">
+            <p className="text-xs font-black uppercase tracking-[0.26em] text-[#f3c66b]">03 / From room to team</p>
+            <h2 className="vs-display mt-5 text-5xl font-black tracking-[-0.04em] md:text-6xl">
               Every small request becomes a clear service signal.
             </h2>
             <p className="mt-5 text-white/72">
@@ -150,12 +160,12 @@ export default function Home() {
             {moments.map((moment, index) => (
               <article
                 key={moment}
-                className="vs-landing-reveal rounded-[1.8rem] border border-[#123d2a]/10 bg-white/80 p-6 shadow-xl shadow-[#123d2a]/6"
+                data-reveal
+                data-reveal-order={index}
+                className="vs-moment-card rounded-[1.8rem] p-7"
               >
-                <span className="text-xs font-black uppercase tracking-[0.2em] text-[#b8872f]">
-                  Stay moment {index + 1}
-                </span>
-                <p className="mt-3 text-xl font-black leading-8 text-[#123d2a]">
+                <span className="vs-moment-number">0{index + 1}</span>
+                <p className="mt-8 text-xl font-black leading-8 text-white">
                   {moment}
                 </p>
               </article>
@@ -164,8 +174,9 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="px-5 py-16 lg:px-8">
-        <div className="mx-auto max-w-7xl">
+      <section id="visibility" data-scene="visibility" className="vs-cinematic-scene relative overflow-hidden px-5 py-24 lg:px-8 lg:py-32">
+        <div className="vs-scene-watermark vs-scene-watermark-right" aria-hidden="true">CALM</div>
+        <div className="relative mx-auto max-w-7xl">
           <SectionHeader
             eyebrow="Why this matters"
             title="Less lobby friction. More in-room convenience. Better service rhythm."
@@ -177,7 +188,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="px-5 py-16 lg:px-8">
+      <section data-scene="visibility" className="px-5 py-20 lg:px-8">
         <div className="mx-auto max-w-4xl">
           <SectionHeader
             eyebrow="FAQ"
@@ -186,7 +197,7 @@ export default function Home() {
           />
           <div className="mt-10 space-y-3">
             {faqs.map(([q, a]) => (
-              <details key={q} className="rounded-3xl bg-white/82 p-6 shadow-sm shadow-[#123d2a]/5">
+              <details key={q} data-reveal className="vs-faq-item rounded-3xl bg-white/82 p-6 shadow-sm shadow-[#123d2a]/5">
                 <summary className="cursor-pointer font-black text-[#123d2a]">
                   {q}
                 </summary>

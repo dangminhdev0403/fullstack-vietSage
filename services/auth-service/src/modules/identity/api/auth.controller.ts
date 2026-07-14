@@ -1,5 +1,5 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, UseGuards } from "@nestjs/common";
-import { ApiBody, ApiCreatedResponse, ApiOkResponse, ApiTags } from "@nestjs/swagger";
+import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Post, Req, UseGuards } from "@nestjs/common";
+import { ApiBody, ApiCreatedResponse, ApiHeader, ApiOkResponse, ApiTags } from "@nestjs/swagger";
 import type { Request } from "express";
 import {
   authLogoutDataSchema,
@@ -51,24 +51,45 @@ export class AuthController {
     schema: successEnvelopeSchema(authTokensDataSchema, 201, "Làm mới token thành công"),
   })
   @AuthRateLimit("refresh")
+  @ApiHeader({
+    name: "Idempotency-Key",
+    required: false,
+    description: "Stable key for retrying the same refresh request (maximum 64 characters)",
+  })
   @Post("refresh")
-  async refresh(@Body() body: unknown): Promise<AuthTokensResponse> {
+  async refresh(
+    @Body() body: unknown,
+    @Headers("idempotency-key") idempotencyKey?: string,
+  ): Promise<AuthTokensResponse> {
     const dto = parseWithZod(refreshTokenBodySchema, body);
-    return this.authService.refresh(dto.refreshToken);
+    return this.authService.refresh(dto.refreshToken, this.normalizeIdempotencyKey(idempotencyKey));
   }
 
   @HttpCode(HttpStatus.OK)
   @SuccessMessage("Đăng xuất thành công")
   @ApiDescript("Đăng xuất")
-  @ApiBody({ schema: refreshTokenBodyOpenApiSchema })
   @ApiOkResponse({
     description: "Bao phản hồi đăng xuất",
     schema: successEnvelopeSchema(authLogoutDataSchema, 200, "Đăng xuất thành công"),
   })
   @Post("logout")
-  async logout(@Body() body: unknown): Promise<{ success: true }> {
-    const dto = parseWithZod(refreshTokenBodySchema, body);
-    await this.authService.logout(dto.refreshToken);
+  async logout(@Req() request: RequestWithUser): Promise<{ success: true }> {
+    if (request.user.sessionId) {
+      await this.authService.logout(request.user.sessionId);
+    }
+    return { success: true };
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @SuccessMessage("Đăng xuất tất cả thiết bị thành công")
+  @ApiDescript("Đăng xuất tất cả phiên")
+  @ApiOkResponse({
+    description: "Bao phản hồi đăng xuất tất cả phiên",
+    schema: successEnvelopeSchema(authLogoutDataSchema, 200, "Đăng xuất tất cả thiết bị thành công"),
+  })
+  @Post("logout-all")
+  async logoutAll(@Req() request: RequestWithUser): Promise<{ success: true }> {
+    await this.authService.logoutAll(request.user.userId);
     return { success: true };
   }
 
@@ -82,5 +103,11 @@ export class AuthController {
   @Get("me")
   async me(@Req() request: RequestWithUser) {
     return this.authService.getMe(request.user.userId);
+  }
+
+  private normalizeIdempotencyKey(value?: string): string | undefined {
+    const normalized = value?.trim();
+    if (!normalized) return undefined;
+    return normalized.slice(0, 64);
   }
 }

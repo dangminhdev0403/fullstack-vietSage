@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { adminService } from "@/features/admin/service/admin-service-instance";
 import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
 import { resolveDashboardNavigation } from "@/lib/frontend-navigation";
+import { readServerSessionTokens } from "@/lib/server-session-tokens";
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
 
 import { VsIcon } from "../../_components/vs-icon";
@@ -153,15 +154,16 @@ function MetricTile({ label, value }: { label: string; value: string | number })
 
 export default async function OwnerDashboardPage() {
   const session = await auth();
+  const tokens = await readServerSessionTokens();
   const callbackUrl = "/owner/dashboard" as const;
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
 
   const [sidebarItems, hotelsPage] = await Promise.all([
     resolveDashboardNavigation({
       roles: session?.user.roles ?? [],
-      accessToken: session?.accessToken ?? null,
-      accessTokenExpiresAt: session?.accessTokenExpiresAt ?? null,
-      refreshToken: session?.refreshToken ?? null,
+      accessToken: tokens.accessToken,
+      accessTokenExpiresAt: session?.accessTokenExpiresAt ?? tokens.accessTokenExpiresAt,
+      refreshToken: tokens.refreshToken,
       authError: session?.authError ?? null,
     }),
     authorizedApi("list owner hotels", (accessToken) => adminService.listHotels({ query: { page: 1, limit: 100 }, accessToken })),
@@ -170,7 +172,7 @@ export default async function OwnerDashboardPage() {
   const hotel = hotelsPage.items.find((item) => item.status !== "DISABLED") ?? hotelsPage.items[0];
   const dashboard = hotel
     ? ((await authorizedApi("get hotel dashboard", (accessToken) =>
-        hotelOpsService.getDashboard(hotel.id, { accessToken, accessTokenExpiresAt: session?.accessTokenExpiresAt ?? null }),
+        hotelOpsService.getDashboard(hotel.id, { accessToken, accessTokenExpiresAt: session?.accessTokenExpiresAt ?? tokens.accessTokenExpiresAt }),
       )) as Dashboard)
     : null;
 

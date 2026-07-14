@@ -44,12 +44,12 @@ Expected result: export succeeds, verify reports the path count, and `git diff -
 ## Frontend API Sync, Lint, and Build
 
 ```powershell
-Set-Location .\frontends\font-end-vietsage
+Set-Location .\frontends\front-end-vietsage
 npm run sync:api:types
 npm run lint
 npm run build
 Set-Location ..\..
-git diff --exit-code -- frontends/font-end-vietsage/src/generated/openapi/v1.ts
+git diff --exit-code -- frontends/front-end-vietsage/src/generated/openapi/v1.ts
 ```
 
 Expected result: generated types stay in sync and the generated type diff check returns zero unless the migration intentionally changes the OpenAPI contract.

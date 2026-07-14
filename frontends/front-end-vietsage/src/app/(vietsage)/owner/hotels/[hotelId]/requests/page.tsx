@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
 import type { ListHotelRequestsQuery } from "@/features/hotel-ops/types/hotel-ops-contract";
 import { resolveDashboardNavigation } from "@/lib/frontend-navigation";
+import { readServerSessionTokens } from "@/lib/server-session-tokens";
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
 
 import { withOwnerHotelNavigation } from "../../../_components/owner-navigation";
@@ -38,6 +39,7 @@ export default async function OwnerHotelRequestsPage({ params, searchParams }: P
   const { hotelId } = await Promise.resolve(params);
   const resolvedSearchParams = await Promise.resolve(searchParams ?? {});
   const session = await auth();
+  const tokens = await readServerSessionTokens();
   const callbackUrl = `/owner/hotels/${hotelId}/requests` as const;
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
   const currentPage = getPositiveInt(getFirst(resolvedSearchParams.page), 1);
@@ -65,9 +67,9 @@ export default async function OwnerHotelRequestsPage({ params, searchParams }: P
   const [sidebarItems, requestsPage, requestSummary, serviceItemsPage] = await Promise.all([
     resolveDashboardNavigation({
       roles: session?.user.roles ?? [],
-      accessToken: session?.accessToken ?? null,
-      accessTokenExpiresAt: session?.accessTokenExpiresAt ?? null,
-      refreshToken: session?.refreshToken ?? null,
+      accessToken: tokens.accessToken,
+      accessTokenExpiresAt: session?.accessTokenExpiresAt ?? tokens.accessTokenExpiresAt,
+      refreshToken: tokens.refreshToken,
       authError: session?.authError ?? null,
     }),
     authorizedApi("list owner hotel requests", (accessToken) => hotelOpsService.listRequests(hotelId, { query, accessToken })),
@@ -99,7 +101,6 @@ export default async function OwnerHotelRequestsPage({ params, searchParams }: P
         basePath={`/owner/hotels/${hotelId}/requests`}
         serviceCatalogPath={`/owner/hotels/${hotelId}/services`}
         ownerApiBasePath={`/api/owner/hotels/${hotelId}/requests`}
-        ownerAccessToken={session?.accessToken ?? null}
         detailMode="modal"
         initialDetailRequestId={getFirst(resolvedSearchParams.requestId)}
         page={requestsPage.page}

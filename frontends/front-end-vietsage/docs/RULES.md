@@ -21,12 +21,13 @@
 ## API Transport Rule (Mandatory)
 
 - Always use the central HTTP transports for backend API calls.
-- Use `src/core/http/http-client.ts` (`httpClient` / `HttpClient`) for browser/client-side API flows, public requests, and client refresh handling.
-- Use `src/core/http/http-server.ts` (`httpServer`) for server-side authenticated backend API calls that run in Route Handlers or server-only service paths.
+- Use `src/core/http/http-client.ts` (`httpClient` / `HttpClient`) as a pure browser/public/backend transport. It does not own auth refresh, retry loops, navigation, or browser logout event dispatch.
+- Use `src/core/http/internal-api-client.ts` for same-origin authenticated browser BFF flows. It owns one retry through `POST /api/auth/refresh-session` and emits the single logout-required signal when refresh/retry fails.
+- Use `src/core/http/http-server.ts` (`httpServer`) as a pure server transport for backend API calls that run in Route Handlers or server-only service paths with explicit `Authorization` or `accessToken`.
 - Do not call backend APIs with raw `fetch`, raw `axios`, or ad-hoc request helpers from pages, layouts, UI components, or feature services.
 - Keep APIs that do not require authentication in the `httpClient` flow.
 - Keep authenticated server calls in the `httpServer` flow.
-- Keep server-side refresh blocked outside cookie-writable boundaries; refresh + `unstable_update` must run only in a Route Handler or Server Action.
+- Keep refresh + `unstable_update` only in cookie-writable Route Handler or Server Action boundaries.
 
 ## UI Theme Direction
 

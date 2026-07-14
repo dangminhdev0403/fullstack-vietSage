@@ -5,6 +5,7 @@ import { billingService } from "@/features/billing/service/billing-service-insta
 import type { InvoiceDetail, MoneyValue } from "@/features/billing/types/billing-contract";
 import { formatDateTime, formatMoney } from "@/features/billing/utils/money";
 import { resolveDashboardNavigation } from "@/lib/frontend-navigation";
+import { readServerSessionTokens } from "@/lib/server-session-tokens";
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
 
 import { withOwnerHotelNavigation } from "../../../../../_components/owner-navigation";
@@ -240,15 +241,16 @@ export const dynamic = "force-dynamic";
 export default async function OwnerInvoiceDetailPage({ params }: PageProps) {
   const { hotelId, invoiceId } = await Promise.resolve(params);
   const session = await auth();
+  const tokens = await readServerSessionTokens();
   const callbackUrl = `/owner/hotels/${hotelId}/billing/invoices/${invoiceId}` as const;
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
 
   const [sidebarItems, invoiceDetail] = await Promise.all([
     resolveDashboardNavigation({
       roles: session?.user.roles ?? [],
-      accessToken: session?.accessToken ?? null,
-      accessTokenExpiresAt: session?.accessTokenExpiresAt ?? null,
-      refreshToken: session?.refreshToken ?? null,
+      accessToken: tokens.accessToken,
+      accessTokenExpiresAt: session?.accessTokenExpiresAt ?? tokens.accessTokenExpiresAt,
+      refreshToken: tokens.refreshToken,
       authError: session?.authError ?? null,
     }),
     authorizedApi("get owner invoice detail", (accessToken) =>

@@ -25,6 +25,7 @@ import type {
   RoleModulePermissionsBodyInput,
   UpdateRoleBodyInput,
 } from "../domain/schemas/rbac.schema";
+import { AuthService } from "./authentication.service";
 
 const PROTECTED_ROLE_CODES = new Set([
   "SUPER_ADMIN",
@@ -97,6 +98,7 @@ export type RolePermissionModulePermissionsPage = {
 export class RbacService {
   constructor(
     private readonly rbacRepository: RbacRepository,
+    private readonly authService: AuthService,
     private readonly logger: AppLogger = new AppLogger(),
   ) {}
 
@@ -165,6 +167,7 @@ export class RbacService {
     }
 
     const disabled = await this.rbacRepository.disableRole(roleId);
+    await this.authService.revokeRoleSessions(roleId);
     this.logRoleEvent("Role disabled", "ROLE_DISABLED", "disableRole", {
       roleId,
       code: disabled.code,
@@ -177,6 +180,7 @@ export class RbacService {
     this.assertRoleMutable(role);
 
     await this.rbacRepository.deleteRole(roleId);
+    await this.authService.revokeRoleSessions(roleId);
 
     this.logRoleEvent("Role deleted", "ROLE_DELETED", "deleteRole", { roleId, code: role.code });
     return { deleted: true };

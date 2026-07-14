@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { adminService } from "@/features/admin/service/admin-service-instance";
 import { resolveDashboardNavigation } from "@/lib/frontend-navigation";
+import { readServerSessionTokens } from "@/lib/server-session-tokens";
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
 
 import { VsDashboardSidebar } from "../../_components/vs-dashboard-sidebar";
@@ -9,6 +10,7 @@ import { TenantOwnersClient } from "./tenant-owners-client";
 
 export default async function AdminUsersPage() {
   const session = await auth();
+  const tokens = await readServerSessionTokens();
   const callbackUrl = "/admin/users" as const;
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
 
@@ -17,9 +19,9 @@ export default async function AdminUsersPage() {
       userRole: "admin",
       assignedRoles: [],
       permissions: [],
-      accessToken: session?.accessToken ?? null,
-      accessTokenExpiresAt: session?.accessTokenExpiresAt ?? null,
-      refreshToken: session?.refreshToken ?? null,
+      accessToken: tokens.accessToken,
+      accessTokenExpiresAt: session?.accessTokenExpiresAt ?? tokens.accessTokenExpiresAt,
+      refreshToken: tokens.refreshToken,
       authError: session?.authError ?? null,
     }),
     authorizedApi("list tenant owners", (accessToken) =>

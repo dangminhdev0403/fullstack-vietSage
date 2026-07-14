@@ -3,7 +3,7 @@
 import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
+import { requestInternalApi, requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import type { HotelGuestRequest } from "@/features/hotel-ops/types/hotel-ops-contract";
 import { validNextRequestStatuses } from "@/features/hotel-ops/types/hotel-ops-contract";
 import {
@@ -48,8 +48,6 @@ type RequestDetailLabels = {
 
 type RequestDetailClientProps = {
   hotelId: string;
-  accessToken: string;
-  accessTokenExpiresAt: number | null;
   initialRequest: HotelGuestRequest;
   labels?: RequestDetailLabels;
 };
@@ -91,7 +89,7 @@ function hasDisplayableTimelineEvent(event: NonNullable<HotelGuestRequest["event
   return Boolean(event.status || event.type || event.note?.trim());
 }
 
-export function RequestDetailClient({ hotelId, accessToken, accessTokenExpiresAt, initialRequest, labels = defaultLabels }: RequestDetailClientProps) {
+export function RequestDetailClient({ hotelId, initialRequest, labels = defaultLabels }: RequestDetailClientProps) {
   const router = useRouter();
   const [request, setRequest] = useState(initialRequest);
   const [assignment, setAssignment] = useState(initialRequest.assignedToUserId ?? "");
@@ -102,7 +100,10 @@ export function RequestDetailClient({ hotelId, accessToken, accessTokenExpiresAt
   const [error, setError] = useState<string | null>(null);
 
   async function reload() {
-    const fresh = await hotelOpsService.getRequest(hotelId, request.id, accessToken, accessTokenExpiresAt);
+    const fresh = await requestInternalApi<HotelGuestRequest>(
+      `/api/owner/hotels/${encodeURIComponent(hotelId)}/requests/${encodeURIComponent(request.id)}`,
+      { method: "GET" },
+    );
     setRequest(fresh);
     setAssignment(fresh.assignedToUserId ?? "");
     router.refresh();
@@ -112,7 +113,10 @@ export function RequestDetailClient({ hotelId, accessToken, accessTokenExpiresAt
     setIsSaving(true);
     setError(null);
     try {
-      const updated = await hotelOpsService.updateRequestStatus(hotelId, request.id, { status, note: statusNote.trim() || undefined }, accessToken, accessTokenExpiresAt);
+      const updated = (await requestInternalApiEnvelope<HotelGuestRequest>(
+        `/api/owner/hotels/${encodeURIComponent(hotelId)}/requests/${encodeURIComponent(request.id)}/status`,
+        { method: "PATCH", body: { status, note: statusNote.trim() || undefined } },
+      )).data;
       setRequest(updated);
       setStatusNote("");
       await reload();
@@ -128,10 +132,16 @@ export function RequestDetailClient({ hotelId, accessToken, accessTokenExpiresAt
     setIsSaving(true);
     setError(null);
     try {
-      const updated = await hotelOpsService.updateRequestAssignment(hotelId, request.id, {
-        assignedToUserId: assignment.trim() || null,
-        note: assignmentNote.trim() || undefined,
-      }, accessToken, accessTokenExpiresAt);
+      const updated = (await requestInternalApiEnvelope<HotelGuestRequest>(
+        `/api/owner/hotels/${encodeURIComponent(hotelId)}/requests/${encodeURIComponent(request.id)}/assignment`,
+        {
+          method: "PATCH",
+          body: {
+            assignedToUserId: assignment.trim() || null,
+            note: assignmentNote.trim() || undefined,
+          },
+        },
+      )).data;
       setRequest(updated);
       setAssignmentNote("");
       await reload();
@@ -150,7 +160,10 @@ export function RequestDetailClient({ hotelId, accessToken, accessTokenExpiresAt
     setIsSaving(true);
     setError(null);
     try {
-      await hotelOpsService.createRequestEvent(hotelId, request.id, { note: note.trim() }, accessToken, accessTokenExpiresAt);
+      await requestInternalApiEnvelope(
+        `/api/owner/hotels/${encodeURIComponent(hotelId)}/requests/${encodeURIComponent(request.id)}/events`,
+        { method: "POST", body: { note: note.trim() } },
+      );
       setNote("");
       await reload();
     } catch {

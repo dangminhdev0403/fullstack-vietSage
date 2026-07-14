@@ -43,6 +43,10 @@ function normalizeInternalPath(path: string): string | null {
     return null;
   }
 
+  if (!trimmed.startsWith("/") || trimmed.startsWith("//")) {
+    return null;
+  }
+
   try {
     const parsed = new URL(trimmed, LOCAL_ORIGIN);
     if (parsed.origin !== LOCAL_ORIGIN) {
@@ -52,6 +56,8 @@ function normalizeInternalPath(path: string): string | null {
     if (!parsed.pathname.startsWith("/")) {
       return null;
     }
+
+    parsed.searchParams.delete("callbackUrl");
 
     return `${parsed.pathname}${parsed.search}`;
   } catch {
@@ -109,6 +115,18 @@ export function resolveSafeRedirectByRoles(roles: readonly string[] | null | und
   }
 
   return canAccessPathByRoles(roles, normalizedCallback) ? normalizedCallback : fallbackPath;
+}
+
+export function sanitizeInternalCallbackUrl(
+  callbackUrl: string | null | undefined,
+  fallbackPath: `/${string}` = "/admin/dashboard",
+): `/${string}` {
+  if (!callbackUrl) {
+    return fallbackPath;
+  }
+
+  const normalizedCallback = normalizeInternalPath(callbackUrl);
+  return normalizedCallback ? (normalizedCallback as `/${string}`) : fallbackPath;
 }
 
 export { getPrimaryAppRole, hasAppRole };

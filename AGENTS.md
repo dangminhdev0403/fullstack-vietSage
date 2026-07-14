@@ -25,13 +25,13 @@ Read:
 
 Read:
 
-1. `frontends/font-end-vietsage/docs/ARCHITECTURE.md`
-2. `frontends/font-end-vietsage/docs/RULES.md`
+1. `frontends/front-end-vietsage/docs/ARCHITECTURE.md`
+2. `frontends/front-end-vietsage/docs/RULES.md`
 3. The task-specific guide:
-   - feature/module work: `frontends/font-end-vietsage/docs/MODULE_GUIDE.md`
-   - API/contract work: `frontends/font-end-vietsage/docs/CONTRACT_GUIDE.md`
-   - runtime/UI/state/realtime/error/i18n work: `frontends/font-end-vietsage/docs/RUNTIME_UI_GUIDE.md`
-   - planning/progress work: `frontends/font-end-vietsage/docs/PLANS.md`
+   - feature/module work: `frontends/front-end-vietsage/docs/MODULE_GUIDE.md`
+   - API/contract work: `frontends/front-end-vietsage/docs/CONTRACT_GUIDE.md`
+   - runtime/UI/state/realtime/error/i18n work: `frontends/front-end-vietsage/docs/RUNTIME_UI_GUIDE.md`
+   - planning/progress work: `frontends/front-end-vietsage/docs/PLANS.md`
 
 ### Backend work
 

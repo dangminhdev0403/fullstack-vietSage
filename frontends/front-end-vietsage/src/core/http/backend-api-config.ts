@@ -34,7 +34,6 @@ export function getBrowserBackendApiBaseUrl(): string {
 }
 
 export const BACKEND_API_MAX_LIMIT = 100;
-export const BACKEND_API_RETRY_ON_401 = true;
 
 type BackendApiLimitValue = string | number | boolean | null | undefined;
 type BackendApiLimitQueryValue = BackendApiLimitValue | BackendApiLimitValue[];

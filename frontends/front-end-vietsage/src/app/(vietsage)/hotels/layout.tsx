@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { type ReactNode } from "react";
 
 import { AuthRefreshGate } from "../_components/auth-refresh-gate";
+import { requireRefreshableServerSession } from "@/lib/server-session-tokens";
 
 function redirectToLogin(reason: string): never {
   console.info("[AUTH_REDIRECT_LOGIN_SOURCE]", {
@@ -25,9 +26,7 @@ export default async function HotelsLayout({ children }: { children: ReactNode }
     redirectToLogin("auth_error");
   }
 
-  if (!session.refreshToken) {
-    redirectToLogin("no_refresh_token");
-  }
+  await requireRefreshableServerSession("/hotels", "hotels-layout");
 
   return (
     <AuthRefreshGate accessTokenExpiresAt={session.accessTokenExpiresAt}>

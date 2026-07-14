@@ -51,7 +51,6 @@ export class GuestOsService {
       body,
       headers: localeHeaders(locale),
       isPublic: true,
-      skipAuthRefresh: true,
     });
 
     return unwrapApiEnvelope<GuestScanQrResult>(payload).data;
@@ -63,7 +62,6 @@ export class GuestOsService {
       path: this.path("/guest/session/me"),
       accessToken: sessionToken,
       headers: localeHeaders(locale),
-      skipAuthRefresh: true,
     });
 
     return unwrapApiEnvelope<GuestCurrentSessionResult>(payload).data;
@@ -75,7 +73,6 @@ export class GuestOsService {
       path: this.path("/guest/services"),
       accessToken: sessionToken,
       headers: localeHeaders(locale),
-      skipAuthRefresh: true,
     });
 
     return unwrapApiEnvelope<GuestServicesResult>(payload).data;
@@ -88,7 +85,6 @@ export class GuestOsService {
       accessToken: sessionToken,
       query: query as HttpQuery,
       headers: localeHeaders(locale),
-      skipAuthRefresh: true,
     });
 
     return unwrapApiEnvelope<GuestCategoryServicesResult>(payload).data;
@@ -101,7 +97,6 @@ export class GuestOsService {
       accessToken: sessionToken,
       body: input,
       headers: localeHeaders(locale),
-      skipAuthRefresh: true,
     });
 
     return unwrapApiEnvelope<GuestRequest>(payload).data;
@@ -114,7 +109,6 @@ export class GuestOsService {
       accessToken: sessionToken,
       query: query as HttpQuery,
       headers: localeHeaders(locale),
-      skipAuthRefresh: true,
     });
 
     return unwrapApiEnvelope<GuestRequestsResult>(payload).data;
@@ -126,7 +120,6 @@ export class GuestOsService {
       path: this.path(`/guest/requests/${encodeURIComponent(requestId)}/cancel`),
       accessToken: sessionToken,
       headers: localeHeaders(locale),
-      skipAuthRefresh: true,
     });
 
     return unwrapApiEnvelope<CancelGuestRequestResult>(payload).data;
@@ -138,7 +131,6 @@ export class GuestOsService {
       path: this.path("/guest/session/close"),
       accessToken: sessionToken,
       headers: localeHeaders(locale),
-      skipAuthRefresh: true,
     });
 
     return unwrapApiEnvelope<GuestSessionCloseResult>(payload).data;
@@ -155,7 +147,6 @@ export class GuestOsService {
       accessToken: sessionToken,
       body: input,
       headers: localeHeaders(locale),
-      skipAuthRefresh: true,
     });
 
     return unwrapApiEnvelope<GuestEmergencyCallResult>(payload).data;
