@@ -65,6 +65,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/logout-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AuthController_logoutAll"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/me": {
         parameters: {
             query?: never;
@@ -1229,6 +1245,12 @@ export interface operations {
                             accessTtl: string;
                             /** @example 7d */
                             refreshTtl: string;
+                            /** Format: date-time */
+                            accessExpiresAt: string;
+                            /** Format: date-time */
+                            refreshExpiresAt: string;
+                            /** Format: uuid */
+                            sessionId: string;
                         };
                     };
                 };
@@ -1238,7 +1260,11 @@ export interface operations {
     AuthController_refresh: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                "idempotency-key": string;
+                /** @description Stable key for retrying the same refresh request (maximum 64 characters) */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -1274,6 +1300,12 @@ export interface operations {
                             accessTtl: string;
                             /** @example 7d */
                             refreshTtl: string;
+                            /** Format: date-time */
+                            accessExpiresAt: string;
+                            /** Format: date-time */
+                            refreshExpiresAt: string;
+                            /** Format: uuid */
+                            sessionId: string;
                         };
                     };
                 };
@@ -1287,13 +1319,7 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": {
-                    refreshToken: string;
-                };
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Bao phản hồi đăng xuất */
             200: {
@@ -1309,6 +1335,39 @@ export interface operations {
                             [key: string]: unknown;
                         } | null;
                         /** @example Đăng xuất thành công */
+                        message: string;
+                        data: {
+                            /** @enum {boolean} */
+                            success: true;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    AuthController_logoutAll: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bao phản hồi đăng xuất tất cả phiên */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 200 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Đăng xuất tất cả thiết bị thành công */
                         message: string;
                         data: {
                             /** @enum {boolean} */

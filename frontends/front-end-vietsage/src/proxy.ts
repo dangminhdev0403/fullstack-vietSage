@@ -13,7 +13,7 @@ const nextAuthCookiePrefixes = [
   "__Secure-authjs.",
   "__Host-authjs.",
 ] as const;
-const REFRESH_SESSION_EARLY_MS = 10_000;
+const REFRESH_SESSION_EARLY_MS = 2_000;
 
 function matchesPrefix(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);
@@ -127,7 +127,7 @@ export const proxy = auth((request) => {
   }
 
   const authError = session ? getStringTokenField(session, "authError") : null;
-  const refreshToken = session ? getStringTokenField(session, "refreshToken") : null;
+  const canRefresh = session?.canRefresh === true;
   const accessTokenExpiresAt = session ? getNumberTokenField(session, "accessTokenExpiresAt") : null;
 
   if (isProtectedRoute && authError) {
@@ -135,8 +135,8 @@ export const proxy = auth((request) => {
     return buildLoginRedirect(request);
   }
 
-  if (isProtectedRoute && !refreshToken) {
-    console.info("[AUTH_PROXY_REDIRECT_NO_REFRESH_TOKEN]", { pathname });
+  if (isProtectedRoute && !canRefresh) {
+    console.info("[AUTH_PROXY_REDIRECT_NOT_REFRESHABLE]", { pathname });
     return buildLoginRedirect(request);
   }
 
@@ -159,7 +159,7 @@ export const proxy = auth((request) => {
     console.info("[AUTH_PROXY_ALLOW_REFRESHABLE_SESSION]", { pathname });
   }
 
-  if (isAuthRoute && session && !authError && refreshToken) {
+  if (isAuthRoute && session && !authError && canRefresh) {
     const redirectUrl = new URL(getDefaultPathForRoles(getStringArrayTokenField(session, "roles")), request.url);
 
     return NextResponse.redirect(redirectUrl);

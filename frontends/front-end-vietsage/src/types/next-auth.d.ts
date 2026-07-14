@@ -8,6 +8,7 @@ declare module "next-auth" {
     };
     accessTokenExpiresAt: number | null;
     authError: string | null;
+    canRefresh: boolean;
   }
 
   interface User {

@@ -23,7 +23,6 @@ type MeOperation = paths["/auth/me"]["get"];
 
 export type AuthLoginRequest = JsonRequestBody<LoginOperation>;
 export type AuthRefreshRequest = JsonRequestBody<RefreshOperation>;
-export type AuthLogoutRequest = JsonRequestBody<LogoutOperation>;
 
 export type AuthLoginResponseEnvelope = ResponseByStatus<LoginOperation, 200>;
 export type AuthRefreshResponseEnvelope = ResponseByStatus<RefreshOperation, 201>;

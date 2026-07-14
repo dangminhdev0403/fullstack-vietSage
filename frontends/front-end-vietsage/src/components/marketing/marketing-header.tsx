@@ -100,7 +100,7 @@ export function MarketingHeader() {
               Solutions
               <span className="ml-1 text-[0.65rem]" aria-hidden="true">&#9662;</span>
             </button>
-            <div className="vs-solutions-menu invisible absolute left-1/2 top-full w-[680px] -translate-x-1/2 pt-4 opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+            <div className="vs-solutions-menu invisible absolute left-1/2 top-full w-[680px] pt-4 opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
               <div className="grid grid-cols-3 gap-3 rounded-[2rem] border border-[#123d2a]/10 bg-[#fffdf7]/95 p-4 shadow-2xl shadow-[#123d2a]/15 backdrop-blur-xl">
                 {solutionLinks.map((item) => (
                   <Link

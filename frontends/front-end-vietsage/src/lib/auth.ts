@@ -181,6 +181,8 @@ export const authOptions = {
           : null;
       session.authError =
         typeof token.authError === "string" ? token.authError : null;
+      session.canRefresh =
+        typeof token.refreshToken === "string" && token.refreshToken.length > 0;
 
       return session;
     },
@@ -188,13 +190,13 @@ export const authOptions = {
   events: {
     async signOut(message) {
       const token = "token" in message ? message.token : null;
-      const refreshToken =
-        typeof token?.refreshToken === "string" ? token.refreshToken : null;
-      if (!refreshToken) {
+      const accessToken =
+        typeof token?.accessToken === "string" ? token.accessToken : null;
+      if (!accessToken) {
         return;
       }
 
-      await authService.logout(refreshToken);
+      await authService.logout(accessToken);
     },
   },
 } satisfies NextAuthConfig;

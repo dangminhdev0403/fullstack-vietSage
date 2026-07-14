@@ -6,7 +6,6 @@ export const PUBLIC_API_PATH_ALLOWLIST = [
   "/health",
   "/auth/login",
   "/auth/refresh",
-  "/auth/logout",
 ] as const satisfies readonly BackendApiPath[];
 
 const PUBLIC_API_PATH_ALLOWLIST_SET = new Set<string>(PUBLIC_API_PATH_ALLOWLIST);

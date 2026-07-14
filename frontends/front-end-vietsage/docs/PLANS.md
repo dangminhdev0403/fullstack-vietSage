@@ -1593,3 +1593,18 @@ Remaining blockers/risks:
 ### Remaining Blockers / Risks
 
 - Physical-device visual QA is still recommended for browser-specific backdrop blur rendering and very narrow mobile viewports.
+
+## 2026-07-14 - Solutions Dropdown Alignment Fix
+
+### What Changed
+
+- Removed the duplicate Tailwind horizontal translation from the desktop Solutions dropdown while preserving its centered anchor, CSS animation, dimensions, content, and mobile navigation.
+
+### Verification Result
+
+- Ran focused ESLint for `src/components/marketing/marketing-header.tsx` successfully.
+- Ran `git diff --check` successfully.
+
+### Remaining Blockers / Risks
+
+- Browser visual smoke testing was not run; desktop dropdown alignment should still be confirmed in a browser.

@@ -7,7 +7,6 @@ import type {
   AuthTokensData,
   AuthLoginRequest,
   AuthRefreshRequest,
-  AuthLogoutRequest,
 } from "@/features/auth/types/auth-contract";
 import { computeTokenExpiryEpochMs } from "@/features/auth/utils/token-ttl";
 
@@ -154,11 +153,14 @@ export class AuthService {
     }
   }
 
-  async refresh(refreshToken: string): Promise<AuthTokens> {
-    return this.requestRefresh(refreshToken);
+  async refresh(refreshToken: string, idempotencyKey: string): Promise<AuthTokens> {
+    return this.requestRefresh(refreshToken, idempotencyKey);
   }
 
-  private async requestRefresh(refreshToken: string): Promise<AuthTokens> {
+  private async requestRefresh(
+    refreshToken: string,
+    idempotencyKey: string,
+  ): Promise<AuthTokens> {
     try {
       const refreshPayload = await this.httpClient.request<
         AuthRefreshResponseEnvelope,
@@ -167,6 +169,7 @@ export class AuthService {
         method: "POST",
         path: "/auth/refresh",
         body: { refreshToken },
+        headers: { "Idempotency-Key": idempotencyKey },
         isPublic: true,
       });
       const refreshEnvelope = unwrapApiEnvelope<AuthTokensData>(refreshPayload);
@@ -177,16 +180,12 @@ export class AuthService {
     }
   }
 
-  async logout(refreshToken: string): Promise<boolean> {
+  async logout(accessToken: string): Promise<boolean> {
     try {
-      const logoutPayload = await this.httpClient.request<
-        AuthLogoutResponseEnvelope,
-        AuthLogoutRequest
-      >({
+      const logoutPayload = await this.httpClient.request<AuthLogoutResponseEnvelope>({
         method: "POST",
         path: "/auth/logout",
-        body: { refreshToken },
-        isPublic: true,
+        accessToken,
       });
 
       const envelope = unwrapApiEnvelope<{ success?: boolean }>(logoutPayload);

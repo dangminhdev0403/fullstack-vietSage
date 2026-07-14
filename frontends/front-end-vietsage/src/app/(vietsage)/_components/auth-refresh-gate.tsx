@@ -9,7 +9,7 @@ import {
   refreshInternalSession,
 } from "@/core/http/internal-session-refresh";
 
-const REFRESH_GATE_EARLY_MS = 10_000;
+const REFRESH_GATE_EARLY_MS = 2_000;
 
 type AuthRefreshGateProps = {
   accessTokenExpiresAt: number | null;
