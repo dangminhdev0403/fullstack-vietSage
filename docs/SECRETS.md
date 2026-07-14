@@ -2,6 +2,24 @@
 
 Docker Compose is the production/local-container runtime path. Real secrets live in ignored `secrets/docker/*.env` or `secrets/production/*.env` files on each machine/VPS and must not be committed.
 
+## Local environment backup flow
+
+Before committing environment-template changes, copy each service's real local `.env` into the repository-root `secrets/` folder:
+
+```bash
+cp services/auth-service/.env secrets/env_backend
+cp frontends/front-end-vietsage/.env secrets/env_frontend
+```
+
+These copies are machine-local runtime backups. Both `secrets/env_backend` and `secrets/env_frontend` are ignored and must never be staged, committed, or pushed. Only sanitized templates such as `.env.example`, `.env.docker.example`, and `.env.production.example` belong in Git.
+
+Verify the policy before committing:
+
+```bash
+git check-ignore -v secrets/env_backend secrets/env_frontend
+git status --short --ignored -- secrets/env_backend secrets/env_frontend
+```
+
 ## Git policy
 
 Commit allowed:
@@ -20,7 +38,7 @@ Do not commit:
 - tokens;
 - passwords;
 - connection strings;
-- filled legacy files such as `secrets/env_backend` or `secrets/env_frontend`.
+- local backup files `secrets/env_backend` and `secrets/env_frontend`.
 
 ## Current runtime secret files
 
@@ -99,7 +117,7 @@ NEXT_PUBLIC_GUEST_DEFAULT_SERVICE_CATEGORY_ID=
 
 ## Legacy tracked files
 
-Historical files `secrets/env_backend` and `secrets/env_frontend` must contain only blank skeleton keys if they remain in git. Runtime values belong in ignored `secrets/docker/*.env` or `secrets/production/*.env` files.
+Historical files `secrets/env_backend` and `secrets/env_frontend` must not remain tracked. Keep their runtime values only in the ignored local files. Docker and production-specific runtime values belong in ignored `secrets/docker/*.env` or `secrets/production/*.env` files.
 
 If a real value was ever committed, rotate that credential outside this repo.
 
