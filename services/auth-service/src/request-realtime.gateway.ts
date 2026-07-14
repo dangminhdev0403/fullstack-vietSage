@@ -1,71 +1,48 @@
+import { Inject, Optional } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import {
-  ConnectedSocket,
-  MessageBody,
+  OnGatewayConnection,
   OnGatewayDisconnect,
   OnGatewayInit,
-  OnGatewayConnection,
-  SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
 } from "@nestjs/websockets";
 import type { Server, Socket } from "socket.io";
-import { AuthService } from "./modules/identity/identity-public";
-import { GuestOsService } from "./modules/guest-operations/guest-operations-public";
-import { HotelAccessService } from "./modules/property/property-public";
+import { loadAppConfig, type RequestRealtimeConfig } from "./common/config/env.config";
 import { AppLogger } from "./common/logging/app-logger.service";
+import { GuestOsService } from "./modules/guest-operations/guest-operations-public";
 import { RequestRealtimeEmitter } from "./request-realtime.emitter";
-import { loadAppConfig } from "./common/config/env.config";
 
-type AccessTokenPayload = {
-  jti: string;
-  sid: string;
-  sub: string;
-  email: string;
-  roleId: string;
-  type: "access";
-};
+type OwnerTicketClaims = { sub?: unknown; hotelId?: unknown; type?: unknown; jti?: unknown };
+type HandshakeAuth = { mode?: unknown; ticket?: unknown; sessionToken?: unknown };
 
-type JoinOwnerHotelPayload = {
-  hotelId?: unknown;
-  accessToken?: unknown;
-};
-
-type JoinGuestSessionPayload = {
-  sessionToken?: unknown;
-};
-
-const realtimeCorsOrigins = loadAppConfig().corsOrigins;
-const realtimeAuthConfig = loadAppConfig().auth;
+const realtimeConfig = loadAppConfig();
 
 @WebSocketGateway({
   namespace: "/request-realtime",
-  cors: {
-    origin: realtimeCorsOrigins,
-    credentials: realtimeCorsOrigins.length > 0,
-  },
+  cors: { origin: realtimeConfig.corsOrigins, credentials: realtimeConfig.corsOrigins.length > 0 },
 })
 export class RequestRealtimeGateway
   implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit
 {
-  @WebSocketServer()
-  private server!: Server;
+  @WebSocketServer() private server!: Server;
+  private readonly config: RequestRealtimeConfig;
 
   constructor(
-    private readonly authService: AuthService,
     private readonly guestOsService: GuestOsService,
-    private readonly hotelAccessService: HotelAccessService,
     private readonly jwtService: JwtService,
     private readonly logger: AppLogger,
-  ) {}
+    @Optional() @Inject("REQUEST_REALTIME_CONFIG") config?: RequestRealtimeConfig,
+  ) {
+    this.config = config ?? realtimeConfig.requestRealtime;
+  }
 
-  handleConnection(socket: Socket) {
-    this.logger.socket("Socket connected", {
-      event: "SOCKET_CONNECT",
-      eventName: "connected",
-      socketId: socket.id,
-    });
-    socket.emit("request_realtime.activity", { status: "connected" });
+  async handleConnection(socket: Socket) {
+    if (!this.config.enabled) return this.reject(socket, "REALTIME_DISABLED");
+    const auth = (socket.handshake.auth ?? {}) as HandshakeAuth;
+    if (auth.mode === "owner") return this.authenticateOwner(socket, auth);
+    if (auth.mode === "guest") return this.authenticateGuest(socket, auth);
+    return this.reject(socket, "AUTH_REQUIRED");
   }
 
   handleDisconnect(socket: Socket) {
@@ -84,71 +61,51 @@ export class RequestRealtimeGateway
     });
   }
 
-  @SubscribeMessage("owner:join_hotel_requests")
-  async joinOwnerHotelRequests(
-    @ConnectedSocket() socket: Socket,
-    @MessageBody() payload: JoinOwnerHotelPayload,
-  ) {
-    const hotelId = typeof payload?.hotelId === "string" ? payload.hotelId.trim() : "";
-    const accessToken = typeof payload?.accessToken === "string" ? payload.accessToken.trim() : "";
-
-    if (!hotelId || !accessToken) {
-      socket.emit("request_realtime.error", { message: "Missing hotelId or accessToken" });
-      return { ok: false };
-    }
-
+  private async authenticateOwner(socket: Socket, auth: HandshakeAuth) {
+    const ticket = typeof auth.ticket === "string" ? auth.ticket.trim() : "";
+    if (!ticket || !this.config.ticketSecret) return this.reject(socket, "AUTH_REQUIRED");
     try {
-      const jwtPayload = await this.jwtService.verifyAsync<AccessTokenPayload>(accessToken, {
-        secret: this.authService.getAccessTokenSecret(),
-        issuer: realtimeAuthConfig.jwtIssuer,
-        audience: realtimeAuthConfig.jwtAudience,
+      const claims = await this.jwtService.verifyAsync<OwnerTicketClaims>(ticket, {
+        secret: this.config.ticketSecret,
+        audience: this.config.audience,
       });
-      const user = await this.authService.validateJwtPayload(jwtPayload);
-      await this.hotelAccessService.assertHotelAccess(user.userId, hotelId);
-      const room = RequestRealtimeEmitter.ownerHotelRoom(hotelId);
-      await socket.join(room);
-      this.logger.socket("Socket joined room", {
-        event: "SOCKET_JOIN",
-        eventName: "joined",
-        socketId: socket.id,
-        room,
-      });
-      socket.emit("request_realtime.joined", { room: "owner_hotel_requests", hotelId });
-      return { ok: true, room: "owner_hotel_requests" };
-    } catch {
-      socket.emit("request_realtime.error", { message: "Unauthorized hotel request room" });
-      return { ok: false };
+      if (
+        claims.type !== "request_realtime_owner" ||
+        typeof claims.sub !== "string" ||
+        typeof claims.hotelId !== "string" ||
+        typeof claims.jti !== "string"
+      ) {
+        return this.reject(socket, "TICKET_INVALID");
+      }
+      await socket.join(RequestRealtimeEmitter.ownerHotelRoom(claims.hotelId));
+      socket.emit("request_realtime.ready", { mode: "owner", scope: { hotelId: claims.hotelId } });
+    } catch (error) {
+      return this.reject(
+        socket,
+        error instanceof Error && error.name === "TokenExpiredError"
+          ? "TICKET_EXPIRED"
+          : "TICKET_INVALID",
+      );
     }
   }
 
-  @SubscribeMessage("guest:join_session_requests")
-  async joinGuestSessionRequests(
-    @ConnectedSocket() socket: Socket,
-    @MessageBody() payload: JoinGuestSessionPayload,
-  ) {
-    const sessionToken =
-      typeof payload?.sessionToken === "string" ? payload.sessionToken.trim() : "";
-
-    if (!sessionToken) {
-      socket.emit("request_realtime.error", { message: "Missing sessionToken" });
-      return { ok: false };
-    }
-
+  private async authenticateGuest(socket: Socket, auth: HandshakeAuth) {
+    const token = typeof auth.sessionToken === "string" ? auth.sessionToken.trim() : "";
+    if (!token) return this.reject(socket, "AUTH_REQUIRED");
     try {
-      const session = await this.guestOsService.authenticateGuestToken(sessionToken);
-      const room = RequestRealtimeEmitter.guestSessionRoom(session.sessionId);
-      await socket.join(room);
-      this.logger.socket("Socket joined room", {
-        event: "SOCKET_JOIN",
-        eventName: "joined",
-        socketId: socket.id,
-        room,
+      const session = await this.guestOsService.authenticateGuestToken(token);
+      await socket.join(RequestRealtimeEmitter.guestSessionRoom(session.sessionId));
+      socket.emit("request_realtime.ready", {
+        mode: "guest",
+        scope: { sessionId: session.sessionId },
       });
-      socket.emit("request_realtime.joined", { room: "guest_session" });
-      return { ok: true, room: "guest_session" };
     } catch {
-      socket.emit("request_realtime.error", { message: "Unauthorized guest request room" });
-      return { ok: false };
+      return this.reject(socket, "SESSION_INVALID");
     }
+  }
+
+  private reject(socket: Socket, code: string) {
+    socket.emit("request_realtime.error", { code, retryable: false });
+    socket.disconnect(true);
   }
 }

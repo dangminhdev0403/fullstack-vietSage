@@ -1,4 +1,48 @@
+import { GuestRequestPriority, GuestRequestStatus } from "@prisma/client";
 import { GuestOsRepository } from "../infrastructure/repositories/guest-os.repository";
+
+describe("GuestOsRepository request creation", () => {
+  it("writes the request, initial CREATED timeline event, and domain event in one transaction", async () => {
+    const request = { id: "request-1", status: "CREATED", serviceItem: null, events: [] };
+    const tx = {
+      guestRequest: { create: jest.fn().mockResolvedValue(request) },
+      guestRequestEvent: { create: jest.fn().mockResolvedValue({ id: "event-1" }) },
+      domainEvent: { create: jest.fn().mockResolvedValue({ id: "domain-event-1" }) },
+    };
+    const prisma = {
+      $transaction: jest.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
+    };
+    const repository = new GuestOsRepository(prisma as never);
+
+    await expect(
+      repository.createRequest({
+        hotelId: "hotel-1",
+        tenantId: "tenant-1",
+        roomId: "room-1",
+        stayId: "stay-1",
+        sessionId: "session-1",
+        serviceItemId: "item-1",
+        quantity: 1,
+        priority: GuestRequestPriority.NORMAL,
+      }),
+    ).resolves.toBe(request);
+
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(tx.guestRequest.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ status: "CREATED" }),
+      include: expect.any(Object),
+    });
+    expect(tx.guestRequestEvent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ toStatus: "CREATED" }),
+    });
+    expect(tx.domainEvent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        eventType: "REQUEST_CREATED",
+        aggregateId: "request-1",
+      }),
+    });
+  });
+});
 
 describe("GuestOsRepository QR scan lookup", () => {
   it("does not resolve the old QR token after rotation updates the public code", async () => {
@@ -152,6 +196,7 @@ describe("GuestOsRepository request cancellation", () => {
         stayId: "stay-1",
         sessionId: "session-1",
         requestId: "request-1",
+        sourceStatus: GuestRequestStatus.CREATED,
       }),
     ).resolves.toBe(request);
 
@@ -160,7 +205,7 @@ describe("GuestOsRepository request cancellation", () => {
         id: "request-1",
         hotelId: "hotel-1",
         stayId: "stay-1",
-        status: "NEW",
+        status: "CREATED",
       },
       data: {
         status: "CANCELLED",
@@ -174,7 +219,7 @@ describe("GuestOsRepository request cancellation", () => {
         actorType: "GUEST",
         sessionId: "session-1",
         eventType: "REQUEST_CANCELLED",
-        fromStatus: "NEW",
+        fromStatus: "CREATED",
         toStatus: "CANCELLED",
       }),
     });

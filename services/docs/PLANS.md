@@ -1,5 +1,10 @@
 # VietSage Backend Plan
 
+## 2026-07-14 - Batch C Authenticated Request Realtime
+
+- [x] Added disabled-by-default realtime config, scoped owner ticket issuance, and handshake-only owner/guest Socket.IO authentication.
+- [x] Kept realtime in-process; polling, outbox dispatch, durable retry/backoff, SLA escalation, and brokers remain Batch D.
+
 Last updated: 2026-07-12
 
 ## 1. Snapshot
@@ -73,3 +78,10 @@ The modular-monolith boundary consolidation is complete for the current codebase
 - No service rename in this phase.
 - No package/dependency changes without approval.
 - No frontend scope unless a contract change requires sync.
+# 2026-07-14 - GuestOS Reliable Request Recovery Batch A
+
+- Phase 0 + Phase 1 canonicalize the public request lifecycle to six statuses while retaining
+  legacy Prisma enum values for compatibility.
+- Added boundary normalization, legacy-active owner queue visibility, canonical transitions,
+  transactional `CREATED` request/event persistence, and an additive data normalization migration.
+- Backend OpenAPI and frontend generated types are synchronized from the canonical contract.

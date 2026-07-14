@@ -22,7 +22,10 @@ import { guestOsService } from "@/features/guest-os/service/guest-os-service-ins
 import { useGuestStore, useGuestStoreHydrated } from "@/features/guest-os/store/guest-store";
 import type { GuestRequest } from "@/features/guest-os/types/guest-os-contract";
 import { getGuestFriendlyErrorMessage } from "@/features/guest-os/utils/guest-os-errors";
-import { useGuestRequestRealtime } from "@/features/request-realtime/use-guest-request-realtime";
+import {
+  GUEST_REQUEST_REALTIME_BROWSER_EVENT,
+  type GuestRequestRealtimeBrowserEvent,
+} from "@/features/request-realtime/guest-request-realtime-notifier";
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character] ?? character);
@@ -72,13 +75,15 @@ export default function GuestRequestsPage() {
   const hasActiveFilters = Boolean(selectedStatus || requestSearch.trim());
   const refreshRequests = useCallback(() => setRequestsVersion((version) => version + 1), []);
   const syncRealtimeRequest = useCallback((request: Partial<GuestRequest> & { id: string }) => { setRequests((current) => current.some((item) => item.id === request.id) ? current.map((item) => item.id === request.id ? { ...item, ...request } : item) : current); setSelectedRequestId((currentId) => currentId ?? request.id); }, []);
-  const guestRealtimeHandlers = useMemo(() => ({
-    onCreated: (request: GuestRequest) => { syncRealtimeRequest(request); refreshRequests(); toast.success(t("requests.updatedNew")); },
-    onUpdated: (request: Partial<GuestRequest> & { id: string }) => { syncRealtimeRequest(request); refreshRequests(); toast.info(t("requests.updatedStatus")); },
-    onAnswered: (request: Partial<GuestRequest> & { id: string }) => { syncRealtimeRequest(request); refreshRequests(); toast.success(t("requests.updatedAnswer")); },
-    onReconnect: refreshRequests,
-  }), [refreshRequests, syncRealtimeRequest, t]);
-  useGuestRequestRealtime(sessionToken, guestRealtimeHandlers);
+  useEffect(() => {
+    const onRealtime = (event: Event) => {
+      const detail = (event as CustomEvent<GuestRequestRealtimeBrowserEvent>).detail;
+      if (detail.request) syncRealtimeRequest(detail.request);
+      refreshRequests();
+    };
+    window.addEventListener(GUEST_REQUEST_REALTIME_BROWSER_EVENT, onRealtime);
+    return () => window.removeEventListener(GUEST_REQUEST_REALTIME_BROWSER_EVENT, onRealtime);
+  }, [refreshRequests, syncRealtimeRequest]);
 
   function clearFilters() { setSelectedStatus(undefined); setRequestSearch(""); }
   function selectRequest(requestId: string) { setSelectedRequestId(requestId); window.requestAnimationFrame(() => currentRequestRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })); }

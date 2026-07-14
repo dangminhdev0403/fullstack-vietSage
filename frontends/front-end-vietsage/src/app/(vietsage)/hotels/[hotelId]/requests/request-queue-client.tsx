@@ -767,7 +767,6 @@ export function RequestQueueClient({
   );
 
   useOwnerRequestRealtime(hotelId, ownerRealtimeHandlers, {
-    enabled: false,
     showConnectionToasts: false,
   });
 

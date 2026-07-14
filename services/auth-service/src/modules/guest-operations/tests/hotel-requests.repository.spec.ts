@@ -1,3 +1,4 @@
+import { GuestRequestStatus } from "@prisma/client";
 import { HotelRequestsRepository } from "../infrastructure/repositories/hotel-requests.repository";
 
 describe("HotelRequestsRepository staff request listing", () => {
@@ -54,5 +55,36 @@ describe("HotelRequestsRepository staff request listing", () => {
       where,
       _count: { _all: true },
     });
+  });
+});
+
+describe("HotelRequestsRepository status transition concurrency", () => {
+  it("rejects a stale transition when the status changed after service validation", async () => {
+    const tx = {
+      guestRequest: {
+        findFirstOrThrow: jest.fn().mockResolvedValue({
+          id: "request-1",
+          status: GuestRequestStatus.IN_PROGRESS,
+        }),
+        update: jest.fn(),
+      },
+    };
+    const prisma = {
+      $transaction: jest.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
+    };
+    const repository = new HotelRequestsRepository(prisma as never);
+
+    await expect(
+      repository.updateRequestStatus({
+        hotelId: "hotel-1",
+        tenantId: "tenant-1",
+        requestId: "request-1",
+        actorUserId: "staff-1",
+        expectedStatus: GuestRequestStatus.CREATED,
+        status: GuestRequestStatus.ACKNOWLEDGED,
+      }),
+    ).rejects.toThrow("Guest request status changed concurrently");
+
+    expect(tx.guestRequest.update).not.toHaveBeenCalled();
   });
 });

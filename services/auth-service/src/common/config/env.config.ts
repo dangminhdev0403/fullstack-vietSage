@@ -42,6 +42,9 @@ const ConfigSchema = z.object({
   GOOGLE_SHEET_ID: z.string().optional(),
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_WEBHOOK_SECRET: z.string().optional(),
+  REQUEST_REALTIME_ENABLED: z.string().optional(),
+  REQUEST_REALTIME_TICKET_SECRET: z.string().optional(),
+  REQUEST_REALTIME_TICKET_TTL_SECONDS: z.string().optional(),
 });
 
 export type EnvConfig = z.infer<typeof ConfigSchema>;
@@ -99,10 +102,18 @@ export interface AppConfig {
   authAdmin: AuthAdminConfig;
   corsOrigins: string[];
   swaggerEnabled: boolean;
+  requestRealtime: RequestRealtimeConfig;
   rateLimits: {
     login: RateLimitConfig;
     refresh: RateLimitConfig;
   };
+}
+
+export interface RequestRealtimeConfig {
+  enabled: boolean;
+  ticketSecret: string | null;
+  ticketTtlSeconds: number;
+  audience: "request-realtime";
 }
 
 function parsePort(rawPort: string): number {
@@ -199,6 +210,22 @@ export function shouldEnableSwagger(
 
 export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const validated = validateEnv(env);
+  const requestRealtimeEnabled = parseBooleanEnv(
+    validated.REQUEST_REALTIME_ENABLED,
+    false,
+    "REQUEST_REALTIME_ENABLED",
+  );
+  const requestRealtimeTicketSecret = normalizeOptionalEnvText(
+    validated.REQUEST_REALTIME_TICKET_SECRET,
+  );
+  if (
+    requestRealtimeEnabled &&
+    (!requestRealtimeTicketSecret || requestRealtimeTicketSecret.length < 32)
+  ) {
+    throw new Error(
+      "Invalid REQUEST_REALTIME_TICKET_SECRET environment variable. Expected at least 32 non-blank characters when request realtime is enabled.",
+    );
+  }
 
   return {
     nodeEnv: validated.NODE_ENV,
@@ -248,6 +275,16 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     },
     corsOrigins: parseCorsOrigins(validated.CORS_ORIGINS),
     swaggerEnabled: shouldEnableSwagger(validated.NODE_ENV, validated.SWAGGER_ENABLED),
+    requestRealtime: {
+      enabled: requestRealtimeEnabled,
+      ticketSecret: requestRealtimeTicketSecret,
+      ticketTtlSeconds: parsePositiveIntegerEnv(
+        validated.REQUEST_REALTIME_TICKET_TTL_SECONDS,
+        60,
+        "REQUEST_REALTIME_TICKET_TTL_SECONDS",
+      ),
+      audience: "request-realtime",
+    },
     rateLimits: {
       login: {
         ttlSeconds: parsePositiveIntegerEnv(

@@ -11,7 +11,7 @@ import { GuestOsService, ROOM_ACCESS_UNAVAILABLE_MESSAGE } from "../application/
 import { listGuestRequestsQuerySchema, scanQrBodySchema } from "../domain/schemas/guest-os.schema";
 
 describe("GuestOsService", () => {
-  it.each(["CREATED", "CREATE", "IN_PROGRESS"] as const)(
+  it.each(["CREATED", "ACKNOWLEDGED", "IN_PROGRESS"] as const)(
     "accepts guest request status filter %s",
     (status) => {
       expect(listGuestRequestsQuerySchema.parse({ status })).toMatchObject({ status });
@@ -489,7 +489,7 @@ describe("GuestOsService", () => {
         metadata: { internal: true },
         title: "Pho bo",
         description: "No onion please",
-        status: GuestRequestStatus.NEW,
+        status: GuestRequestStatus.CREATED,
         priority: "URGENT",
         quantity: 1,
         createdAt,
@@ -537,7 +537,7 @@ describe("GuestOsService", () => {
     expect(response).toEqual({
       id: "request-1",
       service: { id: "item-1", name: "Pho bo" },
-      status: "NEW",
+      status: "CREATED",
       priority: "URGENT",
       quantity: 1,
       note: "No onion please",
@@ -648,7 +648,7 @@ describe("GuestOsService", () => {
         {
           id: "request-1",
           displayName: "Extra toilet paper",
-          status: "NEW",
+          status: "CREATED",
           priority: "URGENT",
           quantity: 1,
           currency: "VND",
@@ -708,10 +708,18 @@ describe("GuestOsService", () => {
         expiresAt: new Date(Date.now() + 60_000),
       })),
       listRequests: jest.fn().mockResolvedValue([
-        6,
+        12,
         [
           GuestRequestStatus.NEW,
+          GuestRequestStatus.CREATED,
+          GuestRequestStatus.CONFIRMED,
+          GuestRequestStatus.ACCEPTED,
+          GuestRequestStatus.ACKNOWLEDGED,
+          GuestRequestStatus.PENDING,
+          GuestRequestStatus.ON_THE_WAY,
+          GuestRequestStatus.IN_PROGRESS,
           GuestRequestStatus.COMPLETED,
+          GuestRequestStatus.REJECTED,
           GuestRequestStatus.CANCELLED,
           GuestRequestStatus.FAILED,
         ].map((status, index) => ({
@@ -742,8 +750,16 @@ describe("GuestOsService", () => {
     );
 
     expect(response.items.map((item) => item.status)).toEqual([
-      "NEW",
+      "CREATED",
+      "CREATED",
+      "ACKNOWLEDGED",
+      "ACKNOWLEDGED",
+      "ACKNOWLEDGED",
+      "IN_PROGRESS",
+      "IN_PROGRESS",
+      "IN_PROGRESS",
       "COMPLETED",
+      "FAILED",
       "CANCELLED",
       "FAILED",
     ]);
@@ -847,7 +863,7 @@ describe("GuestOsService", () => {
       {
         page: 2,
         limit: 10,
-        status: "NEW",
+        status: "CREATED",
         priority: "URGENT",
         id: "  request-1  ",
         search: "  pillow  ",
@@ -859,7 +875,7 @@ describe("GuestOsService", () => {
         stayId: "stay-1",
         id: "request-1",
         status: {
-          in: [GuestRequestStatus.NEW],
+          in: [GuestRequestStatus.CREATED, GuestRequestStatus.NEW],
         },
         priority: {
           in: [GuestRequestPriority.URGENT],
@@ -876,9 +892,15 @@ describe("GuestOsService", () => {
   });
 
   it.each([
-    ["CREATED", [GuestRequestStatus.CREATED]],
-    ["CREATE", [GuestRequestStatus.CREATED]],
-    ["IN_PROGRESS", [GuestRequestStatus.IN_PROGRESS]],
+    ["CREATED", [GuestRequestStatus.CREATED, GuestRequestStatus.NEW]],
+    [
+      "ACKNOWLEDGED",
+      [GuestRequestStatus.ACKNOWLEDGED, GuestRequestStatus.CONFIRMED, GuestRequestStatus.ACCEPTED],
+    ],
+    [
+      "IN_PROGRESS",
+      [GuestRequestStatus.IN_PROGRESS, GuestRequestStatus.PENDING, GuestRequestStatus.ON_THE_WAY],
+    ],
   ] as const)("filters guest requests by concrete status %s", async (status, expectedStatuses) => {
     const repository = {
       findSessionById: jest.fn().mockResolvedValue({
@@ -965,7 +987,7 @@ describe("GuestOsService", () => {
         id: "request-1",
         title: "Request",
         description: null,
-        status: GuestRequestStatus.NEW,
+        status: GuestRequestStatus.CREATED,
         priority: GuestRequestPriority.NORMAL,
         quantity: 1,
         createdAt: new Date("2026-06-21T09:47:17.042Z"),
@@ -1036,7 +1058,7 @@ describe("GuestOsService", () => {
         id: "request-1",
         title: "Request",
         description: null,
-        status: GuestRequestStatus.NEW,
+        status: GuestRequestStatus.CREATED,
         priority: GuestRequestPriority.NORMAL,
         quantity: 1,
         createdAt: new Date("2026-06-21T09:47:17.042Z"),
@@ -1107,7 +1129,7 @@ describe("GuestOsService", () => {
         id: "request-1",
         title: "Request",
         description: null,
-        status: GuestRequestStatus.NEW,
+        status: GuestRequestStatus.CREATED,
         priority: GuestRequestPriority.NORMAL,
         quantity: 1,
         createdAt: new Date("2026-06-21T09:47:17.042Z"),
@@ -1250,7 +1272,7 @@ describe("GuestOsService", () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it("allows guests to cancel their own request while it is CREATED", async () => {
+  it("allows guests to cancel a legacy NEW request exposed as CREATED", async () => {
     const createdAt = new Date("2026-06-21T09:47:17.042Z");
     const repository = {
       findSessionById: jest.fn().mockResolvedValue({
@@ -1325,6 +1347,7 @@ describe("GuestOsService", () => {
       stayId: "stay-1",
       sessionId: "session-1",
       requestId: "request-1",
+      sourceStatus: GuestRequestStatus.NEW,
     });
   });
 

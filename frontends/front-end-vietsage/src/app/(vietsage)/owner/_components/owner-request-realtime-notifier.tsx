@@ -52,6 +52,13 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
 
   const handlers = useMemo(
     () => ({
+      onReady: () => {
+        toast.success("Realtime đã kết nối", {
+          id: `owner-realtime-ready-${hotelId}`,
+          description: "Thông báo yêu cầu mới sẽ xuất hiện tự động.",
+          duration: 4_000,
+        });
+      },
       onCreated: (request: StaffRequestListItem) => {
         const isUrgent = request.priority === "URGENT";
         const href = requestQueuePath(hotelId, { urgentPanel: isUrgent });
@@ -65,9 +72,9 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
           {
             id: `owner-request-created-${request.id}`,
             description: `Phòng ${request.roomNumber} - ${request.displayName}`,
-            duration: isUrgent ? 15_000 : 10_000,
+            duration: isUrgent ? Number.POSITIVE_INFINITY : 10_000,
             action: {
-              label: isUrgent ? "Xem" : "Xử lý",
+              label: isUrgent ? "Xử lý ngay" : "Xử lý",
               onClick: () => router.push(href),
             },
           },
@@ -82,8 +89,7 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
   );
 
   useOwnerRequestRealtime(hotelId, handlers, {
-    enabled: false,
-    showConnectionToasts: false,
+    showConnectionToasts: true,
   });
 
   return null;

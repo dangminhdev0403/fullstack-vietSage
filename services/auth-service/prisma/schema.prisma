@@ -633,7 +633,7 @@ model GuestRequest {
   roomId                   String
   stayId                   String
   sessionId                String?
-  status                   GuestRequestStatus            @default(NEW)
+  status                   GuestRequestStatus            @default(CREATED)
   priority                 GuestRequestPriority          @default(NORMAL)
   title                    String?                       @db.VarChar(160)
   description              String?                       @db.VarChar(1000)

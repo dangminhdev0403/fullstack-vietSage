@@ -5353,6 +5353,50 @@ paths:
           description: Emergency call event accepted and linked to an incident
       tags:
         - emergency
+  /hotels/{hotelId}/request-realtime-ticket:
+    post:
+      operationId: RequestRealtimeController_issue
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  error:
+                    nullable: true
+                    example: null
+                  message:
+                    type: string
+                    example: OK
+                  data:
+                    type: object
+                    required:
+                      - ticket
+                      - expiresAt
+                    properties:
+                      ticket:
+                        type: string
+                      expiresAt:
+                        type: string
+                        format: date-time
+      tags:
+        - request-realtime
 info:
   title: VietSage Auth Service API
   description: HTTP API contract for auth, rbac, and hotel-users modules

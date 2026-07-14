@@ -21,11 +21,18 @@ import type {
   UpdateRequestAssignmentBodyInput,
   UpdateRequestStatusBodyInput,
 } from "../domain/schemas/requests.schema";
+import {
+  activeGuestRequestStatuses,
+  canonicalGuestRequestStatuses,
+  compatibleGuestRequestStatuses,
+  normalizeGuestRequestStatus,
+  type CanonicalGuestRequestStatus,
+} from "../domain/guest-request-status";
 
 export interface StaffRequestListItemResponse {
   id: string;
   displayName: string;
-  status: GuestRequestStatus;
+  status: CanonicalGuestRequestStatus;
   priority: "NORMAL" | "URGENT";
   quantity: number;
   description: string | null;
@@ -42,18 +49,12 @@ export interface StaffRequestListItemResponse {
 
 type StaffRequestAction = "ACCEPT" | "START" | "COMPLETE" | "CANCEL" | "FAIL";
 
-type RequestStatusSummary = Record<GuestRequestStatus, number>;
+type RequestStatusSummary = Record<CanonicalGuestRequestStatus, number>;
 
 export interface RequestSummaryResponse {
   total: number;
   statuses: RequestStatusSummary;
 }
-
-const activeRequestStatuses = [
-  GuestRequestStatus.CREATED,
-  GuestRequestStatus.ACKNOWLEDGED,
-  GuestRequestStatus.IN_PROGRESS,
-];
 
 const completedRequestStatuses = [
   GuestRequestStatus.COMPLETED,
@@ -96,7 +97,9 @@ export class HotelRequestsService {
       ...(query.priority
         ? { priority: { in: this.toInternalRequestPriorities(query.priority) } }
         : {}),
-      ...(query.status ? { status: query.status } : { status: { in: activeRequestStatuses } }),
+      ...(query.status
+        ? { status: { in: compatibleGuestRequestStatuses(query.status) } }
+        : { status: { in: [...activeGuestRequestStatuses] } }),
       ...(query.assignedToUserId ? { assignedToUserId: query.assignedToUserId } : {}),
     };
 
@@ -183,6 +186,7 @@ export class HotelRequestsService {
       hotelId,
       requestId,
       actorUserId,
+      expectedStatus: existing.status,
       status: dto.status,
       note: dto.note?.trim(),
       assignedToUserId: dto.assignedToUserId,
@@ -284,27 +288,22 @@ export class HotelRequestsService {
     return event;
   }
 
-  private assertRequestTransition(from: GuestRequestStatus, to: GuestRequestStatus) {
-    const allowed: Record<GuestRequestStatus, GuestRequestStatus[]> = {
-      NEW: [GuestRequestStatus.CONFIRMED, GuestRequestStatus.CANCELLED],
-      CONFIRMED: [GuestRequestStatus.IN_PROGRESS, GuestRequestStatus.CANCELLED],
-      PENDING: [GuestRequestStatus.ACCEPTED, GuestRequestStatus.REJECTED],
-      ACCEPTED: [GuestRequestStatus.ON_THE_WAY],
-      ON_THE_WAY: [GuestRequestStatus.IN_PROGRESS],
+  private assertRequestTransition(from: GuestRequestStatus, to: CanonicalGuestRequestStatus) {
+    const normalizedFrom = normalizeGuestRequestStatus(from);
+    const allowed: Record<CanonicalGuestRequestStatus, CanonicalGuestRequestStatus[]> = {
       CREATED: [GuestRequestStatus.ACKNOWLEDGED, GuestRequestStatus.CANCELLED],
       ACKNOWLEDGED: [GuestRequestStatus.IN_PROGRESS, GuestRequestStatus.CANCELLED],
       IN_PROGRESS: [GuestRequestStatus.COMPLETED, GuestRequestStatus.FAILED],
       COMPLETED: [],
-      REJECTED: [],
       CANCELLED: [],
       FAILED: [],
     };
 
-    if (from === to) {
+    if (normalizedFrom === to) {
       return;
     }
 
-    if (!allowed[from].includes(to)) {
+    if (!allowed[normalizedFrom].includes(to)) {
       throw new BadRequestException(`Yêu cầu không thể chuyển từ ${from} sang ${to}`);
     }
   }
@@ -313,7 +312,7 @@ export class HotelRequestsService {
     return {
       id: row.id,
       displayName: row.serviceItem?.name ?? row.title ?? "Request",
-      status: row.status,
+      status: normalizeGuestRequestStatus(row.status),
       priority: this.toStaffRequestListPriority(row.priority),
       quantity: row.quantity,
       description: row.description,
@@ -325,25 +324,19 @@ export class HotelRequestsService {
       assignedToName: row.assignedTo?.fullName ?? row.assignedTo?.email ?? null,
       stayStatus: row.stay.status ?? null,
       checkedOutAt: row.stay.checkedOutAt?.toISOString() ?? null,
-      actions: this.getStaffRequestActions(row.status),
+      actions: this.getStaffRequestActions(normalizeGuestRequestStatus(row.status)),
     };
   }
 
-  private getStaffRequestActions(status: GuestRequestStatus): StaffRequestAction[] {
+  private getStaffRequestActions(status: CanonicalGuestRequestStatus): StaffRequestAction[] {
     switch (status) {
-      case GuestRequestStatus.NEW:
-      case GuestRequestStatus.PENDING:
       case GuestRequestStatus.CREATED:
         return ["ACCEPT", "CANCEL"];
-      case GuestRequestStatus.CONFIRMED:
-      case GuestRequestStatus.ACCEPTED:
       case GuestRequestStatus.ACKNOWLEDGED:
         return ["START", "CANCEL"];
-      case GuestRequestStatus.ON_THE_WAY:
       case GuestRequestStatus.IN_PROGRESS:
         return ["COMPLETE", "FAIL"];
       case GuestRequestStatus.COMPLETED:
-      case GuestRequestStatus.REJECTED:
       case GuestRequestStatus.CANCELLED:
       case GuestRequestStatus.FAILED:
         return [];
@@ -358,9 +351,13 @@ export class HotelRequestsService {
 
   private withProductRequestPriority<T extends { priority: unknown }>(
     request: T,
-  ): Omit<T, "priority"> & { priority: "NORMAL" | "URGENT" } {
+  ): Omit<T, "priority" | "status"> & {
+    priority: "NORMAL" | "URGENT";
+    status: CanonicalGuestRequestStatus;
+  } {
     return {
       ...request,
+      status: normalizeGuestRequestStatus((request as T & { status: GuestRequestStatus }).status),
       priority: this.toStaffRequestListPriority(
         request.priority as StaffRequestListRow["priority"],
       ),
@@ -380,11 +377,11 @@ export class HotelRequestsService {
     rows: Array<{ status: GuestRequestStatus; _count: { _all: number } }>,
   ): RequestStatusSummary {
     const statuses = Object.fromEntries(
-      Object.values(GuestRequestStatus).map((status) => [status, 0]),
+      canonicalGuestRequestStatuses.map((status) => [status, 0]),
     ) as RequestStatusSummary;
 
     for (const row of rows) {
-      statuses[row.status] = row._count._all;
+      statuses[normalizeGuestRequestStatus(row.status)] += row._count._all;
     }
 
     return statuses;
@@ -399,22 +396,11 @@ export class HotelRequestsService {
       description: row.description,
       answer: row.events[0]?.note ?? null,
       createdAt: row.createdAt.toISOString(),
-      canCancel: row.status === GuestRequestStatus.CREATED,
+      canCancel: normalizeGuestRequestStatus(row.status) === GuestRequestStatus.CREATED,
     };
   }
 
   private toGuestPortalRequestStatus(status: GuestRequestStatus) {
-    switch (status) {
-      case GuestRequestStatus.COMPLETED:
-        return "COMPLETED";
-      case GuestRequestStatus.CANCELLED:
-        return "CANCELLED";
-      case GuestRequestStatus.FAILED:
-        return "FAILED";
-      case GuestRequestStatus.CREATED:
-      case GuestRequestStatus.ACKNOWLEDGED:
-      case GuestRequestStatus.IN_PROGRESS:
-        return "PENDING";
-    }
+    return normalizeGuestRequestStatus(status);
   }
 }

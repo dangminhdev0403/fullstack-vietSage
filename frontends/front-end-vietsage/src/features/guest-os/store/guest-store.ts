@@ -2,7 +2,7 @@ import { useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
-import type { GuestScanQrResult } from "@/features/guest-os/types/guest-os-contract";
+import type { GuestCurrentSessionResult, GuestScanQrResult } from "@/features/guest-os/types/guest-os-contract";
 
 type GuestHotelState = GuestScanQrResult["hotel"];
 type GuestRoomState = GuestScanQrResult["room"];
@@ -17,6 +17,8 @@ type GuestStore = {
   language: string | null;
 
   setGuestSession: (session: GuestScanQrResult) => void;
+  importSessionToken: (sessionToken: string) => void;
+  refreshSessionSnapshot: (session: GuestCurrentSessionResult) => void;
   setLanguage: (value: string) => void;
   clearSession: () => void;
 };
@@ -56,6 +58,13 @@ export const useGuestStore = create<GuestStore>()(
     (set) => ({
       ...initialGuestState,
       setGuestSession: (session) => set(sanitizeSession(session)),
+      importSessionToken: (sessionToken) => set({ sessionToken: sessionToken.trim() || null }),
+      refreshSessionSnapshot: ({ session }) => set({
+        expiresAt: session.expiresAt,
+        hotel: { name: session.hotel.name, timezone: session.hotel.timezone, brandSettings: session.hotel.brandSettings as Record<string, unknown> | null },
+        room: { roomNumber: session.room.roomNumber, floor: session.room.floor, type: session.room.type },
+        guest: { displayName: session.stay.guestDisplayName, plannedCheckOutAt: session.stay.plannedCheckOutAt },
+      }),
       setLanguage: (value) => set({ language: value.trim() || null }),
       clearSession: () =>
         set((state) => ({

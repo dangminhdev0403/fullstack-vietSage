@@ -1,21 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { HttpError } from "@/core/http/http-error";
 import { defaultGuestLocale, normalizeGuestLocale } from "@/features/guest-os/i18n/config";
 import { guestOsService } from "@/features/guest-os/service/guest-os-service-instance";
 import { useGuestStore } from "@/features/guest-os/store/guest-store";
 import type { GuestCurrentSessionResult } from "@/features/guest-os/types/guest-os-contract";
 import {
-  clearStoredGuestSession,
-  getStoredGuestSession,
-  setStoredGuestSession,
-  type StoredGuestSession,
-} from "@/features/guest-os/utils/guest-session-storage";
+  decideGuestSessionValidationError,
+  isCurrentGuestSessionValidation,
+} from "@/features/guest-os/utils/guest-session-bootstrap-policy";
+import { clearStoredGuestSession } from "@/features/guest-os/utils/guest-session-storage";
 
 export type GuestSessionState = {
-  storedSession: StoredGuestSession | null;
+  sessionToken: string | null;
   currentSession: GuestCurrentSessionResult | null;
   isLoading: boolean;
   error: string | null;
@@ -23,84 +23,50 @@ export type GuestSessionState = {
   close: () => Promise<void>;
 };
 
-export function useGuestSession(options: { redirectOnMissing?: boolean; validateCurrentSession?: boolean } = {}): GuestSessionState {
-  const { redirectOnMissing = true, validateCurrentSession = true } = options;
+export function useGuestSession(): GuestSessionState {
   const router = useRouter();
+  const sessionToken = useGuestStore((state) => state.sessionToken);
   const language = useGuestStore((state) => state.language);
+  const clearSession = useGuestStore((state) => state.clearSession);
+  const refreshSessionSnapshot = useGuestStore((state) => state.refreshSessionSnapshot);
   const locale = normalizeGuestLocale(language ?? defaultGuestLocale);
-  const [storedSession, setStoredSession] = useState<StoredGuestSession | null>(null);
   const [currentSession, setCurrentSession] = useState<GuestCurrentSessionResult | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const redirectToFallback = useCallback(() => {
-    if (redirectOnMissing) {
-      router.replace("/");
-    }
-  }, [redirectOnMissing, router]);
-
   const refresh = useCallback(async () => {
+    if (!sessionToken) return;
     setIsLoading(true);
     setError(null);
-
-    const stored = getStoredGuestSession();
-    if (!stored) {
-      setStoredSession(null);
-      setCurrentSession(null);
-      setIsLoading(false);
-      redirectToFallback();
-      return;
-    }
-
-    if (!validateCurrentSession) {
-      setStoredSession(stored);
-      setCurrentSession(null);
-      setIsLoading(false);
-      return;
-    }
-
     try {
-      const result = await guestOsService.getCurrentSession(stored.sessionToken, locale);
-      setStoredGuestSession(stored);
-      setStoredSession(stored);
+      const result = await guestOsService.getCurrentSession(sessionToken, locale);
+      if (!isCurrentGuestSessionValidation(sessionToken, useGuestStore.getState().sessionToken)) return;
+      refreshSessionSnapshot(result);
       setCurrentSession(result);
-    } catch {
-      clearStoredGuestSession();
-      setStoredSession(null);
-      setCurrentSession(null);
-      setError("Phiên khách đã hết hạn hoặc không hợp lệ.");
-      redirectToFallback();
+    } catch (caught) {
+      if (!isCurrentGuestSessionValidation(sessionToken, useGuestStore.getState().sessionToken)) return;
+      const status = caught instanceof HttpError ? caught.status : 0;
+      if (decideGuestSessionValidationError(status) === "logout") {
+        clearSession();
+        clearStoredGuestSession();
+        router.replace("/");
+      } else {
+        setError("Unable to verify the guest session. Please retry.");
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [locale, redirectToFallback, validateCurrentSession]);
+  }, [clearSession, locale, refreshSessionSnapshot, router, sessionToken]);
 
   const close = useCallback(async () => {
-    const stored = getStoredGuestSession();
-    if (stored) {
-      try {
-        await guestOsService.closeSession(stored.sessionToken, locale);
-      } catch {
-        // Local cleanup is still the correct client-side action if the backend session is already invalid.
-      }
+    if (sessionToken) {
+      try { await guestOsService.closeSession(sessionToken, locale); } catch { /* Always finish local close. */ }
     }
-
+    clearSession();
     clearStoredGuestSession();
-    setStoredSession(null);
     setCurrentSession(null);
     router.replace("/");
-  }, [locale, router]);
+  }, [clearSession, locale, router, sessionToken]);
 
-  useEffect(() => {
-    void Promise.resolve().then(() => refresh());
-  }, [refresh]);
-
-  return {
-    storedSession,
-    currentSession,
-    isLoading,
-    error,
-    refresh,
-    close,
-  };
+  return { sessionToken, currentSession, isLoading, error, refresh, close };
 }

@@ -334,7 +334,7 @@ export class GuestOsRepository {
           description: input.description,
           quantity: input.quantity,
           metadata: input.metadata,
-          status: GuestRequestStatus.NEW,
+          status: GuestRequestStatus.CREATED,
         },
         include: guestRequestGuestInclude,
       });
@@ -346,7 +346,7 @@ export class GuestOsRepository {
           actorType: GuestRequestActorType.GUEST,
           sessionId: input.sessionId,
           eventType: "REQUEST_CREATED",
-          toStatus: GuestRequestStatus.NEW,
+          toStatus: GuestRequestStatus.CREATED,
         },
       });
 
@@ -391,6 +391,7 @@ export class GuestOsRepository {
     stayId: string;
     sessionId: string;
     requestId: string;
+    sourceStatus: GuestRequestStatus;
   }) {
     return this.prisma.$transaction(async (tx) => {
       const now = new Date();
@@ -399,7 +400,7 @@ export class GuestOsRepository {
           id: input.requestId,
           hotelId: input.hotelId,
           stayId: input.stayId,
-          status: GuestRequestStatus.NEW,
+          status: input.sourceStatus,
         },
         data: {
           status: GuestRequestStatus.CANCELLED,
@@ -423,7 +424,7 @@ export class GuestOsRepository {
           actorType: GuestRequestActorType.GUEST,
           sessionId: input.sessionId,
           eventType: "REQUEST_CANCELLED",
-          fromStatus: GuestRequestStatus.NEW,
+          fromStatus: input.sourceStatus,
           toStatus: GuestRequestStatus.CANCELLED,
         },
       });

@@ -8,16 +8,19 @@ export type RequestRealtimeEvent<TRequest> = {
 };
 
 export function getRequestRealtimeUrl(): string {
-  console.debug("getRequestRealtimeUrl", {
-    url: getBrowserBackendApiBaseUrl(),
-  });
   return getBrowserBackendApiBaseUrl();
 }
 
-export function createRequestRealtimeSocket(): Socket {
+export type RequestRealtimeAuth =
+  | { mode: "owner"; ticket: string }
+  | { mode: "guest"; sessionToken: string };
+
+export function createRequestRealtimeSocket(auth: RequestRealtimeAuth): Socket {
   return io(`${getRequestRealtimeUrl()}${SOCKET_NAMESPACE}`, {
     transports: ["websocket", "polling"],
     autoConnect: false,
     withCredentials: true,
+    reconnection: false,
+    auth,
   });
 }

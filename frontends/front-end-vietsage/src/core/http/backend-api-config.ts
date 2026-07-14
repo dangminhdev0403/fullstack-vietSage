@@ -1,7 +1,19 @@
-const DEFAULT_BACKEND_API_BASE_URL = "http://localhost:3001";
+const DEFAULT_BACKEND_API_BASE_URL = "http://localhost:8080";
+
+type BackendApiEnvironment = {
+  AUTH_API_BASE_URL?: string;
+  NEXT_PUBLIC_AUTH_API_BASE_URL?: string;
+};
+
+export function resolveConfiguredBackendApiBaseUrl(environment: BackendApiEnvironment): string {
+  return environment.AUTH_API_BASE_URL ?? environment.NEXT_PUBLIC_AUTH_API_BASE_URL ?? DEFAULT_BACKEND_API_BASE_URL;
+}
 
 function getConfiguredBackendApiBaseUrl(): string {
-  return process.env.AUTH_API_BASE_URL ?? process.env.NEXT_PUBLIC_AUTH_API_BASE_URL ?? DEFAULT_BACKEND_API_BASE_URL;
+  return resolveConfiguredBackendApiBaseUrl({
+    AUTH_API_BASE_URL: process.env.AUTH_API_BASE_URL,
+    NEXT_PUBLIC_AUTH_API_BASE_URL: process.env.NEXT_PUBLIC_AUTH_API_BASE_URL,
+  });
 }
 
 export function resolveBrowserReachableBackendUrl(baseUrl: string): string {

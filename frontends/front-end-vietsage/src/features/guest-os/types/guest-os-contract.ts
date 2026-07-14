@@ -123,6 +123,11 @@ export type GuestServiceItem = {
   updatedAt?: string;
 };
 
+export type GuestCatalogServiceItem = Omit<GuestServiceItem, "price" | "currency"> & {
+  effectivePrice: string | number | null;
+  effectiveCurrency: string;
+};
+
 export type GuestServiceCategory = {
   id: string;
   hotelId: string;
@@ -137,7 +142,7 @@ export type GuestServiceCategory = {
 
 export type GuestServicesResult = {
   hotelId: string;
-  categories: GuestServiceCategory[];
+  categories: Array<Omit<GuestServiceCategory, "items"> & { items: GuestCatalogServiceItem[] }>;
 };
 
 export type GuestCategoryServicesResult = {

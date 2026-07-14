@@ -1633,3 +1633,33 @@ Remaining blockers/risks:
 
 - Physical-device browser QA remains recommended for narrow-screen wrapping, sticky bottom navigation safe areas, SweetAlert focus behavior, realtime status transitions, and reduced-motion behavior on iOS Safari and Android Chrome.
 - The CTA image remains remotely hosted, so browser QA should confirm loading behavior under slow hotel Wi-Fi.
+# 2026-07-14 - Guest Request Contract Sync
+
+- Synced generated OpenAPI types after the backend restricted guest request API statuses to
+  `CREATED`, `ACKNOWLEDGED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`, and `FAILED`.
+
+## 2026-07-14 - GuestOS Reliable Request Recovery Batch B
+
+### What Changed
+
+- Switched the Guest services screen to the session-scoped `/guest/services` catalog and adapted effective price/currency fields for the existing presentation components while preserving backend category/item order.
+- Made the persisted `vietsage.guest-os.v1` Zustand store the sole GuestOS runtime session source, with one-time cleanup/import of the two legacy compatibility keys.
+- Added exact-route session bootstrap validation for `/g/home`, `/g/language`, `/g/services`, and `/g/requests`; dynamic QR entry remains unguarded.
+- Invalid/closed sessions (`401`, `403`, `410`) now clear the persisted session while preserving language; transient failures preserve the session and expose retry.
+- Added focus, online, and visible-tab revalidation with a shared in-flight request, plus refreshed hotel/room/guest display snapshots from `/guest/session/me`.
+- Updated the backend API fallback URL to `http://localhost:8080` while preserving server-env then public-env precedence.
+
+### Verification Result
+
+- Added Node built-in tests for catalog adaptation, compatibility migration, exact protected-route policy, validation error decisions, and backend URL precedence.
+
+### Remaining Blockers / Risks
+
+- Physical-browser QA remains recommended for focus/online/visibility recovery and switching between QR sessions under unstable hotel Wi-Fi.
+## 2026-07-14 - Batch C Authenticated Request Realtime
+
+- Added the owner ticket BFF, handshake credentials, a ref-counted owner connection per hotel, and guest token-aware socket cleanup.
+- Mounted the guest realtime notifier across the authenticated GuestOS layout so updates are visible outside `/g/requests`; the requests page consumes the shared in-app event instead of opening a duplicate socket.
+- Urgent owner notifications remain visible until dismissed or opened via `Xử lý ngay`; audio is best-effort because browsers may block sound before user interaction.
+- `NEXT_PUBLIC_REQUEST_REALTIME_ENABLED` defaults false; rollback performs no ticket/socket calls and preserves HTTP workflows. Local runtime must explicitly enable both frontend and backend flags and restart both processes.
+- Realtime remains a refresh signal. Polling, outbox/durable delivery, acknowledgement SLA, and escalation remain Batch D.

@@ -43,6 +43,10 @@ import type {
   ListGuestRequestsQueryInput,
   ScanQrBodyInput,
 } from "../domain/schemas/guest-os.schema";
+import {
+  compatibleGuestRequestStatuses,
+  normalizeGuestRequestStatus,
+} from "../domain/guest-request-status";
 
 export const ROOM_ACCESS_UNAVAILABLE_MESSAGE =
   "Guest portal access is currently unavailable. Please contact the front desk.";
@@ -431,7 +435,7 @@ export class GuestOsService {
       ownerRequest: {
         id: request.id,
         displayName: request.serviceItem?.name ?? request.title ?? "Request",
-        status: request.status,
+        status: normalizeGuestRequestStatus(request.status),
         priority: guestRequest.priority,
         quantity: request.quantity,
         description: request.description,
@@ -506,7 +510,7 @@ export class GuestOsService {
       throw new NotFoundException("Guest request not found");
     }
 
-    if (existing.status !== InternalGuestRequestStatus.NEW) {
+    if (normalizeGuestRequestStatus(existing.status) !== InternalGuestRequestStatus.CREATED) {
       throw new BadRequestException("Only requests in CREATED status can be cancelled by guests");
     }
 
@@ -516,6 +520,7 @@ export class GuestOsService {
       stayId: current.stayId,
       sessionId: current.id,
       requestId: trimmedRequestId,
+      sourceStatus: existing.status,
     });
 
     if (!cancelled) {
@@ -672,7 +677,7 @@ export class GuestOsService {
       description: row.description,
       answer: row.events?.[0]?.note ?? null,
       createdAt: row.createdAt.toISOString(),
-      canCancel: row.status === InternalGuestRequestStatus.NEW,
+      canCancel: normalizeGuestRequestStatus(row.status) === InternalGuestRequestStatus.CREATED,
     };
   }
 
@@ -683,39 +688,13 @@ export class GuestOsService {
   }
 
   private toGuestRequestStatus(status: GuestRequestGuestRow["status"]): GuestPortalRequestStatus {
-    return status;
+    return normalizeGuestRequestStatus(status);
   }
 
   private toInternalRequestStatuses(
     status: GuestPortalRequestStatusFilter,
   ): InternalGuestRequestStatus[] {
-    switch (status) {
-      case "NEW":
-        return [InternalGuestRequestStatus.NEW];
-      case "CONFIRMED":
-        return [InternalGuestRequestStatus.CONFIRMED];
-      case "PENDING":
-        return [InternalGuestRequestStatus.PENDING];
-      case "ACCEPTED":
-        return [InternalGuestRequestStatus.ACCEPTED];
-      case "ON_THE_WAY":
-        return [InternalGuestRequestStatus.ON_THE_WAY];
-      case "REJECTED":
-        return [InternalGuestRequestStatus.REJECTED];
-      case "CREATED":
-      case "CREATE":
-        return [InternalGuestRequestStatus.CREATED];
-      case "ACKNOWLEDGED":
-        return [InternalGuestRequestStatus.ACKNOWLEDGED];
-      case "IN_PROGRESS":
-        return [InternalGuestRequestStatus.IN_PROGRESS];
-      case "COMPLETED":
-        return [InternalGuestRequestStatus.COMPLETED];
-      case "CANCELLED":
-        return [InternalGuestRequestStatus.CANCELLED];
-      case "FAILED":
-        return [InternalGuestRequestStatus.FAILED];
-    }
+    return compatibleGuestRequestStatuses(status);
   }
 
   private toGuestRequestPriority(

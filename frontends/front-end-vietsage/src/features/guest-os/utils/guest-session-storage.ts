@@ -1,9 +1,12 @@
 const GUEST_SESSION_STORAGE_KEY = "guestSessionToken";
 const LEGACY_GUEST_SESSION_STORAGE_KEY = "vietsage.guestSession.v1";
 
-export type StoredGuestSession = {
-  sessionToken: string;
+export type GuestSessionStorage = {
+  getItem: (key: string) => string | null;
+  removeItem: (key: string) => void;
 };
+
+type StoredGuestSession = { sessionToken: string };
 
 function isBrowser(): boolean {
   return typeof window !== "undefined";
@@ -31,55 +34,33 @@ function parseStoredGuestSession(value: unknown): StoredGuestSession | null {
   return sessionToken ? { sessionToken } : null;
 }
 
-export function getStoredGuestSession(): StoredGuestSession | null {
-  if (!isBrowser()) {
-    return null;
-  }
-
-  const raw = window.localStorage.getItem(GUEST_SESSION_STORAGE_KEY);
-  if (!raw) {
-    const legacyRaw = window.localStorage.getItem(LEGACY_GUEST_SESSION_STORAGE_KEY);
-    if (!legacyRaw) {
-      return null;
-    }
-
-    try {
-      const legacySession = parseStoredGuestSession(JSON.parse(legacyRaw));
-      window.localStorage.removeItem(LEGACY_GUEST_SESSION_STORAGE_KEY);
-      if (legacySession) {
-        setStoredGuestSession(legacySession);
-      }
-
-      return legacySession;
-    } catch {
-      window.localStorage.removeItem(LEGACY_GUEST_SESSION_STORAGE_KEY);
-      return null;
-    }
-  }
-
-  const parsed = parseStoredGuestSession(raw);
-  if (!parsed) {
-    clearStoredGuestSession();
-    return null;
-  }
-
-  return parsed;
+export function clearGuestSessionCompatibilityKeys(storage: GuestSessionStorage): void {
+  storage.removeItem(GUEST_SESSION_STORAGE_KEY);
+  storage.removeItem(LEGACY_GUEST_SESSION_STORAGE_KEY);
 }
 
-export function setStoredGuestSession(session: StoredGuestSession): void {
-  if (!isBrowser()) {
-    return;
+export function migrateLegacyGuestSession(storage: GuestSessionStorage, currentToken: string | null): string | null {
+  let migratedToken: string | null = null;
+  if (!currentToken) {
+    const rawToken = storage.getItem(GUEST_SESSION_STORAGE_KEY);
+    if (rawToken) migratedToken = parseStoredGuestSession(rawToken)?.sessionToken ?? null;
+
+    if (!migratedToken) {
+      const legacyRaw = storage.getItem(LEGACY_GUEST_SESSION_STORAGE_KEY);
+      if (legacyRaw) {
+        try {
+          migratedToken = parseStoredGuestSession(JSON.parse(legacyRaw))?.sessionToken ?? null;
+        } catch {
+          migratedToken = null;
+        }
+      }
+    }
   }
 
-  window.localStorage.setItem(GUEST_SESSION_STORAGE_KEY, session.sessionToken);
-  window.localStorage.removeItem(LEGACY_GUEST_SESSION_STORAGE_KEY);
+  clearGuestSessionCompatibilityKeys(storage);
+  return migratedToken;
 }
 
 export function clearStoredGuestSession(): void {
-  if (!isBrowser()) {
-    return;
-  }
-
-  window.localStorage.removeItem(GUEST_SESSION_STORAGE_KEY);
-  window.localStorage.removeItem(LEGACY_GUEST_SESSION_STORAGE_KEY);
+  if (isBrowser()) clearGuestSessionCompatibilityKeys(window.localStorage);
 }

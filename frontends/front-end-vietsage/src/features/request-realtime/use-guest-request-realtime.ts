@@ -1,47 +1,31 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { GuestRequest } from "@/features/guest-os/types/guest-os-contract";
-import {
-  createRequestRealtimeSocket,
-  type RequestRealtimeEvent,
-} from "@/features/request-realtime/request-realtime-client";
+import { createGuestConnectionManager } from "./guest-connection-manager";
+import { createRequestRealtimeSocket } from "./request-realtime-client";
+import { requestRealtimeEnabled } from "./request-realtime-config";
 
-type GuestRequestRealtimeHandlers = {
-  onCreated?: (request: GuestRequest) => void;
-  onUpdated?: (request: Partial<GuestRequest> & { id: string }) => void;
-  onAnswered?: (request: Partial<GuestRequest> & { id: string }) => void;
-  onReconnect?: () => void;
-};
+type Handlers = { onReady?: () => void; onCreated?: (request: GuestRequest) => void; onUpdated?: (request: Partial<GuestRequest> & { id: string }) => void; onAnswered?: (request: Partial<GuestRequest> & { id: string }) => void; onReconnect?: () => void; onError?: (error: unknown) => void };
 
-export function useGuestRequestRealtime(
-  sessionToken: string | null | undefined,
-  handlers: GuestRequestRealtimeHandlers,
-) {
+export function useGuestRequestRealtime(sessionToken: string | null | undefined, handlers: Handlers) {
+  const handlersRef = useRef(handlers);
+  const [manager] = useState(() => createGuestConnectionManager({
+    enabled: requestRealtimeEnabled,
+    createSocket: createRequestRealtimeSocket,
+    scheduleReconnect: (callback) => {
+      const timer = window.setTimeout(callback, 1_000);
+      return () => window.clearTimeout(timer);
+    },
+  }));
+  useEffect(() => { handlersRef.current = handlers; }, [handlers]);
   useEffect(() => {
-    if (!sessionToken) return;
-
-    const socket = createRequestRealtimeSocket();
-    socket.on("connect", () => {
-      socket.emit("guest:join_session_requests", { sessionToken });
+    manager.update(sessionToken, {
+      onReady: () => handlersRef.current.onReady?.(),
+      onCreated: (value) => handlersRef.current.onCreated?.(value as GuestRequest),
+      onUpdated: (value) => handlersRef.current.onUpdated?.(value as Partial<GuestRequest> & { id: string }),
+      onAnswered: (value) => handlersRef.current.onAnswered?.(value as Partial<GuestRequest> & { id: string }),
+      onReconnect: () => handlersRef.current.onReconnect?.(),
+      onError: (error) => handlersRef.current.onError?.(error),
     });
-    socket.io.on("reconnect", () => {
-      socket.emit("guest:join_session_requests", { sessionToken });
-      handlers.onReconnect?.();
-    });
-    socket.on("guest_request.created", (event: RequestRealtimeEvent<GuestRequest>) => {
-      handlers.onCreated?.(event.request);
-    });
-    socket.on("guest_request.updated", (event: RequestRealtimeEvent<Partial<GuestRequest> & { id: string }>) => {
-      handlers.onUpdated?.(event.request);
-    });
-    socket.on("guest_request.answered", (event: RequestRealtimeEvent<Partial<GuestRequest> & { id: string }>) => {
-      handlers.onAnswered?.(event.request);
-    });
-
-    socket.connect();
-
-    return () => {
-      socket.removeAllListeners();
-      socket.disconnect();
-    };
-  }, [sessionToken, handlers]);
+    return () => manager.disconnect();
+  }, [manager, sessionToken]);
 }

@@ -40,4 +40,36 @@ describe("env config", () => {
     expect(config.rateLimits.login).toEqual({ ttlSeconds: 30, limit: 5 });
     expect(config.rateLimits.refresh).toEqual({ ttlSeconds: 45, limit: 12 });
   });
+
+  it("defaults request realtime off with a 60 second ticket TTL", () => {
+    const config = loadAppConfig(baseEnv);
+    expect(config.requestRealtime).toEqual({
+      enabled: false,
+      ticketSecret: null,
+      ticketTtlSeconds: 60,
+      audience: "request-realtime",
+    });
+  });
+
+  it.each([undefined, "", "short-secret"])(
+    "rejects enabled request realtime with a missing or weak ticket secret: %p",
+    (ticketSecret) => {
+      expect(() =>
+        loadAppConfig({
+          ...baseEnv,
+          REQUEST_REALTIME_ENABLED: "true",
+          REQUEST_REALTIME_TICKET_SECRET: ticketSecret,
+        }),
+      ).toThrow("REQUEST_REALTIME_TICKET_SECRET");
+    },
+  );
+
+  it("rejects a non-positive request realtime ticket TTL", () => {
+    expect(() =>
+      loadAppConfig({
+        ...baseEnv,
+        REQUEST_REALTIME_TICKET_TTL_SECONDS: "0",
+      }),
+    ).toThrow("REQUEST_REALTIME_TICKET_TTL_SECONDS");
+  });
 });

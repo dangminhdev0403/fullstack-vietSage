@@ -1,5 +1,7 @@
 import { Inject, Injectable, Optional } from "@nestjs/common";
 import {
+  DomainEventStatus,
+  GuestRequestActorType,
   GuestRequestNotificationStatus,
   GuestRequestStatus,
   NotificationProvider,
@@ -163,7 +165,12 @@ export class TelegramNotificationService {
     id: string;
     status: GuestRequestStatus;
   }): InlineKeyboard | undefined {
-    if (request.status !== GuestRequestStatus.NEW) return undefined;
+    if (
+      request.status !== GuestRequestStatus.CREATED &&
+      request.status !== GuestRequestStatus.NEW
+    ) {
+      return undefined;
+    }
     return {
       inline_keyboard: [
         [{ text: "✅ Confirm", callback_data: `guest_request:confirm:${request.id}` }],
@@ -203,11 +210,56 @@ export class TelegramNotificationService {
     const requestId = parts[2];
     const staffName = this.telegramStaffName(callbackQuery);
     const confirmedAt = new Date();
-    const result = await this.prisma.guestRequest.updateMany({
-      where: { id: requestId, status: GuestRequestStatus.NEW },
-      data: { status: GuestRequestStatus.CONFIRMED, confirmedBy: staffName, confirmedAt },
+    const acknowledged = await this.prisma.$transaction(async (tx) => {
+      const existing = await tx.guestRequest.findUnique({
+        where: { id: requestId },
+        select: {
+          status: true,
+          hotelId: true,
+          hotel: { select: { tenantId: true } },
+        },
+      });
+      if (!existing) return false;
+
+      const result = await tx.guestRequest.updateMany({
+        where: {
+          id: requestId,
+          status: { in: [GuestRequestStatus.CREATED, GuestRequestStatus.NEW] },
+        },
+        data: { status: GuestRequestStatus.ACKNOWLEDGED, confirmedBy: staffName, confirmedAt },
+      });
+      if (result.count === 0) return false;
+
+      await tx.guestRequestEvent.create({
+        data: {
+          requestId,
+          hotelId: existing.hotelId,
+          actorType: GuestRequestActorType.SYSTEM,
+          eventType: "REQUEST_UPDATED",
+          fromStatus: existing.status,
+          toStatus: GuestRequestStatus.ACKNOWLEDGED,
+          note: `Acknowledged via Telegram by ${staffName}`,
+        },
+      });
+      await tx.domainEvent.create({
+        data: {
+          eventType: "REQUEST_UPDATED",
+          aggregateType: "GuestRequest",
+          aggregateId: requestId,
+          hotelId: existing.hotelId,
+          tenantId: existing.hotel.tenantId,
+          payload: {
+            requestId,
+            fromStatus: existing.status,
+            toStatus: GuestRequestStatus.ACKNOWLEDGED,
+            source: "TELEGRAM",
+          },
+          status: DomainEventStatus.PENDING,
+        },
+      });
+      return true;
     });
-    if (result.count === 0) {
+    if (!acknowledged) {
       await this.answerCallbackQuery(callbackQuery.id, "This request has already been confirmed.");
       this.logger.warn("Telegram callback ignored", {
         module: "telegram",

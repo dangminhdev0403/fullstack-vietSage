@@ -50,6 +50,11 @@ export class HotelOpsService {
     });
   }
 
+  async issueRequestRealtimeTicket(hotelId: string, accessToken?: string): Promise<{ ticket: string; expiresAt: string }> {
+    const payload = await this.httpClient.request<unknown>({ method: "POST", path: hotelPath(hotelId, "/request-realtime-ticket"), accessToken });
+    return unwrapApiEnvelope<{ ticket: string; expiresAt: string }>(payload).data;
+  }
+
   async getDashboard(hotelId: string, options: AuthRequestOptions = {}): Promise<unknown> {
     const payload = await this.httpClient.request<unknown>({
       method: "GET",

@@ -1,35 +1,15 @@
 import { z } from "zod";
 
 export const guestRequestStatusValues = [
-  "NEW",
-  "CONFIRMED",
-  "PENDING",
-  "ACCEPTED",
-  "ON_THE_WAY",
-  "IN_PROGRESS",
-  "COMPLETED",
-  "REJECTED",
   "CREATED",
   "ACKNOWLEDGED",
+  "IN_PROGRESS",
+  "COMPLETED",
   "CANCELLED",
   "FAILED",
 ] as const;
 export const guestRequestStatusSchema = z.enum(guestRequestStatusValues);
-export const guestRequestStatusFilterValues = [
-  "NEW",
-  "CONFIRMED",
-  "PENDING",
-  "ACCEPTED",
-  "ON_THE_WAY",
-  "REJECTED",
-  "CREATED",
-  "CREATE",
-  "ACKNOWLEDGED",
-  "IN_PROGRESS",
-  "COMPLETED",
-  "CANCELLED",
-  "FAILED",
-] as const;
+export const guestRequestStatusFilterValues = guestRequestStatusValues;
 export const guestRequestStatusFilterSchema = z.enum(guestRequestStatusFilterValues);
 export const guestRequestPriorityValues = ["NORMAL", "URGENT"] as const;
 export const guestRequestPrioritySchema = z.enum(guestRequestPriorityValues);

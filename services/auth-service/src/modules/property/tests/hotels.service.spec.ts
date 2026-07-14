@@ -466,6 +466,68 @@ describe("HotelsService", () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
+  it("advances a legacy NEW request through the canonical lifecycle", async () => {
+    const statuses = [
+      GuestRequestStatus.NEW,
+      GuestRequestStatus.ACKNOWLEDGED,
+      GuestRequestStatus.IN_PROGRESS,
+    ];
+    const requestRow = (status: GuestRequestStatus) => ({
+      id: "request-1",
+      status,
+      priority: GuestRequestPriority.NORMAL,
+      title: "Extra towels",
+      description: null,
+      quantity: 1,
+      createdAt: new Date("2026-06-21T09:47:17.042Z"),
+      room: { id: "room-1", roomNumber: "402" },
+      stay: {
+        id: "stay-1",
+        reservationCode: "RSV-1",
+        guestDisplayName: "Jane Guest",
+        status: "ACTIVE",
+        checkedOutAt: null,
+      },
+      assignedTo: null,
+      serviceItem: null,
+      session: null,
+      events: [],
+    });
+    const repository = createRepository({
+      findRequestInHotel: jest.fn().mockImplementation(() => requestRow(statuses.shift()!)),
+      updateRequestStatus: jest.fn().mockImplementation((input) => requestRow(input.status)),
+    });
+    const service = createService(repository);
+
+    for (const status of [
+      GuestRequestStatus.ACKNOWLEDGED,
+      GuestRequestStatus.IN_PROGRESS,
+      GuestRequestStatus.COMPLETED,
+    ] as const) {
+      await expect(
+        service.updateRequestStatus("actor-1", "hotel-1", "request-1", { status }),
+      ).resolves.toMatchObject({ status });
+    }
+
+    expect(repository.updateRequestStatus.mock.calls.map(([input]) => input.status)).toEqual([
+      GuestRequestStatus.ACKNOWLEDGED,
+      GuestRequestStatus.IN_PROGRESS,
+      GuestRequestStatus.COMPLETED,
+    ]);
+  });
+
+  it("rejects invalid canonical request transitions", async () => {
+    const repository = createRepository();
+    const service = createService(repository);
+
+    await expect(
+      service.updateRequestStatus("actor-1", "hotel-1", "request-1", {
+        status: GuestRequestStatus.COMPLETED,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(repository.updateRequestStatus).not.toHaveBeenCalled();
+  });
+
   it("maps staff request list to frontend DTOs without raw Prisma fields or events", async () => {
     const createdAt = new Date("2026-06-21T09:47:17.042Z");
     const updatedAt = new Date("2026-06-21T10:00:00.000Z");
@@ -586,8 +648,13 @@ describe("HotelsService", () => {
         status: {
           in: [
             GuestRequestStatus.CREATED,
+            GuestRequestStatus.NEW,
             GuestRequestStatus.ACKNOWLEDGED,
+            GuestRequestStatus.CONFIRMED,
+            GuestRequestStatus.ACCEPTED,
             GuestRequestStatus.IN_PROGRESS,
+            GuestRequestStatus.PENDING,
+            GuestRequestStatus.ON_THE_WAY,
           ],
         },
         stay: {
@@ -617,8 +684,13 @@ describe("HotelsService", () => {
         status: {
           in: [
             GuestRequestStatus.CREATED,
+            GuestRequestStatus.NEW,
             GuestRequestStatus.ACKNOWLEDGED,
+            GuestRequestStatus.CONFIRMED,
+            GuestRequestStatus.ACCEPTED,
             GuestRequestStatus.IN_PROGRESS,
+            GuestRequestStatus.PENDING,
+            GuestRequestStatus.ON_THE_WAY,
           ],
         },
         stay: {
@@ -727,15 +799,9 @@ describe("HotelsService", () => {
       total: 5,
       statuses: {
         CREATED: 4,
-        NEW: 0,
-        CONFIRMED: 0,
-        PENDING: 0,
-        ACCEPTED: 0,
-        ON_THE_WAY: 0,
         ACKNOWLEDGED: 0,
         IN_PROGRESS: 0,
         COMPLETED: 0,
-        REJECTED: 0,
         CANCELLED: 1,
         FAILED: 0,
       },

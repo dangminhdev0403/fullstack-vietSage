@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import Swal from "sweetalert2";
@@ -19,10 +19,11 @@ import { GuestServicesHeader } from "@/features/guest-os/components/services/gue
 import { useGuestI18n } from "@/features/guest-os/i18n/use-guest-i18n";
 import { guestOsService } from "@/features/guest-os/service/guest-os-service-instance";
 import { useGuestStore, useGuestStoreHydrated } from "@/features/guest-os/store/guest-store";
-import type { CreateGuestRequestInput, GuestCategoryServicesResult, GuestPortalRequestPriority, GuestServiceItem } from "@/features/guest-os/types/guest-os-contract";
+import type { CreateGuestRequestInput, GuestPortalRequestPriority, GuestServiceCategory, GuestServiceItem } from "@/features/guest-os/types/guest-os-contract";
+import { GuestCatalogRequestGuard } from "@/features/guest-os/utils/guest-catalog-request-guard";
+import { adaptGuestServiceCatalog } from "@/features/guest-os/utils/guest-service-catalog";
 import { getGuestFriendlyErrorMessage } from "@/features/guest-os/utils/guest-os-errors";
 
-const defaultServiceCategoryId = process.env.NEXT_PUBLIC_GUEST_DEFAULT_SERVICE_CATEGORY_ID?.trim() ?? "";
 type GuestTranslator = ReturnType<typeof useGuestI18n>["t"];
 
 function getServicePrice(service: GuestServiceItem, t: GuestTranslator, intlLocale: string): string {
@@ -70,28 +71,35 @@ export default function GuestServicesPage() {
   const [requestPriority, setRequestPriority] = useState<GuestPortalRequestPriority>("NORMAL");
   const [isRequestSubmitting, setIsRequestSubmitting] = useState(false);
   const [requestError, setRequestError] = useState<string | null>(null);
-  const [categoryServices, setCategoryServices] = useState<GuestCategoryServicesResult | null>(null);
+  const [categories, setCategories] = useState<GuestServiceCategory[]>([]);
   const [isServicesLoading, setIsServicesLoading] = useState(false);
   const [servicesError, setServicesError] = useState<string | null>(null);
+  const catalogRequestGuardRef = useRef(new GuestCatalogRequestGuard());
   const roomLabel = room?.roomNumber ? t("common.roomNumber", { room: room.roomNumber }) : t("home.roomFallback");
-  const isDefaultCategoryConfigured = defaultServiceCategoryId.length > 0;
-
   const loadServices = useCallback(async () => {
-    if (!sessionToken || !isDefaultCategoryConfigured) return;
+    if (!sessionToken) return;
+    const requestGeneration = catalogRequestGuardRef.current.begin();
     setIsServicesLoading(true);
     setServicesError(null);
+    setCategories([]);
+    setSelectedService(null);
     try {
-      setCategoryServices(await guestOsService.listServicesByCategory(sessionToken, defaultServiceCategoryId, { page: 1, limit: 20 }, locale));
+      const catalog = adaptGuestServiceCatalog(await guestOsService.listServices(sessionToken, locale));
+      if (!catalogRequestGuardRef.current.isCurrent(requestGeneration)) return;
+      setCategories(catalog.categories);
     } catch (error) {
+      if (!catalogRequestGuardRef.current.isCurrent(requestGeneration)) return;
       setServicesError(getGuestFriendlyErrorMessage(error, t("services.loadError"), t));
     } finally {
-      setIsServicesLoading(false);
+      if (catalogRequestGuardRef.current.isCurrent(requestGeneration)) setIsServicesLoading(false);
     }
-  }, [isDefaultCategoryConfigured, locale, sessionToken, t]);
+  }, [locale, sessionToken, t]);
 
   useEffect(() => {
     if (!isHydrated) return;
+    const requestGuard = catalogRequestGuardRef.current;
     void Promise.resolve().then(loadServices);
+    return () => requestGuard.invalidate();
   }, [isHydrated, loadServices]);
 
   const closeRequestSheet = useCallback(() => {
@@ -152,8 +160,8 @@ export default function GuestServicesPage() {
     }
   }
 
-  const pageTitle = isDefaultCategoryConfigured ? categoryServices?.category.name ?? t("services.title") : t("services.defaultMissing");
-  const pageSubtitle = isDefaultCategoryConfigured ? categoryServices?.category.description ?? t("services.subtitle") : "";
+  const pageTitle = t("services.title");
+  const pageSubtitle = t("services.subtitle");
 
   return (
     <div className="vs-page-shell vs-guest-readable vs-safe-bottom vs-guest-comfort-surface min-h-screen overflow-x-hidden text-[#18211d]">
@@ -162,11 +170,8 @@ export default function GuestServicesPage() {
         <GuestServicesHeader roomLabel={roomLabel} title={pageTitle} subtitle={pageSubtitle} requestsLabel={t("requests.title")} />
         <GuestReveal>
           <section aria-labelledby="guest-services-list-title">
-            <div className="mb-6">
-              <p className="text-sm font-semibold text-[#8a6a13]">{t("services.title")}</p>
-              <h2 id="guest-services-list-title" className="vs-display mt-1 text-2xl font-semibold text-[#18211d] md:text-3xl">{categoryServices?.category.name ?? t("services.service")}</h2>
-            </div>
-            {!isDefaultCategoryConfigured ? <GuestServiceEmptyState message={t("services.defaultMissing")} /> : isServicesLoading ? <GuestServiceSkeleton /> : servicesError ? <GuestServiceErrorState message={servicesError} retryLabel={t("common.retry")} onRetry={() => void loadServices()} /> : categoryServices?.services.length ? <GuestServiceList services={categoryServices.services} getPrice={(service) => getServicePrice(service, t, intlLocale)} getQuantityHint={(service) => getQuantityHint(service, t)} quantityLabel={t("services.quantity")} actionLabel={t("services.send")} onSelect={openRequestSheet} /> : <GuestServiceEmptyState message={t("services.empty")} />}
+            <h2 id="guest-services-list-title" className="sr-only">{t("services.service")}</h2>
+            {isServicesLoading ? <GuestServiceSkeleton /> : servicesError ? <GuestServiceErrorState message={servicesError} retryLabel={t("common.retry")} onRetry={() => void loadServices()} /> : categories.length ? <div className="space-y-10">{categories.map((category) => <section key={category.id} aria-labelledby={`guest-service-category-${category.id}`}><div className="mb-6"><p className="text-sm font-semibold text-[#8a6a13]">{t("services.title")}</p><h3 id={`guest-service-category-${category.id}`} className="vs-display mt-1 text-2xl font-semibold text-[#18211d] md:text-3xl">{category.name}</h3>{category.description ? <p className="mt-2 text-sm text-[#5e6a62]">{category.description}</p> : null}</div>{category.items.length ? <GuestServiceList services={category.items} getPrice={(service) => getServicePrice(service, t, intlLocale)} getQuantityHint={(service) => getQuantityHint(service, t)} quantityLabel={t("services.quantity")} actionLabel={t("services.send")} onSelect={openRequestSheet} /> : <GuestServiceEmptyState message={t("services.empty")} />}</section>)}</div> : <GuestServiceEmptyState message={t("services.empty")} />}
           </section>
         </GuestReveal>
       </main>

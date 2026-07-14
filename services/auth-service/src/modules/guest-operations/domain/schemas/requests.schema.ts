@@ -1,5 +1,5 @@
-import { GuestRequestStatus } from "@prisma/client";
 import { z } from "zod";
+import { canonicalGuestRequestStatuses } from "../guest-request-status";
 
 export const jsonRecordSchema = z.record(z.string(), z.unknown());
 export const hotelIdParamSchema = z.string().trim().min(1, "hotelId là bắt buộc");
@@ -13,7 +13,7 @@ export const listStaffRequestsQuerySchema = z
     roomNumber: z.string().trim().min(1).optional(),
     serviceItemId: z.string().trim().min(1).optional(),
     priority: guestRequestPrioritySchema.optional(),
-    status: z.nativeEnum(GuestRequestStatus).optional(),
+    status: z.enum(canonicalGuestRequestStatuses).optional(),
     assignedToUserId: z.string().trim().min(1).optional(),
     from: z.coerce.date().optional(),
     to: z.coerce.date().optional(),
@@ -33,7 +33,7 @@ export const requestSummaryQuerySchema = z
 
 export const updateRequestStatusBodySchema = z
   .object({
-    status: z.nativeEnum(GuestRequestStatus),
+    status: z.enum(canonicalGuestRequestStatuses),
     note: z.string().trim().max(1000).optional(),
     assignedToUserId: z.string().trim().min(1).optional(),
     priority: guestRequestPrioritySchema.optional(),

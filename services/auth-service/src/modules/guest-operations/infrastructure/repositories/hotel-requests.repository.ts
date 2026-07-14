@@ -107,6 +107,7 @@ export class HotelRequestsRepository {
     hotelId: string;
     requestId: string;
     actorUserId: string;
+    expectedStatus: GuestRequestStatus;
     status: GuestRequestStatus;
     note?: string;
     assignedToUserId?: string;
@@ -118,6 +119,10 @@ export class HotelRequestsRepository {
         const existing = await tx.guestRequest.findFirstOrThrow({
           where: { id: input.requestId, hotelId: input.hotelId },
         });
+
+        if (existing.status !== input.expectedStatus) {
+          throw new ConflictException("Guest request status changed concurrently");
+        }
 
         let billingFolioItemId: string | undefined;
         const completedAt = input.status === GuestRequestStatus.COMPLETED ? new Date() : undefined;
