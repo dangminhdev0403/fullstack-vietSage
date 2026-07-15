@@ -4,6 +4,8 @@ import { getToken, type JWT } from "@auth/core/jwt";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { resolveSessionCookiePolicy } from "./auth-cookie-policy";
+
 export type ServerSessionTokens = {
   accessToken: string | null;
   refreshToken: string | null;
@@ -31,9 +33,11 @@ function toSessionTokens(token: JWT | null): ServerSessionTokens {
 
 export async function readServerSessionTokens(): Promise<ServerSessionTokens> {
   const requestHeaders = await headers();
+  const cookiePolicy = resolveSessionCookiePolicy(requestHeaders);
   const token = await getToken({
     req: { headers: requestHeaders },
     secret: authSecret(),
+    ...cookiePolicy,
   });
 
   return toSessionTokens(token);

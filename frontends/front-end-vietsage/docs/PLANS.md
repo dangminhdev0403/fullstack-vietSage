@@ -46,6 +46,27 @@ Status labels:
 
 # Execution Log
 
+## [complete] 2026-07-15 - Production secure Auth.js session cookie reader
+
+- Fixed the server-only Auth.js JWT reader to select `__Secure-authjs.session-token` for HTTPS requests while preserving `authjs.session-token` for local HTTP development.
+- Added explicit support for chunked secure session cookies and a focused regression test for HTTPS, HTTP, cookie-driven fallback, and forwarded-header behavior.
+- Kept raw access and refresh tokens server-only; no token fields were added to the browser-visible Auth.js session.
+
+Verification result:
+
+- `node --test src/lib/auth-cookie-policy.test.ts` passed with 4 tests.
+- `node scripts/auth-session-contract-smoke.mjs` passed all auth session contract checks.
+- `node scripts/auth-refresh-smoke.mjs` passed success and refresh-failure scenarios.
+- `npm run lint` passed.
+- `npx tsc --noEmit --pretty false` passed.
+- `npm run build` passed with the existing Node localStorage experimental warning only.
+- Production image build result is recorded separately after the committed source is pulled on the VPS.
+
+Remaining blockers/risks:
+
+- The new frontend image must pass production health checks and real admin/tenant login verification before traffic cutover.
+- Production cutover remains a separate explicit confirmation checkpoint with the current frontend image retained for rollback.
+
 ## [complete] 2026-07-14 - Landing motion refactor
 
 - Replaced mount-time animation on all landing sections with one shared `IntersectionObserver` reveal controller that animates content only as it enters the viewport.
