@@ -385,7 +385,11 @@ export class GuestOsService {
     };
   }
 
-  async createRequest(context: GuestSessionContext, dto: CreateGuestRequestBodyInput) {
+  async createRequest(
+    context: GuestSessionContext,
+    dto: CreateGuestRequestBodyInput,
+    httpRequest?: Request,
+  ) {
     const current = await this.loadUsableSession(context.sessionId);
     const serviceItem = await this.guestOsRepository.findActiveServiceItemInHotel(
       current.hotelId,
@@ -412,7 +416,8 @@ export class GuestOsService {
       metadata: dto.metadata as Prisma.InputJsonValue | undefined,
     });
 
-    const guestRequest = this.toGuestRequestData(request);
+    const locale = this.i18n.resolveLocale(httpRequest);
+    const guestRequest = this.toGuestRequestData(request, locale);
     this.logger.info("Guest request created from guest portal", {
       module: "guest_os",
       service: "GuestOsService",
@@ -447,7 +452,7 @@ export class GuestOsService {
         assignedToName: null,
         actions: ["ACCEPT", "CANCEL"],
       },
-      guestRequest: this.toGuestRequestListItem(request),
+      guestRequest: this.toGuestRequestListItem(request, locale),
     });
 
     void this.telegramNotificationService
@@ -466,8 +471,13 @@ export class GuestOsService {
     return guestRequest;
   }
 
-  async listRequests(context: GuestSessionContext, query: ListGuestRequestsQueryInput) {
+  async listRequests(
+    context: GuestSessionContext,
+    query: ListGuestRequestsQueryInput,
+    httpRequest?: Request,
+  ) {
     const current = await this.loadUsableSession(context.sessionId);
+    const locale = this.i18n.resolveLocale(httpRequest);
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const search = query.search?.trim();
@@ -483,6 +493,15 @@ export class GuestOsService {
         ? {
             OR: [
               { serviceItem: { is: { name: { contains: search, mode: "insensitive" } } } },
+              {
+                serviceItem: {
+                  is: {
+                    translations: {
+                      some: { name: { contains: search, mode: "insensitive" } },
+                    },
+                  },
+                },
+              },
               { title: { contains: search, mode: "insensitive" } },
               { description: { contains: search, mode: "insensitive" } },
             ],
@@ -495,11 +514,17 @@ export class GuestOsService {
       limit,
     );
 
-    return { page, limit, total, items: rows.map((row) => this.toGuestRequestListItem(row)) };
+    return {
+      page,
+      limit,
+      total,
+      items: rows.map((row) => this.toGuestRequestListItem(row, locale)),
+    };
   }
 
-  async cancelRequest(context: GuestSessionContext, requestId: string) {
+  async cancelRequest(context: GuestSessionContext, requestId: string, httpRequest?: Request) {
     const current = await this.loadUsableSession(context.sessionId);
+    const locale = this.i18n.resolveLocale(httpRequest);
     const trimmedRequestId = requestId.trim();
     const existing = await this.guestOsRepository.findRequestForGuest(
       trimmedRequestId,
@@ -539,7 +564,7 @@ export class GuestOsService {
       sessionId: current.id,
       requestId: trimmedRequestId,
     });
-    return this.toGuestRequestData(cancelled);
+    return this.toGuestRequestData(cancelled, locale);
   }
 
   async closeSession(context: GuestSessionContext) {
@@ -637,12 +662,18 @@ export class GuestOsService {
     };
   }
 
-  private toGuestRequestData(row: GuestRequestGuestRow): GuestRequestResponse {
+  private toGuestRequestData(
+    row: GuestRequestGuestRow,
+    locale: SupportedLocale = "vi-VN",
+  ): GuestRequestResponse {
+    const serviceName = row.serviceItem
+      ? this.resolveCatalogText(row.serviceItem, locale).name
+      : (row.title ?? null);
     return {
       id: row.id,
       service: {
         id: row.serviceItem?.id ?? null,
-        name: row.serviceItem?.name ?? row.title ?? null,
+        name: serviceName,
       },
       status: this.toGuestRequestStatus(row.status),
       priority: this.toGuestRequestPriority(row.priority),
@@ -653,13 +684,19 @@ export class GuestOsService {
     };
   }
 
-  private toGuestRequestListItem(row: GuestRequestGuestRow): GuestRequestListItemResponse {
+  private toGuestRequestListItem(
+    row: GuestRequestGuestRow,
+    locale: SupportedLocale = "vi-VN",
+  ): GuestRequestListItemResponse {
     const price = this.resolveGuestRequestUnitPrice(row);
     const currency = row.serviceItem?.category.currency ?? "VND";
+    const serviceName = row.serviceItem
+      ? this.resolveCatalogText(row.serviceItem, locale).name
+      : (row.title ?? "Request");
 
     return {
       id: row.id,
-      displayName: row.serviceItem?.name ?? row.title ?? "Request",
+      displayName: serviceName,
       status: this.toGuestRequestStatus(row.status),
       priority: this.toGuestRequestPriority(row.priority),
       quantity: row.quantity,
@@ -669,7 +706,7 @@ export class GuestOsService {
       service: row.serviceItem
         ? {
             id: row.serviceItem.id,
-            name: row.serviceItem.name,
+            name: serviceName,
             price,
             currency,
           }

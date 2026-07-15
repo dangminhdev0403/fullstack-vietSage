@@ -67,7 +67,7 @@ export function GuestRequestRealtimeNotifier() {
   const handlers = useMemo(
     () => ({
       onReady: () => {
-        toast.success("Cập nhật realtime đã kết nối", {
+        toast.success(t("requests.realtimeReady"), {
           id: "guest-realtime-ready",
           duration: 4_000,
         });
@@ -89,9 +89,9 @@ export function GuestRequestRealtimeNotifier() {
       },
       onReconnect: () => dispatchGuestRequestRealtime({ kind: "reconnected" }),
       onError: () => {
-        toast.error("Cập nhật realtime bị gián đoạn", {
+        toast.error(t("requests.realtimeInterrupted"), {
           id: "guest-realtime-error",
-          description: "Danh sách vẫn có thể được tải lại thủ công.",
+          description: t("requests.realtimeInterruptedHelp"),
         });
       },
     }),

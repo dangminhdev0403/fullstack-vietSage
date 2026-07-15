@@ -100,7 +100,7 @@ export class GuestOsController {
   })
   async createRequest(@Req() request: RequestWithGuestSession, @Body() body: unknown) {
     const dto = parseWithZod(createGuestRequestBodySchema, body);
-    return this.guestOsService.createRequest(request.guestSession, dto);
+    return this.guestOsService.createRequest(request.guestSession, dto, request);
   }
 
   @UseGuards(GuestSessionGuard)
@@ -116,7 +116,7 @@ export class GuestOsController {
   })
   async listRequests(@Req() request: RequestWithGuestSession, @Query() query: unknown) {
     const parsedQuery = parseWithZod(listGuestRequestsQuerySchema, query);
-    return this.guestOsService.listRequests(request.guestSession, parsedQuery);
+    return this.guestOsService.listRequests(request.guestSession, parsedQuery, request);
   }
 
   @UseGuards(GuestSessionGuard)
@@ -131,7 +131,7 @@ export class GuestOsController {
     @Param("requestId") requestId: string,
   ) {
     const parsedRequestId = parseWithZod(guestRequestIdParamSchema, requestId);
-    return this.guestOsService.cancelRequest(request.guestSession, parsedRequestId);
+    return this.guestOsService.cancelRequest(request.guestSession, parsedRequestId, request);
   }
 
   @UseGuards(GuestSessionGuard)

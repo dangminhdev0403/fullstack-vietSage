@@ -22,6 +22,8 @@ The current backend runtime is the NestJS core API under `services/auth-service`
 - Breaking response/request changes require explicit approval and a migration note.
 - Public routes must be explicit; private routes remain guarded by default.
 - Pagination must be bounded.
+- GuestOS request-list `search` matches the service's canonical name, any localized service-item name, request title, and request description; matching is case-insensitive.
+- GuestOS request responses resolve service names from the request locale and fall back to the canonical catalog name when no translation exists.
 - Errors must keep the project-standard normalized shape.
 - Secrets, tokens, passwords, provider keys, and connection strings must never appear in examples.
 

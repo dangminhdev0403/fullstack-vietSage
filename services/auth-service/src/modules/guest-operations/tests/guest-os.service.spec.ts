@@ -614,7 +614,8 @@ describe("GuestOsService", () => {
             cancelledAt: null,
             serviceItem: {
               id: "item-1",
-              name: "Extra toilet paper",
+              name: "Thêm giấy vệ sinh",
+              translations: [{ locale: "ko", name: "화장지 추가", description: null }],
               priceOverride: new Prisma.Decimal(20000),
               category: {
                 defaultPrice: new Prisma.Decimal(15000),
@@ -638,6 +639,7 @@ describe("GuestOsService", () => {
         expiresAt: new Date(Date.now() + 60_000),
       },
       { page: 1, limit: 20 },
+      { headers: { "accept-language": "ko-KR" } } as never,
     );
 
     expect(response).toEqual({
@@ -647,7 +649,7 @@ describe("GuestOsService", () => {
       items: [
         {
           id: "request-1",
-          displayName: "Extra toilet paper",
+          displayName: "화장지 추가",
           status: "CREATED",
           priority: "URGENT",
           quantity: 1,
@@ -656,7 +658,7 @@ describe("GuestOsService", () => {
           estimatedTotalAmount: new Prisma.Decimal(20000),
           service: {
             id: "item-1",
-            name: "Extra toilet paper",
+            name: "화장지 추가",
             price: new Prisma.Decimal(20000),
             currency: "VND",
           },
@@ -882,6 +884,15 @@ describe("GuestOsService", () => {
         },
         OR: [
           { serviceItem: { is: { name: { contains: "pillow", mode: "insensitive" } } } },
+          {
+            serviceItem: {
+              is: {
+                translations: {
+                  some: { name: { contains: "pillow", mode: "insensitive" } },
+                },
+              },
+            },
+          },
           { title: { contains: "pillow", mode: "insensitive" } },
           { description: { contains: "pillow", mode: "insensitive" } },
         ],
