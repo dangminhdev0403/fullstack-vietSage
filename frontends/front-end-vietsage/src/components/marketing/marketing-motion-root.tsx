@@ -25,53 +25,71 @@ export function MarketingMotionRoot({
       "(prefers-reduced-motion: reduce)",
     ).matches;
     const precisePointer = window.matchMedia("(pointer: fine)").matches;
+    const supportsObserver = "IntersectionObserver" in window;
 
-    root.dataset.motion = "ready";
-
-    if (reducedMotion || !("IntersectionObserver" in window)) {
+    if (reducedMotion || !supportsObserver) {
       targets.forEach((target) => {
         target.dataset.visible = "true";
       });
+    } else {
+      targets.forEach((target) => {
+        const bounds = target.getBoundingClientRect();
+        if (bounds.top < window.innerHeight * 0.94 && bounds.bottom > 0) {
+          target.dataset.visible = "true";
+        }
+      });
     }
 
-    const revealObserver = reducedMotion
+    root.dataset.motion = "ready";
+
+    const revealObserver = reducedMotion || !supportsObserver
       ? null
       : new IntersectionObserver(
           (entries) => {
             for (const entry of entries) {
-              entry.target.setAttribute(
-                "data-visible",
-                entry.isIntersecting ? "true" : "false",
-              );
+              if (!entry.isIntersecting) continue;
+              entry.target.setAttribute("data-visible", "true");
+              revealObserver?.unobserve(entry.target);
             }
           },
-          { rootMargin: "-4% 0px -8%", threshold: 0.14 },
+          { rootMargin: "0px 0px -8%", threshold: 0.12 },
         );
 
     targets.forEach((target) => revealObserver?.observe(target));
 
     const setActiveScene = (scene: HTMLElement) => {
       const theme = scene.dataset.scene ?? "arrival";
+      if (root.dataset.theme === theme) return;
       root.dataset.theme = theme;
       root.querySelectorAll<HTMLElement>("[data-scene-link]").forEach((link) => {
         link.dataset.active = link.dataset.sceneLink === theme ? "true" : "false";
       });
     };
 
-    if (scenes[0]) setActiveScene(scenes[0]);
+    const chooseActiveScene = () => {
+      const viewportFocus = window.innerHeight * 0.44;
+      const activeScene = scenes
+        .map((scene) => {
+          const bounds = scene.getBoundingClientRect();
+          const containsFocus = bounds.top <= viewportFocus && bounds.bottom >= viewportFocus;
+          const distance = containsFocus
+            ? 0
+            : Math.min(Math.abs(bounds.top - viewportFocus), Math.abs(bounds.bottom - viewportFocus));
+          return { scene, distance };
+        })
+        .sort((a, b) => a.distance - b.distance)[0]?.scene;
 
-    const sceneObserver = new IntersectionObserver(
-      (entries) => {
-        const activeEntry = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+      if (activeScene) setActiveScene(activeScene);
+    };
 
-        if (activeEntry) setActiveScene(activeEntry.target as HTMLElement);
-      },
-      { rootMargin: "-28% 0px -38%", threshold: [0.05, 0.25, 0.5, 0.75] },
-    );
+    chooseActiveScene();
 
-    scenes.forEach((scene) => sceneObserver.observe(scene));
+    const sceneObserver = supportsObserver ? new IntersectionObserver(
+      () => chooseActiveScene(),
+      { rootMargin: "-34% 0px -34%", threshold: [0.2, 0.45, 0.7] },
+    ) : null;
+
+    scenes.forEach((scene) => sceneObserver?.observe(scene));
 
     let scrollFrame = 0;
     const updateScrollState = () => {
@@ -145,7 +163,7 @@ export function MarketingMotionRoot({
 
     return () => {
       revealObserver?.disconnect();
-      sceneObserver.disconnect();
+      sceneObserver?.disconnect();
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("pointermove", onPointerMove);
       document.documentElement.removeEventListener("mouseleave", resetPointer);

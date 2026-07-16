@@ -962,12 +962,22 @@ html:has(.vs-mkt-shell)::-webkit-scrollbar {
   position: fixed;
   z-index: 0;
   inset: 0;
+  pointer-events: none;
+}
+
+.vs-scene-backdrop-layer {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 760ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity;
+}
+
+.vs-scene-backdrop-layer[data-scene-backdrop="arrival"] {
   background:
     radial-gradient(circle at 14% 16%, rgba(218, 170, 76, 0.3), transparent 32rem),
     radial-gradient(circle at 84% 18%, rgba(60, 111, 79, 0.2), transparent 34rem),
     linear-gradient(135deg, #fff8e9 0%, #edf4e9 54%, #f4e4c8 100%);
-  transition: background 200ms ease-in-out;
-  pointer-events: none;
 }
 
 .vs-scene-particles {
@@ -998,25 +1008,33 @@ html:has(.vs-mkt-shell)::-webkit-scrollbar {
   box-shadow: 0 0 16px rgba(243, 198, 107, 0.24);
 }
 
-.vs-mkt-shell[data-theme="concierge"] .vs-scene-backdrop {
+.vs-scene-backdrop-layer[data-scene-backdrop="concierge"] {
   background:
     radial-gradient(circle at 76% 22%, rgba(226, 176, 77, 0.25), transparent 30rem),
     radial-gradient(circle at 18% 74%, rgba(88, 130, 91, 0.22), transparent 36rem),
     linear-gradient(145deg, #f7ecd4 0%, #edf3df 48%, #d9e8d5 100%);
 }
 
-.vs-mkt-shell[data-theme="operations"] .vs-scene-backdrop {
+.vs-scene-backdrop-layer[data-scene-backdrop="operations"] {
   background:
     radial-gradient(circle at 16% 32%, rgba(184, 135, 47, 0.22), transparent 30rem),
     radial-gradient(circle at 86% 70%, rgba(55, 116, 79, 0.24), transparent 36rem),
     linear-gradient(145deg, #173f2c 0%, #0b2319 55%, #06140e 100%);
 }
 
-.vs-mkt-shell[data-theme="visibility"] .vs-scene-backdrop {
+.vs-scene-backdrop-layer[data-scene-backdrop="visibility"] {
   background:
     radial-gradient(circle at 82% 18%, rgba(202, 157, 70, 0.2), transparent 32rem),
     radial-gradient(circle at 14% 76%, rgba(47, 108, 74, 0.18), transparent 34rem),
     linear-gradient(145deg, #eef3e8 0%, #f8f0dc 54%, #dce9d9 100%);
+}
+
+.vs-mkt-shell:not([data-theme]) [data-scene-backdrop="arrival"],
+.vs-mkt-shell[data-theme="arrival"] [data-scene-backdrop="arrival"],
+.vs-mkt-shell[data-theme="concierge"] [data-scene-backdrop="concierge"],
+.vs-mkt-shell[data-theme="operations"] [data-scene-backdrop="operations"],
+.vs-mkt-shell[data-theme="visibility"] [data-scene-backdrop="visibility"] {
+  opacity: 1;
 }
 
 .vs-scroll-progress {
@@ -1519,10 +1537,32 @@ html:has(.vs-mkt-shell)::-webkit-scrollbar {
   transform: translate3d(0, 28px, 0);
   transition:
     opacity 640ms ease,
+    filter 640ms ease,
     transform 760ms cubic-bezier(0.16, 1, 0.3, 1),
     box-shadow 280ms cubic-bezier(0.16, 1, 0.3, 1),
     border-color 280ms ease,
     background 280ms ease;
+}
+
+.vs-mkt-shell[data-motion="ready"] [data-reveal="fade"] {
+  filter: blur(5px);
+  transform: none;
+}
+
+.vs-mkt-shell[data-motion="ready"] [data-reveal="scale"] {
+  transform: translate3d(0, 14px, 0) scale(0.965);
+}
+
+.vs-mkt-shell[data-motion="ready"] [data-reveal="from-left"] {
+  transform: translate3d(-36px, 0, 0);
+}
+
+.vs-mkt-shell[data-motion="ready"] [data-reveal="from-right"] {
+  transform: translate3d(36px, 0, 0);
+}
+
+.vs-mkt-shell[data-motion="ready"] [data-reveal="cta"] {
+  transform: translate3d(0, 18px, 0) scale(0.985);
 }
 
 .vs-mkt-shell[data-motion="ready"] [data-reveal][data-reveal-order="1"] { transition-delay: 80ms; }
@@ -1531,6 +1571,7 @@ html:has(.vs-mkt-shell)::-webkit-scrollbar {
 
 .vs-mkt-shell[data-motion="ready"] [data-reveal][data-visible="true"] {
   opacity: 1;
+  filter: none;
   transform: translate3d(0, 0, 0);
 }
 
@@ -1647,7 +1688,12 @@ html:has(.vs-mkt-shell)::-webkit-scrollbar {
 
   .vs-mkt-shell[data-motion="ready"] [data-reveal] {
     opacity: 1;
+    filter: none;
     transform: none;
+    transition: none;
+  }
+
+  .vs-scene-backdrop-layer {
     transition: none;
   }
 
@@ -1691,6 +1737,15 @@ html:has(.vs-mkt-shell)::-webkit-scrollbar {
   .vs-cinematic-scene {
     min-height: auto;
     scroll-snap-align: none;
+  }
+
+  .vs-mkt-shell[data-motion="ready"] [data-reveal="from-left"],
+  .vs-mkt-shell[data-motion="ready"] [data-reveal="from-right"] {
+    transform: translate3d(0, 18px, 0);
+  }
+
+  .vs-mkt-shell[data-motion="ready"] [data-reveal][data-visible="true"] {
+    transform: none;
   }
 }
 

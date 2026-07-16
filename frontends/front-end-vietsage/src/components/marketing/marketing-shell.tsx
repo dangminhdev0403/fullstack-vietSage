@@ -24,7 +24,12 @@ type CardItem = { title: string; text: string };
 export function MarketingShell({ children }: { children: ReactNode }) {
   return (
     <MarketingMotionRoot className="vs-mkt-shell min-h-screen text-[#132119]">
-      <div className="vs-scene-backdrop" aria-hidden="true" />
+      <div className="vs-scene-backdrop" aria-hidden="true">
+        <span className="vs-scene-backdrop-layer" data-scene-backdrop="arrival" />
+        <span className="vs-scene-backdrop-layer" data-scene-backdrop="concierge" />
+        <span className="vs-scene-backdrop-layer" data-scene-backdrop="operations" />
+        <span className="vs-scene-backdrop-layer" data-scene-backdrop="visibility" />
+      </div>
       <div className="vs-scene-particles" aria-hidden="true">
         {sceneParticles.map((particle, index) => (
           <span
@@ -56,9 +61,9 @@ export function MarketingShell({ children }: { children: ReactNode }) {
   );
 }
 
-export function SectionHeader({ eyebrow, title, text }: { eyebrow: string; title: string; text: string }) {
+export function SectionHeader({ eyebrow, title, text, reveal = "fade" }: { eyebrow: string; title: string; text: string; reveal?: "fade" | "from-left" | "from-right" }) {
   return (
-    <div className="vs-section-header mx-auto max-w-3xl text-center" data-reveal>
+    <div className="vs-section-header mx-auto max-w-3xl text-center" data-reveal={reveal}>
       <p className="text-xs font-black uppercase tracking-[0.26em] text-[#b8872f]">{eyebrow}</p>
       <h2 className="vs-display mt-3 text-4xl font-black tracking-[-0.04em] text-[#123d2a] md:text-6xl">{title}</h2>
       <p className="mt-5 text-lg leading-8 text-[#627064]">{text}</p>
@@ -135,11 +140,11 @@ export function Hero({ eyebrow, title, text, children }: { eyebrow: string; titl
   );
 }
 
-export function CardGrid({ items }: { items: CardItem[] }) {
+export function CardGrid({ items, reveal = "scale" }: { items: CardItem[]; reveal?: "scale" | "from-left" | "from-right" }) {
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {items.map((item, index) => (
-        <article key={item.title} data-reveal data-reveal-order={index % 3} className="vs-mkt-card rounded-[1.7rem] border border-[#123d2a]/10 bg-white/78 p-6 shadow-xl shadow-[#123d2a]/6">
+        <article key={item.title} data-reveal={reveal} data-reveal-order={index % 3} className="vs-mkt-card rounded-[1.7rem] border border-[#123d2a]/10 bg-white/78 p-6 shadow-xl shadow-[#123d2a]/6">
           <div className="mb-5 h-2 w-16 rounded-full bg-[#d7a84d]" />
           <h3 className="text-2xl font-black text-[#123d2a]">{item.title}</h3>
           <p className="mt-3 leading-7 text-[#627064]">{item.text}</p>
@@ -152,7 +157,7 @@ export function CardGrid({ items }: { items: CardItem[] }) {
 export function CTA() {
   return (
     <section className="px-5 py-16 lg:px-8">
-      <div data-reveal className="vs-cta-panel relative mx-auto max-w-7xl overflow-hidden rounded-[2.5rem] bg-[#123d2a] p-8 text-white shadow-2xl shadow-[#123d2a]/20 md:p-12">
+      <div data-reveal="cta" className="vs-cta-panel relative mx-auto max-w-7xl overflow-hidden rounded-[2.5rem] bg-[#123d2a] p-8 text-white shadow-2xl shadow-[#123d2a]/20 md:p-12">
         <div className="grid gap-8 md:grid-cols-[1fr_auto] md:items-center">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.28em] text-[#f3c66b]">Ready for modern hospitality operations?</p>

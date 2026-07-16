@@ -46,6 +46,27 @@ Status labels:
 
 # Execution Log
 
+## [complete] 2026-07-16 - Mission: landing-motion-continuity
+
+- Changed marketing reveals to remain visible after their first viewport entry, preventing sections from disappearing and replaying while users scroll back and forth.
+- Prepared already-visible elements before enabling motion styles to remove the post-hydration opacity flash.
+- Added distinct fade, scale, directional, and CTA reveal choreography while keeping mobile movement shorter and preserving reduced-motion behavior.
+- Replaced direct fixed-background swaps with layered opacity crossfades and stabilized scene selection around a single viewport focus line.
+- Added a focused no-dependency regression harness for reveal permanence, hydration safety, choreography variety, backdrop layering, and reduced-motion visibility.
+
+Verification result:
+
+- `node --test scripts/marketing-motion-smoke.test.mjs` passed with 5 tests.
+- Focused ESLint for the landing motion files and regression harness passed.
+- `npx tsc --noEmit --pretty false` passed.
+- `npm run build` passed; Next.js emitted only the existing Node localStorage experimental warning.
+- Browser QA confirmed reveal elements remain visible after reverse scrolling, scene backdrops crossfade to the active section, and the Operations layout has no measured navbar overlap.
+
+Remaining blockers/risks:
+
+- Motion timing should still be sampled on lower-powered physical mobile devices because automated desktop emulation cannot fully represent GPU and touch-scroll behavior.
+- Existing unrelated worktree files outside the frontend landing scope were preserved.
+
 ## [complete] 2026-07-15 - Production secure Auth.js session cookie reader
 
 - Fixed the server-only Auth.js JWT reader to select `__Secure-authjs.session-token` for HTTPS requests while preserving `authjs.session-token` for local HTTP development.
