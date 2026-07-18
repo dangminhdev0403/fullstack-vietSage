@@ -3,6 +3,7 @@ import {
   FolioItemSourceType,
   FolioItemType,
   FolioStatus,
+  GuestSessionStatus,
   GuestStayStatus,
   InvoiceStatus,
   PaymentMethod,
@@ -315,10 +316,16 @@ export class BillingService {
       actorUserId,
       timestamp: new Date().toISOString(),
     });
+    await this.validateFolioForCheckout(hotelId, folioId);
+
     const existingBeforeValidation = await this.prisma.invoice.findFirst({
       where: { hotelId, folioId },
     });
     if (existingBeforeValidation) {
+      await this.prisma.folio.updateMany({
+        where: { id: folioId, hotelId, status: FolioStatus.OPEN },
+        data: { status: FolioStatus.CHECKOUT_PENDING, checkoutStartedAt: new Date() },
+      });
       this.logger.warn({
         event: "CHECKOUT_ISSUE_INVOICE_REUSED_EXISTING_BEFORE_VALIDATION",
         hotelId,
@@ -329,8 +336,6 @@ export class BillingService {
       });
       return existingBeforeValidation;
     }
-
-    await this.validateFolioForCheckout(hotelId, folioId);
 
     return this.prisma.$transaction(
       async (tx) => {
@@ -355,6 +360,12 @@ export class BillingService {
 
         const existingInvoice = await tx.invoice.findFirst({ where: { hotelId, folioId } });
         if (existingInvoice) {
+          if (folio.status === FolioStatus.OPEN) {
+            await tx.folio.update({
+              where: { id: folioId },
+              data: { status: FolioStatus.CHECKOUT_PENDING, checkoutStartedAt: new Date() },
+            });
+          }
           this.logger.warn({
             event: "CHECKOUT_ISSUE_INVOICE_REUSED_EXISTING",
             hotelId,
@@ -423,25 +434,7 @@ export class BillingService {
 
         await tx.folio.update({
           where: { id: folioId },
-          data: { status: FolioStatus.CLOSED, checkoutStartedAt: new Date(), closedAt: new Date() },
-        });
-        await tx.guestStay.update({
-          where: { id: folio.stayId },
-          data: {
-            status: GuestStayStatus.CHECKED_OUT,
-            checkedOutAt: new Date(),
-            closedByUserId: actorUserId,
-            accessCodeHash: null,
-            accessCodeExpiresAt: null,
-          },
-        });
-        await tx.room.update({
-          where: { id: folio.roomId },
-          data: { status: RoomStatus.AVAILABLE },
-        });
-        await tx.roomQRCode.updateMany({
-          where: { roomId: folio.roomId, status: RoomQRCodeStatus.ACTIVE },
-          data: { status: RoomQRCodeStatus.INACTIVE, deactivatedAt: new Date() },
+          data: { status: FolioStatus.CHECKOUT_PENDING, checkoutStartedAt: new Date() },
         });
 
         this.logger.log({
@@ -573,6 +566,15 @@ export class BillingService {
   }
 
   async processPaymentWebhook(provider: PaymentProvider, body: Record<string, unknown>) {
+    if (body.signatureVerified !== true) {
+      throw new ConflictException("PAYMENT_WEBHOOK_SIGNATURE_NOT_VERIFIED");
+    }
+
+    const eventType = this.webhookText(body.eventType).trim().toLowerCase();
+    if (eventType !== "payment.succeeded" && eventType !== "payment.success") {
+      throw new ConflictException("PAYMENT_WEBHOOK_EVENT_NOT_SUCCESSFUL");
+    }
+
     const providerEventId = this.webhookText(body.providerEventId ?? body.eventId).trim();
 
     if (!providerEventId) {
@@ -588,54 +590,86 @@ export class BillingService {
       return { received: true, idempotent: true, matched: true, transaction: existing };
     }
 
-    return this.prisma.$transaction(
-      async (tx) => {
-        const payment = await this.findWebhookPayment(tx, provider, body);
+    try {
+      return await this.prisma.$transaction(
+        async (tx) => {
+          const payment = await this.findWebhookPayment(tx, provider, body);
 
-        if (!payment) {
-          this.logger.warn({
-            event: "PAYMENT_WEBHOOK_UNMATCHED",
-            provider,
-            providerEventId,
-            providerSessionId: body.providerSessionId,
-            providerPaymentId: body.providerPaymentId,
-            metadataReference: body.metadataReference,
-            timestamp: new Date().toISOString(),
+          if (!payment) {
+            this.logger.warn({
+              event: "PAYMENT_WEBHOOK_UNMATCHED",
+              provider,
+              providerEventId,
+              providerSessionId: body.providerSessionId,
+              providerPaymentId: body.providerPaymentId,
+              metadataReference: body.metadataReference,
+              timestamp: new Date().toISOString(),
+            });
+            return { received: true, idempotent: false, matched: false };
+          }
+
+          await tx.$queryRawUnsafe('SELECT id FROM "Payment" WHERE id = $1 FOR UPDATE', payment.id);
+          await tx.$queryRawUnsafe(
+            'SELECT id FROM "Invoice" WHERE id = $1 FOR UPDATE',
+            payment.invoiceId,
+          );
+          const lockedPayment = await tx.payment.findUnique({
+            where: { id: payment.id },
+            include: { invoice: { include: { stay: true } } },
           });
-          return { received: true, idempotent: false, matched: false };
-        }
 
-        await tx.$queryRawUnsafe('SELECT id FROM "Payment" WHERE id = $1 FOR UPDATE', payment.id);
-        await tx.$queryRawUnsafe(
-          'SELECT id FROM "Invoice" WHERE id = $1 FOR UPDATE',
-          payment.invoiceId,
-        );
-        const lockedPayment = await tx.payment.findUnique({
-          where: { id: payment.id },
-          include: { invoice: { include: { stay: true } } },
-        });
+          if (!lockedPayment) {
+            throw new NotFoundException("Không tìm thấy payment");
+          }
 
-        if (!lockedPayment) {
-          throw new NotFoundException("Không tìm thấy payment");
-        }
+          if (
+            lockedPayment.status === PaymentStatus.SUCCEEDED ||
+            lockedPayment.invoice.status === InvoiceStatus.PAID
+          ) {
+            return { received: true, idempotent: true, matched: true, payment: lockedPayment };
+          }
 
-        if (
-          lockedPayment.status === PaymentStatus.SUCCEEDED ||
-          lockedPayment.invoice.status === InvoiceStatus.PAID
-        ) {
-          return { received: true, idempotent: true, matched: true, payment: lockedPayment };
-        }
+          const webhookAmount =
+            body.amount === undefined
+              ? lockedPayment.amount
+              : new Prisma.Decimal(this.webhookText(body.amount));
 
-        const webhookAmount =
-          body.amount === undefined
-            ? lockedPayment.amount
-            : new Prisma.Decimal(this.webhookText(body.amount));
+          if (
+            !webhookAmount.equals(lockedPayment.amount) ||
+            !webhookAmount.equals(lockedPayment.invoice.balanceAmount)
+          ) {
+            const failedTransaction = await tx.paymentTransaction.create({
+              data: {
+                hotelId: lockedPayment.hotelId,
+                paymentId: lockedPayment.id,
+                invoiceId: lockedPayment.invoiceId,
+                provider,
+                providerEventId,
+                providerTransactionId:
+                  typeof body.providerTransactionId === "string"
+                    ? body.providerTransactionId
+                    : undefined,
+                eventType:
+                  typeof body.eventType === "string" ? body.eventType : "payment.amount_mismatch",
+                status: PaymentStatus.FAILED,
+                amount: webhookAmount,
+                currency: lockedPayment.currency,
+                rawPayloadJson: body as Prisma.InputJsonObject,
+                signatureVerified: Boolean(body.signatureVerified ?? false),
+                processedAt: new Date(),
+              },
+            });
+            this.logger.warn({
+              event: "PAYMENT_WEBHOOK_AMOUNT_MISMATCH",
+              provider,
+              providerEventId,
+              paymentId: lockedPayment.id,
+              timestamp: new Date().toISOString(),
+            });
+            return { received: true, matched: true, paid: false, transaction: failedTransaction };
+          }
 
-        if (
-          !webhookAmount.equals(lockedPayment.amount) ||
-          !webhookAmount.equals(lockedPayment.invoice.balanceAmount)
-        ) {
-          const failedTransaction = await tx.paymentTransaction.create({
+          const transaction = await tx.paymentTransaction.create({
             data: {
               hotelId: lockedPayment.hotelId,
               paymentId: lockedPayment.id,
@@ -646,81 +680,101 @@ export class BillingService {
                 typeof body.providerTransactionId === "string"
                   ? body.providerTransactionId
                   : undefined,
-              eventType:
-                typeof body.eventType === "string" ? body.eventType : "payment.amount_mismatch",
-              status: PaymentStatus.FAILED,
-              amount: webhookAmount,
+              eventType: typeof body.eventType === "string" ? body.eventType : "payment.succeeded",
+              status: PaymentStatus.SUCCEEDED,
+              amount: lockedPayment.amount,
               currency: lockedPayment.currency,
               rawPayloadJson: body as Prisma.InputJsonObject,
               signatureVerified: Boolean(body.signatureVerified ?? false),
               processedAt: new Date(),
             },
           });
-          this.logger.warn({
-            event: "PAYMENT_WEBHOOK_AMOUNT_MISMATCH",
-            provider,
-            providerEventId,
-            paymentId: lockedPayment.id,
-            timestamp: new Date().toISOString(),
+
+          await tx.payment.update({
+            where: { id: lockedPayment.id },
+            data: {
+              status: PaymentStatus.SUCCEEDED,
+              paidAmount: lockedPayment.amount,
+              confirmedAt: new Date(),
+            },
           });
-          return { received: true, matched: true, paid: false, transaction: failedTransaction };
-        }
+          await tx.invoice.update({
+            where: { id: lockedPayment.invoiceId },
+            data: {
+              status: InvoiceStatus.PAID,
+              paidAmount: lockedPayment.amount,
+              balanceAmount: new Prisma.Decimal(0),
+              paidAt: new Date(),
+            },
+          });
+          await tx.folio.update({
+            where: { id: lockedPayment.folioId },
+            data: { status: FolioStatus.CLOSED, closedAt: new Date() },
+          });
+          await tx.guestStay.update({
+            where: { id: lockedPayment.stayId },
+            data: {
+              status: GuestStayStatus.CHECKED_OUT,
+              checkedOutAt: new Date(),
+              accessCodeHash: null,
+              accessCodeExpiresAt: null,
+            },
+          });
+          await tx.guestSession.updateMany({
+            where: {
+              stayId: lockedPayment.stayId,
+              status: {
+                in: [
+                  GuestSessionStatus.CREATED,
+                  GuestSessionStatus.ACTIVE,
+                  GuestSessionStatus.IDLE,
+                ],
+              },
+            },
+            data: { status: GuestSessionStatus.CLOSED, closedAt: new Date() },
+          });
+          await tx.room.update({
+            where: { id: lockedPayment.invoice.stay.roomId },
+            data: { status: RoomStatus.PROCESSING },
+          });
+          await tx.roomQRCode.updateMany({
+            where: { roomId: lockedPayment.invoice.stay.roomId, status: RoomQRCodeStatus.ACTIVE },
+            data: { status: RoomQRCodeStatus.INACTIVE, deactivatedAt: new Date() },
+          });
 
-        const transaction = await tx.paymentTransaction.create({
-          data: {
-            hotelId: lockedPayment.hotelId,
-            paymentId: lockedPayment.id,
-            invoiceId: lockedPayment.invoiceId,
-            provider,
-            providerEventId,
-            providerTransactionId:
-              typeof body.providerTransactionId === "string"
-                ? body.providerTransactionId
-                : undefined,
-            eventType: typeof body.eventType === "string" ? body.eventType : "payment.succeeded",
-            status: PaymentStatus.SUCCEEDED,
-            amount: lockedPayment.amount,
-            currency: lockedPayment.currency,
-            rawPayloadJson: body as Prisma.InputJsonObject,
-            signatureVerified: Boolean(body.signatureVerified ?? false),
-            processedAt: new Date(),
-          },
-        });
+          return { received: true, idempotent: false, matched: true, paid: true, transaction };
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+    } catch (error) {
+      if (!this.isDuplicateWebhookEventError(error)) {
+        throw error;
+      }
 
-        await tx.payment.update({
-          where: { id: lockedPayment.id },
-          data: {
-            status: PaymentStatus.SUCCEEDED,
-            paidAmount: lockedPayment.amount,
-            confirmedAt: new Date(),
-          },
-        });
-        await tx.invoice.update({
-          where: { id: lockedPayment.invoiceId },
-          data: {
-            status: InvoiceStatus.PAID,
-            paidAmount: lockedPayment.amount,
-            balanceAmount: new Prisma.Decimal(0),
-            paidAt: new Date(),
-          },
-        });
-        await tx.folio.update({
-          where: { id: lockedPayment.folioId },
-          data: { status: FolioStatus.CLOSED, closedAt: new Date() },
-        });
-        await tx.guestStay.update({
-          where: { id: lockedPayment.stayId },
-          data: { status: GuestStayStatus.CHECKED_OUT, checkedOutAt: new Date() },
-        });
-        await tx.room.update({
-          where: { id: lockedPayment.invoice.stay.roomId },
-          data: { status: RoomStatus.PROCESSING },
-        });
+      const winner = await this.prisma.paymentTransaction.findFirst({
+        where: { provider, providerEventId },
+        include: { invoice: true, payment: true },
+      });
+      if (!winner) {
+        throw error;
+      }
 
-        return { received: true, idempotent: false, matched: true, paid: true, transaction };
-      },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-    );
+      return { received: true, idempotent: true, matched: true, transaction: winner };
+    }
+  }
+
+  private isDuplicateWebhookEventError(error: unknown): boolean {
+    if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") {
+      return false;
+    }
+
+    const target = error.meta?.target;
+    const fields = Array.isArray(target)
+      ? target.filter((field): field is string => typeof field === "string")
+      : typeof target === "string"
+        ? [target]
+        : [];
+    return fields.some((field) => field.includes("providerEventId"));
   }
 
   private async findWebhookPayment(

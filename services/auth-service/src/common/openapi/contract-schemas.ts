@@ -123,8 +123,33 @@ export const authMeDataSchema = {
         required: ["id", "code", "name", "status"],
       },
     },
+    accessibleHotels: {
+      type: "array",
+      description:
+        "Active hotel assignments within active tenant memberships. The client must explicitly choose an active hotel context.",
+      items: {
+        type: "object",
+        properties: {
+          id: { type: "string" },
+          tenantId: { type: "string" },
+          code: { type: "string" },
+          name: { type: "string" },
+        },
+        required: ["id", "tenantId", "code", "name"],
+      },
+    },
   },
-  required: ["id", "email", "fullName", "status", "roles", "menus", "permissions", "tenants"],
+  required: [
+    "id",
+    "email",
+    "fullName",
+    "status",
+    "roles",
+    "menus",
+    "permissions",
+    "tenants",
+    "accessibleHotels",
+  ],
 };
 
 export const roleDataSchema = {

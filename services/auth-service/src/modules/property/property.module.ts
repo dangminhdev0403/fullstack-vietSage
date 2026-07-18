@@ -16,6 +16,9 @@ import { ServiceCatalogImportAdapter } from "./infrastructure/imports/service-ca
 import { HotelCoreRepository } from "./infrastructure/repositories/hotel-core.repository";
 import { HotelRoomsRepository } from "./infrastructure/repositories/hotel-rooms.repository";
 import { HotelServiceCatalogRepository } from "./infrastructure/repositories/hotel-service-catalog.repository";
+import { ReservationsController } from "./api/reservations.controller";
+import { ReservationsService } from "./application/reservations.service";
+import { ReservationsRepository } from "./infrastructure/repositories/reservations.repository";
 
 @Module({
   imports: [PrismaModule, ImportModule],
@@ -24,6 +27,7 @@ import { HotelServiceCatalogRepository } from "./infrastructure/repositories/hot
     HotelRoomsController,
     HotelServicesController,
     HotelDashboardController,
+    ReservationsController,
   ],
   providers: [
     HotelsService,
@@ -37,6 +41,8 @@ import { HotelServiceCatalogRepository } from "./infrastructure/repositories/hot
     HotelsRepository,
     GoogleSheetsServiceCatalogSyncService,
     ServiceCatalogImportAdapter,
+    ReservationsService,
+    ReservationsRepository,
   ],
   exports: [HotelAccessService],
 })

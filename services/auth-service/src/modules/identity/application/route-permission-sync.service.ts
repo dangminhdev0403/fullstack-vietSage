@@ -47,6 +47,8 @@ const BUSINESS_PERMISSION_DESCRIPTIONS: Record<string, string> = {
   "hotel.rooms.qr.manage": "Quản lý mã QR",
   "hotel.stays.view": "Xem danh sách khách lưu trú",
   "hotel.stays.manage": "Quản lý khách lưu trú",
+  "hotel.reservations.view": "Xem đặt phòng và danh sách khách đến",
+  "hotel.reservations.manage": "Quản lý đặt phòng, gán phòng và check-in",
   "hotel.requests.view": "Xem danh sách yêu cầu khách",
   "hotel.requests.manage": "Quản lý yêu cầu khách",
   "hotel.billing.view": "Xem danh sách thanh toán",

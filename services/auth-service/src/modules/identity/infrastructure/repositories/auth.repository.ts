@@ -2,9 +2,12 @@ import { Injectable } from "@nestjs/common";
 import {
   AuthSessionRevokeReason,
   AuthSessionStatus,
+  HotelStaffAssignmentStatus,
+  HotelStatus,
   HttpMethod,
   Prisma,
   RoleStatus,
+  TenantUserStatus,
   UserRoleStatus,
   UserStatus,
   UserType,
@@ -390,9 +393,17 @@ export class AuthRepository {
           },
         },
         tenantUsers: {
+          where: { status: TenantUserStatus.ACTIVE },
           include: {
             tenant: true,
           },
+        },
+        hotelAssignments: {
+          where: {
+            status: HotelStaffAssignmentStatus.ACTIVE,
+            hotel: { status: HotelStatus.ACTIVE },
+          },
+          include: { hotel: true },
         },
       },
     });

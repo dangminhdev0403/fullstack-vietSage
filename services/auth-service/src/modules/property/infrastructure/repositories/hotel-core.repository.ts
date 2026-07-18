@@ -1,5 +1,11 @@
 import { Injectable } from "@nestjs/common";
-import { Prisma, RoleStatus, TenantUserStatus, UserRoleStatus } from "@prisma/client";
+import {
+  HotelStaffAssignmentStatus,
+  Prisma,
+  RoleStatus,
+  TenantUserStatus,
+  UserRoleStatus,
+} from "@prisma/client";
 import { PrismaService } from "../../../../prisma/prisma.service";
 import { hotelDetailInclude } from "./hotel-repository.types";
 
@@ -25,6 +31,10 @@ export class HotelCoreRepository {
         tenantUsers: {
           where: { status: TenantUserStatus.ACTIVE },
           select: { tenantId: true },
+        },
+        hotelAssignments: {
+          where: { status: HotelStaffAssignmentStatus.ACTIVE },
+          select: { hotelId: true },
         },
       },
     });

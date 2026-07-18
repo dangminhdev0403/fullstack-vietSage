@@ -43,6 +43,73 @@ describe("AuthService", () => {
     );
   });
 
+  it("returns deduplicated permissions required by the auth/me contract", async () => {
+    repository.findUserProfileWithRelations.mockResolvedValue({
+      id: "u1",
+      email: "frontdesk@vietsage.local",
+      fullName: "Front Desk",
+      status: UserStatus.ACTIVE,
+      userRoles: [
+        {
+          role: {
+            code: "HOTEL_FRONTDESK",
+            rolePermissions: [
+              { permission: { path: "hotel.stays.view" } },
+              { permission: { path: "hotel.stays.manage" } },
+            ],
+          },
+        },
+        {
+          role: {
+            code: "HOTEL_FRONTDESK_BACKUP",
+            rolePermissions: [{ permission: { path: "hotel.stays.view" } }],
+          },
+        },
+      ],
+      tenantUsers: [
+        { tenantId: "tenant-1", tenant: { id: "tenant-1", code: "T1", name: "Tenant 1" } },
+      ],
+      hotelAssignments: [
+        {
+          hotel: {
+            id: "hotel-2",
+            tenantId: "tenant-1",
+            code: "H2",
+            name: "Hotel 2",
+            status: "ACTIVE",
+          },
+        },
+        {
+          hotel: {
+            id: "hotel-outside-tenant",
+            tenantId: "tenant-2",
+            code: "HX",
+            name: "Hotel outside tenant",
+            status: "ACTIVE",
+          },
+        },
+        {
+          hotel: {
+            id: "hotel-1",
+            tenantId: "tenant-1",
+            code: "H1",
+            name: "Hotel 1",
+            status: "ACTIVE",
+          },
+        },
+      ],
+    });
+
+    await expect(service.getMe("u1")).resolves.toMatchObject({
+      roles: ["HOTEL_FRONTDESK", "HOTEL_FRONTDESK_BACKUP"],
+      permissions: ["hotel.stays.manage", "hotel.stays.view"],
+      accessibleHotels: [
+        { id: "hotel-1", code: "H1", name: "Hotel 1", tenantId: "tenant-1" },
+        { id: "hotel-2", code: "H2", name: "Hotel 2", tenantId: "tenant-1" },
+      ],
+    });
+  });
+
   it("validates an active user and upgrades a legacy password hash", async () => {
     repository.findUserByEmail.mockResolvedValue({
       id: "u1",

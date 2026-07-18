@@ -842,6 +842,58 @@ describe("HotelsService", () => {
     );
   });
 
+  it("giới hạn danh sách HOTEL_FRONTDESK theo active hotel assignments", async () => {
+    const repository = createRepository();
+    const accessService = createAccessService(repository, {
+      loadActorContext: jest.fn().mockResolvedValue({
+        userId: "frontdesk-1",
+        roleCodes: new Set(["HOTEL_FRONTDESK"]),
+        tenantIds: new Set(["tenant-1"]),
+        assignedHotelIds: new Set(["hotel-1", "hotel-3"]),
+        requiresHotelAssignment: true,
+        isSuperAdmin: false,
+        isTenantOwner: false,
+      }),
+    });
+    const service = createService(repository, createCodesService(), accessService);
+
+    await service.listHotels("frontdesk-1", { page: 1, limit: 20 });
+
+    expect(repository.listHotels).toHaveBeenCalledWith(
+      {
+        id: { in: ["hotel-1", "hotel-3"] },
+        tenantId: "tenant-1",
+        status: "ACTIVE",
+      },
+      0,
+      20,
+    );
+  });
+
+  it("fail-closed danh sách HOTEL_MANAGER khi không có assignment", async () => {
+    const repository = createRepository();
+    const accessService = createAccessService(repository, {
+      loadActorContext: jest.fn().mockResolvedValue({
+        userId: "manager-1",
+        roleCodes: new Set(["HOTEL_MANAGER"]),
+        tenantIds: new Set(["tenant-1"]),
+        assignedHotelIds: new Set(),
+        requiresHotelAssignment: true,
+        isSuperAdmin: false,
+        isTenantOwner: false,
+      }),
+    });
+    const service = createService(repository, createCodesService(), accessService);
+
+    await service.listHotels("manager-1", { page: 1, limit: 20 });
+
+    expect(repository.listHotels).toHaveBeenCalledWith(
+      { id: { in: [] }, tenantId: "tenant-1", status: "ACTIVE" },
+      0,
+      20,
+    );
+  });
+
   it("rejects TENANT_OWNER tenant hints on hotel list", async () => {
     const repository = createRepository();
     const accessService = createAccessService(repository, {

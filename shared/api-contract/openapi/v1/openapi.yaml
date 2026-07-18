@@ -365,6 +365,26 @@ paths:
                             - code
                             - name
                             - status
+                      accessibleHotels:
+                        type: array
+                        description: Active hotel assignments within active tenant memberships. The
+                          client must explicitly choose an active hotel context.
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            tenantId:
+                              type: string
+                            code:
+                              type: string
+                            name:
+                              type: string
+                          required:
+                            - id
+                            - tenantId
+                            - code
+                            - name
                     required:
                       - id
                       - email
@@ -374,6 +394,7 @@ paths:
                       - menus
                       - permissions
                       - tenants
+                      - accessibleHotels
                 required:
                   - status
                   - error
@@ -4330,6 +4351,316 @@ paths:
           description: Dashboard vận hành khách sạn
       tags:
         - hotel-dashboard
+  /hotels/{hotelId}/reservations:
+    post:
+      operationId: ReservationsController_createReservation
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - guestDisplayName
+                - plannedCheckInAt
+                - plannedCheckOutAt
+              properties:
+                guestDisplayName:
+                  type: string
+                guestPhone:
+                  type: string
+                plannedCheckInAt:
+                  type: string
+                  format: date-time
+                plannedCheckOutAt:
+                  type: string
+                  format: date-time
+      responses:
+        "201":
+          description: Đã tạo đặt phòng ở trạng thái CONFIRMED
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - hotelId
+                  - reservationCode
+                  - guestDisplayName
+                  - status
+                properties:
+                  id:
+                    type: string
+                  hotelId:
+                    type: string
+                  roomId:
+                    type: string
+                    nullable: true
+                  reservationCode:
+                    type: string
+                  guestDisplayName:
+                    type: string
+                  guestPhone:
+                    type: string
+                    nullable: true
+                  status:
+                    type: string
+                    enum:
+                      - CONFIRMED
+                      - ARRIVAL_READY
+                      - CHECKED_IN
+                  plannedCheckInAt:
+                    type: string
+                    format: date-time
+                  plannedCheckOutAt:
+                    type: string
+                    format: date-time
+      tags: &a16
+        - hotel-reservations
+  /hotels/{hotelId}/arrivals:
+    get:
+      operationId: ReservationsController_listArrivals
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: limit
+          required: false
+          in: query
+          schema:
+            type: number
+        - name: page
+          required: false
+          in: query
+          schema:
+            type: number
+        - name: to
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: from
+          required: true
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Đã lấy danh sách arrivals
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - page
+                  - limit
+                  - total
+                  - items
+                properties:
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+                  total:
+                    type: integer
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - hotelId
+                        - reservationCode
+                        - guestDisplayName
+                        - status
+                      properties:
+                        id:
+                          type: string
+                        hotelId:
+                          type: string
+                        roomId:
+                          type: string
+                          nullable: true
+                        reservationCode:
+                          type: string
+                        guestDisplayName:
+                          type: string
+                        guestPhone:
+                          type: string
+                          nullable: true
+                        status:
+                          type: string
+                          enum:
+                            - CONFIRMED
+                            - ARRIVAL_READY
+                            - CHECKED_IN
+                        plannedCheckInAt:
+                          type: string
+                          format: date-time
+                        plannedCheckOutAt:
+                          type: string
+                          format: date-time
+      tags: *a16
+  /hotels/{hotelId}/reservations/{reservationId}/room:
+    put:
+      operationId: ReservationsController_assignRoom
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: reservationId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - roomId
+              properties:
+                roomId:
+                  type: string
+      responses:
+        "200":
+          description: Đặt phòng đã sẵn sàng đón khách
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - hotelId
+                  - reservationCode
+                  - guestDisplayName
+                  - status
+                properties:
+                  id:
+                    type: string
+                  hotelId:
+                    type: string
+                  roomId:
+                    type: string
+                    nullable: true
+                  reservationCode:
+                    type: string
+                  guestDisplayName:
+                    type: string
+                  guestPhone:
+                    type: string
+                    nullable: true
+                  status:
+                    type: string
+                    enum:
+                      - CONFIRMED
+                      - ARRIVAL_READY
+                      - CHECKED_IN
+                  plannedCheckInAt:
+                    type: string
+                    format: date-time
+                  plannedCheckOutAt:
+                    type: string
+                    format: date-time
+      tags: *a16
+  /hotels/{hotelId}/reservations/{reservationId}/check-in:
+    post:
+      operationId: ReservationsController_checkIn
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: reservationId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Đặt phòng đã được check-in
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - idempotent
+                  - accessCode
+                  - reservation
+                  - stay
+                  - folio
+                  - roomQrCode
+                properties:
+                  idempotent:
+                    type: boolean
+                  accessCode:
+                    type: string
+                    nullable: true
+                    description: Plaintext GuestOS access code on the first successful check-in;
+                      null on replay
+                  reservation:
+                    type: object
+                    required:
+                      - id
+                      - status
+                    properties:
+                      id:
+                        type: string
+                      status:
+                        type: string
+                        enum:
+                          - CHECKED_IN
+                  stay:
+                    type: object
+                    required:
+                      - id
+                      - status
+                    properties:
+                      id:
+                        type: string
+                      status:
+                        type: string
+                        enum:
+                          - ACTIVE
+                  folio:
+                    type: object
+                    required:
+                      - id
+                      - status
+                    properties:
+                      id:
+                        type: string
+                      status:
+                        type: string
+                        enum:
+                          - OPEN
+                  roomQrCode:
+                    type: object
+                    nullable: true
+                    required:
+                      - id
+                      - status
+                    properties:
+                      id:
+                        type: string
+                      status:
+                        type: string
+                        enum:
+                          - ACTIVE
+      tags: *a16
   /hotels/{hotelId}/folios:
     get:
       operationId: FolioController_listFolios
@@ -4350,7 +4681,7 @@ paths:
       responses:
         "200":
           description: Danh sách folio
-      tags: &a16
+      tags: &a17
         - billing-folios
   /hotels/{hotelId}/stays/{stayId}/active-folio:
     get:
@@ -4369,7 +4700,7 @@ paths:
       responses:
         "200":
           description: Folio đang mở
-      tags: *a16
+      tags: *a17
   /hotels/{hotelId}/folios/{folioId}/summary:
     get:
       operationId: FolioController_getFolioSummary
@@ -4387,7 +4718,7 @@ paths:
       responses:
         "200":
           description: Tổng quan folio
-      tags: *a16
+      tags: *a17
   /hotels/{hotelId}/folios/{folioId}/checkout/issue-invoice:
     post:
       operationId: FolioController_issueInvoice
@@ -4405,7 +4736,7 @@ paths:
       responses:
         "200":
           description: Invoice đã phát hành
-      tags: *a16
+      tags: *a17
   /hotels/{hotelId}/folios/{folioId}/items:
     get:
       operationId: FolioController_listFolioItems
@@ -4423,7 +4754,7 @@ paths:
       responses:
         "200":
           description: Danh sách FolioItem
-      tags: *a16
+      tags: *a17
   /hotels/{hotelId}/folios/{folioId}:
     get:
       operationId: FolioController_getFolioDetail
@@ -4441,7 +4772,7 @@ paths:
       responses:
         "200":
           description: Chi tiết folio
-      tags: *a16
+      tags: *a17
   /hotels/{hotelId}/invoices/{invoiceId}:
     get:
       operationId: InvoiceController_getInvoiceDetail
@@ -4484,7 +4815,7 @@ paths:
       responses:
         "200":
           description: Payment pending/session
-      tags: &a17
+      tags: &a18
         - billing-payments
   /hotels/{hotelId}/payments/{paymentId}/status:
     get:
@@ -4503,7 +4834,7 @@ paths:
       responses:
         "200":
           description: Payment status
-      tags: *a17
+      tags: *a18
   /payments/webhook/{provider}:
     post:
       operationId: PaymentController_processWebhook
@@ -4519,6 +4850,12 @@ paths:
               - STRIPE
               - BANK_TRANSFER
             type: string
+        - name: X-VietSage-Payment-Webhook-Secret
+          in: header
+          description: Shared secret configured for the payment provider webhook.
+          required: true
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -4528,7 +4865,7 @@ paths:
       responses:
         "200":
           description: Webhook đã xử lý
-      tags: *a17
+      tags: *a18
   /guest/qr/scan:
     post:
       operationId: GuestOsController_scanQr
@@ -4564,7 +4901,7 @@ paths:
       responses:
         "201":
           description: Đã chấp nhận quét QR của khách
-      tags: &a18
+      tags: &a19
         - guest-os
   /guest/session/me:
     get:
@@ -4573,7 +4910,7 @@ paths:
       responses:
         "200":
           description: Đã lấy phiên khách
-      tags: *a18
+      tags: *a19
   /guest/services:
     get:
       operationId: GuestOsController_listServices
@@ -4726,7 +5063,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a18
+      tags: *a19
   /guest/service-categories/{categoryId}/services:
     get:
       operationId: GuestOsController_listCategoryServices
@@ -4829,7 +5166,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a18
+      tags: *a19
   /guest/requests:
     post:
       operationId: GuestOsController_createRequest
@@ -4942,7 +5279,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a18
+      tags: *a19
     get:
       operationId: GuestOsController_listRequests
       parameters: []
@@ -5059,7 +5396,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a18
+      tags: *a19
   /guest/requests/{requestId}/cancel:
     patch:
       operationId: GuestOsController_cancelRequest
@@ -5145,7 +5482,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a18
+      tags: *a19
   /guest/session/close:
     post:
       operationId: GuestOsController_closeSession
@@ -5153,7 +5490,7 @@ paths:
       responses:
         "200":
           description: Đã đóng phiên khách
-      tags: *a18
+      tags: *a19
   /hotels/{hotelId}/requests:
     get:
       operationId: HotelRequestsController_listRequests
@@ -5174,7 +5511,7 @@ paths:
       responses:
         "200":
           description: Đã lấy danh sách yêu cầu của khách
-      tags: &a19
+      tags: &a20
         - hotel-requests
   /hotels/{hotelId}/requests/summary:
     get:
@@ -5188,7 +5525,7 @@ paths:
       responses:
         "200":
           description: Guest request summary
-      tags: *a19
+      tags: *a20
   /hotels/{hotelId}/requests/{requestId}:
     get:
       operationId: HotelRequestsController_getRequestDetail
@@ -5206,7 +5543,7 @@ paths:
       responses:
         "200":
           description: Đã lấy yêu cầu của khách
-      tags: *a19
+      tags: *a20
   /hotels/{hotelId}/requests/{requestId}/status:
     patch:
       operationId: HotelRequestsController_updateRequestStatus
@@ -5230,7 +5567,7 @@ paths:
       responses:
         "200":
           description: Đã cập nhật yêu cầu của khách
-      tags: *a19
+      tags: *a20
   /hotels/{hotelId}/requests/{requestId}/assignment:
     patch:
       operationId: HotelRequestsController_updateRequestAssignment
@@ -5254,7 +5591,7 @@ paths:
       responses:
         "200":
           description: Đã cập nhật phân công yêu cầu của khách
-      tags: *a19
+      tags: *a20
   /hotels/{hotelId}/requests/{requestId}/events:
     post:
       operationId: HotelRequestsController_createRequestEvent
@@ -5278,7 +5615,7 @@ paths:
       responses:
         "201":
           description: Đã tạo sự kiện yêu cầu của khách
-      tags: *a19
+      tags: *a20
   /integrations/telegram/webhook:
     post:
       operationId: TelegramWebhookController_handleWebhook
@@ -5306,7 +5643,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: &a20
+      tags: &a21
         - hotel-notification-routes
     post:
       operationId: HotelNotificationRoutesController_create
@@ -5319,7 +5656,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a20
+      tags: *a21
   /hotels/{hotelId}/notification-routes/{routeId}:
     patch:
       operationId: HotelNotificationRoutesController_update
@@ -5337,7 +5674,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a20
+      tags: *a21
   /emergency/guest/calls:
     post:
       operationId: EmergencyController_createGuestEmergencyCall

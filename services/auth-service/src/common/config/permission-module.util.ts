@@ -62,6 +62,11 @@ export function resolveModuleKeyFromMenuPath(menuPath: string): string {
 }
 
 export function resolveModuleKeyFromPath(path: string): string {
+  const normalizedPath = normalizePermissionPathForNavigation(path);
+  if (/^\/hotels\/[^/]+\/(?:reservations(?:\/|$)|arrivals(?:\/|$))/.test(normalizedPath)) {
+    return "hotel-reservations";
+  }
+
   const rootPath = resolvePermissionRootPath(path);
   const menuPath = mapPermissionRootPathToMenu(rootPath);
 

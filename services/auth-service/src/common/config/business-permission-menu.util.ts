@@ -15,6 +15,8 @@ const BUSINESS_PERMISSION_MENU_PATHS: Record<BusinessPermissionKey, string | nul
   "hotel.rooms.qr.manage": "/owner/hotels/[hotelId]/rooms",
   "hotel.stays.view": "/owner/hotels/[hotelId]/stay",
   "hotel.stays.manage": "/owner/hotels/[hotelId]/stay",
+  "hotel.reservations.view": null,
+  "hotel.reservations.manage": null,
   "hotel.requests.view": "/owner/hotels/[hotelId]/requests",
   "hotel.requests.manage": "/owner/hotels/[hotelId]/requests",
   "hotel.billing.view": "/owner/hotels/[hotelId]/billing",

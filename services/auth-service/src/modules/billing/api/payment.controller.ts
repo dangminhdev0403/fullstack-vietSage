@@ -1,7 +1,17 @@
-import { Body, Controller, Get, Param, Post, Req } from "@nestjs/common";
-import { ApiBody, ApiOkResponse, ApiParam, ApiTags } from "@nestjs/swagger";
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  Headers,
+  Param,
+  Post,
+  Req,
+} from "@nestjs/common";
+import { ApiBody, ApiHeader, ApiOkResponse, ApiParam, ApiTags } from "@nestjs/swagger";
 import { PaymentProvider } from "@prisma/client";
 import type { Request } from "express";
+import { timingSafeEqual } from "node:crypto";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
 import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
@@ -63,13 +73,42 @@ export class PaymentController {
   @SuccessMessage("Xử lý webhook thanh toán thành công")
   @ApiDescript("Xử lý webhook thanh toán")
   @ApiParam({ name: "provider", enum: PaymentProvider })
+  @ApiHeader({
+    name: "X-VietSage-Payment-Webhook-Secret",
+    required: true,
+    description: "Shared secret configured for the payment provider webhook.",
+  })
   @ApiBody({ schema: { type: "object" } })
   @ApiOkResponse({ description: "Webhook đã xử lý" })
   @Post("payments/webhook/:provider")
-  async processWebhook(@Param("provider") providerParam: string, @Body() body: unknown) {
+  async processWebhook(
+    @Param("provider") providerParam: string,
+    @Headers("x-vietsage-payment-webhook-secret") secret: string | undefined,
+    @Body() body: unknown,
+  ) {
+    this.assertWebhookSecret(secret);
     const provider = parseWithZod(paymentProviderParamSchema, providerParam.toUpperCase());
     const payload = parseWithZod(paymentWebhookBodySchema, body);
 
-    return this.billingService.processPaymentWebhook(provider, payload);
+    return this.billingService.processPaymentWebhook(provider, {
+      ...payload,
+      signatureVerified: true,
+    });
+  }
+
+  private assertWebhookSecret(actual: string | undefined): void {
+    const expected = process.env.PAYMENT_WEBHOOK_SECRET?.trim();
+    const actualBuffer = actual ? Buffer.from(actual) : null;
+    const expectedBuffer = expected ? Buffer.from(expected) : null;
+    const valid = Boolean(
+      actualBuffer &&
+      expectedBuffer &&
+      actualBuffer.length === expectedBuffer.length &&
+      timingSafeEqual(actualBuffer, expectedBuffer),
+    );
+
+    if (!valid) {
+      throw new ForbiddenException("Invalid payment webhook secret");
+    }
   }
 }

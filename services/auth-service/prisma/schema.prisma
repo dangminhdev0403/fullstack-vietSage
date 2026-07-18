@@ -24,6 +24,11 @@ enum TenantUserStatus {
   DISABLED
 }
 
+enum HotelStaffAssignmentStatus {
+  ACTIVE
+  REVOKED
+}
+
 enum HttpMethod {
   GET
   POST
@@ -89,6 +94,14 @@ enum GuestStayStatus {
   CHECKOUT_PENDING
   CHECKED_OUT
   CANCELLED
+}
+
+enum ReservationStatus {
+  CONFIRMED
+  ARRIVAL_READY
+  CHECKED_IN
+  CANCELLED
+  NO_SHOW
 }
 
 enum GuestSessionStatus {
@@ -290,6 +303,9 @@ model User {
   refreshTokens         RefreshToken[]
   authSessions          AuthSession[]
   tenantUsers           TenantUser[]
+  hotelAssignments      HotelStaffAssignment[] @relation("HotelStaffAssignmentUser")
+  assignedHotelStaff    HotelStaffAssignment[] @relation("HotelStaffAssignmentAssignedBy")
+  revokedHotelStaff     HotelStaffAssignment[] @relation("HotelStaffAssignmentRevokedBy")
   auditLogs             AuditLog[]          @relation("AuditActor")
   createdStays          GuestStay[]         @relation("GuestStayCreatedBy")
   closedStays           GuestStay[]         @relation("GuestStayClosedBy")
@@ -494,6 +510,7 @@ model Hotel {
   rooms               Room[]
   roomQRCodes         RoomQRCode[]
   guestStays          GuestStay[]
+  reservations        Reservation[]
   guestSessions       GuestSession[]
   guestRequests       GuestRequest[]
   notificationRoutes  NotificationRoute[]
@@ -506,12 +523,34 @@ model Hotel {
   invoices            Invoice[]
   payments            Payment[]
   paymentTransactions PaymentTransaction[]
+  staffAssignments    HotelStaffAssignment[]
   emergencyLocations  EmergencyLocation[]
   emergencyCallEvents EmergencyCallEvent[]
   emergencyIncidents  EmergencyIncident[]
 
   @@unique([tenantId, code])
   @@index([tenantId, status])
+}
+
+model HotelStaffAssignment {
+  id           String                     @id @default(cuid())
+  userId       String
+  hotelId      String
+  status       HotelStaffAssignmentStatus @default(ACTIVE)
+  assignedAt   DateTime                   @default(now())
+  assignedById String?
+  revokedAt    DateTime?
+  revokedById  String?
+  createdAt    DateTime                   @default(now())
+  updatedAt    DateTime                   @updatedAt
+  user         User                       @relation("HotelStaffAssignmentUser", fields: [userId], references: [id], onDelete: Cascade)
+  hotel        Hotel                      @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  assignedBy   User?                      @relation("HotelStaffAssignmentAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+  revokedBy    User?                      @relation("HotelStaffAssignmentRevokedBy", fields: [revokedById], references: [id], onDelete: SetNull)
+
+  @@unique([userId, hotelId])
+  @@index([userId, status])
+  @@index([hotelId, status])
 }
 
 model Room {
@@ -529,6 +568,7 @@ model Room {
   hotel                 Hotel                @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   qrCodes               RoomQRCode[]
   guestStays            GuestStay[]
+  reservations          Reservation[]
   guestSessions         GuestSession[]
   guestRequests         GuestRequest[]
   folios                Folio[]
@@ -560,8 +600,35 @@ model RoomQRCode {
   @@index([hotelId, status])
 }
 
+model Reservation {
+  id                  String            @id @default(cuid())
+  hotelId             String
+  roomId              String?
+  reservationCode     String            @db.VarChar(80)
+  guestDisplayName    String            @db.VarChar(120)
+  guestPhone          String?           @db.VarChar(40)
+  status              ReservationStatus @default(CONFIRMED)
+  plannedCheckInAt    DateTime
+  plannedCheckOutAt   DateTime
+  assignedAt          DateTime?
+  assignedByUserId    String?
+  checkedInAt         DateTime?
+  checkedInByUserId   String?
+  createdByUserId     String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  hotel               Hotel             @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  room                Room?             @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  stay                GuestStay?
+
+  @@unique([hotelId, reservationCode])
+  @@index([hotelId, status, plannedCheckInAt])
+  @@index([roomId, status, plannedCheckInAt, plannedCheckOutAt])
+}
+
 model GuestStay {
   id                  String          @id @default(cuid())
+  reservationId       String?         @unique
   hotelId             String
   roomId              String
   reservationCode     String          @db.VarChar(80)
@@ -581,6 +648,7 @@ model GuestStay {
   updatedAt           DateTime        @updatedAt
   hotel               Hotel           @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   room                Room            @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  reservation         Reservation?     @relation(fields: [reservationId], references: [id], onDelete: SetNull)
   createdBy           User?           @relation("GuestStayCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
   closedBy            User?           @relation("GuestStayClosedBy", fields: [closedByUserId], references: [id], onDelete: SetNull)
   guestSessions       GuestSession[]

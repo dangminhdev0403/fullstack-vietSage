@@ -42,6 +42,7 @@ const ConfigSchema = z.object({
   GOOGLE_SHEET_ID: z.string().optional(),
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_WEBHOOK_SECRET: z.string().optional(),
+  PAYMENT_WEBHOOK_SECRET: z.string().optional(),
   REQUEST_REALTIME_ENABLED: z.string().optional(),
   REQUEST_REALTIME_TICKET_SECRET: z.string().optional(),
   REQUEST_REALTIME_TICKET_TTL_SECONDS: z.string().optional(),

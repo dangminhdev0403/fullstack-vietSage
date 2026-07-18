@@ -247,7 +247,9 @@ export class AuthService {
     status: UserStatus;
     roles: string[];
     menus: string[];
+    permissions: string[];
     tenants: Array<{ id: string; code: string; name: string; status: string }>;
+    accessibleHotels: Array<{ id: string; tenantId: string; code: string; name: string }>;
   }> {
     const user = await this.authRepository.findUserProfileWithRelations(userId);
     if (!user) {
@@ -256,8 +258,23 @@ export class AuthService {
 
     const roles = Array.from(new Set(user.userRoles.map((entry) => entry.role.code))).sort();
     const menus = new Set<string>([DEFAULT_NAVIGATION_MENU]);
+    const permissions = new Set<string>();
+    const activeTenantIds = new Set(user.tenantUsers.map((entry) => entry.tenantId));
+    const accessibleHotels = user.hotelAssignments
+      .map((entry) => entry.hotel)
+      .filter((hotel) => activeTenantIds.has(hotel.tenantId))
+      .map((hotel) => ({
+        id: hotel.id,
+        tenantId: hotel.tenantId,
+        code: hotel.code,
+        name: hotel.name,
+      }))
+      .sort(
+        (left, right) => left.code.localeCompare(right.code) || left.id.localeCompare(right.id),
+      );
     for (const entry of user.userRoles) {
       for (const rolePermission of entry.role.rolePermissions) {
+        permissions.add(rolePermission.permission.path);
         const menuPath =
           resolveBusinessPermissionMenuPath(rolePermission.permission.path) ??
           resolvePermissionMenuPath(rolePermission.permission.path);
@@ -272,12 +289,14 @@ export class AuthService {
       status: user.status,
       roles,
       menus: sortMenuPathsByNavigationOrder(Array.from(menus)),
+      permissions: Array.from(permissions).sort(),
       tenants: user.tenantUsers.map((tenantUser) => ({
         id: tenantUser.tenant.id,
         code: tenantUser.tenant.code,
         name: tenantUser.tenant.name,
         status: tenantUser.status,
       })),
+      accessibleHotels,
     };
   }
 

@@ -518,6 +518,33 @@
                               "status"
                             ]
                           }
+                        },
+                        "accessibleHotels": {
+                          "type": "array",
+                          "description": "Active hotel assignments within active tenant memberships. The client must explicitly choose an active hotel context.",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "tenantId": {
+                                "type": "string"
+                              },
+                              "code": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "tenantId",
+                              "code",
+                              "name"
+                            ]
+                          }
                         }
                       },
                       "required": [
@@ -528,7 +555,8 @@
                         "roles",
                         "menus",
                         "permissions",
-                        "tenants"
+                        "tenants",
+                        "accessibleHotels"
                       ]
                     }
                   },
@@ -6274,6 +6302,472 @@
         ]
       }
     },
+    "/hotels/{hotelId}/reservations": {
+      "post": {
+        "operationId": "ReservationsController_createReservation",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "guestDisplayName",
+                  "plannedCheckInAt",
+                  "plannedCheckOutAt"
+                ],
+                "properties": {
+                  "guestDisplayName": {
+                    "type": "string"
+                  },
+                  "guestPhone": {
+                    "type": "string"
+                  },
+                  "plannedCheckInAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "plannedCheckOutAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Đã tạo đặt phòng ở trạng thái CONFIRMED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "hotelId",
+                    "reservationCode",
+                    "guestDisplayName",
+                    "status"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "hotelId": {
+                      "type": "string"
+                    },
+                    "roomId": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "reservationCode": {
+                      "type": "string"
+                    },
+                    "guestDisplayName": {
+                      "type": "string"
+                    },
+                    "guestPhone": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "CONFIRMED",
+                        "ARRIVAL_READY",
+                        "CHECKED_IN"
+                      ]
+                    },
+                    "plannedCheckInAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "plannedCheckOutAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "hotel-reservations"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/arrivals": {
+      "get": {
+        "operationId": "ReservationsController_listArrivals",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "to",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Đã lấy danh sách arrivals",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "page",
+                    "limit",
+                    "total",
+                    "items"
+                  ],
+                  "properties": {
+                    "page": {
+                      "type": "integer"
+                    },
+                    "limit": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "hotelId",
+                          "reservationCode",
+                          "guestDisplayName",
+                          "status"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "hotelId": {
+                            "type": "string"
+                          },
+                          "roomId": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "reservationCode": {
+                            "type": "string"
+                          },
+                          "guestDisplayName": {
+                            "type": "string"
+                          },
+                          "guestPhone": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "CONFIRMED",
+                              "ARRIVAL_READY",
+                              "CHECKED_IN"
+                            ]
+                          },
+                          "plannedCheckInAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "plannedCheckOutAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "hotel-reservations"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/reservations/{reservationId}/room": {
+      "put": {
+        "operationId": "ReservationsController_assignRoom",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "reservationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "roomId"
+                ],
+                "properties": {
+                  "roomId": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Đặt phòng đã sẵn sàng đón khách",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "hotelId",
+                    "reservationCode",
+                    "guestDisplayName",
+                    "status"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "hotelId": {
+                      "type": "string"
+                    },
+                    "roomId": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "reservationCode": {
+                      "type": "string"
+                    },
+                    "guestDisplayName": {
+                      "type": "string"
+                    },
+                    "guestPhone": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "CONFIRMED",
+                        "ARRIVAL_READY",
+                        "CHECKED_IN"
+                      ]
+                    },
+                    "plannedCheckInAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "plannedCheckOutAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "hotel-reservations"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/reservations/{reservationId}/check-in": {
+      "post": {
+        "operationId": "ReservationsController_checkIn",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "reservationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Đặt phòng đã được check-in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "idempotent",
+                    "accessCode",
+                    "reservation",
+                    "stay",
+                    "folio",
+                    "roomQrCode"
+                  ],
+                  "properties": {
+                    "idempotent": {
+                      "type": "boolean"
+                    },
+                    "accessCode": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Plaintext GuestOS access code on the first successful check-in; null on replay"
+                    },
+                    "reservation": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "status"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "CHECKED_IN"
+                          ]
+                        }
+                      }
+                    },
+                    "stay": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "status"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "ACTIVE"
+                          ]
+                        }
+                      }
+                    },
+                    "folio": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "status"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "OPEN"
+                          ]
+                        }
+                      }
+                    },
+                    "roomQrCode": {
+                      "type": "object",
+                      "nullable": true,
+                      "required": [
+                        "id",
+                        "status"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "ACTIVE"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "hotel-reservations"
+        ]
+      }
+    },
     "/hotels/{hotelId}/folios": {
       "get": {
         "operationId": "FolioController_listFolios",
@@ -6583,6 +7077,15 @@
                 "STRIPE",
                 "BANK_TRANSFER"
               ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-VietSage-Payment-Webhook-Secret",
+            "in": "header",
+            "description": "Shared secret configured for the payment provider webhook.",
+            "required": true,
+            "schema": {
               "type": "string"
             }
           }

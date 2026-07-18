@@ -63,6 +63,9 @@ export class HotelsService {
           : actor.isSuperAdmin
             ? {}
             : { tenantId: { in: Array.from(actor.tenantIds) } }),
+      ...(actor.requiresHotelAssignment
+        ? { id: { in: Array.from(actor.assignedHotelIds ?? []) } }
+        : {}),
       status: HotelStatus.ACTIVE,
     };
 
