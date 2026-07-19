@@ -50,7 +50,12 @@ export class HotelsController {
     @Headers("x-tenant-id") tenantIdHeader?: string,
   ) {
     const dto = parseWithZod(createHotelBodySchema, body);
-    return this.hotelsService.createHotel(request.user.userId, dto, tenantIdHeader);
+    return this.hotelsService.createHotel(
+      request.user.userId,
+      request.user.roleId,
+      dto,
+      tenantIdHeader,
+    );
   }
 
   @SuccessMessage("Lấy danh sách khách sạn thành công")
@@ -70,7 +75,12 @@ export class HotelsController {
     @Headers("x-tenant-id") tenantIdHeader?: string,
   ) {
     const parsedQuery = parseWithZod(listHotelsQuerySchema, query);
-    return this.hotelsService.listHotels(request.user.userId, parsedQuery, tenantIdHeader);
+    return this.hotelsService.listHotels(
+      request.user.userId,
+      request.user.roleId,
+      parsedQuery,
+      tenantIdHeader,
+    );
   }
 
   @SuccessMessage("Lấy thông tin khách sạn thành công")
@@ -83,7 +93,7 @@ export class HotelsController {
   @Get(":hotelId")
   async getHotel(@Req() request: RequestWithUser, @Param("hotelId") hotelIdParam: string) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
-    return this.hotelsService.getHotel(request.user.userId, hotelId);
+    return this.hotelsService.getHotel(request.user.userId, request.user.roleId, hotelId);
   }
 
   @SuccessMessage("Cập nhật khách sạn thành công")
@@ -102,6 +112,6 @@ export class HotelsController {
   ) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     const dto = parseWithZod(updateHotelBodySchema, body);
-    return this.hotelsService.updateHotel(request.user.userId, hotelId, dto);
+    return this.hotelsService.updateHotel(request.user.userId, request.user.roleId, hotelId, dto);
   }
 }

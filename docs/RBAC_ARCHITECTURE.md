@@ -132,6 +132,9 @@ Current safe boundary slice:
 - Route authorization and resource authorization are separate:
   - RBAC says the user can perform an action.
   - Resource access says the user can perform it on this tenant/hotel/resource.
+- Property resource access must receive the session-bound role ID and load only that active role when
+  deriving elevated, tenant-owner, or assignment-required scope. Other active roles assigned to the
+  same user must not expand the current workspace.
 
 ## Migration plan
 

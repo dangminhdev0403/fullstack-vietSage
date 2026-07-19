@@ -15,9 +15,8 @@ import { resolveDashboardNavigation } from "@/lib/frontend-navigation";
 import { readServerSessionTokens } from "@/lib/server-session-tokens";
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
 
-import { VsDashboardSidebar } from "../../_components/vs-dashboard-sidebar";
 import { VsIcon } from "../../_components/vs-icon";
-import { VsTopBar } from "../../_components/vs-top-bar";
+import { AdminShell } from "../_components/admin-shell";
 import {
   type RolePermissionsBrowserPermission,
   type RolePermissionsBrowserRole,
@@ -403,20 +402,11 @@ export default async function AdminPermissionsPage({
         )
       : apiWarnings;
   return (
-    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      <VsTopBar
-        title="VietSage"
-        brandLockup={false}
-        titleClassName="text-[32px] font-semibold leading-none tracking-tight"
-        showLeftControl={false}
-        rightMode="profile"
-        rightLabel="Quản trị viên"
-        subtitle="Chi tiết quyền theo vai trò"
-      />
-
-      <VsDashboardSidebar activePath="/admin/roles" items={sidebarItems} />
-
-      <main className="min-h-screen px-4 pb-36 pt-24 md:ml-80 md:px-10">
+    <AdminShell
+      activePath="/admin/roles"
+      navItems={sidebarItems}
+      subtitle="Chi tiết quyền theo vai trò"
+    >
         <div className="mx-auto max-w-[1600px] space-y-6">
           <section>
             <Link
@@ -437,7 +427,6 @@ export default async function AdminPermissionsPage({
             initialPermissionsByRoleId={initialPermissionsByRoleId}
           />
         </div>
-      </main>
-    </div>
+    </AdminShell>
   );
 }

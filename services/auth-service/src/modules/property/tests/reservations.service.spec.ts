@@ -48,7 +48,7 @@ describe("ReservationsService front-desk lifecycle", () => {
     const { service, repository } = createService();
 
     await expect(
-      service.createReservation("actor-1", "hotel-1", {
+      service.createReservation("actor-1", "active-role", "hotel-1", {
         guestDisplayName: " Nguyen Van A ",
         guestPhone: " 0900000000 ",
         plannedCheckInAt: new Date("2026-08-01T07:00:00.000Z"),
@@ -71,7 +71,12 @@ describe("ReservationsService front-desk lifecycle", () => {
     const from = new Date("2026-08-01T00:00:00.000Z");
     const to = new Date("2026-08-02T00:00:00.000Z");
 
-    await service.listArrivals("actor-1", "hotel-1", { from, to, page: 1, limit: 20 });
+    await service.listArrivals("actor-1", "active-role", "hotel-1", {
+      from,
+      to,
+      page: 1,
+      limit: 20,
+    });
 
     expect(repository.listArrivals).toHaveBeenCalledWith(
       expect.objectContaining({ hotelId: "hotel-1", from, to, skip: 0, take: 20 }),
@@ -81,7 +86,9 @@ describe("ReservationsService front-desk lifecycle", () => {
   it("assigns only an available non-overlapping room", async () => {
     const { service, repository } = createService();
 
-    await service.assignRoom("actor-1", "hotel-1", "reservation-1", { roomId: "room-1" });
+    await service.assignRoom("actor-1", "active-role", "hotel-1", "reservation-1", {
+      roomId: "room-1",
+    });
 
     expect(repository.assignRoom).toHaveBeenCalledWith({
       hotelId: "hotel-1",
@@ -97,7 +104,7 @@ describe("ReservationsService front-desk lifecycle", () => {
     );
 
     await expect(
-      service.assignRoom("actor-1", "hotel-1", "missing", { roomId: "room-1" }),
+      service.assignRoom("actor-1", "active-role", "hotel-1", "missing", { roomId: "room-1" }),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
@@ -109,7 +116,9 @@ describe("ReservationsService front-desk lifecycle", () => {
     );
 
     await expect(
-      service.assignRoom("actor-1", "hotel-1", "reservation-1", { roomId: "room-1" }),
+      service.assignRoom("actor-1", "active-role", "hotel-1", "reservation-1", {
+        roomId: "room-1",
+      }),
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
@@ -130,7 +139,7 @@ describe("ReservationsService front-desk lifecycle", () => {
     });
     const { service } = createService(repository);
 
-    const result = await service.checkIn("actor-1", "hotel-1", "reservation-1");
+    const result = await service.checkIn("actor-1", "active-role", "hotel-1", "reservation-1");
 
     expect(result).toEqual({
       idempotent: false,
@@ -147,7 +156,9 @@ describe("ReservationsService front-desk lifecycle", () => {
   it("checks in transactionally and returns stay plus open folio", async () => {
     const { service, repository } = createService();
 
-    await expect(service.checkIn("actor-1", "hotel-1", "reservation-1")).resolves.toMatchObject({
+    await expect(
+      service.checkIn("actor-1", "active-role", "hotel-1", "reservation-1"),
+    ).resolves.toMatchObject({
       idempotent: false,
       reservation: { status: "CHECKED_IN" },
       stay: { status: "ACTIVE" },

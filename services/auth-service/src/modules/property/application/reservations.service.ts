@@ -22,8 +22,13 @@ export class ReservationsService {
     private readonly hotelAccessService: HotelAccessService,
   ) {}
 
-  async createReservation(actorUserId: string, hotelId: string, dto: CreateReservationBodyInput) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, hotelId);
+  async createReservation(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    dto: CreateReservationBodyInput,
+  ) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
     const reservationCode = await this.codesService.generateEntityCode("RESERVATION");
     return this.reservationsRepository.createReservation({
       hotelId,
@@ -36,8 +41,13 @@ export class ReservationsService {
     });
   }
 
-  async listArrivals(actorUserId: string, hotelId: string, query: ListArrivalsQueryInput) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, hotelId);
+  async listArrivals(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    query: ListArrivalsQueryInput,
+  ) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const [total, items] = await this.reservationsRepository.listArrivals({
@@ -52,11 +62,12 @@ export class ReservationsService {
 
   async assignRoom(
     actorUserId: string,
+    activeRoleId: string,
     hotelId: string,
     reservationId: string,
     dto: AssignReservationRoomBodyInput,
   ) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, hotelId);
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
     const reservation = await this.reservationsRepository.assignRoom({
       hotelId,
       reservationId,
@@ -69,8 +80,12 @@ export class ReservationsService {
     return reservation;
   }
 
-  async checkIn(actorUserId: string, hotelId: string, reservationId: string) {
-    const hotel = await this.hotelAccessService.assertHotelAccess(actorUserId, hotelId);
+  async checkIn(actorUserId: string, activeRoleId: string, hotelId: string, reservationId: string) {
+    const hotel = await this.hotelAccessService.assertHotelAccess(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    );
     const accessCode = generateOpaqueToken(9).slice(0, 12).toUpperCase();
     const result = await this.reservationsRepository.checkInReservation({
       hotelId,

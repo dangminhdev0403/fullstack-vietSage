@@ -46,7 +46,12 @@ export class HotelRequestsController {
   ) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     const parsedQuery = parseWithZod(listStaffRequestsQuerySchema, query);
-    return this.hotelRequestsService.listRequests(request.user.userId, hotelId, parsedQuery);
+    return this.hotelRequestsService.listRequests(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      parsedQuery,
+    );
   }
 
   @SuccessMessage("Get guest request summary successfully")
@@ -61,7 +66,12 @@ export class HotelRequestsController {
   ) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     const parsedQuery = parseWithZod(requestSummaryQuerySchema, query);
-    return this.hotelRequestsService.getRequestsSummary(request.user.userId, hotelId, parsedQuery);
+    return this.hotelRequestsService.getRequestsSummary(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      parsedQuery,
+    );
   }
 
   @SuccessMessage("Lấy yêu cầu của khách thành công")
@@ -77,7 +87,12 @@ export class HotelRequestsController {
   ) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     const requestId = parseWithZod(requestIdParamSchema, requestIdParam);
-    return this.hotelRequestsService.getRequestDetail(request.user.userId, hotelId, requestId);
+    return this.hotelRequestsService.getRequestDetail(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      requestId,
+    );
   }
 
   @SuccessMessage("Cập nhật yêu cầu của khách thành công")
@@ -98,6 +113,7 @@ export class HotelRequestsController {
     const dto = parseWithZod(updateRequestStatusBodySchema, body);
     return this.hotelRequestsService.updateRequestStatus(
       request.user.userId,
+      request.user.roleId,
       hotelId,
       requestId,
       dto,
@@ -122,6 +138,7 @@ export class HotelRequestsController {
     const dto = parseWithZod(updateRequestAssignmentBodySchema, body);
     return this.hotelRequestsService.updateRequestAssignment(
       request.user.userId,
+      request.user.roleId,
       hotelId,
       requestId,
       dto,
@@ -146,6 +163,7 @@ export class HotelRequestsController {
     const dto = parseWithZod(createRequestEventBodySchema, body);
     return this.hotelRequestsService.createRequestEvent(
       request.user.userId,
+      request.user.roleId,
       hotelId,
       requestId,
       dto,

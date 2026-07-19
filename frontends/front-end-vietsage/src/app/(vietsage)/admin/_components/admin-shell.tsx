@@ -4,21 +4,25 @@ import { WorkspaceShell } from "@/features/workspace/components/workspace-shell"
 import { getWorkspaceDefinition } from "@/features/workspace/config/workspace-registry";
 import type { DashboardNavItem } from "@/lib/frontend-navigation";
 
-type OwnerShellProps = {
+type AdminShellProps = {
   activePath: string;
   children: ReactNode;
   navItems: readonly DashboardNavItem[];
   subtitle?: string;
 };
 
-export function OwnerShell({ activePath, children, navItems, subtitle = "Không gian chủ khách sạn" }: OwnerShellProps) {
+export function AdminShell({
+  activePath,
+  children,
+  navItems,
+  subtitle = "Quản trị nền tảng",
+}: AdminShellProps) {
   return (
     <WorkspaceShell
       activePath={activePath}
       contextLabel={subtitle}
-      definition={getWorkspaceDefinition("owner")}
+      definition={getWorkspaceDefinition("platform_admin")}
       navItems={navItems}
-      printFriendly
     >
       {children}
     </WorkspaceShell>

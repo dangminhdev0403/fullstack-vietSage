@@ -42,6 +42,6 @@ export class RequestRealtimeController {
   @Post(":hotelId/request-realtime-ticket")
   issue(@Req() request: RequestWithUser, @Param("hotelId") hotelIdParam: string) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
-    return this.tickets.issueOwnerTicket(request.user.userId, hotelId);
+    return this.tickets.issueOwnerTicket(request.user.userId, request.user.roleId, hotelId);
   }
 }

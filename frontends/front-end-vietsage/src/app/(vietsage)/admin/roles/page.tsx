@@ -8,9 +8,8 @@ import { resolveDashboardNavigation } from "@/lib/frontend-navigation";
 import { readServerSessionTokens } from "@/lib/server-session-tokens";
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
 
-import { VsDashboardSidebar } from "../../_components/vs-dashboard-sidebar";
 import { VsIcon } from "../../_components/vs-icon";
-import { VsTopBar } from "../../_components/vs-top-bar";
+import { AdminShell } from "../_components/admin-shell";
 import {
   RolesLiveFilter,
   type RolesLiveFilterRole,
@@ -207,20 +206,7 @@ export default async function AdminRolesPage({ searchParams }: RolesPageProps) {
   ].sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" }));
 
   return (
-    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      <VsTopBar
-        title="VietSage"
-        brandLockup={false}
-        titleClassName="text-[32px] font-semibold leading-none tracking-tight"
-        showLeftControl={false}
-        rightMode="profile"
-        rightLabel="Quản trị viên"
-        subtitle="Quản lý vai trò"
-      />
-
-      <VsDashboardSidebar activePath="/admin/roles" items={sidebarItems} />
-
-      <main className="min-h-screen px-4 pb-24 pt-24 md:ml-80 md:px-10">
+    <AdminShell activePath="/admin/roles" navItems={sidebarItems} subtitle="Quản lý vai trò">
         <div className="mx-auto max-w-[1600px] space-y-8">
           {apiWarnings.length > 0 ? (
             <section className="rounded-xl border border-[color:rgba(186,26,26,0.2)] bg-[var(--error-container)]/60 px-4 py-3 text-sm text-[var(--on-error-container)]">
@@ -271,7 +257,6 @@ export default async function AdminRolesPage({ searchParams }: RolesPageProps) {
             </article>
           </section>
         </div>
-      </main>
-    </div>
+    </AdminShell>
   );
 }

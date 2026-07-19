@@ -3,7 +3,11 @@
 ## 2026-07-19 - Workspace V2 P0 Active Context
 
 - [x] P0-A complete: `GET /auth/me`, route permission checks, and business capability checks now follow the role ID bound to the authenticated session; the contract exposes `activeRole` and never infers an active hotel.
-- [ ] P0-B next: propagate the session role ID through Property/Guest Operations actor context so resource-scope elevation cannot be inherited from another active role before starting the shared WorkspaceShell phase.
+- [x] P0-B complete: Property resource authorization now queries only the role ID bound to the authenticated session, and that role ID is propagated through Property, Guest Operations, Billing, Notifications, request realtime, and user-initiated service-catalog imports. Resource-scope elevation can no longer be inherited from another active role.
+- [x] P1 complete: frontend Admin, Owner, Manager, Front Desk, and Operations surfaces now share a persona-aware `WorkspaceShell`; dashboard entry routes and navigation are separated through a reusable workspace registry while existing business routes remain compatible.
+- [ ] P2 next: run authenticated persona QA, close missing dashboard data/filter contracts, and harden measured bounded-context seams before considering physical service extraction.
+
+P0-B verification: backend source typecheck passed; 54 unit suites passed with 293 tests passed and 3 skipped; E2E passed 16 tests; lint passed with 0 errors and 26 existing warnings. The declaration-emitting Nest build remains blocked by the existing pnpm/Prisma TS2742 portability issue; the non-declaration source typecheck is green.
 
 ## 2026-07-19 - Staff Scope and CI Stabilization
 

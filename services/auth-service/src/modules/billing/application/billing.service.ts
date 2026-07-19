@@ -49,10 +49,11 @@ export class BillingService {
 
   async listFolios(
     actorUserId: string,
+    activeRoleId: string,
     hotelId: string,
     query: { status?: FolioStatus; page?: number; limit?: number },
   ) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, hotelId);
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
     const pagination = toPagination(query.page, query.limit);
     const result = await this.billingRepository.listFolios({
       hotelId,
@@ -82,8 +83,13 @@ export class BillingService {
     };
   }
 
-  async getFolioDetail(actorUserId: string, hotelId: string, folioId: string) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, hotelId);
+  async getFolioDetail(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    folioId: string,
+  ) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
     const folio = await this.billingRepository.findFolioDetail(hotelId, folioId);
 
     if (!folio) {
@@ -107,8 +113,13 @@ export class BillingService {
     };
   }
 
-  async getActiveFolioByStay(actorUserId: string, hotelId: string, stayId: string) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, hotelId);
+  async getActiveFolioByStay(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    stayId: string,
+  ) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
     const folios = await this.billingRepository.findActiveFoliosByStay(hotelId, stayId);
 
     if (folios.length === 0) {
@@ -131,11 +142,12 @@ export class BillingService {
 
   async listFolioItems(
     actorUserId: string,
+    activeRoleId: string,
     hotelId: string,
     folioId: string,
     query: { page?: number; limit?: number },
   ) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, hotelId);
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
     await this.ensureFolioExists(hotelId, folioId);
     const pagination = toPagination(query.page, query.limit);
     const result = await this.billingRepository.listFolioItems({
@@ -153,13 +165,23 @@ export class BillingService {
     };
   }
 
-  async getFolioSummary(actorUserId: string, hotelId: string, folioId: string) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, hotelId);
+  async getFolioSummary(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    folioId: string,
+  ) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
     return this.buildFolioSummary(hotelId, folioId);
   }
 
-  async getInvoiceDetail(actorUserId: string, hotelId: string, invoiceId: string) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, hotelId);
+  async getInvoiceDetail(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    invoiceId: string,
+  ) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
     const detail = await this.billingRepository.findInvoiceDetail(hotelId, invoiceId);
 
     if (!detail) {
@@ -307,8 +329,8 @@ export class BillingService {
     };
   }
 
-  async issueInvoice(actorUserId: string, hotelId: string, folioId: string) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, hotelId);
+  async issueInvoice(actorUserId: string, activeRoleId: string, hotelId: string, folioId: string) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
     this.logger.log({
       event: "CHECKOUT_ISSUE_INVOICE_REQUESTED",
       hotelId,
@@ -455,6 +477,7 @@ export class BillingService {
 
   async createPaymentSession(
     actorUserId: string,
+    activeRoleId: string,
     hotelId: string,
     invoiceId: string,
     input: {
@@ -464,7 +487,7 @@ export class BillingService {
       metadataReference?: string;
     },
   ) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, hotelId);
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
 
     return this.prisma.$transaction(
       async (tx) => {
@@ -528,8 +551,13 @@ export class BillingService {
     );
   }
 
-  async getPaymentStatus(actorUserId: string, hotelId: string, paymentId: string) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, hotelId);
+  async getPaymentStatus(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    paymentId: string,
+  ) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
     const payment = await this.prisma.payment.findFirst({
       where: { id: paymentId, hotelId },
       select: {

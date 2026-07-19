@@ -50,7 +50,11 @@ export class HotelServicesController {
     @Param("hotelId") hotelIdParam: string,
   ) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
-    return this.googleSheetsSyncService.syncHotel(hotelId, request.user.userId);
+    return this.googleSheetsSyncService.syncHotel(
+      hotelId,
+      request.user.userId,
+      request.user.roleId,
+    );
   }
 
   @SuccessMessage("Lấy danh mục dịch vụ thành công")
@@ -67,6 +71,7 @@ export class HotelServicesController {
     const parsedQuery = parseWithZod(listServiceCategoriesQuerySchema, query);
     return this.hotelServicesService.listServiceCategories(
       request.user.userId,
+      request.user.roleId,
       hotelId,
       parsedQuery,
     );
@@ -85,7 +90,12 @@ export class HotelServicesController {
   ) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     const dto = parseWithZod(createServiceCategoryBodySchema, body);
-    return this.hotelServicesService.createServiceCategory(request.user.userId, hotelId, dto);
+    return this.hotelServicesService.createServiceCategory(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      dto,
+    );
   }
 
   @SuccessMessage("Cập nhật danh mục dịch vụ thành công")
@@ -106,6 +116,7 @@ export class HotelServicesController {
     const dto = parseWithZod(updateServiceCategoryBodySchema, body);
     return this.hotelServicesService.updateServiceCategory(
       request.user.userId,
+      request.user.roleId,
       hotelId,
       categoryId,
       dto,
@@ -131,7 +142,12 @@ export class HotelServicesController {
   ) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     const parsedQuery = parseWithZod(listServiceItemsQuerySchema, query);
-    return this.hotelServicesService.listServiceItems(request.user.userId, hotelId, parsedQuery);
+    return this.hotelServicesService.listServiceItems(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      parsedQuery,
+    );
   }
 
   @SuccessMessage("Tạo dịch vụ thành công")
@@ -151,7 +167,12 @@ export class HotelServicesController {
   ) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     const dto = parseWithZod(createServiceItemBodySchema, body);
-    return this.hotelServicesService.createServiceItem(request.user.userId, hotelId, dto);
+    return this.hotelServicesService.createServiceItem(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      dto,
+    );
   }
 
   @SuccessMessage("Cập nhật dịch vụ thành công")
@@ -174,6 +195,12 @@ export class HotelServicesController {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     const itemId = parseWithZod(serviceItemIdParamSchema, itemIdParam);
     const dto = parseWithZod(updateServiceItemBodySchema, body);
-    return this.hotelServicesService.updateServiceItem(request.user.userId, hotelId, itemId, dto);
+    return this.hotelServicesService.updateServiceItem(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      itemId,
+      dto,
+    );
   }
 }

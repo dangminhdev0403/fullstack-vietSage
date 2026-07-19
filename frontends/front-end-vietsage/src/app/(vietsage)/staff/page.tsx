@@ -1,8 +1,7 @@
 import { auth } from "@/auth";
 import Link from "next/link";
-import { VsDashboardSidebar } from "../_components/vs-dashboard-sidebar";
+import { notFound } from "next/navigation";
 import { VsIcon } from "../_components/vs-icon";
-import { VsTopBar } from "../_components/vs-top-bar";
 import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
 import type { StaffRequestListItem, StaffRequestSummaryResponse } from "@/features/hotel-ops/types/hotel-ops-contract";
 import {
@@ -15,8 +14,14 @@ import {
 import {
   hasAnyHotelCapability,
   resolveExplicitAccessibleHotel,
+  resolveWorkspacePersona,
+  type WorkspacePersona,
 } from "@/features/workspace/utils/workspace-context";
-import type { DashboardNavItem } from "@/lib/frontend-navigation";
+import { WorkspaceShell } from "@/features/workspace/components/workspace-shell";
+import {
+  buildWorkspaceNavigation,
+  getWorkspaceDefinition,
+} from "@/features/workspace/config/workspace-registry";
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
 import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
 
@@ -28,23 +33,12 @@ type StaffPageProps = {
     | Record<string, string | string[] | undefined>;
 };
 
+type StaffWorkspacePageProps = StaffPageProps & {
+  expectedPersonas?: readonly WorkspacePersona[];
+};
+
 function getFirst(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
-}
-
-function buildStaffNavigation(hotelId: string | null): DashboardNavItem[] {
-  const items: DashboardNavItem[] = [
-    { key: "/staff", href: "/staff", label: "Staff dashboard", icon: "dashboard" },
-  ];
-
-  if (hotelId) {
-    items.push(
-      { key: `/hotels/${hotelId}/requests`, href: `/hotels/${hotelId}/requests`, label: "Request queue", icon: "assignment" },
-      { key: `/hotels/${hotelId}/services`, href: `/hotels/${hotelId}/services`, label: "Service catalog", icon: "room_service" },
-    );
-  }
-
-  return items;
 }
 
 function countActiveRequests(summary: StaffRequestSummaryResponse | null): number {
@@ -52,11 +46,24 @@ function countActiveRequests(summary: StaffRequestSummaryResponse | null): numbe
   return summary.statuses.CREATED + summary.statuses.ACKNOWLEDGED + summary.statuses.IN_PROGRESS;
 }
 
-export default async function StaffPage({ searchParams }: StaffPageProps) {
+export async function StaffWorkspacePage({
+  searchParams,
+  expectedPersonas,
+}: StaffWorkspacePageProps) {
   const session = await auth();
   const callbackUrl = "/staff" as const;
   const resolvedSearchParams = await Promise.resolve(searchParams ?? {});
   const workspaceContext = await loadServerWorkspaceContext(callbackUrl);
+  const persona = resolveWorkspacePersona(workspaceContext.activeRole.code);
+  if (!persona || persona === "platform_admin" || persona === "owner") {
+    notFound();
+  }
+
+  if (expectedPersonas && !expectedPersonas.includes(persona)) {
+    notFound();
+  }
+
+  const definition = getWorkspaceDefinition(persona);
   const requestedHotelId = getFirst(resolvedSearchParams.hotelId);
   const selectedHotel = resolveExplicitAccessibleHotel(
     workspaceContext,
@@ -67,7 +74,16 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
     ? workspaceContext.accessibleHotels
     : [];
   const hasInvalidHotelSelection = Boolean(requestedHotelId && !selectedHotel);
-  const sidebarItems = buildStaffNavigation(hotelId);
+  const sidebarItems = buildWorkspaceNavigation({
+    persona,
+    permissions: workspaceContext.permissions,
+    hotelId,
+  });
+  const activePath = hotelId
+    ? `${definition.homePath}?hotelId=${encodeURIComponent(hotelId)}`
+    : definition.homePath;
+  const canManageServices = sidebarItems.some((item) => item.href.includes("/services"));
+  const canViewRequests = sidebarItems.some((item) => item.href.includes("/requests"));
 
   let requests: StaffRequestListItem[] = [];
   let requestSummary: StaffRequestSummaryResponse | null = null;
@@ -77,36 +93,33 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
 
   if (session && hotelId) {
     const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
-    const [requestsPage, summaryPayload, categoriesPage, itemsPage] = await Promise.all([
-      authorizedApi("list staff requests", (accessToken) => hotelOpsService.listRequests(hotelId, { query: { page: 1, limit: 8 }, accessToken })),
-      authorizedApi("summarize staff requests", (accessToken) => hotelOpsService.getRequestsSummary(hotelId, { accessToken })),
-      authorizedApi("list staff service categories", (accessToken) => hotelOpsService.listServiceCategories(hotelId, { query: { page: 1, limit: 1 }, accessToken })),
-      authorizedApi("list staff service items", (accessToken) => hotelOpsService.listServiceItems(hotelId, { query: { page: 1, limit: 1 }, accessToken })),
-    ]);
+    if (canViewRequests) {
+      const [requestsPage, summaryPayload] = await Promise.all([
+        authorizedApi("list staff requests", (accessToken) => hotelOpsService.listRequests(hotelId, { query: { page: 1, limit: 8 }, accessToken })),
+        authorizedApi("summarize staff requests", (accessToken) => hotelOpsService.getRequestsSummary(hotelId, { accessToken })),
+      ]);
 
-    requests = requestsPage.items;
-    requestSummary = summaryPayload;
-    totalRequests = requestsPage.total;
-    totalCategories = categoriesPage.total;
-    totalItems = itemsPage.total;
+      requests = requestsPage.items;
+      requestSummary = summaryPayload;
+      totalRequests = requestsPage.total;
+    }
+    if (canManageServices) {
+      const [categoriesPage, itemsPage] = await Promise.all([
+        authorizedApi("list staff service categories", (accessToken) => hotelOpsService.listServiceCategories(hotelId, { query: { page: 1, limit: 1 }, accessToken })),
+        authorizedApi("list staff service items", (accessToken) => hotelOpsService.listServiceItems(hotelId, { query: { page: 1, limit: 1 }, accessToken })),
+      ]);
+      totalCategories = categoriesPage.total;
+      totalItems = itemsPage.total;
+    }
   }
 
   return (
-    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      <VsTopBar
-        title="Staff operations"
-        brandLockup={false}
-        titleClassName="text-[28px] font-semibold leading-none tracking-tight"
-        showLeftControl={false}
-        rightMode="profile"
-        rightLabel="Staff"
-        subtitle="Rooms, services, and guest requests"
-      />
-
-      <VsDashboardSidebar activePath="/staff" items={sidebarItems} />
-
-      <main className="min-h-screen px-4 pb-24 pt-24 md:ml-80 md:px-10">
-        <div className="mx-auto max-w-[1600px] space-y-8">
+    <WorkspaceShell
+      activePath={activePath}
+      contextLabel={selectedHotel?.name ?? workspaceContext.activeRole.name}
+      definition={definition}
+      navItems={sidebarItems}
+    >
           <header className="flex flex-col justify-between gap-4 xl:flex-row xl:items-end">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">
@@ -115,23 +128,27 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
                   : "Cần chọn phạm vi khách sạn"}
               </p>
               <h1 className="vs-display mt-1 text-[32px] font-semibold text-[var(--primary)] md:text-[40px]">
-                Staff Workspace
+                {definition.title}
               </h1>
               <p className="mt-2 max-w-3xl text-base text-[var(--on-surface-variant)]">
-                Manage guest requests and service catalog operations from the staff surface, separate from admin configuration.
+                {definition.description}
               </p>
             </div>
 
             {hotelId ? (
               <div className="flex flex-wrap gap-2">
-                <Link href={`/hotels/${hotelId}/requests`} className="inline-flex items-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-3 text-sm font-semibold text-[var(--on-primary)]">
-                  <VsIcon name="assignment" className="text-[18px]" />
-                  Open request queue
-                </Link>
-                <Link href={`/hotels/${hotelId}/services`} className="inline-flex items-center gap-2 rounded-xl bg-[var(--secondary-container)] px-4 py-3 text-sm font-semibold text-[var(--on-secondary-container)]">
-                  <VsIcon name="room_service" className="text-[18px]" />
-                  Manage services
-                </Link>
+                {canViewRequests ? (
+                  <Link href={`/hotels/${hotelId}/requests`} className="inline-flex items-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-3 text-sm font-semibold text-[var(--on-primary)]">
+                    <VsIcon name="assignment" className="text-[18px]" />
+                    Mở hàng đợi công việc
+                  </Link>
+                ) : null}
+                {canManageServices ? (
+                  <Link href={`/hotels/${hotelId}/services`} className="inline-flex items-center gap-2 rounded-xl bg-[var(--secondary-container)] px-4 py-3 text-sm font-semibold text-[var(--on-secondary-container)]">
+                    <VsIcon name="room_service" className="text-[18px]" />
+                    Quản lý dịch vụ
+                  </Link>
+                ) : null}
                 <Link href="/staff" className="inline-flex items-center gap-2 rounded-xl border border-[var(--outline-variant)] bg-white px-4 py-3 text-sm font-semibold text-[var(--primary)]">
                   <VsIcon name="swap_horiz" className="text-[18px]" />
                   Đổi khách sạn
@@ -169,7 +186,7 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
                   {availableHotels.map((hotel) => (
                     <Link
                       key={hotel.id}
-                      href={`/staff?hotelId=${encodeURIComponent(hotel.id)}`}
+                      href={`${definition.homePath}?hotelId=${encodeURIComponent(hotel.id)}`}
                       className="group rounded-xl border border-[color:rgba(198,197,213,0.32)] bg-[var(--surface-container-low)] p-4 transition-colors hover:border-[var(--primary)]/35 hover:bg-[var(--primary-fixed)]"
                     >
                       <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">
@@ -197,24 +214,33 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
           ) : (
             <>
               <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <article className="rounded-xl border border-[color:rgba(198,197,213,0.18)] bg-white p-5">
-                  <p className="text-sm font-semibold text-[var(--on-surface-variant)]">Active requests</p>
-                  <h2 className="vs-display mt-2 text-4xl font-bold text-[var(--primary)]">{countActiveRequests(requestSummary)}</h2>
-                </article>
-                <article className="rounded-xl border border-[color:rgba(198,197,213,0.18)] bg-white p-5">
-                  <p className="text-sm font-semibold text-[var(--on-surface-variant)]">New requests</p>
-                  <h2 className="vs-display mt-2 text-4xl font-bold text-[var(--primary)]">{requestSummary?.statuses.CREATED ?? 0}</h2>
-                </article>
-                <article className="rounded-xl border border-[color:rgba(198,197,213,0.18)] bg-white p-5">
-                  <p className="text-sm font-semibold text-[var(--on-surface-variant)]">Service categories</p>
-                  <h2 className="vs-display mt-2 text-4xl font-bold text-[var(--primary)]">{totalCategories}</h2>
-                </article>
-                <article className="rounded-xl border border-[color:rgba(198,197,213,0.18)] bg-white p-5">
-                  <p className="text-sm font-semibold text-[var(--on-surface-variant)]">Service items</p>
-                  <h2 className="vs-display mt-2 text-4xl font-bold text-[var(--primary)]">{totalItems}</h2>
-                </article>
+                {canViewRequests ? (
+                  <>
+                    <article className="rounded-xl border border-[color:rgba(198,197,213,0.18)] bg-white p-5">
+                      <p className="text-sm font-semibold text-[var(--on-surface-variant)]">Yêu cầu đang hoạt động</p>
+                      <h2 className="vs-display mt-2 text-4xl font-bold text-[var(--primary)]">{countActiveRequests(requestSummary)}</h2>
+                    </article>
+                    <article className="rounded-xl border border-[color:rgba(198,197,213,0.18)] bg-white p-5">
+                      <p className="text-sm font-semibold text-[var(--on-surface-variant)]">Yêu cầu mới</p>
+                      <h2 className="vs-display mt-2 text-4xl font-bold text-[var(--primary)]">{requestSummary?.statuses.CREATED ?? 0}</h2>
+                    </article>
+                  </>
+                ) : null}
+                {canManageServices ? (
+                  <>
+                    <article className="rounded-xl border border-[color:rgba(198,197,213,0.18)] bg-white p-5">
+                      <p className="text-sm font-semibold text-[var(--on-surface-variant)]">Nhóm dịch vụ</p>
+                      <h2 className="vs-display mt-2 text-4xl font-bold text-[var(--primary)]">{totalCategories}</h2>
+                    </article>
+                    <article className="rounded-xl border border-[color:rgba(198,197,213,0.18)] bg-white p-5">
+                      <p className="text-sm font-semibold text-[var(--on-surface-variant)]">Dịch vụ</p>
+                      <h2 className="vs-display mt-2 text-4xl font-bold text-[var(--primary)]">{totalItems}</h2>
+                    </article>
+                  </>
+                ) : null}
               </section>
 
+              {canViewRequests ? (
               <section className="grid gap-6 xl:grid-cols-[1fr_360px]">
                 <article className="overflow-hidden rounded-xl border border-[color:rgba(198,197,213,0.24)] bg-white">
                   <div className="flex items-center justify-between border-b border-[color:rgba(198,197,213,0.18)] px-5 py-4">
@@ -247,13 +273,15 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
                 </article>
 
                 <aside className="space-y-4">
-                  <Link href={`/hotels/${hotelId}/services`} className="block rounded-xl border border-[color:rgba(198,197,213,0.24)] bg-white p-5 transition-colors hover:bg-[var(--surface-container-low)]">
-                    <div className="mb-4 flex size-12 items-center justify-center rounded-lg bg-[var(--primary-fixed)] text-[var(--primary)]">
-                      <VsIcon name="room_service" className="text-[24px]" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-[var(--primary)]">Service catalog</h3>
-                    <p className="mt-2 text-sm text-[var(--on-surface-variant)]">Create categories, manage item status, pricing, and request types.</p>
-                  </Link>
+                  {canManageServices ? (
+                    <Link href={`/hotels/${hotelId}/services`} className="block rounded-xl border border-[color:rgba(198,197,213,0.24)] bg-white p-5 transition-colors hover:bg-[var(--surface-container-low)]">
+                      <div className="mb-4 flex size-12 items-center justify-center rounded-lg bg-[var(--primary-fixed)] text-[var(--primary)]">
+                        <VsIcon name="room_service" className="text-[24px]" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-[var(--primary)]">Danh mục dịch vụ</h3>
+                      <p className="mt-2 text-sm text-[var(--on-surface-variant)]">Quản lý nhóm, giá, trạng thái và loại yêu cầu dịch vụ.</p>
+                    </Link>
+                  ) : null}
                   <Link href={`/hotels/${hotelId}/requests`} className="block rounded-xl border border-[color:rgba(198,197,213,0.24)] bg-white p-5 transition-colors hover:bg-[var(--surface-container-low)]">
                     <div className="mb-4 flex size-12 items-center justify-center rounded-lg bg-[var(--secondary-container)] text-[var(--on-secondary-container)]">
                       <VsIcon name="meeting_room" className="text-[24px]" />
@@ -263,10 +291,13 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
                   </Link>
                 </aside>
               </section>
+              ) : null}
             </>
           )}
-        </div>
-      </main>
-    </div>
+    </WorkspaceShell>
   );
+}
+
+export default function StaffPage(props: StaffPageProps) {
+  return <StaffWorkspacePage {...props} />;
 }

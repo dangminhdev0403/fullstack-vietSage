@@ -320,7 +320,7 @@ describe("HotelsService", () => {
     const codesService = createCodesService();
     const service = createService(repository, codesService);
 
-    await service.createHotel("actor-1", {
+    await service.createHotel("actor-1", "active-role", {
       tenantId: "tenant-1",
       name: "Riverside Hotel",
     });
@@ -338,7 +338,7 @@ describe("HotelsService", () => {
     const repository = createRepository();
     const service = createService(repository);
 
-    await expect(service.getHotel("actor-1", "hotel-1")).resolves.toMatchObject({
+    await expect(service.getHotel("actor-1", "active-role", "hotel-1")).resolves.toMatchObject({
       id: "hotel-1",
       tenantId: "tenant-1",
       code: "hotel",
@@ -349,7 +349,7 @@ describe("HotelsService", () => {
     const repository = createRepository();
     const service = createService(repository);
 
-    await service.updateHotel("actor-1", "hotel-1", {
+    await service.updateHotel("actor-1", "active-role", "hotel-1", {
       name: " Riverside Hotel ",
       timezone: "Asia/Saigon",
       brandSettings: null,
@@ -382,7 +382,7 @@ describe("HotelsService", () => {
     });
     const service = createService(repository, createCodesService(), accessService);
 
-    await service.listHotels("actor-1", { limit: 100 });
+    await service.listHotels("actor-1", "active-role", { limit: 100 });
 
     expect(repository.listHotels).toHaveBeenCalledWith({ status: "ACTIVE" }, 0, 100);
   });
@@ -392,7 +392,7 @@ describe("HotelsService", () => {
     const service = createService(repository);
 
     await expect(
-      service.createServiceCategory("actor-1", "hotel-1", {
+      service.createServiceCategory("actor-1", "active-role", "hotel-1", {
         name: "Dining",
         defaultPrice: 100000,
         sortOrder: 1,
@@ -411,9 +411,9 @@ describe("HotelsService", () => {
     });
     const service = createService(repository);
 
-    await expect(service.listServiceCategories("actor-1", "hotel-2", {})).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
+    await expect(
+      service.listServiceCategories("actor-1", "active-role", "hotel-2", {}),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it("yêu cầu danh mục của dịch vụ phải thuộc về khách sạn", async () => {
@@ -423,7 +423,7 @@ describe("HotelsService", () => {
     const service = createService(repository);
 
     await expect(
-      service.createServiceItem("actor-1", "hotel-1", {
+      service.createServiceItem("actor-1", "active-role", "hotel-1", {
         categoryId: "missing-category",
         name: "Room cleanup",
         status: ServiceCatalogStatus.ACTIVE,
@@ -435,7 +435,7 @@ describe("HotelsService", () => {
     const repository = createRepository();
     const service = createService(repository);
 
-    await service.updateRequestAssignment("actor-1", "hotel-1", "request-1", {
+    await service.updateRequestAssignment("actor-1", "active-role", "hotel-1", "request-1", {
       assignedToUserId: "staff-1",
       note: "Taking this",
     });
@@ -460,7 +460,7 @@ describe("HotelsService", () => {
     const service = createService(repository);
 
     await expect(
-      service.updateRequestAssignment("actor-1", "hotel-1", "request-1", {
+      service.updateRequestAssignment("actor-1", "active-role", "hotel-1", "request-1", {
         assignedToUserId: "staff-2",
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
@@ -505,7 +505,7 @@ describe("HotelsService", () => {
       GuestRequestStatus.COMPLETED,
     ] as const) {
       await expect(
-        service.updateRequestStatus("actor-1", "hotel-1", "request-1", { status }),
+        service.updateRequestStatus("actor-1", "active-role", "hotel-1", "request-1", { status }),
       ).resolves.toMatchObject({ status });
     }
 
@@ -521,7 +521,7 @@ describe("HotelsService", () => {
     const service = createService(repository);
 
     await expect(
-      service.updateRequestStatus("actor-1", "hotel-1", "request-1", {
+      service.updateRequestStatus("actor-1", "active-role", "hotel-1", "request-1", {
         status: GuestRequestStatus.COMPLETED,
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
@@ -582,7 +582,10 @@ describe("HotelsService", () => {
     });
     const service = createService(repository);
 
-    const response = await service.listRequests("actor-1", "hotel-1", { page: 1, limit: 20 });
+    const response = await service.listRequests("actor-1", "active-role", "hotel-1", {
+      page: 1,
+      limit: 20,
+    });
 
     const expectedItem = {
       id: "request-1",
@@ -639,7 +642,7 @@ describe("HotelsService", () => {
     const repository = createRepository();
     const service = createService(repository);
 
-    await service.listRequests("actor-1", "hotel-1", { roomNumber: "402" });
+    await service.listRequests("actor-1", "active-role", "hotel-1", { roomNumber: "402" });
 
     expect(repository.listRequests).toHaveBeenCalledWith(
       {
@@ -673,7 +676,9 @@ describe("HotelsService", () => {
     const repository = createRepository();
     const service = createService(repository);
 
-    await service.listRequests("actor-1", "hotel-1", { priority: GuestRequestPriority.URGENT });
+    await service.listRequests("actor-1", "active-role", "hotel-1", {
+      priority: GuestRequestPriority.URGENT,
+    });
 
     expect(repository.listRequests).toHaveBeenCalledWith(
       {
@@ -736,7 +741,7 @@ describe("HotelsService", () => {
     });
     const service = createService(repository);
 
-    const response = await service.listRequests("actor-1", "hotel-1", {});
+    const response = await service.listRequests("actor-1", "active-role", "hotel-1", {});
 
     expect(response.items.map((item) => item.actions)).toEqual([
       ["ACCEPT", "CANCEL"],
@@ -772,7 +777,7 @@ describe("HotelsService", () => {
     });
     const service = createService(repository);
 
-    const response = await service.listRequests("actor-1", "hotel-1", {});
+    const response = await service.listRequests("actor-1", "active-role", "hotel-1", {});
 
     expect(response.items.map((item) => item.priority)).toEqual(["NORMAL", "URGENT"]);
   });
@@ -790,7 +795,7 @@ describe("HotelsService", () => {
     const service = createService(repository);
 
     await expect(
-      service.getRequestsSummary("actor-1", "hotel-1", {
+      service.getRequestsSummary("actor-1", "active-role", "hotel-1", {
         roomNumber: "402",
         serviceItemId: "item-1",
         assignedToUserId: "staff-1",
@@ -833,7 +838,7 @@ describe("HotelsService", () => {
     });
     const service = createService(repository, createCodesService(), accessService);
 
-    await service.listHotels("actor-1", { page: 1, limit: 20 });
+    await service.listHotels("actor-1", "active-role", { page: 1, limit: 20 });
 
     expect(repository.listHotels).toHaveBeenCalledWith(
       { tenantId: { in: ["tenant-1", "tenant-2"] }, status: "ACTIVE" },
@@ -857,7 +862,7 @@ describe("HotelsService", () => {
     });
     const service = createService(repository, createCodesService(), accessService);
 
-    await service.listHotels("frontdesk-1", { page: 1, limit: 20 });
+    await service.listHotels("frontdesk-1", "frontdesk-role", { page: 1, limit: 20 });
 
     expect(repository.listHotels).toHaveBeenCalledWith(
       {
@@ -885,7 +890,7 @@ describe("HotelsService", () => {
     });
     const service = createService(repository, createCodesService(), accessService);
 
-    await service.listHotels("manager-1", { page: 1, limit: 20 });
+    await service.listHotels("manager-1", "manager-role", { page: 1, limit: 20 });
 
     expect(repository.listHotels).toHaveBeenCalledWith(
       { id: { in: [] }, tenantId: "tenant-1", status: "ACTIVE" },
@@ -910,9 +915,9 @@ describe("HotelsService", () => {
     });
     const service = createService(repository, createCodesService(), accessService);
 
-    await expect(service.listHotels("actor-1", { tenantId: "tenant-1" })).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(
+      service.listHotels("actor-1", "active-role", { tenantId: "tenant-1" }),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it("trả về 403 khi TENANT_OWNER tạo khách sạn", async () => {
@@ -932,7 +937,7 @@ describe("HotelsService", () => {
     const service = createService(repository, createCodesService(), accessService);
 
     await expect(
-      service.createHotel("actor-1", { name: "Riverside Hotel" }),
+      service.createHotel("actor-1", "active-role", { name: "Riverside Hotel" }),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
@@ -963,7 +968,7 @@ describe("HotelsService", () => {
     });
     const service = createService(repository, createCodesService(), accessService);
 
-    await service.updateHotel("actor-1", "hotel-1", { name: "Updated Hotel" });
+    await service.updateHotel("actor-1", "active-role", "hotel-1", { name: "Updated Hotel" });
 
     expect(repository.updateHotelScoped).toHaveBeenCalledWith(
       "hotel-1",
@@ -977,7 +982,7 @@ describe("HotelsService", () => {
     const service = createService(repository);
 
     await expect(
-      service.createServiceItem("actor-1", "hotel-1", {
+      service.createServiceItem("actor-1", "active-role", "hotel-1", {
         categoryId: "category-1",
         name: "Pho",
       }),
@@ -1003,7 +1008,7 @@ describe("HotelsService", () => {
     const service = createService(repository);
 
     await expect(
-      service.createServiceItem("actor-1", "hotel-1", {
+      service.createServiceItem("actor-1", "active-role", "hotel-1", {
         categoryId: "category-1",
         name: "Pho",
         priceOverride: 120000,
@@ -1019,7 +1024,7 @@ describe("HotelsService", () => {
     const repository = createRepository();
     const service = createService(repository);
 
-    await service.updateServiceCategory("actor-1", "hotel-1", "category-1", {
+    await service.updateServiceCategory("actor-1", "active-role", "hotel-1", "category-1", {
       defaultPrice: 150000,
       priceUpdateMode: CategoryPriceUpdateMode.CATEGORY_ONLY,
     });
@@ -1037,7 +1042,7 @@ describe("HotelsService", () => {
     const repository = createRepository();
     const service = createService(repository);
 
-    await service.updateServiceCategory("actor-1", "hotel-1", "category-1", {
+    await service.updateServiceCategory("actor-1", "active-role", "hotel-1", "category-1", {
       defaultPrice: 150000,
       priceUpdateMode: CategoryPriceUpdateMode.OVERRIDE_ALL_ITEMS,
     });
@@ -1059,7 +1064,7 @@ describe("HotelsService", () => {
     const service = createService(repository, codesService);
 
     await expect(
-      service.createRoom("actor-1", "hotel-1", {
+      service.createRoom("actor-1", "active-role", "hotel-1", {
         roomNumber: "101",
         floor: "1",
         type: "Deluxe",
@@ -1095,7 +1100,7 @@ describe("HotelsService", () => {
     const service = createService(repository, codesService);
 
     await expect(
-      service.createRooms("actor-1", "hotel-1", {
+      service.createRooms("actor-1", "active-role", "hotel-1", {
         items: [
           { roomNumber: "101", floor: "1", type: "Deluxe", price: 1200000 },
           { roomNumber: "102", floor: "1", type: "Suite", price: 1500000 },
@@ -1136,7 +1141,9 @@ describe("HotelsService", () => {
     const repository = createRepository();
     const service = createService(repository);
 
-    await expect(service.rotateQr("actor-1", "hotel-1", "room-1", {})).resolves.toMatchObject({
+    await expect(
+      service.rotateQr("actor-1", "active-role", "hotel-1", "room-1", {}),
+    ).resolves.toMatchObject({
       id: "qr-1",
       publicCode: expect.any(String),
     });
@@ -1159,7 +1166,7 @@ describe("HotelsService", () => {
     const service = createService(repository, codesService);
 
     await expect(
-      service.createStay("actor-1", "hotel-1", {
+      service.createStay("actor-1", "active-role", "hotel-1", {
         roomId: "room-1",
         guestDisplayName: "Nguyen Van A",
         guestPhone: "0901234567",
@@ -1186,7 +1193,7 @@ describe("HotelsService", () => {
     const service = createService(repository);
 
     await expect(
-      service.updateRoom("actor-1", "hotel-1", "room-1", {
+      service.updateRoom("actor-1", "active-role", "hotel-1", "room-1", {
         roomNumber: " 102 ",
         floor: "2",
         type: "Suite",

@@ -50,7 +50,12 @@ export class HotelRoomsController {
   ) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     const dto = parseWithZod(createRoomBodySchema, body);
-    return this.hotelRoomsService.createRoom(request.user.userId, hotelId, dto);
+    return this.hotelRoomsService.createRoom(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      dto,
+    );
   }
 
   @SuccessMessage("Tạo danh sách phòng thành công")
@@ -66,7 +71,12 @@ export class HotelRoomsController {
   ) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     const dto = parseWithZod(createRoomsBodySchema, body);
-    return this.hotelRoomsService.createRooms(request.user.userId, hotelId, dto);
+    return this.hotelRoomsService.createRooms(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      dto,
+    );
   }
 
   @SuccessMessage("Lấy danh sách phòng thành công")
@@ -85,7 +95,12 @@ export class HotelRoomsController {
   ) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     const parsedQuery = parseWithZod(listRoomsQuerySchema, query);
-    return this.hotelRoomsService.listRooms(request.user.userId, hotelId, parsedQuery);
+    return this.hotelRoomsService.listRooms(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      parsedQuery,
+    );
   }
 
   @SuccessMessage("Cập nhật phòng thành công")
@@ -104,7 +119,13 @@ export class HotelRoomsController {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     const roomId = parseWithZod(roomIdParamSchema, roomIdParam);
     const dto = parseWithZod(updateRoomBodySchema, body);
-    return this.hotelRoomsService.updateRoom(request.user.userId, hotelId, roomId, dto);
+    return this.hotelRoomsService.updateRoom(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      roomId,
+      dto,
+    );
   }
 
   @SuccessMessage("Tạo lượt lưu trú thành công")
@@ -120,7 +141,12 @@ export class HotelRoomsController {
   ) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     const dto = parseWithZod(createStayBodySchema, body);
-    return this.hotelRoomsService.createStay(request.user.userId, hotelId, dto);
+    return this.hotelRoomsService.createStay(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      dto,
+    );
   }
 
   @SuccessMessage("Check-in lượt lưu trú thành công")
@@ -136,7 +162,12 @@ export class HotelRoomsController {
   ) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     const dto = parseWithZod(createStayBodySchema, body);
-    return this.hotelRoomsService.createAndCheckInStay(request.user.userId, hotelId, dto);
+    return this.hotelRoomsService.createAndCheckInStay(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      dto,
+    );
   }
 
   @SuccessMessage("Check-in lượt lưu trú thành công")
@@ -152,7 +183,12 @@ export class HotelRoomsController {
   ) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     const stayId = parseWithZod(stayIdParamSchema, stayIdParam);
-    return this.hotelRoomsService.checkInStay(request.user.userId, hotelId, stayId);
+    return this.hotelRoomsService.checkInStay(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      stayId,
+    );
   }
 
   @SuccessMessage("Check-out lượt lưu trú thành công")
@@ -171,7 +207,13 @@ export class HotelRoomsController {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     const stayId = parseWithZod(stayIdParamSchema, stayIdParam);
     const dto = parseWithZod(checkOutBodySchema, body ?? {});
-    return this.hotelRoomsService.checkOutStay(request.user.userId, hotelId, stayId, dto);
+    return this.hotelRoomsService.checkOutStay(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      stayId,
+      dto,
+    );
   }
 
   @SuccessMessage("Xoay mã QR phòng thành công")
@@ -190,7 +232,13 @@ export class HotelRoomsController {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     const roomId = parseWithZod(roomIdParamSchema, roomIdParam);
     const dto = parseWithZod(qrReasonBodySchema, body ?? {});
-    return this.hotelRoomsService.rotateQr(request.user.userId, hotelId, roomId, dto);
+    return this.hotelRoomsService.rotateQr(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      roomId,
+      dto,
+    );
   }
 
   @SuccessMessage("Kích hoạt mã QR phòng thành công")
@@ -206,7 +254,12 @@ export class HotelRoomsController {
   ) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     const roomId = parseWithZod(roomIdParamSchema, roomIdParam);
-    return this.hotelRoomsService.activateQr(request.user.userId, hotelId, roomId);
+    return this.hotelRoomsService.activateQr(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      roomId,
+    );
   }
 
   @SuccessMessage("Hủy kích hoạt mã QR phòng thành công")
@@ -225,6 +278,12 @@ export class HotelRoomsController {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     const roomId = parseWithZod(roomIdParamSchema, roomIdParam);
     const dto = parseWithZod(qrReasonBodySchema, body ?? {});
-    return this.hotelRoomsService.deactivateQr(request.user.userId, hotelId, roomId, dto);
+    return this.hotelRoomsService.deactivateQr(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      roomId,
+      dto,
+    );
   }
 }

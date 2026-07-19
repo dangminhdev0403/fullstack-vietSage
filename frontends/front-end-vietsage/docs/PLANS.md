@@ -1,4 +1,29 @@
-﻿## [complete] 2026-07-19 - Mission: workspace-v2-active-context (P0-A)
+﻿## [complete] 2026-07-19 - Mission: workspace-v2-persona-dashboards (P1)
+
+- Added a shared `WorkspaceShell` for Admin, Owner, Manager, Front Desk, and Operations surfaces while preserving the existing visual language and route-level business components.
+- Added a single workspace registry for persona labels, default routes, capability-filtered navigation, and future role extension.
+- Replaced the hotel-operations content previously shown on the Admin dashboard with a platform-only control center for hotels, tenant owners, roles, and permissions.
+- Kept the Owner dashboard and hotel workflows intact behind the shared shell.
+- Added dedicated staff dashboard routes: `/staff/manager`, `/staff/front-desk`, and `/staff/operations`; `/staff` remains the compatible explicit hotel selector/workspace entry.
+- Staff pages now load only request/service data allowed by the active persona capabilities, and service-management actions are not rendered or fetched for Front Desk/Operations without permission.
+- Added compact mobile workspace navigation; desktop navigation retains the inherited sidebar layout.
+- Updated role-default routing so established role codes enter their persona dashboard rather than the generic staff root.
+
+Verification result:
+
+- Workspace/auth Node tests passed (7 tests).
+- `pnpm exec tsc --noEmit --pretty false` passed.
+- `pnpm run lint` passed.
+- `pnpm run build` passed and emitted all 34 pages, including the three new staff persona routes.
+- Auth session contract and refresh smoke harnesses passed.
+
+Remaining blockers/risks and next checkpoint:
+
+- Authenticated browser QA is still required with real Manager, Front Desk, Housekeeping/Maintenance, Finance, Owner, and Admin accounts.
+- Operations request filtering remains constrained by the current backend request-list contract; the UI does not invent department/assignee filtering that the API does not expose.
+- P2 should focus on authenticated QA, missing dashboard data contracts, and measured module-boundary hardening before any physical microservice extraction.
+
+## [complete] 2026-07-19 - Mission: workspace-v2-active-context (P0-A)
 
 - Consumed the session's `activeRole` and capabilities from `GET /auth/me` without placing raw tokens, capability lists, or hotel lists in the browser session cookie; only the compact active role code is retained for route UX.
 - Updated protected admin/owner/staff/hotel layouts and login redirects to use the active role instead of merging all assigned roles.
@@ -17,7 +42,7 @@ Remaining blockers/risks and next checkpoint:
 
 - Existing browser sessions created before this change lack `activeRoleCode` and will be sent through one safe re-login.
 - Authenticated browser QA for the hotel selector remains required because this environment has no user session.
-- P0-B is next: propagate active role through backend resource actor checks. Only after P0-B should P1 introduce the shared persona-aware `WorkspaceShell` while preserving the current layout and centralizing labels/navigation.
+- P0-B is complete: backend resource actor checks now receive the session-bound active role and cannot inherit resource-scope elevation from another role. P1 is next: introduce the shared persona-aware `WorkspaceShell` while preserving the current layout and centralizing labels/navigation.
 
 ## [complete] 2026-06-06 - Owner hotels React Query list cache
 

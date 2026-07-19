@@ -7,6 +7,8 @@ import { VsIcon } from "./vs-icon";
 
 type VsDashboardSidebarProps = {
   activePath: string;
+  description?: string;
+  eyebrow?: string;
   items?: readonly DashboardNavItem[];
 };
 
@@ -38,6 +40,8 @@ function isNavItemActive(itemHref: string, activePath: string): boolean {
 
 export function VsDashboardSidebar({
   activePath,
+  description = "Trung tâm điều hành theo phạm vi và quyền của phiên hiện tại.",
+  eyebrow = "Workspace",
   items,
 }: VsDashboardSidebarProps) {
   const navigationItems = items ?? [];
@@ -57,14 +61,14 @@ export function VsDashboardSidebar({
             />
           </span>
           <span className="rounded-full border border-[#f8f1e6]/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-[#e8b363]">
-            Owner suite
+            {eyebrow}
           </span>
         </div>
         <h2 className="vs-display text-4xl font-semibold leading-[0.9] tracking-[-0.04em] text-[#fff8e8]">
           VietSage
         </h2>
         <p className="mt-3 max-w-48 text-sm font-medium leading-6 text-[#d7cbb8]">
-          Trung tâm điều hành khách sạn, dịch vụ và doanh thu.
+          {description}
         </p>
       </div>
 

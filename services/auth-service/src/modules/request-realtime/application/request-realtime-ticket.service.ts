@@ -16,7 +16,7 @@ export class RequestRealtimeTicketService {
 
   private readonly config: RequestRealtimeConfig;
 
-  async issueOwnerTicket(userId: string, hotelId: string) {
+  async issueOwnerTicket(userId: string, activeRoleId: string, hotelId: string) {
     if (!this.config.enabled || !this.config.ticketSecret) {
       throw new ServiceUnavailableException({
         code: "REQUEST_REALTIME_UNAVAILABLE",
@@ -24,7 +24,7 @@ export class RequestRealtimeTicketService {
       });
     }
 
-    await this.hotelAccessService.assertHotelAccess(userId, hotelId);
+    await this.hotelAccessService.assertHotelAccess(userId, activeRoleId, hotelId);
     const issuedAt = Date.now();
     const ticket = await this.jwtService.signAsync(
       { sub: userId, hotelId, type: "request_realtime_owner", jti: randomUUID() },

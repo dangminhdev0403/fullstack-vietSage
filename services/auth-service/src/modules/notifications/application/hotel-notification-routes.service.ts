@@ -16,8 +16,8 @@ export class HotelNotificationRoutesService {
     private readonly hotelAccessService: HotelAccessService,
   ) {}
 
-  async list(actorUserId: string, hotelId: string) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, hotelId);
+  async list(actorUserId: string, activeRoleId: string, hotelId: string) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
     return this.prisma.notificationRoute.findMany({
       where: { hotelId },
       orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
@@ -26,10 +26,11 @@ export class HotelNotificationRoutesService {
 
   async create(
     actorUserId: string,
+    activeRoleId: string,
     hotelId: string,
     input: Required<Pick<RouteInput, "telegramChatId">> & RouteInput,
   ) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, hotelId);
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
     await this.assertCategoryInHotel(hotelId, input.serviceCategoryId);
     await this.assertNoDuplicateActiveRoute(hotelId, input);
     return this.prisma.notificationRoute.create({
@@ -42,8 +43,14 @@ export class HotelNotificationRoutesService {
     });
   }
 
-  async update(actorUserId: string, hotelId: string, routeId: string, input: RouteInput) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, hotelId);
+  async update(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    routeId: string,
+    input: RouteInput,
+  ) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
     const route = await this.prisma.notificationRoute.findFirst({
       where: { id: routeId, hotelId },
     });
