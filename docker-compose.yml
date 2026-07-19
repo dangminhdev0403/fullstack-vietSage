@@ -39,7 +39,7 @@ services:
 
   frontend:
     build:
-      context: ./frontends/font-end-vietsage
+      context: ./frontends/front-end-vietsage
       dockerfile: Dockerfile
     container_name: vietsage-frontend
     restart: unless-stopped
