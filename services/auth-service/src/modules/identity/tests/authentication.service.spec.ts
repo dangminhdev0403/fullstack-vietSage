@@ -43,7 +43,7 @@ describe("AuthService", () => {
     );
   });
 
-  it("returns deduplicated permissions required by the auth/me contract", async () => {
+  it("returns only the active session role capabilities in the auth/me contract", async () => {
     repository.findUserProfileWithRelations.mockResolvedValue({
       id: "u1",
       email: "frontdesk@vietsage.local",
@@ -52,7 +52,9 @@ describe("AuthService", () => {
       userRoles: [
         {
           role: {
+            id: "role-frontdesk",
             code: "HOTEL_FRONTDESK",
+            name: "Front Desk",
             rolePermissions: [
               { permission: { path: "hotel.stays.view" } },
               { permission: { path: "hotel.stays.manage" } },
@@ -61,8 +63,10 @@ describe("AuthService", () => {
         },
         {
           role: {
+            id: "role-backup",
             code: "HOTEL_FRONTDESK_BACKUP",
-            rolePermissions: [{ permission: { path: "hotel.stays.view" } }],
+            name: "Front Desk Backup",
+            rolePermissions: [{ permission: { path: "hotel.billing.view" } }],
           },
         },
       ],
@@ -100,14 +104,33 @@ describe("AuthService", () => {
       ],
     });
 
-    await expect(service.getMe("u1")).resolves.toMatchObject({
+    await expect(service.getMe("u1", "role-frontdesk")).resolves.toMatchObject({
       roles: ["HOTEL_FRONTDESK", "HOTEL_FRONTDESK_BACKUP"],
+      activeRole: {
+        id: "role-frontdesk",
+        code: "HOTEL_FRONTDESK",
+        name: "Front Desk",
+      },
       permissions: ["hotel.stays.manage", "hotel.stays.view"],
       accessibleHotels: [
         { id: "hotel-1", code: "H1", name: "Hotel 1", tenantId: "tenant-1" },
         { id: "hotel-2", code: "H2", name: "Hotel 2", tenantId: "tenant-1" },
       ],
     });
+  });
+
+  it("fails closed when the session role is absent from active user roles", async () => {
+    repository.findUserProfileWithRelations.mockResolvedValue({
+      id: "u1",
+      email: "frontdesk@vietsage.local",
+      fullName: "Front Desk",
+      status: UserStatus.ACTIVE,
+      userRoles: [],
+      tenantUsers: [],
+      hotelAssignments: [],
+    });
+
+    await expect(service.getMe("u1", "revoked-role")).rejects.toThrow(UnauthorizedException);
   });
 
   it("validates an active user and upgrades a legacy password hash", async () => {

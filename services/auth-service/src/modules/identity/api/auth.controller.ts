@@ -117,7 +117,7 @@ export class AuthController {
   })
   @Get("me")
   async me(@Req() request: RequestWithUser) {
-    return this.authService.getMe(request.user.userId);
+    return this.authService.getMe(request.user.userId, request.user.roleId);
   }
 
   private normalizeIdempotencyKey(value?: string): string | undefined {

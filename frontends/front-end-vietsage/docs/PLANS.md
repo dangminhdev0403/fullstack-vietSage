@@ -1,4 +1,25 @@
-﻿## [complete] 2026-06-06 - Owner hotels React Query list cache
+﻿## [complete] 2026-07-19 - Mission: workspace-v2-active-context (P0-A)
+
+- Consumed the session's `activeRole` and capabilities from `GET /auth/me` without placing raw tokens, capability lists, or hotel lists in the browser session cookie; only the compact active role code is retained for route UX.
+- Updated protected admin/owner/staff/hotel layouts and login redirects to use the active role instead of merging all assigned roles.
+- Kept navigation fail-closed when capability/menu data is empty or unavailable.
+- Replaced the hotel-scope authorization stubs with capability + assignment checks and required staff to choose an allowed hotel explicitly through URL state; the first assigned hotel is never inferred.
+- Added reusable persona/context utilities for platform admin, owner, manager, front desk, housekeeping, maintenance, and finance.
+
+Verification result:
+
+- `node --test src/features/auth/utils/auth-role.test.ts src/features/workspace/utils/workspace-context.test.ts` passed (5 tests).
+- `node scripts/auth-session-contract-smoke.mjs` and `node scripts/auth-refresh-smoke.mjs` passed.
+- `pnpm exec tsc --noEmit --pretty false`, `pnpm run lint`, and `pnpm run build` passed.
+- Backend verification is recorded in `services/docs/PLANS.md`; OpenAPI export and shared contract verification passed.
+
+Remaining blockers/risks and next checkpoint:
+
+- Existing browser sessions created before this change lack `activeRoleCode` and will be sent through one safe re-login.
+- Authenticated browser QA for the hotel selector remains required because this environment has no user session.
+- P0-B is next: propagate active role through backend resource actor checks. Only after P0-B should P1 introduce the shared persona-aware `WorkspaceShell` while preserving the current layout and centralizing labels/navigation.
+
+## [complete] 2026-06-06 - Owner hotels React Query list cache
 
 - Added TanStack Query to the frontend and registered a shared `ReactQueryProvider` in the root layout.
 - Moved `/owner/hotels` hotel-list loading from server props into a cached `useOwnerHotelsQuery` hook under `src/features/owner/queries`.

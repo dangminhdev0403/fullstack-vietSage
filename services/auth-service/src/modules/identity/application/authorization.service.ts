@@ -13,10 +13,16 @@ export class AuthorizationService {
 
   async checkUserRoutePermission(
     userId: string,
+    roleId: string,
     method: HttpMethod,
     path: string,
   ): Promise<PermissionCheckResult> {
-    const matchCount = await this.authRepository.countUserWithRoutePermission(userId, method, path);
+    const matchCount = await this.authRepository.countUserWithRoutePermission(
+      userId,
+      roleId,
+      method,
+      path,
+    );
 
     if (matchCount > 0) {
       return {
@@ -33,9 +39,14 @@ export class AuthorizationService {
     };
   }
 
-  async checkUserBusinessPermission(userId: string, permissionKey: string): Promise<boolean> {
+  async checkUserBusinessPermission(
+    userId: string,
+    roleId: string,
+    permissionKey: string,
+  ): Promise<boolean> {
     const matchCount = await this.authRepository.countUserWithBusinessPermission(
       userId,
+      roleId,
       permissionKey,
     );
     return matchCount > 0;

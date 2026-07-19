@@ -3,6 +3,8 @@ import { HttpClient } from "@/core/http/http-client";
 import { HttpError } from "@/core/http/http-error";
 import type {
   AuthProfileData,
+  AuthAccessibleHotel,
+  AuthActiveRole,
   AuthTenant,
   AuthTokensData,
   AuthLoginRequest,
@@ -37,8 +39,11 @@ export type AuthIdentity = {
   fullName: string;
   status: string;
   roles: string[];
+  activeRole: AuthActiveRole;
+  menus: string[];
   permissions: string[];
   tenants: AuthTenant[];
+  accessibleHotels: AuthAccessibleHotel[];
 };
 
 export type AuthLoginResult = {
@@ -87,8 +92,11 @@ function toAuthIdentity(payload: AuthProfileData): AuthIdentity {
     fullName: payload.fullName,
     status: payload.status,
     roles,
+    activeRole: payload.activeRole,
+    menus: payload.menus ?? [],
     permissions: payload.permissions ?? [],
     tenants: payload.tenants ?? [],
+    accessibleHotels: payload.accessibleHotels ?? [],
   };
 }
 
@@ -196,18 +204,24 @@ export class AuthService {
   }
 
   async me(tokens: AuthTokens): Promise<AuthMeResult> {
+    const identity = await this.getProfile(tokens.accessToken);
+
+    return {
+      identity,
+      tokens,
+    };
+  }
+
+  async getProfile(accessToken: string): Promise<AuthIdentity> {
     try {
       const mePayload = await this.httpClient.request<AuthMeResponseEnvelope>({
         method: "GET",
         path: "/auth/me",
-        accessToken: tokens.accessToken,
+        accessToken,
       });
 
       const meEnvelope = unwrapApiEnvelope<AuthProfileData>(mePayload);
-      return {
-        identity: toAuthIdentity(meEnvelope.data),
-        tokens,
-      };
+      return toAuthIdentity(meEnvelope.data);
     } catch (error) {
       throw toAuthServiceError(error);
     }

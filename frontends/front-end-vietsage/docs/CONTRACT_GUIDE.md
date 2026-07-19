@@ -37,6 +37,12 @@ Backend API
 
 - Backend remains the authentication and authorization source of truth.
 - Frontend session state is a UX/session bridge, not the security authority.
+- Server-rendered management workspaces load `GET /auth/me` through the auth feature service and
+  treat `activeRole`, `permissions`, and `accessibleHotels` as one fail-closed context.
+- Do not merge capabilities from the compatibility `roles` list. Use only the session-bound
+  `activeRole` capability set returned by the backend.
+- Do not persist the full capability or hotel-scope payload in the Auth.js cookie. Resolve it in a
+  server-only boundary and require an explicit hotel ID from route or URL state.
 - Refresh tokens and cookie persistence must stay in server-safe boundaries.
 - Do not rotate refresh tokens in arbitrary Server Components.
 - Client components must not access backend refresh tokens directly.

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added `activeRole` to `GET /auth/me`. Its `menus` and `permissions`, plus route/business capability authorization, now use only the role bound to the authenticated session instead of merging every active user role; `roles` remains the complete compatibility list and no active hotel is inferred.
 - Added Front Desk reservation lifecycle endpoints: `POST /hotels/{hotelId}/reservations`, `GET /hotels/{hotelId}/arrivals`, `PUT /hotels/{hotelId}/reservations/{reservationId}/room`, and `POST /hotels/{hotelId}/reservations/{reservationId}/check-in`. Reservations may be created without a room; room assignment requires an available, non-overlapping room. Check-in requires a usable room QR and no active stay/blocking folio, then transactionally creates an active stay and open folio, activates GuestOS access/QR, emits check-in events, and moves the room to `OCCUPIED`; serializable conflicts are retried and translated to stable `409` responses.
 - Added additive `Reservation` persistence with `CONFIRMED -> ARRIVAL_READY -> CHECKED_IN` lifecycle and an optional unique link from `GuestStay` for compatibility with legacy stay endpoints.
 - Added `hotel.reservations.view` and `hotel.reservations.manage` business capabilities. They are fail-closed and are not automatically granted to existing staff roles; grants require an audited rollout after the migration is applied.

@@ -84,6 +84,7 @@ describe("AuthorizationGuard", () => {
     );
     expect(authorizationService.checkUserRoutePermission).toHaveBeenCalledWith(
       "u1",
+      "r1",
       "GET",
       "/auth/me",
     );

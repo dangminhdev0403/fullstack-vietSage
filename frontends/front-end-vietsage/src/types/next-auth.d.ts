@@ -6,6 +6,7 @@ declare module "next-auth" {
       id: string;
       roles: string[];
     };
+    activeRoleCode: string | null;
     accessTokenExpiresAt: number | null;
     authError: string | null;
     canRefresh: boolean;
@@ -16,6 +17,7 @@ declare module "next-auth" {
     refreshToken: string;
     accessTokenExpiresAt: number;
     roles: string[];
+    activeRoleCode: string;
   }
 }
 
@@ -23,6 +25,7 @@ declare module "next-auth/jwt" {
   interface JWT {
     userId?: string;
     roles?: string[];
+    activeRoleCode?: string;
     accessToken?: string;
     refreshToken?: string;
     accessTokenExpiresAt?: number;

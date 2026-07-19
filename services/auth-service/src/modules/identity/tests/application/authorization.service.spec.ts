@@ -6,6 +6,7 @@ describe("AuthorizationService", () => {
   let service: AuthorizationService;
   let authRepository: {
     countUserWithRoutePermission: jest.Mock;
+    countUserWithBusinessPermission: jest.Mock;
     countPermissionByMethodPath: jest.Mock;
   };
 
@@ -15,6 +16,7 @@ describe("AuthorizationService", () => {
   beforeEach(() => {
     authRepository = {
       countUserWithRoutePermission: jest.fn(),
+      countUserWithBusinessPermission: jest.fn(),
       countPermissionByMethodPath: jest.fn(),
     };
 
@@ -24,13 +26,18 @@ describe("AuthorizationService", () => {
   it("returns allowed when user has matching route permission", async () => {
     authRepository.countUserWithRoutePermission.mockResolvedValue(1);
 
-    const result = await service.checkUserRoutePermission("u1", method, path);
+    const result = await service.checkUserRoutePermission("u1", "role-active", method, path);
 
     expect(result).toEqual({
       allowed: true,
       permissionExists: true,
     });
-    expect(authRepository.countUserWithRoutePermission).toHaveBeenCalledWith("u1", method, path);
+    expect(authRepository.countUserWithRoutePermission).toHaveBeenCalledWith(
+      "u1",
+      "role-active",
+      method,
+      path,
+    );
     expect(authRepository.countPermissionByMethodPath).not.toHaveBeenCalled();
   });
 
@@ -38,7 +45,7 @@ describe("AuthorizationService", () => {
     authRepository.countUserWithRoutePermission.mockResolvedValue(0);
     authRepository.countPermissionByMethodPath.mockResolvedValue(1);
 
-    const result = await service.checkUserRoutePermission("u1", method, path);
+    const result = await service.checkUserRoutePermission("u1", "role-active", method, path);
 
     expect(result).toEqual({
       allowed: false,
@@ -50,11 +57,24 @@ describe("AuthorizationService", () => {
     authRepository.countUserWithRoutePermission.mockResolvedValue(0);
     authRepository.countPermissionByMethodPath.mockResolvedValue(0);
 
-    const result = await service.checkUserRoutePermission("u1", method, path);
+    const result = await service.checkUserRoutePermission("u1", "role-active", method, path);
 
     expect(result).toEqual({
       allowed: false,
       permissionExists: false,
     });
+  });
+
+  it("checks business capability only within the active session role", async () => {
+    authRepository.countUserWithBusinessPermission.mockResolvedValue(1);
+
+    await expect(
+      service.checkUserBusinessPermission("u1", "role-active", "hotel.requests.view"),
+    ).resolves.toBe(true);
+    expect(authRepository.countUserWithBusinessPermission).toHaveBeenCalledWith(
+      "u1",
+      "role-active",
+      "hotel.requests.view",
+    );
   });
 });

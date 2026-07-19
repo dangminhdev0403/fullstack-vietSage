@@ -188,6 +188,12 @@ All errors are normalized by global exception filter:
   "fullName": "User Name",
   "status": "ACTIVE|LOCKED|DISABLED",
   "roles": ["SUPER_ADMIN"],
+  "activeRole": {
+    "id": "string",
+    "code": "SUPER_ADMIN",
+    "name": "Super Admin"
+  },
+  "menus": ["/dashboard", "/admin/hotels"],
   "permissions": ["GET:/roles", "POST:/hotel-users"],
   "tenants": [
     {
@@ -196,9 +202,22 @@ All errors are normalized by global exception filter:
       "name": "Tenant A",
       "status": "ACTIVE|INVITED|DISABLED"
     }
+  ],
+  "accessibleHotels": [
+    {
+      "id": "string",
+      "tenantId": "string",
+      "code": "HOTEL_A",
+      "name": "Hotel A"
+    }
   ]
 }
 ```
+
+`activeRole`, `menus`, and `permissions` describe the role bound to the current authenticated
+session. `roles` remains the complete list of active role assignments for compatibility.
+`accessibleHotels` contains only active staff assignments inside active tenant memberships and
+never implies an active hotel; clients must require an explicit hotel selection.
 
 ## Module: rbac.roles
 

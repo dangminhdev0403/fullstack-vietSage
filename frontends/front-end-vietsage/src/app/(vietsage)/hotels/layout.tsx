@@ -1,9 +1,10 @@
 import { auth } from "@/auth";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { type ReactNode } from "react";
 
 import { AuthRefreshGate } from "../_components/auth-refresh-gate";
 import { OwnerRequestRealtimeNotifier } from "../owner/_components/owner-request-realtime-notifier";
+import { hasAppRole } from "@/lib/rbac";
 import { requireRefreshableServerSession } from "@/lib/server-session-tokens";
 
 function redirectToLogin(reason: string): never {
@@ -25,6 +26,17 @@ export default async function HotelsLayout({ children }: { children: ReactNode }
 
   if (session.authError) {
     redirectToLogin("auth_error");
+  }
+
+  if (!session.activeRoleCode) {
+    redirectToLogin("active_role_missing");
+  }
+
+  if (
+    !hasAppRole([session.activeRoleCode], "staff") &&
+    !hasAppRole([session.activeRoleCode], "admin")
+  ) {
+    notFound();
   }
 
   await requireRefreshableServerSession("/hotels", "hotels-layout");

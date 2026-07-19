@@ -721,6 +721,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/hotels/{hotelId}/reservations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ReservationsController_createReservation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/arrivals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ReservationsController_listArrivals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/reservations/{reservationId}/room": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["ReservationsController_assignRoom"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/reservations/{reservationId}/check-in": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ReservationsController_checkIn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/hotels/{hotelId}/folios": {
         parameters: {
             query?: never;
@@ -1426,6 +1490,12 @@ export interface operations {
                             /** @enum {string} */
                             status: "ACTIVE" | "LOCKED" | "DISABLED";
                             roles: string[];
+                            /** @description The active role bound to the current authenticated session. */
+                            activeRole: {
+                                id: string;
+                                code: string;
+                                name: string;
+                            };
                             menus: string[];
                             permissions: string[];
                             tenants: {
@@ -1433,6 +1503,13 @@ export interface operations {
                                 code: string;
                                 name: string;
                                 status: string;
+                            }[];
+                            /** @description Active hotel assignments within active tenant memberships. The client must explicitly choose an active hotel context. */
+                            accessibleHotels: {
+                                id: string;
+                                tenantId: string;
+                                code: string;
+                                name: string;
                             }[];
                         };
                     };
@@ -3813,6 +3890,186 @@ export interface operations {
             };
         };
     };
+    ReservationsController_createReservation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    guestDisplayName: string;
+                    guestPhone?: string;
+                    /** Format: date-time */
+                    plannedCheckInAt: string;
+                    /** Format: date-time */
+                    plannedCheckOutAt: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Đã tạo đặt phòng ở trạng thái CONFIRMED */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        hotelId: string;
+                        roomId?: string | null;
+                        reservationCode: string;
+                        guestDisplayName: string;
+                        guestPhone?: string | null;
+                        /** @enum {string} */
+                        status: "CONFIRMED" | "ARRIVAL_READY" | "CHECKED_IN";
+                        /** Format: date-time */
+                        plannedCheckInAt?: string;
+                        /** Format: date-time */
+                        plannedCheckOutAt?: string;
+                    };
+                };
+            };
+        };
+    };
+    ReservationsController_listArrivals: {
+        parameters: {
+            query: {
+                limit?: number;
+                page?: number;
+                to: string;
+                from: string;
+            };
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Đã lấy danh sách arrivals */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        page: number;
+                        limit: number;
+                        total: number;
+                        items: {
+                            id: string;
+                            hotelId: string;
+                            roomId?: string | null;
+                            reservationCode: string;
+                            guestDisplayName: string;
+                            guestPhone?: string | null;
+                            /** @enum {string} */
+                            status: "CONFIRMED" | "ARRIVAL_READY" | "CHECKED_IN";
+                            /** Format: date-time */
+                            plannedCheckInAt?: string;
+                            /** Format: date-time */
+                            plannedCheckOutAt?: string;
+                        }[];
+                    };
+                };
+            };
+        };
+    };
+    ReservationsController_assignRoom: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                reservationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    roomId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Đặt phòng đã sẵn sàng đón khách */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        hotelId: string;
+                        roomId?: string | null;
+                        reservationCode: string;
+                        guestDisplayName: string;
+                        guestPhone?: string | null;
+                        /** @enum {string} */
+                        status: "CONFIRMED" | "ARRIVAL_READY" | "CHECKED_IN";
+                        /** Format: date-time */
+                        plannedCheckInAt?: string;
+                        /** Format: date-time */
+                        plannedCheckOutAt?: string;
+                    };
+                };
+            };
+        };
+    };
+    ReservationsController_checkIn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                reservationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Đặt phòng đã được check-in */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        idempotent: boolean;
+                        /** @description Plaintext GuestOS access code on the first successful check-in; null on replay */
+                        accessCode: string | null;
+                        reservation: {
+                            id: string;
+                            /** @enum {string} */
+                            status: "CHECKED_IN";
+                        };
+                        stay: {
+                            id: string;
+                            /** @enum {string} */
+                            status: "ACTIVE";
+                        };
+                        folio: {
+                            id: string;
+                            /** @enum {string} */
+                            status: "OPEN";
+                        };
+                        roomQrCode: {
+                            id: string;
+                            /** @enum {string} */
+                            status: "ACTIVE";
+                        } | null;
+                    };
+                };
+            };
+        };
+    };
     FolioController_listFolios: {
         parameters: {
             query?: {
@@ -4010,7 +4267,10 @@ export interface operations {
     PaymentController_processWebhook: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Shared secret configured for the payment provider webhook. */
+                "X-VietSage-Payment-Webhook-Secret": string;
+            };
             path: {
                 provider: "MANUAL" | "MOMO" | "VNPAY" | "STRIPE" | "BANK_TRANSFER";
             };

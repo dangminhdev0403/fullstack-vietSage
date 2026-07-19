@@ -31,4 +31,6 @@ export type AuthMeResponseEnvelope = ResponseByStatus<MeOperation, 200>;
 
 export type AuthTokensData = AuthLoginResponseEnvelope["data"];
 export type AuthProfileData = AuthMeResponseEnvelope["data"];
+export type AuthActiveRole = AuthProfileData["activeRole"];
 export type AuthTenant = AuthProfileData["tenants"][number];
+export type AuthAccessibleHotel = AuthProfileData["accessibleHotels"][number];

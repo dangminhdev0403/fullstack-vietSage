@@ -24,6 +24,23 @@ function isRoleMatch(source: string, expected: UserRole): boolean {
     );
   }
 
+  if (expected === "staff") {
+    return (
+      source === "staff" ||
+      source === "hotel_manager" ||
+      source === "hotel_frontdesk" ||
+      source === "receptionist" ||
+      source === "housekeeping" ||
+      source === "hotel_housekeeping" ||
+      source === "maintenance" ||
+      source === "hotel_maintenance" ||
+      source === "finance" ||
+      source === "hotel_finance" ||
+      source.endsWith("_staff") ||
+      source.endsWith(":staff")
+    );
+  }
+
   if (source === expected) {
     return true;
   }

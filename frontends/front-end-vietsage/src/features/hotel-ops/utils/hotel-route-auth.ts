@@ -3,6 +3,8 @@ import "server-only";
 import type { Session } from "next-auth";
 import { redirect } from "next/navigation";
 
+import type { AuthIdentity } from "@/features/auth/service/auth-service";
+import { canAccessHotelScope } from "@/features/workspace/utils/workspace-context";
 import { requireRefreshableServerSession } from "@/lib/server-session-tokens";
 
 export async function requireHotelOpsServerTokens(callbackUrl: `/${string}`) {
@@ -30,13 +32,9 @@ export function assertCanAccessHotelOps(session: Session | null, callbackUrl: `/
 
 }
 
-export function getSessionHotelIds(session: Session): string[] {
-  void session;
-  return [];
-}
-
-export function canUseHotelId(session: Session, hotelId: string): boolean {
-  void session;
-  void hotelId;
-  return true;
+export function canUseHotelId(
+  context: Pick<AuthIdentity, "permissions" | "accessibleHotels">,
+  hotelId: string,
+): boolean {
+  return canAccessHotelScope(context, hotelId);
 }

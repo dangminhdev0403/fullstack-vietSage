@@ -5,7 +5,6 @@ import { VsIcon } from "../_components/vs-icon";
 import { VsTopBar } from "../_components/vs-top-bar";
 import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
 import type { StaffRequestListItem, StaffRequestSummaryResponse } from "@/features/hotel-ops/types/hotel-ops-contract";
-import { getSessionHotelIds } from "@/features/hotel-ops/utils/hotel-route-auth";
 import {
   formatOpsDateTime,
   priorityTone,
@@ -13,10 +12,25 @@ import {
   requestStatusLabelMap,
   statusTone,
 } from "@/features/hotel-ops/utils/hotel-ops-display";
+import {
+  hasAnyHotelCapability,
+  resolveExplicitAccessibleHotel,
+} from "@/features/workspace/utils/workspace-context";
 import type { DashboardNavItem } from "@/lib/frontend-navigation";
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
+import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
 
 export const dynamic = "force-dynamic";
+
+type StaffPageProps = {
+  searchParams?:
+    | Promise<Record<string, string | string[] | undefined>>
+    | Record<string, string | string[] | undefined>;
+};
+
+function getFirst(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
 
 function buildStaffNavigation(hotelId: string | null): DashboardNavItem[] {
   const items: DashboardNavItem[] = [
@@ -38,10 +52,21 @@ function countActiveRequests(summary: StaffRequestSummaryResponse | null): numbe
   return summary.statuses.CREATED + summary.statuses.ACKNOWLEDGED + summary.statuses.IN_PROGRESS;
 }
 
-export default async function StaffPage() {
+export default async function StaffPage({ searchParams }: StaffPageProps) {
   const session = await auth();
   const callbackUrl = "/staff" as const;
-  const hotelId = session ? getSessionHotelIds(session)[0] ?? null : null;
+  const resolvedSearchParams = await Promise.resolve(searchParams ?? {});
+  const workspaceContext = await loadServerWorkspaceContext(callbackUrl);
+  const requestedHotelId = getFirst(resolvedSearchParams.hotelId);
+  const selectedHotel = resolveExplicitAccessibleHotel(
+    workspaceContext,
+    requestedHotelId,
+  );
+  const hotelId = selectedHotel?.id ?? null;
+  const availableHotels = hasAnyHotelCapability(workspaceContext)
+    ? workspaceContext.accessibleHotels
+    : [];
+  const hasInvalidHotelSelection = Boolean(requestedHotelId && !selectedHotel);
   const sidebarItems = buildStaffNavigation(hotelId);
 
   let requests: StaffRequestListItem[] = [];
@@ -85,7 +110,9 @@ export default async function StaffPage() {
           <header className="flex flex-col justify-between gap-4 xl:flex-row xl:items-end">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">
-                {hotelId ? `Hotel ${hotelId}` : "Hotel context required"}
+                {selectedHotel
+                  ? `${selectedHotel.code} · ${selectedHotel.name}`
+                  : "Cần chọn phạm vi khách sạn"}
               </p>
               <h1 className="vs-display mt-1 text-[32px] font-semibold text-[var(--primary)] md:text-[40px]">
                 Staff Workspace
@@ -105,17 +132,67 @@ export default async function StaffPage() {
                   <VsIcon name="room_service" className="text-[18px]" />
                   Manage services
                 </Link>
+                <Link href="/staff" className="inline-flex items-center gap-2 rounded-xl border border-[var(--outline-variant)] bg-white px-4 py-3 text-sm font-semibold text-[var(--primary)]">
+                  <VsIcon name="swap_horiz" className="text-[18px]" />
+                  Đổi khách sạn
+                </Link>
               </div>
             ) : null}
           </header>
 
           {!hotelId ? (
-            <section className="rounded-xl border border-[color:rgba(198,197,213,0.24)] bg-white p-8 text-center">
-              <VsIcon name="hotel" className="mx-auto mb-3 text-4xl text-[var(--primary)]" />
-              <h2 className="vs-display text-2xl font-semibold text-[var(--primary)]">Select a hotel to continue</h2>
-              <p className="mx-auto mt-2 max-w-2xl text-sm text-[var(--on-surface-variant)]">
-                Your staff session does not expose a hotel id yet. Once the backend session includes hotel or tenant context, this page will show service and request operations here.
-              </p>
+            <section className="rounded-xl border border-[color:rgba(198,197,213,0.24)] bg-white p-6 md:p-8">
+              <div className="flex items-start gap-4">
+                <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-[var(--primary-fixed)] text-[var(--primary)]">
+                  <VsIcon name="hotel" className="text-2xl" />
+                </span>
+                <div>
+                  <h2 className="vs-display text-2xl font-semibold text-[var(--primary)]">
+                    Chọn khách sạn để tiếp tục
+                  </h2>
+                  <p className="mt-2 max-w-3xl text-sm text-[var(--on-surface-variant)]">
+                    Phạm vi vận hành không được tự động chọn. Mỗi liên kết bên dưới chỉ xuất hiện
+                    khi phiên hiện tại có capability khách sạn và assignment đang hoạt động.
+                  </p>
+                </div>
+              </div>
+
+              {hasInvalidHotelSelection ? (
+                <div className="mt-5 rounded-xl border border-[var(--error)]/25 bg-[var(--error-container)] px-4 py-3 text-sm text-[var(--on-error-container)]">
+                  Khách sạn được yêu cầu không thuộc phạm vi hoạt động của phiên này. Hãy chọn lại
+                  từ danh sách được cấp quyền.
+                </div>
+              ) : null}
+
+              {availableHotels.length > 0 ? (
+                <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {availableHotels.map((hotel) => (
+                    <Link
+                      key={hotel.id}
+                      href={`/staff?hotelId=${encodeURIComponent(hotel.id)}`}
+                      className="group rounded-xl border border-[color:rgba(198,197,213,0.32)] bg-[var(--surface-container-low)] p-4 transition-colors hover:border-[var(--primary)]/35 hover:bg-[var(--primary-fixed)]"
+                    >
+                      <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">
+                        {hotel.code}
+                      </p>
+                      <p className="mt-1 text-lg font-semibold text-[var(--primary)]">
+                        {hotel.name}
+                      </p>
+                      <span className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-[var(--primary)]">
+                        Mở workspace
+                        <VsIcon name="arrow_forward" className="text-base transition-transform group-hover:translate-x-1" />
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-6 rounded-xl bg-[var(--surface-container-low)] px-4 py-5 text-sm text-[var(--on-surface-variant)]">
+                  Chưa có khách sạn hoạt động phù hợp với capability và assignment của vai trò
+                  <strong className="ml-1 text-[var(--primary)]">
+                    {workspaceContext.activeRole.name}
+                  </strong>.
+                </div>
+              )}
             </section>
           ) : (
             <>
