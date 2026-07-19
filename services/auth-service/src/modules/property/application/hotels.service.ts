@@ -19,8 +19,13 @@ export class HotelsService {
     private readonly hotelAccessService: HotelAccessService,
     private readonly logger: AppLogger = new AppLogger(),
   ) {}
-  async createHotel(actorUserId: string, dto: CreateHotelBodyInput, tenantHeader?: string) {
-    const actor = await this.hotelAccessService.loadActorContext(actorUserId);
+  async createHotel(
+    actorUserId: string,
+    activeRoleId: string,
+    dto: CreateHotelBodyInput,
+    tenantHeader?: string,
+  ) {
+    const actor = await this.hotelAccessService.loadActorContext(actorUserId, activeRoleId);
     this.hotelAccessService.rejectTenantOwnerTenantHint(actor, dto.tenantId ?? tenantHeader);
     const tenantId = await this.hotelAccessService.resolveTenantId(actor, dto.tenantId);
     await this.hotelAccessService.assertTenantExists(tenantId);
@@ -44,8 +49,13 @@ export class HotelsService {
     return this.toHotelData(hotel);
   }
 
-  async listHotels(actorUserId: string, query: ListHotelsQueryInput, tenantHeader?: string) {
-    const actor = await this.hotelAccessService.loadActorContext(actorUserId);
+  async listHotels(
+    actorUserId: string,
+    activeRoleId: string,
+    query: ListHotelsQueryInput,
+    tenantHeader?: string,
+  ) {
+    const actor = await this.hotelAccessService.loadActorContext(actorUserId, activeRoleId);
     this.hotelAccessService.rejectTenantOwnerTenantHint(actor, query.tenantId ?? tenantHeader);
     const tenantId = actor.isTenantOwner
       ? undefined
@@ -85,14 +95,23 @@ export class HotelsService {
     return { page, limit, total, items: rows.map((row) => this.toHotelData(row)) };
   }
 
-  async getHotel(actorUserId: string, hotelId: string) {
-    const hotel = await this.hotelAccessService.assertHotelAccess(actorUserId, hotelId);
+  async getHotel(actorUserId: string, activeRoleId: string, hotelId: string) {
+    const hotel = await this.hotelAccessService.assertHotelAccess(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    );
     return this.toHotelData(hotel);
   }
 
-  async updateHotel(actorUserId: string, hotelId: string, dto: UpdateHotelBodyInput) {
-    const actor = await this.hotelAccessService.loadActorContext(actorUserId);
-    await this.hotelAccessService.assertHotelAccess(actorUserId, hotelId);
+  async updateHotel(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    dto: UpdateHotelBodyInput,
+  ) {
+    const actor = await this.hotelAccessService.loadActorContext(actorUserId, activeRoleId);
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
 
     const data = {
       name: dto.name?.trim(),

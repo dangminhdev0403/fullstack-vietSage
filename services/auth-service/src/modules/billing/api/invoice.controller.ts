@@ -31,6 +31,11 @@ export class InvoiceController {
     const hotelId = parseWithZod(billingIdParamSchema, hotelIdParam);
     const invoiceId = parseWithZod(billingIdParamSchema, invoiceIdParam);
 
-    return this.billingService.getInvoiceDetail(request.user.userId, hotelId, invoiceId);
+    return this.billingService.getInvoiceDetail(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      invoiceId,
+    );
   }
 }

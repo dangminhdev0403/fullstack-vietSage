@@ -108,7 +108,7 @@ describe("BillingService checkout safety", () => {
     };
     const service = createService(prisma, repository);
 
-    await service.issueInvoice("user-1", "hotel-1", "folio-1");
+    await service.issueInvoice("user-1", "active-role", "hotel-1", "folio-1");
 
     expect(tx.folio.update).toHaveBeenCalledWith({
       where: { id: "folio-1" },
@@ -146,9 +146,9 @@ describe("BillingService checkout safety", () => {
     };
     const service = createService(prisma, repository);
 
-    await expect(service.issueInvoice("user-1", "hotel-1", "folio-1")).rejects.toBeInstanceOf(
-      ConflictException,
-    );
+    await expect(
+      service.issueInvoice("user-1", "active-role", "hotel-1", "folio-1"),
+    ).rejects.toBeInstanceOf(ConflictException);
 
     expect(prisma.invoice.findFirst).not.toHaveBeenCalled();
     expect(prisma.folio.updateMany).not.toHaveBeenCalled();

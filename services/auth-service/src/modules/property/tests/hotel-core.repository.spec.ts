@@ -8,12 +8,15 @@ describe("HotelCoreRepository staff scope", () => {
       user: { findUnique },
     } as never);
 
-    await repository.findActorById("staff-1");
+    await repository.findActorById("staff-1", "frontdesk-role");
 
     expect(findUnique).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: "staff-1" },
         select: expect.objectContaining({
+          userRoles: expect.objectContaining({
+            where: expect.objectContaining({ roleId: "frontdesk-role" }),
+          }),
           hotelAssignments: {
             where: {
               status: HotelStaffAssignmentStatus.ACTIVE,

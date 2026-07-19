@@ -50,7 +50,13 @@ export class PaymentController {
     const invoiceId = parseWithZod(billingIdParamSchema, invoiceIdParam);
     const dto = parseWithZod(createPaymentSessionBodySchema, body ?? {});
 
-    return this.billingService.createPaymentSession(request.user.userId, hotelId, invoiceId, dto);
+    return this.billingService.createPaymentSession(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      invoiceId,
+      dto,
+    );
   }
 
   @SuccessMessage("Lấy trạng thái thanh toán thành công")
@@ -67,7 +73,12 @@ export class PaymentController {
     const hotelId = parseWithZod(billingIdParamSchema, hotelIdParam);
     const paymentId = parseWithZod(billingIdParamSchema, paymentIdParam);
 
-    return this.billingService.getPaymentStatus(request.user.userId, hotelId, paymentId);
+    return this.billingService.getPaymentStatus(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      paymentId,
+    );
   }
 
   @SuccessMessage("Xử lý webhook thanh toán thành công")

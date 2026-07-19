@@ -31,8 +31,8 @@ export interface HotelActorContext {
 export class HotelAccessService {
   constructor(private readonly hotelCoreRepository: HotelCoreRepository) {}
 
-  async loadActorContext(userId: string): Promise<HotelActorContext> {
-    const actor = await this.hotelCoreRepository.findActorById(userId);
+  async loadActorContext(userId: string, activeRoleId: string): Promise<HotelActorContext> {
+    const actor = await this.hotelCoreRepository.findActorById(userId, activeRoleId);
     if (!actor) {
       throw new ForbiddenException("Không tìm thấy người thực hiện");
     }
@@ -108,8 +108,12 @@ export class HotelAccessService {
     }
   }
 
-  async assertHotelAccess(actorUserId: string, hotelId: string): Promise<HotelDetailRow> {
-    const actor = await this.loadActorContext(actorUserId);
+  async assertHotelAccess(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+  ): Promise<HotelDetailRow> {
+    const actor = await this.loadActorContext(actorUserId, activeRoleId);
 
     if (actor.isTenantOwner) {
       const hotel = await this.hotelCoreRepository.findHotelByIdAndTenantIds(

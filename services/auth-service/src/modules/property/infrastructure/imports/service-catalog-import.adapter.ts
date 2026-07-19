@@ -248,7 +248,15 @@ export class ServiceCatalogImportAdapter
       return;
     }
 
-    await this.hotelAccessService.assertHotelAccess(context.actorUserId, context.hotelId);
+    if (!context.activeRoleId) {
+      throw new Error("service-catalog import requires activeRoleId for user-initiated imports");
+    }
+
+    await this.hotelAccessService.assertHotelAccess(
+      context.actorUserId,
+      context.activeRoleId,
+      context.hotelId,
+    );
   }
 
   parse(workbook: ParsedImportWorkbook): ServiceCatalogImportPayload {

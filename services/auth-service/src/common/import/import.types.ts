@@ -89,6 +89,7 @@ export interface ImportSummary extends ImportEntitySummary {
 
 export interface ImportContext {
   actorUserId: string;
+  activeRoleId?: string;
   tenantId?: string;
   hotelId?: string;
   [key: string]: unknown;

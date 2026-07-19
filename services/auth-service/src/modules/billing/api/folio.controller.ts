@@ -36,7 +36,12 @@ export class FolioController {
     const hotelId = parseWithZod(billingIdParamSchema, hotelIdParam);
     const parsedQuery = parseWithZod(listFoliosQuerySchema, query);
 
-    return this.billingService.listFolios(request.user.userId, hotelId, parsedQuery);
+    return this.billingService.listFolios(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      parsedQuery,
+    );
   }
 
   @SuccessMessage("Lấy folio đang mở của lượt lưu trú thành công")
@@ -53,7 +58,12 @@ export class FolioController {
     const hotelId = parseWithZod(billingIdParamSchema, hotelIdParam);
     const stayId = parseWithZod(billingIdParamSchema, stayIdParam);
 
-    return this.billingService.getActiveFolioByStay(request.user.userId, hotelId, stayId);
+    return this.billingService.getActiveFolioByStay(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      stayId,
+    );
   }
 
   @SuccessMessage("Lấy tổng quan folio thành công")
@@ -70,7 +80,12 @@ export class FolioController {
     const hotelId = parseWithZod(billingIdParamSchema, hotelIdParam);
     const folioId = parseWithZod(billingIdParamSchema, folioIdParam);
 
-    return this.billingService.getFolioSummary(request.user.userId, hotelId, folioId);
+    return this.billingService.getFolioSummary(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      folioId,
+    );
   }
 
   @SuccessMessage("Phát hành invoice checkout thành công")
@@ -87,7 +102,12 @@ export class FolioController {
     const hotelId = parseWithZod(billingIdParamSchema, hotelIdParam);
     const folioId = parseWithZod(billingIdParamSchema, folioIdParam);
 
-    return this.billingService.issueInvoice(request.user.userId, hotelId, folioId);
+    return this.billingService.issueInvoice(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      folioId,
+    );
   }
 
   @SuccessMessage("Lấy danh sách dòng folio thành công")
@@ -106,7 +126,13 @@ export class FolioController {
     const folioId = parseWithZod(billingIdParamSchema, folioIdParam);
     const parsedQuery = parseWithZod(listFolioItemsQuerySchema, query);
 
-    return this.billingService.listFolioItems(request.user.userId, hotelId, folioId, parsedQuery);
+    return this.billingService.listFolioItems(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      folioId,
+      parsedQuery,
+    );
   }
 
   @SuccessMessage("Lấy chi tiết folio thành công")
@@ -123,6 +149,11 @@ export class FolioController {
     const hotelId = parseWithZod(billingIdParamSchema, hotelIdParam);
     const folioId = parseWithZod(billingIdParamSchema, folioIdParam);
 
-    return this.billingService.getFolioDetail(request.user.userId, hotelId, folioId);
+    return this.billingService.getFolioDetail(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      folioId,
+    );
   }
 }

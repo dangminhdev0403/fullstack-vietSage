@@ -13,13 +13,14 @@ import { hotelDetailInclude } from "./hotel-repository.types";
 @Injectable()
 export class HotelCoreRepository {
   constructor(private readonly prisma: PrismaService) {}
-  async findActorById(userId: string) {
+  async findActorById(userId: string, activeRoleId: string) {
     return this.prisma.user.findUnique({
       where: { id: userId },
       select: {
         id: true,
         userRoles: {
           where: {
+            roleId: activeRoleId,
             status: UserRoleStatus.ACTIVE,
             role: { status: RoleStatus.ACTIVE },
           },

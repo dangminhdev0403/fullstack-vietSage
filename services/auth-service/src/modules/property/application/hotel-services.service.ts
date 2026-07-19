@@ -20,10 +20,11 @@ export class HotelServicesService {
   ) {}
   async listServiceCategories(
     actorUserId: string,
+    activeRoleId: string,
     hotelId: string,
     query: ListServiceCategoriesQueryInput,
   ) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, hotelId);
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const where: Prisma.HotelServiceCategoryWhereInput = {
@@ -48,10 +49,15 @@ export class HotelServicesService {
 
   async createServiceCategory(
     actorUserId: string,
+    activeRoleId: string,
     hotelId: string,
     dto: CreateServiceCategoryBodyInput,
   ) {
-    const hotel = await this.hotelAccessService.assertHotelAccess(actorUserId, hotelId);
+    const hotel = await this.hotelAccessService.assertHotelAccess(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    );
 
     const category = await this.hotelServiceCatalogRepository.createServiceCategory({
       hotelId,
@@ -78,11 +84,16 @@ export class HotelServicesService {
 
   async updateServiceCategory(
     actorUserId: string,
+    activeRoleId: string,
     hotelId: string,
     categoryId: string,
     dto: UpdateServiceCategoryBodyInput,
   ) {
-    const hotel = await this.hotelAccessService.assertHotelAccess(actorUserId, hotelId);
+    const hotel = await this.hotelAccessService.assertHotelAccess(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    );
     await this.assertServiceCategoryInHotel(hotelId, categoryId);
 
     const priceUpdateMode = dto.priceUpdateMode ?? CategoryPriceUpdateMode.CATEGORY_ONLY;
@@ -115,8 +126,13 @@ export class HotelServicesService {
     return this.toServiceCategoryData(category);
   }
 
-  async listServiceItems(actorUserId: string, hotelId: string, query: ListServiceItemsQueryInput) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, hotelId);
+  async listServiceItems(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    query: ListServiceItemsQueryInput,
+  ) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const where: Prisma.HotelServiceItemWhereInput = {
@@ -139,8 +155,17 @@ export class HotelServicesService {
     return { page, limit, total, items: rows.map((row) => this.toServiceItemData(row)) };
   }
 
-  async createServiceItem(actorUserId: string, hotelId: string, dto: CreateServiceItemBodyInput) {
-    const hotel = await this.hotelAccessService.assertHotelAccess(actorUserId, hotelId);
+  async createServiceItem(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    dto: CreateServiceItemBodyInput,
+  ) {
+    const hotel = await this.hotelAccessService.assertHotelAccess(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    );
     await this.assertServiceCategoryInHotel(hotelId, dto.categoryId);
 
     const item = await this.hotelServiceCatalogRepository.createServiceItem({
@@ -164,11 +189,16 @@ export class HotelServicesService {
 
   async updateServiceItem(
     actorUserId: string,
+    activeRoleId: string,
     hotelId: string,
     itemId: string,
     dto: UpdateServiceItemBodyInput,
   ) {
-    const hotel = await this.hotelAccessService.assertHotelAccess(actorUserId, hotelId);
+    const hotel = await this.hotelAccessService.assertHotelAccess(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    );
     await this.assertServiceItemInHotel(hotelId, itemId);
 
     if (dto.categoryId) {

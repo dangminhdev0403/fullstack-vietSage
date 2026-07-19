@@ -24,6 +24,10 @@ export class HotelDashboardController {
   @Get(":hotelId/dashboard")
   async getDashboard(@Req() request: RequestWithUser, @Param("hotelId") hotelIdParam: string) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
-    return this.hotelDashboardService.getDashboard(request.user.userId, hotelId);
+    return this.hotelDashboardService.getDashboard(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+    );
   }
 }

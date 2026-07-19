@@ -85,8 +85,13 @@ export class HotelRequestsService {
     this.guestRequestEventPublisher =
       guestRequestEventPublisher ?? NOOP_GUEST_REQUEST_EVENT_PUBLISHER;
   }
-  async listRequests(actorUserId: string, hotelId: string, query: ListStaffRequestsQueryInput) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, hotelId);
+  async listRequests(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    query: ListStaffRequestsQueryInput,
+  ) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const where: Prisma.GuestRequestWhereInput = {
@@ -135,10 +140,11 @@ export class HotelRequestsService {
 
   async getRequestsSummary(
     actorUserId: string,
+    activeRoleId: string,
     hotelId: string,
     query: RequestSummaryQueryInput,
   ): Promise<RequestSummaryResponse> {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, hotelId);
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
     const where: Prisma.GuestRequestWhereInput = {
       hotelId,
       ...activeStayRequestFilter,
@@ -158,8 +164,13 @@ export class HotelRequestsService {
     };
   }
 
-  async getRequestDetail(actorUserId: string, hotelId: string, requestId: string) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, hotelId);
+  async getRequestDetail(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    requestId: string,
+  ) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
     const request = await this.hotelRequestsRepository.findRequestDetailInHotel(hotelId, requestId);
     if (!request) {
       throw new NotFoundException("Không tìm thấy yêu cầu");
@@ -170,11 +181,16 @@ export class HotelRequestsService {
 
   async updateRequestStatus(
     actorUserId: string,
+    activeRoleId: string,
     hotelId: string,
     requestId: string,
     dto: UpdateRequestStatusBodyInput,
   ) {
-    const hotel = await this.hotelAccessService.assertHotelAccess(actorUserId, hotelId);
+    const hotel = await this.hotelAccessService.assertHotelAccess(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    );
     const existing = await this.hotelRequestsRepository.findRequestInHotel(hotelId, requestId);
     if (!existing) {
       throw new NotFoundException("Không tìm thấy yêu cầu");
@@ -208,11 +224,16 @@ export class HotelRequestsService {
 
   async updateRequestAssignment(
     actorUserId: string,
+    activeRoleId: string,
     hotelId: string,
     requestId: string,
     dto: UpdateRequestAssignmentBodyInput,
   ) {
-    const hotel = await this.hotelAccessService.assertHotelAccess(actorUserId, hotelId);
+    const hotel = await this.hotelAccessService.assertHotelAccess(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    );
     const existing = await this.hotelRequestsRepository.findRequestInHotel(hotelId, requestId);
     if (!existing) {
       throw new NotFoundException("Không tìm thấy yêu cầu");
@@ -252,11 +273,16 @@ export class HotelRequestsService {
 
   async createRequestEvent(
     actorUserId: string,
+    activeRoleId: string,
     hotelId: string,
     requestId: string,
     dto: CreateRequestEventBodyInput,
   ) {
-    const hotel = await this.hotelAccessService.assertHotelAccess(actorUserId, hotelId);
+    const hotel = await this.hotelAccessService.assertHotelAccess(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    );
     const existing = await this.hotelRequestsRepository.findRequestInHotel(hotelId, requestId);
     if (!existing) {
       throw new NotFoundException("Không tìm thấy yêu cầu");

@@ -21,9 +21,13 @@ describe("RequestRealtimeTicketService", () => {
       audience: "request-realtime",
     });
 
-    const result = await service.issueOwnerTicket("user-1", "hotel-1");
+    const result = await service.issueOwnerTicket("user-1", "active-role", "hotel-1");
 
-    expect(hotelAccessService.assertHotelAccess).toHaveBeenCalledWith("user-1", "hotel-1");
+    expect(hotelAccessService.assertHotelAccess).toHaveBeenCalledWith(
+      "user-1",
+      "active-role",
+      "hotel-1",
+    );
     const [claims, options] = (jwtService.signAsync as jest.Mock).mock.calls[0];
     expect(claims).toEqual(
       expect.objectContaining({
@@ -55,7 +59,9 @@ describe("RequestRealtimeTicketService", () => {
       ticketTtlSeconds: 60,
       audience: "request-realtime",
     });
-    await expect(service.issueOwnerTicket("user-1", "hotel-2")).rejects.toThrow("denied");
+    await expect(service.issueOwnerTicket("user-1", "active-role", "hotel-2")).rejects.toThrow(
+      "denied",
+    );
     expect(jwtService.signAsync).not.toHaveBeenCalled();
   });
 
@@ -66,9 +72,9 @@ describe("RequestRealtimeTicketService", () => {
       ticketTtlSeconds: 60,
       audience: "request-realtime",
     });
-    await expect(service.issueOwnerTicket("user-1", "hotel-1")).rejects.toBeInstanceOf(
-      ServiceUnavailableException,
-    );
+    await expect(
+      service.issueOwnerTicket("user-1", "active-role", "hotel-1"),
+    ).rejects.toBeInstanceOf(ServiceUnavailableException);
   });
 });
 

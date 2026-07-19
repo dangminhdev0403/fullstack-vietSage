@@ -67,8 +67,8 @@ export class HotelDashboardService {
     private readonly hotelAccessService: HotelAccessService,
   ) {}
 
-  async getDashboard(actorUserId: string, hotelId: string) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, hotelId);
+  async getDashboard(actorUserId: string, activeRoleId: string, hotelId: string) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
 
     const now = new Date();
     const todayStart = startOfDay(now);

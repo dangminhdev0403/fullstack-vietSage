@@ -17,7 +17,7 @@ Remaining blockers/risks and next checkpoint:
 
 - Existing browser sessions created before this change lack `activeRoleCode` and will be sent through one safe re-login.
 - Authenticated browser QA for the hotel selector remains required because this environment has no user session.
-- P0-B is next: propagate active role through backend resource actor checks. Only after P0-B should P1 introduce the shared persona-aware `WorkspaceShell` while preserving the current layout and centralizing labels/navigation.
+- P0-B is complete: backend resource actor checks now receive the session-bound active role and cannot inherit resource-scope elevation from another role. P1 is next: introduce the shared persona-aware `WorkspaceShell` while preserving the current layout and centralizing labels/navigation.
 
 ## [complete] 2026-06-06 - Owner hotels React Query list cache
 

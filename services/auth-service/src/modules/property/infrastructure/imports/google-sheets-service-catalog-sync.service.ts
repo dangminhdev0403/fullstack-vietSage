@@ -30,8 +30,12 @@ export class GoogleSheetsServiceCatalogSyncService {
     private readonly logger: AppLogger,
   ) {}
 
-  async syncHotel(hotelId: string, actorUserId: string): Promise<SyncSummary> {
-    return this.runSync(hotelId, actorUserId);
+  async syncHotel(
+    hotelId: string,
+    actorUserId: string,
+    activeRoleId: string,
+  ): Promise<SyncSummary> {
+    return this.runSync(hotelId, actorUserId, activeRoleId);
   }
 
   @Cron(CronExpression.EVERY_5_MINUTES)
@@ -50,7 +54,7 @@ export class GoogleSheetsServiceCatalogSyncService {
     try {
       const hotels = await this.prisma.hotel.findMany({ select: { id: true } });
       for (const hotel of hotels) {
-        await this.runSync(hotel.id, SYSTEM_ACTOR_USER_ID, false);
+        await this.runSync(hotel.id, SYSTEM_ACTOR_USER_ID, undefined, false);
       }
     } catch (error) {
       this.logger.error(error, {
@@ -72,6 +76,7 @@ export class GoogleSheetsServiceCatalogSyncService {
   private async runSync(
     hotelId: string,
     actorUserId: string,
+    activeRoleId?: string,
     enforceConcurrency = true,
   ): Promise<SyncSummary> {
     if (enforceConcurrency && this.isSyncing) {
@@ -101,7 +106,12 @@ export class GoogleSheetsServiceCatalogSyncService {
       const preview = await this.importService.preview({
         type: "service-catalog",
         mode: "upsert",
-        context: { hotelId, actorUserId, systemSync: actorUserId === SYSTEM_ACTOR_USER_ID },
+        context: {
+          hotelId,
+          actorUserId,
+          activeRoleId,
+          systemSync: actorUserId === SYSTEM_ACTOR_USER_ID,
+        },
         workbook,
       });
 

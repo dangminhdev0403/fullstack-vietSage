@@ -106,7 +106,12 @@ export class ReservationsController {
   ) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     const dto = parseWithZod(createReservationBodySchema, body);
-    return this.reservationsService.createReservation(request.user.userId, hotelId, dto);
+    return this.reservationsService.createReservation(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      dto,
+    );
   }
 
   @SuccessMessage("Lấy danh sách khách đến thành công")
@@ -137,7 +142,12 @@ export class ReservationsController {
   ) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     const dto = parseWithZod(listArrivalsQuerySchema, query);
-    return this.reservationsService.listArrivals(request.user.userId, hotelId, dto);
+    return this.reservationsService.listArrivals(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      dto,
+    );
   }
 
   @SuccessMessage("Gán phòng cho đặt phòng thành công")
@@ -165,7 +175,13 @@ export class ReservationsController {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     const reservationId = parseWithZod(reservationIdParamSchema, reservationIdParam);
     const dto = parseWithZod(assignReservationRoomBodySchema, body);
-    return this.reservationsService.assignRoom(request.user.userId, hotelId, reservationId, dto);
+    return this.reservationsService.assignRoom(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      reservationId,
+      dto,
+    );
   }
 
   @SuccessMessage("Check-in đặt phòng thành công")
@@ -184,6 +200,11 @@ export class ReservationsController {
   ) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     const reservationId = parseWithZod(reservationIdParamSchema, reservationIdParam);
-    return this.reservationsService.checkIn(request.user.userId, hotelId, reservationId);
+    return this.reservationsService.checkIn(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      reservationId,
+    );
   }
 }

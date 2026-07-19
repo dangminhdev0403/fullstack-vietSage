@@ -38,7 +38,7 @@ export class HotelNotificationRoutesController {
   @Get(":hotelId/notification-routes")
   async list(@Req() request: RequestWithUser, @Param("hotelId") hotelIdParam: string) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
-    return this.routesService.list(request.user.userId, hotelId);
+    return this.routesService.list(request.user.userId, request.user.roleId, hotelId);
   }
 
   @SuccessMessage("Tạo cấu hình Telegram thành công")
@@ -53,6 +53,7 @@ export class HotelNotificationRoutesController {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     return this.routesService.create(
       request.user.userId,
+      request.user.roleId,
       hotelId,
       parseWithZod(routeBodySchema, body),
     );
@@ -72,6 +73,7 @@ export class HotelNotificationRoutesController {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     return this.routesService.update(
       request.user.userId,
+      request.user.roleId,
       hotelId,
       routeId,
       parseWithZod(updateRouteBodySchema, body),

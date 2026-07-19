@@ -23,7 +23,7 @@ describe("HotelAccessService", () => {
     const repository = createRepository();
     const service = new HotelAccessService(repository as never);
 
-    const actor = await service.loadActorContext("actor-1");
+    const actor = await service.loadActorContext("actor-1", "tenant-owner-role");
 
     expect(actor.isTenantOwner).toBe(true);
     expect(Array.from(actor.tenantIds)).toEqual(["tenant-1", "tenant-2"]);
@@ -39,14 +39,18 @@ describe("HotelAccessService", () => {
     });
     const service = new HotelAccessService(repository as never);
 
-    await expect(service.loadActorContext("actor-1")).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.loadActorContext("actor-1", "tenant-owner-role")).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
   });
 
   it("kiểm tra quyền truy cập khách sạn của TENANT_OWNER bằng hotelId và tenantId trong các thành viên đang hoạt động", async () => {
     const repository = createRepository();
     const service = new HotelAccessService(repository as never);
 
-    await expect(service.assertHotelAccess("actor-1", "hotel-1")).resolves.toMatchObject({
+    await expect(
+      service.assertHotelAccess("actor-1", "tenant-owner-role", "hotel-1"),
+    ).resolves.toMatchObject({
       id: "hotel-1",
       tenantId: "tenant-2",
     });
@@ -64,9 +68,9 @@ describe("HotelAccessService", () => {
     });
     const service = new HotelAccessService(repository as never);
 
-    await expect(service.assertHotelAccess("actor-1", "hotel-3")).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.assertHotelAccess("actor-1", "tenant-owner-role", "hotel-3"),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it("chỉ cho HOTEL_FRONTDESK truy cập khách sạn được gán đang hoạt động", async () => {
@@ -81,9 +85,9 @@ describe("HotelAccessService", () => {
     });
     const service = new HotelAccessService(repository as never);
 
-    await expect(service.assertHotelAccess("frontdesk-1", "hotel-1")).resolves.toMatchObject({
-      id: "hotel-1",
-    });
+    await expect(
+      service.assertHotelAccess("frontdesk-1", "frontdesk-role", "hotel-1"),
+    ).resolves.toMatchObject({ id: "hotel-1" });
   });
 
   it("từ chối HOTEL_FRONTDESK truy cập khách sạn cùng tenant nhưng chưa được gán", async () => {
@@ -98,9 +102,9 @@ describe("HotelAccessService", () => {
     });
     const service = new HotelAccessService(repository as never);
 
-    await expect(service.assertHotelAccess("frontdesk-1", "hotel-2")).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
+    await expect(
+      service.assertHotelAccess("frontdesk-1", "frontdesk-role", "hotel-2"),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it("không yêu cầu assignment khi SUPER_ADMIN đồng thời có role HOTEL_FRONTDESK", async () => {
@@ -115,9 +119,9 @@ describe("HotelAccessService", () => {
     });
     const service = new HotelAccessService(repository as never);
 
-    await expect(service.assertHotelAccess("admin-1", "hotel-any")).resolves.toMatchObject({
-      id: "hotel-any",
-    });
+    await expect(
+      service.assertHotelAccess("admin-1", "super-admin-role", "hotel-any"),
+    ).resolves.toMatchObject({ id: "hotel-any" });
   });
 
   it("không yêu cầu assignment khi HOTEL_OWNER đồng thời có role HOTEL_FRONTDESK", async () => {
@@ -132,9 +136,9 @@ describe("HotelAccessService", () => {
     });
     const service = new HotelAccessService(repository as never);
 
-    await expect(service.assertHotelAccess("owner-1", "hotel-1")).resolves.toMatchObject({
-      id: "hotel-1",
-    });
+    await expect(
+      service.assertHotelAccess("owner-1", "hotel-owner-role", "hotel-1"),
+    ).resolves.toMatchObject({ id: "hotel-1" });
   });
 
   it("từ chối tenant hint của TENANT_OWNER", async () => {
