@@ -4,8 +4,7 @@ import { resolveDashboardNavigation } from "@/lib/frontend-navigation";
 import { readServerSessionTokens } from "@/lib/server-session-tokens";
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
 
-import { VsDashboardSidebar } from "../../_components/vs-dashboard-sidebar";
-import { VsTopBar } from "../../_components/vs-top-bar";
+import { AdminShell } from "../_components/admin-shell";
 import { HotelsAdminClient } from "./hotels-admin-client";
 
 const TENANT_OWNER_SELECTOR_PAGE_SIZE = 100;
@@ -63,20 +62,7 @@ export default async function AdminHotelsPage() {
   ]);
 
   return (
-    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      <VsTopBar
-        title="VietSage"
-        brandLockup={false}
-        titleClassName="text-[32px] font-semibold leading-none tracking-tight"
-        showLeftControl={false}
-        rightMode="profile"
-        rightLabel="Quản trị viên"
-        subtitle="Quản lý khách sạn"
-      />
-
-      <VsDashboardSidebar activePath="/admin/hotels" items={sidebarItems} />
-
-      <main className="min-h-screen px-4 pb-24 pt-24 md:ml-80 md:px-10">
+    <AdminShell activePath="/admin/hotels" navItems={sidebarItems} subtitle="Quản lý khách sạn">
         <div className="mx-auto max-w-[1600px] space-y-8">
           <header>
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--secondary)]">
@@ -96,7 +82,6 @@ export default async function AdminHotelsPage() {
             total={hotelsPage.total}
           />
         </div>
-      </main>
-    </div>
+    </AdminShell>
   );
 }

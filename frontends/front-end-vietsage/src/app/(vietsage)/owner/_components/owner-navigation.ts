@@ -1,11 +1,8 @@
 import type { DashboardNavItem } from "@/lib/frontend-navigation";
+import { buildWorkspaceNavigation } from "@/features/workspace/config/workspace-registry";
 
 export function getOwnerBaseNavigation(): DashboardNavItem[] {
-  return [
-    { key: "/owner/dashboard", href: "/owner/dashboard", label: "Tổng quan", icon: "dashboard" },
-    { key: "/owner/hotels", href: "/owner/hotels", label: "Khách sạn", icon: "hotel" },
-    { key: "/owner/rooms", href: "/owner/rooms", label: "Phòng", icon: "bed" },
-  ];
+  return buildWorkspaceNavigation({ persona: "owner", permissions: [] });
 }
 
 export function withOwnerHotelNavigation(items: readonly DashboardNavItem[], hotelId: string): DashboardNavItem[] {

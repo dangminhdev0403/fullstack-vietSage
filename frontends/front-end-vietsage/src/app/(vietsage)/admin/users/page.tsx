@@ -4,8 +4,7 @@ import { resolveDashboardNavigation } from "@/lib/frontend-navigation";
 import { readServerSessionTokens } from "@/lib/server-session-tokens";
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
 
-import { VsDashboardSidebar } from "../../_components/vs-dashboard-sidebar";
-import { VsTopBar } from "../../_components/vs-top-bar";
+import { AdminShell } from "../_components/admin-shell";
 import { TenantOwnersClient } from "./tenant-owners-client";
 
 export default async function AdminUsersPage() {
@@ -33,20 +32,7 @@ export default async function AdminUsersPage() {
   ]);
 
   return (
-    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      <VsTopBar
-        title="VietSage"
-        brandLockup={false}
-        titleClassName="text-[32px] font-semibold leading-none tracking-tight"
-        showLeftControl={false}
-        rightMode="profile"
-        rightLabel="Quản trị viên"
-        subtitle="Quản lý chủ sở hữu"
-      />
-
-      <VsDashboardSidebar activePath="/admin/users" items={sidebarItems} />
-
-      <main className="min-h-screen px-4 pb-24 pt-24 md:ml-80 md:px-10">
+    <AdminShell activePath="/admin/users" navItems={sidebarItems} subtitle="Quản lý chủ sở hữu">
         <div className="mx-auto max-w-[1600px] space-y-8">
           <header>
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--secondary)]">
@@ -62,7 +48,6 @@ export default async function AdminUsersPage() {
 
           <TenantOwnersClient initialOwners={ownersPage.items} total={ownersPage.total} />
         </div>
-      </main>
-    </div>
+    </AdminShell>
   );
 }

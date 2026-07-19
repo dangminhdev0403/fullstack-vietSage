@@ -1,4 +1,6 @@
 import { getPrimaryAppRole, hasAppRole } from "@/features/auth/utils/auth-role";
+import { getWorkspaceDefinition } from "@/features/workspace/config/workspace-registry";
+import { resolveWorkspacePersona } from "@/features/workspace/utils/workspace-context";
 import { type UserRole } from "@/lib/auth";
 
 export type RoutePolicy = {
@@ -70,6 +72,12 @@ export function getDefaultPathForRole(role: UserRole): `/${string}` {
 }
 
 export function getDefaultPathForRoles(roles: readonly string[] | null | undefined): `/${string}` {
+  const activeRoleCode = roles?.[0];
+  const persona = activeRoleCode ? resolveWorkspacePersona(activeRoleCode) : null;
+  if (persona) {
+    return getWorkspaceDefinition(persona).homePath;
+  }
+
   return getDefaultPathForRole(getPrimaryAppRole(roles));
 }
 
