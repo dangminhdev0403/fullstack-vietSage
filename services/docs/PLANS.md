@@ -1,5 +1,9 @@
 # VietSage Backend Plan
 
+## 2026-07-19 - Staff Scope and CI Stabilization
+
+- [x] Complete: require both an active hotel assignment and an active hotel for scoped staff access; repaired the renamed frontend path, pnpm workflow, Compose CI setup, and backend CI environment/E2E coverage.
+
 ## 2026-07-14 - Batch C Authenticated Request Realtime
 
 - [x] Added disabled-by-default realtime config, scoped owner ticket issuance, and handshake-only owner/guest Socket.IO authentication.

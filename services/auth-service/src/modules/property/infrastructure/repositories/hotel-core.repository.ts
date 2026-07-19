@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import {
+  HotelStatus,
   HotelStaffAssignmentStatus,
   Prisma,
   RoleStatus,
@@ -33,7 +34,10 @@ export class HotelCoreRepository {
           select: { tenantId: true },
         },
         hotelAssignments: {
-          where: { status: HotelStaffAssignmentStatus.ACTIVE },
+          where: {
+            status: HotelStaffAssignmentStatus.ACTIVE,
+            hotel: { status: HotelStatus.ACTIVE },
+          },
           select: { hotelId: true },
         },
       },

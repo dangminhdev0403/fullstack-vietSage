@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - "services/auth-service/**"
-      - "frontends/font-end-vietsage/**"
+      - "frontends/front-end-vietsage/**"
       - "shared/api-contract/**"
       - "docker-compose*.yml"
       - "docker-compose*.yaml"
@@ -15,7 +15,7 @@ on:
       - master
     paths:
       - "services/auth-service/**"
-      - "frontends/font-end-vietsage/**"
+      - "frontends/front-end-vietsage/**"
       - "shared/api-contract/**"
       - "docker-compose*.yml"
       - "docker-compose*.yaml"
@@ -29,7 +29,14 @@ jobs:
       run:
         working-directory: services/auth-service
     env:
-      DATABASE_URL: ${{ secrets.AUTH_SERVICE_DATABASE_URL }}
+      NODE_ENV: test
+      PORT: "8080"
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/vietsage_auth
+      MIGRATION_DATABASE_URL: ${{ secrets.AUTH_SERVICE_DATABASE_URL }}
+      JWT_ACCESS_SECRET: ci-access-secret
+      JWT_REFRESH_SECRET: ci-refresh-secret
+      JWT_ACCESS_TTL: 15m
+      JWT_REFRESH_TTL: 30d
       AUTHZ_ROUTE_SYNC_ENABLED: "false"
       AUTHZ_ENFORCEMENT_ENABLED: "false"
       AUTHZ_STRICT_MODE: "false"
@@ -51,7 +58,9 @@ jobs:
         run: npm run prisma:generate
 
       - name: Prisma migration status
-        if: ${{ env.DATABASE_URL != '' }}
+        if: ${{ env.MIGRATION_DATABASE_URL != '' }}
+        env:
+          DATABASE_URL: ${{ env.MIGRATION_DATABASE_URL }}
         run: npm run prisma:status
 
       - name: Lint
@@ -63,12 +72,15 @@ jobs:
       - name: Test
         run: npm test -- --runInBand
 
+      - name: E2E test
+        run: npm run test:e2e -- --runInBand
+
   frontend:
-    name: Frontend font-end-vietsage
+    name: Frontend front-end-vietsage
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: frontends/font-end-vietsage
+        working-directory: frontends/front-end-vietsage
     env:
       NEXTAUTH_URL: http://localhost:3000
       NEXTAUTH_SECRET: ci-nextauth-secret
@@ -80,21 +92,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: "10"
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
-          cache-dependency-path: frontends/font-end-vietsage/package-lock.json
+          cache: "pnpm"
+          cache-dependency-path: frontends/front-end-vietsage/pnpm-lock.yaml
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Lint
-        run: npm run lint
+        run: pnpm run lint
 
       - name: Build
-        run: npm run build
+        run: pnpm run build
 
   api-contract:
     name: Shared API contract
@@ -117,22 +134,15 @@ jobs:
   compose:
     name: Docker Compose config
     runs-on: ubuntu-latest
-    env:
-      POSTGRES_PASSWORD: ci-postgres-password
-      NEXTAUTH_SECRET: ci-nextauth-secret
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Prepare CI compose env files
-        run: |
-          cp .env.auth-service.docker.example .env.auth-service.docker
-          cp .env.frontend.docker.example .env.frontend.docker
-          cp .env.auth-service.production.example .env.auth-service.production
-          cp .env.frontend.production.example .env.frontend.production
+        run: bash scripts/init-secrets.sh
 
       - name: Validate docker-compose.yml
-        run: docker compose -f docker-compose.yml config
+        run: docker compose -f docker-compose.yml config --quiet
 
       - name: Validate docker-compose.prod.yml
-        run: docker compose -f docker-compose.prod.yml config
+        run: docker compose -f docker-compose.prod.yml config --quiet
