@@ -30,7 +30,10 @@ active UserRole + active Role
 ∩ active Hotel
 ```
 
-`HOTEL_MANAGER` and `HOTEL_FRONTDESK` require an active hotel assignment. `GET /auth/me` returns `accessibleHotels`; it does not return or infer `activeHotelId`. The client must explicitly select hotel context.
+`HOTEL_MANAGER` and `HOTEL_FRONTDESK` require an active hotel assignment. `GET /auth/me`
+returns the session-bound `activeRole`, its capabilities, and `accessibleHotels`; it does not
+return or infer `activeHotelId`. The client must explicitly select hotel context and must not merge
+capabilities from other entries in the compatibility `roles` list.
 
 ## F2 — Reservation to check-in
 

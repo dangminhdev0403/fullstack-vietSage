@@ -84,15 +84,6 @@ function getNumberTokenField(token: unknown, field: string): number | null {
   return typeof value === "number" ? value : null;
 }
 
-function getStringArrayTokenField(token: unknown, field: string): string[] {
-  if (!token || typeof token !== "object" || Array.isArray(token)) {
-    return [];
-  }
-
-  const value = (token as Record<string, unknown>)[field];
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
-}
-
 function buildRefreshSessionRedirect(request: NextRequest): NextResponse {
   const refreshUrl = new URL("/api/auth/refresh-session", request.url);
   const callbackSource = request.nextUrl.clone();
@@ -127,6 +118,7 @@ export const proxy = auth((request) => {
   }
 
   const authError = session ? getStringTokenField(session, "authError") : null;
+  const activeRoleCode = session ? getStringTokenField(session, "activeRoleCode") : null;
   const canRefresh = session?.canRefresh === true;
   const accessTokenExpiresAt = session ? getNumberTokenField(session, "accessTokenExpiresAt") : null;
 
@@ -137,6 +129,11 @@ export const proxy = auth((request) => {
 
   if (isProtectedRoute && !canRefresh) {
     console.info("[AUTH_PROXY_REDIRECT_NOT_REFRESHABLE]", { pathname });
+    return buildLoginRedirect(request);
+  }
+
+  if (isProtectedRoute && !activeRoleCode) {
+    console.info("[AUTH_PROXY_REDIRECT_ACTIVE_ROLE_MISSING]", { pathname });
     return buildLoginRedirect(request);
   }
 
@@ -159,8 +156,8 @@ export const proxy = auth((request) => {
     console.info("[AUTH_PROXY_ALLOW_REFRESHABLE_SESSION]", { pathname });
   }
 
-  if (isAuthRoute && session && !authError && canRefresh) {
-    const redirectUrl = new URL(getDefaultPathForRoles(getStringArrayTokenField(session, "roles")), request.url);
+  if (isAuthRoute && session && !authError && canRefresh && activeRoleCode) {
+    const redirectUrl = new URL(getDefaultPathForRoles([activeRoleCode]), request.url);
 
     return NextResponse.redirect(redirectUrl);
   }

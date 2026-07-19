@@ -30,7 +30,11 @@ export function assertCanAccessOwner(session: Session | null, callbackUrl: `/${s
     redirectOwnerToLogin(callbackUrl, "auth_error");
   }
 
-  if (!hasAppRole(session.user.roles, "tenant_owner")) {
+  if (!session.activeRoleCode) {
+    redirectOwnerToLogin(callbackUrl, "active_role_missing");
+  }
+
+  if (!hasAppRole([session.activeRoleCode], "tenant_owner")) {
     notFound();
   }
 }

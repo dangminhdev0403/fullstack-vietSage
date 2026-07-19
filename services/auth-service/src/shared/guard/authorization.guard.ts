@@ -61,13 +61,14 @@ export class AuthorizationGuard implements CanActivate {
     }
 
     const userId = request.user?.userId;
-    if (!userId) {
+    const roleId = request.user?.roleId;
+    if (!userId || !roleId) {
       this.logger.warn("Authorization failed because no authenticated user was attached", {
         module: "authz",
         service: "AuthorizationGuard",
         operation: "canActivate",
         event: "AUTHORIZATION_FAILURE",
-        reason: "unauthenticated",
+        reason: userId ? "active_role_missing" : "unauthenticated",
         method: request.method,
         path: request.path,
       });
@@ -79,7 +80,7 @@ export class AuthorizationGuard implements CanActivate {
       : undefined;
 
     if (explicitPermissionKey) {
-      return this.authorizeBusinessPermission(request, userId, explicitPermissionKey);
+      return this.authorizeBusinessPermission(request, userId, roleId, explicitPermissionKey);
     }
 
     const permissionKey = resolveRoutePermissionKeyFromRequest(request);
@@ -93,6 +94,7 @@ export class AuthorizationGuard implements CanActivate {
 
     const permissionResult = await this.authorizationService.checkUserRoutePermission(
       userId,
+      roleId,
       permissionKey.method,
       permissionKey.path,
     );
@@ -136,10 +138,12 @@ export class AuthorizationGuard implements CanActivate {
   private async authorizeBusinessPermission(
     request: Request,
     userId: string,
+    roleId: string,
     permissionKey: string,
   ): Promise<boolean> {
     const allowed = await this.authorizationService.checkUserBusinessPermission(
       userId,
+      roleId,
       permissionKey,
     );
     if (allowed) {

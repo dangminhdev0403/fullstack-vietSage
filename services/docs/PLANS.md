@@ -1,5 +1,10 @@
 # VietSage Backend Plan
 
+## 2026-07-19 - Workspace V2 P0 Active Context
+
+- [x] P0-A complete: `GET /auth/me`, route permission checks, and business capability checks now follow the role ID bound to the authenticated session; the contract exposes `activeRole` and never infers an active hotel.
+- [ ] P0-B next: propagate the session role ID through Property/Guest Operations actor context so resource-scope elevation cannot be inherited from another active role before starting the shared WorkspaceShell phase.
+
 ## 2026-07-19 - Staff Scope and CI Stabilization
 
 - [x] Complete: require both an active hotel assignment and an active hotel for scoped staff access; repaired the renamed frontend path, pnpm workflow, Compose CI setup, and backend CI environment/E2E coverage.

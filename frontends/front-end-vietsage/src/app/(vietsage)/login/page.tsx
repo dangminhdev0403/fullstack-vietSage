@@ -108,7 +108,7 @@ function resolveSignInErrorMessage(error: string | undefined): string {
 async function waitForFreshSession() {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const session = await getSession();
-    if (session?.user.roles?.length) {
+    if (session?.activeRoleCode) {
       return session;
     }
 
@@ -326,7 +326,10 @@ export default function LoginPage() {
       }
 
       const session = await waitForFreshSession();
-      const safeRedirectPath = resolveSafeRedirectByRoles(session?.user.roles, callbackUrl);
+      const safeRedirectPath = resolveSafeRedirectByRoles(
+        session?.activeRoleCode ? [session.activeRoleCode] : [],
+        callbackUrl,
+      );
 
       Swal.update({
         icon: "success",

@@ -102,6 +102,16 @@ export const authMeDataSchema = {
       type: "array",
       items: { type: "string" },
     },
+    activeRole: {
+      type: "object",
+      description: "The active role bound to the current authenticated session.",
+      properties: {
+        id: { type: "string" },
+        code: { type: "string" },
+        name: { type: "string" },
+      },
+      required: ["id", "code", "name"],
+    },
     menus: {
       type: "array",
       items: { type: "string" },
@@ -145,6 +155,7 @@ export const authMeDataSchema = {
     "fullName",
     "status",
     "roles",
+    "activeRole",
     "menus",
     "permissions",
     "tenants",

@@ -8,6 +8,7 @@ import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-
 import { assertCanAccessHotelOps, canUseHotelId, requireHotelOpsServerTokens } from "@/features/hotel-ops/utils/hotel-route-auth";
 import { resolveDashboardNavigation, type DashboardNavItem } from "@/lib/frontend-navigation";
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
+import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
 
 type ServicesPageProps = {
   params: Promise<{ hotelId: string }> | { hotelId: string };
@@ -33,8 +34,9 @@ export default async function HotelServicesPage({ params }: ServicesPageProps) {
   const session = await auth();
   assertCanAccessHotelOps(session, callbackUrl);
   const tokens = await requireHotelOpsServerTokens(callbackUrl);
+  const workspaceContext = await loadServerWorkspaceContext(callbackUrl, tokens.accessToken);
 
-  if (!canUseHotelId(session, hotelId)) {
+  if (!canUseHotelId(workspaceContext, hotelId)) {
     notFound();
   }
 

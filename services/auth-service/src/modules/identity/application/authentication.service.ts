@@ -240,12 +240,16 @@ export class AuthService {
     };
   }
 
-  async getMe(userId: string): Promise<{
+  async getMe(
+    userId: string,
+    activeRoleId: string,
+  ): Promise<{
     id: string;
     email: string;
     fullName: string;
     status: UserStatus;
     roles: string[];
+    activeRole: { id: string; code: string; name: string };
     menus: string[];
     permissions: string[];
     tenants: Array<{ id: string; code: string; name: string; status: string }>;
@@ -254,6 +258,11 @@ export class AuthService {
     const user = await this.authRepository.findUserProfileWithRelations(userId);
     if (!user) {
       throw this.unauthorized("AUTH_USER_NOT_FOUND", "User was not found");
+    }
+
+    const activeUserRole = user.userRoles.find((entry) => entry.role.id === activeRoleId);
+    if (!activeUserRole) {
+      throw this.unauthorized("AUTH_ROLE_INACTIVE", "Active session role is no longer available");
     }
 
     const roles = Array.from(new Set(user.userRoles.map((entry) => entry.role.code))).sort();
@@ -272,14 +281,12 @@ export class AuthService {
       .sort(
         (left, right) => left.code.localeCompare(right.code) || left.id.localeCompare(right.id),
       );
-    for (const entry of user.userRoles) {
-      for (const rolePermission of entry.role.rolePermissions) {
-        permissions.add(rolePermission.permission.path);
-        const menuPath =
-          resolveBusinessPermissionMenuPath(rolePermission.permission.path) ??
-          resolvePermissionMenuPath(rolePermission.permission.path);
-        if (menuPath) menus.add(menuPath);
-      }
+    for (const rolePermission of activeUserRole.role.rolePermissions) {
+      permissions.add(rolePermission.permission.path);
+      const menuPath =
+        resolveBusinessPermissionMenuPath(rolePermission.permission.path) ??
+        resolvePermissionMenuPath(rolePermission.permission.path);
+      if (menuPath) menus.add(menuPath);
     }
 
     return {
@@ -288,6 +295,11 @@ export class AuthService {
       fullName: user.fullName,
       status: user.status,
       roles,
+      activeRole: {
+        id: activeUserRole.role.id,
+        code: activeUserRole.role.code,
+        name: activeUserRole.role.name,
+      },
       menus: sortMenuPathsByNavigationOrder(Array.from(menus)),
       permissions: Array.from(permissions).sort(),
       tenants: user.tenantUsers.map((tenantUser) => ({

@@ -408,29 +408,7 @@ function buildFromMenuEntries(
     });
   }
 
-  const menuItems = dedupeByPath(items);
-  if (menuItems.length === 0) {
-    if (userRole === "admin") {
-      return [
-        { key: "/admin/dashboard", href: "/admin/dashboard", label: "Tổng quan", icon: "dashboard" },
-        { key: "/admin/hotels", href: "/admin/hotels", label: "Khách sạn", icon: "hotel" },
-        { key: "/admin/users", href: "/admin/users", label: "Quản lý chủ sở hữu", icon: "group" },
-        { key: "/admin/roles", href: "/admin/roles", label: "Phân quyền", icon: "verified_user" },
-      ];
-    }
-
-    if (userRole === "tenant_owner") {
-      return [
-        { key: "/owner/dashboard", href: "/owner/dashboard", label: "Tổng quan", icon: "dashboard" },
-        { key: "/owner/hotels", href: "/owner/hotels", label: "Khách sạn", icon: "hotel" },
-        { key: "/owner/rooms", href: "/owner/rooms", label: "Phòng", icon: "bed" },
-      ];
-    }
-
-    return [];
-  }
-
-  return menuItems;
+  return dedupeByPath(items);
 }
 
 async function fetchRoleMenusForNavigation(options: {

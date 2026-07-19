@@ -12,6 +12,7 @@ export type UserRole = "admin" | "tenant_owner" | "staff" | "guest";
 type AuthorizedUser = {
   id: string;
   roles: string[];
+  activeRoleCode: string;
   accessToken: string;
   refreshToken: string;
   accessTokenExpiresAt: number;
@@ -42,6 +43,10 @@ function toMinimalJwtToken(token: JWT): JWT {
 
   if (Array.isArray(token.roles)) {
     minimalToken.roles = token.roles;
+  }
+
+  if (typeof token.activeRoleCode === "string") {
+    minimalToken.activeRoleCode = token.activeRoleCode;
   }
 
   if (typeof token.accessToken === "string") {
@@ -123,6 +128,7 @@ export const authOptions = {
           const user: AuthorizedUser = {
             id: result.identity.id,
             roles: result.identity.roles,
+            activeRoleCode: result.identity.activeRole.code,
             accessToken: result.tokens.accessToken,
             refreshToken: result.tokens.refreshToken,
             accessTokenExpiresAt: result.tokens.accessTokenExpiresAt,
@@ -150,6 +156,7 @@ export const authOptions = {
         token.sub = authorizedUser.id;
         token.userId = authorizedUser.id;
         token.roles = authorizedUser.roles;
+        token.activeRoleCode = authorizedUser.activeRoleCode;
         token.accessToken = authorizedUser.accessToken;
         token.refreshToken = authorizedUser.refreshToken;
         token.accessTokenExpiresAt = authorizedUser.accessTokenExpiresAt;
@@ -179,6 +186,8 @@ export const authOptions = {
         typeof token.accessTokenExpiresAt === "number"
           ? token.accessTokenExpiresAt
           : null;
+      session.activeRoleCode =
+        typeof token.activeRoleCode === "string" ? token.activeRoleCode : null;
       session.authError =
         typeof token.authError === "string" ? token.authError : null;
       session.canRefresh =

@@ -1,8 +1,9 @@
 import { auth } from "@/auth";
 import { type ReactNode } from "react";
 
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { AuthRefreshGate } from "../_components/auth-refresh-gate";
+import { hasAppRole } from "@/lib/rbac";
 import { requireRefreshableServerSession } from "@/lib/server-session-tokens";
 
 
@@ -25,6 +26,14 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
   if (session.authError) {
     redirectToLogin("auth_error");
+  }
+
+  if (!session.activeRoleCode) {
+    redirectToLogin("active_role_missing");
+  }
+
+  if (!hasAppRole([session.activeRoleCode], "admin")) {
+    notFound();
   }
 
   await requireRefreshableServerSession("/admin/dashboard", "admin-layout");

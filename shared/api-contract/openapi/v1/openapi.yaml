@@ -339,6 +339,20 @@ paths:
                         type: array
                         items:
                           type: string
+                      activeRole:
+                        type: object
+                        description: The active role bound to the current authenticated session.
+                        properties:
+                          id:
+                            type: string
+                          code:
+                            type: string
+                          name:
+                            type: string
+                        required:
+                          - id
+                          - code
+                          - name
                       menus:
                         type: array
                         items:
@@ -391,6 +405,7 @@ paths:
                       - fullName
                       - status
                       - roles
+                      - activeRole
                       - menus
                       - permissions
                       - tenants
@@ -1872,7 +1887,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: &a5
+      tags: &a4
         - hotel-users
     get:
       operationId: HotelUsersController_listHotelUsers
@@ -1892,7 +1907,7 @@ paths:
           required: false
           in: query
           schema:
-            enum: &a4
+            enum:
               - ACTIVE
               - INVITED
               - DISABLED
@@ -1960,7 +1975,10 @@ paths:
                                 - DISABLED
                             tenantStatus:
                               type: string
-                              enum: *a4
+                              enum:
+                                - ACTIVE
+                                - INVITED
+                                - DISABLED
                             tenantId:
                               type: string
                             joinedAt:
@@ -2009,7 +2027,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a5
+      tags: *a4
   /hotel-users/{id}:
     get:
       operationId: HotelUsersController_getHotelUser
@@ -2114,7 +2132,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a5
+      tags: *a4
   /hotel-users/{id}/status:
     patch:
       operationId: HotelUsersController_updateHotelUserStatus
@@ -2233,7 +2251,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a5
+      tags: *a4
   /hotel-users/{id}/roles:
     post:
       operationId: HotelUsersController_assignHotelUserRoles
@@ -2354,7 +2372,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a5
+      tags: *a4
   /hotel-users/{id}/roles/{roleId}:
     delete:
       operationId: HotelUsersController_revokeHotelUserRole
@@ -2419,7 +2437,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a5
+      tags: *a4
   /tenant-owners:
     get:
       operationId: TenantOwnersController_listTenantOwners
@@ -2608,7 +2626,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: &a6
+      tags: &a5
         - tenant-owners
     post:
       operationId: TenantOwnersController_createTenantOwner
@@ -2781,7 +2799,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a6
+      tags: *a5
   /tenant-owners/{id}:
     get:
       operationId: TenantOwnersController_getTenantOwner
@@ -2921,7 +2939,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a6
+      tags: *a5
     patch:
       operationId: TenantOwnersController_updateTenantOwner
       parameters:
@@ -3093,7 +3111,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a6
+      tags: *a5
   /hotels:
     post:
       operationId: HotelsController_createHotel
@@ -3209,7 +3227,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: &a7
+      tags: &a6
         - hotels
     get:
       operationId: HotelsController_listHotels
@@ -3337,7 +3355,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a7
+      tags: *a6
   /hotels/{hotelId}:
     get:
       operationId: HotelsController_getHotel
@@ -3429,7 +3447,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a7
+      tags: *a6
     patch:
       operationId: HotelsController_updateHotel
       parameters:
@@ -3545,7 +3563,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a7
+      tags: *a6
   /hotels/{hotelId}/rooms:
     post:
       operationId: HotelRoomsController_createRoom
@@ -3564,7 +3582,7 @@ paths:
       responses:
         "201":
           description: Đã tạo phòng
-      tags: &a8
+      tags: &a7
         - hotel-rooms
     get:
       operationId: HotelRoomsController_listRooms
@@ -3597,7 +3615,7 @@ paths:
       responses:
         "200":
           description: Đã lấy danh sách phòng
-      tags: *a8
+      tags: *a7
   /hotels/{hotelId}/rooms/bulk:
     post:
       operationId: HotelRoomsController_createRooms
@@ -3616,7 +3634,7 @@ paths:
       responses:
         "201":
           description: Đã tạo danh sách phòng
-      tags: *a8
+      tags: *a7
   /hotels/{hotelId}/rooms/{roomId}:
     patch:
       operationId: HotelRoomsController_updateRoom
@@ -3640,7 +3658,7 @@ paths:
       responses:
         "200":
           description: Đã cập nhật phòng
-      tags: *a8
+      tags: *a7
   /hotels/{hotelId}/stays:
     post:
       operationId: HotelRoomsController_createStay
@@ -3659,7 +3677,7 @@ paths:
       responses:
         "201":
           description: Đã tạo lượt lưu trú
-      tags: *a8
+      tags: *a7
   /hotels/{hotelId}/stays/check-in:
     post:
       operationId: HotelRoomsController_createAndCheckInStay
@@ -3678,7 +3696,7 @@ paths:
       responses:
         "201":
           description: Đã tạo và check-in lượt lưu trú
-      tags: *a8
+      tags: *a7
   /hotels/{hotelId}/stays/{stayId}/check-in:
     post:
       operationId: HotelRoomsController_checkInStay
@@ -3696,7 +3714,7 @@ paths:
       responses:
         "200":
           description: Đã check-in lượt lưu trú
-      tags: *a8
+      tags: *a7
   /hotels/{hotelId}/stays/{stayId}/check-out:
     post:
       operationId: HotelRoomsController_checkOutStay
@@ -3720,7 +3738,7 @@ paths:
       responses:
         "200":
           description: Đã check-out lượt lưu trú
-      tags: *a8
+      tags: *a7
   /hotels/{hotelId}/rooms/{roomId}/qr/rotate:
     post:
       operationId: HotelRoomsController_rotateQr
@@ -3744,7 +3762,7 @@ paths:
       responses:
         "200":
           description: Đã xoay mã QR phòng
-      tags: *a8
+      tags: *a7
   /hotels/{hotelId}/rooms/{roomId}/qr/activate:
     post:
       operationId: HotelRoomsController_activateQr
@@ -3762,7 +3780,7 @@ paths:
       responses:
         "200":
           description: Đã kích hoạt mã QR phòng
-      tags: *a8
+      tags: *a7
   /hotels/{hotelId}/rooms/{roomId}/qr/deactivate:
     post:
       operationId: HotelRoomsController_deactivateQr
@@ -3786,7 +3804,7 @@ paths:
       responses:
         "200":
           description: Đã hủy kích hoạt mã QR phòng
-      tags: *a8
+      tags: *a7
   /hotels/{hotelId}/service-catalog/sync:
     post:
       operationId: HotelServicesController_syncServiceCatalogFromGoogleSheets
@@ -3799,7 +3817,7 @@ paths:
       responses:
         "200":
           description: Đã đồng bộ Google Sheets
-      tags: &a9
+      tags: &a8
         - hotel-services
   /hotels/{hotelId}/service-categories:
     get:
@@ -3813,7 +3831,7 @@ paths:
       responses:
         "200":
           description: Đã lấy danh mục dịch vụ
-      tags: *a9
+      tags: *a8
     post:
       operationId: HotelServicesController_createServiceCategory
       parameters:
@@ -3831,7 +3849,7 @@ paths:
       responses:
         "201":
           description: Đã tạo danh mục dịch vụ
-      tags: *a9
+      tags: *a8
   /hotels/{hotelId}/service-categories/{categoryId}:
     patch:
       operationId: HotelServicesController_updateServiceCategory
@@ -3855,7 +3873,7 @@ paths:
       responses:
         "200":
           description: Đã cập nhật danh mục dịch vụ
-      tags: *a9
+      tags: *a8
   /hotels/{hotelId}/service-items:
     get:
       operationId: HotelServicesController_listServiceItems
@@ -3999,7 +4017,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a9
+      tags: *a8
     post:
       operationId: HotelServicesController_createServiceItem
       parameters:
@@ -4029,15 +4047,15 @@ paths:
                 priceOverride:
                   type: number
                   minimum: 0
-                quantityEnabled: &a10
+                quantityEnabled:
                   type: boolean
                   description: When true, guests must submit quantity within
                     minQuantity/maxQuantity.
-                minQuantity: &a11
+                minQuantity:
                   type: integer
                   minimum: 1
                   description: Minimum guest-selectable quantity when quantityEnabled is true.
-                maxQuantity: &a12
+                maxQuantity:
                   type: integer
                   minimum: 1
                   nullable: true
@@ -4098,9 +4116,20 @@ paths:
                       effectiveCurrency:
                         type: string
                         example: VND
-                      quantityEnabled: *a10
-                      minQuantity: *a11
-                      maxQuantity: *a12
+                      quantityEnabled:
+                        type: boolean
+                        description: When true, guests must submit quantity within
+                          minQuantity/maxQuantity.
+                      minQuantity:
+                        type: integer
+                        minimum: 1
+                        description: Minimum guest-selectable quantity when quantityEnabled is true.
+                      maxQuantity:
+                        type: integer
+                        minimum: 1
+                        nullable: true
+                        description: Maximum guest-selectable quantity when quantityEnabled is true.
+                          Null means no cap.
                       metadata:
                         type: object
                         additionalProperties: true
@@ -4164,7 +4193,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a9
+      tags: *a8
   /hotels/{hotelId}/service-items/{itemId}:
     patch:
       operationId: HotelServicesController_updateServiceItem
@@ -4202,15 +4231,15 @@ paths:
                   type: number
                   minimum: 0
                   nullable: true
-                quantityEnabled: &a13
+                quantityEnabled:
                   type: boolean
                   description: When true, guests must submit quantity within
                     minQuantity/maxQuantity.
-                minQuantity: &a14
+                minQuantity:
                   type: integer
                   minimum: 1
                   description: Minimum guest-selectable quantity when quantityEnabled is true.
-                maxQuantity: &a15
+                maxQuantity:
                   type: integer
                   minimum: 1
                   nullable: true
@@ -4270,9 +4299,20 @@ paths:
                       effectiveCurrency:
                         type: string
                         example: VND
-                      quantityEnabled: *a13
-                      minQuantity: *a14
-                      maxQuantity: *a15
+                      quantityEnabled:
+                        type: boolean
+                        description: When true, guests must submit quantity within
+                          minQuantity/maxQuantity.
+                      minQuantity:
+                        type: integer
+                        minimum: 1
+                        description: Minimum guest-selectable quantity when quantityEnabled is true.
+                      maxQuantity:
+                        type: integer
+                        minimum: 1
+                        nullable: true
+                        description: Maximum guest-selectable quantity when quantityEnabled is true.
+                          Null means no cap.
                       metadata:
                         type: object
                         additionalProperties: true
@@ -4336,7 +4376,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a9
+      tags: *a8
   /hotels/{hotelId}/dashboard:
     get:
       operationId: HotelDashboardController_getDashboard
@@ -4421,7 +4461,7 @@ paths:
                   plannedCheckOutAt:
                     type: string
                     format: date-time
-      tags: &a16
+      tags: &a9
         - hotel-reservations
   /hotels/{hotelId}/arrivals:
     get:
@@ -4508,7 +4548,7 @@ paths:
                         plannedCheckOutAt:
                           type: string
                           format: date-time
-      tags: *a16
+      tags: *a9
   /hotels/{hotelId}/reservations/{reservationId}/room:
     put:
       operationId: ReservationsController_assignRoom
@@ -4574,7 +4614,7 @@ paths:
                   plannedCheckOutAt:
                     type: string
                     format: date-time
-      tags: *a16
+      tags: *a9
   /hotels/{hotelId}/reservations/{reservationId}/check-in:
     post:
       operationId: ReservationsController_checkIn
@@ -4660,7 +4700,7 @@ paths:
                         type: string
                         enum:
                           - ACTIVE
-      tags: *a16
+      tags: *a9
   /hotels/{hotelId}/folios:
     get:
       operationId: FolioController_listFolios
@@ -4681,7 +4721,7 @@ paths:
       responses:
         "200":
           description: Danh sách folio
-      tags: &a17
+      tags: &a10
         - billing-folios
   /hotels/{hotelId}/stays/{stayId}/active-folio:
     get:
@@ -4700,7 +4740,7 @@ paths:
       responses:
         "200":
           description: Folio đang mở
-      tags: *a17
+      tags: *a10
   /hotels/{hotelId}/folios/{folioId}/summary:
     get:
       operationId: FolioController_getFolioSummary
@@ -4718,7 +4758,7 @@ paths:
       responses:
         "200":
           description: Tổng quan folio
-      tags: *a17
+      tags: *a10
   /hotels/{hotelId}/folios/{folioId}/checkout/issue-invoice:
     post:
       operationId: FolioController_issueInvoice
@@ -4736,7 +4776,7 @@ paths:
       responses:
         "200":
           description: Invoice đã phát hành
-      tags: *a17
+      tags: *a10
   /hotels/{hotelId}/folios/{folioId}/items:
     get:
       operationId: FolioController_listFolioItems
@@ -4754,7 +4794,7 @@ paths:
       responses:
         "200":
           description: Danh sách FolioItem
-      tags: *a17
+      tags: *a10
   /hotels/{hotelId}/folios/{folioId}:
     get:
       operationId: FolioController_getFolioDetail
@@ -4772,7 +4812,7 @@ paths:
       responses:
         "200":
           description: Chi tiết folio
-      tags: *a17
+      tags: *a10
   /hotels/{hotelId}/invoices/{invoiceId}:
     get:
       operationId: InvoiceController_getInvoiceDetail
@@ -4815,7 +4855,7 @@ paths:
       responses:
         "200":
           description: Payment pending/session
-      tags: &a18
+      tags: &a11
         - billing-payments
   /hotels/{hotelId}/payments/{paymentId}/status:
     get:
@@ -4834,7 +4874,7 @@ paths:
       responses:
         "200":
           description: Payment status
-      tags: *a18
+      tags: *a11
   /payments/webhook/{provider}:
     post:
       operationId: PaymentController_processWebhook
@@ -4865,7 +4905,7 @@ paths:
       responses:
         "200":
           description: Webhook đã xử lý
-      tags: *a18
+      tags: *a11
   /guest/qr/scan:
     post:
       operationId: GuestOsController_scanQr
@@ -4901,7 +4941,7 @@ paths:
       responses:
         "201":
           description: Đã chấp nhận quét QR của khách
-      tags: &a19
+      tags: &a12
         - guest-os
   /guest/session/me:
     get:
@@ -4910,7 +4950,7 @@ paths:
       responses:
         "200":
           description: Đã lấy phiên khách
-      tags: *a19
+      tags: *a12
   /guest/services:
     get:
       operationId: GuestOsController_listServices
@@ -5063,7 +5103,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a19
+      tags: *a12
   /guest/service-categories/{categoryId}/services:
     get:
       operationId: GuestOsController_listCategoryServices
@@ -5166,7 +5206,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a19
+      tags: *a12
   /guest/requests:
     post:
       operationId: GuestOsController_createRequest
@@ -5279,7 +5319,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a19
+      tags: *a12
     get:
       operationId: GuestOsController_listRequests
       parameters: []
@@ -5396,7 +5436,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a19
+      tags: *a12
   /guest/requests/{requestId}/cancel:
     patch:
       operationId: GuestOsController_cancelRequest
@@ -5482,7 +5522,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a19
+      tags: *a12
   /guest/session/close:
     post:
       operationId: GuestOsController_closeSession
@@ -5490,7 +5530,7 @@ paths:
       responses:
         "200":
           description: Đã đóng phiên khách
-      tags: *a19
+      tags: *a12
   /hotels/{hotelId}/requests:
     get:
       operationId: HotelRequestsController_listRequests
@@ -5511,7 +5551,7 @@ paths:
       responses:
         "200":
           description: Đã lấy danh sách yêu cầu của khách
-      tags: &a20
+      tags: &a13
         - hotel-requests
   /hotels/{hotelId}/requests/summary:
     get:
@@ -5525,7 +5565,7 @@ paths:
       responses:
         "200":
           description: Guest request summary
-      tags: *a20
+      tags: *a13
   /hotels/{hotelId}/requests/{requestId}:
     get:
       operationId: HotelRequestsController_getRequestDetail
@@ -5543,7 +5583,7 @@ paths:
       responses:
         "200":
           description: Đã lấy yêu cầu của khách
-      tags: *a20
+      tags: *a13
   /hotels/{hotelId}/requests/{requestId}/status:
     patch:
       operationId: HotelRequestsController_updateRequestStatus
@@ -5567,7 +5607,7 @@ paths:
       responses:
         "200":
           description: Đã cập nhật yêu cầu của khách
-      tags: *a20
+      tags: *a13
   /hotels/{hotelId}/requests/{requestId}/assignment:
     patch:
       operationId: HotelRequestsController_updateRequestAssignment
@@ -5591,7 +5631,7 @@ paths:
       responses:
         "200":
           description: Đã cập nhật phân công yêu cầu của khách
-      tags: *a20
+      tags: *a13
   /hotels/{hotelId}/requests/{requestId}/events:
     post:
       operationId: HotelRequestsController_createRequestEvent
@@ -5615,7 +5655,7 @@ paths:
       responses:
         "201":
           description: Đã tạo sự kiện yêu cầu của khách
-      tags: *a20
+      tags: *a13
   /integrations/telegram/webhook:
     post:
       operationId: TelegramWebhookController_handleWebhook
@@ -5643,7 +5683,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: &a21
+      tags: &a14
         - hotel-notification-routes
     post:
       operationId: HotelNotificationRoutesController_create
@@ -5656,7 +5696,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a21
+      tags: *a14
   /hotels/{hotelId}/notification-routes/{routeId}:
     patch:
       operationId: HotelNotificationRoutesController_update
@@ -5674,7 +5714,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a21
+      tags: *a14
   /emergency/guest/calls:
     post:
       operationId: EmergencyController_createGuestEmergencyCall

@@ -74,10 +74,19 @@ services/auth-service/src/shared/decorators/require-permission.decorator.ts
 1. Public routes bypass authorization.
 2. If authorization enforcement is disabled, allow only for configured non-production migration mode.
 3. Require authenticated user.
-4. If `@RequirePermission(...)` exists, check business permission.
+4. If `@RequirePermission(...)` exists, check business permission within the role ID bound to the
+   authenticated session; never aggregate grants from the user's other active roles.
 5. Otherwise fall back to old route-based permission only during the bridge phase.
 
 Production target is fail-closed.
+
+### Active workspace context
+
+Each authenticated session is bound to one active role ID. `GET /auth/me` exposes that role as
+`activeRole`; its `menus` and `permissions` are calculated only from that role. The compatibility
+`roles` array may list other active assignments, but clients must not merge their capabilities into
+the current workspace. Hotel scope remains explicit through `accessibleHotels`; the API does not
+select or infer an active hotel.
 
 ## Bridge storage strategy
 

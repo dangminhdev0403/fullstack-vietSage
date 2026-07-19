@@ -409,12 +409,18 @@ export class AuthRepository {
     });
   }
 
-  async countUserWithRoutePermission(userId: string, method: HttpMethod, path: string) {
+  async countUserWithRoutePermission(
+    userId: string,
+    roleId: string,
+    method: HttpMethod,
+    path: string,
+  ) {
     return this.prisma.user.count({
       where: {
         id: userId,
         userRoles: {
           some: {
+            roleId,
             status: UserRoleStatus.ACTIVE,
             role: {
               status: RoleStatus.ACTIVE,
@@ -442,12 +448,13 @@ export class AuthRepository {
     });
   }
 
-  async countUserWithBusinessPermission(userId: string, permissionKey: string) {
+  async countUserWithBusinessPermission(userId: string, roleId: string, permissionKey: string) {
     return this.prisma.user.count({
       where: {
         id: userId,
         userRoles: {
           some: {
+            roleId,
             status: UserRoleStatus.ACTIVE,
             role: {
               status: RoleStatus.ACTIVE,

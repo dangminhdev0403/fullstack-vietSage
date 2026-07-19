@@ -48,7 +48,7 @@ async function getOwnerAuthTokens(): Promise<OwnerAuthTokens | NextResponse> {
     );
   }
 
-  if (!hasAppRole(session.user.roles, "tenant_owner")) {
+  if (!session.activeRoleCode || !hasAppRole([session.activeRoleCode], "tenant_owner")) {
     return NextResponse.json(
       { status: 403, message: "FORBIDDEN", data: { detail: "Không có quyền truy cập." } },
       { status: 403 },
