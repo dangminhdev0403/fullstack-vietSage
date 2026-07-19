@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { VsIcon } from "../../_components/vs-icon";
 import {
   buildWorkspaceNavigation,
+  getWorkspaceDashboardWidgets,
 } from "@/features/workspace/config/workspace-registry";
 import { resolveWorkspacePersona } from "@/features/workspace/utils/workspace-context";
 import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
@@ -14,24 +15,6 @@ type DashboardPageProps = {
     | Promise<Record<string, string | string[] | undefined>>
     | Record<string, string | string[] | undefined>;
 };
-
-const platformModules = {
-  "/admin/hotels": {
-    title: "Danh mục khách sạn",
-    description: "Quản lý khách sạn trên toàn nền tảng mà không trộn công việc vận hành hằng ngày.",
-    icon: "hotel",
-  },
-  "/admin/users": {
-    title: "Chủ sở hữu & tenant",
-    description: "Quản lý tài khoản chủ sở hữu và phạm vi tổ chức.",
-    icon: "group",
-  },
-  "/admin/roles": {
-    title: "Vai trò & quyền hạn",
-    description: "Quản trị role template, capability và chính sách truy cập.",
-    icon: "verified_user",
-  },
-} as const;
 
 export default async function AdminDashboardPage({ searchParams }: DashboardPageProps) {
   const resolvedSearchParams = await Promise.resolve(searchParams ?? {});
@@ -52,7 +35,10 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
     persona,
     permissions: context.permissions,
   });
-  const availableModules = navItems.filter((item) => item.href !== callbackUrl);
+  const availableModules = getWorkspaceDashboardWidgets({
+    persona,
+    permissions: context.permissions,
+  });
 
   return (
     <AdminShell
@@ -91,21 +77,19 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
 
         {availableModules.length > 0 ? (
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {availableModules.map((item) => {
-              const moduleDefinition = platformModules[item.href as keyof typeof platformModules];
-              if (!moduleDefinition) return null;
-
+            {availableModules.map((widget) => {
+              if (!widget.href) return null;
               return (
                 <Link
-                  key={item.key}
-                  href={item.href}
+                  key={widget.key}
+                  href={widget.href}
                   className="group rounded-[1.75rem] border border-[#24473d]/10 bg-white/85 p-6 shadow-[0_18px_50px_rgba(31,61,53,0.08)] transition-transform hover:-translate-y-1"
                 >
                   <span className="grid size-12 place-items-center rounded-2xl bg-[#e6efe9] text-[#24473d]">
-                    <VsIcon name={moduleDefinition.icon} className="text-2xl" />
+                    <VsIcon name={widget.icon} className="text-2xl" />
                   </span>
-                  <h3 className="mt-5 text-xl font-bold text-[#17201b]">{moduleDefinition.title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-[#6d756e]">{moduleDefinition.description}</p>
+                  <h3 className="mt-5 text-xl font-bold text-[#17201b]">{widget.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-[#6d756e]">{widget.description}</p>
                   <span className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-[#bf7836]">
                     Mở module
                     <VsIcon name="arrow_forward" className="transition-transform group-hover:translate-x-1" />

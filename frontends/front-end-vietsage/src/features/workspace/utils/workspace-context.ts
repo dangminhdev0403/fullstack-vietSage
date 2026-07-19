@@ -2,15 +2,11 @@ import type {
   AuthAccessibleHotel,
   AuthActiveRole,
 } from "@/features/auth/types/auth-contract";
+// @ts-expect-error Node's strip-types runner requires the explicit TypeScript extension.
+import { resolveWorkspacePersona as resolvePersonaFromRegistry } from "../config/workspace-registry.ts";
+import type { WorkspacePersona } from "../types/workspace-registry";
 
-export type WorkspacePersona =
-  | "platform_admin"
-  | "owner"
-  | "manager"
-  | "front_desk"
-  | "housekeeping"
-  | "maintenance"
-  | "finance";
+export type { WorkspacePersona } from "../types/workspace-registry";
 
 export type WorkspaceContext = {
   activeRole: AuthActiveRole;
@@ -23,42 +19,8 @@ const PLATFORM_HOTEL_CAPABILITIES = new Set([
   "platform.hotels.manage",
 ]);
 
-function normalizeRoleCode(roleCode: string): string {
-  return roleCode.trim().toUpperCase();
-}
-
 export function resolveWorkspacePersona(roleCode: string): WorkspacePersona | null {
-  const normalized = normalizeRoleCode(roleCode);
-
-  if (normalized === "SUPER_ADMIN" || normalized === "ADMIN") {
-    return "platform_admin";
-  }
-
-  if (normalized === "TENANT_OWNER" || normalized === "HOTEL_OWNER") {
-    return "owner";
-  }
-
-  if (normalized === "HOTEL_MANAGER") {
-    return "manager";
-  }
-
-  if (normalized === "HOTEL_FRONTDESK" || normalized === "RECEPTIONIST") {
-    return "front_desk";
-  }
-
-  if (normalized === "HOUSEKEEPING" || normalized === "HOTEL_HOUSEKEEPING") {
-    return "housekeeping";
-  }
-
-  if (normalized === "MAINTENANCE" || normalized === "HOTEL_MAINTENANCE") {
-    return "maintenance";
-  }
-
-  if (normalized === "FINANCE" || normalized === "HOTEL_FINANCE") {
-    return "finance";
-  }
-
-  return null;
+  return resolvePersonaFromRegistry(roleCode);
 }
 
 export function hasWorkspaceCapability(
