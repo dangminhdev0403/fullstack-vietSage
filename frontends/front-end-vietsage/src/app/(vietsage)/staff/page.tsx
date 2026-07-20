@@ -2,8 +2,8 @@ import { auth } from "@/auth";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { VsIcon } from "../_components/vs-icon";
-import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
-import type { StaffRequestListItem, StaffRequestSummaryResponse } from "@/features/hotel-ops/types/hotel-ops-contract";
+import { loadStaffDashboardData } from "@/features/hotel-ops/service/staff-dashboard-loader";
+import type { StaffRequestSummaryResponse } from "@/features/hotel-ops/types/hotel-ops-contract";
 import {
   formatOpsDateTime,
   priorityTone,
@@ -23,7 +23,6 @@ import {
   getWorkspaceDefinition,
   getWorkspaceDashboardWidgets,
 } from "@/features/workspace/config/workspace-registry";
-import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
 import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
 
 export const dynamic = "force-dynamic";
@@ -96,33 +95,19 @@ export async function StaffWorkspacePage({
     widgetKeys.has("requests.new") ||
     widgetKeys.has("requests.feed");
 
-  let requests: StaffRequestListItem[] = [];
-  let requestSummary: StaffRequestSummaryResponse | null = null;
-  let totalRequests = 0;
-  let totalCategories = 0;
-  let totalItems = 0;
-
-  if (session && hotelId) {
-    const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
-    if (canViewRequests) {
-      const [requestsPage, summaryPayload] = await Promise.all([
-        authorizedApi("list staff requests", (accessToken) => hotelOpsService.listRequests(hotelId, { query: { page: 1, limit: 8 }, accessToken })),
-        authorizedApi("summarize staff requests", (accessToken) => hotelOpsService.getRequestsSummary(hotelId, { accessToken })),
-      ]);
-
-      requests = requestsPage.items;
-      requestSummary = summaryPayload;
-      totalRequests = requestsPage.total;
-    }
-    if (canManageServices) {
-      const [categoriesPage, itemsPage] = await Promise.all([
-        authorizedApi("list staff service categories", (accessToken) => hotelOpsService.listServiceCategories(hotelId, { query: { page: 1, limit: 1 }, accessToken })),
-        authorizedApi("list staff service items", (accessToken) => hotelOpsService.listServiceItems(hotelId, { query: { page: 1, limit: 1 }, accessToken })),
-      ]);
-      totalCategories = categoriesPage.total;
-      totalItems = itemsPage.total;
-    }
-  }
+  const {
+    requests,
+    requestSummary,
+    totalRequests,
+    totalCategories,
+    totalItems,
+  } = await loadStaffDashboardData({
+    session,
+    hotelId,
+    callbackUrl,
+    includeRequests: canViewRequests,
+    includeServices: canManageServices,
+  });
 
   return (
     <WorkspaceShell

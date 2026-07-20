@@ -29,7 +29,8 @@ Inside this core API, boundaries are enforced at the **module/context** level fi
 | Owner context | Public export | Consumers | Reason |
 | --- | --- | --- | --- |
 | Property / Hotels | `HotelAccessService` | Billing and other resource-scoped modules | Validates actor access to hotel/tenant without exposing hotel repositories. |
-| Identity & Access | `AuthorizationService`, `AuthService` temporarily | Global guards/strategies/controllers | To be split into authentication/session/access-control ports in later phases. |
+| Identity & Access | `AuthorizationService`, `AuthService`, route-permission helpers, `JwtAuthGuard` via `identity-public.ts` | Global guards/strategies/controllers | Keeps security consumers off Identity domain/infrastructure paths. |
+| Codes | `CodesService` via `codes-public.ts` | Organization, Property, Billing | Generates entity codes without exposing the repository. |
 
 ## Repository export policy
 
@@ -46,3 +47,20 @@ BillingService -> Prisma hotel query direct # avoid unless it owns that data
 ## Future service extraction
 
 Extraction requires stable ownership and operational need. See `SERVICE_EVOLUTION.md`.
+
+## Boundary verification
+
+Run the executable boundary check before merging a module/service refactor:
+
+```bash
+cd services/auth-service
+node scripts/check-service-boundaries.mjs
+```
+
+The check scans production source files and fails when one context imports another context's
+private path or when a Nest module exports a repository. Cross-context consumers must use
+`<context>-public.ts`; Nest composition may import `<context>.module.ts`.
+
+Frontend route pages should delegate multi-endpoint orchestration to a feature-owned loader or
+query. For example, the Staff workspace selects widgets and hotel scope, while Hotel Operations
+owns loading request and service dashboard data.

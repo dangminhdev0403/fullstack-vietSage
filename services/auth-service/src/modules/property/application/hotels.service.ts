@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { HotelStatus, Prisma } from "@prisma/client";
 import { AppLogger } from "../../../common/logging/app-logger.service";
-import { CodesService } from "../../codes/codes.service";
+import { CodesService } from "../../codes/codes-public";
 import { HotelAccessService } from "./hotel-access.service";
 import { HotelCoreRepository } from "../infrastructure/repositories/hotel-core.repository";
 import type { HotelDetailRow } from "../infrastructure/repositories/hotel-repository.types";

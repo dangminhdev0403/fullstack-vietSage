@@ -5,7 +5,7 @@ import {
   generateOpaqueToken,
   hashOpaqueToken,
 } from "../../../common/security/token-hash.util";
-import { CodesService } from "../../codes/codes.service";
+import { CodesService } from "../../codes/codes-public";
 import type {
   AssignReservationRoomBodyInput,
   CreateReservationBodyInput,

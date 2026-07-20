@@ -11,7 +11,7 @@ import {
   hashOpaqueToken,
 } from "../../../common/security/token-hash.util";
 import { AppLogger } from "../../../common/logging/app-logger.service";
-import { CodesService } from "../../codes/codes.service";
+import { CodesService } from "../../codes/codes-public";
 import { HotelAccessService } from "./hotel-access.service";
 import { HotelRoomsRepository } from "../infrastructure/repositories/hotel-rooms.repository";
 import type { RoomListRow } from "../infrastructure/repositories/hotel-repository.types";

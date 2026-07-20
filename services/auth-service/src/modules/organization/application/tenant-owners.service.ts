@@ -6,7 +6,7 @@ import {
 } from "@nestjs/common";
 import { Prisma, TenantUserStatus, UserStatus, UserType } from "@prisma/client";
 import * as argon2 from "argon2";
-import { CodesService } from "../../codes/codes.service";
+import { CodesService } from "../../codes/codes-public";
 import {
   TenantOwnerRoleNotConfiguredError,
   TenantOwnersRepository,

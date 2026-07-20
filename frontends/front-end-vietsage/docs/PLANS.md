@@ -1,4 +1,24 @@
-﻿## [complete] 2026-07-20 - Mission: workspace-v2-dashboard-registry (P2)
+﻿## [complete] 2026-07-20 - Mission: workspace-v2-service-boundaries (P3)
+
+- Moved Staff dashboard request/service orchestration out of the App Router page into a
+  Hotel Operations server loader.
+- Kept Workspace responsible for persona, capability, widget, and hotel-scope decisions while
+  Hotel Operations owns endpoint orchestration and dashboard data mapping.
+- Preserved existing routes, API contracts, authorization behavior, and UI output.
+- Aligned the frontend boundary guide with the backend public-port rules used by P3.
+
+Verification result:
+
+- Workspace/auth Node tests passed (10 tests).
+- `pnpm exec tsc --noEmit --pretty false` and `pnpm run lint` passed.
+- `pnpm run build` passed and emitted all 34 pages.
+- Auth session contract and refresh smoke harnesses passed.
+
+Remaining manual checkpoint:
+
+- Pull the final branch locally and run the authenticated role matrix described in the handoff.
+
+## [complete] 2026-07-20 - Mission: workspace-v2-dashboard-registry (P2)
 
 - Promoted the P1 workspace configuration into an immutable dashboard registry with typed role aliases, navigation entries, and dashboard widgets.
 - Added `createWorkspaceRegistry(extensions)` as the controlled extension point for new role aliases, navigation, and widgets without editing page-level condition trees.
