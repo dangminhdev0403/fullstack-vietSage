@@ -56,6 +56,32 @@ Create only the folders the feature needs.
 9. Add loading, error, and empty states where the user flow needs them.
 10. Run the validation commands required by `RULES.md` or the task scope.
 
+## Extending a Workspace Dashboard
+
+Workspace composition lives in `src/features/workspace/config/workspace-registry.ts`. Add a
+registry extension when a role alias, navigation item, or dashboard widget must be introduced
+without adding persona checks to route pages.
+
+```ts
+const registry = createWorkspaceRegistry([
+  {
+    roleAliases: { HOTEL_AUDITOR: "finance" },
+    navigation: [auditNavigation],
+    widgets: [auditSummaryWidget],
+  },
+]);
+```
+
+- Use stable, namespaced keys such as `finance.audit-summary`.
+- Declare `personas`, `anyCapabilities`, and `requiresHotel` on each entry. Missing capability or
+  hotel scope filters the entry out.
+- Registry configuration changes presentation only. Backend endpoints must continue to enforce
+  authorization and resource scope.
+- Duplicate keys and role aliases are rejected. Set `replaceExisting: true` only for an intentional,
+  reviewed replacement.
+- Keep data loading conditional on the resolved widget set so hidden modules do not trigger API
+  requests.
+
 ## Anti-patterns
 
 - Putting large business UI logic directly in `page.tsx`.

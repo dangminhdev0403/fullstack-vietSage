@@ -21,6 +21,7 @@ import { WorkspaceShell } from "@/features/workspace/components/workspace-shell"
 import {
   buildWorkspaceNavigation,
   getWorkspaceDefinition,
+  getWorkspaceDashboardWidgets,
 } from "@/features/workspace/config/workspace-registry";
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
 import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
@@ -79,11 +80,21 @@ export async function StaffWorkspacePage({
     permissions: workspaceContext.permissions,
     hotelId,
   });
+  const dashboardWidgets = getWorkspaceDashboardWidgets({
+    persona,
+    permissions: workspaceContext.permissions,
+    hotelId,
+  });
+  const widgetKeys = new Set(dashboardWidgets.map((widget) => widget.key));
   const activePath = hotelId
     ? `${definition.homePath}?hotelId=${encodeURIComponent(hotelId)}`
     : definition.homePath;
-  const canManageServices = sidebarItems.some((item) => item.href.includes("/services"));
-  const canViewRequests = sidebarItems.some((item) => item.href.includes("/requests"));
+  const canManageServices =
+    widgetKeys.has("services.categories") || widgetKeys.has("services.items");
+  const canViewRequests =
+    widgetKeys.has("requests.active") ||
+    widgetKeys.has("requests.new") ||
+    widgetKeys.has("requests.feed");
 
   let requests: StaffRequestListItem[] = [];
   let requestSummary: StaffRequestSummaryResponse | null = null;
@@ -137,7 +148,7 @@ export async function StaffWorkspacePage({
 
             {hotelId ? (
               <div className="flex flex-wrap gap-2">
-                {canViewRequests ? (
+                {widgetKeys.has("requests.active") ? (
                   <Link href={`/hotels/${hotelId}/requests`} className="inline-flex items-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-3 text-sm font-semibold text-[var(--on-primary)]">
                     <VsIcon name="assignment" className="text-[18px]" />
                     Mở hàng đợi công việc
@@ -214,33 +225,33 @@ export async function StaffWorkspacePage({
           ) : (
             <>
               <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                {canViewRequests ? (
-                  <>
+                {widgetKeys.has("requests.active") ? (
                     <article className="rounded-xl border border-[color:rgba(198,197,213,0.18)] bg-white p-5">
                       <p className="text-sm font-semibold text-[var(--on-surface-variant)]">Yêu cầu đang hoạt động</p>
                       <h2 className="vs-display mt-2 text-4xl font-bold text-[var(--primary)]">{countActiveRequests(requestSummary)}</h2>
                     </article>
+                ) : null}
+                {widgetKeys.has("requests.new") ? (
                     <article className="rounded-xl border border-[color:rgba(198,197,213,0.18)] bg-white p-5">
                       <p className="text-sm font-semibold text-[var(--on-surface-variant)]">Yêu cầu mới</p>
                       <h2 className="vs-display mt-2 text-4xl font-bold text-[var(--primary)]">{requestSummary?.statuses.CREATED ?? 0}</h2>
                     </article>
-                  </>
                 ) : null}
-                {canManageServices ? (
-                  <>
-                    <article className="rounded-xl border border-[color:rgba(198,197,213,0.18)] bg-white p-5">
+                {widgetKeys.has("services.categories") ? (
+                  <article className="rounded-xl border border-[color:rgba(198,197,213,0.18)] bg-white p-5">
                       <p className="text-sm font-semibold text-[var(--on-surface-variant)]">Nhóm dịch vụ</p>
                       <h2 className="vs-display mt-2 text-4xl font-bold text-[var(--primary)]">{totalCategories}</h2>
-                    </article>
-                    <article className="rounded-xl border border-[color:rgba(198,197,213,0.18)] bg-white p-5">
+                  </article>
+                ) : null}
+                {widgetKeys.has("services.items") ? (
+                  <article className="rounded-xl border border-[color:rgba(198,197,213,0.18)] bg-white p-5">
                       <p className="text-sm font-semibold text-[var(--on-surface-variant)]">Dịch vụ</p>
                       <h2 className="vs-display mt-2 text-4xl font-bold text-[var(--primary)]">{totalItems}</h2>
-                    </article>
-                  </>
+                  </article>
                 ) : null}
               </section>
 
-              {canViewRequests ? (
+              {widgetKeys.has("requests.feed") ? (
               <section className="grid gap-6 xl:grid-cols-[1fr_360px]">
                 <article className="overflow-hidden rounded-xl border border-[color:rgba(198,197,213,0.24)] bg-white">
                   <div className="flex items-center justify-between border-b border-[color:rgba(198,197,213,0.18)] px-5 py-4">

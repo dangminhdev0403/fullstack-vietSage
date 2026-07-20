@@ -1,4 +1,28 @@
-﻿## [complete] 2026-07-19 - Mission: workspace-v2-persona-dashboards (P1)
+﻿## [complete] 2026-07-20 - Mission: workspace-v2-dashboard-registry (P2)
+
+- Promoted the P1 workspace configuration into an immutable dashboard registry with typed role aliases, navigation entries, and dashboard widgets.
+- Added `createWorkspaceRegistry(extensions)` as the controlled extension point for new role aliases, navigation, and widgets without editing page-level condition trees.
+- Registry extensions fail closed on duplicate keys unless replacement is explicitly requested.
+- Centralized capability and explicit hotel-scope filtering for both navigation and dashboard widgets.
+- Migrated the Admin module cards and Staff metrics/request feed/service counters to registry-driven visibility and data loading.
+- Kept existing persona routes, layout language, API contracts, and backend authorization boundaries unchanged.
+- Added focused tests for capability filtering, required hotel scope, extension registration, role aliases, and duplicate-key protection.
+
+Verification result:
+
+- Workspace/auth Node tests passed (10 tests).
+- `pnpm exec tsc --noEmit --pretty false` passed.
+- `pnpm run lint` passed.
+- `pnpm run build` passed and emitted all 34 pages, including the persona dashboard routes.
+- Auth session contract and refresh smoke harnesses passed.
+
+Remaining blockers/risks and next checkpoint:
+
+- Authenticated browser QA remains required with representative accounts and real hotel assignments.
+- New widget data sources must still be backed by explicit API contracts; the registry controls composition and visibility, not backend authorization.
+- A future plugin/module loader may compose registry extensions at application bootstrap, but runtime remote module loading is intentionally outside P2.
+
+## [complete] 2026-07-19 - Mission: workspace-v2-persona-dashboards (P1)
 
 - Added a shared `WorkspaceShell` for Admin, Owner, Manager, Front Desk, and Operations surfaces while preserving the existing visual language and route-level business components.
 - Added a single workspace registry for persona labels, default routes, capability-filtered navigation, and future role extension.
