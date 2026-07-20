@@ -4,7 +4,6 @@ import { httpServer } from "@/core/http/http-server";
 import type {
   PermissionsListQuery,
   PermissionsListResponseEnvelope,
-  RoleMenusListResponseEnvelope,
   RbacPermission,
   RbacPermissionModulePermissionsPage,
   RbacPermissionModuleSummary,
@@ -36,10 +35,6 @@ export type ListPermissionsOptions = {
 
 export type ListPermissionModulePermissionsOptions = {
   query?: RolePermissionModulePermissionsListQuery;
-  accessToken?: string;
-};
-
-export type ListRoleMenusOptions = {
   accessToken?: string;
 };
 
@@ -109,17 +104,6 @@ export class RbacService {
 
     const rolesEnvelope = unwrapApiEnvelope<RbacRole[]>(rolesPayload);
     return rolesEnvelope.data;
-  }
-
-  async listRoleMenus(options: ListRoleMenusOptions = {}): Promise<string[]> {
-    const menusPayload = await this.authenticatedRequest<RoleMenusListResponseEnvelope>({
-      method: "GET",
-      path: "/roles/menus",
-      accessToken: options.accessToken,
-    });
-
-    const menusEnvelope = unwrapApiEnvelope<string[]>(menusPayload);
-    return menusEnvelope.data;
   }
 
   async getRoleByName(name: string, accessToken?: string): Promise<RbacRole> {
@@ -320,6 +304,5 @@ export class RbacService {
 export function createRbacService(options: RbacServiceOptions): RbacService {
   return new RbacService(options);
 }
-
 
 

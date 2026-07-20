@@ -7,6 +7,7 @@ import type {
   CreateServiceCategoryInput,
   CreateServiceItemInput,
   HotelGuestRequest,
+  HotelArrival,
   HotelOpsPage,
   HotelRoomSummary,
   HotelRequestEvent,
@@ -14,6 +15,7 @@ import type {
   HotelServiceItem,
   HotelStaySummary,
   ListHotelRoomsQuery,
+  ListHotelArrivalsQuery,
   ListHotelRequestsQuery,
   ListServiceCategoriesQuery,
   ListServiceItemsQuery,
@@ -79,6 +81,20 @@ export class HotelOpsService {
     });
 
     return unwrapApiEnvelope<HotelOpsPage<HotelRoomSummary>>(payload).data;
+  }
+
+  async listArrivals(
+    hotelId: string,
+    options: { query: ListHotelArrivalsQuery } & AuthRequestOptions,
+  ): Promise<HotelOpsPage<HotelArrival>> {
+    const payload = await this.httpClient.request<unknown>({
+      method: "GET",
+      path: hotelPath(hotelId, "/arrivals"),
+      query: options.query as HttpQuery,
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+    return unwrapApiEnvelope<HotelOpsPage<HotelArrival>>(payload).data;
   }
 
   async createRoom(

@@ -105,6 +105,25 @@ export type HotelStaySummary = {
   updatedAt?: string | null;
 };
 
+export type HotelArrival = {
+  id: string;
+  hotelId: string;
+  roomId: string | null;
+  reservationCode: string;
+  guestDisplayName: string;
+  guestPhone: string | null;
+  status: "CONFIRMED" | "ARRIVAL_READY" | "CHECKED_IN";
+  plannedCheckInAt: string;
+  plannedCheckOutAt: string;
+};
+
+export type ListHotelArrivalsQuery = {
+  from: string;
+  to: string;
+  page?: number;
+  limit?: number;
+};
+
 export type HotelRequestEvent = {
   id: string;
   requestId: string;

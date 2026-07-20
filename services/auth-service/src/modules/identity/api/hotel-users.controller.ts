@@ -25,6 +25,7 @@ import {
   assignHotelUserRolesBodySchema as assignHotelUserRolesBodyOpenApiSchema,
   createHotelUserBodySchema as createHotelUserBodyOpenApiSchema,
   listHotelUsersDataSchema,
+  managedHotelUserRoleArrayDataSchema,
   revokeHotelUserRoleDataSchema,
   successEnvelopeSchema,
   tenantScopedHotelUserDataSchema,
@@ -32,6 +33,7 @@ import {
 } from "../../../common/openapi/contract-schemas";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
 import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
 import type { AuthenticatedUser } from "../../../shared/security";
 import { HotelUsersService } from "../application/hotel-users.service";
@@ -54,6 +56,7 @@ interface RequestWithUser extends Request {
 export class HotelUsersController {
   constructor(private readonly hotelUsersService: HotelUsersService) {}
 
+  @RequirePermission("hotel.staff.manage")
   @SuccessMessage("Tạo người dùng khách sạn thành công")
   @ApiDescript("Tạo người dùng")
   @ApiHeader({ name: "x-tenant-id", required: false, description: "Ghi đè đơn vị tùy chọn" })
@@ -74,12 +77,13 @@ export class HotelUsersController {
   ) {
     const dto = parseWithZod(createHotelUserBodyZodSchema, body);
 
-    return this.hotelUsersService.createHotelUser(request.user.userId, {
+    return this.hotelUsersService.createHotelUser(request.user.userId, request.user.roleId, {
       ...dto,
       tenantId: this.resolveTenantHint(tenantIdHeader, dto.tenantId),
     });
   }
 
+  @RequirePermission("hotel.staff.view")
   @SuccessMessage("Lấy danh sách người dùng khách sạn thành công")
   @ApiDescript("Xem danh sách người dùng")
   @ApiHeader({ name: "x-tenant-id", required: false, description: "Ghi đè đơn vị tùy chọn" })
@@ -106,11 +110,40 @@ export class HotelUsersController {
 
     return this.hotelUsersService.listHotelUsers(
       request.user.userId,
+      request.user.roleId,
       this.resolveTenantHint(tenantIdHeader, parsedQuery.tenantId),
       parsedQuery,
     );
   }
 
+  @RequirePermission("hotel.staff.view")
+  @SuccessMessage("Lấy danh sách vai trò nhân viên có thể quản lý thành công")
+  @ApiDescript("Xem danh sách vai trò nhân viên có thể quản lý")
+  @ApiQuery({ name: "tenantId", required: false, type: String })
+  @ApiHeader({ name: "x-tenant-id", required: false, description: "Ghi đè đơn vị tùy chọn" })
+  @ApiOkResponse({
+    description: "Bao phản hồi danh sách vai trò nhân viên có thể quản lý",
+    schema: successEnvelopeSchema(
+      managedHotelUserRoleArrayDataSchema,
+      200,
+      "Lấy danh sách vai trò nhân viên có thể quản lý thành công",
+    ),
+  })
+  @Get("managed-roles")
+  async listManagedRoles(
+    @Req() request: RequestWithUser,
+    @Query("tenantId") tenantIdQuery?: string,
+    @Headers("x-tenant-id") tenantIdHeader?: string,
+  ) {
+    const tenantHint = parseWithZod(tenantHintQuerySchema, { tenantId: tenantIdQuery }).tenantId;
+    return this.hotelUsersService.listManagedRoles(
+      request.user.userId,
+      request.user.roleId,
+      this.resolveTenantHint(tenantIdHeader, tenantHint),
+    );
+  }
+
+  @RequirePermission("hotel.staff.view")
   @SuccessMessage("Lấy thông tin người dùng khách sạn thành công")
   @ApiDescript("Xem chi tiết người dùng")
   @ApiParam({ name: "id", type: String })
@@ -136,11 +169,13 @@ export class HotelUsersController {
 
     return this.hotelUsersService.getHotelUser(
       request.user.userId,
+      request.user.roleId,
       this.resolveTenantHint(tenantIdHeader, tenantHint),
       userId,
     );
   }
 
+  @RequirePermission("hotel.staff.manage")
   @SuccessMessage("Cập nhật trạng thái người dùng khách sạn thành công")
   @ApiDescript("Cập nhật trạng thái người dùng")
   @ApiParam({ name: "id", type: String })
@@ -169,12 +204,14 @@ export class HotelUsersController {
 
     return this.hotelUsersService.updateHotelUserStatus(
       request.user.userId,
+      request.user.roleId,
       this.resolveTenantHint(tenantIdHeader, tenantHint),
       userId,
       dto,
     );
   }
 
+  @RequirePermission("hotel.staff.manage")
   @SuccessMessage("Gán vai trò người dùng khách sạn thành công")
   @ApiDescript("Gán vai trò người dùng")
   @ApiParam({ name: "id", type: String })
@@ -203,12 +240,14 @@ export class HotelUsersController {
 
     return this.hotelUsersService.assignHotelUserRoles(
       request.user.userId,
+      request.user.roleId,
       this.resolveTenantHint(tenantIdHeader, tenantHint),
       userId,
       dto,
     );
   }
 
+  @RequirePermission("hotel.staff.manage")
   @SuccessMessage("Thu hồi vai trò người dùng khách sạn thành công")
   @ApiDescript("Thu hồi vai trò người dùng")
   @ApiParam({ name: "id", type: String })
@@ -237,6 +276,7 @@ export class HotelUsersController {
 
     return this.hotelUsersService.revokeHotelUserRole(
       request.user.userId,
+      request.user.roleId,
       this.resolveTenantHint(tenantIdHeader, tenantHint),
       userId,
       roleId,

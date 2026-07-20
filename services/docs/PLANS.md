@@ -1,5 +1,27 @@
 # VietSage Backend Plan
 
+## 2026-07-20 - Workspace RBAC and Staff Administration
+
+- [x] Added `hotel.staff.view` and `hotel.staff.manage` business capabilities plus a one-time
+  built-in role preset migration for Owner, Manager, Front Desk, Housekeeping, Maintenance, F&B,
+  and Finance workspaces.
+- [x] Bound hotel-user administration to the session's active role ID and tenant scope.
+- [x] Added an Identity public directory query so Property can validate hotel staff without
+  importing Identity repositories.
+- [x] Added capability-guarded hotel staff assignment list/assign/revoke APIs owned by Property.
+- [x] Added explicit reservation view/manage capabilities to the arrivals and reservation mutation
+  routes.
+- [x] Exported the updated OpenAPI contract and synchronized frontend generated types.
+
+Verification result:
+
+- Service-boundary checker and Prisma schema validation passed.
+- Source-only TypeScript validation passed.
+- 55 backend unit suites passed with 295 tests passed and 3 skipped.
+- Backend ESLint passed with 0 errors and 22 existing warnings.
+- `NODE_OPTIONS=--max-old-space-size=4096 npm run build` passed.
+- OpenAPI export and shared contract verification passed with 80 paths.
+
 ## 2026-07-20 - Workspace V2 P3 Service Boundaries
 
 - [x] Added an executable production-source boundary check that rejects private cross-context

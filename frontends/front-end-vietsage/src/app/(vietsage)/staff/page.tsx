@@ -94,6 +94,9 @@ export async function StaffWorkspacePage({
     widgetKeys.has("requests.active") ||
     widgetKeys.has("requests.new") ||
     widgetKeys.has("requests.feed");
+  const canViewArrivals =
+    workspaceContext.permissions.includes("hotel.reservations.view") ||
+    workspaceContext.permissions.includes("hotel.reservations.manage");
 
   const {
     requests,
@@ -133,6 +136,12 @@ export async function StaffWorkspacePage({
 
             {hotelId ? (
               <div className="flex flex-wrap gap-2">
+                {canViewArrivals ? (
+                  <Link href={`/hotels/${hotelId}/arrivals`} className="inline-flex items-center gap-2 rounded-xl bg-[var(--secondary-container)] px-4 py-3 text-sm font-semibold text-[var(--on-secondary-container)]">
+                    <VsIcon name="event_available" className="text-[18px]" />
+                    Khách đến
+                  </Link>
+                ) : null}
                 {widgetKeys.has("requests.active") ? (
                   <Link href={`/hotels/${hotelId}/requests`} className="inline-flex items-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-3 text-sm font-semibold text-[var(--on-primary)]">
                     <VsIcon name="assignment" className="text-[18px]" />

@@ -9,3 +9,7 @@ export {
   resolveRoutePermissionKeyFromRequest,
 } from "./domain/route-permission-key.util";
 export { JwtAuthGuard } from "./infrastructure/guards/jwt-auth.guard";
+export {
+  HotelUserDirectoryService,
+  type HotelUserDirectoryEntry,
+} from "./application/hotel-user-directory.service";

@@ -8,6 +8,7 @@ import { PermissionsController, RolesController } from "./api/rbac.controller";
 import { AuthService } from "./application/authentication.service";
 import { AuthorizationService } from "./application/authorization.service";
 import { HotelUsersService } from "./application/hotel-users.service";
+import { HotelUserDirectoryService } from "./application/hotel-user-directory.service";
 import { RbacService } from "./application/rbac.service";
 import { RoutePermissionSyncService } from "./application/route-permission-sync.service";
 import { AuthRepository } from "./infrastructure/repositories/auth.repository";
@@ -36,8 +37,9 @@ import { LocalStrategy } from "./infrastructure/strategies/local.strategy";
     RbacService,
     RbacRepository,
     HotelUsersService,
+    HotelUserDirectoryService,
     HotelUsersRepository,
   ],
-  exports: [AuthService, AuthorizationService, JwtModule],
+  exports: [AuthService, AuthorizationService, HotelUserDirectoryService, JwtModule],
 })
 export class IdentityModule {}

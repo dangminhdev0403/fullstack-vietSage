@@ -1,8 +1,8 @@
 import { auth } from "@/auth";
 import { adminService } from "@/features/admin/service/admin-service-instance";
-import { resolveDashboardNavigation } from "@/lib/frontend-navigation";
-import { readServerSessionTokens } from "@/lib/server-session-tokens";
+import { buildWorkspaceNavigationForContext } from "@/features/workspace/config/workspace-registry";
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
+import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
 
 import { AdminShell } from "../_components/admin-shell";
 import { HotelsAdminClient } from "./hotels-admin-client";
@@ -36,20 +36,12 @@ async function listTenantOwnersForSelector(accessToken?: string) {
 
 export default async function AdminHotelsPage() {
   const session = await auth();
-  const tokens = await readServerSessionTokens();
   const callbackUrl = "/admin/hotels" as const;
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
+  const workspaceContext = await loadServerWorkspaceContext(callbackUrl);
+  const sidebarItems = buildWorkspaceNavigationForContext(workspaceContext);
 
-  const [sidebarItems, hotelsPage, tenantOwners] = await Promise.all([
-    resolveDashboardNavigation({
-      userRole: "admin",
-      assignedRoles: [],
-      permissions: [],
-      accessToken: tokens.accessToken,
-      accessTokenExpiresAt: session?.accessTokenExpiresAt ?? tokens.accessTokenExpiresAt,
-      refreshToken: tokens.refreshToken,
-      authError: session?.authError ?? null,
-    }),
+  const [hotelsPage, tenantOwners] = await Promise.all([
     authorizedApi("list hotels", (accessToken) =>
       adminService.listHotels({
         query: { page: 1, limit: 100 },

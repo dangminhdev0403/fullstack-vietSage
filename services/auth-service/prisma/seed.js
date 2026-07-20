@@ -17,6 +17,7 @@ const DEFAULT_ROLES = [
   { code: 'HOTEL_MANAGER', name: 'Quản lý khách sạn' },
   { code: 'HOTEL_FRONTDESK', name: 'Lễ tân khách sạn' },
   { code: 'HOTEL_HOUSEKEEPING', name: 'Buồng phòng khách sạn' },
+  { code: 'HOTEL_MAINTENANCE', name: 'Kỹ thuật khách sạn' },
   { code: 'HOTEL_FNB', name: 'Ẩm thực khách sạn' },
   { code: 'HOTEL_FINANCE', name: 'Tài chính khách sạn' },
 ];
@@ -164,4 +165,3 @@ main()
     await prisma.$disconnect();
     process.exit(1);
   });
-

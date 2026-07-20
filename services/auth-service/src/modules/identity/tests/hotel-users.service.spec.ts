@@ -55,7 +55,9 @@ describe("HotelUsersService", () => {
       ],
     ]);
 
-    await service.listHotelUsers("actor-1", undefined, {});
+    await service.listHotelUsers("actor-1", "role-manager", undefined, {});
+
+    expect(hotelUsersRepository.findActorById).toHaveBeenCalledWith("actor-1", "role-manager");
 
     expect(hotelUsersRepository.listTenantUsers).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -73,9 +75,9 @@ describe("HotelUsersService", () => {
       tenantUsers: [],
     });
 
-    await expect(service.listHotelUsers("actor-1", undefined, {})).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(
+      service.listHotelUsers("actor-1", "role-super", undefined, {}),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it("blocks assigning protected roles", async () => {
@@ -99,7 +101,7 @@ describe("HotelUsersService", () => {
     ]);
 
     await expect(
-      service.assignHotelUserRoles("actor-1", "tenant-1", "target-user", {
+      service.assignHotelUserRoles("actor-1", "role-owner", "tenant-1", "target-user", {
         roleIds: ["role-1"],
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
@@ -128,6 +130,7 @@ describe("HotelUsersService", () => {
 
     const result = await service.revokeHotelUserRole(
       "actor-1",
+      "role-manager",
       "tenant-1",
       "target-user",
       "role-1",
@@ -167,7 +170,7 @@ describe("HotelUsersService", () => {
     hotelUsersRepository.revokeActiveUserRole.mockResolvedValue({ count: 0 });
 
     await expect(
-      service.revokeHotelUserRole("actor-1", "tenant-1", "target-user", "role-1"),
+      service.revokeHotelUserRole("actor-1", "role-manager", "tenant-1", "target-user", "role-1"),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 });

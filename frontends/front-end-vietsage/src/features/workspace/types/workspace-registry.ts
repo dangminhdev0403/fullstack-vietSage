@@ -1,4 +1,4 @@
-import type { DashboardNavItem } from "@/lib/frontend-navigation";
+import type { DashboardNavItem } from "./workspace-navigation";
 
 export type WorkspacePersona =
   | "platform_admin"
@@ -7,6 +7,7 @@ export type WorkspacePersona =
   | "front_desk"
   | "housekeeping"
   | "maintenance"
+  | "food_beverage"
   | "finance";
 
 export type WorkspaceDefinition = {
@@ -24,6 +25,7 @@ export type WorkspaceNavigationDefinition = Omit<DashboardNavItem, "href"> & {
   order: number;
   anyCapabilities?: readonly string[];
   requiresHotel?: boolean;
+  hideWhenHotelSelected?: boolean;
   labelByPersona?: Partial<Record<WorkspacePersona, string>>;
 };
 

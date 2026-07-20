@@ -14,6 +14,8 @@ export type BusinessPermissionKey =
   | "hotel.stays.manage"
   | "hotel.reservations.view"
   | "hotel.reservations.manage"
+  | "hotel.staff.view"
+  | "hotel.staff.manage"
   | "hotel.requests.view"
   | "hotel.requests.manage"
   | "hotel.billing.view"
@@ -88,6 +90,14 @@ export const BUSINESS_PERMISSIONS: readonly BusinessPermissionDefinition[] = [
   {
     key: "hotel.reservations.manage",
     moduleKey: "hotel-reservations",
+  },
+  {
+    key: "hotel.staff.view",
+    moduleKey: "hotel-staff",
+  },
+  {
+    key: "hotel.staff.manage",
+    moduleKey: "hotel-staff",
   },
   {
     key: "hotel.requests.view",

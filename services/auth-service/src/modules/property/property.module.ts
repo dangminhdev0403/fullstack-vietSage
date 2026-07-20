@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { ImportModule } from "../../common/import/import.module";
+import { IdentityModule } from "../identity/identity.module";
 import { PrismaModule } from "../../prisma/prisma.module";
 import { HotelAccessService } from "./application/hotel-access.service";
 import { HotelDashboardController } from "./api/hotel-dashboard.controller";
@@ -19,15 +20,19 @@ import { HotelServiceCatalogRepository } from "./infrastructure/repositories/hot
 import { ReservationsController } from "./api/reservations.controller";
 import { ReservationsService } from "./application/reservations.service";
 import { ReservationsRepository } from "./infrastructure/repositories/reservations.repository";
+import { HotelStaffAssignmentsController } from "./api/hotel-staff-assignments.controller";
+import { HotelStaffAssignmentsService } from "./application/hotel-staff-assignments.service";
+import { HotelStaffAssignmentsRepository } from "./infrastructure/repositories/hotel-staff-assignments.repository";
 
 @Module({
-  imports: [PrismaModule, ImportModule],
+  imports: [PrismaModule, ImportModule, IdentityModule],
   controllers: [
     HotelsController,
     HotelRoomsController,
     HotelServicesController,
     HotelDashboardController,
     ReservationsController,
+    HotelStaffAssignmentsController,
   ],
   providers: [
     HotelsService,
@@ -43,6 +48,8 @@ import { ReservationsRepository } from "./infrastructure/repositories/reservatio
     ServiceCatalogImportAdapter,
     ReservationsService,
     ReservationsRepository,
+    HotelStaffAssignmentsService,
+    HotelStaffAssignmentsRepository,
   ],
   exports: [HotelAccessService],
 })

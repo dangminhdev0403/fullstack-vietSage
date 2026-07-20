@@ -3,9 +3,9 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { adminService } from "@/features/admin/service/admin-service-instance";
 import type { Hotel } from "@/features/admin/types/admin-contract";
-import { resolveDashboardNavigation } from "@/lib/frontend-navigation";
-import { readServerSessionTokens } from "@/lib/server-session-tokens";
+import { buildWorkspaceNavigationForContext } from "@/features/workspace/config/workspace-registry";
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
+import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
 
 import { VsIcon } from "../../_components/vs-icon";
 import { OwnerShell } from "../_components/owner-shell";
@@ -31,22 +31,14 @@ function getActiveHotels(hotels: readonly Hotel[]): Hotel[] {
 
 export default async function OwnerRoomsPage() {
   const session = await auth();
-  const tokens = await readServerSessionTokens();
   const callbackUrl = "/owner/rooms" as const;
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
+  const workspaceContext = await loadServerWorkspaceContext(callbackUrl);
+  const sidebarItems = buildWorkspaceNavigationForContext(workspaceContext);
 
-  const [sidebarItems, hotelsPage] = await Promise.all([
-    resolveDashboardNavigation({
-      roles: session?.user.roles ?? [],
-      accessToken: tokens.accessToken,
-      accessTokenExpiresAt: session?.accessTokenExpiresAt ?? tokens.accessTokenExpiresAt,
-      refreshToken: tokens.refreshToken,
-      authError: session?.authError ?? null,
-    }),
-    authorizedApi("list owner hotels for room manager", (accessToken) =>
-      adminService.listHotels({ query: { page: 1, limit: 100 }, accessToken }),
-    ),
-  ]);
+  const hotelsPage = await authorizedApi("list owner hotels for room manager", (accessToken) =>
+    adminService.listHotels({ query: { page: 1, limit: 100 }, accessToken }),
+  );
 
   const hotels = hotelsPage.items;
   const activeHotels = getActiveHotels(hotels);

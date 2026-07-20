@@ -26,6 +26,11 @@ The current backend runtime is the NestJS core API under `services/auth-service`
 - GuestOS request responses resolve service names from the request locale and fall back to the canonical catalog name when no translation exists.
 - Errors must keep the project-standard normalized shape.
 - Secrets, tokens, passwords, provider keys, and connection strings must never appear in examples.
+- Hotel staff administration is tenant-scoped and requires `hotel.staff.view` or
+  `hotel.staff.manage`; hotel assignment mutations additionally perform Property resource access
+  checks using the session-bound active role ID.
+- Role assignment and hotel assignment are separate contracts. Clients must not infer hotel access
+  from a role or infer a role from a hotel assignment.
 
 ## Verification
 

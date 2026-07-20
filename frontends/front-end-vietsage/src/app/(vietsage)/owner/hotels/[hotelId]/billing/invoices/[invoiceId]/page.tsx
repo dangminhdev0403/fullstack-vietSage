@@ -4,11 +4,11 @@ import { auth } from "@/auth";
 import { billingService } from "@/features/billing/service/billing-service-instance";
 import type { InvoiceDetail, MoneyValue } from "@/features/billing/types/billing-contract";
 import { formatDateTime, formatMoney } from "@/features/billing/utils/money";
-import { resolveDashboardNavigation } from "@/lib/frontend-navigation";
+import { buildWorkspaceNavigationForContext } from "@/features/workspace/config/workspace-registry";
 import { readServerSessionTokens } from "@/lib/server-session-tokens";
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
+import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
 
-import { withOwnerHotelNavigation } from "../../../../../_components/owner-navigation";
 import { OwnerShell } from "../../../../../_components/owner-shell";
 import { InvoicePrintButton } from "./invoice-print-button";
 
@@ -244,22 +244,15 @@ export default async function OwnerInvoiceDetailPage({ params }: PageProps) {
   const tokens = await readServerSessionTokens();
   const callbackUrl = `/owner/hotels/${hotelId}/billing/invoices/${invoiceId}` as const;
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
+  const workspaceContext = await loadServerWorkspaceContext(callbackUrl, tokens.accessToken);
+  const sidebarItems = buildWorkspaceNavigationForContext({ ...workspaceContext, hotelId });
 
-  const [sidebarItems, invoiceDetail] = await Promise.all([
-    resolveDashboardNavigation({
-      roles: session?.user.roles ?? [],
-      accessToken: tokens.accessToken,
-      accessTokenExpiresAt: session?.accessTokenExpiresAt ?? tokens.accessTokenExpiresAt,
-      refreshToken: tokens.refreshToken,
-      authError: session?.authError ?? null,
-    }),
-    authorizedApi("get owner invoice detail", (accessToken) =>
-      billingService.getInvoiceDetail(hotelId, invoiceId, { accessToken }),
-    ),
-  ]);
+  const invoiceDetail = await authorizedApi("get owner invoice detail", (accessToken) =>
+    billingService.getInvoiceDetail(hotelId, invoiceId, { accessToken }),
+  );
 
   return (
-    <OwnerShell activePath={`/owner/hotels/${hotelId}/billing`} navItems={withOwnerHotelNavigation(sidebarItems, hotelId)} subtitle="Chi tiết hóa đơn">
+    <OwnerShell activePath={`/owner/hotels/${hotelId}/billing`} navItems={sidebarItems} subtitle="Chi tiết hóa đơn">
       <div className="space-y-6 print:space-y-0">
         <div className="mx-auto flex w-full max-w-[794px] flex-col justify-between gap-4 print:hidden md:flex-row md:items-end">
           <div>

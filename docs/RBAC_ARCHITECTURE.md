@@ -29,6 +29,10 @@ hotel.rooms.manage
 hotel.rooms.qr.manage
 hotel.stays.view
 hotel.stays.manage
+hotel.reservations.view
+hotel.reservations.manage
+hotel.staff.view
+hotel.staff.manage
 hotel.requests.view
 hotel.requests.manage
 hotel.billing.view
@@ -40,6 +44,25 @@ system.health.view
 ```
 
 These keys are stable and should not change when route paths change.
+
+## Built-in workspace presets
+
+Migration `0034_workspace_role_capabilities` applies one-time defaults. Later administrator edits
+are preserved because startup synchronization does not re-grant revoked role capabilities.
+
+| Workspace role | Default responsibility |
+| --- | --- |
+| `SUPER_ADMIN` | Complete platform and business capability surface |
+| `TENANT_OWNER`, `HOTEL_OWNER` | Hotel portfolio operations plus staff, role, and assignment management |
+| `HOTEL_MANAGER` | Rooms, stays, reservations, requests, billing view, and service operations |
+| `HOTEL_FRONTDESK` | Arrivals, stays, and guest request handling |
+| `HOTEL_HOUSEKEEPING` | Room visibility and operational request handling |
+| `HOTEL_MAINTENANCE` | Technical request handling |
+| `HOTEL_FNB` | F&B requests and service catalog visibility |
+| `HOTEL_FINANCE` | Billing operations and service catalog visibility |
+
+Hotel assignment and RBAC are independent: a staff user needs an active role, the required
+business capability, and an active assignment to access a hotel-scoped resource.
 
 ## Backend architecture
 
@@ -87,6 +110,13 @@ Each authenticated session is bound to one active role ID. `GET /auth/me` expose
 `roles` array may list other active assignments, but clients must not merge their capabilities into
 the current workspace. Hotel scope remains explicit through `accessibleHotels`; the API does not
 select or infer an active hotel.
+
+### Frontend workspace projection
+
+`frontends/front-end-vietsage/src/features/workspace/config/workspace-registry.ts` is the UI source
+of truth for persona aliases, human labels, dashboard widgets, and navigation. Raw permission paths
+and legacy role-menu responses must not be rendered as navigation. Registry filtering is UX only;
+backend guards and resource access checks remain authoritative.
 
 ## Bridge storage strategy
 

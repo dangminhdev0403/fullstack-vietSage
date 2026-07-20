@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useCallback, useMemo, useState } from "react";
+import Link from "next/link";
 
 import Swal from "sweetalert2";
 
@@ -41,6 +42,13 @@ type PermissionModule = {
 type RolePermissionsBrowserProps = {
   roles: RolePermissionsBrowserRole[];
   permissionCatalog: RolePermissionsBrowserPermission[];
+  permissionModuleSummaries: Array<{
+    moduleKey: string;
+    moduleName: string;
+    totalPermissions: number;
+    enabledCount: number;
+  }>;
+  selectedModuleKey: string | null;
   initialRoleId: string | null;
   initialPermissionsByRoleId?: Record<
     string,
@@ -97,6 +105,16 @@ const BUSINESS_MODULE_LABELS: Record<
     label: "Lưu trú",
     icon: "hotel",
     tone: "bg-blue-50 text-blue-700",
+  },
+  "hotel-reservations": {
+    label: "Đặt phòng & khách đến",
+    icon: "event_available",
+    tone: "bg-sky-50 text-sky-700",
+  },
+  "hotel-staff": {
+    label: "Nhân viên khách sạn",
+    icon: "group",
+    tone: "bg-violet-50 text-violet-700",
   },
   "hotel-requests": {
     label: "Yêu cầu khách",
@@ -496,6 +514,8 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
   const {
     roles,
     permissionCatalog,
+    permissionModuleSummaries,
+    selectedModuleKey,
     initialRoleId,
     initialPermissionsByRoleId = {},
   } = props;
@@ -884,6 +904,25 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
           })}
         </div>
 
+        <nav className="flex gap-2 overflow-x-auto rounded-xl border border-[var(--outline-variant)] bg-white p-3" aria-label="Nhóm quyền">
+          {permissionModuleSummaries.map((moduleSummary) => {
+            const active = moduleSummary.moduleKey === selectedModuleKey;
+            const params = new URLSearchParams();
+            if (selectedRoleId) params.set("roleId", selectedRoleId);
+            params.set("module", moduleSummary.moduleKey);
+            return (
+              <Link
+                key={moduleSummary.moduleKey}
+                href={`/admin/permissions?${params.toString()}`}
+                className={`shrink-0 rounded-lg px-3 py-2 text-xs font-semibold ${active ? "bg-[var(--primary)] text-white" : "bg-[var(--surface-container-low)] text-[var(--primary)]"}`}
+              >
+                {BUSINESS_MODULE_LABELS[moduleSummary.moduleKey]?.label ?? moduleSummary.moduleName}
+                <span className="ml-2 opacity-70">{moduleSummary.enabledCount}/{moduleSummary.totalPermissions}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
         <article className="vs-card rounded-2xl border-l-4 border-l-[var(--primary)] p-6 md:p-8">
           <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
             <div>
@@ -1217,4 +1256,3 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
     </>
   );
 }
-

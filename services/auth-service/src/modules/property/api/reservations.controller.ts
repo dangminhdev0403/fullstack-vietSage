@@ -10,6 +10,7 @@ import {
 import type { Request } from "express";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
 import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
 import type { AuthenticatedUser } from "../../../shared/security";
 import { ReservationsService } from "../application/reservations.service";
@@ -79,6 +80,7 @@ const checkInResponseSchema = {
 export class ReservationsController {
   constructor(private readonly reservationsService: ReservationsService) {}
 
+  @RequirePermission("hotel.reservations.manage")
   @SuccessMessage("Tạo đặt phòng thành công")
   @ApiDescript("Tạo đặt phòng chưa cần gán phòng")
   @ApiParam({ name: "hotelId", type: String })
@@ -114,6 +116,7 @@ export class ReservationsController {
     );
   }
 
+  @RequirePermission("hotel.reservations.view")
   @SuccessMessage("Lấy danh sách khách đến thành công")
   @ApiDescript("Danh sách khách dự kiến đến theo khoảng thời gian")
   @ApiParam({ name: "hotelId", type: String })
@@ -150,6 +153,7 @@ export class ReservationsController {
     );
   }
 
+  @RequirePermission("hotel.reservations.manage")
   @SuccessMessage("Gán phòng cho đặt phòng thành công")
   @ApiDescript("Gán phòng sẵn sàng và không trùng lịch")
   @ApiParam({ name: "hotelId", type: String })
@@ -184,6 +188,7 @@ export class ReservationsController {
     );
   }
 
+  @RequirePermission("hotel.reservations.manage")
   @SuccessMessage("Check-in đặt phòng thành công")
   @ApiDescript("Tạo stay và folio theo transaction")
   @ApiParam({ name: "hotelId", type: String })

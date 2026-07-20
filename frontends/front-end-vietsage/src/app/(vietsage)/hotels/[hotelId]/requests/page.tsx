@@ -7,7 +7,7 @@ import { RequestQueueClient } from "./request-queue-client";
 import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
 import type { ListHotelRequestsQuery } from "@/features/hotel-ops/types/hotel-ops-contract";
 import { assertCanAccessHotelOps, canUseHotelId, requireHotelOpsServerTokens } from "@/features/hotel-ops/utils/hotel-route-auth";
-import { resolveDashboardNavigation, type DashboardNavItem } from "@/lib/frontend-navigation";
+import { buildWorkspaceNavigationForContext } from "@/features/workspace/config/workspace-registry";
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
 import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
 
@@ -29,18 +29,6 @@ function normalizeDayFilter(value: string | undefined, boundary: "start" | "end"
   if (!displayMatch) return trimmed;
 
   return `${displayMatch[3]}-${displayMatch[2]}-${displayMatch[1]}T${boundary === "start" ? "00:00:00.000" : "23:59:59.999"}Z`;
-}
-
-function withHotelOpsItems(items: DashboardNavItem[], hotelId: string): DashboardNavItem[] {
-  const additions: DashboardNavItem[] = [
-    { key: `/hotels/${hotelId}/services`, href: `/hotels/${hotelId}/services`, label: "Service catalog", icon: "room_service" },
-    { key: `/hotels/${hotelId}/requests`, href: `/hotels/${hotelId}/requests`, label: "Request queue", icon: "assignment" },
-  ];
-  const byHref = new Map<string, DashboardNavItem>();
-  for (const item of [...items, ...additions]) {
-    byHref.set(item.href, item);
-  }
-  return [...byHref.values()];
 }
 
 export default async function HotelRequestsPage({ params, searchParams }: RequestsPageProps) {
@@ -76,19 +64,14 @@ export default async function HotelRequestsPage({ params, searchParams }: Reques
   };
 
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
-  const [requestsPage, requestSummary, serviceItemsPage, sidebarItems] = await Promise.all([
+  const sidebarItems = buildWorkspaceNavigationForContext({
+    ...workspaceContext,
+    hotelId,
+  });
+  const [requestsPage, requestSummary, serviceItemsPage] = await Promise.all([
     authorizedApi("list hotel requests", (accessToken) => hotelOpsService.listRequests(hotelId, { query, accessToken })),
     authorizedApi("summarize hotel requests", (accessToken) => hotelOpsService.getRequestsSummary(hotelId, { query: summaryQuery, accessToken })),
     authorizedApi("list service items", (accessToken) => hotelOpsService.listServiceItems(hotelId, { query: { page: 1, limit: 100 }, accessToken })),
-    resolveDashboardNavigation({
-      userRole: "staff",
-      assignedRoles: [],
-      permissions: [],
-      accessToken: tokens.accessToken,
-      accessTokenExpiresAt: session.accessTokenExpiresAt,
-      refreshToken: tokens.refreshToken,
-      authError: session.authError,
-    }),
   ]);
 
   const initialFilters = Object.fromEntries(
@@ -106,7 +89,7 @@ export default async function HotelRequestsPage({ params, searchParams }: Reques
         rightLabel="Team member"
         subtitle="Request queue"
       />
-      <VsDashboardSidebar activePath={callbackUrl} items={withHotelOpsItems(sidebarItems, hotelId)} />
+      <VsDashboardSidebar activePath={callbackUrl} items={sidebarItems} />
       <main className="min-h-screen px-4 pb-24 pt-24 md:ml-80 md:px-10">
         <div className="mx-auto max-w-[1600px] space-y-6">
           <header className="flex flex-col gap-2">

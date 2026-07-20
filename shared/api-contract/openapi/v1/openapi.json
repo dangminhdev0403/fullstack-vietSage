@@ -2922,6 +2922,89 @@
         ]
       }
     },
+    "/hotel-users/managed-roles": {
+      "get": {
+        "operationId": "HotelUsersController_listManagedRoles",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-tenant-id",
+            "required": false,
+            "in": "header",
+            "description": "Ghi đè đơn vị tùy chọn",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bao phản hồi danh sách vai trò nhân viên có thể quản lý",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Lấy danh sách vai trò nhân viên có thể quản lý thành công"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "code": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "code",
+                          "name"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "hotel-users"
+        ]
+      }
+    },
     "/hotel-users/{id}": {
       "get": {
         "operationId": "HotelUsersController_getHotelUser",
@@ -6786,6 +6869,433 @@
         },
         "tags": [
           "hotel-reservations"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/staff-assignments": {
+      "get": {
+        "operationId": "HotelStaffAssignmentsController_list",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "ACTIVE",
+                "REVOKED"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Lấy danh sách phân công nhân viên thành công"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "page": {
+                          "type": "number"
+                        },
+                        "limit": {
+                          "type": "number"
+                        },
+                        "total": {
+                          "type": "number"
+                        },
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "userId": {
+                                "type": "string"
+                              },
+                              "hotelId": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "ACTIVE",
+                                  "REVOKED"
+                                ]
+                              },
+                              "assignedAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "assignedById": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "revokedAt": {
+                                "type": "string",
+                                "format": "date-time",
+                                "nullable": true
+                              },
+                              "revokedById": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "user": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "email": {
+                                    "type": "string",
+                                    "format": "email"
+                                  },
+                                  "fullName": {
+                                    "type": "string"
+                                  },
+                                  "roles": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "id": {
+                                          "type": "string"
+                                        },
+                                        "code": {
+                                          "type": "string"
+                                        },
+                                        "name": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "id",
+                                        "code",
+                                        "name"
+                                      ]
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "email",
+                                  "fullName",
+                                  "roles"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "userId",
+                              "hotelId",
+                              "status",
+                              "assignedAt",
+                              "assignedById",
+                              "revokedAt",
+                              "revokedById",
+                              "user"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "page",
+                        "limit",
+                        "total",
+                        "items"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "hotel-staff"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/staff-assignments/{userId}": {
+      "put": {
+        "operationId": "HotelStaffAssignmentsController_assign",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Phân công nhân viên vào khách sạn thành công"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "userId": {
+                          "type": "string"
+                        },
+                        "hotelId": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "ACTIVE",
+                            "REVOKED"
+                          ]
+                        },
+                        "assignedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "assignedById": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "revokedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "nullable": true
+                        },
+                        "revokedById": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "user": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "email": {
+                              "type": "string",
+                              "format": "email"
+                            },
+                            "fullName": {
+                              "type": "string"
+                            },
+                            "roles": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "code": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "code",
+                                  "name"
+                                ]
+                              }
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "email",
+                            "fullName",
+                            "roles"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "userId",
+                        "hotelId",
+                        "status",
+                        "assignedAt",
+                        "assignedById",
+                        "revokedAt",
+                        "revokedById",
+                        "user"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "hotel-staff"
+        ]
+      },
+      "delete": {
+        "operationId": "HotelStaffAssignmentsController_revoke",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Thu hồi phân công nhân viên thành công"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "revoked": {
+                          "type": "boolean",
+                          "enum": [
+                            true
+                          ]
+                        },
+                        "hotelId": {
+                          "type": "string"
+                        },
+                        "userId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "revoked",
+                        "hotelId",
+                        "userId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "hotel-staff"
         ]
       }
     },

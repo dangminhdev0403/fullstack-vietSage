@@ -337,6 +337,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/hotel-users/managed-roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["HotelUsersController_listManagedRoles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/hotel-users/{id}": {
         parameters: {
             query?: never;
@@ -780,6 +796,38 @@ export interface paths {
         put?: never;
         post: operations["ReservationsController_checkIn"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/staff-assignments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["HotelStaffAssignmentsController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/staff-assignments/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["HotelStaffAssignmentsController_assign"];
+        post?: never;
+        delete: operations["HotelStaffAssignmentsController_revoke"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2455,6 +2503,45 @@ export interface operations {
             };
         };
     };
+    HotelUsersController_listManagedRoles: {
+        parameters: {
+            query?: {
+                tenantId?: string;
+            };
+            header?: {
+                /** @description Ghi đè đơn vị tùy chọn */
+                "x-tenant-id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bao phản hồi danh sách vai trò nhân viên có thể quản lý */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 200 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Lấy danh sách vai trò nhân viên có thể quản lý thành công */
+                        message: string;
+                        data: {
+                            id: string;
+                            code: string;
+                            name: string;
+                        }[];
+                    };
+                };
+            };
+        };
+    };
     HotelUsersController_getHotelUser: {
         parameters: {
             query?: {
@@ -4065,6 +4152,161 @@ export interface operations {
                             /** @enum {string} */
                             status: "ACTIVE";
                         } | null;
+                    };
+                };
+            };
+        };
+    };
+    HotelStaffAssignmentsController_list: {
+        parameters: {
+            query?: {
+                status?: "ACTIVE" | "REVOKED";
+                limit?: number;
+                page?: number;
+            };
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 200 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Lấy danh sách phân công nhân viên thành công */
+                        message: string;
+                        data: {
+                            page: number;
+                            limit: number;
+                            total: number;
+                            items: {
+                                id: string;
+                                userId: string;
+                                hotelId: string;
+                                /** @enum {string} */
+                                status: "ACTIVE" | "REVOKED";
+                                /** Format: date-time */
+                                assignedAt: string;
+                                assignedById: string | null;
+                                /** Format: date-time */
+                                revokedAt: string | null;
+                                revokedById: string | null;
+                                user: {
+                                    id: string;
+                                    /** Format: email */
+                                    email: string;
+                                    fullName: string;
+                                    roles: {
+                                        id: string;
+                                        code: string;
+                                        name: string;
+                                    }[];
+                                };
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+    };
+    HotelStaffAssignmentsController_assign: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 200 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Phân công nhân viên vào khách sạn thành công */
+                        message: string;
+                        data: {
+                            id: string;
+                            userId: string;
+                            hotelId: string;
+                            /** @enum {string} */
+                            status: "ACTIVE" | "REVOKED";
+                            /** Format: date-time */
+                            assignedAt: string;
+                            assignedById: string | null;
+                            /** Format: date-time */
+                            revokedAt: string | null;
+                            revokedById: string | null;
+                            user: {
+                                id: string;
+                                /** Format: email */
+                                email: string;
+                                fullName: string;
+                                roles: {
+                                    id: string;
+                                    code: string;
+                                    name: string;
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+    };
+    HotelStaffAssignmentsController_revoke: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 200 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Thu hồi phân công nhân viên thành công */
+                        message: string;
+                        data: {
+                            /** @enum {boolean} */
+                            revoked: true;
+                            hotelId: string;
+                            userId: string;
+                        };
                     };
                 };
             };

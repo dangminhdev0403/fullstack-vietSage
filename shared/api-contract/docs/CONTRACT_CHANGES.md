@@ -2,10 +2,15 @@
 
 ## Unreleased
 
+- Added tenant-scoped hotel staff administration contracts: managed role discovery plus hotel staff
+  assignment list/assign/revoke. The contracts require the session-bound active role, business
+  capability checks, and Property resource access checks.
+- Added `hotel.staff.view` and `hotel.staff.manage`; migration `0034_workspace_role_capabilities`
+  applies one-time built-in role presets without re-granting later administrator revocations.
 - Added `activeRole` to `GET /auth/me`. Its `menus` and `permissions`, plus route/business capability authorization, now use only the role bound to the authenticated session instead of merging every active user role; `roles` remains the complete compatibility list and no active hotel is inferred.
 - Added Front Desk reservation lifecycle endpoints: `POST /hotels/{hotelId}/reservations`, `GET /hotels/{hotelId}/arrivals`, `PUT /hotels/{hotelId}/reservations/{reservationId}/room`, and `POST /hotels/{hotelId}/reservations/{reservationId}/check-in`. Reservations may be created without a room; room assignment requires an available, non-overlapping room. Check-in requires a usable room QR and no active stay/blocking folio, then transactionally creates an active stay and open folio, activates GuestOS access/QR, emits check-in events, and moves the room to `OCCUPIED`; serializable conflicts are retried and translated to stable `409` responses.
 - Added additive `Reservation` persistence with `CONFIRMED -> ARRIVAL_READY -> CHECKED_IN` lifecycle and an optional unique link from `GuestStay` for compatibility with legacy stay endpoints.
-- Added `hotel.reservations.view` and `hotel.reservations.manage` business capabilities. They are fail-closed and are not automatically granted to existing staff roles; grants require an audited rollout after the migration is applied.
+- Added `hotel.reservations.view` and `hotel.reservations.manage` business capabilities. They are fail-closed; migration `0034_workspace_role_capabilities` applies one-time defaults to built-in Owner, Manager, and Front Desk roles, after which administrator changes are preserved.
 - Corrected `GET /auth/me` runtime output to include deduplicated `permissions` from active role grants and `accessibleHotels` from active hotel assignments constrained by active tenant memberships; clients must explicitly select hotel context.
 - Checkout safety semantics: `POST /hotels/{hotelId}/folios/{folioId}/checkout/issue-invoice` now validates folio freshness before issuing/reusing an invoice and moves an open folio to `CHECKOUT_PENDING`; checkout side effects (folio close, stay checkout/access revocation, room `PROCESSING`, active QR deactivation) occur only after a verified `payment.succeeded`/`payment.success` webhook. `POST /payments/webhook/{provider}` bypasses JWT only for the exact provider path and requires `X-VietSage-Payment-Webhook-Secret`.
 - Added protected `POST /hotels/{hotelId}/request-realtime-ticket`, returning only a short-lived `ticket` and `expiresAt` after hotel access authorization.

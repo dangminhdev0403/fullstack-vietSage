@@ -41,13 +41,14 @@ export type TenantScopedHotelUserRow = Prisma.TenantUserGetPayload<{
 export class HotelUsersRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findActorById(userId: string) {
+  async findActorById(userId: string, activeRoleId: string) {
     return this.prisma.user.findUnique({
       where: { id: userId },
       select: {
         id: true,
         userRoles: {
           where: {
+            roleId: activeRoleId,
             status: UserRoleStatus.ACTIVE,
             role: {
               status: RoleStatus.ACTIVE,
@@ -92,6 +93,93 @@ export class HotelUsersRepository {
         id: true,
         code: true,
         name: true,
+      },
+    });
+  }
+
+  async listManagedRoles(roleCodes: string[]) {
+    return this.prisma.role.findMany({
+      where: {
+        code: { in: roleCodes },
+        status: RoleStatus.ACTIVE,
+      },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+      },
+      orderBy: [{ name: "asc" }],
+    });
+  }
+
+  async findActiveHotelStaffInTenant(tenantId: string, userId: string) {
+    return this.prisma.tenantUser.findFirst({
+      where: {
+        tenantId,
+        userId,
+        status: TenantUserStatus.ACTIVE,
+        user: {
+          status: UserStatus.ACTIVE,
+          userType: UserType.HOTEL_STAFF,
+        },
+      },
+      select: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            fullName: true,
+            userRoles: {
+              where: {
+                status: UserRoleStatus.ACTIVE,
+                role: { status: RoleStatus.ACTIVE },
+              },
+              select: {
+                role: {
+                  select: { id: true, code: true, name: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  async findActiveHotelStaffByIds(tenantId: string, userIds: string[]) {
+    if (userIds.length === 0) {
+      return [];
+    }
+
+    return this.prisma.tenantUser.findMany({
+      where: {
+        tenantId,
+        userId: { in: userIds },
+        status: TenantUserStatus.ACTIVE,
+        user: {
+          status: UserStatus.ACTIVE,
+          userType: UserType.HOTEL_STAFF,
+        },
+      },
+      select: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            fullName: true,
+            userRoles: {
+              where: {
+                status: UserRoleStatus.ACTIVE,
+                role: { status: RoleStatus.ACTIVE },
+              },
+              select: {
+                role: {
+                  select: { id: true, code: true, name: true },
+                },
+              },
+            },
+          },
+        },
       },
     });
   }

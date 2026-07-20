@@ -29,7 +29,7 @@ Inside this core API, boundaries are enforced at the **module/context** level fi
 | Owner context | Public export | Consumers | Reason |
 | --- | --- | --- | --- |
 | Property / Hotels | `HotelAccessService` | Billing and other resource-scoped modules | Validates actor access to hotel/tenant without exposing hotel repositories. |
-| Identity & Access | `AuthorizationService`, `AuthService`, route-permission helpers, `JwtAuthGuard` via `identity-public.ts` | Global guards/strategies/controllers | Keeps security consumers off Identity domain/infrastructure paths. |
+| Identity & Access | `AuthorizationService`, `AuthService`, `HotelUserDirectoryService`, route-permission helpers, `JwtAuthGuard` via `identity-public.ts` | Global guards/strategies/controllers and Property staff assignment workflows | Keeps consumers off Identity domain/infrastructure paths while allowing tenant-scoped staff validation. |
 | Codes | `CodesService` via `codes-public.ts` | Organization, Property, Billing | Generates entity codes without exposing the repository. |
 
 ## Repository export policy
@@ -64,3 +64,8 @@ private path or when a Nest module exports a repository. Cross-context consumers
 Frontend route pages should delegate multi-endpoint orchestration to a feature-owned loader or
 query. For example, the Staff workspace selects widgets and hotel scope, while Hotel Operations
 owns loading request and service dashboard data.
+
+Staff assignment ownership is split deliberately: Identity owns users, active roles, and tenant
+membership; Property owns `HotelStaffAssignment`. Property consumes only the public
+`HotelUserDirectoryService` to validate an assignable tenant staff user and never imports the
+Identity repository.

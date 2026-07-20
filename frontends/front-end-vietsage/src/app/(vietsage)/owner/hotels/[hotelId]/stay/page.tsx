@@ -8,12 +8,12 @@ import {
 } from "@/components/ui/data-table";
 import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
 import type { HotelRoomSummary } from "@/features/hotel-ops/types/hotel-ops-contract";
-import { resolveDashboardNavigation } from "@/lib/frontend-navigation";
+import { buildWorkspaceNavigationForContext } from "@/features/workspace/config/workspace-registry";
 import { readServerSessionTokens } from "@/lib/server-session-tokens";
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
+import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
 
 import { VsIcon } from "../../../../_components/vs-icon";
-import { withOwnerHotelNavigation } from "../../../_components/owner-navigation";
 import { OwnerShell } from "../../../_components/owner-shell";
 import { OwnerStayQrButton } from "./owner-stay-qr-button";
 import { OwnerStayRoomGridClient } from "./owner-stay-room-grid-client";
@@ -227,22 +227,15 @@ export default async function OwnerHotelStayPage({
   const tokens = await readServerSessionTokens();
   const callbackUrl = `/owner/hotels/${hotelId}/stay` as const;
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
+  const workspaceContext = await loadServerWorkspaceContext(callbackUrl, tokens.accessToken);
+  const sidebarItems = buildWorkspaceNavigationForContext({ ...workspaceContext, hotelId });
 
-  const [sidebarItems, roomsPage] = await Promise.all([
-    resolveDashboardNavigation({
-      roles: session?.user.roles ?? [],
-      accessToken: tokens.accessToken,
-      accessTokenExpiresAt: session?.accessTokenExpiresAt ?? tokens.accessTokenExpiresAt,
-      refreshToken: tokens.refreshToken,
-      authError: session?.authError ?? null,
-    }),
-    authorizedApi("list owner rooms for stay manager", (accessToken) =>
-      hotelOpsService.listRooms(hotelId, {
+  const roomsPage = await authorizedApi("list owner rooms for stay manager", (accessToken) =>
+    hotelOpsService.listRooms(hotelId, {
         query: { page: 1, limit: 100 },
         accessToken,
       }),
-    ),
-  ]);
+  );
 
   const rooms = roomsPage.items;
   const activeStayCount = rooms.filter(hasActiveStay).length;
@@ -465,7 +458,7 @@ export default async function OwnerHotelStayPage({
   return (
     <OwnerShell
       activePath={callbackUrl}
-      navItems={withOwnerHotelNavigation(sidebarItems, hotelId)}
+      navItems={sidebarItems}
       subtitle="Quản lý lưu trú"
     >
       <header className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
