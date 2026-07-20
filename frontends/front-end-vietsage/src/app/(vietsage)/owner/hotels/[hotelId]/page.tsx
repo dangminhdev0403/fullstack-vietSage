@@ -5,13 +5,14 @@ import { auth } from "@/auth";
 import { HttpError } from "@/core/http/http-error";
 import { adminService } from "@/features/admin/service/admin-service-instance";
 import type { Hotel } from "@/features/admin/types/admin-contract";
-import { resolveDashboardNavigation, type DashboardNavItem } from "@/lib/frontend-navigation";
+import { buildWorkspaceNavigationForContext } from "@/features/workspace/config/workspace-registry";
+import type { DashboardNavItem } from "@/features/workspace/types/workspace-navigation";
 import { readServerSessionTokens } from "@/lib/server-session-tokens";
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
+import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
 
 import { VsIcon } from "../../../_components/vs-icon";
 import { ownerAccessMessage } from "../../_components/owner-auth";
-import { withOwnerHotelNavigation } from "../../_components/owner-navigation";
 import { OwnerShell } from "../../_components/owner-shell";
 import { OwnerHotelDetailClient } from "./owner-hotel-detail-client";
 
@@ -36,19 +37,14 @@ export default async function OwnerHotelPage({ params }: OwnerHotelPageProps) {
   const tokens = await readServerSessionTokens();
   const callbackUrl = `/owner/hotels/${hotelId}` as const;
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
+  const workspaceContext = await loadServerWorkspaceContext(callbackUrl, tokens.accessToken);
 
   let sidebarItems: DashboardNavItem[];
   let hotel: Hotel | null;
 
   try {
     [sidebarItems, hotel] = await Promise.all([
-      resolveDashboardNavigation({
-        roles: session?.user.roles ?? [],
-        accessToken: tokens.accessToken,
-        accessTokenExpiresAt: session?.accessTokenExpiresAt ?? tokens.accessTokenExpiresAt,
-        refreshToken: tokens.refreshToken,
-        authError: session?.authError ?? null,
-      }),
+      Promise.resolve(buildWorkspaceNavigationForContext({ ...workspaceContext, hotelId })),
       authorizedApi("get owner visible hotel", (accessToken) => getOwnerVisibleHotel(hotelId, accessToken)),
     ]);
   } catch (error) {
@@ -70,7 +66,7 @@ export default async function OwnerHotelPage({ params }: OwnerHotelPageProps) {
   }
 
   return (
-    <OwnerShell activePath={callbackUrl} navItems={withOwnerHotelNavigation(sidebarItems, hotelId)} subtitle="Thông tin khách sạn">
+    <OwnerShell activePath={callbackUrl} navItems={sidebarItems} subtitle="Thông tin khách sạn">
       <header>
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--secondary)]">KHÁCH SẠN</p>
         <h1 className="mt-3 text-4xl font-semibold text-[var(--primary)]">{hotel.name}</h1>
@@ -80,12 +76,7 @@ export default async function OwnerHotelPage({ params }: OwnerHotelPageProps) {
       </header>
 
       <section className="grid gap-3 md:grid-cols-2">
-        {[
-          { href: `/owner/hotels/${hotelId}/rooms`, label: "Phòng & QR", icon: "bed" },
-          { href: `/owner/hotels/${hotelId}/requests`, label: "Xử lí yêu cầu", icon: "assignment" },
-          { href: `/owner/hotels/${hotelId}/stay`, label: "Lưu trú", icon: "hotel" },
-          { href: `/owner/hotels/${hotelId}/services`, label: "Dịch vụ", icon: "concierge" },
-        ].map((item) => (
+        {sidebarItems.filter((item) => item.key.startsWith("owner.hotel.") && item.key !== "owner.hotel.overview").map((item) => (
           <Link key={item.href} href={item.href} className="flex cursor-pointer items-center gap-3 rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-4 text-sm font-semibold text-[var(--primary)] transition-colors hover:bg-[var(--surface-container)]">
             <VsIcon name={item.icon} className="text-[20px]" />
             {item.label}

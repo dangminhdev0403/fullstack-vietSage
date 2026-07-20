@@ -1,4 +1,4 @@
-import type { DashboardNavItem } from "@/lib/frontend-navigation";
+import type { DashboardNavItem } from "../types/workspace-navigation";
 
 import type {
   WorkspaceDefinition,
@@ -16,6 +16,7 @@ const STAFF_PERSONAS: readonly WorkspacePersona[] = [
   "front_desk",
   "housekeeping",
   "maintenance",
+  "food_beverage",
   "finance",
 ];
 
@@ -26,6 +27,7 @@ const WORKSPACE_DEFINITIONS: Record<WorkspacePersona, WorkspaceDefinition> = {
   front_desk: { persona: "front_desk", eyebrow: "Front desk", title: "Quầy lễ tân", description: "Ưu tiên khách lưu trú, hàng đợi yêu cầu và xử lý tại quầy.", profileLabel: "Lễ tân", homePath: "/staff/front-desk" },
   housekeeping: { persona: "housekeeping", eyebrow: "Operations", title: "Vận hành buồng phòng", description: "Theo dõi và hoàn thành công việc buồng phòng được phân công.", profileLabel: "Buồng phòng", homePath: "/staff/operations" },
   maintenance: { persona: "maintenance", eyebrow: "Operations", title: "Vận hành kỹ thuật", description: "Theo dõi và xử lý yêu cầu kỹ thuật theo phạm vi khách sạn.", profileLabel: "Kỹ thuật", homePath: "/staff/operations" },
+  food_beverage: { persona: "food_beverage", eyebrow: "Operations", title: "Ẩm thực khách sạn", description: "Theo dõi yêu cầu ẩm thực và danh mục dịch vụ theo phạm vi khách sạn.", profileLabel: "Ẩm thực", homePath: "/staff/operations" },
   finance: { persona: "finance", eyebrow: "Operations", title: "Tài chính khách sạn", description: "Theo dõi các công việc tài chính trong phạm vi được cấp.", profileLabel: "Tài chính", homePath: "/staff/operations" },
 };
 
@@ -41,6 +43,7 @@ const ROLE_ALIASES: Record<string, WorkspacePersona> = {
   HOTEL_HOUSEKEEPING: "housekeeping",
   MAINTENANCE: "maintenance",
   HOTEL_MAINTENANCE: "maintenance",
+  HOTEL_FNB: "food_beverage",
   FINANCE: "finance",
   HOTEL_FINANCE: "finance",
 };
@@ -48,14 +51,23 @@ const ROLE_ALIASES: Record<string, WorkspacePersona> = {
 const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
   { key: "admin.home", personas: ["platform_admin"], href: "/admin/dashboard", label: "Tổng quan nền tảng", icon: "dashboard", order: 10 },
   { key: "admin.hotels", personas: ["platform_admin"], href: "/admin/hotels", label: "Khách sạn", icon: "hotel", order: 20, anyCapabilities: ["platform.hotels.view", "platform.hotels.manage"] },
-  { key: "admin.users", personas: ["platform_admin"], href: "/admin/users", label: "Chủ sở hữu", icon: "group", order: 30, anyCapabilities: ["platform.users.view", "platform.users.manage"] },
+  { key: "admin.users", personas: ["platform_admin"], href: "/admin/users", label: "Người dùng", icon: "group", order: 30, anyCapabilities: ["platform.users.view", "platform.users.manage"] },
   { key: "admin.access", personas: ["platform_admin"], href: "/admin/roles", label: "Vai trò & quyền", icon: "verified_user", order: 40, anyCapabilities: ["platform.roles.view", "platform.roles.manage", "platform.permissions.manage"] },
-  { key: "owner.home", personas: ["owner"], href: "/owner/dashboard", label: "Tổng quan", icon: "dashboard", order: 10 },
+  { key: "owner.home", personas: ["owner"], href: "/owner/dashboard", label: "Tổng quan danh mục", icon: "dashboard", order: 10 },
   { key: "owner.hotels", personas: ["owner"], href: "/owner/hotels", label: "Khách sạn", icon: "hotel", order: 20 },
-  { key: "owner.rooms", personas: ["owner"], href: "/owner/rooms", label: "Phòng", icon: "bed", order: 30 },
+  { key: "owner.staff", personas: ["owner"], href: "/owner/staff", label: "Nhân viên", icon: "group", order: 30, hideWhenHotelSelected: true, anyCapabilities: ["hotel.staff.view", "hotel.staff.manage"] },
+  { key: "owner.rooms", personas: ["owner"], href: "/owner/rooms", label: "Phòng", icon: "bed", order: 40, hideWhenHotelSelected: true, anyCapabilities: ["hotel.rooms.view", "hotel.rooms.manage", "hotel.rooms.qr.manage"] },
+  { key: "owner.hotel.overview", personas: ["owner"], href: "/owner/hotels/{hotelId}", label: "Thông tin khách sạn", icon: "hotel", order: 100, requiresHotel: true, anyCapabilities: ["hotel.dashboard.view"] },
+  { key: "owner.hotel.rooms", personas: ["owner"], href: "/owner/hotels/{hotelId}/rooms", label: "Phòng & QR", icon: "bed", order: 110, requiresHotel: true, anyCapabilities: ["hotel.rooms.view", "hotel.rooms.manage", "hotel.rooms.qr.manage"] },
+  { key: "owner.hotel.staff", personas: ["owner"], href: "/owner/staff?hotelId={hotelId}", label: "Nhân viên khách sạn", icon: "group", order: 120, requiresHotel: true, anyCapabilities: ["hotel.staff.view", "hotel.staff.manage"] },
+  { key: "owner.hotel.requests", personas: ["owner"], href: "/owner/hotels/{hotelId}/requests", label: "Yêu cầu khách", icon: "assignment", order: 130, requiresHotel: true, anyCapabilities: ["hotel.requests.view", "hotel.requests.manage"] },
+  { key: "owner.hotel.stays", personas: ["owner"], href: "/owner/hotels/{hotelId}/stay", label: "Lưu trú", icon: "hotel", order: 140, requiresHotel: true, anyCapabilities: ["hotel.stays.view", "hotel.stays.manage", "hotel.reservations.view", "hotel.reservations.manage"] },
+  { key: "owner.hotel.services", personas: ["owner"], href: "/owner/hotels/{hotelId}/services", label: "Dịch vụ", icon: "concierge", order: 150, requiresHotel: true, anyCapabilities: ["hotel.services.view", "hotel.services.manage"] },
+  { key: "owner.hotel.billing", personas: ["owner"], href: "/owner/hotels/{hotelId}/billing", label: "Thanh toán", icon: "inventory_2", order: 160, requiresHotel: true, anyCapabilities: ["hotel.billing.view", "hotel.billing.manage"] },
   { key: "staff.home", personas: STAFF_PERSONAS, href: "/staff", label: "Tổng quan công việc", icon: "dashboard", order: 10 },
-  { key: "staff.requests", personas: STAFF_PERSONAS, href: "/hotels/{hotelId}/requests", label: "Yêu cầu công việc", labelByPersona: { front_desk: "Hàng đợi lễ tân" }, icon: "assignment", order: 20, requiresHotel: true, anyCapabilities: ["hotel.requests.view", "hotel.requests.manage"] },
-  { key: "staff.services", personas: ["manager", "finance"], href: "/hotels/{hotelId}/services", label: "Danh mục dịch vụ", icon: "room_service", order: 30, requiresHotel: true, anyCapabilities: ["hotel.services.view", "hotel.services.manage"] },
+  { key: "staff.arrivals", personas: ["manager", "front_desk"], href: "/hotels/{hotelId}/arrivals", label: "Khách đến & đặt phòng", labelByPersona: { front_desk: "Khách đến" }, icon: "event_available", order: 20, requiresHotel: true, anyCapabilities: ["hotel.reservations.view", "hotel.reservations.manage"] },
+  { key: "staff.requests", personas: STAFF_PERSONAS, href: "/hotels/{hotelId}/requests", label: "Yêu cầu công việc", labelByPersona: { front_desk: "Hàng đợi lễ tân" }, icon: "assignment", order: 30, requiresHotel: true, anyCapabilities: ["hotel.requests.view", "hotel.requests.manage"] },
+  { key: "staff.services", personas: ["manager", "food_beverage", "finance"], href: "/hotels/{hotelId}/services", label: "Danh mục dịch vụ", icon: "room_service", order: 40, requiresHotel: true, anyCapabilities: ["hotel.services.view", "hotel.services.manage"] },
 ];
 
 const WIDGETS: readonly WorkspaceWidgetDefinition[] = [
@@ -64,8 +76,8 @@ const WIDGETS: readonly WorkspaceWidgetDefinition[] = [
   { key: "platform.access", personas: ["platform_admin"], title: "Vai trò & quyền hạn", description: "Quản trị role template, capability và chính sách truy cập.", icon: "verified_user", href: "/admin/roles", order: 30, size: "standard", anyCapabilities: ["platform.roles.view", "platform.roles.manage", "platform.permissions.manage"] },
   { key: "requests.active", personas: STAFF_PERSONAS, title: "Yêu cầu đang hoạt động", description: "Các yêu cầu cần tiếp tục xử lý.", icon: "assignment", order: 10, size: "compact", requiresHotel: true, anyCapabilities: ["hotel.requests.view", "hotel.requests.manage"] },
   { key: "requests.new", personas: STAFF_PERSONAS, title: "Yêu cầu mới", description: "Các yêu cầu vừa được tạo.", icon: "notifications_active", order: 20, size: "compact", requiresHotel: true, anyCapabilities: ["hotel.requests.view", "hotel.requests.manage"] },
-  { key: "services.categories", personas: ["manager", "finance"], title: "Nhóm dịch vụ", description: "Số nhóm dịch vụ đang quản lý.", icon: "category", order: 30, size: "compact", requiresHotel: true, anyCapabilities: ["hotel.services.view", "hotel.services.manage"] },
-  { key: "services.items", personas: ["manager", "finance"], title: "Dịch vụ", description: "Số dịch vụ trong catalog.", icon: "room_service", order: 40, size: "compact", requiresHotel: true, anyCapabilities: ["hotel.services.view", "hotel.services.manage"] },
+  { key: "services.categories", personas: ["manager", "food_beverage", "finance"], title: "Nhóm dịch vụ", description: "Số nhóm dịch vụ đang quản lý.", icon: "category", order: 30, size: "compact", requiresHotel: true, anyCapabilities: ["hotel.services.view", "hotel.services.manage"] },
+  { key: "services.items", personas: ["manager", "food_beverage", "finance"], title: "Dịch vụ", description: "Số dịch vụ trong catalog.", icon: "room_service", order: 40, size: "compact", requiresHotel: true, anyCapabilities: ["hotel.services.view", "hotel.services.manage"] },
   { key: "requests.feed", personas: STAFF_PERSONAS, title: "Yêu cầu gần đây", description: "Hàng đợi công việc theo khách sạn.", icon: "view_list", order: 50, size: "wide", requiresHotel: true, anyCapabilities: ["hotel.requests.view", "hotel.requests.manage"] },
 ];
 
@@ -138,6 +150,7 @@ export function buildWorkspaceNavigation(input: { persona: WorkspacePersona; per
     .filter((item) => item.personas.includes(persona))
     .filter((item) => hasAnyCapability(permissions, item.anyCapabilities))
     .filter((item) => !item.requiresHotel || Boolean(hotelId))
+    .filter((item) => !item.hideWhenHotelSelected || !hotelId)
     .sort((first, second) => first.order - second.order)
     .flatMap((item) => {
       const isStaffHome = item.key === "staff.home";
@@ -146,6 +159,22 @@ export function buildWorkspaceNavigation(input: { persona: WorkspacePersona; per
       const href = isStaffHome && hotelId ? `${resolvedPath}?hotelId=${encodeURIComponent(hotelId)}` as `/${string}` : resolvedPath;
       return [{ key: item.key, href, label: item.labelByPersona?.[persona] ?? item.label, icon: item.icon }];
     });
+}
+
+export function buildWorkspaceNavigationForContext(input: {
+  activeRole: { code: string };
+  permissions: readonly string[];
+  hotelId?: string | null;
+  registry?: WorkspaceRegistry;
+}): DashboardNavItem[] {
+  const persona = resolveWorkspacePersona(input.activeRole.code, input.registry);
+  if (!persona) return [];
+  return buildWorkspaceNavigation({
+    persona,
+    permissions: input.permissions,
+    hotelId: input.hotelId,
+    registry: input.registry,
+  });
 }
 
 export function getWorkspaceDashboardWidgets(input: { persona: WorkspacePersona; permissions: readonly string[]; hotelId?: string | null; registry?: WorkspaceRegistry }): WorkspaceWidgetDefinition[] {

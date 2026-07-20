@@ -1,6 +1,5 @@
-import { auth } from "@/auth";
-import { resolveDashboardNavigation } from "@/lib/frontend-navigation";
-import { readServerSessionTokens } from "@/lib/server-session-tokens";
+import { buildWorkspaceNavigationForContext } from "@/features/workspace/config/workspace-registry";
+import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
 
 import { OwnerShell } from "../_components/owner-shell";
 import { OwnerHotelsClient } from "./owner-hotels-client";
@@ -8,17 +7,9 @@ import { OwnerHotelsClient } from "./owner-hotels-client";
 export const dynamic = "force-dynamic";
 
 export default async function OwnerHotelsPage() {
-  const session = await auth();
-  const tokens = await readServerSessionTokens();
   const callbackUrl = "/owner/hotels" as const;
-
-  const sidebarItems = await resolveDashboardNavigation({
-    roles: session?.user.roles ?? [],
-    accessToken: tokens.accessToken,
-    accessTokenExpiresAt: session?.accessTokenExpiresAt ?? tokens.accessTokenExpiresAt,
-    refreshToken: tokens.refreshToken,
-    authError: session?.authError ?? null,
-  });
+  const workspaceContext = await loadServerWorkspaceContext(callbackUrl);
+  const sidebarItems = buildWorkspaceNavigationForContext(workspaceContext);
 
   return (
     <OwnerShell activePath={callbackUrl} navItems={sidebarItems} subtitle="Quản lý khách sạn">

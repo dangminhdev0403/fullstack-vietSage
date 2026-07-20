@@ -1,11 +1,11 @@
 import { auth } from "@/auth";
 import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
 import type { ListHotelRequestsQuery } from "@/features/hotel-ops/types/hotel-ops-contract";
-import { resolveDashboardNavigation } from "@/lib/frontend-navigation";
+import { buildWorkspaceNavigationForContext } from "@/features/workspace/config/workspace-registry";
 import { readServerSessionTokens } from "@/lib/server-session-tokens";
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
+import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
 
-import { withOwnerHotelNavigation } from "../../../_components/owner-navigation";
 import { OwnerShell } from "../../../_components/owner-shell";
 import { RequestQueueClient } from "../../../../hotels/[hotelId]/requests/request-queue-client";
 
@@ -42,6 +42,8 @@ export default async function OwnerHotelRequestsPage({ params, searchParams }: P
   const tokens = await readServerSessionTokens();
   const callbackUrl = `/owner/hotels/${hotelId}/requests` as const;
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
+  const workspaceContext = await loadServerWorkspaceContext(callbackUrl, tokens.accessToken);
+  const sidebarItems = buildWorkspaceNavigationForContext({ ...workspaceContext, hotelId });
   const currentPage = getPositiveInt(getFirst(resolvedSearchParams.page), 1);
   const currentPageSize = getPositiveInt(getFirst(resolvedSearchParams.limit), 20);
 
@@ -64,14 +66,7 @@ export default async function OwnerHotelRequestsPage({ params, searchParams }: P
     assignedToUserId: query.assignedToUserId,
   };
 
-  const [sidebarItems, requestsPage, requestSummary, serviceItemsPage] = await Promise.all([
-    resolveDashboardNavigation({
-      roles: session?.user.roles ?? [],
-      accessToken: tokens.accessToken,
-      accessTokenExpiresAt: session?.accessTokenExpiresAt ?? tokens.accessTokenExpiresAt,
-      refreshToken: tokens.refreshToken,
-      authError: session?.authError ?? null,
-    }),
+  const [requestsPage, requestSummary, serviceItemsPage] = await Promise.all([
     authorizedApi("list owner hotel requests", (accessToken) => hotelOpsService.listRequests(hotelId, { query, accessToken })),
     authorizedApi("summarize owner hotel requests", (accessToken) => hotelOpsService.getRequestsSummary(hotelId, { query: summaryQuery, accessToken })),
     authorizedApi("list owner request service items", (accessToken) => hotelOpsService.listServiceItems(hotelId, { query: { page: 1, limit: 100 }, accessToken })),
@@ -82,7 +77,7 @@ export default async function OwnerHotelRequestsPage({ params, searchParams }: P
   );
 
   return (
-    <OwnerShell activePath={callbackUrl} navItems={withOwnerHotelNavigation(sidebarItems, hotelId)} subtitle="Yêu cầu của khách">
+    <OwnerShell activePath={callbackUrl} navItems={sidebarItems} subtitle="Yêu cầu của khách">
       <header>
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--secondary)]">YÊU CẦU</p>
         <h1 className="mt-3 text-4xl font-semibold text-[var(--primary)]">Yêu cầu của khách</h1>

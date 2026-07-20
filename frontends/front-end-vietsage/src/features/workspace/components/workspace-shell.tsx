@@ -4,7 +4,7 @@ import Link from "next/link";
 import { VsDashboardSidebar } from "@/app/(vietsage)/_components/vs-dashboard-sidebar";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { VsTopBar } from "@/app/(vietsage)/_components/vs-top-bar";
-import type { DashboardNavItem } from "@/lib/frontend-navigation";
+import type { DashboardNavItem } from "@/features/workspace/types/workspace-navigation";
 
 import type { WorkspaceDefinition } from "../config/workspace-registry";
 

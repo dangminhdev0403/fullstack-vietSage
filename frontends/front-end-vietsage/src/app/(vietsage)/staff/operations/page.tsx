@@ -10,7 +10,7 @@ export default function OperationsDashboardPage(props: OperationsDashboardPagePr
   return (
     <StaffWorkspacePage
       {...props}
-      expectedPersonas={["housekeeping", "maintenance", "finance"]}
+      expectedPersonas={["housekeeping", "maintenance", "food_beverage", "finance"]}
     />
   );
 }

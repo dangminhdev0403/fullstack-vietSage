@@ -54,6 +54,24 @@ Start the app with `npm run dev`, then check these paths:
 
 For each protected route, verify that temporary API failures render the route-level error boundary with a visible retry button instead of a blank app shell.
 
+## Workspace V2 P3 Role Matrix
+
+After pulling P3, authenticate with one active role at a time and use only a hotel returned by
+`GET /auth/me`:
+
+| Active role | Entry route | Expected modules |
+| --- | --- | --- |
+| `SUPER_ADMIN` | `/admin/dashboard` | Platform hotels/users/access modules only; no hotel operations feed. |
+| `TENANT_OWNER` / `HOTEL_OWNER` | `/owner/dashboard` | Owner portfolio and existing hotel workflows. |
+| `HOTEL_MANAGER` | `/staff/manager?hotelId={assignedHotelId}` | Request metrics/feed and service metrics when capabilities allow. |
+| `HOTEL_FRONTDESK` / `RECEPTIONIST` | `/staff/front-desk?hotelId={assignedHotelId}` | Request queue; service management stays hidden. |
+| `HOTEL_HOUSEKEEPING` / `HOTEL_MAINTENANCE` | `/staff/operations?hotelId={assignedHotelId}` | Operations request work only when capability allows. |
+| `HOTEL_FINANCE` | `/staff/operations?hotelId={assignedHotelId}` | Finance persona with only capability-backed widgets/navigation. |
+
+For every staff role, also remove `hotelId` and supply an unassigned `hotelId`. Expected: the UI
+requires an explicit allowed hotel and never silently selects the first assignment. In the Network
+panel, hidden request/service widget groups must not trigger their backend list calls.
+
 ## Auth Refresh And Callback Smoke
 
 Run these checks after auth refresh, proxy, or login redirect changes:

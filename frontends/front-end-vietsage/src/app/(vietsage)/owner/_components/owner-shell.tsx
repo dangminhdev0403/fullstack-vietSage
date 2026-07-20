@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 import { WorkspaceShell } from "@/features/workspace/components/workspace-shell";
 import { getWorkspaceDefinition } from "@/features/workspace/config/workspace-registry";
-import type { DashboardNavItem } from "@/lib/frontend-navigation";
+import type { DashboardNavItem } from "@/features/workspace/types/workspace-navigation";
 
 type OwnerShellProps = {
   activePath: string;

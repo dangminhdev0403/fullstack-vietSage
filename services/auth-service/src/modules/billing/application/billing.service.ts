@@ -15,7 +15,7 @@ import {
 } from "@prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { AppLogger } from "../../../common/logging/app-logger.service";
-import { CodesService } from "../../codes/codes.service";
+import { CodesService } from "../../codes/codes-public";
 import { HotelAccessService } from "../../property/property-public";
 import { BillingRepository } from "../infrastructure/repositories/billing.repository";
 

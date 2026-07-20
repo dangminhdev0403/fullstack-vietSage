@@ -4,6 +4,7 @@ import { MODULE_METADATA } from "@nestjs/common/constants";
 import { JwtModule } from "@nestjs/jwt";
 import { AuthService } from "../application/authentication.service";
 import { AuthorizationService } from "../application/authorization.service";
+import { HotelUserDirectoryService } from "../application/hotel-user-directory.service";
 import { IdentityModule } from "../identity.module";
 import { AuthRepository } from "../infrastructure/repositories/auth.repository";
 import { HotelUsersRepository } from "../infrastructure/repositories/hotel-users.repository";
@@ -13,7 +14,12 @@ describe("IdentityModule architecture boundary", () => {
   it("exports public identity services while keeping repositories hidden", () => {
     const moduleExports = Reflect.getMetadata(MODULE_METADATA.EXPORTS, IdentityModule) ?? [];
 
-    expect(moduleExports).toEqual([AuthService, AuthorizationService, JwtModule]);
+    expect(moduleExports).toEqual([
+      AuthService,
+      AuthorizationService,
+      HotelUserDirectoryService,
+      JwtModule,
+    ]);
     expect(moduleExports).not.toContain(AuthRepository);
     expect(moduleExports).not.toContain(RbacRepository);
     expect(moduleExports).not.toContain(HotelUsersRepository);

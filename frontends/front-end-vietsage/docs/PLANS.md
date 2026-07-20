@@ -1,4 +1,52 @@
-﻿## [complete] 2026-07-20 - Mission: workspace-v2-dashboard-registry (P2)
+﻿## [complete] 2026-07-20 - Mission: workspace-rbac-and-staff-administration
+
+- Replaced dynamic/raw permission navigation with the typed workspace registry as the single
+  source for Admin, Owner, Manager, Front Desk, Housekeeping, Maintenance, F&B, and Finance nav.
+- Added capability-filtered arrivals navigation and removed duplicate owner navigation branches.
+- Added Owner staff administration with explicit tenant/hotel scope, role assignment, and hotel
+  assignment; multi-tenant owners must select a tenant before data loads.
+- Expanded Admin users into separate Owner and Hotel Staff tabs with tenant-scoped role and hotel
+  assignment management.
+- Kept view-only RBAC surfaces read-only; mutation controls render only with
+  `hotel.staff.manage`.
+- Changed Admin permission browsing to fetch only the selected permission module instead of
+  preloading every module page.
+- Added same-origin BFF routes and TanStack Query invalidation for staff mutations; no raw backend
+  tokens are exposed to client components.
+
+Verification result:
+
+- Workspace registry tests passed (6 tests).
+- `pnpm exec tsc --noEmit --pretty false` and `pnpm run lint` passed.
+- `NODE_OPTIONS=--max-old-space-size=4096 pnpm run build` passed and emitted 35 pages.
+- Frontend OpenAPI types were regenerated from the 80-path shared contract.
+
+Remaining manual checkpoint:
+
+- Run the authenticated Admin/Owner/Front Desk/operations matrix in the handoff after applying the
+  database migration.
+
+## [complete] 2026-07-20 - Mission: workspace-v2-service-boundaries (P3)
+
+- Moved Staff dashboard request/service orchestration out of the App Router page into a
+  Hotel Operations server loader.
+- Kept Workspace responsible for persona, capability, widget, and hotel-scope decisions while
+  Hotel Operations owns endpoint orchestration and dashboard data mapping.
+- Preserved existing routes, API contracts, authorization behavior, and UI output.
+- Aligned the frontend boundary guide with the backend public-port rules used by P3.
+
+Verification result:
+
+- Workspace/auth Node tests passed (10 tests).
+- `pnpm exec tsc --noEmit --pretty false` and `pnpm run lint` passed.
+- `pnpm run build` passed and emitted all 34 pages.
+- Auth session contract and refresh smoke harnesses passed.
+
+Remaining manual checkpoint:
+
+- Pull the final branch locally and run the authenticated role matrix described in the handoff.
+
+## [complete] 2026-07-20 - Mission: workspace-v2-dashboard-registry (P2)
 
 - Promoted the P1 workspace configuration into an immutable dashboard registry with typed role aliases, navigation entries, and dashboard widgets.
 - Added `createWorkspaceRegistry(extensions)` as the controlled extension point for new role aliases, navigation, and widgets without editing page-level condition trees.

@@ -3,13 +3,6 @@
 export type RolesListResponseEnvelope =
   operations["RolesController_listRoles"]["responses"][200]["content"]["application/json"];
 
-export type RoleMenusListResponseEnvelope = {
-  status: number;
-  error: unknown;
-  message: string;
-  data: string[];
-};
-
 export type RolePermissionsListResponseEnvelope =
   operations["RolesController_listRolePermissions"]["responses"][200]["content"]["application/json"];
 
@@ -75,4 +68,3 @@ export type RbacStandalonePermission = PermissionsListResponseEnvelope["data"][n
 export type RbacPermissionModuleSummary = RolePermissionModulesListResponseEnvelope["data"][number];
 export type RbacPermissionModulePermissionsPage = RolePermissionModulePermissionsListResponseEnvelope["data"];
 export type RbacPermissionModulePermissionItem = RbacPermissionModulePermissionsPage["items"][number];
-

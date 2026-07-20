@@ -1,7 +1,7 @@
 ﻿import Image from "next/image";
 import Link from "next/link";
 
-import type { DashboardNavItem } from "@/lib/frontend-navigation";
+import type { DashboardNavItem } from "@/features/workspace/types/workspace-navigation";
 
 import { VsIcon } from "./vs-icon";
 

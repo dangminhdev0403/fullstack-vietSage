@@ -40,6 +40,8 @@ Create only the folders the feature needs.
 - Feature UI may use feature hooks.
 - Feature hooks may use feature queries, stores, and services.
 - Feature services may use core HTTP utilities or internal route handlers.
+- Server route pages should pass scope and presentation decisions to feature-owned loaders instead
+  of coordinating multiple endpoint calls directly.
 - Feature code must not import unrelated feature internals unless an explicit shared contract exists.
 - Reusable UI primitives must not import feature services.
 
@@ -81,6 +83,8 @@ const registry = createWorkspaceRegistry([
   reviewed replacement.
 - Keep data loading conditional on the resolved widget set so hidden modules do not trigger API
   requests.
+- Keep widget keys inside the Workspace boundary. Pass domain-neutral decisions such as
+  `includeRequests` or `includeServices` into a Hotel Operations loader.
 
 ## Anti-patterns
 

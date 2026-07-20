@@ -10,10 +10,10 @@ import type {
   RbacPermissionModuleSummary,
   RbacRole,
 } from "@/features/rbac/types/rbac-contract";
-import type { DashboardNavItem } from "@/lib/frontend-navigation";
-import { resolveDashboardNavigation } from "@/lib/frontend-navigation";
-import { readServerSessionTokens } from "@/lib/server-session-tokens";
+import { buildWorkspaceNavigationForContext } from "@/features/workspace/config/workspace-registry";
+import type { DashboardNavItem } from "@/features/workspace/types/workspace-navigation";
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
+import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
 
 import { VsIcon } from "../../_components/vs-icon";
 import { AdminShell } from "../_components/admin-shell";
@@ -113,22 +113,6 @@ function dedupePermissions(
   return [...byId.values()];
 }
 
-function buildPermissionCatalogFromModules(
-  modules: readonly RbacPermissionModuleSummary[],
-  pagesByModuleKey: ReadonlyMap<string, RbacPermissionModulePermissionItem[]>,
-): RolePermissionsBrowserPermission[] {
-  const catalog: RolePermissionsBrowserPermission[] = [];
-
-  for (const moduleSummary of modules) {
-    const moduleItems = pagesByModuleKey.get(moduleSummary.moduleKey) ?? [];
-    for (const item of moduleItems) {
-      catalog.push(mapModulePermission(moduleSummary, item));
-    }
-  }
-
-  return dedupePermissions(catalog);
-}
-
 function normalizeSidebarItems(
   items: readonly DashboardNavItem[],
 ): DashboardNavItem[] {
@@ -187,13 +171,14 @@ export default async function AdminPermissionsPage({
 }: PermissionsPageProps) {
   const resolvedSearchParams = await Promise.resolve(searchParams ?? {});
   const selectedRoleId = extractRoleIdParam(resolvedSearchParams.roleId);
+  const requestedModuleKey = extractRoleIdParam(resolvedSearchParams.module);
 
   const session = await auth();
-  const tokens = await readServerSessionTokens();
   const executeAuthorizedApi = createAuthorizedApiExecutor({
     session,
     callbackUrl: "/admin/permissions",
   });
+  const workspaceContext = await loadServerWorkspaceContext("/admin/permissions");
 
   const [rolesResult, permissionModulesResult] = await Promise.allSettled([
     executeAuthorizedApi("GET /roles", (accessToken) =>
@@ -215,16 +200,7 @@ export default async function AdminPermissionsPage({
   }
 
   const sidebarItems = normalizeSidebarItems(
-    await resolveDashboardNavigation({
-      userRole: "admin",
-      assignedRoles: [],
-      permissions: [],
-      accessToken: tokens.accessToken ?? undefined,
-      accessTokenExpiresAt: session?.accessTokenExpiresAt ?? tokens.accessTokenExpiresAt,
-      refreshToken: tokens.refreshToken,
-      authError: session?.authError ?? null,
-      rolesPayload: rolesResult.status === "fulfilled" ? rolesResult.value : [],
-    }),
+    buildWorkspaceNavigationForContext(workspaceContext),
   );
 
   const apiWarnings: string[] = [];
@@ -269,115 +245,59 @@ export default async function AdminPermissionsPage({
   }
 
   let permissionCatalog: RolePermissionsBrowserPermission[] = [];
+  let moduleSummaries: RbacPermissionModuleSummary[] = [];
+  let selectedModuleKey: string | null = null;
 
   if (permissionModulesResult.status === "fulfilled") {
-    const moduleSummaries = permissionModulesResult.value;
-    const moduleItemsByKey = new Map<
-      string,
-      RbacPermissionModulePermissionItem[]
-    >();
+    moduleSummaries = permissionModulesResult.value;
+    selectedModuleKey = moduleSummaries.some(
+      (moduleSummary) => moduleSummary.moduleKey === requestedModuleKey,
+    )
+      ? requestedModuleKey
+      : (moduleSummaries[0]?.moduleKey ?? null);
 
-    const modulePermissionsResults = await Promise.allSettled(
-      moduleSummaries.map(async (moduleSummary) => {
-        const operationBase = `/roles/me/permission-modules/${moduleSummary.moduleKey}/permissions`;
-
-        const firstPage = await executeAuthorizedApi(
-          `GET ${operationBase}?page=1&limit=${MODULE_PERMISSION_PAGE_LIMIT}`,
-          (accessToken) =>
-            selectedRoleId
-              ? rbacService.listPermissionModulePermissionsForRole(
-                  selectedRoleId,
-                  moduleSummary.moduleKey,
-                  {
-                    query: { page: 1, limit: MODULE_PERMISSION_PAGE_LIMIT },
-                    accessToken,
-                  },
-                )
-              : rbacService.listMyPermissionModulePermissions(
-                  moduleSummary.moduleKey,
-                  {
-                    query: { page: 1, limit: MODULE_PERMISSION_PAGE_LIMIT },
-                    accessToken,
-                  },
-                ),
-        );
-
-        const safeLimit =
-          firstPage.limit > 0 ? firstPage.limit : MODULE_PERMISSION_PAGE_LIMIT;
-        const totalPages = Math.max(1, Math.ceil(firstPage.total / safeLimit));
-
-        if (totalPages === 1) {
-          return {
-            moduleKey: moduleSummary.moduleKey,
-            items: firstPage.items,
-          };
-        }
-
-        const remainingPages = await Promise.all(
-          Array.from({ length: totalPages - 1 }, (_, offset) => {
-            const page = offset + 2;
-            return executeAuthorizedApi(
-              `GET ${operationBase}?page=${page}&limit=${safeLimit}`,
-              (accessToken) =>
-                selectedRoleId
-                  ? rbacService.listPermissionModulePermissionsForRole(
-                      selectedRoleId,
-                      moduleSummary.moduleKey,
-                      {
-                        query: { page, limit: safeLimit },
-                        accessToken,
-                      },
-                    )
-                  : rbacService.listMyPermissionModulePermissions(
-                      moduleSummary.moduleKey,
-                      {
-                        query: { page, limit: safeLimit },
-                        accessToken,
-                      },
-                    ),
-            );
-          }),
-        );
-
-        return {
-          moduleKey: moduleSummary.moduleKey,
-          items: [
-            ...firstPage.items,
-            ...remainingPages.flatMap((pageData) => pageData.items),
-          ],
-        };
-      }),
+    const selectedModule = moduleSummaries.find(
+      (moduleSummary) => moduleSummary.moduleKey === selectedModuleKey,
     );
-
-    modulePermissionsResults.forEach((result, index) => {
-      const moduleSummary = moduleSummaries[index];
-      if (!moduleSummary) {
-        return;
-      }
-
-      if (result.status === "fulfilled") {
-        moduleItemsByKey.set(result.value.moduleKey, result.value.items);
-        return;
-      }
-
+    if (selectedModule) {
+      try {
+        const loadPage = (page: number, limit: number) =>
+          executeAuthorizedApi(
+            `GET /roles/${selectedRoleId ?? "me"}/permission-modules/${selectedModule.moduleKey}/permissions?page=${page}&limit=${limit}`,
+            (accessToken) =>
+              selectedRoleId
+                ? rbacService.listPermissionModulePermissionsForRole(
+                    selectedRoleId,
+                    selectedModule.moduleKey,
+                    { query: { page, limit }, accessToken },
+                  )
+                : rbacService.listMyPermissionModulePermissions(
+                    selectedModule.moduleKey,
+                    { query: { page, limit }, accessToken },
+                  ),
+          );
+        const firstPage = await loadPage(1, MODULE_PERMISSION_PAGE_LIMIT);
+        const safeLimit = firstPage.limit > 0 ? firstPage.limit : MODULE_PERMISSION_PAGE_LIMIT;
+        const totalPages = Math.max(1, Math.ceil(firstPage.total / safeLimit));
+        const remainingPages = totalPages > 1
+          ? await Promise.all(
+              Array.from({ length: totalPages - 1 }, (_, index) => loadPage(index + 2, safeLimit)),
+            )
+          : [];
+        permissionCatalog = dedupePermissions(
+          [...firstPage.items, ...remainingPages.flatMap((page) => page.items)].map((item) =>
+            mapModulePermission(selectedModule, item),
+          ),
+        );
+      } catch (error) {
       const message =
-        result.reason instanceof Error
-          ? result.reason.message
+        error instanceof Error
+          ? error.message
           : "Lỗi API quyền theo module không xác định";
       apiWarnings.push(
-        `GET /roles/me/permission-modules/${moduleSummary.moduleKey}/permissions thất bại: ${message}`,
+          `GET permission module ${selectedModule.moduleKey} thất bại: ${message}`,
       );
-    });
-
-    permissionCatalog = buildPermissionCatalogFromModules(
-      moduleSummaries,
-      moduleItemsByKey,
-    );
-
-    if (selectedRoleId) {
-      initialPermissionsByRoleId[selectedRoleId] = permissionCatalog.filter(
-        (permission) => permission.enabled === true,
-      );
+      }
     }
   } else {
     const message =
@@ -423,6 +343,8 @@ export default async function AdminPermissionsPage({
           <RolePermissionsBrowser
             roles={roles}
             permissionCatalog={permissionCatalog}
+            permissionModuleSummaries={moduleSummaries}
+            selectedModuleKey={selectedModuleKey}
             initialRoleId={selectedRoleId}
             initialPermissionsByRoleId={initialPermissionsByRoleId}
           />

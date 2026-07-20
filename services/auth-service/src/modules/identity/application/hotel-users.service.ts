@@ -18,11 +18,12 @@ import type {
   UpdateHotelUserStatusBodyInput,
 } from "../domain/schemas/hotel-users.schema";
 import { AuthService } from "./authentication.service";
-const ACTOR_ROLE_CODES = new Set(["SUPER_ADMIN", "HOTEL_OWNER", "HOTEL_MANAGER"]);
+const ACTOR_ROLE_CODES = new Set(["SUPER_ADMIN", "TENANT_OWNER", "HOTEL_OWNER", "HOTEL_MANAGER"]);
 const MANAGED_ROLE_CODES = new Set([
   "HOTEL_MANAGER",
   "HOTEL_FRONTDESK",
   "HOTEL_HOUSEKEEPING",
+  "HOTEL_MAINTENANCE",
   "HOTEL_FNB",
   "HOTEL_FINANCE",
 ]);
@@ -60,9 +61,10 @@ export class HotelUsersService {
 
   async createHotelUser(
     actorUserId: string,
+    activeRoleId: string,
     dto: CreateHotelUserBodyInput,
   ): Promise<TenantScopedHotelUser> {
-    const actor = await this.loadActorContext(actorUserId);
+    const actor = await this.loadActorContext(actorUserId, activeRoleId);
     const tenantId = await this.resolveTenantId(actor, dto.tenantId);
     await this.assertTenantExists(tenantId);
 
@@ -95,6 +97,7 @@ export class HotelUsersService {
 
   async listHotelUsers(
     actorUserId: string,
+    activeRoleId: string,
     tenantHint: string | undefined,
     query: ListHotelUsersQueryInput,
   ): Promise<{
@@ -103,7 +106,7 @@ export class HotelUsersService {
     total: number;
     items: TenantScopedHotelUser[];
   }> {
-    const actor = await this.loadActorContext(actorUserId);
+    const actor = await this.loadActorContext(actorUserId, activeRoleId);
     const tenantId = await this.resolveTenantId(actor, tenantHint);
 
     const page = query.page ?? 1;
@@ -127,10 +130,11 @@ export class HotelUsersService {
 
   async getHotelUser(
     actorUserId: string,
+    activeRoleId: string,
     tenantHint: string | undefined,
     userId: string,
   ): Promise<TenantScopedHotelUser> {
-    const actor = await this.loadActorContext(actorUserId);
+    const actor = await this.loadActorContext(actorUserId, activeRoleId);
     const tenantId = await this.resolveTenantId(actor, tenantHint);
 
     return this.getTenantScopedHotelUserOrThrow(tenantId, userId);
@@ -138,11 +142,12 @@ export class HotelUsersService {
 
   async updateHotelUserStatus(
     actorUserId: string,
+    activeRoleId: string,
     tenantHint: string | undefined,
     userId: string,
     dto: UpdateHotelUserStatusBodyInput,
   ): Promise<TenantScopedHotelUser> {
-    const actor = await this.loadActorContext(actorUserId);
+    const actor = await this.loadActorContext(actorUserId, activeRoleId);
     const tenantId = await this.resolveTenantId(actor, tenantHint);
 
     const tenantUser = await this.assertTargetUserInTenant(tenantId, userId);
@@ -161,11 +166,12 @@ export class HotelUsersService {
 
   async assignHotelUserRoles(
     actorUserId: string,
+    activeRoleId: string,
     tenantHint: string | undefined,
     userId: string,
     dto: AssignHotelUserRolesBodyInput,
   ): Promise<TenantScopedHotelUser> {
-    const actor = await this.loadActorContext(actorUserId);
+    const actor = await this.loadActorContext(actorUserId, activeRoleId);
     const tenantId = await this.resolveTenantId(actor, tenantHint);
 
     await this.assertTargetUserInTenant(tenantId, userId);
@@ -184,11 +190,12 @@ export class HotelUsersService {
 
   async revokeHotelUserRole(
     actorUserId: string,
+    activeRoleId: string,
     tenantHint: string | undefined,
     userId: string,
     roleId: string,
   ): Promise<{ revoked: true; userId: string; roleId: string }> {
-    const actor = await this.loadActorContext(actorUserId);
+    const actor = await this.loadActorContext(actorUserId, activeRoleId);
     const tenantId = await this.resolveTenantId(actor, tenantHint);
 
     await this.assertTargetUserInTenant(tenantId, userId);
@@ -248,8 +255,18 @@ export class HotelUsersService {
     };
   }
 
-  private async loadActorContext(userId: string): Promise<ActorContext> {
-    const actor = await this.hotelUsersRepository.findActorById(userId);
+  async listManagedRoles(
+    actorUserId: string,
+    activeRoleId: string,
+    tenantHint: string | undefined,
+  ) {
+    const actor = await this.loadActorContext(actorUserId, activeRoleId);
+    await this.resolveTenantId(actor, tenantHint);
+    return this.hotelUsersRepository.listManagedRoles([...MANAGED_ROLE_CODES]);
+  }
+
+  private async loadActorContext(userId: string, activeRoleId: string): Promise<ActorContext> {
+    const actor = await this.hotelUsersRepository.findActorById(userId, activeRoleId);
 
     if (!actor) {
       throw new ForbiddenException("Không tìm thấy người thao tác");

@@ -1,10 +1,10 @@
 import { auth } from "@/auth";
 import { billingService } from "@/features/billing/service/billing-service-instance";
-import { resolveDashboardNavigation } from "@/lib/frontend-navigation";
+import { buildWorkspaceNavigationForContext } from "@/features/workspace/config/workspace-registry";
 import { readServerSessionTokens } from "@/lib/server-session-tokens";
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
+import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
 
-import { withOwnerHotelNavigation } from "../../../_components/owner-navigation";
 import { OwnerShell } from "../../../_components/owner-shell";
 import { BillingFolioTableClient } from "./billing-folio-table-client";
 
@@ -18,22 +18,15 @@ export default async function OwnerBillingPage({ params }: PageProps) {
   const tokens = await readServerSessionTokens();
   const callbackUrl = `/owner/hotels/${hotelId}/billing` as const;
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
+  const workspaceContext = await loadServerWorkspaceContext(callbackUrl, tokens.accessToken);
+  const sidebarItems = buildWorkspaceNavigationForContext({ ...workspaceContext, hotelId });
 
-  const [sidebarItems, folios] = await Promise.all([
-    resolveDashboardNavigation({
-      roles: session?.user.roles ?? [],
-      accessToken: tokens.accessToken,
-      accessTokenExpiresAt: session?.accessTokenExpiresAt ?? tokens.accessTokenExpiresAt,
-      refreshToken: tokens.refreshToken,
-      authError: session?.authError ?? null,
-    }),
-    authorizedApi("list billing folios", (accessToken) =>
-      billingService.listFolios(hotelId, { query: { page: 1, limit: 50 }, accessToken }),
-    ),
-  ]);
+  const folios = await authorizedApi("list billing folios", (accessToken) =>
+    billingService.listFolios(hotelId, { query: { page: 1, limit: 50 }, accessToken }),
+  );
 
   return (
-    <OwnerShell activePath={callbackUrl} navItems={withOwnerHotelNavigation(sidebarItems, hotelId)} subtitle="Thanh toán và folio">
+    <OwnerShell activePath={callbackUrl} navItems={sidebarItems} subtitle="Thanh toán và folio">
       <div className="space-y-6">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[var(--primary)]">Billing</p>

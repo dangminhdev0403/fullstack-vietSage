@@ -470,6 +470,77 @@ export const listHotelUsersDataSchema = {
   required: ["page", "limit", "total", "items"],
 };
 
+export const managedHotelUserRoleArrayDataSchema = {
+  type: "array",
+  items: {
+    type: "object",
+    properties: {
+      id: { type: "string" },
+      code: { type: "string" },
+      name: { type: "string" },
+    },
+    required: ["id", "code", "name"],
+  },
+};
+
+const hotelStaffAssignmentUserDataSchema = {
+  type: "object",
+  properties: {
+    id: { type: "string" },
+    email: { type: "string", format: "email" },
+    fullName: { type: "string" },
+    roles: managedHotelUserRoleArrayDataSchema,
+  },
+  required: ["id", "email", "fullName", "roles"],
+};
+
+export const hotelStaffAssignmentDataSchema = {
+  type: "object",
+  properties: {
+    id: { type: "string" },
+    userId: { type: "string" },
+    hotelId: { type: "string" },
+    status: { type: "string", enum: ["ACTIVE", "REVOKED"] },
+    assignedAt: { type: "string", format: "date-time" },
+    assignedById: { type: "string", nullable: true },
+    revokedAt: { type: "string", format: "date-time", nullable: true },
+    revokedById: { type: "string", nullable: true },
+    user: hotelStaffAssignmentUserDataSchema,
+  },
+  required: [
+    "id",
+    "userId",
+    "hotelId",
+    "status",
+    "assignedAt",
+    "assignedById",
+    "revokedAt",
+    "revokedById",
+    "user",
+  ],
+};
+
+export const listHotelStaffAssignmentsDataSchema = {
+  type: "object",
+  properties: {
+    page: { type: "number" },
+    limit: { type: "number" },
+    total: { type: "number" },
+    items: { type: "array", items: hotelStaffAssignmentDataSchema },
+  },
+  required: ["page", "limit", "total", "items"],
+};
+
+export const revokeHotelStaffAssignmentDataSchema = {
+  type: "object",
+  properties: {
+    revoked: { type: "boolean", enum: [true] },
+    hotelId: { type: "string" },
+    userId: { type: "string" },
+  },
+  required: ["revoked", "hotelId", "userId"],
+};
+
 export const createTenantOwnerBodySchema = {
   type: "object",
   properties: {

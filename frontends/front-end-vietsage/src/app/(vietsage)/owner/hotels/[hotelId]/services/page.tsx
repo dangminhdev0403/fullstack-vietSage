@@ -1,10 +1,10 @@
 import { auth } from "@/auth";
 import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
-import { resolveDashboardNavigation } from "@/lib/frontend-navigation";
+import { buildWorkspaceNavigationForContext } from "@/features/workspace/config/workspace-registry";
 import { readServerSessionTokens } from "@/lib/server-session-tokens";
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
+import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
 
-import { withOwnerHotelNavigation } from "../../../_components/owner-navigation";
 import { OwnerShell } from "../../../_components/owner-shell";
 import { OwnerServiceCatalogClient } from "./owner-service-catalog-client";
 
@@ -18,21 +18,16 @@ export default async function OwnerHotelServicesPage({ params }: PageProps) {
   const tokens = await readServerSessionTokens();
   const callbackUrl = `/owner/hotels/${hotelId}/services` as const;
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
+  const workspaceContext = await loadServerWorkspaceContext(callbackUrl, tokens.accessToken);
+  const sidebarItems = buildWorkspaceNavigationForContext({ ...workspaceContext, hotelId });
 
-  const [sidebarItems, categoriesPage, itemsPage] = await Promise.all([
-    resolveDashboardNavigation({
-      roles: session?.user.roles ?? [],
-      accessToken: tokens.accessToken,
-      accessTokenExpiresAt: session?.accessTokenExpiresAt ?? tokens.accessTokenExpiresAt,
-      refreshToken: tokens.refreshToken,
-      authError: session?.authError ?? null,
-    }),
+  const [categoriesPage, itemsPage] = await Promise.all([
     authorizedApi("list owner service categories", (accessToken) => hotelOpsService.listServiceCategories(hotelId, { query: { page: 1, limit: 100 }, accessToken })),
     authorizedApi("list owner service items", (accessToken) => hotelOpsService.listServiceItems(hotelId, { query: { page: 1, limit: 100 }, accessToken })),
   ]);
 
   return (
-    <OwnerShell activePath={callbackUrl} navItems={withOwnerHotelNavigation(sidebarItems, hotelId)} subtitle="Danh mục dịch vụ">
+    <OwnerShell activePath={callbackUrl} navItems={sidebarItems} subtitle="Danh mục dịch vụ">
       <header>
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--secondary)]">DỊCH VỤ</p>
         <h1 className="mt-3 text-4xl font-semibold text-[var(--primary)]">Danh mục dịch vụ</h1>

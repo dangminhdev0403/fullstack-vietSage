@@ -6,7 +6,7 @@ import { RequestIdMiddleware } from "./common/middleware/request-id.middleware";
 import { IdentityModule } from "./modules/identity/identity.module";
 import { GuestOperationsModule } from "./modules/guest-operations/guest-operations.module";
 import { EmergencyModule } from "./modules/emergency/emergency.module";
-import { JwtAuthGuard } from "./modules/identity/infrastructure/guards/jwt-auth.guard";
+import { JwtAuthGuard } from "./modules/identity/identity-public";
 import { HealthModule } from "./modules/health/health.module";
 import { PropertyModule } from "./modules/property/property.module";
 import { OrganizationModule } from "./modules/organization/organization.module";

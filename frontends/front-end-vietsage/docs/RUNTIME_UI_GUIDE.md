@@ -47,6 +47,18 @@ Rules:
 - Prefer URL state for shareable filters, pagination, and selected views.
 - Browser storage must be wrapped by feature/core utilities.
 
+## Workspace navigation and RBAC rendering
+
+- The typed workspace registry owns persona aliases, dashboard definitions, labels, and nav order.
+- Navigation is projected from the session-bound active role capabilities and explicit hotel ID;
+  raw permission keys must never be used as user-facing labels.
+- A view capability may render read-only content. Create, assign, revoke, and status controls render
+  only when the matching manage capability is present.
+- Tenant and hotel scope stay in URL/local query state. Do not load tenant staff before an explicit
+  tenant is selected, and do not load hotel assignments before a hotel is selected.
+- Frontend capability filtering improves clarity and request volume; it never replaces backend
+  authorization.
+
 ## Realtime
 
 - Isolate socket clients behind a feature or core realtime module.

@@ -24,6 +24,26 @@ test("separates manager and front desk workspace navigation", () => {
   assert.equal(frontDesk.some((item) => item.href.endsWith("/services")), false);
 });
 
+test("renders only registered labels and scopes owner staff navigation by capability", () => {
+  const withoutStaff = buildWorkspaceNavigation({
+    persona: "owner",
+    permissions: ["hotel.reservations.manage"],
+    hotelId: "hotel-1",
+  });
+  const withStaff = buildWorkspaceNavigation({
+    persona: "owner",
+    permissions: ["hotel.staff.manage"],
+    hotelId: "hotel-1",
+  });
+
+  assert.equal(withoutStaff.some((item) => item.label.includes("hotel.")), false);
+  assert.equal(withoutStaff.some((item) => item.key === "owner.staff"), false);
+  assert.equal(
+    withStaff.some((item) => item.href === "/owner/staff?hotelId=hotel-1"),
+    true,
+  );
+});
+
 test("filters dashboard widgets by persona, capability, and explicit hotel scope", () => {
   const withoutHotel = getWorkspaceDashboardWidgets({
     persona: "manager",

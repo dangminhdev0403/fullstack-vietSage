@@ -3,10 +3,10 @@ import { unstable_rethrow } from "next/navigation";
 
 import { rbacService } from "@/features/rbac/service/rbac-service-instance";
 import type { RbacRole } from "@/features/rbac/types/rbac-contract";
-import type { DashboardNavItem } from "@/lib/frontend-navigation";
-import { resolveDashboardNavigation } from "@/lib/frontend-navigation";
-import { readServerSessionTokens } from "@/lib/server-session-tokens";
+import { buildWorkspaceNavigationForContext } from "@/features/workspace/config/workspace-registry";
+import type { DashboardNavItem } from "@/features/workspace/types/workspace-navigation";
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
+import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
 
 import { VsIcon } from "../../_components/vs-icon";
 import { AdminShell } from "../_components/admin-shell";
@@ -151,11 +151,11 @@ export default async function AdminRolesPage({ searchParams }: RolesPageProps) {
     .toLowerCase();
 
   const session = await auth();
-  const tokens = await readServerSessionTokens();
   const executeAuthorizedApi = createAuthorizedApiExecutor({
     session,
     callbackUrl: "/admin/roles",
   });
+  const workspaceContext = await loadServerWorkspaceContext("/admin/roles");
 
   const rolesResults = await Promise.allSettled([
     executeAuthorizedApi("GET /roles", (accessToken) =>
@@ -169,17 +169,7 @@ export default async function AdminRolesPage({ searchParams }: RolesPageProps) {
   }
 
   const sidebarItems = normalizeSidebarItems(
-    await resolveDashboardNavigation({
-      userRole: "admin",
-      assignedRoles: [],
-      permissions: [],
-      accessToken: tokens.accessToken ?? undefined,
-      accessTokenExpiresAt: session?.accessTokenExpiresAt ?? tokens.accessTokenExpiresAt,
-      refreshToken: tokens.refreshToken,
-      authError: session?.authError ?? null,
-      rolesPayload:
-        rolesApiPayload.status === "fulfilled" ? rolesApiPayload.value : [],
-    }),
+    buildWorkspaceNavigationForContext(workspaceContext),
   );
 
   const apiWarnings: string[] = [];
