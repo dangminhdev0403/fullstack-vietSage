@@ -1,5 +1,5 @@
-import { RouteLoadingState } from "../_components/route-boundary-state";
+import { ContentLoadingState } from "../_components/route-boundary-state";
 
 export default function StaffLoading() {
-  return <RouteLoadingState label="Loading staff workspace" tone="staff" />;
+  return <ContentLoadingState label="Loading staff workspace" tone="staff" />;
 }

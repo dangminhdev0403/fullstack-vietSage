@@ -35,7 +35,7 @@ function isActivePath(pathname: string, href: string) {
   return href === "/" ? pathname === href : pathname.startsWith(href);
 }
 
-export function MarketingHeader() {
+export function MarketingHeader({ accountAction }: { accountAction: { label: string; href: string } }) {
   const pathname = usePathname();
   const headerRef = useRef<HTMLElement>(null);
   const firstMobileLinkRef = useRef<HTMLAnchorElement>(null);
@@ -124,8 +124,8 @@ export function MarketingHeader() {
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <Link className="vs-mkt-sign-in hidden sm:inline-flex" href="/login">
-            Sign in
+          <Link className="vs-mkt-sign-in hidden sm:inline-flex" href={accountAction.href}>
+            {accountAction.label}
           </Link>
           <Link
             className="vs-mkt-primary-btn hidden rounded-full bg-[#123d2a] px-5 py-3 text-sm font-black text-white shadow-lg shadow-[#123d2a]/20 md:inline-flex"
@@ -212,8 +212,8 @@ export function MarketingHeader() {
             ))}
 
             <div className="mt-2 grid grid-cols-2 gap-2 border-t border-[#123d2a]/10 pt-3 sm:hidden">
-              <Link className="vs-mkt-sign-in justify-center" href="/login" tabIndex={mobileOpen ? 0 : -1} onClick={() => setMobileOpen(false)}>
-                Sign in
+              <Link className="vs-mkt-sign-in justify-center" href={accountAction.href} tabIndex={mobileOpen ? 0 : -1} onClick={() => setMobileOpen(false)}>
+                {accountAction.label}
               </Link>
               <Link className="rounded-full bg-[#123d2a] px-4 py-3 text-center text-sm font-black text-white" href="/contact" tabIndex={mobileOpen ? 0 : -1} onClick={() => setMobileOpen(false)}>
                 Request demo

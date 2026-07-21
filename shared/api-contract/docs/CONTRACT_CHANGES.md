@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Standardized new tenant-scoped hotel and staff-management calls on `x-tenant-id`. Existing
+  `tenantId` query/body inputs remain deprecated compatibility fallbacks for one release cycle;
+  backend membership and resource guards continue to validate all tenant hints.
+- Added a lightweight Admin tenant-options projection and bounded tenant/hotel/search/page inputs
+  for staff-directory queries. Staff mutation bodies no longer carry tenant ownership as business
+  data.
+
 - Added tenant-scoped hotel staff administration contracts: managed role discovery plus hotel staff
   assignment list/assign/revoke. The contracts require the session-bound active role, business
   capability checks, and Property resource access checks.

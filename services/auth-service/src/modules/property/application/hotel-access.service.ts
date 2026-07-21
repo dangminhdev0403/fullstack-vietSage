@@ -81,14 +81,6 @@ export class HotelAccessService {
   async resolveTenantId(actor: HotelActorContext, tenantHint: string | undefined) {
     const tenantId = tenantHint?.trim();
 
-    if (actor.isTenantOwner) {
-      if (tenantId) {
-        throw new BadRequestException("Không chấp nhận tenantId trong yêu cầu của TENANT_OWNER");
-      }
-
-      throw new ForbiddenException("TENANT_OWNER không thể tạo khách sạn");
-    }
-
     if (actor.isSuperAdmin) {
       if (!tenantId) {
         throw new BadRequestException("tenantId là bắt buộc đối với yêu cầu của SUPER_ADMIN");
@@ -152,11 +144,5 @@ export class HotelAccessService {
     }
 
     return hotel;
-  }
-
-  rejectTenantOwnerTenantHint(actor: HotelActorContext, tenantHint: string | undefined) {
-    if (actor.isTenantOwner && tenantHint?.trim()) {
-      throw new BadRequestException("Không chấp nhận tenantId trong yêu cầu của TENANT_OWNER");
-    }
   }
 }

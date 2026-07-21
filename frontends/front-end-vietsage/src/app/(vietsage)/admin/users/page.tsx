@@ -2,11 +2,11 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { adminService } from "@/features/admin/service/admin-service-instance";
 import { StaffManagementClient } from "@/features/staff-management/components/staff-management-client";
-import { buildWorkspaceNavigationForContext } from "@/features/workspace/config/workspace-registry";
 import { hasWorkspaceCapability } from "@/features/workspace/utils/workspace-context";
+import { buildWorkspaceNavigation } from "@/features/workspace/config/workspace-registry";
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
 import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
-import { AdminShell } from "../_components/admin-shell";
+import type { TenantOption, TenantOwnerPage } from "@/features/admin/types/admin-contract";
 import { TenantOwnersClient } from "./tenant-owners-client";
 
 type Props = {
@@ -25,27 +25,34 @@ export default async function AdminUsersPage({ searchParams }: Props) {
   const callbackUrl = "/admin/users" as const;
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
   const workspaceContext = await loadServerWorkspaceContext(callbackUrl);
-  const sidebarItems = buildWorkspaceNavigationForContext(workspaceContext);
   const canViewPlatformUsers = hasWorkspaceCapability(workspaceContext, "platform.users.view") || hasWorkspaceCapability(workspaceContext, "platform.users.manage");
   const canViewStaff = canViewPlatformUsers && (hasWorkspaceCapability(workspaceContext, "hotel.staff.view") || hasWorkspaceCapability(workspaceContext, "hotel.staff.manage"));
   const canManageStaff = hasWorkspaceCapability(workspaceContext, "hotel.staff.manage");
   const tab = requestedTab === "staff" && canViewStaff ? "staff" : "owners";
 
-  const ownersPage = await authorizedApi("list tenant owners", (accessToken) =>
-    adminService.listTenantOwners({ query: { page: 1, limit: 100 }, accessToken }),
-  );
-  const tenantOptions = ownersPage.items.map((owner) => owner.tenant);
+  const pageParam = first(params.page);
+  const page = pageParam ? Math.max(1, Number.parseInt(pageParam, 10) || 1) : 1;
+  const q = first(params.q).trim();
+
+  let ownersPage: TenantOwnerPage = { items: [], total: 0, page: 1, limit: 20 };
+  let tenantOptions: TenantOption[] = [];
+
+  if (tab === "owners") {
+    ownersPage = await authorizedApi("list tenant owners", (accessToken) =>
+      adminService.listTenantOwners({ query: { page, limit: 20, q: q || undefined }, accessToken }),
+    );
+  } else if (canViewStaff) {
+    tenantOptions = await authorizedApi("list tenant options", (accessToken) =>
+      adminService.listTenantOptions(accessToken),
+    );
+  }
+
   const tenantId = tenantOptions.some((tenant) => tenant.id === requestedTenantId)
     ? requestedTenantId
     : "";
-  const hotels = tab === "staff" && canViewStaff && tenantId
-    ? (await authorizedApi("list tenant hotels for staff scope", (accessToken) =>
-        adminService.listHotels({ query: { page: 1, limit: 100, tenantId }, accessToken }),
-      )).items
-    : [];
 
   return (
-    <AdminShell activePath="/admin/users" navItems={sidebarItems} subtitle="Quản lý người dùng">
+    <>
       <div className="mx-auto max-w-[1600px] space-y-8">
         <header>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--secondary)]">SUPER_ADMIN</p>
@@ -75,7 +82,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
               <button className="min-h-11 rounded-xl bg-[var(--primary)] px-5 text-sm font-semibold text-white">Mở phạm vi</button>
             </form>
             {tenantId ? (
-              <StaffManagementClient scope={{ surface: "admin", tenantId }} hotels={hotels} canManage={canManageStaff} />
+              <StaffManagementClient scope={{ surface: "admin", tenantId }} canManage={canManageStaff} />
             ) : (
               <div className="rounded-xl bg-[var(--surface-container-low)] p-8 text-center text-sm text-[var(--on-surface-variant)]">Chọn tenant trước; danh sách nhân viên sẽ không được tải khi chưa có phạm vi.</div>
             )}
@@ -86,6 +93,6 @@ export default async function AdminUsersPage({ searchParams }: Props) {
           </div>
         )}
       </div>
-    </AdminShell>
+    </>
   );
 }

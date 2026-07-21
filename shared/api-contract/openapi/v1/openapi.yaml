@@ -1789,9 +1789,6 @@ paths:
                   type: string
                   minLength: 8
                   maxLength: 128
-                tenantId:
-                  type: string
-                  maxLength: 80
                 roleIds:
                   type: array
                   minItems: 1
@@ -1922,11 +1919,6 @@ paths:
           in: query
           schema:
             type: number
-        - name: tenantId
-          required: false
-          in: query
-          schema:
-            type: string
       responses:
         "200":
           description: Bao phản hồi danh sách người dùng khách sạn
@@ -2029,11 +2021,6 @@ paths:
     get:
       operationId: HotelUsersController_listManagedRoles
       parameters:
-        - name: tenantId
-          required: false
-          in: query
-          schema:
-            type: string
         - name: x-tenant-id
           required: false
           in: header
@@ -2087,11 +2074,6 @@ paths:
         - name: id
           required: true
           in: path
-          schema:
-            type: string
-        - name: tenantId
-          required: false
-          in: query
           schema:
             type: string
         - name: x-tenant-id
@@ -2192,11 +2174,6 @@ paths:
         - name: id
           required: true
           in: path
-          schema:
-            type: string
-        - name: tenantId
-          required: false
-          in: query
           schema:
             type: string
         - name: x-tenant-id
@@ -2311,11 +2288,6 @@ paths:
         - name: id
           required: true
           in: path
-          schema:
-            type: string
-        - name: tenantId
-          required: false
-          in: query
           schema:
             type: string
         - name: x-tenant-id
@@ -2437,11 +2409,6 @@ paths:
         - name: roleId
           required: true
           in: path
-          schema:
-            type: string
-        - name: tenantId
-          required: false
-          in: query
           schema:
             type: string
         - name: x-tenant-id
@@ -2852,6 +2819,14 @@ paths:
                   - message
                   - data
       tags: *a6
+  /tenant-owners/tenant-options:
+    get:
+      operationId: TenantOwnersController_listTenantOptions
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: *a6
   /tenant-owners/{id}:
     get:
       operationId: TenantOwnersController_getTenantOwner
@@ -3167,12 +3142,7 @@ paths:
   /hotels:
     post:
       operationId: HotelsController_createHotel
-      parameters:
-        - name: x-tenant-id
-          required: true
-          in: header
-          schema:
-            type: string
+      parameters: []
       requestBody:
         required: true
         content:
@@ -3284,11 +3254,6 @@ paths:
     get:
       operationId: HotelsController_listHotels
       parameters:
-        - name: x-tenant-id
-          required: true
-          in: header
-          schema:
-            type: string
         - name: q
           required: false
           in: query
@@ -3304,6 +3269,13 @@ paths:
           in: query
           schema:
             type: number
+        - name: x-tenant-id
+          in: header
+          description: Tenant scope chính; tenantId query chỉ là fallback tương thích tạm
+            thời.
+          required: false
+          schema:
+            type: string
         - name: tenantId
           required: false
           in: query

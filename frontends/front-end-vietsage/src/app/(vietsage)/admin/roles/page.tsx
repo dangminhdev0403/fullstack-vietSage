@@ -9,7 +9,6 @@ import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
 import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
 
 import { VsIcon } from "../../_components/vs-icon";
-import { AdminShell } from "../_components/admin-shell";
 import {
   RolesLiveFilter,
   type RolesLiveFilterRole,
@@ -196,7 +195,7 @@ export default async function AdminRolesPage({ searchParams }: RolesPageProps) {
   ].sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" }));
 
   return (
-    <AdminShell activePath="/admin/roles" navItems={sidebarItems} subtitle="Quản lý vai trò">
+    <>
         <div className="mx-auto max-w-[1600px] space-y-8">
           {apiWarnings.length > 0 ? (
             <section className="rounded-xl border border-[color:rgba(186,26,26,0.2)] bg-[var(--error-container)]/60 px-4 py-3 text-sm text-[var(--on-error-container)]">
@@ -247,6 +246,6 @@ export default async function AdminRolesPage({ searchParams }: RolesPageProps) {
             </article>
           </section>
         </div>
-    </AdminShell>
+    </>
   );
 }

@@ -8,7 +8,7 @@ import { z } from "zod";
 import { HttpError } from "@/core/http/http-error";
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import type { TenantOwner } from "@/features/admin/types/admin-contract";
-
+import { DataTable } from "@/components/ui/data-table";
 import { VsIcon } from "../../_components/vs-icon";
 
 type TenantOwnersClientProps = {
@@ -317,51 +317,119 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-xl border border-[var(--outline-variant)] bg-white">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] text-left text-sm">
-            <thead className="bg-[var(--surface-container-low)] text-xs uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
-              <tr>
-                <th className="px-5 py-4">Chủ sở hữu</th>
-                <th className="px-5 py-4">Tổ chức</th>
-                <th className="px-5 py-4">Trạng thái</th>
-                <th className="px-5 py-4">Vai trò</th>
-                <th className="px-5 py-4">Cập nhật</th>
-                <th className="px-5 py-4 text-right">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--outline-variant)]">
-              {filteredOwners.map((owner) => (
-                <tr key={owner.id} className="align-top">
-                  <td className="px-5 py-4">
-                    <p className="font-semibold text-[var(--primary)]">{owner.fullName}</p>
-                    <p className="mt-1 text-xs text-[var(--on-surface-variant)]">{owner.email}</p>
-                  </td>
-                  <td className="px-5 py-4">
-                    <p className="font-semibold text-[var(--on-surface)]">{owner.tenant.name}</p>
-                    <p className="mt-1 text-xs text-[var(--on-surface-variant)]">{owner.tenant.code}</p>
-                  </td>
-                  <td className="px-5 py-4">
-                    <span className="rounded-full bg-[var(--secondary-container)] px-3 py-1 text-xs font-semibold text-[var(--on-secondary-container)]">{owner.status}</span>
-                  </td>
-                  <td className="px-5 py-4">{owner.role.code}</td>
-                  <td className="px-5 py-4 text-[var(--on-surface-variant)]">{formatDate(owner.updatedAt)}</td>
-                  <td className="px-5 py-4 text-right">
-                    <button type="button" onClick={() => openEditDialog(owner)} className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline-variant)] px-3 py-2 text-xs font-semibold text-[var(--primary)]">
-                      <VsIcon name="edit" className="text-[16px]" />
-                      Sửa
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {filteredOwners.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-5 py-10 text-center text-sm text-[var(--on-surface-variant)]">Chưa có đối tác phù hợp.</td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
+      <section className="hidden md:block">
+        <DataTable
+          columns={[
+            {
+              key: "owner",
+              header: "Chủ sở hữu",
+              cell: (owner) => (
+                <div>
+                  <p className="font-semibold text-[var(--primary)]">{owner.fullName}</p>
+                  <p className="mt-1 text-xs text-[var(--on-surface-variant)]">{owner.email}</p>
+                </div>
+              ),
+            },
+            {
+              key: "tenant",
+              header: "Tổ chức",
+              cell: (owner) => (
+                <div>
+                  <p className="font-semibold text-[var(--on-surface)]">{owner.tenant.name}</p>
+                  <p className="mt-1 text-xs text-[var(--on-surface-variant)]">{owner.tenant.code}</p>
+                </div>
+              ),
+            },
+            {
+              key: "status",
+              header: "Trạng thái",
+              cell: (owner) => (
+                <span className="rounded-full bg-[var(--secondary-container)] px-3 py-1 text-xs font-semibold text-[var(--on-secondary-container)]">
+                  {owner.status}
+                </span>
+              ),
+            },
+            {
+              key: "role",
+              header: "Vai trò",
+              cell: (owner) => owner.role.code,
+            },
+            {
+              key: "updatedAt",
+              header: "Cập nhật",
+              cell: (owner) => formatDate(owner.updatedAt),
+            },
+            {
+              key: "actions",
+              header: <div className="text-right">Thao tác</div>,
+              cell: (owner) => (
+                <div className="text-right">
+                  <button
+                    type="button"
+                    onClick={() => openEditDialog(owner)}
+                    className="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-[var(--outline-variant)] px-4 py-2 text-xs font-semibold text-[var(--primary)] hover:bg-[var(--surface-container-low)]"
+                  >
+                    <VsIcon name="edit" className="text-[16px]" />
+                    Sửa
+                  </button>
+                </div>
+              ),
+            },
+          ]}
+          data={filteredOwners}
+          getRowKey={(owner) => owner.id}
+          emptyMessage="Chưa có đối tác phù hợp."
+          minWidth="760px"
+        />
+      </section>
+
+      {/* Mobile view (cards) */}
+      <section className="space-y-4 md:hidden">
+        {filteredOwners.map((owner) => (
+          <article
+            key={owner.id}
+            className="rounded-xl border border-[var(--outline-variant)] bg-white p-5 shadow-sm space-y-3"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-semibold text-base text-[var(--primary)]">{owner.fullName}</p>
+                <p className="text-xs text-[var(--on-surface-variant)]">{owner.email}</p>
+              </div>
+              <span className="shrink-0 rounded-full bg-[var(--secondary-container)] px-3 py-1 text-xs font-semibold text-[var(--on-secondary-container)]">
+                {owner.status}
+              </span>
+            </div>
+            <div className="border-t border-[var(--outline-variant)] pt-3 text-xs space-y-1">
+              <p className="text-[var(--on-surface)]">
+                <span className="font-semibold text-[var(--on-surface-variant)]">Tổ chức: </span>
+                {owner.tenant.name} ({owner.tenant.code})
+              </p>
+              <p className="text-[var(--on-surface)]">
+                <span className="font-semibold text-[var(--on-surface-variant)]">Vai trò: </span>
+                {owner.role.code}
+              </p>
+              <p className="text-[var(--on-surface-variant)]">
+                <span>Cập nhật: </span>
+                {formatDate(owner.updatedAt)}
+              </p>
+            </div>
+            <div className="pt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => openEditDialog(owner)}
+                className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-[var(--outline-variant)] px-4 py-2 text-sm font-semibold text-[var(--primary)] active:bg-[var(--surface-container-low)]"
+              >
+                <VsIcon name="edit" className="text-[18px]" />
+                Chỉnh sửa
+              </button>
+            </div>
+          </article>
+        ))}
+        {filteredOwners.length === 0 ? (
+          <div className="rounded-xl border border-[var(--outline-variant)] bg-white p-8 text-center text-sm text-[var(--on-surface-variant)]">
+            Chưa có đối tác phù hợp.
+          </div>
+        ) : null}
       </section>
 
       {isDialogOpen ? (

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { getSession, signIn } from "next-auth/react";
+import { signIn } from "next-auth/react";
 import {
   type ChangeEvent,
   type FocusEvent,
@@ -13,8 +13,6 @@ import {
 } from "react";
 import Swal from "sweetalert2";
 import { z } from "zod";
-
-import { resolveSafeRedirectByRoles } from "@/lib/rbac";
 
 import { VsIcon } from "../_components/vs-icon";
 
@@ -103,19 +101,6 @@ function resolveSignInErrorMessage(error: string | undefined): string {
   }
 
   return "Không thể đăng nhập lúc này. Vui lòng thử lại.";
-}
-
-async function waitForFreshSession() {
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    const session = await getSession();
-    if (session?.activeRoleCode) {
-      return session;
-    }
-
-    await new Promise((resolve) => window.setTimeout(resolve, 150));
-  }
-
-  return getSession();
 }
 
 function getValidationErrors(values: LoginFormValues): LoginFormErrors {
@@ -325,18 +310,17 @@ export default function LoginPage() {
         return;
       }
 
-      const session = await waitForFreshSession();
-      const safeRedirectPath = resolveSafeRedirectByRoles(
-        session?.activeRoleCode ? [session.activeRoleCode] : [],
-        callbackUrl,
-      );
-
       Swal.update({
         icon: "success",
         title: "Đăng nhập thành công",
         text: "Đang chuyển hướng...",
       });
-      window.location.assign(safeRedirectPath);
+
+      // Hard-navigate to the server post-login route which reads the
+      // fresh session cookie and resolves the redirect server-side.
+      // This eliminates the client-side session polling race condition.
+      const postLoginUrl = `/api/auth/post-login${callbackUrl ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ""}`;
+      window.location.assign(postLoginUrl);
     } catch {
       Swal.close();
       setIsSubmitting(false);

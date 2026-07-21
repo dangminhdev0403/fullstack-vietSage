@@ -42,7 +42,6 @@ import {
   createHotelUserBodySchema as createHotelUserBodyZodSchema,
   listHotelUsersQuerySchema as listHotelUsersQueryZodSchema,
   roleIdParamSchema,
-  tenantHintQuerySchema,
   updateHotelUserStatusBodySchema as updateHotelUserStatusBodyZodSchema,
   userIdParamSchema,
 } from "../domain/schemas/hotel-users.schema";
@@ -77,17 +76,18 @@ export class HotelUsersController {
   ) {
     const dto = parseWithZod(createHotelUserBodyZodSchema, body);
 
-    return this.hotelUsersService.createHotelUser(request.user.userId, request.user.roleId, {
-      ...dto,
-      tenantId: this.resolveTenantHint(tenantIdHeader, dto.tenantId),
-    });
+    return this.hotelUsersService.createHotelUser(
+      request.user.userId,
+      request.user.roleId,
+      this.resolveTenantHint(tenantIdHeader, undefined),
+      dto,
+    );
   }
 
   @RequirePermission("hotel.staff.view")
   @SuccessMessage("Lấy danh sách người dùng khách sạn thành công")
   @ApiDescript("Xem danh sách người dùng")
   @ApiHeader({ name: "x-tenant-id", required: false, description: "Ghi đè đơn vị tùy chọn" })
-  @ApiQuery({ name: "tenantId", required: false, type: String })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "limit", required: false, type: Number })
   @ApiQuery({ name: "status", required: false, enum: TENANT_USER_STATUS_ENUM })
@@ -111,7 +111,7 @@ export class HotelUsersController {
     return this.hotelUsersService.listHotelUsers(
       request.user.userId,
       request.user.roleId,
-      this.resolveTenantHint(tenantIdHeader, parsedQuery.tenantId),
+      this.resolveTenantHint(tenantIdHeader, undefined),
       parsedQuery,
     );
   }
@@ -119,7 +119,6 @@ export class HotelUsersController {
   @RequirePermission("hotel.staff.view")
   @SuccessMessage("Lấy danh sách vai trò nhân viên có thể quản lý thành công")
   @ApiDescript("Xem danh sách vai trò nhân viên có thể quản lý")
-  @ApiQuery({ name: "tenantId", required: false, type: String })
   @ApiHeader({ name: "x-tenant-id", required: false, description: "Ghi đè đơn vị tùy chọn" })
   @ApiOkResponse({
     description: "Bao phản hồi danh sách vai trò nhân viên có thể quản lý",
@@ -132,14 +131,12 @@ export class HotelUsersController {
   @Get("managed-roles")
   async listManagedRoles(
     @Req() request: RequestWithUser,
-    @Query("tenantId") tenantIdQuery?: string,
     @Headers("x-tenant-id") tenantIdHeader?: string,
   ) {
-    const tenantHint = parseWithZod(tenantHintQuerySchema, { tenantId: tenantIdQuery }).tenantId;
     return this.hotelUsersService.listManagedRoles(
       request.user.userId,
       request.user.roleId,
-      this.resolveTenantHint(tenantIdHeader, tenantHint),
+      this.resolveTenantHint(tenantIdHeader, undefined),
     );
   }
 
@@ -147,7 +144,6 @@ export class HotelUsersController {
   @SuccessMessage("Lấy thông tin người dùng khách sạn thành công")
   @ApiDescript("Xem chi tiết người dùng")
   @ApiParam({ name: "id", type: String })
-  @ApiQuery({ name: "tenantId", required: false, type: String })
   @ApiHeader({ name: "x-tenant-id", required: false, description: "Ghi đè đơn vị tùy chọn" })
   @ApiOkResponse({
     description: "Bao phản hồi thông tin người dùng khách sạn",
@@ -161,16 +157,14 @@ export class HotelUsersController {
   async getHotelUser(
     @Req() request: RequestWithUser,
     @Param("id") userIdParam: string,
-    @Query("tenantId") tenantIdQuery?: string,
     @Headers("x-tenant-id") tenantIdHeader?: string,
   ) {
     const userId = parseWithZod(userIdParamSchema, userIdParam);
-    const tenantHint = parseWithZod(tenantHintQuerySchema, { tenantId: tenantIdQuery }).tenantId;
 
     return this.hotelUsersService.getHotelUser(
       request.user.userId,
       request.user.roleId,
-      this.resolveTenantHint(tenantIdHeader, tenantHint),
+      this.resolveTenantHint(tenantIdHeader, undefined),
       userId,
     );
   }
@@ -179,7 +173,6 @@ export class HotelUsersController {
   @SuccessMessage("Cập nhật trạng thái người dùng khách sạn thành công")
   @ApiDescript("Cập nhật trạng thái người dùng")
   @ApiParam({ name: "id", type: String })
-  @ApiQuery({ name: "tenantId", required: false, type: String })
   @ApiHeader({ name: "x-tenant-id", required: false, description: "Ghi đè đơn vị tùy chọn" })
   @ApiBody({ schema: updateHotelUserStatusBodyOpenApiSchema })
   @ApiOkResponse({
@@ -195,17 +188,15 @@ export class HotelUsersController {
     @Req() request: RequestWithUser,
     @Param("id") userIdParam: string,
     @Body() body: unknown,
-    @Query("tenantId") tenantIdQuery?: string,
     @Headers("x-tenant-id") tenantIdHeader?: string,
   ) {
     const userId = parseWithZod(userIdParamSchema, userIdParam);
     const dto = parseWithZod(updateHotelUserStatusBodyZodSchema, body);
-    const tenantHint = parseWithZod(tenantHintQuerySchema, { tenantId: tenantIdQuery }).tenantId;
 
     return this.hotelUsersService.updateHotelUserStatus(
       request.user.userId,
       request.user.roleId,
-      this.resolveTenantHint(tenantIdHeader, tenantHint),
+      this.resolveTenantHint(tenantIdHeader, undefined),
       userId,
       dto,
     );
@@ -215,7 +206,6 @@ export class HotelUsersController {
   @SuccessMessage("Gán vai trò người dùng khách sạn thành công")
   @ApiDescript("Gán vai trò người dùng")
   @ApiParam({ name: "id", type: String })
-  @ApiQuery({ name: "tenantId", required: false, type: String })
   @ApiHeader({ name: "x-tenant-id", required: false, description: "Ghi đè đơn vị tùy chọn" })
   @ApiBody({ schema: assignHotelUserRolesBodyOpenApiSchema })
   @ApiCreatedResponse({
@@ -231,17 +221,15 @@ export class HotelUsersController {
     @Req() request: RequestWithUser,
     @Param("id") userIdParam: string,
     @Body() body: unknown,
-    @Query("tenantId") tenantIdQuery?: string,
     @Headers("x-tenant-id") tenantIdHeader?: string,
   ) {
     const userId = parseWithZod(userIdParamSchema, userIdParam);
     const dto = parseWithZod(assignHotelUserRolesBodyZodSchema, body);
-    const tenantHint = parseWithZod(tenantHintQuerySchema, { tenantId: tenantIdQuery }).tenantId;
 
     return this.hotelUsersService.assignHotelUserRoles(
       request.user.userId,
       request.user.roleId,
-      this.resolveTenantHint(tenantIdHeader, tenantHint),
+      this.resolveTenantHint(tenantIdHeader, undefined),
       userId,
       dto,
     );
@@ -252,7 +240,6 @@ export class HotelUsersController {
   @ApiDescript("Thu hồi vai trò người dùng")
   @ApiParam({ name: "id", type: String })
   @ApiParam({ name: "roleId", type: String })
-  @ApiQuery({ name: "tenantId", required: false, type: String })
   @ApiHeader({ name: "x-tenant-id", required: false, description: "Ghi đè đơn vị tùy chọn" })
   @ApiOkResponse({
     description: "Bao phản hồi thu hồi vai trò người dùng khách sạn",
@@ -267,17 +254,15 @@ export class HotelUsersController {
     @Req() request: RequestWithUser,
     @Param("id") userIdParam: string,
     @Param("roleId") roleIdParam: string,
-    @Query("tenantId") tenantIdQuery?: string,
     @Headers("x-tenant-id") tenantIdHeader?: string,
   ) {
     const userId = parseWithZod(userIdParamSchema, userIdParam);
     const roleId = parseWithZod(roleIdParamSchema, roleIdParam);
-    const tenantHint = parseWithZod(tenantHintQuerySchema, { tenantId: tenantIdQuery }).tenantId;
 
     return this.hotelUsersService.revokeHotelUserRole(
       request.user.userId,
       request.user.roleId,
-      this.resolveTenantHint(tenantIdHeader, tenantHint),
+      this.resolveTenantHint(tenantIdHeader, undefined),
       userId,
       roleId,
     );

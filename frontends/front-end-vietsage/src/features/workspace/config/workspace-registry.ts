@@ -56,7 +56,6 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
   { key: "owner.home", personas: ["owner"], href: "/owner/dashboard", label: "Tổng quan danh mục", icon: "dashboard", order: 10 },
   { key: "owner.hotels", personas: ["owner"], href: "/owner/hotels", label: "Khách sạn", icon: "hotel", order: 20 },
   { key: "owner.staff", personas: ["owner"], href: "/owner/staff", label: "Nhân viên", icon: "group", order: 30, hideWhenHotelSelected: true, anyCapabilities: ["hotel.staff.view", "hotel.staff.manage"] },
-  { key: "owner.rooms", personas: ["owner"], href: "/owner/rooms", label: "Phòng", icon: "bed", order: 40, hideWhenHotelSelected: true, anyCapabilities: ["hotel.rooms.view", "hotel.rooms.manage", "hotel.rooms.qr.manage"] },
   { key: "owner.hotel.overview", personas: ["owner"], href: "/owner/hotels/{hotelId}", label: "Thông tin khách sạn", icon: "hotel", order: 100, requiresHotel: true, anyCapabilities: ["hotel.dashboard.view"] },
   { key: "owner.hotel.rooms", personas: ["owner"], href: "/owner/hotels/{hotelId}/rooms", label: "Phòng & QR", icon: "bed", order: 110, requiresHotel: true, anyCapabilities: ["hotel.rooms.view", "hotel.rooms.manage", "hotel.rooms.qr.manage"] },
   { key: "owner.hotel.staff", personas: ["owner"], href: "/owner/staff?hotelId={hotelId}", label: "Nhân viên khách sạn", icon: "group", order: 120, requiresHotel: true, anyCapabilities: ["hotel.staff.view", "hotel.staff.manage"] },

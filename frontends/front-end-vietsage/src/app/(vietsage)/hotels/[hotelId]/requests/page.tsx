@@ -1,13 +1,10 @@
 import { auth } from "@/auth";
-import { notFound } from "next/navigation";
 
-import { VsDashboardSidebar } from "../../../_components/vs-dashboard-sidebar";
-import { VsTopBar } from "../../../_components/vs-top-bar";
+import { notFound } from "next/navigation";
 import { RequestQueueClient } from "./request-queue-client";
 import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
 import type { ListHotelRequestsQuery } from "@/features/hotel-ops/types/hotel-ops-contract";
 import { assertCanAccessHotelOps, canUseHotelId, requireHotelOpsServerTokens } from "@/features/hotel-ops/utils/hotel-route-auth";
-import { buildWorkspaceNavigationForContext } from "@/features/workspace/config/workspace-registry";
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
 import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
 
@@ -40,7 +37,7 @@ export default async function HotelRequestsPage({ params, searchParams }: Reques
   const tokens = await requireHotelOpsServerTokens(callbackUrl);
   const workspaceContext = await loadServerWorkspaceContext(callbackUrl, tokens.accessToken);
 
-  if (!canUseHotelId(workspaceContext, hotelId)) {
+  if (!canUseHotelId(workspaceContext, hotelId) || (!workspaceContext.permissions.includes("hotel.requests.view") && !workspaceContext.permissions.includes("hotel.requests.manage"))) {
     notFound();
   }
 
@@ -64,10 +61,6 @@ export default async function HotelRequestsPage({ params, searchParams }: Reques
   };
 
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
-  const sidebarItems = buildWorkspaceNavigationForContext({
-    ...workspaceContext,
-    hotelId,
-  });
   const [requestsPage, requestSummary, serviceItemsPage] = await Promise.all([
     authorizedApi("list hotel requests", (accessToken) => hotelOpsService.listRequests(hotelId, { query, accessToken })),
     authorizedApi("summarize hotel requests", (accessToken) => hotelOpsService.getRequestsSummary(hotelId, { query: summaryQuery, accessToken })),
@@ -79,27 +72,13 @@ export default async function HotelRequestsPage({ params, searchParams }: Reques
   );
 
   return (
-    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      <VsTopBar
-        title="Hotel operations"
-        brandLockup={false}
-        titleClassName="text-[28px] font-semibold leading-none tracking-tight"
-        showLeftControl={false}
-        rightMode="profile"
-        rightLabel="Team member"
-        subtitle="Request queue"
-      />
-      <VsDashboardSidebar activePath={callbackUrl} items={sidebarItems} />
-      <main className="min-h-screen px-4 pb-24 pt-24 md:ml-80 md:px-10">
-        <div className="mx-auto max-w-[1600px] space-y-6">
+    <>
           <header className="flex flex-col gap-2">
             <p className="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">Hotel {hotelId}</p>
             <h1 className="vs-display text-[32px] font-semibold text-[var(--primary)] md:text-[40px]">Guest Request Queue</h1>
             <p className="max-w-3xl text-base text-[var(--on-surface-variant)]">A single operational queue for service catalog requests, assignments, and status follow-up.</p>
           </header>
           <RequestQueueClient hotelId={hotelId} requests={requestsPage.items} total={requestsPage.total} summary={requestSummary} serviceItems={serviceItemsPage.items} initialFilters={initialFilters} />
-        </div>
-      </main>
-    </div>
+    </>
   );
 }

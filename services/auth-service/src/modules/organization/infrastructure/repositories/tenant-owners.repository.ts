@@ -93,6 +93,17 @@ export class TenantOwnersRepository {
     });
   }
 
+  async listTenantOptions() {
+    return this.prisma.tenant.findMany({
+      select: {
+        id: true,
+        code: true,
+        name: true,
+      },
+      orderBy: [{ name: "asc" }],
+    });
+  }
+
   async createTenantOwner(input: {
     normalizedEmail: string;
     fullName: string;

@@ -17,7 +17,7 @@ export const createHotelUserBodySchema = z
       .string()
       .min(8, "password phải có ít nhất 8 ký tự")
       .max(128, "password không được vượt quá 128 ký tự"),
-    tenantId: z.string().max(80, "tenantId không được vượt quá 80 ký tự").optional(),
+
     roleIds: z
       .array(z.string().max(64, "mỗi giá trị trong roleIds không được vượt quá 64 ký tự"))
       .min(1, "roleIds phải có ít nhất 1 phần tử")
@@ -28,7 +28,6 @@ export const createHotelUserBodySchema = z
 
 export const listHotelUsersQuerySchema = z
   .object({
-    tenantId: z.string().max(80, "tenantId không được vượt quá 80 ký tự").optional(),
     page: z.coerce.number().int("page phải là số nguyên").min(1).optional(),
     limit: z.coerce.number().int("limit phải là số nguyên").min(1).max(100).optional(),
     status: tenantUserStatusSchema.optional(),
@@ -54,12 +53,6 @@ export const assignHotelUserRolesBodySchema = z
   })
   .strict();
 
-export const tenantHintQuerySchema = z
-  .object({
-    tenantId: z.string().max(80, "tenantId không được vượt quá 80 ký tự").optional(),
-  })
-  .strict();
-
 export const userIdParamSchema = z.string().trim().min(1, "user id là bắt buộc");
 export const roleIdParamSchema = z.string().trim().min(1, "role id là bắt buộc");
 
@@ -67,4 +60,3 @@ export type CreateHotelUserBodyInput = z.infer<typeof createHotelUserBodySchema>
 export type ListHotelUsersQueryInput = z.infer<typeof listHotelUsersQuerySchema>;
 export type UpdateHotelUserStatusBodyInput = z.infer<typeof updateHotelUserStatusBodySchema>;
 export type AssignHotelUserRolesBodyInput = z.infer<typeof assignHotelUserRolesBodySchema>;
-export type TenantHintQueryInput = z.infer<typeof tenantHintQuerySchema>;

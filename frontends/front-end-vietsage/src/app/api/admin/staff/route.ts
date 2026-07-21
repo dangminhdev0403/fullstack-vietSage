@@ -1,12 +1,12 @@
 import { z } from "zod";
 import { HttpError } from "@/core/http/http-error";
+import { adminService } from "@/features/admin/service/admin-service-instance";
 import { staffManagementService } from "@/features/staff-management/service/staff-management-service-instance";
 import { httpErrorResponse, successResponse, unknownServerErrorResponse, validationErrorResponse } from "../_utils";
 
 export const dynamic = "force-dynamic";
 
 const createUserSchema = z.object({
-  tenantId: z.string().trim().min(1),
   email: z.string().trim().email(),
   fullName: z.string().trim().min(2),
   password: z.string().min(8),
@@ -14,17 +14,23 @@ const createUserSchema = z.object({
 });
 
 export async function GET(request: Request) {
+  const tenantId = request.headers.get("x-tenant-id")?.trim();
   const query = new URL(request.url).searchParams;
-  const tenantId = query.get("tenantId")?.trim();
   const hotelId = query.get("hotelId")?.trim() || null;
+  const q = query.get("q")?.trim() || undefined;
+  const pageParam = query.get("page");
+  const limitParam = query.get("limit");
+  const page = pageParam ? Number.parseInt(pageParam, 10) : undefined;
+  const limit = limitParam ? Number.parseInt(limitParam, 10) : undefined;
   if (!tenantId) return validationErrorResponse("tenantId là bắt buộc");
   try {
-    const [users, roles, assignments] = await Promise.all([
-      staffManagementService.listUsers({ tenantId }),
+    const [users, roles, assignments, hotelsPage] = await Promise.all([
+      staffManagementService.listUsers({ tenantId, q, page, limit }),
       staffManagementService.listManagedRoles(tenantId),
       hotelId ? staffManagementService.listAssignments(hotelId) : Promise.resolve(null),
+      adminService.listHotels({ query: { page: 1, limit: 100, tenantId } }),
     ]);
-    return successResponse({ users, roles, assignments });
+    return successResponse({ users, roles, assignments, hotels: hotelsPage.items.filter((h) => h.status !== "DISABLED") });
   } catch (error) {
     if (error instanceof HttpError) return httpErrorResponse(error);
     return unknownServerErrorResponse();
@@ -32,10 +38,12 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const tenantId = request.headers.get("x-tenant-id")?.trim();
+  if (!tenantId) return validationErrorResponse("tenantId là bắt buộc");
   const parsed = createUserSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return validationErrorResponse("Thông tin nhân viên chưa hợp lệ");
   try {
-    const data = await staffManagementService.createUser(parsed.data);
+    const data = await staffManagementService.createUser(parsed.data, tenantId);
     return successResponse(data, 201, "Đã tạo nhân viên");
   } catch (error) {
     if (error instanceof HttpError) return httpErrorResponse(error);

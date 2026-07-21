@@ -2,6 +2,7 @@ import { Body, Controller, Get, Headers, Param, Patch, Post, Query, Req } from "
 import {
   ApiBody,
   ApiCreatedResponse,
+  ApiHeader,
   ApiOkResponse,
   ApiParam,
   ApiQuery,
@@ -44,23 +45,19 @@ export class HotelsController {
     schema: successEnvelopeSchema(hotelDataSchema, 201, "Tạo khách sạn thành công"),
   })
   @Post()
-  async createHotel(
-    @Req() request: RequestWithUser,
-    @Body() body: unknown,
-    @Headers("x-tenant-id") tenantIdHeader?: string,
-  ) {
+  async createHotel(@Req() request: RequestWithUser, @Body() body: unknown) {
     const dto = parseWithZod(createHotelBodySchema, body);
-    return this.hotelsService.createHotel(
-      request.user.userId,
-      request.user.roleId,
-      dto,
-      tenantIdHeader,
-    );
+    return this.hotelsService.createHotel(request.user.userId, request.user.roleId, dto);
   }
 
   @SuccessMessage("Lấy danh sách khách sạn thành công")
   @ApiDescript("Xem danh sách khách sạn")
   @ApiQuery({ name: "tenantId", required: false, type: String })
+  @ApiHeader({
+    name: "x-tenant-id",
+    required: false,
+    description: "Tenant scope chính; tenantId query chỉ là fallback tương thích tạm thời.",
+  })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "limit", required: false, type: Number })
   @ApiQuery({ name: "q", required: false, type: String })
@@ -71,16 +68,14 @@ export class HotelsController {
   @Get()
   async listHotels(
     @Req() request: RequestWithUser,
+    @Headers("x-tenant-id") tenantIdHeader: string | undefined,
     @Query() query: unknown,
-    @Headers("x-tenant-id") tenantIdHeader?: string,
   ) {
     const parsedQuery = parseWithZod(listHotelsQuerySchema, query);
-    return this.hotelsService.listHotels(
-      request.user.userId,
-      request.user.roleId,
-      parsedQuery,
-      tenantIdHeader,
-    );
+    return this.hotelsService.listHotels(request.user.userId, request.user.roleId, {
+      ...parsedQuery,
+      tenantId: tenantIdHeader?.trim() || parsedQuery.tenantId,
+    });
   }
 
   @SuccessMessage("Lấy thông tin khách sạn thành công")

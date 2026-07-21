@@ -1,5 +1,5 @@
-import { RouteLoadingState } from "../_components/route-boundary-state";
+import { ContentLoadingState } from "../_components/route-boundary-state";
 
 export default function AdminLoading() {
-  return <RouteLoadingState label="Loading admin workspace" tone="admin" />;
+  return <ContentLoadingState label="Loading admin workspace" tone="admin" />;
 }

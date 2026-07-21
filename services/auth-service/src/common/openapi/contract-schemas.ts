@@ -387,7 +387,6 @@ export const createHotelUserBodySchema = {
     email: { type: "string", format: "email", maxLength: 320 },
     fullName: { type: "string", minLength: 2, maxLength: 120 },
     password: { type: "string", minLength: 8, maxLength: 128 },
-    tenantId: { type: "string", maxLength: 80 },
     roleIds: {
       type: "array",
       minItems: 1,

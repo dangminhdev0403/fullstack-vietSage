@@ -433,6 +433,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tenant-owners/tenant-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["TenantOwnersController_listTenantOptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tenant-owners/{id}": {
         parameters: {
             query?: never;
@@ -2382,7 +2398,6 @@ export interface operations {
                 status?: "ACTIVE" | "INVITED" | "DISABLED";
                 limit?: number;
                 page?: number;
-                tenantId?: string;
             };
             header?: {
                 /** @description Ghi đè đơn vị tùy chọn */
@@ -2456,7 +2471,6 @@ export interface operations {
                     email: string;
                     fullName: string;
                     password: string;
-                    tenantId?: string;
                     roleIds?: string[];
                 };
             };
@@ -2505,9 +2519,7 @@ export interface operations {
     };
     HotelUsersController_listManagedRoles: {
         parameters: {
-            query?: {
-                tenantId?: string;
-            };
+            query?: never;
             header?: {
                 /** @description Ghi đè đơn vị tùy chọn */
                 "x-tenant-id"?: string;
@@ -2544,9 +2556,7 @@ export interface operations {
     };
     HotelUsersController_getHotelUser: {
         parameters: {
-            query?: {
-                tenantId?: string;
-            };
+            query?: never;
             header?: {
                 /** @description Ghi đè đơn vị tùy chọn */
                 "x-tenant-id"?: string;
@@ -2601,9 +2611,7 @@ export interface operations {
     };
     HotelUsersController_updateHotelUserStatus: {
         parameters: {
-            query?: {
-                tenantId?: string;
-            };
+            query?: never;
             header?: {
                 /** @description Ghi đè đơn vị tùy chọn */
                 "x-tenant-id"?: string;
@@ -2665,9 +2673,7 @@ export interface operations {
     };
     HotelUsersController_assignHotelUserRoles: {
         parameters: {
-            query?: {
-                tenantId?: string;
-            };
+            query?: never;
             header?: {
                 /** @description Ghi đè đơn vị tùy chọn */
                 "x-tenant-id"?: string;
@@ -2728,9 +2734,7 @@ export interface operations {
     };
     HotelUsersController_revokeHotelUserRole: {
         parameters: {
-            query?: {
-                tenantId?: string;
-            };
+            query?: never;
             header?: {
                 /** @description Ghi đè đơn vị tùy chọn */
                 "x-tenant-id"?: string;
@@ -2939,6 +2943,23 @@ export interface operations {
             };
         };
     };
+    TenantOwnersController_listTenantOptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     TenantOwnersController_getTenantOwner: {
         parameters: {
             query?: never;
@@ -3110,8 +3131,9 @@ export interface operations {
                 page?: number;
                 tenantId?: string;
             };
-            header: {
-                "x-tenant-id": string;
+            header?: {
+                /** @description Tenant scope chính; tenantId query chỉ là fallback tương thích tạm thời. */
+                "x-tenant-id"?: string;
             };
             path?: never;
             cookie?: never;
@@ -3170,9 +3192,7 @@ export interface operations {
     HotelsController_createHotel: {
         parameters: {
             query?: never;
-            header: {
-                "x-tenant-id": string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };

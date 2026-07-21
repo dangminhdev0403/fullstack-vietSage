@@ -1823,3 +1823,26 @@ Remaining blockers/risks:
 - Urgent owner notifications remain visible until dismissed or opened via `Xử lý ngay`; audio is best-effort because browsers may block sound before user interaction.
 - `NEXT_PUBLIC_REQUEST_REALTIME_ENABLED` defaults false; rollback performs no ticket/socket calls and preserves HTTP workflows. Local runtime must explicitly enable both frontend and backend flags and restart both processes.
 - Realtime remains a refresh signal. Polling, outbox/durable delivery, acknowledgement SLA, and escalation remain Batch D.
+## [complete] 2026-07-21 - Mission: recover-e4711-ui-auth-rbac
+
+- Rebuilt the auth, tenant, workspace, permissions, and user-management changes on top of UI
+  baseline `e4711efe18d237ba3df703cc515645bc07bfc06d`; `master` was not used as the visual source.
+- Added session-aware landing actions and a server-owned post-login continuation that revalidates
+  callbacks against the new active role.
+- Kept workspace chrome in protected layouts with local content boundaries, while preserving the
+  baseline shell tokens and supporting existing page wrappers.
+- Standardized new staff-management requests on `x-tenant-id`, added light tenant options and
+  server pagination/search, and kept role/hotel assignment as separate operations.
+- Reworked permissions role/module selection without full route reload and preserved the full role
+  permission set when saving a single module.
+
+Verification result:
+
+- `npm run lint` passed.
+- `npm run build` passed and emitted the expected public, Admin, Owner, and Staff routes.
+- OpenAPI frontend types were regenerated from the 81-path shared contract.
+
+Remaining manual checkpoint:
+
+- The product owner performs final authenticated visual and role-switch QA on 390 px, 768 px, and
+  desktop viewports using representative Admin, Owner, and Staff accounts.

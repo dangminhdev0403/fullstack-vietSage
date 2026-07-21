@@ -1,15 +1,19 @@
-﻿"use client";
+"use client";
 
-import { useCallback, useMemo, useState } from "react";
-import Link from "next/link";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import Swal from "sweetalert2";
 
 import { HttpError } from "@/core/http/http-error";
-import { requestInternalApi, requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import {
+  requestInternalApi,
+  requestInternalApiEnvelope,
+} from "@/core/http/internal-api-client";
 import type { RbacPermissionMethod } from "@/features/rbac/types/rbac-contract";
 
 import { VsIcon } from "../../../_components/vs-icon";
+
+/* ────────────────────────── exported types ────────────────────────── */
 
 export type RolePermissionsBrowserRole = {
   id: string;
@@ -32,35 +36,28 @@ export type RolePermissionsBrowserPermission = {
   enabled?: boolean;
 };
 
-type PermissionModule = {
+export type ModuleSummary = {
   moduleKey: string;
-  label: string;
-  icon: string;
-  permissions: RolePermissionsBrowserPermission[];
+  moduleName: string;
+  totalPermissions: number;
+  enabledCount: number;
 };
+
+/* ────────────────────────── props ────────────────────────── */
 
 type RolePermissionsBrowserProps = {
   roles: RolePermissionsBrowserRole[];
-  permissionCatalog: RolePermissionsBrowserPermission[];
-  permissionModuleSummaries: Array<{
-    moduleKey: string;
-    moduleName: string;
-    totalPermissions: number;
-    enabledCount: number;
-  }>;
-  selectedModuleKey: string | null;
+  permissionModuleSummaries: ModuleSummary[];
   initialRoleId: string | null;
+  initialModuleKey: string | null;
   initialPermissionsByRoleId?: Record<
     string,
     RolePermissionsBrowserPermission[]
   >;
+  allPermissions?: RolePermissionsBrowserPermission[];
 };
 
-type PermissionsByRoleId = Record<string, RolePermissionsBrowserPermission[]>;
-type DraftPermissionIdsByRoleId = Record<string, string[]>;
-type LoadingByRoleId = Record<string, boolean>;
-type SavingByRoleId = Record<string, boolean>;
-type ErrorByRoleId = Record<string, string | null>;
+/* ────────────────────────── constants ────────────────────────── */
 
 const BUSINESS_MODULE_LABELS: Record<
   string,
@@ -162,68 +159,22 @@ function toTitleCase(value: string): string {
     .join(" ");
 }
 
-function moduleKeyFromPath(path: string): string {
-  const segments = path.split("/").filter(Boolean);
-  if (segments.length >= 3 && segments[0] === "api" && segments[1] === "v1") {
-    return segments[2] ?? "misc";
-  }
-
-  if (segments.length >= 2 && segments[0] === "permissions") {
-    return segments[1] ?? "misc";
-  }
-
-  if (segments.length >= 1) {
-    return segments[0] ?? "misc";
-  }
-
-  return "misc";
+function moduleLabel(moduleKey: string, fallbackName?: string): string {
+  return BUSINESS_MODULE_LABELS[moduleKey]?.label ?? fallbackName ?? toTitleCase(moduleKey);
 }
 
-function moduleKeyFromPermission(
-  permission: RolePermissionsBrowserPermission,
-): string {
-  const moduleKey = permission.moduleKey?.trim();
-  if (moduleKey && moduleKey.length > 0) {
-    return moduleKey;
-  }
-
-  return moduleKeyFromPath(permission.path);
-}
-
-function iconFromModuleKey(moduleKey: string): string {
+function moduleIcon(moduleKey: string): string {
   const configured = BUSINESS_MODULE_LABELS[moduleKey];
   if (configured) return configured.icon;
 
   const normalized = moduleKey.toLowerCase();
-
-  if (normalized.includes("auth")) {
-    return "verified";
-  }
-
-  if (normalized.includes("user") || normalized.includes("staff")) {
-    return "group";
-  }
-
-  if (normalized.includes("room")) {
-    return "bed";
-  }
-
-  if (normalized.includes("hotel")) {
-    return "hotel";
-  }
-
-  if (normalized.includes("booking")) {
-    return "schedule";
-  }
-
-  if (normalized.includes("dashboard") || normalized.includes("analytic")) {
-    return "dashboard";
-  }
-
-  if (normalized.includes("role") || normalized.includes("permission")) {
-    return "verified_user";
-  }
-
+  if (normalized.includes("auth")) return "verified";
+  if (normalized.includes("user") || normalized.includes("staff")) return "group";
+  if (normalized.includes("room")) return "bed";
+  if (normalized.includes("hotel")) return "hotel";
+  if (normalized.includes("booking")) return "schedule";
+  if (normalized.includes("dashboard") || normalized.includes("analytic")) return "dashboard";
+  if (normalized.includes("role") || normalized.includes("permission")) return "verified_user";
   return "menu";
 }
 
@@ -232,7 +183,10 @@ function toPermissionMethodBadgeClass(method: RbacPermissionMethod): string {
 }
 
 function businessActionLabel(description: string): string {
-  return description.replace(/^View /i, "Xem ").replace(/^Manage /i, "Quản lý ").trim();
+  return description
+    .replace(/^View /i, "Xem ")
+    .replace(/^Manage /i, "Quản lý ")
+    .trim();
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -249,7 +203,6 @@ function getErrorMessage(payload: unknown, fallback: string): string {
     ) {
       return data.detail;
     }
-
     if (
       typeof payload.message === "string" &&
       payload.message.trim().length > 0
@@ -257,46 +210,29 @@ function getErrorMessage(payload: unknown, fallback: string): string {
       return payload.message;
     }
   }
-
   return fallback;
 }
 
 function normalizePermissionIds(permissionIds: readonly string[]): string[] {
   const unique = new Set<string>();
-
-  for (const permissionId of permissionIds) {
-    if (typeof permissionId !== "string") {
-      continue;
-    }
-
-    const normalized = permissionId.trim();
-    if (normalized.length === 0) {
-      continue;
-    }
-
+  for (const id of permissionIds) {
+    if (typeof id !== "string") continue;
+    const normalized = id.trim();
+    if (normalized.length === 0) continue;
     unique.add(normalized);
   }
-
-  return [...unique].sort((first, second) =>
-    first.localeCompare(second, "en", { sensitivity: "base" }),
-  );
+  return [...unique].sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" }));
 }
 
 function arePermissionIdsEqual(
   first: readonly string[],
   second: readonly string[],
 ): boolean {
-  if (first.length !== second.length) {
-    return false;
-  }
-
+  if (first.length !== second.length) return false;
   const secondSet = new Set(second);
-  for (const permissionId of first) {
-    if (!secondSet.has(permissionId)) {
-      return false;
-    }
+  for (const id of first) {
+    if (!secondSet.has(id)) return false;
   }
-
   return true;
 }
 
@@ -306,21 +242,13 @@ function countPermissionSelectionDelta(
 ): number {
   const firstSet = new Set(first);
   const secondSet = new Set(second);
-
   let delta = 0;
-
-  for (const permissionId of firstSet) {
-    if (!secondSet.has(permissionId)) {
-      delta += 1;
-    }
+  for (const id of firstSet) {
+    if (!secondSet.has(id)) delta += 1;
   }
-
-  for (const permissionId of secondSet) {
-    if (!firstSet.has(permissionId)) {
-      delta += 1;
-    }
+  for (const id of secondSet) {
+    if (!firstSet.has(id)) delta += 1;
   }
-
   return delta;
 }
 
@@ -330,27 +258,18 @@ function parseRolePermissions(
   if (!isRecord(payload) || !Array.isArray(payload.data)) {
     throw new Error("Phản hồi role-permissions không đúng định dạng");
   }
-
   const mapped: RolePermissionsBrowserPermission[] = [];
   for (const item of payload.data) {
-    if (!isRecord(item)) {
-      continue;
-    }
-
+    if (!isRecord(item)) continue;
     if (
       typeof item.id !== "string" ||
       typeof item.method !== "string" ||
       typeof item.path !== "string" ||
       typeof item.description !== "string"
-    ) {
+    )
       continue;
-    }
-
     const method = item.method.trim().toUpperCase() as RbacPermissionMethod;
-    if (!Object.prototype.hasOwnProperty.call(METHOD_BADGE_CLASS_MAP, method)) {
-      continue;
-    }
-
+    if (!Object.hasOwn(METHOD_BADGE_CLASS_MAP, method)) continue;
     mapped.push({
       id: item.id,
       method,
@@ -358,29 +277,37 @@ function parseRolePermissions(
       description: item.description,
     });
   }
-
   return mapped;
 }
+
+function formatDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Không có";
+  return new Intl.DateTimeFormat("vi-VN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
+/* ────────────── BFF fetch helpers ────────────── */
 
 async function fetchRolePermissions(
   roleId: string,
 ): Promise<RolePermissionsBrowserPermission[]> {
   try {
-    const permissions = await requestInternalApi<RolePermissionsBrowserPermission[]>(
-    `/api/rbac/roles/${encodeURIComponent(roleId)}/permissions`,
-    {
+    const permissions = await requestInternalApi<
+      RolePermissionsBrowserPermission[]
+    >(`/api/rbac/roles/${encodeURIComponent(roleId)}/permissions`, {
       method: "GET",
-    },
-    );
-
+    });
     return parseRolePermissions({ data: permissions });
   } catch (error) {
     if (error instanceof HttpError) {
-    throw new Error(
+      throw new Error(
         getErrorMessage(error.data, `Yêu cầu thất bại với mã ${error.status}`),
-    );
-  }
-
+      );
+    }
     throw error;
   }
 }
@@ -390,25 +317,23 @@ async function replaceRolePermissions(
   permissionIds: readonly string[],
 ): Promise<RolePermissionsBrowserPermission[]> {
   try {
-    const payload = await requestInternalApiEnvelope<RolePermissionsBrowserPermission[]>(
-    `/api/rbac/roles/${encodeURIComponent(roleId)}/permissions`,
-    {
+    const payload = await requestInternalApiEnvelope<
+      RolePermissionsBrowserPermission[]
+    >(`/api/rbac/roles/${encodeURIComponent(roleId)}/permissions`, {
       method: "PUT",
       body: { permissionIds },
-    },
-    );
-
+    });
     return parseRolePermissions(payload);
   } catch (error) {
     if (error instanceof HttpError) {
-    throw new Error(
+      throw new Error(
         getErrorMessage(error.data, `Yêu cầu thất bại với mã ${error.status}`),
-    );
-  }
-
+      );
+    }
     throw error;
   }
 }
+
 function showLoadingBox(title: string, text: string): void {
   void Swal.fire({
     title,
@@ -428,67 +353,39 @@ function closeLoadingBox(): void {
   }
 }
 
-function buildPermissionModules(
-  permissions: readonly RolePermissionsBrowserPermission[],
-): PermissionModule[] {
-  const map = new Map<string, RolePermissionsBrowserPermission[]>();
+/* ────────────── URL sync helper ────────────── */
 
-  for (const permission of permissions) {
-    const moduleKey = moduleKeyFromPermission(permission);
-    const list = map.get(moduleKey) ?? [];
-    list.push(permission);
-    map.set(moduleKey, list);
-  }
-
-  return [...map.entries()]
-    .map(([moduleKey, items]) => {
-      const sortedPermissions = [...items].sort((first, second) => {
-        const pathCompare = first.path.localeCompare(second.path, "en", {
-          sensitivity: "base",
-        });
-        if (pathCompare !== 0) {
-          return pathCompare;
-        }
-
-        return first.method.localeCompare(second.method, "en", {
-          sensitivity: "base",
-        });
-      });
-
-      return {
-        moduleKey,
-        label: BUSINESS_MODULE_LABELS[moduleKey]?.label ?? items[0]?.moduleLabel ?? toTitleCase(moduleKey),
-        icon: BUSINESS_MODULE_LABELS[moduleKey]?.icon ?? items[0]?.moduleIcon ?? iconFromModuleKey(moduleKey),
-        permissions: sortedPermissions,
-      } satisfies PermissionModule;
-    })
-    .sort((first, second) =>
-      first.label.localeCompare(second.label, "en", { sensitivity: "base" }),
-    );
+function replaceUrlParams(
+  roleId: string | null,
+  moduleKey: string | null,
+): void {
+  const params = new URLSearchParams();
+  if (roleId) params.set("roleId", roleId);
+  if (moduleKey) params.set("module", moduleKey);
+  const url = `${window.location.pathname}?${params.toString()}`;
+  window.history.replaceState(null, "", url);
 }
+
+/* ────────────── state types ────────────── */
+
+/** Cache key = `${roleId}` — permissions for the entire role */
+type PermissionsByRoleId = Record<string, RolePermissionsBrowserPermission[]>;
+
+/** Draft per role — full set of toggled permission IDs */
+type DraftPermissionIdsByRoleId = Record<string, string[]>;
+type LoadingByRoleId = Record<string, boolean>;
+type SavingByRoleId = Record<string, boolean>;
+type ErrorByRoleId = Record<string, string | null>;
+
+/* ────────────────────── internal helpers ────────────────────── */
 
 function normalizeInitialRoleId(
   roles: readonly RolePermissionsBrowserRole[],
   initialRoleId: string | null,
 ): string | null {
-  if (initialRoleId && roles.some((role) => role.id === initialRoleId)) {
+  if (initialRoleId && roles.some((r) => r.id === initialRoleId))
     return initialRoleId;
-  }
-
   return roles[0]?.id ?? null;
-}
-
-function formatDate(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "Không có";
-  }
-
-  return new Intl.DateTimeFormat("vi-VN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(date);
 }
 
 function toInitialDraftMap(
@@ -497,34 +394,110 @@ function toInitialDraftMap(
     RolePermissionsBrowserPermission[]
   >,
 ): DraftPermissionIdsByRoleId {
-  const initialDraft: DraftPermissionIdsByRoleId = {};
-
+  const draft: DraftPermissionIdsByRoleId = {};
   for (const [roleId, permissions] of Object.entries(
     initialPermissionsByRoleId,
   )) {
-    initialDraft[roleId] = normalizePermissionIds(
-      permissions.map((permission) => permission.id),
-    );
+    draft[roleId] = normalizePermissionIds(permissions.map((p) => p.id));
   }
-
-  return initialDraft;
+  return draft;
 }
+
+/* ────────────── group permissions by module ────────────── */
+
+type PermissionModule = {
+  moduleKey: string;
+  label: string;
+  icon: string;
+  permissions: RolePermissionsBrowserPermission[];
+};
+
+function moduleKeyFromPermission(
+  permission: RolePermissionsBrowserPermission,
+): string {
+  const key = permission.moduleKey?.trim();
+  if (key && key.length > 0) return key;
+  // Fallback: derive from path
+  const segments = permission.path.split("/").filter(Boolean);
+  if (segments.length >= 3 && segments[0] === "api" && segments[1] === "v1")
+    return segments[2] ?? "misc";
+  if (segments.length >= 2 && segments[0] === "permissions")
+    return segments[1] ?? "misc";
+  if (segments.length >= 1) return segments[0] ?? "misc";
+  return "misc";
+}
+
+function buildPermissionModules(
+  permissions: readonly RolePermissionsBrowserPermission[],
+): PermissionModule[] {
+  const map = new Map<string, RolePermissionsBrowserPermission[]>();
+  for (const perm of permissions) {
+    const key = moduleKeyFromPermission(perm);
+    const list = map.get(key) ?? [];
+    list.push(perm);
+    map.set(key, list);
+  }
+  return [...map.entries()]
+    .map(([key, items]) => ({
+      moduleKey: key,
+      label:
+        BUSINESS_MODULE_LABELS[key]?.label ??
+        items[0]?.moduleLabel ??
+        toTitleCase(key),
+      icon:
+        BUSINESS_MODULE_LABELS[key]?.icon ??
+        items[0]?.moduleIcon ??
+        moduleIcon(key),
+      permissions: [...items].sort((a, b) => {
+        const pathCmp = a.path.localeCompare(b.path, "en", {
+          sensitivity: "base",
+        });
+        if (pathCmp !== 0) return pathCmp;
+        return a.method.localeCompare(b.method, "en", { sensitivity: "base" });
+      }),
+    }))
+    .sort((a, b) =>
+      a.label.localeCompare(b.label, "en", { sensitivity: "base" }),
+    );
+}
+
+/* ════════════════════════════════════════════════════════════════
+   ██  MAIN COMPONENT
+   ════════════════════════════════════════════════════════════════ */
 
 export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
   const {
     roles,
-    permissionCatalog,
     permissionModuleSummaries,
-    selectedModuleKey,
     initialRoleId,
+    initialModuleKey,
     initialPermissionsByRoleId = {},
+    allPermissions = [],
   } = props;
 
-  const initialSelectedRoleId = normalizeInitialRoleId(roles, initialRoleId);
-
+  /* ── role selection ── */
+  const resolvedInitialRoleId = normalizeInitialRoleId(roles, initialRoleId);
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(
-    initialSelectedRoleId,
+    resolvedInitialRoleId,
   );
+
+  /* ── module selection (client-side, no Next.js Link) ── */
+  const [selectedModuleKey, setSelectedModuleKey] = useState<string | null>(
+    () => {
+      if (
+        initialModuleKey &&
+        permissionModuleSummaries.some((m) => m.moduleKey === initialModuleKey)
+      ) {
+        return initialModuleKey;
+      }
+      return permissionModuleSummaries[0]?.moduleKey ?? null;
+    },
+  );
+
+  /* ── mobile role panel toggle ── */
+  const [mobileRolePanelOpen, setMobileRolePanelOpen] = useState(false);
+
+  /* ── permission state ── */
   const [permissionsByRoleId, setPermissionsByRoleId] =
     useState<PermissionsByRoleId>(initialPermissionsByRoleId);
   const [draftPermissionIdsByRoleId, setDraftPermissionIdsByRoleId] =
@@ -535,8 +508,8 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
   const [savingByRoleId, setSavingByRoleId] = useState<SavingByRoleId>({});
   const [errorByRoleId, setErrorByRoleId] = useState<ErrorByRoleId>({});
 
-  const selectedRole = roles.find((role) => role.id === selectedRoleId) ?? null;
-
+  /* ── derived ── */
+  const selectedRole = roles.find((r) => r.id === selectedRoleId) ?? null;
   const selectedRoleHasCache = selectedRoleId
     ? Object.prototype.hasOwnProperty.call(permissionsByRoleId, selectedRoleId)
     : false;
@@ -557,10 +530,7 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
     : null;
 
   const selectedRoleAssignedPermissionIds = useMemo(
-    () =>
-      normalizePermissionIds(
-        selectedRolePermissions.map((permission) => permission.id),
-      ),
+    () => normalizePermissionIds(selectedRolePermissions.map((p) => p.id)),
     [selectedRolePermissions],
   );
 
@@ -570,10 +540,7 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
   );
 
   const selectedRoleDraftPermissionIds = useMemo(() => {
-    if (!selectedRoleId) {
-      return [];
-    }
-
+    if (!selectedRoleId) return [];
     return (
       draftPermissionIdsByRoleId[selectedRoleId] ??
       selectedRoleAssignedPermissionIds
@@ -603,71 +570,83 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
       )
     : 0;
 
+  const selectedRoleTotalPermissions = selectedRoleHasCache
+    ? selectedRoleDraftPermissionIdSet.size
+    : (selectedRole?.enabledCount ?? 0);
+
+  /* ── group permissions by module for the currently-loaded role ── */
+  const permissionModules = useMemo(
+    () => buildPermissionModules(allPermissions.length > 0 ? allPermissions : selectedRolePermissions),
+    [allPermissions, selectedRolePermissions],
+  );
+
+  /** The module's permissions for the currently selected moduleKey */
+  const activeModulePermissions = useMemo(() => {
+    if (!selectedModuleKey) return [];
+    const mod = permissionModules.find(
+      (m) => m.moduleKey === selectedModuleKey,
+    );
+    return mod?.permissions ?? [];
+  }, [permissionModules, selectedModuleKey]);
+
+  /* ── load role permissions ── */
+  const loadingRef = useRef<Set<string>>(new Set());
+
   const loadRolePermissions = useCallback(
     async (roleId: string) => {
-      if (permissionsByRoleId[roleId] || loadingByRoleId[roleId]) {
-        return;
-      }
-
-      setLoadingByRoleId((previous) => ({ ...previous, [roleId]: true }));
-      setErrorByRoleId((previous) => ({ ...previous, [roleId]: null }));
-
+      if (permissionsByRoleId[roleId] || loadingRef.current.has(roleId)) return;
+      loadingRef.current.add(roleId);
+      setLoadingByRoleId((prev) => ({ ...prev, [roleId]: true }));
+      setErrorByRoleId((prev) => ({ ...prev, [roleId]: null }));
       try {
         const permissions = await fetchRolePermissions(roleId);
-        const assignedPermissionIds = normalizePermissionIds(
-          permissions.map((permission) => permission.id),
+        const assignedIds = normalizePermissionIds(
+          permissions.map((p) => p.id),
         );
-
-        setPermissionsByRoleId((previous) => ({
-          ...previous,
-          [roleId]: permissions,
-        }));
-        setDraftPermissionIdsByRoleId((previous) => ({
-          ...previous,
-          [roleId]: assignedPermissionIds,
+        setPermissionsByRoleId((prev) => ({ ...prev, [roleId]: permissions }));
+        setDraftPermissionIdsByRoleId((prev) => ({
+          ...prev,
+          [roleId]: assignedIds,
         }));
       } catch (error) {
         const message =
           error instanceof Error
             ? error.message
             : "Không tải được quyền của vai trò";
-        setErrorByRoleId((previous) => ({ ...previous, [roleId]: message }));
+        setErrorByRoleId((prev) => ({ ...prev, [roleId]: message }));
       } finally {
-        setLoadingByRoleId((previous) => ({ ...previous, [roleId]: false }));
+        loadingRef.current.delete(roleId);
+        setLoadingByRoleId((prev) => ({ ...prev, [roleId]: false }));
       }
     },
-    [loadingByRoleId, permissionsByRoleId],
+    [permissionsByRoleId],
   );
 
-  const permissionModules = useMemo(
-    () => buildPermissionModules(permissionCatalog),
-    [permissionCatalog],
-  );
+  /* ── auto-load on initial mount ── */
+  const didInitialLoad = useRef(false);
+  useEffect(() => {
+    if (didInitialLoad.current) return;
+    didInitialLoad.current = true;
+    if (selectedRoleId && !permissionsByRoleId[selectedRoleId]) {
+      queueMicrotask(() => {
+        void loadRolePermissions(selectedRoleId);
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const selectedRoleTotalPermissions = selectedRoleHasCache
-    ? selectedRoleDraftPermissionIdSet.size
-    : (selectedRole?.enabledCount ?? 0);
-
+  /* ── draft mutation helpers ── */
   const mutateSelectedRoleDraft = useCallback(
     (mutator: (draft: Set<string>) => void) => {
-      if (!selectedRoleId) {
-        return;
-      }
-
-      setDraftPermissionIdsByRoleId((previous) => {
-        const fallbackAssignedIds =
-          permissionsByRoleId[selectedRoleId]?.map(
-            (permission) => permission.id,
-          ) ?? [];
-        const currentDraftSet = new Set(
-          previous[selectedRoleId] ?? fallbackAssignedIds,
-        );
-
-        mutator(currentDraftSet);
-
+      if (!selectedRoleId) return;
+      setDraftPermissionIdsByRoleId((prev) => {
+        const fallbackIds =
+          permissionsByRoleId[selectedRoleId]?.map((p) => p.id) ?? [];
+        const currentSet = new Set(prev[selectedRoleId] ?? fallbackIds);
+        mutator(currentSet);
         return {
-          ...previous,
-          [selectedRoleId]: normalizePermissionIds([...currentDraftSet]),
+          ...prev,
+          [selectedRoleId]: normalizePermissionIds([...currentSet]),
         };
       });
     },
@@ -676,13 +655,12 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
 
   const handlePermissionToggle = useCallback(
     (permissionId: string, nextChecked: boolean) => {
-      mutateSelectedRoleDraft((draftSet) => {
+      mutateSelectedRoleDraft((draft) => {
         if (nextChecked) {
-          draftSet.add(permissionId);
-          return;
+          draft.add(permissionId);
+        } else {
+          draft.delete(permissionId);
         }
-
-        draftSet.delete(permissionId);
       });
     },
     [mutateSelectedRoleDraft],
@@ -692,14 +670,12 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
     (permissionId: string) => {
       const shouldBeAssigned =
         selectedRoleAssignedPermissionIdSet.has(permissionId);
-
-      mutateSelectedRoleDraft((draftSet) => {
+      mutateSelectedRoleDraft((draft) => {
         if (shouldBeAssigned) {
-          draftSet.add(permissionId);
-          return;
+          draft.add(permissionId);
+        } else {
+          draft.delete(permissionId);
         }
-
-        draftSet.delete(permissionId);
       });
     },
     [mutateSelectedRoleDraft, selectedRoleAssignedPermissionIdSet],
@@ -707,10 +683,8 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
 
   const handleModuleSelectAll = useCallback(
     (permissions: readonly RolePermissionsBrowserPermission[]) => {
-      mutateSelectedRoleDraft((draftSet) => {
-        for (const permission of permissions) {
-          draftSet.add(permission.id);
-        }
+      mutateSelectedRoleDraft((draft) => {
+        for (const p of permissions) draft.add(p.id);
       });
     },
     [mutateSelectedRoleDraft],
@@ -718,19 +692,39 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
 
   const handleModuleDisableAll = useCallback(
     (permissions: readonly RolePermissionsBrowserPermission[]) => {
-      mutateSelectedRoleDraft((draftSet) => {
-        for (const permission of permissions) {
-          draftSet.delete(permission.id);
-        }
+      mutateSelectedRoleDraft((draft) => {
+        for (const p of permissions) draft.delete(p.id);
       });
     },
     [mutateSelectedRoleDraft],
   );
 
+  /* ── role selection handler ── */
+  const handleSelectRole = useCallback(
+    (roleId: string) => {
+      setSelectedRoleId(roleId);
+      setMobileRolePanelOpen(false);
+      replaceUrlParams(roleId, selectedModuleKey);
+      void loadRolePermissions(roleId);
+    },
+    [loadRolePermissions, selectedModuleKey],
+  );
+
+  /* ── module selection handler (client-side only) ── */
+  const handleSelectModule = useCallback(
+    (moduleKey: string) => {
+      setSelectedModuleKey(moduleKey);
+      replaceUrlParams(selectedRoleId, moduleKey);
+    },
+    [selectedRoleId],
+  );
+
+  /* ── reset ── */
+  const selectedRoleName =
+    selectedRole?.name ?? selectedRoleId ?? "vai trò đã chọn";
+
   async function handleResetChanges() {
-    if (!selectedRoleId || !selectedRoleHasCache || selectedRoleSaving) {
-      return;
-    }
+    if (!selectedRoleId || !selectedRoleHasCache || selectedRoleSaving) return;
 
     if (!selectedRoleHasUnsavedChanges) {
       await Swal.fire({
@@ -750,21 +744,17 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
       text: "Hành động này sẽ khôi phục dữ liệu về ban đầu.",
       showCancelButton: true,
       reverseButtons: true,
-      confirmButtonText: "Đồng ý ",
+      confirmButtonText: "Đồng ý",
       cancelButtonText: "Huỷ",
     });
 
-    if (!resetConfirmation.isConfirmed) {
-      return;
-    }
+    if (!resetConfirmation.isConfirmed) return;
 
     showLoadingBox("Đang xử lí..", "Xin chờ.");
-
-    setDraftPermissionIdsByRoleId((previous) => ({
-      ...previous,
+    setDraftPermissionIdsByRoleId((prev) => ({
+      ...prev,
       [selectedRoleId]: selectedRoleAssignedPermissionIds,
     }));
-
     closeLoadingBox();
 
     await Swal.fire({
@@ -777,13 +767,9 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
     });
   }
 
-  const selectedRoleName =
-    selectedRole?.name ?? selectedRoleId ?? "vài trò đã chọn";
-
+  /* ── save ── */
   async function handleSaveChanges() {
-    if (!selectedRoleId || !selectedRoleHasCache || selectedRoleSaving) {
-      return;
-    }
+    if (!selectedRoleId || !selectedRoleHasCache || selectedRoleSaving) return;
 
     if (!selectedRoleHasUnsavedChanges) {
       await Swal.fire({
@@ -807,36 +793,32 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
       cancelButtonText: "Huỷ",
     });
 
-    if (!saveConfirmation.isConfirmed) {
-      return;
-    }
+    if (!saveConfirmation.isConfirmed) return;
 
     const nextPermissionIds = normalizePermissionIds(
       selectedRoleDraftPermissionIds,
     );
 
     showLoadingBox("Đang lưu...", "Vui lòng chờ.");
-
-    setSavingByRoleId((previous) => ({ ...previous, [selectedRoleId]: true }));
-    setErrorByRoleId((previous) => ({ ...previous, [selectedRoleId]: null }));
+    setSavingByRoleId((prev) => ({ ...prev, [selectedRoleId]: true }));
+    setErrorByRoleId((prev) => ({ ...prev, [selectedRoleId]: null }));
 
     try {
       const updatedPermissions = await replaceRolePermissions(
         selectedRoleId,
         nextPermissionIds,
       );
-      const confirmedPermissionIds = normalizePermissionIds(
-        updatedPermissions.map((permission) => permission.id),
+      const confirmedIds = normalizePermissionIds(
+        updatedPermissions.map((p) => p.id),
       );
 
-      setPermissionsByRoleId((previous) => ({
-        ...previous,
+      setPermissionsByRoleId((prev) => ({
+        ...prev,
         [selectedRoleId]: updatedPermissions,
       }));
-
-      setDraftPermissionIdsByRoleId((previous) => ({
-        ...previous,
-        [selectedRoleId]: confirmedPermissionIds,
+      setDraftPermissionIdsByRoleId((prev) => ({
+        ...prev,
+        [selectedRoleId]: confirmedIds,
       }));
 
       closeLoadingBox();
@@ -844,22 +826,18 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
       await Swal.fire({
         icon: "success",
         title: "Đã lưu thay đổi",
-        text: `${selectedRoleName} có ${confirmedPermissionIds.length} Quyền đang hoạt động.`,
+        text: `${selectedRoleName} có ${confirmedIds.length} Quyền đang hoạt động.`,
         confirmButtonText: "Đồng ý",
         timer: 2200,
         timerProgressBar: true,
       });
     } catch (error) {
       closeLoadingBox();
-
       const message =
         error instanceof Error
           ? error.message
           : "Không lưu được thay đổi do lỗi không xác định.";
-      setErrorByRoleId((previous) => ({
-        ...previous,
-        [selectedRoleId]: message,
-      }));
+      setErrorByRoleId((prev) => ({ ...prev, [selectedRoleId]: message }));
 
       await Swal.fire({
         icon: "error",
@@ -871,89 +849,138 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
       });
     } finally {
       closeLoadingBox();
-      setSavingByRoleId((previous) => ({
-        ...previous,
-        [selectedRoleId]: false,
-      }));
+      setSavingByRoleId((prev) => ({ ...prev, [selectedRoleId]: false }));
     }
   }
 
+  /* ── module stats for the active module ── */
+  const activeModuleAssignedCount = activeModulePermissions.reduce(
+    (count, p) => count + (selectedRoleDraftPermissionIdSet.has(p.id) ? 1 : 0),
+    0,
+  );
+  const activeModuleAllSelected =
+    activeModulePermissions.length > 0 &&
+    activeModuleAssignedCount === activeModulePermissions.length;
+  const activeModuleAllDisabled = activeModuleAssignedCount === 0;
+
+  /* ════════════════════════════════════════════════════════════════
+     ██  RENDER
+     ════════════════════════════════════════════════════════════════ */
+
   return (
-    <>
-      <section className="space-y-6">
-        <div className="flex flex-wrap items-center gap-2">
-          {roles.map((role) => {
-            const isActive = role.id === selectedRole?.id;
-            return (
-              <button
-                key={role.id}
-                type="button"
-                onClick={() => {
-                  setSelectedRoleId(role.id);
-                  void loadRolePermissions(role.id);
-                }}
-                className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.05em] transition-colors ${
-                  isActive
-                    ? "bg-[var(--primary)] text-[var(--on-primary)]"
-                    : "bg-[var(--surface-container)] text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-high)]"
-                }`}
-              >
-                {role.code}
-              </button>
-            );
-          })}
+    <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
+      {/* ─── LEFT SIDEBAR: Role List (desktop) ─── */}
+      <aside className="hidden w-[280px] shrink-0 lg:block">
+        <div className="sticky top-6 space-y-3">
+          <h2 className="vs-display text-lg font-semibold text-[var(--primary)]">
+            Vai trò
+          </h2>
+          <ul className="space-y-2">
+            {roles.map((role) => {
+              const isActive = role.id === selectedRoleId;
+              return (
+                <li key={role.id}>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectRole(role.id)}
+                    className={`w-full rounded-xl border px-4 py-3 text-left transition-colors ${
+                      isActive
+                        ? "border-[var(--primary)] bg-[var(--primary-fixed)]"
+                        : "border-[color:rgba(198,197,213,0.45)] bg-[var(--surface-container-lowest)] hover:bg-[var(--surface-container-low)]"
+                    }`}
+                  >
+                    <p className="text-[10px] font-bold uppercase tracking-[0.06em] text-[var(--on-surface-variant)]">
+                      {role.code}
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-[var(--primary)]">
+                      {role.name}
+                    </p>
+                    <p className="mt-1.5 text-[11px] text-[var(--outline)]">
+                      {role.userCount} người dùng
+                      {role.enabledCount != null
+                        ? ` · ${role.enabledCount} quyền`
+                        : ""}
+                    </p>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
         </div>
+      </aside>
 
-        <nav className="flex gap-2 overflow-x-auto rounded-xl border border-[var(--outline-variant)] bg-white p-3" aria-label="Nhóm quyền">
-          {permissionModuleSummaries.map((moduleSummary) => {
-            const active = moduleSummary.moduleKey === selectedModuleKey;
-            const params = new URLSearchParams();
-            if (selectedRoleId) params.set("roleId", selectedRoleId);
-            params.set("module", moduleSummary.moduleKey);
-            return (
-              <Link
-                key={moduleSummary.moduleKey}
-                href={`/admin/permissions?${params.toString()}`}
-                className={`shrink-0 rounded-lg px-3 py-2 text-xs font-semibold ${active ? "bg-[var(--primary)] text-white" : "bg-[var(--surface-container-low)] text-[var(--primary)]"}`}
-              >
-                {BUSINESS_MODULE_LABELS[moduleSummary.moduleKey]?.label ?? moduleSummary.moduleName}
-                <span className="ml-2 opacity-70">{moduleSummary.enabledCount}/{moduleSummary.totalPermissions}</span>
-              </Link>
-            );
-          })}
-        </nav>
+      {/* ─── MOBILE: Role Selector Toggle ─── */}
+      <div className="lg:hidden">
+        <button
+          type="button"
+          onClick={() => setMobileRolePanelOpen((v) => !v)}
+          className="flex w-full items-center justify-between rounded-xl border border-[var(--outline-variant)] bg-white px-4 py-3 text-sm font-semibold text-[var(--primary)]"
+        >
+          <span>
+            <VsIcon name="verified_user" className="mr-2 inline text-[16px]" />
+            {selectedRole?.name ?? "Chọn vai trò"}
+          </span>
+          <VsIcon
+            name={mobileRolePanelOpen ? "expand_less" : "expand_more"}
+            className="text-[20px]"
+          />
+        </button>
 
-        <article className="vs-card rounded-2xl border-l-4 border-l-[var(--primary)] p-6 md:p-8">
-          <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+        {mobileRolePanelOpen ? (
+          <ul className="mt-2 space-y-1.5 rounded-xl border border-[var(--outline-variant)] bg-white p-3">
+            {roles.map((role) => {
+              const isActive = role.id === selectedRoleId;
+              return (
+                <li key={role.id}>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectRole(role.id)}
+                    className={`w-full rounded-lg px-3 py-2.5 text-left text-sm transition-colors ${
+                      isActive
+                        ? "bg-[var(--primary-fixed)] font-semibold text-[var(--primary)]"
+                        : "text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-low)]"
+                    }`}
+                  >
+                    <span className="mr-2 text-[10px] font-bold uppercase tracking-[0.05em] opacity-70">
+                      {role.code}
+                    </span>
+                    {role.name}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
+      </div>
+
+      {/* ─── RIGHT CONTENT AREA ─── */}
+      <div className="min-w-0 flex-1 space-y-6">
+        {/* ── Role Header Card ── */}
+        <article className="vs-card rounded-2xl border-l-4 border-l-[var(--primary)] p-5 md:p-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
-              <div className="mb-2 flex flex-wrap items-center gap-3">
-                <h1 className="vs-display text-[34px] font-semibold leading-none text-[var(--primary)]">
+              <div className="mb-1.5 flex flex-wrap items-center gap-3">
+                <h1 className="vs-display text-2xl font-semibold leading-tight text-[var(--primary)] md:text-[28px]">
                   Cấu hình truy cập: {selectedRole?.name ?? "Chưa chọn vai trò"}
                 </h1>
                 {selectedRole ? (
-                  <span className="rounded-full bg-[var(--primary-fixed)] px-3 py-1 text-xs font-bold uppercase tracking-[0.06em] text-[var(--on-primary-fixed)]">
+                  <span className="rounded-full bg-[var(--primary-fixed)] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.06em] text-[var(--on-primary-fixed)]">
                     {selectedRole.code}
                   </span>
                 ) : null}
               </div>
-
-              <p className="max-w-4xl text-sm text-[var(--on-surface-variant)]">
+              <p className="max-w-3xl text-sm text-[var(--on-surface-variant)]">
                 {selectedRole?.description ??
                   "Chọn vai trò để bật/tắt các quyền nghiệp vụ theo nhóm chức năng."}
               </p>
-
-              <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-[var(--outline)]">
-                <span>
-                  Ngày tạo:{" "}
-                  {selectedRole
-                    ? formatDate(selectedRole.createdAt)
-                    : "Không có"}
-                </span>
-              </div>
+              <p className="mt-2 text-xs text-[var(--outline)]">
+                Ngày tạo:{" "}
+                {selectedRole ? formatDate(selectedRole.createdAt) : "Không có"}
+              </p>
             </div>
 
-            <div className="min-w-[140px] rounded-xl border border-[color:rgba(198,197,213,0.3)] bg-[var(--surface-container-low)] px-4 py-3 text-center">
-              <p className="vs-display text-[42px] font-bold leading-none text-[var(--primary)]">
+            <div className="min-w-[120px] rounded-xl border border-[color:rgba(198,197,213,0.3)] bg-[var(--surface-container-low)] px-4 py-3 text-center">
+              <p className="vs-display text-3xl font-bold leading-none text-[var(--primary)]">
                 {selectedRoleTotalPermissions}
               </p>
               <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--outline)]">
@@ -963,6 +990,7 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
           </div>
         </article>
 
+        {/* ── Error state ── */}
         {selectedRoleError ? (
           <section className="rounded-xl border border-[color:rgba(186,26,26,0.2)] bg-[var(--error-container)]/60 px-4 py-3 text-sm text-[var(--on-error-container)]">
             <p>{selectedRoleError}</p>
@@ -970,289 +998,317 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
               <button
                 type="button"
                 onClick={() => {
-                  setPermissionsByRoleId((previous) => {
-                    const next = { ...previous };
+                  setPermissionsByRoleId((prev) => {
+                    const next = { ...prev };
                     delete next[selectedRoleId];
                     return next;
                   });
-
-                  setDraftPermissionIdsByRoleId((previous) => {
-                    const next = { ...previous };
+                  setDraftPermissionIdsByRoleId((prev) => {
+                    const next = { ...prev };
                     delete next[selectedRoleId];
                     return next;
                   });
-
-                  setErrorByRoleId((previous) => ({
-                    ...previous,
+                  setErrorByRoleId((prev) => ({
+                    ...prev,
                     [selectedRoleId]: null,
                   }));
                   void loadRolePermissions(selectedRoleId);
                 }}
                 className="mt-2 inline-flex items-center rounded-md border border-[var(--outline)] px-2 py-1 text-xs font-semibold uppercase tracking-[0.08em]"
               >
-                Thu lai
+                Thử lại
               </button>
             ) : null}
           </section>
         ) : null}
 
+        {/* ── Loading state ── */}
         {selectedRoleLoading ? (
           <section className="rounded-xl bg-[var(--surface-container-low)] px-4 py-4 text-sm text-[var(--on-surface-variant)]">
-            Đang tải quyền ...
+            <div className="flex items-center gap-3">
+              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-[var(--primary)] border-t-transparent" />
+              Đang tải quyền ...
+            </div>
           </section>
         ) : null}
 
+        {/* ── Empty / no cache state ── */}
         {!selectedRoleLoading && !selectedRoleError && !selectedRoleHasCache ? (
           <section className="vs-card rounded-2xl p-6 text-sm text-[var(--on-surface-variant)]">
             Hãy chọn vai trò để xem quyền
           </section>
         ) : null}
 
-        {!selectedRoleLoading &&
-        !selectedRoleError &&
-        selectedRoleHasCache &&
-        permissionModules.length === 0 ? (
-          <section className="vs-card rounded-2xl p-6 text-sm text-[var(--on-surface-variant)]">
-            Không có danh mục quyền để hiển thị cho vai trò này.
-          </section>
-        ) : null}
+        {/* ── Module Tabs + Permission Content ── */}
+        {!selectedRoleLoading && !selectedRoleError && selectedRoleHasCache ? (
+          <>
+            {/* Module tabs — vertical on mobile, horizontal tabs on desktop */}
+            <nav
+              className="flex flex-col gap-1.5 rounded-xl border border-[var(--outline-variant)] bg-white p-3 md:flex-row md:flex-wrap md:gap-2"
+              aria-label="Nhóm quyền"
+            >
+              {permissionModuleSummaries.map((mod) => {
+                const isActive = mod.moduleKey === selectedModuleKey;
+                const icon = moduleIcon(mod.moduleKey);
 
-        {!selectedRoleLoading &&
-        !selectedRoleError &&
-        selectedRoleHasCache &&
-        permissionModules.length > 0 ? (
-          <section className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2 xl:grid-cols-3">
-            {permissionModules.map((permissionModule) => {
-              const moduleAssignedCount = permissionModule.permissions.reduce(
-                (count, permission) => {
-                  return (
-                    count +
-                    (selectedRoleDraftPermissionIdSet.has(permission.id)
-                      ? 1
-                      : 0)
-                  );
-                },
-                0,
-              );
+                // Use the draft count from the current role if available
+                const modulePerms = permissionModules.find(
+                  (m) => m.moduleKey === mod.moduleKey,
+                );
+                const draftEnabledCount = modulePerms
+                  ? modulePerms.permissions.reduce(
+                      (c, p) =>
+                        c +
+                        (selectedRoleDraftPermissionIdSet.has(p.id) ? 1 : 0),
+                      0,
+                    )
+                  : mod.enabledCount;
 
-              const moduleAllSelected =
-                permissionModule.permissions.length > 0 &&
-                moduleAssignedCount === permissionModule.permissions.length;
-              const moduleAllDisabled = moduleAssignedCount === 0;
-
-              return (
-                <details
-                  key={permissionModule.moduleKey}
-                  className="group/module self-start overflow-hidden rounded-2xl border border-[var(--outline-variant)] bg-white shadow-[0px_12px_36px_rgba(0,0,0,0.06)]"
-                >
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 border-b border-[color:rgba(198,197,213,0.3)] bg-[var(--surface-container-low)] p-6 [&::-webkit-details-marker]:hidden">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <VsIcon
-                        name={permissionModule.icon}
-                        className="text-[18px] text-[var(--secondary)]"
-                      />
-                      <div className="min-w-0">
-                        <h2 className="vs-display text-[24px] font-semibold text-[var(--primary)]">
-                          {permissionModule.label}
-                        </h2>
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--outline)]">
-                          {moduleAssignedCount}/{permissionModule.permissions.length} quyền đang bật
-                        </p>
-                      </div>
-                    </div>
-
-                    <span
-                      aria-hidden="true"
-                      className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[color:rgba(198,197,213,0.65)] text-[var(--primary)]"
-                    >
-                      <VsIcon
-                        name="arrow_forward"
-                        className="text-[13px] rotate-90 transition-transform duration-200 group-open/module:-rotate-90"
-                      />
+                return (
+                  <button
+                    key={mod.moduleKey}
+                    type="button"
+                    onClick={() => handleSelectModule(mod.moduleKey)}
+                    className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-xs font-semibold transition-colors ${
+                      isActive
+                        ? "bg-[var(--primary)] text-white"
+                        : "bg-[var(--surface-container-low)] text-[var(--primary)] hover:bg-[var(--surface-container)]"
+                    }`}
+                  >
+                    <VsIcon name={icon} className="text-[16px] shrink-0" />
+                    <span className="min-w-0 truncate">
+                      {moduleLabel(mod.moduleKey, mod.moduleName)}
                     </span>
-                  </summary>
+                    <span
+                      className={`ml-auto shrink-0 tabular-nums ${isActive ? "opacity-80" : "opacity-60"}`}
+                    >
+                      {draftEnabledCount}/{mod.totalPermissions}
+                    </span>
+                  </button>
+                );
+              })}
+            </nav>
 
-                  <div className="space-y-3 p-4">
-                    <div className="flex flex-wrap items-center justify-end gap-3 rounded-lg bg-[var(--surface-container-low)] px-3 py-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          handleModuleSelectAll(permissionModule.permissions);
-                        }}
-                        disabled={
-                          selectedRoleSaving ||
-                          permissionModule.permissions.length === 0
-                        }
-                        className={`inline-flex items-center gap-2 rounded-md border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] transition-colors ${
-                          moduleAllSelected
-                            ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--on-primary)]"
-                            : "border-[var(--outline-variant)] text-[var(--outline)] hover:bg-[var(--surface-container-high)]"
-                        } disabled:cursor-not-allowed disabled:opacity-60`}
-                        aria-label={`Chọn tất cả quyền trong ${permissionModule.label}`}
+            {/* ── Active Module Permissions ── */}
+            {activeModulePermissions.length === 0 ? (
+              <section className="vs-card rounded-2xl p-6 text-sm text-[var(--on-surface-variant)]">
+                {selectedModuleKey
+                  ? "Không có quyền nào trong module này cho vai trò đã chọn."
+                  : "Chọn một module để xem quyền."}
+              </section>
+            ) : (
+              <section className="space-y-3">
+                {/* Module header with select all / disable all */}
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--surface-container-low)] px-4 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <VsIcon
+                      name={moduleIcon(selectedModuleKey ?? "")}
+                      className="text-[18px] text-[var(--secondary)]"
+                    />
+                    <h2 className="text-sm font-semibold text-[var(--primary)]">
+                      {moduleLabel(
+                        selectedModuleKey ?? "",
+                        permissionModuleSummaries.find(
+                          (m) => m.moduleKey === selectedModuleKey,
+                        )?.moduleName,
+                      )}
+                    </h2>
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--outline)]">
+                      {activeModuleAssignedCount}/
+                      {activeModulePermissions.length} quyền đang bật
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleModuleSelectAll(activeModulePermissions)
+                      }
+                      disabled={
+                        selectedRoleSaving ||
+                        activeModulePermissions.length === 0
+                      }
+                      className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] transition-colors ${
+                        activeModuleAllSelected
+                          ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--on-primary)]"
+                          : "border-[var(--outline-variant)] text-[var(--outline)] hover:bg-[var(--surface-container-high)]"
+                      } disabled:cursor-not-allowed disabled:opacity-60`}
+                      aria-label="Chọn tất cả quyền trong module"
+                    >
+                      <VsIcon name="done_all" className="text-[12px]" />
+                      Chọn tất cả
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleModuleDisableAll(activeModulePermissions)
+                      }
+                      disabled={
+                        selectedRoleSaving ||
+                        activeModulePermissions.length === 0
+                      }
+                      className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] transition-colors ${
+                        activeModuleAllDisabled
+                          ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--on-primary)]"
+                          : "border-[var(--outline-variant)] text-[var(--outline)] hover:bg-[var(--surface-container-high)]"
+                      } disabled:cursor-not-allowed disabled:opacity-60`}
+                      aria-label="Bỏ chọn tất cả quyền trong module"
+                    >
+                      <VsIcon name="block" className="text-[12px]" />
+                      Bỏ chọn
+                    </button>
+                  </div>
+                </div>
+
+                {/* ── Permission list — single column ── */}
+                <div className="space-y-2 max-h-[55vh] overflow-y-auto pr-1">
+                  {activeModulePermissions.map((permission) => {
+                    const badgeClass = toPermissionMethodBadgeClass(
+                      permission.method,
+                    );
+                    const isAssigned = selectedRoleDraftPermissionIdSet.has(
+                      permission.id,
+                    );
+                    const isAssignedFromApi =
+                      selectedRoleAssignedPermissionIdSet.has(permission.id);
+                    const isDirty = isAssigned !== isAssignedFromApi;
+
+                    return (
+                      <div
+                        key={permission.id}
+                        className={`group flex items-center justify-between rounded-xl border p-3 transition-colors ${
+                          isAssigned
+                            ? "border-[var(--primary)]/20 bg-[var(--primary-fixed)]/35"
+                            : "border-transparent bg-[var(--surface-container-low)]"
+                        }`}
                       >
-                        <VsIcon name="done_all" className="text-[12px]" />
-                        Chọn tất cả
-                      </button>
+                        <div className="flex min-w-0 flex-1 items-center gap-3">
+                          <span
+                            className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+                              BUSINESS_MODULE_LABELS[selectedModuleKey ?? ""]
+                                ?.tone ??
+                              "bg-[var(--surface-container)] text-[var(--primary)]"
+                            }`}
+                          >
+                            <VsIcon
+                              name={moduleIcon(selectedModuleKey ?? "")}
+                              className="text-[16px]"
+                            />
+                          </span>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          handleModuleDisableAll(permissionModule.permissions);
-                        }}
-                        disabled={
-                          selectedRoleSaving ||
-                          permissionModule.permissions.length === 0
-                        }
-                        className={`inline-flex items-center gap-2 rounded-md border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] transition-colors ${
-                          moduleAllDisabled
-                            ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--on-primary)]"
-                            : "border-[var(--outline-variant)] text-[var(--outline)] hover:bg-[var(--surface-container-high)]"
-                        } disabled:cursor-not-allowed disabled:opacity-60`}
-                        aria-label={`Bỏ chọn tất cả quyền trong ${permissionModule.label}`}
-                      >
-                        <VsIcon name="block" className="text-[12px]" />
-                        Bỏ chọn tất cả
-                      </button>
-                    </div>
-
-                    {permissionModule.permissions.map((permission) => {
-                      const badgeClass = toPermissionMethodBadgeClass(permission.method);
-                      const isAssigned = selectedRoleDraftPermissionIdSet.has(
-                        permission.id,
-                      );
-                      const isAssignedFromApi =
-                        selectedRoleAssignedPermissionIdSet.has(permission.id);
-                      const isPermissionDirty =
-                        isAssigned !== isAssignedFromApi;
-
-                      return (
-                        <div
-                          key={permission.id}
-                          className={`group flex items-center justify-between rounded-xl border p-3 transition-colors ${
-                            isAssigned
-                              ? "border-[var(--primary)]/20 bg-[var(--primary-fixed)]/35"
-                              : "border-transparent bg-[var(--surface-container-low)]"
-                          }`}
-                        >
-                          <div className="flex min-w-0 items-center gap-4">
-                            <span
-                              className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
-                                BUSINESS_MODULE_LABELS[permissionModule.moduleKey]?.tone ?? "bg-[var(--surface-container)] text-[var(--primary)]"
-                              }`}
-                            >
-                              <VsIcon name={permissionModule.icon} className="text-[18px]" />
-                            </span>
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold text-[var(--on-surface)]">
-                                {businessActionLabel(permission.description)}
-                              </p>
-                              <p className="mt-1 break-all text-[11px] font-mono text-[var(--outline)]">
-                                <span className={`mr-2 rounded px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-[0.06em] ${badgeClass}`}>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-[var(--on-surface)]">
+                              {businessActionLabel(permission.description)}
+                            </p>
+                            {/* Method/path in collapsible details */}
+                            <details className="mt-1">
+                              <summary className="cursor-pointer text-[11px] text-[var(--outline)] hover:text-[var(--on-surface-variant)]">
+                                Chi tiết endpoint
+                              </summary>
+                              <p className="mt-1 break-all font-mono text-[11px] text-[var(--outline)]">
+                                <span
+                                  className={`mr-2 rounded px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-[0.06em] ${badgeClass}`}
+                                >
                                   {permission.method}
                                 </span>
                                 {permission.path}
                               </p>
-                            </div>
-                          </div>
-
-                          <div className="ml-3 flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                handleResetPermission(permission.id);
-                              }}
-                              disabled={
-                                selectedRoleSaving || !isPermissionDirty
-                              }
-                              className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-[var(--outline-variant)] text-[var(--outline)] transition-colors hover:bg-[var(--surface-container-low)] disabled:cursor-not-allowed disabled:opacity-40"
-                              aria-label={`Đặt lại quyền ${permission.description}theo giá trị ban đầu`}
-                              title={
-                                isPermissionDirty
-                                  ? "Đặt lại quyền này"
-                                  : "Đã đồng bộ"
-                              }
-                            >
-                              <VsIcon
-                                name="restart_alt"
-                                className="text-[14px]"
-                              />
-                            </button>
-
-                            <label className="relative inline-flex h-5 w-10 cursor-pointer items-center">
-                              <input
-                                type="checkbox"
-                                checked={isAssigned}
-                                onChange={(event) => {
-                                  handlePermissionToggle(
-                                    permission.id,
-                                    event.currentTarget.checked,
-                                  );
-                                }}
-                                disabled={selectedRoleSaving}
-                                className="peer sr-only"
-                                aria-label={`Quyền ${permission.description}`}
-                              />
-                              <span
-                                className={`h-5 w-10 rounded-full transition-colors ${
-                                  isAssigned
-                                    ? "bg-[var(--primary)]"
-                                    : "bg-[var(--surface-container-high)]"
-                                }`}
-                              />
-                              <span
-                                className={`pointer-events-none absolute h-4 w-4 rounded-full bg-white shadow transition-transform ${
-                                  isAssigned ? "left-5" : "left-1"
-                                }`}
-                              />
-                            </label>
+                            </details>
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                </details>
-              );
-            })}
-          </section>
+
+                        <div className="ml-3 flex shrink-0 items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleResetPermission(permission.id)}
+                            disabled={selectedRoleSaving || !isDirty}
+                            className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-[var(--outline-variant)] text-[var(--outline)] transition-colors hover:bg-[var(--surface-container-low)] disabled:cursor-not-allowed disabled:opacity-40"
+                            aria-label={`Đặt lại quyền ${permission.description} theo giá trị ban đầu`}
+                            title={isDirty ? "Đặt lại quyền này" : "Đã đồng bộ"}
+                          >
+                            <VsIcon
+                              name="restart_alt"
+                              className="text-[14px]"
+                            />
+                          </button>
+
+                          <label className="relative inline-flex h-5 w-10 cursor-pointer items-center">
+                            <input
+                              type="checkbox"
+                              checked={isAssigned}
+                              onChange={(e) =>
+                                handlePermissionToggle(
+                                  permission.id,
+                                  e.currentTarget.checked,
+                                )
+                              }
+                              disabled={selectedRoleSaving}
+                              className="peer sr-only"
+                              aria-label={`Quyền ${permission.description}`}
+                            />
+                            <span
+                              className={`h-5 w-10 rounded-full transition-colors ${
+                                isAssigned
+                                  ? "bg-[var(--primary)]"
+                                  : "bg-[var(--surface-container-high)]"
+                              }`}
+                            />
+                            <span
+                              className={`pointer-events-none absolute h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                                isAssigned ? "left-5" : "left-1"
+                              }`}
+                            />
+                          </label>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+          </>
         ) : null}
-      </section>
 
-      <footer className="fixed bottom-0 left-0 right-0 z-40 border-t border-[color:rgba(198,197,213,0.25)] bg-[color:rgba(255,255,255,0.9)] px-4 py-3 backdrop-blur md:left-80 md:px-10">
-        <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="font-semibold text-[var(--primary)]">
-              {selectedRoleHasCache
-                ? `${selectedRoleUnsavedChangesCount} thay đổi chưa lưu`
-                : "Chưa chọn vai trò"}
-            </p>
-          </div>
+        {/* ── Sticky Save Footer ── */}
+        <footer className="sticky bottom-0 z-40 -mx-4 rounded-t-xl border-t border-[color:rgba(198,197,213,0.25)] bg-[color:rgba(255,255,255,0.92)] px-4 py-3 backdrop-blur md:-mx-6 md:px-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-[var(--primary)]">
+                {selectedRoleHasCache
+                  ? `${selectedRoleUnsavedChangesCount} thay đổi chưa lưu`
+                  : "Chưa chọn vai trò"}
+              </p>
+            </div>
 
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={handleResetChanges}
-              disabled={!selectedRoleHasCache || selectedRoleSaving}
-              className="cursor-pointer rounded-lg border border-[var(--primary)] px-5 py-2 text-xs font-bold uppercase tracking-[0.08em] text-[var(--primary)] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              Đặt lại
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                void handleSaveChanges();
-              }}
-              disabled={!selectedRoleHasUnsavedChanges || selectedRoleSaving}
-              className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[var(--primary)] px-6 py-2.5 text-xs font-bold uppercase tracking-[0.08em] text-[var(--on-primary)] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <VsIcon
-                name={selectedRoleSaving ? "hourglass_top" : "task_alt"}
-                className="text-[14px]"
-              />
-              {selectedRoleSaving ? "Đang lưu..." : "Lưu thay đổi"}
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleResetChanges}
+                disabled={!selectedRoleHasCache || selectedRoleSaving}
+                className="cursor-pointer rounded-lg border border-[var(--primary)] px-4 py-2 text-xs font-bold uppercase tracking-[0.08em] text-[var(--primary)] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Đặt lại
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void handleSaveChanges();
+                }}
+                disabled={!selectedRoleHasUnsavedChanges || selectedRoleSaving}
+                className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[var(--primary)] px-5 py-2.5 text-xs font-bold uppercase tracking-[0.08em] text-[var(--on-primary)] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <VsIcon
+                  name={selectedRoleSaving ? "hourglass_top" : "task_alt"}
+                  className="text-[14px]"
+                />
+                {selectedRoleSaving ? "Đang lưu..." : "Lưu thay đổi"}
+              </button>
+            </div>
           </div>
-        </div>
-      </footer>
-    </>
+        </footer>
+      </div>
+    </div>
   );
 }

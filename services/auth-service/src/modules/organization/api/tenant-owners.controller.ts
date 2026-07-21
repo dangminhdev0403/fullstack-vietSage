@@ -60,6 +60,13 @@ export class TenantOwnersController {
     return this.tenantOwnersService.listTenantOwners(request.user.userId, parsedQuery);
   }
 
+  @SuccessMessage("Lấy danh sách lựa chọn đơn vị thành công")
+  @ApiDescript("Xem danh sách đơn vị gọn cho dropdown")
+  @Get("tenant-options")
+  async listTenantOptions(@Req() request: RequestWithUser) {
+    return this.tenantOwnersService.listTenantOptions(request.user.userId);
+  }
+
   @SuccessMessage("Lấy thông tin chủ đơn vị thành công")
   @ApiDescript("Xem chi tiết chủ đơn vị")
   @ApiParam({ name: "id", type: String })

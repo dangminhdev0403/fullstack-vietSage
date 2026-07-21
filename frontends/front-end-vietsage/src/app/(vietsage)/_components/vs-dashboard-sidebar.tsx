@@ -72,7 +72,7 @@ export function VsDashboardSidebar({
         </p>
       </div>
 
-      <nav className="relative flex flex-col gap-2 px-3">
+      <nav className="relative flex flex-col gap-2 px-5">
         {navigationItems.map((item) => {
           const isActive = isNavItemActive(item.href, activePath);
 
@@ -80,7 +80,7 @@ export function VsDashboardSidebar({
             <Link
               key={item.key}
               href={item.href}
-              className={`group flex items-center gap-4 rounded-2xl px-4 py-3 text-base transition-all ${
+              className={`group flex min-h-14 items-center gap-4 rounded-2xl px-4 py-2.5 text-base transition-all ${
                 isActive
                   ? "bg-[#f8f1e6] text-[#17201b] shadow-[0_14px_32px_rgba(0,0,0,0.20)]"
                   : "text-[#d7cbb8] hover:bg-white/10 hover:text-[#fff8e8]"
@@ -88,7 +88,9 @@ export function VsDashboardSidebar({
             >
               <span
                 className={`grid h-9 w-9 place-items-center rounded-xl transition-colors ${
-                  isActive ? "bg-[#e8b363] text-[#17201b]" : "bg-white/8 text-[#e8b363] group-hover:bg-white/12"
+                  isActive
+                    ? "bg-[#e8b363] text-[#17201b]"
+                    : "bg-white/8 text-[#e8b363] group-hover:bg-white/12"
                 }`}
               >
                 <VsIcon name={item.icon} className="text-[20px]" />

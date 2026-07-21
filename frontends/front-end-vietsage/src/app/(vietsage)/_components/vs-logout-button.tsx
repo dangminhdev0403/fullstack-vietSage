@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { signOut } from "next-auth/react";
 import { useState } from "react";
@@ -46,9 +46,8 @@ export function VsLogoutButton({ className }: VsLogoutButtonProps) {
     });
 
     try {
-      await signOut({
-        callbackUrl: "/",
-      });
+      await signOut({ redirect: false });
+      window.location.replace("/");
     } catch {
       Swal.close();
       await Swal.fire({

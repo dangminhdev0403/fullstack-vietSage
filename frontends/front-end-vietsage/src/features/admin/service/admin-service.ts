@@ -6,6 +6,7 @@ import type {
   Hotel,
   HotelListQuery,
   HotelsPage,
+  TenantOption,
   TenantOwner,
   TenantOwnerCreateInput,
   TenantOwnerListQuery,
@@ -67,6 +68,16 @@ export class AdminService {
     });
 
     return unwrapApiEnvelope<TenantOwnerPage>(payload).data;
+  }
+
+  async listTenantOptions(accessToken?: string): Promise<TenantOption[]> {
+    const payload = await this.authenticatedRequest<unknown>({
+      method: "GET",
+      path: "/tenant-owners/tenant-options",
+      accessToken,
+    });
+
+    return unwrapApiEnvelope<TenantOption[]>(payload).data;
   }
 
   async getTenantOwner(tenantOwnerId: string, accessToken?: string): Promise<TenantOwner> {

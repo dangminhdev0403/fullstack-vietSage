@@ -20,9 +20,9 @@ type VsTopBarProps = {
   languageBadge?: string;
 };
 
+const brandIconSrc = "/brand/vietsage-icon.png";
 const profileImage =
   "https://lh3.googleusercontent.com/aida-public/AB6AXuDPd6uCb1c2F8aIIiLrrawFVOrjjuXTN5Vpq9r7j5JSag4DOMkWRMHX4R_Q7EG7KuSaJOYmfZpVcDMsroJlQ58x--oNm0FqYSWCk2KtZnRqBsN9F7JxI4kH-91zWiOKYBK68wda-sKd1T5N4mZfcMyY_s06VVirMasqzCikQ8ytArSK4iL842ulcsli5_KfyWRq_igPogBmoNjbHVq5YqayZYTzH9lQuoTTZaNtSmNntaRKpZ42nLWvYy-kUu0FS8hIuHdDYkDX_kE";
-const brandIconSrc = "/brand/vietsage-icon.png";
 
 export function VsTopBar({
   title = "VietSage",
@@ -40,7 +40,8 @@ export function VsTopBar({
 }: VsTopBarProps) {
   const icon = leftLabel.toLowerCase() === "back" ? "arrow_back" : "menu";
   const shouldUseButton = icon === "arrow_back" || menuAsButton;
-  const shouldRenderBrandLockup = brandLockup && title.trim().toLowerCase() === "vietsage";
+  const shouldRenderBrandLockup =
+    brandLockup && title.trim().toLowerCase() === "vietsage";
 
   const brandIconClass =
     brandSize === "large"
@@ -112,24 +113,26 @@ export function VsTopBar({
           </button>
         </div>
       ) : (
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-4">
           {showRightInfo ? (
-            <div className="hidden max-w-[11rem] flex-col text-right md:flex">
-              <span className="break-words text-sm font-bold tracking-[0.05em] text-[#17201b]">
+            <div className="hidden min-w-0 max-w-[13rem] flex-col justify-center text-right leading-tight md:flex">
+              <span className="truncate text-sm font-bold text-[#17201b]">
                 {rightLabel}
               </span>
               {subtitle ? (
-                <span className="break-words text-xs font-medium text-[#5f6b63]">{subtitle}</span>
+                <span className="mt-0.5 truncate text-xs font-medium text-[#5f6b63]">
+                  {subtitle}
+                </span>
               ) : null}
             </div>
           ) : null}
 
-          <VsLogoutButton className="inline-flex rounded-full border border-[#24473d]/15 bg-white/50 px-3 py-2 text-xs font-bold tracking-[0.04em] text-[#24473d] transition-colors hover:bg-[#f8f1e6] disabled:cursor-not-allowed disabled:opacity-60" />
+          <VsLogoutButton className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-full border border-[#24473d]/15 bg-white/50 px-3 py-2 text-xs font-bold tracking-[0.04em] text-[#24473d] transition-colors hover:bg-[#f8f1e6] disabled:cursor-not-allowed disabled:opacity-60" />
 
-          <div className="size-10 overflow-hidden rounded-full border border-[#24473d]/15 bg-[#f8f1e6] shadow-[0_10px_24px_rgba(31,61,53,0.12)]">
+          <div className="size-10 shrink-0 overflow-hidden rounded-full border border-[#24473d]/15 bg-[#f8f1e6] shadow-[0_10px_24px_rgba(31,61,53,0.12)]">
             <Image
               src={profileImage}
-              alt="Anh dai dien khach"
+              alt={`Ảnh đại diện của ${rightLabel}`}
               width={40}
               height={40}
               className="h-full w-full object-cover"
@@ -140,5 +143,3 @@ export function VsTopBar({
     </header>
   );
 }
-
-

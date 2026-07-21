@@ -1,5 +1,9 @@
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
+
+import { auth } from "@/auth";
+import { getLandingAction } from "@/features/auth/utils/landing-action";
+
 import { MarketingHeader } from "./marketing-header";
 import { MarketingMotionRoot } from "./marketing-motion-root";
 
@@ -21,7 +25,10 @@ export const stats = [
 
 type CardItem = { title: string; text: string };
 
-export function MarketingShell({ children }: { children: ReactNode }) {
+export async function MarketingShell({ children }: { children: ReactNode }) {
+  const session = await auth();
+  const accountAction = getLandingAction(session);
+
   return (
     <MarketingMotionRoot className="vs-mkt-shell min-h-screen text-[#132119]">
       <div className="vs-scene-backdrop" aria-hidden="true">
@@ -48,7 +55,7 @@ export function MarketingShell({ children }: { children: ReactNode }) {
         ))}
       </div>
       <div className="vs-scroll-progress" aria-hidden="true" />
-      <MarketingHeader />
+      <MarketingHeader accountAction={accountAction} />
       <nav className="vs-scene-rail" aria-label="Landing page sections">
         <a href="#arrival" data-scene-link="arrival"><span>01</span><em>Arrival</em></a>
         <a href="#concierge" data-scene-link="concierge"><span>02</span><em>Concierge</em></a>

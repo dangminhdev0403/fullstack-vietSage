@@ -334,6 +334,28 @@ describe("HotelsService", () => {
     );
   });
 
+  it("từ chối TENANT_OWNER tạo khách sạn dù tenant thuộc phạm vi của họ", async () => {
+    const repository = createRepository();
+    const accessService = createAccessService(repository, {
+      loadActorContext: jest.fn().mockResolvedValue({
+        userId: "actor-1",
+        roleCodes: new Set(["TENANT_OWNER"]),
+        tenantIds: new Set(["tenant-1"]),
+        isSuperAdmin: false,
+        isTenantOwner: true,
+      }),
+    });
+    const service = createService(repository, createCodesService(), accessService);
+
+    await expect(
+      service.createHotel("actor-1", "active-role", {
+        tenantId: "tenant-1",
+        name: "Riverside Hotel",
+      }),
+    ).rejects.toThrow(ForbiddenException);
+    expect(repository.createHotel).not.toHaveBeenCalled();
+  });
+
   it("lấy chi tiết khách sạn khi người thực hiện có quyền truy cập", async () => {
     const repository = createRepository();
     const service = createService(repository);
@@ -899,7 +921,7 @@ describe("HotelsService", () => {
     );
   });
 
-  it("rejects TENANT_OWNER tenant hints on hotel list", async () => {
+  it("scopes a TENANT_OWNER hotel list to a validated tenant hint", async () => {
     const repository = createRepository();
     const accessService = createAccessService(repository, {
       loadActorContext: jest.fn().mockResolvedValue({
@@ -909,15 +931,20 @@ describe("HotelsService", () => {
         isSuperAdmin: false,
         isTenantOwner: true,
       }),
-      rejectTenantOwnerTenantHint: jest.fn().mockImplementation(() => {
-        throw new BadRequestException("Không chấp nhận tenantId trong yêu cầu của TENANT_OWNER");
-      }),
     });
     const service = createService(repository, createCodesService(), accessService);
 
-    await expect(
-      service.listHotels("actor-1", "active-role", { tenantId: "tenant-1" }),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    await service.listHotels("actor-1", "active-role", {
+      tenantId: "tenant-1",
+      page: 1,
+      limit: 20,
+    });
+
+    expect(repository.listHotels).toHaveBeenCalledWith(
+      { tenantId: "tenant-1", status: "ACTIVE" },
+      0,
+      20,
+    );
   });
 
   it("trả về 403 khi TENANT_OWNER tạo khách sạn", async () => {

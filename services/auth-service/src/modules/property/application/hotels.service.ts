@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { HotelStatus, Prisma } from "@prisma/client";
 import { AppLogger } from "../../../common/logging/app-logger.service";
 import { CodesService } from "../../codes/codes-public";
@@ -19,14 +19,13 @@ export class HotelsService {
     private readonly hotelAccessService: HotelAccessService,
     private readonly logger: AppLogger = new AppLogger(),
   ) {}
-  async createHotel(
-    actorUserId: string,
-    activeRoleId: string,
-    dto: CreateHotelBodyInput,
-    tenantHeader?: string,
-  ) {
+  async createHotel(actorUserId: string, activeRoleId: string, dto: CreateHotelBodyInput) {
     const actor = await this.hotelAccessService.loadActorContext(actorUserId, activeRoleId);
-    this.hotelAccessService.rejectTenantOwnerTenantHint(actor, dto.tenantId ?? tenantHeader);
+
+    if (actor.isTenantOwner) {
+      throw new ForbiddenException("TENANT_OWNER không thể tạo khách sạn");
+    }
+
     const tenantId = await this.hotelAccessService.resolveTenantId(actor, dto.tenantId);
     await this.hotelAccessService.assertTenantExists(tenantId);
     const hotelCode = await this.codesService.generateEntityCode("HOTEL");
@@ -49,24 +48,19 @@ export class HotelsService {
     return this.toHotelData(hotel);
   }
 
-  async listHotels(
-    actorUserId: string,
-    activeRoleId: string,
-    query: ListHotelsQueryInput,
-    tenantHeader?: string,
-  ) {
+  async listHotels(actorUserId: string, activeRoleId: string, query: ListHotelsQueryInput) {
     const actor = await this.hotelAccessService.loadActorContext(actorUserId, activeRoleId);
-    this.hotelAccessService.rejectTenantOwnerTenantHint(actor, query.tenantId ?? tenantHeader);
-    const tenantId = actor.isTenantOwner
-      ? undefined
-      : actor.isSuperAdmin
-        ? query.tenantId?.trim()
+
+    const tenantId = actor.isSuperAdmin
+      ? query.tenantId?.trim()
+      : actor.isTenantOwner && !query.tenantId?.trim()
+        ? undefined
         : await this.hotelAccessService.resolveTenantId(actor, query.tenantId);
 
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const where: Prisma.HotelWhereInput = {
-      ...(actor.isTenantOwner
+      ...(actor.isTenantOwner && !tenantId
         ? { tenantId: { in: Array.from(actor.tenantIds) } }
         : tenantId
           ? { tenantId }

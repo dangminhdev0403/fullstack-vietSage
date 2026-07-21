@@ -1,12 +1,8 @@
 import { auth } from "@/auth";
 import { notFound } from "next/navigation";
-
-import { VsDashboardSidebar } from "../../../_components/vs-dashboard-sidebar";
-import { VsTopBar } from "../../../_components/vs-top-bar";
 import { ServiceCatalogClient } from "./service-catalog-client";
 import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
 import { assertCanAccessHotelOps, canUseHotelId, requireHotelOpsServerTokens } from "@/features/hotel-ops/utils/hotel-route-auth";
-import { buildWorkspaceNavigationForContext } from "@/features/workspace/config/workspace-registry";
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
 import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
 
@@ -24,31 +20,18 @@ export default async function HotelServicesPage({ params }: ServicesPageProps) {
   const tokens = await requireHotelOpsServerTokens(callbackUrl);
   const workspaceContext = await loadServerWorkspaceContext(callbackUrl, tokens.accessToken);
 
-  if (!canUseHotelId(workspaceContext, hotelId)) {
+  if (!canUseHotelId(workspaceContext, hotelId) || (!workspaceContext.permissions.includes("hotel.services.view") && !workspaceContext.permissions.includes("hotel.services.manage"))) {
     notFound();
   }
 
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
-  const sidebarItems = buildWorkspaceNavigationForContext({ ...workspaceContext, hotelId });
   const [categoriesPage, itemsPage] = await Promise.all([
     authorizedApi("list service categories", (accessToken) => hotelOpsService.listServiceCategories(hotelId, { query: { page: 1, limit: 100 }, accessToken })),
     authorizedApi("list service items", (accessToken) => hotelOpsService.listServiceItems(hotelId, { query: { page: 1, limit: 100 }, accessToken })),
   ]);
 
   return (
-    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      <VsTopBar
-        title="Hotel operations"
-        brandLockup={false}
-        titleClassName="text-[28px] font-semibold leading-none tracking-tight"
-        showLeftControl={false}
-        rightMode="profile"
-        rightLabel="Team member"
-        subtitle="Service catalog"
-      />
-      <VsDashboardSidebar activePath={callbackUrl} items={sidebarItems} />
-      <main className="min-h-screen px-4 pb-24 pt-24 md:ml-80 md:px-10">
-        <div className="mx-auto max-w-[1600px] space-y-6">
+    <>
           <header className="flex flex-col gap-2">
             <p className="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">Hotel {hotelId}</p>
             <h1 className="vs-display text-[32px] font-semibold text-[var(--primary)] md:text-[40px]">Service Catalog</h1>
@@ -60,8 +43,6 @@ export default async function HotelServicesPage({ params }: ServicesPageProps) {
             initialCategories={categoriesPage.items}
             initialItems={itemsPage.items}
           />
-        </div>
-      </main>
-    </div>
+    </>
   );
 }

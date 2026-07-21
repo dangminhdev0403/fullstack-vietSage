@@ -1,5 +1,21 @@
 # VietSage Backend Plan
 
+## 2026-07-21 - Tenant Header and Staff Directory Contract Recovery
+
+- [x] Made `x-tenant-id` the primary tenant-scope transport for hotel/staff requests while retaining
+  query/body fallback for one compatibility cycle.
+- [x] Kept tenant hints untrusted: Identity/Organization/Property validate active membership and
+  resource scope before querying or mutating records.
+- [x] Added bounded staff pagination/search and a lightweight tenant-options projection.
+- [x] Exported OpenAPI and synchronized the shared and frontend generated contracts.
+
+Verification result:
+
+- `npm run build` passed.
+- Focused Identity, Organization, and Property suites passed: 4 suites, 48 tests.
+- Targeted backend files passed Prettier checks.
+- OpenAPI export and shared verification passed with 81 paths.
+
 ## 2026-07-20 - Workspace RBAC and Staff Administration
 
 - [x] Added `hotel.staff.view` and `hotel.staff.manage` business capabilities plus a one-time

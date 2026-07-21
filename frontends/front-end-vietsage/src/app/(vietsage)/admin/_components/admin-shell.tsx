@@ -5,9 +5,10 @@ import { getWorkspaceDefinition } from "@/features/workspace/config/workspace-re
 import type { DashboardNavItem } from "@/features/workspace/types/workspace-navigation";
 
 type AdminShellProps = {
-  activePath: string;
+  activePath?: string;
   children: ReactNode;
   navItems: readonly DashboardNavItem[];
+  profileName?: string | null;
   subtitle?: string;
 };
 
@@ -15,6 +16,7 @@ export function AdminShell({
   activePath,
   children,
   navItems,
+  profileName,
   subtitle = "Quản trị nền tảng",
 }: AdminShellProps) {
   return (
@@ -23,6 +25,7 @@ export function AdminShell({
       contextLabel={subtitle}
       definition={getWorkspaceDefinition("platform_admin")}
       navItems={navItems}
+      profileName={profileName}
     >
       {children}
     </WorkspaceShell>

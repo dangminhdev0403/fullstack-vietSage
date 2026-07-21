@@ -18,7 +18,7 @@ import type {
   UpdateHotelUserStatusBodyInput,
 } from "../domain/schemas/hotel-users.schema";
 import { AuthService } from "./authentication.service";
-const ACTOR_ROLE_CODES = new Set(["SUPER_ADMIN", "TENANT_OWNER", "HOTEL_OWNER", "HOTEL_MANAGER"]);
+
 const MANAGED_ROLE_CODES = new Set([
   "HOTEL_MANAGER",
   "HOTEL_FRONTDESK",
@@ -62,10 +62,11 @@ export class HotelUsersService {
   async createHotelUser(
     actorUserId: string,
     activeRoleId: string,
+    tenantHint: string | undefined,
     dto: CreateHotelUserBodyInput,
   ): Promise<TenantScopedHotelUser> {
     const actor = await this.loadActorContext(actorUserId, activeRoleId);
-    const tenantId = await this.resolveTenantId(actor, dto.tenantId);
+    const tenantId = await this.resolveTenantId(actor, tenantHint);
     await this.assertTenantExists(tenantId);
 
     const roleIds = normalizeIds(dto.roleIds);
@@ -273,11 +274,6 @@ export class HotelUsersService {
     }
 
     const roleCodes = new Set(actor.userRoles.map((entry) => entry.role.code));
-    const hasActorRole = Array.from(roleCodes).some((code) => ACTOR_ROLE_CODES.has(code));
-    if (!hasActorRole) {
-      throw new ForbiddenException("You are not allowed to manage hotel users");
-    }
-
     return {
       userId: actor.id,
       tenantIds: new Set(actor.tenantUsers.map((entry) => entry.tenantId)),

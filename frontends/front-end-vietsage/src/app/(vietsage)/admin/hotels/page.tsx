@@ -4,7 +4,6 @@ import { buildWorkspaceNavigationForContext } from "@/features/workspace/config/
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
 import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
 
-import { AdminShell } from "../_components/admin-shell";
 import { HotelsAdminClient } from "./hotels-admin-client";
 
 const TENANT_OWNER_SELECTOR_PAGE_SIZE = 100;
@@ -39,7 +38,6 @@ export default async function AdminHotelsPage() {
   const callbackUrl = "/admin/hotels" as const;
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
   const workspaceContext = await loadServerWorkspaceContext(callbackUrl);
-  const sidebarItems = buildWorkspaceNavigationForContext(workspaceContext);
 
   const [hotelsPage, tenantOwners] = await Promise.all([
     authorizedApi("list hotels", (accessToken) =>
@@ -54,7 +52,7 @@ export default async function AdminHotelsPage() {
   ]);
 
   return (
-    <AdminShell activePath="/admin/hotels" navItems={sidebarItems} subtitle="Quản lý khách sạn">
+    <>
         <div className="mx-auto max-w-[1600px] space-y-8">
           <header>
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--secondary)]">
@@ -74,6 +72,6 @@ export default async function AdminHotelsPage() {
             total={hotelsPage.total}
           />
         </div>
-    </AdminShell>
+    </>
   );
 }

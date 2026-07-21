@@ -16,6 +16,7 @@ export type TenantOwnerCreateInput = operations["TenantOwnersController_createTe
 export type TenantOwnerUpdateInput = operations["TenantOwnersController_updateTenantOwner"]["requestBody"]["content"]["application/json"];
 
 export type TenantSummary = TenantOwner["tenant"];
+export type TenantOption = { id: string; code: string; name: string };
 
 export type HotelListQuery = {
   q?: string;

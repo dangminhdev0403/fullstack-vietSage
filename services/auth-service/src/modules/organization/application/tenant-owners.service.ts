@@ -87,6 +87,11 @@ export class TenantOwnersService {
     };
   }
 
+  async listTenantOptions(actorUserId: string) {
+    await this.assertSuperAdmin(actorUserId);
+    return this.tenantOwnersRepository.listTenantOptions();
+  }
+
   async getTenantOwner(actorUserId: string, userId: string): Promise<TenantOwnerItem> {
     await this.assertSuperAdmin(actorUserId);
     return this.getTenantOwnerOrThrow(userId);

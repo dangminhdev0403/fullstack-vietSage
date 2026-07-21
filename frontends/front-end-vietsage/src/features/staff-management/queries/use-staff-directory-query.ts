@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import { HTTP_HEADER_TENANT_ID } from "@/core/http/tenant-scope";
 import type {
   CreateHotelStaffUserInput,
   StaffDirectorySnapshot,
@@ -13,10 +14,18 @@ export type StaffManagementScope = {
   hotelId?: string | null;
 };
 
-function directoryPath(scope: StaffManagementScope): string {
+type StaffDirectoryQueryParams = {
+  q?: string;
+  page?: number;
+  limit?: number;
+};
+
+function directoryPath(scope: StaffManagementScope, paramsOptions?: StaffDirectoryQueryParams): string {
   const params = new URLSearchParams();
-  if (scope.tenantId) params.set("tenantId", scope.tenantId);
   if (scope.hotelId) params.set("hotelId", scope.hotelId);
+  if (paramsOptions?.q) params.set("q", paramsOptions.q);
+  if (paramsOptions?.page) params.set("page", String(paramsOptions.page));
+  if (paramsOptions?.limit) params.set("limit", String(paramsOptions.limit));
   const query = params.toString();
   return `/api/${scope.surface}/staff${query ? `?${query}` : ""}`;
 }
@@ -25,14 +34,23 @@ function userRolesPath(scope: StaffManagementScope, userId: string): string {
   return `/api/${scope.surface}/staff/${encodeURIComponent(userId)}/roles`;
 }
 
-export function useStaffDirectoryQuery(scope: StaffManagementScope) {
+export function useStaffDirectoryQuery(scope: StaffManagementScope, queryOptions?: StaffDirectoryQueryParams) {
   const enabled = Boolean(scope.tenantId);
   return useQuery({
-    queryKey: ["staff-directory", scope.surface, scope.tenantId ?? null, scope.hotelId ?? null],
+    queryKey: [
+      "staff-directory",
+      scope.surface,
+      scope.tenantId ?? null,
+      scope.hotelId ?? null,
+      queryOptions?.q ?? "",
+      queryOptions?.page ?? 1,
+      queryOptions?.limit ?? 20,
+    ],
     enabled,
     queryFn: async () => {
-      const payload = await requestInternalApiEnvelope<StaffDirectorySnapshot>(directoryPath(scope), {
+      const payload = await requestInternalApiEnvelope<StaffDirectorySnapshot>(directoryPath(scope, queryOptions), {
         method: "GET",
+        headers: scope.tenantId ? { [HTTP_HEADER_TENANT_ID]: scope.tenantId } : undefined,
       });
       return payload.data;
     },
@@ -48,10 +66,8 @@ export function useStaffManagementMutations(scope: StaffManagementScope) {
     mutationFn: async (input: CreateHotelStaffUserInput) => {
       const payload = await requestInternalApiEnvelope(directoryPath({ ...scope, hotelId: null }), {
         method: "POST",
-        body: {
-          ...input,
-          ...(scope.tenantId ? { tenantId: scope.tenantId } : {}),
-        },
+        body: input,
+        headers: scope.tenantId ? { [HTTP_HEADER_TENANT_ID]: scope.tenantId } : undefined,
       });
       return payload.data;
     },
@@ -66,8 +82,8 @@ export function useStaffManagementMutations(scope: StaffManagementScope) {
           method: "POST",
           body: {
             roleIds: [input.roleId],
-            ...(scope.tenantId ? { tenantId: scope.tenantId } : {}),
           },
+          headers: scope.tenantId ? { [HTTP_HEADER_TENANT_ID]: scope.tenantId } : undefined,
         },
       );
       return payload.data;
@@ -77,11 +93,12 @@ export function useStaffManagementMutations(scope: StaffManagementScope) {
 
   const revokeRole = useMutation({
     mutationFn: async (input: { userId: string; roleId: string }) => {
-      const params = new URLSearchParams();
-      if (scope.tenantId) params.set("tenantId", scope.tenantId);
       const payload = await requestInternalApiEnvelope(
-        `${userRolesPath(scope, input.userId)}/${encodeURIComponent(input.roleId)}${params.size ? `?${params}` : ""}`,
-        { method: "DELETE" },
+        `${userRolesPath(scope, input.userId)}/${encodeURIComponent(input.roleId)}`,
+        {
+          method: "DELETE",
+          headers: scope.tenantId ? { [HTTP_HEADER_TENANT_ID]: scope.tenantId } : undefined,
+        },
       );
       return payload.data;
     },

@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { auth } from "./auth";
-import { getDefaultPathForRoles, sanitizeInternalCallbackUrl } from "./lib/rbac";
+import { canAccessPathByRoles, getDefaultPathForRoles, sanitizeInternalCallbackUrl } from "./lib/rbac";
 
 const protectedPrefixes = ["/admin", "/owner", "/staff", "/hotels"] as const;
 const authRoutes = new Set(["/login", "/register"]);
@@ -160,6 +160,18 @@ export const proxy = auth((request) => {
     const redirectUrl = new URL(getDefaultPathForRoles([activeRoleCode]), request.url);
 
     return NextResponse.redirect(redirectUrl);
+  }
+
+  // Cross-workspace guard: if the user's role cannot access this protected prefix,
+  // redirect to their correct dashboard instead of letting the layout return notFound().
+  if (isProtectedRoute && activeRoleCode && !canAccessPathByRoles([activeRoleCode], pathname)) {
+    const correctPath = getDefaultPathForRoles([activeRoleCode]);
+    console.info("[AUTH_PROXY_CROSS_WORKSPACE_REDIRECT]", {
+      pathname,
+      activeRoleCode,
+      correctPath,
+    });
+    return NextResponse.redirect(new URL(correctPath, request.url));
   }
 
   return NextResponse.next();

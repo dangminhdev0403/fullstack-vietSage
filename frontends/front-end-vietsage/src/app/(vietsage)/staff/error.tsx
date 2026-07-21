@@ -1,10 +1,10 @@
 "use client";
 
-import { RouteBoundaryState } from "../_components/route-boundary-state";
+import { ContentErrorState } from "../_components/route-boundary-state";
 
 export default function StaffError({ reset }: { reset: () => void }) {
   return (
-    <RouteBoundaryState
+    <ContentErrorState
       eyebrow="Staff"
       title="Staff workspace could not load"
       message="Retry the page. If the issue continues, verify the staff account still has hotel access and the API is reachable."

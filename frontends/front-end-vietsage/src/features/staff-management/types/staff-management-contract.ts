@@ -50,6 +50,7 @@ export type StaffDirectorySnapshot = {
   users: HotelStaffUsersPage;
   roles: ManagedHotelRole[];
   assignments: HotelStaffAssignmentsPage | null;
+  hotels: { id: string; code?: string | null; name: string }[];
 };
 
 export type CreateHotelStaffUserInput = {
@@ -57,5 +58,4 @@ export type CreateHotelStaffUserInput = {
   fullName: string;
   password: string;
   roleIds: string[];
-  tenantId?: string;
 };

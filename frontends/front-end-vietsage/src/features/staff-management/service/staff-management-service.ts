@@ -25,18 +25,19 @@ export class StaffManagementService {
     path: string;
     body?: TBody;
     query?: HttpQuery;
+    tenantId?: string;
     accessToken?: string;
   }): Promise<TResponse> {
     if (options.accessToken) {
       return this.httpClient.request<TResponse, TBody>({
         ...options,
-        accessToken: options.accessToken,
       });
     }
     const tokens = await readServerSessionTokens();
     return httpServer.request<TResponse, TBody>(options.method, options.path, options.body, {
       baseUrl: this.baseUrl,
       query: options.query,
+      tenantId: options.tenantId,
       accessToken: tokens.accessToken,
     });
   }
@@ -45,8 +46,8 @@ export class StaffManagementService {
     const payload = await this.request<unknown>({
       method: "GET",
       path: "/hotel-users",
+      tenantId: options.tenantId,
       query: {
-        ...(options.tenantId ? { tenantId: options.tenantId } : {}),
         page: options.page ?? 1,
         limit: options.limit ?? 100,
         ...(options.q ? { q: options.q } : {}),
@@ -60,17 +61,18 @@ export class StaffManagementService {
     const payload = await this.request<unknown>({
       method: "GET",
       path: "/hotel-users/managed-roles",
-      query: tenantId ? { tenantId } : undefined,
+      tenantId,
       accessToken,
     });
     return unwrapApiEnvelope<ManagedHotelRole[]>(payload).data;
   }
 
-  async createUser(body: CreateHotelStaffUserInput, accessToken?: string) {
+  async createUser(body: CreateHotelStaffUserInput, tenantId?: string, accessToken?: string) {
     const payload = await this.request<unknown, CreateHotelStaffUserInput>({
       method: "POST",
       path: "/hotel-users",
       body,
+      tenantId,
       accessToken,
     });
     return unwrapApiEnvelope<HotelStaffUser>(payload).data;
@@ -81,7 +83,7 @@ export class StaffManagementService {
       method: "POST",
       path: `/hotel-users/${encodeURIComponent(userId)}/roles`,
       body: { roleIds },
-      query: tenantId ? { tenantId } : undefined,
+      tenantId,
       accessToken,
     });
     return unwrapApiEnvelope<HotelStaffUser>(payload).data;
@@ -91,7 +93,7 @@ export class StaffManagementService {
     const payload = await this.request<unknown>({
       method: "DELETE",
       path: `/hotel-users/${encodeURIComponent(userId)}/roles/${encodeURIComponent(roleId)}`,
-      query: tenantId ? { tenantId } : undefined,
+      tenantId,
       accessToken,
     });
     return unwrapApiEnvelope<{ revoked: true; userId: string; roleId: string }>(payload).data;

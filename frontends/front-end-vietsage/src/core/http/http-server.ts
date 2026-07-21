@@ -4,6 +4,7 @@ import { clampBackendApiLimit, getBackendApiBaseUrl } from "@/core/http/backend-
 import { HttpError } from "@/core/http/http-error";
 import type { HttpMethod, HttpQuery } from "@/core/http/http-client";
 import { isPublicApiPath } from "@/core/http/public-api-paths";
+import { HTTP_HEADER_TENANT_ID } from "@/core/http/tenant-scope";
 
 type RequestHeaders = Record<string, string | undefined>;
 
@@ -12,6 +13,7 @@ export type HttpServerRequestConfig = {
   headers?: RequestHeaders;
   query?: HttpQuery;
   accessToken?: string | null;
+  tenantId?: string | null;
   isAuth?: boolean;
   isPublic?: boolean;
   signal?: AbortSignal;
@@ -150,6 +152,10 @@ export async function request<TResponse, TBody = unknown>(
     headers.delete("Authorization");
   } else if (options.accessToken && !headers.has("Authorization")) {
     headers.set("Authorization", `Bearer ${options.accessToken}`);
+  }
+
+  if (options.tenantId) {
+    headers.set(HTTP_HEADER_TENANT_ID, options.tenantId);
   }
 
   try {

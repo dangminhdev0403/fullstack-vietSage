@@ -4,7 +4,6 @@ import {
   assignHotelUserRolesBodySchema,
   createHotelUserBodySchema,
   listHotelUsersQuerySchema,
-  tenantHintQuerySchema,
   updateHotelUserStatusBodySchema,
 } from "../../domain/schemas/hotel-users.schema";
 
@@ -14,7 +13,6 @@ describe("hotel-users.schema", () => {
       email: "staff@hotel.local",
       fullName: "Staff A",
       password: "StrongPass123",
-      tenantId: "tenant-1",
       roleIds: ["role-1"],
     });
 
@@ -50,9 +48,4 @@ describe("hotel-users.schema", () => {
     );
   });
 
-  it("rejects unknown fields in tenant hint query", () => {
-    expect(() => parseWithZod(tenantHintQuerySchema, { tenantId: "tenant-1", extra: "x" })).toThrow(
-      'Unrecognized key: "extra"',
-    );
-  });
 });

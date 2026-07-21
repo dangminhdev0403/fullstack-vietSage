@@ -1,6 +1,7 @@
-﻿import { clampBackendApiLimit } from "@/core/http/backend-api-config";
+import { clampBackendApiLimit } from "@/core/http/backend-api-config";
 import { HttpError } from "@/core/http/http-error";
 import { isPublicApiPath } from "@/core/http/public-api-paths";
+import { HTTP_HEADER_TENANT_ID } from "@/core/http/tenant-scope";
 
 type Primitive = string | number | boolean;
 type QueryValue = Primitive | null | undefined | Array<Primitive | null | undefined>;
@@ -23,6 +24,7 @@ export type HttpRequestOptions<TBody = unknown> = {
   body?: TBody;
   query?: HttpQuery;
   headers?: RequestHeaders;
+  tenantId?: string | null;
   accessToken?: string;
   /** @deprecated Browser transport does not own auth refresh. */
   accessTokenExpiresAt?: number | null;
@@ -241,6 +243,10 @@ export class HttpClient {
       if (value) {
         headers.set(key, value);
       }
+    }
+
+    if (options.tenantId) {
+      headers.set(HTTP_HEADER_TENANT_ID, options.tenantId);
     }
 
     if (!headers.has("Accept")) {

@@ -3,12 +3,10 @@ import { notFound, redirect } from "next/navigation";
 
 import { VsIcon } from "../../_components/vs-icon";
 import {
-  buildWorkspaceNavigation,
   getWorkspaceDashboardWidgets,
 } from "@/features/workspace/config/workspace-registry";
 import { resolveWorkspacePersona } from "@/features/workspace/utils/workspace-context";
 import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
-import { AdminShell } from "../_components/admin-shell";
 
 type DashboardPageProps = {
   searchParams?:
@@ -31,21 +29,13 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
   const persona = resolveWorkspacePersona(context.activeRole.code);
   if (persona !== "platform_admin") notFound();
 
-  const navItems = buildWorkspaceNavigation({
-    persona,
-    permissions: context.permissions,
-  });
   const availableModules = getWorkspaceDashboardWidgets({
     persona,
     permissions: context.permissions,
   });
 
   return (
-    <AdminShell
-      activePath={callbackUrl}
-      navItems={navItems}
-      subtitle={context.activeRole.name}
-    >
+    <>
       <header className="rounded-[2rem] border border-[#24473d]/10 bg-[#fffaf0]/85 p-6 shadow-[0_22px_70px_rgba(31,61,53,0.10)] md:p-9">
         <p className="text-xs font-black uppercase tracking-[0.22em] text-[#bf7836]">
           Platform administration
@@ -104,6 +94,7 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
           </div>
         )}
       </section>
-    </AdminShell>
+    </>
   );
 }
+
