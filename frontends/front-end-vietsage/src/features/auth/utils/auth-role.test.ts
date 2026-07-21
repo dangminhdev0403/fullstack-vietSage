@@ -8,7 +8,6 @@ test("maps hotel operation templates into the staff application surface", () => 
   for (const roleCode of [
     "HOTEL_MANAGER",
     "HOTEL_FRONTDESK",
-    "RECEPTIONIST",
     "HOTEL_HOUSEKEEPING",
     "HOTEL_MAINTENANCE",
     "HOTEL_FINANCE",

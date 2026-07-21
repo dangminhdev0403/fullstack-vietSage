@@ -1,0 +1,428 @@
+<!DOCTYPE html><html lang="en" class="light"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=Playfair+Display:wght@600;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=block" rel="stylesheet"><script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script><script id="tailwind-config">try{
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "error-container": "#ffdad6",
+                    "primary-fixed-dim": "#bfc2ff",
+                    "outline": "#767684",
+                    "surface-container-highest": "#e2e2e2",
+                    "surface": "#f9f9f9",
+                    "on-primary": "#ffffff",
+                    "on-secondary-container": "#745c00",
+                    "secondary-container": "#fed65b",
+                    "surface-tint": "#4b53bc",
+                    "primary-fixed": "#e0e0ff",
+                    "on-primary-container": "#777eea",
+                    "surface-bright": "#f9f9f9",
+                    "tertiary-fixed": "#e4e4cc",
+                    "on-secondary": "#ffffff",
+                    "tertiary-container": "#212313",
+                    "tertiary": "#0b0c02",
+                    "on-surface-variant": "#464653",
+                    "on-error": "#ffffff",
+                    "secondary-fixed": "#ffe088",
+                    "inverse-primary": "#bfc2ff",
+                    "on-tertiary-container": "#898b75",
+                    "on-surface": "#1a1c1c",
+                    "tertiary-fixed-dim": "#c8c8b0",
+                    "on-primary-fixed-variant": "#3239a3",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-container": "#eeeeee",
+                    "on-tertiary-fixed": "#1b1d0e",
+                    "on-error-container": "#93000a",
+                    "surface-container-high": "#e8e8e8",
+                    "error": "#ba1a1a",
+                    "secondary": "#735c00",
+                    "on-tertiary": "#ffffff",
+                    "secondary-fixed-dim": "#e9c349",
+                    "outline-variant": "#c6c5d5",
+                    "on-secondary-fixed": "#241a00",
+                    "inverse-surface": "#2f3131",
+                    "primary-container": "#000080",
+                    "inverse-on-surface": "#f0f1f1",
+                    "primary": "#00003c",
+                    "on-tertiary-fixed-variant": "#474836",
+                    "surface-container-low": "#f3f3f4",
+                    "on-background": "#1a1c1c",
+                    "surface-dim": "#dadada",
+                    "on-secondary-fixed-variant": "#574500",
+                    "on-primary-fixed": "#00006e",
+                    "background": "#f9f9f9",
+                    "surface-variant": "#e2e2e2"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "12px",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "margin-mobile": "16px",
+                    "container-max": "1200px",
+                    "unit": "8px",
+                    "gutter": "24px",
+                    "margin-desktop": "40px"
+            },
+            "fontFamily": {
+                    "caption": ["Inter"],
+                    "display-lg": ["Playfair Display"],
+                    "label-md": ["Inter"],
+                    "headline-md": ["Playfair Display"],
+                    "headline-lg": ["Playfair Display"],
+                    "body-md": ["Inter"],
+                    "headline-lg-mobile": ["Playfair Display"],
+                    "display-lg-mobile": ["Playfair Display"],
+                    "body-lg": ["Inter"]
+            },
+            "fontSize": {
+                    "caption": ["12px", {"lineHeight": "1.4", "fontWeight": "400"}],
+                    "display-lg": ["48px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "label-md": ["14px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "headline-md": ["24px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                    "headline-lg": ["32px", {"lineHeight": "1.3", "fontWeight": "600"}],
+                    "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                    "headline-lg-mobile": ["24px", {"lineHeight": "1.3", "fontWeight": "600"}],
+                    "display-lg-mobile": ["32px", {"lineHeight": "1.2", "fontWeight": "700"}],
+                    "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    }catch(_e){}</script><meta charset="utf-8"></head><body class="bg-surface text-on-surface font-body-md overflow-x-hidden">
+<!-- Workspace Wrapper -->
+<main class="relative min-h-screen flex flex-col">
+<!-- 1. Sticky Filter Bar -->
+<header class="sticky top-0 z-40 bg-surface/80 backdrop-blur-md px-margin-desktop py-4 flex items-center justify-between gap-gutter">
+<div class="flex items-center gap-4 flex-1">
+<!-- Search Input -->
+<div class="relative w-full max-w-xs group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">search</span>
+<input type="text" placeholder="Tìm kiếm phòng hoặc khách..." class="w-full pl-10 pr-4 py-2 bg-surface-container-low border-none rounded-lg focus:ring-1 focus:ring-primary text-label-md">
+</div>
+<!-- Filters -->
+<div class="flex items-center gap-2">
+<select class="bg-surface-container-low border-none rounded-lg text-label-md px-4 py-2 focus:ring-1 focus:ring-primary cursor-pointer">
+<option>Tầng: Tất cả</option>
+<option>Tầng 1</option>
+<option>Tầng 2</option>
+<option>Tầng Phủ</option>
+</select>
+<select class="bg-surface-container-low border-none rounded-lg text-label-md px-4 py-2 focus:ring-1 focus:ring-primary cursor-pointer">
+<option>Loại phòng: Tất cả</option>
+<option>Suite</option>
+<option>Deluxe</option>
+<option>Superior</option>
+</select>
+<select class="bg-surface-container-low border-none rounded-lg text-label-md px-4 py-2 focus:ring-1 focus:ring-primary cursor-pointer">
+<option>Trạng thái: Tất cả</option>
+<option>Trống</option>
+<option>Đang ở</option>
+<option>Đang dọn dẹp</option>
+<option>Bảo trì</option>
+</select>
+</div>
+</div>
+<!-- VIP Toggle & Summary -->
+<div class="flex items-center gap-6">
+<label class="flex items-center cursor-pointer gap-2 select-none group">
+<span class="text-label-md text-on-surface-variant group-hover:text-primary transition-colors">Chế độ VIP</span>
+<div class="relative inline-block w-12 h-6 transition duration-200 ease-linear">
+<input type="checkbox" id="vipToggle" class="sr-only">
+<div class="block w-12 h-6 bg-surface-container-highest rounded-full"></div>
+<div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-200 ease-in-out border border-outline-variant shadow-sm"></div>
+</div>
+</label>
+<div class="h-8 w-px bg-outline-variant"></div>
+<div class="flex gap-4">
+<div class="text-center">
+<p class="text-caption text-on-surface-variant">Tổng</p>
+<p class="font-bold text-primary">128</p>
+</div>
+<div class="text-center">
+<p class="text-caption text-on-surface-variant">Khả dụng</p>
+<p class="font-bold text-secondary">42</p>
+</div>
+</div>
+</div>
+</header>
+<!-- 2. Room Grid Section -->
+<section class="p-margin-desktop grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-gutter">
+<!-- Room Card: Occupied VIP (Navy/Gold Styling) -->
+<div onclick="toggleDrawer()" class="room-card-shadow bg-primary text-on-primary rounded-xl overflow-hidden cursor-pointer group hover:scale-[1.02] transition-transform">
+<div class="p-5 flex flex-col h-full">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="font-headline-md text-headline-md text-secondary-fixed">808</h3>
+<span class="text-label-md text-secondary-fixed opacity-80">Penthouse Suite</span>
+</div>
+<span class="bg-secondary-fixed/20 text-secondary-fixed px-3 py-1 rounded-full text-caption border border-secondary-fixed/30 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">star</span> VIP
+                        </span>
+</div>
+<div class="mb-4">
+<p class="text-caption opacity-70 uppercase tracking-widest">Khách hàng</p>
+<p class="font-bold text-body-lg text-surface-container-lowest">Ông Nguyễn Văn Trường</p>
+</div>
+<!-- Progress Bar -->
+<div class="mt-auto pt-4 border-t border-on-primary/10">
+<div class="flex justify-between text-caption mb-1 opacity-70">
+<span>12 Oct</span>
+<span>15 Oct</span>
+</div>
+<div class="h-1.5 w-full bg-on-primary/20 rounded-full overflow-hidden">
+<div class="h-full bg-secondary-fixed-dim rounded-full" style="width: 65%;"></div>
+</div>
+</div>
+<div class="flex justify-between items-center mt-4">
+<div class="flex gap-2">
+<span class="material-symbols-outlined text-secondary-fixed-dim" title="Yêu cầu dịch vụ">room_service</span>
+<span class="material-symbols-outlined opacity-50" title="Đã giặt ủi">dry_cleaning</span>
+</div>
+<span class="bg-secondary-fixed-dim text-on-secondary-fixed px-2 py-1 rounded text-caption font-bold">ĐANG Ở</span>
+</div>
+</div>
+</div>
+<!-- Room Card: Available -->
+<div onclick="toggleDrawer()" class="room-card-shadow bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden cursor-pointer group hover:border-primary transition-colors">
+<div class="p-5 flex flex-col h-full">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="font-headline-md text-headline-md text-primary">302</h3>
+<span class="text-label-md text-on-surface-variant">Deluxe King</span>
+</div>
+<span class="bg-surface-container-high text-on-surface-variant px-3 py-1 rounded-full text-caption">Tầng 3</span>
+</div>
+<div class="mb-4">
+<p class="text-caption text-on-surface-variant uppercase tracking-widest">Khách hàng</p>
+<p class="font-body-md text-outline italic">Sẵn sàng đón khách</p>
+</div>
+<div class="mt-auto pt-4 border-t border-outline-variant/30">
+<div class="h-1.5 w-full bg-surface-container-high rounded-full"></div>
+</div>
+<div class="flex justify-between items-center mt-4">
+<div class="flex gap-2">
+<!-- Empty icons state -->
+</div>
+<span class="bg-green-100 text-green-800 px-2 py-1 rounded text-caption font-bold">TRỐNG</span>
+</div>
+</div>
+</div>
+<!-- Room Card: Dirty / Cleaning -->
+<div onclick="toggleDrawer()" class="room-card-shadow bg-surface-container-low border-l-4 border-l-secondary rounded-xl overflow-hidden cursor-pointer group transition-all">
+<div class="p-5 flex flex-col h-full">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="font-headline-md text-headline-md text-primary">215</h3>
+<span class="text-label-md text-on-surface-variant">Superior Twin</span>
+</div>
+</div>
+<div class="mb-4">
+<p class="text-caption text-on-surface-variant uppercase tracking-widest">Khách trước</p>
+<p class="font-bold text-body-md text-on-surface">Bà Lê Thị Hồng</p>
+</div>
+<div class="mt-auto pt-4 border-t border-outline-variant/30">
+<div class="h-1.5 w-full bg-surface-container-high rounded-full"></div>
+</div>
+<div class="flex justify-between items-center mt-4">
+<div class="flex gap-2">
+<span class="material-symbols-outlined text-secondary" data-weight="fill">cleaning_services</span>
+</div>
+<span class="bg-secondary-container text-on-secondary-container px-2 py-1 rounded text-caption font-bold uppercase">Đang dọn dẹp</span>
+</div>
+</div>
+</div>
+<!-- Room Card: Maintenance -->
+<div onclick="toggleDrawer()" class="room-card-shadow bg-surface-variant/30 border border-dashed border-outline rounded-xl overflow-hidden cursor-pointer opacity-80">
+<div class="p-5 flex flex-col h-full">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="font-headline-md text-headline-md text-outline">104</h3>
+<span class="text-label-md text-on-surface-variant">Standard</span>
+</div>
+</div>
+<div class="flex-1 flex flex-col items-center justify-center py-6 text-outline">
+<span class="material-symbols-outlined text-[32px] mb-2">construction</span>
+<p class="text-caption font-bold">Hệ thống điều hòa</p>
+</div>
+<div class="flex justify-end items-center mt-4 pt-4 border-t border-outline-variant/30">
+<span class="bg-error-container text-on-error-container px-2 py-1 rounded text-caption font-bold uppercase">Bảo trì</span>
+</div>
+</div>
+</div>
+<!-- Repeatable Patterns for Demo -->
+<!-- Generated Mock Data -->
+<script>
+                const grid = document.querySelector('section');
+                const mockRooms = [
+                    { id: '501', type: 'Suite', status: 'Occupied', guest: 'Mr. John Smith', color: 'bg-surface-container-lowest', statusColor: 'bg-primary-container text-on-primary-container' },
+                    { id: '404', type: 'Deluxe', status: 'Available', guest: 'Sẵn sàng', color: 'bg-surface-container-lowest', statusColor: 'bg-green-100 text-green-800' },
+                    { id: '210', type: 'Superior', status: 'Dirty', guest: 'Checking out', color: 'bg-surface-container-low', statusColor: 'bg-secondary-container text-on-secondary-container' },
+                    { id: '308', type: 'Suite VIP', status: 'Occupied', guest: 'Ms. Angela Yu', color: 'bg-primary text-on-primary', vip: true },
+                    { id: '112', type: 'Standard', status: 'Maintenance', guest: 'Plumbing', color: 'bg-surface-variant/30', statusColor: 'bg-error-container text-on-error-container' },
+                    { id: '505', type: 'Suite', status: 'Occupied', guest: 'Mr. David Lee', color: 'bg-surface-container-lowest', statusColor: 'bg-primary-container text-on-primary-container' },
+                ];
+
+                mockRooms.forEach(room => {
+                    const card = document.createElement('div');
+                    card.className = `room-card-shadow ${room.color} ${room.vip ? 'text-on-primary' : 'text-on-surface border border-outline-variant'} rounded-xl overflow-hidden cursor-pointer group hover:scale-[1.01] transition-transform`;
+                    card.onclick = () => toggleDrawer();
+                    card.innerHTML = `
+                        <div class="p-5 flex flex-col h-full">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <h3 class="font-headline-md text-headline-md ${room.vip ? 'text-secondary-fixed' : 'text-primary'}">${room.id}</h3>
+                                    <span class="text-label-md ${room.vip ? 'text-secondary-fixed opacity-80' : 'text-on-surface-variant'}">${room.type}</span>
+                                </div>
+                                ${room.vip ? '<span class="bg-secondary-fixed/20 text-secondary-fixed px-3 py-1 rounded-full text-caption border border-secondary-fixed/30 flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">star</span> VIP</span>' : ''}
+                            </div>
+                            <div class="mb-4">
+                                <p class="text-caption ${room.vip ? 'opacity-70' : 'text-on-surface-variant'} uppercase tracking-widest">${room.status === 'Maintenance' ? 'Lý do' : 'Khách hàng'}</p>
+                                <p class="font-bold text-body-md">${room.guest}</p>
+                            </div>
+                            <div class="mt-auto pt-4 border-t ${room.vip ? 'border-on-primary/10' : 'border-outline-variant/30'}">
+                                <div class="h-1.5 w-full ${room.vip ? 'bg-on-primary/20' : 'bg-surface-container-high'} rounded-full overflow-hidden">
+                                    <div class="h-full ${room.vip ? 'bg-secondary-fixed' : 'bg-primary'} rounded-full" style="width: 30%;"></div>
+                                </div>
+                            </div>
+                            <div class="flex justify-end mt-4">
+                                <span class="${room.vip ? 'bg-secondary-fixed text-on-secondary-fixed' : room.statusColor} px-2 py-1 rounded text-caption font-bold uppercase">${room.status}</span>
+                            </div>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+            </script>
+</section>
+<!-- 3. Room Detail Drawer (Overlay) -->
+<div id="drawerBackdrop" onclick="toggleDrawer()" class="fixed inset-0 bg-primary/20 backdrop-blur-sm z-50 opacity-0 pointer-events-none transition-opacity duration-300"></div>
+<aside id="roomDrawer" class="fixed right-0 top-0 h-full w-full max-w-md bg-surface-container-lowest z-[60] shadow-2xl translate-x-full drawer-transition flex flex-col">
+<!-- Drawer Header -->
+<div class="p-6 border-b border-outline-variant flex items-center justify-between">
+<div>
+<h2 class="font-headline-md text-headline-md text-primary">Phòng 808</h2>
+<p class="text-label-md text-on-surface-variant">Penthouse Suite • VIP Emerald</p>
+</div>
+<button onclick="toggleDrawer()" class="h-10 w-10 flex items-center justify-center rounded-full hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<!-- Drawer Content (Scrollable) -->
+<div class="flex-1 overflow-y-auto custom-scrollbar p-6">
+<!-- Guest Card -->
+<div class="bg-surface-container-low rounded-xl p-4 mb-6">
+<div class="flex items-center gap-4 mb-4">
+<div class="w-16 h-16 rounded-full border-2 border-secondary-fixed overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="Professional studio portrait of an elderly Vietnamese gentleman with a dignified expression, wearing a high-quality navy blue suit, soft cinematic lighting, warm luxury hotel interior background, minimalist high-end aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDIyU98FASKg4kJwyn7qDiom7YLDF-jFs66oIAADubQHtIt11A2RudAhy-8TgTtil0GWxyIhYzxJsbmsN19zKi87jHZo7jlX6UYC8HytuJM_iUBybu5l2m2eMs3bswZ2fFk6XX7rM-CMW3DahTY7-H1RhaCOmTEGAcL8_jLpemu1iKMRGhqvxjFuHRKU8qDFLYa8uJaQ09VbuYM72eZ9-zkTI_gYN4IyP9UI_rQ9opQNra4Lzy7BW9JaB-3GKK5QAurXK40s11oDK4">
+</div>
+<div>
+<p class="font-bold text-body-lg">Nguyễn Văn Trường</p>
+<p class="text-caption text-secondary font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">verified</span> 
+                                Hội viên Kim cương
+                            </p>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div>
+<p class="text-caption text-on-surface-variant">Nhận phòng</p>
+<p class="text-label-md">12/10/2024 - 14:00</p>
+</div>
+<div>
+<p class="text-caption text-on-surface-variant">Trả phòng</p>
+<p class="text-label-md">15/10/2024 - 12:00</p>
+</div>
+</div>
+</div>
+<!-- Financial Status -->
+<div class="mb-6">
+<h3 class="text-label-md uppercase tracking-widest text-on-surface-variant mb-3">Tạm tính</h3>
+<div class="flex justify-between items-center p-4 bg-primary rounded-lg text-on-primary">
+<span>Tổng chi phí (3 đêm + DV)</span>
+<span class="text-headline-md font-bold text-secondary-fixed">24,500,000đ</span>
+</div>
+</div>
+<!-- Activity Timeline -->
+<div class="mb-6">
+<h3 class="text-label-md uppercase tracking-widest text-on-surface-variant mb-4">Yêu cầu &amp; Hoạt động</h3>
+<div class="space-y-6 relative before:absolute before:left-3 before:top-2 before:bottom-2 before:w-px before:bg-outline-variant">
+<div class="relative pl-8">
+<div class="absolute left-1 top-1 w-4 h-4 bg-secondary rounded-full border-4 border-surface-container-lowest"></div>
+<p class="text-label-md font-bold">Dịch vụ phòng - Đang thực hiện</p>
+<p class="text-caption text-on-surface-variant">Yêu cầu lúc 18:30: Trà sen &amp; Bánh cốm.</p>
+</div>
+<div class="relative pl-8">
+<div class="absolute left-1 top-1 w-4 h-4 bg-outline rounded-full border-4 border-surface-container-lowest"></div>
+<p class="text-label-md">Giặt ủi - Hoàn thành</p>
+<p class="text-caption text-on-surface-variant">Giao lúc 16:15 bởi NV Minh.</p>
+</div>
+<div class="relative pl-8">
+<div class="absolute left-1 top-1 w-4 h-4 bg-outline rounded-full border-4 border-surface-container-lowest"></div>
+<p class="text-label-md">Nhận phòng</p>
+<p class="text-caption text-on-surface-variant">Thực hiện lúc 14:05 ngày 12/10.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Action Buttons Footer -->
+<div class="p-6 border-t border-outline-variant bg-surface-container-low grid grid-cols-2 gap-3">
+<button class="flex items-center justify-center gap-2 bg-primary text-on-primary py-3 rounded-lg font-bold hover:opacity-90 transition-all">
+<span class="material-symbols-outlined">receipt_long</span>
+                    Thanh toán
+                </button>
+<button class="flex items-center justify-center gap-2 bg-surface-container-highest text-primary py-3 rounded-lg font-bold hover:bg-outline-variant/30 transition-all">
+<span class="material-symbols-outlined">move_up</span>
+                    Đổi phòng
+                </button>
+<button class="flex items-center justify-center gap-2 bg-surface-container-highest text-primary py-3 rounded-lg font-bold hover:bg-outline-variant/30 transition-all">
+<span class="material-symbols-outlined">add_circle</span>
+                    Dịch vụ mới
+                </button>
+<button class="flex items-center justify-center gap-2 border border-error text-error py-3 rounded-lg font-bold hover:bg-error-container transition-all">
+<span class="material-symbols-outlined">logout</span>
+                    Checkout
+                </button>
+</div>
+</aside>
+</main>
+<script>
+        // Drawer Toggle Logic
+        function toggleDrawer() {
+            const drawer = document.getElementById('roomDrawer');
+            const backdrop = document.getElementById('drawerBackdrop');
+            const isOpen = !drawer.classList.contains('translate-x-full');
+
+            if (isOpen) {
+                drawer.classList.add('translate-x-full');
+                backdrop.classList.add('opacity-0', 'pointer-events-none');
+            } else {
+                drawer.classList.remove('translate-x-full');
+                backdrop.classList.remove('opacity-0', 'pointer-events-none');
+            }
+        }
+
+        // VIP Toggle Micro-interaction
+        const vipCheckbox = document.getElementById('vipToggle');
+        const dot = document.querySelector('.dot');
+        vipCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                dot.style.transform = 'translateX(24px)';
+                document.getElementById('vipToggle').parentElement.querySelector('.block').classList.replace('bg-surface-container-highest', 'bg-secondary-fixed');
+            } else {
+                dot.style.transform = 'translateX(0px)';
+                document.getElementById('vipToggle').parentElement.querySelector('.block').classList.replace('bg-secondary-fixed', 'bg-surface-container-highest');
+            }
+        });
+
+        // ESC key to close drawer
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const drawer = document.getElementById('roomDrawer');
+                if (!drawer.classList.contains('translate-x-full')) {
+                    toggleDrawer();
+                }
+            }
+        });
+    </script>
+</body></html>

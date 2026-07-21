@@ -29,7 +29,6 @@ function isRoleMatch(source: string, expected: UserRole): boolean {
       source === "staff" ||
       source === "hotel_manager" ||
       source === "hotel_frontdesk" ||
-      source === "receptionist" ||
       source === "housekeeping" ||
       source === "hotel_housekeeping" ||
       source === "maintenance" ||

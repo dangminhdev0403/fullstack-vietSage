@@ -64,7 +64,7 @@ After pulling P3, authenticate with one active role at a time and use only a hot
 | `SUPER_ADMIN` | `/admin/dashboard` | Platform hotels/users/access modules only; no hotel operations feed. |
 | `TENANT_OWNER` / `HOTEL_OWNER` | `/owner/dashboard` | Owner portfolio and existing hotel workflows. |
 | `HOTEL_MANAGER` | `/staff/manager?hotelId={assignedHotelId}` | Request metrics/feed and service metrics when capabilities allow. |
-| `HOTEL_FRONTDESK` / `RECEPTIONIST` | `/staff/front-desk?hotelId={assignedHotelId}` | Request queue; service management stays hidden. |
+| `HOTEL_FRONTDESK` | `/staff/front-desk?hotelId={assignedHotelId}` | Request queue; service management stays hidden. |
 | `HOTEL_HOUSEKEEPING` / `HOTEL_MAINTENANCE` | `/staff/operations?hotelId={assignedHotelId}` | Operations request work only when capability allows. |
 | `HOTEL_FINANCE` | `/staff/operations?hotelId={assignedHotelId}` | Finance persona with only capability-backed widgets/navigation. |
 

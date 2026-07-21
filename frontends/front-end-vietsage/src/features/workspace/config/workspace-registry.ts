@@ -38,7 +38,6 @@ const ROLE_ALIASES: Record<string, WorkspacePersona> = {
   HOTEL_OWNER: "owner",
   HOTEL_MANAGER: "manager",
   HOTEL_FRONTDESK: "front_desk",
-  RECEPTIONIST: "front_desk",
   HOUSEKEEPING: "housekeeping",
   HOTEL_HOUSEKEEPING: "housekeeping",
   MAINTENANCE: "maintenance",
