@@ -69,7 +69,7 @@ export function GuestRequestRealtimeNotifier() {
       onReady: () => {
         toast.success(t("requests.realtimeReady"), {
           id: "guest-realtime-ready",
-          duration: 4_000,
+          duration: 3_000,
         });
       },
       onCreated: (request: GuestRequest) => {

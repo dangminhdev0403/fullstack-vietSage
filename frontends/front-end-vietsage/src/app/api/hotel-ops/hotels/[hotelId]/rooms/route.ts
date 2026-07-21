@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { HttpError } from "@/core/http/http-error";
 import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
 import {
@@ -12,20 +13,35 @@ type Params = {
   params: Promise<{ hotelId: string }>;
 };
 
+const paramsSchema = z.object({
+  hotelId: z.string().trim().min(1, "Thiếu mã khách sạn (hotelId)"),
+});
+
+const listRoomsQuerySchema = z.object({
+  page: z.coerce.number({ message: "Trang phải là số" }).int("Trang phải là số nguyên").positive("Trang phải lớn hơn 0").default(1),
+  limit: z.coerce.number({ message: "Số lượng phải là số" }).int("Số lượng phải là số nguyên").positive("Số lượng phải lớn hơn 0").max(100, "Tối đa 100 phòng mỗi trang").default(20),
+  q: z.string().trim().optional(),
+  status: z.string().trim().optional(),
+  floor: z.string().trim().optional(),
+  type: z.string().trim().optional(),
+  vipOnly: z.preprocess((val) => val === "true" || val === true, z.boolean().optional()),
+});
+
 export async function GET(request: Request, context: Params) {
-  const { hotelId } = await context.params;
-  if (!hotelId) {
-    return validationErrorResponse("hotelId is required");
+  const paramsResult = paramsSchema.safeParse(await context.params);
+  if (!paramsResult.success) {
+    return validationErrorResponse(paramsResult.error.issues[0]?.message || "Thiếu mã khách sạn (hotelId)");
   }
+  const { hotelId } = paramsResult.data;
 
   const url = new URL(request.url);
-  const page = Number.parseInt(url.searchParams.get("page") || "1", 10);
-  const limit = Number.parseInt(url.searchParams.get("limit") || "20", 10);
-  const q = url.searchParams.get("q")?.trim() || undefined;
-  const status = url.searchParams.get("status")?.trim() || undefined;
-  const floor = url.searchParams.get("floor")?.trim() || undefined;
-  const type = url.searchParams.get("type")?.trim() || undefined;
-  const vipOnly = url.searchParams.get("vipOnly") === "true" || undefined;
+  const rawQuery = Object.fromEntries(url.searchParams.entries());
+  const parsed = listRoomsQuerySchema.safeParse(rawQuery);
+  if (!parsed.success) {
+    return validationErrorResponse(parsed.error.issues[0]?.message || "Tham số truy vấn danh sách phòng không hợp lệ");
+  }
+
+  const { page, limit, q, status, floor, type, vipOnly } = parsed.data;
 
   try {
     const data = await executeHotelOpsBackendRequest("list staff rooms", (accessToken) =>
@@ -43,7 +59,7 @@ export async function GET(request: Request, context: Params) {
       }),
     );
     if (data instanceof Response) return data;
-    return successResponse(data, 200, "Rooms fetched successfully");
+    return successResponse(data, 200, "Lấy danh sách phòng thành công");
   } catch (error) {
     return error instanceof HttpError ? hotelOpsHttpErrorResponse(error) : unknownServerErrorResponse();
   }

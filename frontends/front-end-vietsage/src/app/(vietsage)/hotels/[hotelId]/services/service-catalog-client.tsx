@@ -142,7 +142,7 @@ export function ServiceCatalogClient({
       setCategoryForm(null);
       refreshRoute();
     } catch {
-      setError("Could not save the category. Please try again.");
+      setError("Không thể lưu nhóm dịch vụ. Vui lòng thử lại.");
     } finally {
       setIsSaving(false);
     }
@@ -180,7 +180,7 @@ export function ServiceCatalogClient({
       setItemForm(null);
       refreshRoute();
     } catch {
-      setError("Could not save the service item. Please try again.");
+      setError("Không thể lưu dịch vụ. Vui lòng thử lại.");
     } finally {
       setIsSaving(false);
     }
@@ -209,38 +209,38 @@ export function ServiceCatalogClient({
   const categoryColumns: DataTableColumn<HotelServiceCategory>[] = [
     {
       key: "name",
-      header: "Name",
+      header: "Tên nhóm",
       cell: (category) => <span className="font-semibold text-[var(--primary)]">{category.name}</span>,
     },
     {
       key: "description",
-      header: "Description",
+      header: "Mô tả",
       cell: (category) => category.description ?? "-",
     },
     {
       key: "telegram",
-      header: "Telegram",
-      cell: (category) => category.id_group ? <span className="rounded-full bg-[var(--primary-fixed)] px-2.5 py-1 text-xs font-bold text-[var(--on-primary-fixed-variant)]">{category.id_group}</span> : <span className="text-xs text-[var(--on-surface-variant)]">Optional</span>,
+      header: "Telegram group ID",
+      cell: (category) => category.id_group ? <span className="rounded-full bg-[var(--primary-fixed)] px-2.5 py-1 text-xs font-bold text-[var(--on-primary-fixed-variant)]">{category.id_group}</span> : <span className="text-xs text-[var(--on-surface-variant)]">Tùy chọn</span>,
     },
     {
       key: "sort",
-      header: "Sort",
+      header: "Thứ tự sắp xếp",
       cell: (category) => category.sortOrder,
     },
     {
       key: "status",
-      header: "Status",
+      header: "Trạng thái",
       cell: (category) => <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${serviceStatusTone(category.status)}`}>{serviceStatusLabelMap[category.status]}</span>,
     },
     {
       key: "actions",
-      header: "Actions",
+      header: "Thao tác",
       headerClassName: "text-right",
       className: "text-right",
       cell: (category) => (
         <div className="flex justify-end gap-3">
-          <button type="button" onClick={() => setCategoryForm({ id: category.id, name: category.name, description: category.description ?? "", id_group: category.id_group ?? "", sortOrder: String(category.sortOrder), status: category.status })} className="text-sm font-semibold text-[var(--primary)]">Edit</button>
-          <button type="button" onClick={() => void toggleCategory(category)} className="text-sm font-semibold text-[var(--on-surface-variant)]">{category.status === "ACTIVE" ? "Disable" : "Activate"}</button>
+          <button type="button" onClick={() => setCategoryForm({ id: category.id, name: category.name, description: category.description ?? "", id_group: category.id_group ?? "", sortOrder: String(category.sortOrder), status: category.status })} className="text-sm font-semibold text-[var(--primary)]">Sửa</button>
+          <button type="button" onClick={() => void toggleCategory(category)} className="text-sm font-semibold text-[var(--on-surface-variant)]">{category.status === "ACTIVE" ? "Vô hiệu hóa" : "Kích hoạt"}</button>
         </div>
       ),
     },
@@ -249,7 +249,7 @@ export function ServiceCatalogClient({
   const itemColumns: DataTableColumn<HotelServiceItem>[] = [
     {
       key: "item",
-      header: "Item",
+      header: "Tên dịch vụ",
       cell: (item) => (
         <div>
           <div className="font-semibold text-[var(--primary)]">{item.name}</div>
@@ -259,33 +259,33 @@ export function ServiceCatalogClient({
     },
     {
       key: "category",
-      header: "Category",
+      header: "Nhóm dịch vụ",
       cell: (item) => categoryById.get(item.categoryId)?.name ?? item.categoryId,
     },
     {
       key: "price",
-      header: "Price",
+      header: "Giá tiền",
       cell: (item) => formatMoney(item),
     },
     {
       key: "status",
-      header: "Status",
+      header: "Trạng thái",
       cell: (item) => <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${serviceStatusTone(item.status)}`}>{serviceStatusLabelMap[item.status]}</span>,
     },
     {
       key: "sort",
-      header: "Sort",
+      header: "Thứ tự",
       cell: (item) => item.sortOrder,
     },
     {
       key: "actions",
-      header: "Actions",
+      header: "Thao tác",
       headerClassName: "text-right",
       className: "text-right",
       cell: (item) => (
         <div className="flex justify-end gap-3">
-          <button type="button" onClick={() => setItemForm({ id: item.id, categoryId: item.categoryId, name: item.name, description: item.description ?? "", price: item.price === null ? "" : String(item.price), currency: item.currency, sortOrder: String(item.sortOrder), status: item.status })} className="text-sm font-semibold text-[var(--primary)]">Edit</button>
-          <button type="button" onClick={() => void toggleItem(item)} className="text-sm font-semibold text-[var(--on-surface-variant)]">{item.status === "ACTIVE" ? "Disable" : "Activate"}</button>
+          <button type="button" onClick={() => setItemForm({ id: item.id, categoryId: item.categoryId, name: item.name, description: item.description ?? "", price: item.price === null ? "" : String(item.price), currency: item.currency, sortOrder: String(item.sortOrder), status: item.status })} className="text-sm font-semibold text-[var(--primary)]">Sửa</button>
+          <button type="button" onClick={() => void toggleItem(item)} className="text-sm font-semibold text-[var(--on-surface-variant)]">{item.status === "ACTIVE" ? "Vô hiệu hóa" : "Kích hoạt"}</button>
         </div>
       ),
     },
@@ -295,26 +295,26 @@ export function ServiceCatalogClient({
     <div className="space-y-6">
       <div className="flex flex-col gap-3 rounded-xl border border-[color:rgba(198,197,213,0.24)] bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex rounded-lg bg-[var(--surface-container-low)] p-1">
-          <button type="button" onClick={() => setTab("categories")} className={`rounded-md px-4 py-2 text-sm font-semibold ${tab === "categories" ? "bg-white text-[var(--primary)] shadow-sm" : "text-[var(--on-surface-variant)]"}`}>Categories</button>
-          <button type="button" onClick={() => setTab("items")} className={`rounded-md px-4 py-2 text-sm font-semibold ${tab === "items" ? "bg-white text-[var(--primary)] shadow-sm" : "text-[var(--on-surface-variant)]"}`}>Items</button>
+          <button type="button" onClick={() => setTab("categories")} className={`rounded-md px-4 py-2 text-sm font-semibold ${tab === "categories" ? "bg-white text-[var(--primary)] shadow-sm" : "text-[var(--on-surface-variant)]"}`}>Nhóm dịch vụ</button>
+          <button type="button" onClick={() => setTab("items")} className={`rounded-md px-4 py-2 text-sm font-semibold ${tab === "items" ? "bg-white text-[var(--primary)] shadow-sm" : "text-[var(--on-surface-variant)]"}`}>Dịch vụ</button>
         </div>
 
         <div className="flex flex-1 flex-col gap-2 lg:max-w-4xl lg:flex-row">
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search services" className="min-h-10 flex-1 rounded-lg border border-[color:rgba(198,197,213,0.55)] px-3 text-sm outline-none focus:border-[var(--primary)]" />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm kiếm dịch vụ..." className="min-h-10 flex-1 rounded-lg border border-[color:rgba(198,197,213,0.55)] px-3 text-sm outline-none focus:border-[var(--primary)]" />
           {tab === "items" ? (
             <>
               <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} className="min-h-10 rounded-lg border border-[color:rgba(198,197,213,0.55)] px-3 text-sm">
-                <option value="">All categories</option>
+                <option value="">Tất cả nhóm</option>
                 {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
               </select>
             </>
           ) : null}
           <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="min-h-10 rounded-lg border border-[color:rgba(198,197,213,0.55)] px-3 text-sm">
-            <option value="">All statuses</option>
+            <option value="">Tất cả trạng thái</option>
             {hotelServiceStatuses.map((status) => <option key={status} value={status}>{serviceStatusLabelMap[status]}</option>)}
           </select>
           <button type="button" onClick={() => tab === "categories" ? setCategoryForm(emptyCategoryForm) : setItemForm(emptyItemForm(categories[0]?.id ?? ""))} className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-[var(--on-primary)]">
-            New {tab === "categories" ? "category" : "item"}
+            Thêm {tab === "categories" ? "nhóm" : "dịch vụ"}
           </button>
         </div>
       </div>
@@ -326,7 +326,7 @@ export function ServiceCatalogClient({
           columns={categoryColumns}
           data={filteredCategories}
           getRowKey={(category) => category.id}
-          emptyMessage="No service categories match the current filters."
+          emptyMessage="Không tìm thấy nhóm dịch vụ nào khớp với bộ lọc."
           minWidth="860px"
           rowClassName={(category) => category.status === "DISABLED" ? "bg-zinc-50 text-zinc-500" : ""}
         />
@@ -335,7 +335,7 @@ export function ServiceCatalogClient({
           columns={itemColumns}
           data={filteredItems}
           getRowKey={(item) => item.id}
-          emptyMessage="No service items match the current filters."
+          emptyMessage="Không tìm thấy dịch vụ nào khớp với bộ lọc."
           minWidth="980px"
           rowClassName={(item) => item.status === "DISABLED" ? "bg-zinc-50 text-zinc-500" : ""}
         />
@@ -344,18 +344,18 @@ export function ServiceCatalogClient({
       {categoryForm ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4">
           <form onSubmit={saveCategory} className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
-            <h2 className="vs-display mb-5 text-2xl font-semibold text-[var(--primary)]">{categoryForm.id ? "Edit category" : "New category"}</h2>
+            <h2 className="vs-display mb-5 text-2xl font-semibold text-[var(--primary)]">{categoryForm.id ? "Sửa nhóm dịch vụ" : "Thêm nhóm dịch vụ"}</h2>
             <div className="space-y-4">
-              <input required value={categoryForm.name} onChange={(event) => setCategoryForm({ ...categoryForm, name: event.target.value })} placeholder="Name" className="w-full rounded-lg border px-3 py-2" />
-              <textarea value={categoryForm.description} onChange={(event) => setCategoryForm({ ...categoryForm, description: event.target.value })} placeholder="Description" className="w-full rounded-lg border px-3 py-2" />
-              <input value={categoryForm.id_group} onChange={(event) => setCategoryForm({ ...categoryForm, id_group: event.target.value })} placeholder="Telegram group ID (optional)" className="w-full rounded-lg border px-3 py-2" />
-              <p className="text-xs text-[var(--on-surface-variant)]">Only fill this when this service group needs its own Telegram notification group.</p>
-              <input type="number" value={categoryForm.sortOrder} onChange={(event) => setCategoryForm({ ...categoryForm, sortOrder: event.target.value })} placeholder="Sort order" className="w-full rounded-lg border px-3 py-2" />
+              <input required value={categoryForm.name} onChange={(event) => setCategoryForm({ ...categoryForm, name: event.target.value })} placeholder="Tên nhóm" className="w-full rounded-lg border px-3 py-2" />
+              <textarea value={categoryForm.description} onChange={(event) => setCategoryForm({ ...categoryForm, description: event.target.value })} placeholder="Mô tả" className="w-full rounded-lg border px-3 py-2" />
+              <input value={categoryForm.id_group} onChange={(event) => setCategoryForm({ ...categoryForm, id_group: event.target.value })} placeholder="Mã nhóm Telegram (tùy chọn)" className="w-full rounded-lg border px-3 py-2" />
+              <p className="text-xs text-[var(--on-surface-variant)]">Chỉ điền khi nhóm dịch vụ này cần gửi thông báo Telegram riêng.</p>
+              <input type="number" value={categoryForm.sortOrder} onChange={(event) => setCategoryForm({ ...categoryForm, sortOrder: event.target.value })} placeholder="Thứ tự sắp xếp" className="w-full rounded-lg border px-3 py-2" />
               <select value={categoryForm.status} onChange={(event) => setCategoryForm({ ...categoryForm, status: event.target.value as HotelServiceStatus })} className="w-full rounded-lg border px-3 py-2">
                 {hotelServiceStatuses.map((status) => <option key={status} value={status}>{serviceStatusLabelMap[status]}</option>)}
               </select>
             </div>
-            <div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => setCategoryForm(null)} className="rounded-lg px-4 py-2 text-sm font-semibold">Cancel</button><button disabled={isSaving} className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-[var(--on-primary)]">Save</button></div>
+            <div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => setCategoryForm(null)} className="rounded-lg px-4 py-2 text-sm font-semibold">Hủy</button><button disabled={isSaving} className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-[var(--on-primary)]">Lưu</button></div>
           </form>
         </div>
       ) : null}
@@ -363,22 +363,22 @@ export function ServiceCatalogClient({
       {itemForm ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4">
           <form onSubmit={saveItem} className="w-full max-w-2xl rounded-xl bg-white p-6 shadow-xl">
-            <h2 className="vs-display mb-5 text-2xl font-semibold text-[var(--primary)]">{itemForm.id ? "Edit item" : "New item"}</h2>
+            <h2 className="vs-display mb-5 text-2xl font-semibold text-[var(--primary)]">{itemForm.id ? "Sửa dịch vụ" : "Thêm dịch vụ"}</h2>
             <div className="grid gap-4 md:grid-cols-2">
-              <input required value={itemForm.name} onChange={(event) => setItemForm({ ...itemForm, name: event.target.value })} placeholder="Name" className="rounded-lg border px-3 py-2" />
+              <input required value={itemForm.name} onChange={(event) => setItemForm({ ...itemForm, name: event.target.value })} placeholder="Tên dịch vụ" className="rounded-lg border px-3 py-2" />
               <select required value={itemForm.categoryId} onChange={(event) => setItemForm({ ...itemForm, categoryId: event.target.value })} className="rounded-lg border px-3 py-2">
-                <option value="">Choose category</option>
+                <option value="">Chọn nhóm dịch vụ</option>
                 {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
               </select>
               <select value={itemForm.status} onChange={(event) => setItemForm({ ...itemForm, status: event.target.value as HotelServiceStatus })} className="rounded-lg border px-3 py-2">
                 {hotelServiceStatuses.map((status) => <option key={status} value={status}>{serviceStatusLabelMap[status]}</option>)}
               </select>
-              <input type="number" step="0.01" value={itemForm.price} onChange={(event) => setItemForm({ ...itemForm, price: event.target.value })} placeholder="Price" className="rounded-lg border px-3 py-2" />
-              <input value={itemForm.currency} onChange={(event) => setItemForm({ ...itemForm, currency: event.target.value })} placeholder="Currency" className="rounded-lg border px-3 py-2" />
-              <input type="number" value={itemForm.sortOrder} onChange={(event) => setItemForm({ ...itemForm, sortOrder: event.target.value })} placeholder="Sort order" className="rounded-lg border px-3 py-2" />
-              <textarea value={itemForm.description} onChange={(event) => setItemForm({ ...itemForm, description: event.target.value })} placeholder="Description" className="min-h-24 rounded-lg border px-3 py-2 md:col-span-2" />
+              <input type="number" step="0.01" value={itemForm.price} onChange={(event) => setItemForm({ ...itemForm, price: event.target.value })} placeholder="Giá dịch vụ" className="rounded-lg border px-3 py-2" />
+              <input value={itemForm.currency} onChange={(event) => setItemForm({ ...itemForm, currency: event.target.value })} placeholder="Đơn vị tiền tệ (ví dụ: VND, USD)" className="rounded-lg border px-3 py-2" />
+              <input type="number" value={itemForm.sortOrder} onChange={(event) => setItemForm({ ...itemForm, sortOrder: event.target.value })} placeholder="Thứ tự" className="rounded-lg border px-3 py-2" />
+              <textarea value={itemForm.description} onChange={(event) => setItemForm({ ...itemForm, description: event.target.value })} placeholder="Mô tả" className="min-h-24 rounded-lg border px-3 py-2 md:col-span-2" />
             </div>
-            <div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => setItemForm(null)} className="rounded-lg px-4 py-2 text-sm font-semibold">Cancel</button><button disabled={isSaving} className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-[var(--on-primary)]">Save</button></div>
+            <div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => setItemForm(null)} className="rounded-lg px-4 py-2 text-sm font-semibold">Hủy</button><button disabled={isSaving} className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-[var(--on-primary)]">Lưu</button></div>
           </form>
         </div>
       ) : null}

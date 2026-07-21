@@ -21,14 +21,14 @@ const STAFF_PERSONAS: readonly WorkspacePersona[] = [
 ];
 
 const WORKSPACE_DEFINITIONS: Record<WorkspacePersona, WorkspaceDefinition> = {
-  platform_admin: { persona: "platform_admin", eyebrow: "Platform control", title: "Quản trị nền tảng", description: "Tenant, khách sạn, tài khoản và chính sách truy cập.", profileLabel: "Quản trị viên", homePath: "/admin/dashboard" },
-  owner: { persona: "owner", eyebrow: "Owner suite", title: "Điều hành danh mục khách sạn", description: "Hiệu suất, doanh thu và vận hành toàn bộ khách sạn thuộc tenant.", profileLabel: "Chủ khách sạn", homePath: "/owner/dashboard" },
-  manager: { persona: "manager", eyebrow: "Hotel management", title: "Điều hành khách sạn", description: "Theo dõi yêu cầu, phòng, dịch vụ và công việc theo khách sạn.", profileLabel: "Quản lý khách sạn", homePath: "/staff" },
-  front_desk: { persona: "front_desk", eyebrow: "Front desk", title: "Quầy lễ tân", description: "Ưu tiên khách lưu trú, hàng đợi yêu cầu và xử lý tại quầy.", profileLabel: "Lễ tân", homePath: "/staff" },
-  housekeeping: { persona: "housekeeping", eyebrow: "Operations", title: "Vận hành buồng phòng", description: "Theo dõi và hoàn thành công việc buồng phòng được phân công.", profileLabel: "Buồng phòng", homePath: "/staff" },
-  maintenance: { persona: "maintenance", eyebrow: "Operations", title: "Vận hành kỹ thuật", description: "Theo dõi và xử lý yêu cầu kỹ thuật theo phạm vi khách sạn.", profileLabel: "Kỹ thuật", homePath: "/staff" },
-  food_beverage: { persona: "food_beverage", eyebrow: "Operations", title: "Ẩm thực khách sạn", description: "Theo dõi yêu cầu ẩm thực và danh mục dịch vụ theo phạm vi khách sạn.", profileLabel: "Ẩm thực", homePath: "/staff" },
-  finance: { persona: "finance", eyebrow: "Operations", title: "Tài chính khách sạn", description: "Theo dõi các công việc tài chính trong phạm vi được cấp.", profileLabel: "Tài chính", homePath: "/staff" },
+  platform_admin: { persona: "platform_admin", eyebrow: "Quản trị nền tảng", title: "Quản trị nền tảng", description: "Tenant, khách sạn, tài khoản và chính sách truy cập.", profileLabel: "Quản trị viên", homePath: "/admin/dashboard" },
+  owner: { persona: "owner", eyebrow: "Điều hành tổng", title: "Điều hành danh mục khách sạn", description: "Hiệu suất, doanh thu và vận hành toàn bộ khách sạn thuộc tenant.", profileLabel: "Chủ khách sạn", homePath: "/owner/dashboard" },
+  manager: { persona: "manager", eyebrow: "Quản lý khách sạn", title: "Điều hành khách sạn", description: "Theo dõi yêu cầu, phòng, dịch vụ và công việc theo khách sạn.", profileLabel: "Quản lý khách sạn", homePath: "/staff" },
+  front_desk: { persona: "front_desk", eyebrow: "Bộ phận lễ tân", title: "Quầy lễ tân", description: "Ưu tiên khách lưu trú, hàng đợi yêu cầu và xử lý tại quầy.", profileLabel: "Lễ tân", homePath: "/staff" },
+  housekeeping: { persona: "housekeeping", eyebrow: "Vận hành buồng phòng", title: "Vận hành buồng phòng", description: "Theo dõi và hoàn thành công việc buồng phòng được phân công.", profileLabel: "Buồng phòng", homePath: "/staff" },
+  maintenance: { persona: "maintenance", eyebrow: "Vận hành kỹ thuật", title: "Vận hành kỹ thuật", description: "Theo dõi và xử lý yêu cầu kỹ thuật theo phạm vi khách sạn.", profileLabel: "Kỹ thuật", homePath: "/staff" },
+  food_beverage: { persona: "food_beverage", eyebrow: "Vận hành ẩm thực", title: "Ẩm thực khách sạn", description: "Theo dõi yêu cầu ẩm thực và danh mục dịch vụ theo phạm vi khách sạn.", profileLabel: "Ẩm thực", homePath: "/staff" },
+  finance: { persona: "finance", eyebrow: "Vận hành tài chính", title: "Tài chính khách sạn", description: "Theo dõi các công việc tài chính trong phạm vi được cấp.", profileLabel: "Tài chính", homePath: "/staff" },
 };
 
 const ROLE_ALIASES: Record<string, WorkspacePersona> = {

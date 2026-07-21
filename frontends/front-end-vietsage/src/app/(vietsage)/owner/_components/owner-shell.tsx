@@ -5,13 +5,13 @@ import { getWorkspaceDefinition } from "@/features/workspace/config/workspace-re
 import type { DashboardNavItem } from "@/features/workspace/types/workspace-navigation";
 
 type OwnerShellProps = {
-  activePath: string;
+  activePath?: string;
   children: ReactNode;
   navItems: readonly DashboardNavItem[];
   subtitle?: string;
 };
 
-export function OwnerShell({ activePath, children, navItems, subtitle = "Không gian chủ khách sạn" }: OwnerShellProps) {
+export function OwnerShell({ activePath, children, navItems, subtitle = "Không gian chủ khách sạn" }: Readonly<OwnerShellProps>) {
   return (
     <WorkspaceShell
       activePath={activePath}

@@ -51,6 +51,11 @@ function displayGuest(folio: FolioListItem | undefined): string {
   return folio?.stay?.guestNameSnapshot ?? "Khách lưu trú";
 }
 
+function getFolioInvoiceId(folio: FolioListItem | undefined): string | null {
+  if (!folio) return null;
+  return folio.invoiceId ?? folio.billId ?? folio.invoice?.id ?? null;
+}
+
 export function StaffBillingWorkspaceClient({ hotelId, folios, canManage }: Props) {
   const router = useRouter();
   const apiBase = `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/billing`;
@@ -137,7 +142,7 @@ export function StaffBillingWorkspaceClient({ hotelId, folios, canManage }: Prop
     <section className="grid gap-6 xl:grid-cols-[22rem_minmax(0,1fr)_22rem]">
       <aside className="overflow-hidden rounded-xl border border-[var(--outline-variant)] bg-white shadow-[0_4px_20px_rgba(0,0,0,0.05)]">
         <div className="border-b border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-4">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--secondary)]">Folio queue</p>
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--secondary)]">Hàng đợi thanh toán</p>
           <h2 className="vs-display mt-1 text-2xl font-semibold text-[var(--primary)]">Khách chờ thanh toán</h2>
         </div>
         <div className="max-h-[38rem] divide-y divide-[var(--outline-variant)] overflow-y-auto">
@@ -161,7 +166,7 @@ export function StaffBillingWorkspaceClient({ hotelId, folios, canManage }: Prop
       <article className="overflow-hidden rounded-xl border border-[var(--outline-variant)] bg-white shadow-[0_4px_20px_rgba(0,0,0,0.05)]">
         <div className="flex flex-col gap-3 border-b border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-5 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--secondary)]">Payment workspace</p>
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--secondary)]">Chi tiết thanh toán</p>
             <h2 className="vs-display mt-1 text-3xl font-semibold text-[var(--primary)]">{displayRoom(selectedFolio)} - {displayGuest(selectedFolio)}</h2>
           </div>
           <p className="text-sm text-[var(--on-surface-variant)]">Mở lúc <span className="font-bold text-[var(--primary)]">{formatDate(selectedFolio?.openedAt ?? selectedFolio?.createdAt)}</span></p>
@@ -201,10 +206,47 @@ export function StaffBillingWorkspaceClient({ hotelId, folios, canManage }: Prop
             <div className="flex justify-between"><dt>Thuế</dt><dd>{formatMoney(toNumber(activeSummary?.tax ?? 0), activeSummary?.currency ?? "VND")}</dd></div>
             <div className="flex justify-between"><dt>Giảm giá</dt><dd>{formatMoney(toNumber(activeSummary?.discount ?? 0), activeSummary?.currency ?? "VND")}</dd></div>
           </dl>
-          <button type="button" onClick={() => void issueInvoiceAndCollect()} disabled={!selectedFolioId || !canManage || saving} className="mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[var(--secondary-fixed)] px-5 text-sm font-bold text-[var(--on-secondary-fixed)] disabled:opacity-60">
-            <VsIcon name={saving ? "sync" : "payments"} />
-            {saving ? "Đang xử lý..." : "Phát hành & thu tiền"}
-          </button>
+          {selectedFolio?.status === "CLOSED" ? (
+            <button
+              type="button"
+              onClick={async () => {
+                const invoiceId = getFolioInvoiceId(selectedFolio);
+                if (!invoiceId) {
+                  void Swal.fire({
+                    icon: "warning",
+                    title: "Chưa có mã hóa đơn",
+                    text: `Folio ${selectedFolio?.folioNumber ?? selectedFolio?.id} đã đóng nhưng chưa có thông tin hóa đơn.`,
+                    confirmButtonText: "Đã hiểu",
+                    confirmButtonColor: "#0f766e",
+                  });
+                  return;
+                }
+                const result = await Swal.fire({
+                  icon: "question",
+                  title: "Xuất hóa đơn?",
+                  text: "Hệ thống sẽ chuyển sang trang chi tiết để in và xuất hóa đơn.",
+                  showCancelButton: true,
+                  confirmButtonText: "Đồng ý",
+                  cancelButtonText: "Hủy",
+                  confirmButtonColor: "#0f766e",
+                  cancelButtonColor: "#64748b",
+                });
+                if (result.isConfirmed) {
+                  router.push(`/hotels/${encodeURIComponent(hotelId)}/billing/invoices/${encodeURIComponent(invoiceId)}`);
+                }
+              }}
+              disabled={!selectedFolioId}
+              className="mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[var(--secondary-fixed)] px-5 text-sm font-bold text-[var(--on-secondary-fixed)] disabled:opacity-60 transition hover:-translate-y-0.5"
+            >
+              <VsIcon name="description" />
+              Xuất hóa đơn
+            </button>
+          ) : (
+            <button type="button" onClick={() => void issueInvoiceAndCollect()} disabled={!selectedFolioId || !canManage || saving} className="mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[var(--secondary-fixed)] px-5 text-sm font-bold text-[var(--on-secondary-fixed)] disabled:opacity-60">
+              <VsIcon name={saving ? "sync" : "payments"} />
+              {saving ? "Đang xử lý..." : "Phát hành & thu tiền"}
+            </button>
+          )}
         </div>
         <div className="rounded-xl border border-[var(--outline-variant)] bg-white p-5">
           <h3 className="vs-display text-2xl font-semibold text-[var(--primary)]">Trạng thái checkout</h3>

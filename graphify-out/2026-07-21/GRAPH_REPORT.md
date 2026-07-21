@@ -1,11 +1,11 @@
 # Graph Report - fullstack-vietSage  (2026-07-21)
 
 ## Corpus Check
-- 670 files · ~428,947 words
+- 670 files · ~429,115 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 5103 nodes · 11553 edges · 276 communities (233 shown, 43 thin omitted)
+- 5103 nodes · 11553 edges · 273 communities (234 shown, 39 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 54 edges (avg confidence: 0.63)
 - Token cost: 0 input · 0 output
 
@@ -149,7 +149,6 @@
 - check-service-boundaries.mjs
 - AppService
 - import.module.ts
-- auth.repository.ts
 - Backend Proposal: GuestOS Multilingual API Support for `/g/**`
 - page.tsx
 - Emergency Boundary Hardening Phase Plan
@@ -163,7 +162,6 @@
 - sync-openapi-types.mjs
 - guest-request-realtime-notifier.tsx
 - VietSage Documentation Rules
-- PublicRouteMatcher
 - VietSage Frontend Architecture
 - DESIGN.md
 - final-boundary-release.spec.ts
@@ -271,7 +269,6 @@
 - useGuestI18n
 - rbac.service.ts
 - request-logging.middleware.ts
-- .resolveModuleSummaryBaseOrThrow
 - staff-management-service.ts
 - page.tsx
 - page.tsx
@@ -303,7 +300,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (276 total, 43 thin omitted)
+## Communities (273 total, 39 thin omitted)
 
 ### Community 0 - "executeOwnerBackendRequest"
 Cohesion: 0.07
@@ -382,8 +379,8 @@ Cohesion: 0.12
 Nodes (9): TenantOwnerItem, TenantOwnersService, Injectable, CreateTenantOwnerBodyInput, UpdateTenantOwnerBodyInput, TenantOwnerRoleNotConfiguredError, TenantOwnerRow, TenantOwnersRepository (+1 more)
 
 ### Community 19 - "vs-icon.tsx"
-Cohesion: 0.07
-Nodes (32): commonLinks, ACCESS_CONTROL_TABS, AccessControlNavHeaderProps, AccessControlTab, navItems, NavKey, VsBottomNav(), VsBottomNavProps (+24 more)
+Cohesion: 0.08
+Nodes (28): commonLinks, ACCESS_CONTROL_TABS, AccessControlNavHeaderProps, AccessControlTab, iconGlyph(), VsIcon(), VsIconProps, VsLogoutButton() (+20 more)
 
 ### Community 20 - "page.tsx"
 Cohesion: 0.12
@@ -627,7 +624,7 @@ Nodes (24): Compose Design, Current Context, `docker-compose.prod.yml`, `docker-
 
 ### Community 80 - "tenant-owners.service.ts"
 Cohesion: 0.09
-Nodes (25): PUBLIC_PATTERNS, PUBLIC_REGEX, publicMatcher, AuthorizationService, PermissionCheckResult, Injectable, BootstrapAdminConfig, BUSINESS_PERMISSION_DESCRIPTIONS (+17 more)
+Nodes (21): Pattern, PublicRouteMatcher, PUBLIC_PATTERNS, PUBLIC_REGEX, publicMatcher, AuthorizationService, PermissionCheckResult, Injectable (+13 more)
 
 ### Community 81 - "Graphify-first Code Navigation Policy"
 Cohesion: 0.09
@@ -657,6 +654,10 @@ Nodes (15): ReservationsController, ApiBody, ApiCreatedResponse, ApiOkResponse, 
 Cohesion: 0.11
 Nodes (19): eslint-config-next, devDependencies, eslint, eslint-config-next, openapi-typescript, tailwindcss, @tailwindcss/postcss, @types/node (+11 more)
 
+### Community 88 - "qr-export-client.tsx"
+Cohesion: 0.14
+Nodes (3): normalizeModuleKey(), PERMISSION_PROTECTED_ROLE_CODES, RoleModulePermissionsBodyInput
+
 ### Community 89 - "service-catalog-import.adapter.ts"
 Cohesion: 0.27
 Nodes (4): ImportTemplateService, Injectable, ImportWorkbookSchema, TRANSLATION_COLUMNS
@@ -682,8 +683,8 @@ Cohesion: 0.10
 Nodes (15): getValidationErrors(), heroTypingPhrases, initialFormValues, inputClass(), RegisterFormErrors, RegisterFormValues, RegisterPage(), registerSchema (+7 more)
 
 ### Community 96 - "guest-request-list.tsx"
-Cohesion: 0.21
-Nodes (11): GuestHomeHeroProps, GuestHomeHighlight, GuestStagger(), GuestStaggerItem(), GuestStaggerProps, Props, GuestServiceCard(), GuestServiceCardProps (+3 more)
+Cohesion: 0.17
+Nodes (11): GuestHomeExperience, GuestHomeExperiences(), getClientSnapshot(), getServerSnapshot(), GuestReveal(), GuestRevealProps, subscribeToHydration(), GuestRequestCta() (+3 more)
 
 ### Community 97 - "FolioController"
 Cohesion: 0.30
@@ -724,6 +725,10 @@ Nodes (14): Inject, Optional, InlineKeyboard, STATUS_LABELS, TelegramCallbackQue
 ### Community 106 - "3. Implementation tasks"
 Cohesion: 0.12
 Nodes (16): 1. Confirmed context and root causes, 2. Acceptance criteria, 3. Implementation tasks, 4. Likely production files changed, 5. Risks and mitigations, 6. Execution order and approval boundary, Task 1 — Create a deterministic regression loop for the frontend login loop, Task 2 — Add safe `canRefresh` session metadata (+8 more)
+
+### Community 107 - "RbacRepository"
+Cohesion: 0.13
+Nodes (3): ListRolePermissionModulePermissionsQueryInput, RbacRepository, Injectable
 
 ### Community 108 - "tenant-owners-client.tsx"
 Cohesion: 0.15
@@ -834,10 +839,6 @@ Nodes (5): AppController, Controller, Get, AppService, Injectable
 ### Community 133 - "import.module.ts"
 Cohesion: 0.33
 Nodes (3): ImportErrorReportService, Injectable, ImportValidationIssue
-
-### Community 134 - "auth.repository.ts"
-Cohesion: 0.24
-Nodes (3): createModulesContainer(), DemoController, PublicController
 
 ### Community 135 - "Backend Proposal: GuestOS Multilingual API Support for `/g/**`"
 Cohesion: 0.14
@@ -952,8 +953,8 @@ Cohesion: 0.31
 Nodes (8): createGuestConnectionManager(), AudioWindow, dispatchGuestRequestRealtime(), GuestRequestRealtimeBrowserEvent, GuestRequestRealtimeNotifier(), playGuestRequestSound(), Handlers, useGuestRequestRealtime()
 
 ### Community 166 - "business-permissions.registry.ts"
-Cohesion: 0.11
-Nodes (13): BUSINESS_PERMISSION_MENU_PATHS, resolveBusinessPermissionMenuPath(), BUSINESS_PERMISSION_KEYS, BUSINESS_PERMISSIONS, BusinessPermissionDefinition, BusinessPermissionKey, isBusinessPermissionKey(), AccessTokenPayload (+5 more)
+Cohesion: 0.06
+Nodes (22): BUSINESS_PERMISSION_MENU_PATHS, resolveBusinessPermissionMenuPath(), BUSINESS_PERMISSION_KEYS, BUSINESS_PERMISSIONS, BusinessPermissionDefinition, BusinessPermissionKey, isBusinessPermissionKey(), AccessTokenPayload (+14 more)
 
 ### Community 167 - "HotelNotificationRoutesService"
 Cohesion: 0.53
@@ -1160,8 +1161,8 @@ Cohesion: 0.50
 Nodes (3): Deploy on Vercel, Getting Started, Learn More
 
 ### Community 265 - "useGuestI18n"
-Cohesion: 0.12
-Nodes (17): GuestAccessRequiredState(), guestIntlLocale(), GuestLocale, guestLocaleOptions, guestLocales, Dict, en, guestDictionaries (+9 more)
+Cohesion: 0.10
+Nodes (21): navItems, NavKey, VsBottomNav(), VsBottomNavProps, GuestAccessRequiredState(), guestIntlLocale(), GuestLocale, guestLocaleOptions (+13 more)
 
 ### Community 266 - "rbac.service.ts"
 Cohesion: 0.13
@@ -1182,7 +1183,7 @@ Nodes (3): Params, POST(), billingService
 ## Knowledge Gaps
 - **1550 isolated node(s):** `eslintConfig`, `nextConfig`, `name`, `version`, `private` (+1545 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **43 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **39 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_

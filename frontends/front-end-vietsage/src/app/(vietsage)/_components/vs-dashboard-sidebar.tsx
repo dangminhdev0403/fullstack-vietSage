@@ -1,7 +1,8 @@
-﻿import Image from "next/image";
+import Image from "next/image";
 import Link from "next/link";
 
 import type { DashboardNavItem } from "@/features/workspace/types/workspace-navigation";
+import { isNavItemActive } from "@/features/workspace/utils/workspace-nav-active";
 
 import { VsIcon } from "./vs-icon";
 
@@ -12,38 +13,12 @@ type VsDashboardSidebarProps = {
   items?: readonly DashboardNavItem[];
 };
 
-function canonicalizeSidebarPath(rawPath: string): string {
-  try {
-    const parsed = new URL(rawPath, "https://vietsage.local");
-    const pathname =
-      parsed.pathname.length > 1
-        ? parsed.pathname.replace(/\/+$/, "")
-        : parsed.pathname;
-    const tab = parsed.searchParams.get("tab")?.trim().toLowerCase();
-
-    if (pathname === "/admin/dashboard" && tab === "permissions") {
-      return "/admin/permissions";
-    }
-
-    return `${pathname}${parsed.search}`;
-  } catch {
-    return rawPath;
-  }
-}
-
-function isNavItemActive(itemHref: string, activePath: string): boolean {
-  const normalizedItemPath = canonicalizeSidebarPath(itemHref);
-  const normalizedActivePath = canonicalizeSidebarPath(activePath);
-
-  return normalizedItemPath === normalizedActivePath;
-}
-
 export function VsDashboardSidebar({
   activePath,
   description = "Trung tâm điều hành theo phạm vi và quyền của phiên hiện tại.",
   eyebrow = "Workspace",
   items,
-}: VsDashboardSidebarProps) {
+}: Readonly<VsDashboardSidebarProps>) {
   const navigationItems = items ?? [];
 
   return (
@@ -74,7 +49,7 @@ export function VsDashboardSidebar({
 
       <nav className="relative flex flex-col gap-2 px-5">
         {navigationItems.map((item) => {
-          const isActive = isNavItemActive(item.href, activePath);
+          const isActive = isNavItemActive(item.href, activePath, navigationItems);
 
           return (
             <Link

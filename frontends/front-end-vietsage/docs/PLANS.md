@@ -1,3 +1,30 @@
+## [complete] 2026-07-21 - Mission: realtime-socket-toast-duration
+
+- Updated socket connection notification duration from 4,000ms to 3,000ms (3 seconds) across owner and guest realtime notifiers.
+- Deduplicated owner realtime connection toast IDs so multi-hotel connections do not render duplicate stacked connection toasts.
+
+Verification result:
+- `npx tsc --noEmit` passed cleanly.
+
+Remaining blockers/risks:
+- None.
+
+## [complete] 2026-07-21 - Mission: owner-navigation-active-state
+
+- Resolved issue where `owner/**` pages did not display active navigation state when clicking corresponding sidebar/mobile links.
+- Updated `OwnerHotelLayout` and `OwnerGlobalLayout` to remove hardcoded `activePath={callbackUrl}`, allowing client components to detect current route dynamically.
+- Made `activePath` optional in `OwnerShell` and updated `WorkspaceShell` to compute `activePath` with search parameters from client location (`usePathname()` + `useSearchParams()`).
+- Created `src/features/workspace/utils/workspace-nav-active.ts` with enhanced `isNavItemActive` logic supporting exact matches, search parameter matching (e.g., `?hotelId=...`), and nested sub-route matching (e.g. `/owner/hotels/hotel-1/billing/invoices/...` matching `Thanh toán`).
+- Updated `VsDashboardSidebar` and mobile bottom navigation in `WorkspaceShell` to use `isNavItemActive`.
+- Added unit test suite in `src/features/workspace/utils/workspace-nav-active.test.ts` covering exact matches, sub-route matching, and search parameter matching.
+
+Verification result:
+- Unit tests run via `node --test` passed all 14 tests in workspace domain.
+- `npx tsc --noEmit` passed with zero errors.
+
+Remaining blockers/risks:
+- None.
+
 ## [complete] 2026-07-21 - Mission: staff-rooms-pagination-and-animation
 
 - Added server-side rooms pagination with a limit of 20 rooms per page.

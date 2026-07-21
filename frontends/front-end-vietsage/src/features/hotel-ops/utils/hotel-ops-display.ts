@@ -28,8 +28,8 @@ export const requestPriorityLabelMap: Record<StaffRequestPriority, string> = {
 };
 
 export const serviceStatusLabelMap: Record<HotelServiceStatus, string> = {
-  ACTIVE: "Active",
-  DISABLED: "Disabled",
+  ACTIVE: "Hoạt động",
+  DISABLED: "Vô hiệu hóa",
 };
 
 export function formatOpsDateTime(value?: string | null): string {

@@ -2,12 +2,13 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 import { VsDashboardSidebar } from "@/app/(vietsage)/_components/vs-dashboard-sidebar";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { VsTopBar } from "@/app/(vietsage)/_components/vs-top-bar";
 import type { DashboardNavItem } from "@/features/workspace/types/workspace-navigation";
+import { isNavItemActive } from "@/features/workspace/utils/workspace-nav-active";
 import { useWorkspaceProfile } from "./workspace-profile-context";
 
 import type { WorkspaceDefinition } from "../config/workspace-registry";
@@ -32,7 +33,11 @@ export function WorkspaceShell({
   printFriendly = false,
 }: Readonly<WorkspaceShellProps>) {
   const pathname = usePathname();
-  const activePath = explicitActivePath ?? pathname ?? "";
+  const searchParams = useSearchParams();
+  const queryString = searchParams?.toString();
+  const activePath =
+    explicitActivePath ??
+    (queryString ? `${pathname ?? ""}?${queryString}` : pathname ?? "");
   const inheritedProfile = useWorkspaceProfile();
   const resolvedProfileName = profileName ?? inheritedProfile.profileName;
 
@@ -69,8 +74,7 @@ export function WorkspaceShell({
       </main>
       <nav className="fixed inset-x-3 bottom-3 z-50 flex items-stretch justify-around gap-1 rounded-2xl border border-[#24473d]/10 bg-[#17201b]/95 p-2 text-[#fff8e8] shadow-[0_18px_50px_rgba(23,32,27,0.28)] backdrop-blur-xl print:hidden md:hidden">
         {navItems.slice(0, 4).map((item) => {
-          const active =
-            activePath === item.href || activePath.startsWith(`${item.href}?`);
+          const active = isNavItemActive(item.href, activePath, navItems);
           return (
             <Link
               key={item.key}

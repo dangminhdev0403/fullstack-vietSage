@@ -10,7 +10,7 @@ export class CodesService {
     const normalizedName = name.trim().toUpperCase();
     const updated = await this.codesRepository.generateEntityCode(normalizedName, tx);
     if (!updated) {
-      throw new NotFoundException("Không tìm thấy chuỗi mã" + normalizedName);
+      throw new NotFoundException("Không tìm thấy chuỗi mã: " + normalizedName);
     }
 
     const currentSequence = updated.sequenceNext;

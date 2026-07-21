@@ -55,8 +55,8 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
   ] as const;
 
   const operations = [
-    { label: "Check-ins", value: dashboard.stays.todayCheckIns, icon: "login", tone: "border-[var(--primary)]", iconTone: "bg-[var(--primary-fixed)] text-[var(--on-primary-fixed)]" },
-    { label: "Check-outs", value: dashboard.stays.todayCheckOuts, icon: "logout", tone: "border-[var(--secondary)]", iconTone: "bg-[var(--secondary-fixed)] text-[var(--on-secondary-fixed)]" },
+    { label: "Nhận phòng", value: dashboard.stays.todayCheckIns, icon: "login", tone: "border-[var(--primary)]", iconTone: "bg-[var(--primary-fixed)] text-[var(--on-primary-fixed)]" },
+    { label: "Trả phòng", value: dashboard.stays.todayCheckOuts, icon: "logout", tone: "border-[var(--secondary)]", iconTone: "bg-[var(--secondary-fixed)] text-[var(--on-secondary-fixed)]" },
     { label: "Thanh toán chờ", value: dashboard.stays.pendingCheckOuts, icon: "payments", tone: "border-[var(--error)]", iconTone: "bg-[var(--error-container)] text-[var(--on-error-container)]" },
     { label: "Yêu cầu mới", value: dashboard.requests.byStatus.sent, icon: "notifications_active", tone: "border-[var(--primary-fixed-dim)]", iconTone: "bg-[var(--surface-container-highest)] text-[var(--primary)]" },
   ] as const;
