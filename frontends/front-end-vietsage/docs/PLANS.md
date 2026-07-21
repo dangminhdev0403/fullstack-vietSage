@@ -7,6 +7,9 @@
 - Added pagination controls (`< Prev 1 2 3 ... Next >`) and a loading overlay spinner on the room grid.
 - Implemented Y-offset slide-in and fade-in entrance animation (duration: 240ms, ease-out) for the Quick Check-in panel.
 - Modified backend `listRooms` to filter by floor, type, and VIP status on the database level, returning unique floors, unique types, and total available rooms.
+- Resolved room card footer status badge misalignment by adding text truncation to long public codes and a `shrink-0` layout style to the badge.
+- Added a keyframe shadow/border flash animation (`animate-subtle-flash`) to the Check-in form wrapper, triggered dynamically when an empty room card is selected.
+- Added automatic smooth scrolling to the Check-in form container using `scrollIntoView` if the sidebar is not currently in the viewport.
 
 Verification result:
 - Backend `npm run build` compiled successfully.
@@ -15,7 +18,7 @@ Verification result:
 
 Remaining manual checkpoint:
 - Verify pagination and filters behavior on the UI with Representative front desk user credentials.
-- Verify smooth transition when opening Quick Check-in panel.
+- Verify smooth transition, auto-scrolling, and visual highlighting when clicking empty room cards.
 
 ## [complete] 2026-07-21 - Mission: staff-stitch-operations-sync
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Swal from "sweetalert2";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
@@ -35,6 +35,7 @@ type WalkInForm = {
 };
 
 type ReservationForm = {
+  roomId: string;
   guestDisplayName: string;
   guestPhone: string;
   plannedCheckInAt: string;
@@ -106,8 +107,9 @@ function emptyWalkIn(roomId = ""): WalkInForm {
   };
 }
 
-function emptyReservation(): ReservationForm {
+function emptyReservation(roomId = ""): ReservationForm {
   return {
+    roomId,
     guestDisplayName: "",
     guestPhone: "",
     plannedCheckInAt: localDateTime(0, 14),
@@ -208,6 +210,10 @@ export function StaffRoomsClient({
   const router = useRouter();
   const apiBase = `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}`;
 
+  const checkInContainerRef = useRef<HTMLDivElement>(null);
+  const [flash, setFlash] = useState(false);
+  const flashTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
   const [inputQuery, setInputQuery] = useState("");
@@ -278,9 +284,27 @@ export function StaffRoomsClient({
 
   function openWalkIn(room: HotelRoomSummary) {
     if (!isAvailable(room) || !canManageStays) return;
-    setFlow("walk-in");
     setSelectedRoom(room);
     setWalkInForm(emptyWalkIn(room.id));
+    setReservationForm(emptyReservation(room.id));
+
+    if (flashTimeoutRef.current) {
+      clearTimeout(flashTimeoutRef.current);
+    }
+    setFlash(true);
+    flashTimeoutRef.current = setTimeout(() => {
+      setFlash(false);
+    }, 800);
+
+    if (checkInContainerRef.current) {
+      const rect = checkInContainerRef.current.getBoundingClientRect();
+      const inViewport =
+        rect.top >= 0 &&
+        rect.bottom <= (window.innerHeight || document.documentElement.clientHeight);
+      if (!inViewport) {
+        checkInContainerRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+    }
   }
 
   async function submitWalkIn(event: FormEvent<HTMLFormElement>) {
@@ -324,6 +348,7 @@ export function StaffRoomsClient({
           ...(reservationForm.guestPhone.trim() ? { guestPhone: reservationForm.guestPhone.trim() } : {}),
           plannedCheckInAt: new Date(reservationForm.plannedCheckInAt).toISOString(),
           plannedCheckOutAt: new Date(reservationForm.plannedCheckOutAt).toISOString(),
+          ...(reservationForm.roomId ? { roomId: reservationForm.roomId } : {}),
         },
       });
       setReservationForm(emptyReservation());
@@ -393,6 +418,23 @@ export function StaffRoomsClient({
         }
         .animate-quick-check-in {
           animation: quickCheckInEntrance 240ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes subtleFlash {
+          0% {
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            border-color: var(--outline-variant);
+          }
+          30% {
+            box-shadow: 0 0 0 4px rgba(0, 0, 60, 0.2);
+            border-color: var(--primary);
+          }
+          100% {
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            border-color: var(--outline-variant);
+          }
+        }
+        .animate-subtle-flash {
+          animation: subtleFlash 800ms ease-out;
         }
       `}</style>
 
@@ -469,9 +511,11 @@ export function StaffRoomsClient({
                       ) : (
                         <div className="h-1.5 rounded-full bg-[var(--surface-container-high)]" />
                       )}
-                      <div className="mt-4 flex items-center justify-between">
-                        <span className="text-xs font-bold">{room.publicCode ?? room.qr?.publicCode ?? "QR GuestOS"}</span>
-                        <span className="rounded bg-[var(--secondary-fixed-dim)] px-2 py-1 text-xs font-bold text-[var(--on-secondary-fixed)]">{roomStatusLabel(roomStatus)}</span>
+                      <div className="mt-4 flex items-center justify-between gap-2 overflow-hidden">
+                        <span className="min-w-0 truncate text-xs font-bold" title={room.publicCode ?? room.qr?.publicCode ?? "QR GuestOS"}>
+                          {room.publicCode ?? room.qr?.publicCode ?? "QR GuestOS"}
+                        </span>
+                        <span className="shrink-0 rounded bg-[var(--secondary-fixed-dim)] px-2 py-1 text-xs font-bold text-[var(--on-secondary-fixed)]">{roomStatusLabel(roomStatus)}</span>
                       </div>
                     </div>
                   </button>
@@ -494,14 +538,19 @@ export function StaffRoomsClient({
         </div>
 
         <aside className="space-y-4">
-          <div className="rounded-xl border border-[var(--outline-variant)] bg-white p-5 shadow-[0_4px_20px_rgba(0,0,0,0.05)]">
+          <div
+            ref={checkInContainerRef}
+            className={`rounded-xl border bg-white p-5 shadow-[0_4px_20px_rgba(0,0,0,0.05)] transition-all duration-300 ${
+              flash ? "animate-subtle-flash" : "border-[var(--outline-variant)]"
+            }`}
+          >
             <div className="flex rounded-lg bg-[var(--surface-container-low)] p-1">
               <button type="button" onClick={() => setFlow("walk-in")} className={`flex-1 rounded-lg px-3 py-2 text-sm font-bold ${flow === "walk-in" ? "bg-[var(--primary)] text-white" : "text-[var(--on-surface-variant)]"}`}>Mở phòng mới</button>
               <button type="button" onClick={() => setFlow("reservation")} className={`flex-1 rounded-lg px-3 py-2 text-sm font-bold ${flow === "reservation" ? "bg-[var(--primary)] text-white" : "text-[var(--on-surface-variant)]"}`}>Đặt trước</button>
             </div>
 
             {flow === "walk-in" ? (
-              <form onSubmit={submitWalkIn} className="mt-5 space-y-4 animate-quick-check-in">
+              <form key="walk-in-form" onSubmit={submitWalkIn} className="mt-5 space-y-4 animate-quick-check-in">
                 <div>
                   <h2 className="vs-display text-2xl font-semibold text-[var(--primary)]">Check-in nhanh</h2>
                   <p className="mt-1 text-sm text-[var(--on-surface-variant)]">Chọn phòng trống trên lưới hoặc trong danh sách.</p>
@@ -522,11 +571,15 @@ export function StaffRoomsClient({
                 </button>
               </form>
             ) : (
-              <form onSubmit={createReservation} className="mt-5 space-y-4 animate-quick-check-in">
+              <form key="reservation-form" onSubmit={createReservation} className="mt-5 space-y-4 animate-quick-check-in">
                 <div>
                   <h2 className="vs-display text-2xl font-semibold text-[var(--primary)]">Tạo đặt phòng</h2>
                   <p className="mt-1 text-sm text-[var(--on-surface-variant)]">Đặt trước được hiển thị trong hàng đợi bên dưới để gán phòng và check-in.</p>
                 </div>
+                <select value={reservationForm.roomId} onChange={(event) => { const room = rooms.find((item) => item.id === event.target.value) ?? null; setSelectedRoom(room); setReservationForm((current) => ({ ...current, roomId: event.target.value })); }} className="h-12 w-full rounded-lg border-0 bg-[var(--surface-container-low)] px-3 text-sm ring-1 ring-transparent focus:ring-[var(--primary)]">
+                  <option value="">Chọn phòng trống (tùy chọn)</option>
+                  {availableRooms.map((room) => <option key={room.id} value={room.id}>Phòng {getRoomNumber(room)} · {room.type ?? "Tiêu chuẩn"}</option>)}
+                </select>
                 <input required minLength={2} value={reservationForm.guestDisplayName} onChange={(event) => setReservationForm((current) => ({ ...current, guestDisplayName: event.target.value }))} className="h-12 w-full rounded-lg border-0 bg-[var(--surface-container-low)] px-4 text-sm ring-1 ring-transparent focus:ring-[var(--primary)]" placeholder="Tên khách" />
                 <input value={reservationForm.guestPhone} onChange={(event) => setReservationForm((current) => ({ ...current, guestPhone: event.target.value }))} className="h-12 w-full rounded-lg border-0 bg-[var(--surface-container-low)] px-4 text-sm ring-1 ring-transparent focus:ring-[var(--primary)]" placeholder="Số điện thoại" />
                 <div className="grid gap-3 sm:grid-cols-2">
