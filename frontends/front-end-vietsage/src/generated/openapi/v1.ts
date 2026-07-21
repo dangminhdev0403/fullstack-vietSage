@@ -2455,6 +2455,11 @@ export interface operations {
                                 tenantId: string;
                                 /** Format: date-time */
                                 joinedAt: string | null;
+                                assignedHotel: {
+                                    id: string;
+                                    code: string;
+                                    name: string;
+                                } | null;
                                 roles: {
                                     id: string;
                                     code: string;
@@ -2519,6 +2524,11 @@ export interface operations {
                             tenantId: string;
                             /** Format: date-time */
                             joinedAt: string | null;
+                            assignedHotel: {
+                                id: string;
+                                code: string;
+                                name: string;
+                            } | null;
                             roles: {
                                 id: string;
                                 code: string;
@@ -2611,6 +2621,11 @@ export interface operations {
                             tenantId: string;
                             /** Format: date-time */
                             joinedAt: string | null;
+                            assignedHotel: {
+                                id: string;
+                                code: string;
+                                name: string;
+                            } | null;
                             roles: {
                                 id: string;
                                 code: string;
@@ -2673,6 +2688,11 @@ export interface operations {
                             tenantId: string;
                             /** Format: date-time */
                             joinedAt: string | null;
+                            assignedHotel: {
+                                id: string;
+                                code: string;
+                                name: string;
+                            } | null;
                             roles: {
                                 id: string;
                                 code: string;
@@ -2734,6 +2754,11 @@ export interface operations {
                             tenantId: string;
                             /** Format: date-time */
                             joinedAt: string | null;
+                            assignedHotel: {
+                                id: string;
+                                code: string;
+                                name: string;
+                            } | null;
                             roles: {
                                 id: string;
                                 code: string;

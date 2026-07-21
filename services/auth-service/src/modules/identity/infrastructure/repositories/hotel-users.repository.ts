@@ -1,5 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import {
+  HotelStaffAssignmentStatus,
+  HotelStatus,
   Prisma,
   RoleStatus,
   TenantUserStatus,
@@ -23,6 +25,22 @@ const tenantScopedUserInclude = {
           role: {
             select: {
               id: true,
+              code: true,
+              name: true,
+            },
+          },
+        },
+      },
+      hotelAssignments: {
+        where: {
+          status: HotelStaffAssignmentStatus.ACTIVE,
+          hotel: { status: HotelStatus.ACTIVE },
+        },
+        select: {
+          hotel: {
+            select: {
+              id: true,
+              tenantId: true,
               code: true,
               name: true,
             },

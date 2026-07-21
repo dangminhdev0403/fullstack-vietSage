@@ -43,7 +43,7 @@ export default async function OwnerStaffPage({ searchParams }: Props) {
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--secondary)]">NHÂN SỰ KHÁCH SẠN</p>
         <h1 className="mt-3 text-4xl font-semibold text-[var(--primary)]">Nhân viên & phân công</h1>
         <p className="mt-2 max-w-3xl text-base text-[var(--on-surface-variant)]">
-          Tạo tài khoản lễ tân hoặc nhân viên vận hành, gán đúng vai trò và chỉ định khách sạn được phép truy cập.
+          Tạo tài khoản, gán vai trò nghiệp vụ và chỉ định một khách sạn làm việc cho mỗi nhân viên.
         </p>
       </header>
       {context.tenants.length > 1 ? (

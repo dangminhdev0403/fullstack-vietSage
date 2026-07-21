@@ -23,12 +23,12 @@ const STAFF_PERSONAS: readonly WorkspacePersona[] = [
 const WORKSPACE_DEFINITIONS: Record<WorkspacePersona, WorkspaceDefinition> = {
   platform_admin: { persona: "platform_admin", eyebrow: "Platform control", title: "Quản trị nền tảng", description: "Tenant, khách sạn, tài khoản và chính sách truy cập.", profileLabel: "Quản trị viên", homePath: "/admin/dashboard" },
   owner: { persona: "owner", eyebrow: "Owner suite", title: "Điều hành danh mục khách sạn", description: "Hiệu suất, doanh thu và vận hành toàn bộ khách sạn thuộc tenant.", profileLabel: "Chủ khách sạn", homePath: "/owner/dashboard" },
-  manager: { persona: "manager", eyebrow: "Hotel management", title: "Điều hành khách sạn", description: "Theo dõi yêu cầu, phòng, dịch vụ và công việc theo khách sạn.", profileLabel: "Quản lý khách sạn", homePath: "/staff/manager" },
-  front_desk: { persona: "front_desk", eyebrow: "Front desk", title: "Quầy lễ tân", description: "Ưu tiên khách lưu trú, hàng đợi yêu cầu và xử lý tại quầy.", profileLabel: "Lễ tân", homePath: "/staff/front-desk" },
-  housekeeping: { persona: "housekeeping", eyebrow: "Operations", title: "Vận hành buồng phòng", description: "Theo dõi và hoàn thành công việc buồng phòng được phân công.", profileLabel: "Buồng phòng", homePath: "/staff/operations" },
-  maintenance: { persona: "maintenance", eyebrow: "Operations", title: "Vận hành kỹ thuật", description: "Theo dõi và xử lý yêu cầu kỹ thuật theo phạm vi khách sạn.", profileLabel: "Kỹ thuật", homePath: "/staff/operations" },
-  food_beverage: { persona: "food_beverage", eyebrow: "Operations", title: "Ẩm thực khách sạn", description: "Theo dõi yêu cầu ẩm thực và danh mục dịch vụ theo phạm vi khách sạn.", profileLabel: "Ẩm thực", homePath: "/staff/operations" },
-  finance: { persona: "finance", eyebrow: "Operations", title: "Tài chính khách sạn", description: "Theo dõi các công việc tài chính trong phạm vi được cấp.", profileLabel: "Tài chính", homePath: "/staff/operations" },
+  manager: { persona: "manager", eyebrow: "Hotel management", title: "Điều hành khách sạn", description: "Theo dõi yêu cầu, phòng, dịch vụ và công việc theo khách sạn.", profileLabel: "Quản lý khách sạn", homePath: "/staff" },
+  front_desk: { persona: "front_desk", eyebrow: "Front desk", title: "Quầy lễ tân", description: "Ưu tiên khách lưu trú, hàng đợi yêu cầu và xử lý tại quầy.", profileLabel: "Lễ tân", homePath: "/staff" },
+  housekeeping: { persona: "housekeeping", eyebrow: "Operations", title: "Vận hành buồng phòng", description: "Theo dõi và hoàn thành công việc buồng phòng được phân công.", profileLabel: "Buồng phòng", homePath: "/staff" },
+  maintenance: { persona: "maintenance", eyebrow: "Operations", title: "Vận hành kỹ thuật", description: "Theo dõi và xử lý yêu cầu kỹ thuật theo phạm vi khách sạn.", profileLabel: "Kỹ thuật", homePath: "/staff" },
+  food_beverage: { persona: "food_beverage", eyebrow: "Operations", title: "Ẩm thực khách sạn", description: "Theo dõi yêu cầu ẩm thực và danh mục dịch vụ theo phạm vi khách sạn.", profileLabel: "Ẩm thực", homePath: "/staff" },
+  finance: { persona: "finance", eyebrow: "Operations", title: "Tài chính khách sạn", description: "Theo dõi các công việc tài chính trong phạm vi được cấp.", profileLabel: "Tài chính", homePath: "/staff" },
 };
 
 const ROLE_ALIASES: Record<string, WorkspacePersona> = {
@@ -62,7 +62,6 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
   { key: "owner.hotel.stays", personas: ["owner"], href: "/owner/hotels/{hotelId}/stay", label: "Lưu trú", icon: "hotel", order: 140, requiresHotel: true, anyCapabilities: ["hotel.stays.view", "hotel.stays.manage", "hotel.reservations.view", "hotel.reservations.manage"] },
   { key: "owner.hotel.services", personas: ["owner"], href: "/owner/hotels/{hotelId}/services", label: "Dịch vụ", icon: "concierge", order: 150, requiresHotel: true, anyCapabilities: ["hotel.services.view", "hotel.services.manage"] },
   { key: "owner.hotel.billing", personas: ["owner"], href: "/owner/hotels/{hotelId}/billing", label: "Thanh toán", icon: "inventory_2", order: 160, requiresHotel: true, anyCapabilities: ["hotel.billing.view", "hotel.billing.manage"] },
-  { key: "staff.home", personas: STAFF_PERSONAS, href: "/staff", label: "Tổng quan công việc", icon: "dashboard", order: 10 },
   { key: "staff.dashboard", personas: STAFF_PERSONAS, href: "/hotels/{hotelId}/dashboard", label: "Điều hành hôm nay", icon: "space_dashboard", order: 20, requiresHotel: true, anyCapabilities: ["hotel.dashboard.view"] },
   { key: "staff.rooms", personas: ["manager", "front_desk"], href: "/hotels/{hotelId}/rooms", label: "Phòng & check-in", icon: "bed", order: 30, requiresHotel: true, anyCapabilities: ["hotel.rooms.view", "hotel.stays.manage"] },
   { key: "staff.arrivals", personas: ["manager", "front_desk"], href: "/hotels/{hotelId}/arrivals", label: "Khách đến & đặt phòng", labelByPersona: { front_desk: "Khách đến" }, icon: "event_available", order: 40, requiresHotel: true, anyCapabilities: ["hotel.reservations.view", "hotel.reservations.manage"] },
@@ -145,7 +144,6 @@ export function getWorkspaceDefinition(persona: WorkspacePersona, registry: Work
 
 export function buildWorkspaceNavigation(input: { persona: WorkspacePersona; permissions: readonly string[]; hotelId?: string | null; registry?: WorkspaceRegistry }): DashboardNavItem[] {
   const { persona, permissions, hotelId = null, registry = workspaceRegistry } = input;
-  const definition = getWorkspaceDefinition(persona, registry);
 
   return registry.navigation
     .filter((item) => item.personas.includes(persona))
@@ -154,11 +152,9 @@ export function buildWorkspaceNavigation(input: { persona: WorkspacePersona; per
     .filter((item) => !item.hideWhenHotelSelected || !hotelId)
     .sort((first, second) => first.order - second.order)
     .flatMap((item) => {
-      const isStaffHome = item.key === "staff.home";
-      const resolvedPath = isStaffHome ? definition.homePath : resolvePath(item.href, hotelId);
+      const resolvedPath = resolvePath(item.href, hotelId);
       if (!resolvedPath) return [];
-      const href = isStaffHome && hotelId ? `${resolvedPath}?hotelId=${encodeURIComponent(hotelId)}` as `/${string}` : resolvedPath;
-      return [{ key: item.key, href, label: item.labelByPersona?.[persona] ?? item.label, icon: item.icon }];
+      return [{ key: item.key, href: resolvedPath, label: item.labelByPersona?.[persona] ?? item.label, icon: item.icon }];
     });
 }
 

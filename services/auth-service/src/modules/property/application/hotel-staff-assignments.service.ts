@@ -57,7 +57,11 @@ export class HotelStaffAssignmentsService {
       hotel.tenantId,
       userId,
     );
-    const assignment = await this.assignmentsRepository.activate(hotelId, userId, actorUserId);
+    const assignment = await this.assignmentsRepository.activateExclusive(
+      hotelId,
+      userId,
+      actorUserId,
+    );
     return { ...assignment, user };
   }
 

@@ -1,11 +1,5 @@
-import { StaffWorkspacePage } from "../page";
+import { redirect } from "next/navigation";
 
-type ManagerDashboardPageProps = {
-  searchParams?:
-    | Promise<Record<string, string | string[] | undefined>>
-    | Record<string, string | string[] | undefined>;
-};
-
-export default function ManagerDashboardPage(props: ManagerDashboardPageProps) {
-  return <StaffWorkspacePage {...props} expectedPersonas={["manager"]} />;
+export default function ManagerDashboardPage() {
+  redirect("/staff");
 }

@@ -50,12 +50,22 @@ describe("HotelUsersService", () => {
             status: "ACTIVE",
             userType: UserType.HOTEL_STAFF,
             userRoles: [],
+            hotelAssignments: [
+              {
+                hotel: {
+                  id: "hotel-1",
+                  tenantId: "tenant-1",
+                  code: "H1",
+                  name: "Hotel 1",
+                },
+              },
+            ],
           },
         },
       ],
     ]);
 
-    await service.listHotelUsers("actor-1", "role-manager", undefined, {});
+    const result = await service.listHotelUsers("actor-1", "role-manager", undefined, {});
 
     expect(hotelUsersRepository.findActorById).toHaveBeenCalledWith("actor-1", "role-manager");
 
@@ -66,6 +76,11 @@ describe("HotelUsersService", () => {
       0,
       20,
     );
+    expect(result.items[0].assignedHotel).toEqual({
+      id: "hotel-1",
+      code: "H1",
+      name: "Hotel 1",
+    });
   });
 
   it("requires tenantId when super admin request has no tenant hint", async () => {

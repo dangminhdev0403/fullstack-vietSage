@@ -1847,6 +1847,20 @@ paths:
                         type: string
                         format: date-time
                         nullable: true
+                      assignedHotel:
+                        type: object
+                        nullable: true
+                        properties:
+                          id:
+                            type: string
+                          code:
+                            type: string
+                          name:
+                            type: string
+                        required:
+                          - id
+                          - code
+                          - name
                       roles:
                         type: array
                         items:
@@ -1878,6 +1892,7 @@ paths:
                       - tenantStatus
                       - tenantId
                       - joinedAt
+                      - assignedHotel
                       - roles
                 required:
                   - status
@@ -1974,6 +1989,20 @@ paths:
                               type: string
                               format: date-time
                               nullable: true
+                            assignedHotel:
+                              type: object
+                              nullable: true
+                              properties:
+                                id:
+                                  type: string
+                                code:
+                                  type: string
+                                name:
+                                  type: string
+                              required:
+                                - id
+                                - code
+                                - name
                             roles:
                               type: array
                               items:
@@ -2005,6 +2034,7 @@ paths:
                             - tenantStatus
                             - tenantId
                             - joinedAt
+                            - assignedHotel
                             - roles
                     required:
                       - page
@@ -2129,6 +2159,20 @@ paths:
                         type: string
                         format: date-time
                         nullable: true
+                      assignedHotel:
+                        type: object
+                        nullable: true
+                        properties:
+                          id:
+                            type: string
+                          code:
+                            type: string
+                          name:
+                            type: string
+                        required:
+                          - id
+                          - code
+                          - name
                       roles:
                         type: array
                         items:
@@ -2160,6 +2204,7 @@ paths:
                       - tenantStatus
                       - tenantId
                       - joinedAt
+                      - assignedHotel
                       - roles
                 required:
                   - status
@@ -2243,6 +2288,20 @@ paths:
                         type: string
                         format: date-time
                         nullable: true
+                      assignedHotel:
+                        type: object
+                        nullable: true
+                        properties:
+                          id:
+                            type: string
+                          code:
+                            type: string
+                          name:
+                            type: string
+                        required:
+                          - id
+                          - code
+                          - name
                       roles:
                         type: array
                         items:
@@ -2274,6 +2333,7 @@ paths:
                       - tenantStatus
                       - tenantId
                       - joinedAt
+                      - assignedHotel
                       - roles
                 required:
                   - status
@@ -2359,6 +2419,20 @@ paths:
                         type: string
                         format: date-time
                         nullable: true
+                      assignedHotel:
+                        type: object
+                        nullable: true
+                        properties:
+                          id:
+                            type: string
+                          code:
+                            type: string
+                          name:
+                            type: string
+                        required:
+                          - id
+                          - code
+                          - name
                       roles:
                         type: array
                         items:
@@ -2390,6 +2464,7 @@ paths:
                       - tenantStatus
                       - tenantId
                       - joinedAt
+                      - assignedHotel
                       - roles
                 required:
                   - status

@@ -39,6 +39,10 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
 
   async function submitCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!hotelId) {
+      await Swal.fire({ icon: "warning", title: "Chọn khách sạn cho nhân viên" });
+      return;
+    }
     if (!form.roleId) {
       await Swal.fire({ icon: "warning", title: "Chọn vai trò cho nhân viên" });
       return;
@@ -49,10 +53,11 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
         email: form.email.trim().toLowerCase(),
         password: form.password,
         roleIds: [form.roleId],
+        hotelId,
       });
       setForm({ fullName: "", email: "", password: "", roleId: "" });
       setFormOpen(false);
-      await Swal.fire({ icon: "success", title: "Đã tạo nhân viên", timer: 1200, showConfirmButton: false });
+      await Swal.fire({ icon: "success", title: "Đã tạo và phân công nhân viên", timer: 1200, showConfirmButton: false });
     } catch (error) {
       await Swal.fire({ icon: "error", title: "Không thể tạo nhân viên", text: error instanceof Error ? error.message : "Vui lòng thử lại." });
     }
@@ -74,7 +79,11 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
       <section className="grid gap-4 md:grid-cols-3">
         {[
           { label: "Nhân viên", value: data?.users.total ?? 0, icon: "group" },
-          { label: "Đã phân công", value: data?.assignments?.total ?? 0, icon: "domain_add" },
+          {
+            label: hotelId ? "Nhân viên tại khách sạn" : "Chọn khách sạn để xem",
+            value: hotelId ? data?.assignments?.total ?? 0 : "--",
+            icon: "domain_add",
+          },
           { label: "Vai trò dùng được", value: data?.roles.length ?? 0, icon: "verified_user" },
         ].map((metric) => (
           <article key={metric.label} className="rounded-xl border border-[var(--outline-variant)] bg-white p-5">
@@ -128,8 +137,9 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
           {canManage ? (
             <button
               type="button"
+              disabled={!hotelId}
               onClick={() => setFormOpen((value) => !value)}
-              className="min-h-11 rounded-xl bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-[var(--on-primary)]"
+              className="min-h-11 rounded-xl bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-[var(--on-primary)] disabled:cursor-not-allowed disabled:opacity-40"
             >
               <VsIcon name="person_add" className="mr-2 inline text-lg" />
               Thêm nhân viên
@@ -141,6 +151,12 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
           )}
         </div>
       </section>
+
+      {hotelId ? (
+        <p className="text-sm text-[var(--on-surface-variant)]">
+          Mỗi nhân viên chỉ làm việc tại một khách sạn. Phân công sang khách sạn này sẽ tự động thu hồi phân công cũ.
+        </p>
+      ) : null}
 
       {canManage && formOpen ? (
         <form onSubmit={submitCreate} className="grid gap-3 rounded-xl border border-[var(--outline-variant)] bg-white p-5 md:grid-cols-2 xl:grid-cols-5">
@@ -154,7 +170,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
             ))}
           </select>
           <button disabled={mutations.createUser.isPending} className="min-h-11 rounded-xl bg-[var(--secondary-container)] px-4 text-sm font-semibold">
-            {mutations.createUser.isPending ? "Đang tạo..." : "Tạo tài khoản"}
+            {mutations.createUser.isPending ? "Đang tạo..." : "Tạo & phân công"}
           </button>
         </form>
       ) : null}
@@ -224,9 +240,14 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                   headerClassName: "w-[16%]",
                   cell: (user) => {
                     const assigned = assignedUserIds.has(user.id);
+                    const assignedElsewhere = Boolean(user.assignedHotel && !assigned);
                     return (
-                      <span className={`inline-flex min-h-9 items-center whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${assigned ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"}`}>
-                        {hotelId ? (assigned ? "Đang làm tại khách sạn" : "Chưa phân công") : "Chọn khách sạn"}
+                      <span className={`inline-flex min-h-9 items-center whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${assigned ? "bg-emerald-100 text-emerald-800" : assignedElsewhere ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}>
+                        {assigned
+                          ? user.assignedHotel?.name ?? "Đang làm tại khách sạn"
+                          : assignedElsewhere
+                            ? `Đang ở ${user.assignedHotel?.name}`
+                            : "Chưa phân công"}
                       </span>
                     );
                   },
@@ -277,6 +298,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                   cell: (user) => {
                     if (!canManage) return <div className="text-right text-xs text-[var(--on-surface-variant)]">Chỉ xem</div>;
                     const assigned = assignedUserIds.has(user.id);
+                    const isTransfer = Boolean(user.assignedHotel && !assigned);
                     return (
                       <div className="flex min-h-10 items-center justify-end">
                         <button
@@ -285,12 +307,16 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                           onClick={() =>
                             runMutation(
                               () => mutations.updateAssignment.mutateAsync({ userId: user.id, assigned: !assigned }),
-                              assigned ? "Đã thu hồi phân công" : "Đã phân công nhân viên",
+                              assigned
+                                ? "Đã thu hồi phân công"
+                                : isTransfer
+                                  ? "Đã chuyển nhân viên đến khách sạn"
+                                  : "Đã phân công nhân viên",
                             )
                           }
                           className="h-10 whitespace-nowrap rounded-lg border border-[var(--outline-variant)] px-3 text-xs font-semibold disabled:opacity-40 hover:bg-[var(--surface-container-low)]"
                         >
-                          {assigned ? "Bỏ khỏi khách sạn" : "Phân công"}
+                          {assigned ? "Bỏ khỏi khách sạn" : isTransfer ? "Chuyển đến đây" : "Phân công"}
                         </button>
                       </div>
                     );
@@ -308,6 +334,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
           <section className="space-y-4 md:hidden">
             {users.map((user) => {
               const assigned = assignedUserIds.has(user.id);
+              const assignedElsewhere = Boolean(user.assignedHotel && !assigned);
               const selectedRoleId = roleDrafts[user.id] ?? "";
               const availableRoles = data.roles.filter((role) => !user.roles.some((current) => current.id === role.id));
               return (
@@ -317,8 +344,12 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                       <p className="font-semibold text-base text-[var(--primary)]">{user.fullName}</p>
                       <p className="text-xs text-[var(--on-surface-variant)]">{user.email}</p>
                     </div>
-                    <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${assigned ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"}`}>
-                      {hotelId ? (assigned ? "Đang làm việc" : "Chưa phân công") : "Chưa chọn KS"}
+                    <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${assigned ? "bg-emerald-100 text-emerald-800" : assignedElsewhere ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}>
+                      {assigned
+                        ? user.assignedHotel?.name ?? "Đang làm việc"
+                        : assignedElsewhere
+                          ? `Đang ở ${user.assignedHotel?.name}`
+                          : "Chưa phân công"}
                     </span>
                   </div>
 
@@ -369,12 +400,20 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                           onClick={() =>
                             runMutation(
                               () => mutations.updateAssignment.mutateAsync({ userId: user.id, assigned: !assigned }),
-                              assigned ? "Đã thu hồi phân công" : "Đã phân công nhân viên",
+                              assigned
+                                ? "Đã thu hồi phân công"
+                                : assignedElsewhere
+                                  ? "Đã chuyển nhân viên đến khách sạn"
+                                  : "Đã phân công nhân viên",
                             )
                           }
                           className="min-h-11 w-full rounded-xl border border-[var(--outline-variant)] text-xs font-semibold disabled:opacity-40 active:bg-[var(--surface-container-low)]"
                         >
-                          {assigned ? "Thu hồi phân công khỏi khách sạn" : "Phân công vào khách sạn này"}
+                          {assigned
+                            ? "Thu hồi phân công khỏi khách sạn"
+                            : assignedElsewhere
+                              ? "Chuyển nhân viên đến khách sạn này"
+                              : "Phân công vào khách sạn này"}
                         </button>
                       </div>
                     ) : null}

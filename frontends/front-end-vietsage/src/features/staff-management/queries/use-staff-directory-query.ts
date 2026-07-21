@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import { HTTP_HEADER_TENANT_ID } from "@/core/http/tenant-scope";
 import type {
-  CreateHotelStaffUserInput,
+  CreateAssignedHotelStaffUserInput,
   StaffDirectorySnapshot,
 } from "../types/staff-management-contract";
 
@@ -63,7 +63,7 @@ export function useStaffManagementMutations(scope: StaffManagementScope) {
   const invalidate = () => queryClient.invalidateQueries({ queryKey });
 
   const createUser = useMutation({
-    mutationFn: async (input: CreateHotelStaffUserInput) => {
+    mutationFn: async (input: CreateAssignedHotelStaffUserInput) => {
       const payload = await requestInternalApiEnvelope(directoryPath({ ...scope, hotelId: null }), {
         method: "POST",
         body: input,

@@ -12,6 +12,7 @@ export type HotelStaffUser = {
   tenantStatus: string;
   tenantId: string;
   joinedAt: string | null;
+  assignedHotel: { id: string; code: string; name: string } | null;
   roles: Array<ManagedHotelRole & { assignedAt: string; assignedById: string | null }>;
 };
 
@@ -58,4 +59,8 @@ export type CreateHotelStaffUserInput = {
   fullName: string;
   password: string;
   roleIds: string[];
+};
+
+export type CreateAssignedHotelStaffUserInput = CreateHotelStaffUserInput & {
+  hotelId: string;
 };

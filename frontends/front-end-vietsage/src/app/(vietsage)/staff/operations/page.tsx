@@ -1,16 +1,5 @@
-import { StaffWorkspacePage } from "../page";
+import { redirect } from "next/navigation";
 
-type OperationsDashboardPageProps = {
-  searchParams?:
-    | Promise<Record<string, string | string[] | undefined>>
-    | Record<string, string | string[] | undefined>;
-};
-
-export default function OperationsDashboardPage(props: OperationsDashboardPageProps) {
-  return (
-    <StaffWorkspacePage
-      {...props}
-      expectedPersonas={["housekeeping", "maintenance", "food_beverage", "finance"]}
-    />
-  );
+export default function OperationsDashboardPage() {
+  redirect("/staff");
 }

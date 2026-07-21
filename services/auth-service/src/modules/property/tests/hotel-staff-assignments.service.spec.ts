@@ -14,7 +14,7 @@ describe("HotelStaffAssignmentsService", () => {
   };
   const repository = {
     listByHotel: jest.fn(),
-    activate: jest.fn(),
+    activateExclusive: jest.fn(),
     revoke: jest.fn(),
   };
   let service: HotelStaffAssignmentsService;
@@ -36,7 +36,7 @@ describe("HotelStaffAssignmentsService", () => {
       fullName: "Staff",
       roles: [{ id: "frontdesk", code: "HOTEL_FRONTDESK", name: "Lễ tân" }],
     });
-    repository.activate.mockResolvedValue({
+    repository.activateExclusive.mockResolvedValue({
       id: "assignment-1",
       hotelId: "hotel-1",
       userId: "staff-1",
@@ -50,6 +50,11 @@ describe("HotelStaffAssignmentsService", () => {
       "hotel-1",
     );
     expect(directory.assertAssignableHotelUser).toHaveBeenCalledWith("tenant-1", "staff-1");
+    expect(repository.activateExclusive).toHaveBeenCalledWith(
+      "hotel-1",
+      "staff-1",
+      "owner-1",
+    );
   });
 
   it("fails closed when revoking a missing active assignment", async () => {

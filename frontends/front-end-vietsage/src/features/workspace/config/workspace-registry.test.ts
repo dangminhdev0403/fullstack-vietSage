@@ -18,8 +18,10 @@ test("separates manager and front desk workspace navigation", () => {
   const manager = buildWorkspaceNavigation({ persona: "manager", permissions, hotelId: "hotel-1" });
   const frontDesk = buildWorkspaceNavigation({ persona: "front_desk", permissions, hotelId: "hotel-1" });
 
-  assert.equal(getWorkspaceDefinition("manager").homePath, "/staff/manager");
-  assert.equal(getWorkspaceDefinition("front_desk").homePath, "/staff/front-desk");
+  assert.equal(getWorkspaceDefinition("manager").homePath, "/staff");
+  assert.equal(getWorkspaceDefinition("front_desk").homePath, "/staff");
+  assert.equal(manager.some((item) => item.key === "staff.home"), false);
+  assert.equal(manager[0]?.href, "/hotels/hotel-1/requests");
   assert.equal(manager.some((item) => item.href.endsWith("/services")), true);
   assert.equal(frontDesk.some((item) => item.href.endsWith("/services")), false);
 });

@@ -50,6 +50,11 @@ export interface TenantScopedHotelUser {
     assignedAt: Date;
     assignedById: string | null;
   }>;
+  assignedHotel: {
+    id: string;
+    code: string;
+    name: string;
+  } | null;
 }
 
 @Injectable()
@@ -387,6 +392,10 @@ export class HotelUsersService {
   }
 
   private toTenantScopedHotelUser(row: TenantScopedHotelUserRow): TenantScopedHotelUser {
+    const assignedHotel = row.user.hotelAssignments.find(
+      (assignment) => assignment.hotel.tenantId === row.tenantId,
+    )?.hotel;
+
     return {
       id: row.user.id,
       email: row.user.email,
@@ -395,6 +404,13 @@ export class HotelUsersService {
       tenantStatus: row.status,
       tenantId: row.tenantId,
       joinedAt: row.joinedAt,
+      assignedHotel: assignedHotel
+        ? {
+            id: assignedHotel.id,
+            code: assignedHotel.code,
+            name: assignedHotel.name,
+          }
+        : null,
       roles: row.user.userRoles
         .map((entry) => ({
           id: entry.role.id,

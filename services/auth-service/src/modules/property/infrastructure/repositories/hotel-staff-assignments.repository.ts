@@ -35,32 +35,49 @@ export class HotelStaffAssignmentsRepository {
     });
   }
 
-  async activate(hotelId: string, userId: string, actorUserId: string) {
-    return this.prisma.hotelStaffAssignment.upsert({
-      where: { userId_hotelId: { userId, hotelId } },
-      update: {
-        status: HotelStaffAssignmentStatus.ACTIVE,
-        assignedAt: new Date(),
-        assignedById: actorUserId,
-        revokedAt: null,
-        revokedById: null,
-      },
-      create: {
-        userId,
-        hotelId,
-        status: HotelStaffAssignmentStatus.ACTIVE,
-        assignedById: actorUserId,
-      },
-      select: {
-        id: true,
-        userId: true,
-        hotelId: true,
-        status: true,
-        assignedAt: true,
-        assignedById: true,
-        revokedAt: true,
-        revokedById: true,
-      },
+  async activateExclusive(hotelId: string, userId: string, actorUserId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const now = new Date();
+      await tx.hotelStaffAssignment.updateMany({
+        where: {
+          userId,
+          hotelId: { not: hotelId },
+          status: HotelStaffAssignmentStatus.ACTIVE,
+        },
+        data: {
+          status: HotelStaffAssignmentStatus.REVOKED,
+          revokedAt: now,
+          revokedById: actorUserId,
+        },
+      });
+
+      return tx.hotelStaffAssignment.upsert({
+        where: { userId_hotelId: { userId, hotelId } },
+        update: {
+          status: HotelStaffAssignmentStatus.ACTIVE,
+          assignedAt: now,
+          assignedById: actorUserId,
+          revokedAt: null,
+          revokedById: null,
+        },
+        create: {
+          userId,
+          hotelId,
+          status: HotelStaffAssignmentStatus.ACTIVE,
+          assignedAt: now,
+          assignedById: actorUserId,
+        },
+        select: {
+          id: true,
+          userId: true,
+          hotelId: true,
+          status: true,
+          assignedAt: true,
+          assignedById: true,
+          revokedAt: true,
+          revokedById: true,
+        },
+      });
     });
   }
 

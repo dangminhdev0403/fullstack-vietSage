@@ -3,7 +3,6 @@ import { notFound, redirect } from "next/navigation";
 import { type ReactNode } from "react";
 
 import { AuthRefreshGate } from "../_components/auth-refresh-gate";
-import { OwnerRequestRealtimeNotifier } from "../owner/_components/owner-request-realtime-notifier";
 import { hasAppRole } from "@/lib/rbac";
 import { requireRefreshableServerSession } from "@/lib/server-session-tokens";
 
@@ -43,7 +42,6 @@ export default async function HotelsLayout({ children }: { children: ReactNode }
 
   return (
     <AuthRefreshGate accessTokenExpiresAt={session.accessTokenExpiresAt}>
-      <OwnerRequestRealtimeNotifier />
       {children}
     </AuthRefreshGate>
   );

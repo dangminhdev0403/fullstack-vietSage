@@ -66,3 +66,13 @@ export function resolveExplicitAccessibleHotel(
 
   return context.accessibleHotels.find((hotel) => hotel.id === normalizedHotelId) ?? null;
 }
+
+export function resolveSingleAssignedHotel(
+  context: Pick<WorkspaceContext, "permissions" | "accessibleHotels">,
+): AuthAccessibleHotel | null {
+  if (!hasAnyHotelCapability(context) || context.accessibleHotels.length !== 1) {
+    return null;
+  }
+
+  return context.accessibleHotels[0] ?? null;
+}

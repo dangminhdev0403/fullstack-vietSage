@@ -129,8 +129,8 @@ export function ServiceCatalogClient({
         status: categoryForm.status,
       };
       const path = categoryForm.id
-        ? `/api/owner/hotels/${encodeURIComponent(hotelId)}/service-categories/${encodeURIComponent(categoryForm.id)}`
-        : `/api/owner/hotels/${encodeURIComponent(hotelId)}/service-categories`;
+        ? `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/service-categories/${encodeURIComponent(categoryForm.id)}`
+        : `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/service-categories`;
       const saved = categoryForm.id
         ? (await requestInternalApiEnvelope<HotelServiceCategory>(path, { method: "PATCH", body: payload })).data
         : (await requestInternalApiEnvelope<HotelServiceCategory>(path, { method: "POST", body: payload })).data;
@@ -167,8 +167,8 @@ export function ServiceCatalogClient({
         status: itemForm.status,
       };
       const path = itemForm.id
-        ? `/api/owner/hotels/${encodeURIComponent(hotelId)}/service-items/${encodeURIComponent(itemForm.id)}`
-        : `/api/owner/hotels/${encodeURIComponent(hotelId)}/service-items`;
+        ? `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/service-items/${encodeURIComponent(itemForm.id)}`
+        : `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/service-items`;
       const saved = itemForm.id
         ? (await requestInternalApiEnvelope<HotelServiceItem>(path, { method: "PATCH", body: payload })).data
         : (await requestInternalApiEnvelope<HotelServiceItem>(path, { method: "POST", body: payload })).data;
@@ -189,7 +189,7 @@ export function ServiceCatalogClient({
   async function toggleCategory(category: HotelServiceCategory) {
     const nextStatus: HotelServiceStatus = category.status === "ACTIVE" ? "DISABLED" : "ACTIVE";
     const saved = (await requestInternalApiEnvelope<HotelServiceCategory>(
-      `/api/owner/hotels/${encodeURIComponent(hotelId)}/service-categories/${encodeURIComponent(category.id)}`,
+      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/service-categories/${encodeURIComponent(category.id)}`,
       { method: "PATCH", body: { status: nextStatus } },
     )).data;
     setCategories((current) => current.map((item) => (item.id === saved.id ? saved : item)));
@@ -199,7 +199,7 @@ export function ServiceCatalogClient({
   async function toggleItem(item: HotelServiceItem) {
     const nextStatus: HotelServiceStatus = item.status === "ACTIVE" ? "DISABLED" : "ACTIVE";
     const saved = (await requestInternalApiEnvelope<HotelServiceItem>(
-      `/api/owner/hotels/${encodeURIComponent(hotelId)}/service-items/${encodeURIComponent(item.id)}`,
+      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/service-items/${encodeURIComponent(item.id)}`,
       { method: "PATCH", body: { status: nextStatus } },
     )).data;
     setItems((current) => current.map((entry) => (entry.id === saved.id ? saved : entry)));

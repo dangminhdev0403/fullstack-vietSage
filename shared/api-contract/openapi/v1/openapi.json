@@ -2657,6 +2657,26 @@
                           "format": "date-time",
                           "nullable": true
                         },
+                        "assignedHotel": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "code",
+                            "name"
+                          ]
+                        },
                         "roles": {
                           "type": "array",
                           "items": {
@@ -2698,6 +2718,7 @@
                         "tenantStatus",
                         "tenantId",
                         "joinedAt",
+                        "assignedHotel",
                         "roles"
                       ]
                     }
@@ -2840,6 +2861,26 @@
                                 "format": "date-time",
                                 "nullable": true
                               },
+                              "assignedHotel": {
+                                "type": "object",
+                                "nullable": true,
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "code": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "code",
+                                  "name"
+                                ]
+                              },
                               "roles": {
                                 "type": "array",
                                 "items": {
@@ -2881,6 +2922,7 @@
                               "tenantStatus",
                               "tenantId",
                               "joinedAt",
+                              "assignedHotel",
                               "roles"
                             ]
                           }
@@ -3066,6 +3108,26 @@
                           "format": "date-time",
                           "nullable": true
                         },
+                        "assignedHotel": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "code",
+                            "name"
+                          ]
+                        },
                         "roles": {
                           "type": "array",
                           "items": {
@@ -3107,6 +3169,7 @@
                         "tenantStatus",
                         "tenantId",
                         "joinedAt",
+                        "assignedHotel",
                         "roles"
                       ]
                     }
@@ -3230,6 +3293,26 @@
                           "format": "date-time",
                           "nullable": true
                         },
+                        "assignedHotel": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "code",
+                            "name"
+                          ]
+                        },
                         "roles": {
                           "type": "array",
                           "items": {
@@ -3271,6 +3354,7 @@
                         "tenantStatus",
                         "tenantId",
                         "joinedAt",
+                        "assignedHotel",
                         "roles"
                       ]
                     }
@@ -3396,6 +3480,26 @@
                           "format": "date-time",
                           "nullable": true
                         },
+                        "assignedHotel": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "code",
+                            "name"
+                          ]
+                        },
                         "roles": {
                           "type": "array",
                           "items": {
@@ -3437,6 +3541,7 @@
                         "tenantStatus",
                         "tenantId",
                         "joinedAt",
+                        "assignedHotel",
                         "roles"
                       ]
                     }

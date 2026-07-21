@@ -11,6 +11,7 @@ const createUserSchema = z.object({
   fullName: z.string().trim().min(2),
   password: z.string().min(8),
   roleIds: z.array(z.string().trim().min(1)).min(1),
+  hotelId: z.string().trim().min(1),
 });
 
 export async function GET(request: Request) {
@@ -43,8 +44,10 @@ export async function POST(request: Request) {
   const parsed = createUserSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return validationErrorResponse("Thông tin nhân viên chưa hợp lệ");
   try {
-    const data = await staffManagementService.createUser(parsed.data, tenantId);
-    return successResponse(data, 201, "Đã tạo nhân viên");
+    const { hotelId, ...userInput } = parsed.data;
+    const user = await staffManagementService.createUser(userInput, tenantId);
+    const assignment = await staffManagementService.assignHotel(hotelId, user.id);
+    return successResponse({ user, assignment }, 201, "Đã tạo và phân công nhân viên");
   } catch (error) {
     if (error instanceof HttpError) return httpErrorResponse(error);
     return unknownServerErrorResponse();

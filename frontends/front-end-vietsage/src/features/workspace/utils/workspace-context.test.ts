@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 // @ts-expect-error Node's strip-types runner requires the explicit TypeScript extension.
-import { canAccessHotelScope, resolveExplicitAccessibleHotel, resolveWorkspacePersona, type WorkspaceContext } from "./workspace-context.ts";
+import { canAccessHotelScope, resolveExplicitAccessibleHotel, resolveSingleAssignedHotel, resolveWorkspacePersona, type WorkspaceContext } from "./workspace-context.ts";
 
 const frontDeskContext: WorkspaceContext = {
   activeRole: {
@@ -29,6 +29,17 @@ test("requires an explicit hotel selection and never infers the first assignment
   assert.equal(resolveExplicitAccessibleHotel(frontDeskContext, null), null);
   assert.equal(resolveExplicitAccessibleHotel(frontDeskContext, "hotel-2")?.id, "hotel-2");
   assert.equal(resolveExplicitAccessibleHotel(frontDeskContext, "hotel-outside"), null);
+});
+
+test("resolves a staff hotel only when exactly one active assignment exists", () => {
+  assert.equal(resolveSingleAssignedHotel(frontDeskContext), null);
+  assert.equal(
+    resolveSingleAssignedHotel({
+      ...frontDeskContext,
+      accessibleHotels: [frontDeskContext.accessibleHotels[0]],
+    })?.id,
+    "hotel-1",
+  );
 });
 
 test("combines hotel capability with assigned resource scope", () => {

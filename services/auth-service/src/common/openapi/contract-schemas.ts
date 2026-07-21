@@ -428,6 +428,16 @@ export const tenantScopedHotelUserDataSchema = {
     tenantStatus: { type: "string", enum: TENANT_USER_STATUS_ENUM },
     tenantId: { type: "string" },
     joinedAt: { type: "string", format: "date-time", nullable: true },
+    assignedHotel: {
+      type: "object",
+      nullable: true,
+      properties: {
+        id: { type: "string" },
+        code: { type: "string" },
+        name: { type: "string" },
+      },
+      required: ["id", "code", "name"],
+    },
     roles: {
       type: "array",
       items: {
@@ -451,6 +461,7 @@ export const tenantScopedHotelUserDataSchema = {
     "tenantStatus",
     "tenantId",
     "joinedAt",
+    "assignedHotel",
     "roles",
   ],
 };
