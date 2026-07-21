@@ -66,6 +66,7 @@ export const guestRequestGuestInclude = {
     where: {
       actorType: GuestRequestActorType.STAFF,
       note: { not: null },
+      visibility: "GUEST",
     },
     orderBy: { createdAt: "desc" },
     take: 1,

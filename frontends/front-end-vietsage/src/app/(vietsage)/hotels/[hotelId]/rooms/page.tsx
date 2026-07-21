@@ -1,11 +1,10 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
 import { assertCanAccessHotelOps, canUseHotelId, requireHotelOpsServerTokens } from "@/features/hotel-ops/utils/hotel-route-auth";
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
 import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
-import { OwnerStayRoomGridClient } from "@/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/stay/owner-stay-room-grid-client";
+import { StaffRoomsClient } from "./staff-rooms-client";
 
 type PageProps = { params: Promise<{ hotelId: string }> | { hotelId: string } };
 export const dynamic = "force-dynamic";
@@ -17,15 +16,27 @@ export default async function StaffRoomsPage({ params }: PageProps) {
   assertCanAccessHotelOps(session, callbackUrl);
   const tokens = await requireHotelOpsServerTokens(callbackUrl);
   const context = await loadServerWorkspaceContext(callbackUrl, tokens.accessToken);
-  if (!canUseHotelId(context, hotelId) || !context.permissions.includes("hotel.rooms.view")) {
+  const canViewRooms = context.permissions.includes("hotel.rooms.view");
+  const canViewReservations = context.permissions.includes("hotel.reservations.view") || context.permissions.includes("hotel.reservations.manage");
+  if (!canUseHotelId(context, hotelId) || (!canViewRooms && !canViewReservations)) {
     notFound();
   }
 
+  const from = new Date();
+  from.setHours(0, 0, 0, 0);
+  const to = new Date(from);
+  to.setDate(to.getDate() + 7);
+
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
-  const [roomsPage, dashboard] = await Promise.all([
+  const [roomsPage, arrivals, dashboard] = await Promise.all([
     authorizedApi("list staff rooms", (accessToken) =>
-      hotelOpsService.listRooms(hotelId, { query: { page: 1, limit: 100 }, accessToken }),
+      hotelOpsService.listRooms(hotelId, { query: { page: 1, limit: 20 }, accessToken }),
     ),
+    canViewReservations
+      ? authorizedApi("list staff arrivals", (accessToken) =>
+          hotelOpsService.listArrivals(hotelId, { query: { from: from.toISOString(), to: to.toISOString(), page: 1, limit: 100 }, accessToken }),
+        )
+      : Promise.resolve({ page: 1, limit: 100, total: 0, items: [] }),
     authorizedApi("load room dashboard", (accessToken) =>
       hotelOpsService.getDashboard(hotelId, { accessToken }),
     ),
@@ -46,10 +57,6 @@ export default async function StaffRoomsPage({ params }: PageProps) {
           <h1 className="vs-display mt-2 text-4xl font-semibold text-[var(--primary)]">Mở phòng và lưu trú</h1>
           <p className="mt-2 max-w-3xl text-sm text-[var(--on-surface-variant)]">Chọn phòng sẵn sàng để check-in khách vãng lai. Sau khi mở phòng, QR GuestOS và mã truy cập được kích hoạt ngay.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href={`/hotels/${hotelId}/arrivals`} className="rounded-xl border border-[var(--outline-variant)] bg-white px-4 py-3 text-sm font-semibold text-[var(--primary)]">Khách đặt trước</Link>
-          <Link href={`/hotels/${hotelId}/billing`} className="rounded-xl bg-[var(--primary)] px-4 py-3 text-sm font-semibold text-white">Thanh toán và checkout</Link>
-        </div>
       </header>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -61,11 +68,14 @@ export default async function StaffRoomsPage({ params }: PageProps) {
         ))}
       </section>
 
-      <section className="rounded-lg border border-[var(--outline-variant)] bg-white p-5">
-        <OwnerStayRoomGridClient
+      <section>
+        <StaffRoomsClient
           hotelId={hotelId}
-          rooms={roomsPage.items}
-          apiBasePath={`/api/hotel-ops/hotels/${hotelId}`}
+          initialRoomsPage={roomsPage}
+          arrivals={arrivals.items}
+          canManageRooms={context.permissions.includes("hotel.rooms.manage")}
+          canManageReservations={context.permissions.includes("hotel.reservations.manage")}
+          canManageStays={context.permissions.includes("hotel.stays.manage")}
         />
       </section>
     </>

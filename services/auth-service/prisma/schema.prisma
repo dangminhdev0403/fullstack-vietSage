@@ -858,6 +858,7 @@ model GuestRequestEvent {
   fromStatus  GuestRequestStatus?
   toStatus    GuestRequestStatus?
   note        String?               @db.VarChar(1000)
+  visibility  String                @default("GUEST") @db.VarChar(16)
   metadata    Json?
   createdAt   DateTime              @default(now())
   request     GuestRequest          @relation(fields: [requestId], references: [id], onDelete: Cascade)
@@ -867,6 +868,7 @@ model GuestRequestEvent {
 
   @@index([requestId, createdAt])
   @@index([hotelId, createdAt])
+  @@index([requestId, visibility, createdAt])
 }
 
 model Folio {

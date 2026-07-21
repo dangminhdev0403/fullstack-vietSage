@@ -93,20 +93,46 @@ export class HotelRoomsService {
     const limit = query.limit ?? 20;
     const where: Prisma.RoomWhereInput = {
       hotelId,
-      ...(query.status ? { status: query.status } : {}),
     };
+
+    if (query.status) {
+      where.status = query.status;
+    }
+
+    if (query.floor) {
+      where.floor = query.floor;
+    }
+
+    if (query.type) {
+      where.type = query.type;
+    }
+
+    if (query.vipOnly) {
+      where.OR = [
+        { type: { contains: "suite", mode: "insensitive" } },
+        { type: { contains: "vip", mode: "insensitive" } },
+        { type: { contains: "premium", mode: "insensitive" } },
+        { type: { contains: "penthouse", mode: "insensitive" } },
+      ];
+    }
 
     const q = query.q?.trim();
     if (q) {
       where.roomNumber = { contains: q, mode: "insensitive" };
     }
 
-    const [total, rows] = await this.hotelRoomsRepository.listRooms(
-      where,
-      (page - 1) * limit,
+    const result = await this.hotelRoomsRepository.listRooms(where, (page - 1) * limit, limit);
+    const totalPages = Math.ceil(result.total / limit);
+    return {
+      page,
       limit,
-    );
-    return { page, limit, total, items: rows.map((row) => this.toRoomData(row)) };
+      total: result.total,
+      totalItems: result.total,
+      totalPages,
+      floors: result.floors,
+      types: result.types,
+      items: result.items.map((row) => this.toRoomData(row)),
+    };
   }
 
   async updateRoom(

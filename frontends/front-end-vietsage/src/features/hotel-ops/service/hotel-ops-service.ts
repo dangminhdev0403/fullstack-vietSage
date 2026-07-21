@@ -390,7 +390,7 @@ export class HotelOpsService {
 
   async getRequestsSummary(
     hotelId: string,
-    options: { query?: Pick<ListHotelRequestsQuery, "roomNumber" | "serviceItemId" | "priority" | "assignedToUserId"> } & AuthRequestOptions = {},
+    options: { query?: Pick<ListHotelRequestsQuery, "q" | "roomNumber" | "serviceItemId" | "priority" | "assignedToUserId"> } & AuthRequestOptions = {},
   ): Promise<StaffRequestSummaryResponse> {
     const payload = await this.httpClient.request<unknown>({
       method: "GET",

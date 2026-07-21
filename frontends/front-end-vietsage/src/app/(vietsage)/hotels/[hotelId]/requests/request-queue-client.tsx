@@ -20,6 +20,7 @@ import {
 } from "@tanstack/react-query";
 import Swal from "sweetalert2";
 
+import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import {
   DataTable,
   type DataTableColumn,
@@ -1542,6 +1543,15 @@ export function RequestQueueClient({
         onSubmit={applyFilters}
         className="grid gap-3 rounded-xl border border-[color:rgba(198,197,213,0.24)] bg-white p-4 md:grid-cols-2 xl:grid-cols-6"
       >
+        <label className="relative md:col-span-2 xl:col-span-2">
+          <VsIcon name="search" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-[var(--on-surface-variant)]" />
+          <input
+            value={filters.q ?? ""}
+            onChange={(event) => updateFilter("q", event.target.value)}
+            placeholder="Tìm phòng, khách, số điện thoại, booking hoặc dịch vụ..."
+            className="min-h-10 w-full rounded-lg border px-10 text-sm"
+          />
+        </label>
         <select
           value={filters.status ?? ""}
           onChange={(event) => updateFilter("status", event.target.value)}

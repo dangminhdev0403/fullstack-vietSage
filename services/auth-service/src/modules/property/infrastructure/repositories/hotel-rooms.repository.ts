@@ -5,6 +5,7 @@ import {
   GuestSessionStatus,
   GuestStayStatus,
   Prisma,
+  ReservationStatus,
   RoomQRCodeStatus,
   RoomStatus,
 } from "@prisma/client";
@@ -67,7 +68,31 @@ export class HotelRoomsRepository {
         take,
       });
 
-      return [total, await this.withActiveGuestDeviceCounts(tx, rows)] as const;
+      const hotelId = where.hotelId as string;
+      const allFloors = await tx.room.findMany({
+        where: { hotelId },
+        select: { floor: true },
+        distinct: ["floor"],
+      });
+      const allTypes = await tx.room.findMany({
+        where: { hotelId },
+        select: { type: true },
+        distinct: ["type"],
+      });
+      const availableCount = await tx.room.count({
+        where: { hotelId, status: RoomStatus.AVAILABLE },
+      });
+
+      const uniqueFloors = allFloors.map((f) => f.floor).filter((f): f is string => Boolean(f));
+      const uniqueTypes = allTypes.map((t) => t.type).filter((t): t is string => Boolean(t));
+
+      return {
+        total,
+        items: await this.withActiveGuestDeviceCounts(tx, rows),
+        floors: [...uniqueFloors].sort((a, b) => a.localeCompare(b)),
+        types: [...uniqueTypes].sort((a, b) => a.localeCompare(b)),
+        totalAvailable: availableCount,
+      };
     });
   }
 
@@ -433,6 +458,22 @@ export class HotelRoomsRepository {
 
       if (roomStatus !== RoomStatus.AVAILABLE && roomStatus !== RoomStatus.PROCESSING) {
         throw new ConflictException("Phòng không khả dụng để check-in");
+      }
+
+      if (tx.reservation?.findFirst) {
+        const overlappingReservation = await tx.reservation.findFirst({
+          where: {
+            hotelId: input.hotelId,
+            roomId: input.roomId,
+            status: { in: [ReservationStatus.CONFIRMED, ReservationStatus.ARRIVAL_READY] },
+            plannedCheckInAt: { lt: input.plannedCheckOutAt },
+            plannedCheckOutAt: { gt: input.plannedCheckInAt },
+          },
+          select: { id: true },
+        });
+        if (overlappingReservation) {
+          throw new ConflictException("Phòng đã có đặt trước trong khoảng thời gian này");
+        }
       }
 
       const qr = await this.findUsableQr(tx, {

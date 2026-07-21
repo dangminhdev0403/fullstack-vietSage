@@ -275,5 +275,11 @@
   "273": ".listPermissions",
   "274": "page.tsx",
   "275": "error.tsx",
-  "276": "loading.tsx"
+  "276": "loading.tsx",
+  "277": ".constructor",
+  "278": "JwtAuthGuard",
+  "279": "route.ts",
+  "280": "page.tsx",
+  "281": "route.ts",
+  "282": "LocalStrategy"
 }

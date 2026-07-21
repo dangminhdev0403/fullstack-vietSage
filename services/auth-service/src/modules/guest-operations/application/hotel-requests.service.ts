@@ -71,6 +71,24 @@ const activeStayRequestFilter = {
   },
 } satisfies Prisma.GuestRequestWhereInput;
 
+function buildRequestSearchFilter(search: string | undefined): Prisma.GuestRequestWhereInput {
+  const q = search?.trim();
+  if (!q) return {};
+
+  return {
+    OR: [
+      { title: { contains: q, mode: "insensitive" } },
+      { description: { contains: q, mode: "insensitive" } },
+      { room: { is: { roomNumber: { contains: q, mode: "insensitive" } } } },
+      { stay: { is: { guestDisplayName: { contains: q, mode: "insensitive" } } } },
+      { stay: { is: { guestPhone: { contains: q, mode: "insensitive" } } } },
+      { stay: { is: { reservationCode: { contains: q, mode: "insensitive" } } } },
+      { serviceItem: { is: { name: { contains: q, mode: "insensitive" } } } },
+      { serviceItem: { is: { category: { is: { name: { contains: q, mode: "insensitive" } } } } } },
+    ],
+  };
+}
+
 @Injectable()
 export class HotelRequestsService {
   private readonly guestRequestEventPublisher: GuestRequestEventPublisher;
@@ -97,6 +115,7 @@ export class HotelRequestsService {
     const where: Prisma.GuestRequestWhereInput = {
       hotelId,
       ...activeStayRequestFilter,
+      ...buildRequestSearchFilter(query.q),
       ...(query.roomNumber ? { room: { is: { roomNumber: query.roomNumber } } } : {}),
       ...(query.serviceItemId ? { serviceItemId: query.serviceItemId } : {}),
       ...(query.priority
@@ -148,6 +167,7 @@ export class HotelRequestsService {
     const where: Prisma.GuestRequestWhereInput = {
       hotelId,
       ...activeStayRequestFilter,
+      ...buildRequestSearchFilter(query.q),
       ...(query.roomNumber ? { room: { is: { roomNumber: query.roomNumber } } } : {}),
       ...(query.serviceItemId ? { serviceItemId: query.serviceItemId } : {}),
       ...(query.priority
@@ -244,6 +264,7 @@ export class HotelRequestsService {
       const assignee = await this.hotelRequestsRepository.findAssignableStaffInTenant(
         assignedToUserId,
         hotel.tenantId,
+        hotelId,
       );
       if (!assignee) {
         throw new BadRequestException("Người dùng được phân công không khả dụng cho khách sạn này");
@@ -293,6 +314,7 @@ export class HotelRequestsService {
       requestId,
       actorUserId,
       note: dto.note.trim(),
+      visibility: dto.visibility,
       metadata: dto.metadata as Prisma.InputJsonValue | undefined,
       tenantId: hotel.tenantId,
     });
@@ -308,7 +330,7 @@ export class HotelRequestsService {
       requestId,
       ownerRequest: this.toStaffRequestListItem(updated),
       guestRequest: this.toGuestRequestRealtimeItem(updated),
-      answered: true,
+      answered: dto.visibility === "GUEST",
     });
 
     return event;

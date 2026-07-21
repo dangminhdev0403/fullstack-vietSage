@@ -37,6 +37,9 @@ export const listRoomsQuerySchema = z
     page: z.coerce.number().int().min(1).optional(),
     limit: z.coerce.number().int().min(1).max(100).optional(),
     q: z.string().max(80).optional(),
+    floor: z.string().max(40).optional(),
+    type: z.string().max(80).optional(),
+    vipOnly: z.preprocess((val) => val === "true" || val === true, z.boolean()).optional(),
   })
   .strict();
 

@@ -1,4 +1,52 @@
-﻿## [complete] 2026-07-20 - Mission: workspace-rbac-and-staff-administration
+## [complete] 2026-07-21 - Mission: staff-rooms-pagination-and-animation
+
+- Added server-side rooms pagination with a limit of 20 rooms per page.
+- Created BFF route handler for staff room listing `/api/hotel-ops/hotels/[hotelId]/rooms` to proxy paginated and filtered list requests.
+- Integrated TanStack Query (`useQuery`) in `StaffRoomsClient` with debounced search query input, keeping filters, header, summary, and check-in panels intact.
+- Implemented `placeholderData: keepPreviousData` to prevent UI flickering during page transitions and filters.
+- Added pagination controls (`< Prev 1 2 3 ... Next >`) and a loading overlay spinner on the room grid.
+- Implemented Y-offset slide-in and fade-in entrance animation (duration: 240ms, ease-out) for the Quick Check-in panel.
+- Modified backend `listRooms` to filter by floor, type, and VIP status on the database level, returning unique floors, unique types, and total available rooms.
+
+Verification result:
+- Backend `npm run build` compiled successfully.
+- Frontend `npm run smoke:build` compiled successfully.
+- ESLint and React hooks dependency warnings were resolved.
+
+Remaining manual checkpoint:
+- Verify pagination and filters behavior on the UI with Representative front desk user credentials.
+- Verify smooth transition when opening Quick Check-in panel.
+
+## [complete] 2026-07-21 - Mission: staff-stitch-operations-sync
+
+- Replaced the borrowed owner room and billing surfaces with Front Desk staff screens aligned to
+  `shared/stitch_vietsage` templates for room management/check-in and payment/checkout.
+- Removed the duplicated `Khách đến` staff tab and route; arrivals now live inside
+  `Phòng & check-in` beside room cards, walk-in check-in, reservation creation, room assignment,
+  and reservation check-in actions.
+- Kept staff scoped to an assigned hotel workspace and removed the generic operations overview
+  from the Front Desk navigation; staff flows stay under `/hotels/:hotelId/*`.
+- Added staff billing detail BFF routes for folio detail, items, and summary so the checkout UI
+  reads backend totals before issuing invoices or collecting payment.
+- Added request-center search through the existing hotel-ops BFF and preserved capability-gated
+  staff actions.
+- Updated dashboard attention links and quick actions to use staff-safe hotel routes instead of
+  owner paths.
+
+Verification result:
+
+- `pnpm exec tsc --noEmit --pretty false` passed.
+- `pnpm run lint` passed with 10 pre-existing admin/owner unused-variable warnings and 0 errors.
+- Workspace registry tests passed (6 tests).
+- Shared OpenAPI verification passed after regenerating the 82-path contract and frontend API
+  types.
+
+Remaining manual checkpoint:
+
+- Browser QA with a real Front Desk account should cover walk-in check-in, reservation check-in,
+  guest QR request/note handling, checkout/payment, room status transitions, and invoice output.
+
+## [complete] 2026-07-20 - Mission: workspace-rbac-and-staff-administration
 
 - Replaced dynamic/raw permission navigation with the typed workspace registry as the single
   source for Admin, Owner, Manager, Front Desk, Housekeeping, Maintenance, F&B, and Finance nav.

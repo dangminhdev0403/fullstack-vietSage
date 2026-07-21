@@ -60,6 +60,17 @@ export class BillingService {
     return unwrapApiEnvelope<FolioSummary>(payload).data;
   }
 
+  async getFolioDetail(hotelId: string, folioId: string, options: AuthRequestOptions = {}): Promise<FolioSummary & { items?: FolioItem[] }> {
+    const payload = await this.httpClient.request<unknown>({
+      method: "GET",
+      path: hotelPath(hotelId, `/folios/${encodeURIComponent(folioId)}`),
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+
+    return unwrapApiEnvelope<FolioSummary & { items?: FolioItem[] }>(payload).data;
+  }
+
   async listFolioItems(hotelId: string, folioId: string, options: { query?: HttpQuery } & AuthRequestOptions = {}): Promise<BillingPage<FolioItem>> {
     const payload = await this.httpClient.request<unknown>({
       method: "GET",

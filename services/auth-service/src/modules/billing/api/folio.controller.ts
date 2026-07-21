@@ -27,7 +27,7 @@ export class FolioController {
   @RequirePermission("hotel.billing.view")
   @ApiDescript("Xem danh sách folio")
   @ApiParam({ name: "hotelId", type: String })
-  @ApiQuery({ name: "status", required: false, enum: [FolioStatus.OPEN, FolioStatus.CLOSED] })
+  @ApiQuery({ name: "status", required: false, enum: FolioStatus })
   @ApiOkResponse({ description: "Danh sách folio" })
   @Get(":hotelId/folios")
   async listFolios(

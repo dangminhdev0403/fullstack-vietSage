@@ -1,5 +1,30 @@
 # VietSage Backend Plan
 
+## 2026-07-21 - Staff Stitch Operations Flow Sync
+
+- [x] Kept staff request assignment scoped to the current hotel assignment instead of tenant-wide
+  staff lookup; assignable staff must have active tenant membership and active assignment for the
+  same hotel.
+- [x] Added request queue search (`q`) for staff list and summary APIs across request text, room,
+  stay guest, phone, reservation code, service item, and category.
+- [x] Added `GuestRequestEvent.visibility` so staff-internal assignment/note events can remain
+  hidden from GuestOS while guest-facing answers still publish realtime updates.
+- [x] Changed dashboard attention routes to staff-safe `/hotels/:hotelId/...` paths instead of
+  owner-specific URLs.
+- [x] Hardened walk-in stay creation against overlapping active reservations for the same room.
+- [x] Allowed folio list filters to include all persisted folio statuses, including
+  `CHECKOUT_PENDING`, and completed zero-balance checkout handling through manual-payment.
+- [x] On invoice issue, open stays move to checkout pending; after successful/zero-balance payment,
+  checkout closes folio/stay, revokes GuestOS access, deactivates active room QR, and moves the room
+  to processing.
+- [x] Exported OpenAPI and synchronized shared/frontend generated contracts.
+
+Verification result:
+
+- `npm run build` passed with `NODE_OPTIONS=--max-old-space-size=4096`.
+- Focused Property, Billing, and Guest Operations suites passed: 5 suites, 60 tests.
+- OpenAPI export and shared contract verification passed with 82 paths.
+
 ## 2026-07-21 - Tenant Header and Staff Directory Contract Recovery
 
 - [x] Made `x-tenant-id` the primary tenant-scope transport for hotel/staff requests while retaining

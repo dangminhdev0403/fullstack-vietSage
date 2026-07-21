@@ -109,6 +109,10 @@ Guest opens tracking screen
   -> Return current status + timeline
 ```
 
+Guest-facing tracking reads only staff events marked `visibility = GUEST`. Internal staff notes,
+assignment comments, and operational handoff events use `visibility = INTERNAL` and remain in the
+staff audit trail without being returned to GuestOS or pushed through guest realtime.
+
 ## Staff Queue Flow
 
 ```txt
@@ -117,6 +121,22 @@ Staff opens dashboard/requests
   -> Query guest_requests by status/priority/created_at
   -> Select room/stay/category summary only
   -> Return paginated result
+```
+
+Staff queue search accepts a scoped `q` filter over request text, room, stay guest, guest phone,
+reservation code, service item, and category. Assignment targets must belong to the same hotel via
+an active hotel staff assignment.
+
+## Checkout Completion Flow
+
+```txt
+Staff issues invoice
+  -> Backend recalculates folio and marks the stay checkout-pending
+  -> Staff records successful payment or zero-balance settlement
+  -> Backend closes invoice and folio
+  -> Backend checks out stay and revokes GuestOS access
+  -> Backend deactivates active room QR
+  -> Backend moves the room to processing
 ```
 
 ## Future async events

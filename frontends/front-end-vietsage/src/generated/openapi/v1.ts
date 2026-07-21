@@ -4376,7 +4376,7 @@ export interface operations {
     FolioController_listFolios: {
         parameters: {
             query?: {
-                status?: "OPEN" | "CLOSED";
+                status?: "OPEN" | "CHECKOUT_PENDING" | "CLOSED" | "VOID";
             };
             header?: never;
             path: {

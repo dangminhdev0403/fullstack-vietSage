@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Staff hotel operations sync:
+  - `GET /hotels/{hotelId}/requests` and `/requests/summary` accept `q` for scoped staff search.
+  - Staff request event creation accepts `visibility` (`GUEST` or `INTERNAL`); GuestOS timelines
+    expose only guest-visible staff events.
+  - Folio list status filtering now accepts the persisted `FolioStatus` enum, including
+    `CHECKOUT_PENDING` and `VOID`.
+  - OpenAPI export now contains 82 paths and frontend generated API types were synchronized.
 - Standardized new tenant-scoped hotel and staff-management calls on `x-tenant-id`. Existing
   `tenantId` query/body inputs remain deprecated compatibility fallbacks for one release cycle;
   backend membership and resource guards continue to validate all tenant hints.

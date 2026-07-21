@@ -50,11 +50,7 @@ describe("HotelStaffAssignmentsService", () => {
       "hotel-1",
     );
     expect(directory.assertAssignableHotelUser).toHaveBeenCalledWith("tenant-1", "staff-1");
-    expect(repository.activateExclusive).toHaveBeenCalledWith(
-      "hotel-1",
-      "staff-1",
-      "owner-1",
-    );
+    expect(repository.activateExclusive).toHaveBeenCalledWith("hotel-1", "staff-1", "owner-1");
   });
 
   it("fails closed when revoking a missing active assignment", async () => {

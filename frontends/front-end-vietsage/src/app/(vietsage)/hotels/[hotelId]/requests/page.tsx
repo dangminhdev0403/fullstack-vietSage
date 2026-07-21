@@ -44,6 +44,7 @@ export default async function HotelRequestsPage({ params, searchParams }: Reques
   const query: ListHotelRequestsQuery = {
     page: 1,
     limit: 20,
+    q: getFirst(resolvedSearchParams.q),
     roomNumber: getFirst(resolvedSearchParams.roomNumber),
     serviceItemId: getFirst(resolvedSearchParams.serviceItemId),
     priority: getFirst(resolvedSearchParams.priority) as ListHotelRequestsQuery["priority"],
@@ -54,6 +55,7 @@ export default async function HotelRequestsPage({ params, searchParams }: Reques
   };
 
   const summaryQuery = {
+    q: query.q,
     roomNumber: query.roomNumber,
     serviceItemId: query.serviceItemId,
     priority: query.priority,
@@ -68,7 +70,7 @@ export default async function HotelRequestsPage({ params, searchParams }: Reques
   ]);
 
   const initialFilters = Object.fromEntries(
-    ["status", "roomNumber", "priority", "assignedToUserId", "from", "to"].map((key) => [key, getFirst(resolvedSearchParams[key]) ?? ""]),
+    ["q", "status", "roomNumber", "priority", "assignedToUserId", "from", "to"].map((key) => [key, getFirst(resolvedSearchParams[key]) ?? ""]),
   );
 
   return (

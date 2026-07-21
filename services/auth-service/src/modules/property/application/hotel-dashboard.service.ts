@@ -343,7 +343,7 @@ export class HotelDashboardService {
         source: { type: "GuestRequest", id: item.id },
         action: {
           label: item.priority === GuestRequestPriority.URGENT ? "Xử lý ngay" : "Xem chi tiết",
-          route: `/owner/hotels/${hotelId}/requests/${item.id}`,
+          route: `/hotels/${hotelId}/requests?requestId=${item.id}`,
         },
       })),
       ...attentionRooms.map((item) => ({
@@ -354,7 +354,7 @@ export class HotelDashboardService {
         description: "Kiểm tra trạng thái phòng để sẵn sàng phục vụ khách.",
         createdAt: item.updatedAt.toISOString(),
         source: { type: "Room", id: item.id },
-        action: { label: "Xem phòng", route: `/owner/hotels/${hotelId}/rooms` },
+        action: { label: "Xem phòng", route: `/hotels/${hotelId}/rooms` },
       })),
       ...attentionCheckOuts.map((item) => ({
         id: item.id,
@@ -364,7 +364,7 @@ export class HotelDashboardService {
         description: `${item.guestDisplayName} đang chờ hoàn tất trả phòng.`,
         createdAt: item.updatedAt.toISOString(),
         source: { type: "GuestStay", id: item.id },
-        action: { label: "Xem lưu trú", route: `/owner/hotels/${hotelId}/stay` },
+        action: { label: "Xem thanh toán", route: `/hotels/${hotelId}/billing` },
       })),
     ].slice(0, 10);
 

@@ -24,6 +24,14 @@ function percent(value: number): number {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
+function attentionRoute(hotelId: string, item: { type: string; id: string; action: { route: string } }): string {
+  if (item.type.includes("request")) return `/hotels/${hotelId}/requests?requestId=${encodeURIComponent(item.id)}`;
+  if (item.type.includes("checkout")) return `/hotels/${hotelId}/billing`;
+  if (item.type.includes("room")) return `/hotels/${hotelId}/rooms`;
+  if (item.action.route.startsWith(`/hotels/${hotelId}/`)) return item.action.route;
+  return `/hotels/${hotelId}/dashboard`;
+}
+
 export default async function StaffHotelDashboardPage({ params }: PageProps) {
   const { hotelId } = await Promise.resolve(params);
   const callbackUrl = `/hotels/${hotelId}/dashboard` as const;
@@ -101,10 +109,10 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
       <section>
         <h2 className="vs-display mb-4 text-2xl font-semibold text-[var(--primary)]">Thao tác nhanh</h2>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <Link href={`/hotels/${hotelId}/arrivals`} className="flex min-h-36 flex-col items-center justify-center gap-2 rounded-xl bg-[var(--primary)] p-5 text-center font-bold text-white shadow-lg transition hover:-translate-y-1">
+          <Link href={`/hotels/${hotelId}/rooms?flow=check-in`} className="flex min-h-36 flex-col items-center justify-center gap-2 rounded-xl bg-[var(--primary)] p-5 text-center font-bold text-white shadow-lg transition hover:-translate-y-1">
             <VsIcon name="person_add" className="text-4xl" /><span className="text-sm tracking-[0.08em]">LÀM THỦ TỤC ĐẾN</span>
           </Link>
-          <Link href={`/hotels/${hotelId}/arrivals`} className="flex min-h-36 flex-col items-center justify-center gap-2 rounded-xl bg-[var(--secondary)] p-5 text-center font-bold text-white shadow-lg transition hover:-translate-y-1">
+          <Link href={`/hotels/${hotelId}/rooms?flow=reservation`} className="flex min-h-36 flex-col items-center justify-center gap-2 rounded-xl bg-[var(--secondary)] p-5 text-center font-bold text-white shadow-lg transition hover:-translate-y-1">
             <VsIcon name="calendar_month" className="text-4xl" /><span className="text-sm tracking-[0.08em]">ĐẶT PHÒNG NHANH</span>
           </Link>
           <Link href={`/hotels/${hotelId}/billing`} className="flex min-h-36 flex-col items-center justify-center gap-2 rounded-xl border-2 border-[var(--outline-variant)] bg-white p-5 text-center font-bold text-[var(--primary)] transition hover:bg-[var(--primary-fixed)]">
@@ -125,7 +133,7 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
           <div className="overflow-hidden rounded-xl bg-white shadow-sm">
             <div className="grid grid-cols-[0.5fr_1.5fr_0.8fr_0.8fr] border-b border-[var(--outline-variant)] bg-[var(--surface-container-low)] px-5 py-4 text-xs font-bold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]"><span>Phòng</span><span>Loại yêu cầu</span><span>Thời gian</span><span>Trạng thái</span></div>
             {dashboard.attention.slice(0, 5).map((item) => (
-              <Link key={`${item.type}-${item.id}`} href={item.action.route || `/hotels/${hotelId}/requests`} className="grid grid-cols-[0.5fr_1.5fr_0.8fr_0.8fr] items-center border-b border-[var(--outline-variant)]/50 px-5 py-4 text-sm transition hover:bg-[var(--surface-container-low)]">
+              <Link key={`${item.type}-${item.id}`} href={attentionRoute(hotelId, item)} className="grid grid-cols-[0.5fr_1.5fr_0.8fr_0.8fr] items-center border-b border-[var(--outline-variant)]/50 px-5 py-4 text-sm transition hover:bg-[var(--surface-container-low)]">
                 <span className="font-bold text-[var(--primary)]">{item.title.match(/\d+/)?.[0] ?? "-"}</span><span className="font-semibold text-[var(--on-surface)]">{item.title}</span><span className="text-xs text-[var(--on-surface-variant)]">{formatTime(item.createdAt)}</span><span className="w-fit rounded-full bg-[var(--primary-fixed)] px-2.5 py-1 text-[10px] font-bold uppercase text-[var(--on-primary-fixed-variant)]">{item.priority}</span>
               </Link>
             ))}

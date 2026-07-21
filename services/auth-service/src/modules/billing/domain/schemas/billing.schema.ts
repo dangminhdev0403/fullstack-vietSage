@@ -13,7 +13,7 @@ const numberFromQuery = z.preprocess((value) => {
 
 export const listFoliosQuerySchema = z
   .object({
-    status: z.enum([FolioStatus.OPEN, FolioStatus.CLOSED]).optional(),
+    status: z.nativeEnum(FolioStatus).optional(),
     page: numberFromQuery.optional(),
     limit: numberFromQuery.optional(),
   })

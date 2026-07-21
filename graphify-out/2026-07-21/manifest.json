@@ -1205,9 +1205,9 @@
     "semantic_hash": "f44c5a1bbfe1af661cc993abfdd338c6"
   },
   "frontends/front-end-vietsage/src/features/workspace/config/workspace-registry.ts": {
-    "mtime": 1784538601.3141139,
-    "ast_hash": "ae5d1f4f4b05b41e48cfec6a2fd6e510",
-    "semantic_hash": "ae5d1f4f4b05b41e48cfec6a2fd6e510"
+    "mtime": 1784620165.7716143,
+    "ast_hash": "4dafc151c14f2f01fc3a89772b730ba0",
+    "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/features/workspace/types/workspace-navigation.ts": {
     "mtime": 1784538601.3151152,
@@ -3187,11 +3187,6 @@
   "frontends/front-end-vietsage/src/app/(vietsage)/owner/(global)/layout.tsx": {
     "mtime": 1784618363.7069838,
     "ast_hash": "7362dcdd3c9e0da50a0312f64209fbc1",
-    "semantic_hash": ""
-  },
-  "frontends/front-end-vietsage/src/app/(vietsage)/owner/(global)/rooms/page.tsx": {
-    "mtime": 1784618435.0719917,
-    "ast_hash": "225fe42c241fd98ec0a1e93421b874f6",
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/app/(vietsage)/owner/(global)/staff/page.tsx": {

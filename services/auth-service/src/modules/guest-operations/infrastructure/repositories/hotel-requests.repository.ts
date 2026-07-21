@@ -8,6 +8,7 @@ import {
   GuestRequestPriority,
   GuestRequestStatus,
   GuestStayStatus,
+  HotelStaffAssignmentStatus,
   Prisma,
   TenantUserStatus,
 } from "@prisma/client";
@@ -93,11 +94,12 @@ export class HotelRequestsRepository {
     });
   }
 
-  async findAssignableStaffInTenant(userId: string, tenantId: string) {
+  async findAssignableStaffInTenant(userId: string, tenantId: string, hotelId: string) {
     return this.prisma.user.findFirst({
       where: {
         id: userId,
         tenantUsers: { some: { tenantId, status: TenantUserStatus.ACTIVE } },
+        hotelAssignments: { some: { hotelId, status: HotelStaffAssignmentStatus.ACTIVE } },
       },
       select: { id: true },
     });
@@ -162,6 +164,7 @@ export class HotelRequestsRepository {
             fromStatus: existing.status,
             toStatus: updated.status,
             note: input.note,
+            visibility: "GUEST",
           },
         });
 
@@ -207,6 +210,7 @@ export class HotelRequestsRepository {
           actorUserId: input.actorUserId,
           eventType: "REQUEST_ASSIGNMENT_UPDATED",
           note: input.note,
+          visibility: "INTERNAL",
           metadata: {
             fromAssignedToUserId: existing.assignedToUserId,
             toAssignedToUserId: input.assignedToUserId,
@@ -237,6 +241,7 @@ export class HotelRequestsRepository {
     actorUserId: string;
     note: string;
     metadata?: Prisma.InputJsonValue;
+    visibility: "GUEST" | "INTERNAL";
     tenantId: string;
   }) {
     return this.prisma.$transaction(async (tx) => {
@@ -248,6 +253,7 @@ export class HotelRequestsRepository {
           actorUserId: input.actorUserId,
           eventType: "REQUEST_NOTE_ADDED",
           note: input.note,
+          visibility: input.visibility,
           metadata: input.metadata,
         },
       });

@@ -47,5 +47,4 @@ describe("hotel-users.schema", () => {
       "roleIds phải có ít nhất 1 phần tử",
     );
   });
-
 });

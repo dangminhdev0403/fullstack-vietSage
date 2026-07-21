@@ -20,6 +20,11 @@ export type HotelOpsPage<TItem> = {
   page: number;
   limit: number;
   total: number;
+  totalItems?: number;
+  totalPages?: number;
+  totalAvailable?: number;
+  floors?: string[];
+  types?: string[];
   items: TItem[];
 };
 
@@ -221,6 +226,7 @@ export type HotelRequestEvent = {
   type?: string | null;
   status?: GuestRequestStatus | null;
   note?: string | null;
+  visibility?: "GUEST" | "INTERNAL" | string | null;
   metadata?: Record<string, unknown> | null;
   actorUserId?: string | null;
   createdAt: string;
@@ -290,6 +296,7 @@ export type ListServiceItemsQuery = {
 };
 
 export type ListHotelRequestsQuery = {
+  q?: string;
   roomNumber?: string;
   serviceItemId?: string;
   priority?: StaffRequestPriority;
@@ -304,6 +311,9 @@ export type ListHotelRequestsQuery = {
 export type ListHotelRoomsQuery = {
   q?: string;
   status?: string;
+  floor?: string;
+  type?: string;
+  vipOnly?: boolean;
   page?: number;
   limit?: number;
 };
@@ -398,6 +408,7 @@ export type UpdateHotelRequestAssignmentInput = {
 
 export type CreateHotelRequestEventInput = {
   note: string;
+  visibility?: "GUEST" | "INTERNAL";
   metadata?: Record<string, unknown>;
 };
 

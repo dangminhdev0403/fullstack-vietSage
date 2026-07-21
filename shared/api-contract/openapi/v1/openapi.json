@@ -7377,7 +7377,9 @@
             "schema": {
               "enum": [
                 "OPEN",
-                "CLOSED"
+                "CHECKOUT_PENDING",
+                "CLOSED",
+                "VOID"
               ],
               "type": "string"
             }

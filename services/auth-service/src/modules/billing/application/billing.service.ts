@@ -348,6 +348,16 @@ export class BillingService {
         where: { id: folioId, hotelId, status: FolioStatus.OPEN },
         data: { status: FolioStatus.CHECKOUT_PENDING, checkoutStartedAt: new Date() },
       });
+      if (this.prisma.guestStay?.updateMany) {
+        await this.prisma.guestStay.updateMany({
+          where: {
+            id: existingBeforeValidation.stayId,
+            hotelId,
+            status: { in: [GuestStayStatus.ACTIVE, GuestStayStatus.CHECKED_IN] },
+          },
+          data: { status: GuestStayStatus.CHECKOUT_PENDING },
+        });
+      }
       this.logger.warn({
         event: "CHECKOUT_ISSUE_INVOICE_REUSED_EXISTING_BEFORE_VALIDATION",
         hotelId,
@@ -387,6 +397,16 @@ export class BillingService {
               where: { id: folioId },
               data: { status: FolioStatus.CHECKOUT_PENDING, checkoutStartedAt: new Date() },
             });
+            if (tx.guestStay?.updateMany) {
+              await tx.guestStay.updateMany({
+                where: {
+                  id: folio.stayId,
+                  hotelId,
+                  status: { in: [GuestStayStatus.ACTIVE, GuestStayStatus.CHECKED_IN] },
+                },
+                data: { status: GuestStayStatus.CHECKOUT_PENDING },
+              });
+            }
           }
           this.logger.warn({
             event: "CHECKOUT_ISSUE_INVOICE_REUSED_EXISTING",
@@ -458,6 +478,16 @@ export class BillingService {
           where: { id: folioId },
           data: { status: FolioStatus.CHECKOUT_PENDING, checkoutStartedAt: new Date() },
         });
+        if (tx.guestStay?.updateMany) {
+          await tx.guestStay.updateMany({
+            where: {
+              id: folio.stayId,
+              hotelId,
+              status: { in: [GuestStayStatus.ACTIVE, GuestStayStatus.CHECKED_IN] },
+            },
+            data: { status: GuestStayStatus.CHECKOUT_PENDING },
+          });
+        }
 
         this.logger.log({
           event: "CHECKOUT_ISSUE_INVOICE_SUCCEEDED",
@@ -606,6 +636,23 @@ export class BillingService {
   ) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
 
+    const invoiceBeforePayment = this.prisma.invoice?.findFirst
+      ? await this.prisma.invoice.findFirst({
+          where: { id: invoiceId, hotelId },
+        })
+      : null;
+    if (invoiceBeforePayment?.balanceAmount.lte(0)) {
+      const settled = await this.settleZeroBalanceCheckout(
+        actorUserId,
+        hotelId,
+        invoiceId,
+        input.method,
+        input.note,
+      );
+      const invoice = await this.getInvoiceDetail(actorUserId, activeRoleId, hotelId, invoiceId);
+      return { payment: settled.payment, invoice };
+    }
+
     const provider =
       input.method === PaymentMethod.BANK_TRANSFER
         ? PaymentProvider.BANK_TRANSFER
@@ -642,6 +689,111 @@ export class BillingService {
     ]);
 
     return { payment: confirmedPayment, invoice };
+  }
+
+  private async settleZeroBalanceCheckout(
+    actorUserId: string,
+    hotelId: string,
+    invoiceId: string,
+    method: PaymentMethod,
+    note?: string,
+  ) {
+    return this.prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRawUnsafe(
+          'SELECT id FROM "Invoice" WHERE id = $1 AND "hotelId" = $2 FOR UPDATE',
+          invoiceId,
+          hotelId,
+        );
+        const invoice = await tx.invoice.findFirst({
+          where: { id: invoiceId, hotelId },
+          include: { stay: { select: { roomId: true } } },
+        });
+
+        if (!invoice) {
+          throw new NotFoundException("Không tìm thấy invoice");
+        }
+        if (invoice.balanceAmount.gt(0)) {
+          throw new ConflictException("INVOICE_HAS_BALANCE_TO_PAY");
+        }
+
+        const existingPayment = await tx.payment.findFirst({
+          where: { hotelId, invoiceId, status: PaymentStatus.SUCCEEDED },
+        });
+        if (existingPayment && invoice.status === InvoiceStatus.PAID) {
+          return { payment: existingPayment };
+        }
+
+        const paymentNumber = await this.codesService.generateEntityCode("PAYMENT", tx);
+        const payment =
+          existingPayment ??
+          (await tx.payment.create({
+            data: {
+              hotelId,
+              invoiceId: invoice.id,
+              folioId: invoice.folioId,
+              stayId: invoice.stayId,
+              paymentNumber,
+              status: PaymentStatus.SUCCEEDED,
+              provider: PaymentProvider.MANUAL,
+              method,
+              currency: invoice.currency,
+              amount: new Prisma.Decimal(0),
+              paidAmount: new Prisma.Decimal(0),
+              confirmedAt: new Date(),
+              metadataJson: {
+                source: "front_desk",
+                zeroBalance: true,
+                ...(note ? { note } : {}),
+              },
+            },
+          }));
+
+        await tx.invoice.update({
+          where: { id: invoice.id },
+          data: {
+            status: InvoiceStatus.PAID,
+            paidAmount: invoice.paidAmount,
+            balanceAmount: new Prisma.Decimal(0),
+            paidAt: new Date(),
+            paidByUserId: actorUserId,
+          },
+        });
+        await tx.folio.update({
+          where: { id: invoice.folioId },
+          data: { status: FolioStatus.CLOSED, closedAt: new Date() },
+        });
+        await tx.guestStay.update({
+          where: { id: invoice.stayId },
+          data: {
+            status: GuestStayStatus.CHECKED_OUT,
+            checkedOutAt: new Date(),
+            accessCodeHash: null,
+            accessCodeExpiresAt: null,
+          },
+        });
+        await tx.guestSession.updateMany({
+          where: {
+            stayId: invoice.stayId,
+            status: {
+              in: [GuestSessionStatus.CREATED, GuestSessionStatus.ACTIVE, GuestSessionStatus.IDLE],
+            },
+          },
+          data: { status: GuestSessionStatus.CLOSED, closedAt: new Date() },
+        });
+        await tx.room.update({
+          where: { id: invoice.stay.roomId },
+          data: { status: RoomStatus.PROCESSING },
+        });
+        await tx.roomQRCode.updateMany({
+          where: { roomId: invoice.stay.roomId, status: RoomQRCodeStatus.ACTIVE },
+          data: { status: RoomQRCodeStatus.INACTIVE, deactivatedAt: new Date() },
+        });
+
+        return { payment };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
   }
 
   async processPaymentWebhook(provider: PaymentProvider, body: Record<string, unknown>) {

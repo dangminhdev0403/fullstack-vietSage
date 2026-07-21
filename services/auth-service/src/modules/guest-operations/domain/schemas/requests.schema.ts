@@ -10,6 +10,7 @@ export const guestRequestPrioritySchema = z.enum(guestRequestPriorityValues);
 
 export const listStaffRequestsQuerySchema = z
   .object({
+    q: z.string().trim().min(1).max(160).optional(),
     roomNumber: z.string().trim().min(1).optional(),
     serviceItemId: z.string().trim().min(1).optional(),
     priority: guestRequestPrioritySchema.optional(),
@@ -24,6 +25,7 @@ export const listStaffRequestsQuerySchema = z
 
 export const requestSummaryQuerySchema = z
   .object({
+    q: z.string().trim().min(1).max(160).optional(),
     roomNumber: z.string().trim().min(1).optional(),
     serviceItemId: z.string().trim().min(1).optional(),
     priority: guestRequestPrioritySchema.optional(),
@@ -50,6 +52,7 @@ export const updateRequestAssignmentBodySchema = z
 export const createRequestEventBodySchema = z
   .object({
     note: z.string().trim().min(1).max(1000),
+    visibility: z.enum(["GUEST", "INTERNAL"]).default("INTERNAL"),
     metadata: jsonRecordSchema.optional(),
   })
   .strict();

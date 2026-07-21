@@ -5088,7 +5088,9 @@ paths:
           schema:
             enum:
               - OPEN
+              - CHECKOUT_PENDING
               - CLOSED
+              - VOID
             type: string
       responses:
         "200":
