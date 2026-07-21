@@ -74,11 +74,20 @@ export default async function HotelRequestsPage({ params, searchParams }: Reques
   return (
     <>
           <header className="flex flex-col gap-2">
-            <p className="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">Hotel {hotelId}</p>
-            <h1 className="vs-display text-[32px] font-semibold text-[var(--primary)] md:text-[40px]">Guest Request Queue</h1>
-            <p className="max-w-3xl text-base text-[var(--on-surface-variant)]">A single operational queue for service catalog requests, assignments, and status follow-up.</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">TRUNG TÂM YÊU CẦU</p>
+            <h1 className="vs-display text-[32px] font-semibold text-[var(--primary)] md:text-[40px]">Yêu cầu và hội thoại</h1>
+            <p className="max-w-3xl text-base text-[var(--on-surface-variant)]">Theo dõi yêu cầu từ QR phòng, phân công người xử lý, trao đổi ghi chú và hoàn tất dịch vụ theo thời gian thực.</p>
           </header>
-          <RequestQueueClient hotelId={hotelId} requests={requestsPage.items} total={requestsPage.total} summary={requestSummary} serviceItems={serviceItemsPage.items} initialFilters={initialFilters} />
+          <RequestQueueClient
+            hotelId={hotelId}
+            requests={requestsPage.items}
+            total={requestsPage.total}
+            summary={requestSummary}
+            serviceItems={serviceItemsPage.items}
+            initialFilters={initialFilters}
+            ownerApiBasePath={`/api/hotel-ops/hotels/${hotelId}/requests`}
+            detailMode="modal"
+          />
     </>
   );
 }

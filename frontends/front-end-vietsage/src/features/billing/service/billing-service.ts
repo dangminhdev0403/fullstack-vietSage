@@ -117,6 +117,23 @@ export class BillingService {
     return unwrapApiEnvelope<{ reused: boolean; payment: Payment }>(payload).data;
   }
 
+  async confirmManualPayment(
+    hotelId: string,
+    invoiceId: string,
+    input: { method: "CASH" | "CARD" | "BANK_TRANSFER" | "MANUAL"; note?: string },
+    options: AuthRequestOptions = {},
+  ): Promise<{ payment: Payment; invoice: InvoiceDetail }> {
+    const payload = await this.httpClient.request<unknown, typeof input>({
+      method: "POST",
+      path: hotelPath(hotelId, `/invoices/${encodeURIComponent(invoiceId)}/payments/manual-confirm`),
+      body: input,
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+
+    return unwrapApiEnvelope<{ payment: Payment; invoice: InvoiceDetail }>(payload).data;
+  }
+
   async getPaymentStatus(hotelId: string, paymentId: string, options: AuthRequestOptions = {}): Promise<Payment> {
     const payload = await this.httpClient.request<unknown>({
       method: "GET",

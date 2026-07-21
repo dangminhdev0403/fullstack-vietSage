@@ -977,6 +977,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/hotels/{hotelId}/invoices/{invoiceId}/payments/manual-confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["PaymentController_confirmManualPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/hotels/{hotelId}/payments/{paymentId}/status": {
         parameters: {
             query?: never;
@@ -4497,6 +4513,31 @@ export interface operations {
         };
         responses: {
             /** @description Payment pending/session */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PaymentController_confirmManualPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                invoiceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Payment, invoice, folio và stay đã hoàn tất */
             200: {
                 headers: {
                     [name: string]: unknown;

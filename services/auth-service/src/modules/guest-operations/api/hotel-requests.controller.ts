@@ -10,6 +10,7 @@ import {
 import type { Request } from "express";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
 import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
 import type { AuthenticatedUser } from "../../../shared/security";
 import { HotelRequestsService } from "../application/hotel-requests.service";
@@ -34,6 +35,7 @@ export class HotelRequestsController {
   constructor(private readonly hotelRequestsService: HotelRequestsService) {}
 
   @SuccessMessage("Lấy danh sách yêu cầu của khách thành công")
+  @RequirePermission("hotel.requests.view")
   @ApiDescript("Xem danh sách yêu cầu khách")
   @ApiParam({ name: "hotelId", type: String })
   @ApiOkResponse({ description: "Đã lấy danh sách yêu cầu của khách" })
@@ -55,6 +57,7 @@ export class HotelRequestsController {
   }
 
   @SuccessMessage("Get guest request summary successfully")
+  @RequirePermission("hotel.requests.view")
   @ApiDescript("Xem tổng quan yêu cầu khách")
   @ApiParam({ name: "hotelId", type: String })
   @ApiOkResponse({ description: "Guest request summary" })
@@ -75,6 +78,7 @@ export class HotelRequestsController {
   }
 
   @SuccessMessage("Lấy yêu cầu của khách thành công")
+  @RequirePermission("hotel.requests.view")
   @ApiDescript("Xem chi tiết yêu cầu khách")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "requestId", type: String })
@@ -96,6 +100,7 @@ export class HotelRequestsController {
   }
 
   @SuccessMessage("Cập nhật yêu cầu của khách thành công")
+  @RequirePermission("hotel.requests.manage")
   @ApiDescript("Cập nhật yêu cầu khách")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "requestId", type: String })
@@ -121,6 +126,7 @@ export class HotelRequestsController {
   }
 
   @SuccessMessage("Cập nhật phân công yêu cầu của khách thành công")
+  @RequirePermission("hotel.requests.manage")
   @ApiDescript("Phân công yêu cầu khách")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "requestId", type: String })
@@ -146,6 +152,7 @@ export class HotelRequestsController {
   }
 
   @SuccessMessage("Tạo sự kiện yêu cầu của khách thành công")
+  @RequirePermission("hotel.requests.manage")
   @ApiDescript("Thêm ghi chú yêu cầu khách")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "requestId", type: String })

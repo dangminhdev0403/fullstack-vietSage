@@ -50,6 +50,7 @@ type RequestDetailClientProps = {
   hotelId: string;
   initialRequest: HotelGuestRequest;
   labels?: RequestDetailLabels;
+  apiBasePath?: string;
 };
 
 const defaultLabels: RequestDetailLabels = {
@@ -89,7 +90,12 @@ function hasDisplayableTimelineEvent(event: NonNullable<HotelGuestRequest["event
   return Boolean(event.status || event.type || event.note?.trim());
 }
 
-export function RequestDetailClient({ hotelId, initialRequest, labels = defaultLabels }: RequestDetailClientProps) {
+export function RequestDetailClient({
+  hotelId,
+  initialRequest,
+  labels = defaultLabels,
+  apiBasePath = `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/requests`,
+}: RequestDetailClientProps) {
   const router = useRouter();
   const [request, setRequest] = useState(initialRequest);
   const [assignment, setAssignment] = useState(initialRequest.assignedToUserId ?? "");
@@ -101,7 +107,7 @@ export function RequestDetailClient({ hotelId, initialRequest, labels = defaultL
 
   async function reload() {
     const fresh = await requestInternalApi<HotelGuestRequest>(
-      `/api/owner/hotels/${encodeURIComponent(hotelId)}/requests/${encodeURIComponent(request.id)}`,
+      `${apiBasePath}/${encodeURIComponent(request.id)}`,
       { method: "GET" },
     );
     setRequest(fresh);
@@ -114,7 +120,7 @@ export function RequestDetailClient({ hotelId, initialRequest, labels = defaultL
     setError(null);
     try {
       const updated = (await requestInternalApiEnvelope<HotelGuestRequest>(
-        `/api/owner/hotels/${encodeURIComponent(hotelId)}/requests/${encodeURIComponent(request.id)}/status`,
+        `${apiBasePath}/${encodeURIComponent(request.id)}/status`,
         { method: "PATCH", body: { status, note: statusNote.trim() || undefined } },
       )).data;
       setRequest(updated);
@@ -133,7 +139,7 @@ export function RequestDetailClient({ hotelId, initialRequest, labels = defaultL
     setError(null);
     try {
       const updated = (await requestInternalApiEnvelope<HotelGuestRequest>(
-        `/api/owner/hotels/${encodeURIComponent(hotelId)}/requests/${encodeURIComponent(request.id)}/assignment`,
+        `${apiBasePath}/${encodeURIComponent(request.id)}/assignment`,
         {
           method: "PATCH",
           body: {
@@ -161,7 +167,7 @@ export function RequestDetailClient({ hotelId, initialRequest, labels = defaultL
     setError(null);
     try {
       await requestInternalApiEnvelope(
-        `/api/owner/hotels/${encodeURIComponent(hotelId)}/requests/${encodeURIComponent(request.id)}/events`,
+        `${apiBasePath}/${encodeURIComponent(request.id)}/events`,
         { method: "POST", body: { note: note.trim() } },
       );
       setNote("");

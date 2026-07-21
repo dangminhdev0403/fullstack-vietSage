@@ -6,7 +6,7 @@ import { requestRealtimeEnabled } from "./request-realtime-config";
 export const ownerRequestRealtimeManager = createOwnerConnectionManager({
   enabled: requestRealtimeEnabled,
   getTicket: (hotelId) => requestInternalApi<{ ticket: string; expiresAt: string }>(
-    `/api/owner/hotels/${encodeURIComponent(hotelId)}/request-realtime-ticket`,
+    `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/request-realtime-ticket`,
     { method: "POST" },
   ),
   createSocket: createRequestRealtimeSocket,

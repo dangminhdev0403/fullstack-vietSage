@@ -10,6 +10,7 @@ import {
 import type { Request } from "express";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
 import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
 import type { AuthenticatedUser } from "../../../shared/security";
 import { HotelRoomsService } from "../application/hotel-rooms.service";
@@ -38,6 +39,7 @@ export class HotelRoomsController {
   constructor(private readonly hotelRoomsService: HotelRoomsService) {}
 
   @SuccessMessage("Tạo phòng thành công")
+  @RequirePermission("hotel.rooms.manage")
   @ApiDescript("Tạo phòng")
   @ApiParam({ name: "hotelId", type: String })
   @ApiBody({ schema: { type: "object" } })
@@ -59,6 +61,7 @@ export class HotelRoomsController {
   }
 
   @SuccessMessage("Tạo danh sách phòng thành công")
+  @RequirePermission("hotel.rooms.manage")
   @ApiDescript("Tạo nhiều phòng")
   @ApiParam({ name: "hotelId", type: String })
   @ApiBody({ schema: { type: "object" } })
@@ -80,6 +83,7 @@ export class HotelRoomsController {
   }
 
   @SuccessMessage("Lấy danh sách phòng thành công")
+  @RequirePermission("hotel.rooms.view")
   @ApiDescript("Xem danh sách phòng")
   @ApiParam({ name: "hotelId", type: String })
   @ApiQuery({ name: "status", required: false, type: String })
@@ -104,6 +108,7 @@ export class HotelRoomsController {
   }
 
   @SuccessMessage("Cập nhật phòng thành công")
+  @RequirePermission("hotel.rooms.manage")
   @ApiDescript("Cập nhật phòng")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "roomId", type: String })
@@ -129,6 +134,7 @@ export class HotelRoomsController {
   }
 
   @SuccessMessage("Tạo lượt lưu trú thành công")
+  @RequirePermission("hotel.stays.manage")
   @ApiDescript("Tạo khách lưu trú")
   @ApiParam({ name: "hotelId", type: String })
   @ApiBody({ schema: { type: "object" } })
@@ -150,6 +156,7 @@ export class HotelRoomsController {
   }
 
   @SuccessMessage("Check-in lượt lưu trú thành công")
+  @RequirePermission("hotel.stays.manage")
   @ApiDescript("Check-in khách")
   @ApiParam({ name: "hotelId", type: String })
   @ApiBody({ schema: { type: "object" } })
@@ -171,6 +178,7 @@ export class HotelRoomsController {
   }
 
   @SuccessMessage("Check-in lượt lưu trú thành công")
+  @RequirePermission("hotel.stays.manage")
   @ApiDescript("Check-in khách")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "stayId", type: String })
@@ -192,6 +200,7 @@ export class HotelRoomsController {
   }
 
   @SuccessMessage("Check-out lượt lưu trú thành công")
+  @RequirePermission("hotel.stays.manage")
   @ApiDescript("Check-out khách")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "stayId", type: String })
@@ -217,6 +226,7 @@ export class HotelRoomsController {
   }
 
   @SuccessMessage("Xoay mã QR phòng thành công")
+  @RequirePermission("hotel.rooms.qr.manage")
   @ApiDescript("Quản lý mã QR")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "roomId", type: String })
@@ -242,6 +252,7 @@ export class HotelRoomsController {
   }
 
   @SuccessMessage("Kích hoạt mã QR phòng thành công")
+  @RequirePermission("hotel.rooms.qr.manage")
   @ApiDescript("Kích hoạt mã QR")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "roomId", type: String })
@@ -263,6 +274,7 @@ export class HotelRoomsController {
   }
 
   @SuccessMessage("Hủy kích hoạt mã QR phòng thành công")
+  @RequirePermission("hotel.rooms.qr.manage")
   @ApiDescript("Tạm ngừng mã QR")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "roomId", type: String })

@@ -3,6 +3,7 @@ import { ApiOkResponse, ApiParam, ApiTags } from "@nestjs/swagger";
 import type { Request } from "express";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
 import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
 import type { AuthenticatedUser } from "../../../shared/security";
 import { HotelDashboardService } from "../application/hotel-dashboard.service";
@@ -18,6 +19,7 @@ export class HotelDashboardController {
   constructor(private readonly hotelDashboardService: HotelDashboardService) {}
 
   @SuccessMessage("Lấy dashboard vận hành khách sạn thành công")
+  @RequirePermission("hotel.dashboard.view")
   @ApiDescript("Xem tổng quan khách sạn")
   @ApiParam({ name: "hotelId", type: String })
   @ApiOkResponse({ description: "Dashboard vận hành khách sạn" })

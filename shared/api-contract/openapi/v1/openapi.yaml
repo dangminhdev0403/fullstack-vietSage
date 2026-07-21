@@ -5154,6 +5154,30 @@ paths:
           description: Payment pending/session
       tags: &a19
         - billing-payments
+  /hotels/{hotelId}/invoices/{invoiceId}/payments/manual-confirm:
+    post:
+      operationId: PaymentController_confirmManualPayment
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: invoiceId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Payment, invoice, folio và stay đã hoàn tất
+      tags: *a19
   /hotels/{hotelId}/payments/{paymentId}/status:
     get:
       operationId: PaymentController_getPaymentStatus

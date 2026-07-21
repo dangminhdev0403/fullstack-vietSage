@@ -4,6 +4,7 @@ import { FolioStatus } from "@prisma/client";
 import type { Request } from "express";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
 import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
 import type { AuthenticatedUser } from "../../../shared/security";
 import { BillingService } from "../application/billing.service";
@@ -23,6 +24,7 @@ export class FolioController {
   constructor(private readonly billingService: BillingService) {}
 
   @SuccessMessage("Lấy danh sách folio thành công")
+  @RequirePermission("hotel.billing.view")
   @ApiDescript("Xem danh sách folio")
   @ApiParam({ name: "hotelId", type: String })
   @ApiQuery({ name: "status", required: false, enum: [FolioStatus.OPEN, FolioStatus.CLOSED] })
@@ -45,6 +47,7 @@ export class FolioController {
   }
 
   @SuccessMessage("Lấy folio đang mở của lượt lưu trú thành công")
+  @RequirePermission("hotel.billing.view")
   @ApiDescript("Xem folio đang mở")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "stayId", type: String })
@@ -67,6 +70,7 @@ export class FolioController {
   }
 
   @SuccessMessage("Lấy tổng quan folio thành công")
+  @RequirePermission("hotel.billing.view")
   @ApiDescript("Xem tổng quan folio")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "folioId", type: String })
@@ -89,6 +93,7 @@ export class FolioController {
   }
 
   @SuccessMessage("Phát hành invoice checkout thành công")
+  @RequirePermission("hotel.billing.manage")
   @ApiDescript("Phát hành hóa đơn")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "folioId", type: String })
@@ -111,6 +116,7 @@ export class FolioController {
   }
 
   @SuccessMessage("Lấy danh sách dòng folio thành công")
+  @RequirePermission("hotel.billing.view")
   @ApiDescript("Xem danh sách dòng folio")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "folioId", type: String })
@@ -136,6 +142,7 @@ export class FolioController {
   }
 
   @SuccessMessage("Lấy chi tiết folio thành công")
+  @RequirePermission("hotel.billing.view")
   @ApiDescript("Xem chi tiết folio")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "folioId", type: String })

@@ -14,11 +14,13 @@ import type { Request } from "express";
 import { timingSafeEqual } from "node:crypto";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
 import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
 import type { AuthenticatedUser } from "../../../shared/security";
 import { BillingService } from "../application/billing.service";
 import {
   billingIdParamSchema,
+  confirmManualPaymentBodySchema,
   createPaymentSessionBodySchema,
   paymentProviderParamSchema,
   paymentWebhookBodySchema,
@@ -34,6 +36,7 @@ export class PaymentController {
   constructor(private readonly billingService: BillingService) {}
 
   @SuccessMessage("Tạo phiên thanh toán thành công")
+  @RequirePermission("hotel.billing.manage")
   @ApiDescript("Tạo phiên thanh toán")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "invoiceId", type: String })
@@ -59,7 +62,35 @@ export class PaymentController {
     );
   }
 
+  @SuccessMessage("Xác nhận đã thu tiền thành công")
+  @RequirePermission("hotel.billing.manage")
+  @ApiDescript("Xác nhận thanh toán tại quầy và hoàn tất checkout")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiParam({ name: "invoiceId", type: String })
+  @ApiBody({ schema: { type: "object" } })
+  @ApiOkResponse({ description: "Payment, invoice, folio và stay đã hoàn tất" })
+  @Post("hotels/:hotelId/invoices/:invoiceId/payments/manual-confirm")
+  async confirmManualPayment(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("invoiceId") invoiceIdParam: string,
+    @Body() body: unknown,
+  ) {
+    const hotelId = parseWithZod(billingIdParamSchema, hotelIdParam);
+    const invoiceId = parseWithZod(billingIdParamSchema, invoiceIdParam);
+    const dto = parseWithZod(confirmManualPaymentBodySchema, body ?? {});
+
+    return this.billingService.confirmManualPayment(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      invoiceId,
+      dto,
+    );
+  }
+
   @SuccessMessage("Lấy trạng thái thanh toán thành công")
+  @RequirePermission("hotel.billing.view")
   @ApiDescript("Xem trạng thái thanh toán")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "paymentId", type: String })

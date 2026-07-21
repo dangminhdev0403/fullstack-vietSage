@@ -11,13 +11,15 @@ import { formatDateTime, formatMoney } from "@/features/billing/utils/money";
 type BillingFolioTableClientProps = {
   hotelId: string;
   folios: FolioListItem[];
+  apiBasePath?: string;
+  invoiceBasePath?: string;
 };
 
 const statusLabels: Record<string, string> = {
   OPEN: "Đang mở",
-  CHECKOUT_PENDING: "Đã đóng",
-  CLOSED: "Đã đóng",
-  VOID: "Đã đóng",
+  CHECKOUT_PENDING: "Chờ thanh toán",
+  CLOSED: "Đã thanh toán",
+  VOID: "Đã hủy",
 };
 
 function toDisplayStatus(status?: string) {
@@ -28,7 +30,12 @@ function getFolioInvoiceId(folio: FolioListItem): string | null {
   return folio.invoiceId ?? folio.billId ?? folio.invoice?.id ?? null;
 }
 
-export function BillingFolioTableClient({ hotelId, folios }: BillingFolioTableClientProps) {
+export function BillingFolioTableClient({
+  hotelId,
+  folios,
+  apiBasePath = `/api/owner/hotels/${encodeURIComponent(hotelId)}`,
+  invoiceBasePath = `/owner/hotels/${encodeURIComponent(hotelId)}/billing/invoices`,
+}: BillingFolioTableClientProps) {
   const router = useRouter();
   const [selectedFolio, setSelectedFolio] = useState<FolioListItem | null>(null);
   const [issuedInvoice, setIssuedInvoice] = useState<Invoice | null>(null);
@@ -87,16 +94,16 @@ export function BillingFolioTableClient({ hotelId, folios }: BillingFolioTableCl
       return;
     }
 
-    router.push(`/owner/hotels/${encodeURIComponent(hotelId)}/billing/invoices/${encodeURIComponent(invoiceId)}`);
+    router.push(`${invoiceBasePath}/${encodeURIComponent(invoiceId)}`);
   }
 
   async function issueInvoice(folio: FolioListItem) {
     const confirmation = await Swal.fire({
       icon: "warning",
-      title: "Đóng phòng này?",
-      text: `Folio ${folio.folioNumber ?? folio.id} sẽ được phát hành hóa đơn và chuyển sang trạng thái đã đóng.`,
+      title: "Phát hành hóa đơn?",
+      text: `Folio ${folio.folioNumber ?? folio.id} sẽ được khóa chi phí và chuyển sang chờ thanh toán.`,
       showCancelButton: true,
-      confirmButtonText: "Đồng ý đóng phòng",
+      confirmButtonText: "Phát hành hóa đơn",
       cancelButtonText: "Hủy",
       confirmButtonColor: "#0f766e",
       cancelButtonColor: "#64748b",
@@ -109,13 +116,13 @@ export function BillingFolioTableClient({ hotelId, folios }: BillingFolioTableCl
 
     try {
       const invoice = await requestInternalApi<Invoice>(
-        `/api/owner/hotels/${encodeURIComponent(hotelId)}/billing/folios/${encodeURIComponent(folio.id)}/invoice`,
+        `${apiBasePath}/billing/folios/${encodeURIComponent(folio.id)}/invoice`,
         { method: "POST" },
       );
       setIssuedInvoice(invoice);
-      router.push(`/owner/hotels/${encodeURIComponent(hotelId)}/billing/invoices/${encodeURIComponent(invoice.id)}`);
+      router.push(`${invoiceBasePath}/${encodeURIComponent(invoice.id)}`);
     } catch (error) {
-      setIssueError(error instanceof Error ? error.message : "Không thể đóng phòng. Vui lòng thử lại.");
+      setIssueError(error instanceof Error ? error.message : "Không thể phát hành hóa đơn. Vui lòng thử lại.");
     } finally {
       setIsIssuingInvoice(false);
     }
@@ -157,7 +164,7 @@ export function BillingFolioTableClient({ hotelId, folios }: BillingFolioTableCl
             <div className="grid gap-3 sm:grid-cols-3">
               <Metric label="Tổng folio" value={String(folios.length)} />
               <Metric label="Đang mở" value={String(totals.open)} tone="amber" />
-              <Metric label="Đã đóng" value={String(totals.pending)} tone="cyan" />
+              <Metric label="Đã phát hành/đóng" value={String(totals.pending)} tone="cyan" />
             </div>
           </div>
         </div>
@@ -176,7 +183,7 @@ export function BillingFolioTableClient({ hotelId, folios }: BillingFolioTableCl
             {[
               ["ALL", "Tất cả"],
               ["OPEN", "Đang mở"],
-              ["CLOSED", "Đã đóng"],
+              ["CLOSED", "Đã phát hành/đóng"],
             ].map(([value, label]) => (
               <button
                 key={value}
@@ -332,19 +339,19 @@ function FolioModal({
         <div className="space-y-4 border-t border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] p-6">
           {isBlocked ? (
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
-              Folio cần được kiểm tra lại trước khi đóng phòng.
+              Folio cần được kiểm tra lại trước khi phát hành hóa đơn.
             </div>
           ) : null}
           {issueError ? <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">{issueError}</div> : null}
           {invoice ? (
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
               <div className="font-black">Đã phát hành hóa đơn {invoice.invoiceNumber}</div>
-              <div className="mt-1">Tổng hóa đơn: {formatMoney(invoice.totalAmount, invoice.currency)} · Folio đã đóng</div>
+              <div className="mt-1">Tổng hóa đơn: {formatMoney(invoice.totalAmount, invoice.currency)} · Đang chờ thu tiền</div>
             </div>
           ) : null}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-[var(--on-surface-variant)]">
-              Đóng phòng sẽ phát hành hóa đơn và cập nhật folio. Xuất order dùng để in/lưu thông tin đơn hiện tại.
+              Phát hành hóa đơn sẽ khóa chi phí folio. Checkout chỉ hoàn tất sau khi xác nhận đã thu tiền.
             </p>
             <div className="flex flex-wrap gap-2">
               {isOpen ? (
@@ -354,7 +361,7 @@ function FolioModal({
                   disabled={isCloseRoomDisabled}
                   className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--primary)] px-4 text-sm font-black text-white transition disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {isIssuingInvoice ? "Đang đóng phòng..." : hasIssuedInvoice ? "Đã đóng phòng" : "Đóng phòng"}
+                  {isIssuingInvoice ? "Đang phát hành..." : hasIssuedInvoice ? "Đã phát hành" : "Phát hành hóa đơn"}
                 </button>
               ) : null}
               <button

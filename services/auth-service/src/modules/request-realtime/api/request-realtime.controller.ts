@@ -3,7 +3,7 @@ import { ApiOkResponse, ApiParam, ApiTags } from "@nestjs/swagger";
 import type { Request } from "express";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
-import { SkipAuthorization } from "../../../shared/decorators/skip-authorization.decorator";
+import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
 import type { AuthenticatedUser } from "../../../shared/security";
 import { hotelIdParamSchema } from "../../property/property-public";
 import { RequestRealtimeTicketService } from "../application/request-realtime-ticket.service";
@@ -17,7 +17,7 @@ interface RequestWithUser extends Request {
 export class RequestRealtimeController {
   constructor(private readonly tickets: RequestRealtimeTicketService) {}
 
-  @SkipAuthorization()
+  @RequirePermission("hotel.requests.view")
   @ApiDescript("Phát hành ticket realtime yêu cầu dịch vụ theo khách sạn")
   @ApiParam({ name: "hotelId", type: String })
   @ApiOkResponse({

@@ -8,8 +8,8 @@ import { z } from "zod";
 import { HttpError } from "@/core/http/http-error";
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import type {
+  HotelCheckInResult,
   HotelRoomSummary,
-  HotelStaySummary,
 } from "@/features/hotel-ops/types/hotel-ops-contract";
 
 import { VsIcon } from "../../../../../_components/vs-icon";
@@ -17,6 +17,7 @@ import { VsIcon } from "../../../../../_components/vs-icon";
 type Props = {
   hotelId: string;
   rooms: HotelRoomSummary[];
+  apiBasePath?: string;
 };
 
 type RoomStatusFilter =
@@ -45,14 +46,6 @@ const statusFilters: { value: RoomStatusFilter; label: string }[] = [
   { value: "processing", label: "Đang xử lý" },
   { value: "unavailable", label: "Không khả dụng" },
 ];
-
-const toast = Swal.mixin({
-  toast: true,
-  position: "top-end",
-  showConfirmButton: false,
-  timer: 1800,
-  timerProgressBar: true,
-});
 
 const checkInFormSchema = z.object({
   guestDisplayName: z.string().trim().min(1, "Nhập tên khách."),
@@ -205,7 +198,11 @@ function getBusinessErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-export function OwnerStayRoomGridClient({ hotelId, rooms }: Props) {
+export function OwnerStayRoomGridClient({
+  hotelId,
+  rooms,
+  apiBasePath = `/api/owner/hotels/${encodeURIComponent(hotelId)}`,
+}: Props) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<RoomStatusFilter>("all");
@@ -301,8 +298,8 @@ export function OwnerStayRoomGridClient({ hotelId, rooms }: Props) {
 
     setIsSaving(true);
     try {
-      await requestInternalApiEnvelope<HotelStaySummary>(
-        `/api/owner/hotels/${encodeURIComponent(hotelId)}/stays`,
+      const result = await requestInternalApiEnvelope<HotelCheckInResult>(
+        `${apiBasePath}/stays`,
         {
           method: "POST",
           body: {
@@ -317,7 +314,13 @@ export function OwnerStayRoomGridClient({ hotelId, rooms }: Props) {
 
       setIsCheckInOpen(false);
       setSelectedRoom(null);
-      await toast.fire({ icon: "success", title: "Đã check-in khách" });
+      await Swal.fire({
+        icon: "success",
+        title: "Đã mở phòng cho khách",
+        text: `Mã truy cập GuestOS: ${result.data.accessCode}. QR phòng đã được kích hoạt để khách quét và gọi dịch vụ.`,
+        confirmButtonText: "Hoàn tất",
+        confirmButtonColor: "#00003c",
+      });
     } catch (error) {
       await Swal.fire({
         icon: "error",

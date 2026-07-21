@@ -1,4 +1,4 @@
-import { FolioStatus, PaymentProvider } from "@prisma/client";
+import { FolioStatus, PaymentMethod, PaymentProvider } from "@prisma/client";
 import { z } from "zod";
 
 export const billingIdParamSchema = z.string().trim().min(1);
@@ -34,6 +34,20 @@ export const createPaymentSessionBodySchema = z
     providerSessionId: z.string().trim().min(1).optional(),
     providerPaymentId: z.string().trim().min(1).optional(),
     metadataReference: z.string().trim().min(1).optional(),
+  })
+  .strict();
+
+export const confirmManualPaymentBodySchema = z
+  .object({
+    method: z
+      .enum([
+        PaymentMethod.CASH,
+        PaymentMethod.CARD,
+        PaymentMethod.BANK_TRANSFER,
+        PaymentMethod.MANUAL,
+      ])
+      .default(PaymentMethod.CASH),
+    note: z.string().trim().max(500).optional(),
   })
   .strict();
 

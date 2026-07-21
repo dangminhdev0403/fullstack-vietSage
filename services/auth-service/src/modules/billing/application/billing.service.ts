@@ -513,6 +513,7 @@ export class BillingService {
         const existingPayment = await tx.payment.findFirst({
           where: {
             invoiceId: invoice.id,
+            provider: input.provider,
             status: {
               in: [PaymentStatus.PENDING, PaymentStatus.PROCESSING, PaymentStatus.SUCCEEDED],
             },
@@ -591,6 +592,56 @@ export class BillingService {
     }
 
     return payment;
+  }
+
+  async confirmManualPayment(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    invoiceId: string,
+    input: {
+      method: PaymentMethod;
+      note?: string;
+    },
+  ) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+
+    const provider =
+      input.method === PaymentMethod.BANK_TRANSFER
+        ? PaymentProvider.BANK_TRANSFER
+        : PaymentProvider.MANUAL;
+    const session = await this.createPaymentSession(actorUserId, activeRoleId, hotelId, invoiceId, {
+      provider,
+      metadataReference: `counter:${invoiceId}`,
+    });
+
+    const payment = await this.prisma.payment.update({
+      where: { id: session.payment.id },
+      data: {
+        method: input.method,
+        metadataJson: {
+          source: "front_desk",
+          ...(input.note ? { note: input.note } : {}),
+        },
+      },
+    });
+
+    await this.processPaymentWebhook(provider, {
+      signatureVerified: true,
+      eventType: "payment.succeeded",
+      providerEventId: `counter:${payment.id}`,
+      providerTransactionId: `counter:${payment.paymentNumber}`,
+      paymentId: payment.id,
+      amount: payment.amount.toString(),
+      actorUserId,
+    });
+
+    const [confirmedPayment, invoice] = await Promise.all([
+      this.getPaymentStatus(actorUserId, activeRoleId, hotelId, payment.id),
+      this.getInvoiceDetail(actorUserId, activeRoleId, hotelId, invoiceId),
+    ]);
+
+    return { payment: confirmedPayment, invoice };
   }
 
   async processPaymentWebhook(provider: PaymentProvider, body: Record<string, unknown>) {
@@ -733,6 +784,7 @@ export class BillingService {
               paidAmount: lockedPayment.amount,
               balanceAmount: new Prisma.Decimal(0),
               paidAt: new Date(),
+              paidByUserId: typeof body.actorUserId === "string" ? body.actorUserId : undefined,
             },
           });
           await tx.folio.update({

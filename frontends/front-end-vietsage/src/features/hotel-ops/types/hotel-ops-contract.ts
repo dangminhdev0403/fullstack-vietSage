@@ -105,6 +105,97 @@ export type HotelStaySummary = {
   updatedAt?: string | null;
 };
 
+export type HotelCheckInResult = {
+  stay: HotelStaySummary;
+  roomQrCode: HotelRoomSummary["qr"];
+  accessCode: string;
+};
+
+export type HotelReservationInput = {
+  guestDisplayName: string;
+  guestPhone?: string;
+  plannedCheckInAt: string;
+  plannedCheckOutAt: string;
+};
+
+export type HotelReservationCheckInResult = {
+  idempotent: boolean;
+  accessCode: string | null;
+  reservation: { id: string; status: string };
+  stay: HotelStaySummary;
+  folio: { id: string; status: string };
+  roomQrCode: HotelRoomSummary["qr"];
+};
+
+export type HotelDashboard = {
+  hotelId: string;
+  generatedAt: string;
+  rooms: {
+    total: number;
+    occupied: number;
+    occupancyRate: number;
+    byStatus: { available: number; occupied: number; processing: number; maintenance: number };
+  };
+  stays: {
+    todayCheckIns: number;
+    todayCheckOuts: number;
+    pendingCheckOuts: number;
+    activeStays: number;
+  };
+  requests: {
+    unprocessed: number;
+    urgentUnprocessed: number;
+    byStatus: { sent: number; processing: number; completed: number; cancelled: number };
+    topServices: Array<{ serviceName: string; count: number }>;
+  };
+  revenue: {
+    available: boolean;
+    currency: string;
+    today: number;
+    last7Days: number;
+    currentMonth: number;
+    issues: Array<{ type: string; count: number }>;
+  };
+  health: {
+    score: number;
+    status: "excellent" | "good" | "warning" | "critical";
+    title: string;
+    factors: Array<{ type: string; label: string; impact: string; message: string }>;
+  };
+  attention: Array<{
+    id: string;
+    type: string;
+    priority: string;
+    title: string;
+    description: string;
+    createdAt: string;
+    action: { label: string; route: string };
+  }>;
+  insights: Array<{
+    id: string;
+    type: string;
+    severity: "info" | "warning" | "critical";
+    title: string;
+    description: string;
+    metric?: { current: number; previous?: number; changePercent?: number };
+  }>;
+  sla: {
+    available: boolean;
+    averageResponseMinutes: number | null;
+    averageCompletionMinutes: number | null;
+    completedWithinSlaPercent: number | null;
+    thresholdMinutes: number;
+  };
+  activities: Array<{
+    id: string;
+    type: string;
+    title: string;
+    description: string;
+    createdAt: string;
+  }>;
+  warnings: string[];
+};
+
 export type HotelArrival = {
   id: string;
   hotelId: string;
@@ -233,7 +324,13 @@ export type UpdateHotelRoomInput = {
   maxActiveGuestDevices?: number | null;
 };
 
-export type CreateHotelStayInput = Record<string, unknown>;
+export type CreateHotelStayInput = {
+  roomId: string;
+  guestDisplayName: string;
+  guestPhone?: string;
+  plannedCheckInAt: string;
+  plannedCheckOutAt: string;
+};
 
 export type ServiceCatalogTranslationsInput = Partial<Record<"en" | "zh" | "ko" | "ru" | "hi", { name: string; description?: string | null }>>;
 

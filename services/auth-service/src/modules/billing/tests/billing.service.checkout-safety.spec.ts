@@ -246,6 +246,60 @@ describe("BillingService checkout safety", () => {
     });
   });
 
+  it("confirmManualPayment records the counter method and settles through the guarded payment flow", async () => {
+    const payment = {
+      id: "payment-counter-1",
+      hotelId: "hotel-1",
+      invoiceId: "invoice-1",
+      folioId: "folio-1",
+      stayId: "stay-1",
+      paymentNumber: "PAY-001",
+      provider: PaymentProvider.MANUAL,
+      status: PaymentStatus.PENDING,
+      method: PaymentMethod.MANUAL,
+      amount: new Prisma.Decimal(250000),
+      currency: "VND",
+    };
+    const prisma = {
+      payment: { update: jest.fn().mockResolvedValue({ ...payment, method: PaymentMethod.CASH }) },
+    };
+    const service = createService(prisma);
+    jest
+      .spyOn(service, "createPaymentSession")
+      .mockResolvedValue({ reused: false, payment } as never);
+    const processPaymentWebhook = jest
+      .spyOn(service, "processPaymentWebhook")
+      .mockResolvedValue({ received: true, paid: true } as never);
+    jest
+      .spyOn(service, "getPaymentStatus")
+      .mockResolvedValue({ ...payment, status: PaymentStatus.SUCCEEDED } as never);
+    jest
+      .spyOn(service, "getInvoiceDetail")
+      .mockResolvedValue({ invoice: { id: "invoice-1", status: InvoiceStatus.PAID } } as never);
+
+    await service.confirmManualPayment("staff-1", "frontdesk-role", "hotel-1", "invoice-1", {
+      method: PaymentMethod.CASH,
+      note: "Thu đủ tại quầy",
+    });
+
+    expect(prisma.payment.update).toHaveBeenCalledWith({
+      where: { id: payment.id },
+      data: {
+        method: PaymentMethod.CASH,
+        metadataJson: { source: "front_desk", note: "Thu đủ tại quầy" },
+      },
+    });
+    expect(processPaymentWebhook).toHaveBeenCalledWith(
+      PaymentProvider.MANUAL,
+      expect.objectContaining({
+        signatureVerified: true,
+        eventType: "payment.succeeded",
+        paymentId: payment.id,
+        actorUserId: "staff-1",
+      }),
+    );
+  });
+
   it("processPaymentWebhook rejects an unverified webhook before any database side effect", async () => {
     const prisma = {
       paymentTransaction: { findFirst: jest.fn() },
