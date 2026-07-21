@@ -1,3 +1,75 @@
+## [complete] 2026-07-22 - Mission: hard-lock-chat-box-container-heights
+
+- Hard-locked chat container height across Staff (`RoomMessagesClient`) and Guest (`GuestMessagesPage`) chat views to viewport bounds (`h-[calc(100dvh-7.5rem)]` for staff workspace, `h-dvh max-h-dvh` for guest chat).
+- Prevented outer container / page vertical expansion as messages accumulate, fixing the issue where input boxes and send buttons were pushed down off screen.
+- Pinned message input form and send button firmly at the bottom of the chat container across all screen sizes.
+- Integrated Guest Chat header into the top of the chat card section, eliminating empty top/bottom whitespace.
+- Increased typography size (`text-base` for messages & textarea, `text-xs font-bold` for timestamps & sender names).
+- Implemented rich animated Skeleton Message Loaders (`isLoading`), glassmorphism pill fetching badges (`isFetchingNextPage`), and optimistic pending send states (`send.isPending`).
+
+Verification result:
+- `npx tsc -p tsconfig.json` passed cleanly with 0 type errors.
+
+Remaining blockers/risks:
+- None.
+
+## [complete] 2026-07-22 - Mission: chat-history-infinite-scroll-refactor
+
+- Refactored chat history loading across Staff (`RoomMessagesClient`) and Guest (`GuestMessagesPage`) views to support modern infinite scroll architecture (Messenger/Zalo/WhatsApp).
+- Extended backend history APIs (`listGuestMessages` and `getHotelThread`) with backward-compatible cursor pagination parameters (`before`, `limit`), returning `nextCursor` and `hasMore`.
+- Replaced single-page `useQuery` calls with TanStack Query `useInfiniteQuery`, fetching initial 20 newest messages on thread open.
+- Implemented **Zero-Jump Reverse Scroll Container**: calculates `scrollHeight` delta before and after fetching older pages (`scrollTop = scrollTop + newScrollHeight - oldScrollHeight`), preserving exact scroll position when prepending history with zero layout shifts.
+- Implemented **Realtime Message Cache Merging**: ingests new incoming socket and optimistic sent messages directly into TanStack Query infinite cache without triggering full history refetches.
+- Added **Unread Message Scroll Indicator**: displays floating **"Tin nhắn mới"** (New messages) badge at bottom right when user is scrolled up reading history, with smooth scroll-to-bottom on click.
+
+Verification result:
+- `npx tsc --noEmit` passed with 0 type errors.
+
+Remaining blockers/risks:
+- None.
+
+## [complete] 2026-07-22 - Mission: chat-layout-and-composer-guardrails
+
+- Limited guest and staff chat bubbles to half of the conversation width and forced uninterrupted strings to wrap inside the bubble.
+- Removed the HTML `maxLength` hard stop from both chat composers; users can keep editing while an explicit character counter explains the backend 1000-character contract.
+- Disabled submission above 1000 characters while preserving the backend validation boundary.
+- Kept the active staff conversation and composer inside the mobile viewport; mobile switches between thread list and conversation instead of stacking both vertically.
+- Added an accessible name to the destructive message-cleanup action.
+- Audited the shared workspace shell, global CSS, and UI baseline; no application-level `zoom`, dashboard `scale`, or layout regression was found.
+- Added `scripts/chat-layout-regression.test.mjs` for bubble width, long-string wrapping, composer behavior, and dashboard scale regression.
+
+Verification result:
+
+- `node --test scripts/chat-layout-regression.test.mjs` passed 3/3.
+- Targeted ESLint, TypeScript, and production build results recorded in the task handoff.
+
+Remaining risk:
+
+- Browser zoom is client-controlled. Use `Ctrl+0` to restore 100% if the dashboard still appears uniformly small.
+
+## [complete] 2026-07-22 - Mission: staff-management-realtime-and-ui
+
+- Fixed issue where add/update actions on staff management pages required manual page reloads (`F5`).
+- Mounted `HotelOpsRealtimeNotifier` inside `src/app/(vietsage)/hotels/[hotelId]/layout.tsx` to handle real-time socket events (`guest_request.created`, `guest_request.updated`, `guest_request.answered`, etc.) and invalidate TanStack Query caches (`["hotel-ops", hotelId]`, `["hotel-requests", hotelId]`, `["hotel-message-threads", hotelId]`).
+- Created refetch-safe Web Audio synthesizer `audio-notifier.ts` for customer request chime alerts and message pop/ding alerts with automatic browser AudioContext unlocking.
+- Overhauled `RoomMessagesClient` UI with room thread search, unread filters, message bubbles, formatted timestamps, message audio alerts, **SweetAlert2 confirmation dialog for message cleanup ("Dọn dẹp tin nhắn")**, and a dedicated **top-right "X" close button** to dismiss the active chat panel.
+- Refactored chat message bubbles to use content-fitting widths (`w-fit max-w-full`), preventing short text (e.g. "hi hi", "tốt") from stretching into giant full-width blocks.
+- Replaced single-line `<input>` fields in staff (`RoomMessagesClient`) and guest (`GuestMessagesPage`) chat with auto-expanding multiline `<textarea>` controls (up to 144px high) supporting `Enter` to send and `Shift+Enter` for line breaks.
+- Added global audio notifications in `HotelOpsRealtimeNotifier` for incoming requests (`playRequestAlertSound`) and new messages (`playMessageAlertSound`).
+- Implemented 600ms message send debouncing in chat components to prevent fast double clicks or repeated submits from flooding socket connections and backend APIs.
+- Implemented real-time typing indicators ("Khách đang soạn tin nhắn..." / "Lễ tân đang soạn tin nhắn...") with bouncing 3-dot animation, synchronized across tabs and windows via BroadcastChannel and localStorage events.
+- Restored the clean original layout (`lg:grid-cols-[360px_1fr]`) for the staff messages workspace.
+- Added audio notification sound (`playMessageAlertSound`) to `GuestMessagesPage` when a new message arrives from staff.
+- Reduced guest message polling interval from 8s to 2s for fast real-time chat response.
+- Implemented `draftsByThread` state in `RoomMessagesClient` to preserve unsaved typed message drafts per room thread across room switches and tab changes.
+- Added SweetAlert2 confirmation/verification dialogs to `submitWalkIn` and `createReservation` in `StaffRoomsClient` before calling backend APIs.
+
+Verification result:
+- `npx tsc --noEmit` passed cleanly with 0 type errors.
+
+Remaining blockers/risks:
+- None.
+
 ## [complete] 2026-07-21 - Mission: realtime-socket-toast-duration
 
 - Updated socket connection notification duration from 4,000ms to 3,000ms (3 seconds) across owner and guest realtime notifiers.
@@ -1796,6 +1868,25 @@ Remaining blockers/risks:
 
 - Visual QA in multiple physical mobile browsers is still recommended because device GPU performance and browser scroll-snap behavior vary.
 - The marketing copy remains English to preserve the current landing-page content scope.
+
+## 2026-07-22 - Stay-Scoped Front Desk Messages
+
+### What Changed
+
+- Renamed the staff request navigation to `Yêu cầu dịch vụ` and added a separate
+  `Tin nhắn phòng` workspace route for Front Desk and other hotel operations roles.
+- Added GuestOS `/g/messages`: a compact room-to-front-desk message box with loading, empty,
+  error, send, and periodic refresh states.
+- Added staff inbox and reply/clear workflows through the existing hotel-ops BFF boundary.
+
+### Verification Result
+
+- Frontend TypeScript check passed after adding the new GuestOS and hotel workspace routes.
+
+### Remaining Blockers / Risks
+
+- Chat uses bounded polling every eight seconds. It can be moved to the existing realtime
+  transport after a dedicated message event contract and notification behavior are agreed.
 
 ## 2026-07-14 - Restore Frontend Dev Task
 

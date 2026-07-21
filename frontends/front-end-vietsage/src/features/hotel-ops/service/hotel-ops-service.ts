@@ -467,6 +467,26 @@ export class HotelOpsService {
 
     return unwrapApiEnvelope<HotelRequestEvent>(payload).data;
   }
+
+  async listMessageThreads(hotelId: string, options: { query?: { page?: number; limit?: number; q?: string } } & AuthRequestOptions = {}) {
+    const payload = await this.httpClient.request<unknown>({ method: "GET", path: hotelPath(hotelId, "/messages"), query: options.query as HttpQuery, accessToken: options.accessToken, accessTokenExpiresAt: options.accessTokenExpiresAt });
+    return unwrapApiEnvelope<unknown>(payload).data;
+  }
+
+  async getMessageThread(hotelId: string, threadId: string, options: { query?: { page?: number; limit?: number; before?: string } } & AuthRequestOptions = {}) {
+    const payload = await this.httpClient.request<unknown>({ method: "GET", path: hotelPath(hotelId, `/messages/${encodeURIComponent(threadId)}`), query: options.query as HttpQuery, accessToken: options.accessToken, accessTokenExpiresAt: options.accessTokenExpiresAt });
+    return unwrapApiEnvelope<unknown>(payload).data;
+  }
+
+  async replyMessageThread(hotelId: string, threadId: string, body: string, accessToken?: string) {
+    const payload = await this.httpClient.request<unknown, { body: string }>({ method: "POST", path: hotelPath(hotelId, `/messages/${encodeURIComponent(threadId)}/reply`), body: { body }, accessToken });
+    return unwrapApiEnvelope<unknown>(payload).data;
+  }
+
+  async clearMessageThread(hotelId: string, threadId: string, accessToken?: string) {
+    const payload = await this.httpClient.request<unknown>({ method: "PATCH", path: hotelPath(hotelId, `/messages/${encodeURIComponent(threadId)}/clear`), accessToken });
+    return unwrapApiEnvelope<unknown>(payload).data;
+  }
 }
 
 export function createHotelOpsService(options: HotelOpsServiceOptions): HotelOpsService {

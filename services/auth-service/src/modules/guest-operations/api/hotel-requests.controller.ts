@@ -14,6 +14,7 @@ import { RequirePermission } from "../../../shared/decorators/require-permission
 import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
 import type { AuthenticatedUser } from "../../../shared/security";
 import { HotelRequestsService } from "../application/hotel-requests.service";
+import { GuestMessagesService } from "../application/guest-messages.service";
 import {
   createRequestEventBodySchema,
   guestRequestPriorityValues,
@@ -22,7 +23,10 @@ import {
   updateRequestAssignmentBodySchema,
   updateRequestStatusBodySchema,
   hotelIdParamSchema,
+  listHotelMessagesQuerySchema,
+  messageThreadIdParamSchema,
   requestIdParamSchema,
+  sendHotelMessageBodySchema,
 } from "../domain/schemas/requests.schema";
 
 interface RequestWithUser extends Request {
@@ -32,7 +36,92 @@ interface RequestWithUser extends Request {
 @ApiTags("hotel-requests")
 @Controller("hotels")
 export class HotelRequestsController {
-  constructor(private readonly hotelRequestsService: HotelRequestsService) {}
+  constructor(
+    private readonly hotelRequestsService: HotelRequestsService,
+    private readonly guestMessagesService: GuestMessagesService,
+  ) {}
+
+  @SuccessMessage("Lấy danh sách hội thoại phòng thành công")
+  @RequirePermission("hotel.requests.view")
+  @Get(":hotelId/messages")
+  async listMessages(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Query() query: unknown,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    const parsed = parseWithZod(listHotelMessagesQuerySchema, query);
+    return this.guestMessagesService.listForHotel(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      parsed.page,
+      parsed.limit,
+      parsed.q,
+    );
+  }
+
+  @SuccessMessage("Lấy hội thoại phòng thành công")
+  @RequirePermission("hotel.requests.view")
+  @Get(":hotelId/messages/:threadId")
+  async getMessageThread(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("threadId") threadIdParam: string,
+    @Query() query: unknown,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    const threadId = parseWithZod(messageThreadIdParamSchema, threadIdParam);
+    const parsed = parseWithZod(listHotelMessagesQuerySchema, query);
+    return this.guestMessagesService.getForHotel(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      threadId,
+      parsed.page,
+      parsed.limit ?? 20,
+      parsed.before,
+    );
+  }
+
+  @SuccessMessage("Đã gửi tin nhắn cho khách")
+  @RequirePermission("hotel.requests.manage")
+  @Post(":hotelId/messages/:threadId/reply")
+  async replyMessage(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("threadId") threadIdParam: string,
+    @Body() body: unknown,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    const threadId = parseWithZod(messageThreadIdParamSchema, threadIdParam);
+    const parsed = parseWithZod(sendHotelMessageBodySchema, body);
+    return this.guestMessagesService.replyFromStaff(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      threadId,
+      parsed.body,
+    );
+  }
+
+  @SuccessMessage("Đã dọn hội thoại khỏi hàng đợi")
+  @RequirePermission("hotel.requests.manage")
+  @Patch(":hotelId/messages/:threadId/clear")
+  async clearMessageThread(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("threadId") threadIdParam: string,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    const threadId = parseWithZod(messageThreadIdParamSchema, threadIdParam);
+    return this.guestMessagesService.clearForHotel(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      threadId,
+    );
+  }
 
   @SuccessMessage("Lấy danh sách yêu cầu của khách thành công")
   @RequirePermission("hotel.requests.view")

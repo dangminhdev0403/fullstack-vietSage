@@ -8593,6 +8593,32 @@
         ]
       }
     },
+    "/guest/messages": {
+      "get": {
+        "operationId": "GuestOsController_listMessages",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "guest-os"
+        ]
+      },
+      "post": {
+        "operationId": "GuestOsController_sendMessage",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "guest-os"
+        ]
+      }
+    },
     "/guest/session/close": {
       "post": {
         "operationId": "GuestOsController_closeSession",
@@ -8604,6 +8630,122 @@
         },
         "tags": [
           "guest-os"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/messages": {
+      "get": {
+        "operationId": "HotelRequestsController_listMessages",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "hotel-requests"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/messages/{threadId}": {
+      "get": {
+        "operationId": "HotelRequestsController_getMessageThread",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "threadId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "hotel-requests"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/messages/{threadId}/reply": {
+      "post": {
+        "operationId": "HotelRequestsController_replyMessage",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "threadId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "hotel-requests"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/messages/{threadId}/clear": {
+      "patch": {
+        "operationId": "HotelRequestsController_clearMessageThread",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "threadId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "hotel-requests"
         ]
       }
     },

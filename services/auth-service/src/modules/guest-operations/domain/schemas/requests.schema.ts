@@ -57,8 +57,23 @@ export const createRequestEventBodySchema = z
   })
   .strict();
 
+export const messageThreadIdParamSchema = z.string().trim().min(1, "threadId là bắt buộc");
+export const listHotelMessagesQuerySchema = z
+  .object({
+    q: z.string().trim().min(1).max(160).optional(),
+    page: z.coerce.number().int().min(1).optional(),
+    limit: z.coerce.number().int().min(1).max(100).optional(),
+    before: z.string().trim().min(1).optional(),
+  })
+  .strict();
+export const sendHotelMessageBodySchema = z
+  .object({ body: z.string().trim().min(1).max(1000) })
+  .strict();
+
 export type ListStaffRequestsQueryInput = z.infer<typeof listStaffRequestsQuerySchema>;
 export type RequestSummaryQueryInput = z.infer<typeof requestSummaryQuerySchema>;
 export type UpdateRequestStatusBodyInput = z.infer<typeof updateRequestStatusBodySchema>;
 export type UpdateRequestAssignmentBodyInput = z.infer<typeof updateRequestAssignmentBodySchema>;
 export type CreateRequestEventBodyInput = z.infer<typeof createRequestEventBodySchema>;
+export type ListHotelMessagesQueryInput = z.infer<typeof listHotelMessagesQuerySchema>;
+export type SendHotelMessageBodyInput = z.infer<typeof sendHotelMessageBodySchema>;

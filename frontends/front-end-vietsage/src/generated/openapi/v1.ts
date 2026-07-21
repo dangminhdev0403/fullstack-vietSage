@@ -1121,6 +1121,22 @@ export interface paths {
         patch: operations["GuestOsController_cancelRequest"];
         trace?: never;
     };
+    "/guest/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GuestOsController_listMessages"];
+        put?: never;
+        post: operations["GuestOsController_sendMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/guest/session/close": {
         parameters: {
             query?: never;
@@ -1135,6 +1151,70 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["HotelRequestsController_listMessages"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/messages/{threadId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["HotelRequestsController_getMessageThread"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/messages/{threadId}/reply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["HotelRequestsController_replyMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/messages/{threadId}/clear": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["HotelRequestsController_clearMessageThread"];
         trace?: never;
     };
     "/hotels/{hotelId}/requests": {
@@ -4964,6 +5044,40 @@ export interface operations {
             };
         };
     };
+    GuestOsController_listMessages: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    GuestOsController_sendMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     GuestOsController_closeSession: {
         parameters: {
             query?: never;
@@ -4974,6 +5088,85 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Đã đóng phiên khách */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HotelRequestsController_listMessages: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HotelRequestsController_getMessageThread: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                threadId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HotelRequestsController_replyMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                threadId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HotelRequestsController_clearMessageThread: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                threadId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
             200: {
                 headers: {
                     [name: string]: unknown;

@@ -311,6 +311,7 @@ model User {
   closedStays           GuestStay[]         @relation("GuestStayClosedBy")
   assignedGuestRequests GuestRequest[]      @relation("GuestRequestAssignedTo")
   guestRequestEvents    GuestRequestEvent[] @relation("GuestRequestEventActor")
+  sentGuestMessages     GuestMessage[]      @relation("GuestMessageStaffSender")
   createdFolios         Folio[]             @relation("FolioCreatedBy")
   closedFolios          Folio[]             @relation("FolioClosedBy")
   postedFolioItems      FolioItem[]         @relation("FolioItemPostedBy")
@@ -513,6 +514,8 @@ model Hotel {
   reservations        Reservation[]
   guestSessions       GuestSession[]
   guestRequests       GuestRequest[]
+  guestMessageThreads GuestMessageThread[]
+  guestMessages       GuestMessage[]
   notificationRoutes  NotificationRoute[]
   requestEvents       GuestRequestEvent[]
   serviceCategories   HotelServiceCategory[]
@@ -571,6 +574,8 @@ model Room {
   reservations          Reservation[]
   guestSessions         GuestSession[]
   guestRequests         GuestRequest[]
+  guestMessageThreads   GuestMessageThread[]
+  guestMessages         GuestMessage[]
   folios                Folio[]
   folioItems            FolioItem[]
   emergencyCallEvents   EmergencyCallEvent[]
@@ -653,10 +658,12 @@ model GuestStay {
   closedBy            User?           @relation("GuestStayClosedBy", fields: [closedByUserId], references: [id], onDelete: SetNull)
   guestSessions       GuestSession[]
   guestRequests       GuestRequest[]
+  guestMessages       GuestMessage[]
   folios              Folio[]
   folioItems          FolioItem[]
   invoices            Invoice[]
   payments            Payment[]
+  messageThreads      GuestMessageThread[]
 
   @@index([hotelId, status])
   @@index([roomId, status])
@@ -687,6 +694,7 @@ model GuestSession {
   roomQrCode                RoomQRCode             @relation(fields: [roomQrCodeId], references: [id], onDelete: Cascade)
   guestRequests             GuestRequest[]
   requestEvents             GuestRequestEvent[]
+  guestMessages             GuestMessage[]
   emergencyLocationContexts GuestLocationContext[]
   emergencyCallEvents       EmergencyCallEvent[]
 
@@ -869,6 +877,51 @@ model GuestRequestEvent {
   @@index([requestId, createdAt])
   @@index([hotelId, createdAt])
   @@index([requestId, visibility, createdAt])
+}
+
+model GuestMessageThread {
+  id            String   @id @default(cuid())
+  hotelId       String
+  roomId        String
+  stayId        String   @unique
+  status        String   @default("OPEN") @db.VarChar(16)
+  lastMessageAt DateTime @default(now())
+  clearedAt     DateTime?
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  hotel         Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  room          Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  stay          GuestStay @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  messages      GuestMessage[]
+
+  @@index([hotelId, status, lastMessageAt])
+  @@index([roomId, lastMessageAt])
+  @@index([expiresAt])
+}
+
+model GuestMessage {
+  id           String              @id @default(cuid())
+  threadId     String
+  hotelId      String
+  roomId       String
+  stayId       String
+  senderType   GuestRequestActorType
+  senderUserId String?
+  sessionId    String?
+  body         String              @db.VarChar(1000)
+  readAt       DateTime?
+  createdAt    DateTime            @default(now())
+  thread       GuestMessageThread  @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  hotel        Hotel               @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  room         Room                @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  stay         GuestStay           @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  senderUser   User?               @relation("GuestMessageStaffSender", fields: [senderUserId], references: [id], onDelete: SetNull)
+  session      GuestSession?       @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([threadId, createdAt])
+  @@index([hotelId, createdAt])
+  @@index([stayId, createdAt])
 }
 
 model Folio {

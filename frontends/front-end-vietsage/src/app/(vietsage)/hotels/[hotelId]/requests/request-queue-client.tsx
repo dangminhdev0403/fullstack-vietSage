@@ -856,7 +856,9 @@ export function RequestQueueClient({
     setStatusNote("");
     applyLiveRequestChange(updated as Partial<StaffRequestListItem> & { id: string });
     queryClient.setQueryData(detailQueryKey, updated);
-    void queryClient.invalidateQueries({ queryKey: detailQueryKey });
+    queryClient.invalidateQueries({ queryKey: detailQueryKey }).catch(() => {});
+    queryClient.invalidateQueries({ queryKey: ["hotel-ops", hotelId] }).catch(() => {});
+    queryClient.invalidateQueries({ queryKey: ["hotel-requests", hotelId] }).catch(() => {});
     router.refresh();
   }
 

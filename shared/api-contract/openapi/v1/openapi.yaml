@@ -5921,6 +5921,21 @@ paths:
                   - message
                   - data
       tags: *a20
+  /guest/messages:
+    get:
+      operationId: GuestOsController_listMessages
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: *a20
+    post:
+      operationId: GuestOsController_sendMessage
+      parameters: []
+      responses:
+        "201":
+          description: ""
+      tags: *a20
   /guest/session/close:
     post:
       operationId: GuestOsController_closeSession
@@ -5929,6 +5944,74 @@ paths:
         "200":
           description: Đã đóng phiên khách
       tags: *a20
+  /hotels/{hotelId}/messages:
+    get:
+      operationId: HotelRequestsController_listMessages
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: &a21
+        - hotel-requests
+  /hotels/{hotelId}/messages/{threadId}:
+    get:
+      operationId: HotelRequestsController_getMessageThread
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: threadId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a21
+  /hotels/{hotelId}/messages/{threadId}/reply:
+    post:
+      operationId: HotelRequestsController_replyMessage
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: threadId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a21
+  /hotels/{hotelId}/messages/{threadId}/clear:
+    patch:
+      operationId: HotelRequestsController_clearMessageThread
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: threadId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a21
   /hotels/{hotelId}/requests:
     get:
       operationId: HotelRequestsController_listRequests
@@ -5949,8 +6032,7 @@ paths:
       responses:
         "200":
           description: Đã lấy danh sách yêu cầu của khách
-      tags: &a21
-        - hotel-requests
+      tags: *a21
   /hotels/{hotelId}/requests/summary:
     get:
       operationId: HotelRequestsController_getRequestsSummary

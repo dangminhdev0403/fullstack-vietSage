@@ -246,6 +246,7 @@
   "244": "guestRequestStatusFilterValues",
   "245": "guest-request-workflow-boundary.spec.ts",
   "246": "organization.module.spec.ts",
+  "247": "global-exception.filter.ts",
   "248": "Phase 5 — Final Listener Handoff",
   "249": "Phase 6 — Observation and Post-Cutover Operations",
   "250": "2026-07-14 - Marketing Navigation Usability Fix",
@@ -267,7 +268,13 @@
   "266": "rbac.service.ts",
   "267": ".warn",
   "268": "fix-paths.js",
+  "269": "page.tsx",
+  "270": ".getInvoiceDetail",
+  "271": "2026-07-14 - Cinematic Landing Motion",
+  "272": "2026-07-22 - Stay-Scoped Front Desk Messages",
+  "273": "Active Plan",
   "274": "page.tsx",
   "275": "error.tsx",
-  "276": "loading.tsx"
+  "276": "loading.tsx",
+  "277": "chat-layout-regression.test.mjs"
 }

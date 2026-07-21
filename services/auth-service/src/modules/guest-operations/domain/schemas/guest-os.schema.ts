@@ -79,6 +79,18 @@ export const serviceCategoryIdParamSchema = z.string().trim().min(1, "categoryId
 
 export const guestRequestIdParamSchema = z.string().trim().min(1, "requestId is required");
 
+export const guestMessageBodySchema = z
+  .object({ body: z.string().trim().min(1).max(1000) })
+  .strict();
+
+export const listGuestMessagesQuerySchema = z
+  .object({
+    page: z.coerce.number().int().min(1).optional(),
+    limit: z.coerce.number().int().min(1).max(100).optional(),
+    before: z.string().trim().min(1).optional(),
+  })
+  .strict();
+
 export const listGuestCategoryServicesQuerySchema = z
   .object({
     page: z.coerce.number().int().min(1).optional(),
@@ -95,3 +107,5 @@ export type ListGuestRequestsQueryInput = z.infer<typeof listGuestRequestsQueryS
 export type ListGuestCategoryServicesQueryInput = z.infer<
   typeof listGuestCategoryServicesQuerySchema
 >;
+export type GuestMessageBodyInput = z.infer<typeof guestMessageBodySchema>;
+export type ListGuestMessagesQueryInput = z.infer<typeof listGuestMessagesQuerySchema>;

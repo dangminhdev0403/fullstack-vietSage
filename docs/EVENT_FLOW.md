@@ -151,6 +151,26 @@ Potential future events:
 - `emergency_incident.created`
 - `notification.delivery_failed`
 
+## Guest stay message flow
+
+Guest-to-front-desk messages are a short-lived, stay-scoped conversation rather than a guest
+profile inbox. A guest session may read and send only messages for its active `stayId`; staff
+access is checked against the same hotel scope used by the request center.
+
+```txt
+Guest or front desk sends message
+  -> API validates active guest session or hotel staff access
+  -> Upsert the stay's message thread
+  -> Append immutable message row
+  -> Update thread last-message timestamp
+  -> Guest and staff poll the bounded thread endpoint
+```
+
+Staff "clear" marks a thread `CLEARED` in the inbox; it does not erase the message rows while the
+stay is active. The thread reopens when a new message arrives. Checkout revokes GuestOS access, so
+no new guest or staff message can be sent. Threads carry `expiresAt = planned checkout + 14 days`
+for operational cleanup; the feature intentionally does not create a cross-stay chat history.
+
 Do not add Kafka/RabbitMQ/Redis streams in V1. Add a broker or outbox worker only after delivery retries, cross-service isolation, or throughput needs are documented.
 
 ## Outbox readiness

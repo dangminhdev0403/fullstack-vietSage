@@ -201,6 +201,34 @@ export type GuestSessionCloseResult = {
   session: GuestSession;
 };
 
+export type GuestMessageSenderType = "GUEST" | "STAFF" | "SYSTEM";
+export type GuestMessage = {
+  id: string;
+  senderType: GuestMessageSenderType;
+  senderName: string | null;
+  body: string;
+  createdAt: string;
+};
+export type GuestMessageThread = {
+  id: string;
+  status: string;
+  roomNumber: string;
+  guestName: string;
+  lastMessageAt: string;
+  expiresAt: string;
+  clearedAt: string | null;
+  latestMessage?: GuestMessage | null;
+};
+export type GuestMessagesResult = {
+  page: number;
+  limit: number;
+  total: number;
+  nextCursor?: string | null;
+  hasMore?: boolean;
+  thread: GuestMessageThread | null;
+  items: GuestMessage[];
+};
+
 export type EmergencyLocationSource =
   | "GPS"
   | "QR"

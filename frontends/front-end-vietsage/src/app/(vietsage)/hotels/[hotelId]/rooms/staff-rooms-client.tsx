@@ -3,7 +3,7 @@
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Swal from "sweetalert2";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import type {
@@ -208,6 +208,7 @@ export function StaffRoomsClient({
   canManageStays,
 }: Props) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const apiBase = `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}`;
 
   const checkInContainerRef = useRef<HTMLDivElement>(null);
@@ -310,6 +311,19 @@ export function StaffRoomsClient({
   async function submitWalkIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedRoom) return;
+
+    const confirmation = await Swal.fire({
+      icon: "question",
+      title: "Xác nhận mở phòng check-in?",
+      text: `Mở phòng ${getRoomNumber(selectedRoom)} cho khách "${walkInForm.guestDisplayName.trim()}". Hệ thống sẽ kích hoạt QR và mã GuestOS ngay.`,
+      showCancelButton: true,
+      confirmButtonText: "Xác nhận mở phòng",
+      cancelButtonText: "Hủy",
+      confirmButtonColor: "#00003c",
+    });
+
+    if (!confirmation.isConfirmed) return;
+
     setSaving(true);
     try {
       const result = await requestInternalApiEnvelope<HotelCheckInResult>(`${apiBase}/stays`, {
@@ -329,6 +343,7 @@ export function StaffRoomsClient({
         text: `Mã GuestOS: ${result.data.accessCode}. Khách có thể quét QR để gọi dịch vụ và nhắn tin.`,
         confirmButtonColor: "#00003c",
       });
+      queryClient.invalidateQueries({ queryKey: ["hotel-ops", hotelId] }).catch(() => {});
       router.refresh();
     } catch (error) {
       await Swal.fire({ icon: "error", title: "Không thể mở phòng", text: error instanceof Error ? error.message : "Vui lòng thử lại.", confirmButtonColor: "#00003c" });
@@ -339,6 +354,19 @@ export function StaffRoomsClient({
 
   async function createReservation(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    const confirmation = await Swal.fire({
+      icon: "question",
+      title: "Xác nhận tạo đặt phòng?",
+      text: `Tạo đặt trước cho khách "${reservationForm.guestDisplayName.trim()}".`,
+      showCancelButton: true,
+      confirmButtonText: "Tạo đặt phòng",
+      cancelButtonText: "Hủy",
+      confirmButtonColor: "#00003c",
+    });
+
+    if (!confirmation.isConfirmed) return;
+
     setSaving(true);
     try {
       await requestInternalApiEnvelope(`${apiBase}/reservations`, {
@@ -353,6 +381,7 @@ export function StaffRoomsClient({
       });
       setReservationForm(emptyReservation());
       await Swal.fire({ icon: "success", title: "Đã tạo đặt phòng", timer: 1400, showConfirmButton: false });
+      queryClient.invalidateQueries({ queryKey: ["hotel-ops", hotelId] }).catch(() => {});
       router.refresh();
     } catch (error) {
       await Swal.fire({ icon: "error", title: "Không thể tạo đặt phòng", text: error instanceof Error ? error.message : "Vui lòng thử lại.", confirmButtonColor: "#00003c" });
@@ -377,6 +406,7 @@ export function StaffRoomsClient({
     if (!result.isConfirmed || !result.value) return;
     try {
       await requestInternalApiEnvelope(`${apiBase}/reservations/${encodeURIComponent(arrival.id)}/room`, { method: "PUT", body: { roomId: result.value } });
+      queryClient.invalidateQueries({ queryKey: ["hotel-ops", hotelId] }).catch(() => {});
       router.refresh();
     } catch (error) {
       await Swal.fire({ icon: "error", title: "Không thể gán phòng", text: error instanceof Error ? error.message : "Vui lòng thử lại.", confirmButtonColor: "#00003c" });
@@ -397,6 +427,7 @@ export function StaffRoomsClient({
     try {
       const result = await requestInternalApiEnvelope<HotelReservationCheckInResult>(`${apiBase}/reservations/${encodeURIComponent(arrival.id)}/check-in`, { method: "POST" });
       await Swal.fire({ icon: "success", title: "Check-in hoàn tất", text: result.data.accessCode ? `Mã GuestOS: ${result.data.accessCode}` : "QR phòng đã sẵn sàng.", confirmButtonColor: "#00003c" });
+      queryClient.invalidateQueries({ queryKey: ["hotel-ops", hotelId] }).catch(() => {});
       router.refresh();
     } catch (error) {
       await Swal.fire({ icon: "error", title: "Không thể check-in", text: error instanceof Error ? error.message : "Vui lòng thử lại.", confirmButtonColor: "#00003c" });

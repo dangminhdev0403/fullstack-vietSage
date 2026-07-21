@@ -6,7 +6,7 @@ import { useGuestI18n } from "@/features/guest-os/i18n/use-guest-i18n";
 
 import { VsIcon } from "./vs-icon";
 
-type NavKey = "home" | "services" | "requests";
+type NavKey = "home" | "services" | "requests" | "messages";
 
 type VsBottomNavProps = {
   active: NavKey;
@@ -16,6 +16,7 @@ const navItems: Array<{ key: NavKey; labelKey: string; href: string; icon: strin
   { key: "home", labelKey: "nav.home", href: "/g/home", icon: "home" },
   { key: "services", labelKey: "nav.services", href: "/g/services", icon: "reorder" },
   { key: "requests", labelKey: "nav.requests", href: "/g/requests", icon: "notifications" },
+  { key: "messages", labelKey: "nav.messages", href: "/g/messages", icon: "chat" },
 ];
 
 export function VsBottomNav({ active }: VsBottomNavProps) {

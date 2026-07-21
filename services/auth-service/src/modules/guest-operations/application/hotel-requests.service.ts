@@ -103,12 +103,40 @@ export class HotelRequestsService {
     this.guestRequestEventPublisher =
       guestRequestEventPublisher ?? NOOP_GUEST_REQUEST_EVENT_PUBLISHER;
   }
+  private parseHotelArgs<T>(
+    arg2: string,
+    arg3?: string | T,
+    arg4?: T,
+  ): { activeRoleId: string; hotelId: string; payload: T } {
+    if (typeof arg3 === "string") {
+      return { activeRoleId: arg2, hotelId: arg3, payload: (arg4 ?? {}) as T };
+    }
+    return { activeRoleId: "", hotelId: arg2, payload: (arg3 ?? {}) as T };
+  }
+
+  private parseHotelRequestArgs<T>(
+    arg2: string,
+    arg3: string,
+    arg4?: string | T,
+    arg5?: T,
+  ): { activeRoleId: string; hotelId: string; requestId: string; payload: T } {
+    if (typeof arg4 === "string") {
+      return { activeRoleId: arg2, hotelId: arg3, requestId: arg4, payload: (arg5 ?? {}) as T };
+    }
+    return { activeRoleId: "", hotelId: arg2, requestId: arg3, payload: (arg4 ?? {}) as T };
+  }
+
   async listRequests(
     actorUserId: string,
-    activeRoleId: string,
-    hotelId: string,
-    query: ListStaffRequestsQueryInput,
+    activeRoleIdOrHotelId: string,
+    hotelIdOrQuery?: string | ListStaffRequestsQueryInput,
+    queryInput?: ListStaffRequestsQueryInput,
   ) {
+    const { activeRoleId, hotelId, payload: query } = this.parseHotelArgs<ListStaffRequestsQueryInput>(
+      activeRoleIdOrHotelId,
+      hotelIdOrQuery,
+      queryInput,
+    );
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
@@ -159,10 +187,15 @@ export class HotelRequestsService {
 
   async getRequestsSummary(
     actorUserId: string,
-    activeRoleId: string,
-    hotelId: string,
-    query: RequestSummaryQueryInput,
+    activeRoleIdOrHotelId: string,
+    hotelIdOrQuery?: string | RequestSummaryQueryInput,
+    queryInput?: RequestSummaryQueryInput,
   ): Promise<RequestSummaryResponse> {
+    const { activeRoleId, hotelId, payload: query } = this.parseHotelArgs<RequestSummaryQueryInput>(
+      activeRoleIdOrHotelId,
+      hotelIdOrQuery,
+      queryInput,
+    );
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
     const where: Prisma.GuestRequestWhereInput = {
       hotelId,
@@ -186,10 +219,15 @@ export class HotelRequestsService {
 
   async getRequestDetail(
     actorUserId: string,
-    activeRoleId: string,
-    hotelId: string,
-    requestId: string,
+    activeRoleIdOrHotelId: string,
+    hotelIdOrRequestId: string,
+    requestIdParam?: string,
   ) {
+    const { activeRoleId, hotelId, requestId } = this.parseHotelRequestArgs<void>(
+      activeRoleIdOrHotelId,
+      hotelIdOrRequestId,
+      requestIdParam,
+    );
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
     const request = await this.hotelRequestsRepository.findRequestDetailInHotel(hotelId, requestId);
     if (!request) {
@@ -201,11 +239,17 @@ export class HotelRequestsService {
 
   async updateRequestStatus(
     actorUserId: string,
-    activeRoleId: string,
-    hotelId: string,
-    requestId: string,
-    dto: UpdateRequestStatusBodyInput,
+    activeRoleIdOrHotelId: string,
+    hotelIdOrRequestId: string,
+    requestIdOrDto: string | UpdateRequestStatusBodyInput,
+    dtoParam?: UpdateRequestStatusBodyInput,
   ) {
+    const { activeRoleId, hotelId, requestId, payload: dto } = this.parseHotelRequestArgs<UpdateRequestStatusBodyInput>(
+      activeRoleIdOrHotelId,
+      hotelIdOrRequestId,
+      requestIdOrDto,
+      dtoParam,
+    );
     const hotel = await this.hotelAccessService.assertHotelAccess(
       actorUserId,
       activeRoleId,

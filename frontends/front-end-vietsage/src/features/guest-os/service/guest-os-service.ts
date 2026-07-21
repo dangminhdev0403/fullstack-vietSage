@@ -8,6 +8,8 @@ import type {
   GuestEmergencyCallResult,
   GuestCurrentSessionResult,
   GuestLocaleCode,
+  GuestMessagesResult,
+  GuestMessageThread,
   GuestRequest,
   GuestRequestsResult,
   GuestScanQrRequest,
@@ -134,6 +136,31 @@ export class GuestOsService {
     });
 
     return unwrapApiEnvelope<GuestSessionCloseResult>(payload).data;
+  }
+
+  async listMessages(
+    sessionToken: string,
+    options?: { before?: string; limit?: number },
+    locale?: GuestLocaleCode,
+  ): Promise<GuestMessagesResult> {
+    const params = new URLSearchParams();
+    if (options?.before) params.set("before", options.before);
+    if (options?.limit) params.set("limit", String(options.limit));
+
+    const queryString = params.toString();
+    const path = this.path(`/guest/messages${queryString ? `?${queryString}` : ""}`);
+    const payload = await this.httpClient.request<unknown>({
+      method: "GET",
+      path,
+      accessToken: sessionToken,
+      headers: localeHeaders(locale),
+    });
+    return unwrapApiEnvelope<GuestMessagesResult>(payload).data;
+  }
+
+  async sendMessage(sessionToken: string, body: string, locale?: GuestLocaleCode): Promise<{ thread: GuestMessageThread; message: GuestMessagesResult["items"][number] }> {
+    const payload = await this.httpClient.request<unknown, { body: string }>({ method: "POST", path: this.path("/guest/messages"), accessToken: sessionToken, body: { body }, headers: localeHeaders(locale) });
+    return unwrapApiEnvelope<{ thread: GuestMessageThread; message: GuestMessagesResult["items"][number] }>(payload).data;
   }
 
   async createEmergencyCall(

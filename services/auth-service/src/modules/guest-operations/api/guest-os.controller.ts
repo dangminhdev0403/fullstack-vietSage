@@ -12,6 +12,7 @@ import {
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
 import { GuestOsService } from "../application/guest-os.service";
+import { GuestMessagesService } from "../application/guest-messages.service";
 import {
   GuestSessionGuard,
   type RequestWithGuestSession,
@@ -21,6 +22,8 @@ import {
   guestRequestIdParamSchema,
   listGuestCategoryServicesQuerySchema,
   listGuestRequestsQuerySchema,
+  guestMessageBodySchema,
+  listGuestMessagesQuerySchema,
   scanQrBodyOpenApiSchema,
   scanQrBodySchema,
   serviceCategoryIdParamSchema,
@@ -29,7 +32,10 @@ import {
 @ApiTags("guest-os")
 @Controller("guest")
 export class GuestOsController {
-  constructor(private readonly guestOsService: GuestOsService) {}
+  constructor(
+    private readonly guestOsService: GuestOsService,
+    private readonly guestMessagesService: GuestMessagesService,
+  ) {}
 
   @SuccessMessage("Tạo phiên khách thành công")
   @ApiBody({ schema: scanQrBodyOpenApiSchema })
@@ -132,6 +138,32 @@ export class GuestOsController {
   ) {
     const parsedRequestId = parseWithZod(guestRequestIdParamSchema, requestId);
     return this.guestOsService.cancelRequest(request.guestSession, parsedRequestId, request);
+  }
+
+  @UseGuards(GuestSessionGuard)
+  @SuccessMessage("Lấy hội thoại lễ tân thành công")
+  @Get("messages")
+  async listMessages(@Req() request: RequestWithGuestSession, @Query() query: unknown) {
+    const parsed = parseWithZod(listGuestMessagesQuerySchema, query);
+    return this.guestMessagesService.listForGuest(
+      request.guestSession,
+      parsed.page,
+      parsed.limit ?? 20,
+      parsed.before,
+    );
+  }
+
+  @UseGuards(GuestSessionGuard)
+  @SuccessMessage("Đã gửi tin nhắn cho lễ tân")
+  @Post("messages")
+  async sendMessage(@Req() request: RequestWithGuestSession, @Body() body: unknown) {
+    const parsed = parseWithZod(guestMessageBodySchema, body);
+    const session = await this.guestOsService.getCurrentSession(request.guestSession);
+    return this.guestMessagesService.sendFromGuest(
+      request.guestSession,
+      parsed.body,
+      new Date(session.session.stay.plannedCheckOutAt),
+    );
   }
 
   @UseGuards(GuestSessionGuard)

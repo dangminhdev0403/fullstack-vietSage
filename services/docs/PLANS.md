@@ -63,6 +63,20 @@ Verification result:
 - `NODE_OPTIONS=--max-old-space-size=4096 npm run build` passed.
 - OpenAPI export and shared contract verification passed with 80 paths.
 
+## 2026-07-22 - Stay-Scoped Front Desk Messages
+
+- Added `GuestMessageThread` and `GuestMessage` to Guest Operations with an additive Prisma
+  migration. Conversations are scoped to one stay and expire 14 days after the planned checkout.
+- Added guest session endpoints for listing/sending messages and hotel-scoped endpoints for list,
+  detail, reply, and inbox clearing. Existing `hotel.requests.view/manage` capabilities enforce
+  staff access while a dedicated message capability is not yet needed.
+- Checkout continues to revoke GuestOS access; staff replies also reject an already checked-out
+  stay, so a historic thread cannot become a long-lived contact channel.
+
+Verification result:
+
+- Prisma generate and backend Nest build passed.
+
 ## 2026-07-20 - Workspace V2 P3 Service Boundaries
 
 - [x] Added an executable production-source boundary check that rejects private cross-context

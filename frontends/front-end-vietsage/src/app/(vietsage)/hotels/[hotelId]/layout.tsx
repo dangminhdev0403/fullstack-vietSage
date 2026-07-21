@@ -8,6 +8,8 @@ import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
 import { WorkspaceProfileProvider } from "@/features/workspace/components/workspace-profile-context";
 import { WorkspaceShell } from "@/features/workspace/components/workspace-shell";
 
+import { HotelOpsRealtimeNotifier } from "@/features/hotel-ops/components/hotel-ops-realtime-notifier";
+
 export default async function HotelOpsLayout({
   children,
   params,
@@ -39,6 +41,7 @@ export default async function HotelOpsLayout({
 
   return (
     <WorkspaceProfileProvider profileName={context.fullName}>
+      <HotelOpsRealtimeNotifier hotelId={hotelId} />
       <WorkspaceShell
         definition={getWorkspaceDefinition(persona)}
         navItems={sidebarItems}
@@ -50,3 +53,4 @@ export default async function HotelOpsLayout({
     </WorkspaceProfileProvider>
   );
 }
+
