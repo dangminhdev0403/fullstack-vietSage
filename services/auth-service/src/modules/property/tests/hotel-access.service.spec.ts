@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
+import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { HotelAccessService } from "../application/hotel-access.service";
 
 function createRepository(overrides: Record<string, jest.Mock> = {}) {
@@ -141,20 +141,19 @@ describe("HotelAccessService", () => {
     ).resolves.toMatchObject({ id: "hotel-1" });
   });
 
-  it("từ chối tenant hint của TENANT_OWNER", async () => {
+  it("chỉ chấp nhận tenant hint thuộc phạm vi của TENANT_OWNER", async () => {
     const service = new HotelAccessService(createRepository() as never);
+    const actor = {
+      userId: "actor-1",
+      roleCodes: new Set(["TENANT_OWNER"]),
+      tenantIds: new Set(["tenant-1"]),
+      isSuperAdmin: false,
+      isTenantOwner: true,
+    };
 
-    expect(() =>
-      service.rejectTenantOwnerTenantHint(
-        {
-          userId: "actor-1",
-          roleCodes: new Set(["TENANT_OWNER"]),
-          tenantIds: new Set(["tenant-1"]),
-          isSuperAdmin: false,
-          isTenantOwner: true,
-        },
-        "tenant-1",
-      ),
-    ).toThrow(BadRequestException);
+    await expect(service.resolveTenantId(actor, "tenant-1")).resolves.toBe("tenant-1");
+    await expect(service.resolveTenantId(actor, "tenant-2")).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
   });
 });

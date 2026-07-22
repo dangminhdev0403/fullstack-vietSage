@@ -33,7 +33,7 @@ test("chat composers do not silently stop accepting text at the backend limit", 
 });
 
 test("staff chat keeps the active mobile conversation and composer inside the viewport", () => {
-  assert.match(staffSource, /h-\[calc\(100dvh-12rem\)\]/);
+  assert.match(staffSource, /h-\[calc\(100dvh-7\.5rem\)\]/);
   assert.match(staffSource, /selectedId \? "hidden lg:flex" : "flex"/);
   assert.match(staffSource, /selectedId \? "flex" : "hidden lg:flex"/);
 });

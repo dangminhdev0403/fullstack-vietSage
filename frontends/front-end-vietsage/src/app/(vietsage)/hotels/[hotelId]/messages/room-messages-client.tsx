@@ -88,7 +88,7 @@ function TypewriterMessageBody({ body, createdAt }: Readonly<{ body: string; cre
   }, [body, createdAt]);
 
   return (
-    <p className="whitespace-pre-wrap break-all text-left">
+    <p className="whitespace-pre-wrap break-all [overflow-wrap:anywhere] text-left">
       {displayedText}
       {isTyping && (
         <span className="inline-block w-1.5 h-3.5 ml-0.5 bg-current animate-pulse rounded-sm align-middle opacity-80" />

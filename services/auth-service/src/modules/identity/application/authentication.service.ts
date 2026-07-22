@@ -265,7 +265,9 @@ export class AuthService {
       throw this.unauthorized("AUTH_ROLE_INACTIVE", "Active session role is no longer available");
     }
 
-    const roles = Array.from(new Set(user.userRoles.map((entry) => entry.role.code))).sort();
+    const roles = Array.from(new Set(user.userRoles.map((entry) => entry.role.code))).sort(
+      (left, right) => left.localeCompare(right),
+    );
     const menus = new Set<string>([DEFAULT_NAVIGATION_MENU]);
     const permissions = new Set<string>();
     const activeTenantIds = new Set(user.tenantUsers.map((entry) => entry.tenantId));
@@ -301,7 +303,7 @@ export class AuthService {
         name: activeUserRole.role.name,
       },
       menus: sortMenuPathsByNavigationOrder(Array.from(menus)),
-      permissions: Array.from(permissions).sort(),
+      permissions: Array.from(permissions).sort((left, right) => left.localeCompare(right)),
       tenants: user.tenantUsers.map((tenantUser) => ({
         id: tenantUser.tenant.id,
         code: tenantUser.tenant.code,

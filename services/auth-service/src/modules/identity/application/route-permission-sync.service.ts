@@ -148,71 +148,7 @@ export class RoutePermissionSyncService implements OnApplicationBootstrap {
 
     for (const moduleRef of this.modulesContainer.values()) {
       for (const controllerRef of moduleRef.controllers.values()) {
-        const controllerClass = controllerRef.metatype;
-        if (!controllerClass) {
-          continue;
-        }
-
-        const controllerPaths = this.toPathList(
-          Reflect.getMetadata(PATH_METADATA, controllerClass),
-        );
-        const prototype = controllerClass.prototype as Record<string, unknown>;
-
-        for (const handlerName of Object.getOwnPropertyNames(prototype)) {
-          if (handlerName === "constructor") {
-            continue;
-          }
-
-          const handlerCandidate = prototype[handlerName];
-          if (typeof handlerCandidate !== "function") {
-            continue;
-          }
-
-          const handler = handlerCandidate as (...args: unknown[]) => unknown;
-          const method = this.resolveMethod(Reflect.getMetadata(METHOD_METADATA, handler));
-          if (!method) {
-            continue;
-          }
-
-          const description = this.resolveApiDescription(handler);
-          const methodPaths = this.toPathList(Reflect.getMetadata(PATH_METADATA, handler));
-
-          for (const controllerPath of controllerPaths) {
-            for (const methodPath of methodPaths) {
-              const permissionKey = buildRoutePermissionKey({
-                method,
-                basePath: controllerPath,
-                routePath: methodPath,
-              });
-
-              if (!permissionKey) {
-                this.handleMissingKey(method, controllerPath, methodPath);
-                continue;
-              }
-
-              if (publicMatcher.isPublic(permissionKey.path)) {
-                continue;
-              }
-
-              if (isPermissionPathTooLong(permissionKey.path)) {
-                this.handleOversizedPath(permissionKey.method, permissionKey.path);
-                continue;
-              }
-
-              if (!description) {
-                this.handleMissingDescription(permissionKey.method, permissionKey.path);
-                continue;
-              }
-
-              const mapKey = `${permissionKey.method}:${permissionKey.path}`;
-              permissionsByKey.set(mapKey, {
-                method: permissionKey.method,
-                path: permissionKey.path,
-                description,
-              });
-            }
-          }
-        }
+        this.collectControllerPermissions(controllerRef.metatype, permissionsByKey);
       }
     }
 
@@ -223,6 +159,74 @@ export class RoutePermissionSyncService implements OnApplicationBootstrap {
 
       return a.method.localeCompare(b.method);
     });
+  }
+
+  private collectControllerPermissions(
+    controllerClass: unknown,
+    permissionsByKey: Map<string, RoutePermissionSeed>,
+  ): void {
+    if (typeof controllerClass !== "function") return;
+
+    const controllerPaths = this.toPathList(Reflect.getMetadata(PATH_METADATA, controllerClass));
+    const prototype = controllerClass.prototype as Record<string, unknown>;
+    for (const handlerName of Object.getOwnPropertyNames(prototype)) {
+      if (handlerName !== "constructor") {
+        this.collectHandlerPermissions(prototype[handlerName], controllerPaths, permissionsByKey);
+      }
+    }
+  }
+
+  private collectHandlerPermissions(
+    handlerCandidate: unknown,
+    controllerPaths: string[],
+    permissionsByKey: Map<string, RoutePermissionSeed>,
+  ): void {
+    if (typeof handlerCandidate !== "function") return;
+
+    const handler = handlerCandidate as (...args: unknown[]) => unknown;
+    const method = this.resolveMethod(Reflect.getMetadata(METHOD_METADATA, handler));
+    if (!method) return;
+
+    const description = this.resolveApiDescription(handler);
+    const methodPaths = this.toPathList(Reflect.getMetadata(PATH_METADATA, handler));
+    for (const controllerPath of controllerPaths) {
+      for (const methodPath of methodPaths) {
+        const seed = this.createRoutePermissionSeed(
+          method,
+          controllerPath,
+          methodPath,
+          description,
+        );
+        if (seed) permissionsByKey.set(`${seed.method}:${seed.path}`, seed);
+      }
+    }
+  }
+
+  private createRoutePermissionSeed(
+    method: HttpMethod,
+    controllerPath: string,
+    methodPath: string,
+    description: string | null,
+  ): RoutePermissionSeed | null {
+    const permissionKey = buildRoutePermissionKey({
+      method,
+      basePath: controllerPath,
+      routePath: methodPath,
+    });
+    if (!permissionKey) {
+      this.handleMissingKey(method, controllerPath, methodPath);
+      return null;
+    }
+    if (publicMatcher.isPublic(permissionKey.path)) return null;
+    if (isPermissionPathTooLong(permissionKey.path)) {
+      this.handleOversizedPath(permissionKey.method, permissionKey.path);
+      return null;
+    }
+    if (!description) {
+      this.handleMissingDescription(permissionKey.method, permissionKey.path);
+      return null;
+    }
+    return { method: permissionKey.method, path: permissionKey.path, description };
   }
 
   private async syncAuthAdmin(superAdminRoleId: string): Promise<void> {

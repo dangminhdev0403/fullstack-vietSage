@@ -29,7 +29,7 @@ test("both message mutations surface request failures and refresh their active q
 test("staff reply cache updates use the submitted thread instead of mutable selection state", () => {
   const staffSource = sources[1];
   assert.match(staffSource, /mutationFn: \(variables: \{ threadId: string; body: string \}\)/);
-  assert.match(staffSource, /onSuccess: async \(res, variables\)/);
+  assert.match(staffSource, /onSuccess: \(res, variables\)/);
   assert.match(staffSource, /\["hotel-message-thread", hotelId, variables\.threadId\]/);
   assert.match(staffSource, /reply\.mutate\(\{ threadId: selectedId, body: body\.trim\(\) \}\)/);
 });

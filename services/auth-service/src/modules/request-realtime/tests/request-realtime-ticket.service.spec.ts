@@ -2,7 +2,7 @@
 import { ServiceUnavailableException } from "@nestjs/common";
 import type { JwtService } from "@nestjs/jwt";
 import type { HotelAccessService } from "../../property/property-public";
-import { SKIP_AUTHORIZATION_KEY } from "../../../shared/decorators/skip-authorization.decorator";
+import { REQUIRED_PERMISSION_KEY } from "../../../shared/decorators/require-permission.decorator";
 import { RequestRealtimeTicketService } from "../application/request-realtime-ticket.service";
 import { RequestRealtimeController } from "../api/request-realtime.controller";
 
@@ -85,6 +85,8 @@ describe("RequestRealtimeController authorization boundary", () => {
       "issue",
     )?.value;
     expect(issue).toBeDefined();
-    expect(Reflect.getMetadata(SKIP_AUTHORIZATION_KEY, issue as object)).toBe(true);
+    expect(Reflect.getMetadata(REQUIRED_PERMISSION_KEY, issue as object)).toBe(
+      "hotel.requests.view",
+    );
   });
 });

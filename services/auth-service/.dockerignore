@@ -5,6 +5,8 @@ coverage
 .env
 .env.local
 .env.docker
+src/common/config/google-service-account.json
+.sonarqube-*.json
 npm-debug.log*
 pnpm-debug.log*
 *.tsbuildinfo

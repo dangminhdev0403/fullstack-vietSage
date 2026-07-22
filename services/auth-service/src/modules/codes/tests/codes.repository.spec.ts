@@ -29,7 +29,7 @@ describe("CodesRepository", () => {
     expect(transactionClient.code.update).toHaveBeenCalledWith({
       where: { id: "code-1" },
       data: { sequenceNext: { increment: 1 } },
-      select: { id: true },
+      select: { id: true, name: true, sequenceNext: true },
     });
     expect(result).toMatchObject({ name: "HOTEL", sequenceNext: 1 });
   });

@@ -1006,79 +1006,90 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
     },
     {
       key: "actions",
-      header: "Thao t\u00e1c",
+      header: "Thao tác",
       className: "whitespace-nowrap px-4 py-5 text-right",
       headerClassName: "px-4 py-5 text-right",
       cell: (room) => {
+        const isOccupied = room.status?.trim().toUpperCase() === "OCCUPIED";
+        const isBlocked = room.status?.trim().toUpperCase() === "BLOCKED";
         const showActivate = canActivateQr(room);
         const showDeactivate = canDeactivateQr(room);
+
         return (
-          <div className="flex justify-end gap-1.5">
-            {room.status?.trim().toUpperCase() !== "OCCUPIED" ? (
+          <div className="flex justify-end items-center gap-1">
+            {/* Slot 1: Lock / Unlock Room */}
+            {!isOccupied ? (
               <button
                 type="button"
-                title={
-                  room.status?.trim().toUpperCase() === "BLOCKED"
-                    ? "Mở khóa phòng"
-                    : "Khóa phòng"
-                }
+                title={isBlocked ? "Mở khóa phòng" : "Khóa phòng"}
                 onClick={() => void toggleRoomBlocked(room)}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[var(--primary)] transition hover:bg-[var(--primary-fixed)]"
+                className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition ${
+                  isBlocked
+                    ? "text-emerald-700 hover:bg-emerald-50"
+                    : "text-rose-700 hover:bg-rose-50"
+                }`}
               >
                 <VsIcon
-                  name={
-                    room.status?.trim().toUpperCase() === "BLOCKED"
-                      ? "lock_open"
-                      : "block"
-                  }
+                  name={isBlocked ? "lock_open" : "lock"}
                   className="text-lg"
                 />
               </button>
-            ) : null}
+            ) : (
+              <div className="h-9 w-9 shrink-0" />
+            )}
+
+            {/* Slot 2: Edit Room */}
             <button
               type="button"
-              title="Chỉnh sửa"
+              title="Chỉnh sửa phòng"
               onClick={() => openEditRoom(room)}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[var(--primary)] transition hover:bg-[var(--primary-fixed)]"
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--primary)] transition hover:bg-[var(--primary-fixed)]"
             >
               <VsIcon name="edit" className="text-lg" />
             </button>
+
+            {/* Slot 3: Show QR */}
             <button
               type="button"
-              title="Show QR"
+              title="Xem mã QR"
               onClick={() => setSelectedQrRoom(room)}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[var(--primary)] transition hover:bg-[var(--primary-fixed)]"
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--primary)] transition hover:bg-[var(--primary-fixed)]"
             >
               <VsIcon name="qr_code" className="text-lg" />
             </button>
+
+            {/* Slot 4: Rotate QR */}
             <button
               type="button"
-              title="Đổi mã QR"
+              title="Đổi / Xoay mã QR"
               onClick={() => void updateRoomFromQrAction(room, "rotate")}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[var(--primary)] transition hover:bg-[var(--primary-fixed)]"
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-700 transition hover:bg-slate-100"
             >
-              <VsIcon name="history" className="text-lg" />
+              <VsIcon name="sync" className="text-lg" />
             </button>
+
+            {/* Slot 5: QR Status Action (Deactivate or Activate) */}
             {showDeactivate ? (
               <button
                 type="button"
                 title="Tạm tắt QR"
                 onClick={() => void updateRoomFromQrAction(room, "deactivate")}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[var(--primary)] transition hover:bg-[var(--primary-fixed)]"
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-amber-700 transition hover:bg-amber-50"
               >
-                <VsIcon name="block" className="text-lg" />
+                <VsIcon name="power_settings_new" className="text-lg" />
               </button>
-            ) : null}
-            {showActivate ? (
+            ) : showActivate ? (
               <button
                 type="button"
                 title="Kích hoạt QR"
                 onClick={() => void updateRoomFromQrAction(room, "activate")}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[var(--primary)] transition hover:bg-[var(--primary-fixed)]"
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-emerald-700 transition hover:bg-emerald-50"
               >
-                <VsIcon name="task_alt" className="text-lg" />
+                <VsIcon name="check_circle" className="text-lg" />
               </button>
-            ) : null}
+            ) : (
+              <div className="h-9 w-9 shrink-0" />
+            )}
           </div>
         );
       },

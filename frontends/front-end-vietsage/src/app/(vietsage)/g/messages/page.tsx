@@ -48,7 +48,7 @@ function TypewriterMessageBody({ body, createdAt }: Readonly<{ body: string; cre
   }, [body, createdAt]);
 
   return (
-    <p className="whitespace-pre-wrap break-all text-left">
+    <p className="whitespace-pre-wrap break-all [overflow-wrap:anywhere] text-left">
       {displayedText}
       {isTyping && (
         <span className="inline-block w-1.5 h-3.5 ml-0.5 bg-current animate-pulse rounded-sm align-middle opacity-80" />
@@ -440,7 +440,7 @@ export default function GuestMessagesPage() {
               const fromGuest = message.senderType === "GUEST";
               return (
                 <div key={message.id} className={`flex ${fromGuest ? "justify-end" : "justify-start"}`}>
-                  <div className={`min-w-0 max-w-[82%] sm:max-w-[75%] flex flex-col ${fromGuest ? "items-end" : "items-start"}`}>
+                  <div className={`min-w-0 max-w-[50%] flex flex-col ${fromGuest ? "items-end" : "items-start"}`}>
                     <div className="flex items-center gap-2 px-1 mb-1">
                       <span className="text-xs font-bold text-[#25483f]">{fromGuest ? t("messages.you") : (message.senderName ?? t("common.reception"))}</span>
                       <span className="text-xs text-[#66736b]">{new Date(message.createdAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}</span>

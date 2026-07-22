@@ -469,7 +469,11 @@ describe("HotelsService", () => {
       note: "Taking this",
     });
 
-    expect(repository.findAssignableStaffInTenant).toHaveBeenCalledWith("staff-1", "tenant-1");
+    expect(repository.findAssignableStaffInTenant).toHaveBeenCalledWith(
+      "staff-1",
+      "tenant-1",
+      "hotel-1",
+    );
     expect(repository.updateRequestAssignment).toHaveBeenCalledWith(
       expect.objectContaining({
         hotelId: "hotel-1",

@@ -60,6 +60,178 @@ function mapRequestStatus(
   return "sent";
 }
 
+type RoomStatusSummary = {
+  available: number;
+  occupied: number;
+  processing: number;
+  maintenance: number;
+};
+
+type DashboardInsight = {
+  id: string;
+  type: string;
+  severity: "info" | "warning" | "critical";
+  title: string;
+  description: string;
+  metric?: { current: number; previous?: number; changePercent?: number };
+};
+
+function buildDashboardHealth(input: {
+  urgentUnprocessedRequests: number;
+  unprocessedRequests: number;
+  roomsByStatus: RoomStatusSummary;
+  pendingCheckOuts: number;
+  failedPayments: number;
+}) {
+  const score = Math.max(
+    0,
+    Math.min(
+      100,
+      100 -
+        input.urgentUnprocessedRequests * 15 -
+        input.unprocessedRequests * 3 -
+        input.roomsByStatus.processing * 2 -
+        input.roomsByStatus.maintenance * 4 -
+        input.pendingCheckOuts * 5 -
+        input.failedPayments * 10,
+    ),
+  );
+  const status =
+    score >= 90 ? "excellent" : score >= 75 ? "good" : score >= 50 ? "warning" : "critical";
+  const titles = {
+    excellent: "Xuất sắc",
+    good: "Tốt",
+    warning: "Cần chú ý",
+    critical: "Nguy hiểm",
+  } as const;
+
+  return {
+    score,
+    status,
+    title: titles[status],
+    factors: [
+      {
+        type: "urgent_requests",
+        label: "Yêu cầu khẩn cấp",
+        impact: input.urgentUnprocessedRequests ? "negative" : "positive",
+        message: input.urgentUnprocessedRequests
+          ? `Có ${input.urgentUnprocessedRequests} yêu cầu khẩn cấp chưa xử lý.`
+          : "Không có yêu cầu khẩn cấp chưa xử lý.",
+      },
+      {
+        type: "room_readiness",
+        label: "Sẵn sàng phòng",
+        impact:
+          input.roomsByStatus.processing + input.roomsByStatus.maintenance
+            ? "negative"
+            : "positive",
+        message: `${input.roomsByStatus.processing + input.roomsByStatus.maintenance} phòng đang xử lý hoặc bảo trì.`,
+      },
+      {
+        type: "pending_checkouts",
+        label: "Check-out chờ xử lý",
+        impact: input.pendingCheckOuts ? "negative" : "positive",
+        message: `${input.pendingCheckOuts} lượt lưu trú đang chờ trả phòng.`,
+      },
+    ],
+  };
+}
+
+function buildDashboardInsights(input: {
+  todayRequests: number;
+  yesterdayRequests: number;
+  todayUrgentRequests: number;
+  yesterdayUrgentRequests: number;
+  topService?: { serviceItemId: string | null; count: number; name: string };
+}): DashboardInsight[] {
+  const insights: DashboardInsight[] = [];
+  if (input.yesterdayRequests > 0) {
+    const changePercent = Math.round(
+      ((input.todayRequests - input.yesterdayRequests) / input.yesterdayRequests) * 100,
+    );
+    if (Math.abs(changePercent) >= 20) {
+      insights.push({
+        id: "request-volume-change",
+        type: "request_volume_change",
+        severity: changePercent > 0 ? "warning" : "info",
+        title: changePercent > 0 ? "Yêu cầu hôm nay tăng" : "Yêu cầu hôm nay giảm",
+        description: `Số yêu cầu hôm nay ${changePercent > 0 ? "cao hơn" : "thấp hơn"} hôm qua ${Math.abs(changePercent)}%.`,
+        metric: {
+          current: input.todayRequests,
+          previous: input.yesterdayRequests,
+          changePercent,
+        },
+      });
+    }
+  }
+  if (
+    input.yesterdayUrgentRequests > 0 &&
+    input.todayUrgentRequests > input.yesterdayUrgentRequests
+  ) {
+    insights.push({
+      id: "urgent-request-increase",
+      type: "urgent_request_change",
+      severity: "critical",
+      title: "Yêu cầu khẩn cấp tăng",
+      description: "Số yêu cầu khẩn cấp hôm nay cao hơn hôm qua.",
+      metric: {
+        current: input.todayUrgentRequests,
+        previous: input.yesterdayUrgentRequests,
+      },
+    });
+  }
+  if (input.topService?.serviceItemId) {
+    insights.push({
+      id: "top-service",
+      type: "top_requested_service",
+      severity: "info",
+      title: "Dịch vụ được yêu cầu nhiều nhất",
+      description: `${input.topService.name} đang có ${input.topService.count} yêu cầu.`,
+      metric: { current: input.topService.count },
+    });
+  }
+  return insights;
+}
+
+function buildDashboardSla(
+  completedRequests: Array<{ id: string; createdAt: Date; completedAt: Date | null }>,
+  acknowledgedEvents: Array<{ requestId: string; _min: { createdAt: Date | null } }>,
+) {
+  const responseEvents = new Map(
+    acknowledgedEvents.map((item) => [item.requestId, item._min.createdAt]),
+  );
+  const samples = completedRequests.filter(
+    (item): item is typeof item & { completedAt: Date } => item.completedAt !== null,
+  );
+  const responseMinutes = samples
+    .map((item) => {
+      const respondedAt = responseEvents.get(item.id);
+      return respondedAt ? (respondedAt.getTime() - item.createdAt.getTime()) / 60000 : null;
+    })
+    .filter((value): value is number => value != null && value >= 0);
+  const completionMinutes = samples
+    .map((item) => (item.completedAt.getTime() - item.createdAt.getTime()) / 60000)
+    .filter((value) => value >= 0);
+  const average = (values: number[]) =>
+    values.length
+      ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length)
+      : null;
+
+  return {
+    available: completionMinutes.length > 0,
+    averageResponseMinutes: average(responseMinutes),
+    averageCompletionMinutes: average(completionMinutes),
+    completedWithinSlaPercent: completionMinutes.length
+      ? Math.round(
+          (completionMinutes.filter((value) => value <= SLA_THRESHOLD_MINUTES).length /
+            completionMinutes.length) *
+            100,
+        )
+      : null,
+    thresholdMinutes: SLA_THRESHOLD_MINUTES,
+  };
+}
+
 @Injectable()
 export class HotelDashboardService {
   constructor(
@@ -312,21 +484,13 @@ export class HotelDashboardService {
           : [],
     };
 
-    const score = Math.max(
-      0,
-      Math.min(
-        100,
-        100 -
-          urgentUnprocessedRequests * 15 -
-          unprocessedRequests * 3 -
-          roomsByStatus.processing * 2 -
-          roomsByStatus.maintenance * 4 -
-          pendingCheckOuts * 5 -
-          failedPayments * 10,
-      ),
-    );
-    const healthStatus =
-      score >= 90 ? "excellent" : score >= 75 ? "good" : score >= 50 ? "warning" : "critical";
+    const health = buildDashboardHealth({
+      urgentUnprocessedRequests,
+      unprocessedRequests,
+      roomsByStatus,
+      pendingCheckOuts,
+      failedPayments,
+    });
 
     const attention = [
       ...attentionRequests.map((item) => ({
@@ -368,66 +532,23 @@ export class HotelDashboardService {
       })),
     ].slice(0, 10);
 
-    const insights: Array<{
-      id: string;
-      type: string;
-      severity: "info" | "warning" | "critical";
-      title: string;
-      description: string;
-      metric?: { current: number; previous?: number; changePercent?: number };
-    }> = [];
-    if (yesterdayRequests > 0) {
-      const changePercent = Math.round(
-        ((todayRequests - yesterdayRequests) / yesterdayRequests) * 100,
-      );
-      if (Math.abs(changePercent) >= 20) {
-        insights.push({
-          id: "request-volume-change",
-          type: "request_volume_change",
-          severity: changePercent > 0 ? "warning" : "info",
-          title: changePercent > 0 ? "Yêu cầu hôm nay tăng" : "Yêu cầu hôm nay giảm",
-          description: `Số yêu cầu hôm nay ${changePercent > 0 ? "cao hơn" : "thấp hơn"} hôm qua ${Math.abs(changePercent)}%.`,
-          metric: { current: todayRequests, previous: yesterdayRequests, changePercent },
-        });
-      }
-    }
-    if (yesterdayUrgentRequests > 0 && todayUrgentRequests > yesterdayUrgentRequests) {
-      insights.push({
-        id: "urgent-request-increase",
-        type: "urgent_request_change",
-        severity: "critical",
-        title: "Yêu cầu khẩn cấp tăng",
-        description: "Số yêu cầu khẩn cấp hôm nay cao hơn hôm qua.",
-        metric: { current: todayUrgentRequests, previous: yesterdayUrgentRequests },
-      });
-    }
     const firstService = topServices[0];
-    if (firstService?.serviceItemId) {
-      insights.push({
-        id: "top-service",
-        type: "top_requested_service",
-        severity: "info",
-        title: "Dịch vụ được yêu cầu nhiều nhất",
-        description: `${serviceNameMap.get(firstService.serviceItemId) ?? "Dịch vụ"} đang có ${firstService._count._all} yêu cầu.`,
-        metric: { current: firstService._count._all },
-      });
-    }
-
-    const responseEvents = new Map(
-      acknowledgedEvents.map((item) => [item.requestId, item._min.createdAt]),
-    );
-    const slaSamples = completedRequests.filter((item) => item.completedAt);
-    const responseMinutes = slaSamples
-      .map((item) =>
-        responseEvents.get(item.id)?.getTime()
-          ? (responseEvents.get(item.id)!.getTime() - item.createdAt.getTime()) / 60000
-          : null,
-      )
-      .filter((value): value is number => value != null && value >= 0);
-    const completionMinutes = slaSamples
-      .map((item) => (item.completedAt!.getTime() - item.createdAt.getTime()) / 60000)
-      .filter((value) => value >= 0);
-    const slaAvailable = completionMinutes.length > 0;
+    const insights = buildDashboardInsights({
+      todayRequests,
+      yesterdayRequests,
+      todayUrgentRequests,
+      yesterdayUrgentRequests,
+      topService: firstService
+        ? {
+            serviceItemId: firstService.serviceItemId,
+            count: firstService._count._all,
+            name: firstService.serviceItemId
+              ? (serviceNameMap.get(firstService.serviceItemId) ?? "Dịch vụ")
+              : "Dịch vụ",
+          }
+        : undefined,
+    });
+    const sla = buildDashboardSla(completedRequests, acknowledgedEvents);
 
     return {
       hotelId,
@@ -460,63 +581,10 @@ export class HotelDashboardService {
         insufficientData: false,
       },
       revenue,
-      health: {
-        score,
-        status: healthStatus,
-        title:
-          healthStatus === "excellent"
-            ? "Xuất sắc"
-            : healthStatus === "good"
-              ? "Tốt"
-              : healthStatus === "warning"
-                ? "Cần chú ý"
-                : "Nguy hiểm",
-        factors: [
-          {
-            type: "urgent_requests",
-            label: "Yêu cầu khẩn cấp",
-            impact: urgentUnprocessedRequests ? "negative" : "positive",
-            message: urgentUnprocessedRequests
-              ? `Có ${urgentUnprocessedRequests} yêu cầu khẩn cấp chưa xử lý.`
-              : "Không có yêu cầu khẩn cấp chưa xử lý.",
-          },
-          {
-            type: "room_readiness",
-            label: "Sẵn sàng phòng",
-            impact: roomsByStatus.processing + roomsByStatus.maintenance ? "negative" : "positive",
-            message: `${roomsByStatus.processing + roomsByStatus.maintenance} phòng đang xử lý hoặc bảo trì.`,
-          },
-          {
-            type: "pending_checkouts",
-            label: "Check-out chờ xử lý",
-            impact: pendingCheckOuts ? "negative" : "positive",
-            message: `${pendingCheckOuts} lượt lưu trú đang chờ trả phòng.`,
-          },
-        ],
-      },
+      health,
       attention,
       insights,
-      sla: {
-        available: slaAvailable,
-        averageResponseMinutes: responseMinutes.length
-          ? Math.round(
-              responseMinutes.reduce((sum, value) => sum + value, 0) / responseMinutes.length,
-            )
-          : null,
-        averageCompletionMinutes: completionMinutes.length
-          ? Math.round(
-              completionMinutes.reduce((sum, value) => sum + value, 0) / completionMinutes.length,
-            )
-          : null,
-        completedWithinSlaPercent: completionMinutes.length
-          ? Math.round(
-              (completionMinutes.filter((value) => value <= SLA_THRESHOLD_MINUTES).length /
-                completionMinutes.length) *
-                100,
-            )
-          : null,
-        thresholdMinutes: SLA_THRESHOLD_MINUTES,
-      },
+      sla,
       activities: activities.map((item) => ({
         id: item.id,
         type: item.eventType,

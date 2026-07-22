@@ -199,6 +199,8 @@ describe("hotels.schema", () => {
   });
 
   it("rejects empty room updates", () => {
-    expect(() => parseWithZod(updateRoomBodySchema, {})).toThrow("Cần ít nhất một trường phòng");
+    expect(() => parseWithZod(updateRoomBodySchema, {})).toThrow(
+      "Cần ít nhất một trường thông tin phòng để cập nhật",
+    );
   });
 });

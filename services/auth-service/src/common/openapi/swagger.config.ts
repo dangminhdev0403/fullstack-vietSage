@@ -20,13 +20,14 @@ export function createOpenApiDocument(app: INestApplication) {
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  return sanitizeOpenApiDocument(document);
+  sanitizeOpenApiDocument(document);
+  return document;
 }
 
-function sanitizeOpenApiDocument(document: OpenAPIObject): OpenAPIObject {
+function sanitizeOpenApiDocument(document: OpenAPIObject): void {
   const securitySchemes = document.components?.securitySchemes;
   if (!securitySchemes) {
-    return document;
+    return;
   }
 
   for (const scheme of Object.values(securitySchemes)) {
@@ -36,8 +37,6 @@ function sanitizeOpenApiDocument(document: OpenAPIObject): OpenAPIObject {
       }
     }
   }
-
-  return document;
 }
 
 export function setupSwagger(app: INestApplication): void {
