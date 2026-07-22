@@ -47,7 +47,20 @@ export function HotelOpsRealtimeNotifier({ hotelId }: { hotelId: string }) {
         router.refresh();
       },
       onUpdated: (request: Partial<StaffRequestListItem> & { id: string }) => {
-        if (String(request.status) === "PENDING") {
+        if (String(request.status) === "CANCELLED") {
+          toast.warning(
+            `Phòng ${request.roomNumber ?? ""} đã HỦY yêu cầu`,
+            {
+              id: `hotel-ops-request-cancelled-${request.id}`,
+              description: `Khách hàng vừa hủy yêu cầu ${request.displayName ?? ""}`,
+              duration: 8000,
+              action: {
+                label: "Xem ngay",
+                onClick: () => router.push(`/hotels/${hotelId}/requests`),
+              },
+            },
+          );
+        } else if (String(request.status) === "PENDING") {
           playRequestAlertSound(false);
         }
         queryClient.invalidateQueries({ queryKey: ["hotel-ops", hotelId] }).catch(() => {});

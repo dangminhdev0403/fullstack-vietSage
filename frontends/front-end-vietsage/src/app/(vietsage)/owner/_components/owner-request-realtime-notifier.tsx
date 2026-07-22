@@ -2,6 +2,7 @@
 
 import { startTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import type { StaffRequestListItem } from "@/features/hotel-ops/types/hotel-ops-contract";
@@ -49,6 +50,7 @@ function playUrgentRequestSound() {
 
 function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   const handlers = useMemo(
     () => ({
@@ -79,25 +81,53 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
             },
           },
         );
+        queryClient.invalidateQueries({ queryKey: ["hotel-ops", hotelId] }).catch(() => {});
+        queryClient.invalidateQueries({ queryKey: ["hotel-requests", hotelId] }).catch(() => {});
+        queryClient.invalidateQueries({ queryKey: ["owner-requests", hotelId] }).catch(() => {});
         startTransition(() => {
           router.refresh();
         });
       },
-      onUpdated: () => {
+      onUpdated: (request: Partial<StaffRequestListItem> & { id: string }) => {
+        if (String(request.status) === "CANCELLED") {
+          toast.warning(
+            `Phòng ${request.roomNumber ?? ""} đã HỦY yêu cầu`,
+            {
+              id: `owner-request-cancelled-${request.id}`,
+              description: `Khách hàng vừa hủy yêu cầu ${request.displayName ?? ""}`,
+              duration: 8000,
+              action: {
+                label: "Xem ngay",
+                onClick: () => router.push(`/owner/hotels/${hotelId}/requests`),
+              },
+            },
+          );
+        }
+        queryClient.invalidateQueries({ queryKey: ["hotel-ops", hotelId] }).catch(() => {});
+        queryClient.invalidateQueries({ queryKey: ["hotel-requests", hotelId] }).catch(() => {});
+        queryClient.invalidateQueries({ queryKey: ["owner-requests", hotelId] }).catch(() => {});
         startTransition(() => {
           router.refresh();
         });
       },
       onAnswered: () => {
+        queryClient.invalidateQueries({ queryKey: ["hotel-ops", hotelId] }).catch(() => {});
+        queryClient.invalidateQueries({ queryKey: ["hotel-requests", hotelId] }).catch(() => {});
+        queryClient.invalidateQueries({ queryKey: ["owner-requests", hotelId] }).catch(() => {});
         startTransition(() => {
           router.refresh();
         });
       },
       onReconnect: () => {
-        // Do not force full page server re-fetch on SSE reconnect
+        queryClient.invalidateQueries({ queryKey: ["hotel-ops", hotelId] }).catch(() => {});
+        queryClient.invalidateQueries({ queryKey: ["hotel-requests", hotelId] }).catch(() => {});
+        queryClient.invalidateQueries({ queryKey: ["owner-requests", hotelId] }).catch(() => {});
+        startTransition(() => {
+          router.refresh();
+        });
       },
     }),
-    [hotelId, router],
+    [hotelId, queryClient, router],
   );
 
   useOwnerRequestRealtime(hotelId, handlers, {

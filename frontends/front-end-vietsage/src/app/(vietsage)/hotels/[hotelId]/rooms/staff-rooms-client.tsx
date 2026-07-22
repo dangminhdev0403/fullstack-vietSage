@@ -616,7 +616,7 @@ export function StaffRoomsClient({
           }
         }
         .animate-quick-check-in {
-          animation: quickCheckInEntrance 240ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          animation: quickCheckInEntrance 480ms cubic-bezier(0.25, 1, 0.35, 1) forwards;
         }
         @keyframes subtleFlash {
           0% {
@@ -633,7 +633,7 @@ export function StaffRoomsClient({
           }
         }
         .animate-subtle-flash {
-          animation: subtleFlash 800ms ease-out;
+          animation: subtleFlash 1400ms ease-out;
         }
       `}</style>
 

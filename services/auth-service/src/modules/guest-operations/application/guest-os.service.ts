@@ -564,6 +564,29 @@ export class GuestOsService {
       sessionId: current.id,
       requestId: trimmedRequestId,
     });
+
+    this.guestRequestEventPublisher.publishGuestRequestUpdated({
+      hotelId: current.hotelId,
+      sessionId: current.id,
+      requestId: cancelled.id,
+      ownerRequest: {
+        id: cancelled.id,
+        displayName: cancelled.serviceItem?.name ?? cancelled.title ?? "Yêu cầu",
+        status: "CANCELLED",
+        priority: cancelled.priority,
+        quantity: cancelled.quantity,
+        description: cancelled.description,
+        latestNote: null,
+        createdAt: cancelled.createdAt.toISOString(),
+        roomNumber: current.room.roomNumber,
+        guestName: current.stay.guestDisplayName,
+        categoryName: null,
+        assignedToName: null,
+        actions: [],
+      },
+      guestRequest: this.toGuestRequestListItem(cancelled, locale),
+    });
+
     return this.toGuestRequestData(cancelled, locale);
   }
 

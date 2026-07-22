@@ -4,6 +4,7 @@ import {
   type Dispatch,
   type FormEvent,
   type SetStateAction,
+  startTransition,
   useCallback,
   useEffect,
   useMemo,
@@ -748,7 +749,13 @@ export function RequestQueueClient({
         return currentNotifications.filter((notification) => notification.id !== request.id);
       }
 
-      return mergeUrgentRequests(currentNotifications, [merged as StaffRequestListItem]);
+      const isAcknowledged = merged.status && merged.status !== "CREATED";
+      const updatedNotification = {
+        ...merged,
+        acknowledgedAt: existing?.acknowledgedAt ?? (isAcknowledged ? new Date().toISOString() : undefined),
+      };
+
+      return mergeUrgentRequests(currentNotifications, [updatedNotification as StaffRequestListItem]);
     });
   }, []);
 
@@ -762,7 +769,11 @@ export function RequestQueueClient({
       },
       onUpdated: applyLiveRequestChange,
       onAnswered: applyLiveRequestChange,
-      onReconnect: () => router.refresh(),
+      onReconnect: () => {
+        startTransition(() => {
+          router.refresh();
+        });
+      },
     }),
     [applyLiveRequestChange, router],
   );
@@ -849,17 +860,22 @@ export function RequestQueueClient({
     },
     [setUrgentNotifications],
   );
+
   function syncUpdatedRequest(updated: HotelGuestRequest) {
     setSelectedRequest(updated);
     setAssignmentUserId(updated.assignedToUserId ?? "");
     setAssignmentNote("");
     setStatusNote("");
-    applyLiveRequestChange(updated as Partial<StaffRequestListItem> & { id: string });
+    const listItem = requestToListItem(updated);
+    applyLiveRequestChange(listItem);
     queryClient.setQueryData(detailQueryKey, updated);
     queryClient.invalidateQueries({ queryKey: detailQueryKey }).catch(() => {});
     queryClient.invalidateQueries({ queryKey: ["hotel-ops", hotelId] }).catch(() => {});
     queryClient.invalidateQueries({ queryKey: ["hotel-requests", hotelId] }).catch(() => {});
-    router.refresh();
+    queryClient.invalidateQueries({ queryKey: ["owner-requests", hotelId] }).catch(() => {});
+    startTransition(() => {
+      router.refresh();
+    });
   }
 
   const statusMutation = useMutation({
@@ -1318,19 +1334,63 @@ export function RequestQueueClient({
     );
   }
 
+  async function updateStatusForRequest(targetRow: StaffRequestListItem, action: StaffRequestAction) {
+    if (!ownerApiBasePath) return;
+
+    const meta = actionMeta[action];
+    const note = meta.note;
+    const confirmation = await Swal.fire({
+      icon: meta.status === "CANCELLED" || meta.status === "FAILED" ? "warning" : "question",
+      title: `${meta.label} yêu cầu phòng ${targetRow.roomNumber}?`,
+      text: "Trạng thái mới sẽ được cập nhật và thông báo cho khách.",
+      showCancelButton: true,
+      confirmButtonText: "Xác nhận",
+      cancelButtonText: "Hủy",
+      confirmButtonColor: swalButtonColor,
+    });
+
+    if (!confirmation.isConfirmed) return;
+
+    setOperationError(null);
+    try {
+      const updated = await requestInternalApi<HotelGuestRequest>(
+        `${ownerApiBasePath}/${encodeURIComponent(targetRow.id)}/status`,
+        {
+          method: "PATCH",
+          body: {
+            status: meta.status,
+            note,
+          },
+        },
+      );
+      syncUpdatedRequest(updated);
+      void Swal.fire({
+        icon: "success",
+        title: "Đã cập nhật trạng thái",
+        timer: 1200,
+        showConfirmButton: false,
+      });
+    } catch (error) {
+      const message = getHttpErrorMessage(error, mergedLabels.operationError);
+      setOperationError(message);
+      void Swal.fire({
+        icon: "error",
+        title: "Không thể cập nhật trạng thái",
+        text: message,
+        confirmButtonColor: swalButtonColor,
+      });
+    }
+  }
+
   const requestColumns: DataTableColumn<StaffRequestListItem>[] = [
     {
       key: "room",
       sortable: true,
       header: mergedLabels.room,
-      className: "font-semibold text-[var(--primary)]",
       cell: (request) => (
-        <span className="inline-flex items-baseline gap-1.5 whitespace-nowrap">
-          <span className="text-xs font-bold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
-            Phòng:
-          </span>
-          <span>{request.roomNumber}</span>
-        </span>
+        <div className="font-bold text-[var(--primary)]">
+          Phòng {request.roomNumber}
+        </div>
       ),
     },
     {
@@ -1411,6 +1471,37 @@ export function RequestQueueClient({
       sortable: true,
       header: mergedLabels.created,
       cell: (request) => formatOpsDateTime(request.createdAt),
+    },
+    {
+      key: "actions" as RequestSortKey,
+      sortable: false,
+      header: mergedLabels.statusActions,
+      cell: (request) => {
+        const available = request.actions ?? statusActions[request.status] ?? [];
+        if (!available.length || isCheckedOutRequest(request)) return <span className="text-xs text-[#888]">-</span>;
+        return (
+          <div className="flex items-center gap-1.5">
+            {available.map((action) => {
+              const meta = actionMeta[action];
+              return (
+                <button
+                  key={action}
+                  type="button"
+                  disabled={isMutating}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedRow(request);
+                    void updateStatusForRequest(request, action);
+                  }}
+                  className={`rounded-lg px-2.5 py-1 text-xs font-bold transition hover:opacity-90 active:scale-95 disabled:opacity-50 ${meta.className}`}
+                >
+                  {meta.label}
+                </button>
+              );
+            })}
+          </div>
+        );
+      },
     },
   ];
 

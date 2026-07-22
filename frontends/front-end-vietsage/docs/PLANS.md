@@ -1,3 +1,36 @@
+## [complete] 2026-07-22 - Mission: management-request-status-update-realtime-cache-sync
+
+- Fixed request status update mutations and realtime cache synchronization across management dashboards (`RequestQueueClient` under `/hotels/[hotelId]/requests` and `/owner/hotels/[hotelId]/requests`).
+- Resolved data format mismatch in `syncUpdatedRequest`: converted raw `HotelGuestRequest` response objects into formatted `StaffRequestListItem` objects (`requestToListItem(updated)`), ensuring `actions`, `displayName`, `description`, `roomNumber`, `guestName`, and `categoryName` are never corrupted or lost on status changes.
+- Enhanced `applyLiveRequestChange`: automatically set `acknowledgedAt` when request status moves beyond `CREATED`, instantly updating Urgent Request Panel badges ("Đã xác nhận") without requiring page reload.
+- Comprehensive React Query cache invalidation: invalidated `["hotel-ops", hotelId]`, `["hotel-requests", hotelId]`, `["owner-requests", hotelId]`, and `["hotel-request-detail", requestId]` on status updates, assignments, and Socket.IO realtime events.
+- Wrapped `router.refresh()` in `React.startTransition` across `RequestQueueClient`, `RequestDetailClient`, `HotelOpsRealtimeNotifier`, and `OwnerRequestRealtimeNotifier` to ensure seamless background Server Component revalidation without UI flickering or main-thread freezing.
+- Added inline quick action buttons column ("Thao tác nhanh") directly in the main requests table (`requestColumns`), allowing staff and owners to advance requests (`Tiếp nhận` -> `Bắt đầu` -> `Hoàn thành`) in 1 click without needing to open the detail modal.
+
+Verification result:
+- `npx tsc --noEmit` passed with 0 errors.
+- `services/auth-service` `npm run build` passed with 0 errors.
+- `graphify update . --force` updated graph with 5225 nodes and 11949 edges.
+
+Remaining blockers/risks:
+- None.
+
+## [complete] 2026-07-22 - Mission: five-ux-and-realtime-improvements
+
+- Slowed down CSS keyframe animations in `staff-rooms-client.tsx` (`.animate-quick-check-in` 480ms, `.animate-subtle-flash` 1400ms) for smoother visual motion across room grid state changes.
+- Added realtime cancellation event publishing (`guestRequestEventPublisher.publishGuestRequestUpdated`) when a guest cancels a request in `GuestOsService.cancelRequest` (`services/auth-service/.../guest-os.service.ts`).
+- Added realtime cancellation warning toasts (`toast.warning("Phòng ... đã HỦY yêu cầu")`) in `HotelOpsRealtimeNotifier` (`hotel-ops-realtime-notifier.tsx`) and `OwnerRequestRealtimeNotifier` (`owner-request-realtime-notifier.tsx`) when a guest cancels a request.
+- Updated room messages and guest support icons across `workspace-registry.ts` and `vs-bottom-nav.tsx` from generic `chat` to `support_agent`.
+- Updated the "Contact Reception" (`common.contactHotel`) button target in `guest-current-request.tsx` to point directly to `/g/messages` with `support_agent` icon.
+- Applied frontend i18n support for GuestOS chat page (`g/messages/page.tsx`) and added dictionary keys across 6 supported languages (`vi`, `en`, `zh`, `ko`, `ru`, `hi`).
+
+Verification result:
+- `npx tsc --noEmit` passed with 0 errors.
+- `services/auth-service` `npm run build` passed with 0 errors.
+
+Remaining blockers/risks:
+- None.
+
 ## [complete] 2026-07-22 - Mission: owner-navigation-smoothness-and-realtime-optimization
 
 - Created instant route loading boundary `loading.tsx` in `owner/(hotel)/hotels/[hotelId]/loading.tsx`, enabling instant client-side route transitions and persistent sidebar rendering across owner sub-pages (`/stay`, `/rooms`, `/requests`, `/billing`, `/services`).

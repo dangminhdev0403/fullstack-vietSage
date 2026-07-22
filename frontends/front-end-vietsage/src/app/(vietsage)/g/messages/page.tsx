@@ -56,7 +56,7 @@ function TypewriterMessageBody({ body, createdAt }: Readonly<{ body: string; cre
 }
 
 export default function GuestMessagesPage() {
-  const { locale } = useGuestI18n();
+  const { locale, t } = useGuestI18n();
   const hydrated = useGuestStoreHydrated();
   const sessionToken = useGuestStore((state) => state.sessionToken);
   const room = useGuestStore((state) => state.room);
@@ -366,11 +366,11 @@ export default function GuestMessagesPage() {
               </div>
             )}
 
-            {messagesQuery.isError ? <p className="text-base text-red-700">Không thể tải hội thoại. Vui lòng thử lại.</p> : null}
+            {messagesQuery.isError ? <p className="text-base text-red-700">{t("messages.errorLoad")}</p> : null}
             {!messagesQuery.isLoading && items.length === 0 ? (
               <div className="py-16 text-center text-base text-[#66736b]">
                 <VsIcon name="chat" className="mx-auto mb-3 text-4xl text-[#8a6a13]" />
-                Gửi tin nhắn khi cần hỗ trợ từ lễ tân.
+                {t("messages.empty")}
               </div>
             ) : null}
 
@@ -380,7 +380,7 @@ export default function GuestMessagesPage() {
                 <div key={message.id} className={`flex ${fromGuest ? "justify-end" : "justify-start"}`}>
                   <div className={`min-w-0 max-w-[82%] sm:max-w-[75%] flex flex-col ${fromGuest ? "items-end" : "items-start"}`}>
                     <div className="flex items-center gap-2 px-1 mb-1">
-                      <span className="text-xs font-bold text-[#25483f]">{fromGuest ? "Bạn" : (message.senderName ?? "Lễ tân")}</span>
+                      <span className="text-xs font-bold text-[#25483f]">{fromGuest ? t("messages.you") : (message.senderName ?? t("common.reception"))}</span>
                       <span className="text-xs text-[#66736b]">{new Date(message.createdAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}</span>
                     </div>
                     <div className={`w-fit max-w-full rounded-2xl px-4 py-3 text-base leading-relaxed shadow-sm ${fromGuest ? "bg-[#25483f] text-white rounded-tr-none" : "bg-[#f1ead9] text-[#18211d] rounded-tl-none"}`}>
@@ -394,7 +394,7 @@ export default function GuestMessagesPage() {
             {send.isPending && (
               <div className="flex justify-end my-1.5 opacity-80 animate-pulse">
                 <div className="flex items-center gap-2 rounded-2xl rounded-tr-none bg-[#25483f] px-4 py-3 text-white text-base shadow-sm">
-                  <span>Đang gửi...</span>
+                  <span>{t("messages.sending")}</span>
                   <VsIcon name="progress_activity" className="animate-spin text-base" />
                 </div>
               </div>
@@ -403,7 +403,7 @@ export default function GuestMessagesPage() {
             {isPeerTyping && (
               <div className="flex justify-start my-2 transition-all">
                 <div className="flex items-center gap-2 rounded-2xl rounded-tl-none bg-[#f1ead9] border border-[#25483f]/10 px-4 py-2.5 text-xs text-[#18211d] shadow-sm">
-                  <span className="font-bold text-[#25483f]">Lễ tân đang soạn tin nhắn</span>
+                  <span className="font-bold text-[#25483f]">{t("messages.typing")}</span>
                   <div className="flex items-center gap-1">
                     <span className="h-1.5 w-1.5 rounded-full bg-[#25483f] animate-bounce [animation-delay:-0.32s]" />
                     <span className="h-1.5 w-1.5 rounded-full bg-[#25483f] animate-bounce [animation-delay:-0.16s]" />
@@ -427,12 +427,12 @@ export default function GuestMessagesPage() {
               className="absolute bottom-20 right-6 z-10 flex items-center gap-1.5 rounded-full bg-[#25483f] px-4 py-2 text-xs font-bold text-white shadow-xl transition hover:scale-105 active:scale-95"
             >
               <VsIcon name="arrow_downward" className="text-sm animate-bounce" />
-              Tin nhắn mới
+              {t("messages.newMessage")}
             </button>
           )}
 
           <form onSubmit={submit} className="flex items-end gap-2 border-t border-[#25483f]/10 bg-[#fffdfa] p-3 sm:p-4">
-            <label className="sr-only" htmlFor="guest-message">Tin nhắn</label>
+            <label className="sr-only" htmlFor="guest-message">{t("messages.placeholder")}</label>
             <div className="min-w-0 flex-1">
               <input
                 id="guest-message"
@@ -442,7 +442,7 @@ export default function GuestMessagesPage() {
                 onChange={handleInput}
                 aria-describedby="guest-message-limit"
                 aria-invalid={body.length > 1000}
-                placeholder="Nhập tin nhắn cho lễ tân (Enter để gửi)..."
+                placeholder={t("messages.placeholder")}
                 className="h-12 w-full rounded-xl border border-[#25483f]/20 bg-white px-4 text-base text-[#18211d] placeholder:text-[#8b9890] outline-none transition focus:border-[#25483f] focus:ring-1 focus:ring-[#25483f]"
               />
               <p

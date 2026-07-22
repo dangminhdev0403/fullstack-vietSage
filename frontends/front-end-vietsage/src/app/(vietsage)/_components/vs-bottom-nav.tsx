@@ -16,7 +16,7 @@ const navItems: Array<{ key: NavKey; labelKey: string; href: string; icon: strin
   { key: "home", labelKey: "nav.home", href: "/g/home", icon: "home" },
   { key: "services", labelKey: "nav.services", href: "/g/services", icon: "reorder" },
   { key: "requests", labelKey: "nav.requests", href: "/g/requests", icon: "notifications" },
-  { key: "messages", labelKey: "nav.messages", href: "/g/messages", icon: "chat" },
+  { key: "messages", labelKey: "nav.messages", href: "/g/messages", icon: "support_agent" },
 ];
 
 export function VsBottomNav({ active }: VsBottomNavProps) {

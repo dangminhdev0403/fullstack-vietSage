@@ -223,35 +223,31 @@ Object.assign(ru, {
   "services.notePlaceholder": "Дополнительный комментарий для команды отеля",
   "services.guestRequest": "Запрос GuestOS",
   "services.housekeeping": "Уборка номера",
-  "services.extraTowels": "Дополнительные полотенца",
-  "services.laundry": "Прачечная",
-  "services.maintenance": "Техобслуживание",
-  "services.foodOrdering": "Питание в номер",
-  "services.airportTransfer": "Трансфер из аэропорта",
-  "services.tourBooking": "Бронирование тура",
-  "services.esimPurchase": "Покупка eSIM",
-  "services.aiConcierge": "ИИ-консьерж",
-  "requests.serviceRequest": "Запрос услуги",
-  "requests.noPrice": "Цена не указана",
-  "requests.loadError": "Не удалось загрузить список запросов.",
-  "requests.processed": "Обработано",
-  "requests.failed": "Не удалось",
-  "requests.cancelled": "Отменено",
-  "requests.cancelledToast": "Запрос отменён",
-  "requests.cancelError": "Не удалось отменить запрос.",
-  "requests.cancelling": "Отмена...",
-  "requests.completed": "Завершено",
-  "requests.estimatedTotal": "Предварительная сумма",
-  "requests.searchPlaceholder": "Поиск по услуге, коду запроса, статусу...",
-  "requests.updatedFallback": "Пока нет обновлений"
+});
+
+Object.assign(en, {
+  "requests.view": "View", "requests.realtimeReady": "Connected", "requests.realtimeInterrupted": "Disconnected", "requests.realtimeInterruptedHelp": "Please refresh the list.",
+  "common.roomNumber": "Room {room}", "common.contactHotel": "Contact reception",
+  "session.unavailableMessage": "Your stay session has ended or is no longer available. Please contact reception if you need more help.",
+  "home.heroAlt": "Elegant hotel room", "home.foodAlt": "In-room dining service", "home.careAlt": "Wellness service",
+  "requests.trackTitle": "Track requests", "requests.trackSubtitle": "You can follow your service progress here.", "requests.price": "Price", "requests.quantityShort": "Qty", "requests.createdAt": "Request created at", "requests.requestSubtotal": "Request subtotal", "requests.cancelConfirm": "Confirm cancellation for {title}", "requests.noActive": "No request in progress", "requests.createNew": "Create a new service request", "requests.emptyActiveDescription": "Your requests will appear here after you send them.", "requests.create": "Create request", "requests.historyTitle": "Request history", "requests.historySubtitle": "Check status, priority, and estimated cost for each service.", "requests.pricedCount": "{priced}/{total} requests priced", "requests.clearFilters": "Clear filters", "requests.count": "{count} requests", "requests.subtotal": "Subtotal", "requests.emptyTitle": "No requests yet", "requests.emptyDescription": "When you send a service request, the list will appear here.", "requests.ctaTitle": "In-room spa experience", "requests.ctaDescription": "Relax with a signature hot-stone massage treatment.", "requests.helpTitle": "Need support?", "requests.helpDescription": "The hotel support team is ready to assist you.", "requests.messageDirectly": "Message directly",
+  "messages.title": "Contact Reception", "messages.subtitle": "Send a message whenever you need front desk assistance.", "messages.placeholder": "Type a message for reception (Press Enter to send)...", "messages.send": "Send", "messages.newMessage": "New message", "messages.empty": "No messages yet", "messages.loadError": "Unable to load messages. Please try again.",
+});
+
+Object.assign(zh, {
+  "messages.title": "联系前台", "messages.subtitle": "如需前台协助，请随时发送消息。", "messages.placeholder": "输入发送给前台的消息（按 Enter 发送）...", "messages.send": "发送", "messages.newMessage": "新消息", "messages.empty": "暂无消息", "messages.loadError": "无法加载消息，请重试。",
+});
+
+Object.assign(ko, {
+  "messages.title": "프런트 문의", "messages.subtitle": "도움이 필요하실 때 언제든 메시지를 남겨 주세요.", "messages.placeholder": "프런트에 보낼 메시지를 입력하세요 (Enter 키로 전송)...", "messages.send": "전송", "messages.newMessage": "새 메시지", "messages.empty": "아직 메시지가 없습니다", "messages.loadError": "메시지를 불러올 수 없습니다. 다시 시도해 주세요.",
+});
+
+Object.assign(ru, {
+  "messages.title": "Связаться с ресепшен", "messages.subtitle": "Отправьте сообщение, если вам нужна помощь ресепшен.", "messages.placeholder": "Введите сообщение для ресепшен (Enter для отправки)...", "messages.send": "Отправить", "messages.newMessage": "Новое сообщение", "messages.empty": "Сообщений пока нет", "messages.loadError": "Не удалось загрузить сообщения. Повторите попытку.",
 });
 
 Object.assign(hi, {
-  "home.heroText": "कुछ टैप में हाउसकीपिंग, भोजन, सुविधाएँ या सहायता माँगें। {hotel} टीम बाकी संभाल लेगी।",
-  "home.highlight1Title": "कमरे में सेवाएँ",
-  "home.highlight1Desc": "रिसेप्शन पर कॉल किए बिना सुविधाएँ, हाउसकीपिंग, भोजन और सहायता मँगाएँ।",
-  "home.highlight2Title": "स्थिति ट्रैक करें",
-  "home.highlight2Desc": "जानें कि होटल ने आपका अनुरोध कब प्राप्त, संभाला और पूरा किया।",
+  "messages.title": "रिसेप्शन से संपर्क करें", "messages.subtitle": "सहायता चाहिए तो कभी भी संदेश भेजें।", "messages.placeholder": "रिसेप्शन के लिए संदेश लिखें (Enter दबाएं)...", "messages.send": "भेजें", "messages.newMessage": "नया संदेश", "messages.empty": "अभी कोई संदेश नहीं", "messages.loadError": "संदेश लोड नहीं हो सके। फिर प्रयास करें।",
   "home.highlight3Title": "होटल सहायता",
   "home.highlight3Desc": "मदद चाहिए तो अपने कमरे से ही सेवा टीम से जुड़ें।",
   "home.foodTitle": "भोजन और सुविधाएँ",

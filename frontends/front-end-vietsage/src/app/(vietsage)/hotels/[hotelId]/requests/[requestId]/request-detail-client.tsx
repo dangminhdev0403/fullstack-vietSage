@@ -1,7 +1,8 @@
 "use client";
 
-import { type FormEvent, useState } from "react";
+import { type FormEvent, startTransition, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { requestInternalApi, requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import type { HotelGuestRequest } from "@/features/hotel-ops/types/hotel-ops-contract";
@@ -97,6 +98,7 @@ export function RequestDetailClient({
   apiBasePath = `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/requests`,
 }: RequestDetailClientProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [request, setRequest] = useState(initialRequest);
   const [assignment, setAssignment] = useState(initialRequest.assignedToUserId ?? "");
   const [assignmentNote, setAssignmentNote] = useState("");
@@ -112,7 +114,12 @@ export function RequestDetailClient({
     );
     setRequest(fresh);
     setAssignment(fresh.assignedToUserId ?? "");
-    router.refresh();
+    queryClient.invalidateQueries({ queryKey: ["hotel-ops", hotelId] }).catch(() => {});
+    queryClient.invalidateQueries({ queryKey: ["hotel-requests", hotelId] }).catch(() => {});
+    queryClient.invalidateQueries({ queryKey: ["owner-requests", hotelId] }).catch(() => {});
+    startTransition(() => {
+      router.refresh();
+    });
   }
 
   async function transition(status: GuestRequestStatus) {
