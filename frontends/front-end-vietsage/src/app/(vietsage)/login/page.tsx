@@ -31,9 +31,13 @@ const heroTypingPhrases = [
 const loginSchema = z.object({
   email: z
     .string()
-    .trim()
-    .min(1, "Vui lòng nhập địa chỉ email.")
-    .email("Email không đúng định dạng."),
+    .transform((val) => val.replace(/\s+/g, ""))
+    .pipe(
+      z
+        .string()
+        .min(1, "Vui lòng nhập địa chỉ email.")
+        .email("Email không đúng định dạng.")
+    ),
   password: z
     .string()
     .min(1, "Vui lòng nhập mật khẩu.")
@@ -69,7 +73,7 @@ function getLoginSearchParams(): URLSearchParams {
 
 function getInitialLoginValues(): LoginFormValues {
   const params = getLoginSearchParams();
-  const email = params.get("email")?.trim() ?? "";
+  const email = (params.get("email") ?? "").replace(/\s+/g, "");
   const password = params.get("password") ?? "";
 
   if (!email && !password) {
@@ -233,9 +237,12 @@ export default function LoginPage() {
     const { name, type, value, checked } = event.target;
     const field = name as keyof LoginFormValues;
 
+    const rawValue = type === "checkbox" ? checked : value;
+    const sanitizedValue = field === "email" && typeof rawValue === "string" ? rawValue.replace(/\s+/g, "") : rawValue;
+
     const nextValues: LoginFormValues = {
       ...formValues,
-      [field]: type === "checkbox" ? checked : value,
+      [field]: sanitizedValue,
     } as LoginFormValues;
 
     setFormValues(nextValues);
@@ -251,7 +258,17 @@ export default function LoginPage() {
 
   const handleFieldBlur = (event: FocusEvent<HTMLInputElement>) => {
     const field = event.target.name as keyof LoginFormValues;
-    const nextErrors = getValidationErrors(formValues);
+    let nextValues = formValues;
+
+    if (field === "email" && typeof formValues.email === "string") {
+      const sanitizedEmail = formValues.email.replace(/\s+/g, "");
+      if (sanitizedEmail !== formValues.email) {
+        nextValues = { ...formValues, email: sanitizedEmail };
+        setFormValues(nextValues);
+      }
+    }
+
+    const nextErrors = getValidationErrors(nextValues);
 
     setFormErrors((prev) => ({
       ...prev,
@@ -259,7 +276,13 @@ export default function LoginPage() {
     }));
   };
 
-  const submitLogin = async (values: LoginFormValues) => {
+  const submitLogin = async (rawValues: LoginFormValues) => {
+    const values: LoginFormValues = {
+      ...rawValues,
+      email: rawValues.email.replace(/\s+/g, ""),
+    };
+    setFormValues(values);
+
     const nextErrors = getValidationErrors(values);
     setFormErrors(nextErrors);
 

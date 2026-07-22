@@ -4,10 +4,14 @@ export const loginCredentialsSchema = z
   .object({
     email: z
       .string()
-      .trim()
-      .min(1, "email là bắt buộc")
-      .max(320, "email không được vượt quá 320 ký tự")
-      .email("email phải là địa chỉ email hợp lệ"),
+      .transform((val) => val.replace(/\s+/g, ""))
+      .pipe(
+        z
+          .string()
+          .min(1, "email là bắt buộc")
+          .max(320, "email không được vượt quá 320 ký tự")
+          .email("email phải là địa chỉ email hợp lệ"),
+      ),
     password: z
       .string()
       .min(1, "password là bắt buộc")

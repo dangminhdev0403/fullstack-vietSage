@@ -1,1 +1,2 @@
-export const requestRealtimeEnabled = process.env.NEXT_PUBLIC_REQUEST_REALTIME_ENABLED === "true";
+export const requestRealtimeEnabled = process.env.NEXT_PUBLIC_REQUEST_REALTIME_ENABLED !== "false";
+

@@ -28,6 +28,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
   const mutations = useStaffManagementMutations(activeScope);
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState({ fullName: "", email: "", password: "", roleId: "" });
+  const [showPassword, setShowPassword] = useState(false);
   const [roleDrafts, setRoleDrafts] = useState<Record<string, string>>({});
 
   const data = directory.data;
@@ -56,6 +57,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
         hotelId,
       });
       setForm({ fullName: "", email: "", password: "", roleId: "" });
+      setShowPassword(false);
       setFormOpen(false);
       await Swal.fire({ icon: "success", title: "Đã tạo và phân công nhân viên", timer: 1200, showConfirmButton: false });
     } catch (error) {
@@ -162,7 +164,25 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
         <form onSubmit={submitCreate} className="grid gap-3 rounded-xl border border-[var(--outline-variant)] bg-white p-5 md:grid-cols-2 xl:grid-cols-5">
           <input required minLength={2} value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} placeholder="Họ tên" className="min-h-11 rounded-lg border px-3 text-sm" />
           <input required type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="Email đăng nhập" className="min-h-11 rounded-lg border px-3 text-sm" />
-          <input required minLength={8} type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Mật khẩu ban đầu" className="min-h-11 rounded-lg border px-3 text-sm" />
+          <div className="relative">
+            <input
+              required
+              minLength={8}
+              type={showPassword ? "text" : "password"}
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              placeholder="Mật khẩu ban đầu"
+              className="min-h-11 w-full rounded-lg border border-[var(--outline-variant)] px-3 pr-10 text-sm outline-none focus:border-[var(--primary)]"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((prev) => !prev)}
+              className="absolute right-2 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-low)]"
+              aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+            >
+              <VsIcon name={showPassword ? "visibility_off" : "visibility"} className="text-[20px]" />
+            </button>
+          </div>
           <select required value={form.roleId} onChange={(e) => setForm({ ...form, roleId: e.target.value })} className="min-h-11 rounded-lg border px-3 text-sm">
             <option value="">Chọn vai trò</option>
             {data?.roles.map((role) => (

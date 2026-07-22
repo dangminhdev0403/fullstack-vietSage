@@ -26,7 +26,10 @@ type SessionTokenUpdate = {
 };
 
 const credentialsSchema = z.object({
-  email: z.string().trim().email(),
+  email: z
+    .string()
+    .transform((val) => val.replace(/\s+/g, ""))
+    .pipe(z.string().email()),
   password: z.string().min(8),
 });
 

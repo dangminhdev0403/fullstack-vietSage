@@ -41,7 +41,7 @@ test("renders only registered labels and scopes owner staff navigation by capabi
   assert.equal(withoutStaff.some((item) => item.label.includes("hotel.")), false);
   assert.equal(withoutStaff.some((item) => item.key === "owner.staff"), false);
   assert.equal(
-    withStaff.some((item) => item.href === "/owner/staff?hotelId=hotel-1"),
+    withStaff.some((item) => item.key === "owner.staff" && item.href === "/owner/staff"),
     true,
   );
 });

@@ -8,9 +8,9 @@ import type { DashboardNavItem } from "../types/workspace-navigation.ts";
 const ownerHotelItems: readonly DashboardNavItem[] = [
   { key: "owner.home", href: "/owner/dashboard", label: "Tổng quan", icon: "dashboard" },
   { key: "owner.hotels", href: "/owner/hotels", label: "Khách sạn", icon: "hotel" },
+  { key: "owner.staff", href: "/owner/staff", label: "Nhân viên", icon: "group" },
   { key: "owner.hotel.overview", href: "/owner/hotels/hotel-1", label: "Thông tin khách sạn", icon: "hotel" },
   { key: "owner.hotel.rooms", href: "/owner/hotels/hotel-1/rooms", label: "Phòng & lưu trú", icon: "bed" },
-  { key: "owner.hotel.staff", href: "/owner/staff?hotelId=hotel-1", label: "Nhân viên", icon: "group" },
   { key: "owner.hotel.billing", href: "/owner/hotels/hotel-1/billing", label: "Thanh toán", icon: "inventory_2" },
 ];
 
@@ -30,7 +30,7 @@ test("isNavItemActive highlights owner hotel billing invoices sub-route correctl
   assert.equal(isNavItemActive("/owner/hotels/hotel-1", invoiceDetailPath, ownerHotelItems), false);
 });
 
-test("isNavItemActive highlights hotel staff with search params correctly", () => {
+test("isNavItemActive highlights staff navigation with search params correctly", () => {
   const staffPath = "/owner/staff?hotelId=hotel-1";
-  assert.equal(isNavItemActive("/owner/staff?hotelId=hotel-1", staffPath, ownerHotelItems), true);
+  assert.equal(isNavItemActive("/owner/staff", staffPath, ownerHotelItems), true);
 });

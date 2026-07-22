@@ -1,3 +1,46 @@
+## [complete] 2026-07-22 - Mission: login-email-whitespace-sanitization
+
+- Updated login form validation schema (`loginSchema` in `login/page.tsx`), NextAuth credentials schema (`credentialsSchema` in `auth.ts`), and backend identity schema (`loginCredentialsSchema` in `auth.schema.ts`) to automatically sanitize all whitespace (`replace(/\s+/g, "")`) from email addresses.
+- Added real-time whitespace stripping on input change and blur in `LoginPage` (`login/page.tsx`), ensuring accidental leading, trailing, or middle spaces (from mobile auto-correct or copy-paste) do not trigger false validation errors or login failures.
+
+Verification result:
+
+- `npx tsc --noEmit` passed in `frontends/front-end-vietsage` with 0 errors.
+
+Remaining blockers/risks:
+
+- None.
+
+## [complete] 2026-07-22 - Mission: staff-management-password-visibility-toggle
+
+- Added interactive show/hide password toggle (mắt ẩn hiện mật khẩu) using `VsIcon` (`visibility` / `visibility_off`) to the staff creation form in `StaffManagementClient`.
+- Added `visibility_off` SVG icon glyph case to `VsIcon` component (`vs-icon.tsx`).
+- Automatically reset password visibility state upon successful staff creation.
+
+Verification result:
+
+- `npx tsc --noEmit` passed with 0 errors.
+- ESLint passed for `src/features/staff-management/components/staff-management-client.tsx` and `src/app/(vietsage)/_components/vs-icon.tsx`.
+
+Remaining blockers/risks:
+
+- None.
+
+## [complete] 2026-07-22 - Mission: owner-navigation-staff-unification
+
+- Consolidated owner navigation by removing duplicate "Nhân viên khách sạn" (`owner.hotel.staff`) navigation item from `workspace-registry.ts`.
+- Kept unified "Nhân viên" (`owner.staff`) nav item visible when navigating inside a hotel workspace (removed `hideWhenHotelSelected: true`), preventing sidebar layout shifts.
+- Updated workspace registry unit tests (`workspace-registry.test.ts` and `workspace-nav-active.test.ts`) to verify `owner.staff` navigation presence and active route matching.
+
+Verification result:
+
+- `node --test` workspace registry & nav active tests passed: 10 tests passed.
+- `npx tsc --noEmit` passed with 0 errors.
+
+Remaining blockers/risks:
+
+- None.
+
 ## [complete] 2026-07-22 - Mission: active-stay-message-inbox-hardening
 
 - Replaced the fixed staff inbox page with newest-first cursor infinite scroll for large active
