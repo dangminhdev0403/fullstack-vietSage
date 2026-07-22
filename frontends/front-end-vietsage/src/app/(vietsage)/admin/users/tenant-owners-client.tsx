@@ -326,7 +326,7 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
               cell: (owner) => (
                 <div>
                   <p className="font-semibold text-[var(--primary)]">{owner.fullName}</p>
-                  <p className="mt-1 text-xs text-[var(--on-surface-variant)]">{owner.email}</p>
+                  <p className="mt-1 text-sm text-[var(--on-surface-variant)]">{owner.email}</p>
                 </div>
               ),
             },
@@ -336,7 +336,7 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
               cell: (owner) => (
                 <div>
                   <p className="font-semibold text-[var(--on-surface)]">{owner.tenant.name}</p>
-                  <p className="mt-1 text-xs text-[var(--on-surface-variant)]">{owner.tenant.code}</p>
+                  <p className="mt-1 text-sm text-[var(--on-surface-variant)]">{owner.tenant.code}</p>
                 </div>
               ),
             },
@@ -344,7 +344,7 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
               key: "status",
               header: "Trạng thái",
               cell: (owner) => (
-                <span className="rounded-full bg-[var(--secondary-container)] px-3 py-1 text-xs font-semibold text-[var(--on-secondary-container)]">
+                <span className="rounded-full bg-[var(--secondary-container)] px-3 py-1 text-sm font-semibold text-[var(--on-secondary-container)]">
                   {owner.status}
                 </span>
               ),
@@ -367,7 +367,7 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
                   <button
                     type="button"
                     onClick={() => openEditDialog(owner)}
-                    className="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-[var(--outline-variant)] px-4 py-2 text-xs font-semibold text-[var(--primary)] hover:bg-[var(--surface-container-low)]"
+                    className="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-[var(--outline-variant)] px-4 py-2 text-sm font-semibold text-[var(--primary)] hover:bg-[var(--surface-container-low)]"
                   >
                     <VsIcon name="edit" className="text-[16px]" />
                     Sửa
@@ -393,13 +393,13 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="font-semibold text-base text-[var(--primary)]">{owner.fullName}</p>
-                <p className="text-xs text-[var(--on-surface-variant)]">{owner.email}</p>
+                <p className="text-sm text-[var(--on-surface-variant)]">{owner.email}</p>
               </div>
-              <span className="shrink-0 rounded-full bg-[var(--secondary-container)] px-3 py-1 text-xs font-semibold text-[var(--on-secondary-container)]">
+              <span className="shrink-0 rounded-full bg-[var(--secondary-container)] px-3 py-1 text-sm font-semibold text-[var(--on-secondary-container)]">
                 {owner.status}
               </span>
             </div>
-            <div className="border-t border-[var(--outline-variant)] pt-3 text-xs space-y-1">
+            <div className="border-t border-[var(--outline-variant)] pt-3 text-sm space-y-1">
               <p className="text-[var(--on-surface)]">
                 <span className="font-semibold text-[var(--on-surface-variant)]">Tổ chức: </span>
                 {owner.tenant.name} ({owner.tenant.code})

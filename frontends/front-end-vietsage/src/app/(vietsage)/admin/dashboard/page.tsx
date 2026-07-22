@@ -37,7 +37,7 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
   return (
     <>
       <header className="rounded-[2rem] border border-[#24473d]/10 bg-[#fffaf0]/85 p-6 shadow-[0_22px_70px_rgba(31,61,53,0.10)] md:p-9">
-        <p className="text-xs font-black uppercase tracking-[0.22em] text-[#bf7836]">
+        <p className="text-sm font-bold uppercase tracking-[0.22em] text-[#bf7836]">
           Platform administration
         </p>
         <h1 className="vs-display mt-3 text-4xl font-semibold tracking-[-0.04em] text-[#17201b] md:text-5xl">

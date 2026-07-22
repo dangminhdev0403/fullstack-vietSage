@@ -69,7 +69,7 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
           <p className="mt-2 text-base italic text-[var(--on-surface-variant)]">Kính chào Quý Quản lý. Chúc một ngày làm việc hiệu quả.</p>
         </div>
         <div className="text-left md:text-right">
-          <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--primary)]/60">Ngày hôm nay</p>
+          <p className="text-sm font-bold uppercase tracking-[0.12em] text-[var(--primary)]/60">Ngày hôm nay</p>
           <p className="vs-display mt-1 text-xl font-semibold text-[var(--primary)]">{formatTime(dashboard.generatedAt)}</p>
         </div>
       </header>
@@ -87,7 +87,7 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
               ) : null}
             </div>
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">{card.label}</p>
+              <p className="text-sm font-bold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">{card.label}</p>
               <p className={`vs-display mt-1 text-4xl font-bold ${card.tone}`}>{String(card.value).padStart(2, "0")}</p>
             </div>
           </article>
@@ -131,10 +131,10 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
             <Link href={`/hotels/${hotelId}/requests`} className="text-sm font-bold text-[var(--primary)]">Xem tất cả</Link>
           </div>
           <div className="overflow-hidden rounded-xl bg-white shadow-sm">
-            <div className="grid grid-cols-[0.5fr_1.5fr_0.8fr_0.8fr] border-b border-[var(--outline-variant)] bg-[var(--surface-container-low)] px-5 py-4 text-xs font-bold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]"><span>Phòng</span><span>Loại yêu cầu</span><span>Thời gian</span><span>Trạng thái</span></div>
+            <div className="grid grid-cols-[0.5fr_1.5fr_0.8fr_0.8fr] border-b border-[var(--outline-variant)] bg-[var(--surface-container-low)] px-5 py-4 text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]"><span>Phòng</span><span>Loại yêu cầu</span><span>Thời gian</span><span>Trạng thái</span></div>
             {dashboard.attention.slice(0, 5).map((item) => (
               <Link key={`${item.type}-${item.id}`} href={attentionRoute(hotelId, item)} className="grid grid-cols-[0.5fr_1.5fr_0.8fr_0.8fr] items-center border-b border-[var(--outline-variant)]/50 px-5 py-4 text-sm transition hover:bg-[var(--surface-container-low)]">
-                <span className="font-bold text-[var(--primary)]">{item.title.match(/\d+/)?.[0] ?? "-"}</span><span className="font-semibold text-[var(--on-surface)]">{item.title}</span><span className="text-xs text-[var(--on-surface-variant)]">{formatTime(item.createdAt)}</span><span className="w-fit rounded-full bg-[var(--primary-fixed)] px-2.5 py-1 text-[10px] font-bold uppercase text-[var(--on-primary-fixed-variant)]">{item.priority}</span>
+                <span className="font-bold text-[var(--primary)]">{item.title.match(/\d+/)?.[0] ?? "-"}</span><span className="font-semibold text-[var(--on-surface)]">{item.title}</span><span className="text-sm text-[var(--on-surface-variant)]">{formatTime(item.createdAt)}</span><span className="w-fit rounded-full bg-[var(--primary-fixed)] px-2.5 py-1 text-xs font-bold uppercase text-[var(--on-primary-fixed-variant)]">{item.priority}</span>
               </Link>
             ))}
             {dashboard.attention.length === 0 ? <p className="p-8 text-center text-sm text-[var(--on-surface-variant)]">Chưa có yêu cầu cần chú ý.</p> : null}
@@ -148,7 +148,7 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
               {dashboard.activities.slice(0, 6).map((activity) => (
                 <div key={activity.id} className="relative flex gap-3 border-l border-[var(--outline-variant)] pl-5 last:border-transparent">
                   <span className="absolute -left-2 top-0 flex size-4 items-center justify-center rounded-full bg-[var(--primary)] text-white"><VsIcon name="arrow_forward" className="text-[10px]" /></span>
-                  <div><p className="text-sm font-bold text-[var(--primary)]">{activity.title}</p><p className="mt-1 text-xs text-[var(--on-surface-variant)]">{activity.description} · {formatTime(activity.createdAt)}</p></div>
+                  <div><p className="text-sm font-bold text-[var(--primary)]">{activity.title}</p><p className="mt-1 text-sm text-[var(--on-surface-variant)]">{activity.description} · {formatTime(activity.createdAt)}</p></div>
                 </div>
               ))}
               {dashboard.activities.length === 0 ? <p className="text-sm text-[var(--on-surface-variant)]">Chưa có hoạt động trong ca.</p> : null}
@@ -158,7 +158,7 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
       </section>
 
       <section className="grid gap-4 md:grid-cols-3">
-        <article className="rounded-xl bg-[var(--primary)] p-5 text-white"><p className="text-xs font-bold uppercase tracking-[0.12em] text-white/70">Doanh thu đã thu</p><p className="mt-2 text-3xl font-bold">{formatMoney(dashboard.revenue.today, dashboard.revenue.currency)}</p><p className="mt-2 text-sm text-white/70">7 ngày: {formatMoney(dashboard.revenue.last7Days, dashboard.revenue.currency)}</p></article>
+        <article className="rounded-xl bg-[var(--primary)] p-5 text-white"><p className="text-sm font-bold uppercase tracking-[0.12em] text-white/70">Doanh thu đã thu</p><p className="mt-2 text-3xl font-bold">{formatMoney(dashboard.revenue.today, dashboard.revenue.currency)}</p><p className="mt-2 text-sm text-white/70">7 ngày: {formatMoney(dashboard.revenue.last7Days, dashboard.revenue.currency)}</p></article>
         <article className="rounded-xl border border-[var(--outline-variant)] bg-white p-5"><p className="text-sm font-bold text-[var(--primary)]">SLA yêu cầu</p><p className="mt-2 text-3xl font-bold text-[var(--primary)]">{dashboard.sla.completedWithinSlaPercent == null ? "--" : `${dashboard.sla.completedWithinSlaPercent}%`}</p><p className="mt-1 text-sm text-[var(--on-surface-variant)]">Hoàn tất trong {dashboard.sla.thresholdMinutes} phút</p></article>
         <article className="rounded-xl border border-[var(--outline-variant)] bg-white p-5"><p className="text-sm font-bold text-[var(--primary)]">Tình trạng vận hành</p><p className="mt-2 text-3xl font-bold text-[var(--secondary)]">{dashboard.health.score}/100</p><p className="mt-1 text-sm text-[var(--on-surface-variant)]">{dashboard.health.title}</p></article>
       </section>

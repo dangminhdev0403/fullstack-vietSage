@@ -2,6 +2,7 @@
 
 import { type FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Swal from "sweetalert2";
 
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
@@ -187,60 +188,148 @@ export function ServiceCatalogClient({
   }
 
   async function toggleCategory(category: HotelServiceCategory) {
-    const nextStatus: HotelServiceStatus = category.status === "ACTIVE" ? "DISABLED" : "ACTIVE";
-    const saved = (await requestInternalApiEnvelope<HotelServiceCategory>(
-      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/service-categories/${encodeURIComponent(category.id)}`,
-      { method: "PATCH", body: { status: nextStatus } },
-    )).data;
-    setCategories((current) => current.map((item) => (item.id === saved.id ? saved : item)));
-    refreshRoute();
+    const isDeactivating = category.status === "ACTIVE";
+    const actionText = isDeactivating ? "vô hiệu hóa" : "kích hoạt";
+    const actionTitle = isDeactivating ? "Vô hiệu hóa nhóm dịch vụ?" : "Kích hoạt nhóm dịch vụ?";
+
+    const result = await Swal.fire({
+      title: actionTitle,
+      html: `Bạn có chắc chắn muốn <strong>${actionText}</strong> nhóm dịch vụ <strong>"${category.name}"</strong> không?`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: isDeactivating ? "Vô hiệu hóa" : "Kích hoạt",
+      cancelButtonText: "Hủy",
+      confirmButtonColor: isDeactivating ? "#ba1a1a" : "#1b6d3a",
+      cancelButtonColor: "#767684",
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const nextStatus: HotelServiceStatus = isDeactivating ? "DISABLED" : "ACTIVE";
+      const saved = (await requestInternalApiEnvelope<HotelServiceCategory>(
+        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/service-categories/${encodeURIComponent(category.id)}`,
+        { method: "PATCH", body: { status: nextStatus } },
+      )).data;
+      setCategories((current) => current.map((item) => (item.id === saved.id ? saved : item)));
+      refreshRoute();
+      await Swal.fire({
+        icon: "success",
+        title: `Đã ${actionText} nhóm dịch vụ!`,
+        timer: 1500,
+        showConfirmButton: false,
+      });
+    } catch {
+      await Swal.fire({
+        icon: "error",
+        title: "Không thể cập nhật trạng thái",
+        text: "Vui lòng thử lại sau.",
+      });
+    }
   }
 
   async function toggleItem(item: HotelServiceItem) {
-    const nextStatus: HotelServiceStatus = item.status === "ACTIVE" ? "DISABLED" : "ACTIVE";
-    const saved = (await requestInternalApiEnvelope<HotelServiceItem>(
-      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/service-items/${encodeURIComponent(item.id)}`,
-      { method: "PATCH", body: { status: nextStatus } },
-    )).data;
-    setItems((current) => current.map((entry) => (entry.id === saved.id ? saved : entry)));
-    refreshRoute();
+    const isDeactivating = item.status === "ACTIVE";
+    const actionText = isDeactivating ? "vô hiệu hóa" : "kích hoạt";
+    const actionTitle = isDeactivating ? "Vô hiệu hóa dịch vụ?" : "Kích hoạt dịch vụ?";
+
+    const result = await Swal.fire({
+      title: actionTitle,
+      html: `Bạn có chắc chắn muốn <strong>${actionText}</strong> dịch vụ <strong>"${item.name}"</strong> không?`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: isDeactivating ? "Vô hiệu hóa" : "Kích hoạt",
+      cancelButtonText: "Hủy",
+      confirmButtonColor: isDeactivating ? "#ba1a1a" : "#1b6d3a",
+      cancelButtonColor: "#767684",
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const nextStatus: HotelServiceStatus = isDeactivating ? "DISABLED" : "ACTIVE";
+      const saved = (await requestInternalApiEnvelope<HotelServiceItem>(
+        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/service-items/${encodeURIComponent(item.id)}`,
+        { method: "PATCH", body: { status: nextStatus } },
+      )).data;
+      setItems((current) => current.map((entry) => (entry.id === saved.id ? saved : entry)));
+      refreshRoute();
+      await Swal.fire({
+        icon: "success",
+        title: `Đã ${actionText} dịch vụ!`,
+        timer: 1500,
+        showConfirmButton: false,
+      });
+    } catch {
+      await Swal.fire({
+        icon: "error",
+        title: "Không thể cập nhật trạng thái",
+        text: "Vui lòng thử lại sau.",
+      });
+    }
   }
 
   const categoryColumns: DataTableColumn<HotelServiceCategory>[] = [
     {
       key: "name",
       header: "Tên nhóm",
-      cell: (category) => <span className="font-semibold text-[var(--primary)]">{category.name}</span>,
+      cell: (category) => <span className="text-base font-semibold text-[var(--primary)]">{category.name}</span>,
     },
     {
       key: "description",
       header: "Mô tả",
-      cell: (category) => category.description ?? "-",
+      cell: (category) => <span className="text-sm text-[var(--on-surface-variant)]">{category.description ?? "-"}</span>,
     },
     {
       key: "telegram",
-      header: "Telegram group ID",
-      cell: (category) => category.id_group ? <span className="rounded-full bg-[var(--primary-fixed)] px-2.5 py-1 text-xs font-bold text-[var(--on-primary-fixed-variant)]">{category.id_group}</span> : <span className="text-xs text-[var(--on-surface-variant)]">Tùy chọn</span>,
+      header: "Telegram Group ID",
+      headerClassName: "text-center",
+      className: "text-center",
+      cell: (category) =>
+        category.id_group ? (
+          <span className="inline-block rounded-full bg-[var(--primary-fixed)] px-3 py-1 text-xs font-bold text-[var(--on-primary-fixed-variant)]">
+            {category.id_group}
+          </span>
+        ) : (
+          <span className="text-sm text-[var(--on-surface-variant)]">Tùy chọn</span>
+        ),
     },
     {
       key: "sort",
       header: "Thứ tự sắp xếp",
-      cell: (category) => category.sortOrder,
+      headerClassName: "text-center",
+      className: "text-center",
+      cell: (category) => <span className="text-base font-semibold text-[var(--on-surface)]">{category.sortOrder}</span>,
     },
     {
       key: "status",
       header: "Trạng thái",
-      cell: (category) => <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${serviceStatusTone(category.status)}`}>{serviceStatusLabelMap[category.status]}</span>,
+      headerClassName: "text-center",
+      className: "text-center",
+      cell: (category) => (
+        <span className={`inline-block rounded-full px-3 py-1 text-xs font-bold ${serviceStatusTone(category.status)}`}>
+          {serviceStatusLabelMap[category.status]}
+        </span>
+      ),
     },
     {
       key: "actions",
-      header: "Thao tác",
+      header: "Thao tác (Bật/Tắt)",
       headerClassName: "text-right",
       className: "text-right",
       cell: (category) => (
-        <div className="flex justify-end gap-3">
-          <button type="button" onClick={() => setCategoryForm({ id: category.id, name: category.name, description: category.description ?? "", id_group: category.id_group ?? "", sortOrder: String(category.sortOrder), status: category.status })} className="text-sm font-semibold text-[var(--primary)]">Sửa</button>
-          <button type="button" onClick={() => void toggleCategory(category)} className="text-sm font-semibold text-[var(--on-surface-variant)]">{category.status === "ACTIVE" ? "Vô hiệu hóa" : "Kích hoạt"}</button>
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => void toggleCategory(category)}
+            className={`rounded-lg px-3.5 py-1.5 text-sm font-semibold transition-colors ${
+              category.status === "ACTIVE"
+                ? "border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100"
+                : "border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+            }`}
+          >
+            {category.status === "ACTIVE" ? "Vô hiệu hóa" : "Kích hoạt"}
+          </button>
         </div>
       ),
     },
@@ -252,40 +341,59 @@ export function ServiceCatalogClient({
       header: "Tên dịch vụ",
       cell: (item) => (
         <div>
-          <div className="font-semibold text-[var(--primary)]">{item.name}</div>
-          <div className="max-w-md truncate text-xs text-[var(--on-surface-variant)]">{item.description ?? "-"}</div>
+          <div className="text-base font-semibold text-[var(--primary)]">{item.name}</div>
+          <div className="max-w-md truncate text-sm text-[var(--on-surface-variant)]">{item.description ?? "-"}</div>
         </div>
       ),
     },
     {
       key: "category",
       header: "Nhóm dịch vụ",
-      cell: (item) => categoryById.get(item.categoryId)?.name ?? item.categoryId,
+      cell: (item) => <span className="text-base font-medium text-[var(--on-surface)]">{categoryById.get(item.categoryId)?.name ?? item.categoryId}</span>,
     },
     {
       key: "price",
       header: "Giá tiền",
-      cell: (item) => formatMoney(item),
-    },
-    {
-      key: "status",
-      header: "Trạng thái",
-      cell: (item) => <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${serviceStatusTone(item.status)}`}>{serviceStatusLabelMap[item.status]}</span>,
+      headerClassName: "text-right",
+      className: "text-right",
+      cell: (item) => <span className="text-base font-semibold text-[var(--primary)]">{formatMoney(item)}</span>,
     },
     {
       key: "sort",
       header: "Thứ tự",
-      cell: (item) => item.sortOrder,
+      headerClassName: "text-center",
+      className: "text-center",
+      cell: (item) => <span className="text-base font-semibold text-[var(--on-surface)]">{item.sortOrder}</span>,
+    },
+    {
+      key: "status",
+      header: "Trạng thái",
+      headerClassName: "text-center",
+      className: "text-center",
+      cell: (item) => (
+        <span className={`inline-block rounded-full px-3 py-1 text-xs font-bold ${serviceStatusTone(item.status)}`}>
+          {serviceStatusLabelMap[item.status]}
+        </span>
+      ),
     },
     {
       key: "actions",
-      header: "Thao tác",
+      header: "Thao tác (Bật/Tắt)",
       headerClassName: "text-right",
       className: "text-right",
       cell: (item) => (
-        <div className="flex justify-end gap-3">
-          <button type="button" onClick={() => setItemForm({ id: item.id, categoryId: item.categoryId, name: item.name, description: item.description ?? "", price: item.price === null ? "" : String(item.price), currency: item.currency, sortOrder: String(item.sortOrder), status: item.status })} className="text-sm font-semibold text-[var(--primary)]">Sửa</button>
-          <button type="button" onClick={() => void toggleItem(item)} className="text-sm font-semibold text-[var(--on-surface-variant)]">{item.status === "ACTIVE" ? "Vô hiệu hóa" : "Kích hoạt"}</button>
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => void toggleItem(item)}
+            className={`rounded-lg px-3.5 py-1.5 text-sm font-semibold transition-colors ${
+              item.status === "ACTIVE"
+                ? "border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100"
+                : "border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+            }`}
+          >
+            {item.status === "ACTIVE" ? "Vô hiệu hóa" : "Kích hoạt"}
+          </button>
         </div>
       ),
     },
@@ -295,27 +403,22 @@ export function ServiceCatalogClient({
     <div className="space-y-6">
       <div className="flex flex-col gap-3 rounded-xl border border-[color:rgba(198,197,213,0.24)] bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex rounded-lg bg-[var(--surface-container-low)] p-1">
-          <button type="button" onClick={() => setTab("categories")} className={`rounded-md px-4 py-2 text-sm font-semibold ${tab === "categories" ? "bg-white text-[var(--primary)] shadow-sm" : "text-[var(--on-surface-variant)]"}`}>Nhóm dịch vụ</button>
-          <button type="button" onClick={() => setTab("items")} className={`rounded-md px-4 py-2 text-sm font-semibold ${tab === "items" ? "bg-white text-[var(--primary)] shadow-sm" : "text-[var(--on-surface-variant)]"}`}>Dịch vụ</button>
+          <button type="button" onClick={() => setTab("categories")} className={`rounded-md px-5 py-2 text-base font-semibold ${tab === "categories" ? "bg-white text-[var(--primary)] shadow-sm" : "text-[var(--on-surface-variant)]"}`}>Nhóm dịch vụ</button>
+          <button type="button" onClick={() => setTab("items")} className={`rounded-md px-5 py-2 text-base font-semibold ${tab === "items" ? "bg-white text-[var(--primary)] shadow-sm" : "text-[var(--on-surface-variant)]"}`}>Dịch vụ</button>
         </div>
 
         <div className="flex flex-1 flex-col gap-2 lg:max-w-4xl lg:flex-row">
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm kiếm dịch vụ..." className="min-h-10 flex-1 rounded-lg border border-[color:rgba(198,197,213,0.55)] px-3 text-sm outline-none focus:border-[var(--primary)]" />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm kiếm dịch vụ..." className="min-h-11 flex-1 rounded-lg border border-[color:rgba(198,197,213,0.55)] px-4 text-base outline-none focus:border-[var(--primary)]" />
           {tab === "items" ? (
-            <>
-              <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} className="min-h-10 rounded-lg border border-[color:rgba(198,197,213,0.55)] px-3 text-sm">
-                <option value="">Tất cả nhóm</option>
-                {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-              </select>
-            </>
+            <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} className="min-h-11 rounded-lg border border-[color:rgba(198,197,213,0.55)] px-4 text-base">
+              <option value="">Tất cả nhóm</option>
+              {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+            </select>
           ) : null}
-          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="min-h-10 rounded-lg border border-[color:rgba(198,197,213,0.55)] px-3 text-sm">
+          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="min-h-11 rounded-lg border border-[color:rgba(198,197,213,0.55)] px-4 text-base">
             <option value="">Tất cả trạng thái</option>
             {hotelServiceStatuses.map((status) => <option key={status} value={status}>{serviceStatusLabelMap[status]}</option>)}
           </select>
-          <button type="button" onClick={() => tab === "categories" ? setCategoryForm(emptyCategoryForm) : setItemForm(emptyItemForm(categories[0]?.id ?? ""))} className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-[var(--on-primary)]">
-            Thêm {tab === "categories" ? "nhóm" : "dịch vụ"}
-          </button>
         </div>
       </div>
 

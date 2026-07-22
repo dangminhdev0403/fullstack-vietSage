@@ -32,11 +32,11 @@ export default async function HotelServicesPage({ params }: ServicesPageProps) {
 
   return (
     <>
-          <header className="flex flex-col gap-2">
-            <p className="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">Hotel {hotelId}</p>
-            <h1 className="vs-display text-[32px] font-semibold text-[var(--primary)] md:text-[40px]">Service Catalog</h1>
-            <p className="max-w-3xl text-base text-[var(--on-surface-variant)]">Configure what guests can request, keep disabled records visible for staff, and control the catalog shown in GuestOS.</p>
-          </header>
+      <header className="flex flex-col gap-2">
+        <p className="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">Khách sạn {hotelId}</p>
+        <h1 className="vs-display text-[32px] font-semibold text-[var(--primary)] md:text-[40px]">Quản lý dịch vụ</h1>
+        <p className="max-w-3xl text-base text-[var(--on-surface-variant)]">Bật hoặc tắt trạng thái hoạt động của các dịch vụ và nhóm dịch vụ trong khách sạn.</p>
+      </header>
 
           <ServiceCatalogClient
             hotelId={hotelId}

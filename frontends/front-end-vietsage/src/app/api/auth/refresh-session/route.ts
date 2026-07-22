@@ -65,21 +65,22 @@ function isExpectedRefreshFailure(error: unknown): boolean {
 
 export async function GET(request: NextRequest) {
   const callbackUrl = getCallbackUrl(request);
-  const tokens = await readServerSessionTokens();
-  const refreshToken = tokens.refreshToken;
-
-  if (!refreshToken) {
-    console.warn("[AUTH_REFRESH_GATE_FAILED]", {
-      source: "refresh-session-route",
-      reason: "no_refresh_token",
-      callbackUrl,
-      timestamp: Date.now(),
-    });
-
-    return buildLoginRedirect(request, callbackUrl);
-  }
 
   try {
+    const tokens = await readServerSessionTokens(request);
+    const refreshToken = tokens.refreshToken;
+
+    if (!refreshToken) {
+      console.warn("[AUTH_REFRESH_GATE_FAILED]", {
+        source: "refresh-session-route",
+        reason: "no_refresh_token",
+        callbackUrl,
+        timestamp: Date.now(),
+      });
+
+      return buildLoginRedirect(request, callbackUrl);
+    }
+
     await refreshAndSaveSessionTokens(refreshToken);
 
     console.info("[AUTH_REFRESH_GATE_SUCCESS]", {
@@ -104,7 +105,6 @@ export async function GET(request: NextRequest) {
 export async function POST() {
   const tokens = await readServerSessionTokens();
   const refreshToken = tokens.refreshToken;
-
   if (!refreshToken) {
     return unauthorizedResponse();
   }

@@ -1,3 +1,114 @@
+## [complete] 2026-07-22 - Mission: guest-service-catalog-event-driven-refetch
+
+- Fixed page flickering and eliminated API spam on GuestOS (`/g/services`) & Management (`/hotels/.../services`):
+  - Completely removed `setInterval` background polling (5s on guest, 10s on staff/owner) that was continuously spamming `GET /api/guest/services` and `GET /hotels/.../services`.
+  - Updated `loadServices(options?: { silent?: boolean })` in `GuestServicesPage` (`/g/services`):
+    - Background/Event-driven refetches now run with `silent: true`, updating categories seamlessly in-place without resetting `categories` array to `[]`, without unmounting components, and without showing Skeleton loading indicators.
+  - Refetching is strictly event-driven: triggered ONLY when a WebSocket event (`onUpdated`, `onCreated`, `onReconnect`) fires or when an action/error occurs.
+
+Verification result:
+
+- `node --experimental-strip-types --test src/features/workspace/config/workspace-registry.test.ts src/features/workspace/utils/workspace-nav-active.test.ts src/features/workspace/utils/workspace-context.test.ts` passed 14/14 tests.
+
+Remaining blockers/risks:
+
+- None.
+
+## [complete] 2026-07-22 - Mission: service-catalog-typography-and-alignment-uplift
+
+- Upgraded table text readability across `service-catalog-client.tsx`:
+  - Upgraded entity names (`Tên nhóm` / `Tên dịch vụ`) from small default to `text-base font-semibold` (16px).
+  - Upgraded description lines (`Mô tả`) to `text-sm text-[var(--on-surface-variant)]` (14px).
+  - Upgraded category badges, status badges, price values, and sort order values to `text-base` / `text-sm font-semibold`.
+  - Upgraded top toolbar search input, tab buttons, and select dropdowns to `text-base min-h-11 px-4`.
+- Fixed table column alignment:
+  - Center-aligned `Telegram Group ID`, `Thứ tự sắp xếp` / `Thứ tự`, and `Trạng thái` column headers and cell values (`headerClassName: "text-center"`, `className: "text-center"`).
+  - Right-aligned `Giá tiền` and `Thao tác (Bật/Tắt)` column headers and cell values.
+
+Verification result:
+
+- `node --experimental-strip-types --test src/features/workspace/config/workspace-registry.test.ts src/features/workspace/utils/workspace-nav-active.test.ts src/features/workspace/utils/workspace-context.test.ts` passed 14/14 tests.
+
+Remaining blockers/risks:
+
+- None.
+
+## [complete] 2026-07-22 - Mission: staff-service-status-toggle-confirmation-dialog
+
+- Integrated SweetAlert2 (`Swal.fire`) confirmation dialogs before toggling service category or service item status (`ACTIVE` <-> `DISABLED`).
+- Displays explicit action title, entity name, and confirm/cancel buttons (`Vô hiệu hóa` / `Kích hoạt` / `Hủy`).
+- Displays success toast upon completion and error toast on failure.
+
+Verification result:
+
+- `node --experimental-strip-types --test src/features/workspace/config/workspace-registry.test.ts src/features/workspace/utils/workspace-nav-active.test.ts src/features/workspace/utils/workspace-context.test.ts` passed 14/14 tests.
+
+Remaining blockers/risks:
+
+- None.
+
+## [complete] 2026-07-22 - Mission: staff-navigation-reorder-and-label-update
+
+- Moved **"Quản lý dịch vụ"** (`staff.services`) to position 2 (order 25) in staff navigation bar right after "Điều hành hôm nay".
+- Renamed **"Yêu cầu dịch vụ"** (`staff.requests`) navigation label to **"Xử lý yêu cầu"**.
+- Updated `workspace-registry.test.ts` navigation assertion suite.
+
+Verification result:
+
+- `node --experimental-strip-types --test src/features/workspace/config/workspace-registry.test.ts src/features/workspace/utils/workspace-nav-active.test.ts src/features/workspace/utils/workspace-context.test.ts` passed 14/14 tests.
+
+Remaining blockers/risks:
+
+- None.
+
+## [complete] 2026-07-22 - Mission: session-refresh-route-error-handling-fix
+
+- Resolved `GET /api/auth/refresh-session` 404 error when access tokens expire.
+- Updated `readServerSessionTokens` (`src/lib/server-session-tokens.ts`) to accept an optional Request instance and safely catch token decryption / header reading errors (`.catch(() => null)`).
+- Wrapped `readServerSessionTokens(request)` call inside the `try...catch` block in `src/app/api/auth/refresh-session/route.ts` so unhandled token reading exceptions do not trigger 404 HTML error pages.
+- When an expired or unrefreshable session token hits `/api/auth/refresh-session`, the handler now safely redirects to `/login?reauth=1&callbackUrl=...`, allowing `proxy.ts` to clear old NextAuth session cookies and present the re-authentication page cleanly.
+
+Verification result:
+
+- `node scripts/auth-refresh-smoke.mjs` passed.
+- `node scripts/auth-session-contract-smoke.mjs` passed.
+- `node --experimental-strip-types --test src/features/workspace/config/workspace-registry.test.ts src/features/workspace/utils/workspace-nav-active.test.ts src/features/workspace/utils/workspace-context.test.ts` passed 14/14 tests.
+
+Remaining blockers/risks:
+
+- None.
+
+## [complete] 2026-07-22 - Mission: staff-service-management-nav-and-permissions
+
+- Created dedicated "Quản lý dịch vụ" (Service Management) navigation item on the staff side in `workspace-registry.ts` scoped to `STAFF_PERSONAS` with `hotel.services.view` or `hotel.services.manage` capabilities.
+- Updated staff service management page (`/hotels/[hotelId]/services`) header title and subtitle to reflect staff service status management.
+- Restricted `ServiceCatalogClient` for staff members to search, filter, and toggle status (Kích hoạt / Vô hiệu hóa) of service categories and items, removing creation and full edit capabilities.
+- Updated workspace registry unit tests (`workspace-registry.test.ts`) to verify staff service navigation.
+
+Verification result:
+
+- `node --experimental-strip-types --test src/features/workspace/config/workspace-registry.test.ts` passed 6/6 tests.
+- `node --experimental-strip-types --test src/features/workspace/utils/workspace-nav-active.test.ts src/features/workspace/utils/workspace-context.test.ts` passed 8/8 tests.
+
+Remaining blockers/risks:
+
+- None.
+
+## [complete] 2026-07-22 - Mission: dashboard-text-size-readability-fix
+
+- Upgraded typography readability across dashboard surfaces by replacing small `text-[10px]` / `text-[11px]` / `text-xs` utility classes with `text-sm` (14px) and `text-base` (16px).
+- Updated shared `DataTable` component header (`data-table.tsx`) from `text-xs` to `text-sm font-semibold`.
+- Enhanced Admin Dashboard (`admin/dashboard/page.tsx`), Owner Global Dashboard (`owner/(global)/dashboard/page.tsx`), and Receptionist/Staff Hotel Dashboard (`hotels/[hotelId]/dashboard/page.tsx`) eyebrow labels, section headers, KPI metrics, priority badges, and activity timestamps to `text-sm` font size.
+- Updated User & Tenant Owners table (`tenant-owners-client.tsx`) and Roles & Permissions live filter (`roles-live-filter.tsx`) status pills, email metadata, tenant codes, and column headers to `text-sm`.
+
+Verification result:
+
+- `npx tsc --noEmit` passed with 0 errors.
+
+Remaining blockers/risks:
+
+- None.
+
 ## [complete] 2026-07-22 - Mission: production-socket-realtime-connection-fix
 
 - Resolved production Socket.IO connection failures by updating `resolveBrowserReachableBackendUrl` in `backend-api-config.ts` to automatically upgrade `http:` protocols to `https:` and strip dev ports (`:8080`) when running on remote production HTTPS domains (preventing Mixed Content blocking and port refusal).

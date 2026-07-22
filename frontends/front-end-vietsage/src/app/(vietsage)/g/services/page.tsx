@@ -23,6 +23,7 @@ import type { CreateGuestRequestInput, GuestPortalRequestPriority, GuestServiceC
 import { GuestCatalogRequestGuard } from "@/features/guest-os/utils/guest-catalog-request-guard";
 import { adaptGuestServiceCatalog } from "@/features/guest-os/utils/guest-service-catalog";
 import { getGuestFriendlyErrorMessage } from "@/features/guest-os/utils/guest-os-errors";
+import { useGuestRequestRealtime } from "@/features/request-realtime/use-guest-request-realtime";
 
 type GuestTranslator = ReturnType<typeof useGuestI18n>["t"];
 
@@ -76,31 +77,58 @@ export default function GuestServicesPage() {
   const [servicesError, setServicesError] = useState<string | null>(null);
   const catalogRequestGuardRef = useRef(new GuestCatalogRequestGuard());
   const roomLabel = room?.roomNumber ? t("common.roomNumber", { room: room.roomNumber }) : t("home.roomFallback");
-  const loadServices = useCallback(async () => {
+  const loadServices = useCallback(async (options?: { silent?: boolean }) => {
     if (!sessionToken) return;
     const requestGeneration = catalogRequestGuardRef.current.begin();
-    setIsServicesLoading(true);
-    setServicesError(null);
-    setCategories([]);
-    setSelectedService(null);
+    if (!options?.silent) {
+      setIsServicesLoading(true);
+      setServicesError(null);
+      setCategories([]);
+    }
     try {
       const catalog = adaptGuestServiceCatalog(await guestOsService.listServices(sessionToken, locale));
       if (!catalogRequestGuardRef.current.isCurrent(requestGeneration)) return;
       setCategories(catalog.categories);
+      setServicesError(null);
     } catch (error) {
       if (!catalogRequestGuardRef.current.isCurrent(requestGeneration)) return;
-      setServicesError(getGuestFriendlyErrorMessage(error, t("services.loadError"), t));
+      if (!options?.silent) {
+        setServicesError(getGuestFriendlyErrorMessage(error, t("services.loadError"), t));
+      }
     } finally {
-      if (catalogRequestGuardRef.current.isCurrent(requestGeneration)) setIsServicesLoading(false);
+      if (!options?.silent && catalogRequestGuardRef.current.isCurrent(requestGeneration)) {
+        setIsServicesLoading(false);
+      }
     }
   }, [locale, sessionToken, t]);
 
+  useGuestRequestRealtime(sessionToken, {
+    onReconnect: () => { void loadServices({ silent: true }); },
+    onCreated: () => { void loadServices({ silent: true }); },
+    onUpdated: () => { void loadServices({ silent: true }); },
+    onAnswered: () => { void loadServices({ silent: true }); },
+    onConversationClosed: () => { void loadServices({ silent: true }); },
+  });
+
   useEffect(() => {
-    if (!isHydrated) return;
+    if (!isHydrated || !sessionToken) return;
     const requestGuard = catalogRequestGuardRef.current;
-    void Promise.resolve().then(loadServices);
-    return () => requestGuard.invalidate();
-  }, [isHydrated, loadServices]);
+    void Promise.resolve().then(() => loadServices());
+    return () => {
+      requestGuard.invalidate();
+    };
+  }, [isHydrated, sessionToken, loadServices]);
+
+  useEffect(() => {
+    if (!selectedService || !categories.length) return;
+    const allItems = categories.flatMap((cat) => cat.items);
+    const stillExists = allItems.some((item) => item.id === selectedService.id);
+    if (!stillExists) {
+      toast.error("Dịch vụ bạn vừa chọn đã ngưng phục vụ.");
+      const timer = setTimeout(() => setSelectedService(null), 0);
+      return () => clearTimeout(timer);
+    }
+  }, [categories, selectedService]);
 
   const closeRequestSheet = useCallback(() => {
     if (isRequestSubmitting) return;
@@ -153,7 +181,10 @@ export default function GuestServicesPage() {
       setSelectedService(null);
       router.push("/g/requests");
     } catch (error) {
-      setRequestError(getGuestFriendlyErrorMessage(error, t("services.loadError"), t));
+      void loadServices();
+      const userMsg = getGuestFriendlyErrorMessage(error, t("services.loadError"), t);
+      setRequestError(userMsg);
+      toast.error("Dịch vụ có thể đã bị ngưng hoạt động. Vui lòng kiểm tra lại danh mục.");
     } finally {
       Swal.close();
       setIsRequestSubmitting(false);

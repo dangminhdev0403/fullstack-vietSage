@@ -652,19 +652,19 @@ export function RolesLiveFilter({
         <div className="col-span-12 rounded-xl bg-white p-6 shadow-[0_4px_20px_rgba(0,0,0,0.05)] md:col-span-8">
           <div className="space-y-4">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--secondary)]">
+              <p className="text-sm font-semibold uppercase tracking-[0.1em] text-[var(--secondary)]">
                 Tìm Kiếm
               </p>
               <div className="flex items-center gap-3">
                 {isDebouncing ? (
-                  <span className="text-xs font-medium text-[var(--outline)]">
+                  <span className="text-sm font-medium text-[var(--outline)]">
                     Đang lọc...
                   </span>
                 ) : null}
                 <button
                   type="button"
                   onClick={openCreateDialog}
-                  className="inline-flex items-center gap-2 rounded-lg bg-[var(--primary)] px-3 py-2 text-xs font-semibold text-[var(--on-primary)]"
+                  className="inline-flex items-center gap-2 rounded-lg bg-[var(--primary)] px-3 py-2 text-sm font-semibold text-[var(--on-primary)]"
                 >
                   <VsIcon name="verified_user" className="text-[16px]" />
                   Tạo vai trò
@@ -710,7 +710,7 @@ export function RolesLiveFilter({
         </div>
 
         <article className="col-span-12 rounded-xl border border-[color:rgba(254,214,91,0.4)] bg-[color:rgba(254,214,91,0.18)] p-6 shadow-[0_4px_20px_rgba(0,0,0,0.05)] md:col-span-4">
-          <p className="text-xs text-[var(--on-secondary-container)]">
+          <p className="text-sm text-[var(--on-secondary-container)]">
             Hiện đang có
           </p>
           <div className="mt-2 flex items-end justify-between">
@@ -728,7 +728,7 @@ export function RolesLiveFilter({
         <div className="overflow-x-auto">
           <table className="min-w-full text-left">
             <thead>
-              <tr className="bg-[var(--surface-container-low)] text-xs uppercase tracking-[0.08em] text-[var(--outline)]">
+              <tr className="bg-[var(--surface-container-low)] text-sm font-semibold uppercase tracking-[0.08em] text-[var(--outline)]">
                 <th className="px-6 py-4">Tên vai trò</th>
                 <th className="px-6 py-4">Mã</th>
                 <th className="px-6 py-4">Trạng thái</th>
@@ -773,12 +773,12 @@ export function RolesLiveFilter({
                         {role.name}
                       </Link>
                     </td>
-                    <td className="px-6 py-5 text-xs font-bold text-[var(--outline)]">
+                    <td className="px-6 py-5 text-sm font-semibold text-[var(--outline)]">
                       {role.code}
                     </td>
                     <td className="px-6 py-5">
                       <span
-                        className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${
+                        className={`inline-flex rounded-full px-2.5 py-1 text-sm font-bold ${
                           isDisabled
                             ? "bg-[var(--surface-container-high)] text-[var(--outline)]"
                             : "bg-[var(--primary-fixed)] text-[var(--on-primary-fixed)]"
@@ -793,7 +793,7 @@ export function RolesLiveFilter({
                     <td className="px-6 py-5">
                       <Link
                         href={`/admin/permissions?roleId=${encodeURIComponent(role.id)}`}
-                        className="inline-flex rounded-full bg-[var(--surface-container-high)] px-2.5 py-1 text-xs font-bold text-[var(--on-surface-variant)] transition-colors hover:bg-[var(--surface-container)]"
+                        className="inline-flex rounded-full bg-[var(--surface-container-high)] px-2.5 py-1 text-sm font-bold text-[var(--on-surface-variant)] transition-colors hover:bg-[var(--surface-container)]"
                         title={`Xem quyền của ${role.name}`}
                       >
                         {role.permissionCount} mục

@@ -31,14 +31,14 @@ function toSessionTokens(token: JWT | null): ServerSessionTokens {
   };
 }
 
-export async function readServerSessionTokens(): Promise<ServerSessionTokens> {
-  const requestHeaders = await headers();
+export async function readServerSessionTokens(req?: Request | { headers: Headers }): Promise<ServerSessionTokens> {
+  const requestHeaders = req ? req.headers : await headers();
   const cookiePolicy = resolveSessionCookiePolicy(requestHeaders);
   const token = await getToken({
-    req: { headers: requestHeaders },
+    req: req ?? { headers: requestHeaders },
     secret: authSecret(),
     ...cookiePolicy,
-  });
+  }).catch(() => null);
 
   return toSessionTokens(token);
 }

@@ -1,4 +1,4 @@
-﻿import type { ReactNode } from "react";
+import type { ReactNode } from "react";
 
 type DataTableColumn<TItem> = {
   key: string;
@@ -171,7 +171,7 @@ export function DataTable<TItem>({
       {header}
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm" style={{ minWidth }}>
-          <thead className="bg-[var(--surface-container-low)] text-xs uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
+          <thead className="bg-[var(--surface-container-low)] text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
             <tr>
               {columns.map((column) => {
                 const isSorted = sort?.key === column.key;
