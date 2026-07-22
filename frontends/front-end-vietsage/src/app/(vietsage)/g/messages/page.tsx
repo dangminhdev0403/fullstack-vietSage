@@ -46,7 +46,7 @@ function TypewriterMessageBody({ body, createdAt }: Readonly<{ body: string; cre
   }, [body, createdAt]);
 
   return (
-    <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-left">
+    <p className="whitespace-pre-wrap break-all text-left">
       {displayedText}
       {isTyping && (
         <span className="inline-block w-1.5 h-3.5 ml-0.5 bg-current animate-pulse rounded-sm align-middle opacity-80" />
@@ -61,11 +61,13 @@ export default function GuestMessagesPage() {
   const sessionToken = useGuestStore((state) => state.sessionToken);
   const room = useGuestStore((state) => state.room);
   const [body, setBody] = useState("");
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const prevScrollHeightRef = useRef<number>(0);
   const isPrependingRef = useRef<boolean>(false);
   const prevMessageCountRef = useRef<number>(0);
+  const justSentRef = useRef<boolean>(false);
   const [showNewMessageBadge, setShowNewMessageBadge] = useState(false);
 
   const lastSentAtRef = useRef<number>(0);
@@ -135,16 +137,27 @@ export default function GuestMessagesPage() {
     }
 
     if (items.length > prevMessageCountRef.current) {
+      const hasJustSent = justSentRef.current;
+      justSentRef.current = false;
       prevMessageCountRef.current = items.length;
-      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
-      if (isNearBottom) {
-        container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+      const isFirstPage = pages.length <= 1;
+
+      if (hasJustSent || isFirstPage) {
         setShowNewMessageBadge(false);
+        const scrollToBottom = () => {
+          if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+          }
+        };
+        scrollToBottom();
+        requestAnimationFrame(scrollToBottom);
+        setTimeout(scrollToBottom, 50);
+        setTimeout(scrollToBottom, 150);
       } else {
         setShowNewMessageBadge(true);
       }
     }
-  }, [items]);
+  }, [items, pages.length]);
 
   // Play alert sound when guest receives a new message from staff
   useEffect(() => {
@@ -163,11 +176,10 @@ export default function GuestMessagesPage() {
 
   const send = useMutation({
     mutationFn: () => guestOsService.sendMessage(sessionToken!, body.trim(), locale),
-    onSuccess: (res) => {
+    onMutate: () => setSendError(null),
+    onSuccess: async (res) => {
       setBody("");
-      if (textareaRef.current) {
-        textareaRef.current.style.height = "auto";
-      }
+      justSentRef.current = true;
       if (res?.message) {
         queryClient.setQueryData<{ pages: GuestMessagesResult[]; pageParams: unknown[] }>(
           ["guest-messages", sessionToken],
@@ -183,8 +195,12 @@ export default function GuestMessagesPage() {
           },
         );
       }
-      queryClient.invalidateQueries({ queryKey: ["guest-messages", sessionToken] }).catch(() => {});
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+      }
+      await queryClient.invalidateQueries({ queryKey: ["guest-messages", sessionToken] });
     },
+    onError: () => setSendError("Không thể gửi tin nhắn. Vui lòng thử lại."),
   });
 
   // Listen for staff typing signals across windows/tabs
@@ -257,30 +273,35 @@ export default function GuestMessagesPage() {
     }
   };
 
-  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     setBody(e.target.value);
+    setSendError(null);
     emitTypingSignal();
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height = `${Math.max(44, Math.min(textareaRef.current.scrollHeight, 160))}px`;
-    }
   };
+
+  useEffect(() => {
+    if (send.isPending && scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    }
+  }, [send.isPending]);
 
   const executeSend = () => {
     const now = Date.now();
     if (now - lastSentAtRef.current < 600) return; // 600ms send cooldown debounce
-    if (body.trim() && body.length <= 1000 && !send.isPending) {
-      lastSentAtRef.current = now;
-      send.mutate();
+    if (!body.trim() || send.isPending) return;
+    if (body.length > 1000) {
+      setSendError("Tin nhắn vượt quá 1000 ký tự. Hãy rút gọn trước khi gửi.");
+      return;
     }
+    lastSentAtRef.current = now;
+    justSentRef.current = true;
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    }
+    send.mutate();
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      executeSend();
-    }
-  };
+
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -413,17 +434,16 @@ export default function GuestMessagesPage() {
           <form onSubmit={submit} className="flex items-end gap-2 border-t border-[#25483f]/10 bg-[#fffdfa] p-3 sm:p-4">
             <label className="sr-only" htmlFor="guest-message">Tin nhắn</label>
             <div className="min-w-0 flex-1">
-              <textarea
+              <input
                 id="guest-message"
-                ref={textareaRef}
-                rows={1}
+                ref={inputRef}
+                type="text"
                 value={body}
                 onChange={handleInput}
-                onKeyDown={handleKeyDown}
                 aria-describedby="guest-message-limit"
                 aria-invalid={body.length > 1000}
                 placeholder="Nhập tin nhắn cho lễ tân (Enter để gửi)..."
-                className="min-h-12 max-h-36 w-full resize-none overflow-y-auto rounded-xl border border-[#25483f]/20 bg-white px-4 py-3 text-base text-[#18211d] placeholder:text-[#8b9890] outline-none transition focus:border-[#25483f] focus:ring-1 focus:ring-[#25483f]"
+                className="h-12 w-full rounded-xl border border-[#25483f]/20 bg-white px-4 text-base text-[#18211d] placeholder:text-[#8b9890] outline-none transition focus:border-[#25483f] focus:ring-1 focus:ring-[#25483f]"
               />
               <p
                 id="guest-message-limit"
@@ -431,10 +451,11 @@ export default function GuestMessagesPage() {
               >
                 Tin nhắn dài tối đa 1000 ký tự. {body.length}/1000
               </p>
+              {sendError ? <p role="alert" className="mt-1 text-sm font-semibold text-red-700">{sendError}</p> : null}
             </div>
             <button
               type="submit"
-              disabled={!body.trim() || body.length > 1000 || send.isPending}
+              disabled={!body.trim() || send.isPending}
               className="vs-touch-button inline-flex min-h-12 items-center justify-center rounded-xl bg-[#25483f] px-4 text-white disabled:opacity-50 shrink-0"
               aria-label="Gửi tin nhắn"
             >

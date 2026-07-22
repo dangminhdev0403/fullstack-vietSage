@@ -77,7 +77,7 @@ function TypewriterMessageBody({ body, createdAt }: Readonly<{ body: string; cre
   }, [body, createdAt]);
 
   return (
-    <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-left">
+    <p className="whitespace-pre-wrap break-all text-left">
       {displayedText}
       {isTyping && (
         <span className="inline-block w-1.5 h-3.5 ml-0.5 bg-current animate-pulse rounded-sm align-middle opacity-80" />
@@ -92,6 +92,7 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draftsByThread, setDraftsByThread] = useState<Record<string, string>>({});
+  const [sendError, setSendError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [showNewMessageBadge, setShowNewMessageBadge] = useState(false);
 
@@ -101,9 +102,10 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
   const prevScrollHeightRef = useRef<number>(0);
   const isPrependingRef = useRef<boolean>(false);
   const prevMessageCountRef = useRef<number>(0);
+  const justSentRef = useRef<boolean>(false);
 
   const prevLatestMessageIdRef = useRef<string | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const lastSentAtRef = useRef<number>(0);
   const lastTypingEmitRef = useRef<number>(0);
   const [isPeerTyping, setIsPeerTyping] = useState(false);
@@ -194,16 +196,27 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
     }
 
     if (messages.length > prevMessageCountRef.current) {
+      const hasJustSent = justSentRef.current;
+      justSentRef.current = false;
       prevMessageCountRef.current = messages.length;
-      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
-      if (isNearBottom) {
-        container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+      const isFirstPage = pages.length <= 1;
+
+      if (hasJustSent || isFirstPage) {
         setShowNewMessageBadge(false);
+        const scrollToBottom = () => {
+          if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+          }
+        };
+        scrollToBottom();
+        requestAnimationFrame(scrollToBottom);
+        setTimeout(scrollToBottom, 50);
+        setTimeout(scrollToBottom, 150);
       } else {
         setShowNewMessageBadge(true);
       }
     }
-  }, [messages]);
+  }, [messages, pages.length]);
 
   // Sound alert trigger on new incoming guest messages
   useEffect(() => {
@@ -285,22 +298,23 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
   };
 
   const reply = useMutation({
-    mutationFn: () =>
-      requestInternalApi<{ thread: Thread; message: Message }>(`${base}/${encodeURIComponent(selectedId!)}/reply`, {
+    mutationFn: (variables: { threadId: string; body: string }) =>
+      requestInternalApi<{ thread: Thread; message: Message }>(`${base}/${encodeURIComponent(variables.threadId)}/reply`, {
         method: "POST",
-        body: { body: body.trim() },
+        body: { body: variables.body },
       }),
-    onSuccess: (res) => {
-      if (selectedId) {
-        setDraftsByThread((prev) => ({ ...prev, [selectedId]: "" }));
-      }
-      if (textareaRef.current) {
-        textareaRef.current.style.height = "auto";
-      }
-      // Optimistically insert sent message into TanStack Query infinite cache
+    onMutate: () => setSendError(null),
+    onSuccess: async (res, variables) => {
+      setDraftsByThread((prev) =>
+        prev[variables.threadId]?.trim() === variables.body
+          ? { ...prev, [variables.threadId]: "" }
+          : prev,
+      );
+      justSentRef.current = true;
+      // Optimistically insert sent message into the submitted thread cache.
       if (res?.message) {
         queryClient.setQueryData<{ pages: ThreadPage[]; pageParams: unknown[] }>(
-          ["hotel-message-thread", hotelId, selectedId],
+          ["hotel-message-thread", hotelId, variables.threadId],
           (oldData) => {
             if (!oldData?.pages?.length) return oldData;
             const newPages = [...oldData.pages];
@@ -313,9 +327,22 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
           },
         );
       }
-      refresh();
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+      }
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["hotel-message-threads", hotelId] }),
+        queryClient.invalidateQueries({ queryKey: ["hotel-message-thread", hotelId, variables.threadId] }),
+      ]);
     },
+    onError: () => setSendError("Không thể gửi tin nhắn. Vui lòng thử lại."),
   });
+
+  useEffect(() => {
+    if (reply.isPending && scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    }
+  }, [reply.isPending]);
 
   const emitTypingSignal = () => {
     const now = Date.now();
@@ -338,33 +365,32 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
     }
   };
 
-  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     if (selectedId) {
       setDraftsByThread((prev) => ({ ...prev, [selectedId]: val }));
     }
+    setSendError(null);
     emitTypingSignal();
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height = `${Math.max(48, Math.min(textareaRef.current.scrollHeight, 160))}px`;
-    }
   };
 
   const executeSend = () => {
     const now = Date.now();
     if (now - lastSentAtRef.current < 600) return;
-    if (body.trim() && body.length <= 1000 && selectedId && !reply.isPending) {
-      lastSentAtRef.current = now;
-      reply.mutate();
+    if (!body.trim() || !selectedId || reply.isPending) return;
+    if (body.length > 1000) {
+      setSendError("Tin nhắn vượt quá 1000 ký tự. Hãy rút gọn trước khi gửi.");
+      return;
     }
+    lastSentAtRef.current = now;
+    justSentRef.current = true;
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    }
+    reply.mutate({ threadId: selectedId, body: body.trim() });
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      executeSend();
-    }
-  };
+
 
   const clear = useMutation({
     mutationFn: () =>
@@ -669,16 +695,15 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
                   className="flex items-end gap-2 border-t border-[var(--outline-variant)] bg-[var(--surface-container-lowest,#fdfbf7)] p-4"
                 >
                   <div className="min-w-0 flex-1">
-                    <textarea
-                      ref={textareaRef}
-                      rows={1}
+                    <input
+                      ref={inputRef}
+                      type="text"
                       value={body}
                       onChange={handleInput}
-                      onKeyDown={handleKeyDown}
                       aria-describedby="staff-message-limit"
                       aria-invalid={body.length > 1000}
-                      placeholder="Nhập nội dung trả lời khách (Enter để gửi, Shift+Enter để xuống dòng)..."
-                      className="min-h-12 max-h-36 w-full resize-none overflow-y-auto rounded-xl border border-[var(--outline-variant)] bg-white px-4 py-3 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+                      placeholder="Nhập nội dung trả lời khách (Enter để gửi)..."
+                      className="h-12 w-full rounded-xl border border-[var(--outline-variant)] bg-white px-4 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
                     />
                     <p
                       id="staff-message-limit"
@@ -686,10 +711,11 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
                     >
                       Tin nhắn dài tối đa 1000 ký tự. {body.length}/1000
                     </p>
+                    {sendError ? <p role="alert" className="mt-1 text-sm font-semibold text-red-700">{sendError}</p> : null}
                   </div>
                   <button
                     type="submit"
-                    disabled={!body.trim() || body.length > 1000 || reply.isPending}
+                    disabled={!body.trim() || reply.isPending}
                     className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-6 text-sm font-bold text-white shadow-md transition hover:bg-[var(--primary)]/90 disabled:opacity-40 shrink-0"
                   >
                     <VsIcon name="send" className="text-base" />

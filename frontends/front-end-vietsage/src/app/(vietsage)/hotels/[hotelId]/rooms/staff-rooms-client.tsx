@@ -3,7 +3,11 @@
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Swal from "sweetalert2";
-import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import type {
@@ -24,7 +28,12 @@ type Props = {
   canManageStays: boolean;
 };
 
-type RoomStatusFilter = "all" | "available" | "occupied" | "processing" | "maintenance";
+type RoomStatusFilter =
+  | "all"
+  | "available"
+  | "occupied"
+  | "processing"
+  | "maintenance";
 type FlowMode = "walk-in" | "reservation";
 
 type WalkInForm = {
@@ -54,7 +63,9 @@ function localDateTime(offsetDays: number, hour: number): string {
   const value = new Date();
   value.setDate(value.getDate() + offsetDays);
   value.setHours(hour, 0, 0, 0);
-  return new Date(value.getTime() - value.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+  return new Date(value.getTime() - value.getTimezoneOffset() * 60_000)
+    .toISOString()
+    .slice(0, 16);
 }
 
 function formatDateTime(value: string | null | undefined): string {
@@ -73,9 +84,11 @@ function getRoomNumber(room: HotelRoomSummary): string {
 
 function getRoomStatus(room: HotelRoomSummary): RoomStatusFilter {
   const status = room.status?.toUpperCase();
-  if (room.activeStay || status === "OCCUPIED" || status === "RESERVED") return "occupied";
+  if (room.activeStay || status === "OCCUPIED" || status === "RESERVED")
+    return "occupied";
   if (status === "PROCESSING") return "processing";
-  if (status === "MAINTENANCE" || status === "OUT_OF_SERVICE") return "maintenance";
+  if (status === "MAINTENANCE" || status === "OUT_OF_SERVICE")
+    return "maintenance";
   return "available";
 }
 
@@ -88,9 +101,12 @@ function roomStatusLabel(status: RoomStatusFilter): string {
 }
 
 function roomCardClass(status: RoomStatusFilter): string {
-  if (status === "occupied") return "border-[var(--primary)] bg-[var(--primary)] text-[var(--on-primary)]";
-  if (status === "processing") return "border-l-4 border-l-[var(--secondary)] bg-[var(--surface-container-low)] text-[var(--primary)]";
-  if (status === "maintenance") return "border-l-4 border-l-[var(--error)] bg-[var(--error-container)]/45 text-[var(--on-error-container)]";
+  if (status === "occupied")
+    return "border-[var(--primary)] bg-[var(--primary)] text-[var(--on-primary)]";
+  if (status === "processing")
+    return "border-l-4 border-l-[var(--secondary)] bg-[var(--surface-container-low)] text-[var(--primary)]";
+  if (status === "maintenance")
+    return "border-l-4 border-l-[var(--error)] bg-[var(--error-container)]/45 text-[var(--on-error-container)]";
   return "border-[var(--outline-variant)] bg-white text-[var(--primary)] hover:border-[var(--primary)]";
 }
 
@@ -123,11 +139,19 @@ function activeStayProgress(room: HotelRoomSummary): number {
   const start = new Date(stay.plannedCheckInAt).getTime();
   const end = new Date(stay.plannedCheckOutAt).getTime();
   const now = Date.now();
-  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return 0;
-  return Math.max(0, Math.min(100, Math.round(((now - start) / (end - start)) * 100)));
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start)
+    return 0;
+  return Math.max(
+    0,
+    Math.min(100, Math.round(((now - start) / (end - start)) * 100)),
+  );
 }
 
-function renderPaginationButtons(currentPage: number, totalPages: number, onPageChange: (p: number) => void) {
+function renderPaginationButtons(
+  currentPage: number,
+  totalPages: number,
+  onPageChange: (p: number) => void,
+) {
   const buttons: React.ReactNode[] = [];
 
   buttons.push(
@@ -139,7 +163,7 @@ function renderPaginationButtons(currentPage: number, totalPages: number, onPage
       className="inline-flex min-h-9 items-center justify-center rounded-lg border border-[var(--outline-variant)] px-3 text-sm font-bold text-[var(--primary)] transition hover:bg-[var(--surface-container-low)] disabled:opacity-40 disabled:cursor-not-allowed"
     >
       &lt; Prev
-    </button>
+    </button>,
   );
 
   const range = (start: number, end: number) => {
@@ -155,16 +179,27 @@ function renderPaginationButtons(currentPage: number, totalPages: number, onPage
     } else if (currentPage >= totalPages - 2) {
       pages.push(1, "...", ...range(totalPages - 3, totalPages));
     } else {
-      pages.push(1, "...", currentPage - 1, currentPage, currentPage + 1, "...", totalPages);
+      pages.push(
+        1,
+        "...",
+        currentPage - 1,
+        currentPage,
+        currentPage + 1,
+        "...",
+        totalPages,
+      );
     }
   }
 
   pages.forEach((p, idx) => {
     if (p === "...") {
       buttons.push(
-        <span key={`ellipsis-${idx}`} className="px-2 text-sm text-[var(--on-surface-variant)] select-none">
+        <span
+          key={`ellipsis-${idx}`}
+          className="px-2 text-sm text-[var(--on-surface-variant)] select-none"
+        >
           ...
-        </span>
+        </span>,
       );
     } else {
       const pageNum = p as number;
@@ -180,7 +215,7 @@ function renderPaginationButtons(currentPage: number, totalPages: number, onPage
           }`}
         >
           {pageNum}
-        </button>
+        </button>,
       );
     }
   });
@@ -194,7 +229,7 @@ function renderPaginationButtons(currentPage: number, totalPages: number, onPage
       className="inline-flex min-h-9 items-center justify-center rounded-lg border border-[var(--outline-variant)] px-3 text-sm font-bold text-[var(--primary)] transition hover:bg-[var(--surface-container-low)] disabled:opacity-40 disabled:cursor-not-allowed"
     >
       Next &gt;
-    </button>
+    </button>,
   );
 
   return <div className="flex items-center gap-1.5">{buttons}</div>;
@@ -224,9 +259,13 @@ export function StaffRoomsClient({
   const [status, setStatus] = useState<RoomStatusFilter>("all");
   const [vipOnly, setVipOnly] = useState(false);
   const [flow, setFlow] = useState<FlowMode>("walk-in");
-  const [selectedRoom, setSelectedRoom] = useState<HotelRoomSummary | null>(null);
+  const [selectedRoom, setSelectedRoom] = useState<HotelRoomSummary | null>(
+    null,
+  );
   const [walkInForm, setWalkInForm] = useState<WalkInForm>(() => emptyWalkIn());
-  const [reservationForm, setReservationForm] = useState<ReservationForm>(() => emptyReservation());
+  const [reservationForm, setReservationForm] = useState<ReservationForm>(() =>
+    emptyReservation(),
+  );
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -237,7 +276,11 @@ export function StaffRoomsClient({
     return () => clearTimeout(handler);
   }, [inputQuery]);
 
-  const { data: roomsPage, isFetching } = useQuery({
+  const {
+    data: roomsPage,
+    isFetching,
+    refetch,
+  } = useQuery({
     queryKey: [
       "hotel-ops",
       hotelId,
@@ -254,16 +297,24 @@ export function StaffRoomsClient({
         ...(type !== "all" ? { type } : {}),
         ...(vipOnly ? { vipOnly: "true" } : {}),
       });
-      const response = await requestInternalApiEnvelope<HotelOpsPage<HotelRoomSummary>>(
+      const response = await requestInternalApiEnvelope<
+        HotelOpsPage<HotelRoomSummary>
+      >(
         `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/rooms?${searchParams.toString()}`,
         { method: "GET" },
       );
       return response.data;
     },
     placeholderData: keepPreviousData,
-    initialData: page === 1 && !query && status === "all" && floor === "all" && type === "all" && !vipOnly
-      ? initialRoomsPage
-      : undefined,
+    initialData:
+      page === 1 &&
+      !query &&
+      status === "all" &&
+      floor === "all" &&
+      type === "all" &&
+      !vipOnly
+        ? initialRoomsPage
+        : undefined,
   });
 
   const rooms = useMemo(() => roomsPage?.items ?? [], [roomsPage?.items]);
@@ -279,7 +330,8 @@ export function StaffRoomsClient({
 
   const totalPages = roomsPage?.totalPages ?? 1;
   const totalItems = roomsPage?.totalItems ?? 0;
-  const totalAvailable = roomsPage?.totalAvailable ?? initialRoomsPage.totalAvailable ?? 0;
+  const totalAvailable =
+    roomsPage?.totalAvailable ?? initialRoomsPage.totalAvailable ?? 0;
 
   const availableRooms = useMemo(() => rooms.filter(isAvailable), [rooms]);
 
@@ -301,10 +353,61 @@ export function StaffRoomsClient({
       const rect = checkInContainerRef.current.getBoundingClientRect();
       const inViewport =
         rect.top >= 0 &&
-        rect.bottom <= (window.innerHeight || document.documentElement.clientHeight);
+        rect.bottom <=
+          (window.innerHeight || document.documentElement.clientHeight);
       if (!inViewport) {
-        checkInContainerRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        checkInContainerRef.current.scrollIntoView({
+          behavior: "smooth",
+          block: "nearest",
+        });
       }
+    }
+  }
+
+  async function markRoomCleaned(room: HotelRoomSummary) {
+    const confirmation = await Swal.fire({
+      icon: "question",
+      title: `Hoàn tất dọn phòng ${room.roomNumber ?? room.id}?`,
+      text: "Xác nhận phòng đã được dọn dẹp sạch sẽ và sẵn sàng đón khách mới.",
+      showCancelButton: true,
+      confirmButtonText: "Chuyển sang TRỐNG (Sẵn sàng)",
+      cancelButtonText: "Hủy",
+      confirmButtonColor: "#17201b",
+    });
+
+    if (!confirmation.isConfirmed) return;
+
+    try {
+      await requestInternalApiEnvelope(
+        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/rooms/${encodeURIComponent(room.id)}`,
+        {
+          method: "PATCH",
+          body: { status: "AVAILABLE" },
+        },
+      );
+      await Swal.fire({
+        icon: "success",
+        title: `Phòng ${room.roomNumber ?? room.id} đã sẵn sàng!`,
+        text: "Trạng thái phòng đã chuyển thành TRỐNG.",
+        confirmButtonColor: "#17201b",
+      });
+      void refetch();
+    } catch (error) {
+      await Swal.fire({
+        icon: "error",
+        title: "Không thể cập nhật trạng thái phòng",
+        text: error instanceof Error ? error.message : "Vui lòng thử lại.",
+        confirmButtonColor: "#17201b",
+      });
+    }
+  }
+
+  function handleCardClick(room: HotelRoomSummary) {
+    const roomStatus = getRoomStatus(room);
+    if (roomStatus === "available") {
+      openWalkIn(room);
+    } else if (roomStatus === "processing") {
+      void markRoomCleaned(room);
     }
   }
 
@@ -326,16 +429,23 @@ export function StaffRoomsClient({
 
     setSaving(true);
     try {
-      const result = await requestInternalApiEnvelope<HotelCheckInResult>(`${apiBase}/stays`, {
-        method: "POST",
-        body: {
-          roomId: walkInForm.roomId,
-          guestDisplayName: walkInForm.guestDisplayName.trim(),
-          ...(walkInForm.guestPhone.trim() ? { guestPhone: walkInForm.guestPhone.trim() } : {}),
-          plannedCheckInAt: new Date().toISOString(),
-          plannedCheckOutAt: new Date(walkInForm.plannedCheckOutAt).toISOString(),
+      const result = await requestInternalApiEnvelope<HotelCheckInResult>(
+        `${apiBase}/stays`,
+        {
+          method: "POST",
+          body: {
+            roomId: walkInForm.roomId,
+            guestDisplayName: walkInForm.guestDisplayName.trim(),
+            ...(walkInForm.guestPhone.trim()
+              ? { guestPhone: walkInForm.guestPhone.trim() }
+              : {}),
+            plannedCheckInAt: new Date().toISOString(),
+            plannedCheckOutAt: new Date(
+              walkInForm.plannedCheckOutAt,
+            ).toISOString(),
+          },
         },
-      });
+      );
       setSelectedRoom(null);
       await Swal.fire({
         icon: "success",
@@ -343,10 +453,17 @@ export function StaffRoomsClient({
         text: `Mã GuestOS: ${result.data.accessCode}. Khách có thể quét QR để gọi dịch vụ và nhắn tin.`,
         confirmButtonColor: "#00003c",
       });
-      queryClient.invalidateQueries({ queryKey: ["hotel-ops", hotelId] }).catch(() => {});
+      queryClient
+        .invalidateQueries({ queryKey: ["hotel-ops", hotelId] })
+        .catch(() => {});
       router.refresh();
     } catch (error) {
-      await Swal.fire({ icon: "error", title: "Không thể mở phòng", text: error instanceof Error ? error.message : "Vui lòng thử lại.", confirmButtonColor: "#00003c" });
+      await Swal.fire({
+        icon: "error",
+        title: "Không thể mở phòng",
+        text: error instanceof Error ? error.message : "Vui lòng thử lại.",
+        confirmButtonColor: "#00003c",
+      });
     } finally {
       setSaving(false);
     }
@@ -373,25 +490,48 @@ export function StaffRoomsClient({
         method: "POST",
         body: {
           guestDisplayName: reservationForm.guestDisplayName.trim(),
-          ...(reservationForm.guestPhone.trim() ? { guestPhone: reservationForm.guestPhone.trim() } : {}),
-          plannedCheckInAt: new Date(reservationForm.plannedCheckInAt).toISOString(),
-          plannedCheckOutAt: new Date(reservationForm.plannedCheckOutAt).toISOString(),
+          ...(reservationForm.guestPhone.trim()
+            ? { guestPhone: reservationForm.guestPhone.trim() }
+            : {}),
+          plannedCheckInAt: new Date(
+            reservationForm.plannedCheckInAt,
+          ).toISOString(),
+          plannedCheckOutAt: new Date(
+            reservationForm.plannedCheckOutAt,
+          ).toISOString(),
           ...(reservationForm.roomId ? { roomId: reservationForm.roomId } : {}),
         },
       });
       setReservationForm(emptyReservation());
-      await Swal.fire({ icon: "success", title: "Đã tạo đặt phòng", timer: 1400, showConfirmButton: false });
-      queryClient.invalidateQueries({ queryKey: ["hotel-ops", hotelId] }).catch(() => {});
+      await Swal.fire({
+        icon: "success",
+        title: "Đã tạo đặt phòng",
+        timer: 1400,
+        showConfirmButton: false,
+      });
+      queryClient
+        .invalidateQueries({ queryKey: ["hotel-ops", hotelId] })
+        .catch(() => {});
       router.refresh();
     } catch (error) {
-      await Swal.fire({ icon: "error", title: "Không thể tạo đặt phòng", text: error instanceof Error ? error.message : "Vui lòng thử lại.", confirmButtonColor: "#00003c" });
+      await Swal.fire({
+        icon: "error",
+        title: "Không thể tạo đặt phòng",
+        text: error instanceof Error ? error.message : "Vui lòng thử lại.",
+        confirmButtonColor: "#00003c",
+      });
     } finally {
       setSaving(false);
     }
   }
 
   async function assignArrivalRoom(arrival: HotelArrival) {
-    const options = Object.fromEntries(availableRooms.map((room) => [room.id, `Phòng ${getRoomNumber(room)} · ${room.type ?? "Tiêu chuẩn"}`]));
+    const options = Object.fromEntries(
+      availableRooms.map((room) => [
+        room.id,
+        `Phòng ${getRoomNumber(room)} · ${room.type ?? "Tiêu chuẩn"}`,
+      ]),
+    );
     const result = await Swal.fire({
       title: `Gán phòng cho ${arrival.guestDisplayName}`,
       input: "select",
@@ -405,11 +545,21 @@ export function StaffRoomsClient({
     });
     if (!result.isConfirmed || !result.value) return;
     try {
-      await requestInternalApiEnvelope(`${apiBase}/reservations/${encodeURIComponent(arrival.id)}/room`, { method: "PUT", body: { roomId: result.value } });
-      queryClient.invalidateQueries({ queryKey: ["hotel-ops", hotelId] }).catch(() => {});
+      await requestInternalApiEnvelope(
+        `${apiBase}/reservations/${encodeURIComponent(arrival.id)}/room`,
+        { method: "PUT", body: { roomId: result.value } },
+      );
+      queryClient
+        .invalidateQueries({ queryKey: ["hotel-ops", hotelId] })
+        .catch(() => {});
       router.refresh();
     } catch (error) {
-      await Swal.fire({ icon: "error", title: "Không thể gán phòng", text: error instanceof Error ? error.message : "Vui lòng thử lại.", confirmButtonColor: "#00003c" });
+      await Swal.fire({
+        icon: "error",
+        title: "Không thể gán phòng",
+        text: error instanceof Error ? error.message : "Vui lòng thử lại.",
+        confirmButtonColor: "#00003c",
+      });
     }
   }
 
@@ -425,12 +575,30 @@ export function StaffRoomsClient({
     });
     if (!confirmation.isConfirmed) return;
     try {
-      const result = await requestInternalApiEnvelope<HotelReservationCheckInResult>(`${apiBase}/reservations/${encodeURIComponent(arrival.id)}/check-in`, { method: "POST" });
-      await Swal.fire({ icon: "success", title: "Check-in hoàn tất", text: result.data.accessCode ? `Mã GuestOS: ${result.data.accessCode}` : "QR phòng đã sẵn sàng.", confirmButtonColor: "#00003c" });
-      queryClient.invalidateQueries({ queryKey: ["hotel-ops", hotelId] }).catch(() => {});
+      const result =
+        await requestInternalApiEnvelope<HotelReservationCheckInResult>(
+          `${apiBase}/reservations/${encodeURIComponent(arrival.id)}/check-in`,
+          { method: "POST" },
+        );
+      await Swal.fire({
+        icon: "success",
+        title: "Check-in hoàn tất",
+        text: result.data.accessCode
+          ? `Mã GuestOS: ${result.data.accessCode}`
+          : "QR phòng đã sẵn sàng.",
+        confirmButtonColor: "#00003c",
+      });
+      queryClient
+        .invalidateQueries({ queryKey: ["hotel-ops", hotelId] })
+        .catch(() => {});
       router.refresh();
     } catch (error) {
-      await Swal.fire({ icon: "error", title: "Không thể check-in", text: error instanceof Error ? error.message : "Vui lòng thử lại.", confirmButtonColor: "#00003c" });
+      await Swal.fire({
+        icon: "error",
+        title: "Không thể check-in",
+        text: error instanceof Error ? error.message : "Vui lòng thử lại.",
+        confirmButtonColor: "#00003c",
+      });
     }
   }
 
@@ -473,31 +641,90 @@ export function StaffRoomsClient({
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex min-w-0 flex-1 flex-col gap-3 lg:flex-row lg:items-center">
             <label className="relative min-w-0 flex-1 lg:max-w-xs">
-              <VsIcon name="search" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-[var(--outline)]" />
-              <input value={inputQuery} onChange={(event) => setInputQuery(event.target.value)} className="h-11 w-full rounded-lg border-0 bg-[var(--surface-container-low)] pl-10 pr-4 text-sm outline-none ring-1 ring-transparent focus:ring-[var(--primary)]" placeholder="Tìm kiếm phòng hoặc khách..." />
+              <VsIcon
+                name="search"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-[var(--outline)]"
+              />
+              <input
+                value={inputQuery}
+                onChange={(event) => setInputQuery(event.target.value)}
+                className="h-11 w-full rounded-lg border-0 bg-[var(--surface-container-low)] pl-10 pr-4 text-sm outline-none ring-1 ring-transparent focus:ring-[var(--primary)]"
+                placeholder="Tìm kiếm phòng hoặc khách..."
+              />
             </label>
             <div className="grid gap-2 sm:grid-cols-3 lg:flex">
-              <select value={floor} onChange={(event) => { setFloor(event.target.value); setPage(1); }} className="h-11 rounded-lg border-0 bg-[var(--surface-container-low)] px-3 text-sm ring-1 ring-transparent focus:ring-[var(--primary)]">
+              <select
+                value={floor}
+                onChange={(event) => {
+                  setFloor(event.target.value);
+                  setPage(1);
+                }}
+                className="h-11 rounded-lg border-0 bg-[var(--surface-container-low)] px-3 text-sm ring-1 ring-transparent focus:ring-[var(--primary)]"
+              >
                 <option value="all">Tầng: Tất cả</option>
-                {floors.map((value) => <option key={value} value={value}>Tầng {value}</option>)}
+                {floors.map((value) => (
+                  <option key={value} value={value}>
+                    Tầng {value}
+                  </option>
+                ))}
               </select>
-              <select value={type} onChange={(event) => { setType(event.target.value); setPage(1); }} className="h-11 rounded-lg border-0 bg-[var(--surface-container-low)] px-3 text-sm ring-1 ring-transparent focus:ring-[var(--primary)]">
+              <select
+                value={type}
+                onChange={(event) => {
+                  setType(event.target.value);
+                  setPage(1);
+                }}
+                className="h-11 rounded-lg border-0 bg-[var(--surface-container-low)] px-3 text-sm ring-1 ring-transparent focus:ring-[var(--primary)]"
+              >
                 <option value="all">Loại phòng: Tất cả</option>
-                {types.map((value) => <option key={value} value={value}>{value}</option>)}
+                {types.map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
               </select>
-              <select value={status} onChange={(event) => { setStatus(event.target.value as RoomStatusFilter); setPage(1); }} className="h-11 rounded-lg border-0 bg-[var(--surface-container-low)] px-3 text-sm ring-1 ring-transparent focus:ring-[var(--primary)]">
-                {statusFilters.map((item) => <option key={item.value} value={item.value}>Trạng thái: {item.label}</option>)}
+              <select
+                value={status}
+                onChange={(event) => {
+                  setStatus(event.target.value as RoomStatusFilter);
+                  setPage(1);
+                }}
+                className="h-11 rounded-lg border-0 bg-[var(--surface-container-low)] px-3 text-sm ring-1 ring-transparent focus:ring-[var(--primary)]"
+              >
+                {statusFilters.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    Trạng thái: {item.label}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
           <div className="flex items-center justify-between gap-4">
             <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-[var(--on-surface-variant)]">
-              <input type="checkbox" checked={vipOnly} onChange={(event) => { setVipOnly(event.target.checked); setPage(1); }} className="rounded border-[var(--outline-variant)] text-[var(--primary)] focus:ring-[var(--primary)]" />
+              <input
+                type="checkbox"
+                checked={vipOnly}
+                onChange={(event) => {
+                  setVipOnly(event.target.checked);
+                  setPage(1);
+                }}
+                className="rounded border-[var(--outline-variant)] text-[var(--primary)] focus:ring-[var(--primary)]"
+              />
               Chế độ VIP
             </label>
             <div className="grid grid-cols-2 gap-4 border-l border-[var(--outline-variant)] pl-4 text-center">
-              <div><p className="text-xs text-[var(--on-surface-variant)]">Tổng</p><p className="font-bold text-[var(--primary)]">{totalItems}</p></div>
-              <div><p className="text-xs text-[var(--on-surface-variant)]">Khả dụng</p><p className="font-bold text-[var(--secondary)]">{totalAvailable}</p></div>
+              <div>
+                <p className="text-xs text-[var(--on-surface-variant)]">Tổng</p>
+                <p className="font-bold text-[var(--primary)]">{totalItems}</p>
+              </div>
+              <div>
+                <p className="text-xs text-[var(--on-surface-variant)]">
+                  Khả dụng
+                </p>
+                <p className="font-bold text-[var(--secondary)]">
+                  {totalAvailable}
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -515,45 +742,158 @@ export function StaffRoomsClient({
               {rooms.map((room) => {
                 const roomStatus = getRoomStatus(room);
                 const progress = activeStayProgress(room);
-                const isVip = /suite|vip|premium|penthouse/i.test(room.type ?? "");
+                const isVip = /suite|vip|premium|penthouse/i.test(
+                  room.type ?? "",
+                );
+                const isInteractiveCard =
+                  (roomStatus === "available" && canManageStays) ||
+                  roomStatus === "processing";
                 return (
-                  <button key={room.id} type="button" onClick={() => openWalkIn(room)} disabled={!isAvailable(room) || !canManageStays} className={`min-h-52 rounded-xl border p-5 text-left shadow-[0_4px_20px_rgba(0,0,0,0.05)] transition hover:-translate-y-0.5 disabled:cursor-default disabled:hover:translate-y-0 ${roomCardClass(roomStatus)}`}>
+                  <div
+                    key={room.id}
+                    onClick={() => handleCardClick(room)}
+                    className={`flex flex-col justify-between h-full min-h-[235px] rounded-2xl border p-5 text-left shadow-[0_4px_20px_rgba(0,0,0,0.05)] transition-all ${
+                      isInteractiveCard
+                        ? "cursor-pointer hover:-translate-y-0.5"
+                        : ""
+                    } ${roomCardClass(roomStatus)}`}
+                  >
+                    {/* Header */}
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <h3 className="vs-display text-3xl font-semibold">{getRoomNumber(room)}</h3>
-                        <p className={roomStatus === "occupied" ? "text-sm text-white/75" : "text-sm text-[var(--on-surface-variant)]"}>{room.type ?? "Tiêu chuẩn"}</p>
+                        <h3 className="vs-display text-3xl font-semibold">
+                          {getRoomNumber(room)}
+                        </h3>
+                        <p
+                          className={
+                            roomStatus === "occupied"
+                              ? "text-sm text-white/75"
+                              : "text-sm text-[var(--on-surface-variant)]"
+                          }
+                        >
+                          {room.type ?? "Tiêu chuẩn"}
+                        </p>
                       </div>
-                      <span className={isVip ? "rounded-full border border-[var(--secondary-fixed-dim)] bg-[var(--secondary-fixed)]/20 px-3 py-1 text-xs font-bold text-[var(--secondary-fixed)]" : "rounded-full bg-[var(--surface-container-high)] px-3 py-1 text-xs font-semibold text-[var(--on-surface-variant)]"}>
-                        {isVip ? "VIP" : room.floor ? `Tầng ${room.floor}` : roomStatusLabel(roomStatus)}
+                      <span
+                        className={
+                          isVip
+                            ? "rounded-full border border-[var(--secondary-fixed-dim)] bg-[var(--secondary-fixed)]/20 px-3 py-1 text-xs font-bold text-[var(--secondary-fixed)]"
+                            : "rounded-full bg-[var(--surface-container-high)] px-3 py-1 text-xs font-semibold text-[var(--on-surface-variant)]"
+                        }
+                      >
+                        {isVip
+                          ? "VIP"
+                          : room.floor
+                            ? `Tầng ${room.floor}`
+                            : roomStatusLabel(roomStatus)}
                       </span>
                     </div>
-                    <div className="mt-5">
-                      <p className={roomStatus === "occupied" ? "text-xs uppercase tracking-[0.18em] text-white/60" : "text-xs uppercase tracking-[0.18em] text-[var(--on-surface-variant)]"}>Khách hàng</p>
-                      <p className={roomStatus === "occupied" ? "mt-1 font-bold text-white" : "mt-1 text-sm italic text-[var(--outline)]"}>
-                        {room.activeStay?.guestDisplayName ?? (roomStatus === "available" ? "Sẵn sàng đón khách" : "Chưa có khách lưu trú")}
+
+                    {/* Middle Body */}
+                    <div className="my-3 flex-1 flex flex-col justify-center">
+                      <p
+                        className={
+                          roomStatus === "occupied"
+                            ? "text-xs uppercase tracking-[0.18em] text-white/60"
+                            : "text-xs uppercase tracking-[0.18em] text-[var(--on-surface-variant)]"
+                        }
+                      >
+                        Khách hàng
+                      </p>
+                      <p
+                        className={
+                          roomStatus === "occupied"
+                            ? "mt-1 font-bold text-white"
+                            : "mt-1 text-sm italic text-[var(--outline)]"
+                        }
+                      >
+                        {roomStatus === "occupied"
+                          ? (room.activeStay?.guestDisplayName ??
+                            "Khách lưu trú (Đã nhận phòng)")
+                          : roomStatus === "processing"
+                            ? "Đang chờ dọn dẹp..."
+                            : roomStatus === "available"
+                              ? "Sẵn sàng đón khách"
+                              : "Đang bảo trì / Tạm ngưng"}
                       </p>
                     </div>
-                    <div className={roomStatus === "occupied" ? "mt-5 border-t border-white/15 pt-4" : "mt-5 border-t border-[var(--outline-variant)]/40 pt-4"}>
+
+                    {/* Footer */}
+                    <div
+                      className={
+                        roomStatus === "occupied"
+                          ? "mt-auto border-t border-white/15 pt-3.5"
+                          : "mt-auto border-t border-[var(--outline-variant)]/40 pt-3.5"
+                      }
+                    >
                       {roomStatus === "occupied" ? (
                         <>
-                          <div className="mb-1 flex justify-between text-xs text-white/65"><span>{formatDateTime(room.activeStay?.checkedInAt ?? room.activeStay?.plannedCheckInAt)}</span><span>{formatDateTime(room.activeStay?.plannedCheckOutAt)}</span></div>
-                          <div className="h-1.5 overflow-hidden rounded-full bg-white/20"><div className="h-full rounded-full bg-[var(--secondary-fixed-dim)]" style={{ width: `${progress}%` }} /></div>
+                          <div className="mb-1 flex justify-between text-xs text-white/65">
+                            <span>
+                              {formatDateTime(
+                                room.activeStay?.checkedInAt ??
+                                  room.activeStay?.plannedCheckInAt,
+                              )}
+                            </span>
+                            <span>
+                              {formatDateTime(
+                                room.activeStay?.plannedCheckOutAt,
+                              )}
+                            </span>
+                          </div>
+                          <div className="h-1.5 overflow-hidden rounded-full bg-white/20">
+                            <div
+                              className="h-full rounded-full bg-[var(--secondary-fixed-dim)]"
+                              style={{ width: `${progress}%` }}
+                            />
+                          </div>
                         </>
                       ) : (
                         <div className="h-1.5 rounded-full bg-[var(--surface-container-high)]" />
                       )}
-                      <div className="mt-4 flex items-center justify-between gap-2 overflow-hidden">
-                        <span className="min-w-0 truncate text-xs font-bold" title={room.publicCode ?? room.qr?.publicCode ?? "QR GuestOS"}>
-                          {room.publicCode ?? room.qr?.publicCode ?? "QR GuestOS"}
+
+                      <div className="mt-3 flex items-center justify-between gap-2 overflow-hidden">
+                        <span
+                          className="min-w-0 truncate text-xs font-bold"
+                          title={
+                            room.publicCode ??
+                            room.qr?.publicCode ??
+                            "QR GuestOS"
+                          }
+                        >
+                          {room.publicCode ??
+                            room.qr?.publicCode ??
+                            "QR GuestOS"}
                         </span>
-                        <span className="shrink-0 rounded bg-[var(--secondary-fixed-dim)] px-2 py-1 text-xs font-bold text-[var(--on-secondary-fixed)]">{roomStatusLabel(roomStatus)}</span>
+                        <span className="shrink-0 rounded bg-[var(--secondary-fixed-dim)] px-2 py-1 text-xs font-bold text-[var(--on-secondary-fixed)]">
+                          {roomStatusLabel(roomStatus)}
+                        </span>
                       </div>
+
+                      {roomStatus === "processing" ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void markRoomCleaned(room);
+                          }}
+                          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl bg-amber-700 py-2 px-3 text-xs font-extrabold text-white shadow-xs hover:bg-amber-800 transition"
+                        >
+                          <VsIcon
+                            name="cleaning_services"
+                            className="text-base"
+                          />
+                          Đã dọn xong ? → Chuyển TRỐNG
+                        </button>
+                      ) : null}
                     </div>
-                  </button>
+                  </div>
                 );
               })}
               {rooms.length === 0 && !isFetching ? (
-                <p className="rounded-xl border border-[var(--outline-variant)] bg-white p-8 text-center text-sm text-[var(--on-surface-variant)] sm:col-span-2 xl:col-span-3">Không có phòng phù hợp với bộ lọc.</p>
+                <p className="rounded-xl border border-[var(--outline-variant)] bg-white p-8 text-center text-sm text-[var(--on-surface-variant)] sm:col-span-2 xl:col-span-3">
+                  Không có phòng phù hợp với bộ lọc.
+                </p>
               ) : null}
             </div>
           </div>
@@ -576,56 +916,211 @@ export function StaffRoomsClient({
             }`}
           >
             <div className="flex rounded-lg bg-[var(--surface-container-low)] p-1">
-              <button type="button" onClick={() => setFlow("walk-in")} className={`flex-1 rounded-lg px-3 py-2 text-sm font-bold ${flow === "walk-in" ? "bg-[var(--primary)] text-white" : "text-[var(--on-surface-variant)]"}`}>Mở phòng mới</button>
-              <button type="button" onClick={() => setFlow("reservation")} className={`flex-1 rounded-lg px-3 py-2 text-sm font-bold ${flow === "reservation" ? "bg-[var(--primary)] text-white" : "text-[var(--on-surface-variant)]"}`}>Đặt trước</button>
+              <button
+                type="button"
+                onClick={() => setFlow("walk-in")}
+                className={`flex-1 rounded-lg px-3 py-2 text-sm font-bold ${flow === "walk-in" ? "bg-[var(--primary)] text-white" : "text-[var(--on-surface-variant)]"}`}
+              >
+                Mở phòng mới
+              </button>
+              <button
+                type="button"
+                onClick={() => setFlow("reservation")}
+                className={`flex-1 rounded-lg px-3 py-2 text-sm font-bold ${flow === "reservation" ? "bg-[var(--primary)] text-white" : "text-[var(--on-surface-variant)]"}`}
+              >
+                Đặt trước
+              </button>
             </div>
 
             {flow === "walk-in" ? (
-              <form key="walk-in-form" onSubmit={submitWalkIn} className="mt-5 space-y-4 animate-quick-check-in">
+              <form
+                key="walk-in-form"
+                onSubmit={submitWalkIn}
+                className="mt-5 space-y-4 animate-quick-check-in"
+              >
                 <div>
-                  <h2 className="vs-display text-2xl font-semibold text-[var(--primary)]">Check-in nhanh</h2>
-                  <p className="mt-1 text-sm text-[var(--on-surface-variant)]">Chọn phòng trống trên lưới hoặc trong danh sách.</p>
+                  <h2 className="vs-display text-2xl font-semibold text-[var(--primary)]">
+                    Check-in nhanh
+                  </h2>
+                  <p className="mt-1 text-sm text-[var(--on-surface-variant)]">
+                    Chọn phòng trống trên lưới hoặc trong danh sách.
+                  </p>
                 </div>
-                <select required value={walkInForm.roomId} onChange={(event) => { const room = rooms.find((item) => item.id === event.target.value) ?? null; setSelectedRoom(room); setWalkInForm((current) => ({ ...current, roomId: event.target.value })); }} className="h-12 w-full rounded-lg border-0 bg-[var(--surface-container-low)] px-3 text-sm ring-1 ring-transparent focus:ring-[var(--primary)]">
+                <select
+                  required
+                  value={walkInForm.roomId}
+                  onChange={(event) => {
+                    const room =
+                      rooms.find((item) => item.id === event.target.value) ??
+                      null;
+                    setSelectedRoom(room);
+                    setWalkInForm((current) => ({
+                      ...current,
+                      roomId: event.target.value,
+                    }));
+                  }}
+                  className="h-12 w-full rounded-lg border-0 bg-[var(--surface-container-low)] px-3 text-sm ring-1 ring-transparent focus:ring-[var(--primary)]"
+                >
                   <option value="">Chọn phòng trống</option>
-                  {availableRooms.map((room) => <option key={room.id} value={room.id}>Phòng {getRoomNumber(room)} · {room.type ?? "Tiêu chuẩn"}</option>)}
+                  {availableRooms.map((room) => (
+                    <option key={room.id} value={room.id}>
+                      Phòng {getRoomNumber(room)} · {room.type ?? "Tiêu chuẩn"}
+                    </option>
+                  ))}
                 </select>
-                <input required minLength={2} value={walkInForm.guestDisplayName} onChange={(event) => setWalkInForm((current) => ({ ...current, guestDisplayName: event.target.value }))} className="h-12 w-full rounded-lg border-0 bg-[var(--surface-container-low)] px-4 text-sm ring-1 ring-transparent focus:ring-[var(--primary)]" placeholder="Tên khách" />
-                <input value={walkInForm.guestPhone} onChange={(event) => setWalkInForm((current) => ({ ...current, guestPhone: event.target.value }))} className="h-12 w-full rounded-lg border-0 bg-[var(--surface-container-low)] px-4 text-sm ring-1 ring-transparent focus:ring-[var(--primary)]" placeholder="Số điện thoại" />
+                <input
+                  required
+                  minLength={2}
+                  value={walkInForm.guestDisplayName}
+                  onChange={(event) =>
+                    setWalkInForm((current) => ({
+                      ...current,
+                      guestDisplayName: event.target.value,
+                    }))
+                  }
+                  className="h-12 w-full rounded-lg border-0 bg-[var(--surface-container-low)] px-4 text-sm ring-1 ring-transparent focus:ring-[var(--primary)]"
+                  placeholder="Tên khách"
+                />
+                <input
+                  value={walkInForm.guestPhone}
+                  onChange={(event) =>
+                    setWalkInForm((current) => ({
+                      ...current,
+                      guestPhone: event.target.value,
+                    }))
+                  }
+                  className="h-12 w-full rounded-lg border-0 bg-[var(--surface-container-low)] px-4 text-sm ring-1 ring-transparent focus:ring-[var(--primary)]"
+                  placeholder="Số điện thoại"
+                />
                 <label className="block space-y-2">
-                  <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">Dự kiến trả phòng</span>
-                  <input required type="datetime-local" value={walkInForm.plannedCheckOutAt} onChange={(event) => setWalkInForm((current) => ({ ...current, plannedCheckOutAt: event.target.value }))} className="h-12 w-full rounded-lg border-0 bg-[var(--surface-container-low)] px-4 text-sm ring-1 ring-transparent focus:ring-[var(--primary)]" />
+                  <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">
+                    Dự kiến trả phòng
+                  </span>
+                  <input
+                    required
+                    type="datetime-local"
+                    value={walkInForm.plannedCheckOutAt}
+                    onChange={(event) =>
+                      setWalkInForm((current) => ({
+                        ...current,
+                        plannedCheckOutAt: event.target.value,
+                      }))
+                    }
+                    className="h-12 w-full rounded-lg border-0 bg-[var(--surface-container-low)] px-4 text-sm ring-1 ring-transparent focus:ring-[var(--primary)]"
+                  />
                 </label>
-                <button disabled={saving || !canManageStays} className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[var(--primary)] px-5 text-sm font-bold text-white disabled:opacity-50">
+                <button
+                  disabled={saving || !canManageStays}
+                  className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[var(--primary)] px-5 text-sm font-bold text-white disabled:opacity-50"
+                >
                   <VsIcon name="check_circle" />
                   {saving ? "Đang xử lý..." : "Xác nhận check-in"}
                 </button>
               </form>
             ) : (
-              <form key="reservation-form" onSubmit={createReservation} className="mt-5 space-y-4 animate-quick-check-in">
+              <form
+                key="reservation-form"
+                onSubmit={createReservation}
+                className="mt-5 space-y-4 animate-quick-check-in"
+              >
                 <div>
-                  <h2 className="vs-display text-2xl font-semibold text-[var(--primary)]">Tạo đặt phòng</h2>
-                  <p className="mt-1 text-sm text-[var(--on-surface-variant)]">Đặt trước được hiển thị trong hàng đợi bên dưới để gán phòng và check-in.</p>
+                  <h2 className="vs-display text-2xl font-semibold text-[var(--primary)]">
+                    Tạo đặt phòng
+                  </h2>
+                  <p className="mt-1 text-sm text-[var(--on-surface-variant)]">
+                    Đặt trước được hiển thị trong hàng đợi bên dưới để gán phòng
+                    và check-in.
+                  </p>
                 </div>
-                <select value={reservationForm.roomId} onChange={(event) => { const room = rooms.find((item) => item.id === event.target.value) ?? null; setSelectedRoom(room); setReservationForm((current) => ({ ...current, roomId: event.target.value })); }} className="h-12 w-full rounded-lg border-0 bg-[var(--surface-container-low)] px-3 text-sm ring-1 ring-transparent focus:ring-[var(--primary)]">
+                <select
+                  value={reservationForm.roomId}
+                  onChange={(event) => {
+                    const room =
+                      rooms.find((item) => item.id === event.target.value) ??
+                      null;
+                    setSelectedRoom(room);
+                    setReservationForm((current) => ({
+                      ...current,
+                      roomId: event.target.value,
+                    }));
+                  }}
+                  className="h-12 w-full rounded-lg border-0 bg-[var(--surface-container-low)] px-3 text-sm ring-1 ring-transparent focus:ring-[var(--primary)]"
+                >
                   <option value="">Chọn phòng trống (tùy chọn)</option>
-                  {availableRooms.map((room) => <option key={room.id} value={room.id}>Phòng {getRoomNumber(room)} · {room.type ?? "Tiêu chuẩn"}</option>)}
+                  {availableRooms.map((room) => (
+                    <option key={room.id} value={room.id}>
+                      Phòng {getRoomNumber(room)} · {room.type ?? "Tiêu chuẩn"}
+                    </option>
+                  ))}
                 </select>
-                <input required minLength={2} value={reservationForm.guestDisplayName} onChange={(event) => setReservationForm((current) => ({ ...current, guestDisplayName: event.target.value }))} className="h-12 w-full rounded-lg border-0 bg-[var(--surface-container-low)] px-4 text-sm ring-1 ring-transparent focus:ring-[var(--primary)]" placeholder="Tên khách" />
-                <input value={reservationForm.guestPhone} onChange={(event) => setReservationForm((current) => ({ ...current, guestPhone: event.target.value }))} className="h-12 w-full rounded-lg border-0 bg-[var(--surface-container-low)] px-4 text-sm ring-1 ring-transparent focus:ring-[var(--primary)]" placeholder="Số điện thoại" />
+                <input
+                  required
+                  minLength={2}
+                  value={reservationForm.guestDisplayName}
+                  onChange={(event) =>
+                    setReservationForm((current) => ({
+                      ...current,
+                      guestDisplayName: event.target.value,
+                    }))
+                  }
+                  className="h-12 w-full rounded-lg border-0 bg-[var(--surface-container-low)] px-4 text-sm ring-1 ring-transparent focus:ring-[var(--primary)]"
+                  placeholder="Tên khách"
+                />
+                <input
+                  value={reservationForm.guestPhone}
+                  onChange={(event) =>
+                    setReservationForm((current) => ({
+                      ...current,
+                      guestPhone: event.target.value,
+                    }))
+                  }
+                  className="h-12 w-full rounded-lg border-0 bg-[var(--surface-container-low)] px-4 text-sm ring-1 ring-transparent focus:ring-[var(--primary)]"
+                  placeholder="Số điện thoại"
+                />
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <input required type="datetime-local" value={reservationForm.plannedCheckInAt} onChange={(event) => setReservationForm((current) => ({ ...current, plannedCheckInAt: event.target.value }))} className="h-12 rounded-lg border-0 bg-[var(--surface-container-low)] px-3 text-sm ring-1 ring-transparent focus:ring-[var(--primary)]" />
-                  <input required type="datetime-local" value={reservationForm.plannedCheckOutAt} onChange={(event) => setReservationForm((current) => ({ ...current, plannedCheckOutAt: event.target.value }))} className="h-12 rounded-lg border-0 bg-[var(--surface-container-low)] px-3 text-sm ring-1 ring-transparent focus:ring-[var(--primary)]" />
+                  <input
+                    required
+                    type="datetime-local"
+                    value={reservationForm.plannedCheckInAt}
+                    onChange={(event) =>
+                      setReservationForm((current) => ({
+                        ...current,
+                        plannedCheckInAt: event.target.value,
+                      }))
+                    }
+                    className="h-12 rounded-lg border-0 bg-[var(--surface-container-low)] px-3 text-sm ring-1 ring-transparent focus:ring-[var(--primary)]"
+                  />
+                  <input
+                    required
+                    type="datetime-local"
+                    value={reservationForm.plannedCheckOutAt}
+                    onChange={(event) =>
+                      setReservationForm((current) => ({
+                        ...current,
+                        plannedCheckOutAt: event.target.value,
+                      }))
+                    }
+                    className="h-12 rounded-lg border-0 bg-[var(--surface-container-low)] px-3 text-sm ring-1 ring-transparent focus:ring-[var(--primary)]"
+                  />
                 </div>
-                <button disabled={saving || !canManageReservations} className="h-12 w-full rounded-full bg-[var(--primary)] px-5 text-sm font-bold text-white disabled:opacity-50">{saving ? "Đang tạo..." : "Tạo đặt phòng"}</button>
+                <button
+                  disabled={saving || !canManageReservations}
+                  className="h-12 w-full rounded-full bg-[var(--primary)] px-5 text-sm font-bold text-white disabled:opacity-50"
+                >
+                  {saving ? "Đang tạo..." : "Tạo đặt phòng"}
+                </button>
               </form>
             )}
           </div>
 
           <div className="overflow-hidden rounded-xl border border-[var(--outline-variant)] bg-white shadow-[0_4px_20px_rgba(0,0,0,0.05)]">
             <div className="border-b border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--secondary)]">7 ngày tới</p>
-              <h2 className="vs-display text-2xl font-semibold text-[var(--primary)]">Khách chờ đến</h2>
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--secondary)]">
+                7 ngày tới
+              </p>
+              <h2 className="vs-display text-2xl font-semibold text-[var(--primary)]">
+                Khách chờ đến
+              </h2>
             </div>
             <div className="max-h-[32rem] divide-y divide-[var(--outline-variant)] overflow-y-auto">
               {arrivals.map((arrival) => {
@@ -634,26 +1129,54 @@ export function StaffRoomsClient({
                   <article key={arrival.id} className="p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="font-bold text-[var(--primary)]">{arrival.reservationCode}</p>
-                        <p className="mt-1 text-sm font-semibold">{arrival.guestDisplayName}</p>
-                        <p className="mt-1 text-xs text-[var(--on-surface-variant)]">{formatDateTime(arrival.plannedCheckInAt)} đến {formatDateTime(arrival.plannedCheckOutAt)}</p>
+                        <p className="font-bold text-[var(--primary)]">
+                          {arrival.reservationCode}
+                        </p>
+                        <p className="mt-1 text-sm font-semibold">
+                          {arrival.guestDisplayName}
+                        </p>
+                        <p className="mt-1 text-xs text-[var(--on-surface-variant)]">
+                          {formatDateTime(arrival.plannedCheckInAt)} đến{" "}
+                          {formatDateTime(arrival.plannedCheckOutAt)}
+                        </p>
                       </div>
-                      <span className="rounded-full bg-[var(--primary-fixed)] px-3 py-1 text-xs font-bold text-[var(--on-primary-fixed)]">{arrival.status}</span>
+                      <span className="rounded-full bg-[var(--primary-fixed)] px-3 py-1 text-xs font-bold text-[var(--on-primary-fixed)]">
+                        {arrival.status}
+                      </span>
                     </div>
-                    <p className="mt-3 text-sm text-[var(--on-surface-variant)]">{room ? `Phòng ${getRoomNumber(room)}` : "Chưa gán phòng"}</p>
-                    {canManageReservations && arrival.status !== "CHECKED_IN" ? (
+                    <p className="mt-3 text-sm text-[var(--on-surface-variant)]">
+                      {room ? `Phòng ${getRoomNumber(room)}` : "Chưa gán phòng"}
+                    </p>
+                    {canManageReservations &&
+                    arrival.status !== "CHECKED_IN" ? (
                       <div className="mt-3 flex gap-2">
                         {arrival.roomId ? (
-                          <button type="button" onClick={() => void checkInArrival(arrival)} className="rounded-lg bg-[var(--primary)] px-3 py-2 text-xs font-bold text-white">Check-in</button>
+                          <button
+                            type="button"
+                            onClick={() => void checkInArrival(arrival)}
+                            className="rounded-lg bg-[var(--primary)] px-3 py-2 text-xs font-bold text-white"
+                          >
+                            Check-in
+                          </button>
                         ) : (
-                          <button type="button" onClick={() => void assignArrivalRoom(arrival)} className="rounded-lg border border-[var(--outline-variant)] px-3 py-2 text-xs font-bold text-[var(--primary)]">Gán phòng</button>
+                          <button
+                            type="button"
+                            onClick={() => void assignArrivalRoom(arrival)}
+                            className="rounded-lg border border-[var(--outline-variant)] px-3 py-2 text-xs font-bold text-[var(--primary)]"
+                          >
+                            Gán phòng
+                          </button>
                         )}
                       </div>
                     ) : null}
                   </article>
                 );
               })}
-              {arrivals.length === 0 ? <p className="p-5 text-center text-sm text-[var(--on-surface-variant)]">Không có khách dự kiến đến trong 7 ngày tới.</p> : null}
+              {arrivals.length === 0 ? (
+                <p className="p-5 text-center text-sm text-[var(--on-surface-variant)]">
+                  Không có khách dự kiến đến trong 7 ngày tới.
+                </p>
+              ) : null}
             </div>
           </div>
         </aside>

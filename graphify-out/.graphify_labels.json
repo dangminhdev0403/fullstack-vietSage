@@ -276,5 +276,6 @@
   "274": "page.tsx",
   "275": "error.tsx",
   "276": "loading.tsx",
-  "277": "chat-layout-regression.test.mjs"
+  "277": "chat-layout-regression.test.mjs",
+  "278": "authentication.service.spec.ts"
 }

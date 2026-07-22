@@ -332,6 +332,7 @@ export type UpdateHotelRoomInput = {
   type?: string | null;
   price?: number | null;
   maxActiveGuestDevices?: number | null;
+  status?: string | null;
 };
 
 export type CreateHotelStayInput = {

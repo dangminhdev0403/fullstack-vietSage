@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { startTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -79,11 +79,23 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
             },
           },
         );
-        router.refresh();
+        startTransition(() => {
+          router.refresh();
+        });
       },
-      onUpdated: () => router.refresh(),
-      onAnswered: () => router.refresh(),
-      onReconnect: () => router.refresh(),
+      onUpdated: () => {
+        startTransition(() => {
+          router.refresh();
+        });
+      },
+      onAnswered: () => {
+        startTransition(() => {
+          router.refresh();
+        });
+      },
+      onReconnect: () => {
+        // Do not force full page server re-fetch on SSE reconnect
+      },
     }),
     [hotelId, router],
   );

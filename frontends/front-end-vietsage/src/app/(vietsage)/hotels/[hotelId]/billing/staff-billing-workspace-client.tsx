@@ -19,18 +19,28 @@ type FolioItemsPage = {
   items: FolioItem[];
 };
 
+type StatusFilter = "ALL" | "CHECKOUT_PENDING" | "OPEN" | "CLOSED";
+
 function toNumber(value: unknown): number {
   if (typeof value === "number") return value;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function getStatusLabel(status: string | undefined): string {
-  if (status === "OPEN") return "Đang mở";
-  if (status === "CHECKOUT_PENDING") return "Chờ thanh toán";
-  if (status === "CLOSED") return "Đã đóng";
-  if (status === "VOID") return "Đã hủy";
-  return status ?? "-";
+function getStatusBadge(status: string | undefined) {
+  if (status === "OPEN") {
+    return { label: "Đang mở", colorClass: "bg-emerald-50 text-emerald-700 border-emerald-200" };
+  }
+  if (status === "CHECKOUT_PENDING") {
+    return { label: "Chờ checkout", colorClass: "bg-amber-50 text-amber-800 border-amber-200 animate-pulse" };
+  }
+  if (status === "CLOSED") {
+    return { label: "Đã đóng", colorClass: "bg-slate-100 text-slate-700 border-slate-200" };
+  }
+  if (status === "VOID") {
+    return { label: "Đã hủy", colorClass: "bg-red-50 text-red-700 border-red-200" };
+  }
+  return { label: status ?? "-", colorClass: "bg-gray-100 text-gray-600 border-gray-200" };
 }
 
 function formatDate(value: string | null | undefined): string {
@@ -56,6 +66,14 @@ function getFolioInvoiceId(folio: FolioListItem | undefined): string | null {
   return folio.invoiceId ?? folio.billId ?? folio.invoice?.id ?? null;
 }
 
+function getItemIcon(itemType: string): string {
+  if (itemType === "ROOM_CHARGE") return "king_bed";
+  if (itemType === "SERVICE") return "room_service";
+  if (itemType === "FOOD_BEVERAGE") return "restaurant";
+  if (itemType === "DISCOUNT") return "loyalty";
+  return "receipt_long";
+}
+
 export function StaffBillingWorkspaceClient({ hotelId, folios, canManage }: Props) {
   const router = useRouter();
   const apiBase = `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/billing`;
@@ -64,19 +82,39 @@ export function StaffBillingWorkspaceClient({ hotelId, folios, canManage }: Prop
   const [items, setItems] = useState<FolioItem[]>([]);
   const [loadedFolioId, setLoadedFolioId] = useState("");
   const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
+
+  const filteredFolios = useMemo(() => {
+    return folios.filter((folio) => {
+      const roomStr = folio.room?.roomNumber?.toLowerCase() ?? "";
+      const guestStr = folio.stay?.guestNameSnapshot?.toLowerCase() ?? "";
+      const folioCode = (folio.folioNumber ?? folio.id).toLowerCase();
+      const q = search.trim().toLowerCase();
+      const matchesSearch = !q || roomStr.includes(q) || guestStr.includes(q) || folioCode.includes(q);
+
+      const matchesStatus =
+        statusFilter === "ALL" ||
+        (statusFilter === "CHECKOUT_PENDING" && folio.status === "CHECKOUT_PENDING") ||
+        (statusFilter === "OPEN" && folio.status === "OPEN") ||
+        (statusFilter === "CLOSED" && folio.status === "CLOSED");
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [folios, search, statusFilter]);
+
   const selectedFolio = useMemo(
-    () => folios.find((folio) => folio.id === selectedFolioId) ?? folios[0],
-    [folios, selectedFolioId],
+    () => folios.find((folio) => folio.id === selectedFolioId) ?? filteredFolios[0] ?? folios[0],
+    [folios, filteredFolios, selectedFolioId],
   );
+
   const isDetailLoaded = selectedFolioId !== "" && loadedFolioId === selectedFolioId;
   const loading = selectedFolioId !== "" && !isDetailLoaded;
   const activeSummary = isDetailLoaded ? summary : null;
   const activeItems = isDetailLoaded ? items : [];
 
   useEffect(() => {
-    if (!selectedFolioId) {
-      return;
-    }
+    if (!selectedFolioId) return;
 
     let cancelled = false;
     Promise.all([
@@ -92,8 +130,13 @@ export function StaffBillingWorkspaceClient({ hotelId, folios, canManage }: Prop
       .catch((error) => {
         if (cancelled) return;
         setLoadedFolioId(selectedFolioId);
-        void Swal.fire({ icon: "error", title: "Không thể tải chi tiết folio", text: error instanceof Error ? error.message : "Vui lòng thử lại.", confirmButtonColor: "#00003c" });
-      })
+        void Swal.fire({
+          icon: "error",
+          title: "Không thể tải chi tiết folio",
+          text: error instanceof Error ? error.message : "Vui lòng thử lại.",
+          confirmButtonColor: "#17201b",
+        });
+      });
 
     return () => {
       cancelled = true;
@@ -109,7 +152,7 @@ export function StaffBillingWorkspaceClient({ hotelId, folios, canManage }: Prop
       showCancelButton: true,
       confirmButtonText: "Tiếp tục",
       cancelButtonText: "Hủy",
-      confirmButtonColor: "#00003c",
+      confirmButtonColor: "#17201b",
     });
     if (!confirmation.isConfirmed) return;
 
@@ -122,90 +165,225 @@ export function StaffBillingWorkspaceClient({ hotelId, folios, canManage }: Prop
           method: "POST",
           body: { method: "CASH", note: "Thu tại quầy lễ tân" },
         });
-        await Swal.fire({ icon: "success", title: "Đã thu tiền và đóng phòng", confirmButtonColor: "#00003c" });
+        await Swal.fire({ icon: "success", title: "Đã thu tiền và đóng phòng", confirmButtonColor: "#17201b" });
       } else {
         await requestInternalApiEnvelope(`${apiBase}/invoices/${encodeURIComponent(invoice.id)}/manual-payment`, {
           method: "POST",
           body: { method: "MANUAL", note: "Đóng checkout không còn số dư" },
         });
-        await Swal.fire({ icon: "success", title: "Đã đóng phòng không còn số dư", confirmButtonColor: "#00003c" });
+        await Swal.fire({ icon: "success", title: "Đã đóng phòng không còn số dư", confirmButtonColor: "#17201b" });
       }
       router.refresh();
     } catch (error) {
-      await Swal.fire({ icon: "error", title: "Không thể hoàn tất checkout", text: error instanceof Error ? error.message : "Vui lòng thử lại.", confirmButtonColor: "#00003c" });
+      await Swal.fire({ icon: "error", title: "Không thể hoàn tất checkout", text: error instanceof Error ? error.message : "Vui lòng thử lại.", confirmButtonColor: "#17201b" });
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <section className="grid gap-6 xl:grid-cols-[22rem_minmax(0,1fr)_22rem]">
-      <aside className="overflow-hidden rounded-xl border border-[var(--outline-variant)] bg-white shadow-[0_4px_20px_rgba(0,0,0,0.05)]">
-        <div className="border-b border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-4">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--secondary)]">Hàng đợi thanh toán</p>
-          <h2 className="vs-display mt-1 text-2xl font-semibold text-[var(--primary)]">Khách chờ thanh toán</h2>
-        </div>
-        <div className="max-h-[38rem] divide-y divide-[var(--outline-variant)] overflow-y-auto">
-          {folios.map((folio) => (
-            <button key={folio.id} type="button" onClick={() => setSelectedFolioId(folio.id)} className={`block w-full p-4 text-left transition hover:bg-[var(--surface-container-low)] ${selectedFolioId === folio.id ? "bg-[var(--primary-fixed)]/45" : ""}`}>
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-bold text-[var(--primary)]">{folio.folioNumber ?? folio.id}</p>
-                  <p className="mt-1 text-sm font-semibold">{displayRoom(folio)}</p>
-                  <p className="text-xs text-[var(--on-surface-variant)]">{displayGuest(folio)}</p>
-                </div>
-                <span className="rounded-full bg-[var(--surface-container-high)] px-3 py-1 text-xs font-bold text-[var(--on-surface-variant)]">{getStatusLabel(folio.status)}</span>
-              </div>
-              <p className="mt-3 text-right font-bold text-[var(--primary)]">{formatMoney(toNumber(folio.total ?? folio.totalAmount), folio.currency ?? "VND")}</p>
+    <div className="grid gap-5 xl:grid-cols-[340px_1fr_320px] items-start">
+      {/* CỘT TÁI CHÍNH 1: HÀNG ĐỢI FOLIO / PHÒNG CHỜ THANH TOÁN */}
+      <aside className="flex flex-col min-h-0 overflow-hidden rounded-2xl border border-[var(--outline-variant)] bg-white shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
+        <div className="space-y-3 border-b border-[var(--outline-variant)] bg-[var(--surface-container-lowest,#fdfbf7)] p-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--secondary)]">HÀNG ĐỢI THANH TOÁN</p>
+            <h2 className="vs-display mt-0.5 text-xl font-bold text-[var(--primary)]">Danh sách phòng</h2>
+          </div>
+
+          {/* Search bar */}
+          <div className="relative">
+            <VsIcon name="search" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-lg text-[var(--outline)]" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Tìm số phòng, tên khách..."
+              className="h-9 w-full rounded-xl border-0 bg-[var(--surface-container-low,#f4efe6)] pl-9 pr-3 text-xs outline-none ring-1 ring-transparent focus:ring-[var(--primary)]"
+            />
+          </div>
+
+          {/* Filter Pills */}
+          <div className="flex flex-wrap gap-1">
+            <button
+              type="button"
+              onClick={() => setStatusFilter("ALL")}
+              className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition ${statusFilter === "ALL" ? "bg-[#17201b] text-white" : "bg-[var(--surface-container-low)] text-[var(--on-surface-variant)] hover:bg-gray-200"}`}
+            >
+              Tất cả ({folios.length})
             </button>
-          ))}
-          {folios.length === 0 ? <p className="p-5 text-center text-sm text-[var(--on-surface-variant)]">Chưa có folio trong phạm vi thanh toán.</p> : null}
+            <button
+              type="button"
+              onClick={() => setStatusFilter("CHECKOUT_PENDING")}
+              className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition ${statusFilter === "CHECKOUT_PENDING" ? "bg-amber-700 text-white" : "bg-amber-50 text-amber-800 hover:bg-amber-100"}`}
+            >
+              Chờ checkout
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter("OPEN")}
+              className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition ${statusFilter === "OPEN" ? "bg-emerald-700 text-white" : "bg-emerald-50 text-emerald-800 hover:bg-emerald-100"}`}
+            >
+              Đang mở
+            </button>
+          </div>
+        </div>
+
+        {/* List items */}
+        <div className="max-h-[calc(100vh-21rem)] min-h-[460px] flex-1 overflow-y-auto divide-y divide-[var(--outline-variant)]/40">
+          {filteredFolios.map((folio) => {
+            const isSelected = selectedFolioId === folio.id;
+            const badge = getStatusBadge(folio.status);
+            return (
+              <button
+                key={folio.id}
+                type="button"
+                onClick={() => setSelectedFolioId(folio.id)}
+                className={`w-full p-3.5 text-left transition-all ${
+                  isSelected
+                    ? "bg-[#17201b]/10 border-l-4 border-l-[var(--primary)]"
+                    : "hover:bg-[var(--surface-container-low)]"
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <span className="rounded-md bg-[var(--primary)] px-2 py-0.5 text-xs font-extrabold text-white shadow-xs">
+                    {displayRoom(folio)}
+                  </span>
+                  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${badge.colorClass}`}>
+                    {badge.label}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-sm text-[var(--primary)] truncate">{displayGuest(folio)}</p>
+                    <p className="text-[11px] text-[var(--on-surface-variant)] truncate font-mono">{folio.folioNumber ?? folio.id}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-extrabold text-[var(--primary)]">
+                      {formatMoney(toNumber(folio.total ?? folio.totalAmount), folio.currency ?? "VND")}
+                    </p>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+
+          {filteredFolios.length === 0 ? (
+            <div className="p-8 text-center text-xs text-[var(--on-surface-variant)]">
+              Không tìm thấy folio phù hợp với bộ lọc.
+            </div>
+          ) : null}
         </div>
       </aside>
 
-      <article className="overflow-hidden rounded-xl border border-[var(--outline-variant)] bg-white shadow-[0_4px_20px_rgba(0,0,0,0.05)]">
-        <div className="flex flex-col gap-3 border-b border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-5 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--secondary)]">Chi tiết thanh toán</p>
-            <h2 className="vs-display mt-1 text-3xl font-semibold text-[var(--primary)]">{displayRoom(selectedFolio)} - {displayGuest(selectedFolio)}</h2>
+      {/* CỘT CENTRAL 2: CHI TIẾT FOLIO & DANH SÁCH CHI PHÍ */}
+      <main className="flex flex-col overflow-hidden rounded-2xl border border-[var(--outline-variant)] bg-white shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
+        {/* Header Chi Tiết */}
+        <div className="flex flex-col gap-2 border-b border-[var(--outline-variant)] bg-[var(--surface-container-lowest,#fdfbf7)] p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--primary)] text-white font-extrabold text-sm shadow-sm shrink-0">
+              {selectedFolio?.room?.roomNumber ?? "..."}
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="vs-display text-xl font-bold text-[var(--primary)]">{displayRoom(selectedFolio)}</h2>
+                <span className="rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 px-2.5 py-0.5 text-[11px] font-bold">
+                  {displayGuest(selectedFolio)}
+                </span>
+              </div>
+              <p className="text-xs text-[var(--on-surface-variant)]">
+                Mã Folio: <span className="font-mono font-semibold text-[var(--primary)]">{selectedFolio?.folioNumber ?? selectedFolio?.id ?? "-"}</span>
+              </p>
+            </div>
           </div>
-          <p className="text-sm text-[var(--on-surface-variant)]">Mở lúc <span className="font-bold text-[var(--primary)]">{formatDate(selectedFolio?.openedAt ?? selectedFolio?.createdAt)}</span></p>
+          <div className="text-left sm:text-right text-xs text-[var(--on-surface-variant)]">
+            <p>Mở lúc: <span className="font-semibold text-[var(--primary)]">{formatDate(selectedFolio?.openedAt ?? selectedFolio?.createdAt)}</span></p>
+          </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-left text-sm">
-            <thead className="bg-[var(--surface-container-low)] text-xs uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
-              <tr><th className="p-4">Dịch vụ</th><th className="p-4 text-right">SL</th><th className="p-4 text-right">Đơn giá</th><th className="p-4 text-right">Thành tiền</th></tr>
+
+        {/* Bảng Dịch Vụ & Chi Phí (Fluent Fluid Layout - Proportional Column Widths) */}
+        <div className="flex-1 overflow-x-auto min-h-[380px]">
+          <table className="w-full text-left text-sm border-collapse table-fixed">
+            <thead className="border-b border-[var(--outline-variant)] bg-[var(--surface-container-low,#f4efe6)] text-[11px] font-bold uppercase tracking-wider text-[var(--on-surface-variant)]">
+              <tr>
+                <th className="py-3 px-4 w-[40%]">Tên chi phí / Dịch vụ</th>
+                <th className="py-3 px-4 text-center w-[16%]">Số lượng</th>
+                <th className="py-3 px-4 text-right w-[22%]">Đơn giá</th>
+                <th className="py-3 px-4 text-right w-[22%]">Thành tiền</th>
+              </tr>
             </thead>
-            <tbody className="divide-y divide-[var(--outline-variant)]">
+            <tbody className="divide-y divide-[var(--outline-variant)]/50 text-xs">
               {activeItems.map((item) => (
-                <tr key={item.id}>
-                  <td className="p-4">
+                <tr key={item.id} className="transition hover:bg-slate-50/80">
+                  <td className="py-3.5 px-4">
                     <div className="flex items-center gap-3">
-                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--secondary-fixed)] text-[var(--on-secondary-fixed)]"><VsIcon name={item.itemType === "ROOM_CHARGE" ? "king_bed" : "room_service"} /></span>
-                      <div><p className="font-semibold text-[var(--primary)]">{item.nameSnapshot}</p><p className="text-xs text-[var(--on-surface-variant)]">{item.itemType}</p></div>
+                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--surface-container-low,#f4efe6)] text-[var(--primary)] shrink-0">
+                        <VsIcon name={getItemIcon(item.itemType)} className="text-lg" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="font-bold text-sm text-[var(--primary)] truncate">{item.nameSnapshot}</p>
+                        <span className="inline-block text-[10px] font-semibold text-[var(--secondary)] bg-amber-50 border border-amber-200/60 rounded px-1.5 py-0.5 mt-0.5">
+                          {item.itemType === "ROOM_CHARGE" ? "Tiền phòng" : item.itemType === "SERVICE" ? "Dịch vụ" : item.itemType}
+                        </span>
+                      </div>
                     </div>
                   </td>
-                  <td className="p-4 text-right">{item.quantity}</td>
-                  <td className="p-4 text-right">{formatMoney(toNumber(item.unitPriceSnapshot), item.currency)}</td>
-                  <td className="p-4 text-right font-bold">{formatMoney(toNumber(item.totalSnapshot), item.currency)}</td>
+                  <td className="py-3.5 px-4 text-center font-bold text-sm">{item.quantity}</td>
+                  <td className="py-3.5 px-4 text-right text-[var(--on-surface-variant)]">{formatMoney(toNumber(item.unitPriceSnapshot), item.currency)}</td>
+                  <td className="py-3.5 px-4 text-right font-extrabold text-sm text-[var(--primary)]">{formatMoney(toNumber(item.totalSnapshot), item.currency)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {!loading && activeItems.length === 0 ? <p className="p-8 text-center text-sm text-[var(--on-surface-variant)]">Folio chưa có dòng phí. Phí phòng sẽ được backend tính khi phát hành hóa đơn.</p> : null}
-          {loading ? <p className="p-8 text-center text-sm text-[var(--on-surface-variant)]">Đang tải chi tiết folio...</p> : null}
-        </div>
-      </article>
 
+          {!loading && activeItems.length === 0 ? (
+            <div className="flex flex-col items-center justify-center p-12 text-center text-[var(--on-surface-variant)]">
+              <VsIcon name="receipt_long" className="text-4xl text-[var(--outline)] mb-2" />
+              <p className="text-sm font-bold text-[var(--primary)]">Chưa có phí dịch vụ ghi nhận trong folio</p>
+              <p className="text-xs mt-1 text-[var(--on-surface-variant)] max-w-sm">
+                Tiền phòng sẽ được hệ thống tính tự động dựa trên thời gian thực tế khi tiến hành checkout.
+              </p>
+            </div>
+          ) : null}
+
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 p-12 text-xs font-semibold text-[var(--on-surface-variant)]">
+              <VsIcon name="progress_activity" className="animate-spin text-lg text-[var(--primary)]" />
+              Đang tải chi tiết phí phòng...
+            </div>
+          ) : null}
+        </div>
+      </main>
+
+      {/* CỘT RIGHT 3: TỔNG TIỀN & XÁC NHẬN THU THỦ TỤC */}
       <aside className="space-y-4">
-        <div className="rounded-xl bg-[var(--primary)] p-5 text-white shadow-[0_4px_20px_rgba(0,0,0,0.08)]">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-white/65">Tổng thanh toán</p>
-          <p className="vs-display mt-2 text-4xl font-semibold">{formatMoney(toNumber(activeSummary?.total ?? selectedFolio?.total ?? 0), activeSummary?.currency ?? selectedFolio?.currency ?? "VND")}</p>
-          <dl className="mt-5 space-y-3 border-t border-white/20 pt-4 text-sm">
-            <div className="flex justify-between"><dt>Tạm tính</dt><dd>{formatMoney(toNumber(activeSummary?.subtotal ?? 0), activeSummary?.currency ?? "VND")}</dd></div>
-            <div className="flex justify-between"><dt>Thuế</dt><dd>{formatMoney(toNumber(activeSummary?.tax ?? 0), activeSummary?.currency ?? "VND")}</dd></div>
-            <div className="flex justify-between"><dt>Giảm giá</dt><dd>{formatMoney(toNumber(activeSummary?.discount ?? 0), activeSummary?.currency ?? "VND")}</dd></div>
+        {/* Luxurious Orange-Yellow Golden Checkout Card */}
+        <div className="rounded-2xl border border-[#d4af37]/35 bg-gradient-to-br from-[#2a1b08] via-[#38240b] to-[#1a1004] p-5 text-white shadow-xl">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#fce8b3]/70">TỔNG THÀNH TIỀN CHECKOUT</p>
+            <span className="rounded-full bg-[#f59e0b]/20 px-2.5 py-0.5 text-[10px] font-extrabold text-[#ffe270] border border-[#f59e0b]/40">
+              VND
+            </span>
+          </div>
+          <p className="vs-display mt-2 text-3xl font-extrabold text-[#ffe270] drop-shadow-sm">
+            {formatMoney(toNumber(activeSummary?.total ?? selectedFolio?.total ?? 0), activeSummary?.currency ?? selectedFolio?.currency ?? "VND")}
+          </p>
+
+          <dl className="mt-4 space-y-2.5 border-t border-[#d4af37]/20 pt-3.5 text-xs text-[#fff3d1]/90">
+            <div className="flex justify-between">
+              <dt className="text-[#fce8b3]/60">Tạm tính dịch vụ</dt>
+              <dd className="font-semibold">{formatMoney(toNumber(activeSummary?.subtotal ?? 0), activeSummary?.currency ?? "VND")}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-[#fce8b3]/60">Thuế (VAT)</dt>
+              <dd className="font-semibold">{formatMoney(toNumber(activeSummary?.tax ?? 0), activeSummary?.currency ?? "VND")}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-[#fce8b3]/60">Giảm giá & Khuyến mãi</dt>
+              <dd className="font-semibold text-[#fef08a]">-{formatMoney(toNumber(activeSummary?.discount ?? 0), activeSummary?.currency ?? "VND")}</dd>
+            </div>
           </dl>
+
           {selectedFolio?.status === "CLOSED" ? (
             <button
               type="button"
@@ -217,7 +395,7 @@ export function StaffBillingWorkspaceClient({ hotelId, folios, canManage }: Prop
                     title: "Chưa có mã hóa đơn",
                     text: `Folio ${selectedFolio?.folioNumber ?? selectedFolio?.id} đã đóng nhưng chưa có thông tin hóa đơn.`,
                     confirmButtonText: "Đã hiểu",
-                    confirmButtonColor: "#0f766e",
+                    confirmButtonColor: "#8c5e00",
                   });
                   return;
                 }
@@ -228,7 +406,7 @@ export function StaffBillingWorkspaceClient({ hotelId, folios, canManage }: Prop
                   showCancelButton: true,
                   confirmButtonText: "Đồng ý",
                   cancelButtonText: "Hủy",
-                  confirmButtonColor: "#0f766e",
+                  confirmButtonColor: "#8c5e00",
                   cancelButtonColor: "#64748b",
                 });
                 if (result.isConfirmed) {
@@ -236,23 +414,56 @@ export function StaffBillingWorkspaceClient({ hotelId, folios, canManage }: Prop
                 }
               }}
               disabled={!selectedFolioId}
-              className="mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[var(--secondary-fixed)] px-5 text-sm font-bold text-[var(--on-secondary-fixed)] disabled:opacity-60 transition hover:-translate-y-0.5"
+              className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#fbbf24] via-[#f59e0b] to-[#d97706] px-4 text-xs font-black text-[#1c1204] shadow-lg shadow-amber-950/40 transition hover:from-[#f59e0b] hover:to-[#b45309] disabled:opacity-50"
             >
-              <VsIcon name="description" />
-              Xuất hóa đơn
+              <VsIcon name="description" className="text-base" />
+              Xem & xuất hóa đơn
             </button>
           ) : (
-            <button type="button" onClick={() => void issueInvoiceAndCollect()} disabled={!selectedFolioId || !canManage || saving} className="mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[var(--secondary-fixed)] px-5 text-sm font-bold text-[var(--on-secondary-fixed)] disabled:opacity-60">
-              <VsIcon name={saving ? "sync" : "payments"} />
-              {saving ? "Đang xử lý..." : "Phát hành & thu tiền"}
+            <button
+              type="button"
+              onClick={() => void issueInvoiceAndCollect()}
+              disabled={!selectedFolioId || !canManage || saving}
+              className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#fbbf24] via-[#f59e0b] to-[#d97706] px-4 text-xs font-black text-[#1c1204] shadow-lg shadow-amber-950/40 transition hover:from-[#f59e0b] hover:to-[#b45309] disabled:opacity-50"
+            >
+              <VsIcon name={saving ? "sync" : "payments"} className={`text-base ${saving ? "animate-spin" : ""}`} />
+              {saving ? "Đang xử lý checkout..." : "Phát hành & thu tiền"}
             </button>
           )}
         </div>
-        <div className="rounded-xl border border-[var(--outline-variant)] bg-white p-5">
-          <h3 className="vs-display text-2xl font-semibold text-[var(--primary)]">Trạng thái checkout</h3>
-          <p className="mt-3 text-sm text-[var(--on-surface-variant)]">Sau khi thanh toán thành công, backend đóng folio, đóng stay, khóa QR GuestOS và chuyển phòng sang chờ dọn.</p>
+
+        {/* Quy trình checkout */}
+        <div className="rounded-2xl border border-[var(--outline-variant)] bg-white p-4 space-y-2">
+          <h3 className="vs-display text-sm font-bold text-[var(--primary)] flex items-center gap-1.5">
+            <VsIcon name="info" className="text-amber-600 text-base" />
+            Quy trình Checkout & Đóng Stay
+          </h3>
+          <ul className="text-xs text-[var(--on-surface-variant)] space-y-2 pl-1">
+            <li className="flex items-start gap-2">
+              <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-bold text-emerald-800">1</span>
+              <span>Lễ tân kiểm tra chi phí và nhấn <strong>Phát hành & thu tiền</strong>.</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-bold text-emerald-800">2</span>
+              <span>Backend tự động đóng stay và khóa phiên QR GuestOS của phòng.</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-bold text-emerald-800">3</span>
+              <span>Trạng thái phòng tự động chuyển sang <strong>Chờ dọn dẹp (DIRTY)</strong>.</span>
+            </li>
+          </ul>
+          <div className="pt-2 border-t border-[var(--outline-variant)]/40 mt-3">
+            <button
+              type="button"
+              onClick={() => router.push(`/hotels/${encodeURIComponent(hotelId)}/rooms?status=processing`)}
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900 transition hover:bg-amber-100"
+            >
+              <VsIcon name="cleaning_services" className="text-base text-amber-700" />
+              Đến trang Dọn phòng & Chuyển TRỐNG →
+            </button>
+          </div>
         </div>
       </aside>
-    </section>
+    </div>
   );
 }

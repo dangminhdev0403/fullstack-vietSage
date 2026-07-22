@@ -50,6 +50,10 @@ function sanitizeUpdateRoomPayload(payload: unknown): UpdateHotelRoomInput | nul
     }
   }
 
+  if ("status" in input && typeof input.status === "string" && input.status.trim()) {
+    updatePayload.status = input.status.trim();
+  }
+
   return Object.keys(updatePayload).length > 0 ? updatePayload : null;
 }
 

@@ -3,6 +3,7 @@
 import { QRCodeSVG } from "qrcode.react";
 import {
   type FormEvent,
+  startTransition,
   useMemo,
   useRef,
   useState,
@@ -431,7 +432,9 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
       )
     ).data;
     setRooms(roomsPage.items);
-    router.refresh();
+    startTransition(() => {
+      router.refresh();
+    });
   }
 
   function updateQuery(value: string) {

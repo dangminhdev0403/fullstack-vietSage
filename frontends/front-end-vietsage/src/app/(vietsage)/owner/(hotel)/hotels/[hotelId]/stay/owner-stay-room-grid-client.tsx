@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, startTransition, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Swal from "sweetalert2";
 import { z } from "zod";
@@ -53,7 +53,12 @@ const checkInFormSchema = z.object({
     .string()
     .trim()
     .regex(/^$|^[0-9+()\s.-]{8,20}$/, "Số điện thoại không hợp lệ."),
-  plannedCheckOutAt: z.string().refine((value) => Boolean(toIsoFromLocal(value)), "Chọn thời gian check-out hợp lệ."),
+  plannedCheckOutAt: z
+    .string()
+    .refine(
+      (value) => Boolean(toIsoFromLocal(value)),
+      "Chọn thời gian check-out hợp lệ.",
+    ),
 });
 
 function getRoomNumber(room: HotelRoomSummary): string {
@@ -255,6 +260,52 @@ export function OwnerStayRoomGridClient({
     setIsCheckInOpen(true);
   }
 
+  async function handleTileClick(room: HotelRoomSummary) {
+    const availability = getRoomAvailability(room);
+    if (availability === "available") {
+      openCheckIn(room);
+      return;
+    }
+    if (availability === "processing") {
+      const confirm = await Swal.fire({
+        icon: "question",
+        title: `Hoàn tất dọn phòng ${getRoomNumber(room)}?`,
+        text: "Trạng thái phòng sẽ chuyển sang TRỐNG (Sẵn sàng đón khách mới).",
+        showCancelButton: true,
+        confirmButtonText: "Đã dọn xong ? -> Chuyển TRỐNG",
+        cancelButtonText: "Đóng",
+        confirmButtonColor: "#17201b",
+      });
+      if (!confirm.isConfirmed) return;
+
+      try {
+        await requestInternalApiEnvelope(
+          `/api/owner/hotels/${encodeURIComponent(hotelId)}/rooms/${encodeURIComponent(room.id)}`,
+          {
+            method: "PATCH",
+            body: { status: "AVAILABLE" },
+          },
+        );
+        await Swal.fire({
+          icon: "success",
+          title: `Phòng ${getRoomNumber(room)} đã sẵn sàng!`,
+          text: "Trạng thái phòng đã được cập nhật thành TRỐNG.",
+          confirmButtonColor: "#17201b",
+        });
+        startTransition(() => {
+          router.refresh();
+        });
+      } catch (err) {
+        await Swal.fire({
+          icon: "error",
+          title: "Không thể cập nhật trạng thái phòng",
+          text: err instanceof Error ? err.message : "Vui lòng thử lại.",
+          confirmButtonColor: "#17201b",
+        });
+      }
+    }
+  }
+
   function closeCheckIn() {
     if (isSaving) return;
     setIsCheckInOpen(false);
@@ -305,7 +356,9 @@ export function OwnerStayRoomGridClient({
           body: {
             roomId: selectedRoom.id,
             guestDisplayName: form.guestDisplayName.trim(),
-            ...(form.guestPhone.trim() ? { guestPhone: form.guestPhone.trim() } : {}),
+            ...(form.guestPhone.trim()
+              ? { guestPhone: form.guestPhone.trim() }
+              : {}),
             plannedCheckInAt: new Date().toISOString(),
             plannedCheckOutAt,
           },
@@ -329,7 +382,9 @@ export function OwnerStayRoomGridClient({
         confirmButtonColor: "#00003c",
       });
     } finally {
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+      });
       setIsSaving(false);
     }
   }
@@ -401,17 +456,21 @@ export function OwnerStayRoomGridClient({
       <div className="grid grid-cols-4 gap-3 sm:grid-cols-5 md:grid-cols-8 xl:grid-cols-10">
         {paginatedRooms.map((room) => {
           const allowed = isCheckInAllowed(room);
+          const availability = getRoomAvailability(room);
+          const isInteractive = allowed || availability === "processing";
 
           return (
             <button
               key={room.id}
               type="button"
-              onClick={() => openCheckIn(room)}
-              disabled={!allowed}
+              onClick={() => void handleTileClick(room)}
+              disabled={!isInteractive}
               title={
-                allowed
-                  ? `Check-in phòng ${getRoomNumber(room)}`
-                  : `${getRoomNumber(room)} - ${roomStatusLabel(room)}`
+                availability === "processing"
+                  ? `Phòng ${getRoomNumber(room)} - Chờ dọn dẹp (Nhấn để hoàn tất dọn phòng)`
+                  : allowed
+                    ? `Check-in phòng ${getRoomNumber(room)}`
+                    : `${getRoomNumber(room)} - ${roomStatusLabel(room)}`
               }
               className={`aspect-square rounded-lg border p-2 text-center shadow-sm transition disabled:cursor-not-allowed ${roomTileClass(room)}`}
             >

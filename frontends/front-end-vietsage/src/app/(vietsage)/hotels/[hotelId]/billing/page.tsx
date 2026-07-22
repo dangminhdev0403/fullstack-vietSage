@@ -7,6 +7,7 @@ import { assertCanAccessHotelOps, canUseHotelId, requireHotelOpsServerTokens } f
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
 import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
 import { StaffBillingWorkspaceClient } from "./staff-billing-workspace-client";
+import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 
 type PageProps = { params: Promise<{ hotelId: string }> | { hotelId: string } };
 export const dynamic = "force-dynamic";
@@ -30,18 +31,60 @@ export default async function StaffBillingPage({ params }: PageProps) {
   ]);
 
   return (
-    <>
-      <header>
-        <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[var(--secondary)]">THANH TOÁN VÀ NHẬT KÝ CA</p>
-        <h1 className="vs-display mt-2 text-4xl font-semibold text-[var(--primary)]">Folio, checkout và doanh thu</h1>
-        <p className="mt-2 max-w-3xl text-sm text-[var(--on-surface-variant)]">Kiểm tra chi phí phòng và dịch vụ, phát hành hóa đơn, thu tiền rồi đóng stay. Phòng sẽ chuyển sang chờ dọn sau khi thanh toán thành công.</p>
+    <div className="space-y-4">
+      <header className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--secondary)]">THANH TOÁN & THU DOANH THU</p>
+          <h1 className="vs-display mt-0.5 text-2xl font-semibold text-[var(--primary)] md:text-3xl">Folio, checkout & doanh thu</h1>
+          <p className="mt-0.5 text-xs text-[var(--on-surface-variant)]">Kiểm tra chi phí phòng, phát hành hóa đơn và thu tiền checkout cho khách lưu trú.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="rounded-full bg-[#17201b] px-3.5 py-1.5 text-xs font-bold text-white shadow-sm">
+            {folios.items.length} Folio hoạt động
+          </span>
+        </div>
       </header>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <article className="rounded-lg border bg-white p-4"><p className="text-sm text-[var(--on-surface-variant)]">Doanh thu hôm nay</p><p className="mt-2 text-2xl font-black text-[var(--primary)]">{formatMoney(dashboard.revenue.today, dashboard.revenue.currency)}</p></article>
-        <article className="rounded-lg border bg-white p-4"><p className="text-sm text-[var(--on-surface-variant)]">7 ngày</p><p className="mt-2 text-2xl font-black text-[var(--primary)]">{formatMoney(dashboard.revenue.last7Days, dashboard.revenue.currency)}</p></article>
-        <article className="rounded-lg border bg-white p-4"><p className="text-sm text-[var(--on-surface-variant)]">Check-out hôm nay</p><p className="mt-2 text-2xl font-black text-[var(--primary)]">{dashboard.stays.todayCheckOuts}</p></article>
-        <article className="rounded-lg border bg-white p-4"><p className="text-sm text-[var(--on-surface-variant)]">Đang chờ checkout</p><p className="mt-2 text-2xl font-black text-amber-700">{dashboard.stays.pendingCheckOuts}</p></article>
+        <article className="flex items-center gap-3.5 rounded-2xl border border-[var(--outline-variant)] bg-white p-4 shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+            <VsIcon name="payments" className="text-xl" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-[var(--on-surface-variant)]">Doanh thu hôm nay</p>
+            <p className="mt-0.5 text-lg font-black text-[var(--primary)]">{formatMoney(dashboard.revenue.today, dashboard.revenue.currency)}</p>
+          </div>
+        </article>
+
+        <article className="flex items-center gap-3.5 rounded-2xl border border-[var(--outline-variant)] bg-white p-4 shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+            <VsIcon name="calendar_today" className="text-xl" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-[var(--on-surface-variant)]">Doanh thu 7 ngày</p>
+            <p className="mt-0.5 text-lg font-black text-[var(--primary)]">{formatMoney(dashboard.revenue.last7Days, dashboard.revenue.currency)}</p>
+          </div>
+        </article>
+
+        <article className="flex items-center gap-3.5 rounded-2xl border border-[var(--outline-variant)] bg-white p-4 shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-purple-50 text-purple-700">
+            <VsIcon name="meeting_room" className="text-xl" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-[var(--on-surface-variant)]">Check-out hôm nay</p>
+            <p className="mt-0.5 text-lg font-black text-[var(--primary)]">{dashboard.stays.todayCheckOuts} lượt</p>
+          </div>
+        </article>
+
+        <article className="flex items-center gap-3.5 rounded-2xl border border-[var(--outline-variant)] bg-white p-4 shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700">
+            <VsIcon name="pending_actions" className="text-xl" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-[var(--on-surface-variant)]">Đang chờ checkout</p>
+            <p className="mt-0.5 text-lg font-black text-amber-700">{dashboard.stays.pendingCheckOuts} phòng</p>
+          </div>
+        </article>
       </section>
 
       <section>
@@ -51,6 +94,6 @@ export default async function StaffBillingPage({ params }: PageProps) {
           canManage={context.permissions.includes("hotel.billing.manage")}
         />
       </section>
-    </>
+    </div>
   );
 }

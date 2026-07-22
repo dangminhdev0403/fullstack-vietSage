@@ -1,3 +1,72 @@
+## [complete] 2026-07-22 - Mission: owner-navigation-smoothness-and-realtime-optimization
+
+- Created instant route loading boundary `loading.tsx` in `owner/(hotel)/hotels/[hotelId]/loading.tsx`, enabling instant client-side route transitions and persistent sidebar rendering across owner sub-pages (`/stay`, `/rooms`, `/requests`, `/billing`, `/services`).
+- Removed `router.refresh()` from `onReconnect` in `OwnerRequestRealtimeNotifier` (`owner/_components/owner-request-realtime-notifier.tsx`), preventing full-page server re-fetches whenever SSE reconnects.
+- Wrapped `router.refresh()` calls in `React.startTransition` across realtime handlers and client components (`OwnerStayRoomGridClient`, `OwnerRoomsClient`), ensuring background data updates do not block active UI navigation.
+
+Verification result:
+- `npx tsc --noEmit` passed with 0 errors.
+
+Remaining blockers/risks:
+- None.
+
+## [complete] 2026-07-22 - Mission: room-cleaning-status-transition-workflow
+
+- Created BFF endpoint `PATCH /api/hotel-ops/hotels/[hotelId]/rooms/[roomId]` and updated `PATCH /api/owner/hotels/[hotelId]/rooms/[roomId]` to allow updating room status (`status: "AVAILABLE" | "PROCESSING" | "MAINTENANCE"`).
+- Added `status?: string | null` to `UpdateHotelRoomInput` in `hotel-ops-contract.ts`.
+- Restructured `StaffRoomsClient` room cards (`hotels/[hotelId]/rooms/staff-rooms-client.tsx`) into unified flex columns (`flex flex-col justify-between h-full min-h-[235px]`).
+- Aligned baseline footers across all room statuses (`available`, `occupied`, `processing`, `maintenance`), preserving progress/placeholder lines, QR code tags, and status badges on dirty rooms, with the **"Đã dọn xong ? → Chuyển TRỐNG"** button positioned cleanly inside the card footer.
+- Added room tile click handler on `OwnerStayRoomGridClient` (`owner/.../stay/owner-stay-room-grid-client.tsx`), allowing hotel owners to mark `DIRTY` / `PROCESSING` rooms cleaned directly from the room grid.
+- Added quick action navigation button in `StaffBillingWorkspaceClient` ("Đến trang Dọn phòng & Chuyển TRỐNG →") directing staff directly to dirty room management immediately after checkout.
+
+Verification result:
+- `npx tsc --noEmit` passed with 0 errors.
+
+Remaining blockers/risks:
+- None.
+
+## [complete] 2026-07-22 - Mission: staff-billing-ui-redesign-and-uncrowd
+
+- Overhauled Staff Billing (`StaffBillingWorkspaceClient` & `StaffBillingPage` under `hotels/[hotelId]/billing`).
+- Balanced table column ratios using `table-fixed` (`Tên chi phí / Dịch vụ` 40%, `Số lượng` 16%, `Đơn giá` 22%, `Thành tiền` 22%), preventing the service name column from stretching across the entire card.
+- Transformed the `TỔNG THÀNH TIỀN CHECKOUT` card into a luxurious warm orange-amber gold theme (`bg-gradient-to-br from-[#2a1b08] via-[#38240b] to-[#1a1004]` with `#ffe270` golden total and gradient CTA buttons).
+- Added real-time Search input (by room number, guest name, or folio ID) and Filter Pills ("Tất cả", "Chờ checkout", "Đang mở") to the left room queue sidebar.
+- Fixed horizontal scrollbar overflow by converting the middle service charges table to a fluid container layout (`w-full` table without rigid `min-w-[760px]`).
+- Upgraded KPI header cards with modern iconography (`payments`, `calendar_today`, `meeting_room`, `pending_actions`) and soft pastel backgrounds.
+- Enhanced room folio cards with prominent room tags, color-coded status badges ("Đang mở" emerald, "Chờ checkout" amber, "Đã đóng" slate), and clear pricing alignment.
+
+Verification result:
+- `npx tsc --noEmit` passed with 0 errors.
+
+Remaining blockers/risks:
+- None.
+
+## [complete] 2026-07-22 - Mission: auto-scroll-chat-on-message-send
+
+- Updated both Guest (`GuestMessagesPage` at `g/messages/page.tsx`) and Staff (`RoomMessagesClient` at `hotels/[hotelId]/messages/room-messages-client.tsx`) message pages to automatically scroll to the newest message upon sending or receiving messages.
+- Scoped auto-scroll on incoming messages to **page 1** (`pages.length <= 1`), ensuring newly received messages are immediately visible when viewing the latest conversation page.
+- For subsequent pages (`pages.length > 1`, when user has scrolled up to load older history), auto-scroll is skipped to preserve reading position; a floating **"Tin nhắn mới"** notification div appears, which smoothly scrolls down to the latest message on click (`scrollTo({ top: scrollHeight, behavior: "smooth" })`).
+- Introduced `justSentRef` flag and explicit container scrolling (`scrollTop = scrollHeight`) triggered on message submission, pending state, optimistic cache insertion, and post-render frames (`requestAnimationFrame` & staggered `setTimeout`).
+
+Verification result:
+- `npx tsc --noEmit` passed with 0 errors.
+
+Remaining blockers/risks:
+- None.
+
+## [complete] 2026-07-22 - Mission: convert-chat-composer-to-standard-text-input
+
+- Replaced multi-line `<textarea>` elements on both guest (`GuestMessagesPage`) and staff (`RoomMessagesClient`) message pages with single-line standard `<input type="text">` fields.
+- Eliminated browser `<textarea>` height auto-grow calculation bugs, scrollbar flicker, and continuous word wrapping issues.
+- Text now scrolls horizontally within standard `<input type="text">` as users type long messages, filling the entire available width cleanly.
+- Preserved native form submission on `Enter` press, real-time typing indicators, send debouncing, and 1000-character validation limits.
+
+Verification result:
+- `npx tsc --noEmit` passed with 0 errors.
+
+Remaining blockers/risks:
+- None.
+
 ## [complete] 2026-07-22 - Mission: hard-lock-chat-box-container-heights
 
 - Hard-locked chat container height across Staff (`RoomMessagesClient`) and Guest (`GuestMessagesPage`) chat views to viewport bounds (`h-[calc(100dvh-7.5rem)]` for staff workspace, `h-dvh max-h-dvh` for guest chat).

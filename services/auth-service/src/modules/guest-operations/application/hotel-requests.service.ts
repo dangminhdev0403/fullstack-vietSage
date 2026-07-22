@@ -132,7 +132,11 @@ export class HotelRequestsService {
     hotelIdOrQuery?: string | ListStaffRequestsQueryInput,
     queryInput?: ListStaffRequestsQueryInput,
   ) {
-    const { activeRoleId, hotelId, payload: query } = this.parseHotelArgs<ListStaffRequestsQueryInput>(
+    const {
+      activeRoleId,
+      hotelId,
+      payload: query,
+    } = this.parseHotelArgs<ListStaffRequestsQueryInput>(
       activeRoleIdOrHotelId,
       hotelIdOrQuery,
       queryInput,
@@ -191,7 +195,11 @@ export class HotelRequestsService {
     hotelIdOrQuery?: string | RequestSummaryQueryInput,
     queryInput?: RequestSummaryQueryInput,
   ): Promise<RequestSummaryResponse> {
-    const { activeRoleId, hotelId, payload: query } = this.parseHotelArgs<RequestSummaryQueryInput>(
+    const {
+      activeRoleId,
+      hotelId,
+      payload: query,
+    } = this.parseHotelArgs<RequestSummaryQueryInput>(
       activeRoleIdOrHotelId,
       hotelIdOrQuery,
       queryInput,
@@ -244,7 +252,12 @@ export class HotelRequestsService {
     requestIdOrDto: string | UpdateRequestStatusBodyInput,
     dtoParam?: UpdateRequestStatusBodyInput,
   ) {
-    const { activeRoleId, hotelId, requestId, payload: dto } = this.parseHotelRequestArgs<UpdateRequestStatusBodyInput>(
+    const {
+      activeRoleId,
+      hotelId,
+      requestId,
+      payload: dto,
+    } = this.parseHotelRequestArgs<UpdateRequestStatusBodyInput>(
       activeRoleIdOrHotelId,
       hotelIdOrRequestId,
       requestIdOrDto,
