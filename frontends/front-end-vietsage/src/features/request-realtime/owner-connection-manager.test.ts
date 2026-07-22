@@ -64,6 +64,36 @@ test("forwards the authenticated ready signal to subscribers", async () => {
   assert.equal(ready, 1);
 });
 
+test("forwards message and conversation lifecycle events without request unwrapping", async () => {
+  const sockets: any[] = [];
+  const manager = createOwnerConnectionManager({
+    enabled: true,
+    getTicket: async () => ({ ticket: "ticket", expiresAt: "future" }),
+    createSocket: () => {
+      const handlers = new Map<string, Function>();
+      const socket: any = {
+        on: (event: string, handler: Function) => handlers.set(event, handler),
+        connect() {},
+        disconnect() {},
+        trigger: (event: string, value?: unknown) => handlers.get(event)?.(value),
+      };
+      sockets.push(socket);
+      return socket;
+    },
+  });
+  const received: unknown[] = [];
+  manager.subscribe("hotel-1", {
+    onGuestMessageCreated: (event) => received.push(event),
+    onConversationClosed: (event) => received.push(event),
+  });
+  await manager.settled("hotel-1");
+  const messageEvent = { thread: { id: "thread-1" }, message: { id: "message-1" } };
+  const closeEvent = { stayId: "stay-1", roomId: "room-1" };
+  sockets[0].trigger("guest_message.created", messageEvent);
+  sockets[0].trigger("conversation.closed", closeEvent);
+  assert.deepEqual(received, [messageEvent, closeEvent]);
+});
+
 test("dedupes tickets, refreshes before reconnect, and ignores stale acquisition", async () => {
   const pending = deferred<{ ticket: string; expiresAt: string }>(); const sockets: any[] = []; let calls = 0;
   const manager = createOwnerConnectionManager({ enabled: true, getTicket: async () => { calls++; return calls === 1 ? pending.promise : { ticket: "fresh", expiresAt: new Date(Date.now() + 60_000).toISOString() }; }, createSocket: (auth) => { const handlers = new Map<string, Function[]>(); const socket: any = { auth, on: (e: string, h: Function) => handlers.set(e, [...(handlers.get(e) ?? []), h]), connect() {}, disconnect() { this.disconnected = true; }, trigger: (e: string) => handlers.get(e)?.forEach((h) => h()) }; sockets.push(socket); return socket; } });

@@ -61,3 +61,25 @@ test("guest connect errors reconnect with the current token", () => {
   assert.equal(sockets.length, 2);
   assert.equal(sockets[1].auth.sessionToken, "token-current");
 });
+
+test("guest connection forwards stay-scoped message and close events", () => {
+  const handlers = new Map<string, (value?: unknown) => void>();
+  const manager = createGuestConnectionManager({
+    enabled: true,
+    createSocket: () => ({
+      connect() {},
+      disconnect() {},
+      on(event: string, handler: (value?: unknown) => void) { handlers.set(event, handler); },
+    }),
+  });
+  const received: unknown[] = [];
+  manager.update("token-1", {
+    onGuestMessageCreated: (event) => received.push(event),
+    onConversationClosed: (event) => received.push(event),
+  });
+  const messageEvent = { thread: { stayId: "stay-1" }, message: { id: "message-1" } };
+  const closeEvent = { stayId: "stay-1", roomId: "room-1" };
+  handlers.get("guest_message.created")?.(messageEvent);
+  handlers.get("conversation.closed")?.(closeEvent);
+  assert.deepEqual(received, [messageEvent, closeEvent]);
+});

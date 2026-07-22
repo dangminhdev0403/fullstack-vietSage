@@ -190,7 +190,7 @@ describe("GuestOsService", () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  it("builds active session context from a valid guest token", async () => {
+  it("keeps a valid active-stay session when room workflow status is temporarily processing", async () => {
     const repository = {
       findSessionByTokenHash: jest.fn().mockResolvedValue({
         id: "session-1",
@@ -201,8 +201,8 @@ describe("GuestOsService", () => {
         expiresAt: new Date(Date.now() + 60_000),
         lastSeenAt: new Date(),
         createdAt: new Date(),
-        stay: { status: "ACTIVE" },
-        room: { status: "OCCUPIED" },
+        stay: { status: "ACTIVE", checkedOutAt: null },
+        room: { status: "PROCESSING" },
       }),
       updateSessionHeartbeat: jest.fn().mockImplementation((sessionId, status) => ({
         id: sessionId,
@@ -508,6 +508,8 @@ describe("GuestOsService", () => {
     const eventPublisher = {
       publishGuestRequestCreated: jest.fn(),
       publishGuestRequestUpdated: jest.fn(),
+      publishGuestMessageCreated: jest.fn(),
+      publishConversationClosed: jest.fn(),
     };
     const service = new GuestOsService(repository as never, undefined, undefined, eventPublisher);
 

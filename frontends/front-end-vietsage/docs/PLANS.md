@@ -1,3 +1,22 @@
+## [complete] 2026-07-22 - Mission: active-stay-message-inbox-hardening
+
+- Replaced the fixed staff inbox page with newest-first cursor infinite scroll for large active
+  stays; scrolling down loads older conversations.
+- Realtime guest messages upsert only the waiting list and matching open thread. The selected
+  conversation, per-thread draft, and reading position remain stable; messages received while
+  reading older history show a new-message badge instead of forcing scroll.
+- Removed `Dọn tin nhắn`, added unread counts/read receipts, and reduced polling to a 30-second
+  recovery fallback behind the existing authenticated socket.
+- Staff and GuestOS handle `conversation.closed` immediately by disabling the composer and showing
+  an ended-session state. Reconnect revalidates HTTP data without exposing another stay's history.
+
+Verification result:
+
+- `pnpm exec tsc --noEmit` passed.
+- Frontend ESLint passed with zero new errors (8 existing unrelated warnings).
+- Owner/guest realtime manager tests passed: 12 tests.
+- Generated OpenAPI types were synchronized from the verified 88-path contract.
+
 ## [complete] 2026-07-22 - Mission: blocked-room-availability-workflow
 
 - Added clear `Khóa phòng` / `Mở khóa` actions to the staff room grid and owner room inventory.
@@ -9,6 +28,20 @@ Verification result:
 - `pnpm exec tsc --noEmit` passed.
 - ESLint passed for both changed room clients.
 - OpenAPI types were synchronized.
+
+## [complete] 2026-07-22 - Mission: owner-room-stay-workspace-consolidation
+
+- Consolidating owner `Phòng & QR` and `Lưu trú` navigation into one `Phòng & lưu trú` workspace.
+- Replacing the legacy stay metrics/table surface with room management while retaining the visual
+  room grid.
+- Making every room tile interactive and opening a room detail dialog for available, occupied,
+  processing, maintenance, and blocked rooms.
+
+Verification result:
+- `pnpm exec tsc --noEmit` passed.
+- Targeted ESLint passed for all changed frontend files.
+- Workspace navigation tests passed: 4/4.
+- `pnpm run build` passed with 37 pages generated.
 
 ## [complete] 2026-07-22 - Mission: management-request-status-update-realtime-cache-sync
 

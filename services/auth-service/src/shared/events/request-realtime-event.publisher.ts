@@ -1,6 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import { RequestRealtimeEmitter } from "../../request-realtime.emitter";
 import type {
+  ConversationClosedEventInput,
+  GuestMessageCreatedEventInput,
   GuestRequestCreatedEventInput,
   GuestRequestEventPublisher,
   GuestRequestUpdatedEventInput,
@@ -14,5 +16,13 @@ export class RequestRealtimeEventPublisher implements GuestRequestEventPublisher
 
   publishGuestRequestUpdated(input: GuestRequestUpdatedEventInput): void {
     RequestRealtimeEmitter.emitGuestRequestUpdated(input);
+  }
+
+  publishGuestMessageCreated(input: GuestMessageCreatedEventInput): void {
+    RequestRealtimeEmitter.emitGuestMessageCreated(input);
+  }
+
+  publishConversationClosed(input: ConversationClosedEventInput): void {
+    RequestRealtimeEmitter.emitConversationClosed(input);
   }
 }

@@ -1068,13 +1068,13 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--secondary)]">
-            Room inventory
+            Phòng & lưu trú
           </p>
           <h1 className="mt-3 text-4xl font-semibold leading-tight text-[var(--primary)]">
-            Quản lý phòng
+            Quản lý phòng và lưu trú
           </h1>
           <p className="mt-2 max-w-3xl text-base leading-7 text-[var(--on-surface-variant)]">
-            Đồng bộ danh sách phòng và mã QR trực tiếp từ hệ thống khách sạn.
+            Quản lý thông tin phòng, trạng thái sử dụng, mã QR và xem nhanh khách đang lưu trú trong một màn hình.
           </p>
         </div>
         <button

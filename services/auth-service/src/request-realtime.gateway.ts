@@ -94,10 +94,13 @@ export class RequestRealtimeGateway
     if (!token) return this.reject(socket, "AUTH_REQUIRED");
     try {
       const session = await this.guestOsService.authenticateGuestToken(token);
-      await socket.join(RequestRealtimeEmitter.guestSessionRoom(session.sessionId));
+      await Promise.all([
+        socket.join(RequestRealtimeEmitter.guestSessionRoom(session.sessionId)),
+        socket.join(RequestRealtimeEmitter.guestStayRoom(session.stayId)),
+      ]);
       socket.emit("request_realtime.ready", {
         mode: "guest",
-        scope: { sessionId: session.sessionId },
+        scope: { sessionId: session.sessionId, stayId: session.stayId },
       });
     } catch {
       return this.reject(socket, "SESSION_INVALID");

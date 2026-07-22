@@ -146,8 +146,8 @@ export class GuestOsService {
     if (
       !this.guestOsRepository.isAccessOpen({
         qrStatus: qr.status,
-        roomStatus: qr.room.status,
         stayStatus: stay.status,
+        checkedOutAt: stay.checkedOutAt,
       })
     ) {
       await this.recordDeniedScan(qr.id, "ACCESS_CLOSED", publicCode, dto, request, {
@@ -646,7 +646,7 @@ export class GuestOsService {
       session.status === GuestSessionStatus.EXPIRED ||
       session.expiresAt <= now ||
       session.stay.status !== "ACTIVE" ||
-      session.room.status !== "OCCUPIED"
+      Boolean(session.stay.checkedOutAt)
     ) {
       const closed = await this.guestOsRepository.closeSession(session.id);
       throw new UnauthorizedException(

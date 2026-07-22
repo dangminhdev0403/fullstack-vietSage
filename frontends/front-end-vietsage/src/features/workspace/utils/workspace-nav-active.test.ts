@@ -9,7 +9,7 @@ const ownerHotelItems: readonly DashboardNavItem[] = [
   { key: "owner.home", href: "/owner/dashboard", label: "Tổng quan", icon: "dashboard" },
   { key: "owner.hotels", href: "/owner/hotels", label: "Khách sạn", icon: "hotel" },
   { key: "owner.hotel.overview", href: "/owner/hotels/hotel-1", label: "Thông tin khách sạn", icon: "hotel" },
-  { key: "owner.hotel.rooms", href: "/owner/hotels/hotel-1/rooms", label: "Phòng & QR", icon: "bed" },
+  { key: "owner.hotel.rooms", href: "/owner/hotels/hotel-1/rooms", label: "Phòng & lưu trú", icon: "bed" },
   { key: "owner.hotel.staff", href: "/owner/staff?hotelId=hotel-1", label: "Nhân viên", icon: "group" },
   { key: "owner.hotel.billing", href: "/owner/hotels/hotel-1/billing", label: "Thanh toán", icon: "inventory_2" },
 ];

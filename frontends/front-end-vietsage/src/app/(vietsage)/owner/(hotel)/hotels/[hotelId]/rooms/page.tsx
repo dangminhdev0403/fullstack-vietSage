@@ -3,6 +3,7 @@ import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-
 import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
 
 import { OwnerRoomsClient } from "./owner-rooms-client";
+import { OwnerStayRoomGridClient } from "../stay/owner-stay-room-grid-client";
 
 type PageProps = { params: Promise<{ hotelId: string }> | { hotelId: string } };
 
@@ -19,8 +20,9 @@ export default async function OwnerHotelRoomsPage({ params }: PageProps) {
   );
 
   return (
-    <>
+    <div className="space-y-10">
       <OwnerRoomsClient hotelId={hotelId} initialRooms={roomsPage.items} />
-    </>
+      <OwnerStayRoomGridClient hotelId={hotelId} rooms={roomsPage.items} />
+    </div>
   );
 }

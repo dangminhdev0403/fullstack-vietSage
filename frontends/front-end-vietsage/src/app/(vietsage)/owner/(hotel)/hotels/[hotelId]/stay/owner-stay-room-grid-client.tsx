@@ -127,6 +127,25 @@ function roomSearchText(room: HotelRoomSummary): string {
     .toLowerCase();
 }
 
+function formatRoomPrice(room: HotelRoomSummary): string {
+  const value = Number(room.price);
+  if (!Number.isFinite(value)) return "Chưa cập nhật";
+  return `${new Intl.NumberFormat("vi-VN").format(value)} ₫`;
+}
+
+function formatRoomDate(value: string | null | undefined): string {
+  if (!value) return "--";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "--";
+  return new Intl.DateTimeFormat("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
 function defaultCheckOutValue(): string {
   const value = new Date();
   value.setDate(value.getDate() + 1);
@@ -215,6 +234,7 @@ export function OwnerStayRoomGridClient({
   const [selectedRoom, setSelectedRoom] = useState<HotelRoomSummary | null>(
     null,
   );
+  const [detailRoom, setDetailRoom] = useState<HotelRoomSummary | null>(null);
   const [isCheckInOpen, setIsCheckInOpen] = useState(false);
   const [form, setForm] = useState<CheckInForm>(() => emptyForm());
   const [errors, setErrors] = useState<FormErrors>({});
@@ -260,49 +280,42 @@ export function OwnerStayRoomGridClient({
     setIsCheckInOpen(true);
   }
 
-  async function handleTileClick(room: HotelRoomSummary) {
-    const availability = getRoomAvailability(room);
-    if (availability === "available") {
-      openCheckIn(room);
-      return;
-    }
-    if (availability === "processing") {
-      const confirm = await Swal.fire({
-        icon: "question",
-        title: `Hoàn tất dọn phòng ${getRoomNumber(room)}?`,
-        text: "Trạng thái phòng sẽ chuyển sang TRỐNG (Sẵn sàng đón khách mới).",
-        showCancelButton: true,
-        confirmButtonText: "Đã dọn xong ? -> Chuyển TRỐNG",
-        cancelButtonText: "Đóng",
+  function handleTileClick(room: HotelRoomSummary) {
+    setDetailRoom(room);
+  }
+
+  async function markRoomCleaned(room: HotelRoomSummary) {
+    const confirm = await Swal.fire({
+      icon: "question",
+      title: `Hoàn tất dọn phòng ${getRoomNumber(room)}?`,
+      text: "Trạng thái phòng sẽ chuyển sang TRỐNG (Sẵn sàng đón khách mới).",
+      showCancelButton: true,
+      confirmButtonText: "Đã dọn xong → Chuyển TRỐNG",
+      cancelButtonText: "Đóng",
+      confirmButtonColor: "#17201b",
+    });
+    if (!confirm.isConfirmed) return;
+
+    try {
+      await requestInternalApiEnvelope(
+        `/api/owner/hotels/${encodeURIComponent(hotelId)}/rooms/${encodeURIComponent(room.id)}`,
+        { method: "PATCH", body: { status: "AVAILABLE" } },
+      );
+      setDetailRoom(null);
+      await Swal.fire({
+        icon: "success",
+        title: `Phòng ${getRoomNumber(room)} đã sẵn sàng!`,
+        text: "Trạng thái phòng đã được cập nhật thành TRỐNG.",
         confirmButtonColor: "#17201b",
       });
-      if (!confirm.isConfirmed) return;
-
-      try {
-        await requestInternalApiEnvelope(
-          `/api/owner/hotels/${encodeURIComponent(hotelId)}/rooms/${encodeURIComponent(room.id)}`,
-          {
-            method: "PATCH",
-            body: { status: "AVAILABLE" },
-          },
-        );
-        await Swal.fire({
-          icon: "success",
-          title: `Phòng ${getRoomNumber(room)} đã sẵn sàng!`,
-          text: "Trạng thái phòng đã được cập nhật thành TRỐNG.",
-          confirmButtonColor: "#17201b",
-        });
-        startTransition(() => {
-          router.refresh();
-        });
-      } catch (err) {
-        await Swal.fire({
-          icon: "error",
-          title: "Không thể cập nhật trạng thái phòng",
-          text: err instanceof Error ? err.message : "Vui lòng thử lại.",
-          confirmButtonColor: "#17201b",
-        });
-      }
+      startTransition(() => router.refresh());
+    } catch (error) {
+      await Swal.fire({
+        icon: "error",
+        title: "Không thể cập nhật trạng thái phòng",
+        text: getBusinessErrorMessage(error, "Vui lòng thử lại."),
+        confirmButtonColor: "#17201b",
+      });
     }
   }
 
@@ -455,24 +468,13 @@ export function OwnerStayRoomGridClient({
 
       <div className="grid grid-cols-4 gap-3 sm:grid-cols-5 md:grid-cols-8 xl:grid-cols-10">
         {paginatedRooms.map((room) => {
-          const allowed = isCheckInAllowed(room);
-          const availability = getRoomAvailability(room);
-          const isInteractive = allowed || availability === "processing";
-
           return (
             <button
               key={room.id}
               type="button"
-              onClick={() => void handleTileClick(room)}
-              disabled={!isInteractive}
-              title={
-                availability === "processing"
-                  ? `Phòng ${getRoomNumber(room)} - Chờ dọn dẹp (Nhấn để hoàn tất dọn phòng)`
-                  : allowed
-                    ? `Check-in phòng ${getRoomNumber(room)}`
-                    : `${getRoomNumber(room)} - ${roomStatusLabel(room)}`
-              }
-              className={`aspect-square rounded-lg border p-2 text-center shadow-sm transition disabled:cursor-not-allowed ${roomTileClass(room)}`}
+              onClick={() => handleTileClick(room)}
+              title={`Xem chi tiết phòng ${getRoomNumber(room)} - ${roomStatusLabel(room)}`}
+              className={`aspect-square cursor-pointer rounded-lg border p-2 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] ${roomTileClass(room)}`}
             >
               <span className="block truncate text-sm font-bold">
                 {getRoomNumber(room)}
@@ -527,6 +529,136 @@ export function OwnerStayRoomGridClient({
           </button>
         </div>
       </div>
+
+      {detailRoom ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8">
+          <button
+            type="button"
+            aria-label="Đóng chi tiết phòng"
+            onClick={() => setDetailRoom(null)}
+            className="absolute inset-0 bg-[color:rgba(26,28,28,0.48)] backdrop-blur-sm"
+          />
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="room-detail-title"
+            className="relative z-10 max-h-full w-full max-w-2xl overflow-y-auto rounded-2xl border border-[color:rgba(198,197,213,0.62)] bg-white p-6 shadow-[0_28px_80px_rgba(0,0,60,0.22)]"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--secondary)]">
+                  Chi tiết phòng
+                </p>
+                <h2
+                  id="room-detail-title"
+                  className="mt-2 text-3xl font-semibold text-[var(--primary)]"
+                >
+                  Phòng {getRoomNumber(detailRoom)}
+                </h2>
+                <p className="mt-1 text-sm text-[var(--on-surface-variant)]">
+                  {getRoomType(detailRoom) || "Chưa cập nhật loại phòng"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDetailRoom(null)}
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[var(--primary)] transition hover:bg-[var(--primary-fixed)]"
+                title="Đóng"
+              >
+                <VsIcon name="close" />
+              </button>
+            </div>
+
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              {[
+                ["Trạng thái", roomStatusLabel(detailRoom)],
+                ["Tầng", detailRoom.floor?.trim() || "Chưa cập nhật"],
+                ["Giá phòng", formatRoomPrice(detailRoom)],
+                [
+                  "QR GuestOS",
+                  (detailRoom.qr?.status ?? detailRoom.qrStatus ?? "INACTIVE")
+                    .toString()
+                    .toUpperCase() === "ACTIVE"
+                    ? "Đang hoạt động"
+                    : "Chưa hoạt động",
+                ],
+                [
+                  "Thiết bị khách",
+                  `${detailRoom.activeGuestDeviceCount ?? 0} / ${detailRoom.maxActiveGuestDevices ?? 3}`,
+                ],
+                ["Mã phòng", detailRoom.id],
+              ].map(([label, value]) => (
+                <div
+                  key={label}
+                  className="rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-4"
+                >
+                  <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">
+                    {label}
+                  </p>
+                  <p className="mt-2 break-words text-sm font-semibold text-[var(--primary)]">
+                    {value}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            {detailRoom.activeStay ? (
+              <div className="mt-5 rounded-xl border border-blue-200 bg-blue-50 p-5">
+                <p className="text-xs font-bold uppercase tracking-[0.12em] text-blue-700">
+                  Khách đang lưu trú
+                </p>
+                <p className="mt-2 text-lg font-semibold text-blue-950">
+                  {detailRoom.activeStay.guestDisplayName || "Khách lưu trú"}
+                </p>
+                <div className="mt-3 grid gap-2 text-sm text-blue-900 sm:grid-cols-2">
+                  <p>SĐT: {detailRoom.activeStay.guestPhone || "--"}</p>
+                  <p>Mã: {detailRoom.activeStay.reservationCode || "--"}</p>
+                  <p>Check-in: {formatRoomDate(detailRoom.activeStay.checkedInAt)}</p>
+                  <p>Check-out: {formatRoomDate(detailRoom.activeStay.plannedCheckOutAt)}</p>
+                </div>
+              </div>
+            ) : (
+              <p className="mt-5 rounded-xl border border-dashed border-[var(--outline-variant)] p-4 text-sm text-[var(--on-surface-variant)]">
+                Phòng hiện không có khách lưu trú.
+              </p>
+            )}
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setDetailRoom(null)}
+                className="min-h-11 rounded-xl border border-[var(--outline-variant)] px-5 text-sm font-bold text-[var(--primary)] transition hover:bg-[var(--surface-container-low)]"
+              >
+                Đóng
+              </button>
+              {getRoomAvailability(detailRoom) === "processing" ? (
+                <button
+                  type="button"
+                  onClick={() => void markRoomCleaned(detailRoom)}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-amber-700 px-5 text-sm font-bold text-white transition hover:bg-amber-800"
+                >
+                  <VsIcon name="cleaning_services" />
+                  Đã dọn xong → Chuyển TRỐNG
+                </button>
+              ) : null}
+              {isCheckInAllowed(detailRoom) ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const room = detailRoom;
+                    setDetailRoom(null);
+                    openCheckIn(room);
+                  }}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-5 text-sm font-bold text-white transition hover:opacity-90"
+                >
+                  <VsIcon name="login" />
+                  Check-in phòng
+                </button>
+              ) : null}
+            </div>
+          </section>
+        </div>
+      ) : null}
 
       {isCheckInOpen && selectedRoom ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8">

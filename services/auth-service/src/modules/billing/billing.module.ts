@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { GuestRequestEventsModule } from "../../shared/events";
 import { PrismaModule } from "../../prisma/prisma.module";
 import { PropertyModule } from "../property/property.module";
 import { BillingRepository } from "./infrastructure/repositories/billing.repository";
@@ -8,7 +9,7 @@ import { InvoiceController } from "./api/invoice.controller";
 import { PaymentController } from "./api/payment.controller";
 
 @Module({
-  imports: [PrismaModule, PropertyModule],
+  imports: [PrismaModule, PropertyModule, GuestRequestEventsModule],
   controllers: [FolioController, InvoiceController, PaymentController],
   providers: [BillingService, BillingRepository],
   exports: [BillingService],

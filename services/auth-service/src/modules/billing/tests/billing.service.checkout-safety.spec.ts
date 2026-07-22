@@ -15,13 +15,18 @@ import { BillingService } from "../application/billing.service";
 
 const now = new Date("2026-07-18T10:00:00.000Z");
 
-function createService(prisma: Record<string, unknown>, repository: Record<string, unknown> = {}) {
+function createService(
+  prisma: Record<string, unknown>,
+  repository: Record<string, unknown> = {},
+  eventPublisher?: Record<string, unknown>,
+) {
   return new BillingService(
     repository as never,
     { assertHotelAccess: jest.fn().mockResolvedValue(undefined) } as never,
     prisma as never,
     { generateEntityCode: jest.fn().mockResolvedValue("INV-001") } as never,
     { log: jest.fn(), warn: jest.fn() } as never,
+    eventPublisher as never,
   );
 }
 
@@ -204,7 +209,10 @@ describe("BillingService checkout safety", () => {
       paymentTransaction: { findFirst: jest.fn().mockResolvedValue(null) },
       $transaction: jest.fn((callback: (tx: typeof tx) => Promise<unknown>) => callback(tx)),
     };
-    const service = createService(prisma);
+    const eventPublisher = {
+      publishConversationClosed: jest.fn(),
+    };
+    const service = createService(prisma, {}, eventPublisher);
 
     await service.processPaymentWebhook(PaymentProvider.MOMO, {
       providerEventId: "event-1",
@@ -243,6 +251,62 @@ describe("BillingService checkout safety", () => {
     expect(tx.roomQRCode.updateMany).toHaveBeenCalledWith({
       where: { roomId: "room-1", status: RoomQRCodeStatus.ACTIVE },
       data: { status: RoomQRCodeStatus.INACTIVE, deactivatedAt: now },
+    });
+    expect(eventPublisher.publishConversationClosed).toHaveBeenCalledWith({
+      hotelId: "hotel-1",
+      stayId: "stay-1",
+      roomId: "room-1",
+    });
+  });
+
+  it("publishes conversation closure after a zero-balance checkout commits", async () => {
+    const payment = { id: "payment-zero", status: PaymentStatus.SUCCEEDED };
+    const tx = {
+      $queryRawUnsafe: jest.fn().mockResolvedValue([]),
+      invoice: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: "invoice-zero",
+          hotelId: "hotel-1",
+          folioId: "folio-1",
+          stayId: "stay-1",
+          status: InvoiceStatus.ISSUED,
+          paidAmount: new Prisma.Decimal(0),
+          balanceAmount: new Prisma.Decimal(0),
+          currency: "VND",
+          stay: { roomId: "room-1" },
+        }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      payment: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue(payment),
+      },
+      folio: { update: jest.fn().mockResolvedValue({}) },
+      guestStay: { update: jest.fn().mockResolvedValue({}) },
+      guestSession: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      room: { update: jest.fn().mockResolvedValue({}) },
+      roomQRCode: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+    };
+    const prisma = {
+      invoice: {
+        findFirst: jest.fn().mockResolvedValue({ balanceAmount: new Prisma.Decimal(0) }),
+      },
+      $transaction: jest.fn((callback: (client: typeof tx) => Promise<unknown>) => callback(tx)),
+    };
+    const eventPublisher = { publishConversationClosed: jest.fn() };
+    const service = createService(prisma, {}, eventPublisher);
+    jest
+      .spyOn(service, "getInvoiceDetail")
+      .mockResolvedValue({ invoice: { id: "invoice-zero" } } as never);
+
+    await service.confirmManualPayment("staff-1", "frontdesk-role", "hotel-1", "invoice-zero", {
+      method: PaymentMethod.CASH,
+    });
+
+    expect(eventPublisher.publishConversationClosed).toHaveBeenCalledWith({
+      hotelId: "hotel-1",
+      stayId: "stay-1",
+      roomId: "room-1",
     });
   });
 

@@ -12,8 +12,3 @@ export async function GET(request: Request, context: Params) {
   const limit = limitStr ? Number(limitStr) : undefined;
   try { const data = await executeHotelOpsBackendRequest("get hotel message thread", (accessToken) => hotelOpsService.getMessageThread(hotelId, threadId, { query: { before, limit }, accessToken })); return data instanceof Response ? data : successResponse(data); } catch (error) { return error instanceof HttpError ? hotelOpsHttpErrorResponse(error) : unknownServerErrorResponse(); }
 }
-
-export async function PATCH(_: Request, context: Params) {
-  const { hotelId, threadId } = await context.params;
-  try { const data = await executeHotelOpsBackendRequest("clear hotel message thread", (accessToken) => hotelOpsService.clearMessageThread(hotelId, threadId, accessToken)); return data instanceof Response ? data : successResponse(data); } catch (error) { return error instanceof HttpError ? hotelOpsHttpErrorResponse(error) : unknownServerErrorResponse(); }
-}

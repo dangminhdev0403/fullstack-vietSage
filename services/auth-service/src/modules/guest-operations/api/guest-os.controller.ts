@@ -167,6 +167,13 @@ export class GuestOsController {
   }
 
   @UseGuards(GuestSessionGuard)
+  @SuccessMessage("Đã đánh dấu tin nhắn là đã đọc")
+  @Post("messages/read")
+  async markMessagesRead(@Req() request: RequestWithGuestSession) {
+    return this.guestMessagesService.markReadForGuest(request.guestSession);
+  }
+
+  @UseGuards(GuestSessionGuard)
   @SuccessMessage("Đóng phiên khách thành công")
   @ApiOkResponse({ description: "Đã đóng phiên khách" })
   @Post("session/close")

@@ -1,12 +1,13 @@
 "use client";
 
-import { type InfiniteData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
-import Swal from "sweetalert2";
+import { type InfiniteData, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { type FormEvent, useDeferredValue, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+import { HttpError } from "@/core/http/http-error";
 import { requestInternalApi } from "@/core/http/internal-api-client";
 import { playMessageAlertSound } from "@/features/request-realtime/audio-notifier";
+import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
 
 type Message = {
   id: string;
@@ -14,18 +15,28 @@ type Message = {
   senderName: string | null;
   body: string;
   createdAt: string;
+  readAt?: string | null;
 };
 
 type Thread = {
   id: string;
+  stayId: string;
   status: string;
   roomNumber: string;
+  floor: string | null;
+  roomType: string | null;
   guestName: string;
   lastMessageAt: string;
+  unreadCount: number;
   latestMessage: Message | null;
 };
 
-type ThreadList = { items: Thread[]; total: number };
+type ThreadList = {
+  items: Thread[];
+  total: number;
+  nextCursor?: string | null;
+  hasMore?: boolean;
+};
 type ThreadPage = {
   thread: Thread;
   items: Message[];
@@ -94,7 +105,9 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
   const [draftsByThread, setDraftsByThread] = useState<Record<string, string>>({});
   const [sendError, setSendError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const deferredSearch = useDeferredValue(search.trim());
   const [showNewMessageBadge, setShowNewMessageBadge] = useState(false);
+  const [closedStayId, setClosedStayId] = useState<string | null>(null);
 
   const body = selectedId ? (draftsByThread[selectedId] ?? "") : "";
 
@@ -103,8 +116,8 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
   const isPrependingRef = useRef<boolean>(false);
   const prevMessageCountRef = useRef<number>(0);
   const justSentRef = useRef<boolean>(false);
+  const isNearBottomRef = useRef<boolean>(true);
 
-  const prevLatestMessageIdRef = useRef<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const lastSentAtRef = useRef<number>(0);
   const lastTypingEmitRef = useRef<number>(0);
@@ -115,15 +128,53 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
     if (id !== selectedId) {
       setSelectedId(id);
       setShowNewMessageBadge(false);
+      setClosedStayId(null);
       prevMessageCountRef.current = 0;
+    }
+    if (id) {
+      requestInternalApi(`${base}/${encodeURIComponent(id)}/read`, { method: "POST" })
+        .then(() => markThreadReadInCache(id))
+        .catch(() => {});
     }
   };
 
-  const threads = useQuery({
-    queryKey: ["hotel-message-threads", hotelId],
-    queryFn: () => requestInternalApi<ThreadList>(base, { method: "GET" }),
-    refetchInterval: 5000,
+  const threadListKey = ["hotel-message-threads", hotelId, deferredSearch] as const;
+  const threads = useInfiniteQuery<ThreadList, Error, InfiniteData<ThreadList>, typeof threadListKey, string | undefined>({
+    queryKey: threadListKey,
+    queryFn: ({ pageParam }) => {
+      const params = new URLSearchParams({ limit: "30" });
+      if (pageParam) params.set("cursor", pageParam);
+      if (deferredSearch) params.set("q", deferredSearch);
+      return requestInternalApi<ThreadList>(`${base}?${params.toString()}`, { method: "GET" });
+    },
+    initialPageParam: undefined,
+    getNextPageParam: (lastPage) => lastPage.hasMore ? (lastPage.nextCursor ?? undefined) : undefined,
+    refetchInterval: 30_000,
   });
+
+  const markThreadReadInCache = (threadId: string) => {
+    queryClient.setQueriesData<InfiniteData<ThreadList>>(
+      { queryKey: ["hotel-message-threads", hotelId] },
+      (current) => current
+        ? {
+            ...current,
+            pages: current.pages.map((page) => ({
+              ...page,
+              items: page.items.map((thread) =>
+                thread.id === threadId ? { ...thread, unreadCount: 0 } : thread,
+              ),
+            })),
+          }
+        : current,
+    );
+  };
+
+  const threadItems = (threads.data?.pages ?? [])
+    .flatMap((page) => page.items)
+    .reduce<Thread[]>((items, thread) => {
+      if (!items.some((item) => item.id === thread.id)) items.push(thread);
+      return items;
+    }, []);
 
   const detail = useInfiniteQuery<ThreadPage, Error, InfiniteData<ThreadPage>, (string | null)[], string | undefined>({
     queryKey: ["hotel-message-thread", hotelId, selectedId],
@@ -138,7 +189,8 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => (lastPage.hasMore ? (lastPage.nextCursor ?? undefined) : undefined),
     enabled: Boolean(selectedId),
-    refetchInterval: 4000,
+    refetchInterval: closedStayId ? false : 30_000,
+    retry: false,
   });
 
   // Flatten messages from pages in chronological order (oldest page first, newest page last)
@@ -154,6 +206,109 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
       }
       return acc;
     }, []);
+  const selectedThread = activeThread ?? threadItems.find((thread) => thread.id === selectedId);
+  const conversationClosed = Boolean(
+    selectedThread && (
+      closedStayId === selectedThread.stayId ||
+      (detail.error instanceof HttpError && detail.error.status === 404)
+    ),
+  );
+
+  const appendMessageToThreadCache = (threadId: string, message: Message) => {
+    queryClient.setQueryData<InfiniteData<ThreadPage>>(
+      ["hotel-message-thread", hotelId, threadId],
+      (current) => {
+        if (!current?.pages.length || current.pages.some((page) => page.items.some((item) => item.id === message.id))) {
+          return current;
+        }
+        const nextPages = [...current.pages];
+        nextPages[0] = { ...nextPages[0], items: [...nextPages[0].items, message] };
+        return { ...current, pages: nextPages };
+      },
+    );
+  };
+
+  const upsertWaitingThread = (thread: Thread) => {
+    if (
+      deferredSearch &&
+      !thread.roomNumber.toLowerCase().includes(deferredSearch.toLowerCase()) &&
+      !thread.guestName.toLowerCase().includes(deferredSearch.toLowerCase())
+    ) return;
+
+    queryClient.setQueryData<InfiniteData<ThreadList>>(threadListKey, (current) => {
+      if (!current?.pages.length) return current;
+      const existed = current.pages.some((page) => page.items.some((item) => item.id === thread.id));
+      const pages = current.pages.map((page) => ({
+        ...page,
+        items: page.items.filter((item) => item.id !== thread.id),
+      }));
+      pages[0] = { ...pages[0], items: [thread, ...pages[0].items] };
+      return {
+        ...current,
+        pages: pages.map((page, index) => index === 0
+          ? { ...page, total: existed ? page.total : page.total + 1 }
+          : page),
+      };
+    });
+  };
+
+  const removeClosedStayFromWaitingList = (stayId: string) => {
+    queryClient.setQueriesData<InfiniteData<ThreadList>>(
+      { queryKey: ["hotel-message-threads", hotelId] },
+      (current) => {
+        if (!current) return current;
+        const removed = current.pages.some((page) => page.items.some((thread) => thread.stayId === stayId));
+        return {
+          ...current,
+          pages: current.pages.map((page) => ({
+            ...page,
+            total: removed ? Math.max(0, page.total - 1) : page.total,
+            items: page.items.filter((thread) => thread.stayId !== stayId),
+          })),
+        };
+      },
+    );
+  };
+
+  useOwnerRequestRealtime(
+    hotelId,
+    {
+      onGuestMessageCreated: (event) => {
+        if (!event || typeof event !== "object" || !("thread" in event) || !("message" in event)) return;
+        const { thread, message } = event as { thread: Thread; message: Message };
+        if (!thread?.id || !message?.id) return;
+
+        const isOpenThread = selectedId === thread.id;
+        upsertWaitingThread({
+          ...thread,
+          latestMessage: message,
+          unreadCount: isOpenThread ? 0 : thread.unreadCount,
+        });
+        if (isOpenThread) {
+          appendMessageToThreadCache(thread.id, message);
+          if (message.senderType === "GUEST") {
+            requestInternalApi(`${base}/${encodeURIComponent(thread.id)}/read`, { method: "POST" })
+              .then(() => markThreadReadInCache(thread.id))
+              .catch(() => {});
+          }
+        }
+        if (message.senderType === "GUEST") playMessageAlertSound();
+      },
+      onConversationClosed: (event) => {
+        if (!event || typeof event !== "object" || !("stayId" in event)) return;
+        const stayId = String(event.stayId);
+        removeClosedStayFromWaitingList(stayId);
+        if (selectedThread?.stayId === stayId) setClosedStayId(stayId);
+      },
+      onReconnect: () => {
+        queryClient.invalidateQueries({ queryKey: ["hotel-message-threads", hotelId] }).catch(() => {});
+        if (selectedId) {
+          queryClient.invalidateQueries({ queryKey: ["hotel-message-thread", hotelId, selectedId] }).catch(() => {});
+        }
+      },
+    },
+    { showConnectionToasts: false },
+  );
 
   // Handle Reverse Infinite Scroll (Scroll Up to fetch older history)
   const handleScroll = () => {
@@ -167,6 +322,7 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
     }
 
     const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 120;
+    isNearBottomRef.current = isNearBottom;
     if (isNearBottom) {
       setShowNewMessageBadge(false);
     }
@@ -199,9 +355,7 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
       const hasJustSent = justSentRef.current;
       justSentRef.current = false;
       prevMessageCountRef.current = messages.length;
-      const isFirstPage = pages.length <= 1;
-
-      if (hasJustSent || isFirstPage) {
+      if (hasJustSent || isNearBottomRef.current) {
         setShowNewMessageBadge(false);
         const scrollToBottom = () => {
           if (scrollContainerRef.current) {
@@ -217,27 +371,6 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
       }
     }
   }, [messages, pages.length]);
-
-  // Sound alert trigger on new incoming guest messages
-  useEffect(() => {
-    if (!threads.data?.items) return;
-    const latestItem = threads.data.items.reduce<Thread | null>((acc, curr) => {
-      if (!acc) return curr;
-      return new Date(curr.lastMessageAt) > new Date(acc.lastMessageAt) ? curr : acc;
-    }, null);
-
-    if (latestItem?.latestMessage) {
-      const msg = latestItem.latestMessage;
-      if (
-        prevLatestMessageIdRef.current &&
-        prevLatestMessageIdRef.current !== msg.id &&
-        msg.senderType === "GUEST"
-      ) {
-        playMessageAlertSound();
-      }
-      prevLatestMessageIdRef.current = msg.id;
-    }
-  }, [threads.data]);
 
   // Listen for peer typing signals across windows/tabs
   useEffect(() => {
@@ -292,11 +425,6 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
     };
   }, [selectedId, hotelId]);
 
-  const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: ["hotel-message-threads", hotelId] }).catch(() => {});
-    queryClient.invalidateQueries({ queryKey: ["hotel-message-thread", hotelId, selectedId] }).catch(() => {});
-  };
-
   const reply = useMutation({
     mutationFn: (variables: { threadId: string; body: string }) =>
       requestInternalApi<{ thread: Thread; message: Message }>(`${base}/${encodeURIComponent(variables.threadId)}/reply`, {
@@ -304,7 +432,7 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
         body: { body: variables.body },
       }),
     onMutate: () => setSendError(null),
-    onSuccess: async (res, variables) => {
+    onSuccess: (res, variables) => {
       setDraftsByThread((prev) =>
         prev[variables.threadId]?.trim() === variables.body
           ? { ...prev, [variables.threadId]: "" }
@@ -330,10 +458,7 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
       if (scrollContainerRef.current) {
         scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
       }
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["hotel-message-threads", hotelId] }),
-        queryClient.invalidateQueries({ queryKey: ["hotel-message-thread", hotelId, variables.threadId] }),
-      ]);
+      upsertWaitingThread({ ...res.thread, latestMessage: res.message, unreadCount: 0 });
     },
     onError: () => setSendError("Không thể gửi tin nhắn. Vui lòng thử lại."),
   });
@@ -392,54 +517,18 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
 
 
 
-  const clear = useMutation({
-    mutationFn: () =>
-      requestInternalApi(`${base}/${encodeURIComponent(selectedId!)}`, { method: "PATCH" }),
-    onSuccess: () => {
-      setSelectedId(null);
-      refresh();
-      Swal.fire({
-        icon: "success",
-        title: "Đã dọn dẹp tin nhắn",
-        timer: 1500,
-        showConfirmButton: false,
-      }).catch(() => {});
-    },
-  });
-
-  function handleConfirmClear() {
-    if (!selectedId || clear.isPending) return;
-    Swal.fire({
-      icon: "warning",
-      title: "Xác nhận dọn dẹp tin nhắn?",
-      text: "Lịch sử cuộc trò chuyện của phòng này sẽ được làm sạch.",
-      showCancelButton: true,
-      confirmButtonText: "Dọn dẹp",
-      cancelButtonText: "Hủy",
-      confirmButtonColor: "#c62828",
-    })
-      .then((res) => {
-        if (res.isConfirmed) {
-          clear.mutate();
-        }
-      })
-      .catch(() => {});
-  }
-
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     executeSend();
   }
 
-  const threadItems = threads.data?.items ?? [];
-  const filteredThreads = threadItems.filter((thread) => {
-    const matchesSearch =
-      search === "" ||
-      thread.roomNumber.toLowerCase().includes(search.toLowerCase()) ||
-      thread.guestName.toLowerCase().includes(search.toLowerCase());
-
-    return matchesSearch;
-  });
+  const handleThreadListScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    const container = event.currentTarget;
+    const nearEnd = container.scrollHeight - container.scrollTop - container.clientHeight < 160;
+    if (nearEnd && threads.hasNextPage && !threads.isFetchingNextPage) {
+      threads.fetchNextPage().catch(() => {});
+    }
+  };
 
   return (
     <div className="flex flex-col h-[calc(100dvh-7.5rem)] min-h-[540px] gap-2">
@@ -457,7 +546,7 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
         </div>
         <div className="flex items-center gap-2">
           <span className="rounded-full bg-[#17201b] px-3.5 py-1 text-xs font-bold text-white shadow-sm">
-            {threads.data?.total ?? 0} hội thoại
+            {threads.data?.pages[0]?.total ?? 0} hội thoại
           </span>
         </div>
       </header>
@@ -465,7 +554,7 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
       <section className="flex-1 min-h-0 grid overflow-hidden rounded-2xl border border-[var(--outline-variant)] bg-white shadow-[0_8px_30px_rgba(0,0,0,0.04)] lg:grid-cols-[360px_1fr]">
         {/* Sidebar: Thread List */}
         <aside className={`${selectedId ? "hidden lg:flex" : "flex"} min-h-0 flex-col border-b border-[var(--outline-variant)] bg-[var(--surface-container-lowest,#fdfbf7)] lg:border-b-0 lg:border-r`}>
-          <div className="space-y-3 border-b border-[var(--outline-variant)] p-4">
+          <div className="border-b border-[var(--outline-variant)] p-4">
             <div className="relative">
               <VsIcon
                 name="search"
@@ -478,22 +567,12 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
                 className="h-10 w-full rounded-xl border-0 bg-[var(--surface-container-low,#f4efe6)] pl-9 pr-3 text-sm outline-none ring-1 ring-transparent focus:ring-[var(--primary)]"
               />
             </div>
-            <button
-              type="button"
-              onClick={handleConfirmClear}
-              disabled={!selectedId || clear.isPending}
-              className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 py-2 text-xs font-bold text-red-700 transition hover:bg-red-100 disabled:opacity-40"
-              title={selectedId ? `Dọn dẹp lịch sử tin nhắn Phòng ${activeThread?.roomNumber}` : "Chọn phòng để dọn tin nhắn"}
-            >
-              <VsIcon name="delete_sweep" className="text-base" />
-              Dọn tin nhắn {activeThread ? `Phòng ${activeThread.roomNumber}` : ""}
-            </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto divide-y divide-[var(--outline-variant)]/40">
-            {filteredThreads.map((thread) => {
+          <div onScroll={handleThreadListScroll} className="flex-1 overflow-y-auto divide-y divide-[var(--outline-variant)]/40">
+            {threadItems.map((thread) => {
               const isSelected = selectedId === thread.id;
-              const hasGuestUnread = thread.latestMessage?.senderType === "GUEST";
+              const hasGuestUnread = thread.unreadCount > 0;
 
               return (
                 <button
@@ -512,7 +591,9 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
                         Phòng {thread.roomNumber}
                       </span>
                       {hasGuestUnread && (
-                        <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" title="Có tin mới từ khách" />
+                        <span className="min-w-5 rounded-full bg-emerald-500 px-1.5 py-0.5 text-center text-[10px] font-bold text-white" title="Có tin mới từ khách">
+                          {thread.unreadCount > 99 ? "99+" : thread.unreadCount}
+                        </span>
                       )}
                     </div>
                     <span className="text-[11px] font-semibold text-[var(--on-surface-variant)]">
@@ -527,7 +608,11 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
               );
             })}
 
-            {filteredThreads.length === 0 && (
+            {threads.isFetchingNextPage ? (
+              <div className="p-3 text-center text-xs text-[var(--on-surface-variant)]">Đang tải thêm hội thoại...</div>
+            ) : null}
+
+            {threadItems.length === 0 && (
               <div className="p-8 text-center text-xs text-[var(--on-surface-variant)]">
                 {threads.isLoading ? "Đang tải danh sách tin nhắn..." : "Không tìm thấy hội thoại phù hợp."}
               </div>
@@ -544,7 +629,7 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
               </div>
               <h3 className="mt-4 font-bold text-lg text-[var(--primary)]">Chọn một phòng để mở hội thoại</h3>
               <p className="mt-1 text-xs leading-relaxed text-[var(--on-surface-variant)]">
-                Chọn bất kỳ phòng nào ở cột bên trái để bắt đầu chat trực tiếp hoặc dọn dẹp cuộc trò chuyện.
+                Chọn một phòng ở cột bên trái để trao đổi với khách đang lưu trú.
               </p>
             </div>
           ) : (
@@ -553,14 +638,14 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
               <div className="flex items-center justify-between border-b border-[var(--outline-variant)] bg-[var(--surface-container-lowest,#fdfbf7)] px-6 py-4">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--primary)] text-white font-black text-sm">
-                    {activeThread?.roomNumber ?? "..."}
+                    {selectedThread?.roomNumber ?? "..."}
                   </div>
                   <div>
                     <h2 className="vs-display font-bold text-lg text-[var(--primary)]">
-                      Phòng {activeThread?.roomNumber ?? "..."}
+                      Phòng {selectedThread?.roomNumber ?? "..."}
                     </h2>
                     <p className="text-xs text-[var(--on-surface-variant)] font-medium">
-                      Khách: {activeThread?.guestName ?? "..."}
+                      Khách: {selectedThread?.guestName ?? "..."}
                     </p>
                   </div>
                 </div>
@@ -577,6 +662,22 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
                   </button>
                 </div>
               </div>
+
+              {conversationClosed ? (
+                <div className="flex items-center justify-between gap-3 border-b border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-950">
+                  <div>
+                    <p className="font-bold">Phiên trò chuyện đã kết thúc.</p>
+                    <p className="text-xs">Khách đã checkout; lịch sử này không còn xuất hiện trong hàng chờ.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedId(null)}
+                    className="shrink-0 rounded-lg bg-amber-900 px-3 py-2 text-xs font-bold text-white"
+                  >
+                    Quay về danh sách
+                  </button>
+                </div>
+              ) : null}
 
               {/* Chat Message Scroll List */}
               <div
@@ -635,7 +736,7 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
                       <div className={`min-w-0 max-w-[50%] flex flex-col ${isStaff ? "items-end text-right" : "items-start text-left"}`}>
                         <div className="flex items-center gap-2 px-1 mb-1">
                           <span className="text-[11px] font-bold opacity-75">
-                            {isStaff ? (message.senderName ?? "Lễ tân") : activeThread?.guestName ?? "Khách"}
+                            {isStaff ? (message.senderName ?? "Lễ tân") : selectedThread?.guestName ?? "Khách"}
                           </span>
                           <span className="text-[10px] text-[var(--outline)]">
                             {formatMessageTime(message.createdAt)}
@@ -659,7 +760,7 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
                   <div className="flex justify-start my-2 transition-all">
                     <div className="flex items-center gap-2 rounded-2xl rounded-tl-none bg-white border border-[var(--outline-variant)] px-4 py-2.5 shadow-sm text-xs text-[var(--on-surface-variant)]">
                       <span className="font-bold text-[var(--primary)]">
-                        {activeThread?.guestName ?? "Khách"} đang soạn tin nhắn
+                        {selectedThread?.guestName ?? "Khách"} đang soạn tin nhắn
                       </span>
                       <div className="flex items-center gap-1">
                         <span className="h-1.5 w-1.5 rounded-full bg-[var(--primary)] animate-bounce [animation-delay:-0.32s]" />
@@ -689,7 +790,7 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
               )}
 
               {/* Reply Form */}
-              {canReply ? (
+              {canReply && !conversationClosed ? (
                 <form
                   onSubmit={submit}
                   className="flex items-end gap-2 border-t border-[var(--outline-variant)] bg-[var(--surface-container-lowest,#fdfbf7)] p-4"

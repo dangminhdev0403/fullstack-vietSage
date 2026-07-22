@@ -3,6 +3,8 @@ export type OwnerRealtimeHandlers = {
   onCreated?: (request: unknown) => void;
   onUpdated?: (request: unknown) => void;
   onAnswered?: (request: unknown) => void;
+  onGuestMessageCreated?: (event: unknown) => void;
+  onConversationClosed?: (event: unknown) => void;
   onReconnect?: () => void;
   onError?: (error: unknown) => void;
 };
@@ -63,11 +65,18 @@ export function createOwnerConnectionManager(deps: {
             (subscriber[name] as ((value?: unknown) => void) | undefined)?.(request);
           });
         };
+        const fanoutRaw = (name: keyof OwnerRealtimeHandlers) => (event?: unknown) => {
+          entry.subscribers.forEach((subscriber) => {
+            (subscriber[name] as ((value?: unknown) => void) | undefined)?.(event);
+          });
+        };
 
         socket.on("request_realtime.ready", fanout("onReady"));
         socket.on("guest_request.created", fanout("onCreated"));
         socket.on("guest_request.updated", fanout("onUpdated"));
         socket.on("guest_request.answered", fanout("onAnswered"));
+        socket.on("guest_message.created", fanoutRaw("onGuestMessageCreated"));
+        socket.on("conversation.closed", fanoutRaw("onConversationClosed"));
         socket.on("request_realtime.error", (error) => {
           terminal = isTerminalRealtimeError(error);
           fanout("onError")(error);

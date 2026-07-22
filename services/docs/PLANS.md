@@ -1,5 +1,25 @@
 # VietSage Backend Plan
 
+## 2026-07-22 - Active-Stay Message Inbox Hardening
+
+- [x] Made `GuestStay(status = ACTIVE, checkedOutAt = null)` the only conversation lifecycle
+  source of truth; GuestOS session refresh no longer closes access because of a transient room
+  workflow status, and room status is read only for metadata/audit.
+- [x] Added stable newest-first cursor pagination, stay-scoped read receipts, and transaction-time
+  active-stay checks for every guest/staff message append.
+- [x] Added `guest_message.created` and post-commit `conversation.closed` realtime events. Direct
+  checkout, zero-balance settlement, and successful payment webhook checkout all publish closure.
+- [x] Removed the clear-thread API; checked-out threads remain retained for the existing 14-day
+  policy but are absent from active staff/GuestOS APIs.
+
+Verification result:
+
+- Prisma generation and backend build passed.
+- Focused GuestOS, repository, checkout, and billing suites passed: 4 suites, 39 tests.
+- Full unit run reached 53 passing suites / 299 passing tests with 1 skipped suite; four existing
+  baseline assertions outside this change remain stale in Property and request-realtime tests.
+- OpenAPI export and contract verification passed with 88 paths.
+
 ## 2026-07-22 - Blocked Room Availability Workflow
 
 - [x] Added the additive `BLOCKED` room status. Reservation assignment and both reservation and

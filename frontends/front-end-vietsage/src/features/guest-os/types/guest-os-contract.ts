@@ -208,15 +208,20 @@ export type GuestMessage = {
   senderName: string | null;
   body: string;
   createdAt: string;
+  readAt?: string | null;
 };
 export type GuestMessageThread = {
   id: string;
+  stayId: string;
   status: string;
   roomNumber: string;
+  floor: string | null;
+  roomType: string | null;
   guestName: string;
   lastMessageAt: string;
   expiresAt: string;
   clearedAt: string | null;
+  unreadCount: number;
   latestMessage?: GuestMessage | null;
 };
 export type GuestMessagesResult = {

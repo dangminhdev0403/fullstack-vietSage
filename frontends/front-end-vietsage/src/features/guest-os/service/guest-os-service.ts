@@ -163,6 +163,11 @@ export class GuestOsService {
     return unwrapApiEnvelope<{ thread: GuestMessageThread; message: GuestMessagesResult["items"][number] }>(payload).data;
   }
 
+  async markMessagesRead(sessionToken: string, locale?: GuestLocaleCode): Promise<{ read: true }> {
+    const payload = await this.httpClient.request<unknown>({ method: "POST", path: this.path("/guest/messages/read"), accessToken: sessionToken, headers: localeHeaders(locale) });
+    return unwrapApiEnvelope<{ read: true }>(payload).data;
+  }
+
   async createEmergencyCall(
     sessionToken: string,
     input: CreateGuestEmergencyCallInput,

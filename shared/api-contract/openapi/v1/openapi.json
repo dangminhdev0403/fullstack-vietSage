@@ -8619,6 +8619,20 @@
         ]
       }
     },
+    "/guest/messages/read": {
+      "post": {
+        "operationId": "GuestOsController_markMessagesRead",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "guest-os"
+        ]
+      }
+    },
     "/guest/session/close": {
       "post": {
         "operationId": "GuestOsController_closeSession",
@@ -8718,9 +8732,9 @@
         ]
       }
     },
-    "/hotels/{hotelId}/messages/{threadId}/clear": {
-      "patch": {
-        "operationId": "HotelRequestsController_clearMessageThread",
+    "/hotels/{hotelId}/messages/{threadId}/read": {
+      "post": {
+        "operationId": "HotelRequestsController_markMessageThreadRead",
         "parameters": [
           {
             "name": "hotelId",
@@ -8740,7 +8754,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "201": {
             "description": ""
           }
         },

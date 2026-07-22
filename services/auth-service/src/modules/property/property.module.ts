@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { GuestRequestEventsModule } from "../../shared/events";
 import { ImportModule } from "../../common/import/import.module";
 import { IdentityModule } from "../identity/identity.module";
 import { PrismaModule } from "../../prisma/prisma.module";
@@ -25,7 +26,7 @@ import { HotelStaffAssignmentsService } from "./application/hotel-staff-assignme
 import { HotelStaffAssignmentsRepository } from "./infrastructure/repositories/hotel-staff-assignments.repository";
 
 @Module({
-  imports: [PrismaModule, ImportModule, IdentityModule],
+  imports: [PrismaModule, ImportModule, IdentityModule, GuestRequestEventsModule],
   controllers: [
     HotelsController,
     HotelRoomsController,

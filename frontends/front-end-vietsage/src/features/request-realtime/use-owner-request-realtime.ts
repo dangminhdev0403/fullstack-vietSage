@@ -8,6 +8,8 @@ type Handlers = {
   onCreated?: (request: StaffRequestListItem) => void;
   onUpdated?: (request: Partial<StaffRequestListItem> & { id: string }) => void;
   onAnswered?: (request: Partial<StaffRequestListItem> & { id: string }) => void;
+  onGuestMessageCreated?: (event: unknown) => void;
+  onConversationClosed?: (event: unknown) => void;
   onReconnect?: () => void;
 };
 
@@ -22,6 +24,8 @@ export function useOwnerRequestRealtime(hotelId: string, handlers: Handlers, opt
       onCreated: (value) => ref.current.onCreated?.(value as StaffRequestListItem),
       onUpdated: (value) => ref.current.onUpdated?.(value as Partial<StaffRequestListItem> & { id: string }),
       onAnswered: (value) => ref.current.onAnswered?.(value as Partial<StaffRequestListItem> & { id: string }),
+      onGuestMessageCreated: (value) => ref.current.onGuestMessageCreated?.(value),
+      onConversationClosed: (value) => ref.current.onConversationClosed?.(value),
       onReconnect: () => ref.current.onReconnect?.(),
       onError: (error) => {
         if (options.showConnectionToasts) {

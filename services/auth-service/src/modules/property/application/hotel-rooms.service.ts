@@ -1,8 +1,10 @@
 import {
   BadRequestException,
   ConflictException,
+  Inject,
   Injectable,
   NotFoundException,
+  Optional,
 } from "@nestjs/common";
 import { GuestStayStatus, Prisma, RoomQRCodeStatus, RoomStatus } from "@prisma/client";
 import {
@@ -11,6 +13,11 @@ import {
   hashOpaqueToken,
 } from "../../../common/security/token-hash.util";
 import { AppLogger } from "../../../common/logging/app-logger.service";
+import {
+  GUEST_REQUEST_EVENT_PUBLISHER,
+  NOOP_GUEST_REQUEST_EVENT_PUBLISHER,
+  type GuestRequestEventPublisher,
+} from "../../../shared/events";
 import { CodesService } from "../../codes/codes-public";
 import { HotelAccessService } from "./hotel-access.service";
 import { HotelRoomsRepository } from "../infrastructure/repositories/hotel-rooms.repository";
@@ -34,12 +41,19 @@ const MANUAL_ROOM_STATUSES = new Set<RoomStatus>([
 
 @Injectable()
 export class HotelRoomsService {
+  private readonly eventPublisher: GuestRequestEventPublisher;
+
   constructor(
     private readonly hotelRoomsRepository: HotelRoomsRepository,
     private readonly codesService: CodesService,
     private readonly hotelAccessService: HotelAccessService,
     private readonly logger: AppLogger = new AppLogger(),
-  ) {}
+    @Optional()
+    @Inject(GUEST_REQUEST_EVENT_PUBLISHER)
+    eventPublisher?: GuestRequestEventPublisher,
+  ) {
+    this.eventPublisher = eventPublisher ?? NOOP_GUEST_REQUEST_EVENT_PUBLISHER;
+  }
   async createRoom(
     actorUserId: string,
     activeRoleId: string,
@@ -346,6 +360,12 @@ export class HotelRoomsService {
       actorUserId,
       tenantId: hotel.tenantId,
       nextRoomStatus: dto.nextRoomStatus ?? RoomStatus.AVAILABLE,
+    });
+
+    this.eventPublisher.publishConversationClosed({
+      hotelId,
+      stayId,
+      roomId: stay.roomId,
     });
 
     return this.toStayData(checkedOut);

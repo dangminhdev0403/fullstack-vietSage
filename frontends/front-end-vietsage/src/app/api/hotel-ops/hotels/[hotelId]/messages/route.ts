@@ -8,7 +8,7 @@ export async function GET(request: Request, context: Params) {
   const { hotelId } = await context.params;
   const params = new URL(request.url).searchParams;
   try {
-    const data = await executeHotelOpsBackendRequest("list hotel message threads", (accessToken) => hotelOpsService.listMessageThreads(hotelId, { accessToken, query: { page: Number(params.get("page")) || 1, limit: Number(params.get("limit")) || 30, q: params.get("q") || undefined } }));
+    const data = await executeHotelOpsBackendRequest("list hotel message threads", (accessToken) => hotelOpsService.listMessageThreads(hotelId, { accessToken, query: { cursor: params.get("cursor") || undefined, limit: Number(params.get("limit")) || 30, q: params.get("q") || undefined } }));
     return data instanceof Response ? data : successResponse(data);
   } catch (error) {
     return error instanceof HttpError ? hotelOpsHttpErrorResponse(error) : unknownServerErrorResponse();

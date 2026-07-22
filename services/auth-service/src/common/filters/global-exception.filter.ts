@@ -49,6 +49,12 @@ export class GlobalExceptionFilter implements ExceptionFilter {
   constructor(private readonly logger: AppLogger = new AppLogger()) {}
 
   catch(exception: unknown, host: ArgumentsHost): void {
+    this.logger.error("UNHANDLED_EXCEPTION", {
+      name: exception instanceof Error ? exception.name : undefined,
+      message: exception instanceof Error ? exception.message : String(exception),
+      stack: exception instanceof Error ? exception.stack : undefined,
+      exception,
+    });
     const ctx = host.switchToHttp();
     const request = ctx.getRequest<RequestWithId>();
     const response = ctx.getResponse<Response>();

@@ -1137,6 +1137,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/guest/messages/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["GuestOsController_markMessagesRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/guest/session/close": {
         parameters: {
             query?: never;
@@ -1201,7 +1217,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/hotels/{hotelId}/messages/{threadId}/clear": {
+    "/hotels/{hotelId}/messages/{threadId}/read": {
         parameters: {
             query?: never;
             header?: never;
@@ -1210,11 +1226,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post?: never;
+        post: operations["HotelRequestsController_markMessageThreadRead"];
         delete?: never;
         options?: never;
         head?: never;
-        patch: operations["HotelRequestsController_clearMessageThread"];
+        patch?: never;
         trace?: never;
     };
     "/hotels/{hotelId}/requests": {
@@ -5078,6 +5094,23 @@ export interface operations {
             };
         };
     };
+    GuestOsController_markMessagesRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     GuestOsController_closeSession: {
         parameters: {
             query?: never;
@@ -5155,7 +5188,7 @@ export interface operations {
             };
         };
     };
-    HotelRequestsController_clearMessageThread: {
+    HotelRequestsController_markMessageThreadRead: {
         parameters: {
             query?: never;
             header?: never;
@@ -5167,7 +5200,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            200: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };

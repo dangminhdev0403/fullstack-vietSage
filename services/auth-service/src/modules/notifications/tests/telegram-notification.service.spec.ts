@@ -53,6 +53,8 @@ describe("TelegramNotificationService request acknowledgement", () => {
     const publisher = {
       publishGuestRequestCreated: jest.fn(),
       publishGuestRequestUpdated: jest.fn(),
+      publishGuestMessageCreated: jest.fn(),
+      publishConversationClosed: jest.fn(),
     };
     const service = new TelegramNotificationService(prisma as never, logger as never, publisher);
     jest.spyOn(service, "answerCallbackQuery").mockResolvedValue();

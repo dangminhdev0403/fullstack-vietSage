@@ -7,7 +7,6 @@ import {
   GuestStayStatus,
   Prisma,
   RoomQRCodeStatus,
-  RoomStatus,
   ServiceCatalogStatus,
 } from "@prisma/client";
 import { PrismaService } from "../../../../prisma/prisma.service";
@@ -544,13 +543,13 @@ export class GuestOsRepository {
 
   isAccessOpen(input: {
     qrStatus: RoomQRCodeStatus;
-    roomStatus: RoomStatus;
     stayStatus: GuestStayStatus;
+    checkedOutAt: Date | null;
   }) {
     return (
       input.qrStatus === RoomQRCodeStatus.ACTIVE &&
-      input.roomStatus === RoomStatus.OCCUPIED &&
-      input.stayStatus === GuestStayStatus.ACTIVE
+      input.stayStatus === GuestStayStatus.ACTIVE &&
+      input.checkedOutAt === null
     );
   }
 

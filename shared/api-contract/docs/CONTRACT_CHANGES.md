@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Hardened stay-scoped room messages:
+  - `GET /hotels/{hotelId}/messages` now returns only threads whose related `GuestStay` is `ACTIVE`
+    with `checkedOutAt = null`, ordered newest first with `cursor`/`nextCursor` pagination.
+  - `GET`, guest send, staff reply, and read-receipt operations enforce the same active-stay
+    predicate; room status is not a conversation or existing GuestOS-session lifecycle condition.
+  - Added `POST /hotels/{hotelId}/messages/{threadId}/read` and
+    `POST /guest/messages/read`.
+  - Removed `PATCH /hotels/{hotelId}/messages/{threadId}/clear`.
+  - Thread projections now include `stayId`, room metadata, and staff unread count; messages include
+    `readAt`.
+  - OpenAPI export contains 88 paths and frontend generated API types were synchronized.
+
 - Added `RoomStatus.BLOCKED`. A blocked room cannot be assigned to a reservation or checked in
   until staff or an owner changes it back to an operational room status. Room status updates reject
   lifecycle-only states and refuse to block a room with an active stay.

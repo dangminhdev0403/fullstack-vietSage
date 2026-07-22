@@ -36,8 +36,16 @@ export class CodesRepository {
 
     await client.code.update({
       where: { id: code.id },
-      data: { sequenceNext: { increment: 1 } },
-      select: { id: true },
+      data: {
+        sequenceNext: {
+          increment: 1,
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        sequenceNext: true,
+      },
     });
 
     return code;

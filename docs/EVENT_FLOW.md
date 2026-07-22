@@ -154,22 +154,39 @@ Potential future events:
 ## Guest stay message flow
 
 Guest-to-front-desk messages are a short-lived, stay-scoped conversation rather than a guest
-profile inbox. A guest session may read and send only messages for its active `stayId`; staff
-access is checked against the same hotel scope used by the request center.
+profile inbox. Conversation existence is decided only by the related `GuestStay`: `status = ACTIVE`
+and `checkedOutAt IS NULL`. `Room.status` must never decide whether a conversation is visible;
+Room is joined only for room number, floor, and type metadata.
 
 ```txt
 Guest or front desk sends message
   -> API validates active guest session or hotel staff access
+  -> Transaction rechecks active GuestStay for the exact stay/hotel/room
   -> Upsert the stay's message thread
   -> Append immutable message row
   -> Update thread last-message timestamp
-  -> Guest and staff poll the bounded thread endpoint
+  -> Commit transaction
+  -> Publish guest_message.created to hotel staff and the exact guest-stay socket room
+  -> UI upserts the waiting list and matching open thread
 ```
 
-Staff "clear" marks a thread `CLEARED` in the inbox; it does not erase the message rows while the
-stay is active. The thread reopens when a new message arrives. Checkout revokes GuestOS access, so
-no new guest or staff message can be sent. Threads carry `expiresAt = planned checkout + 14 days`
-for operational cleanup; the feature intentionally does not create a cross-stay chat history.
+The staff inbox uses a stable `(lastMessageAt, id)` cursor ordered newest first. Realtime is the
+primary refresh path; bounded 30-second polling is recovery only. Read receipts update
+`GuestMessage.readAt` without changing thread order.
+
+```txt
+Checkout transaction commits GuestStay as checked out
+  -> Guest sessions and room QR are revoked in the same checkout flow
+  -> After commit, publish conversation.closed for hotelId + stayId + roomId
+  -> Staff removes that stay from the waiting list
+  -> If staff or guest is viewing it, UI disables sending and shows the ended-session state
+```
+
+Direct checkout, zero-balance settlement, and successful payment-webhook checkout must all publish
+`conversation.closed` only after their transaction commits. Socket delivery is a UX optimization;
+every list/get/send/reply/read API independently enforces the active-stay predicate. Threads carry
+`expiresAt = planned checkout + 14 days` for operational cleanup, but checked-out history is not
+returned to staff or a later guest in the same room.
 
 Do not add Kafka/RabbitMQ/Redis streams in V1. Add a broker or outbox worker only after delivery retries, cross-service isolation, or throughput needs are documented.
 

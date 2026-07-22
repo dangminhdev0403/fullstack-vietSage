@@ -55,9 +55,9 @@ export class HotelRequestsController {
       request.user.userId,
       request.user.roleId,
       hotelId,
-      parsed.page,
-      parsed.limit,
+      parsed.limit ?? 30,
       parsed.q,
+      parsed.cursor,
     );
   }
 
@@ -105,17 +105,17 @@ export class HotelRequestsController {
     );
   }
 
-  @SuccessMessage("Đã dọn hội thoại khỏi hàng đợi")
+  @SuccessMessage("Đã đánh dấu hội thoại là đã đọc")
   @RequirePermission("hotel.requests.manage")
-  @Patch(":hotelId/messages/:threadId/clear")
-  async clearMessageThread(
+  @Post(":hotelId/messages/:threadId/read")
+  async markMessageThreadRead(
     @Req() request: RequestWithUser,
     @Param("hotelId") hotelIdParam: string,
     @Param("threadId") threadIdParam: string,
   ) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     const threadId = parseWithZod(messageThreadIdParamSchema, threadIdParam);
-    return this.guestMessagesService.clearForHotel(
+    return this.guestMessagesService.markReadForHotel(
       request.user.userId,
       request.user.roleId,
       hotelId,

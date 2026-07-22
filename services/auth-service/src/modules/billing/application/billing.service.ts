@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { ConflictException, Inject, Injectable, NotFoundException, Optional } from "@nestjs/common";
 import {
   FolioItemSourceType,
   FolioItemType,
@@ -15,6 +15,11 @@ import {
 } from "@prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { AppLogger } from "../../../common/logging/app-logger.service";
+import {
+  GUEST_REQUEST_EVENT_PUBLISHER,
+  NOOP_GUEST_REQUEST_EVENT_PUBLISHER,
+  type GuestRequestEventPublisher,
+} from "../../../shared/events";
 import { CodesService } from "../../codes/codes-public";
 import { HotelAccessService } from "../../property/property-public";
 import { BillingRepository } from "../infrastructure/repositories/billing.repository";
@@ -39,13 +44,20 @@ function toPagination(page?: number, limit?: number) {
 // Folio cached totals are a read model only and must not be trusted for snapshots.
 @Injectable()
 export class BillingService {
+  private readonly eventPublisher: GuestRequestEventPublisher;
+
   constructor(
     private readonly billingRepository: BillingRepository,
     private readonly hotelAccessService: HotelAccessService,
     private readonly prisma: PrismaService,
     private readonly codesService: CodesService,
     private readonly logger: AppLogger,
-  ) {}
+    @Optional()
+    @Inject(GUEST_REQUEST_EVENT_PUBLISHER)
+    eventPublisher?: GuestRequestEventPublisher,
+  ) {
+    this.eventPublisher = eventPublisher ?? NOOP_GUEST_REQUEST_EVENT_PUBLISHER;
+  }
 
   async listFolios(
     actorUserId: string,
@@ -649,6 +661,9 @@ export class BillingService {
         input.method,
         input.note,
       );
+      if (settled.conversation) {
+        this.eventPublisher.publishConversationClosed(settled.conversation);
+      }
       const invoice = await this.getInvoiceDetail(actorUserId, activeRoleId, hotelId, invoiceId);
       return { payment: settled.payment, invoice };
     }
@@ -721,7 +736,7 @@ export class BillingService {
           where: { hotelId, invoiceId, status: PaymentStatus.SUCCEEDED },
         });
         if (existingPayment && invoice.status === InvoiceStatus.PAID) {
-          return { payment: existingPayment };
+          return { payment: existingPayment, conversation: null };
         }
 
         const paymentNumber = await this.codesService.generateEntityCode("PAYMENT", tx);
@@ -790,7 +805,10 @@ export class BillingService {
           data: { status: RoomQRCodeStatus.INACTIVE, deactivatedAt: new Date() },
         });
 
-        return { payment };
+        return {
+          payment,
+          conversation: { hotelId, stayId: invoice.stayId, roomId: invoice.stay.roomId },
+        };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
@@ -822,7 +840,7 @@ export class BillingService {
     }
 
     try {
-      return await this.prisma.$transaction(
+      const result = await this.prisma.$transaction(
         async (tx) => {
           const payment = await this.findWebhookPayment(tx, provider, body);
 
@@ -974,10 +992,34 @@ export class BillingService {
             data: { status: RoomQRCodeStatus.INACTIVE, deactivatedAt: new Date() },
           });
 
-          return { received: true, idempotent: false, matched: true, paid: true, transaction };
+          return {
+            received: true,
+            idempotent: false,
+            matched: true,
+            paid: true,
+            transaction,
+            conversation: {
+              hotelId: lockedPayment.hotelId,
+              stayId: lockedPayment.stayId,
+              roomId: lockedPayment.invoice.stay.roomId,
+            },
+          };
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       );
+      if ("conversation" in result) {
+        if (result.conversation) {
+          this.eventPublisher.publishConversationClosed(result.conversation);
+        }
+        return {
+          received: result.received,
+          idempotent: result.idempotent,
+          matched: result.matched,
+          paid: result.paid,
+          transaction: result.transaction,
+        };
+      }
+      return result;
     } catch (error) {
       if (!this.isDuplicateWebhookEventError(error)) {
         throw error;

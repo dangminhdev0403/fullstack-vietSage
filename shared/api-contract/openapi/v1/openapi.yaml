@@ -5936,6 +5936,14 @@ paths:
         "201":
           description: ""
       tags: *a20
+  /guest/messages/read:
+    post:
+      operationId: GuestOsController_markMessagesRead
+      parameters: []
+      responses:
+        "201":
+          description: ""
+      tags: *a20
   /guest/session/close:
     post:
       operationId: GuestOsController_closeSession
@@ -5994,9 +6002,9 @@ paths:
         "201":
           description: ""
       tags: *a21
-  /hotels/{hotelId}/messages/{threadId}/clear:
-    patch:
-      operationId: HotelRequestsController_clearMessageThread
+  /hotels/{hotelId}/messages/{threadId}/read:
+    post:
+      operationId: HotelRequestsController_markMessageThreadRead
       parameters:
         - name: hotelId
           required: true
@@ -6009,7 +6017,7 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        "201":
           description: ""
       tags: *a21
   /hotels/{hotelId}/requests:

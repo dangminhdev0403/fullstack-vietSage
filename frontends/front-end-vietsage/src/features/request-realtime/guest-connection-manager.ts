@@ -40,6 +40,8 @@ export function createGuestConnectionManager(deps: {
     current.on("guest_request.created", (event) => handlers.onCreated?.(unwrapRequest(event)));
     current.on("guest_request.updated", (event) => handlers.onUpdated?.(unwrapRequest(event)));
     current.on("guest_request.answered", (event) => handlers.onAnswered?.(unwrapRequest(event)));
+    current.on("guest_message.created", (event) => handlers.onGuestMessageCreated?.(event));
+    current.on("conversation.closed", (event) => handlers.onConversationClosed?.(event));
     current.on("request_realtime.error", (error) => {
       terminal = isTerminalRealtimeError(error);
       handlers.onError?.(error);

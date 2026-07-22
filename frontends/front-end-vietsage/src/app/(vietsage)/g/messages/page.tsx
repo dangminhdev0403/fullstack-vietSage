@@ -6,11 +6,13 @@ import { VsBottomNav } from "../../_components/vs-bottom-nav";
 import { VsIcon } from "../../_components/vs-icon";
 import { VsTopBar } from "../../_components/vs-top-bar";
 import { GuestAccessRequiredState } from "@/features/guest-os/components/shared/guest-access-required-state";
+import { HttpError } from "@/core/http/http-error";
 import { useGuestI18n } from "@/features/guest-os/i18n/use-guest-i18n";
 import { guestOsService } from "@/features/guest-os/service/guest-os-service-instance";
 import { useGuestStore, useGuestStoreHydrated } from "@/features/guest-os/store/guest-store";
 
 import { playMessageAlertSound } from "@/features/request-realtime/audio-notifier";
+import { useGuestRequestRealtime } from "@/features/request-realtime/use-guest-request-realtime";
 import type { GuestMessagesResult } from "@/features/guest-os/types/guest-os-contract";
 
 function TypewriterMessageBody({ body, createdAt }: Readonly<{ body: string; createdAt: string }>) {
@@ -69,12 +71,13 @@ export default function GuestMessagesPage() {
   const prevMessageCountRef = useRef<number>(0);
   const justSentRef = useRef<boolean>(false);
   const [showNewMessageBadge, setShowNewMessageBadge] = useState(false);
+  const [conversationClosed, setConversationClosed] = useState(false);
+  const isNearBottomRef = useRef(true);
 
   const lastSentAtRef = useRef<number>(0);
   const lastTypingEmitRef = useRef<number>(0);
   const [isPeerTyping, setIsPeerTyping] = useState(false);
   const peerTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const prevLatestMsgIdRef = useRef<string | null>(null);
   const queryClient = useQueryClient();
 
   const messagesQuery = useInfiniteQuery<GuestMessagesResult, Error, InfiniteData<GuestMessagesResult>, (string | null)[], string | undefined>({
@@ -84,8 +87,12 @@ export default function GuestMessagesPage() {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => (lastPage.hasMore ? (lastPage.nextCursor ?? undefined) : undefined),
     enabled: hydrated && Boolean(sessionToken),
-    refetchInterval: 3000,
+    refetchInterval: conversationClosed ? false : 30_000,
+    retry: false,
   });
+  const conversationUnavailable = conversationClosed || (
+    messagesQuery.error instanceof HttpError && messagesQuery.error.status === 401
+  );
 
   const pages = messagesQuery.data?.pages ?? [];
   const items = pages
@@ -98,6 +105,71 @@ export default function GuestMessagesPage() {
       }
       return acc;
     }, []);
+  const unreadStaffMessageKey = items
+    .filter((message) => message.senderType === "STAFF" && !message.readAt)
+    .map((message) => message.id)
+    .join(",");
+
+  const appendRealtimeMessage = (message: GuestMessagesResult["items"][number]) => {
+    queryClient.setQueryData<InfiniteData<GuestMessagesResult>>(
+      ["guest-messages", sessionToken],
+      (current) => {
+        if (!current?.pages.length || current.pages.some((page) => page.items.some((item) => item.id === message.id))) {
+          return current;
+        }
+        const nextPages = [...current.pages];
+        nextPages[0] = { ...nextPages[0], items: [...nextPages[0].items, message] };
+        return { ...current, pages: nextPages };
+      },
+    );
+  };
+
+  useGuestRequestRealtime(sessionToken, {
+    onGuestMessageCreated: (event) => {
+      if (!event || typeof event !== "object" || !("message" in event) || !("thread" in event)) return;
+      const realtimeThread = event.thread as GuestMessagesResult["thread"];
+      const currentStayId = pages[0]?.thread?.stayId;
+      if (currentStayId && realtimeThread?.stayId !== currentStayId) return;
+      const message = event.message as GuestMessagesResult["items"][number];
+      if (!message?.id) return;
+      appendRealtimeMessage(message);
+      if (message.senderType === "STAFF") {
+        playMessageAlertSound();
+      }
+    },
+    onConversationClosed: () => setConversationClosed(true),
+    onReconnect: () => {
+      queryClient.invalidateQueries({ queryKey: ["guest-messages", sessionToken] }).catch(() => {});
+    },
+    onError: (error) => {
+      if (error && typeof error === "object" && "code" in error && error.code === "SESSION_INVALID") {
+        setConversationClosed(true);
+      }
+    },
+  });
+
+  useEffect(() => {
+    if (!sessionToken || !unreadStaffMessageKey) return;
+    guestOsService.markMessagesRead(sessionToken, locale)
+      .then(() => {
+        const readIds = new Set(unreadStaffMessageKey.split(","));
+        queryClient.setQueryData<InfiniteData<GuestMessagesResult>>(
+          ["guest-messages", sessionToken],
+          (current) => current
+            ? {
+                ...current,
+                pages: current.pages.map((page) => ({
+                  ...page,
+                  items: page.items.map((message) => readIds.has(message.id)
+                    ? { ...message, readAt: new Date().toISOString() }
+                    : message),
+                })),
+              }
+            : current,
+        );
+      })
+      .catch(() => {});
+  }, [locale, queryClient, sessionToken, unreadStaffMessageKey]);
 
   const handleScroll = () => {
     const container = scrollContainerRef.current;
@@ -110,6 +182,7 @@ export default function GuestMessagesPage() {
     }
 
     const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 120;
+    isNearBottomRef.current = isNearBottom;
     if (isNearBottom) {
       setShowNewMessageBadge(false);
     }
@@ -140,9 +213,7 @@ export default function GuestMessagesPage() {
       const hasJustSent = justSentRef.current;
       justSentRef.current = false;
       prevMessageCountRef.current = items.length;
-      const isFirstPage = pages.length <= 1;
-
-      if (hasJustSent || isFirstPage) {
+      if (hasJustSent || isNearBottomRef.current) {
         setShowNewMessageBadge(false);
         const scrollToBottom = () => {
           if (scrollContainerRef.current) {
@@ -158,21 +229,6 @@ export default function GuestMessagesPage() {
       }
     }
   }, [items, pages.length]);
-
-  // Play alert sound when guest receives a new message from staff
-  useEffect(() => {
-    if (items.length > 0) {
-      const latestMsg = items[items.length - 1];
-      if (
-        prevLatestMsgIdRef.current &&
-        prevLatestMsgIdRef.current !== latestMsg.id &&
-        latestMsg.senderType === "STAFF"
-      ) {
-        playMessageAlertSound();
-      }
-      prevLatestMsgIdRef.current = latestMsg.id;
-    }
-  }, [items]);
 
   const send = useMutation({
     mutationFn: () => guestOsService.sendMessage(sessionToken!, body.trim(), locale),
@@ -288,7 +344,7 @@ export default function GuestMessagesPage() {
   const executeSend = () => {
     const now = Date.now();
     if (now - lastSentAtRef.current < 600) return; // 600ms send cooldown debounce
-    if (!body.trim() || send.isPending) return;
+    if (!body.trim() || send.isPending || conversationUnavailable) return;
     if (body.length > 1000) {
       setSendError("Tin nhắn vượt quá 1000 ký tự. Hãy rút gọn trước khi gửi.");
       return;
@@ -329,6 +385,12 @@ export default function GuestMessagesPage() {
               Hỗ trợ 24/7
             </div>
           </header>
+          {conversationUnavailable ? (
+            <div className="border-b border-amber-200 bg-amber-50 px-5 py-3 text-amber-950">
+              <p className="font-bold">Phiên trò chuyện đã kết thúc.</p>
+              <p className="text-sm">Lượt lưu trú đã checkout nên không thể gửi thêm tin nhắn.</p>
+            </div>
+          ) : null}
           <div
             ref={scrollContainerRef}
             onScroll={handleScroll}
@@ -431,7 +493,7 @@ export default function GuestMessagesPage() {
             </button>
           )}
 
-          <form onSubmit={submit} className="flex items-end gap-2 border-t border-[#25483f]/10 bg-[#fffdfa] p-3 sm:p-4">
+          {!conversationUnavailable ? <form onSubmit={submit} className="flex items-end gap-2 border-t border-[#25483f]/10 bg-[#fffdfa] p-3 sm:p-4">
             <label className="sr-only" htmlFor="guest-message">{t("messages.placeholder")}</label>
             <div className="min-w-0 flex-1">
               <input
@@ -461,7 +523,7 @@ export default function GuestMessagesPage() {
             >
               <VsIcon name="send" className="text-xl" />
             </button>
-          </form>
+          </form> : null}
         </section>
       </main>
       <VsBottomNav active="messages" />

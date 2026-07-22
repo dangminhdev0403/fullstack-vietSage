@@ -897,6 +897,7 @@ model GuestMessageThread {
   messages      GuestMessage[]
 
   @@index([hotelId, status, lastMessageAt])
+  @@index([hotelId, lastMessageAt, id])
   @@index([roomId, lastMessageAt])
   @@index([expiresAt])
 }
@@ -923,6 +924,7 @@ model GuestMessage {
   @@index([threadId, createdAt])
   @@index([hotelId, createdAt])
   @@index([stayId, createdAt])
+  @@index([threadId, senderType, readAt])
 }
 
 model Folio {
