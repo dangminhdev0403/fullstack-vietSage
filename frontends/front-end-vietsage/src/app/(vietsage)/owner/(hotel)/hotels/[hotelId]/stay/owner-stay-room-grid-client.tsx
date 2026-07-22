@@ -25,7 +25,8 @@ type RoomStatusFilter =
   | "available"
   | "occupied"
   | "processing"
-  | "unavailable";
+  | "maintenance"
+  | "blocked";
 
 type CheckInForm = {
   guestDisplayName: string;
@@ -35,7 +36,12 @@ type CheckInForm = {
 
 type FormErrors = Partial<Record<keyof CheckInForm, string>>;
 
-type RoomAvailability = "available" | "occupied" | "processing" | "unavailable";
+type RoomAvailability =
+  | "available"
+  | "occupied"
+  | "processing"
+  | "maintenance"
+  | "blocked";
 
 const pageSize = 30;
 
@@ -43,8 +49,9 @@ const statusFilters: { value: RoomStatusFilter; label: string }[] = [
   { value: "all", label: "Tất cả" },
   { value: "available", label: "Trống" },
   { value: "occupied", label: "Đang ở" },
-  { value: "processing", label: "Đang xử lý" },
-  { value: "unavailable", label: "Không khả dụng" },
+  { value: "processing", label: "Chờ dọn" },
+  { value: "maintenance", label: "Bảo trì" },
+  { value: "blocked", label: "Đã khóa" },
 ];
 
 const checkInFormSchema = z.object({
@@ -80,9 +87,8 @@ function roomHasActiveStay(room: HotelRoomSummary): boolean {
 function getRoomAvailability(room: HotelRoomSummary): RoomAvailability {
   const status = getRoomStatus(room);
 
-  if (roomHasActiveStay(room)) return "occupied";
-  if (["CLEANING", "PROCESSING", "PENDING", "MAINTENANCE"].includes(status))
-    return "processing";
+  if (roomHasActiveStay(room) || status === "OCCUPIED") return "occupied";
+  if (status === "MAINTENANCE") return "maintenance";
   if (
     [
       "DISABLED",
@@ -92,7 +98,9 @@ function getRoomAvailability(room: HotelRoomSummary): RoomAvailability {
       "BLOCKED",
     ].includes(status)
   )
-    return "unavailable";
+    return "blocked";
+  if (["CLEANING", "PROCESSING", "PENDING", "DIRTY"].includes(status))
+    return "processing";
 
   return "available";
 }
@@ -100,19 +108,22 @@ function getRoomAvailability(room: HotelRoomSummary): RoomAvailability {
 function roomStatusLabel(room: HotelRoomSummary): string {
   const availability = getRoomAvailability(room);
   if (availability === "occupied") return "Đang ở";
-  if (availability === "processing") return "Đang xử lý";
-  if (availability === "unavailable") return "Không khả dụng";
+  if (availability === "processing") return "Chờ dọn";
+  if (availability === "maintenance") return "Bảo trì";
+  if (availability === "blocked") return "Đã khóa";
   return "Trống";
 }
 
 function roomTileClass(room: HotelRoomSummary): string {
   const availability = getRoomAvailability(room);
   if (availability === "occupied")
-    return "border-blue-200 bg-blue-50 text-blue-700";
+    return "border-blue-200 bg-blue-50 text-blue-700 hover:-translate-y-0.5 hover:shadow-md";
   if (availability === "processing")
-    return "border-gray-200 bg-gray-50 text-gray-500 opacity-70";
-  if (availability === "unavailable")
-    return "border-red-100 bg-red-50 text-red-600 opacity-70";
+    return "border-amber-200 bg-amber-50 text-amber-800 hover:-translate-y-0.5 hover:shadow-md";
+  if (availability === "maintenance")
+    return "border-slate-300 bg-slate-100 text-slate-700 hover:-translate-y-0.5 hover:shadow-md";
+  if (availability === "blocked")
+    return "border-rose-200 bg-rose-50 text-rose-700 hover:-translate-y-0.5 hover:shadow-md";
   return "border-green-200 bg-green-50 text-green-700 hover:-translate-y-0.5 hover:shadow-md";
 }
 
@@ -306,6 +317,50 @@ export function OwnerStayRoomGridClient({
         icon: "success",
         title: `Phòng ${getRoomNumber(room)} đã sẵn sàng!`,
         text: "Trạng thái phòng đã được cập nhật thành TRỐNG.",
+        confirmButtonColor: "#17201b",
+      });
+      startTransition(() => router.refresh());
+    } catch (error) {
+      await Swal.fire({
+        icon: "error",
+        title: "Không thể cập nhật trạng thái phòng",
+        text: getBusinessErrorMessage(error, "Vui lòng thử lại."),
+        confirmButtonColor: "#17201b",
+      });
+    }
+  }
+
+  async function updateRoomStatus(
+    room: HotelRoomSummary,
+    targetStatus: "AVAILABLE" | "PROCESSING" | "MAINTENANCE" | "BLOCKED",
+  ) {
+    const labels: Record<string, string> = {
+      AVAILABLE: "TRỐNG (Sẵn sàng)",
+      PROCESSING: "CHỜ DỌN",
+      MAINTENANCE: "BẢO TRÌ",
+      BLOCKED: "ĐÃ KHÓA",
+    };
+    const roomNum = getRoomNumber(room);
+    const confirm = await Swal.fire({
+      icon: "question",
+      title: `Chuyển phòng ${roomNum} sang ${labels[targetStatus]}?`,
+      text: `Xác nhận cập nhật trạng thái phòng ${roomNum}.`,
+      showCancelButton: true,
+      confirmButtonText: "Xác nhận chuyển",
+      cancelButtonText: "Hủy",
+      confirmButtonColor: "#17201b",
+    });
+    if (!confirm.isConfirmed) return;
+
+    try {
+      await requestInternalApiEnvelope(
+        `/api/owner/hotels/${encodeURIComponent(hotelId)}/rooms/${encodeURIComponent(room.id)}`,
+        { method: "PATCH", body: { status: targetStatus } },
+      );
+      setDetailRoom(null);
+      await Swal.fire({
+        icon: "success",
+        title: `Phòng ${roomNum} đã chuyển sang ${labels[targetStatus]}!`,
         confirmButtonColor: "#17201b",
       });
       startTransition(() => router.refresh());
@@ -623,7 +678,7 @@ export function OwnerStayRoomGridClient({
               </p>
             )}
 
-            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <div className="mt-6 flex flex-wrap gap-2 justify-end">
               <button
                 type="button"
                 onClick={() => setDetailRoom(null)}
@@ -631,29 +686,82 @@ export function OwnerStayRoomGridClient({
               >
                 Đóng
               </button>
+
               {getRoomAvailability(detailRoom) === "processing" ? (
                 <button
                   type="button"
                   onClick={() => void markRoomCleaned(detailRoom)}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-amber-700 px-5 text-sm font-bold text-white transition hover:bg-amber-800"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-amber-700 px-4 text-sm font-bold text-white transition hover:bg-amber-800"
                 >
                   <VsIcon name="cleaning_services" />
                   Đã dọn xong → Chuyển TRỐNG
                 </button>
               ) : null}
-              {isCheckInAllowed(detailRoom) ? (
+
+              {getRoomAvailability(detailRoom) === "maintenance" ? (
                 <button
                   type="button"
-                  onClick={() => {
-                    const room = detailRoom;
-                    setDetailRoom(null);
-                    openCheckIn(room);
-                  }}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-5 text-sm font-bold text-white transition hover:opacity-90"
+                  onClick={() => void updateRoomStatus(detailRoom, "AVAILABLE")}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 text-sm font-bold text-white transition hover:bg-emerald-800"
                 >
-                  <VsIcon name="login" />
-                  Check-in phòng
+                  <VsIcon name="build" />
+                  Xong bảo trì → Chuyển TRỐNG
                 </button>
+              ) : null}
+
+              {getRoomAvailability(detailRoom) === "blocked" ? (
+                <button
+                  type="button"
+                  onClick={() => void updateRoomStatus(detailRoom, "AVAILABLE")}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 text-sm font-bold text-white transition hover:bg-emerald-800"
+                >
+                  <VsIcon name="lock_open" />
+                  Mở khóa → Chuyển TRỐNG
+                </button>
+              ) : (
+                getRoomAvailability(detailRoom) !== "occupied" ? (
+                  <button
+                    type="button"
+                    onClick={() => void updateRoomStatus(detailRoom, "BLOCKED")}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-rose-700 px-4 text-sm font-bold text-white transition hover:bg-rose-800"
+                  >
+                    <VsIcon name="block" />
+                    Khóa phòng
+                  </button>
+                ) : null
+              )}
+
+              {getRoomAvailability(detailRoom) === "available" ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => void updateRoomStatus(detailRoom, "PROCESSING")}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 text-sm font-bold text-white transition hover:bg-amber-700"
+                  >
+                    <VsIcon name="cleaning_services" />
+                    Chuyển CHỜ DỌN
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void updateRoomStatus(detailRoom, "MAINTENANCE")}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-700 px-4 text-sm font-bold text-white transition hover:bg-slate-800"
+                  >
+                    <VsIcon name="build" />
+                    Bảo trì
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const room = detailRoom;
+                      setDetailRoom(null);
+                      openCheckIn(room);
+                    }}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-5 text-sm font-bold text-white transition hover:opacity-90"
+                  >
+                    <VsIcon name="login" />
+                    Check-in phòng
+                  </button>
+                </>
               ) : null}
             </div>
           </section>

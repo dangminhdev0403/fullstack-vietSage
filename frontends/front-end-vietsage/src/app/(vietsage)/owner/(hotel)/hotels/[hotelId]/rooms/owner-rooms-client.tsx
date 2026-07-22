@@ -48,6 +48,7 @@ type RoomFormState = {
   type: string;
   price: string;
   maxActiveGuestDevices: string;
+  status: string;
 };
 
 type RoomFormErrors = Partial<Record<keyof Omit<RoomFormState, "id">, string>>;
@@ -62,6 +63,7 @@ function randomRoomForm(): RoomFormState {
     type: roomTypeOptions[Math.floor(Math.random() * roomTypeOptions.length)],
     price: String(Math.floor(8 + Math.random() * 22) * 100000),
     maxActiveGuestDevices: "",
+    status: "AVAILABLE",
   };
 }
 
@@ -284,6 +286,7 @@ function roomToForm(room: HotelRoomSummary): RoomFormState {
       room.maxActiveGuestDevices === undefined
         ? ""
         : String(room.maxActiveGuestDevices),
+    status: room.status?.trim().toUpperCase() || "AVAILABLE",
   };
 }
 
@@ -371,6 +374,7 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
   const [rooms, setRooms] = useState(initialRooms);
   const [query, setQuery] = useState("");
   const [qrStatusFilter, setQrStatusFilter] = useState("");
+  const [roomStatusFilter, setRoomStatusFilter] = useState("");
   const [roomForm, setRoomForm] = useState<RoomFormState | null>(null);
   const [sortKey, setSortKey] = useState<RoomSortKey>("roomNumber");
   const [sortDirection, setSortDirection] =
@@ -388,15 +392,19 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
   const filteredRooms = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     const normalizedQrStatus = qrStatusFilter.trim().toUpperCase();
+    const normalizedRoomStatus = roomStatusFilter.trim().toUpperCase();
 
     return rooms.filter((room) => {
       const matchesQuery =
         !normalizedQuery || roomSearchText(room).includes(normalizedQuery);
-      const matchesStatus =
+      const matchesQrStatus =
         !normalizedQrStatus || getQrStatus(room) === normalizedQrStatus;
-      return matchesQuery && matchesStatus;
+      const currentRoomStatus = room.status?.trim().toUpperCase() || "AVAILABLE";
+      const matchesRoomStatus =
+        !normalizedRoomStatus || currentRoomStatus === normalizedRoomStatus;
+      return matchesQuery && matchesQrStatus && matchesRoomStatus;
     });
-  }, [query, qrStatusFilter, rooms]);
+  }, [query, qrStatusFilter, roomStatusFilter, rooms]);
 
   const sortedRooms = useMemo(
     () =>
@@ -532,6 +540,7 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
         floor: roomForm.floor.trim() || undefined,
         type: roomForm.type.trim() || undefined,
         price,
+        status: roomForm.status,
         ...(roomForm.maxActiveGuestDevices.trim()
           ? { maxActiveGuestDevices: Number(roomForm.maxActiveGuestDevices) }
           : isEditing
@@ -640,6 +649,34 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
       await toast.fire({
         icon: "success",
         title: isBlocked ? "Đã mở khóa phòng" : "Đã khóa phòng",
+      });
+    } catch (error) {
+      await Swal.fire({
+        icon: "error",
+        title: "Không thể cập nhật trạng thái phòng",
+        text: getBusinessErrorMessage(error, "Vui lòng thử lại."),
+        confirmButtonColor: "#00003c",
+      });
+    }
+  }
+
+  async function updateSingleRoomStatus(
+    room: HotelRoomSummary,
+    newStatus: string,
+  ) {
+    const currentStatus = room.status?.trim().toUpperCase() || "AVAILABLE";
+    if (currentStatus === newStatus) return;
+
+    try {
+      showLoading("Đang cập nhật trạng thái phòng...");
+      await requestInternalApiEnvelope(
+        `/api/owner/hotels/${encodeURIComponent(hotelId)}/rooms/${encodeURIComponent(room.id)}`,
+        { method: "PATCH", body: { status: newStatus } },
+      );
+      await refreshRooms();
+      await toast.fire({
+        icon: "success",
+        title: "Đã cập nhật trạng thái phòng",
       });
     } catch (error) {
       await Swal.fire({
@@ -911,13 +948,31 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
       className: "px-4 py-5",
       headerClassName: "px-4 py-5",
       cell: (room) => {
+        const currentStatus = room.status?.trim().toUpperCase() || "AVAILABLE";
         const statusMeta = getRoomStatusMeta(room);
+        const isOccupied = currentStatus === "OCCUPIED";
+
+        if (isOccupied) {
+          return (
+            <span
+              className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.03em] ${statusMeta.className}`}
+            >
+              {statusMeta.label}
+            </span>
+          );
+        }
+
         return (
-          <span
-            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.03em] ${statusMeta.className}`}
+          <select
+            value={currentStatus}
+            onChange={(e) => void updateSingleRoomStatus(room, e.target.value)}
+            className={`cursor-pointer rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.03em] outline-none transition border-0 ${statusMeta.className}`}
           >
-            {statusMeta.label}
-          </span>
+            <option value="AVAILABLE">Trống</option>
+            <option value="PROCESSING">Chờ dọn</option>
+            <option value="MAINTENANCE">Bảo trì</option>
+            <option value="BLOCKED">Đã khóa</option>
+          </select>
         );
       },
     },
@@ -1046,6 +1101,21 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
           className="min-h-12 w-full rounded-xl border-0 bg-[var(--surface-container-low)] pl-10 pr-4 text-sm outline-none ring-1 ring-transparent transition focus:ring-[var(--primary)]"
         />
       </label>
+      <select
+        value={roomStatusFilter}
+        onChange={(event) => {
+          setRoomStatusFilter(event.target.value);
+          setPage(1);
+        }}
+        className="min-h-12 min-w-[180px] rounded-xl border-0 bg-[var(--surface-container-low)] px-4 text-sm outline-none ring-1 ring-transparent transition focus:ring-[var(--primary)]"
+      >
+        <option value="">Trạng thái: Tất cả</option>
+        <option value="AVAILABLE">Trống (Sẵn sàng)</option>
+        <option value="OCCUPIED">Đang ở</option>
+        <option value="PROCESSING">Chờ dọn</option>
+        <option value="MAINTENANCE">Bảo trì</option>
+        <option value="BLOCKED">Đã khóa</option>
+      </select>
       <select
         value={qrStatusFilter}
         onChange={(event) => updateQrStatusFilter(event.target.value)}
@@ -1306,6 +1376,23 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
                 <RoomFieldError
                   message={roomFormErrors.maxActiveGuestDevices}
                 />
+              </label>
+              <label className="space-y-2">
+                <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">
+                  Trạng thái phòng
+                </span>
+                <select
+                  value={roomForm.status}
+                  onChange={(event) =>
+                    updateRoomFormField("status", event.target.value)
+                  }
+                  className="h-12 w-full rounded-xl border-0 bg-[var(--surface-container-low)] px-3 text-sm font-semibold text-[var(--on-surface)] outline-none ring-1 ring-transparent transition focus:ring-[var(--primary)]"
+                >
+                  <option value="AVAILABLE">Trống (Sẵn sàng)</option>
+                  <option value="PROCESSING">Chờ dọn</option>
+                  <option value="MAINTENANCE">Bảo trì</option>
+                  <option value="BLOCKED">Đã khóa</option>
+                </select>
               </label>
             </div>
             <div className="mt-6 flex justify-end gap-3">

@@ -3300,8 +3300,8 @@
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/rooms/staff-rooms-client.tsx": {
-    "mtime": 1784690625.8094332,
-    "ast_hash": "2658b939ab05952a996d8b0ed46d7266",
+    "mtime": 1784690707.6174843,
+    "ast_hash": "0be70d7a56f4aabcb1d3b8a98a9222e8",
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/app/api/hotel-ops/_utils.ts": {
