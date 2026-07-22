@@ -12,6 +12,43 @@ export type PostLoginRedirectInput = {
   getDefaultPath: (roles: readonly string[]) => string;
 };
 
+export type PostLoginRedirectUrlInput = {
+  path: string;
+  requestUrl: string;
+  configuredUrl?: string | null;
+  forwardedHost?: string | null;
+  forwardedProto?: string | null;
+};
+
+function firstForwardedValue(value?: string | null): string {
+  return value?.split(",", 1)[0]?.trim() ?? "";
+}
+
+function resolveForwardedOrigin(hostValue?: string | null, protoValue?: string | null): string | null {
+  const host = firstForwardedValue(hostValue);
+  const protocol = firstForwardedValue(protoValue).toLowerCase();
+
+  if (!host || !/^[a-z0-9.-]+(?::\d+)?$/i.test(host)) return null;
+  if (protocol !== "http" && protocol !== "https") return null;
+
+  return `${protocol}://${host}`;
+}
+
+export function resolvePostLoginRedirectUrl({
+  path,
+  requestUrl,
+  configuredUrl,
+  forwardedHost,
+  forwardedProto,
+}: PostLoginRedirectUrlInput): string {
+  const configuredOrigin = configuredUrl?.trim();
+  const forwardedOrigin = resolveForwardedOrigin(forwardedHost, forwardedProto);
+  const fallbackOrigin = new URL(requestUrl).origin;
+  const origin = configuredOrigin || forwardedOrigin || fallbackOrigin;
+
+  return new URL(path, origin).toString();
+}
+
 /**
  * Decide the redirect destination after a successful login.
  *

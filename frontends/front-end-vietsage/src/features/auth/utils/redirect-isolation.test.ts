@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 // @ts-expect-error Node's strip-types runner requires the explicit TypeScript extension.
-import { resolvePostLoginRedirect } from "./redirect-isolation-core.ts";
+import { resolvePostLoginRedirect, resolvePostLoginRedirectUrl } from "./redirect-isolation-core.ts";
 
 // ── Helpers ───────────────────────────────────────────────────────
 
@@ -100,4 +100,58 @@ test("Whitespace-only callback → homePath", () => {
 
 test("No activeRoleCode → guest default path", () => {
   assert.equal(resolve(null, "/admin/dashboard"), "/");
+});
+
+// ── Public redirect origin behind reverse proxies ─────────────────
+
+test("production URL wins over the container request origin", () => {
+  assert.equal(
+    resolvePostLoginRedirectUrl({
+      path: "/owner/dashboard",
+      requestUrl: "http://0.0.0.0:3000/api/auth/post-login",
+      configuredUrl: "https://vietsage.com",
+      forwardedHost: "stay.vietsage.com",
+      forwardedProto: "https",
+    }),
+    "https://vietsage.com/owner/dashboard",
+  );
+});
+
+test("forwarded public origin replaces 0.0.0.0 when no URL is configured", () => {
+  assert.equal(
+    resolvePostLoginRedirectUrl({
+      path: "/admin/dashboard",
+      requestUrl: "http://0.0.0.0:3000/api/auth/post-login",
+      configuredUrl: null,
+      forwardedHost: "stay.vietsage.com",
+      forwardedProto: "https",
+    }),
+    "https://stay.vietsage.com/admin/dashboard",
+  );
+});
+
+test("forwarded header lists use the first proxy value", () => {
+  assert.equal(
+    resolvePostLoginRedirectUrl({
+      path: "/staff",
+      requestUrl: "http://0.0.0.0:3000/api/auth/post-login",
+      configuredUrl: null,
+      forwardedHost: "stay.vietsage.com, internal-proxy",
+      forwardedProto: "https, http",
+    }),
+    "https://stay.vietsage.com/staff",
+  );
+});
+
+test("invalid forwarded host falls back without creating a protocol-relative redirect", () => {
+  assert.equal(
+    resolvePostLoginRedirectUrl({
+      path: "/admin/dashboard",
+      requestUrl: "http://localhost:3000/api/auth/post-login",
+      configuredUrl: null,
+      forwardedHost: "evil.example/path",
+      forwardedProto: "https",
+    }),
+    "http://localhost:3000/admin/dashboard",
+  );
 });

@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { auth } from "@/auth";
+import { resolvePostLoginRedirectUrl } from "@/features/auth/utils/redirect-isolation-core";
 import { resolveSafeRedirectByRoles, sanitizeInternalCallbackUrl } from "@/lib/rbac";
 
 export const dynamic = "force-dynamic";
@@ -35,5 +36,13 @@ export async function GET(request: NextRequest) {
     timestamp: Date.now(),
   });
 
-  return NextResponse.redirect(new URL(safePath, request.url), 303);
+  const redirectUrl = resolvePostLoginRedirectUrl({
+    path: safePath,
+    requestUrl: request.url,
+    configuredUrl: process.env.NEXTAUTH_URL ?? process.env.AUTH_URL,
+    forwardedHost: request.headers.get("x-forwarded-host") ?? request.headers.get("host"),
+    forwardedProto: request.headers.get("x-forwarded-proto"),
+  });
+
+  return NextResponse.redirect(redirectUrl, 303);
 }
