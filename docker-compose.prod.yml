@@ -1,6 +1,8 @@
 services:
   postgres:
     image: postgres:16-alpine
+    ports:
+    - "5433:5432"
     container_name: vietsage-postgres
     restart: unless-stopped
     mem_limit: 512m
