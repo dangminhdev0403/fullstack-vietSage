@@ -39,8 +39,10 @@ def main() -> int:
         block = service_block(compose, service)
         if re.search(r"(?m)^    ports:\n", block):
             failures.append(f"{service} must not publish host ports in production")
-        if re.search(r"(?m)^    volumes:\n", block):
-            failures.append(f"{service} must not mount source volumes in production")
+        volume_entries = re.findall(r'(?m)^      - ["\']?([^"\'\n:]+)', block)
+        for mount_source in volume_entries:
+            if mount_source.startswith(("./src", "./frontends", "./services")):
+                failures.append(f"{service} must not mount source volumes in production")
         for forbidden in ("next dev", "start:dev", "--watch", "npm run dev", "pnpm dev"):
             if forbidden in block:
                 failures.append(f"{service} contains production-forbidden command: {forbidden}")
@@ -49,6 +51,14 @@ def main() -> int:
                 failures.append(f"{service} is missing hardening setting: {required}")
         if "healthcheck:" not in block:
             failures.append(f"{service} is missing a healthcheck")
+
+    auth = service_block(compose, "auth-service")
+    credential_mount = (
+        '"./secrets/production/google-service-account.json:'
+        '/run/secrets/google-service-account.json:ro"'
+    )
+    if credential_mount not in auth:
+        failures.append("auth-service must mount the external Google service account read-only")
 
     postgres = service_block(compose, "postgres")
     if re.search(r"(?m)^    ports:\n", postgres):

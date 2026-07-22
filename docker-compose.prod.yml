@@ -76,6 +76,8 @@ services:
     environment:
       NODE_ENV: production
       PORT: "8080"
+    volumes:
+      - "./secrets/production/google-service-account.json:/run/secrets/google-service-account.json:ro"
     read_only: true
     tmpfs:
       - /tmp
