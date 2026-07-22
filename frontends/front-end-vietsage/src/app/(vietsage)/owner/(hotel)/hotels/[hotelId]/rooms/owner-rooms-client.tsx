@@ -224,6 +224,23 @@ function getRoomPrice(room: HotelRoomSummary): number | null {
   return null;
 }
 
+function getRoomStatusMeta(room: HotelRoomSummary) {
+  const status = room.status?.trim().toUpperCase() || "AVAILABLE";
+  if (status === "BLOCKED") {
+    return { label: "Đã khóa", className: "bg-slate-200 text-slate-800" };
+  }
+  if (status === "OCCUPIED") {
+    return { label: "Đang ở", className: "bg-blue-100 text-blue-700" };
+  }
+  if (status === "PROCESSING") {
+    return { label: "Chờ dọn", className: "bg-amber-100 text-amber-800" };
+  }
+  if (status === "MAINTENANCE") {
+    return { label: "Bảo trì", className: "bg-red-100 text-red-700" };
+  }
+  return { label: "Trống", className: "bg-green-100 text-green-700" };
+}
+
 function toRawPriceDigits(value: string): string {
   return value.replace(/\D/g, "");
 }
@@ -596,6 +613,44 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
     }
   }
 
+  async function toggleRoomBlocked(room: HotelRoomSummary) {
+    const isBlocked = room.status?.trim().toUpperCase() === "BLOCKED";
+    const confirmation = await Swal.fire({
+      icon: isBlocked ? "question" : "warning",
+      title: isBlocked
+        ? `Mở khóa phòng ${getRoomNumber(room)}?`
+        : `Khóa phòng ${getRoomNumber(room)}?`,
+      text: isBlocked
+        ? "Phòng sẽ trở lại trạng thái TRỐNG và có thể được sử dụng."
+        : "Phòng sẽ không thể được đặt, gán booking hoặc check-in cho đến khi mở khóa.",
+      showCancelButton: true,
+      confirmButtonText: isBlocked ? "Mở khóa phòng" : "Khóa phòng",
+      cancelButtonText: "Hủy",
+      confirmButtonColor: isBlocked ? "#173d34" : "#ba1a1a",
+    });
+    if (!confirmation.isConfirmed) return;
+
+    try {
+      showLoading(isBlocked ? "Đang mở khóa phòng" : "Đang khóa phòng");
+      await requestInternalApiEnvelope(
+        `/api/owner/hotels/${encodeURIComponent(hotelId)}/rooms/${encodeURIComponent(room.id)}`,
+        { method: "PATCH", body: { status: isBlocked ? "AVAILABLE" : "BLOCKED" } },
+      );
+      await refreshRooms();
+      await toast.fire({
+        icon: "success",
+        title: isBlocked ? "Đã mở khóa phòng" : "Đã khóa phòng",
+      });
+    } catch (error) {
+      await Swal.fire({
+        icon: "error",
+        title: "Không thể cập nhật trạng thái phòng",
+        text: getBusinessErrorMessage(error, "Vui lòng thử lại."),
+        confirmButtonColor: "#00003c",
+      });
+    }
+  }
+
   function getRoomsWithQr(): HotelRoomSummary[] {
     return rooms.filter((room) => Boolean(getQrValue(room)));
   }
@@ -851,6 +906,22 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
         `${getActiveGuestDeviceCount(room)} / ${getResolvedMaxActiveGuestDevices(room)}`,
     },
     {
+      key: "status",
+      header: "Trạng thái phòng",
+      className: "px-4 py-5",
+      headerClassName: "px-4 py-5",
+      cell: (room) => {
+        const statusMeta = getRoomStatusMeta(room);
+        return (
+          <span
+            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.03em] ${statusMeta.className}`}
+          >
+            {statusMeta.label}
+          </span>
+        );
+      },
+    },
+    {
       key: "qr",
       sortable: true,
       header: "QR",
@@ -888,6 +959,27 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
         const showDeactivate = canDeactivateQr(room);
         return (
           <div className="flex justify-end gap-1.5">
+            {room.status?.trim().toUpperCase() !== "OCCUPIED" ? (
+              <button
+                type="button"
+                title={
+                  room.status?.trim().toUpperCase() === "BLOCKED"
+                    ? "Mở khóa phòng"
+                    : "Khóa phòng"
+                }
+                onClick={() => void toggleRoomBlocked(room)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[var(--primary)] transition hover:bg-[var(--primary-fixed)]"
+              >
+                <VsIcon
+                  name={
+                    room.status?.trim().toUpperCase() === "BLOCKED"
+                      ? "lock_open"
+                      : "block"
+                  }
+                  className="text-lg"
+                />
+              </button>
+            ) : null}
             <button
               type="button"
               title="Chỉnh sửa"
@@ -1303,4 +1395,3 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
     </section>
   );
 }
-

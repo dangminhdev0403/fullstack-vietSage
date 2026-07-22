@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Added `RoomStatus.BLOCKED`. A blocked room cannot be assigned to a reservation or checked in
+  until staff or an owner changes it back to an operational room status. Room status updates reject
+  lifecycle-only states and refuse to block a room with an active stay.
+
 - Staff hotel operations sync:
   - `GET /hotels/{hotelId}/requests` and `/requests/summary` accept `q` for scoped staff search.
   - Staff request event creation accepts `visibility` (`GUEST` or `INTERNAL`); GuestOS timelines

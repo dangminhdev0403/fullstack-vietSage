@@ -33,7 +33,8 @@ type RoomStatusFilter =
   | "available"
   | "occupied"
   | "processing"
-  | "maintenance";
+  | "maintenance"
+  | "blocked";
 type FlowMode = "walk-in" | "reservation";
 
 type WalkInForm = {
@@ -57,6 +58,7 @@ const statusFilters: Array<{ value: RoomStatusFilter; label: string }> = [
   { value: "occupied", label: "Đang ở" },
   { value: "processing", label: "Chờ dọn" },
   { value: "maintenance", label: "Bảo trì" },
+  { value: "blocked", label: "Đã khóa" },
 ];
 
 function localDateTime(offsetDays: number, hour: number): string {
@@ -87,6 +89,7 @@ function getRoomStatus(room: HotelRoomSummary): RoomStatusFilter {
   if (room.activeStay || status === "OCCUPIED" || status === "RESERVED")
     return "occupied";
   if (status === "PROCESSING") return "processing";
+  if (status === "BLOCKED") return "blocked";
   if (status === "MAINTENANCE" || status === "OUT_OF_SERVICE")
     return "maintenance";
   return "available";
@@ -97,6 +100,7 @@ function roomStatusLabel(status: RoomStatusFilter): string {
   if (status === "occupied") return "ĐANG Ở";
   if (status === "processing") return "CHỜ DỌN";
   if (status === "maintenance") return "BẢO TRÌ";
+  if (status === "blocked") return "ĐÃ KHÓA";
   return "TẤT CẢ";
 }
 
@@ -107,6 +111,8 @@ function roomCardClass(status: RoomStatusFilter): string {
     return "border-l-4 border-l-[var(--secondary)] bg-[var(--surface-container-low)] text-[var(--primary)]";
   if (status === "maintenance")
     return "border-l-4 border-l-[var(--error)] bg-[var(--error-container)]/45 text-[var(--on-error-container)]";
+  if (status === "blocked")
+    return "border-l-4 border-l-slate-700 bg-slate-100 text-slate-800";
   return "border-[var(--outline-variant)] bg-white text-[var(--primary)] hover:border-[var(--primary)]";
 }
 
@@ -239,6 +245,7 @@ export function StaffRoomsClient({
   hotelId,
   initialRoomsPage,
   arrivals,
+  canManageRooms,
   canManageReservations,
   canManageStays,
 }: Props) {
@@ -389,6 +396,95 @@ export function StaffRoomsClient({
         icon: "success",
         title: `Phòng ${room.roomNumber ?? room.id} đã sẵn sàng!`,
         text: "Trạng thái phòng đã chuyển thành TRỐNG.",
+        confirmButtonColor: "#17201b",
+      });
+      void refetch();
+    } catch (error) {
+      await Swal.fire({
+        icon: "error",
+        title: "Không thể cập nhật trạng thái phòng",
+        text: error instanceof Error ? error.message : "Vui lòng thử lại.",
+        confirmButtonColor: "#17201b",
+      });
+    }
+  }
+
+  async function toggleRoomBlocked(room: HotelRoomSummary) {
+    const isBlocked = getRoomStatus(room) === "blocked";
+    const confirmation = await Swal.fire({
+      icon: isBlocked ? "question" : "warning",
+      title: isBlocked
+        ? `Mở khóa phòng ${getRoomNumber(room)}?`
+        : `Khóa phòng ${getRoomNumber(room)}?`,
+      text: isBlocked
+        ? "Phòng sẽ trở lại trạng thái TRỐNG và có thể được sử dụng."
+        : "Phòng sẽ không thể được đặt, gán booking hoặc check-in cho đến khi mở khóa.",
+      showCancelButton: true,
+      confirmButtonText: isBlocked ? "Mở khóa phòng" : "Khóa phòng",
+      cancelButtonText: "Hủy",
+      confirmButtonColor: isBlocked ? "#17201b" : "#ba1a1a",
+    });
+
+    if (!confirmation.isConfirmed) return;
+
+    try {
+      await requestInternalApiEnvelope(
+        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/rooms/${encodeURIComponent(room.id)}`,
+        {
+          method: "PATCH",
+          body: { status: isBlocked ? "AVAILABLE" : "BLOCKED" },
+        },
+      );
+      await Swal.fire({
+        icon: "success",
+        title: isBlocked ? "Đã mở khóa phòng" : "Đã khóa phòng",
+        confirmButtonColor: "#17201b",
+      });
+      void refetch();
+    } catch (error) {
+      await Swal.fire({
+        icon: "error",
+        title: "Không thể cập nhật trạng thái phòng",
+        text: error instanceof Error ? error.message : "Vui lòng thử lại.",
+        confirmButtonColor: "#17201b",
+      });
+    }
+  }
+
+  async function updateRoomStatus(
+    room: HotelRoomSummary,
+    targetStatus: "AVAILABLE" | "PROCESSING" | "MAINTENANCE" | "BLOCKED",
+  ) {
+    const labels: Record<string, string> = {
+      AVAILABLE: "TRỐNG (Sẵn sàng)",
+      PROCESSING: "CHỜ DỌN",
+      MAINTENANCE: "BẢO TRÌ",
+      BLOCKED: "ĐÃ KHÓA",
+    };
+    const roomNum = getRoomNumber(room);
+    const confirmation = await Swal.fire({
+      icon: "question",
+      title: `Chuyển phòng ${roomNum} sang ${labels[targetStatus]}?`,
+      text: `Xác nhận cập nhật trạng thái phòng ${roomNum}.`,
+      showCancelButton: true,
+      confirmButtonText: "Xác nhận chuyển",
+      cancelButtonText: "Hủy",
+      confirmButtonColor: "#17201b",
+    });
+
+    if (!confirmation.isConfirmed) return;
+
+    try {
+      await requestInternalApiEnvelope(
+        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/rooms/${encodeURIComponent(room.id)}`,
+        {
+          method: "PATCH",
+          body: { status: targetStatus },
+        },
+      );
+      await Swal.fire({
+        icon: "success",
+        title: `Phòng ${roomNum} đã chuyển sang ${labels[targetStatus]}!`,
         confirmButtonColor: "#17201b",
       });
       void refetch();
@@ -870,21 +966,125 @@ export function StaffRoomsClient({
                         </span>
                       </div>
 
-                      {roomStatus === "processing" ? (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            void markRoomCleaned(room);
-                          }}
-                          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl bg-amber-700 py-2 px-3 text-xs font-extrabold text-white shadow-xs hover:bg-amber-800 transition"
-                        >
-                          <VsIcon
-                            name="cleaning_services"
-                            className="text-base"
-                          />
-                          Đã dọn xong ? → Chuyển TRỐNG
-                        </button>
+                      {roomStatus !== "occupied" ? (
+                        <div className="group relative mt-3 w-full">
+                          {/* Animated hover popover menu */}
+                          <div className="absolute bottom-full left-0 right-0 mb-2 z-30 pointer-events-none opacity-0 translate-y-2 scale-95 transition-all duration-200 ease-out group-hover:pointer-events-auto group-hover:opacity-100 group-hover:translate-y-0 group-hover:scale-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:scale-100 rounded-2xl border border-[var(--outline-variant)] bg-white/95 p-1.5 shadow-2xl backdrop-blur-md">
+                            <div className="flex flex-col gap-1">
+                              {/* Cleaning Action */}
+                              {roomStatus === "processing" ? (
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    markRoomCleaned(room);
+                                  }}
+                                  className="flex w-full items-center gap-2 rounded-xl bg-amber-700 py-2 px-3 text-xs font-extrabold text-white shadow-xs hover:bg-amber-800 transition text-left"
+                                >
+                                  <VsIcon
+                                    name="cleaning_services"
+                                    className="text-base shrink-0"
+                                  />
+                                  <span>Đánh dấu phòng Trống</span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    updateRoomStatus(room, "PROCESSING");
+                                  }}
+                                  className="flex w-full items-center gap-2 rounded-xl bg-amber-600/90 py-2 px-3 text-xs font-extrabold text-white shadow-xs hover:bg-amber-700 transition text-left"
+                                >
+                                  <VsIcon
+                                    name="cleaning_services"
+                                    className="text-base shrink-0"
+                                  />
+                                  <span>Chuyển CHỜ DỌN DẸP</span>
+                                </button>
+                              )}
+
+                              {/* Maintenance Action */}
+                              {roomStatus === "maintenance" ? (
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    updateRoomStatus(room, "AVAILABLE");
+                                  }}
+                                  className="flex w-full items-center gap-2 rounded-xl bg-emerald-700 py-2 px-3 text-xs font-extrabold text-white shadow-xs hover:bg-emerald-800 transition text-left"
+                                >
+                                  <VsIcon
+                                    name="build"
+                                    className="text-base shrink-0"
+                                  />
+                                  <span>Xong bảo trì → Chuyển TRỐNG</span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    updateRoomStatus(room, "MAINTENANCE");
+                                  }}
+                                  className="flex w-full items-center gap-2 rounded-xl bg-slate-700 py-2 px-3 text-xs font-extrabold text-white shadow-xs hover:bg-slate-800 transition text-left"
+                                >
+                                  <VsIcon
+                                    name="build"
+                                    className="text-base shrink-0"
+                                  />
+                                  <span>Đánh dấu BẢO TRÌ</span>
+                                </button>
+                              )}
+
+                              {/* Lock / Unlock Action */}
+                              {canManageRooms ? (
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    toggleRoomBlocked(room);
+                                  }}
+                                  className={`flex w-full items-center gap-2 rounded-xl py-2 px-3 text-xs font-extrabold shadow-xs transition text-left ${
+                                    roomStatus === "blocked"
+                                      ? "bg-emerald-700 text-white hover:bg-emerald-800"
+                                      : "bg-rose-700 text-white hover:bg-rose-800"
+                                  }`}
+                                >
+                                  <VsIcon
+                                    name={
+                                      roomStatus === "blocked"
+                                        ? "lock_open"
+                                        : "block"
+                                    }
+                                    className="text-base shrink-0"
+                                  />
+                                  <span>
+                                    {roomStatus === "blocked"
+                                      ? "Mở khóa → Chuyển TRỐNG"
+                                      : "Khóa phòng"}
+                                  </span>
+                                </button>
+                              ) : null}
+                            </div>
+                          </div>
+
+                          {/* Single Update Trigger Button */}
+                          <button
+                            type="button"
+                            onClick={(event) => event.stopPropagation()}
+                            className="flex w-full items-center justify-between gap-1.5 rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] py-2 px-3 text-xs font-extrabold text-[var(--primary)] transition hover:border-[var(--primary)] hover:bg-[var(--primary)] hover:text-white"
+                          >
+                            <span className="flex items-center gap-1.5">
+                              <VsIcon name="tune" className="text-base" />
+                              Cập nhật phòng
+                            </span>
+                            <VsIcon
+                              name="keyboard_arrow_up"
+                              className="text-base transition-transform duration-200 group-hover:-translate-y-0.5"
+                            />
+                          </button>
+                        </div>
                       ) : null}
                     </div>
                   </div>

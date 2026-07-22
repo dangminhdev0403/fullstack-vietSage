@@ -1,6 +1,21 @@
 import { RoomQRCodeStatus, RoomStatus } from "@prisma/client";
 import { z } from "zod";
 
+function preprocessRoomStatus(val: unknown): unknown {
+  if (typeof val !== "string" || !val.trim()) return val;
+  const upper = val.trim().toUpperCase();
+  if (upper === "CLEAN" || upper === "CLEANED" || upper === "READY" || upper === "TRỐNG" || upper === "AVAILABLE") return RoomStatus.AVAILABLE;
+  if (upper === "DIRTY" || upper === "CHỜ DỌN" || upper === "CLEANING" || upper === "PROCESSING") return RoomStatus.PROCESSING;
+  if (upper === "BẢO TRÌ" || upper === "MAINTENANCE" || upper === "OUT_OF_SERVICE") return RoomStatus.MAINTENANCE;
+  if (upper === "KHÓA" || upper === "ĐÃ KHÓA" || upper === "BLOCKED") return RoomStatus.BLOCKED;
+  return upper;
+}
+
+export const roomStatusSchema = z.preprocess(
+  preprocessRoomStatus,
+  z.nativeEnum(RoomStatus, { message: "Trạng thái phòng không hợp lệ" }),
+);
+
 export const createRoomBodySchema = z
   .object({
     roomNumber: z.string({ message: "Số phòng là bắt buộc" }).trim().min(1, "Số phòng không được để trống").max(40, "Số phòng tối đa 40 ký tự"),
@@ -24,7 +39,7 @@ export const updateRoomBodySchema = z
     type: z.string().trim().max(80, "Loại phòng tối đa 80 ký tự").nullable().optional(),
     price: z.coerce.number({ message: "Giá phòng phải là số" }).nonnegative("Giá phòng không được là số âm").nullable().optional(),
     maxActiveGuestDevices: z.coerce.number({ message: "Số thiết bị phải là số" }).int("Số thiết bị phải là số nguyên").min(1, "Tối thiểu 1 thiết bị").nullable().optional(),
-    status: z.nativeEnum(RoomStatus, { message: "Trạng thái phòng không hợp lệ" }).optional(),
+    status: roomStatusSchema.optional(),
   })
   .strict()
   .refine((value) => Object.keys(value).length > 0, {
@@ -33,7 +48,7 @@ export const updateRoomBodySchema = z
 
 export const listRoomsQuerySchema = z
   .object({
-    status: z.nativeEnum(RoomStatus, { message: "Trạng thái phòng không hợp lệ" }).optional(),
+    status: roomStatusSchema.optional(),
     page: z.coerce.number({ message: "Trang phải là số" }).int("Trang phải là số nguyên").min(1, "Trang tối thiểu là 1").optional(),
     limit: z.coerce.number({ message: "Số lượng phải là số" }).int("Số lượng phải là số nguyên").min(1, "Số lượng tối thiểu là 1").max(100, "Số lượng tối đa là 100").optional(),
     q: z.string().max(80, "Từ khóa quá dài").optional(),

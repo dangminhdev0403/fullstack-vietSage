@@ -21,7 +21,13 @@ function sanitizeUpdateRoomPayload(payload: unknown): UpdateHotelRoomInput | nul
   const updatePayload: UpdateHotelRoomInput = {};
 
   if ("status" in input && typeof input.status === "string" && input.status.trim()) {
-    updatePayload.status = input.status.trim();
+    const raw = input.status.trim().toUpperCase();
+    const mapped =
+      raw === "CLEAN" || raw === "CLEANED" || raw === "READY" || raw === "TRỐNG" ? "AVAILABLE" :
+      raw === "DIRTY" || raw === "CHỜ DỌN" || raw === "CLEANING" ? "PROCESSING" :
+      raw === "BẢO TRÌ" || raw === "OUT_OF_SERVICE" ? "MAINTENANCE" :
+      raw === "KHÓA" || raw === "ĐÃ KHÓA" ? "BLOCKED" : raw;
+    updatePayload.status = mapped;
   }
 
   if (typeof input.roomNumber === "string" && input.roomNumber.trim()) {

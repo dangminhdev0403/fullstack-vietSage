@@ -1,3 +1,15 @@
+## [complete] 2026-07-22 - Mission: blocked-room-availability-workflow
+
+- Added clear `Khóa phòng` / `Mở khóa` actions to the staff room grid and owner room inventory.
+- A blocked room cannot be assigned to a reservation or checked in until it is returned to an
+  operational room status.
+
+Verification result:
+
+- `pnpm exec tsc --noEmit` passed.
+- ESLint passed for both changed room clients.
+- OpenAPI types were synchronized.
+
 ## [complete] 2026-07-22 - Mission: management-request-status-update-realtime-cache-sync
 
 - Fixed request status update mutations and realtime cache synchronization across management dashboards (`RequestQueueClient` under `/hotels/[hotelId]/requests` and `/owner/hotels/[hotelId]/requests`).
@@ -8,11 +20,13 @@
 - Added inline quick action buttons column ("Thao tác nhanh") directly in the main requests table (`requestColumns`), allowing staff and owners to advance requests (`Tiếp nhận` -> `Bắt đầu` -> `Hoàn thành`) in 1 click without needing to open the detail modal.
 
 Verification result:
+
 - `npx tsc --noEmit` passed with 0 errors.
 - `services/auth-service` `npm run build` passed with 0 errors.
 - `graphify update . --force` updated graph with 5225 nodes and 11949 edges.
 
 Remaining blockers/risks:
+
 - None.
 
 ## [complete] 2026-07-22 - Mission: five-ux-and-realtime-improvements
@@ -25,10 +39,12 @@ Remaining blockers/risks:
 - Applied frontend i18n support for GuestOS chat page (`g/messages/page.tsx`) and added dictionary keys across 6 supported languages (`vi`, `en`, `zh`, `ko`, `ru`, `hi`).
 
 Verification result:
+
 - `npx tsc --noEmit` passed with 0 errors.
 - `services/auth-service` `npm run build` passed with 0 errors.
 
 Remaining blockers/risks:
+
 - None.
 
 ## [complete] 2026-07-22 - Mission: owner-navigation-smoothness-and-realtime-optimization
@@ -38,9 +54,11 @@ Remaining blockers/risks:
 - Wrapped `router.refresh()` calls in `React.startTransition` across realtime handlers and client components (`OwnerStayRoomGridClient`, `OwnerRoomsClient`), ensuring background data updates do not block active UI navigation.
 
 Verification result:
+
 - `npx tsc --noEmit` passed with 0 errors.
 
 Remaining blockers/risks:
+
 - None.
 
 ## [complete] 2026-07-22 - Mission: room-cleaning-status-transition-workflow
@@ -48,14 +66,16 @@ Remaining blockers/risks:
 - Created BFF endpoint `PATCH /api/hotel-ops/hotels/[hotelId]/rooms/[roomId]` and updated `PATCH /api/owner/hotels/[hotelId]/rooms/[roomId]` to allow updating room status (`status: "AVAILABLE" | "PROCESSING" | "MAINTENANCE"`).
 - Added `status?: string | null` to `UpdateHotelRoomInput` in `hotel-ops-contract.ts`.
 - Restructured `StaffRoomsClient` room cards (`hotels/[hotelId]/rooms/staff-rooms-client.tsx`) into unified flex columns (`flex flex-col justify-between h-full min-h-[235px]`).
-- Aligned baseline footers across all room statuses (`available`, `occupied`, `processing`, `maintenance`), preserving progress/placeholder lines, QR code tags, and status badges on dirty rooms, with the **"Đã dọn xong ? → Chuyển TRỐNG"** button positioned cleanly inside the card footer.
+- Aligned baseline footers across all room statuses (`available`, `occupied`, `processing`, `maintenance`), preserving progress/placeholder lines, QR code tags, and status badges on dirty rooms, with the **"Đánh dấu phòng Trống"** button positioned cleanly inside the card footer.
 - Added room tile click handler on `OwnerStayRoomGridClient` (`owner/.../stay/owner-stay-room-grid-client.tsx`), allowing hotel owners to mark `DIRTY` / `PROCESSING` rooms cleaned directly from the room grid.
 - Added quick action navigation button in `StaffBillingWorkspaceClient` ("Đến trang Dọn phòng & Chuyển TRỐNG →") directing staff directly to dirty room management immediately after checkout.
 
 Verification result:
+
 - `npx tsc --noEmit` passed with 0 errors.
 
 Remaining blockers/risks:
+
 - None.
 
 ## [complete] 2026-07-22 - Mission: staff-billing-ui-redesign-and-uncrowd
@@ -69,9 +89,11 @@ Remaining blockers/risks:
 - Enhanced room folio cards with prominent room tags, color-coded status badges ("Đang mở" emerald, "Chờ checkout" amber, "Đã đóng" slate), and clear pricing alignment.
 
 Verification result:
+
 - `npx tsc --noEmit` passed with 0 errors.
 
 Remaining blockers/risks:
+
 - None.
 
 ## [complete] 2026-07-22 - Mission: auto-scroll-chat-on-message-send
@@ -82,9 +104,11 @@ Remaining blockers/risks:
 - Introduced `justSentRef` flag and explicit container scrolling (`scrollTop = scrollHeight`) triggered on message submission, pending state, optimistic cache insertion, and post-render frames (`requestAnimationFrame` & staggered `setTimeout`).
 
 Verification result:
+
 - `npx tsc --noEmit` passed with 0 errors.
 
 Remaining blockers/risks:
+
 - None.
 
 ## [complete] 2026-07-22 - Mission: convert-chat-composer-to-standard-text-input
@@ -95,9 +119,11 @@ Remaining blockers/risks:
 - Preserved native form submission on `Enter` press, real-time typing indicators, send debouncing, and 1000-character validation limits.
 
 Verification result:
+
 - `npx tsc --noEmit` passed with 0 errors.
 
 Remaining blockers/risks:
+
 - None.
 
 ## [complete] 2026-07-22 - Mission: hard-lock-chat-box-container-heights
@@ -110,9 +136,11 @@ Remaining blockers/risks:
 - Implemented rich animated Skeleton Message Loaders (`isLoading`), glassmorphism pill fetching badges (`isFetchingNextPage`), and optimistic pending send states (`send.isPending`).
 
 Verification result:
+
 - `npx tsc -p tsconfig.json` passed cleanly with 0 type errors.
 
 Remaining blockers/risks:
+
 - None.
 
 ## [complete] 2026-07-22 - Mission: chat-history-infinite-scroll-refactor
@@ -125,9 +153,11 @@ Remaining blockers/risks:
 - Added **Unread Message Scroll Indicator**: displays floating **"Tin nhắn mới"** (New messages) badge at bottom right when user is scrolled up reading history, with smooth scroll-to-bottom on click.
 
 Verification result:
+
 - `npx tsc --noEmit` passed with 0 type errors.
 
 Remaining blockers/risks:
+
 - None.
 
 ## [complete] 2026-07-22 - Mission: chat-layout-and-composer-guardrails
@@ -167,9 +197,11 @@ Remaining risk:
 - Added SweetAlert2 confirmation/verification dialogs to `submitWalkIn` and `createReservation` in `StaffRoomsClient` before calling backend APIs.
 
 Verification result:
+
 - `npx tsc --noEmit` passed cleanly with 0 type errors.
 
 Remaining blockers/risks:
+
 - None.
 
 ## [complete] 2026-07-21 - Mission: realtime-socket-toast-duration
@@ -178,9 +210,11 @@ Remaining blockers/risks:
 - Deduplicated owner realtime connection toast IDs so multi-hotel connections do not render duplicate stacked connection toasts.
 
 Verification result:
+
 - `npx tsc --noEmit` passed cleanly.
 
 Remaining blockers/risks:
+
 - None.
 
 ## [complete] 2026-07-21 - Mission: owner-navigation-active-state
@@ -193,10 +227,12 @@ Remaining blockers/risks:
 - Added unit test suite in `src/features/workspace/utils/workspace-nav-active.test.ts` covering exact matches, sub-route matching, and search parameter matching.
 
 Verification result:
+
 - Unit tests run via `node --test` passed all 14 tests in workspace domain.
 - `npx tsc --noEmit` passed with zero errors.
 
 Remaining blockers/risks:
+
 - None.
 
 ## [complete] 2026-07-21 - Mission: staff-rooms-pagination-and-animation
@@ -213,11 +249,13 @@ Remaining blockers/risks:
 - Added automatic smooth scrolling to the Check-in form container using `scrollIntoView` if the sidebar is not currently in the viewport.
 
 Verification result:
+
 - Backend `npm run build` compiled successfully.
 - Frontend `npm run smoke:build` compiled successfully.
 - ESLint and React hooks dependency warnings were resolved.
 
 Remaining manual checkpoint:
+
 - Verify pagination and filters behavior on the UI with Representative front desk user credentials.
 - Verify smooth transition, auto-scrolling, and visual highlighting when clicking empty room cards.
 
@@ -384,6 +422,7 @@ Remaining blockers/risks:
 
 - `pnpm build` reached the final TypeScript completion line in this runner but did not emit a clear exit-code footer; `tsc --noEmit` was used as the reliable type validation fallback.
 - The worktree already contains many unrelated modified/untracked files; only the owner hotels/query-provider/package/doc changes are part of this task.
+
 # PROJECT PLANS
 
 Last Updated: 2026-06-04
@@ -2064,6 +2103,7 @@ Remaining blockers/risks:
 
 - Physical-device browser QA remains recommended for narrow-screen wrapping, sticky bottom navigation safe areas, SweetAlert focus behavior, realtime status transitions, and reduced-motion behavior on iOS Safari and Android Chrome.
 - The CTA image remains remotely hosted, so browser QA should confirm loading behavior under slow hotel Wi-Fi.
+
 # 2026-07-14 - Guest Request Contract Sync
 
 - Synced generated OpenAPI types after the backend restricted guest request API statuses to
@@ -2087,6 +2127,7 @@ Remaining blockers/risks:
 ### Remaining Blockers / Risks
 
 - Physical-browser QA remains recommended for focus/online/visibility recovery and switching between QR sessions under unstable hotel Wi-Fi.
+
 ## 2026-07-14 - Batch C Authenticated Request Realtime
 
 - Added the owner ticket BFF, handshake credentials, a ref-counted owner connection per hotel, and guest token-aware socket cleanup.
@@ -2094,6 +2135,7 @@ Remaining blockers/risks:
 - Urgent owner notifications remain visible until dismissed or opened via `Xử lý ngay`; audio is best-effort because browsers may block sound before user interaction.
 - `NEXT_PUBLIC_REQUEST_REALTIME_ENABLED` defaults false; rollback performs no ticket/socket calls and preserves HTTP workflows. Local runtime must explicitly enable both frontend and backend flags and restart both processes.
 - Realtime remains a refresh signal. Polling, outbox/durable delivery, acknowledgement SLA, and escalation remain Batch D.
+
 ## [complete] 2026-07-21 - Mission: recover-e4711-ui-auth-rbac
 
 - Rebuilt the auth, tenant, workspace, permissions, and user-management changes on top of UI

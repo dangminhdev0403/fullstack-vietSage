@@ -25,6 +25,13 @@ import type {
   UpdateRoomBodyInput,
 } from "../domain/schemas/rooms.schema";
 
+const MANUAL_ROOM_STATUSES = new Set<RoomStatus>([
+  RoomStatus.AVAILABLE,
+  RoomStatus.PROCESSING,
+  RoomStatus.MAINTENANCE,
+  RoomStatus.BLOCKED,
+]);
+
 @Injectable()
 export class HotelRoomsService {
   constructor(
@@ -143,6 +150,23 @@ export class HotelRoomsService {
     dto: UpdateRoomBodyInput,
   ) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+
+    if (dto.status && !MANUAL_ROOM_STATUSES.has(dto.status)) {
+      throw new BadRequestException(
+        "Chỉ có thể đổi phòng sang TRỐNG, CHỜ DỌN, BẢO TRÌ hoặc ĐÃ KHÓA.",
+      );
+    }
+
+    const currentRoom = await this.hotelRoomsRepository.findRoomInHotel(hotelId, roomId);
+    if (!currentRoom) {
+      throw new NotFoundException("Không tìm thấy phòng");
+    }
+
+    if (dto.status === RoomStatus.BLOCKED && currentRoom.guestStays.length > 0) {
+      throw new ConflictException(
+        "Không thể khóa phòng khi khách đang lưu trú. Hãy xử lý hoặc chuyển phòng cho khách trước.",
+      );
+    }
 
     const room = await this.hotelRoomsRepository.updateRoomInHotel(hotelId, roomId, {
       roomNumber: dto.roomNumber?.trim(),

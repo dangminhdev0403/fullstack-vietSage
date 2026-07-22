@@ -1,5 +1,19 @@
 # VietSage Backend Plan
 
+## 2026-07-22 - Blocked Room Availability Workflow
+
+- [x] Added the additive `BLOCKED` room status. Reservation assignment and both reservation and
+  walk-in check-in paths already require an available room, so a blocked room is rejected at the
+  backend boundary until its status is changed.
+- [x] Restricted manual room status updates to operational states and refuse to block a room with
+  an active stay.
+
+Verification result:
+
+- Prisma client generation and `npm run build` passed.
+- Focused blocked-room Property tests passed: 3 tests.
+- OpenAPI export and shared contract verification passed with 87 paths.
+
 ## 2026-07-21 - Staff Stitch Operations Flow Sync
 
 - [x] Kept staff request assignment scoped to the current hotel assignment instead of tenant-wide

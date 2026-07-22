@@ -1,9 +1,15 @@
-import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from "@nestjs/common";
 import {
   CategoryPriceUpdateMode,
   GuestRequestPriority,
   GuestRequestStatus,
   RoomQRCodeStatus,
+  RoomStatus,
   ServiceCatalogStatus,
 } from "@prisma/client";
 import { HotelRequestsService } from "../../guest-operations/application/hotel-requests.service";
@@ -67,6 +73,7 @@ function createRepository(overrides: Record<string, jest.Mock> = {}) {
       id: "room-1",
       hotelId: "hotel-1",
       status: "AVAILABLE",
+      guestStays: [],
     }),
     rotateQr: jest.fn().mockImplementation((input) => ({
       id: "qr-1",
@@ -1242,5 +1249,53 @@ describe("HotelsService", () => {
         price: 1500000,
       }),
     );
+  });
+
+  it("allows staff to block an unoccupied room", async () => {
+    const repository = createRepository();
+    const service = createService(repository);
+
+    await expect(
+      service.updateRoom("actor-1", "active-role", "hotel-1", "room-1", {
+        status: RoomStatus.BLOCKED,
+      }),
+    ).resolves.toMatchObject({ status: "BLOCKED" });
+
+    expect(repository.updateRoomInHotel).toHaveBeenCalledWith(
+      "hotel-1",
+      "room-1",
+      expect.objectContaining({ status: "BLOCKED" }),
+    );
+  });
+
+  it("refuses to block a room with an active stay", async () => {
+    const repository = createRepository({
+      findRoomInHotel: jest.fn().mockResolvedValue({
+        id: "room-1",
+        hotelId: "hotel-1",
+        status: "OCCUPIED",
+        guestStays: [{ id: "stay-1", status: "ACTIVE" }],
+      }),
+    });
+    const service = createService(repository);
+
+    await expect(
+      service.updateRoom("actor-1", "active-role", "hotel-1", "room-1", {
+        status: RoomStatus.BLOCKED,
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(repository.updateRoomInHotel).not.toHaveBeenCalled();
+  });
+
+  it("refuses manual lifecycle-only room statuses", async () => {
+    const repository = createRepository();
+    const service = createService(repository);
+
+    await expect(
+      service.updateRoom("actor-1", "active-role", "hotel-1", "room-1", {
+        status: RoomStatus.OCCUPIED,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(repository.updateRoomInHotel).not.toHaveBeenCalled();
   });
 });
