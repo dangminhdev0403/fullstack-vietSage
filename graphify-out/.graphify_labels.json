@@ -270,6 +270,7 @@
   "268": "fix-paths.js",
   "269": "page.tsx",
   "270": ".getInvoiceDetail",
+  "271": "RequestRealtimeEmitter",
   "272": "2026-07-22 - Stay-Scoped Front Desk Messages",
   "273": "Active Plan",
   "274": "page.tsx",
@@ -277,6 +278,10 @@
   "276": "loading.tsx",
   "277": "chat-layout-regression.test.mjs",
   "278": "authentication.service.spec.ts",
+  "279": ".replacePermissions",
+  "280": "request-realtime.gateway.ts",
+  "281": "local.strategy.ts",
+  "282": "api-envelope.ts",
   "284": "staff-management-client.tsx",
   "285": "business-permissions.registry.ts"
 }

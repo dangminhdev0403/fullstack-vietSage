@@ -1,3 +1,18 @@
+## [complete] 2026-07-22 - Mission: production-socket-realtime-connection-fix
+
+- Resolved production Socket.IO connection failures by updating `resolveBrowserReachableBackendUrl` in `backend-api-config.ts` to automatically upgrade `http:` protocols to `https:` and strip dev ports (`:8080`) when running on remote production HTTPS domains (preventing Mixed Content blocking and port refusal).
+- Updated `getRequestRealtimeUrl()` in `request-realtime-client.ts` to support `NEXT_PUBLIC_REALTIME_URL` and `NEXT_PUBLIC_SOCKET_URL` environment variables.
+- Configured transport fallback order to `["polling", "websocket"]` in `createRequestRealtimeSocket` to ensure maximum compatibility with Nginx reverse proxy and Cloudflare SSL/TLS setups.
+
+Verification result:
+
+- `node --test src/core/http/backend-api-config.test.ts` passed 2/2 tests.
+- `npx tsc --noEmit` passed with 0 errors.
+
+Remaining blockers/risks:
+
+- Production Docker build environment must ensure `NEXT_PUBLIC_REQUEST_REALTIME_ENABLED=true` (or unset, as default is enabled) during Next.js build.
+
 ## [complete] 2026-07-22 - Mission: login-email-whitespace-sanitization
 
 - Updated login form validation schema (`loginSchema` in `login/page.tsx`), NextAuth credentials schema (`credentialsSchema` in `auth.ts`), and backend identity schema (`loginCredentialsSchema` in `auth.schema.ts`) to automatically sanitize all whitespace (`replace(/\s+/g, "")`) from email addresses.

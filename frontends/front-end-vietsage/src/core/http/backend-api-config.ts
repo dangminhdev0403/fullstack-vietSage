@@ -24,11 +24,19 @@ export function resolveBrowserReachableBackendUrl(baseUrl: string): string {
   try {
     const parsed = new URL(baseUrl);
     const frontendHost = window.location.hostname;
+    const frontendProtocol = window.location.protocol;
     const isLocalBackendHost = parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
     const isRemoteFrontendHost = frontendHost !== "localhost" && frontendHost !== "127.0.0.1";
 
     if (isLocalBackendHost && isRemoteFrontendHost) {
       parsed.hostname = frontendHost;
+      parsed.protocol = frontendProtocol;
+      parsed.port = "";
+    } else if (frontendProtocol === "https:" && parsed.protocol === "http:") {
+      parsed.protocol = "https:";
+      if (parsed.port === "80" || parsed.port === "8080") {
+        parsed.port = "";
+      }
     }
 
     return parsed.toString().replace(/\/$/, "");

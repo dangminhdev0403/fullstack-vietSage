@@ -1,4 +1,4 @@
-import { getBrowserBackendApiBaseUrl } from "@/core/http/backend-api-config";
+import { getBrowserBackendApiBaseUrl, resolveBrowserReachableBackendUrl } from "@/core/http/backend-api-config";
 import { io, type Socket } from "socket.io-client";
 
 const SOCKET_NAMESPACE = "/request-realtime";
@@ -8,7 +8,12 @@ export type RequestRealtimeEvent<TRequest> = {
 };
 
 export function getRequestRealtimeUrl(): string {
-  return getBrowserBackendApiBaseUrl();
+  const configured =
+    process.env.NEXT_PUBLIC_REALTIME_URL ??
+    process.env.NEXT_PUBLIC_SOCKET_URL ??
+    getBrowserBackendApiBaseUrl();
+
+  return resolveBrowserReachableBackendUrl(configured);
 }
 
 export type RequestRealtimeAuth =
@@ -16,8 +21,9 @@ export type RequestRealtimeAuth =
   | { mode: "guest"; sessionToken: string };
 
 export function createRequestRealtimeSocket(auth: RequestRealtimeAuth): Socket {
-  return io(`${getRequestRealtimeUrl()}${SOCKET_NAMESPACE}`, {
-    transports: ["websocket", "polling"],
+  const socketUrl = getRequestRealtimeUrl();
+  return io(`${socketUrl}${SOCKET_NAMESPACE}`, {
+    transports: ["polling", "websocket"],
     autoConnect: false,
     withCredentials: true,
     reconnection: false,
