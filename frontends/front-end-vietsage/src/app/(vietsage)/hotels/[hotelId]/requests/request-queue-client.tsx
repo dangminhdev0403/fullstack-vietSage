@@ -50,6 +50,7 @@ import {
   statusTone,
 } from "@/features/hotel-ops/utils/hotel-ops-display";
 import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
+import { requestQueueResource } from "@/features/hotel-ops/resources/request-queue-resource";
 
 type RequestQueueLabels = {
   allStatuses: string;
@@ -421,14 +422,9 @@ async function openRequestDetailModal({
   if (!ownerApiBasePath) return;
 
   try {
-    const fresh = await queryClient.fetchQuery({
-      queryKey: ["hotel-request-detail", ownerApiBasePath, request.id] as const,
-      queryFn: () =>
-        requestInternalApi<HotelGuestRequest>(
-          `${ownerApiBasePath}/${encodeURIComponent(request.id)}`,
-          { method: "GET" },
-        ),
-    });
+    const fresh = await requestQueueResource
+      .bind({ basePath: ownerApiBasePath })
+      .queries.detail.fetch(queryClient, { requestId: request.id });
     setSelectedRequest(fresh);
     setAssignmentUserId(fresh.assignedToUserId ?? "");
   } catch (error) {
@@ -588,6 +584,7 @@ export function RequestQueueClient({
   const mergedLabels = { ...defaultLabels, ...labels };
   const operationErrorFallback = mergedLabels.operationError;
   const canManageRequests = Boolean(ownerApiBasePath);
+  const requestQueue = requestQueueResource.bind({ basePath: ownerApiBasePath ?? "" });
   const requestedDetailId =
     initialDetailRequestId ?? searchParams.get("requestId") ?? "";
   const [filters, setFilters] = useState(() => toFilterState(initialFilters));
@@ -615,23 +612,9 @@ export function RequestQueueClient({
   const [assignmentUserId, setAssignmentUserId] = useState("");
   const [assignmentNote, setAssignmentNote] = useState("");
   const selectedRequestId = selectedRow?.id;
-  const detailQueryKey = useMemo(
-    () =>
-      ["hotel-request-detail", ownerApiBasePath, selectedRequestId] as const,
-    [ownerApiBasePath, selectedRequestId],
-  );
+  const detailQueryKey = requestQueue.queries.detail.key({ requestId: selectedRequestId ?? "" });
   const detailQuery = useQuery({
-    queryKey: detailQueryKey,
-    queryFn: () => {
-      if (!ownerApiBasePath || !selectedRequestId) {
-        throw new Error(mergedLabels.operationError);
-      }
-
-      return requestInternalApi<HotelGuestRequest>(
-        `${ownerApiBasePath}/${encodeURIComponent(selectedRequestId)}`,
-        { method: "GET" },
-      );
-    },
+    ...requestQueue.queries.detail.options({ requestId: selectedRequestId ?? "" }),
     enabled:
       detailMode === "modal" && Boolean(ownerApiBasePath && selectedRequestId),
     refetchInterval: detailMode === "modal" && selectedRequestId ? 5000 : false,
@@ -679,19 +662,8 @@ export function RequestQueueClient({
     let isActive = true;
     openedDetailRequestIdRef.current = requestedDetailId;
 
-    void queryClient
-      .fetchQuery({
-        queryKey: [
-          "hotel-request-detail",
-          ownerApiBasePath,
-          requestedDetailId,
-        ] as const,
-        queryFn: () =>
-          requestInternalApi<HotelGuestRequest>(
-            `${ownerApiBasePath}/${encodeURIComponent(requestedDetailId)}`,
-            { method: "GET" },
-          ),
-      })
+    void requestQueue.queries.detail
+      .fetch(queryClient, { requestId: requestedDetailId })
       .then((fresh) => {
         if (!isActive) return;
         setSelectedRow(requestToListItem(fresh));
@@ -878,34 +850,8 @@ export function RequestQueueClient({
     });
   }
 
-  const statusMutation = useMutation({
-    mutationFn: ({
-      action,
-      note,
-      assignedToUserId,
-    }: {
-      action: StaffRequestAction;
-      note: string;
-      assignedToUserId?: string;
-    }) => {
-      if (!selectedRow || !ownerApiBasePath) {
-        throw new Error(mergedLabels.operationError);
-      }
-
-      const meta = actionMeta[action];
-      return requestInternalApi<HotelGuestRequest>(
-        `${ownerApiBasePath}/${encodeURIComponent(selectedRow.id)}/status`,
-        {
-          method: "PATCH",
-          body: {
-            status: meta.status,
-            note,
-            assignedToUserId,
-          },
-        },
-      );
-    },
-    onSuccess: (updated) => {
+  const statusMutation = useMutation(requestQueue.mutations.status.options({
+    onSuccess: ({ data: updated }) => {
       setStatusNote("");
       syncUpdatedRequest(updated);
       void Swal.fire({
@@ -925,32 +871,10 @@ export function RequestQueueClient({
         confirmButtonColor: swalButtonColor,
       });
     },
-  });
+  }));
 
-  const assignmentMutation = useMutation({
-    mutationFn: ({
-      assignedToUserId,
-      note,
-    }: {
-      assignedToUserId: string | null;
-      note?: string;
-    }) => {
-      if (!selectedRow || !ownerApiBasePath) {
-        throw new Error(mergedLabels.operationError);
-      }
-
-      return requestInternalApi<HotelGuestRequest>(
-        `${ownerApiBasePath}/${encodeURIComponent(selectedRow.id)}/assignment`,
-        {
-          method: "PATCH",
-          body: {
-            assignedToUserId,
-            note,
-          },
-        },
-      );
-    },
-    onSuccess: (updated) => {
+  const assignmentMutation = useMutation(requestQueue.mutations.assignment.options({
+    onSuccess: ({ data: updated }) => {
       setAssignmentNote("");
       syncUpdatedRequest(updated);
       void Swal.fire({
@@ -970,7 +894,7 @@ export function RequestQueueClient({
         confirmButtonColor: swalButtonColor,
       });
     },
-  });
+  }));
   const isMutating = statusMutation.isPending || assignmentMutation.isPending;
 
   function updateFilter(key: string, value: string) {
@@ -1047,7 +971,8 @@ export function RequestQueueClient({
 
     setOperationError(null);
     statusMutation.mutate({
-      action,
+      requestId: selectedRow.id,
+      status: meta.status,
       note,
       assignedToUserId:
         meta.status === "IN_PROGRESS"
@@ -1077,6 +1002,7 @@ export function RequestQueueClient({
 
     setOperationError(null);
     assignmentMutation.mutate({
+      requestId: selectedRow.id,
       assignedToUserId: nextAssignedToUserId,
       note: assignmentNote.trim() || undefined,
     });
@@ -1099,6 +1025,7 @@ export function RequestQueueClient({
 
     setOperationError(null);
     assignmentMutation.mutate({
+      requestId: selectedRow.id,
       assignedToUserId: null,
       note: assignmentNote.trim() || "Đã gỡ phân công nhân sự.",
     });

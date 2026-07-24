@@ -181,6 +181,7 @@ Read:
 - Do not create architecture/rules/plans docs outside the canonical docs folders.
 - Do not modify any `package.json` unless explicitly approved by the user.
 - Do not add dependencies unless explicitly approved by the user.
+- For frontend client server-state, use `@dangminhdev04032005/query-resource`: repository → resource → feature hook → component. Do not add a local copy of the package or write raw TanStack Query `queryKey`/`queryFn`/`mutationFn` configurations in pages or feature hooks. Raw hooks consume resource-generated options; the application `QueryClient` provider is exempt.
 - Do not write secrets, tokens, passwords, API keys, or connection strings into docs or code.
 - Do not commit unrelated modified/untracked files.
 - Keep frontend/backend/shared API boundaries explicit.

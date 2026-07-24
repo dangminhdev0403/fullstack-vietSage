@@ -1,14 +1,12 @@
-## [complete] 2026-07-24 - Mission: reusable-query-resource-factory
+## [complete] 2026-07-24 - Mission: published-query-resource-package
 
-- Added the app-internal resource factory `@/libs/query-resource` for TanStack Query v5:
+- Published the reusable factory as `@dangminhdev04032005/query-resource` for TanStack Query v5:
   - transport-agnostic resource definitions with no dependency on VietSage HTTP clients, `fetch`, Axios, DTO envelopes, or a fixed pagination format;
   - capability-driven queries, infinite queries, and named mutations without assuming full CRUD or an untyped `extra` namespace;
   - deterministic scope/input key factories, prefetch/fetch/ensure, invalidation, cancellation, removal, cache set/patch, concurrency-safe rollback, optimistic mutation lifecycle, and parallel local invalidation;
   - type-level rejection of undeclared capabilities and invalid local invalidation targets.
-- Kept dependency management centralized in `front-end-vietsage/package.json`; no nested frontend package.json, app-internal workspace package, or package-local node_modules is required.
-- Moved the factory out of `src/shared` and into `src/libs/query-resource` so it is treated as reusable frontend infrastructure rather than feature/shared business code.
-- Documented that other projects may copy `src/libs/query-resource` before publishing, while keeping their own repositories and resources project-specific.
-- Added resource type contracts under the frontend source tree so the root TypeScript check validates partial-capability usage.
+- Added the published package to the single frontend root `package.json`; no nested frontend package.json, app-internal workspace package, package-local node_modules, or local factory source remains.
+- Updated resource imports and agent instructions to use the npm package rather than `src/libs/query-resource`.
 - Migrated two representative modules while preserving their public hooks:
   - owner hotels as a read-only resource;
   - staff directory as a page/search query plus `createUser`, `assignRole`, `revokeRole`, and `updateAssignment` mutations.
@@ -20,13 +18,11 @@ Verification result:
 - `pnpm install --frozen-lockfile --ignore-scripts` passed from the frontend root after removing the nested package.
 - Source type contracts are checked by the frontend root TypeScript run.
 - Frontend `pnpm exec tsc --noEmit` passed with 0 errors.
-- Targeted frontend ESLint passed for the migrated owner, staff-management, and libs query-resource files.
-- Frontend production build passed with 38 pages generated.
+- Validation for the npm package itself is handled in its own repository; VietSage validates the installed public package through its normal frontend typecheck/lint/build gates.
 
 Remaining blockers/risks:
 
-- Existing feature modules still use their current TanStack Query patterns and should migrate incrementally when they are materially changed; no broad rewrite was performed.
-- The factory is currently app-internal source. If it should become a published package later, create a separate release task with explicit package naming, versioning, license, registry, and consumer-build requirements.
+- Existing feature modules still use their current TanStack Query patterns and should migrate when they are materially changed; new or changed modules must use the published resource package.
 - Graphify index could not be refreshed because the CLI is unavailable in the execution environment.
 
 ## [complete] 2026-07-22 - Mission: guest-service-catalog-event-driven-refetch

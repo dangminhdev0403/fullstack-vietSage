@@ -8,6 +8,7 @@ import { HttpError } from "@/core/http/http-error";
 import { requestInternalApi } from "@/core/http/internal-api-client";
 import { playMessageAlertSound } from "@/features/request-realtime/audio-notifier";
 import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
+import { hotelMessagesResource } from "@/features/hotel-ops/resources/hotel-messages-resource";
 
 type Message = {
   id: string;
@@ -99,6 +100,7 @@ function TypewriterMessageBody({ body, createdAt }: Readonly<{ body: string; cre
 
 export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: string; canReply: boolean }>) {
   const base = `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/messages`;
+  const hotelMessages = hotelMessagesResource.bind({ hotelId });
   const queryClient = useQueryClient();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -139,16 +141,8 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
   };
 
   const threadListKey = ["hotel-message-threads", hotelId, deferredSearch] as const;
-  const threads = useInfiniteQuery<ThreadList, Error, InfiniteData<ThreadList>, typeof threadListKey, string | undefined>({
-    queryKey: threadListKey,
-    queryFn: ({ pageParam }) => {
-      const params = new URLSearchParams({ limit: "30" });
-      if (pageParam) params.set("cursor", pageParam);
-      if (deferredSearch) params.set("q", deferredSearch);
-      return requestInternalApi<ThreadList>(`${base}?${params.toString()}`, { method: "GET" });
-    },
-    initialPageParam: undefined,
-    getNextPageParam: (lastPage) => lastPage.hasMore ? (lastPage.nextCursor ?? undefined) : undefined,
+  const threads = useInfiniteQuery({
+    ...hotelMessages.infiniteQueries.threads.options({ q: deferredSearch }),
     refetchInterval: 30_000,
   });
 
@@ -176,18 +170,8 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
       return items;
     }, []);
 
-  const detail = useInfiniteQuery<ThreadPage, Error, InfiniteData<ThreadPage>, (string | null)[], string | undefined>({
-    queryKey: ["hotel-message-thread", hotelId, selectedId],
-    queryFn: ({ pageParam }) => {
-      const params = new URLSearchParams();
-      params.set("limit", "20");
-      if (pageParam) params.set("before", pageParam);
-      return requestInternalApi<ThreadPage>(`${base}/${encodeURIComponent(selectedId!)}?${params.toString()}`, {
-        method: "GET",
-      });
-    },
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) => (lastPage.hasMore ? (lastPage.nextCursor ?? undefined) : undefined),
+  const detail = useInfiniteQuery({
+    ...hotelMessages.infiniteQueries.detail.options({ threadId: selectedId ?? "" }),
     enabled: Boolean(selectedId),
     refetchInterval: closedStayId ? false : 30_000,
     retry: false,
@@ -425,14 +409,9 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
     };
   }, [selectedId, hotelId]);
 
-  const reply = useMutation({
-    mutationFn: (variables: { threadId: string; body: string }) =>
-      requestInternalApi<{ thread: Thread; message: Message }>(`${base}/${encodeURIComponent(variables.threadId)}/reply`, {
-        method: "POST",
-        body: { body: variables.body },
-      }),
-    onMutate: () => setSendError(null),
-    onSuccess: (res, variables) => {
+  const reply = useMutation(hotelMessages.mutations.reply.options({
+    optimistic: () => setSendError(null),
+    onSuccess: ({ data: res, variables }) => {
       setDraftsByThread((prev) =>
         prev[variables.threadId]?.trim() === variables.body
           ? { ...prev, [variables.threadId]: "" }
@@ -461,7 +440,7 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
       upsertWaitingThread({ ...res.thread, latestMessage: res.message, unreadCount: 0 });
     },
     onError: () => setSendError("Không thể gửi tin nhắn. Vui lòng thử lại."),
-  });
+  }));
 
   useEffect(() => {
     if (reply.isPending && scrollContainerRef.current) {

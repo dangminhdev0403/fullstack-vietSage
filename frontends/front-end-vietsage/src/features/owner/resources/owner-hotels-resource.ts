@@ -2,7 +2,7 @@ import {
   createResource,
   defineQuery,
   type ResourceQueryContext,
-} from "@/libs/query-resource";
+} from "@dangminhdev04032005/query-resource";
 
 import type { HotelsPage } from "@/features/admin/types/admin-contract";
 import {

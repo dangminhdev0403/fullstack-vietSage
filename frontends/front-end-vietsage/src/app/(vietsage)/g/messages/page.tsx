@@ -14,6 +14,7 @@ import { useGuestStore, useGuestStoreHydrated } from "@/features/guest-os/store/
 import { playMessageAlertSound } from "@/features/request-realtime/audio-notifier";
 import { useGuestRequestRealtime } from "@/features/request-realtime/use-guest-request-realtime";
 import type { GuestMessagesResult } from "@/features/guest-os/types/guest-os-contract";
+import { guestMessagesResource } from "@/features/guest-os/resources/guest-messages-resource";
 
 function TypewriterMessageBody({ body, createdAt }: Readonly<{ body: string; createdAt: string }>) {
   const [displayedText, setDisplayedText] = useState(() => {
@@ -79,13 +80,14 @@ export default function GuestMessagesPage() {
   const [isPeerTyping, setIsPeerTyping] = useState(false);
   const peerTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const queryClient = useQueryClient();
+  const guestMessages = guestMessagesResource.bind({
+    sessionToken: sessionToken ?? "",
+    locale,
+  });
+  const historyInput = { limit: 20 } as const;
 
-  const messagesQuery = useInfiniteQuery<GuestMessagesResult, Error, InfiniteData<GuestMessagesResult>, (string | null)[], string | undefined>({
-    queryKey: ["guest-messages", sessionToken],
-    queryFn: ({ pageParam }) =>
-      guestOsService.listMessages(sessionToken!, { before: pageParam, limit: 20 }, locale),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) => (lastPage.hasMore ? (lastPage.nextCursor ?? undefined) : undefined),
+  const messagesQuery = useInfiniteQuery({
+    ...guestMessages.infiniteQueries.history.options(historyInput),
     enabled: hydrated && Boolean(sessionToken),
     refetchInterval: conversationClosed ? false : 30_000,
     retry: false,
@@ -230,10 +232,9 @@ export default function GuestMessagesPage() {
     }
   }, [items, pages.length]);
 
-  const send = useMutation({
-    mutationFn: () => guestOsService.sendMessage(sessionToken!, body.trim(), locale),
-    onMutate: () => setSendError(null),
-    onSuccess: async (res) => {
+  const send = useMutation(guestMessages.mutations.send.options({
+    optimistic: () => setSendError(null),
+    onSuccess: async ({ data: res }) => {
       setBody("");
       justSentRef.current = true;
       if (res?.message) {
@@ -257,7 +258,7 @@ export default function GuestMessagesPage() {
       await queryClient.invalidateQueries({ queryKey: ["guest-messages", sessionToken] });
     },
     onError: () => setSendError("Không thể gửi tin nhắn. Vui lòng thử lại."),
-  });
+  }));
 
   // Listen for staff typing signals across windows/tabs
   useEffect(() => {
@@ -354,7 +355,7 @@ export default function GuestMessagesPage() {
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
     }
-    send.mutate();
+    send.mutate({ body: body.trim() });
   };
 
 

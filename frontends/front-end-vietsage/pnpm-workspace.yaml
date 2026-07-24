@@ -4,3 +4,5 @@ allowBuilds:
 ignoredBuiltDependencies:
   - sharp
   - unrs-resolver
+minimumReleaseAgeExclude:
+  - '@dangminhdev04032005/query-resource@0.1.1'

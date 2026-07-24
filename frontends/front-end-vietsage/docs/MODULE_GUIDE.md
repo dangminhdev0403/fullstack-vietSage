@@ -28,7 +28,7 @@ Create only the folders the feature needs.
 | Folder | Responsibility |
 | --- | --- |
 | `repositories/` | Transport calls, endpoint paths, DTO mapping, response transforms, and pagination normalization. |
-| `resources/` | Capability declarations, stable keys, query options, mutations, local invalidation, and cache operations built with `@/libs/query-resource`. |
+| `resources/` | Capability declarations, stable keys, query options, mutations, local invalidation, and cache operations built with `@dangminhdev04032005/query-resource`. |
 | `queries/` | Client query hooks that bind resource scope and expose TanStack Query results. |
 | `hooks/` | Permissions, feature flags, normalized filters, cross-resource orchestration, navigation, and UI feedback. |
 | `service/` | Existing server loaders or domain orchestration that is not client cache behavior. Do not use it as a second repository layer. |
@@ -45,8 +45,8 @@ Create only the folders the feature needs.
 - Feature hooks may use feature resources, queries, stores, and explicit cross-resource coordination.
 - Resources may use their feature repository and stable feature contract types. They must not import React components or UI state.
 - Repositories may use the runtime-appropriate core HTTP utility or internal route handler. They must not import resources or React.
-- `@/libs/query-resource` is frontend infrastructure source owned by the frontend root package. Do not add a nested package.json, pnpm workspace package, or feature-local `node_modules` for resource utilities.
-- To reuse the factory in another project before publishing it, copy the whole `src/libs/query-resource` directory and adapt the import alias. Do not copy feature repositories or VietSage-specific resources with it.
+- `@dangminhdev04032005/query-resource` is the shared frontend infrastructure package. Do not add a local factory copy, nested package.json, pnpm workspace package, or feature-local `node_modules` for resource utilities.
+- Reuse the published package in another project; do not copy VietSage repositories or resources with it.
 - Keep response-affecting scope in `scopeKey` and response-affecting inputs in `inputKey`. Treat scope and input values as immutable after options are created.
 - Declare domain commands such as `approve`, `cancel`, `checkIn`, or `markRead` as named mutations. Do not recreate an untyped `extra` bucket.
 - Keep local invalidation in the resource definition. Coordinate invalidation across different resources explicitly in a feature hook so dependencies remain visible.
@@ -61,7 +61,7 @@ Create only the folders the feature needs.
 2. Define the backend/API contract.
 3. Create `src/features/[feature-name]` with only needed folders.
 4. Add a repository for transport, DTO mapping, transforms, and pagination.
-5. Declare only the resource capabilities the backend actually supports with `createResource`, `defineQuery`, `defineInfiniteQuery`, and `defineMutation` from `@/libs/query-resource`.
+5. Declare only the resource capabilities the backend actually supports with `createResource`, `defineQuery`, `defineInfiniteQuery`, and `defineMutation` from `@dangminhdev04032005/query-resource`.
 6. Add query or feature hooks for scope, permissions, flags, filters, and UI-side orchestration.
 7. Add local hooks/store only for frontend interaction state.
 8. Add feature components for reusable domain UI.

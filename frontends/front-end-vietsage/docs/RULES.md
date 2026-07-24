@@ -71,10 +71,10 @@ Avoid:
 
 ## React Query Rule (Mandatory)
 
-- For new or materially changed client-side API modules, declare server-state capabilities with `@/libs/query-resource`, then consume its options through `useQuery`, `useInfiniteQuery`, or `useMutation` in queries/* or feature hooks.
-- Existing direct TanStack Query modules may migrate incrementally; do not rewrite unrelated realtime/cache code merely to satisfy this rule.
+- For every new or materially changed client-side API module, declare server-state capabilities with `@dangminhdev04032005/query-resource`, then consume its options through `useQuery`, `useInfiniteQuery`, or `useMutation` in queries/* or feature hooks.
+- Do not write raw `queryKey` + `queryFn` or raw `mutationFn` configuration in pages, presentation components, or feature hooks. The only allowed direct TanStack Query configuration is the application-level `QueryClient` provider; hooks consume resource-generated options.
 - Do not call backend APIs directly with raw fetch/axios inside page, layout, or presentational components.
-- Repositories own transport selection, endpoints, DTO mapping, transforms, and pagination normalization. The `src/libs/query-resource` factory must remain independent of `fetch`, Axios, VietSage clients, and backend response envelopes.
+- Repositories own transport selection, endpoints, DTO mapping, transforms, and pagination normalization. `@dangminhdev04032005/query-resource` remains independent of `fetch`, Axios, VietSage clients, and backend response envelopes.
 - Resources own key factories, query/infinite options, mutations, local invalidation, prefetch/ensure, and cache patch/rollback operations.
 - Feature hooks own permission checks, feature flags, enabled guards, filter normalization, cross-resource coordination, navigation, and UI feedback.
 - Every response-affecting scope value and input must be represented in `scopeKey` or `inputKey`. Keys must be deterministic and JSON-serializable.
@@ -83,8 +83,8 @@ Avoid:
 - Realtime handlers must use resource-generated keys/cache operations when a resource exists; do not duplicate key arrays.
 - Use enabled guards for missing params/session to avoid premature requests and unnecessary 401 retries.
 - Server-side (RSC/layout) fetches stay in server layers; React Query is the client cache/interaction layer.
-- Frontend dependency management is rooted at `front-end-vietsage/package.json`. Do not create nested `package.json`, nested `node_modules`, or `packages/*` workspaces for app-internal resource utilities unless the team explicitly starts a publish/release task.
-- Cross-project reuse before publishing means copying `src/libs/query-resource` as infrastructure code. Each project still writes its own repositories/resources around its own API contract.
+- Frontend dependency management is rooted at `front-end-vietsage/package.json`. Do not create nested `package.json`, nested `node_modules`, `packages/*` workspaces, or a local copy of the query-resource package.
+- Cross-project reuse is via `@dangminhdev04032005/query-resource`. Each project still writes its own repositories/resources around its own API contract.
 
 ## State Management
 

@@ -10,6 +10,7 @@ import {
 } from "@tanstack/react-query";
 
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
 import type {
   HotelArrival,
   HotelCheckInResult,
@@ -288,30 +289,15 @@ export function StaffRoomsClient({
     isFetching,
     refetch,
   } = useQuery({
-    queryKey: [
-      "hotel-ops",
-      hotelId,
-      "rooms",
-      { page, limit: pageSize, q: query, status, floor, type, vipOnly },
-    ],
-    queryFn: async () => {
-      const searchParams = new URLSearchParams({
-        page: String(page),
-        limit: String(pageSize),
-        ...(query ? { q: query } : {}),
-        ...(status !== "all" ? { status: status.toUpperCase() } : {}),
-        ...(floor !== "all" ? { floor } : {}),
-        ...(type !== "all" ? { type } : {}),
-        ...(vipOnly ? { vipOnly: "true" } : {}),
-      });
-      const response = await requestInternalApiEnvelope<
-        HotelOpsPage<HotelRoomSummary>
-      >(
-        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/rooms?${searchParams.toString()}`,
-        { method: "GET" },
-      );
-      return response.data;
-    },
+    ...staffRoomsResource.bind({ hotelId }).queries.list.options({
+      page,
+      limit: pageSize,
+      q: query,
+      status,
+      floor,
+      type,
+      vipOnly,
+    }),
     placeholderData: keepPreviousData,
     initialData:
       page === 1 &&
