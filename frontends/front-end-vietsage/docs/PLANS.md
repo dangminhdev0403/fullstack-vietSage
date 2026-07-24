@@ -1,3 +1,35 @@
+## [complete] 2026-07-24 - Mission: reusable-query-resource-factory
+
+- Added the standalone workspace package `@dangminhdev/query-resource` for TanStack Query v5:
+  - transport-agnostic resource definitions with no dependency on VietSage HTTP clients, `fetch`, Axios, DTO envelopes, or a fixed pagination format;
+  - capability-driven queries, infinite queries, and named mutations without assuming full CRUD or an untyped `extra` namespace;
+  - deterministic scope/input key factories, prefetch/fetch/ensure, invalidation, cancellation, removal, cache set/patch, concurrency-safe rollback, optimistic mutation lifecycle, and parallel local invalidation;
+  - type-level rejection of undeclared capabilities and invalid local invalidation targets.
+- Registered `packages/*` in the pnpm workspace and linked the package through `workspace:*`.
+- Added ESM build, declaration maps, NodeNext consumer verification, runtime/type contract tests, prepack build, and tarball packaging.
+- Migrated two representative modules while preserving their public hooks:
+  - owner hotels as a read-only resource;
+  - staff directory as a page/search query plus `createUser`, `assignRole`, `revokeRole`, and `updateAssignment` mutations.
+- Split both pilots into repository, resource, and feature query-hook boundaries. Components remain consumers and do not own endpoints, query keys, or invalidation.
+- Updated `ARCHITECTURE.md`, `MODULE_GUIDE.md`, and `RULES.md` with the new dependency direction, ownership rules, key completeness, partial-capability model, and explicit cross-resource coordination.
+
+Verification result:
+
+- `pnpm install --frozen-lockfile --offline` passed for both workspace projects.
+- Package build and source type contracts passed.
+- NodeNext emitted-declaration consumer typecheck passed.
+- Package runtime tests passed 5/5.
+- `pnpm pack` passed and contained only `dist`, `package.json`, and `README.md`.
+- Frontend `pnpm exec tsc --noEmit` passed with 0 errors.
+- Frontend ESLint passed with 0 errors; 10 pre-existing warnings remain in unrelated admin, service-catalog, and owner page files.
+- Frontend production build passed with 38 pages generated.
+
+Remaining blockers/risks:
+
+- Existing feature modules still use their current TanStack Query patterns and should migrate incrementally when they are materially changed; no broad rewrite was performed.
+- The package is workspace- and tarball-ready but was not published to a registry. Registry scope, versioning, and public license remain an explicit release decision.
+- Graphify index could not be refreshed because the CLI is unavailable in the execution environment.
+
 ## [complete] 2026-07-22 - Mission: guest-service-catalog-event-driven-refetch
 
 - Fixed page flickering and eliminated API spam on GuestOS (`/g/services`) & Management (`/hotels/.../services`):

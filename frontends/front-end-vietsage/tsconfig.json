@@ -19,6 +19,9 @@
       }
     ],
     "paths": {
+      "@dangminhdev/query-resource": [
+        "./packages/query-resource/src/index.ts"
+      ],
       "next-auth/jwt": ["./node_modules/next-auth/jwt.d.ts"],
       "@/*": ["./src/*"]
     }

@@ -51,6 +51,7 @@ frontends/
     │   ├── configs/
     │   ├── types/
     │   └── proxy.ts
+    ├── packages/
     ├── docs/
     ├── scripts/
     └── package.json
@@ -70,6 +71,7 @@ Only create folders that the app actually needs.
 | `providers/` | App-level React providers. |
 | `configs/` | Environment and application configuration. |
 | `lib/` | Small app-level utilities that do not belong to a feature or core infrastructure area. |
+| `packages/` | Transport- and product-neutral packages that can be built and consumed outside VietSage. |
 | `docs/` | Architecture, rules, guides, plans, design notes, smoke tests, and domain-specific instructions. |
 
 ## 6. Runtime Boundary Summary
@@ -112,9 +114,11 @@ Domain-specific frontend logic should live under `features/[feature-name]`.
 
 ```txt
 features/[feature-name]/
-├── service/
+├── repositories/
+├── resources/
 ├── queries/
 ├── hooks/
+├── service/
 ├── store/
 ├── types/
 ├── utils/
@@ -130,9 +134,11 @@ Create only the folders needed by the feature. See `MODULE_GUIDE.md` for detaile
 ```txt
 Route / UI
   ↓
-Feature Hook or Query
+Feature Hook / Query Hook
   ↓
-Feature Service
+Resource
+  ↓
+Repository
   ↓
 Core HTTP Utility or Route Handler
   ↓
@@ -142,6 +148,10 @@ Backend API
 Rules:
 
 - Do not introduce raw backend `fetch` calls in pages, layouts, or reusable UI components.
+- Repositories own transport calls, DTO mapping, response transforms, and pagination normalization.
+- Resources own stable keys, TanStack Query options, mutations, local invalidation, and cache operations.
+- Feature hooks own permissions, feature flags, filter normalization, cross-resource coordination, and UI feedback.
+- Components consume feature hooks; they do not know endpoints, DTOs, query keys, or invalidation rules.
 - Backend-backed types should come from generated contracts or feature contract wrappers.
 - Route Handlers should own session-sensitive proxy calls.
 - Frontend must not duplicate backend business rules as the source of truth.

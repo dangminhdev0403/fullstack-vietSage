@@ -66,15 +66,21 @@ Avoid:
 ## Data Fetching
 
 - Use queries/\* hooks
-- Use services/internal/\* for backend calls
+- Use feature repositories for backend/BFF calls; existing service loaders may migrate incrementally.
 - Avoid duplicate fetching
 
 ## React Query Rule (Mandatory)
 
-- For client-side interactive API flows, use TanStack Query (useQuery/useMutation) via queries/* hooks.
+- For new or materially changed client-side API modules, declare server-state capabilities with `@dangminhdev/query-resource`, then consume its options through `useQuery`, `useInfiniteQuery`, or `useMutation` in queries/* or feature hooks.
+- Existing direct TanStack Query modules may migrate incrementally; do not rewrite unrelated realtime/cache code merely to satisfy this rule.
 - Do not call backend APIs directly with raw fetch/axios inside page, layout, or presentational components.
-- Every query must use stable queryKey naming ([resource, scope, params]) to prevent cache collisions.
-- After successful mutations, always refresh affected data with invalidateQueries(...) or setQueryData(...).
+- Repositories own transport selection, endpoints, DTO mapping, transforms, and pagination normalization. The shared resource package must remain independent of `fetch`, Axios, VietSage clients, and backend response envelopes.
+- Resources own key factories, query/infinite options, mutations, local invalidation, prefetch/ensure, and cache patch/rollback operations.
+- Feature hooks own permission checks, feature flags, enabled guards, filter normalization, cross-resource coordination, navigation, and UI feedback.
+- Every response-affecting scope value and input must be represented in `scopeKey` or `inputKey`. Keys must be deterministic and JSON-serializable.
+- Declare only supported capabilities. Domain commands are named mutations; do not add an untyped `extra` namespace or assume every module has full CRUD.
+- Keep same-resource invalidation declarative in the mutation definition. Cross-resource effects must be explicit in a feature hook.
+- Realtime handlers must use resource-generated keys/cache operations when a resource exists; do not duplicate key arrays.
 - Use enabled guards for missing params/session to avoid premature requests and unnecessary 401 retries.
 - Server-side (RSC/layout) fetches stay in server layers; React Query is the client cache/interaction layer.
 
