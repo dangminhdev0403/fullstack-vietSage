@@ -2,7 +2,7 @@ import { auth } from "@/auth";
 import { unstable_rethrow } from "next/navigation";
 import { HttpError } from "@/core/http/http-error";
 import { adminService } from "@/features/admin/service/admin-service-instance";
-import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 import {
   httpErrorResponse,
   successResponse,

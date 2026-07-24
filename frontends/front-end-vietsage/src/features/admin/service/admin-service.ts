@@ -14,7 +14,7 @@ import type {
   TenantOwnerUpdateInput,
   UpdateHotelInput,
 } from "@/features/admin/types/admin-contract";
-import { readServerSessionTokens } from "@/lib/server-session-tokens";
+import { readServerSessionTokens } from "@/libs/server-session-tokens";
 
 export type AdminServiceOptions = {
   baseUrl: string;

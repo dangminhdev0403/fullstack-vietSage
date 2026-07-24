@@ -4,8 +4,8 @@ import { auth } from "@/auth";
 import { billingService } from "@/features/billing/service/billing-service-instance";
 import { formatDateTime, formatMoney } from "@/features/billing/utils/money";
 import { assertCanAccessHotelOps, canUseHotelId, requireHotelOpsServerTokens } from "@/features/hotel-ops/utils/hotel-route-auth";
-import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
-import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 import { InvoiceActions } from "./invoice-actions";
 
 type PageProps = { params: Promise<{ hotelId: string; invoiceId: string }> | { hotelId: string; invoiceId: string } };

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { resolveWorkspacePersona } from "@/features/workspace/config/workspace-registry";
-import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 
 import { OwnerHotelsClient } from "./owner-hotels-client";
 

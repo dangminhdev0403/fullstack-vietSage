@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { notFound } from "next/navigation";
 import { assertCanAccessHotelOps, canUseHotelId } from "@/features/hotel-ops/utils/hotel-route-auth";
-import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 import { requireHotelOpsServerTokens } from "@/features/hotel-ops/utils/hotel-route-auth";
 import { RoomMessagesClient } from "./room-messages-client";
 

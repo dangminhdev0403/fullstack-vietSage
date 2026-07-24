@@ -3,8 +3,8 @@ import type { Session } from "next-auth";
 
 import { auth } from "@/auth";
 import { HttpError } from "@/core/http/http-error";
-import { refreshAndSaveSessionTokens } from "@/lib/auth-session-refresh";
-import { readServerSessionTokens } from "@/lib/server-session-tokens";
+import { refreshAndSaveSessionTokens } from "@/libs/auth-session-refresh";
+import { readServerSessionTokens } from "@/libs/server-session-tokens";
 import { resolveWorkspacePersona } from "@/features/workspace/config/workspace-registry";
 
 type SessionTokenMetadata = {

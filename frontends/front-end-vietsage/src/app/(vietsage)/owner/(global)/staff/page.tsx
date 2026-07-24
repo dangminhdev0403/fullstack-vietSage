@@ -3,8 +3,8 @@ import { auth } from "@/auth";
 import { adminService } from "@/features/admin/service/admin-service-instance";
 import { StaffManagementClient } from "@/features/staff-management/components/staff-management-client";
 import { hasWorkspaceCapability } from "@/features/workspace/utils/workspace-context";
-import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
-import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 
 type Props = {
   searchParams?: Promise<Record<string, string | string[] | undefined>> | Record<string, string | string[] | undefined>;

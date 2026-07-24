@@ -270,6 +270,7 @@
   "268": "fix-paths.js",
   "269": "page.tsx",
   "270": ".getInvoiceDetail",
+  "271": "owner-request-realtime-notifier.tsx",
   "272": "2026-07-22 - Stay-Scoped Front Desk Messages",
   "273": "Active Plan",
   "274": "page.tsx",
@@ -277,8 +278,15 @@
   "276": "loading.tsx",
   "277": "chat-layout-regression.test.mjs",
   "278": "authentication.service.spec.ts",
-  "279": ".replacePermissions",
+  "279": "route.ts",
+  "280": "page.tsx",
   "281": "local.strategy.ts",
+  "282": "auth.schema.ts",
+  "283": "app-logger.service.ts",
   "284": "staff-management-client.tsx",
-  "285": "business-permissions.registry.ts"
+  "285": ".resolveModuleSummaryBaseOrThrow",
+  "286": "local.strategy.ts",
+  "287": ".listPermissions",
+  "288": ".findRoleWithRelationsOrThrow",
+  "289": ".listRoles"
 }

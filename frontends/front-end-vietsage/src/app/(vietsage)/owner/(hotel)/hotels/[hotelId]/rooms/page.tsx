@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
-import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 
 import { OwnerRoomsClient } from "./owner-rooms-client";
 import { OwnerStayRoomGridClient } from "../stay/owner-stay-room-grid-client";

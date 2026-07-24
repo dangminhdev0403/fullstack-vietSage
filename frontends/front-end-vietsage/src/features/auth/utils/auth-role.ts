@@ -1,4 +1,4 @@
-import type { UserRole } from "@/lib/auth";
+import type { UserRole } from "@/libs/auth";
 
 export const APP_ROLE_PRIORITY: UserRole[] = ["admin", "tenant_owner", "staff", "guest"];
 

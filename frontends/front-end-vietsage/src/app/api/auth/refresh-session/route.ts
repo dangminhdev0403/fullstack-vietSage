@@ -1,9 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { AuthServiceError } from "@/features/auth/service/auth-service";
-import { refreshAndSaveSessionTokens } from "@/lib/auth-session-refresh";
-import { sanitizeInternalCallbackUrl } from "@/lib/rbac";
-import { readServerSessionTokens } from "@/lib/server-session-tokens";
+import { refreshAndSaveSessionTokens } from "@/libs/auth-session-refresh";
+import { sanitizeInternalCallbackUrl } from "@/libs/rbac";
+import { readServerSessionTokens } from "@/libs/server-session-tokens";
 
 export const dynamic = "force-dynamic";
 

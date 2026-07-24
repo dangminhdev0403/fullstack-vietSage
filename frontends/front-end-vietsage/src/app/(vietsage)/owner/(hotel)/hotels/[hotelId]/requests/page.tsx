@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
 import type { ListHotelRequestsQuery } from "@/features/hotel-ops/types/hotel-ops-contract";
-import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 
 import { RequestQueueClient } from "../../../../../hotels/[hotelId]/requests/request-queue-client";
 

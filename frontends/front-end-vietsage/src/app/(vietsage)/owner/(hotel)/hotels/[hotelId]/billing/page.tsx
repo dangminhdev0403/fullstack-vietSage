@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { billingService } from "@/features/billing/service/billing-service-instance";
-import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 
 import { BillingFolioTableClient } from "./billing-folio-table-client";
 

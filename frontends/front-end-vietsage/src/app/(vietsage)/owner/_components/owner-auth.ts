@@ -4,8 +4,8 @@ import type { Session } from "next-auth";
 import { notFound, redirect } from "next/navigation";
 
 import { HttpError } from "@/core/http/http-error";
-import { hasAppRole } from "@/lib/rbac";
-import { requireRefreshableServerSession } from "@/lib/server-session-tokens";
+import { hasAppRole } from "@/libs/rbac";
+import { requireRefreshableServerSession } from "@/libs/server-session-tokens";
 
 export async function requireOwnerServerTokens(callbackUrl: `/${string}`) {
   return requireRefreshableServerSession(callbackUrl, "owner-auth");

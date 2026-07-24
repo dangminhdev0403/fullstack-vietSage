@@ -6,9 +6,9 @@ import { auth } from "@/auth";
 import { resolveWorkspacePersona } from "@/features/workspace/config/workspace-registry";
 import { adminService } from "@/features/admin/service/admin-service-instance";
 import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
-import { readServerSessionTokens } from "@/lib/server-session-tokens";
-import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
-import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
+import { readServerSessionTokens } from "@/libs/server-session-tokens";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 
 import { VsIcon } from "../../../_components/vs-icon";
 import { AnimatedDashboardNumber } from "./animated-dashboard-number";

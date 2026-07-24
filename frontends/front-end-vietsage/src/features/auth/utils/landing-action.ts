@@ -1,4 +1,4 @@
-import { getDefaultPathForRoles } from "@/lib/rbac";
+import { getDefaultPathForRoles } from "@/libs/rbac";
 import { hasAppRole } from "@/features/auth/utils/auth-role";
 
 import { resolveLandingAction } from "./landing-action-core";

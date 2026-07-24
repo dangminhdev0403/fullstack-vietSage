@@ -1,7 +1,7 @@
 import { unwrapApiEnvelope } from "@/core/http/api-envelope";
 import { HttpClient, type HttpMethod, type HttpQuery } from "@/core/http/http-client";
 import { httpServer } from "@/core/http/http-server";
-import { readServerSessionTokens } from "@/lib/server-session-tokens";
+import { readServerSessionTokens } from "@/libs/server-session-tokens";
 import type {
   CreateHotelStaffUserInput,
   HotelStaffAssignment,

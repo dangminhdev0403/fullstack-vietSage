@@ -46,7 +46,7 @@ frontends/
     │   ├── core/
     │   ├── features/
     │   ├── generated/
-    │   ├── lib/
+    │   ├── libs/
     │   ├── providers/
     │   ├── configs/
     │   ├── types/
@@ -70,7 +70,7 @@ Only create folders that the app actually needs.
 | `generated/` | Generated API contract types or generated client artifacts. |
 | `providers/` | App-level React providers. |
 | `configs/` | Environment and application configuration. |
-| `lib/` | Small app-level utilities that do not belong to a feature or core infrastructure area. |
+| `libs/` | Small app-level utilities that do not belong to a feature or core infrastructure area. |
 | `packages/` | Transport- and product-neutral packages that can be built and consumed outside VietSage. |
 | `docs/` | Architecture, rules, guides, plans, design notes, smoke tests, and domain-specific instructions. |
 

@@ -1,7 +1,7 @@
 import "server-only";
 
-import { refreshAndSaveSessionTokens } from "@/lib/auth-session-refresh";
-import { readServerSessionTokens } from "@/lib/server-session-tokens";
+import { refreshAndSaveSessionTokens } from "@/libs/auth-session-refresh";
+import { readServerSessionTokens } from "@/libs/server-session-tokens";
 
 export type ServerAuthRefreshResult = {
   accessToken: string;

@@ -1,8 +1,8 @@
 import { auth } from "@/auth";
 import { adminService } from "@/features/admin/service/admin-service-instance";
 import { buildWorkspaceNavigationForContext } from "@/features/workspace/config/workspace-registry";
-import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
-import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 
 import { HotelsAdminClient } from "./hotels-admin-client";
 

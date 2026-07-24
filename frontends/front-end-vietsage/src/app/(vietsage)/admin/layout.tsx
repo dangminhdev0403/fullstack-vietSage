@@ -3,9 +3,9 @@ import { type ReactNode } from "react";
 
 import { notFound, redirect } from "next/navigation";
 import { AuthRefreshGate } from "../_components/auth-refresh-gate";
-import { hasAppRole } from "@/lib/rbac";
-import { requireRefreshableServerSession } from "@/lib/server-session-tokens";
-import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
+import { hasAppRole } from "@/libs/rbac";
+import { requireRefreshableServerSession } from "@/libs/server-session-tokens";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 import { resolveWorkspacePersona } from "@/features/workspace/utils/workspace-context";
 import { WorkspaceProfileProvider } from "@/features/workspace/components/workspace-profile-context";
 

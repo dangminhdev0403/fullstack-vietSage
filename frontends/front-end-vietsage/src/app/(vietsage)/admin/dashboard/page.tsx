@@ -6,7 +6,7 @@ import {
   getWorkspaceDashboardWidgets,
 } from "@/features/workspace/config/workspace-registry";
 import { resolveWorkspacePersona } from "@/features/workspace/utils/workspace-context";
-import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 
 type DashboardPageProps = {
   searchParams?:

@@ -3,8 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { type ReactNode } from "react";
 
 import { AuthRefreshGate } from "../_components/auth-refresh-gate";
-import { hasAppRole } from "@/lib/rbac";
-import { requireRefreshableServerSession } from "@/lib/server-session-tokens";
+import { hasAppRole } from "@/libs/rbac";
+import { requireRefreshableServerSession } from "@/libs/server-session-tokens";
 
 function redirectToLogin(reason: string): never {
   console.info("[AUTH_REDIRECT_LOGIN_SOURCE]", {

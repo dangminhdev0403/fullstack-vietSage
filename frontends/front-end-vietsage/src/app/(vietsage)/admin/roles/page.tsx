@@ -5,8 +5,8 @@ import { rbacService } from "@/features/rbac/service/rbac-service-instance";
 import type { RbacRole } from "@/features/rbac/types/rbac-contract";
 import { buildWorkspaceNavigationForContext } from "@/features/workspace/config/workspace-registry";
 import type { DashboardNavItem } from "@/features/workspace/types/workspace-navigation";
-import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
-import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 
 import { VsIcon } from "../../_components/vs-icon";
 import {

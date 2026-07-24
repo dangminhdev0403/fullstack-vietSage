@@ -4,7 +4,7 @@ import { auth } from "@/auth";
 
 import { assertCanAccessHotelOps, canUseHotelId, requireHotelOpsServerTokens } from "@/features/hotel-ops/utils/hotel-route-auth";
 import { buildWorkspaceNavigationForContext, getWorkspaceDefinition, resolveWorkspacePersona } from "@/features/workspace/config/workspace-registry";
-import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 import { WorkspaceProfileProvider } from "@/features/workspace/components/workspace-profile-context";
 import { WorkspaceShell } from "@/features/workspace/components/workspace-shell";
 

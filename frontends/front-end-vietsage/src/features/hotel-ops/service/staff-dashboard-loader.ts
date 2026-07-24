@@ -7,7 +7,7 @@ import type {
   StaffRequestListItem,
   StaffRequestSummaryResponse,
 } from "../types/hotel-ops-contract";
-import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 
 export type StaffDashboardData = {
   requests: StaffRequestListItem[];

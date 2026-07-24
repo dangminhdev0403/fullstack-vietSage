@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { auth } from "@/auth";
 import { resolvePostLoginRedirectUrl } from "@/features/auth/utils/redirect-isolation-core";
-import { resolveSafeRedirectByRoles, sanitizeInternalCallbackUrl } from "@/lib/rbac";
+import { resolveSafeRedirectByRoles, sanitizeInternalCallbackUrl } from "@/libs/rbac";
 
 export const dynamic = "force-dynamic";
 

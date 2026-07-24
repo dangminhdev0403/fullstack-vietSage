@@ -21,7 +21,7 @@ import type {
   RolePermissionsRevokeResponseEnvelope,
   RolesListResponseEnvelope,
 } from "@/features/rbac/types/rbac-contract";
-import { readServerSessionTokens } from "@/lib/server-session-tokens";
+import { readServerSessionTokens } from "@/libs/server-session-tokens";
 
 export type RbacServiceOptions = {
   baseUrl: string;

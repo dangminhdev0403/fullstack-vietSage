@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { auth } from "./auth";
-import { canAccessPathByRoles, getDefaultPathForRoles, sanitizeInternalCallbackUrl } from "./lib/rbac";
+import { canAccessPathByRoles, getDefaultPathForRoles, sanitizeInternalCallbackUrl } from "./libs/rbac";
 
 const protectedPrefixes = ["/admin", "/owner", "/staff", "/hotels"] as const;
 const authRoutes = new Set(["/login", "/register"]);

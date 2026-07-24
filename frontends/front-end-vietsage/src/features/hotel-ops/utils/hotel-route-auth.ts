@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 
 import type { AuthIdentity } from "@/features/auth/service/auth-service";
 import { canAccessHotelScope } from "@/features/workspace/utils/workspace-context";
-import { requireRefreshableServerSession } from "@/lib/server-session-tokens";
+import { requireRefreshableServerSession } from "@/libs/server-session-tokens";
 
 export async function requireHotelOpsServerTokens(callbackUrl: `/${string}`) {
   return requireRefreshableServerSession(callbackUrl, "hotel-route-auth");

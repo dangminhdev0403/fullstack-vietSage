@@ -7,8 +7,8 @@ import type {
   RbacPermissionModuleSummary,
   RbacRole,
 } from "@/features/rbac/types/rbac-contract";
-import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
-import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 import { VsIcon } from "../../_components/vs-icon";
 import {
   type RolePermissionsBrowserPermission,

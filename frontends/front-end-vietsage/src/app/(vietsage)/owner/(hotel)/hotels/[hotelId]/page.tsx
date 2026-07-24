@@ -6,7 +6,7 @@ import { HttpError } from "@/core/http/http-error";
 import { adminService } from "@/features/admin/service/admin-service-instance";
 import type { Hotel } from "@/features/admin/types/admin-contract";
 import type { DashboardNavItem } from "@/features/workspace/types/workspace-navigation";
-import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 
 import { VsIcon } from "../../../../_components/vs-icon";
 import { ownerAccessMessage } from "../../../_components/owner-auth";

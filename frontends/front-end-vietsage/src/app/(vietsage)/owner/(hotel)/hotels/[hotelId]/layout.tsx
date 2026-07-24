@@ -1,6 +1,6 @@
 import { type ReactNode } from "react";
 import { buildWorkspaceNavigationForContext } from "@/features/workspace/config/workspace-registry";
-import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 import { WorkspaceProfileProvider } from "@/features/workspace/components/workspace-profile-context";
 import { OwnerShell } from "../../../_components/owner-shell";
 

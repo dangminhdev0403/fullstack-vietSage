@@ -5,7 +5,7 @@ import {
   resolveSingleAssignedHotel,
   resolveWorkspacePersona,
 } from "@/features/workspace/utils/workspace-context";
-import { loadServerWorkspaceContext } from "@/lib/server-workspace-context";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 
 export const dynamic = "force-dynamic";
 

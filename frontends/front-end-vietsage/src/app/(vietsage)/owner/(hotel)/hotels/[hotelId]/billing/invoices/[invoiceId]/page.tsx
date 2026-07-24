@@ -4,7 +4,7 @@ import { auth } from "@/auth";
 import { billingService } from "@/features/billing/service/billing-service-instance";
 import type { InvoiceDetail, MoneyValue } from "@/features/billing/types/billing-contract";
 import { formatDateTime, formatMoney } from "@/features/billing/utils/money";
-import { createAuthorizedApiExecutor } from "@/lib/server-api-auth";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 
 import { InvoicePrintButton } from "./invoice-print-button";
 import { InvoiceActions } from "@/app/(vietsage)/hotels/[hotelId]/billing/invoices/[invoiceId]/invoice-actions";
