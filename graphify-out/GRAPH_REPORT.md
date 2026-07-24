@@ -1,16 +1,16 @@
 # Graph Report - fullstack-vietSage  (2026-07-24)
 
 ## Corpus Check
-- 705 files · ~453,559 words
+- 705 files · ~453,600 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 5324 nodes · 12167 edges · 276 communities (235 shown, 41 thin omitted)
+- 5324 nodes · 12167 edges · 278 communities (234 shown, 44 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 67 edges (avg confidence: 0.64)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `f9761cf2`
+- Built from commit: `e0b541e8`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -218,6 +218,7 @@
 - Frontend Smoke Tests
 - PRODUCT.md
 - VietSage Domain Map
+- .constructor
 - Frontend Instructions: GuestOS Backend I18n Sync
 - PROJECT PLAN
 - 2026-07-14 - Guest Request Contract Sync
@@ -232,6 +233,7 @@
 - backup-production-postgres.sh
 - renew-production-certificates.sh
 - restore-production-postgres.sh
+- @dangminhdev04032005/query-resource
 - Phase 0 — Read-Only VPS Discovery
 - transformation.interceptor.ts
 - Contract Changes
@@ -302,7 +304,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (276 total, 41 thin omitted)
+## Communities (278 total, 44 thin omitted)
 
 ### Community 0 - "executeOwnerBackendRequest"
 Cohesion: 0.06
@@ -442,7 +444,7 @@ Nodes (29): GuestRequestSheet(), GuestRequestSheetProps, emitHydrationChange(), 
 
 ### Community 34 - "AuthRepository"
 Cohesion: 0.06
-Nodes (9): Inject, Optional, ServiceCatalogTranslationInput, HotelRoomsRepository, Injectable, HotelServiceCatalogRepository, Injectable, HotelsRepository (+1 more)
+Nodes (7): ServiceCatalogTranslationInput, HotelRoomsRepository, Injectable, HotelServiceCatalogRepository, Injectable, HotelsRepository, Injectable
 
 ### Community 35 - "page.tsx"
 Cohesion: 0.07
@@ -670,7 +672,7 @@ Nodes (11): healthDataSchema, HealthController, ApiOkResponse, ApiTags, Controll
 
 ### Community 94 - "dependencies"
 Cohesion: 0.11
-Nodes (19): @auth/core, dependencies, @auth/core, @dangminhdev04032005/query-resource, motion, next, react-dom, socket.io-client (+11 more)
+Nodes (19): @auth/core, dependencies, @auth/core, motion, next, react-dom, socket.io-client, sonner (+11 more)
 
 ### Community 95 - "page.tsx"
 Cohesion: 0.13
@@ -946,10 +948,6 @@ Nodes (3): name, private, version
 Cohesion: 0.18
 Nodes (10): 1. Pull code on the VPS, 2. Create production secret files, 3. Build, migrate, and start Docker services, 4. Docker-managed Nginx (current production path), 5. Legacy host-Nginx cutover reference, 6. Open firewall ports, 7. Issue HTTPS certificates with Docker Certbot, 8. Verify externally (+2 more)
 
-### Community 165 - "route-permission-key.util.ts"
-Cohesion: 0.21
-Nodes (4): Pattern, PublicRouteMatcher, JwtAuthGuard, Injectable
-
 ### Community 166 - ".getInvoiceDetail"
 Cohesion: 0.33
 Nodes (5): ApiOkResponse, ApiParam, Get, Param, Req
@@ -1185,7 +1183,7 @@ Nodes (7): AccessTokenPayload, LegacyRefreshTokenPayload, PasswordVerificationRe
 ## Knowledge Gaps
 - **1622 isolated node(s):** `eslintConfig`, `nextConfig`, `name`, `version`, `private` (+1617 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **41 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **44 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_

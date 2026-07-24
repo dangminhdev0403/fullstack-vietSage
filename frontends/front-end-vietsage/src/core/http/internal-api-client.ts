@@ -114,7 +114,8 @@ export async function requestInternalApiEnvelope<TData, TBody = unknown>(
         dispatchAuthLogoutRequired("internal_api_refresh_failed", globalThis.location.pathname);
       }
 
-      throw retryError;
+      // Return a pending promise so the component stays in loading state while window.location redirects to /login
+      return new Promise<never>(() => {});
     }
   }
 }

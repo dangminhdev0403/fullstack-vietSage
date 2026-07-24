@@ -1,16 +1,16 @@
 # Graph Report - fullstack-vietSage  (2026-07-24)
 
 ## Corpus Check
-- 705 files · ~453,445 words
+- 705 files · ~453,559 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 5324 nodes · 12167 edges · 275 communities (234 shown, 41 thin omitted)
+- 5324 nodes · 12167 edges · 276 communities (235 shown, 41 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 67 edges (avg confidence: 0.64)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `e421ab15`
+- Built from commit: `f9761cf2`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -208,6 +208,7 @@
 - @tanstack/react-query
 - postcss.config.mjs
 - guest-operations-public.ts
+- staff-management-service.ts
 - Frontend Feature Guide
 - Phase 2 — Production Database Backup and Migration Decision
 - VietSage Core API (`auth-service` historical path)
@@ -301,7 +302,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (275 total, 41 thin omitted)
+## Communities (276 total, 41 thin omitted)
 
 ### Community 0 - "executeOwnerBackendRequest"
 Cohesion: 0.06
@@ -316,8 +317,8 @@ Cohesion: 0.08
 Nodes (67): Params, POST(), GET(), Params, GET(), Params, GET(), Params (+59 more)
 
 ### Community 3 - "workspace-registry.ts"
-Cohesion: 0.06
-Nodes (34): ApiEnvelope, isRecord(), toApiErrorMessage(), unwrapApiEnvelope(), createRbacService(), CreateRoleBody, DeleteRoleResult, ListPermissionModulePermissionsOptions (+26 more)
+Cohesion: 0.07
+Nodes (31): unwrapApiEnvelope(), createRbacService(), CreateRoleBody, DeleteRoleResult, ListPermissionModulePermissionsOptions, ListPermissionsOptions, RbacService, RbacServiceOptions (+23 more)
 
 ### Community 4 - "useGuestStore"
 Cohesion: 0.18
@@ -380,8 +381,8 @@ Cohesion: 0.10
 Nodes (14): TenantOwnerItem, TenantOwnersService, Injectable, CreateTenantOwnerBodyInput, createTenantOwnerBodySchema, ListTenantOwnersQueryInput, listTenantOwnersQuerySchema, tenantOwnerIdParamSchema (+6 more)
 
 ### Community 19 - "vs-icon.tsx"
-Cohesion: 0.08
-Nodes (40): clampBackendApiLimit(), clampBackendApiLimitValue(), appendQuery(), createTimeoutController(), extractApiResponseMessage(), HttpClientOptions, HttpMethod, HttpQuery (+32 more)
+Cohesion: 0.10
+Nodes (32): clampBackendApiLimit(), clampBackendApiLimitValue(), appendQuery(), createTimeoutController(), extractApiResponseMessage(), HttpClientOptions, HttpRequestOptions, isPublicRequest() (+24 more)
 
 ### Community 20 - "page.tsx"
 Cohesion: 0.13
@@ -996,6 +997,10 @@ Nodes (8): Anti-patterns, Auth and Session Rules, Contract Rules, Error Contract
 ### Community 188 - ".issue"
 Cohesion: 0.33
 Nodes (5): ApiOkResponse, ApiParam, Param, Post, Req
+
+### Community 194 - "staff-management-service.ts"
+Cohesion: 0.19
+Nodes (11): ApiEnvelope, isRecord(), toApiErrorMessage(), HttpMethod, HttpQuery, CreateHotelStaffUserInput, HotelStaffAssignment, HotelStaffAssignmentsPage (+3 more)
 
 ### Community 197 - "Frontend Feature Guide"
 Cohesion: 0.22

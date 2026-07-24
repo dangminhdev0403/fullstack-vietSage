@@ -740,14 +740,14 @@
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/core/http/internal-api-client.ts": {
-    "mtime": 1783919247.3430085,
-    "ast_hash": "ecc340ca18d6e31e77a795b40ef6c00d",
-    "semantic_hash": "ecc340ca18d6e31e77a795b40ef6c00d"
+    "mtime": 1784903981.737728,
+    "ast_hash": "fae19865ecaa40a6550ac2a7fff3d6ea",
+    "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/core/http/internal-session-refresh.ts": {
-    "mtime": 1783919247.3430085,
-    "ast_hash": "393f7041631fb9e28fb1a3504589468f",
-    "semantic_hash": "393f7041631fb9e28fb1a3504589468f"
+    "mtime": 1784903976.5673718,
+    "ast_hash": "fe5706b6bb4bb2d867291020cca9fa09",
+    "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/core/http/public-api-paths.ts": {
     "mtime": 1784012325.3799965,

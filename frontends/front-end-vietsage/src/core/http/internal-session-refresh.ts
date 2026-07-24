@@ -32,6 +32,13 @@ export function dispatchAuthLogoutRequired(reason: string, pathname: string): vo
   }
 
   logoutSignalDispatched = true;
+  const targetUrl = `/login?reauth=1&callbackUrl=${encodeURIComponent(pathname)}`;
+  console.warn("[AUTH_LOGOUT_REQUIRED]", { reason, pathname, targetUrl, timestamp: Date.now() });
+
+  if (window.location.pathname !== "/login") {
+    window.location.href = targetUrl;
+  }
+
   window.dispatchEvent(
     new CustomEvent(AUTH_LOGOUT_REQUIRED_EVENT, {
       detail: {
