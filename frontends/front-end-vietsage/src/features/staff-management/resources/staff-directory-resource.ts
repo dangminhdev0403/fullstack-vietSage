@@ -4,7 +4,7 @@ import {
   defineQuery,
   type ResourceMutationContext,
   type ResourceQueryContext,
-} from "@dangminhdev/query-resource";
+} from "@/libs/query-resource";
 
 import {
   staffDirectoryRepository,
