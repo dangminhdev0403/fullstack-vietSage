@@ -221,7 +221,6 @@
   "221": "verify-production-backup.py",
   "223": "Phase 0 — Read-Only VPS Discovery",
   "224": "transformation.interceptor.ts",
-  "225": "zod",
   "226": "Contract Changes",
   "227": "API Contract Sync Package",
   "228": "ADR-001: Modular Monolith First",

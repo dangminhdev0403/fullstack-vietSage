@@ -90,6 +90,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
     [data?.assignments?.items],
   );
   const users = data?.users.items ?? [];
+  const skeletonRows = useMemo(() => Array.from({ length: 5 }, (_, i) => ({ id: `skel-${i}` })), []);
 
   async function submitCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -159,7 +160,11 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-[var(--on-surface-variant)]">{metric.label}</p>
-                <p className="mt-2 text-3xl font-semibold text-[var(--primary)]">{metric.value}</p>
+                {directory.isLoading ? (
+                  <span className="mt-2 block h-9 w-20 animate-pulse rounded-lg bg-slate-200" />
+                ) : (
+                  <p className="mt-2 text-3xl font-semibold text-[var(--primary)]">{metric.value}</p>
+                )}
               </div>
               <VsIcon name={metric.icon} className="text-2xl text-[var(--secondary)]" />
             </div>
@@ -373,116 +378,323 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
         </form>
       ) : null}
 
-      {directory.isLoading ? (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-[var(--outline-variant)] bg-white p-12 text-sm text-[var(--on-surface-variant)] shadow-sm">
-          <VsIcon name="progress_activity" className="animate-spin text-3xl text-[var(--primary)]" />
-          <span className="font-medium">Đang tải danh sách nhân viên...</span>
-        </div>
-      ) : null}
       {directory.isError ? (
         <div className="rounded-xl border border-[var(--error)]/30 bg-[var(--error-container)] p-5 text-sm text-[var(--on-error-container)]">
           {directory.error instanceof Error ? directory.error.message : "Không tải được danh sách nhân viên."}
         </div>
       ) : null}
 
-      {data ? (
-        <>
-          {/* Desktop view */}
-          <section className="hidden md:block">
-            <DataTable
-              columns={[
-                {
-                  key: "user",
-                  header: "Nhân viên",
-                  className: "w-[18%]",
-                  headerClassName: "w-[18%]",
-                  cell: (user) => (
-                    <div className="min-w-0 py-1">
-                      <p className="font-semibold text-[var(--primary)]">{user.fullName}</p>
-                      <p className="mt-1 text-xs text-[var(--on-surface-variant)]">{user.email}</p>
-                    </div>
-                  ),
+      {/* Desktop view */}
+      <section className="hidden md:block">
+        {directory.isLoading ? (
+          <DataTable
+            columns={[
+              {
+                key: "user",
+                header: "Nhân viên",
+                className: "w-[18%]",
+                headerClassName: "w-[18%]",
+                cell: () => (
+                  <div className="space-y-1.5 py-1">
+                    <div className="h-4 w-32 animate-pulse rounded bg-slate-200" />
+                    <div className="h-3 w-40 animate-pulse rounded bg-slate-100" />
+                  </div>
+                ),
+              },
+              {
+                key: "roles",
+                header: "Vai trò",
+                className: "w-[30%]",
+                headerClassName: "w-[30%]",
+                cell: () => (
+                  <div className="flex gap-2 py-1">
+                    <div className="h-6 w-20 animate-pulse rounded-full bg-slate-200" />
+                    <div className="h-6 w-16 animate-pulse rounded-full bg-slate-100" />
+                  </div>
+                ),
+              },
+              {
+                key: "assignment",
+                header: "Phân công",
+                className: "w-[16%]",
+                headerClassName: "w-[16%]",
+                cell: () => <div className="h-7 w-28 animate-pulse rounded-full bg-slate-100" />,
+              },
+              {
+                key: "assignRole",
+                header: "Gán vai trò",
+                className: "w-[24%]",
+                headerClassName: "w-[24%]",
+                cell: () => <div className="h-10 w-full animate-pulse rounded-lg bg-slate-100" />,
+              },
+              {
+                key: "actions",
+                header: <div className="text-right">Thao tác</div>,
+                className: "w-[12%]",
+                headerClassName: "w-[12%] text-right",
+                cell: () => <div className="ml-auto h-10 w-28 animate-pulse rounded-lg bg-slate-100" />,
+              },
+            ]}
+            data={skeletonRows}
+            getRowKey={(item) => item.id}
+            emptyMessage=""
+            minWidth="980px"
+          />
+        ) : data ? (
+          <DataTable
+            columns={[
+              {
+                key: "user",
+                header: "Nhân viên",
+                className: "w-[18%]",
+                headerClassName: "w-[18%]",
+                cell: (user) => (
+                  <div className="min-w-0 py-1">
+                    <p className="font-semibold text-[var(--primary)]">{user.fullName}</p>
+                    <p className="mt-1 text-xs text-[var(--on-surface-variant)]">{user.email}</p>
+                  </div>
+                ),
+              },
+              {
+                key: "roles",
+                header: "Vai trò",
+                className: "w-[30%]",
+                headerClassName: "w-[30%]",
+                cell: (user) => (
+                  <div className="flex min-h-10 max-w-[360px] flex-wrap items-center gap-2 py-1">
+                    {user.roles.map((role) => {
+                      const isRevoking = activeActionKey === `revoke-${user.id}-${role.id}`;
+                      return canManage ? (
+                        <button
+                          disabled={isBusy}
+                          title="Thu hồi vai trò"
+                          type="button"
+                          onClick={() =>
+                            runMutation(
+                              `revoke-${user.id}-${role.id}`,
+                              () => mutations.revokeRole.mutateAsync({ userId: user.id, roleId: role.id }),
+                              "Đã thu hồi vai trò",
+                            )
+                          }
+                          key={role.id}
+                          className="rounded-full bg-[var(--surface-container)] px-3 py-1 text-xs font-semibold hover:bg-red-100 hover:text-red-700 disabled:opacity-50 inline-flex items-center gap-1"
+                        >
+                          {isRevoking ? (
+                            <>
+                              <VsIcon name="progress_activity" className="animate-spin text-xs" />
+                              <span>Đang xóa...</span>
+                            </>
+                          ) : (
+                            `${role.name} ×`
+                          )}
+                        </button>
+                      ) : (
+                        <span key={role.id} className="rounded-full bg-[var(--surface-container)] px-3 py-1 text-xs font-semibold">
+                          {role.name}
+                        </span>
+                      );
+                    })}
+                  </div>
+                ),
+              },
+              {
+                key: "assignment",
+                header: "Phân công",
+                className: "w-[16%]",
+                headerClassName: "w-[16%]",
+                cell: (user) => {
+                  const assigned = assignedUserIds.has(user.id);
+                  const assignedElsewhere = Boolean(user.assignedHotel && !assigned);
+                  return (
+                    <span className={`inline-flex min-h-9 items-center whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${assigned ? "bg-emerald-100 text-emerald-800" : assignedElsewhere ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}>
+                      {assigned
+                        ? user.assignedHotel?.name ?? "Đang làm tại khách sạn"
+                        : assignedElsewhere
+                          ? `Đang ở ${user.assignedHotel?.name}`
+                          : "Chưa phân công"}
+                    </span>
+                  );
                 },
-                {
-                  key: "roles",
-                  header: "Vai trò",
-                  className: "w-[30%]",
-                  headerClassName: "w-[30%]",
-                  cell: (user) => (
-                    <div className="flex min-h-10 max-w-[360px] flex-wrap items-center gap-2 py-1">
+              },
+              {
+                key: "assignRole",
+                header: "Gán vai trò",
+                className: "w-[24%]",
+                headerClassName: "w-[24%]",
+                cell: (user) => {
+                  if (!canManage) return <span className="text-xs text-[var(--on-surface-variant)]">Chỉ xem</span>;
+                  const selectedRoleId = roleDrafts[user.id] ?? "";
+                  const availableRoles = data.roles.filter((role) => !user.roles.some((current) => current.id === role.id));
+                  const isAssigning = activeActionKey === `assign-${user.id}`;
+                  return (
+                    <div className="flex min-h-10 items-center gap-2">
+                      <select
+                        disabled={isBusy}
+                        value={selectedRoleId}
+                        onChange={(e) => setRoleDrafts((current) => ({ ...current, [user.id]: e.target.value }))}
+                        className="h-10 min-w-0 flex-1 rounded-lg border border-[var(--outline-variant)] bg-white px-3 text-xs disabled:bg-slate-50"
+                      >
+                        <option value="">Chọn vai trò</option>
+                        {availableRoles.map((role) => (
+                          <option key={role.id} value={role.id}>{role.name}</option>
+                        ))}
+                      </select>
+                      <button
+                        disabled={!selectedRoleId || isBusy}
+                        type="button"
+                        onClick={() =>
+                          runMutation(
+                            `assign-${user.id}`,
+                            () => mutations.assignRole.mutateAsync({ userId: user.id, roleId: selectedRoleId }),
+                            "Đã gán vai trò",
+                          )
+                        }
+                        className="h-10 shrink-0 rounded-lg bg-[var(--primary)] px-3 text-xs font-semibold text-white disabled:opacity-40 flex items-center justify-center gap-1.5"
+                      >
+                        {isAssigning ? (
+                          <>
+                            <VsIcon name="progress_activity" className="animate-spin text-xs" />
+                            <span>Đang gán...</span>
+                          </>
+                        ) : (
+                          "Gán"
+                        )}
+                      </button>
+                    </div>
+                  );
+                },
+              },
+              {
+                key: "actions",
+                header: <div className="text-right">Thao tác</div>,
+                className: "w-[12%]",
+                headerClassName: "w-[12%] text-right",
+                cell: (user) => {
+                  if (!canManage) return <div className="text-right text-xs text-[var(--on-surface-variant)]">Chỉ xem</div>;
+                  const assigned = assignedUserIds.has(user.id);
+                  const isTransfer = Boolean(user.assignedHotel && !assigned);
+                  const isUpdatingAssignment = activeActionKey === `assignment-${user.id}`;
+                  return (
+                    <div className="flex min-h-10 items-center justify-end">
+                      <button
+                        disabled={!hotelId || isBusy}
+                        type="button"
+                        onClick={() =>
+                          runMutation(
+                            `assignment-${user.id}`,
+                            () => mutations.updateAssignment.mutateAsync({ userId: user.id, assigned: !assigned }),
+                            assigned
+                              ? "Đã thu hồi phân công"
+                              : isTransfer
+                                ? "Đã chuyển nhân viên đến khách sạn"
+                                : "Đã phân công nhân viên",
+                          )
+                        }
+                        className="h-10 whitespace-nowrap rounded-lg border border-[var(--outline-variant)] px-3 text-xs font-semibold disabled:opacity-40 hover:bg-[var(--surface-container-low)] flex items-center gap-1.5"
+                      >
+                        {isUpdatingAssignment ? (
+                          <>
+                            <VsIcon name="progress_activity" className="animate-spin text-xs" />
+                            <span>Đang xử lý...</span>
+                          </>
+                        ) : assigned ? (
+                          "Bỏ khỏi khách sạn"
+                        ) : isTransfer ? (
+                          "Chuyển đến đây"
+                        ) : (
+                          "Phân công"
+                        )}
+                      </button>
+                    </div>
+                  );
+                },
+              },
+            ]}
+            data={users}
+            getRowKey={(user) => user.id}
+            emptyMessage="Không có nhân viên phù hợp."
+            minWidth="980px"
+          />
+        ) : null}
+      </section>
+
+      {/* Mobile view */}
+      <section className="space-y-4 md:hidden">
+        {directory.isLoading ? (
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="animate-pulse rounded-xl border border-[var(--outline-variant)] bg-white p-5 space-y-3 shadow-sm">
+                <div className="flex justify-between items-center">
+                  <div className="space-y-1.5">
+                    <div className="h-4 w-36 rounded bg-slate-200" />
+                    <div className="h-3 w-48 rounded bg-slate-100" />
+                  </div>
+                  <div className="h-6 w-24 rounded-full bg-slate-100" />
+                </div>
+                <div className="border-t border-slate-100 pt-3 space-y-2">
+                  <div className="h-3 w-28 rounded bg-slate-100" />
+                  <div className="h-10 w-full rounded-xl bg-slate-100" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : data ? (
+          users.map((user) => {
+            const assigned = assignedUserIds.has(user.id);
+            const assignedElsewhere = Boolean(user.assignedHotel && !assigned);
+            const selectedRoleId = roleDrafts[user.id] ?? "";
+            const availableRoles = data.roles.filter((role) => !user.roles.some((current) => current.id === role.id));
+            const isAssigning = activeActionKey === `assign-${user.id}`;
+            const isUpdatingAssignment = activeActionKey === `assignment-${user.id}`;
+            return (
+              <article key={user.id} className="rounded-xl border border-[var(--outline-variant)] bg-white p-5 shadow-sm space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-base text-[var(--primary)]">{user.fullName}</p>
+                    <p className="text-xs text-[var(--on-surface-variant)]">{user.email}</p>
+                  </div>
+                  <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${assigned ? "bg-emerald-100 text-emerald-800" : assignedElsewhere ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}>
+                    {assigned
+                      ? user.assignedHotel?.name ?? "Đang làm việc"
+                      : assignedElsewhere
+                        ? `Đang ở ${user.assignedHotel?.name}`
+                        : "Chưa phân công"}
+                  </span>
+                </div>
+
+                <div className="border-t border-[var(--outline-variant)] pt-3 text-xs space-y-2">
+                  <div>
+                    <span className="font-semibold text-[var(--on-surface-variant)]">Vai trò hiện tại: </span>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
                       {user.roles.map((role) => {
                         const isRevoking = activeActionKey === `revoke-${user.id}-${role.id}`;
-                        return canManage ? (
-                          <button
-                            disabled={isBusy}
-                            title="Thu hồi vai trò"
-                            type="button"
-                            onClick={() =>
-                              runMutation(
-                                `revoke-${user.id}-${role.id}`,
-                                () => mutations.revokeRole.mutateAsync({ userId: user.id, roleId: role.id }),
-                                "Đã thu hồi vai trò",
-                              )
-                            }
-                            key={role.id}
-                            className="rounded-full bg-[var(--surface-container)] px-3 py-1 text-xs font-semibold hover:bg-red-100 hover:text-red-700 disabled:opacity-50 inline-flex items-center gap-1"
-                          >
+                        return (
+                          <span key={role.id} className="rounded-full bg-[var(--surface-container)] px-2.5 py-0.5 text-xs font-semibold inline-flex items-center gap-1">
                             {isRevoking ? (
                               <>
                                 <VsIcon name="progress_activity" className="animate-spin text-xs" />
                                 <span>Đang xóa...</span>
                               </>
                             ) : (
-                              `${role.name} ×`
+                              role.name
                             )}
-                          </button>
-                        ) : (
-                          <span key={role.id} className="rounded-full bg-[var(--surface-container)] px-3 py-1 text-xs font-semibold">
-                            {role.name}
                           </span>
                         );
                       })}
+                      {user.roles.length === 0 ? <span className="text-[var(--on-surface-variant)]">Chưa có vai trò</span> : null}
                     </div>
-                  ),
-                },
-                {
-                  key: "assignment",
-                  header: "Phân công",
-                  className: "w-[16%]",
-                  headerClassName: "w-[16%]",
-                  cell: (user) => {
-                    const assigned = assignedUserIds.has(user.id);
-                    const assignedElsewhere = Boolean(user.assignedHotel && !assigned);
-                    return (
-                      <span className={`inline-flex min-h-9 items-center whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${assigned ? "bg-emerald-100 text-emerald-800" : assignedElsewhere ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}>
-                        {assigned
-                          ? user.assignedHotel?.name ?? "Đang làm tại khách sạn"
-                          : assignedElsewhere
-                            ? `Đang ở ${user.assignedHotel?.name}`
-                            : "Chưa phân công"}
-                      </span>
-                    );
-                  },
-                },
-                {
-                  key: "assignRole",
-                  header: "Gán vai trò",
-                  className: "w-[24%]",
-                  headerClassName: "w-[24%]",
-                  cell: (user) => {
-                    if (!canManage) return <span className="text-xs text-[var(--on-surface-variant)]">Chỉ xem</span>;
-                    const selectedRoleId = roleDrafts[user.id] ?? "";
-                    const availableRoles = data.roles.filter((role) => !user.roles.some((current) => current.id === role.id));
-                    const isAssigning = activeActionKey === `assign-${user.id}`;
-                    return (
-                      <div className="flex min-h-10 items-center gap-2">
+                  </div>
+
+                  {canManage ? (
+                    <div className="pt-2 space-y-2">
+                      <div className="flex gap-2">
                         <select
                           disabled={isBusy}
                           value={selectedRoleId}
                           onChange={(e) => setRoleDrafts((current) => ({ ...current, [user.id]: e.target.value }))}
-                          className="h-10 min-w-0 flex-1 rounded-lg border border-[var(--outline-variant)] bg-white px-3 text-xs disabled:bg-slate-50"
+                          className="min-h-11 flex-1 rounded-lg border border-[var(--outline-variant)] px-3 text-xs disabled:bg-slate-50"
                         >
-                          <option value="">Chọn vai trò</option>
+                          <option value="">Thêm vai trò mới</option>
                           {availableRoles.map((role) => (
                             <option key={role.id} value={role.id}>{role.name}</option>
                           ))}
@@ -497,7 +709,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                               "Đã gán vai trò",
                             )
                           }
-                          className="h-10 shrink-0 rounded-lg bg-[var(--primary)] px-3 text-xs font-semibold text-white disabled:opacity-40 flex items-center justify-center gap-1.5"
+                          className="min-h-11 rounded-lg bg-[var(--primary)] px-4 text-xs font-semibold text-white disabled:opacity-40 flex items-center justify-center gap-1.5"
                         >
                           {isAssigning ? (
                             <>
@@ -509,190 +721,49 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                           )}
                         </button>
                       </div>
-                    );
-                  },
-                },
-                {
-                  key: "actions",
-                  header: <div className="text-right">Thao tác</div>,
-                  className: "w-[12%]",
-                  headerClassName: "w-[12%] text-right",
-                  cell: (user) => {
-                    if (!canManage) return <div className="text-right text-xs text-[var(--on-surface-variant)]">Chỉ xem</div>;
-                    const assigned = assignedUserIds.has(user.id);
-                    const isTransfer = Boolean(user.assignedHotel && !assigned);
-                    const isUpdatingAssignment = activeActionKey === `assignment-${user.id}`;
-                    return (
-                      <div className="flex min-h-10 items-center justify-end">
-                        <button
-                          disabled={!hotelId || isBusy}
-                          type="button"
-                          onClick={() =>
-                            runMutation(
-                              `assignment-${user.id}`,
-                              () => mutations.updateAssignment.mutateAsync({ userId: user.id, assigned: !assigned }),
-                              assigned
-                                ? "Đã thu hồi phân công"
-                                : isTransfer
-                                  ? "Đã chuyển nhân viên đến khách sạn"
-                                  : "Đã phân công nhân viên",
-                            )
-                          }
-                          className="h-10 whitespace-nowrap rounded-lg border border-[var(--outline-variant)] px-3 text-xs font-semibold disabled:opacity-40 hover:bg-[var(--surface-container-low)] flex items-center gap-1.5"
-                        >
-                          {isUpdatingAssignment ? (
-                            <>
-                              <VsIcon name="progress_activity" className="animate-spin text-xs" />
-                              <span>Đang xử lý...</span>
-                            </>
-                          ) : assigned ? (
-                            "Bỏ khỏi khách sạn"
-                          ) : isTransfer ? (
-                            "Chuyển đến đây"
-                          ) : (
-                            "Phân công"
-                          )}
-                        </button>
-                      </div>
-                    );
-                  },
-                },
-              ]}
-              data={users}
-              getRowKey={(user) => user.id}
-              emptyMessage="Không có nhân viên phù hợp."
-              minWidth="980px"
-            />
-          </section>
 
-          {/* Mobile view */}
-          <section className="space-y-4 md:hidden">
-            {users.map((user) => {
-              const assigned = assignedUserIds.has(user.id);
-              const assignedElsewhere = Boolean(user.assignedHotel && !assigned);
-              const selectedRoleId = roleDrafts[user.id] ?? "";
-              const availableRoles = data.roles.filter((role) => !user.roles.some((current) => current.id === role.id));
-              const isAssigning = activeActionKey === `assign-${user.id}`;
-              const isUpdatingAssignment = activeActionKey === `assignment-${user.id}`;
-              return (
-                <article key={user.id} className="rounded-xl border border-[var(--outline-variant)] bg-white p-5 shadow-sm space-y-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-base text-[var(--primary)]">{user.fullName}</p>
-                      <p className="text-xs text-[var(--on-surface-variant)]">{user.email}</p>
+                      <button
+                        disabled={!hotelId || isBusy}
+                        type="button"
+                        onClick={() =>
+                          runMutation(
+                            `assignment-${user.id}`,
+                            () => mutations.updateAssignment.mutateAsync({ userId: user.id, assigned: !assigned }),
+                            assigned
+                              ? "Đã thu hồi phân công"
+                              : assignedElsewhere
+                                ? "Đã chuyển nhân viên đến khách sạn"
+                                : "Đã phân công nhân viên",
+                          )
+                        }
+                        className="min-h-11 w-full rounded-xl border border-[var(--outline-variant)] text-xs font-semibold disabled:opacity-40 active:bg-[var(--surface-container-low)] flex items-center justify-center gap-1.5"
+                      >
+                        {isUpdatingAssignment ? (
+                          <>
+                            <VsIcon name="progress_activity" className="animate-spin text-xs" />
+                            <span>Đang xử lý...</span>
+                          </>
+                        ) : assigned ? (
+                          "Thu hồi phân công khỏi khách sạn"
+                        ) : assignedElsewhere ? (
+                          "Chuyển nhân viên đến khách sạn này"
+                        ) : (
+                          "Phân công vào khách sạn này"
+                        )}
+                      </button>
                     </div>
-                    <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${assigned ? "bg-emerald-100 text-emerald-800" : assignedElsewhere ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}>
-                      {assigned
-                        ? user.assignedHotel?.name ?? "Đang làm việc"
-                        : assignedElsewhere
-                          ? `Đang ở ${user.assignedHotel?.name}`
-                          : "Chưa phân công"}
-                    </span>
-                  </div>
-
-                  <div className="border-t border-[var(--outline-variant)] pt-3 text-xs space-y-2">
-                    <div>
-                      <span className="font-semibold text-[var(--on-surface-variant)]">Vai trò hiện tại: </span>
-                      <div className="mt-1 flex flex-wrap gap-1.5">
-                        {user.roles.map((role) => {
-                          const isRevoking = activeActionKey === `revoke-${user.id}-${role.id}`;
-                          return (
-                            <span key={role.id} className="rounded-full bg-[var(--surface-container)] px-2.5 py-0.5 text-xs font-semibold inline-flex items-center gap-1">
-                              {isRevoking ? (
-                                <>
-                                  <VsIcon name="progress_activity" className="animate-spin text-xs" />
-                                  <span>Đang xóa...</span>
-                                </>
-                              ) : (
-                                role.name
-                              )}
-                            </span>
-                          );
-                        })}
-                        {user.roles.length === 0 ? <span className="text-[var(--on-surface-variant)]">Chưa có vai trò</span> : null}
-                      </div>
-                    </div>
-
-                    {canManage ? (
-                      <div className="pt-2 space-y-2">
-                        <div className="flex gap-2">
-                          <select
-                            disabled={isBusy}
-                            value={selectedRoleId}
-                            onChange={(e) => setRoleDrafts((current) => ({ ...current, [user.id]: e.target.value }))}
-                            className="min-h-11 flex-1 rounded-lg border border-[var(--outline-variant)] px-3 text-xs disabled:bg-slate-50"
-                          >
-                            <option value="">Thêm vai trò mới</option>
-                            {availableRoles.map((role) => (
-                              <option key={role.id} value={role.id}>{role.name}</option>
-                            ))}
-                          </select>
-                          <button
-                            disabled={!selectedRoleId || isBusy}
-                            type="button"
-                            onClick={() =>
-                              runMutation(
-                                `assign-${user.id}`,
-                                () => mutations.assignRole.mutateAsync({ userId: user.id, roleId: selectedRoleId }),
-                                "Đã gán vai trò",
-                              )
-                            }
-                            className="min-h-11 rounded-lg bg-[var(--primary)] px-4 text-xs font-semibold text-white disabled:opacity-40 flex items-center justify-center gap-1.5"
-                          >
-                            {isAssigning ? (
-                              <>
-                                <VsIcon name="progress_activity" className="animate-spin text-xs" />
-                                <span>Đang gán...</span>
-                              </>
-                            ) : (
-                              "Gán"
-                            )}
-                          </button>
-                        </div>
-
-                        <button
-                          disabled={!hotelId || isBusy}
-                          type="button"
-                          onClick={() =>
-                            runMutation(
-                              `assignment-${user.id}`,
-                              () => mutations.updateAssignment.mutateAsync({ userId: user.id, assigned: !assigned }),
-                              assigned
-                                ? "Đã thu hồi phân công"
-                                : assignedElsewhere
-                                  ? "Đã chuyển nhân viên đến khách sạn"
-                                  : "Đã phân công nhân viên",
-                            )
-                          }
-                          className="min-h-11 w-full rounded-xl border border-[var(--outline-variant)] text-xs font-semibold disabled:opacity-40 active:bg-[var(--surface-container-low)] flex items-center justify-center gap-1.5"
-                        >
-                          {isUpdatingAssignment ? (
-                            <>
-                              <VsIcon name="progress_activity" className="animate-spin text-xs" />
-                              <span>Đang xử lý...</span>
-                            </>
-                          ) : assigned ? (
-                            "Thu hồi phân công khỏi khách sạn"
-                          ) : assignedElsewhere ? (
-                            "Chuyển nhân viên đến khách sạn này"
-                          ) : (
-                            "Phân công vào khách sạn này"
-                          )}
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
-                </article>
-              );
-            })}
-            {users.length === 0 ? (
-              <div className="rounded-xl border border-[var(--outline-variant)] bg-white p-8 text-center text-sm text-[var(--on-surface-variant)]">
-                Không có nhân viên phù hợp.
-              </div>
-            ) : null}
-          </section>
-        </>
-      ) : null}
+                  ) : null}
+                </div>
+              </article>
+            );
+          })
+        ) : null}
+        {!directory.isLoading && data && users.length === 0 ? (
+          <div className="rounded-xl border border-[var(--outline-variant)] bg-white p-8 text-center text-sm text-[var(--on-surface-variant)]">
+            Không có nhân viên phù hợp.
+          </div>
+        ) : null}
+      </section>
     </div>
   );
 }
