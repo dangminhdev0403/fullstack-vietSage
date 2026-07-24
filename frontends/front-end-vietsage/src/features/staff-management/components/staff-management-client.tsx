@@ -89,7 +89,11 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
     () => new Set(data?.assignments?.items.map((assignment) => assignment.userId) ?? []),
     [data?.assignments?.items],
   );
-  const users = data?.users.items ?? [];
+  const users = useMemo(() => data?.users.items ?? [], [data?.users.items]);
+  const displayedUsers = useMemo(
+    () => (hotelId ? users.filter((user) => assignedUserIds.has(user.id)) : users),
+    [hotelId, users, assignedUserIds],
+  );
   const skeletonRows = useMemo(() => Array.from({ length: 5 }, (_, i) => ({ id: `skel-${i}` })), []);
 
   async function submitCreate(event: FormEvent<HTMLFormElement>) {
@@ -610,9 +614,9 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                 },
               },
             ]}
-            data={users}
+            data={displayedUsers}
             getRowKey={(user) => user.id}
-            emptyMessage="Không có nhân viên phù hợp."
+            emptyMessage={hotelId ? "Không có nhân viên nào đang làm việc tại khách sạn này." : "Không có nhân viên phù hợp."}
             minWidth="980px"
           />
         ) : null}
@@ -639,7 +643,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
             ))}
           </div>
         ) : data ? (
-          users.map((user) => {
+          displayedUsers.map((user) => {
             const assigned = assignedUserIds.has(user.id);
             const assignedElsewhere = Boolean(user.assignedHotel && !assigned);
             const selectedRoleId = roleDrafts[user.id] ?? "";
@@ -758,9 +762,9 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
             );
           })
         ) : null}
-        {!directory.isLoading && data && users.length === 0 ? (
+        {!directory.isLoading && data && displayedUsers.length === 0 ? (
           <div className="rounded-xl border border-[var(--outline-variant)] bg-white p-8 text-center text-sm text-[var(--on-surface-variant)]">
-            Không có nhân viên phù hợp.
+            {hotelId ? "Không có nhân viên nào đang làm việc tại khách sạn này." : "Không có nhân viên phù hợp."}
           </div>
         ) : null}
       </section>

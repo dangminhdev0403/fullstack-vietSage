@@ -1,16 +1,16 @@
 # Graph Report - fullstack-vietSage  (2026-07-24)
 
 ## Corpus Check
-- 705 files · ~452,956 words
+- 705 files · ~453,445 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 5324 nodes · 12167 edges · 276 communities (235 shown, 41 thin omitted)
+- 5324 nodes · 12167 edges · 275 communities (234 shown, 41 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 67 edges (avg confidence: 0.64)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `c0671263`
+- Built from commit: `e421ab15`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -233,7 +233,6 @@
 - restore-production-postgres.sh
 - Phase 0 — Read-Only VPS Discovery
 - transformation.interceptor.ts
-- zod
 - Contract Changes
 - API Contract Sync Package
 - ADR-001: Modular Monolith First
@@ -302,7 +301,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (276 total, 41 thin omitted)
+## Communities (275 total, 41 thin omitted)
 
 ### Community 0 - "executeOwnerBackendRequest"
 Cohesion: 0.06
@@ -317,8 +316,8 @@ Cohesion: 0.08
 Nodes (67): Params, POST(), GET(), Params, GET(), Params, GET(), Params (+59 more)
 
 ### Community 3 - "workspace-registry.ts"
-Cohesion: 0.07
-Nodes (31): unwrapApiEnvelope(), createRbacService(), CreateRoleBody, DeleteRoleResult, ListPermissionModulePermissionsOptions, ListPermissionsOptions, RbacService, RbacServiceOptions (+23 more)
+Cohesion: 0.06
+Nodes (34): ApiEnvelope, isRecord(), toApiErrorMessage(), unwrapApiEnvelope(), createRbacService(), CreateRoleBody, DeleteRoleResult, ListPermissionModulePermissionsOptions (+26 more)
 
 ### Community 4 - "useGuestStore"
 Cohesion: 0.18
@@ -441,8 +440,8 @@ Cohesion: 0.07
 Nodes (29): GuestRequestSheet(), GuestRequestSheetProps, emitHydrationChange(), GuestHotelState, GuestProfileState, GuestRoomState, GuestStore, hydrationListeners (+21 more)
 
 ### Community 34 - "AuthRepository"
-Cohesion: 0.08
-Nodes (6): Inject, Optional, HotelRoomsRepository, Injectable, HotelsRepository, Injectable
+Cohesion: 0.06
+Nodes (9): Inject, Optional, ServiceCatalogTranslationInput, HotelRoomsRepository, Injectable, HotelServiceCatalogRepository, Injectable, HotelsRepository (+1 more)
 
 ### Community 35 - "page.tsx"
 Cohesion: 0.07
@@ -553,8 +552,8 @@ Cohesion: 0.11
 Nodes (28): resolveBusinessPermissionMenuPath(), BUSINESS_PERMISSION_KEYS, isBusinessPermissionKey(), GLOBAL_MENU_ORDER, HIDDEN_NAVIGATION_MENU_PATHS, MENU_PATH_ALIASES, compareModuleKeysByNavigationOrder(), humanizeModuleName() (+20 more)
 
 ### Community 63 - "HotelServiceCatalogRepository"
-Cohesion: 0.08
-Nodes (8): HotelServicesService, Injectable, CreateServiceCategoryBodyInput, ListServiceCategoriesQueryInput, ListServiceItemsQueryInput, ServiceCatalogTranslationInput, HotelServiceCatalogRepository, Injectable
+Cohesion: 0.13
+Nodes (5): HotelServicesService, Injectable, CreateServiceCategoryBodyInput, ListServiceCategoriesQueryInput, ListServiceItemsQueryInput
 
 ### Community 64 - "page.tsx"
 Cohesion: 0.50
@@ -1085,10 +1084,6 @@ Nodes (6): 0.1 Capture system and capacity, 0.2 Inventory Docker and current app
 ### Community 224 - "transformation.interceptor.ts"
 Cohesion: 0.20
 Nodes (15): createRequestEventBodySchema, guestRequestPrioritySchema, guestRequestPriorityValues, hotelIdParamSchema, jsonRecordSchema, ListHotelMessagesQueryInput, listHotelMessagesQuerySchema, listStaffRequestsQuerySchema (+7 more)
-
-### Community 225 - "zod"
-Cohesion: 0.67
-Nodes (3): ApiEnvelope, isRecord(), toApiErrorMessage()
 
 ### Community 226 - "Contract Changes"
 Cohesion: 0.33

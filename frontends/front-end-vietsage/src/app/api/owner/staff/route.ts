@@ -33,12 +33,22 @@ export async function GET(request: Request) {
   if (!tenantId) return validationErrorResponse("tenantId là bắt buộc");
   try {
     const result = await executeOwnerBackendRequest("load owner staff directory", async (accessToken) => {
-      const [users, roles, assignments, hotelsPage] = await Promise.all([
+      const [usersPage, roles, assignments, hotelsPage] = await Promise.all([
         staffManagementService.listUsers({ tenantId, q, page, limit, accessToken }),
         staffManagementService.listManagedRoles(tenantId, accessToken),
         hotelId ? staffManagementService.listAssignments(hotelId, accessToken) : Promise.resolve(null),
         adminService.listHotels({ query: { page: 1, limit: 100, tenantId }, accessToken }),
       ]);
+      let users = usersPage;
+      if (hotelId && assignments) {
+        const assignedUserIds = new Set(assignments.items.map((a) => a.userId));
+        const filteredItems = usersPage.items.filter((u) => assignedUserIds.has(u.id));
+        users = {
+          ...usersPage,
+          items: filteredItems,
+          total: filteredItems.length,
+        };
+      }
       return { users, roles, assignments, hotels: hotelsPage.items.filter((h) => h.status !== "DISABLED") };
     });
     return result instanceof NextResponse ? result : successResponse(result);
