@@ -19,6 +19,56 @@ type Props = {
   onHotelPath?: string;
 };
 
+type FormFieldErrors = {
+  fullName?: string;
+  email?: string;
+  password?: string;
+  roleId?: string;
+};
+
+function extractApiErrorMessage(error: unknown): { message: string; field?: keyof FormFieldErrors } {
+  if (error && typeof error === "object") {
+    const errObj = error as Record<string, unknown>;
+    const status = typeof errObj.status === "number" ? errObj.status : undefined;
+    const data = errObj.data;
+
+    let detail = "";
+    if (typeof data === "string") {
+      detail = data;
+    } else if (data && typeof data === "object") {
+      const dataRecord = data as Record<string, unknown>;
+      const nestedData = dataRecord.data;
+      if (typeof dataRecord.detail === "string") {
+        detail = dataRecord.detail;
+      } else if (nestedData && typeof nestedData === "object" && typeof (nestedData as Record<string, unknown>).detail === "string") {
+        detail = (nestedData as Record<string, unknown>).detail as string;
+      } else if (typeof dataRecord.message === "string") {
+        detail = dataRecord.message;
+      }
+    } else if (typeof errObj.message === "string") {
+      detail = errObj.message;
+    }
+
+    const lowerDetail = detail.toLowerCase();
+    if (status === 409 || lowerDetail.includes("email already exists") || lowerDetail.includes("email đã tồn tại") || lowerDetail.includes("already exists")) {
+      return {
+        message: "Email này đã tồn tại trong hệ thống. Vui lòng chọn email khác.",
+        field: "email",
+      };
+    }
+
+    if (detail && !detail.startsWith("Internal API request failed")) {
+      return { message: detail };
+    }
+  }
+
+  if (error instanceof Error && !error.message.startsWith("Internal API request failed")) {
+    return { message: error.message };
+  }
+
+  return { message: "Không thể xử lý yêu cầu. Vui lòng kiểm tra lại thông tin." };
+}
+
 export function StaffManagementClient({ scope, canManage, initialHotelId = null, onHotelPath }: Props) {
   const [hotelId, setHotelId] = useState(initialHotelId ?? "");
   const [query, setQuery] = useState("");
@@ -28,6 +78,8 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
   const mutations = useStaffManagementMutations(activeScope);
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState({ fullName: "", email: "", password: "", roleId: "" });
+  const [formErrors, setFormErrors] = useState<FormFieldErrors>({});
+  const [formGeneralError, setFormGeneralError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [roleDrafts, setRoleDrafts] = useState<Record<string, string>>({});
 
@@ -40,12 +92,15 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
 
   async function submitCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setFormErrors({});
+    setFormGeneralError(null);
+
     if (!hotelId) {
-      await Swal.fire({ icon: "warning", title: "Chọn khách sạn cho nhân viên" });
+      setFormGeneralError("Vui lòng chọn khách sạn trước khi tạo nhân viên.");
       return;
     }
     if (!form.roleId) {
-      await Swal.fire({ icon: "warning", title: "Chọn vai trò cho nhân viên" });
+      setFormErrors((prev) => ({ ...prev, roleId: "Chọn vai trò cho nhân viên" }));
       return;
     }
     try {
@@ -57,11 +112,18 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
         hotelId,
       });
       setForm({ fullName: "", email: "", password: "", roleId: "" });
+      setFormErrors({});
+      setFormGeneralError(null);
       setShowPassword(false);
       setFormOpen(false);
       await Swal.fire({ icon: "success", title: "Đã tạo và phân công nhân viên", timer: 1200, showConfirmButton: false });
     } catch (error) {
-      await Swal.fire({ icon: "error", title: "Không thể tạo nhân viên", text: error instanceof Error ? error.message : "Vui lòng thử lại." });
+      const { message, field } = extractApiErrorMessage(error);
+      if (field) {
+        setFormErrors((prev) => ({ ...prev, [field]: message }));
+      } else {
+        setFormGeneralError(message);
+      }
     }
   }
 
@@ -70,7 +132,8 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
       await action();
       await Swal.fire({ icon: "success", title: successTitle, timer: 1000, showConfirmButton: false });
     } catch (error) {
-      await Swal.fire({ icon: "error", title: "Không thể cập nhật", text: error instanceof Error ? error.message : "Vui lòng thử lại." });
+      const { message } = extractApiErrorMessage(error);
+      await Swal.fire({ icon: "error", title: "Không thể cập nhật", text: message });
     }
   }
 
@@ -140,7 +203,11 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
             <button
               type="button"
               disabled={!hotelId}
-              onClick={() => setFormOpen((value) => !value)}
+              onClick={() => {
+                setFormErrors({});
+                setFormGeneralError(null);
+                setFormOpen((value) => !value);
+              }}
               className="min-h-11 rounded-xl bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-[var(--on-primary)] disabled:cursor-not-allowed disabled:opacity-40"
             >
               <VsIcon name="person_add" className="mr-2 inline text-lg" />
@@ -161,37 +228,129 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
       ) : null}
 
       {canManage && formOpen ? (
-        <form onSubmit={submitCreate} className="grid gap-3 rounded-xl border border-[var(--outline-variant)] bg-white p-5 md:grid-cols-2 xl:grid-cols-5">
-          <input required minLength={2} value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} placeholder="Họ tên" className="min-h-11 rounded-lg border px-3 text-sm" />
-          <input required type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="Email đăng nhập" className="min-h-11 rounded-lg border px-3 text-sm" />
-          <div className="relative">
-            <input
-              required
-              minLength={8}
-              type={showPassword ? "text" : "password"}
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              placeholder="Mật khẩu ban đầu"
-              className="min-h-11 w-full rounded-lg border border-[var(--outline-variant)] px-3 pr-10 text-sm outline-none focus:border-[var(--primary)]"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword((prev) => !prev)}
-              className="absolute right-2 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-low)]"
-              aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-            >
-              <VsIcon name={showPassword ? "visibility_off" : "visibility"} className="text-[20px]" />
+        <form onSubmit={submitCreate} className="rounded-xl border border-[var(--outline-variant)] bg-white p-5 space-y-3">
+          {formGeneralError ? (
+            <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700">
+              <VsIcon name="error" className="text-base text-red-500 shrink-0" />
+              <span>{formGeneralError}</span>
+            </div>
+          ) : null}
+
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5 items-start">
+            <div className="flex flex-col">
+              <input
+                required
+                minLength={2}
+                value={form.fullName}
+                onChange={(e) => {
+                  setForm({ ...form, fullName: e.target.value });
+                  if (formErrors.fullName) setFormErrors((prev) => ({ ...prev, fullName: undefined }));
+                }}
+                placeholder="Họ tên"
+                className={`min-h-11 w-full rounded-lg border px-3 text-sm transition-colors ${
+                  formErrors.fullName
+                    ? "border-red-500 focus:border-red-500 focus:outline-none"
+                    : "border-[var(--outline-variant)]"
+                }`}
+              />
+              {formErrors.fullName ? (
+                <span className="mt-1 text-xs font-medium text-red-600 flex items-center gap-1">
+                  <VsIcon name="error" className="text-sm shrink-0" />
+                  {formErrors.fullName}
+                </span>
+              ) : null}
+            </div>
+
+            <div className="flex flex-col">
+              <input
+                required
+                type="email"
+                value={form.email}
+                onChange={(e) => {
+                  setForm({ ...form, email: e.target.value });
+                  if (formErrors.email) setFormErrors((prev) => ({ ...prev, email: undefined }));
+                }}
+                placeholder="Email đăng nhập"
+                className={`min-h-11 w-full rounded-lg border px-3 text-sm transition-colors ${
+                  formErrors.email
+                    ? "border-red-500 focus:border-red-500 focus:outline-none"
+                    : "border-[var(--outline-variant)]"
+                }`}
+              />
+              {formErrors.email ? (
+                <span className="mt-1 text-xs font-medium text-red-600 flex items-center gap-1">
+                  <VsIcon name="error" className="text-sm shrink-0" />
+                  {formErrors.email}
+                </span>
+              ) : null}
+            </div>
+
+            <div className="flex flex-col">
+              <div className="relative">
+                <input
+                  required
+                  minLength={8}
+                  type={showPassword ? "text" : "password"}
+                  value={form.password}
+                  onChange={(e) => {
+                    setForm({ ...form, password: e.target.value });
+                    if (formErrors.password) setFormErrors((prev) => ({ ...prev, password: undefined }));
+                  }}
+                  placeholder="Mật khẩu ban đầu"
+                  className={`min-h-11 w-full rounded-lg border px-3 pr-10 text-sm outline-none transition-colors ${
+                    formErrors.password
+                      ? "border-red-500 focus:border-red-500"
+                      : "border-[var(--outline-variant)] focus:border-[var(--primary)]"
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute right-2 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-low)]"
+                  aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                >
+                  <VsIcon name={showPassword ? "visibility_off" : "visibility"} className="text-[20px]" />
+                </button>
+              </div>
+              {formErrors.password ? (
+                <span className="mt-1 text-xs font-medium text-red-600 flex items-center gap-1">
+                  <VsIcon name="error" className="text-sm shrink-0" />
+                  {formErrors.password}
+                </span>
+              ) : null}
+            </div>
+
+            <div className="flex flex-col">
+              <select
+                required
+                value={form.roleId}
+                onChange={(e) => {
+                  setForm({ ...form, roleId: e.target.value });
+                  if (formErrors.roleId) setFormErrors((prev) => ({ ...prev, roleId: undefined }));
+                }}
+                className={`min-h-11 w-full rounded-lg border px-3 text-sm transition-colors ${
+                  formErrors.roleId
+                    ? "border-red-500 focus:border-red-500"
+                    : "border-[var(--outline-variant)]"
+                }`}
+              >
+                <option value="">Chọn vai trò</option>
+                {data?.roles.map((role) => (
+                  <option key={role.id} value={role.id}>{role.name}</option>
+                ))}
+              </select>
+              {formErrors.roleId ? (
+                <span className="mt-1 text-xs font-medium text-red-600 flex items-center gap-1">
+                  <VsIcon name="error" className="text-sm shrink-0" />
+                  {formErrors.roleId}
+                </span>
+              ) : null}
+            </div>
+
+            <button disabled={mutations.createUser.isPending} className="min-h-11 rounded-xl bg-[var(--secondary-container)] px-4 text-sm font-semibold disabled:opacity-50">
+              {mutations.createUser.isPending ? "Đang tạo..." : "Tạo & phân công"}
             </button>
           </div>
-          <select required value={form.roleId} onChange={(e) => setForm({ ...form, roleId: e.target.value })} className="min-h-11 rounded-lg border px-3 text-sm">
-            <option value="">Chọn vai trò</option>
-            {data?.roles.map((role) => (
-              <option key={role.id} value={role.id}>{role.name}</option>
-            ))}
-          </select>
-          <button disabled={mutations.createUser.isPending} className="min-h-11 rounded-xl bg-[var(--secondary-container)] px-4 text-sm font-semibold">
-            {mutations.createUser.isPending ? "Đang tạo..." : "Tạo & phân công"}
-          </button>
         </form>
       ) : null}
 
