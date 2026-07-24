@@ -82,6 +82,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
   const [formGeneralError, setFormGeneralError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [roleDrafts, setRoleDrafts] = useState<Record<string, string>>({});
+  const [activeActionKey, setActiveActionKey] = useState<string | null>(null);
 
   const data = directory.data;
   const assignedUserIds = useMemo(
@@ -127,17 +128,20 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
     }
   }
 
-  async function runMutation(action: () => Promise<unknown>, successTitle: string) {
+  async function runMutation(actionKey: string, action: () => Promise<unknown>, successTitle: string) {
+    setActiveActionKey(actionKey);
     try {
       await action();
       await Swal.fire({ icon: "success", title: successTitle, timer: 1000, showConfirmButton: false });
     } catch (error) {
       const { message } = extractApiErrorMessage(error);
       await Swal.fire({ icon: "error", title: "Không thể cập nhật", text: message });
+    } finally {
+      setActiveActionKey(null);
     }
   }
 
-  const isBusy = mutations.createUser.isPending || mutations.assignRole.isPending || mutations.revokeRole.isPending || mutations.updateAssignment.isPending;
+  const isBusy = mutations.createUser.isPending || mutations.assignRole.isPending || mutations.revokeRole.isPending || mutations.updateAssignment.isPending || activeActionKey !== null;
 
   return (
     <div className="space-y-6">
@@ -188,7 +192,11 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
             ))}
           </select>
           <div className="relative">
-            <VsIcon name="search" className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--outline)]" />
+            {directory.isFetching && !directory.isLoading ? (
+              <VsIcon name="progress_activity" className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 animate-spin text-[var(--primary)] text-lg" />
+            ) : (
+              <VsIcon name="search" className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--outline)]" />
+            )}
             <input
               value={query}
               onChange={(event) => {
@@ -202,7 +210,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
           {canManage ? (
             <button
               type="button"
-              disabled={!hotelId}
+              disabled={!hotelId || isBusy}
               onClick={() => {
                 setFormErrors({});
                 setFormGeneralError(null);
@@ -240,6 +248,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
             <div className="flex flex-col">
               <input
                 required
+                disabled={mutations.createUser.isPending}
                 minLength={2}
                 value={form.fullName}
                 onChange={(e) => {
@@ -247,7 +256,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                   if (formErrors.fullName) setFormErrors((prev) => ({ ...prev, fullName: undefined }));
                 }}
                 placeholder="Họ tên"
-                className={`min-h-11 w-full rounded-lg border px-3 text-sm transition-colors ${
+                className={`min-h-11 w-full rounded-lg border px-3 text-sm transition-colors disabled:bg-slate-50 ${
                   formErrors.fullName
                     ? "border-red-500 focus:border-red-500 focus:outline-none"
                     : "border-[var(--outline-variant)]"
@@ -264,6 +273,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
             <div className="flex flex-col">
               <input
                 required
+                disabled={mutations.createUser.isPending}
                 type="email"
                 value={form.email}
                 onChange={(e) => {
@@ -271,7 +281,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                   if (formErrors.email) setFormErrors((prev) => ({ ...prev, email: undefined }));
                 }}
                 placeholder="Email đăng nhập"
-                className={`min-h-11 w-full rounded-lg border px-3 text-sm transition-colors ${
+                className={`min-h-11 w-full rounded-lg border px-3 text-sm transition-colors disabled:bg-slate-50 ${
                   formErrors.email
                     ? "border-red-500 focus:border-red-500 focus:outline-none"
                     : "border-[var(--outline-variant)]"
@@ -289,6 +299,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
               <div className="relative">
                 <input
                   required
+                  disabled={mutations.createUser.isPending}
                   minLength={8}
                   type={showPassword ? "text" : "password"}
                   value={form.password}
@@ -297,7 +308,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                     if (formErrors.password) setFormErrors((prev) => ({ ...prev, password: undefined }));
                   }}
                   placeholder="Mật khẩu ban đầu"
-                  className={`min-h-11 w-full rounded-lg border px-3 pr-10 text-sm outline-none transition-colors ${
+                  className={`min-h-11 w-full rounded-lg border px-3 pr-10 text-sm outline-none transition-colors disabled:bg-slate-50 ${
                     formErrors.password
                       ? "border-red-500 focus:border-red-500"
                       : "border-[var(--outline-variant)] focus:border-[var(--primary)]"
@@ -323,12 +334,13 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
             <div className="flex flex-col">
               <select
                 required
+                disabled={mutations.createUser.isPending}
                 value={form.roleId}
                 onChange={(e) => {
                   setForm({ ...form, roleId: e.target.value });
                   if (formErrors.roleId) setFormErrors((prev) => ({ ...prev, roleId: undefined }));
                 }}
-                className={`min-h-11 w-full rounded-lg border px-3 text-sm transition-colors ${
+                className={`min-h-11 w-full rounded-lg border px-3 text-sm transition-colors disabled:bg-slate-50 ${
                   formErrors.roleId
                     ? "border-red-500 focus:border-red-500"
                     : "border-[var(--outline-variant)]"
@@ -347,14 +359,26 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
               ) : null}
             </div>
 
-            <button disabled={mutations.createUser.isPending} className="min-h-11 rounded-xl bg-[var(--secondary-container)] px-4 text-sm font-semibold disabled:opacity-50">
-              {mutations.createUser.isPending ? "Đang tạo..." : "Tạo & phân công"}
+            <button disabled={mutations.createUser.isPending} className="min-h-11 rounded-xl bg-[var(--secondary-container)] px-4 text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-60">
+              {mutations.createUser.isPending ? (
+                <>
+                  <VsIcon name="progress_activity" className="animate-spin text-lg" />
+                  <span>Đang tạo...</span>
+                </>
+              ) : (
+                "Tạo & phân công"
+              )}
             </button>
           </div>
         </form>
       ) : null}
 
-      {directory.isLoading ? <div className="rounded-xl bg-white p-8 text-center text-sm">Đang tải đúng phạm vi nhân viên...</div> : null}
+      {directory.isLoading ? (
+        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-[var(--outline-variant)] bg-white p-12 text-sm text-[var(--on-surface-variant)] shadow-sm">
+          <VsIcon name="progress_activity" className="animate-spin text-3xl text-[var(--primary)]" />
+          <span className="font-medium">Đang tải danh sách nhân viên...</span>
+        </div>
+      ) : null}
       {directory.isError ? (
         <div className="rounded-xl border border-[var(--error)]/30 bg-[var(--error-container)] p-5 text-sm text-[var(--on-error-container)]">
           {directory.error instanceof Error ? directory.error.message : "Không tải được danh sách nhân viên."}
@@ -386,29 +410,38 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                   headerClassName: "w-[30%]",
                   cell: (user) => (
                     <div className="flex min-h-10 max-w-[360px] flex-wrap items-center gap-2 py-1">
-                      {user.roles.map((role) =>
-                        canManage ? (
+                      {user.roles.map((role) => {
+                        const isRevoking = activeActionKey === `revoke-${user.id}-${role.id}`;
+                        return canManage ? (
                           <button
                             disabled={isBusy}
                             title="Thu hồi vai trò"
                             type="button"
                             onClick={() =>
                               runMutation(
+                                `revoke-${user.id}-${role.id}`,
                                 () => mutations.revokeRole.mutateAsync({ userId: user.id, roleId: role.id }),
                                 "Đã thu hồi vai trò",
                               )
                             }
                             key={role.id}
-                            className="rounded-full bg-[var(--surface-container)] px-3 py-1 text-xs font-semibold hover:bg-red-100 hover:text-red-700"
+                            className="rounded-full bg-[var(--surface-container)] px-3 py-1 text-xs font-semibold hover:bg-red-100 hover:text-red-700 disabled:opacity-50 inline-flex items-center gap-1"
                           >
-                            {role.name} ×
+                            {isRevoking ? (
+                              <>
+                                <VsIcon name="progress_activity" className="animate-spin text-xs" />
+                                <span>Đang xóa...</span>
+                              </>
+                            ) : (
+                              `${role.name} ×`
+                            )}
                           </button>
                         ) : (
                           <span key={role.id} className="rounded-full bg-[var(--surface-container)] px-3 py-1 text-xs font-semibold">
                             {role.name}
                           </span>
-                        ),
-                      )}
+                        );
+                      })}
                     </div>
                   ),
                 },
@@ -440,12 +473,14 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                     if (!canManage) return <span className="text-xs text-[var(--on-surface-variant)]">Chỉ xem</span>;
                     const selectedRoleId = roleDrafts[user.id] ?? "";
                     const availableRoles = data.roles.filter((role) => !user.roles.some((current) => current.id === role.id));
+                    const isAssigning = activeActionKey === `assign-${user.id}`;
                     return (
                       <div className="flex min-h-10 items-center gap-2">
                         <select
+                          disabled={isBusy}
                           value={selectedRoleId}
                           onChange={(e) => setRoleDrafts((current) => ({ ...current, [user.id]: e.target.value }))}
-                          className="h-10 min-w-0 flex-1 rounded-lg border border-[var(--outline-variant)] bg-white px-3 text-xs"
+                          className="h-10 min-w-0 flex-1 rounded-lg border border-[var(--outline-variant)] bg-white px-3 text-xs disabled:bg-slate-50"
                         >
                           <option value="">Chọn vai trò</option>
                           {availableRoles.map((role) => (
@@ -457,13 +492,21 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                           type="button"
                           onClick={() =>
                             runMutation(
+                              `assign-${user.id}`,
                               () => mutations.assignRole.mutateAsync({ userId: user.id, roleId: selectedRoleId }),
                               "Đã gán vai trò",
                             )
                           }
-                          className="h-10 shrink-0 rounded-lg bg-[var(--primary)] px-3 text-xs font-semibold text-white disabled:opacity-40"
+                          className="h-10 shrink-0 rounded-lg bg-[var(--primary)] px-3 text-xs font-semibold text-white disabled:opacity-40 flex items-center justify-center gap-1.5"
                         >
-                          Gán
+                          {isAssigning ? (
+                            <>
+                              <VsIcon name="progress_activity" className="animate-spin text-xs" />
+                              <span>Đang gán...</span>
+                            </>
+                          ) : (
+                            "Gán"
+                          )}
                         </button>
                       </div>
                     );
@@ -478,6 +521,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                     if (!canManage) return <div className="text-right text-xs text-[var(--on-surface-variant)]">Chỉ xem</div>;
                     const assigned = assignedUserIds.has(user.id);
                     const isTransfer = Boolean(user.assignedHotel && !assigned);
+                    const isUpdatingAssignment = activeActionKey === `assignment-${user.id}`;
                     return (
                       <div className="flex min-h-10 items-center justify-end">
                         <button
@@ -485,6 +529,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                           type="button"
                           onClick={() =>
                             runMutation(
+                              `assignment-${user.id}`,
                               () => mutations.updateAssignment.mutateAsync({ userId: user.id, assigned: !assigned }),
                               assigned
                                 ? "Đã thu hồi phân công"
@@ -493,9 +538,20 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                                   : "Đã phân công nhân viên",
                             )
                           }
-                          className="h-10 whitespace-nowrap rounded-lg border border-[var(--outline-variant)] px-3 text-xs font-semibold disabled:opacity-40 hover:bg-[var(--surface-container-low)]"
+                          className="h-10 whitespace-nowrap rounded-lg border border-[var(--outline-variant)] px-3 text-xs font-semibold disabled:opacity-40 hover:bg-[var(--surface-container-low)] flex items-center gap-1.5"
                         >
-                          {assigned ? "Bỏ khỏi khách sạn" : isTransfer ? "Chuyển đến đây" : "Phân công"}
+                          {isUpdatingAssignment ? (
+                            <>
+                              <VsIcon name="progress_activity" className="animate-spin text-xs" />
+                              <span>Đang xử lý...</span>
+                            </>
+                          ) : assigned ? (
+                            "Bỏ khỏi khách sạn"
+                          ) : isTransfer ? (
+                            "Chuyển đến đây"
+                          ) : (
+                            "Phân công"
+                          )}
                         </button>
                       </div>
                     );
@@ -516,6 +572,8 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
               const assignedElsewhere = Boolean(user.assignedHotel && !assigned);
               const selectedRoleId = roleDrafts[user.id] ?? "";
               const availableRoles = data.roles.filter((role) => !user.roles.some((current) => current.id === role.id));
+              const isAssigning = activeActionKey === `assign-${user.id}`;
+              const isUpdatingAssignment = activeActionKey === `assignment-${user.id}`;
               return (
                 <article key={user.id} className="rounded-xl border border-[var(--outline-variant)] bg-white p-5 shadow-sm space-y-3">
                   <div className="flex items-start justify-between gap-3">
@@ -536,11 +594,21 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                     <div>
                       <span className="font-semibold text-[var(--on-surface-variant)]">Vai trò hiện tại: </span>
                       <div className="mt-1 flex flex-wrap gap-1.5">
-                        {user.roles.map((role) => (
-                          <span key={role.id} className="rounded-full bg-[var(--surface-container)] px-2.5 py-0.5 text-xs font-semibold">
-                            {role.name}
-                          </span>
-                        ))}
+                        {user.roles.map((role) => {
+                          const isRevoking = activeActionKey === `revoke-${user.id}-${role.id}`;
+                          return (
+                            <span key={role.id} className="rounded-full bg-[var(--surface-container)] px-2.5 py-0.5 text-xs font-semibold inline-flex items-center gap-1">
+                              {isRevoking ? (
+                                <>
+                                  <VsIcon name="progress_activity" className="animate-spin text-xs" />
+                                  <span>Đang xóa...</span>
+                                </>
+                              ) : (
+                                role.name
+                              )}
+                            </span>
+                          );
+                        })}
                         {user.roles.length === 0 ? <span className="text-[var(--on-surface-variant)]">Chưa có vai trò</span> : null}
                       </div>
                     </div>
@@ -549,9 +617,10 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                       <div className="pt-2 space-y-2">
                         <div className="flex gap-2">
                           <select
+                            disabled={isBusy}
                             value={selectedRoleId}
                             onChange={(e) => setRoleDrafts((current) => ({ ...current, [user.id]: e.target.value }))}
-                            className="min-h-11 flex-1 rounded-lg border border-[var(--outline-variant)] px-3 text-xs"
+                            className="min-h-11 flex-1 rounded-lg border border-[var(--outline-variant)] px-3 text-xs disabled:bg-slate-50"
                           >
                             <option value="">Thêm vai trò mới</option>
                             {availableRoles.map((role) => (
@@ -563,13 +632,21 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                             type="button"
                             onClick={() =>
                               runMutation(
+                                `assign-${user.id}`,
                                 () => mutations.assignRole.mutateAsync({ userId: user.id, roleId: selectedRoleId }),
                                 "Đã gán vai trò",
                               )
                             }
-                            className="min-h-11 rounded-lg bg-[var(--primary)] px-4 text-xs font-semibold text-white disabled:opacity-40"
+                            className="min-h-11 rounded-lg bg-[var(--primary)] px-4 text-xs font-semibold text-white disabled:opacity-40 flex items-center justify-center gap-1.5"
                           >
-                            Gán
+                            {isAssigning ? (
+                              <>
+                                <VsIcon name="progress_activity" className="animate-spin text-xs" />
+                                <span>Đang gán...</span>
+                              </>
+                            ) : (
+                              "Gán"
+                            )}
                           </button>
                         </div>
 
@@ -578,6 +655,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                           type="button"
                           onClick={() =>
                             runMutation(
+                              `assignment-${user.id}`,
                               () => mutations.updateAssignment.mutateAsync({ userId: user.id, assigned: !assigned }),
                               assigned
                                 ? "Đã thu hồi phân công"
@@ -586,13 +664,20 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                                   : "Đã phân công nhân viên",
                             )
                           }
-                          className="min-h-11 w-full rounded-xl border border-[var(--outline-variant)] text-xs font-semibold disabled:opacity-40 active:bg-[var(--surface-container-low)]"
+                          className="min-h-11 w-full rounded-xl border border-[var(--outline-variant)] text-xs font-semibold disabled:opacity-40 active:bg-[var(--surface-container-low)] flex items-center justify-center gap-1.5"
                         >
-                          {assigned
-                            ? "Thu hồi phân công khỏi khách sạn"
-                            : assignedElsewhere
-                              ? "Chuyển nhân viên đến khách sạn này"
-                              : "Phân công vào khách sạn này"}
+                          {isUpdatingAssignment ? (
+                            <>
+                              <VsIcon name="progress_activity" className="animate-spin text-xs" />
+                              <span>Đang xử lý...</span>
+                            </>
+                          ) : assigned ? (
+                            "Thu hồi phân công khỏi khách sạn"
+                          ) : assignedElsewhere ? (
+                            "Chuyển nhân viên đến khách sạn này"
+                          ) : (
+                            "Phân công vào khách sạn này"
+                          )}
                         </button>
                       </div>
                     ) : null}

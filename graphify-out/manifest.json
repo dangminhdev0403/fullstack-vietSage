@@ -1165,8 +1165,8 @@
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/features/staff-management/components/staff-management-client.tsx": {
-    "mtime": 1784897548.174877,
-    "ast_hash": "6d2a29e7acd3aafffea8058b015ba2a6",
+    "mtime": 1784898339.106304,
+    "ast_hash": "6154b550486f91e12e6ff4959eff0806",
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/features/staff-management/queries/use-staff-directory-query.ts": {
