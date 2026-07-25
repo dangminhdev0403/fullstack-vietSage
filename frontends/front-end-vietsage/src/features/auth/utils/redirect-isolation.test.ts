@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 // @ts-expect-error Node's strip-types runner requires the explicit TypeScript extension.
-import { resolvePostLoginRedirect, resolvePostLoginRedirectUrl } from "./redirect-isolation-core.ts";
+import { createRequestRedirectUrl, resolvePostLoginRedirect, resolvePostLoginRedirectUrl } from "./redirect-isolation-core.ts";
 
 // ── Helpers ───────────────────────────────────────────────────────
 
@@ -155,3 +155,62 @@ test("invalid forwarded host falls back without creating a protocol-relative red
     "http://localhost:3000/admin/dashboard",
   );
 });
+
+test("forwarded host wins over local/0.0.0.0 configured URL when running in container", () => {
+  assert.equal(
+    resolvePostLoginRedirectUrl({
+      path: "/staff",
+      requestUrl: "http://0.0.0.0:3000/staff",
+      configuredUrl: "http://localhost:3000",
+      forwardedHost: "72.62.69.172",
+      forwardedProto: "http",
+    }),
+    "http://72.62.69.172/staff",
+  );
+});
+
+test("createRequestRedirectUrl resolves host header when request URL has 0.0.0.0 origin", () => {
+  const req = {
+    url: "http://0.0.0.0:3000/staff",
+    headers: new Map([
+      ["host", "stay.vietsage.com"],
+      ["x-forwarded-proto", "https"],
+    ]),
+  };
+  const redirectUrl = createRequestRedirectUrl("/login?reauth=1&callbackUrl=%2Fstaff", {
+    url: req.url,
+    headers: {
+      get: (key: string) => req.headers.get(key) ?? null,
+    },
+  });
+
+  assert.equal(redirectUrl.toString(), "https://stay.vietsage.com/login?reauth=1&callbackUrl=%2Fstaff");
+});
+
+test("forwarded host works even if x-forwarded-proto is missing", () => {
+  const req = {
+    url: "http://0.0.0.0:3000/staff",
+    headers: new Map([["host", "72.62.69.172"]]),
+  };
+  const redirectUrl = createRequestRedirectUrl("/login?reauth=1&callbackUrl=%2Fstaff", {
+    url: req.url,
+    headers: {
+      get: (key: string) => req.headers.get(key) ?? null,
+    },
+  });
+
+  assert.equal(redirectUrl.toString(), "http://72.62.69.172/login?reauth=1&callbackUrl=%2Fstaff");
+});
+
+test("never returns 0.0.0.0 in redirect origin under any circumstance", () => {
+  const redirectUrl = createRequestRedirectUrl("/login?reauth=1&callbackUrl=%2Fstaff", {
+    url: "http://0.0.0.0:3000/staff",
+    headers: {
+      get: () => null,
+    },
+  });
+
+  assert.equal(redirectUrl.toString(), "http://127.0.0.1:3000/login?reauth=1&callbackUrl=%2Fstaff");
+});
+
+

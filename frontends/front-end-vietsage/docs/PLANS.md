@@ -1,3 +1,24 @@
+## [complete] 2026-07-25 - Mission: vps-docker-redirect-origin-resolution-fix
+
+- Fixed Docker production redirect issue where clicking "go to dashboard" or triggering auth proxy redirects on VPS resulted in `http://0.0.0.0:3000/login?reauth=1&callbackUrl=%2Fstaff`.
+- Enhanced `resolvePostLoginRedirectUrl` and created `createRequestRedirectUrl` helper in `src/features/auth/utils/redirect-isolation-core.ts`:
+  - Reads `x-forwarded-host` / `host` and `x-forwarded-proto` headers sent by Nginx/proxies.
+  - Automatically defaults `protocol` to `"http"` when `X-Forwarded-Proto` is missing, preventing proxy header rejection when Nginx passes `Host` without `X-Forwarded-Proto`.
+  - Overrides internal local/container `configuredUrl` (`http://localhost:3000`, `0.0.0.0`) when a public forwarded host/IP (`stay.vietsage.com` or VPS IP) is present in request headers.
+  - Sanitizes all fallback origins so `0.0.0.0` is never returned in client HTTP `Location` headers under any circumstance.
+- Updated `src/proxy.ts` to use `createRequestRedirectUrl` for unauthenticated login redirects, session refresh redirects, and cross-workspace role redirects.
+- Updated `src/app/api/auth/refresh-session/route.ts` to use `createRequestRedirectUrl` for failure and success redirects.
+- Added 18 unit tests in `src/features/auth/utils/redirect-isolation.test.ts` covering 0.0.0.0 container overrides, missing proto headers, and request header resolution.
+
+Verification result:
+
+- `node --test src/features/auth/utils/redirect-isolation.test.ts` passed 18/18 tests cleanly.
+- `npx tsc --noEmit` passed in `frontends/front-end-vietsage` with 0 errors.
+
+Remaining blockers/risks:
+
+- None.
+
 ## [complete] 2026-07-24 - Mission: published-query-resource-package
 
 - Published the reusable factory as `@dangminhdev04032005/query-resource` for TanStack Query v5:

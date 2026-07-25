@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { AuthServiceError } from "@/features/auth/service/auth-service";
+import { createRequestRedirectUrl } from "@/features/auth/utils/redirect-isolation-core";
 import { refreshAndSaveSessionTokens } from "@/libs/auth-session-refresh";
 import { sanitizeInternalCallbackUrl } from "@/libs/rbac";
 import { readServerSessionTokens } from "@/libs/server-session-tokens";
@@ -48,7 +49,7 @@ function getCallbackUrl(request: NextRequest): string {
 }
 
 function buildLoginRedirect(request: NextRequest, callbackUrl: string): NextResponse {
-  const loginUrl = new URL("/login", request.url);
+  const loginUrl = createRequestRedirectUrl("/login", request);
 
   loginUrl.searchParams.set("reauth", "1");
   loginUrl.searchParams.set("callbackUrl", sanitizeInternalCallbackUrl(callbackUrl));
@@ -89,7 +90,7 @@ export async function GET(request: NextRequest) {
       timestamp: Date.now(),
     });
 
-    return NextResponse.redirect(new URL(callbackUrl, request.url));
+    return NextResponse.redirect(createRequestRedirectUrl(callbackUrl, request));
   } catch (error) {
     console.warn("[AUTH_REFRESH_GATE_FAILED]", {
       source: "refresh-session-route",

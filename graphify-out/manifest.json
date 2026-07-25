@@ -430,8 +430,8 @@
     "semantic_hash": "20df44cbafee6248eb5802a8e05deb6f"
   },
   "frontends/front-end-vietsage/src/app/api/auth/refresh-session/route.ts": {
-    "mtime": 1784891721.726159,
-    "ast_hash": "01d0b86b3fa0e60498dd8f2d53ea55cb",
+    "mtime": 1784985756.1566782,
+    "ast_hash": "a29a0f61a53bbb86f8787d090a9b8ffc",
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/app/api/auth/refresh/route.ts": {
@@ -1230,8 +1230,8 @@
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/proxy.ts": {
-    "mtime": 1784891744.94318,
-    "ast_hash": "ad78132218e8b137b9bab8955ed198ea",
+    "mtime": 1784985733.9515636,
+    "ast_hash": "fdb5d3f258ee325c5386e279d7f656e3",
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/types/next-auth.d.ts": {
@@ -2680,13 +2680,13 @@
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/features/auth/utils/redirect-isolation-core.ts": {
-    "mtime": 1784712311.3783877,
-    "ast_hash": "0a703604b1cdbee121f19d33e210a09b",
+    "mtime": 1784989074.4822595,
+    "ast_hash": "f82c1b93740048522f0556041ff708fc",
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/features/auth/utils/redirect-isolation.test.ts": {
-    "mtime": 1784712442.24181,
-    "ast_hash": "b22d015e17cabc848eca595f214d0f1f",
+    "mtime": 1784989079.7777941,
+    "ast_hash": "ec8ed9574d7c01a628e01acb58978154",
     "semantic_hash": ""
   },
   ".agents/AGENTS.md": {
@@ -2925,8 +2925,8 @@
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/docs/PLANS.md": {
-    "mtime": 1784895521.5629957,
-    "ast_hash": "e8ac47ebf2edc286d3a60b9f572d42bb",
+    "mtime": 1784989093.1583173,
+    "ast_hash": "c00754dd57b3c344840132a13f902b2b",
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/docs/RULES.md": {

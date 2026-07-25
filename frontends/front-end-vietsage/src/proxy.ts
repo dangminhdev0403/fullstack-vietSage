@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { auth } from "./auth";
+import { createRequestRedirectUrl } from "./features/auth/utils/redirect-isolation-core";
 import { canAccessPathByRoles, getDefaultPathForRoles, sanitizeInternalCallbackUrl } from "./libs/rbac";
 
 const protectedPrefixes = ["/admin", "/owner", "/staff", "/hotels"] as const;
@@ -50,7 +51,7 @@ function clearNextAuthCookies(request: NextRequest, response: NextResponse): Nex
 }
 
 function buildLoginRedirect(request: NextRequest): NextResponse {
-  const loginUrl = new URL("/login", request.url);
+  const loginUrl = createRequestRedirectUrl("/login", request);
   const callbackSource = request.nextUrl.clone();
 
   // Prevent callbackUrl nesting growth when a protected URL already carries callbackUrl
@@ -85,7 +86,7 @@ function getNumberTokenField(token: unknown, field: string): number | null {
 }
 
 function buildRefreshSessionRedirect(request: NextRequest): NextResponse {
-  const refreshUrl = new URL("/api/auth/refresh-session", request.url);
+  const refreshUrl = createRequestRedirectUrl("/api/auth/refresh-session", request);
   const callbackSource = request.nextUrl.clone();
 
   callbackSource.searchParams.delete("callbackUrl");
@@ -157,7 +158,7 @@ export const proxy = auth((request) => {
   }
 
   if (isAuthRoute && session && !authError && canRefresh && activeRoleCode) {
-    const redirectUrl = new URL(getDefaultPathForRoles([activeRoleCode]), request.url);
+    const redirectUrl = createRequestRedirectUrl(getDefaultPathForRoles([activeRoleCode]), request);
 
     return NextResponse.redirect(redirectUrl);
   }
@@ -171,7 +172,7 @@ export const proxy = auth((request) => {
       activeRoleCode,
       correctPath,
     });
-    return NextResponse.redirect(new URL(correctPath, request.url));
+    return NextResponse.redirect(createRequestRedirectUrl(correctPath, request));
   }
 
   return NextResponse.next();

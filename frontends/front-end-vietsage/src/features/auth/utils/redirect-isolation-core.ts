@@ -26,12 +26,43 @@ function firstForwardedValue(value?: string | null): string {
 
 function resolveForwardedOrigin(hostValue?: string | null, protoValue?: string | null): string | null {
   const host = firstForwardedValue(hostValue);
-  const protocol = firstForwardedValue(protoValue).toLowerCase();
+  let protocol = firstForwardedValue(protoValue).toLowerCase();
 
   if (!host || !/^[a-z0-9.-]+(?::\d+)?$/i.test(host)) return null;
-  if (protocol !== "http" && protocol !== "https") return null;
+  if (isLocalHost(host.split(":")[0] ?? "")) return null;
+
+  if (protocol !== "http" && protocol !== "https") {
+    protocol = "http";
+  }
 
   return `${protocol}://${host}`;
+}
+
+function isLocalHost(hostname: string): boolean {
+  const h = hostname.toLowerCase();
+  return (
+    h === "localhost" ||
+    h === "127.0.0.1" ||
+    h === "0.0.0.0" ||
+    h === "[::1]" ||
+    h === "::1" ||
+    h.startsWith("0.0.0.0:") ||
+    h.startsWith("127.0.0.1:")
+  );
+}
+
+function parseOrigin(rawUrl?: string | null): { origin: string; isLocal: boolean } | null {
+  if (!rawUrl?.trim()) return null;
+  try {
+    const url = new URL(rawUrl.trim());
+    let origin = url.origin;
+    if (origin.includes("0.0.0.0")) {
+      origin = origin.replace("0.0.0.0", "127.0.0.1");
+    }
+    return { origin, isLocal: isLocalHost(url.hostname) };
+  } catch {
+    return null;
+  }
 }
 
 export function resolvePostLoginRedirectUrl({
@@ -41,12 +72,50 @@ export function resolvePostLoginRedirectUrl({
   forwardedHost,
   forwardedProto,
 }: PostLoginRedirectUrlInput): string {
-  const configuredOrigin = configuredUrl?.trim();
+  const configured = parseOrigin(configuredUrl);
   const forwardedOrigin = resolveForwardedOrigin(forwardedHost, forwardedProto);
-  const fallbackOrigin = new URL(requestUrl).origin;
-  const origin = configuredOrigin || forwardedOrigin || fallbackOrigin;
+
+  let fallbackOrigin = "http://127.0.0.1:3000";
+  try {
+    const rawOrigin = new URL(requestUrl).origin;
+    if (rawOrigin.includes("0.0.0.0")) {
+      fallbackOrigin = rawOrigin.replace("0.0.0.0", "127.0.0.1");
+    } else {
+      fallbackOrigin = rawOrigin;
+    }
+  } catch {
+    // Keep default fallback
+  }
+
+  let origin: string;
+  if (configured && !configured.isLocal) {
+    origin = configured.origin;
+  } else if (forwardedOrigin) {
+    origin = forwardedOrigin;
+  } else {
+    origin = fallbackOrigin;
+  }
+
+  if (origin.includes("0.0.0.0")) {
+    origin = origin.replace("0.0.0.0", "127.0.0.1");
+  }
 
   return new URL(path, origin).toString();
+}
+
+export function createRequestRedirectUrl(
+  path: string,
+  request: { url: string; headers: { get(name: string): string | null } },
+): URL {
+  const redirectUrlString = resolvePostLoginRedirectUrl({
+    path,
+    requestUrl: request.url,
+    configuredUrl: process.env.NEXTAUTH_URL ?? process.env.AUTH_URL,
+    forwardedHost: request.headers.get("x-forwarded-host") ?? request.headers.get("host"),
+    forwardedProto: request.headers.get("x-forwarded-proto"),
+  });
+
+  return new URL(redirectUrlString);
 }
 
 /**
