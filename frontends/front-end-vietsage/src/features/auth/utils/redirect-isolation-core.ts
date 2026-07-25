@@ -88,10 +88,12 @@ export function resolvePostLoginRedirectUrl({
   }
 
   let origin: string;
-  if (configured && !configured.isLocal) {
-    origin = configured.origin;
-  } else if (forwardedOrigin) {
+  if (forwardedOrigin) {
+    // Keep redirects on the public app host that owns the host-only Auth.js cookie.
+    // A different configured marketing origin would drop the refresh token during navigation.
     origin = forwardedOrigin;
+  } else if (configured && !configured.isLocal) {
+    origin = configured.origin;
   } else {
     origin = fallbackOrigin;
   }

@@ -104,7 +104,7 @@ test("No activeRoleCode → guest default path", () => {
 
 // ── Public redirect origin behind reverse proxies ─────────────────
 
-test("production URL wins over the container request origin", () => {
+test("forwarded app origin wins over a different configured production origin", () => {
   assert.equal(
     resolvePostLoginRedirectUrl({
       path: "/owner/dashboard",
@@ -113,7 +113,7 @@ test("production URL wins over the container request origin", () => {
       forwardedHost: "stay.vietsage.com",
       forwardedProto: "https",
     }),
-    "https://vietsage.com/owner/dashboard",
+    "https://stay.vietsage.com/owner/dashboard",
   );
 });
 

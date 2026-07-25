@@ -1,3 +1,22 @@
+## [complete] 2026-07-26 - Mission: production-auth-refresh-origin-fix
+
+- Reproduced the VPS-only expiry failure with temporary `10s` access and `90s` refresh TTLs, then restored production to `15m` and `7d`.
+- Confirmed the refresh token remained valid in `/api/auth/session`, while the protected-route refresh redirect crossed from `stay.vietsage.com` to configured `vietsage.com`; the host-only Auth.js cookie was therefore absent and the refresh route logged `no_refresh_token`.
+- Changed redirect-origin selection to prefer the validated forwarded public app origin over a different configured production origin, preserving the host that owns the Auth.js cookie.
+- Updated the reverse-proxy regression test to require `https://stay.vietsage.com` when forwarded host and configured marketing origin differ.
+
+Verification result:
+
+- Regression test observed failing before implementation, then `node --experimental-strip-types --test src/features/auth/utils/redirect-isolation.test.ts` passed 18/18.
+- `node scripts/auth-refresh-smoke.mjs` passed success and refresh-failure scenarios.
+- Scoped ESLint passed for both changed auth files.
+- `npm run build` passed.
+- Full `npm run lint` remains blocked by 2 pre-existing `react-hooks/refs` errors outside auth in `room-messages-client.tsx`; no new auth lint errors.
+
+Remaining blockers/risks:
+
+- Production runtime verification requires the separately approved frontend cutover after the immutable image is built.
+
 ## [complete] 2026-07-25 - Mission: vps-docker-redirect-origin-resolution-fix
 
 - Fixed Docker production redirect issue where clicking "go to dashboard" or triggering auth proxy redirects on VPS resulted in `http://0.0.0.0:3000/login?reauth=1&callbackUrl=%2Fstaff`.
