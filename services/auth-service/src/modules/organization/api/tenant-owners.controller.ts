@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Req, Res } from "@nestjs/common";
 import {
   ApiBody,
   ApiCreatedResponse,
@@ -7,7 +7,7 @@ import {
   ApiQuery,
   ApiTags,
 } from "@nestjs/swagger";
-import type { Request } from "express";
+import type { Request, Response } from "express";
 import {
   TENANT_USER_STATUS_ENUM,
   USER_STATUS_ENUM,
@@ -24,6 +24,7 @@ import type { AuthenticatedUser } from "../../../shared/security";
 import {
   createTenantOwnerBodySchema,
   listTenantOwnersQuerySchema,
+  resetTenantOwnerPasswordBodySchema,
   tenantOwnerIdParamSchema,
   updateTenantOwnerBodySchema,
 } from "../domain/schemas/tenant-owners.schema";
@@ -114,5 +115,22 @@ export class TenantOwnersController {
     const id = parseWithZod(tenantOwnerIdParamSchema, idParam);
     const dto = parseWithZod(updateTenantOwnerBodySchema, body);
     return this.tenantOwnersService.updateTenantOwner(request.user.userId, id, dto);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @SuccessMessage("Cấp lại mật khẩu chủ đơn vị thành công")
+  @ApiDescript("SUPER_ADMIN cấp lại mật khẩu cho chủ đơn vị")
+  @ApiParam({ name: "id", type: String })
+  @Post(":id/reset-password")
+  async resetPassword(
+    @Req() request: RequestWithUser,
+    @Param("id") idParam: string,
+    @Body() body: unknown,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const id = parseWithZod(tenantOwnerIdParamSchema, idParam);
+    parseWithZod(resetTenantOwnerPasswordBodySchema, body);
+    response.setHeader("Cache-Control", "no-store");
+    return this.tenantOwnersService.resetTenantOwnerPassword(request.user.userId, id);
   }
 }

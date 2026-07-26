@@ -9,6 +9,8 @@ import { HttpError } from "@/core/http/http-error";
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import type { TenantOwner } from "@/features/admin/types/admin-contract";
 import { DataTable } from "@/components/ui/data-table";
+import { OneTimePasswordDialog } from "@/features/account/security/one-time-password-dialog";
+import { useResetTenantOwnerPassword } from "@/features/admin/hooks/use-reset-tenant-owner-password";
 import { VsIcon } from "../../_components/vs-icon";
 
 type TenantOwnersClientProps = {
@@ -154,6 +156,29 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
   const [form, setForm] = useState<OwnerFormState>(emptyForm);
   const [isSaving, setIsSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const resetPassword = useResetTenantOwnerPassword();
+  const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null);
+  const [resetAccountLabel, setResetAccountLabel] = useState("");
+
+  async function resetOwnerPassword(owner: TenantOwner) {
+    const confirmed = await Swal.fire({
+      icon: "warning",
+      title: "Cấp lại mật khẩu?",
+      text: `Tạo mật khẩu tạm thời mới cho ${owner.fullName}. Tất cả phiên hiện tại sẽ bị thu hồi.`,
+      showCancelButton: true,
+      confirmButtonText: "Cấp lại mật khẩu",
+      cancelButtonText: "Hủy",
+      confirmButtonColor: "#00003c",
+    });
+    if (!confirmed.isConfirmed) return;
+    try {
+      const result = await resetPassword.mutateAsync({ tenantOwnerId: owner.id });
+      setResetAccountLabel(owner.fullName);
+      setTemporaryPassword(result.temporaryPassword);
+    } catch (error) {
+      await Swal.fire({ icon: "error", title: "Không thể cấp lại mật khẩu", text: error instanceof Error ? error.message : "Vui lòng thử lại." });
+    }
+  }
 
   const filteredOwners = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -363,7 +388,7 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
               key: "actions",
               header: <div className="text-right">Thao tác</div>,
               cell: (owner) => (
-                <div className="text-right">
+                <div className="flex justify-end gap-2">
                   <button
                     type="button"
                     onClick={() => openEditDialog(owner)}
@@ -371,6 +396,9 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
                   >
                     <VsIcon name="edit" className="text-[16px]" />
                     Sửa
+                  </button>
+                  <button type="button" disabled={resetPassword.isPending} onClick={() => resetOwnerPassword(owner)} className="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-amber-300 px-4 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-50 disabled:opacity-50">
+                    <VsIcon name="key" className="text-[16px]" /> Cấp lại mật khẩu
                   </button>
                 </div>
               ),
@@ -413,7 +441,7 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
                 {formatDate(owner.updatedAt)}
               </p>
             </div>
-            <div className="pt-2 flex justify-end">
+            <div className="grid gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => openEditDialog(owner)}
@@ -421,6 +449,9 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
               >
                 <VsIcon name="edit" className="text-[18px]" />
                 Chỉnh sửa
+              </button>
+              <button type="button" disabled={resetPassword.isPending} onClick={() => resetOwnerPassword(owner)} className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-amber-300 px-4 py-2 text-sm font-semibold text-amber-800 disabled:opacity-50">
+                <VsIcon name="key" className="text-[18px]" /> Cấp lại mật khẩu
               </button>
             </div>
           </article>
@@ -494,6 +525,7 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
           </form>
         </div>
       ) : null}
+      <OneTimePasswordDialog temporaryPassword={temporaryPassword} accountLabel={resetAccountLabel} onClose={() => { setTemporaryPassword(null); setResetAccountLabel(""); resetPassword.reset(); }} />
     </div>
   );
 }

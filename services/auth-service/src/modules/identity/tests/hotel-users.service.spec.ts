@@ -188,4 +188,137 @@ describe("HotelUsersService", () => {
       service.revokeHotelUserRole("actor-1", "role-manager", "tenant-1", "target-user", "role-1"),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
+
+  describe("resetFrontdeskPassword", () => {
+    const frontdeskTargetScopedRow = {
+      tenantId: "tenant-1",
+      user: {
+        id: "frontdesk-1",
+        email: "fd@example.com",
+        fullName: "Front Desk Staff",
+        status: "ACTIVE",
+        userType: UserType.HOTEL_STAFF,
+        userRoles: [{ role: { id: "r-fd", code: "HOTEL_FRONTDESK", name: "Frontdesk" } }],
+      },
+    };
+
+    it("resets frontdesk password when actor is TENANT_OWNER and target is FRONTDESK in same tenant", async () => {
+      hotelUsersRepository.findActorById.mockResolvedValue({
+        id: "owner-1",
+        userRoles: [{ role: { code: "TENANT_OWNER" } }],
+        tenantUsers: [{ tenantId: "tenant-1" }],
+      });
+      hotelUsersRepository.findRolesByIds.mockResolvedValue([
+        { id: "role-owner", code: "TENANT_OWNER", name: "Tenant Owner" },
+      ]);
+      hotelUsersRepository.findTenantById = jest.fn().mockResolvedValue({ id: "tenant-1" });
+      hotelUsersRepository.findTenantScopedHotelUser = jest.fn().mockResolvedValue(frontdeskTargetScopedRow);
+      hotelUsersRepository.updateUserPasswordHashAndRevokeSessions = jest.fn().mockResolvedValue(undefined);
+
+      const result = await service.resetFrontdeskPassword("owner-1", "role-owner", "tenant-1", "frontdesk-1");
+
+      expect(result.userId).toBe("frontdesk-1");
+      expect(result.temporaryPassword.length).toBe(16);
+      expect(result.resetAt).toBeDefined();
+      expect(hotelUsersRepository.updateUserPasswordHashAndRevokeSessions).toHaveBeenCalledWith(
+        "frontdesk-1",
+        expect.stringContaining("$argon2"),
+      );
+    });
+
+    it("rejects when actor active role is not TENANT_OWNER", async () => {
+      hotelUsersRepository.findActorById.mockResolvedValue({
+        id: "staff-1",
+        userRoles: [{ role: { code: "HOTEL_MANAGER" } }],
+        tenantUsers: [{ tenantId: "tenant-1" }],
+      });
+      hotelUsersRepository.findRolesByIds.mockResolvedValue([
+        { id: "role-mgr", code: "HOTEL_MANAGER", name: "Manager" },
+      ]);
+
+      await expect(
+        service.resetFrontdeskPassword("staff-1", "role-mgr", "tenant-1", "frontdesk-1"),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it("rejects HOTEL_OWNER alias because the active role must be TENANT_OWNER", async () => {
+      hotelUsersRepository.findActorById.mockResolvedValue({
+        id: "owner-1",
+        userRoles: [{ role: { code: "HOTEL_OWNER" } }],
+        tenantUsers: [{ tenantId: "tenant-1" }],
+      });
+      hotelUsersRepository.findRolesByIds.mockResolvedValue([
+        { id: "role-owner", code: "HOTEL_OWNER", name: "Hotel Owner" },
+      ]);
+
+      await expect(
+        service.resetFrontdeskPassword("owner-1", "role-owner", "tenant-1", "frontdesk-1"),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it("rejects when trying to reset self", async () => {
+      await expect(
+        service.resetFrontdeskPassword("owner-1", "role-owner", "tenant-1", "owner-1"),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it("rejects when target has non-FRONTDESK role (e.g. HOTEL_MANAGER)", async () => {
+      hotelUsersRepository.findActorById.mockResolvedValue({
+        id: "owner-1",
+        userRoles: [{ role: { code: "TENANT_OWNER" } }],
+        tenantUsers: [{ tenantId: "tenant-1" }],
+      });
+      hotelUsersRepository.findRolesByIds.mockResolvedValue([
+        { id: "role-owner", code: "TENANT_OWNER", name: "Tenant Owner" },
+      ]);
+      hotelUsersRepository.findTenantById = jest.fn().mockResolvedValue({ id: "tenant-1" });
+      hotelUsersRepository.findTenantScopedHotelUser = jest.fn().mockResolvedValue({
+        ...frontdeskTargetScopedRow,
+        user: {
+          ...frontdeskTargetScopedRow.user,
+          userRoles: [{ role: { id: "r-mgr", code: "HOTEL_MANAGER", name: "Manager" } }],
+        },
+      });
+
+      await expect(
+        service.resetFrontdeskPassword("owner-1", "role-owner", "tenant-1", "mgr-1"),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it("rejects with 403 when target belongs to another tenant", async () => {
+      hotelUsersRepository.findActorById.mockResolvedValue({
+        id: "owner-1",
+        userRoles: [{ role: { code: "TENANT_OWNER" } }],
+        tenantUsers: [{ tenantId: "tenant-1" }],
+      });
+      hotelUsersRepository.findRolesByIds.mockResolvedValue([
+        { id: "role-owner", code: "TENANT_OWNER", name: "Tenant Owner" },
+      ]);
+      hotelUsersRepository.findTenantById = jest.fn().mockResolvedValue({ id: "tenant-1" });
+      hotelUsersRepository.findTenantScopedHotelUser = jest.fn().mockResolvedValue(null);
+      hotelUsersRepository.findUserById = jest.fn().mockResolvedValue({ id: "other-tenant-user" });
+
+      await expect(
+        service.resetFrontdeskPassword("owner-1", "role-owner", "tenant-1", "other-tenant-user"),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it("rejects with 404 when target does not exist at all", async () => {
+      hotelUsersRepository.findActorById.mockResolvedValue({
+        id: "owner-1",
+        userRoles: [{ role: { code: "TENANT_OWNER" } }],
+        tenantUsers: [{ tenantId: "tenant-1" }],
+      });
+      hotelUsersRepository.findRolesByIds.mockResolvedValue([
+        { id: "role-owner", code: "TENANT_OWNER", name: "Tenant Owner" },
+      ]);
+      hotelUsersRepository.findTenantById = jest.fn().mockResolvedValue({ id: "tenant-1" });
+      hotelUsersRepository.findTenantScopedHotelUser = jest.fn().mockResolvedValue(null);
+      hotelUsersRepository.findUserById = jest.fn().mockResolvedValue(null);
+
+      await expect(
+        service.resetFrontdeskPassword("owner-1", "role-owner", "tenant-1", "nonexistent-user"),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
 });

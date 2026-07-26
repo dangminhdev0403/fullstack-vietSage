@@ -56,7 +56,10 @@ export const assignHotelUserRolesBodySchema = z
 export const userIdParamSchema = z.string().trim().min(1, "user id là bắt buộc");
 export const roleIdParamSchema = z.string().trim().min(1, "role id là bắt buộc");
 
+export const resetHotelUserPasswordBodySchema = z.object({}).strict();
+
 export type CreateHotelUserBodyInput = z.infer<typeof createHotelUserBodySchema>;
 export type ListHotelUsersQueryInput = z.infer<typeof listHotelUsersQuerySchema>;
 export type UpdateHotelUserStatusBodyInput = z.infer<typeof updateHotelUserStatusBodySchema>;
 export type AssignHotelUserRolesBodyInput = z.infer<typeof assignHotelUserRolesBodySchema>;
+export type ResetHotelUserPasswordBodyInput = z.infer<typeof resetHotelUserPasswordBodySchema>;

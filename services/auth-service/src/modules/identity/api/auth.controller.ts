@@ -28,7 +28,7 @@ import { SuccessMessage } from "../../../shared/decorators/success-message.decor
 import { AuthService, type AuthTokensResponse } from "../application/authentication.service";
 import { LocalAuthGuard } from "../infrastructure/guards/local-auth.guard";
 import type { AuthenticatedUser } from "../domain/authenticated-user";
-import { refreshTokenBodySchema } from "../domain/schemas/auth.schema";
+import { changePasswordBodySchema, refreshTokenBodySchema } from "../domain/schemas/auth.schema";
 
 interface RequestWithUser extends Request {
   user: AuthenticatedUser;
@@ -106,6 +106,19 @@ export class AuthController {
   async logoutAll(@Req() request: RequestWithUser): Promise<{ success: true }> {
     await this.authService.logoutAll(request.user.userId);
     return { success: true };
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @SuccessMessage("Đổi mật khẩu thành công")
+  @ApiDescript("Đổi mật khẩu tài khoản")
+  @AuthRateLimit("change-password")
+  @Post("change-password")
+  async changePassword(
+    @Req() request: RequestWithUser,
+    @Body() body: unknown,
+  ): Promise<{ changed: true }> {
+    const dto = parseWithZod(changePasswordBodySchema, body);
+    return this.authService.changePassword(request.user.userId, dto);
   }
 
   @SkipAuthorization()

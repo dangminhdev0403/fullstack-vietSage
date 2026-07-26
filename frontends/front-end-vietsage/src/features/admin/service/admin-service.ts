@@ -21,6 +21,12 @@ export type AdminServiceOptions = {
   timeoutMs?: number;
 };
 
+type TemporaryPasswordResult = {
+  userId: string;
+  temporaryPassword: string;
+  resetAt: string;
+};
+
 export class AdminService {
   private readonly baseUrl: string;
   private readonly httpClient: HttpClient;
@@ -110,6 +116,20 @@ export class AdminService {
     });
 
     return unwrapApiEnvelope<TenantOwner>(payload).data;
+  }
+
+  async resetTenantOwnerPassword(
+    tenantOwnerId: string,
+    accessToken?: string,
+  ): Promise<TemporaryPasswordResult> {
+    const payload = await this.authenticatedRequest<unknown, Record<string, never>>({
+      method: "POST",
+      path: `/tenant-owners/${encodeURIComponent(tenantOwnerId)}/reset-password`,
+      body: {},
+      accessToken,
+    });
+
+    return unwrapApiEnvelope<TemporaryPasswordResult>(payload).data;
   }
 
   async listHotels(options: { query?: HotelListQuery; accessToken?: string } = {}): Promise<HotelsPage> {

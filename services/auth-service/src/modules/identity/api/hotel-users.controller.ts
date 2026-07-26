@@ -4,11 +4,14 @@ import {
   Delete,
   Get,
   Headers,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
   Post,
   Query,
   Req,
+  Res,
 } from "@nestjs/common";
 import {
   ApiBody,
@@ -19,7 +22,7 @@ import {
   ApiQuery,
   ApiTags,
 } from "@nestjs/swagger";
-import type { Request } from "express";
+import type { Request, Response } from "express";
 import {
   TENANT_USER_STATUS_ENUM,
   assignHotelUserRolesBodySchema as assignHotelUserRolesBodyOpenApiSchema,
@@ -41,6 +44,7 @@ import {
   assignHotelUserRolesBodySchema as assignHotelUserRolesBodyZodSchema,
   createHotelUserBodySchema as createHotelUserBodyZodSchema,
   listHotelUsersQuerySchema as listHotelUsersQueryZodSchema,
+  resetHotelUserPasswordBodySchema,
   roleIdParamSchema,
   updateHotelUserStatusBodySchema as updateHotelUserStatusBodyZodSchema,
   userIdParamSchema,
@@ -265,6 +269,32 @@ export class HotelUsersController {
       this.resolveTenantHint(tenantIdHeader, undefined),
       userId,
       roleId,
+    );
+  }
+
+  @RequirePermission("hotel.staff.manage")
+  @HttpCode(HttpStatus.OK)
+  @SuccessMessage("Cấp lại mật khẩu nhân viên lễ tân thành công")
+  @ApiDescript("TENANT_OWNER cấp lại mật khẩu cho nhân viên lễ tân")
+  @ApiParam({ name: "id", type: String })
+  @ApiHeader({ name: "x-tenant-id", required: false, description: "Ghi đè đơn vị tùy chọn" })
+  @Post(":id/reset-password")
+  async resetPassword(
+    @Req() request: RequestWithUser,
+    @Param("id") userIdParam: string,
+    @Body() body: unknown,
+    @Headers("x-tenant-id") tenantIdHeader?: string,
+    @Res({ passthrough: true }) response?: Response,
+  ) {
+    const userId = parseWithZod(userIdParamSchema, userIdParam);
+    parseWithZod(resetHotelUserPasswordBodySchema, body);
+    response?.setHeader("Cache-Control", "no-store");
+
+    return this.hotelUsersService.resetFrontdeskPassword(
+      request.user.userId,
+      request.user.roleId,
+      this.resolveTenantHint(tenantIdHeader, undefined),
+      userId,
     );
   }
 

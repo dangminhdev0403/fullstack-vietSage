@@ -18,6 +18,7 @@ import type {
   UpdateHotelUserStatusBodyInput,
 } from "../domain/schemas/hotel-users.schema";
 import { AuthService } from "./authentication.service";
+import { generateTemporaryPassword } from "../../../common/security/password-policy.util";
 
 const MANAGED_ROLE_CODES = new Set([
   "HOTEL_MANAGER",
@@ -269,6 +270,68 @@ export class HotelUsersService {
     const actor = await this.loadActorContext(actorUserId, activeRoleId);
     await this.resolveTenantId(actor, tenantHint);
     return this.hotelUsersRepository.listManagedRoles([...MANAGED_ROLE_CODES]);
+  }
+
+  async resetFrontdeskPassword(
+    actorUserId: string,
+    activeRoleId: string,
+    tenantHint: string | undefined,
+    targetUserId: string,
+  ): Promise<{ userId: string; temporaryPassword: string; resetAt: string }> {
+    if (actorUserId === targetUserId) {
+      throw new ForbiddenException("Không thể tự cấp lại mật khẩu cho chính mình");
+    }
+
+    const actor = await this.loadActorContext(actorUserId, activeRoleId);
+
+    const activeRole = await this.hotelUsersRepository.findRolesByIds([activeRoleId]);
+    const activeRoleCode = activeRole[0]?.code;
+    if (activeRoleCode !== "TENANT_OWNER") {
+      throw new ForbiddenException("Chỉ TENANT_OWNER mới có quyền cấp lại mật khẩu cho lễ tân");
+    }
+
+    const tenantId = await this.resolveTenantId(actor, tenantHint);
+    await this.assertTenantExists(tenantId);
+
+    const targetScoped = await this.hotelUsersRepository.findTenantScopedHotelUser(tenantId, targetUserId);
+
+    if (!targetScoped) {
+      const existsInSystem = await this.hotelUsersRepository.findUserById(targetUserId);
+      if (existsInSystem) {
+        throw new ForbiddenException("Không thể cấp lại mật khẩu cho người dùng thuộc đơn vị khác");
+      }
+      throw new NotFoundException("Không tìm thấy người dùng khách sạn trong đơn vị");
+    }
+
+    if (targetScoped.user.userType !== UserType.HOTEL_STAFF) {
+      throw new ForbiddenException("Tài khoản mục tiêu không phải nhân viên khách sạn");
+    }
+
+    const targetRoles = targetScoped.user.userRoles.map((entry) => entry.role.code);
+
+    if (
+      targetRoles.includes("SUPER_ADMIN") ||
+      targetRoles.includes("TENANT_OWNER") ||
+      targetRoles.includes("HOTEL_OWNER") ||
+      targetRoles.includes("HOTEL_MANAGER") ||
+      !targetRoles.includes("HOTEL_FRONTDESK")
+    ) {
+      throw new ForbiddenException("Chỉ được cấp lại mật khẩu cho nhân viên có vai trò HOTEL_FRONTDESK");
+    }
+
+    const temporaryPassword = generateTemporaryPassword(16);
+    const passwordHash = await argon2.hash(temporaryPassword);
+
+    await this.hotelUsersRepository.updateUserPasswordHashAndRevokeSessions(
+      targetUserId,
+      passwordHash,
+    );
+
+    return {
+      userId: targetUserId,
+      temporaryPassword,
+      resetAt: new Date().toISOString(),
+    };
   }
 
   private async loadActorContext(userId: string, activeRoleId: string): Promise<ActorContext> {

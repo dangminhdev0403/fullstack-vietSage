@@ -27,6 +27,12 @@ export type UpdateStaffAssignmentInput = {
   assigned: boolean;
 };
 
+export type TemporaryPasswordResult = {
+  userId: string;
+  temporaryPassword: string;
+  resetAt: string;
+};
+
 type RepositoryRequestOptions = {
   signal?: AbortSignal;
 };
@@ -139,6 +145,17 @@ export const staffDirectoryRepository = {
       { method: input.assigned ? "PUT" : "DELETE" },
     );
 
+    return payload.data;
+  },
+
+  async resetFrontdeskPassword(
+    scope: StaffManagementScope,
+    userId: string,
+  ): Promise<TemporaryPasswordResult> {
+    const payload = await requestInternalApiEnvelope<TemporaryPasswordResult>(
+      `/api/owner/staff/${encodeURIComponent(userId)}/reset-password`,
+      { method: "POST", body: {}, headers: tenantHeaders(scope) },
+    );
     return payload.data;
   },
 };

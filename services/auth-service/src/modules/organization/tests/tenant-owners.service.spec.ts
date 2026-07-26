@@ -189,4 +189,59 @@ describe("TenantOwnersService", () => {
       }),
     );
   });
+
+  describe("resetTenantOwnerPassword", () => {
+    it("resets password for valid tenant owner when actor is SUPER_ADMIN", async () => {
+      tenantOwnersRepository.updatePasswordHashAndRevokeSessions = jest.fn().mockResolvedValue(undefined);
+      tenantOwnersRepository.findActorRoleCodes
+        .mockResolvedValueOnce(["SUPER_ADMIN"]) // actor check
+        .mockResolvedValueOnce(["TENANT_OWNER"]); // target check
+
+      const result = await service.resetTenantOwnerPassword("admin-1", "user-1");
+
+      expect(result.userId).toBe("user-1");
+      expect(result.temporaryPassword.length).toBe(16);
+      expect(result.resetAt).toBeDefined();
+      expect(tenantOwnersRepository.updatePasswordHashAndRevokeSessions).toHaveBeenCalledWith(
+        "user-1",
+        expect.stringContaining("$argon2"),
+      );
+    });
+
+    it("rejects non super-admin actors", async () => {
+      tenantOwnersRepository.findActorRoleCodes.mockResolvedValue(["HOTEL_MANAGER"]);
+
+      await expect(service.resetTenantOwnerPassword("actor-1", "user-1")).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+    });
+
+    it("rejects when target is a SUPER_ADMIN", async () => {
+      tenantOwnersRepository.findActorRoleCodes
+        .mockResolvedValueOnce(["SUPER_ADMIN"]) // actor
+        .mockResolvedValueOnce(["SUPER_ADMIN"]); // target
+
+      await expect(service.resetTenantOwnerPassword("admin-1", "super-2")).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+    });
+
+    it("rejects HOTEL_OWNER alias because target must be TENANT_OWNER", async () => {
+      tenantOwnersRepository.findActorRoleCodes
+        .mockResolvedValueOnce(["SUPER_ADMIN"])
+        .mockResolvedValueOnce(["HOTEL_OWNER"]);
+
+      await expect(service.resetTenantOwnerPassword("admin-1", "user-1")).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+    });
+
+    it("rejects when target is missing", async () => {
+      tenantOwnersRepository.findTenantOwnerByUserId.mockResolvedValue(null);
+
+      await expect(service.resetTenantOwnerPassword("admin-1", "missing-1")).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+  });
 });

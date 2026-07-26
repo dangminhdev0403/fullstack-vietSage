@@ -85,9 +85,10 @@ export default function GuestMessagesPage() {
     locale,
   });
   const historyInput = { limit: 20 } as const;
+  const historyOptions = guestMessages.infiniteQueries.history.options(historyInput);
 
   const messagesQuery = useInfiniteQuery({
-    ...guestMessages.infiniteQueries.history.options(historyInput),
+    ...historyOptions,
     enabled: hydrated && Boolean(sessionToken),
     refetchInterval: conversationClosed ? false : 30_000,
     retry: false,
@@ -114,7 +115,7 @@ export default function GuestMessagesPage() {
 
   const appendRealtimeMessage = (message: GuestMessagesResult["items"][number]) => {
     queryClient.setQueryData<InfiniteData<GuestMessagesResult>>(
-      ["guest-messages", sessionToken],
+      historyOptions.queryKey,
       (current) => {
         if (!current?.pages.length || current.pages.some((page) => page.items.some((item) => item.id === message.id))) {
           return current;
@@ -141,7 +142,7 @@ export default function GuestMessagesPage() {
     },
     onConversationClosed: () => setConversationClosed(true),
     onReconnect: () => {
-      queryClient.invalidateQueries({ queryKey: ["guest-messages", sessionToken] }).catch(() => {});
+      queryClient.invalidateQueries({ queryKey: historyOptions.queryKey }).catch(() => {});
     },
     onError: (error) => {
       if (error && typeof error === "object" && "code" in error && error.code === "SESSION_INVALID") {
@@ -156,7 +157,7 @@ export default function GuestMessagesPage() {
       .then(() => {
         const readIds = new Set(unreadStaffMessageKey.split(","));
         queryClient.setQueryData<InfiniteData<GuestMessagesResult>>(
-          ["guest-messages", sessionToken],
+          historyOptions.queryKey,
           (current) => current
             ? {
                 ...current,
@@ -171,7 +172,7 @@ export default function GuestMessagesPage() {
         );
       })
       .catch(() => {});
-  }, [locale, queryClient, sessionToken, unreadStaffMessageKey]);
+  }, [historyOptions.queryKey, locale, queryClient, sessionToken, unreadStaffMessageKey]);
 
   const handleScroll = () => {
     const container = scrollContainerRef.current;
@@ -232,14 +233,15 @@ export default function GuestMessagesPage() {
     }
   }, [items, pages.length]);
 
-  const send = useMutation(guestMessages.mutations.send.options({
-    optimistic: () => setSendError(null),
-    onSuccess: async ({ data: res }) => {
+  const send = useMutation({
+    ...guestMessages.mutations.send.options(),
+    onMutate: () => setSendError(null),
+    onSuccess: async (res) => {
       setBody("");
       justSentRef.current = true;
       if (res?.message) {
         queryClient.setQueryData<{ pages: GuestMessagesResult[]; pageParams: unknown[] }>(
-          ["guest-messages", sessionToken],
+          historyOptions.queryKey,
           (oldData) => {
             if (!oldData?.pages?.length) return oldData;
             const newPages = [...oldData.pages];
@@ -255,10 +257,10 @@ export default function GuestMessagesPage() {
       if (scrollContainerRef.current) {
         scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
       }
-      await queryClient.invalidateQueries({ queryKey: ["guest-messages", sessionToken] });
+      await queryClient.invalidateQueries({ queryKey: historyOptions.queryKey });
     },
     onError: () => setSendError("Không thể gửi tin nhắn. Vui lòng thử lại."),
-  }));
+  });
 
   // Listen for staff typing signals across windows/tabs
   useEffect(() => {

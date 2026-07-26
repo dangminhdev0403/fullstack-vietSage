@@ -73,6 +73,13 @@ async function updateStaffAssignment({
   return staffDirectoryRepository.updateAssignment(scope, variables);
 }
 
+async function resetFrontdeskPassword({
+  scope,
+  variables,
+}: ResourceMutationContext<StaffManagementScope, { userId: string }>) {
+  return staffDirectoryRepository.resetFrontdeskPassword(scope, variables.userId);
+}
+
 export const staffDirectoryResource =
   createResource<StaffManagementScope>()({
     namespace: ["vietsage"],
@@ -113,6 +120,9 @@ export const staffDirectoryResource =
       updateAssignment: defineMutation({
         mutationFn: updateStaffAssignment,
         invalidates: INVALIDATE_DIRECTORY,
+      }),
+      resetFrontdeskPassword: defineMutation({
+        mutationFn: resetFrontdeskPassword,
       }),
     },
   });

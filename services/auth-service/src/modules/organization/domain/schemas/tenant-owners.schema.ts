@@ -62,6 +62,9 @@ export const updateTenantOwnerBodySchema = z
     { message: "Cần cung cấp ít nhất một trường của chủ đơn vị" },
   );
 
+export const resetTenantOwnerPasswordBodySchema = z.object({}).strict();
+
 export type ListTenantOwnersQueryInput = z.infer<typeof listTenantOwnersQuerySchema>;
 export type CreateTenantOwnerBodyInput = z.infer<typeof createTenantOwnerBodySchema>;
 export type UpdateTenantOwnerBodyInput = z.infer<typeof updateTenantOwnerBodySchema>;
+export type ResetTenantOwnerPasswordBodyInput = z.infer<typeof resetTenantOwnerPasswordBodySchema>;

@@ -72,4 +72,15 @@ describe("AuthRateLimitGuard", () => {
 
     expect(guard.canActivate(context)).toBe(true);
   });
+
+  it("applies the login limit to change-password requests", () => {
+    const reflector = new Reflector();
+    jest.spyOn(reflector, "get").mockImplementation((metadataKey) => {
+      return metadataKey === AUTH_RATE_LIMIT_METADATA_KEY ? "change-password" : undefined;
+    });
+    const guard = new AuthRateLimitGuard(reflector);
+    const context = makeContext();
+
+    expect(guard.canActivate(context)).toBe(true);
+  });
 });

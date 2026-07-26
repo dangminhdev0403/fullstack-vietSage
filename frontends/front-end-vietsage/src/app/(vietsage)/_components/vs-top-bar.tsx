@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { VsIcon } from "./vs-icon";
 import { VsLogoutButton } from "./vs-logout-button";
+import { ChangePasswordDialog } from "@/features/account/security/change-password-dialog";
 
 type VsTopBarProps = {
   title?: string;
@@ -127,6 +128,7 @@ export function VsTopBar({
             </div>
           ) : null}
 
+          <ChangePasswordDialog />
           <VsLogoutButton className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-full border border-[#24473d]/15 bg-white/50 px-3 py-2 text-xs font-bold tracking-[0.04em] text-[#24473d] transition-colors hover:bg-[#f8f1e6] disabled:cursor-not-allowed disabled:opacity-60" />
 
           <div className="size-10 shrink-0 overflow-hidden rounded-full border border-[#24473d]/15 bg-[#f8f1e6] shadow-[0_10px_24px_rgba(31,61,53,0.12)]">

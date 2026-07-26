@@ -18,18 +18,28 @@ test("over-limit chat drafts report an explicit error instead of silently disabl
   }
 });
 
-test("both message mutations surface request failures and refresh their active query", () => {
+test("both message mutations surface request failures", () => {
   for (const source of sources) {
     assert.match(source, /onError:/);
     assert.match(source, /setSendError/);
-    assert.match(source, /invalidateQueries/);
   }
 });
 
-test("staff reply cache updates use the submitted thread instead of mutable selection state", () => {
+test("guest realtime and send success update the exact resource history query key", () => {
+  const guestSource = sources[0];
+  assert.match(guestSource, /const historyOptions = guestMessages\.infiniteQueries\.history\.options\(historyInput\)/);
+  assert.match(guestSource, /setQueryData<InfiniteData<GuestMessagesResult>>\(\s*historyOptions\.queryKey/);
+  assert.match(guestSource, /invalidateQueries\(\{ queryKey: historyOptions\.queryKey \}\)/);
+  assert.doesNotMatch(guestSource, /\["guest-messages", sessionToken\]/);
+});
+
+test("frontdesk realtime and reply success update exact resource thread keys", () => {
   const staffSource = sources[1];
-  assert.match(staffSource, /mutationFn: \(variables: \{ threadId: string; body: string \}\)/);
-  assert.match(staffSource, /onSuccess: \(res, variables\)/);
-  assert.match(staffSource, /\["hotel-message-thread", hotelId, variables\.threadId\]/);
-  assert.match(staffSource, /reply\.mutate\(\{ threadId: selectedId, body: body\.trim\(\) \}\)/);
+  assert.match(staffSource, /const threadListOptions = hotelMessages\.infiniteQueries\.threads\.options/);
+  assert.match(staffSource, /const detailOptions = hotelMessages\.infiniteQueries\.detail\.options/);
+  assert.match(staffSource, /const threadDetailKey = \(threadId: string\)[\s\S]{0,160}\.queryKey/);
+  assert.match(staffSource, /setQueryData<InfiniteData<ThreadPage>>\(\s*threadDetailKey\(threadId\)/);
+  assert.match(staffSource, /setQueryData<InfiniteData<ThreadList>>\(threadListOptions\.queryKey/);
+  assert.doesNotMatch(staffSource, /\["hotel-message-thread", hotelId/);
+  assert.doesNotMatch(staffSource, /\["hotel-message-threads", hotelId/);
 });

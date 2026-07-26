@@ -11,6 +11,12 @@ import type {
   ManagedHotelRole,
 } from "../types/staff-management-contract";
 
+type TemporaryPasswordResult = {
+  userId: string;
+  temporaryPassword: string;
+  resetAt: string;
+};
+
 export class StaffManagementService {
   private readonly baseUrl: string;
   private readonly httpClient: HttpClient;
@@ -97,6 +103,22 @@ export class StaffManagementService {
       accessToken,
     });
     return unwrapApiEnvelope<{ revoked: true; userId: string; roleId: string }>(payload).data;
+  }
+
+  async resetFrontdeskPassword(
+    userId: string,
+    tenantId?: string,
+    accessToken?: string,
+  ): Promise<TemporaryPasswordResult> {
+    const payload = await this.request<unknown, Record<string, never>>({
+      method: "POST",
+      path: `/hotel-users/${encodeURIComponent(userId)}/reset-password`,
+      body: {},
+      tenantId,
+      accessToken,
+    });
+
+    return unwrapApiEnvelope<TemporaryPasswordResult>(payload).data;
   }
 
   async listAssignments(hotelId: string, accessToken?: string) {

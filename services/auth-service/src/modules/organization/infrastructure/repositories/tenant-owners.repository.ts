@@ -281,4 +281,24 @@ export class TenantOwnersRepository {
       include: tenantOwnerInclude,
     });
   }
+
+  async updatePasswordHashAndRevokeSessions(userId: string, passwordHash: string) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: { passwordHash },
+      });
+      await tx.authSession.updateMany({
+        where: { userId, status: "ACTIVE" },
+        data: {
+          status: "REVOKED",
+          revokeReason: "SECURITY_EVENT",
+          revokedAt: new Date(),
+        },
+      });
+      await tx.refreshToken.deleteMany({
+        where: { userId },
+      });
+    });
+  }
 }

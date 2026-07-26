@@ -111,6 +111,41 @@ export class AuthRepository {
     });
   }
 
+  async changePasswordAndRevokeSessions(userId: string, passwordHash: string) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: { passwordHash },
+      });
+      await tx.authSession.updateMany({
+        where: { userId, status: AuthSessionStatus.ACTIVE },
+        data: {
+          status: AuthSessionStatus.REVOKED,
+          revokeReason: AuthSessionRevokeReason.SECURITY_EVENT,
+          revokedAt: new Date(),
+        },
+      });
+      await tx.refreshToken.deleteMany({ where: { userId } });
+    });
+  }
+
+  async revokeUserSessionsAndRefreshTokens(
+    userId: string,
+    reason: AuthSessionRevokeReason,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.authSession.updateMany({
+        where: { userId, status: AuthSessionStatus.ACTIVE },
+        data: {
+          status: AuthSessionStatus.REVOKED,
+          revokeReason: reason,
+          revokedAt: new Date(),
+        },
+      });
+      await tx.refreshToken.deleteMany({ where: { userId } });
+    });
+  }
+
   async updateUserLastLogin(userId: string, lastLoginAt: Date) {
     return this.prisma.user.update({
       where: { id: userId },

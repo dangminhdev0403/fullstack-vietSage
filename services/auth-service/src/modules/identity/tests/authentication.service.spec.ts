@@ -14,6 +14,7 @@ describe("AuthService", () => {
   beforeEach(() => {
     repository = {
       findUserByEmail: jest.fn(),
+      findUserById: jest.fn(),
       findPrimaryActiveRoleIdByUserId: jest.fn(),
       countActiveRoleByUserId: jest.fn().mockResolvedValue(1),
       updateUserPasswordHash: jest.fn(),
@@ -29,6 +30,8 @@ describe("AuthService", () => {
       revokeAuthSession: jest.fn(),
       revokeAuthSessionFamily: jest.fn(),
       revokeAuthSessionsByUserId: jest.fn(),
+      changePasswordAndRevokeSessions: jest.fn(),
+      revokeUserSessionsAndRefreshTokens: jest.fn(),
       revokeAuthSessionsByRoleId: jest.fn(),
       revokeAuthSessionsByUserRole: jest.fn(),
       findUserProfileWithRelations: jest.fn(),
@@ -281,7 +284,10 @@ describe("AuthService", () => {
     await expect(service.validateJwtPayload(accessPayload())).rejects.toThrow(
       UnauthorizedException,
     );
-    expect(repository.revokeAuthSessionsByUserId).toHaveBeenCalledWith("u1", "USER_DISABLED");
+    expect(repository.revokeUserSessionsAndRefreshTokens).toHaveBeenCalledWith(
+      "u1",
+      "USER_DISABLED",
+    );
   });
 
   it("revokes the session when its role assignment is removed", async () => {
@@ -297,6 +303,70 @@ describe("AuthService", () => {
   it("treats logout of an already revoked session as idempotent", async () => {
     repository.revokeAuthSession.mockResolvedValue({ count: 0 });
     await expect(service.logout("s1")).resolves.toBeUndefined();
+  });
+
+  describe("changePassword", () => {
+    it("successfully changes password when current password matches and new password meets policy", async () => {
+      const currentPassword = "CurrentPass1!";
+      const newPassword = "NewPassword2@";
+      const currentHash = await argon2.hash(currentPassword);
+
+      repository.findUserById.mockResolvedValue({
+        id: "u1",
+        email: "user@vietsage.local",
+        passwordHash: currentHash,
+        status: UserStatus.ACTIVE,
+      });
+      repository.changePasswordAndRevokeSessions.mockResolvedValue(undefined);
+
+      const res = await service.changePassword("u1", {
+        currentPassword,
+        newPassword,
+      });
+
+      expect(res).toEqual({ changed: true });
+      expect(repository.changePasswordAndRevokeSessions).toHaveBeenCalledWith(
+        "u1",
+        expect.stringContaining("$argon2"),
+      );
+    });
+
+    it("rejects when current password is wrong", async () => {
+      const currentHash = await argon2.hash("CorrectPass1!");
+
+      repository.findUserById.mockResolvedValue({
+        id: "u1",
+        email: "user@vietsage.local",
+        passwordHash: currentHash,
+        status: UserStatus.ACTIVE,
+      });
+
+      await expect(
+        service.changePassword("u1", {
+          currentPassword: "WrongPass1!",
+          newPassword: "NewPassword2@",
+        }),
+      ).rejects.toThrow();
+    });
+
+    it("rejects when new password matches current password", async () => {
+      const currentPassword = "SamePass1!";
+      const currentHash = await argon2.hash(currentPassword);
+
+      repository.findUserById.mockResolvedValue({
+        id: "u1",
+        email: "user@vietsage.local",
+        passwordHash: currentHash,
+        status: UserStatus.ACTIVE,
+      });
+
+      await expect(
+        service.changePassword("u1", {
+          currentPassword,
+          newPassword: currentPassword,
+        }),
+      ).rejects.toThrow();
+    });
   });
 });
 

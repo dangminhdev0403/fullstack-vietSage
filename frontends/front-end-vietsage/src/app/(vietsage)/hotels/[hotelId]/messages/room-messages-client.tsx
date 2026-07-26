@@ -140,15 +140,18 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
     }
   };
 
-  const threadListKey = ["hotel-message-threads", hotelId, deferredSearch] as const;
+  const threadListOptions = hotelMessages.infiniteQueries.threads.options({ q: deferredSearch });
+  const detailOptions = hotelMessages.infiniteQueries.detail.options({ threadId: selectedId ?? "" });
+  const threadDetailKey = (threadId: string) =>
+    hotelMessages.infiniteQueries.detail.options({ threadId }).queryKey;
   const threads = useInfiniteQuery({
-    ...hotelMessages.infiniteQueries.threads.options({ q: deferredSearch }),
+    ...threadListOptions,
     refetchInterval: 30_000,
   });
 
   const markThreadReadInCache = (threadId: string) => {
-    queryClient.setQueriesData<InfiniteData<ThreadList>>(
-      { queryKey: ["hotel-message-threads", hotelId] },
+    queryClient.setQueryData<InfiniteData<ThreadList>>(
+      threadListOptions.queryKey,
       (current) => current
         ? {
             ...current,
@@ -171,7 +174,7 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
     }, []);
 
   const detail = useInfiniteQuery({
-    ...hotelMessages.infiniteQueries.detail.options({ threadId: selectedId ?? "" }),
+    ...detailOptions,
     enabled: Boolean(selectedId),
     refetchInterval: closedStayId ? false : 30_000,
     retry: false,
@@ -200,7 +203,7 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
 
   const appendMessageToThreadCache = (threadId: string, message: Message) => {
     queryClient.setQueryData<InfiniteData<ThreadPage>>(
-      ["hotel-message-thread", hotelId, threadId],
+      threadDetailKey(threadId),
       (current) => {
         if (!current?.pages.length || current.pages.some((page) => page.items.some((item) => item.id === message.id))) {
           return current;
@@ -219,7 +222,7 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
       !thread.guestName.toLowerCase().includes(deferredSearch.toLowerCase())
     ) return;
 
-    queryClient.setQueryData<InfiniteData<ThreadList>>(threadListKey, (current) => {
+    queryClient.setQueryData<InfiniteData<ThreadList>>(threadListOptions.queryKey, (current) => {
       if (!current?.pages.length) return current;
       const existed = current.pages.some((page) => page.items.some((item) => item.id === thread.id));
       const pages = current.pages.map((page) => ({
@@ -237,8 +240,8 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
   };
 
   const removeClosedStayFromWaitingList = (stayId: string) => {
-    queryClient.setQueriesData<InfiniteData<ThreadList>>(
-      { queryKey: ["hotel-message-threads", hotelId] },
+    queryClient.setQueryData<InfiniteData<ThreadList>>(
+      threadListOptions.queryKey,
       (current) => {
         if (!current) return current;
         const removed = current.pages.some((page) => page.items.some((thread) => thread.stayId === stayId));
@@ -285,9 +288,9 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
         if (selectedThread?.stayId === stayId) setClosedStayId(stayId);
       },
       onReconnect: () => {
-        queryClient.invalidateQueries({ queryKey: ["hotel-message-threads", hotelId] }).catch(() => {});
+        queryClient.invalidateQueries({ queryKey: threadListOptions.queryKey }).catch(() => {});
         if (selectedId) {
-          queryClient.invalidateQueries({ queryKey: ["hotel-message-thread", hotelId, selectedId] }).catch(() => {});
+          queryClient.invalidateQueries({ queryKey: threadDetailKey(selectedId) }).catch(() => {});
         }
       },
     },
@@ -409,9 +412,10 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
     };
   }, [selectedId, hotelId]);
 
-  const reply = useMutation(hotelMessages.mutations.reply.options({
-    optimistic: () => setSendError(null),
-    onSuccess: ({ data: res, variables }) => {
+  const reply = useMutation({
+    ...hotelMessages.mutations.reply.options(),
+    onMutate: () => setSendError(null),
+    onSuccess: (res, variables) => {
       setDraftsByThread((prev) =>
         prev[variables.threadId]?.trim() === variables.body
           ? { ...prev, [variables.threadId]: "" }
@@ -421,7 +425,7 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
       // Optimistically insert sent message into the submitted thread cache.
       if (res?.message) {
         queryClient.setQueryData<{ pages: ThreadPage[]; pageParams: unknown[] }>(
-          ["hotel-message-thread", hotelId, variables.threadId],
+          threadDetailKey(variables.threadId),
           (oldData) => {
             if (!oldData?.pages?.length) return oldData;
             const newPages = [...oldData.pages];
@@ -440,7 +444,7 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
       upsertWaitingThread({ ...res.thread, latestMessage: res.message, unreadCount: 0 });
     },
     onError: () => setSendError("Không thể gửi tin nhắn. Vui lòng thử lại."),
-  }));
+  });
 
   useEffect(() => {
     if (reply.isPending && scrollContainerRef.current) {

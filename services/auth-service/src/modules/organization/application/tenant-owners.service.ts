@@ -18,6 +18,8 @@ import type {
   UpdateTenantOwnerBodyInput,
 } from "../domain/schemas/tenant-owners.schema";
 import { AuthService } from "../../identity/identity-public";
+import { generateTemporaryPassword } from "../../../common/security/password-policy.util";
+
 
 export interface TenantOwnerItem {
   id: string;
@@ -155,6 +157,37 @@ export class TenantOwnersService {
       this.rethrowKnownUpdateError(error);
       throw error;
     }
+  }
+
+  async resetTenantOwnerPassword(actorUserId: string, targetUserId: string) {
+    await this.assertSuperAdmin(actorUserId);
+
+    const existing = await this.tenantOwnersRepository.findTenantOwnerByUserId(targetUserId.trim());
+    if (!existing) {
+      throw new NotFoundException("Không tìm thấy chủ đơn vị");
+    }
+
+    const targetRoleCodes = await this.tenantOwnersRepository.findActorRoleCodes(targetUserId.trim());
+    if (targetRoleCodes.includes("SUPER_ADMIN")) {
+      throw new ForbiddenException("Không thể cấp lại mật khẩu cho SUPER_ADMIN");
+    }
+    if (!targetRoleCodes.includes("TENANT_OWNER")) {
+      throw new ForbiddenException("Tài khoản mục tiêu không phải chủ đơn vị");
+    }
+
+    const temporaryPassword = generateTemporaryPassword(16);
+    const passwordHash = await argon2.hash(temporaryPassword);
+
+    await this.tenantOwnersRepository.updatePasswordHashAndRevokeSessions(
+      targetUserId.trim(),
+      passwordHash,
+    );
+
+    return {
+      userId: targetUserId.trim(),
+      temporaryPassword,
+      resetAt: new Date().toISOString(),
+    };
   }
 
   private async assertSuperAdmin(actorUserId: string): Promise<void> {

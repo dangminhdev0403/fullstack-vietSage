@@ -1263,18 +1263,24 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
       />
 
       {roomForm ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4">
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/45 p-4 backdrop-blur-sm">
           <form
             noValidate
             onSubmit={saveRoom}
-            className="w-full max-w-3xl rounded-2xl bg-white p-6 shadow-xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="room-form-title"
+            className="max-h-[calc(100dvh-2rem)] w-full max-w-4xl overflow-y-auto rounded-2xl border border-[var(--outline-variant)] bg-white p-5 shadow-[0_28px_80px_rgba(0,0,60,0.22)] sm:p-6"
           >
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--secondary)]">
                   {roomForm.id ? "Update room" : "Create room"}
                 </p>
-                <h2 className="mt-2 text-2xl font-semibold text-[var(--primary)]">
+                <h2
+                  id="room-form-title"
+                  className="mt-2 text-2xl font-semibold text-[var(--primary)]"
+                >
                   {roomForm.id
                     ? `Chỉnh sửa phòng #${roomForm.roomNumber || "--"}`
                     : "Tạo phòng mới"}
@@ -1285,11 +1291,12 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
                 onClick={closeRoomForm}
                 className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-[var(--primary)] transition hover:bg-[var(--primary-fixed)]"
                 title="Đóng"
+                aria-label="Đóng biểu mẫu phòng"
               >
                 <VsIcon name="close" />
               </button>
             </div>
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <div className="grid items-start gap-x-5 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
               <label className="space-y-2">
                 <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">
                   Số phòng
@@ -1388,7 +1395,7 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
                   message={roomFormErrors.maxActiveGuestDevices}
                 />
               </label>
-              <label className="space-y-2">
+              <label className="space-y-2 sm:col-span-2 lg:col-span-1">
                 <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">
                   Trạng thái phòng
                 </span>
@@ -1406,17 +1413,17 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
                 </select>
               </label>
             </div>
-            <div className="mt-6 flex justify-end gap-3">
+            <div className="mt-6 flex flex-col-reverse gap-3 border-t border-[var(--surface-container)] pt-5 sm:flex-row sm:justify-end">
               <button
                 type="button"
                 onClick={closeRoomForm}
-                className="min-h-11 rounded-xl border border-[var(--outline-variant)] px-5 text-sm font-bold text-[var(--primary)] transition hover:bg-[var(--surface-container-low)]"
+                className="min-h-11 w-full rounded-xl border border-[var(--outline-variant)] px-5 text-sm font-bold text-[var(--primary)] transition hover:bg-[var(--surface-container-low)] sm:w-auto"
               >
                 Hủy
               </button>
               <button
                 disabled={isSaving}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-5 text-sm font-bold text-[var(--on-primary)] transition hover:bg-[color:rgba(0,0,60,0.88)] disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-5 text-sm font-bold text-[var(--on-primary)] transition hover:bg-[color:rgba(0,0,60,0.88)] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
               >
                 <VsIcon name={roomForm.id ? "edit" : "add_circle"} />
                 {isSaving

@@ -4,6 +4,8 @@ import { type FormEvent, useMemo, useState } from "react";
 import Swal from "sweetalert2";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { DataTable } from "@/components/ui/data-table";
+import { OneTimePasswordDialog } from "@/features/account/security/one-time-password-dialog";
+import { canResetFrontdeskPassword } from "@/features/account/security/password-security";
 import {
   type StaffManagementScope,
   useStaffDirectoryQuery,
@@ -83,6 +85,21 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
   const [showPassword, setShowPassword] = useState(false);
   const [roleDrafts, setRoleDrafts] = useState<Record<string, string>>({});
   const [activeActionKey, setActiveActionKey] = useState<string | null>(null);
+  const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null);
+  const [resetAccountLabel, setResetAccountLabel] = useState("");
+
+  async function resetFrontdesk(user: { id: string; fullName: string }) {
+    const confirmed = await Swal.fire({ icon: "warning", title: "Cấp lại mật khẩu?", text: `Tạo mật khẩu tạm thời mới cho ${user.fullName}. Tất cả phiên hiện tại sẽ bị thu hồi.`, showCancelButton: true, confirmButtonText: "Cấp lại mật khẩu", cancelButtonText: "Hủy", confirmButtonColor: "#00003c" });
+    if (!confirmed.isConfirmed) return;
+    try {
+      const result = await mutations.resetFrontdeskPassword.mutateAsync({ userId: user.id });
+      setResetAccountLabel(user.fullName);
+      setTemporaryPassword(result.temporaryPassword);
+    } catch (error) {
+      const { message } = extractApiErrorMessage(error);
+      await Swal.fire({ icon: "error", title: "Không thể cấp lại mật khẩu", text: message });
+    }
+  }
 
   const data = directory.data;
   const assignedUserIds = useMemo(
@@ -578,8 +595,10 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                   const assigned = assignedUserIds.has(user.id);
                   const isTransfer = Boolean(user.assignedHotel && !assigned);
                   const isUpdatingAssignment = activeActionKey === `assignment-${user.id}`;
+                  const canResetPassword = scope.surface === "owner" && canResetFrontdeskPassword(user.roles.map((role) => role.code));
                   return (
-                    <div className="flex min-h-10 items-center justify-end">
+                    <div className="flex min-h-10 items-center justify-end gap-2">
+                      {canResetPassword ? <button type="button" disabled={isBusy || mutations.resetFrontdeskPassword.isPending} onClick={() => resetFrontdesk(user)} className="h-10 whitespace-nowrap rounded-lg border border-amber-300 px-3 text-xs font-semibold text-amber-800 disabled:opacity-40"><VsIcon name="key" className="mr-1 inline text-sm" />Cấp lại mật khẩu</button> : null}
                       <button
                         disabled={!hotelId || isBusy}
                         type="button"
@@ -650,6 +669,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
             const availableRoles = data.roles.filter((role) => !user.roles.some((current) => current.id === role.id));
             const isAssigning = activeActionKey === `assign-${user.id}`;
             const isUpdatingAssignment = activeActionKey === `assignment-${user.id}`;
+            const canResetPassword = scope.surface === "owner" && canResetFrontdeskPassword(user.roles.map((role) => role.code));
             return (
               <article key={user.id} className="rounded-xl border border-[var(--outline-variant)] bg-white p-5 shadow-sm space-y-3">
                 <div className="flex items-start justify-between gap-3">
@@ -726,6 +746,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                         </button>
                       </div>
 
+                      {canResetPassword ? <button type="button" disabled={isBusy || mutations.resetFrontdeskPassword.isPending} onClick={() => resetFrontdesk(user)} className="min-h-11 w-full rounded-xl border border-amber-300 text-xs font-semibold text-amber-800 disabled:opacity-40"><VsIcon name="key" className="mr-1 inline text-sm" />Cấp lại mật khẩu</button> : null}
                       <button
                         disabled={!hotelId || isBusy}
                         type="button"
@@ -768,6 +789,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
           </div>
         ) : null}
       </section>
+      <OneTimePasswordDialog temporaryPassword={temporaryPassword} accountLabel={resetAccountLabel} onClose={() => { setTemporaryPassword(null); setResetAccountLabel(""); mutations.resetFrontdeskPassword.reset(); }} />
     </div>
   );
 }

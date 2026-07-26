@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, Injectable, UnauthorizedException } from "@nestjs/common";
 import { AuthSessionRevokeReason, AuthSessionStatus, UserStatus } from "@prisma/client";
 import { JwtService } from "@nestjs/jwt";
 import { Interval } from "@nestjs/schedule";
@@ -14,6 +14,8 @@ import {
 import { AppLogger } from "../../../common/logging/app-logger.service";
 import type { AuthenticatedUser } from "../domain/authenticated-user";
 import { AuthRepository } from "../infrastructure/repositories/auth.repository";
+import type { ChangePasswordBodyInput } from "../domain/schemas/auth.schema";
+
 
 const ACCESS_TOKEN_TYPE = "access";
 const REFRESH_TOKEN_TYPE = "refresh";
@@ -176,8 +178,48 @@ export class AuthService {
     );
   }
 
+  async changePassword(
+    userId: string,
+    dto: ChangePasswordBodyInput,
+  ): Promise<{ changed: true }> {
+    const user = await this.authRepository.findUserById(userId);
+    if (!user || user.status !== UserStatus.ACTIVE) {
+      throw new BadRequestException({
+        code: "AUTH_USER_INVALID",
+        message: "Tài khoản không hợp lệ hoặc đã bị khóa",
+      });
+    }
+
+    const verification = await this.verifyPassword(dto.currentPassword, user.passwordHash);
+    if (!verification.valid) {
+      throw new BadRequestException({
+        code: "AUTH_INVALID_CURRENT_PASSWORD",
+        message: "Mật khẩu hiện tại không chính xác",
+      });
+    }
+
+    if (dto.currentPassword === dto.newPassword) {
+      throw new BadRequestException({
+        code: "AUTH_PASSWORD_UNCHANGED",
+        message: "Mật khẩu mới không được trùng với mật khẩu hiện tại",
+      });
+    }
+
+    const newPasswordHash = await argon2.hash(dto.newPassword);
+    await this.authRepository.changePasswordAndRevokeSessions(user.id, newPasswordHash);
+
+    this.logger.info("User changed password successfully", {
+      module: "auth",
+      service: "AuthService",
+      operation: "changePassword",
+      userId: user.id,
+    });
+
+    return { changed: true };
+  }
+
   async revokeUserSessions(userId: string): Promise<void> {
-    await this.authRepository.revokeAuthSessionsByUserId(
+    await this.authRepository.revokeUserSessionsAndRefreshTokens(
       userId,
       AuthSessionRevokeReason.USER_DISABLED,
     );

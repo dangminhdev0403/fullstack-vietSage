@@ -7,6 +7,7 @@ import { assertCanAccessHotelOps, canUseHotelId, requireHotelOpsServerTokens } f
 import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+import { formatDayMonth } from "./dashboard-presentation";
 
 type PageProps = { params: Promise<{ hotelId: string }> | { hotelId: string } };
 export const dynamic = "force-dynamic";
@@ -62,7 +63,7 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
   ] as const;
 
   return (
-    <main className="space-y-8 bg-[var(--surface)]">
+    <main className="space-y-8">
       <header className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <div>
           <h1 className="vs-display text-4xl font-bold text-[var(--primary)]">Dashboard Tiếp Tân</h1>
@@ -70,7 +71,7 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
         </div>
         <div className="text-left md:text-right">
           <p className="text-sm font-bold uppercase tracking-[0.12em] text-[var(--primary)]/60">Ngày hôm nay</p>
-          <p className="vs-display mt-1 text-xl font-semibold text-[var(--primary)]">{formatTime(dashboard.generatedAt)}</p>
+          <p className="vs-display mt-1 text-xl font-semibold text-[var(--primary)]">{formatDayMonth(dashboard.generatedAt)}</p>
         </div>
       </header>
 

@@ -32,7 +32,8 @@ export class AuthRateLimitGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest<Request>();
-    const config = loadAppConfig().rateLimits[key];
+    const configKey = key === "change-password" ? "login" : key;
+    const config = loadAppConfig().rateLimits[configKey];
     const now = Date.now();
     const bucketKey = `${key}:${this.resolveClientId(request)}`;
     const existing = this.buckets.get(bucketKey);
