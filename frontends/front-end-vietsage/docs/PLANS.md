@@ -1,3 +1,23 @@
+## [complete] 2026-07-27 - Mission: production-auth-refresh-race-fix
+
+- Correlated VPS frontend/backend logs: a successful refresh rotation was followed by concurrent stale-token requests using different idempotency keys; backend correctly classified those as replay and revoked the refresh family.
+- Replaced process-local random refresh idempotency keys with a deterministic, domain-separated SHA-256 key derived from the opaque refresh token. Concurrent requests and separate frontend processes now address the same backend idempotency record without exposing the token.
+- Added regression coverage for same-token key stability and different-token isolation.
+- Temporarily shortened local and VPS auth runtime TTLs to access `10s`, refresh/idle `2m`; VPS original secret file is backed up for mandatory restoration after runtime verification.
+
+Verification result:
+
+- Regression test observed failing before implementation, then `node --experimental-strip-types --test src/libs/auth-refresh-idempotency.test.ts` passed 2/2.
+- Scoped ESLint passed.
+- `npx tsc --noEmit --pretty false` passed.
+- `node scripts/auth-refresh-smoke.mjs` passed success and refresh-failure scenarios.
+- VPS auth-service recreated with short TTLs and returned `healthy`.
+
+Remaining blockers/risks:
+
+- Production source cutover and authenticated browser persistence test remain pending.
+- Restore normal local/VPS TTLs immediately after the bounded runtime test.
+
 ## [complete] 2026-07-26 - Mission: production-auth-refresh-origin-fix
 
 - Reproduced the VPS-only expiry failure with temporary `10s` access and `90s` refresh TTLs, then restored production to `15m` and `7d`.

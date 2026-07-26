@@ -1,9 +1,8 @@
 import "server-only";
 
-import { randomUUID } from "node:crypto";
-
 import { unstable_update } from "@/auth";
 import { authService } from "@/features/auth/service/auth-service-instance";
+import { createRefreshIdempotencyKey } from "@/libs/auth-refresh-idempotency";
 import { readServerSessionTokens } from "@/libs/server-session-tokens";
 
 export type RefreshedSessionTokens = {
@@ -13,33 +12,6 @@ export type RefreshedSessionTokens = {
 };
 
 const refreshInFlightByToken = new Map<string, Promise<RefreshedSessionTokens>>();
-const refreshIdempotencyByToken = new Map<
-  string,
-  { key: string; expiresAt: number }
->();
-const REFRESH_IDEMPOTENCY_TTL_MS = 300_000;
-
-function getRefreshIdempotencyKey(refreshToken: string): string {
-  const now = Date.now();
-  const existing = refreshIdempotencyByToken.get(refreshToken);
-  if (existing && existing.expiresAt > now) {
-    return existing.key;
-  }
-
-  const key = randomUUID();
-  refreshIdempotencyByToken.set(refreshToken, {
-    key,
-    expiresAt: now + REFRESH_IDEMPOTENCY_TTL_MS,
-  });
-
-  for (const [token, entry] of refreshIdempotencyByToken) {
-    if (entry.expiresAt <= now) {
-      refreshIdempotencyByToken.delete(token);
-    }
-  }
-
-  return key;
-}
 
 function tokenTail(token: string): string {
   return token.slice(-12);
@@ -67,7 +39,7 @@ function readCurrentSessionTokens(refreshToken: string): Promise<RefreshedSessio
 export async function refreshSessionTokens(
   refreshToken: string,
 ): Promise<RefreshedSessionTokens> {
-  const idempotencyKey = getRefreshIdempotencyKey(refreshToken);
+  const idempotencyKey = createRefreshIdempotencyKey(refreshToken);
   const refreshedTokens = await authService.refresh(refreshToken, idempotencyKey);
 
   console.info("[SESSION_REFRESH_SUCCESS]", {
@@ -103,7 +75,6 @@ export async function refreshAndSaveSessionTokens(
         accessTokenExpiresAt: refreshedTokens.accessTokenExpiresAt,
         authError: null,
       } as never);
-      refreshIdempotencyByToken.delete(refreshToken);
       const tokens = await readServerSessionTokens();
 
       console.info("[SESSION_REFRESH_SAVED]", {
