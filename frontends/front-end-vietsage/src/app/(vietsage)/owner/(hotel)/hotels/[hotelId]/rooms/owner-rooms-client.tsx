@@ -1075,48 +1075,18 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
                 </button>
               </>
             ) : showActivate ? (
-              <>
-                <span
-                  aria-hidden="true"
-                  data-action-placeholder="qr-view"
-                  className="h-9 w-9 shrink-0"
-                />
-                <span
-                  aria-hidden="true"
-                  data-action-placeholder="qr-rotate"
-                  className="h-9 w-9 shrink-0"
-                />
-                <button
-                  type="button"
-                  title="Kích hoạt QR"
-                  aria-label="Kích hoạt QR"
-                  onClick={() =>
-                    void updateRoomFromQrAction(room, "activate")
-                  }
-                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-emerald-700 transition hover:bg-emerald-50"
-                >
-                  <VsIcon name="verified" className="text-lg" />
-                </button>
-              </>
-            ) : (
-              <>
-                <span
-                  aria-hidden="true"
-                  data-action-placeholder="qr-view"
-                  className="h-9 w-9 shrink-0"
-                />
-                <span
-                  aria-hidden="true"
-                  data-action-placeholder="qr-rotate"
-                  className="h-9 w-9 shrink-0"
-                />
-                <span
-                  aria-hidden="true"
-                  data-action-placeholder="qr-status"
-                  className="h-9 w-9 shrink-0"
-                />
-              </>
-            )}
+              <button
+                type="button"
+                title="Kích hoạt QR"
+                aria-label="Kích hoạt QR"
+                onClick={() =>
+                  void updateRoomFromQrAction(room, "activate")
+                }
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-emerald-700 transition hover:bg-emerald-50"
+              >
+                <VsIcon name="verified" className="text-lg" />
+              </button>
+            ) : null}
           </div>
         );
       },

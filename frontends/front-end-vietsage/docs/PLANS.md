@@ -2480,7 +2480,8 @@ Remaining manual checkpoint:
 - Replaced unsupported tenant room action icon names that rendered as identical exclamation
   fallbacks with distinct SVG icons already implemented by `VsIcon`.
 - Inactive QR rows now expose only activation; active QR rows expose view, rotate, and deactivate.
-- Added non-interactive placeholders so conditional action slots stay aligned across room rows.
+- Removed empty action slots so only usable buttons render; action icons now sit together with
+  consistent compact spacing.
 
 ### Verification Result
 

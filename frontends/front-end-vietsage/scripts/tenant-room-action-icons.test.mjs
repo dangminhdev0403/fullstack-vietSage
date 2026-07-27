@@ -31,12 +31,10 @@ test("tenant room actions only use distinct icons supported by VsIcon", () => {
   );
 });
 
-test("inactive QR actions keep alignment with non-interactive placeholders", () => {
+test("inactive QR rows render only the activation action", () => {
   assert.match(
     ownerRoomsSource,
     /qrIsActive \? \([\s\S]{0,2400}: showActivate \? \(/,
   );
-  assert.ok(
-    (ownerRoomsSource.match(/data-action-placeholder=/g) ?? []).length >= 6,
-  );
+  assert.doesNotMatch(ownerRoomsSource, /data-action-placeholder=/);
 });
