@@ -1,0 +1,32 @@
+diff --git a/frontends/front-end-vietsage/src/app/_components/launch-hold.tsx b/frontends/front-end-vietsage/src/app/_components/launch-hold.tsx
+index 68b01a6..d8ff718 100644
+--- a/frontends/front-end-vietsage/src/app/_components/launch-hold.tsx
++++ b/frontends/front-end-vietsage/src/app/_components/launch-hold.tsx
+@@ -2,11 +2,10 @@ export function LaunchHold() {
+   return (
+     <main className="grid min-h-screen place-items-center bg-[#f8f4ec] px-6 py-16 text-[#123d2a]">
+       <section className="w-full max-w-2xl text-center">
+-        <p className="text-xs font-black uppercase tracking-[0.28em] text-[#b8872f]">VietSage</p>
+-        <h1 className="mt-6 text-5xl font-semibold tracking-[-0.06em] sm:text-7xl">Preparing for launch</h1>
+-        <p className="mt-6 text-2xl font-medium tracking-[-0.03em]">We are building somethings</p>
+-        <p className="mx-auto mt-5 max-w-xl text-base leading-7 text-[#627064]">The public website is temporarily hidden while we prepare the production launch.</p>
+-        <p className="mt-10 text-sm font-semibold text-[#123d2a]">Contact: <a className="underline underline-offset-4" href="mailto:Congnghesovn247@gmail.com">Congnghesovn247@gmail.com</a></p>
++        <img src="/brand/vietsage-icon.png" alt="VietSage logo" className="mx-auto mb-7 h-20 w-20 rounded-3xl object-cover shadow-lg shadow-[#123d2a]/15" />
++        <p className="text-base font-black uppercase tracking-[0.34em] text-[#b8872f] sm:text-lg">VietSage</p>
++        <h1 className="mt-6 text-5xl font-semibold tracking-[-0.06em] sm:text-7xl">A new chapter for VietSage is taking shape.</h1>
++        <p className="mx-auto mt-6 max-w-xl text-lg leading-8 text-[#627064]">We’re building something meaningful. Contact us at <a className="font-semibold underline underline-offset-4" href="mailto:Congnghesovn247@gmail.com">Congnghesovn247@gmail.com</a>.</p>
+       </section>
+     </main>
+   );
+diff --git a/frontends/front-end-vietsage/src/app/trangchu/page.tsx b/frontends/front-end-vietsage/src/app/trangchu/page.tsx
+index 5416fbd..e8a5818 100644
+--- a/frontends/front-end-vietsage/src/app/trangchu/page.tsx
++++ b/frontends/front-end-vietsage/src/app/trangchu/page.tsx
+@@ -1,6 +1,6 @@
+ import { LaunchHold } from "@/app/_components/launch-hold";
+ 
+-export const metadata = { title: "VietSage | Preparing for launch", robots: { index: false, follow: false } };
++export const metadata = { title: "VietSage | A new chapter is taking shape", robots: { index: false, follow: false } };
+ 
+ export default function TrangChuPage() {
+   return <LaunchHold />;
