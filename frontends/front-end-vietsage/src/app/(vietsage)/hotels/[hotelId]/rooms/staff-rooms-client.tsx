@@ -1,6 +1,5 @@
 "use client";
 
-import { QRCodeSVG } from "qrcode.react";
 import { createPortal } from "react-dom";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -12,6 +11,7 @@ import {
 } from "@tanstack/react-query";
 
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import { BrandedRoomQr } from "@/features/hotel-ops/components/branded-room-qr";
 import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
 import type {
   HotelArrival,
@@ -1466,12 +1466,9 @@ export function StaffRoomsClient({
                   <>
                     <p className="mt-3 text-center text-sm font-black uppercase tracking-[0.16em] text-[var(--primary)]">Phòng {getRoomNumber(roomQrPreview.room)}</p>
                     <div className="mx-auto mt-2 flex aspect-square w-full max-w-72 items-center justify-center rounded-2xl border border-[var(--outline-variant)] bg-white p-4">
-                      <QRCodeSVG
+                      <BrandedRoomQr
                         value={roomQrPreview.guestUrl}
                         size={256}
-                        fgColor="#00003c"
-                        bgColor="#ffffff"
-                        level="M"
                         className="h-full w-full"
                         title={`QR GuestOS phòng ${getRoomNumber(roomQrPreview.room)}`}
                       />

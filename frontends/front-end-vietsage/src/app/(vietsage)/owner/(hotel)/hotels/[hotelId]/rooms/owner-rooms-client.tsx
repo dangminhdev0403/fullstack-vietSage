@@ -1,6 +1,5 @@
 "use client";
 
-import { QRCodeSVG } from "qrcode.react";
 import {
   type FormEvent,
   startTransition,
@@ -25,6 +24,11 @@ import type {
   HotelOpsPage,
   HotelRoomSummary,
 } from "@/features/hotel-ops/types/hotel-ops-contract";
+import {
+  BRANDED_QR_LOCKUP_SRC,
+  BrandedRoomQr,
+  getBrandedQrLockupSize,
+} from "@/features/hotel-ops/components/branded-room-qr";
 import {
   getGuestQrUrl,
   getQrStatus,
@@ -719,7 +723,9 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
       return;
     }
 
-    const svgMarkup = new XMLSerializer().serializeToString(qrCodeRef.current);
+    const serializedQr = qrCodeRef.current.cloneNode(true) as SVGSVGElement;
+    serializedQr.querySelectorAll("image").forEach((image) => image.remove());
+    const svgMarkup = new XMLSerializer().serializeToString(serializedQr);
     const svgBlob = new Blob([svgMarkup], {
       type: "image/svg+xml;charset=utf-8",
     });
@@ -757,14 +763,41 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
         76,
       );
 
-      context.drawImage(qrImage, 145, 105, 360, 360);
+      const qrX = 145;
+      const qrY = 105;
+      const qrSize = 360;
+      context.drawImage(qrImage, qrX, qrY, qrSize, qrSize);
 
-      const downloadLink = document.createElement("a");
-      downloadLink.href = canvas.toDataURL("image/png");
-      downloadLink.download = `qr-phong-${getRoomNumber(selectedQrRoom)}.png`;
-      downloadLink.click();
+      const brandImage = new window.Image();
+      brandImage.onload = () => {
+        const lockupSize = getBrandedQrLockupSize(qrSize);
+        context.save();
+        context.globalAlpha = 0.9;
+        context.drawImage(
+          brandImage,
+          qrX + (qrSize - lockupSize.width) / 2,
+          qrY + (qrSize - lockupSize.height) / 2,
+          lockupSize.width,
+          lockupSize.height,
+        );
+        context.restore();
 
-      URL.revokeObjectURL(svgUrl);
+        const downloadLink = document.createElement("a");
+        downloadLink.href = canvas.toDataURL("image/png");
+        downloadLink.download = `qr-phong-${getRoomNumber(selectedQrRoom)}.png`;
+        downloadLink.click();
+        URL.revokeObjectURL(svgUrl);
+      };
+      brandImage.onerror = () => {
+        URL.revokeObjectURL(svgUrl);
+        void Swal.fire({
+          icon: "error",
+          title: "Không thể tải nhận diện VietSage",
+          text: "Vui lòng thử tải lại mã QR.",
+          confirmButtonColor: "#00003c",
+        });
+      };
+      brandImage.src = BRANDED_QR_LOCKUP_SRC;
     };
 
     qrImage.onerror = () => {
@@ -1488,14 +1521,12 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
               {getGuestQrUrl(selectedQrRoom, clientOrigin) ? (
                 <>
                   <div className="mt-3 flex aspect-square w-full max-w-[360px] items-center justify-center">
-                    <QRCodeSVG
+                    <BrandedRoomQr
                       ref={qrCodeRef}
                       value={getGuestQrUrl(selectedQrRoom, clientOrigin) ?? ""}
                       size={360}
-                      fgColor="#00003c"
-                      bgColor="#ffffff"
-                      level="M"
                       className="h-full w-full"
+                      title={`QR GuestOS phòng ${getRoomNumber(selectedQrRoom)}`}
                     />
                   </div>
                   <p className="mt-5 block max-w-full select-text break-all rounded-xl bg-[var(--surface-container-low)] px-4 py-3 text-sm font-semibold text-[var(--primary)]">

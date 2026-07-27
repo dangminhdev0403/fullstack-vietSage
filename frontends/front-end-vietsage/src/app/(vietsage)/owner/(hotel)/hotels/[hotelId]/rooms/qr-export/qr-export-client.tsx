@@ -1,10 +1,10 @@
 "use client";
 
-import { QRCodeSVG } from "qrcode.react";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import { BrandedRoomQr } from "@/features/hotel-ops/components/branded-room-qr";
 import type {
   HotelOpsPage,
   HotelRoomSummary,
@@ -178,14 +178,11 @@ export function OwnerRoomsQrExportClient({ hotelId }: Props) {
                     Phòng {roomNumber}
                   </h2>
                   <div className="mt-1 flex aspect-square w-full max-w-[310px] items-center justify-center">
-                    <QRCodeSVG
+                    <BrandedRoomQr
                       value={guestQrUrl}
                       size={310}
-                      fgColor="#00003c"
-                      bgColor="#ffffff"
-                      level="M"
-                      includeMargin
                       className="h-full w-full"
+                      title={`QR GuestOS phòng ${roomNumber}`}
                     />
                   </div>
                   <p className="qr-export-url mt-2 max-w-full break-all rounded-xl bg-[#f7f2e7] px-3 py-2 text-xs font-semibold text-[#5e6a62]">
