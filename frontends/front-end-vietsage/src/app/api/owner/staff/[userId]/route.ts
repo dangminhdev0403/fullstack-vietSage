@@ -2,11 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { HttpError } from "@/core/http/http-error";
 import { staffManagementService } from "@/features/staff-management/service/staff-management-service-instance";
-<<<<<<< ours
-import { executeOwnerBackendRequest, ownerHttpErrorResponse, successResponse, unknownServerErrorResponse, validationErrorResponse } from "../../../_utils";
-=======
 import { executeOwnerBackendRequest, ownerHttpErrorResponse, successResponse, unknownServerErrorResponse, validationErrorResponse } from "../../_utils";
->>>>>>> theirs
 
 const schema = z.object({ fullName: z.string().trim().min(2).optional(), email: z.string().trim().email().optional(), status: z.enum(["ACTIVE", "DISABLED"]).optional() }).refine((v) => v.fullName || v.email || v.status);
 export async function PATCH(request: Request, context: { params: Promise<{ userId: string }> }) {
