@@ -17,6 +17,10 @@ const workspaceShellSource = readFileSync(
   new URL("../src/features/workspace/components/workspace-shell.tsx", import.meta.url),
   "utf8",
 );
+const guestDictionarySource = readFileSync(
+  new URL("../src/features/guest-os/i18n/dictionary.ts", import.meta.url),
+  "utf8",
+);
 
 test("chat bubbles use half of the conversation box and wrap uninterrupted text", () => {
   for (const source of [guestSource, staffSource]) {
@@ -41,4 +45,12 @@ test("staff chat keeps the active mobile conversation and composer inside the vi
 test("workspace shell does not scale or zoom dashboard content", () => {
   assert.doesNotMatch(workspaceShellSource, /(?:^|\s)(?:zoom|scale)-?\[/m);
   assert.doesNotMatch(workspaceShellSource, /transform:\s*scale|zoom\s*:/);
+});
+
+test("guest chat empty state guides the guest to send the first message", () => {
+  assert.match(guestSource, /t\("messages\.empty"\)/);
+  assert.match(
+    guestDictionarySource,
+    /Hãy gửi tin nhắn đầu tiên để lễ tân biết Quý khách cần hỗ trợ gì\./,
+  );
 });

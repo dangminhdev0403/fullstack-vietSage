@@ -1,5 +1,7 @@
 "use client";
 
+import { QRCodeSVG } from "qrcode.react";
+import { createPortal } from "react-dom";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Swal from "sweetalert2";
@@ -53,6 +55,11 @@ type ReservationForm = {
   plannedCheckOutAt: string;
 };
 
+type RoomQrPreview = {
+  room: HotelRoomSummary;
+  guestUrl: string | null;
+};
+
 const statusFilters: Array<{ value: RoomStatusFilter; label: string }> = [
   { value: "all", label: "Tất cả" },
   { value: "available", label: "Trống" },
@@ -83,6 +90,23 @@ function formatDateTime(value: string | null | undefined): string {
 
 function getRoomNumber(room: HotelRoomSummary): string {
   return room.roomNumber?.trim() || room.id;
+}
+
+function getRoomQrValue(room: HotelRoomSummary): string | null {
+  return (
+    room.qr?.publicCode?.trim() ||
+    room.publicCode?.trim() ||
+    room.qr?.code?.trim() ||
+    room.qr?.qrCode?.trim() ||
+    room.qrCode?.trim() ||
+    null
+  );
+}
+
+function getGuestQrUrl(room: HotelRoomSummary, origin: string): string | null {
+  const qrValue = getRoomQrValue(room);
+  if (!qrValue) return null;
+  return `${origin.replace(/\/$/, "")}/g/${encodeURIComponent(qrValue)}`;
 }
 
 function getRoomStatus(room: HotelRoomSummary): RoomStatusFilter {
@@ -268,6 +292,9 @@ export function StaffRoomsClient({
   const [vipOnly, setVipOnly] = useState(false);
   const [flow, setFlow] = useState<FlowMode>("walk-in");
   const [selectedRoom, setSelectedRoom] = useState<HotelRoomSummary | null>(
+    null,
+  );
+  const [roomQrPreview, setRoomQrPreview] = useState<RoomQrPreview | null>(
     null,
   );
   const [walkInForm, setWalkInForm] = useState<WalkInForm>(() => emptyWalkIn());
@@ -488,6 +515,11 @@ export function StaffRoomsClient({
     const roomStatus = getRoomStatus(room);
     if (roomStatus === "available") {
       openWalkIn(room);
+    } else if (roomStatus === "occupied") {
+      setRoomQrPreview({
+        room,
+        guestUrl: getGuestQrUrl(room, window.location.origin),
+      });
     } else if (roomStatus === "processing") {
       void markRoomCleaned(room);
     }
@@ -829,6 +861,7 @@ export function StaffRoomsClient({
                 );
                 const isInteractiveCard =
                   (roomStatus === "available" && canManageStays) ||
+                  roomStatus === "occupied" ||
                   roomStatus === "processing";
                 return (
                   <div
@@ -1367,6 +1400,79 @@ export function StaffRoomsClient({
           </div>
         </aside>
       </section>
+      {roomQrPreview
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[100] grid place-items-center overflow-y-auto bg-black/45 p-4 sm:p-6"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="staff-room-qr-title"
+              onMouseDown={(event) => {
+                if (event.target === event.currentTarget) {
+                  setRoomQrPreview(null);
+                }
+              }}
+            >
+              <div className="my-auto w-full max-w-md rounded-2xl bg-white p-5 text-center shadow-2xl sm:p-6">
+                <div className="flex items-start justify-between gap-4 text-left">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--secondary)]">
+                      GuestOS đang hoạt động
+                    </p>
+                    <h2
+                      id="staff-room-qr-title"
+                      className="vs-display mt-1 text-2xl font-semibold text-[var(--primary)]"
+                    >
+                      QR phòng {getRoomNumber(roomQrPreview.room)}
+                    </h2>
+                    <p className="mt-1 text-sm text-[var(--on-surface-variant)]">
+                      {roomQrPreview.room.activeStay?.guestDisplayName ??
+                        "Khách đang lưu trú"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setRoomQrPreview(null)}
+                    aria-label="Đóng mã QR phòng"
+                    className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[var(--primary)] transition hover:bg-[var(--surface-container-low)]"
+                  >
+                    <VsIcon name="close" />
+                  </button>
+                </div>
+
+                {roomQrPreview.guestUrl ? (
+                  <>
+                    <div className="mx-auto mt-6 flex aspect-square w-full max-w-72 items-center justify-center rounded-2xl border border-[var(--outline-variant)] bg-white p-4">
+                      <QRCodeSVG
+                        value={roomQrPreview.guestUrl}
+                        size={256}
+                        fgColor="#00003c"
+                        bgColor="#ffffff"
+                        level="M"
+                        className="h-full w-full"
+                        title={`QR GuestOS phòng ${getRoomNumber(roomQrPreview.room)}`}
+                      />
+                    </div>
+                    <p className="mt-4 break-all rounded-xl bg-[var(--surface-container-low)] px-4 py-3 text-xs font-semibold text-[var(--primary)]">
+                      {roomQrPreview.guestUrl}
+                    </p>
+                    <p className="mt-3 text-sm text-[var(--on-surface-variant)]">
+                      Khách quét mã này để mở GuestOS của phòng đang lưu trú.
+                    </p>
+                  </>
+                ) : (
+                  <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 px-5 py-6 text-sm text-amber-950">
+                    <p className="font-bold">Phòng chưa có QR GuestOS.</p>
+                    <p className="mt-1">
+                      Vui lòng nhờ quản lý kích hoạt QR trước khi đưa cho khách.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

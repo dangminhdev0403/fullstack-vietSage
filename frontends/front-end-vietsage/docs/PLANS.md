@@ -2448,3 +2448,27 @@ Remaining manual checkpoint:
 
 - The product owner performs final authenticated visual and role-switch QA on 390 px, 768 px, and
   desktop viewports using representative Admin, Owner, and Staff accounts.
+
+## [complete] 2026-07-27 - Mission: account-and-guest-entrypoint-ui-fixes
+
+### What Changed
+
+- Portaled the self-service change-password dialog to the document body so the fixed topbar no
+  longer clips or offsets it, constrained it to the viewport, and added accessible show/hide
+  controls for every password field.
+- Replaced the GuestOS message empty state with localized guidance that asks the guest to send
+  their first message.
+- Made occupied frontdesk room cards open a GuestOS QR preview built from the room's existing
+  public QR value; rooms without a QR show an explicit unavailable state instead of a fallback QR.
+
+### Verification Result
+
+- Ran focused ESLint for all changed TypeScript, TSX, and regression-test files successfully.
+- Ran `tsc --noEmit` successfully.
+- Ran 11 focused Node regression tests successfully.
+- Ran the Next.js 16.2.6 production build successfully; all 38 pages were generated.
+
+### Remaining Blockers / Risks
+
+- Physical-device visual QA remains recommended for password-manager overlays and scanning the
+  frontdesk QR preview from a phone against the deployed public origin.

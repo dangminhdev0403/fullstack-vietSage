@@ -231,23 +231,23 @@ Object.assign(en, {
   "session.unavailableMessage": "Your stay session has ended or is no longer available. Please contact reception if you need more help.",
   "home.heroAlt": "Elegant hotel room", "home.foodAlt": "In-room dining service", "home.careAlt": "Wellness service",
   "requests.trackTitle": "Track requests", "requests.trackSubtitle": "You can follow your service progress here.", "requests.price": "Price", "requests.quantityShort": "Qty", "requests.createdAt": "Request created at", "requests.requestSubtotal": "Request subtotal", "requests.cancelConfirm": "Confirm cancellation for {title}", "requests.noActive": "No request in progress", "requests.createNew": "Create a new service request", "requests.emptyActiveDescription": "Your requests will appear here after you send them.", "requests.create": "Create request", "requests.historyTitle": "Request history", "requests.historySubtitle": "Check status, priority, and estimated cost for each service.", "requests.pricedCount": "{priced}/{total} requests priced", "requests.clearFilters": "Clear filters", "requests.count": "{count} requests", "requests.subtotal": "Subtotal", "requests.emptyTitle": "No requests yet", "requests.emptyDescription": "When you send a service request, the list will appear here.", "requests.ctaTitle": "In-room spa experience", "requests.ctaDescription": "Relax with a signature hot-stone massage treatment.", "requests.helpTitle": "Need support?", "requests.helpDescription": "The hotel support team is ready to assist you.", "requests.messageDirectly": "Message directly",
-  "messages.title": "Contact Reception", "messages.subtitle": "Send a message whenever you need front desk assistance.", "messages.placeholder": "Type a message for reception (Press Enter to send)...", "messages.send": "Send", "messages.newMessage": "New message", "messages.empty": "No messages yet", "messages.loadError": "Unable to load messages. Please try again.",
+  "messages.title": "Contact Reception", "messages.subtitle": "Send a message whenever you need front desk assistance.", "messages.placeholder": "Type a message for reception (Press Enter to send)...", "messages.send": "Send", "messages.newMessage": "New message", "messages.empty": "Send your first message to let reception know how they can help.", "messages.loadError": "Unable to load messages. Please try again.",
 });
 
 Object.assign(zh, {
-  "messages.title": "联系前台", "messages.subtitle": "如需前台协助，请随时发送消息。", "messages.placeholder": "输入发送给前台的消息（按 Enter 发送）...", "messages.send": "发送", "messages.newMessage": "新消息", "messages.empty": "暂无消息", "messages.loadError": "无法加载消息，请重试。",
+  "messages.title": "联系前台", "messages.subtitle": "如需前台协助，请随时发送消息。", "messages.placeholder": "输入发送给前台的消息（按 Enter 发送）...", "messages.send": "发送", "messages.newMessage": "新消息", "messages.empty": "发送第一条消息，告诉前台您需要什么帮助。", "messages.loadError": "无法加载消息，请重试。",
 });
 
 Object.assign(ko, {
-  "messages.title": "프런트 문의", "messages.subtitle": "도움이 필요하실 때 언제든 메시지를 남겨 주세요.", "messages.placeholder": "프런트에 보낼 메시지를 입력하세요 (Enter 키로 전송)...", "messages.send": "전송", "messages.newMessage": "새 메시지", "messages.empty": "아직 메시지가 없습니다", "messages.loadError": "메시지를 불러올 수 없습니다. 다시 시도해 주세요.",
+  "messages.title": "프런트 문의", "messages.subtitle": "도움이 필요하실 때 언제든 메시지를 남겨 주세요.", "messages.placeholder": "프런트에 보낼 메시지를 입력하세요 (Enter 키로 전송)...", "messages.send": "전송", "messages.newMessage": "새 메시지", "messages.empty": "첫 메시지를 보내 프런트에 필요한 도움을 알려 주세요.", "messages.loadError": "메시지를 불러올 수 없습니다. 다시 시도해 주세요.",
 });
 
 Object.assign(ru, {
-  "messages.title": "Связаться с ресепшен", "messages.subtitle": "Отправьте сообщение, если вам нужна помощь ресепшен.", "messages.placeholder": "Введите сообщение для ресепшен (Enter для отправки)...", "messages.send": "Отправить", "messages.newMessage": "Новое сообщение", "messages.empty": "Сообщений пока нет", "messages.loadError": "Не удалось загрузить сообщения. Повторите попытку.",
+  "messages.title": "Связаться с ресепшен", "messages.subtitle": "Отправьте сообщение, если вам нужна помощь ресепшен.", "messages.placeholder": "Введите сообщение для ресепшен (Enter для отправки)...", "messages.send": "Отправить", "messages.newMessage": "Новое сообщение", "messages.empty": "Отправьте первое сообщение и сообщите ресепшену, чем вам помочь.", "messages.loadError": "Не удалось загрузить сообщения. Повторите попытку.",
 });
 
 Object.assign(hi, {
-  "messages.title": "रिसेप्शन से संपर्क करें", "messages.subtitle": "सहायता चाहिए तो कभी भी संदेश भेजें।", "messages.placeholder": "रिसेप्शन के लिए संदेश लिखें (Enter दबाएं)...", "messages.send": "भेजें", "messages.newMessage": "नया संदेश", "messages.empty": "अभी कोई संदेश नहीं", "messages.loadError": "संदेश लोड नहीं हो सके। फिर प्रयास करें।",
+  "messages.title": "रिसेप्शन से संपर्क करें", "messages.subtitle": "सहायता चाहिए तो कभी भी संदेश भेजें।", "messages.placeholder": "रिसेप्शन के लिए संदेश लिखें (Enter दबाएं)...", "messages.send": "भेजें", "messages.newMessage": "नया संदेश", "messages.empty": "अपना पहला संदेश भेजकर रिसेप्शन को बताएं कि आपको किस सहायता की ज़रूरत है।", "messages.loadError": "संदेश लोड नहीं हो सके। फिर प्रयास करें।",
   "home.highlight3Title": "होटल सहायता",
   "home.highlight3Desc": "मदद चाहिए तो अपने कमरे से ही सेवा टीम से जुड़ें।",
   "home.foodTitle": "भोजन और सुविधाएँ",
@@ -322,6 +322,7 @@ Object.assign(vi, {
   "session.unavailableMessage": "Phiên lưu trú đã kết thúc hoặc không còn khả dụng. Quý khách vui lòng liên hệ lễ tân nếu cần hỗ trợ thêm.",
   "home.heroAlt": "Không gian phòng khách sạn sang trọng", "home.foodAlt": "Bữa ăn phục vụ tại phòng", "home.careAlt": "Dịch vụ chăm sóc sức khỏe",
   "requests.trackTitle": "Theo dõi yêu cầu", "requests.trackSubtitle": "Quý khách có thể theo dõi tiến độ dịch vụ tại đây.", "requests.price": "Giá", "requests.quantityShort": "SL", "requests.createdAt": "Yêu cầu được tạo lúc", "requests.requestSubtotal": "Tạm tính yêu cầu", "requests.cancelConfirm": "Xác nhận huỷ yêu cầu {title}", "requests.noActive": "Chưa có yêu cầu đang xử lý", "requests.createNew": "Tạo yêu cầu dịch vụ mới", "requests.emptyActiveDescription": "Các yêu cầu của Quý khách sẽ hiển thị tại đây sau khi gửi.", "requests.create": "Tạo yêu cầu", "requests.historyTitle": "Lịch sử yêu cầu", "requests.historySubtitle": "Kiểm tra trạng thái, mức ưu tiên và chi phí tạm tính của từng dịch vụ.", "requests.pricedCount": "{priced}/{total} yêu cầu có giá", "requests.clearFilters": "Xóa lọc", "requests.count": "{count} yêu cầu", "requests.subtotal": "Tạm tính", "requests.emptyTitle": "Chưa có yêu cầu nào", "requests.emptyDescription": "Khi Quý khách gửi yêu cầu dịch vụ, danh sách sẽ hiển thị tại đây.", "requests.ctaTitle": "Trải nghiệm Spa tại phòng", "requests.ctaDescription": "Thư giãn tối đa với liệu trình massage đá nóng đặc trưng.", "requests.helpTitle": "Cần hỗ trợ?", "requests.helpDescription": "Đội ngũ trợ lý riêng luôn sẵn sàng phục vụ 24/7.", "requests.messageDirectly": "Nhắn tin trực tiếp",
+  "messages.empty": "Hãy gửi tin nhắn đầu tiên để lễ tân biết Quý khách cần hỗ trợ gì.",
 });
 
 Object.assign(en, {
