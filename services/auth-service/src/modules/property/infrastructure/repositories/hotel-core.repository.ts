@@ -75,6 +75,13 @@ export class HotelCoreRepository {
     });
   }
 
+  async findHotelByGoogleSheetId(googleSheetId: string) {
+    return this.prisma.hotel.findUnique({
+      where: { googleSheetId },
+      select: { id: true, name: true },
+    });
+  }
+
   async findHotelByIdAndTenantIds(hotelId: string, tenantIds: string[]) {
     return this.prisma.hotel.findFirst({
       where: { id: hotelId, tenantId: { in: tenantIds } },

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Hotel Google Sheets configuration is now hotel-scoped:
+  - `PATCH /hotels/{hotelId}` accepts `googleSheetUrl` as a full Google Sheets URL, raw
+    spreadsheet ID, or `null` to disconnect.
+  - Hotel responses expose the normalized nullable `googleSheetId`.
+  - Saving validates URL format, duplicate assignment, service-account access, and configured
+    category/item ranges before persistence.
+  - `POST /hotels/{hotelId}/service-catalog/sync` reads only that hotel's configured sheet.
+
 - Hardened stay-scoped room messages:
   - `GET /hotels/{hotelId}/messages` now returns only threads whose related `GuestStay` is `ACTIVE`
     with `checkedOutAt = null`, ordered newest first with `cursor`/`nextCursor` pagination.

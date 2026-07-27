@@ -504,6 +504,7 @@ model Hotel {
   name                String                 @db.VarChar(160)
   code                String                 @db.VarChar(80)
   brandSettings       Json?
+  googleSheetId       String?                @unique @db.VarChar(200)
   timezone            String                 @default("Asia/Saigon") @db.VarChar(80)
   status              HotelStatus            @default(ACTIVE)
   createdAt           DateTime               @default(now())

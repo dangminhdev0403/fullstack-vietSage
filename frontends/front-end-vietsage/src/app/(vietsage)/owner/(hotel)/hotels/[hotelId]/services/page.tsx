@@ -14,7 +14,10 @@ export default async function OwnerHotelServicesPage({ params }: PageProps) {
     const callbackUrl = `/owner/hotels/${hotelId}/services` as const;
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
     
-  const [categoriesPage, itemsPage] = await Promise.all([
+  const [hotel, categoriesPage, itemsPage] = await Promise.all([
+    authorizedApi("get owner hotel", (accessToken) =>
+      hotelOpsService.getHotel(hotelId, accessToken),
+    ),
     authorizedApi("list owner service categories", (accessToken) => hotelOpsService.listServiceCategories(hotelId, { query: { page: 1, limit: 100 }, accessToken })),
     authorizedApi("list owner service items", (accessToken) => hotelOpsService.listServiceItems(hotelId, { query: { page: 1, limit: 100 }, accessToken })),
   ]);
@@ -27,7 +30,12 @@ export default async function OwnerHotelServicesPage({ params }: PageProps) {
         <p className="mt-2 max-w-3xl text-base text-[var(--on-surface-variant)]">Cấu hình nhóm dịch vụ và dịch vụ khách có thể yêu cầu trong khách sạn.</p>
       </header>
 
-      <OwnerServiceCatalogClient hotelId={hotelId} initialCategories={categoriesPage.items} initialItems={itemsPage.items} />
+      <OwnerServiceCatalogClient
+        hotelId={hotelId}
+        initialGoogleSheetId={hotel.googleSheetId ?? null}
+        initialCategories={categoriesPage.items}
+        initialItems={itemsPage.items}
+      />
     </>
   );
 }

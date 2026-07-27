@@ -8,6 +8,7 @@ import { z } from "zod";
 import { HttpError } from "@/core/http/http-error";
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import type { Hotel, TenantOwner, TenantSummary } from "@/features/admin/types/admin-contract";
+import { useGoogleSheetConfig } from "@/features/hotel-ops/queries/use-google-sheet-config";
 
 import { VsIcon } from "../../_components/vs-icon";
 
@@ -29,6 +30,7 @@ type HotelFormState = {
   timezone: string;
   status: "ACTIVE" | "DISABLED";
   brandSettingsText: string;
+  googleSheetUrl: string;
 };
 
 const emptyHotelForm: HotelFormState = {
@@ -37,6 +39,7 @@ const emptyHotelForm: HotelFormState = {
   timezone: "Asia/Saigon",
   status: "ACTIVE",
   brandSettingsText: "{}",
+  googleSheetUrl: "",
 };
 
 type FormMode = "create" | "edit";
@@ -106,6 +109,9 @@ function hotelToForm(hotel: Hotel): HotelFormState {
     timezone: hotel.timezone ?? "Asia/Saigon",
     status: hotel.status === "DISABLED" ? "DISABLED" : "ACTIVE",
     brandSettingsText: JSON.stringify(hotel.brandSettings ?? {}, null, 2),
+    googleSheetUrl: hotel.googleSheetId
+      ? `https://docs.google.com/spreadsheets/d/${hotel.googleSheetId}/edit`
+      : "",
   };
 }
 
@@ -196,6 +202,10 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }:
   const [form, setForm] = useState(emptyHotelForm);
   const [isSaving, setIsSaving] = useState(false);
   const [loadingHotelId, setLoadingHotelId] = useState<string | null>(null);
+  const googleSheetConfig = useGoogleSheetConfig({
+    hotelId: editingHotel?.id ?? "not-selected",
+    surface: "admin",
+  });
 
   const tenantOptions = useMemo(() => buildTenantOptions(initialTenantOwners), [initialTenantOwners]);
   const hasTenantOptions = tenantOptions.length > 0;
@@ -339,14 +349,12 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }:
                 brandSettings: brandSettings ?? {},
               },
             })
-          : await requestJson<Hotel>(`/api/admin/hotels/${encodeURIComponent(editingHotel?.id ?? "")}`, {
-              method: "PATCH",
-              body: {
+          : await googleSheetConfig.update.mutateAsync({
                 name: form.name.trim(),
                 timezone: form.timezone.trim() || "Asia/Saigon",
                 brandSettings,
                 status: form.status,
-              },
+                googleSheetUrl: form.googleSheetUrl.trim() || null,
             });
 
       setHotels((current) => {
@@ -506,13 +514,28 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }:
                 <input value={form.timezone} onChange={(event) => setForm((current) => ({ ...current, timezone: event.target.value }))} className="w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 font-normal outline-none focus:border-[var(--primary)]" />
               </label>
               {formMode === "edit" ? (
-                <label className="space-y-2 text-sm font-semibold text-[var(--on-surface)]">
-                  Trạng thái
-                  <select value={form.status} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as HotelFormState["status"] }))} className="w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 font-normal outline-none focus:border-[var(--primary)]">
-                    <option value="ACTIVE">ACTIVE</option>
-                    <option value="DISABLED">DISABLED</option>
-                  </select>
-                </label>
+                <>
+                  <label className="space-y-2 text-sm font-semibold text-[var(--on-surface)]">
+                    Trạng thái
+                    <select value={form.status} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as HotelFormState["status"] }))} className="w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 font-normal outline-none focus:border-[var(--primary)]">
+                      <option value="ACTIVE">ACTIVE</option>
+                      <option value="DISABLED">DISABLED</option>
+                    </select>
+                  </label>
+                  <label className="space-y-2 text-sm font-semibold text-[var(--on-surface)] md:col-span-2">
+                    Google Sheets của khách sạn
+                    <input
+                      type="url"
+                      value={form.googleSheetUrl}
+                      onChange={(event) => setForm((current) => ({ ...current, googleSheetUrl: event.target.value }))}
+                      placeholder="https://docs.google.com/spreadsheets/d/.../edit"
+                      className="w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 font-normal outline-none focus:border-[var(--primary)]"
+                    />
+                    <span className="block text-xs font-normal text-[var(--on-surface-variant)]">
+                      Để trống để ngắt kết nối. Hệ thống kiểm tra quyền truy cập và vùng dữ liệu trước khi lưu.
+                    </span>
+                  </label>
+                </>
               ) : null}
               <label className="space-y-2 text-sm font-semibold text-[var(--on-surface)] md:col-span-2">
                 Brand settings

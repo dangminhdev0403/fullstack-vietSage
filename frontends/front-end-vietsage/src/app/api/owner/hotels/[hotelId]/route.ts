@@ -22,6 +22,7 @@ const ownerUpdateHotelSchema = z
     name: z.string().trim().min(1).optional(),
     timezone: z.string().trim().min(1).optional(),
     brandSettings: jsonRecordSchema.nullable().optional(),
+    googleSheetUrl: z.string().trim().max(500).nullable().optional(),
     status: z.enum(["ACTIVE", "DISABLED"]).optional(),
   })
   .strict()
@@ -77,6 +78,7 @@ export async function PATCH(request: Request, context: HotelParams) {
         ...(parsed.data.name?.trim() ? { name: parsed.data.name.trim() } : {}),
         ...(parsed.data.timezone?.trim() ? { timezone: parsed.data.timezone.trim() } : {}),
         ...("brandSettings" in parsed.data ? { brandSettings: parsed.data.brandSettings } : {}),
+        ...("googleSheetUrl" in parsed.data ? { googleSheetUrl: parsed.data.googleSheetUrl } : {}),
         ...(parsed.data.status ? { status: parsed.data.status } : {}),
       },
       accessToken,

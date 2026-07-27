@@ -273,6 +273,18 @@ export class HotelOpsService {
     return unwrapApiEnvelope(payload);
   }
 
+  async getHotel(
+    hotelId: string,
+    accessToken?: string,
+  ): Promise<{ id: string; googleSheetId?: string | null }> {
+    const payload = await this.httpClient.request<unknown>({
+      method: "GET",
+      path: hotelPath(hotelId, ""),
+      accessToken,
+    });
+    return unwrapApiEnvelope<{ id: string; googleSheetId?: string | null }>(payload).data;
+  }
+
   async listServiceCategories(
     hotelId: string,
     options: { query?: ListServiceCategoriesQuery } & AuthRequestOptions = {},

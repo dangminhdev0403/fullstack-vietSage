@@ -2513,3 +2513,23 @@ Remaining manual checkpoint:
 - Production Nginx must be reloaded after applying the patch.
 - The print snapshot currently uses the 100-room frontdesk page payload; a future VNeID export
   should use a dedicated server-side stay-report endpoint rather than browser HTML.
+## [complete] 2026-07-27 - Mission: per-hotel-google-sheets
+
+### What Changed
+
+- Added a hotel-owned Google Sheets connection field to the Owner service-catalog page.
+- Added the same setting to the Admin hotel edit flow so platform administrators can configure a
+  tenant's hotel.
+- Added repository/resource/query layers using `@dangminhdev04032005/query-resource`; UI
+  components do not own mutation keys or transport details.
+- Empty input disconnects the sheet; successful saves display the normalized canonical URL.
+
+### Verification Result
+
+- Frontend TypeScript, targeted ESLint, and the Next.js 16.2.6 production build passed; all 40
+  pages were generated after OpenAPI types were synchronized.
+
+### Remaining Blockers / Risks
+
+- The Google service account must be shared as Viewer on every configured workbook.
+- Production must apply the new Prisma migration before recreating backend/frontend containers.

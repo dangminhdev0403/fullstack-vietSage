@@ -296,6 +296,14 @@ paths:
                   - message
                   - data
       tags: *a1
+  /auth/change-password:
+    post:
+      operationId: AuthController_changePassword
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: *a1
   /auth/me:
     get:
       operationId: AuthController_me
@@ -2212,6 +2220,23 @@ paths:
                   - message
                   - data
       tags: *a5
+    patch:
+      operationId: HotelUsersController_updateHotelUser
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: x-tenant-id
+          required: true
+          in: header
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a5
   /hotel-users/{id}/status:
     patch:
       operationId: HotelUsersController_updateHotelUserStatus
@@ -2531,6 +2556,25 @@ paths:
                   - error
                   - message
                   - data
+      tags: *a5
+  /hotel-users/{id}/reset-password:
+    post:
+      operationId: HotelUsersController_resetPassword
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: x-tenant-id
+          required: false
+          in: header
+          description: Ghi đè đơn vị tùy chọn
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
       tags: *a5
   /tenant-owners:
     get:
@@ -3214,6 +3258,19 @@ paths:
                   - message
                   - data
       tags: *a6
+  /tenant-owners/{id}/reset-password:
+    post:
+      operationId: TenantOwnersController_resetPassword
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a6
   /hotels:
     post:
       operationId: HotelsController_createHotel
@@ -3280,6 +3337,9 @@ paths:
                         type: object
                         additionalProperties: true
                         nullable: true
+                      googleSheetId:
+                        type: string
+                        nullable: true
                       createdAt:
                         type: string
                         format: date-time
@@ -3316,6 +3376,7 @@ paths:
                       - timezone
                       - status
                       - brandSettings
+                      - googleSheetId
                       - createdAt
                       - updatedAt
                       - tenant
@@ -3405,6 +3466,9 @@ paths:
                               type: object
                               additionalProperties: true
                               nullable: true
+                            googleSheetId:
+                              type: string
+                              nullable: true
                             createdAt:
                               type: string
                               format: date-time
@@ -3441,6 +3505,7 @@ paths:
                             - timezone
                             - status
                             - brandSettings
+                            - googleSheetId
                             - createdAt
                             - updatedAt
                             - tenant
@@ -3502,6 +3567,9 @@ paths:
                         type: object
                         additionalProperties: true
                         nullable: true
+                      googleSheetId:
+                        type: string
+                        nullable: true
                       createdAt:
                         type: string
                         format: date-time
@@ -3538,6 +3606,7 @@ paths:
                       - timezone
                       - status
                       - brandSettings
+                      - googleSheetId
                       - createdAt
                       - updatedAt
                       - tenant
@@ -3574,6 +3643,10 @@ paths:
                   type: object
                   additionalProperties: true
                   nullable: true
+                googleSheetUrl:
+                  type: string
+                  nullable: true
+                  description: URL Google Sheets đầy đủ hoặc spreadsheet ID; null để ngắt kết nối.
                 status:
                   type: string
                   enum:
@@ -3618,6 +3691,9 @@ paths:
                         type: object
                         additionalProperties: true
                         nullable: true
+                      googleSheetId:
+                        type: string
+                        nullable: true
                       createdAt:
                         type: string
                         format: date-time
@@ -3654,6 +3730,7 @@ paths:
                       - timezone
                       - status
                       - brandSettings
+                      - googleSheetId
                       - createdAt
                       - updatedAt
                       - tenant

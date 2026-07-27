@@ -33,6 +33,7 @@ export type Hotel = {
   timezone?: string | null;
   status?: string | null;
   brandSettings?: Record<string, unknown> | null;
+  googleSheetId?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
   tenant?: TenantSummary | null;
@@ -50,6 +51,7 @@ export type UpdateHotelInput = {
   timezone?: string;
   brandSettings?: Record<string, unknown> | null;
   status?: "ACTIVE" | "DISABLED";
+  googleSheetUrl?: string | null;
 };
 
 export type HotelsPage = AdminPage<Hotel>;

@@ -1,6 +1,10 @@
 import { CategoryPriceUpdateMode } from "@prisma/client";
 import { parseWithZod } from "../../../../../common/validation/parse-with-zod";
-import { createHotelBodySchema, updateHotelBodySchema } from "../../../domain/schemas/hotel.schema";
+import {
+  createHotelBodySchema,
+  parseGoogleSheetId,
+  updateHotelBodySchema,
+} from "../../../domain/schemas/hotel.schema";
 import {
   listStaffRequestsQuerySchema,
   updateRequestAssignmentBodySchema,
@@ -17,6 +21,22 @@ import {
 } from "../../../domain/schemas/service-catalog.schema";
 
 describe("hotels.schema", () => {
+  it("extracts the spreadsheet id from a full Google Sheets URL", () => {
+    expect(
+      parseGoogleSheetId(
+        "https://docs.google.com/spreadsheets/d/1Mnq_gk87qlCwXYOMTko4HeMdilOBd5KX_o8etN0SBLk/edit?gid=1217121988",
+      ),
+    ).toBe("1Mnq_gk87qlCwXYOMTko4HeMdilOBd5KX_o8etN0SBLk");
+  });
+
+  it("rejects spreadsheet URLs outside docs.google.com", () => {
+    expect(() =>
+      parseGoogleSheetId(
+        "https://example.com/spreadsheets/d/1Mnq_gk87qlCwXYOMTko4HeMdilOBd5KX_o8etN0SBLk",
+      ),
+    ).toThrow("URL phải thuộc");
+  });
+
   it("phân tích dữ liệu tạo khách sạn không có mã do caller cung cấp", () => {
     const result = parseWithZod(createHotelBodySchema, {
       tenantId: "tenant-1",

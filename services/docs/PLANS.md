@@ -1,5 +1,19 @@
 # VietSage Backend Plan
 
+## 2026-07-27 - Per-Hotel Google Sheets Service Catalog
+
+- [x] Added nullable unique `Hotel.googleSheetId` with a reviewable Prisma migration.
+- [x] Removed the shared `GOOGLE_SHEET_ID`; each manual/cron sync resolves the sheet from its hotel.
+- [x] Added URL/ID normalization, duplicate detection, provider/range validation before save, and
+  clear provider error messages without leaking provider responses.
+- [x] Kept category/item A1 ranges as deployment configuration and kept preview-before-commit
+  import semantics.
+
+Verification result:
+
+- Prisma Client generation, backend build, and 58 focused Property tests passed.
+- OpenAPI export completed with 91 paths and frontend generated types were synchronized.
+
 ## 2026-07-22 - Active-Stay Message Inbox Hardening
 
 - [x] Made `GuestStay(status = ACTIVE, checkedOutAt = null)` the only conversation lifecycle

@@ -5,9 +5,10 @@ import { AppLogger } from "../../../../common/logging/app-logger.service";
 import { ImportService } from "../../../../common/import/import.service";
 import type { ParsedImportWorkbook } from "../../../../common/import/import.types";
 import { PrismaService } from "../../../../prisma/prisma.service";
+import { HotelAccessService } from "../../application/hotel-access.service";
 
-const CATEGORY_SHEET = "Nhóm dịch vụ";
-const ITEM_SHEET = "Danh sách dịch vụ";
+const DEFAULT_CATEGORY_RANGE = "'Nhóm dịch vụ'!A1:Z";
+const DEFAULT_ITEM_RANGE = "'Danh sách dịch vụ'!A1:Z";
 const SYSTEM_ACTOR_USER_ID = "google-sheets-sync";
 
 type SyncSummary = {
@@ -28,6 +29,7 @@ export class GoogleSheetsServiceCatalogSyncService {
     private readonly importService: ImportService,
     private readonly prisma: PrismaService,
     private readonly logger: AppLogger,
+    private readonly hotelAccessService: HotelAccessService,
   ) {}
 
   async syncHotel(
@@ -35,7 +37,16 @@ export class GoogleSheetsServiceCatalogSyncService {
     actorUserId: string,
     activeRoleId: string,
   ): Promise<SyncSummary> {
-    return this.runSync(hotelId, actorUserId, activeRoleId);
+    const hotel = await this.hotelAccessService.assertHotelAccess(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    );
+    return this.runSync(hotelId, hotel.googleSheetId, actorUserId, activeRoleId);
+  }
+
+  async validateSpreadsheet(spreadsheetId: string): Promise<void> {
+    await this.readWorkbook(spreadsheetId);
   }
 
   @Cron(CronExpression.EVERY_5_MINUTES)
@@ -52,9 +63,21 @@ export class GoogleSheetsServiceCatalogSyncService {
     this.isSyncing = true;
     const startedAt = Date.now();
     try {
-      const hotels = await this.prisma.hotel.findMany({ select: { id: true } });
+      const hotels = await this.prisma.hotel.findMany({
+        where: { googleSheetId: { not: null } },
+        select: { id: true, googleSheetId: true },
+      });
       for (const hotel of hotels) {
-        await this.runSync(hotel.id, SYSTEM_ACTOR_USER_ID, undefined, false);
+        try {
+          await this.runSync(hotel.id, hotel.googleSheetId, SYSTEM_ACTOR_USER_ID, undefined, false);
+        } catch (error) {
+          this.logger.error(error, {
+            module: "hotels",
+            service: GoogleSheetsServiceCatalogSyncService.name,
+            event: "SERVICE_CATALOG_SYNC_HOTEL_ERROR",
+            hotelId: hotel.id,
+          });
+        }
       }
     } catch (error) {
       this.logger.error(error, {
@@ -75,6 +98,7 @@ export class GoogleSheetsServiceCatalogSyncService {
 
   private async runSync(
     hotelId: string,
+    spreadsheetId: string | null,
     actorUserId: string,
     activeRoleId?: string,
     enforceConcurrency = true,
@@ -95,7 +119,12 @@ export class GoogleSheetsServiceCatalogSyncService {
     });
 
     try {
-      const workbook = await this.readWorkbook();
+      if (!spreadsheetId) {
+        throw new BadRequestException(
+          "Khách sạn chưa cấu hình Google Sheets. Hãy lưu URL Google Sheets trước khi đồng bộ.",
+        );
+      }
+      const workbook = await this.readWorkbook(spreadsheetId);
       this.logger.info("Google Sheets sync validation started", {
         module: "hotels",
         service: GoogleSheetsServiceCatalogSyncService.name,
@@ -183,29 +212,63 @@ export class GoogleSheetsServiceCatalogSyncService {
     }
   }
 
-  private async readWorkbook(): Promise<ParsedImportWorkbook> {
-    const sheetId = process.env.GOOGLE_SHEET_ID?.trim();
-    if (!sheetId) throw new BadRequestException("GOOGLE_SHEET_ID is not configured");
+  private async readWorkbook(spreadsheetId: string): Promise<ParsedImportWorkbook> {
     if (!process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim()) {
-      throw new BadRequestException("GOOGLE_APPLICATION_CREDENTIALS is not configured");
+      throw new BadRequestException("Máy chủ chưa cấu hình tài khoản dịch vụ Google Sheets");
     }
 
-    const auth = new google.auth.GoogleAuth({
-      scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
-    });
-    const sheets = google.sheets({ version: "v4", auth });
-    const response = await sheets.spreadsheets.values.batchGet({
-      spreadsheetId: sheetId,
-      ranges: [CATEGORY_SHEET, ITEM_SHEET],
-      valueRenderOption: "UNFORMATTED_VALUE",
-    });
+    const categoryRange =
+      process.env.GOOGLE_SERVICE_CATEGORY_RANGE?.trim() || DEFAULT_CATEGORY_RANGE;
+    const itemRange = process.env.GOOGLE_SERVICE_ITEM_RANGE?.trim() || DEFAULT_ITEM_RANGE;
 
-    return {
-      fileName: `google-sheet:${sheetId}`,
-      sheets: (response.data.valueRanges ?? []).map((range, index) =>
-        this.toParsedSheet(index === 0 ? "categories" : "items", range.values ?? []),
-      ),
-    };
+    try {
+      const auth = new google.auth.GoogleAuth({
+        scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
+      });
+      const sheets = google.sheets({ version: "v4", auth });
+      const response = await sheets.spreadsheets.values.batchGet({
+        spreadsheetId,
+        ranges: [categoryRange, itemRange],
+        valueRenderOption: "UNFORMATTED_VALUE",
+      });
+      const valueRanges = response.data.valueRanges ?? [];
+
+      return {
+        fileName: `google-sheet:${spreadsheetId}`,
+        sheets: [
+          this.toParsedSheet("categories", valueRanges[0]?.values ?? []),
+          this.toParsedSheet("items", valueRanges[1]?.values ?? []),
+        ],
+      };
+    } catch (error) {
+      throw this.toGoogleSheetsError(error);
+    }
+  }
+
+  private toGoogleSheetsError(error: unknown): BadRequestException {
+    const status =
+      error && typeof error === "object" && "code" in error
+        ? Number((error as { code?: unknown }).code)
+        : undefined;
+
+    if (status === 403) {
+      return new BadRequestException(
+        "Google Sheets từ chối truy cập. Hãy chia sẻ file cho email service account với quyền Người xem.",
+      );
+    }
+    if (status === 404) {
+      return new BadRequestException(
+        "Không tìm thấy Google Sheets. Hãy kiểm tra URL và quyền chia sẻ.",
+      );
+    }
+    if (status === 400) {
+      return new BadRequestException(
+        "Không đọc được vùng dữ liệu Google Sheets. Hãy kiểm tra tên sheet và cấu hình range.",
+      );
+    }
+    return new BadRequestException(
+      "Không thể kết nối Google Sheets. Vui lòng kiểm tra cấu hình và thử lại.",
+    );
   }
 
   private toParsedSheet(name: "categories" | "items", values: unknown[][]) {

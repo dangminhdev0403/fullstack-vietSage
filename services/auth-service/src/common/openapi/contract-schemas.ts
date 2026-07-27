@@ -683,6 +683,11 @@ export const updateHotelBodySchema = {
     name: { type: "string", minLength: 2, maxLength: 160 },
     timezone: { type: "string", minLength: 1, maxLength: 80 },
     brandSettings: { type: "object", additionalProperties: true, nullable: true },
+    googleSheetUrl: {
+      type: "string",
+      nullable: true,
+      description: "URL Google Sheets đầy đủ hoặc spreadsheet ID; null để ngắt kết nối.",
+    },
     status: { type: "string", enum: ["ACTIVE", "DISABLED"] },
   },
   minProperties: 1,
@@ -698,6 +703,7 @@ export const hotelDataSchema = {
     timezone: { type: "string" },
     status: { type: "string" },
     brandSettings: { type: "object", additionalProperties: true, nullable: true },
+    googleSheetId: { type: "string", nullable: true },
     createdAt: { type: "string", format: "date-time" },
     updatedAt: { type: "string", format: "date-time" },
     tenant: {
@@ -721,6 +727,7 @@ export const hotelDataSchema = {
     "timezone",
     "status",
     "brandSettings",
+    "googleSheetId",
     "createdAt",
     "updatedAt",
     "tenant",

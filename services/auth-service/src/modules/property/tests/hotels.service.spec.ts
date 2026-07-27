@@ -118,6 +118,7 @@ function createRepository(overrides: Record<string, jest.Mock> = {}) {
       createdAt: new Date("2026-06-04T00:00:00.000Z"),
       updatedAt: new Date("2026-06-04T00:00:00.000Z"),
     })),
+    findHotelByGoogleSheetId: jest.fn().mockResolvedValue(null),
     createServiceCategory: jest.fn().mockImplementation((input) => ({
       id: "category-1",
       description: null,
@@ -270,10 +271,14 @@ function createService(
   codesService = createCodesService(),
   accessService = createAccessService(repository),
 ) {
+  const googleSheetsSyncService = {
+    validateSpreadsheet: jest.fn().mockResolvedValue(undefined),
+  };
   const hotelsService = new HotelsService(
     repository as never,
     codesService as never,
     accessService as never,
+    googleSheetsSyncService as never,
   );
   const hotelRoomsService = new HotelRoomsService(
     repository as never,
@@ -294,6 +299,7 @@ function createService(
     listHotels: hotelsService.listHotels.bind(hotelsService),
     getHotel: hotelsService.getHotel.bind(hotelsService),
     updateHotel: hotelsService.updateHotel.bind(hotelsService),
+    googleSheetsSyncService,
     createRoom: hotelRoomsService.createRoom.bind(hotelRoomsService),
     createRooms: hotelRoomsService.createRooms.bind(hotelRoomsService),
     listRooms: hotelRoomsService.listRooms.bind(hotelRoomsService),
@@ -389,7 +395,24 @@ describe("HotelsService", () => {
       timezone: "Asia/Saigon",
       brandSettings: expect.any(Object),
       status: undefined,
+      googleSheetId: undefined,
     });
+  });
+
+  it("validates and stores a hotel-scoped Google spreadsheet id", async () => {
+    const repository = createRepository();
+    const service = createService(repository);
+    const spreadsheetId = "1Mnq_gk87qlCwXYOMTko4HeMdilOBd5KX_o8etN0SBLk";
+
+    await service.updateHotel("actor-1", "active-role", "hotel-1", {
+      googleSheetUrl: spreadsheetId,
+    });
+
+    expect(service.googleSheetsSyncService.validateSpreadsheet).toHaveBeenCalledWith(spreadsheetId);
+    expect(repository.updateHotel).toHaveBeenCalledWith(
+      "hotel-1",
+      expect.objectContaining({ googleSheetId: spreadsheetId }),
+    );
   });
 
   it("không lọc danh sách khách sạn của super admin theo tenant khi không truyền tenantId", async () => {

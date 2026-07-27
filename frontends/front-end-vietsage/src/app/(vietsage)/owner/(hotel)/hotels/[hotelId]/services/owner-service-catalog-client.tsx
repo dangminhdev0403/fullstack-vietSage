@@ -9,12 +9,14 @@ import { HttpError } from "@/core/http/http-error";
 import { requestInternalApi, requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import type { HotelServiceCategory, HotelServiceItem, HotelServiceStatus } from "@/features/hotel-ops/types/hotel-ops-contract";
 import { hotelServiceStatuses } from "@/features/hotel-ops/types/hotel-ops-contract";
+import { useGoogleSheetConfig } from "@/features/hotel-ops/queries/use-google-sheet-config";
 import { serviceStatusLabelMap, serviceStatusTone } from "@/features/hotel-ops/utils/hotel-ops-display";
 
 type Props = {
   hotelId: string;
   initialCategories: HotelServiceCategory[];
   initialItems: HotelServiceItem[];
+  initialGoogleSheetId: string | null;
 };
 
 type PriceUpdateMode = "CATEGORY_ONLY" | "OVERRIDE_ALL_ITEMS";
@@ -339,8 +341,20 @@ function closeLoading() {
   Swal.close();
 }
 
-export function OwnerServiceCatalogClient({ hotelId, initialCategories, initialItems }: Props) {
+export function OwnerServiceCatalogClient({
+  hotelId,
+  initialCategories,
+  initialItems,
+  initialGoogleSheetId,
+}: Props) {
   const router = useRouter();
+  const googleSheetConfig = useGoogleSheetConfig({ hotelId, surface: "owner" });
+  const [googleSheetUrl, setGoogleSheetUrl] = useState(
+    initialGoogleSheetId
+      ? `https://docs.google.com/spreadsheets/d/${initialGoogleSheetId}/edit`
+      : "",
+  );
+  const [savedGoogleSheetId, setSavedGoogleSheetId] = useState(initialGoogleSheetId);
   const [tab, setTab] = useState<"categories" | "items">("categories");
   const [categories, setCategories] = useState(initialCategories);
   const [items, setItems] = useState(initialItems);
@@ -605,7 +619,7 @@ export function OwnerServiceCatalogClient({ hotelId, initialCategories, initialI
     setIsImporting(true);
     try {
       showLoading("Đang đồng bộ Google Sheets");
-      await requestInternalApiEnvelope(`/api/owner/hotels/${encodeURIComponent(hotelId)}/service-catalog/sync`, { method: "POST" });
+      await googleSheetConfig.sync.mutateAsync(undefined);
       await refreshServiceCatalog();
       router.refresh();
       closeLoading();
@@ -615,6 +629,41 @@ export function OwnerServiceCatalogClient({ hotelId, initialCategories, initialI
       await Swal.fire({ icon: "error", title: "Không thể đồng bộ Google Sheets", text: getBusinessErrorMessage(error, "Vui lòng kiểm tra cấu hình Google Sheets và thử lại."), confirmButtonColor: "#00003c" });
     } finally {
       setIsImporting(false);
+    }
+  }
+
+  async function saveGoogleSheetConfig() {
+    setIsSaving(true);
+    try {
+      showLoading("Đang kiểm tra Google Sheets");
+      const hotel = await googleSheetConfig.update.mutateAsync({
+        googleSheetUrl: googleSheetUrl.trim() || null,
+      });
+      setGoogleSheetUrl(
+        hotel.googleSheetId
+          ? `https://docs.google.com/spreadsheets/d/${hotel.googleSheetId}/edit`
+          : "",
+      );
+      setSavedGoogleSheetId(hotel.googleSheetId ?? null);
+      closeLoading();
+      await Swal.fire({
+        icon: "success",
+        title: hotel.googleSheetId
+          ? "Đã kết nối Google Sheets"
+          : "Đã ngắt kết nối Google Sheets",
+        timer: 1400,
+        showConfirmButton: false,
+      });
+    } catch (error) {
+      closeLoading();
+      await Swal.fire({
+        icon: "error",
+        title: "Không thể lưu Google Sheets",
+        text: getBusinessErrorMessage(error, "Vui lòng kiểm tra URL và quyền chia sẻ."),
+        confirmButtonColor: "#00003c",
+      });
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -703,13 +752,25 @@ export function OwnerServiceCatalogClient({ hotelId, initialCategories, initialI
       </section>
 
       <section className="rounded-xl border border-dashed border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-4">
           <div>
             <h2 className="text-base font-semibold text-[var(--primary)]">Đồng bộ dịch vụ bằng Google Sheets</h2>
-            <p className="mt-1 text-sm text-[var(--on-surface-variant)]">Đọc dữ liệu mới nhất từ Google Sheets và cập nhật catalog dịch vụ ngay lập tức.</p>
+            <p className="mt-1 text-sm text-[var(--on-surface-variant)]">
+              Mỗi khách sạn dùng một file riêng. Hãy chia sẻ file cho service account với quyền Người xem.
+            </p>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <button type="button" onClick={syncGoogleSheets} disabled={isImporting} className="cursor-pointer rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-[var(--on-primary)] transition-colors hover:bg-[color:rgba(0,0,60,0.88)] disabled:cursor-not-allowed disabled:opacity-50">
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+            <input
+              type="url"
+              value={googleSheetUrl}
+              onChange={(event) => setGoogleSheetUrl(event.target.value)}
+              placeholder="https://docs.google.com/spreadsheets/d/.../edit"
+              className="min-h-10 flex-1 rounded-lg border border-[var(--outline-variant)] bg-white px-3 text-sm outline-none focus:border-[var(--primary)]"
+            />
+            <button type="button" onClick={saveGoogleSheetConfig} disabled={isSaving} className="cursor-pointer rounded-lg border border-[var(--primary)] px-4 py-2 text-sm font-semibold text-[var(--primary)] disabled:cursor-not-allowed disabled:opacity-50">
+              {isSaving ? "Đang kiểm tra..." : "Lưu kết nối"}
+            </button>
+            <button type="button" onClick={syncGoogleSheets} disabled={isImporting || !savedGoogleSheetId || googleSheetUrl !== `https://docs.google.com/spreadsheets/d/${savedGoogleSheetId}/edit`} className="cursor-pointer rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-[var(--on-primary)] transition-colors hover:bg-[color:rgba(0,0,60,0.88)] disabled:cursor-not-allowed disabled:opacity-50">
               {isImporting ? "Đang đồng bộ..." : "Đồng bộ Google Sheets"}
             </button>
           </div>

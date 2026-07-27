@@ -81,6 +81,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/change-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AuthController_changePassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/me": {
         parameters: {
             query?: never;
@@ -366,7 +382,7 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        patch: operations["HotelUsersController_updateHotelUser"];
         trace?: never;
     };
     "/hotel-users/{id}/status": {
@@ -412,6 +428,22 @@ export interface paths {
         put?: never;
         post?: never;
         delete: operations["HotelUsersController_revokeHotelUserRole"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotel-users/{id}/reset-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["HotelUsersController_resetPassword"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -463,6 +495,22 @@ export interface paths {
         options?: never;
         head?: never;
         patch: operations["TenantOwnersController_updateTenantOwner"];
+        trace?: never;
+    };
+    "/tenant-owners/{id}/reset-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["TenantOwnersController_resetPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/hotels": {
@@ -1634,6 +1682,23 @@ export interface operations {
             };
         };
     };
+    AuthController_changePassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     AuthController_me: {
         parameters: {
             query?: never;
@@ -2736,6 +2801,27 @@ export interface operations {
             };
         };
     };
+    HotelUsersController_updateHotelUser: {
+        parameters: {
+            query?: never;
+            header: {
+                "x-tenant-id": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     HotelUsersController_updateHotelUserStatus: {
         parameters: {
             query?: never;
@@ -2907,6 +2993,28 @@ export interface operations {
                         };
                     };
                 };
+            };
+        };
+    };
+    HotelUsersController_resetPassword: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Ghi đè đơn vị tùy chọn */
+                "x-tenant-id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -3260,6 +3368,25 @@ export interface operations {
             };
         };
     };
+    TenantOwnersController_resetPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     HotelsController_listHotels: {
         parameters: {
             query?: {
@@ -3306,6 +3433,7 @@ export interface operations {
                                 brandSettings: {
                                     [key: string]: unknown;
                                 } | null;
+                                googleSheetId: string | null;
                                 /** Format: date-time */
                                 createdAt: string;
                                 /** Format: date-time */
@@ -3372,6 +3500,7 @@ export interface operations {
                             brandSettings: {
                                 [key: string]: unknown;
                             } | null;
+                            googleSheetId: string | null;
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -3427,6 +3556,7 @@ export interface operations {
                             brandSettings: {
                                 [key: string]: unknown;
                             } | null;
+                            googleSheetId: string | null;
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -3463,6 +3593,8 @@ export interface operations {
                     brandSettings?: {
                         [key: string]: unknown;
                     } | null;
+                    /** @description URL Google Sheets đầy đủ hoặc spreadsheet ID; null để ngắt kết nối. */
+                    googleSheetUrl?: string | null;
                     /** @enum {string} */
                     status?: "ACTIVE" | "DISABLED";
                 };
@@ -3494,6 +3626,7 @@ export interface operations {
                             brandSettings: {
                                 [key: string]: unknown;
                             } | null;
+                            googleSheetId: string | null;
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */

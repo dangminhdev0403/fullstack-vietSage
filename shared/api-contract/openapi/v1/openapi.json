@@ -428,6 +428,20 @@
         ]
       }
     },
+    "/auth/change-password": {
+      "post": {
+        "operationId": "AuthController_changePassword",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/auth/me": {
       "get": {
         "operationId": "AuthController_me",
@@ -3188,6 +3202,35 @@
         "tags": [
           "hotel-users"
         ]
+      },
+      "patch": {
+        "operationId": "HotelUsersController_updateHotelUser",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-tenant-id",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "hotel-users"
+        ]
       }
     },
     "/hotel-users/{id}/status": {
@@ -3646,6 +3689,38 @@
                 }
               }
             }
+          }
+        },
+        "tags": [
+          "hotel-users"
+        ]
+      }
+    },
+    "/hotel-users/{id}/reset-password": {
+      "post": {
+        "operationId": "HotelUsersController_resetPassword",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-tenant-id",
+            "required": false,
+            "in": "header",
+            "description": "Ghi đè đơn vị tùy chọn",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
           }
         },
         "tags": [
@@ -4605,6 +4680,29 @@
         ]
       }
     },
+    "/tenant-owners/{id}/reset-password": {
+      "post": {
+        "operationId": "TenantOwnersController_resetPassword",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "tenant-owners"
+        ]
+      }
+    },
     "/hotels": {
       "post": {
         "operationId": "HotelsController_createHotel",
@@ -4691,6 +4789,10 @@
                           "additionalProperties": true,
                           "nullable": true
                         },
+                        "googleSheetId": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
@@ -4738,6 +4840,7 @@
                         "timezone",
                         "status",
                         "brandSettings",
+                        "googleSheetId",
                         "createdAt",
                         "updatedAt",
                         "tenant"
@@ -4866,6 +4969,10 @@
                                 "additionalProperties": true,
                                 "nullable": true
                               },
+                              "googleSheetId": {
+                                "type": "string",
+                                "nullable": true
+                              },
                               "createdAt": {
                                 "type": "string",
                                 "format": "date-time"
@@ -4913,6 +5020,7 @@
                               "timezone",
                               "status",
                               "brandSettings",
+                              "googleSheetId",
                               "createdAt",
                               "updatedAt",
                               "tenant"
@@ -5005,6 +5113,10 @@
                           "additionalProperties": true,
                           "nullable": true
                         },
+                        "googleSheetId": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
@@ -5052,6 +5164,7 @@
                         "timezone",
                         "status",
                         "brandSettings",
+                        "googleSheetId",
                         "createdAt",
                         "updatedAt",
                         "tenant"
@@ -5106,6 +5219,11 @@
                     "type": "object",
                     "additionalProperties": true,
                     "nullable": true
+                  },
+                  "googleSheetUrl": {
+                    "type": "string",
+                    "nullable": true,
+                    "description": "URL Google Sheets đầy đủ hoặc spreadsheet ID; null để ngắt kết nối."
                   },
                   "status": {
                     "type": "string",
@@ -5168,6 +5286,10 @@
                           "additionalProperties": true,
                           "nullable": true
                         },
+                        "googleSheetId": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
@@ -5215,6 +5337,7 @@
                         "timezone",
                         "status",
                         "brandSettings",
+                        "googleSheetId",
                         "createdAt",
                         "updatedAt",
                         "tenant"

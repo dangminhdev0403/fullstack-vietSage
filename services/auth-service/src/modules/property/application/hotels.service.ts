@@ -1,4 +1,9 @@
-import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { HotelStatus, Prisma } from "@prisma/client";
 import { AppLogger } from "../../../common/logging/app-logger.service";
 import { CodesService } from "../../codes/codes-public";
@@ -10,6 +15,7 @@ import type {
   ListHotelsQueryInput,
   UpdateHotelBodyInput,
 } from "../domain/schemas/hotel.schema";
+import { GoogleSheetsServiceCatalogSyncService } from "../infrastructure/imports/google-sheets-service-catalog-sync.service";
 
 @Injectable()
 export class HotelsService {
@@ -17,6 +23,7 @@ export class HotelsService {
     private readonly hotelCoreRepository: HotelCoreRepository,
     private readonly codesService: CodesService,
     private readonly hotelAccessService: HotelAccessService,
+    private readonly googleSheetsSyncService: GoogleSheetsServiceCatalogSyncService,
     private readonly logger: AppLogger = new AppLogger(),
   ) {}
   async createHotel(actorUserId: string, activeRoleId: string, dto: CreateHotelBodyInput) {
@@ -107,6 +114,18 @@ export class HotelsService {
     const actor = await this.hotelAccessService.loadActorContext(actorUserId, activeRoleId);
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
 
+    if (dto.googleSheetUrl) {
+      const existingHotel = await this.hotelCoreRepository.findHotelByGoogleSheetId(
+        dto.googleSheetUrl,
+      );
+      if (existingHotel && existingHotel.id !== hotelId) {
+        throw new ConflictException(
+          `Google Sheets này đã được gán cho khách sạn ${existingHotel.name}`,
+        );
+      }
+      await this.googleSheetsSyncService.validateSpreadsheet(dto.googleSheetUrl);
+    }
+
     const data = {
       name: dto.name?.trim(),
       timezone: dto.timezone?.trim(),
@@ -115,6 +134,7 @@ export class HotelsService {
           ? Prisma.JsonNull
           : (dto.brandSettings as Prisma.InputJsonValue | undefined),
       status: dto.status,
+      googleSheetId: dto.googleSheetUrl === null ? null : dto.googleSheetUrl,
     } satisfies Prisma.HotelUpdateInput;
 
     if (actor.isTenantOwner) {
@@ -166,6 +186,7 @@ export class HotelsService {
       timezone: row.timezone,
       status: row.status,
       brandSettings: row.brandSettings,
+      googleSheetId: row.googleSheetId,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       tenant: row.tenant,

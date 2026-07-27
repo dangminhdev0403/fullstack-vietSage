@@ -1,7 +1,12 @@
 import { GoogleSheetsServiceCatalogSyncService } from "../../../infrastructure/imports/google-sheets-service-catalog-sync.service";
 
 function createService() {
-  return new GoogleSheetsServiceCatalogSyncService({} as never, {} as never, {} as never);
+  return new GoogleSheetsServiceCatalogSyncService(
+    {} as never,
+    {} as never,
+    {} as never,
+    {} as never,
+  );
 }
 
 describe("GoogleSheetsServiceCatalogSyncService", () => {
