@@ -1,9 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+
+import { VietSageBrand } from "@/components/brand/vietsage-brand";
 
 const primaryLinks = [
   { label: "Home", href: "/" },
@@ -74,14 +75,14 @@ export function MarketingHeader({ accountAction }: { accountAction: { label: str
         className="vs-mkt-navbar mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-5 lg:px-6"
         aria-label="Main navigation"
       >
-        <Link href="/" className="vs-mkt-brand flex min-w-0 items-center gap-3">
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[1.1rem] bg-[#123d2a] shadow-lg shadow-[#123d2a]/20 ring-1 ring-white/50">
-            <Image src="/brand/vietsage-icon.png" alt="" width={25} height={25} priority />
-          </span>
+        <Link href="/" className="vs-mkt-brand flex min-w-0 items-center">
           <span className="min-w-0">
-            <span className="block text-sm font-black tracking-[0.24em] text-[#123d2a]">
-              VIETSAGE
-            </span>
+            <VietSageBrand
+              priority
+              className="justify-start gap-2 rounded-xl px-2 py-1"
+              markClassName="h-9 w-9"
+              wordmarkClassName="h-5 w-auto sm:h-6"
+            />
             <span className="hidden truncate text-xs text-[#627064] sm:block">
               Hospitality technology platform
             </span>

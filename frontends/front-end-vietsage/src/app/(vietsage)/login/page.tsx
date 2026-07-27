@@ -14,6 +14,7 @@ import {
 import Swal from "sweetalert2";
 import { z } from "zod";
 
+import { VietSageBrand } from "@/components/brand/vietsage-brand";
 import { VsIcon } from "../_components/vs-icon";
 
 const heroImage =
@@ -423,36 +424,24 @@ export default function LoginPage() {
 
         <section className="relative flex h-full w-full flex-col items-center justify-center bg-surface-container-lowest px-margin-mobile py-20 md:w-1/2 md:px-16 md:py-0 lg:w-2/5 lg:px-24">
           <div className="absolute left-margin-mobile top-8 md:hidden">
-            <div className="flex items-center gap-2">
-              <Image
-                src="/brand/vietsage-icon.png"
-                alt="VietSage icon"
-                width={32}
-                height={32}
-                className="h-8 w-8 object-contain"
-              />
-              <span className="font-display-lg-mobile text-display-lg-mobile tracking-tight text-primary">
-                VietSage
-              </span>
-            </div>
+            <VietSageBrand
+              priority
+              className="gap-2 rounded-xl px-2 py-1 shadow-sm"
+              markClassName="h-8 w-8"
+              wordmarkClassName="h-5 w-auto"
+            />
           </div>
 
           <div className="w-full max-w-sm">
             <div className="mb-12 hidden flex-col items-start md:flex">
-              <div className="mb-2 flex items-center gap-3">
-                <Image
-                  src="/brand/vietsage-icon.png"
-                  alt="VietSage icon"
-                  width={40}
-                  height={40}
-                  className="h-10 w-10 object-contain"
-                />
-                <span className="font-display-lg text-display-lg tracking-tight text-primary">
-                  VietSage
-                </span>
-              </div>
+              <VietSageBrand
+                priority
+                className="mb-2 gap-3 rounded-xl px-2 py-2"
+                markClassName="h-12 w-12"
+                wordmarkClassName="h-8 w-auto"
+              />
               <p className="font-label-md uppercase tracking-wider text-on-surface-variant opacity-70">
-                Luxury Hotel & Resort
+                Hospitality Operating System
               </p>
             </div>
 
@@ -628,9 +617,11 @@ export default function LoginPage() {
 
       <footer className="w-full bg-tertiary-container px-margin-mobile py-8 text-on-tertiary-container md:px-margin-desktop">
         <div className="mx-auto flex w-full max-w-[1200px] flex-col items-center justify-between gap-4 md:flex-row md:gap-6">
-          <div className="font-display-lg-mobile text-display-lg-mobile">
-            VietSage
-          </div>
+          <VietSageBrand
+            variant="wordmark"
+            className="rounded-lg px-3 py-2"
+            wordmarkClassName="h-6 w-auto"
+          />
           <div className="flex flex-wrap justify-center gap-6">
             <Link
               href="#"

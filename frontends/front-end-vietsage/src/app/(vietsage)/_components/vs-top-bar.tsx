@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import { VietSageBrand } from "@/components/brand/vietsage-brand";
 import { VsIcon } from "./vs-icon";
 import { VsLogoutButton } from "./vs-logout-button";
 import { ChangePasswordDialog } from "@/features/account/security/change-password-dialog";
@@ -21,7 +22,6 @@ type VsTopBarProps = {
   languageBadge?: string;
 };
 
-const brandIconSrc = "/brand/vietsage-icon.png";
 const profileImage =
   "https://lh3.googleusercontent.com/aida-public/AB6AXuDPd6uCb1c2F8aIIiLrrawFVOrjjuXTN5Vpq9r7j5JSag4DOMkWRMHX4R_Q7EG7KuSaJOYmfZpVcDMsroJlQ58x--oNm0FqYSWCk2KtZnRqBsN9F7JxI4kH-91zWiOKYBK68wda-sKd1T5N4mZfcMyY_s06VVirMasqzCikQ8ytArSK4iL842ulcsli5_KfyWRq_igPogBmoNjbHVq5YqayZYTzH9lQuoTTZaNtSmNntaRKpZ42nLWvYy-kUu0FS8hIuHdDYkDX_kE";
 
@@ -44,14 +44,14 @@ export function VsTopBar({
   const shouldRenderBrandLockup =
     brandLockup && title.trim().toLowerCase() === "vietsage";
 
-  const brandIconClass =
+  const brandMarkClass =
     brandSize === "large"
-      ? "h-12 w-12 object-contain"
-      : "h-8 w-8 object-contain md:h-10 md:w-10";
-  const brandTextClass =
+      ? "h-12 w-12"
+      : "h-8 w-8 md:h-10 md:w-10";
+  const brandWordmarkClass =
     brandSize === "large"
-      ? "text-2xl tracking-[0.18em]"
-      : "text-[20px] tracking-[0.1em] md:text-[24px]";
+      ? "h-8 w-auto"
+      : "h-5 w-auto md:h-7";
 
   return (
     <header className="fixed top-0 z-50 flex h-16 w-full items-center justify-between border-b border-[#24473d]/10 bg-[#fff8e8]/78 px-4 shadow-[0_16px_45px_rgba(31,61,53,0.08)] backdrop-blur-xl md:px-10">
@@ -71,20 +71,12 @@ export function VsTopBar({
         ) : null}
 
         {shouldRenderBrandLockup ? (
-          <div className="flex items-center gap-2">
-            <Image
-              src={brandIconSrc}
-              alt="Bieu tuong VietSage"
-              width={48}
-              height={48}
-              className={brandIconClass}
-            />
-            <span
-              className={`vs-display whitespace-nowrap uppercase leading-none text-[#17201b] ${brandTextClass}`}
-            >
-              VIETSAGE
-            </span>
-          </div>
+          <VietSageBrand
+            priority
+            className="gap-2 rounded-xl px-2 py-1 shadow-[0_8px_22px_rgba(31,61,53,0.07)]"
+            markClassName={brandMarkClass}
+            wordmarkClassName={brandWordmarkClass}
+          />
         ) : (
           <p
             className={`vs-display tracking-tight text-[24px] text-[#17201b] ${

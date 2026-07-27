@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 
 import { auth } from "@/auth";
+import { VietSageBrand } from "@/components/brand/vietsage-brand";
 import { getLandingAction } from "@/features/auth/utils/landing-action";
 
 import { MarketingHeader } from "./marketing-header";
@@ -188,7 +189,11 @@ function Footer() {
     <footer className="border-t border-[#123d2a]/10 bg-[#10251a] px-5 py-12 text-white lg:px-8">
       <div className="mx-auto grid max-w-7xl gap-8 md:grid-cols-[1.2fr_2fr]">
         <div>
-          <h2 className="text-xl font-black tracking-[0.22em] text-[#f3c66b]">VIETSAGE</h2>
+          <VietSageBrand
+            variant="wordmark"
+            className="rounded-xl px-3 py-2"
+            wordmarkClassName="h-7 w-auto"
+          />
           <p className="mt-4 max-w-sm text-white/65">Premium technology platforms for hospitality operations, service commerce, and future healthcare workflows.</p>
           <p className="mt-6 text-sm text-white/45">(c) 2026 VietSage. All rights reserved.</p>
         </div>

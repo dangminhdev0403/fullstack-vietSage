@@ -6,6 +6,7 @@ import { type ChangeEvent, type FocusEvent, type FormEvent, type ReactNode, useE
 import Swal from "sweetalert2";
 import { z } from "zod";
 
+import { VietSageBrand } from "@/components/brand/vietsage-brand";
 import { VsIcon } from "../_components/vs-icon";
 
 const heroImage = "/brand/register-hero.png";
@@ -345,8 +346,13 @@ export default function RegisterPage() {
         <section className="flex w-full flex-col justify-center bg-surface px-margin-mobile py-12 lg:w-2/5 md:px-margin-desktop">
           <div className="mx-auto w-full max-w-md">
             <div className="mb-12 text-center lg:hidden">
-              <h1 className="font-display-lg-mobile text-display-lg-mobile tracking-tight text-primary">VietSage</h1>
-              <p className="mt-2 font-label-md text-label-md uppercase tracking-widest text-secondary">Luxury Hotel & Resort</p>
+              <VietSageBrand
+                priority
+                className="gap-2 rounded-xl px-3 py-2"
+                markClassName="h-11 w-11"
+                wordmarkClassName="h-7 w-auto"
+              />
+              <p className="mt-2 font-label-md text-label-md uppercase tracking-widest text-secondary">Hospitality Operating System</p>
             </div>
 
             <div className="mb-10">

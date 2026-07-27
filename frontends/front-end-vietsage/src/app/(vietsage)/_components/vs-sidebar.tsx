@@ -1,5 +1,6 @@
-import Image from "next/image";
 import Link from "next/link";
+
+import { VietSageBrand } from "@/components/brand/vietsage-brand";
 
 type VsSidebarProps = {
   active: "dashboard" | "requests" | "rooms" | "staff" | "settings";
@@ -17,19 +18,13 @@ export function VsSidebar({ active }: VsSidebarProps) {
   return (
     <aside className="hidden rounded-2xl bg-[var(--surface-container-low)] p-5 lg:block">
       <div className="mb-8 rounded-xl bg-[var(--primary)] p-4 text-[var(--on-primary)]">
-        <div className="mb-3 flex items-center gap-3">
-          <Image
-            src="/brand/vietsage-icon.png"
-            alt="VietSage icon"
-            width={44}
-            height={44}
-            className="h-11 w-11 object-contain"
-          />
-          <div>
-            <p className="vs-display text-lg font-semibold tracking-[0.14em]">VIETSAGE</p>
-            <p className="text-xs opacity-90">VietSage Luxury</p>
-          </div>
-        </div>
+        <VietSageBrand
+          priority
+          className="mb-3 w-full justify-start gap-2 rounded-xl px-2 py-2"
+          markClassName="h-11 w-11"
+          wordmarkClassName="h-7 min-w-0 flex-1"
+        />
+        <p className="mb-3 text-xs opacity-90">Hospitality Operating System</p>
         <p className="text-sm font-semibold">Admin Portal</p>
       </div>
       <ul className="space-y-2">
@@ -55,4 +50,3 @@ export function VsSidebar({ active }: VsSidebarProps) {
     </aside>
   );
 }
-

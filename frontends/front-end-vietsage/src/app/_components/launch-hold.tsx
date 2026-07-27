@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { VietSageBrand } from "@/components/brand/vietsage-brand";
 
 export function LaunchHold() {
   return (
@@ -14,20 +14,18 @@ export function LaunchHold() {
 
       <section className="launch-border relative w-full max-w-3xl overflow-hidden rounded-[2rem] bg-white/90 px-6 py-12 text-center shadow-[0_24px_70px_rgba(20,61,43,0.12)] backdrop-blur-sm sm:px-12 sm:py-14">
         <div className="relative z-10 mx-auto flex max-w-2xl flex-col items-center">
-          <div className="grid size-20 place-items-center rounded-[1.4rem] border border-[#d8c07c]/45 bg-[#fbfaf6] shadow-[0_12px_30px_rgba(20,61,43,0.12)]">
-            <Image
-              src="/brand/vietsage-icon.png"
-              alt="VietSage"
-              width={58}
-              height={58}
-              priority
-              className="rounded-xl"
-            />
-          </div>
-
-          <p className="mt-6 text-xs font-bold uppercase tracking-[0.42em] text-[#ae7924]">
-            VietSage
-          </p>
+          <VietSageBrand
+            variant="mark"
+            priority
+            className="size-24 rounded-[1.4rem] border border-[#d8c07c]/45 p-2 shadow-[0_12px_30px_rgba(20,61,43,0.12)]"
+            markClassName="h-full w-full"
+          />
+          <VietSageBrand
+            variant="wordmark"
+            priority
+            className="mt-5 rounded-xl px-4 py-2"
+            wordmarkClassName="h-7 w-auto sm:h-8"
+          />
           <p className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#edf3ee] px-4 py-2 text-xs font-semibold text-[#365846]">
             <span className="size-1.5 rounded-full bg-[#bc8b31]" aria-hidden="true" />
             A thoughtful new experience is in development

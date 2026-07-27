@@ -30,9 +30,9 @@ export const metadata: Metadata = {
     images: ["/marketing/bay.jpg"],
   },
   icons: {
-    icon: [{ url: "/brand/vietsage-icon.png", type: "image/png" }],
-    shortcut: ["/brand/vietsage-icon.png"],
-    apple: [{ url: "/brand/vietsage-icon.png", type: "image/png" }],
+    icon: [{ url: "/icon.png", type: "image/png" }],
+    shortcut: ["/icon.png"],
+    apple: [{ url: "/apple-icon.png", type: "image/png" }],
   },
 };
 

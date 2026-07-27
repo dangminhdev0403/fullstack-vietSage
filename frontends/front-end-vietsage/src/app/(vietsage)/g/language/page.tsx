@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, m } from "motion/react";
 
+import { VietSageBrand } from "@/components/brand/vietsage-brand";
 import { VsIcon } from "../../_components/vs-icon";
 import { guestMotionTokens } from "@/features/guest-os/components/motion/guest-motion-tokens";
 import { GuestReveal } from "@/features/guest-os/components/motion/guest-reveal";
@@ -67,10 +68,12 @@ export default function GuestLanguagePage() {
     <main className="vs-guest-readable grid min-h-screen grid-rows-[minmax(320px,43svh)_1fr] bg-[#f8f4ea] text-[#18211d] lg:grid-rows-[minmax(390px,45svh)_1fr]">
       <section className="relative overflow-hidden rounded-b-[36px] bg-[linear-gradient(180deg,rgba(31,61,53,0.97),rgba(31,61,53,0.78)_48%,rgba(31,61,53,0.28)),url('https://images.unsplash.com/photo-1611892440504-42a792e24d32?auto=format&fit=crop&w=1400&q=80')] bg-cover bg-center px-5 py-6 text-white md:px-10 lg:px-[72px]">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
-          <div className="flex items-center gap-3 font-serif text-xl font-black tracking-[0.22em] md:text-2xl">
-            <span className="grid size-11 place-items-center rounded-2xl border border-white/15 bg-white/10 font-sans text-base text-[#f4d36f]">V</span>
-            <span>VIETSAGE</span>
-          </div>
+          <VietSageBrand
+            priority
+            className="gap-2 rounded-2xl px-2.5 py-1.5 shadow-[0_12px_30px_rgba(0,0,0,0.16)]"
+            markClassName="h-10 w-10"
+            wordmarkClassName="h-6 w-auto md:h-7"
+          />
           <div className="rounded-full border border-white/25 bg-white/10 px-4 py-3 text-sm font-bold backdrop-blur-md">GuestOS</div>
         </div>
 
