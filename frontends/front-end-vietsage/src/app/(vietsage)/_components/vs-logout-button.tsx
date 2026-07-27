@@ -47,7 +47,7 @@ export function VsLogoutButton({ className }: VsLogoutButtonProps) {
 
     try {
       await signOut({ redirect: false });
-      window.location.replace("/");
+      window.location.replace("/login");
     } catch {
       Swal.close();
       await Swal.fire({
