@@ -15,11 +15,8 @@ test("authenticated topbar exposes self-service password change", () => {
   assert.match(changePasswordDialog, /createPortal/);
   assert.match(changePasswordDialog, /document\.body/);
   assert.match(changePasswordDialog, /100dvh/);
-<<<<<<< ours
-=======
   assert.match(changePasswordDialog, /visibility_off/);
   assert.match(changePasswordDialog, /aria-pressed/);
->>>>>>> theirs
 });
 
 test("super admin can reset tenant-owner password from both desktop and mobile actions", () => {
