@@ -754,10 +754,10 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
       context.fillText(
         `Phòng #${getRoomNumber(selectedQrRoom)}`,
         canvas.width / 2,
-        88,
+        76,
       );
 
-      context.drawImage(qrImage, 145, 138, 360, 360);
+      context.drawImage(qrImage, 145, 105, 360, 360);
 
       const downloadLink = document.createElement("a");
       downloadLink.href = canvas.toDataURL("image/png");
@@ -1487,7 +1487,7 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
               </h2>
               {getGuestQrUrl(selectedQrRoom, clientOrigin) ? (
                 <>
-                  <div className="mt-8 flex aspect-square w-full max-w-[360px] items-center justify-center">
+                  <div className="mt-3 flex aspect-square w-full max-w-[360px] items-center justify-center">
                     <QRCodeSVG
                       ref={qrCodeRef}
                       value={getGuestQrUrl(selectedQrRoom, clientOrigin) ?? ""}

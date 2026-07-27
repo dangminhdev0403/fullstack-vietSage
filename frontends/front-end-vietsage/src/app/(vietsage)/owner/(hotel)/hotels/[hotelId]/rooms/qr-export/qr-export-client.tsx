@@ -113,6 +113,10 @@ export function OwnerRoomsQrExportClient({ hotelId }: Props) {
             page-break-inside: avoid;
             box-shadow: none !important;
           }
+
+          .qr-export-url {
+            display: none !important;
+          }
         }
       `}</style>
 
@@ -173,7 +177,7 @@ export function OwnerRoomsQrExportClient({ hotelId }: Props) {
                   <h2 className="text-2xl font-black text-[#173d34]">
                     Phòng {roomNumber}
                   </h2>
-                  <div className="mt-5 flex aspect-square w-full max-w-[310px] items-center justify-center">
+                  <div className="mt-1 flex aspect-square w-full max-w-[310px] items-center justify-center">
                     <QRCodeSVG
                       value={guestQrUrl}
                       size={310}
@@ -184,7 +188,7 @@ export function OwnerRoomsQrExportClient({ hotelId }: Props) {
                       className="h-full w-full"
                     />
                   </div>
-                  <p className="mt-4 max-w-full break-all rounded-xl bg-[#f7f2e7] px-3 py-2 text-xs font-semibold text-[#5e6a62] print:bg-white">
+                  <p className="qr-export-url mt-2 max-w-full break-all rounded-xl bg-[#f7f2e7] px-3 py-2 text-xs font-semibold text-[#5e6a62]">
                     {guestQrUrl}
                   </p>
                 </article>
