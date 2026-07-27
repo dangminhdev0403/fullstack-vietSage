@@ -368,6 +368,26 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
   const router = useRouter();
   const qrCodeRef = useRef<SVGSVGElement | null>(null);
   const [rooms, setRooms] = useState(initialRooms);
+
+  function printActiveStayList() {
+    const printedAt = new Date();
+    const midnight = new Date(printedAt);
+    midnight.setHours(0, 0, 0, 0);
+    const activeRooms = rooms.filter((room) => {
+      const stay = room.activeStay;
+      if (!stay || stay.checkedOutAt) return false;
+      const checkedInAt = new Date(stay.checkedInAt ?? stay.plannedCheckInAt ?? stay.createdAt ?? 0);
+      return checkedInAt >= midnight && checkedInAt <= printedAt;
+    });
+    const popup = window.open("", "vietsage-owner-stay-list");
+    if (!popup) return;
+    const rows = activeRooms.map((room) => {
+      const stay = room.activeStay;
+      return `<tr><td>${getRoomNumber(room)}</td><td>${stay?.guestDisplayName ?? "-"}</td><td>${stay?.guestPhone ?? "-"}</td><td>${new Intl.DateTimeFormat("vi-VN", { dateStyle: "short", timeStyle: "short" }).format(new Date(stay?.checkedInAt ?? stay?.plannedCheckInAt ?? 0))}</td></tr>`;
+    }).join("");
+    popup.document.write(`<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>Danh sách lưu trú</title><style>body{font-family:Arial,sans-serif;padding:32px;color:#17201b}table{border-collapse:collapse;width:100%;margin-top:24px}th,td{border:1px solid #cbd5ce;padding:9px;text-align:left}th{background:#eef3ee}</style></head><body><h1>Danh sách khách đang lưu trú</h1><p>Khách sạn ${hotelId} · In lúc ${printedAt.toLocaleString("vi-VN")}</p><table><thead><tr><th>Phòng</th><th>Họ tên</th><th>Số điện thoại</th><th>Nhận phòng</th></tr></thead><tbody>${rows || '<tr><td colspan="4">Không có khách lưu trú từ 0h hôm nay đến thời điểm in.</td></tr>'}</tbody></table><script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}</script></body></html>`);
+    popup.document.close();
+  }
   const [query, setQuery] = useState("");
   const [qrStatusFilter, setQrStatusFilter] = useState("");
   const [roomStatusFilter, setRoomStatusFilter] = useState("");
@@ -1155,6 +1175,11 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
             Quản lý thông tin phòng, trạng thái sử dụng, mã QR và xem nhanh khách đang lưu trú trong một màn hình.
           </p>
         </div>
+        <div className="flex flex-wrap gap-3">
+        <button type="button" onClick={printActiveStayList} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-[var(--primary)] px-5 text-sm font-bold text-[var(--primary)] transition hover:bg-[var(--primary-fixed)]">
+          <VsIcon name="print" className="text-lg" />
+          In danh sách lưu trú
+        </button>
         <button
           type="button"
           onClick={openCreateRoom}
@@ -1163,6 +1188,7 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
           <VsIcon name="add_circle" className="text-lg" />
           Thêm phòng mới
         </button>
+        </div>
       </div>
 
       <section className="space-y-5">
