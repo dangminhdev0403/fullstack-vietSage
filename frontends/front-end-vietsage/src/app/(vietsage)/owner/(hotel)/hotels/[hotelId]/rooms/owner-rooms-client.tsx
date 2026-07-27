@@ -210,10 +210,6 @@ function canActivateQr(room: HotelRoomSummary): boolean {
   return qrStatus !== "ACTIVE" && qrStatus !== "REVOKED";
 }
 
-function canDeactivateQr(room: HotelRoomSummary): boolean {
-  return Boolean(room.qr) && isQrActive(room);
-}
-
 function getRoomPrice(room: HotelRoomSummary): number | null {
   if (typeof room.price === "number")
     return Number.isFinite(room.price) ? room.price : null;
@@ -1012,16 +1008,16 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
       cell: (room) => {
         const isOccupied = room.status?.trim().toUpperCase() === "OCCUPIED";
         const isBlocked = room.status?.trim().toUpperCase() === "BLOCKED";
+        const qrIsActive = isQrActive(room);
         const showActivate = canActivateQr(room);
-        const showDeactivate = canDeactivateQr(room);
 
         return (
           <div className="flex justify-end items-center gap-1">
-            {/* Slot 1: Lock / Unlock Room */}
             {!isOccupied ? (
               <button
                 type="button"
                 title={isBlocked ? "Mở khóa phòng" : "Khóa phòng"}
+                aria-label={isBlocked ? "Mở khóa phòng" : "Khóa phòng"}
                 onClick={() => void toggleRoomBlocked(room)}
                 className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition ${
                   isBlocked
@@ -1030,65 +1026,96 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
                 }`}
               >
                 <VsIcon
-                  name={isBlocked ? "lock_open" : "lock"}
+                  name={isBlocked ? "task_alt" : "block"}
                   className="text-lg"
                 />
               </button>
-            ) : (
-              <div className="h-9 w-9 shrink-0" />
-            )}
+            ) : null}
 
-            {/* Slot 2: Edit Room */}
             <button
               type="button"
               title="Chỉnh sửa phòng"
+              aria-label="Chỉnh sửa phòng"
               onClick={() => openEditRoom(room)}
               className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--primary)] transition hover:bg-[var(--primary-fixed)]"
             >
               <VsIcon name="edit" className="text-lg" />
             </button>
 
-            {/* Slot 3: Show QR */}
-            <button
-              type="button"
-              title="Xem mã QR"
-              onClick={() => setSelectedQrRoom(room)}
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--primary)] transition hover:bg-[var(--primary-fixed)]"
-            >
-              <VsIcon name="qr_code" className="text-lg" />
-            </button>
-
-            {/* Slot 4: Rotate QR */}
-            <button
-              type="button"
-              title="Đổi / Xoay mã QR"
-              onClick={() => void updateRoomFromQrAction(room, "rotate")}
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-700 transition hover:bg-slate-100"
-            >
-              <VsIcon name="sync" className="text-lg" />
-            </button>
-
-            {/* Slot 5: QR Status Action (Deactivate or Activate) */}
-            {showDeactivate ? (
-              <button
-                type="button"
-                title="Tạm tắt QR"
-                onClick={() => void updateRoomFromQrAction(room, "deactivate")}
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-amber-700 transition hover:bg-amber-50"
-              >
-                <VsIcon name="power_settings_new" className="text-lg" />
-              </button>
+            {qrIsActive ? (
+              <>
+                <button
+                  type="button"
+                  title="Xem mã QR đang hoạt động"
+                  aria-label="Xem mã QR đang hoạt động"
+                  onClick={() => setSelectedQrRoom(room)}
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--primary)] transition hover:bg-[var(--primary-fixed)]"
+                >
+                  <VsIcon name="qr_code" className="text-lg" />
+                </button>
+                <button
+                  type="button"
+                  title="Đổi / xoay mã QR"
+                  aria-label="Đổi hoặc xoay mã QR"
+                  onClick={() => void updateRoomFromQrAction(room, "rotate")}
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-blue-700 transition hover:bg-blue-50"
+                >
+                  <VsIcon name="history" className="text-lg" />
+                </button>
+                <button
+                  type="button"
+                  title="Tạm tắt QR"
+                  aria-label="Tạm tắt QR"
+                  onClick={() =>
+                    void updateRoomFromQrAction(room, "deactivate")
+                  }
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-amber-700 transition hover:bg-amber-50"
+                >
+                  <VsIcon name="visibility_off" className="text-lg" />
+                </button>
+              </>
             ) : showActivate ? (
-              <button
-                type="button"
-                title="Kích hoạt QR"
-                onClick={() => void updateRoomFromQrAction(room, "activate")}
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-emerald-700 transition hover:bg-emerald-50"
-              >
-                <VsIcon name="check_circle" className="text-lg" />
-              </button>
+              <>
+                <span
+                  aria-hidden="true"
+                  data-action-placeholder="qr-view"
+                  className="h-9 w-9 shrink-0"
+                />
+                <span
+                  aria-hidden="true"
+                  data-action-placeholder="qr-rotate"
+                  className="h-9 w-9 shrink-0"
+                />
+                <button
+                  type="button"
+                  title="Kích hoạt QR"
+                  aria-label="Kích hoạt QR"
+                  onClick={() =>
+                    void updateRoomFromQrAction(room, "activate")
+                  }
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-emerald-700 transition hover:bg-emerald-50"
+                >
+                  <VsIcon name="verified" className="text-lg" />
+                </button>
+              </>
             ) : (
-              <div className="h-9 w-9 shrink-0" />
+              <>
+                <span
+                  aria-hidden="true"
+                  data-action-placeholder="qr-view"
+                  className="h-9 w-9 shrink-0"
+                />
+                <span
+                  aria-hidden="true"
+                  data-action-placeholder="qr-rotate"
+                  className="h-9 w-9 shrink-0"
+                />
+                <span
+                  aria-hidden="true"
+                  data-action-placeholder="qr-status"
+                  className="h-9 w-9 shrink-0"
+                />
+              </>
             )}
           </div>
         );
@@ -1209,7 +1236,7 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
                 disabled={isBulkQrBusy}
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[#ba1a1a] px-5 text-sm font-black text-white shadow-[0_14px_32px_rgba(186,26,26,0.2)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <VsIcon name="sync" className="text-[20px]" />
+                <VsIcon name="history" className="text-[20px]" />
                 Đổi toàn bộ QR
               </button>
             </div>

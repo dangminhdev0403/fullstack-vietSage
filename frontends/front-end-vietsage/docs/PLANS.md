@@ -2472,3 +2472,23 @@ Remaining manual checkpoint:
 
 - Physical-device visual QA remains recommended for password-manager overlays and scanning the
   frontdesk QR preview from a phone against the deployed public origin.
+
+## [complete] 2026-07-27 - Mission: tenant-room-action-icons
+
+### What Changed
+
+- Replaced unsupported tenant room action icon names that rendered as identical exclamation
+  fallbacks with distinct SVG icons already implemented by `VsIcon`.
+- Inactive QR rows now expose only activation; active QR rows expose view, rotate, and deactivate.
+- Added non-interactive placeholders so conditional action slots stay aligned across room rows.
+
+### Verification Result
+
+- Added a focused regression test that verifies every room action icon exists in `VsIcon` and
+  rejects the unsupported fallback names.
+- Ran the focused test, TypeScript, targeted ESLint, and the Next.js 16.2.6 production build
+  successfully; all 38 pages were generated.
+
+### Remaining Blockers / Risks
+
+- Browser visual QA remains recommended at the tenant room table's narrowest supported width.
