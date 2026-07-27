@@ -1,5 +1,6 @@
 ﻿import type { Metadata } from "next";
 import { Fraunces, Manrope } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import { AppToaster } from "./_components/app-toaster";
 import { ReactQueryProvider } from "./_components/react-query-provider";
@@ -47,6 +48,21 @@ export default function RootLayout({
       className={`${manrope.variable} ${fraunces.variable} h-full antialiased`}
       suppressHydrationWarning
     >
+      <head>
+        <Script
+          async
+          src="https://www.googletagmanager.com/gtag/js?id=G-S5153HRYYD"
+          strategy="afterInteractive"
+        />
+        <Script id="vietsage-google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-S5153HRYYD');
+          `}
+        </Script>
+      </head>
       <body className="min-h-full">
         <ReactQueryProvider>{children}</ReactQueryProvider>
         <AppToaster />
