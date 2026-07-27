@@ -401,7 +401,16 @@ describe("HotelsService", () => {
 
   it("validates and stores a hotel-scoped Google spreadsheet id", async () => {
     const repository = createRepository();
-    const service = createService(repository);
+    const accessService = createAccessService(repository, {
+      loadActorContext: jest.fn().mockResolvedValue({
+        userId: "admin-1",
+        roleCodes: new Set(["SUPER_ADMIN"]),
+        tenantIds: new Set<string>(),
+        isSuperAdmin: true,
+        isTenantOwner: false,
+      }),
+    });
+    const service = createService(repository, createCodesService(), accessService);
     const spreadsheetId = "1Mnq_gk87qlCwXYOMTko4HeMdilOBd5KX_o8etN0SBLk";
 
     await service.updateHotel("actor-1", "active-role", "hotel-1", {
@@ -413,6 +422,20 @@ describe("HotelsService", () => {
       "hotel-1",
       expect.objectContaining({ googleSheetId: spreadsheetId }),
     );
+  });
+
+  it("rejects Google Sheets configuration from a tenant actor", async () => {
+    const repository = createRepository();
+    const service = createService(repository);
+
+    await expect(
+      service.updateHotel("actor-1", "active-role", "hotel-1", {
+        googleSheetUrl: "1Mnq_gk87qlCwXYOMTko4HeMdilOBd5KX_o8etN0SBLk",
+      }),
+    ).rejects.toThrow("Chỉ quản trị viên nền tảng được cấu hình Google Sheets cho khách sạn");
+
+    expect(service.googleSheetsSyncService.validateSpreadsheet).not.toHaveBeenCalled();
+    expect(repository.updateHotel).not.toHaveBeenCalled();
   });
 
   it("không lọc danh sách khách sạn của super admin theo tenant khi không truyền tenantId", async () => {

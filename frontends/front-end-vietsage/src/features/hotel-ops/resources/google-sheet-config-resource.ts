@@ -5,32 +5,38 @@ import {
 
 import {
   googleSheetConfigRepository,
-  type GoogleSheetConfigScope,
 } from "@/features/hotel-ops/repositories/google-sheet-config-repository";
 
-export const googleSheetConfigResource =
-  createResource<GoogleSheetConfigScope>()({
+type HotelScope = { hotelId: string };
+
+export const adminGoogleSheetConfigResource =
+  createResource<HotelScope>()({
     namespace: ["vietsage"],
     name: "hotel-google-sheet-config",
-    scopeKey: ({ hotelId, surface }) => [surface, "hotel", hotelId],
+    scopeKey: ({ hotelId }) => ["admin", "hotel", hotelId],
     mutations: {
       update: defineMutation({
         mutationFn: ({
           scope,
           variables,
         }: {
-          scope: GoogleSheetConfigScope;
+          scope: HotelScope;
           variables: Parameters<typeof googleSheetConfigRepository.update>[1];
         }) =>
-          googleSheetConfigRepository.update(scope, variables),
+          googleSheetConfigRepository.update(scope.hotelId, variables),
       }),
+    },
+  });
+
+export const ownerGoogleSheetSyncResource =
+  createResource<HotelScope>()({
+    namespace: ["vietsage"],
+    name: "hotel-google-sheet-sync",
+    scopeKey: ({ hotelId }) => ["owner", "hotel", hotelId],
+    mutations: {
       sync: defineMutation({
-        mutationFn: ({
-          scope,
-        }: {
-          scope: GoogleSheetConfigScope;
-          variables: void;
-        }) => googleSheetConfigRepository.sync(scope),
+        mutationFn: ({ scope }: { scope: HotelScope; variables: void }) =>
+          googleSheetConfigRepository.sync(scope.hotelId),
       }),
     },
   });

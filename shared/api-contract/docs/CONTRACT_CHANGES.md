@@ -3,8 +3,8 @@
 ## Unreleased
 
 - Hotel Google Sheets configuration is now hotel-scoped:
-  - `PATCH /hotels/{hotelId}` accepts `googleSheetUrl` as a full Google Sheets URL, raw
-    spreadsheet ID, or `null` to disconnect.
+  - `PATCH /hotels/{hotelId}` accepts `googleSheetUrl` from `SUPER_ADMIN` only, as a full Google
+    Sheets URL, raw spreadsheet ID, or `null` to disconnect. Tenant actors receive `403`.
   - Hotel responses expose the normalized nullable `googleSheetId`.
   - Saving validates URL format, duplicate assignment, service-account access, and configured
     category/item ranges before persistence.

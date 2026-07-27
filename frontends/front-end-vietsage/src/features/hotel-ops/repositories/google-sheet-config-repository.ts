@@ -1,30 +1,24 @@
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import type { Hotel, UpdateHotelInput } from "@/features/admin/types/admin-contract";
 
-export type GoogleSheetConfigScope = {
-  hotelId: string;
-  surface: "admin" | "owner";
-};
-
-function hotelEndpoint(scope: GoogleSheetConfigScope): string {
-  return `/api/${scope.surface}/hotels/${encodeURIComponent(scope.hotelId)}`;
-}
-
 export const googleSheetConfigRepository = {
   async update(
-    scope: GoogleSheetConfigScope,
+    hotelId: string,
     input: UpdateHotelInput,
   ): Promise<Hotel> {
-    const payload = await requestInternalApiEnvelope<Hotel>(hotelEndpoint(scope), {
+    const payload = await requestInternalApiEnvelope<Hotel>(
+      `/api/admin/hotels/${encodeURIComponent(hotelId)}`,
+      {
       method: "PATCH",
       body: input,
-    });
+      },
+    );
     return payload.data;
   },
 
-  async sync(scope: GoogleSheetConfigScope): Promise<void> {
+  async sync(hotelId: string): Promise<void> {
     await requestInternalApiEnvelope(
-      `/api/owner/hotels/${encodeURIComponent(scope.hotelId)}/service-catalog/sync`,
+      `/api/owner/hotels/${encodeURIComponent(hotelId)}/service-catalog/sync`,
       { method: "POST" },
     );
   },

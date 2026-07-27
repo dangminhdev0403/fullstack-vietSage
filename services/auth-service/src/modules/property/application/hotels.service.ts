@@ -114,6 +114,12 @@ export class HotelsService {
     const actor = await this.hotelAccessService.loadActorContext(actorUserId, activeRoleId);
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
 
+    if (dto.googleSheetUrl !== undefined && !actor.isSuperAdmin) {
+      throw new ForbiddenException(
+        "Chỉ quản trị viên nền tảng được cấu hình Google Sheets cho khách sạn",
+      );
+    }
+
     if (dto.googleSheetUrl) {
       const existingHotel = await this.hotelCoreRepository.findHotelByGoogleSheetId(
         dto.googleSheetUrl,

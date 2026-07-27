@@ -32,8 +32,10 @@ The current backend runtime is the NestJS core API under `services/auth-service`
 - Role assignment and hotel assignment are separate contracts. Clients must not infer hotel access
   from a role or infer a role from a hotel assignment.
 - Google Sheets service-catalog configuration belongs to a hotel, not the process environment.
-  `PATCH /hotels/{hotelId}` normalizes `googleSheetUrl` into `googleSheetId`; synchronization
-  refuses hotels without a configured sheet and never falls back to a shared workbook.
+  Only `SUPER_ADMIN` may set or clear `googleSheetUrl` through `PATCH /hotels/{hotelId}`; tenant
+  users may trigger synchronization but cannot change the configured source. The backend
+  normalizes the URL into `googleSheetId`, refuses hotels without a configured sheet, and never
+  falls back to a shared workbook.
 
 ## Verification
 

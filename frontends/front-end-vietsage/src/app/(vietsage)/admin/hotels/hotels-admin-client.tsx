@@ -8,7 +8,7 @@ import { z } from "zod";
 import { HttpError } from "@/core/http/http-error";
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import type { Hotel, TenantOwner, TenantSummary } from "@/features/admin/types/admin-contract";
-import { useGoogleSheetConfig } from "@/features/hotel-ops/queries/use-google-sheet-config";
+import { useAdminGoogleSheetConfig } from "@/features/hotel-ops/queries/use-google-sheet-config";
 
 import { VsIcon } from "../../_components/vs-icon";
 
@@ -202,10 +202,9 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }:
   const [form, setForm] = useState(emptyHotelForm);
   const [isSaving, setIsSaving] = useState(false);
   const [loadingHotelId, setLoadingHotelId] = useState<string | null>(null);
-  const googleSheetConfig = useGoogleSheetConfig({
-    hotelId: editingHotel?.id ?? "not-selected",
-    surface: "admin",
-  });
+  const updateGoogleSheetConfig = useAdminGoogleSheetConfig(
+    editingHotel?.id ?? "not-selected",
+  );
 
   const tenantOptions = useMemo(() => buildTenantOptions(initialTenantOwners), [initialTenantOwners]);
   const hasTenantOptions = tenantOptions.length > 0;
@@ -349,7 +348,7 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }:
                 brandSettings: brandSettings ?? {},
               },
             })
-          : await googleSheetConfig.update.mutateAsync({
+          : await updateGoogleSheetConfig.mutateAsync({
                 name: form.name.trim(),
                 timezone: form.timezone.trim() || "Asia/Saigon",
                 brandSettings,

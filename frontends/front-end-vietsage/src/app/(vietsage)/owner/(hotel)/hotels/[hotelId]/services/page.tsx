@@ -32,7 +32,7 @@ export default async function OwnerHotelServicesPage({ params }: PageProps) {
 
       <OwnerServiceCatalogClient
         hotelId={hotelId}
-        initialGoogleSheetId={hotel.googleSheetId ?? null}
+        hasGoogleSheetConfig={Boolean(hotel.googleSheetId)}
         initialCategories={categoriesPage.items}
         initialItems={itemsPage.items}
       />

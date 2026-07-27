@@ -8,6 +8,8 @@
   clear provider error messages without leaking provider responses.
 - [x] Kept category/item A1 ranges as deployment configuration and kept preview-before-commit
   import semantics.
+- [x] Restricted sheet configuration to `SUPER_ADMIN`; tenant actors can run synchronization but
+  cannot set, replace, or disconnect a hotel's sheet.
 
 Verification result:
 

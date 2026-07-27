@@ -2517,9 +2517,10 @@ Remaining manual checkpoint:
 
 ### What Changed
 
-- Added a hotel-owned Google Sheets connection field to the Owner service-catalog page.
-- Added the same setting to the Admin hotel edit flow so platform administrators can configure a
-  tenant's hotel.
+- Kept the Google Sheets connection field only in the Admin hotel edit flow so platform
+  administrators configure each tenant hotel.
+- Tenant Owner sees only synchronization status and the `Đồng bộ Google Sheets` action; the
+  source URL and configuration controls are not rendered.
 - Added repository/resource/query layers using `@dangminhdev04032005/query-resource`; UI
   components do not own mutation keys or transport details.
 - Empty input disconnects the sheet; successful saves display the normalized canonical URL.

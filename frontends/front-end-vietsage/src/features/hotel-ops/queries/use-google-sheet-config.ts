@@ -2,13 +2,17 @@
 
 import { useMutation } from "@tanstack/react-query";
 
-import type { GoogleSheetConfigScope } from "@/features/hotel-ops/repositories/google-sheet-config-repository";
-import { googleSheetConfigResource } from "@/features/hotel-ops/resources/google-sheet-config-resource";
+import {
+  adminGoogleSheetConfigResource,
+  ownerGoogleSheetSyncResource,
+} from "@/features/hotel-ops/resources/google-sheet-config-resource";
 
-export function useGoogleSheetConfig(scope: GoogleSheetConfigScope) {
-  const resource = googleSheetConfigResource.bind(scope);
-  return {
-    update: useMutation(resource.mutations.update.options()),
-    sync: useMutation(resource.mutations.sync.options()),
-  };
+export function useAdminGoogleSheetConfig(hotelId: string) {
+  const resource = adminGoogleSheetConfigResource.bind({ hotelId });
+  return useMutation(resource.mutations.update.options());
+}
+
+export function useOwnerGoogleSheetSync(hotelId: string) {
+  const resource = ownerGoogleSheetSyncResource.bind({ hotelId });
+  return useMutation(resource.mutations.sync.options());
 }
