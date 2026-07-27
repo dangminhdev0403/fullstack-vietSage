@@ -1,4 +1,3 @@
-<<<<<<< ours
 import {
   CardGrid,
   CTA,
@@ -7,7 +6,6 @@ import {
   SectionHeader,
   stats,
 } from "@/components/marketing/marketing-shell";
-import { LaunchHold } from "@/app/_components/launch-hold";
 import type { Metadata } from "next";
 
 export const marketingMetadata: Metadata = {
@@ -214,27 +212,4 @@ export function MarketingHome() {
       <CTA />
     </MarketingShell>
   );
-=======
-import { LaunchHold } from "@/app/_components/launch-hold";
-import type { Metadata } from "next";
-
-export const metadata: Metadata = {
-  title: "VietSage | VietSage is taking shape",
-  description: "VietSage is preparing its next public experience.",
-  robots: {
-    index: false,
-    follow: false,
-  },
-};
-
-export default function Home() {
-  return <LaunchHold />;
->>>>>>> theirs
 }
-
-export const metadata: Metadata = {
-  title: "VietSage | VietSage is taking shape",
-  robots: { index: false, follow: false },
-};
-
-export default function Home() { return <LaunchHold />; }

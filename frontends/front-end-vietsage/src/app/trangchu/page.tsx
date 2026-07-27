@@ -1,10 +1,12 @@
-import { LaunchHold } from "@/app/_components/launch-hold";
+<<<<<<< ours
+import { MarketingHome, marketingMetadata } from "@/app/page";
 
-export const metadata = {
-  title: "VietSage | VietSage is taking shape",
-  robots: { index: false, follow: false },
-};
+export const metadata = marketingMetadata;
 
-export default function TrangChuPage() {
-  return <LaunchHold />;
-}
+export default function TrangChuPage() { return <MarketingHome />; }
+=======
+export {
+  MarketingHome as default,
+  marketingMetadata as metadata,
+} from "@/app/_components/marketing-home";
+>>>>>>> theirs
