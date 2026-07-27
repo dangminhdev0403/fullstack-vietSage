@@ -177,7 +177,7 @@ export function OwnerRoomsQrExportClient({ hotelId }: Props) {
                   <h2 className="text-2xl font-black text-[#173d34]">
                     Phòng {roomNumber}
                   </h2>
-                  <div className="mt-1 flex aspect-square w-full max-w-[310px] items-center justify-center">
+                  <div className="-mt-1 flex aspect-square w-full max-w-[310px] items-center justify-center">
                     <BrandedRoomQr
                       value={guestQrUrl}
                       size={310}

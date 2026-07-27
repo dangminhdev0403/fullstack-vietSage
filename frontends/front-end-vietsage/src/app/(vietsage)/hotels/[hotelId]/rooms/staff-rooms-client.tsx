@@ -1465,7 +1465,7 @@ export function StaffRoomsClient({
                 {roomQrPreview.guestUrl ? (
                   <>
                     <p className="mt-3 text-center text-sm font-black uppercase tracking-[0.16em] text-[var(--primary)]">Phòng {getRoomNumber(roomQrPreview.room)}</p>
-                    <div className="mx-auto mt-2 flex aspect-square w-full max-w-72 items-center justify-center rounded-2xl border border-[var(--outline-variant)] bg-white p-4">
+                    <div className="mx-auto mt-0 flex aspect-square w-full max-w-72 items-center justify-center rounded-2xl border border-[var(--outline-variant)] bg-white p-4">
                       <BrandedRoomQr
                         value={roomQrPreview.guestUrl}
                         size={256}

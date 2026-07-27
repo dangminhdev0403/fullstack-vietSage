@@ -3,21 +3,20 @@
 import { forwardRef } from "react";
 import { QRCodeSVG } from "qrcode.react";
 
-export const BRANDED_QR_WATERMARK_SRC =
-  "/brand/vietsage-qr-watermark.png";
-export const BRANDED_QR_WATERMARK_OPACITY = 0.12;
+export const BRANDED_QR_MARK_SRC = "/brand/vietsage-mark-white.png";
+export const BRANDED_QR_MARK_OPACITY = 1;
 
-const WATERMARK_ASPECT_RATIO = 640 / 540;
-const WATERMARK_WIDTH_RATIO = 0.82;
+const MARK_ASPECT_RATIO = 977 / 1021;
+const MARK_WIDTH_RATIO = 0.2;
 
-export function getBrandedQrWatermarkSize(size: number): {
+export function getBrandedQrMarkSize(size: number): {
   height: number;
   width: number;
 } {
-  const width = Math.round(size * WATERMARK_WIDTH_RATIO);
+  const width = Math.round(size * MARK_WIDTH_RATIO);
   return {
     width,
-    height: Math.round(width / WATERMARK_ASPECT_RATIO),
+    height: Math.round(width / MARK_ASPECT_RATIO),
   };
 }
 
@@ -32,7 +31,7 @@ export const BrandedRoomQr = forwardRef<
   SVGSVGElement,
   Readonly<BrandedRoomQrProps>
 >(function BrandedRoomQr({ className, size, title, value }, ref) {
-  const watermarkSize = getBrandedQrWatermarkSize(size);
+  const markSize = getBrandedQrMarkSize(size);
 
   return (
     <QRCodeSVG
@@ -47,11 +46,11 @@ export const BrandedRoomQr = forwardRef<
       className={className}
       title={title}
       imageSettings={{
-        src: BRANDED_QR_WATERMARK_SRC,
-        width: watermarkSize.width,
-        height: watermarkSize.height,
-        excavate: false,
-        opacity: BRANDED_QR_WATERMARK_OPACITY,
+        src: BRANDED_QR_MARK_SRC,
+        width: markSize.width,
+        height: markSize.height,
+        excavate: true,
+        opacity: BRANDED_QR_MARK_OPACITY,
       }}
     />
   );

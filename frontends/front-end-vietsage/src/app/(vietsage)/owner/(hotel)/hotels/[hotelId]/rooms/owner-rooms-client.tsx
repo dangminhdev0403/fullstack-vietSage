@@ -25,10 +25,10 @@ import type {
   HotelRoomSummary,
 } from "@/features/hotel-ops/types/hotel-ops-contract";
 import {
-  BRANDED_QR_WATERMARK_OPACITY,
-  BRANDED_QR_WATERMARK_SRC,
+  BRANDED_QR_MARK_OPACITY,
+  BRANDED_QR_MARK_SRC,
   BrandedRoomQr,
-  getBrandedQrWatermarkSize,
+  getBrandedQrMarkSize,
 } from "@/features/hotel-ops/components/branded-room-qr";
 import {
   getGuestQrUrl,
@@ -765,21 +765,21 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
       );
 
       const qrX = 145;
-      const qrY = 105;
+      const qrY = 88;
       const qrSize = 360;
       context.drawImage(qrImage, qrX, qrY, qrSize, qrSize);
 
       const brandImage = new window.Image();
       brandImage.onload = () => {
-        const watermarkSize = getBrandedQrWatermarkSize(qrSize);
+        const markSize = getBrandedQrMarkSize(qrSize);
         context.save();
-        context.globalAlpha = BRANDED_QR_WATERMARK_OPACITY;
+        context.globalAlpha = BRANDED_QR_MARK_OPACITY;
         context.drawImage(
           brandImage,
-          qrX + (qrSize - watermarkSize.width) / 2,
-          qrY + (qrSize - watermarkSize.height) / 2,
-          watermarkSize.width,
-          watermarkSize.height,
+          qrX + (qrSize - markSize.width) / 2,
+          qrY + (qrSize - markSize.height) / 2,
+          markSize.width,
+          markSize.height,
         );
         context.restore();
 
@@ -798,7 +798,7 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
           confirmButtonColor: "#00003c",
         });
       };
-      brandImage.src = BRANDED_QR_WATERMARK_SRC;
+      brandImage.src = BRANDED_QR_MARK_SRC;
     };
 
     qrImage.onerror = () => {
@@ -1521,7 +1521,7 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
               </h2>
               {getGuestQrUrl(selectedQrRoom, clientOrigin) ? (
                 <>
-                  <div className="mt-3 flex aspect-square w-full max-w-[360px] items-center justify-center">
+                  <div className="-mt-1 flex aspect-square w-full max-w-[360px] items-center justify-center">
                     <BrandedRoomQr
                       ref={qrCodeRef}
                       value={getGuestQrUrl(selectedQrRoom, clientOrigin) ?? ""}
