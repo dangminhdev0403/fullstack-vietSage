@@ -283,7 +283,7 @@ export function StaffRoomsClient({
   const flashTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [page, setPage] = useState(1);
-  const [pageSize] = useState(20);
+  const [pageSize] = useState(100);
   const [inputQuery, setInputQuery] = useState("");
   const [query, setQuery] = useState("");
   const [floor, setFloor] = useState("all");
@@ -352,6 +352,24 @@ export function StaffRoomsClient({
   const totalItems = roomsPage?.totalItems ?? 0;
   const totalAvailable =
     roomsPage?.totalAvailable ?? initialRoomsPage.totalAvailable ?? 0;
+
+  function printActiveStayList() {
+    const printedAt = new Date();
+    const midnight = new Date(printedAt);
+    midnight.setHours(0, 0, 0, 0);
+    const activeStays = rooms
+      .map((room) => ({ room, stay: room.activeStay }))
+      .filter(({ stay }) => {
+        if (!stay || stay.checkedOutAt) return false;
+        const checkedInAt = new Date(stay.checkedInAt ?? stay.plannedCheckInAt ?? stay.createdAt ?? 0);
+        return checkedInAt >= midnight && checkedInAt <= printedAt;
+      });
+    const popup = window.open("", "vietsage-stay-list");
+    if (!popup) return;
+    const rows = activeStays.map(({ room, stay }) => `<tr><td>${getRoomNumber(room)}</td><td>${stay?.guestDisplayName ?? "-"}</td><td>${stay?.guestPhone ?? "-"}</td><td>${formatDateTime(stay?.checkedInAt ?? stay?.plannedCheckInAt)}</td></tr>`).join("");
+    popup.document.write(`<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>Danh sách lưu trú</title><style>body{font-family:Arial,sans-serif;padding:32px;color:#17201b}h1{margin:0 0 8px}p{color:#5d6a61}table{border-collapse:collapse;width:100%;margin-top:24px}th,td{border:1px solid #cbd5ce;padding:9px;text-align:left}th{background:#eef3ee}</style></head><body><h1>Danh sách khách đang lưu trú</h1><p>Khách sạn ${hotelId} · In lúc ${formatDateTime(printedAt.toISOString())}</p><table><thead><tr><th>Phòng</th><th>Họ tên</th><th>Số điện thoại</th><th>Nhận phòng</th></tr></thead><tbody>${rows || '<tr><td colspan="4">Không có khách lưu trú từ 0h hôm nay đến thời điểm in.</td></tr>'}</tbody></table><script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}</script></body></html>`);
+    popup.document.close();
+  }
 
   const availableRooms = useMemo(() => rooms.filter(isAvailable), [rooms]);
 
@@ -812,6 +830,10 @@ export function StaffRoomsClient({
                 ))}
               </select>
             </div>
+            <button type="button" onClick={printActiveStayList} className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-[var(--primary)] px-4 text-sm font-bold text-white hover:opacity-90">
+              <VsIcon name="print" className="text-base" />
+              In danh sách lưu trú
+            </button>
           </div>
           <div className="flex items-center justify-between gap-4">
             <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-[var(--on-surface-variant)]">
@@ -1442,7 +1464,8 @@ export function StaffRoomsClient({
 
                 {roomQrPreview.guestUrl ? (
                   <>
-                    <div className="mx-auto mt-6 flex aspect-square w-full max-w-72 items-center justify-center rounded-2xl border border-[var(--outline-variant)] bg-white p-4">
+                    <p className="mt-3 text-center text-sm font-black uppercase tracking-[0.16em] text-[var(--primary)]">Phòng {getRoomNumber(roomQrPreview.room)}</p>
+                    <div className="mx-auto mt-2 flex aspect-square w-full max-w-72 items-center justify-center rounded-2xl border border-[var(--outline-variant)] bg-white p-4">
                       <QRCodeSVG
                         value={roomQrPreview.guestUrl}
                         size={256}

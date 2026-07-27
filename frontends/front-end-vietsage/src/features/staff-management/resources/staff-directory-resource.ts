@@ -12,6 +12,7 @@ import {
   type StaffDirectoryListInput,
   type StaffManagementScope,
   type UpdateStaffAssignmentInput,
+  type UpdateStaffUserInput,
 } from "@/features/staff-management/repositories/staff-directory-repository";
 import type {
   CreateAssignedHotelStaffUserInput,
@@ -72,6 +73,7 @@ async function updateStaffAssignment({
 >): Promise<unknown> {
   return staffDirectoryRepository.updateAssignment(scope, variables);
 }
+async function updateStaffUser({ scope, variables }: ResourceMutationContext<StaffManagementScope, UpdateStaffUserInput>): Promise<unknown> { return staffDirectoryRepository.updateUser(scope, variables); }
 
 async function resetFrontdeskPassword({
   scope,
@@ -121,6 +123,7 @@ export const staffDirectoryResource =
         mutationFn: updateStaffAssignment,
         invalidates: INVALIDATE_DIRECTORY,
       }),
+      updateUser: defineMutation({ mutationFn: updateStaffUser, invalidates: INVALIDATE_DIRECTORY }),
       resetFrontdeskPassword: defineMutation({
         mutationFn: resetFrontdeskPassword,
       }),

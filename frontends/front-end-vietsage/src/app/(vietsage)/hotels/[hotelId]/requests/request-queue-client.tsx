@@ -1538,10 +1538,18 @@ export function RequestQueueClient({
                   {!notification.acknowledgedAt ? (
                     <button
                       type="button"
-                      onClick={() => acknowledgeUrgentRequest(notification.id)}
+                      onClick={() => {
+                        acknowledgeUrgentRequest(notification.id);
+                        statusMutation.mutate({
+                          requestId: notification.id,
+                          status: "ACKNOWLEDGED",
+                          note: "Chúng tôi đã tiếp nhận yêu cầu và đang xử lý.",
+                        });
+                      }}
+                      disabled={statusMutation.isPending}
                       className="rounded-lg bg-white px-3 py-2 text-xs font-black uppercase tracking-wide text-red-800 ring-1 ring-red-200"
                     >
-                      Xác nhận đã thấy
+                      Đã thấy · đang xử lý
                     </button>
                   ) : null}
                   <button

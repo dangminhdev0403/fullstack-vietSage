@@ -16,6 +16,7 @@ import type {
   CreateHotelUserBodyInput,
   ListHotelUsersQueryInput,
   UpdateHotelUserStatusBodyInput,
+  UpdateHotelUserBodyInput,
 } from "../domain/schemas/hotel-users.schema";
 import { AuthService } from "./authentication.service";
 import { generateTemporaryPassword } from "../../../common/security/password-policy.util";
@@ -168,6 +169,16 @@ export class HotelUsersService {
         : (tenantUser.joinedAt ?? undefined),
     );
 
+    return this.getTenantScopedHotelUserOrThrow(tenantId, userId);
+  }
+
+  async updateHotelUser(actorUserId: string, activeRoleId: string, tenantHint: string | undefined, userId: string, dto: UpdateHotelUserBodyInput): Promise<TenantScopedHotelUser> {
+    const actor = await this.loadActorContext(actorUserId, activeRoleId);
+    const tenantId = await this.resolveTenantId(actor, tenantHint);
+    await this.assertTargetUserInTenant(tenantId, userId);
+    const data = { ...(dto.fullName ? { fullName: dto.fullName.trim() } : {}), ...(dto.email ? { email: dto.email.trim().toLowerCase() } : {}) };
+    try { await this.hotelUsersRepository.updateUserProfile(userId, data); }
+    catch (error) { if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") throw new ConflictException("Email already exists"); throw error; }
     return this.getTenantScopedHotelUserOrThrow(tenantId, userId);
   }
 

@@ -84,6 +84,16 @@ export class StaffManagementService {
     return unwrapApiEnvelope<HotelStaffUser>(payload).data;
   }
 
+  async updateUser(userId: string, body: { fullName?: string; email?: string }, tenantId?: string, accessToken?: string) {
+    const payload = await this.request<unknown, typeof body>({ method: "PATCH", path: `/hotel-users/${encodeURIComponent(userId)}`, body, tenantId, accessToken });
+    return unwrapApiEnvelope<HotelStaffUser>(payload).data;
+  }
+
+  async updateStatus(userId: string, status: "ACTIVE" | "DISABLED", tenantId?: string, accessToken?: string) {
+    const payload = await this.request<unknown, { status: "ACTIVE" | "DISABLED" }>({ method: "PATCH", path: `/hotel-users/${encodeURIComponent(userId)}/status`, body: { status }, tenantId, accessToken });
+    return unwrapApiEnvelope<HotelStaffUser>(payload).data;
+  }
+
   async assignRoles(userId: string, roleIds: string[], tenantId?: string, accessToken?: string) {
     const payload = await this.request<unknown, { roleIds: string[] }>({
       method: "POST",

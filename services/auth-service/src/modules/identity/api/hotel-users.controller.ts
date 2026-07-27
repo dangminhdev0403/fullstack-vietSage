@@ -47,6 +47,7 @@ import {
   resetHotelUserPasswordBodySchema,
   roleIdParamSchema,
   updateHotelUserStatusBodySchema as updateHotelUserStatusBodyZodSchema,
+  updateHotelUserBodySchema as updateHotelUserBodyZodSchema,
   userIdParamSchema,
 } from "../domain/schemas/hotel-users.schema";
 
@@ -204,6 +205,15 @@ export class HotelUsersController {
       userId,
       dto,
     );
+  }
+
+  @RequirePermission("hotel.staff.manage")
+  @SuccessMessage("Cập nhật thông tin nhân viên thành công")
+  @Patch(":id")
+  async updateHotelUser(@Req() request: RequestWithUser, @Param("id") userIdParam: string, @Body() body: unknown, @Headers("x-tenant-id") tenantIdHeader?: string) {
+    const userId = parseWithZod(userIdParamSchema, userIdParam);
+    const dto = parseWithZod(updateHotelUserBodyZodSchema, body);
+    return this.hotelUsersService.updateHotelUser(request.user.userId, request.user.roleId, this.resolveTenantHint(tenantIdHeader, undefined), userId, dto);
   }
 
   @RequirePermission("hotel.staff.manage")

@@ -2493,3 +2493,23 @@ Remaining manual checkpoint:
 ### Remaining Blockers / Risks
 
 - Browser visual QA remains recommended at the tenant room table's narrowest supported width.
+
+## [complete] 2026-07-27 - Mission: public-launch-and-frontdesk-workflow
+
+### What Changed
+
+- Added the canonical `/trangchu` launch-hold page and made `/preview` redirect there; all tracked
+  Nginx variants now redirect the legacy path consistently.
+- Added the requested launch copy and contact address.
+- Tightened the frontdesk QR preview so the room name sits directly above the QR code.
+- Changed the urgent request “Đã thấy” action from a local-only acknowledgement to an
+  `ACKNOWLEDGED` mutation with a guest-visible processing note; GuestOS now presents that state as
+  “In progress”.
+- Added a timestamped “In danh sách lưu trú” browser print snapshot for active stays checked in
+  from local midnight through the moment the button is pressed.
+
+### Remaining Blockers / Risks
+
+- Production Nginx must be reloaded after applying the patch.
+- The print snapshot currently uses the 100-room frontdesk page payload; a future VNeID export
+  should use a dedicated server-side stay-report endpoint rather than browser HTML.

@@ -32,6 +32,7 @@ export type TemporaryPasswordResult = {
   temporaryPassword: string;
   resetAt: string;
 };
+export type UpdateStaffUserInput = { userId: string; fullName?: string; email?: string; status?: "ACTIVE" | "DISABLED" };
 
 type RepositoryRequestOptions = {
   signal?: AbortSignal;
@@ -98,6 +99,11 @@ export const staffDirectoryRepository = {
       },
     );
 
+    return payload.data;
+  },
+
+  async updateUser(scope: StaffManagementScope, input: UpdateStaffUserInput): Promise<unknown> {
+    const payload = await requestInternalApiEnvelope(`/api/${scope.surface}/staff/${encodeURIComponent(input.userId)}`, { method: "PATCH", body: { fullName: input.fullName, email: input.email, status: input.status }, headers: tenantHeaders(scope) });
     return payload.data;
   },
 

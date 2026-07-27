@@ -49,10 +49,11 @@ export function useStaffManagementMutations(scope: StaffManagementScope) {
   const updateAssignment = useMutation(
     staffDirectory.mutations.updateAssignment.options(),
   );
+  const updateUser = useMutation(staffDirectory.mutations.updateUser.options());
   const resetFrontdeskPassword = useMutation({
     ...staffDirectory.mutations.resetFrontdeskPassword.options(),
     retry: false,
   });
 
-  return { createUser, assignRole, revokeRole, updateAssignment, resetFrontdeskPassword };
+  return { createUser, assignRole, revokeRole, updateAssignment, updateUser, resetFrontdeskPassword };
 }

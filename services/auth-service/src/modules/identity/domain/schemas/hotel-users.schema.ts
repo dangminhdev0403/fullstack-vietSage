@@ -43,6 +43,10 @@ export const updateHotelUserStatusBodySchema = z
     ),
   })
   .strict();
+export const updateHotelUserBodySchema = z.object({
+  fullName: z.string().trim().min(2).max(120).optional(),
+  email: z.string().trim().email().max(320).optional(),
+}).strict().refine((value) => value.fullName !== undefined || value.email !== undefined, "Cần ít nhất một trường để cập nhật");
 
 export const assignHotelUserRolesBodySchema = z
   .object({
@@ -61,5 +65,6 @@ export const resetHotelUserPasswordBodySchema = z.object({}).strict();
 export type CreateHotelUserBodyInput = z.infer<typeof createHotelUserBodySchema>;
 export type ListHotelUsersQueryInput = z.infer<typeof listHotelUsersQuerySchema>;
 export type UpdateHotelUserStatusBodyInput = z.infer<typeof updateHotelUserStatusBodySchema>;
+export type UpdateHotelUserBodyInput = z.infer<typeof updateHotelUserBodySchema>;
 export type AssignHotelUserRolesBodyInput = z.infer<typeof assignHotelUserRolesBodySchema>;
 export type ResetHotelUserPasswordBodyInput = z.infer<typeof resetHotelUserPasswordBodySchema>;

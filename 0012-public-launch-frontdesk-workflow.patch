@@ -1,0 +1,297 @@
+diff --git a/deploy/nginx/docker-vietsage-tls.conf b/deploy/nginx/docker-vietsage-tls.conf
+index ff79023..0a02923 100644
+--- a/deploy/nginx/docker-vietsage-tls.conf
++++ b/deploy/nginx/docker-vietsage-tls.conf
+@@ -86,23 +86,8 @@ server {
+         return 200 '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>VietSage</title></head><body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#f8f4ec;color:#123d2a;font-family:system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif"><main style="max-width:640px;padding:48px 24px;text-align:center"><p style="margin:0 0 12px;color:#b8872f;font-size:12px;font-weight:800;letter-spacing:.24em;text-transform:uppercase">VietSage</p><h1 style="margin:0;font-size:clamp(40px,8vw,76px);line-height:.95;letter-spacing:-.06em">Preparing for launch</h1><p style="margin:24px auto 0;max-width:480px;color:#627064;font-size:18px;line-height:1.7">The public website is temporarily hidden while we prepare the production launch.</p></main></body></html>';
+     }
+ 
+-    location = /preview {
+-        proxy_pass http://frontend:3000/;
+-        proxy_http_version 1.1;
+-        proxy_set_header Host $host;
+-        proxy_set_header X-Real-IP $remote_addr;
+-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+-        proxy_set_header X-Forwarded-Proto https;
+-    }
+-
+-    location = /preview/ {
+-        proxy_pass http://frontend:3000/;
+-        proxy_http_version 1.1;
+-        proxy_set_header Host $host;
+-        proxy_set_header X-Real-IP $remote_addr;
+-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+-        proxy_set_header X-Forwarded-Proto https;
+-    }
++    location = /preview { return 308 /trangchu; }
++    location = /preview/ { return 308 /trangchu; }
+ 
+     location / {
+         proxy_pass http://frontend:3000;
+diff --git a/deploy/nginx/docker-vietsage.conf b/deploy/nginx/docker-vietsage.conf
+index cbd4790..5221b6b 100644
+--- a/deploy/nginx/docker-vietsage.conf
++++ b/deploy/nginx/docker-vietsage.conf
+@@ -57,24 +57,8 @@ server {
+         return 200 '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>VietSage</title></head><body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#f8f4ec;color:#123d2a;font-family:system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif"><main style="max-width:640px;padding:48px 24px;text-align:center"><p style="margin:0 0 12px;color:#b8872f;font-size:12px;font-weight:800;letter-spacing:.24em;text-transform:uppercase">VietSage</p><h1 style="margin:0;font-size:clamp(40px,8vw,76px);line-height:.95;letter-spacing:-.06em">Preparing for launch</h1><p style="margin:24px auto 0;max-width:480px;color:#627064;font-size:18px;line-height:1.7">The public website is temporarily hidden while we prepare the production launch.</p></main></body></html>';
+     }
+ 
+-    location = /preview {
+-        proxy_pass http://frontend:3000/;
+-        proxy_http_version 1.1;
+-        proxy_set_header Host $host;
+-        proxy_set_header X-Real-IP $remote_addr;
+-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+-        proxy_set_header X-Forwarded-Proto $scheme;
+-    }
+-
+-    location = /preview/ {
+-        proxy_pass http://frontend:3000/;
+-        proxy_http_version 1.1;
+-        proxy_set_header Host $host;
+-        proxy_set_header X-Real-IP $remote_addr;
+-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+-        proxy_set_header X-Forwarded-Proto $scheme;
+-    }
+-
++    location = /preview { return 308 /trangchu; }
++    location = /preview/ { return 308 /trangchu; }
+     location / {
+         proxy_pass http://frontend:3000;
+         proxy_http_version 1.1;
+diff --git a/deploy/nginx/vietsage.conf b/deploy/nginx/vietsage.conf
+index 53c47e1..8c71674 100644
+--- a/deploy/nginx/vietsage.conf
++++ b/deploy/nginx/vietsage.conf
+@@ -38,8 +38,7 @@ server {
+         proxy_set_header Connection "upgrade";
+     }
+ 
+-    # Temporary launch hold: keep the apex domain from showing the public landing page.
+-    # The landing page remains available through /preview without rebuilding the frontend.
++    # Temporary launch hold: the canonical public preview is /trangchu.
+     location = / {
+         default_type text/html;
+         add_header X-Robots-Tag "noindex, nofollow" always;
+@@ -47,29 +46,8 @@ server {
+         return 200 '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>VietSage</title></head><body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#f8f4ec;color:#123d2a;font-family:system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif"><main style="max-width:640px;padding:48px 24px;text-align:center"><p style="margin:0 0 12px;color:#b8872f;font-size:12px;font-weight:800;letter-spacing:.24em;text-transform:uppercase">VietSage</p><h1 style="margin:0;font-size:clamp(40px,8vw,76px);line-height:.95;letter-spacing:-.06em">Preparing for launch</h1><p style="margin:24px auto 0;max-width:480px;color:#627064;font-size:18px;line-height:1.7">The public website is temporarily hidden while we prepare the production launch.</p></main></body></html>';
+     }
+ 
+-    location = /preview {
+-        proxy_pass http://127.0.0.1:3000/;
+-        proxy_http_version 1.1;
+-
+-        proxy_set_header Host $host;
+-        proxy_set_header X-Real-IP $remote_addr;
+-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+-        proxy_set_header X-Forwarded-Proto $scheme;
+-        proxy_set_header Upgrade $http_upgrade;
+-        proxy_set_header Connection "upgrade";
+-    }
+-
+-    location = /preview/ {
+-        proxy_pass http://127.0.0.1:3000/;
+-        proxy_http_version 1.1;
+-
+-        proxy_set_header Host $host;
+-        proxy_set_header X-Real-IP $remote_addr;
+-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+-        proxy_set_header X-Forwarded-Proto $scheme;
+-        proxy_set_header Upgrade $http_upgrade;
+-        proxy_set_header Connection "upgrade";
+-    }
++    location = /preview { return 308 /trangchu; }
++    location = /preview/ { return 308 /trangchu; }
+ 
+     location / {
+         proxy_pass http://127.0.0.1:3000;
+diff --git a/frontends/front-end-vietsage/docs/PLANS.md b/frontends/front-end-vietsage/docs/PLANS.md
+index 363f6b9..ff67a9a 100644
+--- a/frontends/front-end-vietsage/docs/PLANS.md
++++ b/frontends/front-end-vietsage/docs/PLANS.md
+@@ -2493,3 +2493,23 @@ Remaining manual checkpoint:
+ ### Remaining Blockers / Risks
+ 
+ - Browser visual QA remains recommended at the tenant room table's narrowest supported width.
++
++## [complete] 2026-07-27 - Mission: public-launch-and-frontdesk-workflow
++
++### What Changed
++
++- Added the canonical `/trangchu` launch-hold page and made `/preview` redirect there; all tracked
++  Nginx variants now redirect the legacy path consistently.
++- Added the requested launch copy and contact address.
++- Tightened the frontdesk QR preview so the room name sits directly above the QR code.
++- Changed the urgent request “Đã thấy” action from a local-only acknowledgement to an
++  `ACKNOWLEDGED` mutation with a guest-visible processing note; GuestOS now presents that state as
++  “In progress”.
++- Added a timestamped “In danh sách lưu trú” browser print snapshot for active stays checked in
++  from local midnight through the moment the button is pressed.
++
++### Remaining Blockers / Risks
++
++- Production Nginx must be reloaded after applying the patch.
++- The print snapshot currently uses the 100-room frontdesk page payload; a future VNeID export
++  should use a dedicated server-side stay-report endpoint rather than browser HTML.
+diff --git a/frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/requests/request-queue-client.tsx b/frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/requests/request-queue-client.tsx
+index 2182d47..92094eb 100644
+--- a/frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/requests/request-queue-client.tsx
++++ b/frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/requests/request-queue-client.tsx
+@@ -1538,10 +1538,18 @@ export function RequestQueueClient({
+                   {!notification.acknowledgedAt ? (
+                     <button
+                       type="button"
+-                      onClick={() => acknowledgeUrgentRequest(notification.id)}
++                      onClick={() => {
++                        acknowledgeUrgentRequest(notification.id);
++                        statusMutation.mutate({
++                          requestId: notification.id,
++                          status: "ACKNOWLEDGED",
++                          note: "Chúng tôi đã tiếp nhận yêu cầu và đang xử lý.",
++                        });
++                      }}
++                      disabled={statusMutation.isPending}
+                       className="rounded-lg bg-white px-3 py-2 text-xs font-black uppercase tracking-wide text-red-800 ring-1 ring-red-200"
+                     >
+-                      Xác nhận đã thấy
++                      Đã thấy · đang xử lý
+                     </button>
+                   ) : null}
+                   <button
+diff --git a/frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/rooms/page.tsx b/frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/rooms/page.tsx
+index c84a595..1c5abd6 100644
+--- a/frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/rooms/page.tsx
++++ b/frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/rooms/page.tsx
+@@ -30,7 +30,7 @@ export default async function StaffRoomsPage({ params }: PageProps) {
+   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
+   const [roomsPage, arrivals, dashboard] = await Promise.all([
+     authorizedApi("list staff rooms", (accessToken) =>
+-      hotelOpsService.listRooms(hotelId, { query: { page: 1, limit: 20 }, accessToken }),
++      hotelOpsService.listRooms(hotelId, { query: { page: 1, limit: 100 }, accessToken }),
+     ),
+     canViewReservations
+       ? authorizedApi("list staff arrivals", (accessToken) =>
+diff --git a/frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/rooms/staff-rooms-client.tsx b/frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/rooms/staff-rooms-client.tsx
+index 6762b39..cdb5a6f 100644
+--- a/frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/rooms/staff-rooms-client.tsx
++++ b/frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/rooms/staff-rooms-client.tsx
+@@ -283,7 +283,7 @@ export function StaffRoomsClient({
+   const flashTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+ 
+   const [page, setPage] = useState(1);
+-  const [pageSize] = useState(20);
++  const [pageSize] = useState(100);
+   const [inputQuery, setInputQuery] = useState("");
+   const [query, setQuery] = useState("");
+   const [floor, setFloor] = useState("all");
+@@ -353,6 +353,24 @@ export function StaffRoomsClient({
+   const totalAvailable =
+     roomsPage?.totalAvailable ?? initialRoomsPage.totalAvailable ?? 0;
+ 
++  function printActiveStayList() {
++    const printedAt = new Date();
++    const midnight = new Date(printedAt);
++    midnight.setHours(0, 0, 0, 0);
++    const activeStays = rooms
++      .map((room) => ({ room, stay: room.activeStay }))
++      .filter(({ stay }) => {
++        if (!stay || stay.checkedOutAt) return false;
++        const checkedInAt = new Date(stay.checkedInAt ?? stay.plannedCheckInAt ?? stay.createdAt ?? 0);
++        return checkedInAt >= midnight && checkedInAt <= printedAt;
++      });
++    const popup = window.open("", "vietsage-stay-list");
++    if (!popup) return;
++    const rows = activeStays.map(({ room, stay }) => `<tr><td>${getRoomNumber(room)}</td><td>${stay?.guestDisplayName ?? "-"}</td><td>${stay?.guestPhone ?? "-"}</td><td>${formatDateTime(stay?.checkedInAt ?? stay?.plannedCheckInAt)}</td></tr>`).join("");
++    popup.document.write(`<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>Danh sách lưu trú</title><style>body{font-family:Arial,sans-serif;padding:32px;color:#17201b}h1{margin:0 0 8px}p{color:#5d6a61}table{border-collapse:collapse;width:100%;margin-top:24px}th,td{border:1px solid #cbd5ce;padding:9px;text-align:left}th{background:#eef3ee}</style></head><body><h1>Danh sách khách đang lưu trú</h1><p>Khách sạn ${hotelId} · In lúc ${formatDateTime(printedAt.toISOString())}</p><table><thead><tr><th>Phòng</th><th>Họ tên</th><th>Số điện thoại</th><th>Nhận phòng</th></tr></thead><tbody>${rows || '<tr><td colspan="4">Không có khách lưu trú từ 0h hôm nay đến thời điểm in.</td></tr>'}</tbody></table><script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}</script></body></html>`);
++    popup.document.close();
++  }
++
+   const availableRooms = useMemo(() => rooms.filter(isAvailable), [rooms]);
+ 
+   function openWalkIn(room: HotelRoomSummary) {
+@@ -812,6 +830,10 @@ export function StaffRoomsClient({
+                 ))}
+               </select>
+             </div>
++            <button type="button" onClick={printActiveStayList} className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-[var(--primary)] px-4 text-sm font-bold text-white hover:opacity-90">
++              <VsIcon name="print" className="text-base" />
++              In danh sách lưu trú
++            </button>
+           </div>
+           <div className="flex items-center justify-between gap-4">
+             <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-[var(--on-surface-variant)]">
+@@ -1442,7 +1464,8 @@ export function StaffRoomsClient({
+ 
+                 {roomQrPreview.guestUrl ? (
+                   <>
+-                    <div className="mx-auto mt-6 flex aspect-square w-full max-w-72 items-center justify-center rounded-2xl border border-[var(--outline-variant)] bg-white p-4">
++                    <p className="mt-3 text-center text-sm font-black uppercase tracking-[0.16em] text-[var(--primary)]">Phòng {getRoomNumber(roomQrPreview.room)}</p>
++                    <div className="mx-auto mt-2 flex aspect-square w-full max-w-72 items-center justify-center rounded-2xl border border-[var(--outline-variant)] bg-white p-4">
+                       <QRCodeSVG
+                         value={roomQrPreview.guestUrl}
+                         size={256}
+diff --git a/frontends/front-end-vietsage/src/app/_components/launch-hold.tsx b/frontends/front-end-vietsage/src/app/_components/launch-hold.tsx
+new file mode 100644
+index 0000000..68b01a6
+--- /dev/null
++++ b/frontends/front-end-vietsage/src/app/_components/launch-hold.tsx
+@@ -0,0 +1,13 @@
++export function LaunchHold() {
++  return (
++    <main className="grid min-h-screen place-items-center bg-[#f8f4ec] px-6 py-16 text-[#123d2a]">
++      <section className="w-full max-w-2xl text-center">
++        <p className="text-xs font-black uppercase tracking-[0.28em] text-[#b8872f]">VietSage</p>
++        <h1 className="mt-6 text-5xl font-semibold tracking-[-0.06em] sm:text-7xl">Preparing for launch</h1>
++        <p className="mt-6 text-2xl font-medium tracking-[-0.03em]">We are building somethings</p>
++        <p className="mx-auto mt-5 max-w-xl text-base leading-7 text-[#627064]">The public website is temporarily hidden while we prepare the production launch.</p>
++        <p className="mt-10 text-sm font-semibold text-[#123d2a]">Contact: <a className="underline underline-offset-4" href="mailto:Congnghesovn247@gmail.com">Congnghesovn247@gmail.com</a></p>
++      </section>
++    </main>
++  );
++}
+diff --git a/frontends/front-end-vietsage/src/app/preview/page.tsx b/frontends/front-end-vietsage/src/app/preview/page.tsx
+new file mode 100644
+index 0000000..7ff2e43
+--- /dev/null
++++ b/frontends/front-end-vietsage/src/app/preview/page.tsx
+@@ -0,0 +1,5 @@
++import { redirect } from "next/navigation";
++
++export default function PreviewPage() {
++  redirect("/trangchu");
++}
+diff --git a/frontends/front-end-vietsage/src/app/trangchu/page.tsx b/frontends/front-end-vietsage/src/app/trangchu/page.tsx
+new file mode 100644
+index 0000000..5416fbd
+--- /dev/null
++++ b/frontends/front-end-vietsage/src/app/trangchu/page.tsx
+@@ -0,0 +1,7 @@
++import { LaunchHold } from "@/app/_components/launch-hold";
++
++export const metadata = { title: "VietSage | Preparing for launch", robots: { index: false, follow: false } };
++
++export default function TrangChuPage() {
++  return <LaunchHold />;
++}
+diff --git a/frontends/front-end-vietsage/src/features/guest-os/components/requests/guest-request-display.ts b/frontends/front-end-vietsage/src/features/guest-os/components/requests/guest-request-display.ts
+index 4e3d4e6..694df10 100644
+--- a/frontends/front-end-vietsage/src/features/guest-os/components/requests/guest-request-display.ts
++++ b/frontends/front-end-vietsage/src/features/guest-os/components/requests/guest-request-display.ts
+@@ -37,7 +37,7 @@ export function getRequestPriorityTone(request: GuestRequest): string {
+ 
+ export function getRequestStatusLabel(status: GuestPortalRequestStatus, t: GuestRequestTranslator): string {
+   if (status === "CREATED") return t("requests.sent");
+-  if (status === "ACKNOWLEDGED") return t("requests.acknowledged");
++  if (status === "ACKNOWLEDGED") return t("requests.inProgress");
+   if (status === "IN_PROGRESS") return t("requests.inProgress");
+   if (status === "COMPLETED") return t("requests.completed");
+   if (status === "CANCELLED") return t("requests.cancelled");
+@@ -104,7 +104,7 @@ export function getProgressStep(status: GuestPortalRequestStatus): 1 | 2 | 3 {
+ 
+ export function getMiddleProgressLabel(status: GuestPortalRequestStatus, t: GuestRequestTranslator): string {
+   if (status === "COMPLETED") return t("requests.processed");
+-  if (status === "ACKNOWLEDGED") return t("requests.acknowledged");
++  if (status === "ACKNOWLEDGED") return t("requests.inProgress");
+   if (status === "IN_PROGRESS") return t("requests.inProgress");
+   if (status === "FAILED") return t("requests.failed");
+   if (status === "CANCELLED") return t("requests.cancelled");

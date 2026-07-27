@@ -302,6 +302,10 @@ export class HotelUsersRepository {
     });
   }
 
+  async updateUserProfile(userId: string, data: { fullName?: string; email?: string }) {
+    return this.prisma.user.update({ where: { id: userId }, data });
+  }
+
   async upsertActiveUserRoles(userId: string, roleIds: string[], assignedById: string) {
     if (roleIds.length === 0) {
       return [];

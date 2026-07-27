@@ -37,7 +37,7 @@ export function getRequestPriorityTone(request: GuestRequest): string {
 
 export function getRequestStatusLabel(status: GuestPortalRequestStatus, t: GuestRequestTranslator): string {
   if (status === "CREATED") return t("requests.sent");
-  if (status === "ACKNOWLEDGED") return t("requests.acknowledged");
+  if (status === "ACKNOWLEDGED") return t("requests.inProgress");
   if (status === "IN_PROGRESS") return t("requests.inProgress");
   if (status === "COMPLETED") return t("requests.completed");
   if (status === "CANCELLED") return t("requests.cancelled");
@@ -104,7 +104,7 @@ export function getProgressStep(status: GuestPortalRequestStatus): 1 | 2 | 3 {
 
 export function getMiddleProgressLabel(status: GuestPortalRequestStatus, t: GuestRequestTranslator): string {
   if (status === "COMPLETED") return t("requests.processed");
-  if (status === "ACKNOWLEDGED") return t("requests.acknowledged");
+  if (status === "ACKNOWLEDGED") return t("requests.inProgress");
   if (status === "IN_PROGRESS") return t("requests.inProgress");
   if (status === "FAILED") return t("requests.failed");
   if (status === "CANCELLED") return t("requests.cancelled");

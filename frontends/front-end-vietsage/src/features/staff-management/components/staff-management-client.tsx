@@ -101,6 +101,19 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
     }
   }
 
+  async function editStaff(user: { id: string; fullName: string; email: string }) {
+    const result = await Swal.fire({ title: "Sửa thông tin nhân viên", html: `<input id="staff-name" class="swal2-input" value="${user.fullName.replace(/"/g, "&quot;")}" placeholder="Họ tên"><input id="staff-email" class="swal2-input" value="${user.email.replace(/"/g, "&quot;")}" placeholder="Email">`, showCancelButton: true, confirmButtonText: "Lưu", cancelButtonText: "Hủy", confirmButtonColor: "#00003c", preConfirm: () => ({ fullName: (document.getElementById("staff-name") as HTMLInputElement)?.value.trim(), email: (document.getElementById("staff-email") as HTMLInputElement)?.value.trim().toLowerCase() }) });
+    if (!result.isConfirmed) return;
+    await runMutation(`edit-${user.id}`, () => mutations.updateUser.mutateAsync({ userId: user.id, ...result.value }), "Đã cập nhật nhân viên");
+  }
+
+  async function toggleStaff(user: { id: string; fullName: string; userStatus?: string; tenantStatus?: string }) {
+    const locked = user.userStatus === "DISABLED" || user.tenantStatus === "DISABLED";
+    const result = await Swal.fire({ icon: locked ? "question" : "warning", title: locked ? "Mở khóa nhân viên?" : "Khóa nhân viên?", text: locked ? `Cho phép ${user.fullName} đăng nhập lại.` : `Nhân viên ${user.fullName} sẽ không thể đăng nhập.`, showCancelButton: true, confirmButtonText: locked ? "Mở khóa" : "Khóa", cancelButtonText: "Hủy", confirmButtonColor: "#00003c" });
+    if (!result.isConfirmed) return;
+    await runMutation(`status-${user.id}`, () => mutations.updateUser.mutateAsync({ userId: user.id, status: locked ? "ACTIVE" : "DISABLED" }), locked ? "Đã mở khóa nhân viên" : "Đã khóa nhân viên");
+  }
+
   const data = directory.data;
   const assignedUserIds = useMemo(
     () => new Set(data?.assignments?.items.map((assignment) => assignment.userId) ?? []),
@@ -163,7 +176,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
     }
   }
 
-  const isBusy = mutations.createUser.isPending || mutations.assignRole.isPending || mutations.revokeRole.isPending || mutations.updateAssignment.isPending || activeActionKey !== null;
+  const isBusy = mutations.createUser.isPending || mutations.assignRole.isPending || mutations.revokeRole.isPending || mutations.updateAssignment.isPending || mutations.updateUser.isPending || activeActionKey !== null;
 
   return (
     <div className="space-y-6">
@@ -598,6 +611,8 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                   const canResetPassword = scope.surface === "owner" && canResetFrontdeskPassword(user.roles.map((role) => role.code));
                   return (
                     <div className="flex min-h-10 items-center justify-end gap-2">
+                      <button type="button" disabled={isBusy} onClick={() => editStaff(user)} className="h-10 whitespace-nowrap rounded-lg border border-[var(--outline-variant)] px-3 text-xs font-semibold text-[var(--primary)] disabled:opacity-40"><VsIcon name="edit" className="mr-1 inline text-sm" />Sửa</button>
+                      <button type="button" disabled={isBusy} onClick={() => toggleStaff(user)} className="h-10 whitespace-nowrap rounded-lg border border-red-200 px-3 text-xs font-semibold text-red-700 disabled:opacity-40"><VsIcon name={user.userStatus === "DISABLED" || user.tenantStatus === "DISABLED" ? "visibility" : "visibility_off"} className="mr-1 inline text-sm" />{user.userStatus === "DISABLED" || user.tenantStatus === "DISABLED" ? "Mở khóa" : "Khóa"}</button>
                       {canResetPassword ? <button type="button" disabled={isBusy || mutations.resetFrontdeskPassword.isPending} onClick={() => resetFrontdesk(user)} className="h-10 whitespace-nowrap rounded-lg border border-amber-300 px-3 text-xs font-semibold text-amber-800 disabled:opacity-40"><VsIcon name="key" className="mr-1 inline text-sm" />Cấp lại mật khẩu</button> : null}
                       <button
                         disabled={!hotelId || isBusy}

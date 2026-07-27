@@ -30,7 +30,7 @@ export default async function StaffRoomsPage({ params }: PageProps) {
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
   const [roomsPage, arrivals, dashboard] = await Promise.all([
     authorizedApi("list staff rooms", (accessToken) =>
-      hotelOpsService.listRooms(hotelId, { query: { page: 1, limit: 20 }, accessToken }),
+      hotelOpsService.listRooms(hotelId, { query: { page: 1, limit: 100 }, accessToken }),
     ),
     canViewReservations
       ? authorizedApi("list staff arrivals", (accessToken) =>

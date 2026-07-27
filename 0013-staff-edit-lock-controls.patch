@@ -1,0 +1,274 @@
+diff --git a/frontends/front-end-vietsage/src/app/api/admin/staff/[userId]/route.ts b/frontends/front-end-vietsage/src/app/api/admin/staff/[userId]/route.ts
+new file mode 100644
+index 0000000..811bd09
+--- /dev/null
++++ b/frontends/front-end-vietsage/src/app/api/admin/staff/[userId]/route.ts
+@@ -0,0 +1,15 @@
++import { NextResponse } from "next/server";
++import { z } from "zod";
++import { HttpError } from "@/core/http/http-error";
++import { staffManagementService } from "@/features/staff-management/service/staff-management-service-instance";
++import { httpErrorResponse, successResponse, unknownServerErrorResponse, validationErrorResponse } from "../../../_utils";
++
++const schema = z.object({ fullName: z.string().trim().min(2).optional(), email: z.string().trim().email().optional(), status: z.enum(["ACTIVE", "DISABLED"]).optional() }).refine((v) => v.fullName || v.email || v.status);
++export async function PATCH(request: Request, context: { params: Promise<{ userId: string }> }) {
++  const { userId } = await context.params; const tenantId = request.headers.get("x-tenant-id")?.trim();
++  const parsed = schema.safeParse(await request.json().catch(() => null));
++  if (!tenantId) return validationErrorResponse("tenantId là bắt buộc");
++  if (!parsed.success) return validationErrorResponse("Thông tin cập nhật nhân viên chưa hợp lệ");
++  try { if (parsed.data.status) await staffManagementService.updateStatus(userId, parsed.data.status, tenantId); const data = await staffManagementService.updateUser(userId, { fullName: parsed.data.fullName, email: parsed.data.email }, tenantId); return successResponse(data, 200, "Đã cập nhật nhân viên"); }
++  catch (error) { return error instanceof HttpError ? httpErrorResponse(error) : unknownServerErrorResponse(); }
++}
+diff --git a/frontends/front-end-vietsage/src/app/api/owner/staff/[userId]/route.ts b/frontends/front-end-vietsage/src/app/api/owner/staff/[userId]/route.ts
+new file mode 100644
+index 0000000..29871dd
+--- /dev/null
++++ b/frontends/front-end-vietsage/src/app/api/owner/staff/[userId]/route.ts
+@@ -0,0 +1,21 @@
++import { NextResponse } from "next/server";
++import { z } from "zod";
++import { HttpError } from "@/core/http/http-error";
++import { staffManagementService } from "@/features/staff-management/service/staff-management-service-instance";
++import { executeOwnerBackendRequest, ownerHttpErrorResponse, successResponse, unknownServerErrorResponse, validationErrorResponse } from "../../../_utils";
++
++const schema = z.object({ fullName: z.string().trim().min(2).optional(), email: z.string().trim().email().optional(), status: z.enum(["ACTIVE", "DISABLED"]).optional() }).refine((v) => v.fullName || v.email || v.status);
++export async function PATCH(request: Request, context: { params: Promise<{ userId: string }> }) {
++  const { userId } = await context.params;
++  const parsed = schema.safeParse(await request.json().catch(() => null));
++  if (!parsed.success) return validationErrorResponse("Thông tin cập nhật nhân viên chưa hợp lệ");
++  const tenantId = request.headers.get("x-tenant-id")?.trim();
++  if (!tenantId) return validationErrorResponse("tenantId là bắt buộc");
++  try {
++    const result = await executeOwnerBackendRequest("update owner staff", async (accessToken) => {
++      if (parsed.data.status) await staffManagementService.updateStatus(userId, parsed.data.status, tenantId, accessToken);
++      return staffManagementService.updateUser(userId, { fullName: parsed.data.fullName, email: parsed.data.email }, tenantId, accessToken);
++    });
++    return result instanceof NextResponse ? result : successResponse(result, 200, "Đã cập nhật nhân viên");
++  } catch (error) { return error instanceof HttpError ? ownerHttpErrorResponse(error) : unknownServerErrorResponse(); }
++}
+diff --git a/frontends/front-end-vietsage/src/features/staff-management/components/staff-management-client.tsx b/frontends/front-end-vietsage/src/features/staff-management/components/staff-management-client.tsx
+index 155754c..ea60c8d 100644
+--- a/frontends/front-end-vietsage/src/features/staff-management/components/staff-management-client.tsx
++++ b/frontends/front-end-vietsage/src/features/staff-management/components/staff-management-client.tsx
+@@ -101,6 +101,19 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
+     }
+   }
+ 
++  async function editStaff(user: { id: string; fullName: string; email: string }) {
++    const result = await Swal.fire({ title: "Sửa thông tin nhân viên", html: `<input id="staff-name" class="swal2-input" value="${user.fullName.replace(/"/g, "&quot;")}" placeholder="Họ tên"><input id="staff-email" class="swal2-input" value="${user.email.replace(/"/g, "&quot;")}" placeholder="Email">`, showCancelButton: true, confirmButtonText: "Lưu", cancelButtonText: "Hủy", confirmButtonColor: "#00003c", preConfirm: () => ({ fullName: (document.getElementById("staff-name") as HTMLInputElement)?.value.trim(), email: (document.getElementById("staff-email") as HTMLInputElement)?.value.trim().toLowerCase() }) });
++    if (!result.isConfirmed) return;
++    await runMutation(`edit-${user.id}`, () => mutations.updateUser.mutateAsync({ userId: user.id, ...result.value }), "Đã cập nhật nhân viên");
++  }
++
++  async function toggleStaff(user: { id: string; fullName: string; userStatus?: string; tenantStatus?: string }) {
++    const locked = user.userStatus === "DISABLED" || user.tenantStatus === "DISABLED";
++    const result = await Swal.fire({ icon: locked ? "question" : "warning", title: locked ? "Mở khóa nhân viên?" : "Khóa nhân viên?", text: locked ? `Cho phép ${user.fullName} đăng nhập lại.` : `Nhân viên ${user.fullName} sẽ không thể đăng nhập.`, showCancelButton: true, confirmButtonText: locked ? "Mở khóa" : "Khóa", cancelButtonText: "Hủy", confirmButtonColor: "#00003c" });
++    if (!result.isConfirmed) return;
++    await runMutation(`status-${user.id}`, () => mutations.updateUser.mutateAsync({ userId: user.id, status: locked ? "ACTIVE" : "DISABLED" }), locked ? "Đã mở khóa nhân viên" : "Đã khóa nhân viên");
++  }
++
+   const data = directory.data;
+   const assignedUserIds = useMemo(
+     () => new Set(data?.assignments?.items.map((assignment) => assignment.userId) ?? []),
+@@ -163,7 +176,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
+     }
+   }
+ 
+-  const isBusy = mutations.createUser.isPending || mutations.assignRole.isPending || mutations.revokeRole.isPending || mutations.updateAssignment.isPending || activeActionKey !== null;
++  const isBusy = mutations.createUser.isPending || mutations.assignRole.isPending || mutations.revokeRole.isPending || mutations.updateAssignment.isPending || mutations.updateUser.isPending || activeActionKey !== null;
+ 
+   return (
+     <div className="space-y-6">
+@@ -598,6 +611,8 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
+                   const canResetPassword = scope.surface === "owner" && canResetFrontdeskPassword(user.roles.map((role) => role.code));
+                   return (
+                     <div className="flex min-h-10 items-center justify-end gap-2">
++                      <button type="button" disabled={isBusy} onClick={() => editStaff(user)} className="h-10 whitespace-nowrap rounded-lg border border-[var(--outline-variant)] px-3 text-xs font-semibold text-[var(--primary)] disabled:opacity-40"><VsIcon name="edit" className="mr-1 inline text-sm" />Sửa</button>
++                      <button type="button" disabled={isBusy} onClick={() => toggleStaff(user)} className="h-10 whitespace-nowrap rounded-lg border border-red-200 px-3 text-xs font-semibold text-red-700 disabled:opacity-40"><VsIcon name={user.userStatus === "DISABLED" || user.tenantStatus === "DISABLED" ? "visibility" : "visibility_off"} className="mr-1 inline text-sm" />{user.userStatus === "DISABLED" || user.tenantStatus === "DISABLED" ? "Mở khóa" : "Khóa"}</button>
+                       {canResetPassword ? <button type="button" disabled={isBusy || mutations.resetFrontdeskPassword.isPending} onClick={() => resetFrontdesk(user)} className="h-10 whitespace-nowrap rounded-lg border border-amber-300 px-3 text-xs font-semibold text-amber-800 disabled:opacity-40"><VsIcon name="key" className="mr-1 inline text-sm" />Cấp lại mật khẩu</button> : null}
+                       <button
+                         disabled={!hotelId || isBusy}
+diff --git a/frontends/front-end-vietsage/src/features/staff-management/queries/use-staff-directory-query.ts b/frontends/front-end-vietsage/src/features/staff-management/queries/use-staff-directory-query.ts
+index 0d9518f..d204073 100644
+--- a/frontends/front-end-vietsage/src/features/staff-management/queries/use-staff-directory-query.ts
++++ b/frontends/front-end-vietsage/src/features/staff-management/queries/use-staff-directory-query.ts
+@@ -49,10 +49,11 @@ export function useStaffManagementMutations(scope: StaffManagementScope) {
+   const updateAssignment = useMutation(
+     staffDirectory.mutations.updateAssignment.options(),
+   );
++  const updateUser = useMutation(staffDirectory.mutations.updateUser.options());
+   const resetFrontdeskPassword = useMutation({
+     ...staffDirectory.mutations.resetFrontdeskPassword.options(),
+     retry: false,
+   });
+ 
+-  return { createUser, assignRole, revokeRole, updateAssignment, resetFrontdeskPassword };
++  return { createUser, assignRole, revokeRole, updateAssignment, updateUser, resetFrontdeskPassword };
+ }
+diff --git a/frontends/front-end-vietsage/src/features/staff-management/repositories/staff-directory-repository.ts b/frontends/front-end-vietsage/src/features/staff-management/repositories/staff-directory-repository.ts
+index 0f900c1..7e47b6a 100644
+--- a/frontends/front-end-vietsage/src/features/staff-management/repositories/staff-directory-repository.ts
++++ b/frontends/front-end-vietsage/src/features/staff-management/repositories/staff-directory-repository.ts
+@@ -32,6 +32,7 @@ export type TemporaryPasswordResult = {
+   temporaryPassword: string;
+   resetAt: string;
+ };
++export type UpdateStaffUserInput = { userId: string; fullName?: string; email?: string; status?: "ACTIVE" | "DISABLED" };
+ 
+ type RepositoryRequestOptions = {
+   signal?: AbortSignal;
+@@ -101,6 +102,11 @@ export const staffDirectoryRepository = {
+     return payload.data;
+   },
+ 
++  async updateUser(scope: StaffManagementScope, input: UpdateStaffUserInput): Promise<unknown> {
++    const payload = await requestInternalApiEnvelope(`/api/${scope.surface}/staff/${encodeURIComponent(input.userId)}`, { method: "PATCH", body: { fullName: input.fullName, email: input.email, status: input.status }, headers: tenantHeaders(scope) });
++    return payload.data;
++  },
++
+   async assignRole(
+     scope: StaffManagementScope,
+     input: AssignStaffRoleInput,
+diff --git a/frontends/front-end-vietsage/src/features/staff-management/resources/staff-directory-resource.ts b/frontends/front-end-vietsage/src/features/staff-management/resources/staff-directory-resource.ts
+index 1403395..e561008 100644
+--- a/frontends/front-end-vietsage/src/features/staff-management/resources/staff-directory-resource.ts
++++ b/frontends/front-end-vietsage/src/features/staff-management/resources/staff-directory-resource.ts
+@@ -12,6 +12,7 @@ import {
+   type StaffDirectoryListInput,
+   type StaffManagementScope,
+   type UpdateStaffAssignmentInput,
++  type UpdateStaffUserInput,
+ } from "@/features/staff-management/repositories/staff-directory-repository";
+ import type {
+   CreateAssignedHotelStaffUserInput,
+@@ -72,6 +73,7 @@ async function updateStaffAssignment({
+ >): Promise<unknown> {
+   return staffDirectoryRepository.updateAssignment(scope, variables);
+ }
++async function updateStaffUser({ scope, variables }: ResourceMutationContext<StaffManagementScope, UpdateStaffUserInput>): Promise<unknown> { return staffDirectoryRepository.updateUser(scope, variables); }
+ 
+ async function resetFrontdeskPassword({
+   scope,
+@@ -121,6 +123,7 @@ export const staffDirectoryResource =
+         mutationFn: updateStaffAssignment,
+         invalidates: INVALIDATE_DIRECTORY,
+       }),
++      updateUser: defineMutation({ mutationFn: updateStaffUser, invalidates: INVALIDATE_DIRECTORY }),
+       resetFrontdeskPassword: defineMutation({
+         mutationFn: resetFrontdeskPassword,
+       }),
+diff --git a/frontends/front-end-vietsage/src/features/staff-management/service/staff-management-service.ts b/frontends/front-end-vietsage/src/features/staff-management/service/staff-management-service.ts
+index b38702e..1d36b60 100644
+--- a/frontends/front-end-vietsage/src/features/staff-management/service/staff-management-service.ts
++++ b/frontends/front-end-vietsage/src/features/staff-management/service/staff-management-service.ts
+@@ -84,6 +84,16 @@ export class StaffManagementService {
+     return unwrapApiEnvelope<HotelStaffUser>(payload).data;
+   }
+ 
++  async updateUser(userId: string, body: { fullName?: string; email?: string }, tenantId?: string, accessToken?: string) {
++    const payload = await this.request<unknown, typeof body>({ method: "PATCH", path: `/hotel-users/${encodeURIComponent(userId)}`, body, tenantId, accessToken });
++    return unwrapApiEnvelope<HotelStaffUser>(payload).data;
++  }
++
++  async updateStatus(userId: string, status: "ACTIVE" | "DISABLED", tenantId?: string, accessToken?: string) {
++    const payload = await this.request<unknown, { status: "ACTIVE" | "DISABLED" }>({ method: "PATCH", path: `/hotel-users/${encodeURIComponent(userId)}/status`, body: { status }, tenantId, accessToken });
++    return unwrapApiEnvelope<HotelStaffUser>(payload).data;
++  }
++
+   async assignRoles(userId: string, roleIds: string[], tenantId?: string, accessToken?: string) {
+     const payload = await this.request<unknown, { roleIds: string[] }>({
+       method: "POST",
+diff --git a/services/auth-service/src/modules/identity/api/hotel-users.controller.ts b/services/auth-service/src/modules/identity/api/hotel-users.controller.ts
+index ba3ce1e..9ac391a 100644
+--- a/services/auth-service/src/modules/identity/api/hotel-users.controller.ts
++++ b/services/auth-service/src/modules/identity/api/hotel-users.controller.ts
+@@ -47,6 +47,7 @@ import {
+   resetHotelUserPasswordBodySchema,
+   roleIdParamSchema,
+   updateHotelUserStatusBodySchema as updateHotelUserStatusBodyZodSchema,
++  updateHotelUserBodySchema as updateHotelUserBodyZodSchema,
+   userIdParamSchema,
+ } from "../domain/schemas/hotel-users.schema";
+ 
+@@ -206,6 +207,15 @@ export class HotelUsersController {
+     );
+   }
+ 
++  @RequirePermission("hotel.staff.manage")
++  @SuccessMessage("Cập nhật thông tin nhân viên thành công")
++  @Patch(":id")
++  async updateHotelUser(@Req() request: RequestWithUser, @Param("id") userIdParam: string, @Body() body: unknown, @Headers("x-tenant-id") tenantIdHeader?: string) {
++    const userId = parseWithZod(userIdParamSchema, userIdParam);
++    const dto = parseWithZod(updateHotelUserBodyZodSchema, body);
++    return this.hotelUsersService.updateHotelUser(request.user.userId, request.user.roleId, this.resolveTenantHint(tenantIdHeader, undefined), userId, dto);
++  }
++
+   @RequirePermission("hotel.staff.manage")
+   @SuccessMessage("Gán vai trò người dùng khách sạn thành công")
+   @ApiDescript("Gán vai trò người dùng")
+diff --git a/services/auth-service/src/modules/identity/application/hotel-users.service.ts b/services/auth-service/src/modules/identity/application/hotel-users.service.ts
+index c7a2298..1808a70 100644
+--- a/services/auth-service/src/modules/identity/application/hotel-users.service.ts
++++ b/services/auth-service/src/modules/identity/application/hotel-users.service.ts
+@@ -16,6 +16,7 @@ import type {
+   CreateHotelUserBodyInput,
+   ListHotelUsersQueryInput,
+   UpdateHotelUserStatusBodyInput,
++  UpdateHotelUserBodyInput,
+ } from "../domain/schemas/hotel-users.schema";
+ import { AuthService } from "./authentication.service";
+ import { generateTemporaryPassword } from "../../../common/security/password-policy.util";
+@@ -171,6 +172,16 @@ export class HotelUsersService {
+     return this.getTenantScopedHotelUserOrThrow(tenantId, userId);
+   }
+ 
++  async updateHotelUser(actorUserId: string, activeRoleId: string, tenantHint: string | undefined, userId: string, dto: UpdateHotelUserBodyInput): Promise<TenantScopedHotelUser> {
++    const actor = await this.loadActorContext(actorUserId, activeRoleId);
++    const tenantId = await this.resolveTenantId(actor, tenantHint);
++    await this.assertTargetUserInTenant(tenantId, userId);
++    const data = { ...(dto.fullName ? { fullName: dto.fullName.trim() } : {}), ...(dto.email ? { email: dto.email.trim().toLowerCase() } : {}) };
++    try { await this.hotelUsersRepository.updateUserProfile(userId, data); }
++    catch (error) { if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") throw new ConflictException("Email already exists"); throw error; }
++    return this.getTenantScopedHotelUserOrThrow(tenantId, userId);
++  }
++
+   async assignHotelUserRoles(
+     actorUserId: string,
+     activeRoleId: string,
+diff --git a/services/auth-service/src/modules/identity/domain/schemas/hotel-users.schema.ts b/services/auth-service/src/modules/identity/domain/schemas/hotel-users.schema.ts
+index eac9f84..09ad001 100644
+--- a/services/auth-service/src/modules/identity/domain/schemas/hotel-users.schema.ts
++++ b/services/auth-service/src/modules/identity/domain/schemas/hotel-users.schema.ts
+@@ -43,6 +43,10 @@ export const updateHotelUserStatusBodySchema = z
+     ),
+   })
+   .strict();
++export const updateHotelUserBodySchema = z.object({
++  fullName: z.string().trim().min(2).max(120).optional(),
++  email: z.string().trim().email().max(320).optional(),
++}).strict().refine((value) => value.fullName !== undefined || value.email !== undefined, "Cần ít nhất một trường để cập nhật");
+ 
+ export const assignHotelUserRolesBodySchema = z
+   .object({
+@@ -61,5 +65,6 @@ export const resetHotelUserPasswordBodySchema = z.object({}).strict();
+ export type CreateHotelUserBodyInput = z.infer<typeof createHotelUserBodySchema>;
+ export type ListHotelUsersQueryInput = z.infer<typeof listHotelUsersQuerySchema>;
+ export type UpdateHotelUserStatusBodyInput = z.infer<typeof updateHotelUserStatusBodySchema>;
++export type UpdateHotelUserBodyInput = z.infer<typeof updateHotelUserBodySchema>;
+ export type AssignHotelUserRolesBodyInput = z.infer<typeof assignHotelUserRolesBodySchema>;
+ export type ResetHotelUserPasswordBodyInput = z.infer<typeof resetHotelUserPasswordBodySchema>;
+diff --git a/services/auth-service/src/modules/identity/infrastructure/repositories/hotel-users.repository.ts b/services/auth-service/src/modules/identity/infrastructure/repositories/hotel-users.repository.ts
+index d43c41d..d3fa87f 100644
+--- a/services/auth-service/src/modules/identity/infrastructure/repositories/hotel-users.repository.ts
++++ b/services/auth-service/src/modules/identity/infrastructure/repositories/hotel-users.repository.ts
+@@ -302,6 +302,10 @@ export class HotelUsersRepository {
+     });
+   }
+ 
++  async updateUserProfile(userId: string, data: { fullName?: string; email?: string }) {
++    return this.prisma.user.update({ where: { id: userId }, data });
++  }
++
+   async upsertActiveUserRoles(userId: string, roleIds: string[], assignedById: string) {
+     if (roleIds.length === 0) {
+       return [];
