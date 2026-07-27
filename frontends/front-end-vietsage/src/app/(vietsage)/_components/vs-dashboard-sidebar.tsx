@@ -36,12 +36,9 @@ export function VsDashboardSidebar({
             {eyebrow}
           </span>
         </div>
-        <VietSageBrand
-          variant="wordmark"
-          priority
-          className="max-w-[14rem] rounded-xl px-3 py-2 shadow-[0_12px_28px_rgba(0,0,0,0.14)]"
-          wordmarkClassName="h-8 w-auto max-w-full"
-        />
+        <p className="font-serif text-[2.15rem] font-bold leading-none tracking-[-0.035em] text-[#fff8e8]">
+          VietSage
+        </p>
         <p className="mt-3 max-w-48 text-sm font-medium leading-6 text-[#d7cbb8]">
           {description}
         </p>

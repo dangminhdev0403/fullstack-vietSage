@@ -25,9 +25,10 @@ import type {
   HotelRoomSummary,
 } from "@/features/hotel-ops/types/hotel-ops-contract";
 import {
-  BRANDED_QR_LOCKUP_SRC,
+  BRANDED_QR_WATERMARK_OPACITY,
+  BRANDED_QR_WATERMARK_SRC,
   BrandedRoomQr,
-  getBrandedQrLockupSize,
+  getBrandedQrWatermarkSize,
 } from "@/features/hotel-ops/components/branded-room-qr";
 import {
   getGuestQrUrl,
@@ -770,15 +771,15 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
 
       const brandImage = new window.Image();
       brandImage.onload = () => {
-        const lockupSize = getBrandedQrLockupSize(qrSize);
+        const watermarkSize = getBrandedQrWatermarkSize(qrSize);
         context.save();
-        context.globalAlpha = 0.9;
+        context.globalAlpha = BRANDED_QR_WATERMARK_OPACITY;
         context.drawImage(
           brandImage,
-          qrX + (qrSize - lockupSize.width) / 2,
-          qrY + (qrSize - lockupSize.height) / 2,
-          lockupSize.width,
-          lockupSize.height,
+          qrX + (qrSize - watermarkSize.width) / 2,
+          qrY + (qrSize - watermarkSize.height) / 2,
+          watermarkSize.width,
+          watermarkSize.height,
         );
         context.restore();
 
@@ -797,7 +798,7 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
           confirmButtonColor: "#00003c",
         });
       };
-      brandImage.src = BRANDED_QR_LOCKUP_SRC;
+      brandImage.src = BRANDED_QR_WATERMARK_SRC;
     };
 
     qrImage.onerror = () => {

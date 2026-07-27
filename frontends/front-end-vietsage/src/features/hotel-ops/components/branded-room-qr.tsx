@@ -3,19 +3,21 @@
 import { forwardRef } from "react";
 import { QRCodeSVG } from "qrcode.react";
 
-export const BRANDED_QR_LOCKUP_SRC = "/brand/vietsage-qr-lockup.png";
+export const BRANDED_QR_WATERMARK_SRC =
+  "/brand/vietsage-qr-watermark.png";
+export const BRANDED_QR_WATERMARK_OPACITY = 0.12;
 
-const LOCKUP_ASPECT_RATIO = 320 / 76;
-const LOCKUP_WIDTH_RATIO = 0.3;
+const WATERMARK_ASPECT_RATIO = 640 / 540;
+const WATERMARK_WIDTH_RATIO = 0.82;
 
-export function getBrandedQrLockupSize(size: number): {
+export function getBrandedQrWatermarkSize(size: number): {
   height: number;
   width: number;
 } {
-  const width = Math.round(size * LOCKUP_WIDTH_RATIO);
+  const width = Math.round(size * WATERMARK_WIDTH_RATIO);
   return {
     width,
-    height: Math.round(width / LOCKUP_ASPECT_RATIO),
+    height: Math.round(width / WATERMARK_ASPECT_RATIO),
   };
 }
 
@@ -30,7 +32,7 @@ export const BrandedRoomQr = forwardRef<
   SVGSVGElement,
   Readonly<BrandedRoomQrProps>
 >(function BrandedRoomQr({ className, size, title, value }, ref) {
-  const lockupSize = getBrandedQrLockupSize(size);
+  const watermarkSize = getBrandedQrWatermarkSize(size);
 
   return (
     <QRCodeSVG
@@ -45,11 +47,11 @@ export const BrandedRoomQr = forwardRef<
       className={className}
       title={title}
       imageSettings={{
-        src: BRANDED_QR_LOCKUP_SRC,
-        width: lockupSize.width,
-        height: lockupSize.height,
-        excavate: true,
-        opacity: 0.9,
+        src: BRANDED_QR_WATERMARK_SRC,
+        width: watermarkSize.width,
+        height: watermarkSize.height,
+        excavate: false,
+        opacity: BRANDED_QR_WATERMARK_OPACITY,
       }}
     />
   );
