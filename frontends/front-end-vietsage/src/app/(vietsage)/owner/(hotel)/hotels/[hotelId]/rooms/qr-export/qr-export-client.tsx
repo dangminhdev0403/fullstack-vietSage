@@ -38,6 +38,11 @@ function useClientOrigin(): string {
   );
 }
 
+function escapeCsvCell(value: string): string {
+  const safeValue = /^[=+\-@]/.test(value) ? `'${value}` : value;
+  return `"${safeValue.replaceAll('"', '""')}"`;
+}
+
 export function OwnerRoomsQrExportClient({ hotelId }: Props) {
   const router = useRouter();
   const clientOrigin = useClientOrigin();
@@ -86,6 +91,29 @@ export function OwnerRoomsQrExportClient({ hotelId }: Props) {
     () => rooms.filter((room) => Boolean(getQrValue(room))),
     [rooms],
   );
+
+  function downloadRoomLinksForExcel(): void {
+    const rows = [
+      ["Tên phòng", "URL"],
+      ...qrRooms.map((room) => [
+        `Phòng ${getRoomNumber(room)}`,
+        getGuestQrUrl(room, clientOrigin) ?? "",
+      ]),
+    ];
+    const csvContent = `\uFEFF${rows
+      .map((row) => row.map(escapeCsvCell).join(","))
+      .join("\r\n")}`;
+    const fileUrl = URL.createObjectURL(
+      new Blob([csvContent], { type: "text/csv;charset=utf-8" }),
+    );
+    const downloadLink = document.createElement("a");
+    downloadLink.href = fileUrl;
+    downloadLink.download = `danh-sach-qr-phong-${new Date()
+      .toISOString()
+      .slice(0, 10)}.csv`;
+    downloadLink.click();
+    URL.revokeObjectURL(fileUrl);
+  }
 
   return (
     <main className="min-h-screen bg-[#f7f2e7] text-[#173d34] print:bg-white">
@@ -138,15 +166,26 @@ export function OwnerRoomsQrExportClient({ hotelId }: Props) {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => window.print()}
-            disabled={isLoading || Boolean(error) || qrRooms.length === 0}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#f4d36f] px-4 text-sm font-black text-[#173d34] shadow-[0_12px_26px_rgba(0,0,0,0.18)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <VsIcon name="download" className="text-lg" />
-            In / lưu PDF
-          </button>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={downloadRoomLinksForExcel}
+              disabled={isLoading || Boolean(error) || qrRooms.length === 0}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <VsIcon name="download" className="text-lg" />
+              Lưu Excel
+            </button>
+            <button
+              type="button"
+              onClick={() => window.print()}
+              disabled={isLoading || Boolean(error) || qrRooms.length === 0}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#f4d36f] px-4 text-sm font-black text-[#173d34] shadow-[0_12px_26px_rgba(0,0,0,0.18)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <VsIcon name="download" className="text-lg" />
+              In / lưu PDF
+            </button>
+          </div>
         </div>
       </div>
 
