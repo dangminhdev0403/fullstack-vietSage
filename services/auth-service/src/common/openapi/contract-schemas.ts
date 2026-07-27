@@ -673,6 +673,10 @@ export const createHotelBodySchema = {
     name: { type: "string", minLength: 2, maxLength: 160 },
     timezone: { type: "string", minLength: 1, maxLength: 80, default: "Asia/Saigon" },
     brandSettings: { type: "object", additionalProperties: true },
+    googleSheetUrl: {
+      type: "string",
+      description: "URL Google Sheets đầy đủ hoặc spreadsheet ID; không bắt buộc.",
+    },
   },
   required: ["name"],
 };

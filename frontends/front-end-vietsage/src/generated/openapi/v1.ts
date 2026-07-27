@@ -3471,6 +3471,8 @@ export interface operations {
                     brandSettings?: {
                         [key: string]: unknown;
                     };
+                    /** @description URL Google Sheets đầy đủ hoặc spreadsheet ID; không bắt buộc. */
+                    googleSheetUrl?: string;
                 };
             };
         };

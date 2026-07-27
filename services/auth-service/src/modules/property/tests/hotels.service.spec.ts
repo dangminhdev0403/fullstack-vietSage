@@ -369,6 +369,34 @@ describe("HotelsService", () => {
     expect(repository.createHotel).not.toHaveBeenCalled();
   });
 
+  it("kiểm tra Google Sheets tùy chọn trước khi tạo khách sạn", async () => {
+    const repository = createRepository();
+    const accessService = createAccessService(repository, {
+      loadActorContext: jest.fn().mockResolvedValue({
+        userId: "admin-1",
+        roleCodes: new Set(["SUPER_ADMIN"]),
+        tenantIds: new Set<string>(),
+        isSuperAdmin: true,
+        isTenantOwner: false,
+      }),
+    });
+    const service = createService(repository, createCodesService(), accessService);
+    const spreadsheetId = "1Mnq_gk87qlCwXYOMTko4HeMdilOBd5KX_o8etN0SBLk";
+
+    await service.createHotel("admin-1", "active-role", {
+      tenantId: "tenant-1",
+      name: "Riverside Hotel",
+      googleSheetUrl: spreadsheetId,
+    });
+
+    expect(service.googleSheetsSyncService.validateSpreadsheet).toHaveBeenCalledWith(
+      spreadsheetId,
+    );
+    expect(repository.createHotel).toHaveBeenCalledWith(
+      expect.objectContaining({ googleSheetId: spreadsheetId }),
+    );
+  });
+
   it("lấy chi tiết khách sạn khi người thực hiện có quyền truy cập", async () => {
     const repository = createRepository();
     const service = createService(repository);

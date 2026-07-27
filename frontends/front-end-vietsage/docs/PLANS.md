@@ -2518,7 +2518,8 @@ Remaining manual checkpoint:
 ### What Changed
 
 - Kept the Google Sheets connection field only in the Admin hotel edit flow so platform
-  administrators configure each tenant hotel.
+  administrators configure each tenant hotel; the same field is optional in the Admin create
+  hotel form.
 - Tenant Owner sees only synchronization status and the `Đồng bộ Google Sheets` action; the
   source URL and configuration controls are not rendered.
 - Added repository/resource/query layers using `@dangminhdev04032005/query-resource`; UI

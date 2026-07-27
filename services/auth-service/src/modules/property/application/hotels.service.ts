@@ -35,6 +35,24 @@ export class HotelsService {
 
     const tenantId = await this.hotelAccessService.resolveTenantId(actor, dto.tenantId);
     await this.hotelAccessService.assertTenantExists(tenantId);
+
+    if (dto.googleSheetUrl) {
+      if (!actor.isSuperAdmin) {
+        throw new ForbiddenException(
+          "Chỉ quản trị viên nền tảng được cấu hình Google Sheets cho khách sạn",
+        );
+      }
+      const existingHotel = await this.hotelCoreRepository.findHotelByGoogleSheetId(
+        dto.googleSheetUrl,
+      );
+      if (existingHotel) {
+        throw new ConflictException(
+          `Google Sheets này đã được gán cho khách sạn ${existingHotel.name}`,
+        );
+      }
+      await this.googleSheetsSyncService.validateSpreadsheet(dto.googleSheetUrl);
+    }
+
     const hotelCode = await this.codesService.generateEntityCode("HOTEL");
 
     const hotel = await this.hotelCoreRepository.createHotel({
@@ -43,6 +61,7 @@ export class HotelsService {
       code: hotelCode,
       timezone: dto.timezone?.trim() || "Asia/Saigon",
       brandSettings: dto.brandSettings as Prisma.InputJsonValue | undefined,
+      googleSheetId: dto.googleSheetUrl,
       status: HotelStatus.ACTIVE,
     });
 

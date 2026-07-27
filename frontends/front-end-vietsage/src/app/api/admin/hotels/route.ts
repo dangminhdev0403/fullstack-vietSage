@@ -19,6 +19,7 @@ const createHotelSchema = z.object({
   name: z.string().trim().min(1),
   timezone: z.string().trim().min(1).optional(),
   brandSettings: jsonRecordSchema.optional(),
+  googleSheetUrl: z.string().trim().max(500).optional(),
 });
 
 export async function POST(request: Request) {
@@ -41,6 +42,9 @@ export async function POST(request: Request) {
         name: parsed.data.name.trim(),
         ...(parsed.data.timezone?.trim() ? { timezone: parsed.data.timezone.trim() } : {}),
         ...(parsed.data.brandSettings ? { brandSettings: parsed.data.brandSettings } : {}),
+        ...(parsed.data.googleSheetUrl?.trim()
+          ? { googleSheetUrl: parsed.data.googleSheetUrl.trim() }
+          : {}),
       },
     );
 

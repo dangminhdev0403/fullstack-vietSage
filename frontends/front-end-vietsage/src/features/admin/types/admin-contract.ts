@@ -44,6 +44,7 @@ export type CreateHotelInput = {
   name: string;
   timezone?: string;
   brandSettings?: Record<string, unknown>;
+  googleSheetUrl?: string;
 };
 
 export type UpdateHotelInput = {

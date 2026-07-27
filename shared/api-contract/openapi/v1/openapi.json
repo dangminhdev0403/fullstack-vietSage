@@ -4732,6 +4732,10 @@
                   "brandSettings": {
                     "type": "object",
                     "additionalProperties": true
+                  },
+                  "googleSheetUrl": {
+                    "type": "string",
+                    "description": "URL Google Sheets đầy đủ hoặc spreadsheet ID; không bắt buộc."
                   }
                 },
                 "required": [

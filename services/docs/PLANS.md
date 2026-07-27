@@ -10,6 +10,8 @@
   import semantics.
 - [x] Restricted sheet configuration to `SUPER_ADMIN`; tenant actors can run synchronization but
   cannot set, replace, or disconnect a hotel's sheet.
+- [x] Allowed `SUPER_ADMIN` to provide the sheet URL optionally during hotel creation, with the
+  same duplicate/access/range validation used by later edits.
 
 Verification result:
 

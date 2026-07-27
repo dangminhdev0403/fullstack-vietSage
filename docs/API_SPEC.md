@@ -34,8 +34,9 @@ The current backend runtime is the NestJS core API under `services/auth-service`
 - Google Sheets service-catalog configuration belongs to a hotel, not the process environment.
   Only `SUPER_ADMIN` may set or clear `googleSheetUrl` through `PATCH /hotels/{hotelId}`; tenant
   users may trigger synchronization but cannot change the configured source. The backend
-  normalizes the URL into `googleSheetId`, refuses hotels without a configured sheet, and never
-  falls back to a shared workbook.
+  accepts the URL optionally during Admin hotel creation or later update, normalizes it into
+  `googleSheetId`, refuses synchronization for hotels without a configured sheet, and never falls
+  back to a shared workbook.
 
 ## Verification
 

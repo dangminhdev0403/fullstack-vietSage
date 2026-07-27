@@ -58,6 +58,7 @@ export const createHotelBodySchema = z
     name: z.string().trim().min(2).max(160),
     timezone: z.string().trim().min(1).max(80).optional(),
     brandSettings: jsonRecordSchema.optional(),
+    googleSheetUrl: googleSheetUrlSchema.optional(),
   })
   .strict();
 

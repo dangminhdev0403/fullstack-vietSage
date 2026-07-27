@@ -346,6 +346,9 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }:
                 name: form.name.trim(),
                 timezone: form.timezone.trim() || "Asia/Saigon",
                 brandSettings: brandSettings ?? {},
+                ...(form.googleSheetUrl.trim()
+                  ? { googleSheetUrl: form.googleSheetUrl.trim() }
+                  : {}),
               },
             })
           : await updateGoogleSheetConfig.mutateAsync({
@@ -513,29 +516,29 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }:
                 <input value={form.timezone} onChange={(event) => setForm((current) => ({ ...current, timezone: event.target.value }))} className="w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 font-normal outline-none focus:border-[var(--primary)]" />
               </label>
               {formMode === "edit" ? (
-                <>
-                  <label className="space-y-2 text-sm font-semibold text-[var(--on-surface)]">
-                    Trạng thái
-                    <select value={form.status} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as HotelFormState["status"] }))} className="w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 font-normal outline-none focus:border-[var(--primary)]">
-                      <option value="ACTIVE">ACTIVE</option>
-                      <option value="DISABLED">DISABLED</option>
-                    </select>
-                  </label>
-                  <label className="space-y-2 text-sm font-semibold text-[var(--on-surface)] md:col-span-2">
-                    Google Sheets của khách sạn
-                    <input
-                      type="url"
-                      value={form.googleSheetUrl}
-                      onChange={(event) => setForm((current) => ({ ...current, googleSheetUrl: event.target.value }))}
-                      placeholder="https://docs.google.com/spreadsheets/d/.../edit"
-                      className="w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 font-normal outline-none focus:border-[var(--primary)]"
-                    />
-                    <span className="block text-xs font-normal text-[var(--on-surface-variant)]">
-                      Để trống để ngắt kết nối. Hệ thống kiểm tra quyền truy cập và vùng dữ liệu trước khi lưu.
-                    </span>
-                  </label>
-                </>
+                <label className="space-y-2 text-sm font-semibold text-[var(--on-surface)]">
+                  Trạng thái
+                  <select value={form.status} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as HotelFormState["status"] }))} className="w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 font-normal outline-none focus:border-[var(--primary)]">
+                    <option value="ACTIVE">ACTIVE</option>
+                    <option value="DISABLED">DISABLED</option>
+                  </select>
+                </label>
               ) : null}
+              <label className="space-y-2 text-sm font-semibold text-[var(--on-surface)] md:col-span-2">
+                Google Sheets của khách sạn (không bắt buộc)
+                <input
+                  type="url"
+                  value={form.googleSheetUrl}
+                  onChange={(event) => setForm((current) => ({ ...current, googleSheetUrl: event.target.value }))}
+                  placeholder="https://docs.google.com/spreadsheets/d/.../edit"
+                  className="w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 font-normal outline-none focus:border-[var(--primary)]"
+                />
+                <span className="block text-xs font-normal text-[var(--on-surface-variant)]">
+                  {formMode === "create"
+                    ? "Có thể để trống và cấu hình sau. Nếu nhập, hệ thống sẽ kiểm tra quyền truy cập trước khi tạo."
+                    : "Để trống để ngắt kết nối. Hệ thống kiểm tra quyền truy cập trước khi lưu."}
+                </span>
+              </label>
               <label className="space-y-2 text-sm font-semibold text-[var(--on-surface)] md:col-span-2">
                 Brand settings
                 <textarea value={form.brandSettingsText} onChange={(event) => setForm((current) => ({ ...current, brandSettingsText: event.target.value }))} rows={4} className="w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 font-mono text-xs font-normal outline-none focus:border-[var(--primary)]" />
