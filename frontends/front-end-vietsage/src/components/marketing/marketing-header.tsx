@@ -6,6 +6,8 @@ import { useEffect, useRef, useState } from "react";
 
 import { VietSageBrand } from "@/components/brand/vietsage-brand";
 
+import { REQUEST_DEMO_URL } from "./marketing-links";
+
 const primaryLinks = [
   { label: "Home", href: "/" },
   { label: "About Us", href: "/about" },
@@ -128,12 +130,14 @@ export function MarketingHeader({ accountAction }: { accountAction: { label: str
           <Link className="vs-mkt-sign-in hidden sm:inline-flex" href={accountAction.href}>
             {accountAction.label}
           </Link>
-          <Link
+          <a
             className="vs-mkt-primary-btn hidden rounded-full bg-[#123d2a] px-5 py-3 text-sm font-black text-white shadow-lg shadow-[#123d2a]/20 md:inline-flex"
-            href="/contact"
+            href={REQUEST_DEMO_URL}
+            target="_blank"
+            rel="noopener noreferrer"
           >
             Request demo
-          </Link>
+          </a>
           <button
             className="vs-mobile-menu-toggle grid h-11 w-11 place-items-center rounded-full xl:hidden"
             type="button"
@@ -216,9 +220,16 @@ export function MarketingHeader({ accountAction }: { accountAction: { label: str
               <Link className="vs-mkt-sign-in justify-center" href={accountAction.href} tabIndex={mobileOpen ? 0 : -1} onClick={() => setMobileOpen(false)}>
                 {accountAction.label}
               </Link>
-              <Link className="rounded-full bg-[#123d2a] px-4 py-3 text-center text-sm font-black text-white" href="/contact" tabIndex={mobileOpen ? 0 : -1} onClick={() => setMobileOpen(false)}>
+              <a
+                className="rounded-full bg-[#123d2a] px-4 py-3 text-center text-sm font-black text-white"
+                href={REQUEST_DEMO_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                tabIndex={mobileOpen ? 0 : -1}
+                onClick={() => setMobileOpen(false)}
+              >
                 Request demo
-              </Link>
+              </a>
             </div>
           </div>
         </div>

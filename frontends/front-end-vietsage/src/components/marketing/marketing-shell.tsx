@@ -6,6 +6,7 @@ import { VietSageBrand } from "@/components/brand/vietsage-brand";
 import { getLandingAction } from "@/features/auth/utils/landing-action";
 
 import { MarketingHeader } from "./marketing-header";
+import { REQUEST_DEMO_URL } from "./marketing-links";
 import { MarketingMotionRoot } from "./marketing-motion-root";
 
 const sceneParticles = Array.from({ length: 18 }, (_, index) => ({
@@ -95,7 +96,14 @@ export function Hero({ eyebrow, title, text, children }: { eyebrow: string; titl
             Guests scan a room QR, choose what they need, and your team receives a clean service task instantly.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Link className="vs-mkt-primary-btn rounded-full bg-[#123d2a] px-7 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-white shadow-xl shadow-[#123d2a]/20" href="/contact">Book a room demo</Link>
+            <a
+              className="vs-mkt-primary-btn rounded-full bg-[#123d2a] px-7 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-white shadow-xl shadow-[#123d2a]/20"
+              href={REQUEST_DEMO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Book a room demo
+            </a>
             <Link className="vs-mkt-secondary-btn rounded-full border border-[#123d2a]/20 bg-white/76 px-7 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-[#123d2a] shadow-sm" href="/g/home">View guest flow</Link>
           </div>
           {children}
@@ -173,7 +181,7 @@ export function CTA() {
             <p className="mt-4 max-w-2xl text-white/72">Talk with our team about hotel operations, guest journeys, multilingual services, integrations, and secure deployment models.</p>
           </div>
           <a
-            href="https://forms.gle/x14YN3UpMhQwVAtV7"
+            href={REQUEST_DEMO_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="rounded-full bg-[#f3c66b] px-7 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-[#123d2a]"

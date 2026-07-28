@@ -284,5 +284,20 @@
   "282": "page.tsx",
   "283": "dashboard-presentation.test.ts",
   "284": "staff-management-client.tsx",
-  "285": "owner-room-modal-layout.test.ts"
+  "285": "owner-room-modal-layout.test.ts",
+  "286": "identity.module.ts",
+  "287": "tenant-owners.service.ts",
+  "288": "global-exception.filter.ts",
+  "289": "auth-rate-limit.guard.ts",
+  "290": "hotel-staff-assignments.controller.ts",
+  "291": "transformation.interceptor.ts",
+  "292": "reservations.controller.ts",
+  "293": "admin-resource.ts",
+  "294": "hotel-simulation.integration.spec.ts",
+  "295": "route.ts",
+  "296": "route.ts",
+  "297": "route.ts",
+  "298": "route.ts",
+  "299": "next-auth",
+  "300": "@tanstack/react-query"
 }

@@ -1,3 +1,18 @@
+## [complete] 2026-07-28 - Mission: all-demo-cta-google-form-followup
+
+- Updated the remaining desktop navigation, mobile navigation, and hero demo CTAs to open the approved Google Form in a new tab.
+- Centralized the form URL and reused it for the already-connected closing `Request Demo` CTA.
+- Added `noopener noreferrer` isolation to every external demo link.
+
+Verification result:
+
+- Scoped ESLint passed for the marketing header, shell, and shared link configuration.
+- Frontend TypeScript validation and production build passed.
+
+Remaining blockers/risks:
+
+- None.
+
 ## [complete] 2026-07-28 - Mission: request-demo-google-form
 
 - Changed the public marketing `Request Demo` CTA to open the approved Google Form in a new tab.

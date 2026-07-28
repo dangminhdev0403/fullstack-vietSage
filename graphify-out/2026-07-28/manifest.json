@@ -690,8 +690,8 @@
     "semantic_hash": "3b1af38a9ad4fe67dc149521024270c2"
   },
   "frontends/front-end-vietsage/src/components/marketing/marketing-shell.tsx": {
-    "mtime": 1785209998.6754942,
-    "ast_hash": "614a8797e97ccd2bae7d868b1774e617",
+    "mtime": 1785212347.8986478,
+    "ast_hash": "d208c1ea76eac5c6eb0b5b30538507ba",
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/components/ui/data-table.tsx": {
@@ -2925,8 +2925,8 @@
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/docs/PLANS.md": {
-    "mtime": 1785209998.674494,
-    "ast_hash": "7892b2889bff8f57cc830589ac04f49a",
+    "mtime": 1785212347.8986478,
+    "ast_hash": "0927d1e29bb6c19b6ebdb8b1d814f85b",
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/docs/RULES.md": {
