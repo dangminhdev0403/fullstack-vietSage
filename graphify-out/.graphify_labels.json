@@ -205,6 +205,7 @@
   "203": "Frontend Smoke Tests",
   "204": "PRODUCT.md",
   "205": "VietSage Domain Map",
+  "206": ".resolveModuleSummaryBaseOrThrow",
   "207": "Frontend Instructions: GuestOS Backend I18n Sync",
   "208": "PROJECT PLAN",
   "209": "2026-07-14 - Guest Request Contract Sync",
@@ -220,6 +221,7 @@
   "219": "renew-production-certificates.sh",
   "220": "restore-production-postgres.sh",
   "221": "verify-production-backup.py",
+  "222": "categoryToForm",
   "223": "Phase 0 — Read-Only VPS Discovery",
   "224": "transformation.interceptor.ts",
   "225": "route.ts",
@@ -267,6 +269,8 @@
   "267": ".warn",
   "268": "fix-paths.js",
   "269": "page.tsx",
+  "270": "getNestedMessage",
+  "271": "@dangminhdev04032005/query-resource",
   "272": "2026-07-22 - Stay-Scoped Front Desk Messages",
   "273": "Active Plan",
   "274": "page.tsx",
@@ -274,7 +278,11 @@
   "276": "loading.tsx",
   "277": "chat-layout-regression.test.mjs",
   "278": "authentication.service.spec.ts",
+  "279": "sweetalert2",
   "280": "page.tsx",
   "281": "route.ts",
-  "284": "staff-management-client.tsx"
+  "282": "page.tsx",
+  "283": "dashboard-presentation.test.ts",
+  "284": "staff-management-client.tsx",
+  "285": "owner-room-modal-layout.test.ts"
 }

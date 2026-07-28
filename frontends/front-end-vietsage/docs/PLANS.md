@@ -1,3 +1,17 @@
+## [complete] 2026-07-28 - Mission: marketing-mobile-heading-scale
+
+- Reduced the mobile hero heading with a fluid, bounded font size so long copy wraps into fewer, more balanced lines on narrow screens.
+- Reduced mobile section, operations, and CTA headings while preserving the existing desktop typography from the `md` breakpoint.
+
+Verification result:
+
+- Scoped ESLint passed for the two changed marketing components.
+- Frontend TypeScript validation passed.
+
+Remaining blockers/risks:
+
+- None.
+
 ## [complete] 2026-07-27 - Mission: production-auth-refresh-race-fix
 
 - Correlated VPS frontend/backend logs: a successful refresh rotation was followed by concurrent stale-token requests using different idempotency keys; backend correctly classified those as replay and revoked the refresh family.

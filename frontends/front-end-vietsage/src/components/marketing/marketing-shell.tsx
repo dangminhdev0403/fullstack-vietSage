@@ -73,7 +73,7 @@ export function SectionHeader({ eyebrow, title, text, reveal = "fade" }: { eyebr
   return (
     <div className="vs-section-header mx-auto max-w-3xl text-center" data-reveal={reveal}>
       <p className="text-xs font-black uppercase tracking-[0.26em] text-[#b8872f]">{eyebrow}</p>
-      <h2 className="vs-display mt-3 text-4xl font-black tracking-[-0.04em] text-[#123d2a] md:text-6xl">{title}</h2>
+      <h2 className="vs-display mt-3 text-3xl font-black leading-[1.02] tracking-[-0.035em] text-[#123d2a] md:text-6xl md:leading-none md:tracking-[-0.04em]">{title}</h2>
       <p className="mt-5 text-lg leading-8 text-[#627064]">{text}</p>
     </div>
   );
@@ -89,7 +89,7 @@ export function Hero({ eyebrow, title, text, children }: { eyebrow: string; titl
       <div className="relative mx-auto grid min-h-[calc(100svh-5rem)] max-w-7xl items-center gap-12 px-5 py-16 lg:grid-cols-[1.02fr_.98fr] lg:px-8 lg:py-20">
         <div className="vs-hero-copy">
           <p className="inline-flex rounded-full border border-[#b8872f]/20 bg-white/60 px-4 py-2 text-xs font-black uppercase tracking-[0.26em] text-[#9b6a1d] shadow-sm shadow-[#123d2a]/5">{eyebrow}</p>
-          <h1 className="vs-display mt-6 text-5xl font-black leading-[.92] tracking-[-0.065em] text-[#123d2a] md:text-7xl">{title}</h1>
+          <h1 className="vs-display mt-6 text-[clamp(2.15rem,10vw,2.5rem)] font-black leading-[.98] tracking-[-0.05em] text-[#123d2a] md:text-7xl md:leading-[.92] md:tracking-[-0.065em]">{title}</h1>
           <p className="mt-6 max-w-2xl text-xl leading-9 text-[#405446]">{text}</p>
           <p className="mt-4 max-w-xl rounded-2xl border border-[#123d2a]/10 bg-white/58 px-4 py-3 text-sm font-bold text-[#123d2a] shadow-sm shadow-[#123d2a]/5">
             Guests scan a room QR, choose what they need, and your team receives a clean service task instantly.
@@ -169,7 +169,7 @@ export function CTA() {
         <div className="grid gap-8 md:grid-cols-[1fr_auto] md:items-center">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.28em] text-[#f3c66b]">Ready for modern hospitality operations?</p>
-            <h2 className="vs-display mt-3 text-4xl font-black md:text-6xl">Design your VietSage rollout.</h2>
+            <h2 className="vs-display mt-3 text-3xl font-black leading-[1.02] md:text-6xl md:leading-none">Design your VietSage rollout.</h2>
             <p className="mt-4 max-w-2xl text-white/72">Talk with our team about hotel operations, guest journeys, multilingual services, integrations, and secure deployment models.</p>
           </div>
           <Link href="/contact" className="rounded-full bg-[#f3c66b] px-7 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-[#123d2a]">Request Demo</Link>

@@ -148,7 +148,7 @@ export function MarketingHome() {
         <div className="relative mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.92fr_1.08fr]">
           <div data-reveal="from-left" className="vs-story-panel rounded-[2rem] p-8 text-white lg:sticky lg:top-32 lg:self-start">
             <p className="text-xs font-black uppercase tracking-[0.26em] text-[#f3c66b]">03 / From room to team</p>
-            <h2 className="vs-display mt-5 text-5xl font-black tracking-[-0.04em] md:text-6xl">
+            <h2 className="vs-display mt-5 text-3xl font-black leading-[1.02] tracking-[-0.035em] md:text-6xl md:leading-none md:tracking-[-0.04em]">
               Every small request becomes a clear service signal.
             </h2>
             <p className="mt-5 text-white/72">
