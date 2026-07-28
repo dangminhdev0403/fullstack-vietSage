@@ -172,7 +172,14 @@ export function CTA() {
             <h2 className="vs-display mt-3 text-3xl font-black leading-[1.02] md:text-6xl md:leading-none">Design your VietSage rollout.</h2>
             <p className="mt-4 max-w-2xl text-white/72">Talk with our team about hotel operations, guest journeys, multilingual services, integrations, and secure deployment models.</p>
           </div>
-          <Link href="/contact" className="rounded-full bg-[#f3c66b] px-7 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-[#123d2a]">Request Demo</Link>
+          <a
+            href="https://forms.gle/x14YN3UpMhQwVAtV7"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-full bg-[#f3c66b] px-7 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-[#123d2a]"
+          >
+            Request Demo
+          </a>
         </div>
       </div>
     </section>

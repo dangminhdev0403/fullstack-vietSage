@@ -1,3 +1,17 @@
+## [complete] 2026-07-28 - Mission: request-demo-google-form
+
+- Changed the public marketing `Request Demo` CTA to open the approved Google Form in a new tab.
+- Added `noopener noreferrer` isolation for the external destination.
+
+Verification result:
+
+- Scoped ESLint passed for the changed marketing component.
+- Frontend TypeScript validation and production build passed.
+
+Remaining blockers/risks:
+
+- The separate hero CTA `Book a room demo` continues to use the internal contact page.
+
 ## [complete] 2026-07-28 - Mission: marketing-mobile-heading-scale
 
 - Reduced the mobile hero heading with a fluid, bounded font size so long copy wraps into fewer, more balanced lines on narrow screens.
