@@ -10,6 +10,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSE_PATH = ROOT / "docker-compose.prod.yml"
 DOCKERFILE_PATH = ROOT / "services/auth-service/Dockerfile"
+PAYMENT_CODE_MIGRATION = (
+    ROOT
+    / "services/auth-service/prisma/migrations/20260728130000_seed_payment_code/migration.sql"
+)
 FORBIDDEN = ("prisma db push", "migrate reset", "prisma reset", "prisma:reset", "prisma:push")
 
 
@@ -68,6 +72,19 @@ def main() -> int:
         dockerfile,
     ):
         failures.append("auth-service runtime image must include prisma.config.ts")
+
+    if not PAYMENT_CODE_MIGRATION.exists():
+        failures.append("missing idempotent PAYMENT code-sequence migration")
+    else:
+        payment_migration = PAYMENT_CODE_MIGRATION.read_text(encoding="utf-8")
+        for required in (
+            '"name"',
+            "'PAYMENT'",
+            'ON CONFLICT ("name") DO UPDATE',
+            'GREATEST("Code"."sequenceNext", EXCLUDED."sequenceNext")',
+        ):
+            if required not in payment_migration:
+                failures.append(f"PAYMENT migration is missing: {required}")
 
     lowered = compose.lower()
     for forbidden in FORBIDDEN:

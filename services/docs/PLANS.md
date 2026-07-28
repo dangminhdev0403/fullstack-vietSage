@@ -1,5 +1,19 @@
 # VietSage Backend Plan
 
+## 2026-07-28 - Checkout Charge and Active Guest QR Recovery
+
+- [x] Recalculated room charges at invoice issuance from actual check-in through the earlier of the current time or planned checkout, with a one-night minimum.
+- [x] Recalculated an existing open-folio room charge before snapshotting the invoice.
+- [x] Added an idempotent `PAYMENT` code-sequence migration for clean and upgraded databases.
+- [x] Locked active guest access to `ACTIVE` QR + `ACTIVE` stay + no checkout; occupied room workflow remains scan-capable.
+
+Verification result:
+
+- Billing and GuestOS focused suites passed: 2 suites, 18 tests.
+- Full backend unit suite passed: 58 suites / 338 tests, with 1 suite and 3 tests skipped.
+- Backend E2E passed: 16 tests. Backend build and Prisma generation passed.
+- Scoped changed-file ESLint passed. Repository-wide backend lint remains blocked by pre-existing formatting/errors outside this scope.
+
 ## 2026-07-27 - Per-Hotel Google Sheets Service Catalog
 
 - [x] Added nullable unique `Hotel.googleSheetId` with a reviewable Prisma migration.

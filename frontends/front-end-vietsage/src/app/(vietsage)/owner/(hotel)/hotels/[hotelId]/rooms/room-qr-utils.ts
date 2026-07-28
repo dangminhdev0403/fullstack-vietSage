@@ -9,14 +9,11 @@ export function getQrStatus(room: HotelRoomSummary): string {
 }
 
 export function getQrValue(room: HotelRoomSummary): string | null {
-  return (
-    room.qr?.publicCode?.trim() ||
-    room.publicCode?.trim() ||
-    room.qr?.code?.trim() ||
-    room.qr?.qrCode?.trim() ||
-    room.qrCode?.trim() ||
-    null
-  );
+  if (getQrStatus(room) !== "ACTIVE") {
+    return null;
+  }
+
+  return room.qr?.publicCode?.trim() || null;
 }
 
 export function getGuestQrUrl(

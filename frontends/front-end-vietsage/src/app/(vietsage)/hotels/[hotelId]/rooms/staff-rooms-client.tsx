@@ -93,14 +93,9 @@ function getRoomNumber(room: HotelRoomSummary): string {
 }
 
 function getRoomQrValue(room: HotelRoomSummary): string | null {
-  return (
-    room.qr?.publicCode?.trim() ||
-    room.publicCode?.trim() ||
-    room.qr?.code?.trim() ||
-    room.qr?.qrCode?.trim() ||
-    room.qrCode?.trim() ||
-    null
-  );
+  const qrStatus = (room.qr?.status ?? room.qrStatus ?? "INACTIVE").trim().toUpperCase();
+  if (qrStatus !== "ACTIVE") return null;
+  return room.qr?.publicCode?.trim() || null;
 }
 
 function getGuestQrUrl(room: HotelRoomSummary, origin: string): string | null {

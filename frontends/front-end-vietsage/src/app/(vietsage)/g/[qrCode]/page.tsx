@@ -146,7 +146,7 @@ export default function GuestQrEntryPage() {
       .scanQr({ qrCode, currentSessionToken: sessionToken ?? undefined, forceSwitch, locale })
       .then((session) => {
         setGuestSession(session);
-        router.replace(language ? "/g/home" : "/g/language");
+        router.replace(language ? "/g/services" : "/g/language");
       })
       .catch((error: unknown) => {
         if (isSessionSwitchRequired(error)) {

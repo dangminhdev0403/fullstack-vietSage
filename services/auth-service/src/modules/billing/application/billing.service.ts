@@ -444,7 +444,7 @@ export class BillingService {
           throw new ConflictException("FOLIO_NOT_OPEN_FOR_CHECKOUT");
         }
 
-        const invoiceNumber = await this.codesService.generateEntityCode("INVOICE");
+        const invoiceNumber = await this.codesService.generateEntityCode("INVOICE", tx);
 
         await this.ensureRoomChargeFolioItem(tx, folio, actorUserId);
         const folioItems = await tx.folioItem.findMany({
@@ -1100,6 +1100,10 @@ export class BillingService {
     }>,
     actorUserId: string,
   ) {
+    if (folio.status !== FolioStatus.OPEN) {
+      throw new ConflictException("ROOM_CHARGE_RECALCULATION_REQUIRES_OPEN_FOLIO");
+    }
+
     const existing = await tx.folioItem.findFirst({
       where: {
         folioId: folio.id,
@@ -1109,18 +1113,33 @@ export class BillingService {
         voidedAt: null,
       },
     });
-    if (existing) {
-      return existing;
-    }
-
+    const chargeStart = folio.stay.checkedInAt ?? folio.stay.plannedCheckInAt;
+    const chargeEnd = new Date(Math.min(Date.now(), folio.stay.plannedCheckOutAt.getTime()));
     const unitPrice = folio.room.price ?? new Prisma.Decimal(0);
     const nights = Math.max(
       1,
-      Math.ceil(
-        (folio.stay.plannedCheckOutAt.getTime() - folio.stay.plannedCheckInAt.getTime()) / 86400000,
-      ),
+      Math.ceil(Math.max(0, chargeEnd.getTime() - chargeStart.getTime()) / 86400000),
     );
     const subtotal = unitPrice.mul(nights);
+    const chargeData = {
+      quantity: nights,
+      unitPriceSnapshot: unitPrice,
+      subtotalSnapshot: subtotal,
+      totalSnapshot: subtotal,
+      billingSourceSnapshot: {
+        stayId: folio.stayId,
+        roomId: folio.roomId,
+        roomNumber: folio.room.roomNumber,
+        nightlyRate: unitPrice,
+        chargeStart: chargeStart.toISOString(),
+        chargeEnd: chargeEnd.toISOString(),
+        nights,
+      },
+    };
+
+    if (existing) {
+      return tx.folioItem.update({ where: { id: existing.id }, data: chargeData });
+    }
 
     return tx.folioItem.create({
       data: {
@@ -1133,18 +1152,8 @@ export class BillingService {
         roomId: folio.roomId,
         codeSnapshot: folio.room.roomNumber,
         nameSnapshot: `Room charge - ${folio.room.roomNumber}`,
-        quantity: nights,
-        unitPriceSnapshot: unitPrice,
-        subtotalSnapshot: subtotal,
-        totalSnapshot: subtotal,
         currency: folio.currency,
-        billingSourceSnapshot: {
-          stayId: folio.stayId,
-          roomId: folio.roomId,
-          roomNumber: folio.room.roomNumber,
-          nightlyRate: unitPrice,
-          nights,
-        },
+        ...chargeData,
         postedByUserId: actorUserId,
       },
     });

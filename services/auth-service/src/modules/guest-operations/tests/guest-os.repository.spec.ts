@@ -1,4 +1,9 @@
-import { GuestRequestPriority, GuestRequestStatus } from "@prisma/client";
+import {
+  GuestRequestPriority,
+  GuestRequestStatus,
+  GuestStayStatus,
+  RoomQRCodeStatus,
+} from "@prisma/client";
 import { GuestOsRepository } from "../infrastructure/repositories/guest-os.repository";
 
 describe("GuestOsRepository request creation", () => {
@@ -65,6 +70,18 @@ describe("GuestOsRepository QR scan lookup", () => {
 
     await expect(repository.findQrForScan("token_old")).resolves.toBeNull();
     await expect(repository.findQrForScan("token_new")).resolves.toBe(rotatedQr);
+  });
+
+  it("allows an active QR for an active stay in an occupied room workflow", () => {
+    const repository = new GuestOsRepository({} as never);
+
+    expect(
+      repository.isAccessOpen({
+        qrStatus: RoomQRCodeStatus.ACTIVE,
+        stayStatus: GuestStayStatus.ACTIVE,
+        checkedOutAt: null,
+      }),
+    ).toBe(true);
   });
 });
 

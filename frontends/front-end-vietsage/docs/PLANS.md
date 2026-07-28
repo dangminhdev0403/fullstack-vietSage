@@ -1,3 +1,21 @@
+## [complete] 2026-07-28 - Mission: checkout-qr-recovery
+
+- Redirected successful room QR scans to GuestOS services after language selection.
+- Restricted room QR links/previews/exports to the canonical active `qr.publicCode`, preventing revoked or legacy fallback codes from being encoded.
+- Replaced raw internal transport status messages with safe BFF/backend details or a generic Vietnamese fallback.
+
+Verification result:
+
+- QR/error regression scripts passed: 5 tests.
+- Frontend production build passed.
+- Full frontend lint passed with 0 errors and 12 pre-existing warnings.
+- Production migration topology verification passed.
+
+Remaining blockers/risks:
+
+- Production runtime remains unchanged; immutable build/cutover requires separate approval.
+- Already-issued incorrect invoices remain immutable and require an explicit void/reissue workflow.
+
 ## [complete] 2026-07-28 - Mission: all-demo-cta-google-form-followup
 
 - Updated the remaining desktop navigation, mobile navigation, and hero demo CTAs to open the approved Google Form in a new tab.

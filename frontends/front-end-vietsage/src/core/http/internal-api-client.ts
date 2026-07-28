@@ -63,6 +63,17 @@ function assertInternalApiPath(path: string): void {
   }
 }
 
+function readInternalApiErrorMessage(payload: unknown, status: number): string {
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    const data = (payload as { data?: unknown }).data;
+    if (data && typeof data === "object" && !Array.isArray(data)) {
+      const detail = (data as { detail?: unknown }).detail;
+      if (typeof detail === "string" && detail.trim()) return detail.trim();
+    }
+  }
+  return `Yêu cầu thất bại (${status}). Vui lòng thử lại.`;
+}
+
 async function fetchInternalApi<TData, TBody>(
   path: string,
   options: InternalApiRequestOptions<TBody>,
@@ -72,7 +83,7 @@ async function fetchInternalApi<TData, TBody>(
 
   if (!response.ok) {
     throw new HttpError({
-      message: `Internal API request failed with status ${response.status}`,
+      message: readInternalApiErrorMessage(payload, response.status),
       status: response.status,
       requestUrl: path,
       data: payload,

@@ -62,7 +62,8 @@ describe("BillingService checkout safety", () => {
           stay: {
             id: "stay-1",
             plannedCheckInAt: new Date("2026-07-17T10:00:00.000Z"),
-            plannedCheckOutAt: new Date("2026-07-18T10:00:00.000Z"),
+            plannedCheckOutAt: new Date("2026-09-29T05:00:00.000Z"),
+            checkedInAt: new Date("2026-07-18T09:40:00.000Z"),
           },
         }),
         update: jest.fn().mockResolvedValue({}),
@@ -74,7 +75,8 @@ describe("BillingService checkout safety", () => {
           .mockResolvedValue({ id: "invoice-1", totalAmount: new Prisma.Decimal(100) }),
       },
       folioItem: {
-        findFirst: jest.fn().mockResolvedValue({ id: "item-existing" }),
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({ id: "room-charge-1" }),
         findMany: jest.fn().mockResolvedValue([
           {
             subtotalSnapshot: new Prisma.Decimal(100),
@@ -115,9 +117,25 @@ describe("BillingService checkout safety", () => {
 
     await service.issueInvoice("user-1", "active-role", "hotel-1", "folio-1");
 
+    expect(Reflect.get(service, "codesService").generateEntityCode).toHaveBeenCalledWith(
+      "INVOICE",
+      tx,
+    );
     expect(tx.folio.update).toHaveBeenCalledWith({
       where: { id: "folio-1" },
       data: { status: FolioStatus.CHECKOUT_PENDING, checkoutStartedAt: now },
+    });
+    expect(tx.folioItem.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        quantity: 1,
+        subtotalSnapshot: new Prisma.Decimal(100),
+        totalSnapshot: new Prisma.Decimal(100),
+        billingSourceSnapshot: expect.objectContaining({
+          chargeStart: "2026-07-18T09:40:00.000Z",
+          chargeEnd: now.toISOString(),
+          nights: 1,
+        }),
+      }),
     });
     expect(tx.guestStay.update).not.toHaveBeenCalled();
     expect(tx.room.update).not.toHaveBeenCalled();
@@ -486,5 +504,103 @@ describe("BillingService checkout safety", () => {
     });
 
     expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("caps room charges at planned checkout when payment is confirmed late", async () => {
+    const tx = {
+      folioItem: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({ id: "room-charge-1" }),
+      },
+    };
+    const service = createService({});
+    const ensureRoomCharge = Reflect.get(service, "ensureRoomChargeFolioItem") as (
+      ...args: unknown[]
+    ) => Promise<unknown>;
+
+    await ensureRoomCharge.call(
+      service,
+      tx,
+      {
+        id: "folio-1",
+        hotelId: "hotel-1",
+        stayId: "stay-1",
+        roomId: "room-1",
+        currency: "VND",
+        status: FolioStatus.OPEN,
+        hotel: { id: "hotel-1", name: "Hotel" },
+        room: { id: "room-1", roomNumber: "101", price: new Prisma.Decimal(100) },
+        stay: {
+          id: "stay-1",
+          checkedInAt: new Date("2026-07-16T10:00:00.000Z"),
+          plannedCheckInAt: new Date("2026-07-16T10:00:00.000Z"),
+          plannedCheckOutAt: new Date("2026-07-17T10:00:00.000Z"),
+        },
+      },
+      "user-1",
+    );
+
+    expect(tx.folioItem.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        quantity: 1,
+        billingSourceSnapshot: expect.objectContaining({ chargeEnd: "2026-07-17T10:00:00.000Z" }),
+      }),
+    });
+  });
+
+  it("recalculates an existing room charge before invoice issuance", async () => {
+    const tx = {
+      folioItem: {
+        findFirst: jest.fn().mockResolvedValue({ id: "room-charge-existing" }),
+        update: jest.fn().mockResolvedValue({ id: "room-charge-existing" }),
+      },
+    };
+    const service = createService({});
+    const ensureRoomCharge = Reflect.get(service, "ensureRoomChargeFolioItem") as (
+      ...args: unknown[]
+    ) => Promise<unknown>;
+
+    await ensureRoomCharge.call(
+      service,
+      tx,
+      {
+        id: "folio-1",
+        hotelId: "hotel-1",
+        stayId: "stay-1",
+        roomId: "room-1",
+        currency: "VND",
+        status: FolioStatus.OPEN,
+        hotel: { id: "hotel-1", name: "Hotel" },
+        room: { id: "room-1", roomNumber: "101", price: new Prisma.Decimal(100) },
+        stay: {
+          id: "stay-1",
+          checkedInAt: new Date("2026-07-18T09:40:00.000Z"),
+          plannedCheckInAt: new Date("2026-07-18T09:40:00.000Z"),
+          plannedCheckOutAt: new Date("2026-09-29T05:00:00.000Z"),
+        },
+      },
+      "user-1",
+    );
+
+    expect(tx.folioItem.update).toHaveBeenCalledWith({
+      where: { id: "room-charge-existing" },
+      data: expect.objectContaining({ quantity: 1, totalSnapshot: new Prisma.Decimal(100) }),
+    });
+  });
+
+  it("refuses to recalculate room charges after the folio stops being open", async () => {
+    const service = createService({});
+    const ensureRoomCharge = Reflect.get(service, "ensureRoomChargeFolioItem") as (
+      ...args: unknown[]
+    ) => Promise<unknown>;
+
+    await expect(
+      ensureRoomCharge.call(
+        service,
+        { folioItem: { findFirst: jest.fn() } },
+        { status: FolioStatus.CHECKOUT_PENDING },
+        "user-1",
+      ),
+    ).rejects.toThrow("ROOM_CHARGE_RECALCULATION_REQUIRES_OPEN_FOLIO");
   });
 });
