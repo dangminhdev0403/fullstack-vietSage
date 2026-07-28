@@ -9,6 +9,7 @@ import {
   RoomQRCodeStatus,
   RoomStatus,
 } from "@prisma/client";
+import { countDistinctGuestDevicesByStay } from "../../../../shared/guest-device-identity";
 import { PrismaService } from "../../../../prisma/prisma.service";
 import { roomListInclude, type RoomListRow } from "./hotel-repository.types";
 
@@ -128,15 +129,22 @@ export class HotelRoomsRepository {
       return rooms.map((room) => ({ ...room, activeGuestDeviceCount: 0 }));
     }
 
-    const counts = await tx.guestSession.groupBy({
-      by: ["stayId"],
+    const sessions = await tx.guestSession.findMany({
       where: {
         stayId: { in: activeStayIds },
-        status: GuestSessionStatus.ACTIVE,
+        status: { in: [GuestSessionStatus.ACTIVE, GuestSessionStatus.IDLE] },
+        closedAt: null,
+        expiresAt: { gt: new Date() },
       },
-      _count: { _all: true },
+      select: {
+        id: true,
+        stayId: true,
+        deviceFingerprintHash: true,
+        ipHash: true,
+        userAgent: true,
+      },
     });
-    const countByStayId = new Map(counts.map((count) => [count.stayId, count._count._all]));
+    const countByStayId = countDistinctGuestDevicesByStay(sessions);
 
     return rooms.map((room) => ({
       ...room,
@@ -358,7 +366,7 @@ export class HotelRoomsRepository {
           status: RoomQRCodeStatus.ACTIVE,
           activatedAt: now,
           deactivatedAt: null,
-          expiresAt: stay.plannedCheckOutAt,
+          expiresAt: null,
         },
       });
 
@@ -536,7 +544,7 @@ export class HotelRoomsRepository {
           status: RoomQRCodeStatus.ACTIVE,
           activatedAt: now,
           deactivatedAt: null,
-          expiresAt: stay.plannedCheckOutAt,
+          expiresAt: null,
         },
       });
 
@@ -705,7 +713,7 @@ export class HotelRoomsRepository {
           version: (latest?.version ?? 0) + 1,
           activatedAt: latest?.status === RoomQRCodeStatus.ACTIVE ? now : null,
           deactivatedAt: null,
-          expiresAt: latest?.status === RoomQRCodeStatus.ACTIVE ? (latest.expiresAt ?? null) : null,
+          expiresAt: null,
           revokedAt: null,
         },
       });
@@ -776,7 +784,7 @@ export class HotelRoomsRepository {
           status: RoomQRCodeStatus.ACTIVE,
           activatedAt: now,
           deactivatedAt: null,
-          expiresAt: activeStay?.plannedCheckOutAt ?? null,
+          expiresAt: null,
         },
       });
 

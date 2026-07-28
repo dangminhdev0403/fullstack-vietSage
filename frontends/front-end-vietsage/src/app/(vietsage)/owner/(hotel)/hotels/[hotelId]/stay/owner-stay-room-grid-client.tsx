@@ -18,6 +18,7 @@ type Props = {
   hotelId: string;
   rooms: HotelRoomSummary[];
   apiBasePath?: string;
+  onRoomsChanged?: () => Promise<unknown>;
 };
 
 type RoomStatusFilter =
@@ -237,6 +238,7 @@ export function OwnerStayRoomGridClient({
   hotelId,
   rooms,
   apiBasePath = `/api/owner/hotels/${encodeURIComponent(hotelId)}`,
+  onRoomsChanged,
 }: Props) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -319,6 +321,7 @@ export function OwnerStayRoomGridClient({
         text: "Trạng thái phòng đã được cập nhật thành TRỐNG.",
         confirmButtonColor: "#17201b",
       });
+      await onRoomsChanged?.();
       startTransition(() => router.refresh());
     } catch (error) {
       await Swal.fire({
@@ -363,6 +366,7 @@ export function OwnerStayRoomGridClient({
         title: `Phòng ${roomNum} đã chuyển sang ${labels[targetStatus]}!`,
         confirmButtonColor: "#17201b",
       });
+      await onRoomsChanged?.();
       startTransition(() => router.refresh());
     } catch (error) {
       await Swal.fire({
@@ -450,6 +454,7 @@ export function OwnerStayRoomGridClient({
         confirmButtonColor: "#00003c",
       });
     } finally {
+      await onRoomsChanged?.();
       startTransition(() => {
         router.refresh();
       });

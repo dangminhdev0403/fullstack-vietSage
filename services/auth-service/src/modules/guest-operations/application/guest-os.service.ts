@@ -96,6 +96,7 @@ export interface GuestRequestListItemResponse {
 }
 
 const SESSION_SWITCH_REQUIRED_CODE = "GUEST_SESSION_SWITCH_REQUIRED";
+const SESSION_LIMIT_REACHED_CODE = "GUEST_SESSION_LIMIT_REACHED";
 
 @Injectable()
 export class GuestOsService {
@@ -190,8 +191,7 @@ export class GuestOsService {
 
     const sessionToken = generateOpaqueToken(32);
     const now = new Date();
-    const ttlExpiry = addHours(now, 24);
-    const stayExpiry = stay.plannedCheckOutAt < ttlExpiry ? stay.plannedCheckOutAt : ttlExpiry;
+    const sessionExpiry = addHours(now, 24);
 
     try {
       const session = await this.guestOsRepository.createGuestSession({
@@ -206,7 +206,7 @@ export class GuestOsService {
           : undefined,
         ipHash: this.hashOptional(this.resolveIp(request)),
         userAgent: this.truncate(request.headers["user-agent"], 255),
-        expiresAt: stayExpiry,
+        expiresAt: sessionExpiry,
         maxDistinctDevices: qr.room.maxActiveGuestDevices ?? 3,
       });
 
@@ -224,8 +224,12 @@ export class GuestOsService {
       });
       return this.toScanQrResponse(session, sessionToken);
     } catch (error) {
-      if (error instanceof Error && error.message === "GUEST_SESSION_LIMIT_REACHED") {
-        throw new ForbiddenException("Too many active sessions for this stay");
+      if (error instanceof Error && error.message === SESSION_LIMIT_REACHED_CODE) {
+        throw new ForbiddenException({
+          code: SESSION_LIMIT_REACHED_CODE,
+          detail:
+            "This room has reached its active device limit. Close an existing GuestOS session or contact the front desk.",
+        });
       }
 
       throw error;

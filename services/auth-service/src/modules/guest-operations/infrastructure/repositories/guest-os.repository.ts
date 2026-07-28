@@ -10,6 +10,7 @@ import {
   ServiceCatalogStatus,
 } from "@prisma/client";
 import { PrismaService } from "../../../../prisma/prisma.service";
+import { countDistinctGuestDevices } from "../../../../shared/guest-device-identity";
 
 export const guestSessionInclude = {
   hotel: {
@@ -108,6 +109,7 @@ export class GuestOsRepository {
         hotelId,
         roomId,
         status: GuestStayStatus.ACTIVE,
+        checkedOutAt: null,
       },
       orderBy: { activatedAt: "desc" },
     });
@@ -224,11 +226,14 @@ export class GuestOsRepository {
   }
 
   async findActiveSessionByStayAndDeviceFingerprint(stayId: string, deviceFingerprintHash: string) {
+    const now = new Date();
     return this.prisma.guestSession.findFirst({
       where: {
         stayId,
         deviceFingerprintHash,
         status: { in: [GuestSessionStatus.ACTIVE, GuestSessionStatus.IDLE] },
+        closedAt: null,
+        expiresAt: { gt: now },
       },
       orderBy: { createdAt: "desc" },
       include: guestSessionInclude,
@@ -236,15 +241,18 @@ export class GuestOsRepository {
   }
 
   async revokeActiveSessionsForDevice(stayId: string, deviceFingerprintHash: string) {
+    const now = new Date();
     return this.prisma.guestSession.updateMany({
       where: {
         stayId,
         deviceFingerprintHash,
         status: { in: [GuestSessionStatus.ACTIVE, GuestSessionStatus.IDLE] },
+        closedAt: null,
+        expiresAt: { gt: now },
       },
       data: {
         status: GuestSessionStatus.CLOSED,
-        closedAt: new Date(),
+        closedAt: now,
       },
     });
   }
@@ -558,13 +566,18 @@ export class GuestOsRepository {
     input: { stayId: string; deviceFingerprintHash?: string; ipHash?: string; userAgent?: string },
   ) {
     const activeStatus = { in: [GuestSessionStatus.ACTIVE, GuestSessionStatus.IDLE] };
+    const availableSession = {
+      status: activeStatus,
+      closedAt: null,
+      expiresAt: { gt: new Date() },
+    };
 
     if (input.deviceFingerprintHash) {
       return tx.guestSession.findMany({
         where: {
           stayId: input.stayId,
           deviceFingerprintHash: input.deviceFingerprintHash,
-          status: activeStatus,
+          ...availableSession,
         },
         orderBy: { createdAt: "desc" },
         select: { id: true },
@@ -578,7 +591,7 @@ export class GuestOsRepository {
           deviceFingerprintHash: null,
           ipHash: input.ipHash,
           userAgent: input.userAgent,
-          status: activeStatus,
+          ...availableSession,
         },
         orderBy: { createdAt: "desc" },
         select: { id: true },
@@ -614,26 +627,18 @@ export class GuestOsRepository {
       where: {
         stayId,
         status: { in: [GuestSessionStatus.ACTIVE, GuestSessionStatus.IDLE] },
+        closedAt: null,
+        expiresAt: { gt: new Date() },
       },
       select: {
+        id: true,
         deviceFingerprintHash: true,
         ipHash: true,
         userAgent: true,
       },
     });
 
-    const devices = new Set<string>();
-    for (const session of sessions) {
-      if (session.deviceFingerprintHash) {
-        devices.add(`fingerprint:${session.deviceFingerprintHash}`);
-      } else if (session.ipHash && session.userAgent) {
-        devices.add(`network:${session.ipHash}:${session.userAgent}`);
-      } else {
-        devices.add(`unknown:${devices.size}`);
-      }
-    }
-
-    return devices.size;
+    return countDistinctGuestDevices(sessions);
   }
 
   private async createDomainEvent(

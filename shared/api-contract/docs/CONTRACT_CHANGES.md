@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- GuestOS QR/device semantics:
+  - `POST /guest/qr/scan` continues to accept optional `deviceFingerprint`; the VietSage browser
+    now supplies a stable anonymous value.
+  - Device-limit rejection preserves HTTP `403` and adds stable response code
+    `GUEST_SESSION_LIMIT_REACHED`.
+  - Scheduled checkout time no longer invalidates QR access by itself; actual active-stay state and
+    `checkedOutAt` remain authoritative.
+  - Active room QR records no longer expire at `plannedCheckOutAt`; actual checkout and explicit QR
+    lifecycle operations deactivate or revoke them.
+
 - Hotel Google Sheets configuration is now hotel-scoped:
   - `POST /hotels` accepts an optional `googleSheetUrl` for Admin-created hotels.
   - `PATCH /hotels/{hotelId}` accepts `googleSheetUrl` from `SUPER_ADMIN` only, as a full Google

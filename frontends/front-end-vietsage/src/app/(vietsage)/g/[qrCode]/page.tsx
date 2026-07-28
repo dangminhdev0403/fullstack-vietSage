@@ -11,6 +11,7 @@ import { GuestStateCard } from "@/features/guest-os/components/shared/guest-stat
 import { useGuestI18n } from "@/features/guest-os/i18n/use-guest-i18n";
 import { guestOsService } from "@/features/guest-os/service/guest-os-service-instance";
 import { useGuestStore, useGuestStoreHydrated } from "@/features/guest-os/store/guest-store";
+import { getOrCreateGuestDeviceId } from "@/features/guest-os/utils/guest-device-id";
 
 function getQrCodeParam(value: string | string[] | undefined): string {
   return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
@@ -143,7 +144,13 @@ export default function GuestQrEntryPage() {
     setNeedsSwitchConfirmation(false);
 
     guestOsService
-      .scanQr({ qrCode, currentSessionToken: sessionToken ?? undefined, forceSwitch, locale })
+      .scanQr({
+        qrCode,
+        currentSessionToken: sessionToken ?? undefined,
+        deviceFingerprint: getOrCreateGuestDeviceId(),
+        forceSwitch,
+        locale,
+      })
       .then((session) => {
         setGuestSession(session);
         router.replace(language ? "/g/services" : "/g/language");

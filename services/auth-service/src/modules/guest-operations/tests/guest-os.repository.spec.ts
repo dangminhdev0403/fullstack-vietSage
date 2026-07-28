@@ -83,6 +83,50 @@ describe("GuestOsRepository QR scan lookup", () => {
       }),
     ).toBe(true);
   });
+
+  it("counts only distinct unexpired ACTIVE and IDLE devices", async () => {
+    const prisma = {
+      guestSession: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: "session-1",
+            deviceFingerprintHash: "device-a",
+            ipHash: null,
+            userAgent: null,
+          },
+          {
+            id: "session-2",
+            deviceFingerprintHash: "device-a",
+            ipHash: null,
+            userAgent: null,
+          },
+          {
+            id: "session-3",
+            deviceFingerprintHash: null,
+            ipHash: "network-a",
+            userAgent: "browser-a",
+          },
+        ]),
+      },
+    };
+    const repository = new GuestOsRepository(prisma as never);
+
+    await expect(repository.countDistinctActiveDevices("stay-1")).resolves.toBe(2);
+    expect(prisma.guestSession.findMany).toHaveBeenCalledWith({
+      where: {
+        stayId: "stay-1",
+        status: { in: ["ACTIVE", "IDLE"] },
+        closedAt: null,
+        expiresAt: { gt: expect.any(Date) },
+      },
+      select: {
+        id: true,
+        deviceFingerprintHash: true,
+        ipHash: true,
+        userAgent: true,
+      },
+    });
+  });
 });
 
 describe("GuestOsRepository category service lookup", () => {

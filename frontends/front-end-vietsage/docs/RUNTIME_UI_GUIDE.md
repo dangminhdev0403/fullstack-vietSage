@@ -47,6 +47,15 @@ Rules:
 - Prefer URL state for shareable filters, pagination, and selected views.
 - Browser storage must be wrapped by feature/core utilities.
 
+GuestOS keeps a versioned anonymous device identifier in its browser-storage utility. QR scans send
+that identifier with the current session token so rescanning the same room rotates/reuses the same
+device slot instead of consuming another slot. The identifier is not an authentication authority;
+the backend still validates the QR, active stay, session, and checkout state.
+
+Room-management list state uses a query resource. Owner and staff views refresh the room projection
+periodically while visible, and owner table/grid actions refetch the same resource so device counts
+and room states remain consistent without duplicating server state in separate components.
+
 ## Workspace navigation and RBAC rendering
 
 - The typed workspace registry owns persona aliases, dashboard definitions, labels, and nav order.

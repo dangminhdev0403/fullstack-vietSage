@@ -2596,3 +2596,24 @@ Remaining manual checkpoint:
 
 - The Google service account must be shared as Viewer on every configured workbook.
 - Production must apply the new Prisma migration before recreating backend/frontend containers.
+
+## [complete] 2026-07-28 - Mission: guest-qr-device-recovery
+
+### What Changed
+
+- Added a persistent anonymous GuestOS device identifier to QR scans so the same browser reuses one
+  room device slot even when its session token is unavailable.
+- Unified backend device-limit and room-summary counting around distinct, unexpired `ACTIVE` and
+  `IDLE` devices.
+- Removed planned-checkout expiry from active room QR records so an overdue active stay can rescan
+  and a later reservation can reuse the room QR after actual checkout.
+- Moved owner room table and visual grid onto one query-resource-backed room projection with
+  foreground refresh every 15 seconds; staff rooms use the same refresh cadence.
+- Kept GuestOS available after a planned checkout deadline while the actual stay remains active.
+
+### Verification Result
+
+- Frontend TypeScript, targeted ESLint, and the Next.js production build passed with 40 pages.
+- Backend focused GuestOS/device/QR lifecycle tests passed (6 suites, 55 tests); backend build
+  remains subject to the repository's existing dependency-layout/type baseline noted in the
+  backend plan.

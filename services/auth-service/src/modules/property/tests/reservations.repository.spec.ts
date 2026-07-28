@@ -126,6 +126,15 @@ describe("ReservationsRepository transactional lifecycle", () => {
         folioNumber: "VSH_FOLIO_0001",
       }),
     });
+    expect(tx.roomQRCode.update).toHaveBeenCalledWith({
+      where: { id: "qr-1" },
+      data: {
+        status: "ACTIVE",
+        activatedAt: expect.any(Date),
+        deactivatedAt: null,
+        expiresAt: null,
+      },
+    });
   });
 
   it("rejects check-in when an active stay or blocking folio already owns the room", async () => {
@@ -161,7 +170,7 @@ describe("ReservationsRepository transactional lifecycle", () => {
     expect(tx.room.updateMany).not.toHaveBeenCalled();
   });
 
-  it("rejects expired or already-expired QR codes before creating a stay", async () => {
+  it("rejects a room without an inactive or active QR before creating a stay", async () => {
     const reservation = {
       id: "reservation-1",
       hotelId: "hotel-1",
@@ -198,7 +207,6 @@ describe("ReservationsRepository transactional lifecycle", () => {
         hotelId: "hotel-1",
         roomId: "room-1",
         status: { in: ["INACTIVE", "ACTIVE"] },
-        OR: [{ expiresAt: null }, { expiresAt: { gt: expect.any(Date) } }],
       },
       orderBy: { version: "desc" },
     });

@@ -320,6 +320,8 @@ export function StaffRoomsClient({
       type,
       vipOnly,
     }),
+    refetchInterval: 15_000,
+    refetchIntervalInBackground: false,
     placeholderData: keepPreviousData,
     initialData:
       page === 1 &&

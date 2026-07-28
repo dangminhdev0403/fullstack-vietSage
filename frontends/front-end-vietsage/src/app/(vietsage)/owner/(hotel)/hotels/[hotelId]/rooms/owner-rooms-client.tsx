@@ -2,13 +2,13 @@
 
 import {
   type FormEvent,
-  startTransition,
   useMemo,
   useRef,
   useState,
   useSyncExternalStore,
 } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import Swal from "sweetalert2";
 import { z } from "zod";
 
@@ -21,9 +21,9 @@ import {
 import { HttpError } from "@/core/http/http-error";
 import { VsIcon } from "../../../../../_components/vs-icon";
 import type {
-  HotelOpsPage,
   HotelRoomSummary,
 } from "@/features/hotel-ops/types/hotel-ops-contract";
+import { ownerRoomsResource } from "@/features/hotel-ops/resources/owner-rooms-resource";
 import {
   BRANDED_QR_MARK_OPACITY,
   BRANDED_QR_MARK_SRC,
@@ -36,6 +36,7 @@ import {
   getQrValue,
   getRoomNumber,
 } from "./room-qr-utils";
+import { OwnerStayRoomGridClient } from "../stay/owner-stay-room-grid-client";
 
 type Props = { hotelId: string; initialRooms: HotelRoomSummary[] };
 type RoomSortKey =
@@ -372,7 +373,21 @@ function showLoading(title: string) {
 export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
   const router = useRouter();
   const qrCodeRef = useRef<SVGSVGElement | null>(null);
-  const [rooms, setRooms] = useState(initialRooms);
+  const {
+    data: roomsPage,
+    refetch: refetchRooms,
+  } = useQuery({
+    ...ownerRoomsResource.bind({ hotelId }).queries.list.options(undefined),
+    initialData: {
+      page: 1,
+      limit: 100,
+      total: initialRooms.length,
+      items: initialRooms,
+    },
+    refetchInterval: 15_000,
+    refetchIntervalInBackground: false,
+  });
+  const rooms = roomsPage.items;
 
   function printActiveStayList() {
     const printedAt = new Date();
@@ -471,16 +486,7 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
   }, [rooms]);
 
   async function refreshRooms() {
-    const roomsPage = (
-      await requestInternalApiEnvelope<HotelOpsPage<HotelRoomSummary>>(
-        `/api/owner/hotels/${encodeURIComponent(hotelId)}/rooms`,
-        { method: "GET" },
-      )
-    ).data;
-    setRooms(roomsPage.items);
-    startTransition(() => {
-      router.refresh();
-    });
+    await refetchRooms();
   }
 
   function updateQuery(value: string) {
@@ -625,9 +631,6 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
         )
       ).data;
 
-      setRooms((current) =>
-        current.map((item) => (item.id === updated.id ? updated : item)),
-      );
       setSelectedQrRoom((current) =>
         current?.id === updated.id ? updated : current,
       );
@@ -1317,6 +1320,12 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
           onPageChange: setPage,
           onPageSizeChange: updatePageSize,
         }}
+      />
+
+      <OwnerStayRoomGridClient
+        hotelId={hotelId}
+        rooms={rooms}
+        onRoomsChanged={refreshRooms}
       />
 
       {roomForm ? (

@@ -219,7 +219,6 @@ export class ReservationsRepository {
           hotelId: input.hotelId,
           roomId: room.id,
           status: { in: [RoomQRCodeStatus.INACTIVE, RoomQRCodeStatus.ACTIVE] },
-          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
         },
         orderBy: { version: "desc" },
       });
@@ -279,7 +278,7 @@ export class ReservationsRepository {
           status: RoomQRCodeStatus.ACTIVE,
           activatedAt: now,
           deactivatedAt: null,
-          expiresAt: reservation.plannedCheckOutAt,
+          expiresAt: null,
         },
       });
 

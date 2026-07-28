@@ -139,6 +139,18 @@ Staff issues invoice
   -> Backend moves the room to processing
 ```
 
+GuestOS access follows the actual stay lifecycle, not the scheduled checkout timestamp:
+
+- A session is usable only while `GuestStay.status = ACTIVE` and `checkedOutAt IS NULL`.
+- Passing `plannedCheckOutAt` does not close an unpaid or operationally delayed stay.
+- An active room QR has no scheduled expiry; checkout, manual deactivation, or rotation controls its
+  lifecycle.
+- A new QR scan receives a bounded 24-hour session and may renew access while the stay remains
+  active.
+- Actual checkout closes active/idle guest sessions in the checkout transaction.
+- Device limits and room summaries both count distinct, unexpired `ACTIVE` and `IDLE` device
+  identities so enforcement and staff/owner UI cannot disagree.
+
 ## Future async events
 
 Potential future events:

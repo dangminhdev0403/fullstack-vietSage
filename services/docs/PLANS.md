@@ -257,6 +257,19 @@ The modular-monolith boundary consolidation is complete for the current codebase
 - No service rename in this phase.
 - No package/dependency changes without approval.
 - No frontend scope unless a contract change requires sync.
+
+## [complete] 2026-07-28 - Guest QR device/session hardening
+
+- Guest scan access now follows actual `GuestStay ACTIVE + checkedOutAt null`, including overdue
+  stays awaiting payment or manual checkout.
+- Device enforcement and room projections count the same distinct, unexpired `ACTIVE + IDLE`
+  identities; expired or closed sessions do not consume capacity.
+- Room QR activation and rotation no longer copy `plannedCheckOutAt` into `expiresAt`; actual
+  checkout or an explicit QR operation closes access.
+- The device-limit failure exposes stable code `GUEST_SESSION_LIMIT_REACHED`.
+- Focused validation: 6 suites / 55 tests passed and targeted backend ESLint passed.
+- Full declaration build remains blocked by pre-existing Prisma pnpm portability errors in
+  unrelated controllers; npm lockfile installation was unavailable in the review environment.
 # 2026-07-14 - GuestOS Reliable Request Recovery Batch A
 
 - Phase 0 + Phase 1 canonicalize the public request lifecycle to six statuses while retaining

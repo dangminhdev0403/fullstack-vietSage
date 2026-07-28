@@ -154,6 +154,54 @@ describe("GuestOsService", () => {
     );
   });
 
+  it("keeps GuestOS usable after the planned checkout time while the stay is still active", async () => {
+    const plannedCheckOutAt = new Date(Date.now() - 60_000);
+    const repository = {
+      findQrForScan: jest.fn().mockResolvedValue({
+        id: "qr-1",
+        hotelId: "hotel-1",
+        roomId: "room-1",
+        status: RoomQRCodeStatus.ACTIVE,
+        hotel: {
+          tenantId: "tenant-1",
+          id: "hotel-1",
+          name: "Hotel",
+          code: "hotel",
+          timezone: "Asia/Saigon",
+          brandSettings: null,
+        },
+        room: { id: "room-1", status: RoomStatus.OCCUPIED },
+      }),
+      recordQrScan: jest.fn().mockResolvedValue({}),
+      findActiveStayForRoom: jest.fn().mockResolvedValue({
+        id: "stay-1",
+        status: "ACTIVE",
+        plannedCheckOutAt,
+        checkedOutAt: null,
+      }),
+      isAccessOpen: jest.fn().mockReturnValue(true),
+      createGuestSession: jest.fn().mockImplementation((input) => ({
+        id: "session-1",
+        expiresAt: input.expiresAt,
+        hotel: { name: "Hotel", timezone: "Asia/Saigon", brandSettings: null },
+        room: { roomNumber: "201", floor: "2", type: "DELUXE" },
+        stay: {
+          guestDisplayName: "Overdue Guest",
+          plannedCheckOutAt,
+        },
+      })),
+    };
+    const service = new GuestOsService(repository as never);
+
+    await service.scanQr({ qrCode: "qr" }, {
+      headers: {},
+      ip: "127.0.0.1",
+    } as never);
+
+    const createInput = repository.createGuestSession.mock.calls[0]?.[0];
+    expect(createInput.expiresAt.getTime()).toBeGreaterThan(Date.now() + 23 * 60 * 60 * 1000);
+  });
+
   it("rejects the sixth active guest session for a stay", async () => {
     const repository = {
       findQrForScan: jest.fn().mockResolvedValue({

@@ -135,7 +135,7 @@ describe("HotelsRepository QR activation", () => {
     ).resolves.toMatchObject({
       id: "qr-created",
       status: "ACTIVE",
-      expiresAt: new Date("2026-06-10T05:00:00.000Z"),
+      expiresAt: null,
     });
 
     expect(tx.roomQRCode.findFirst).toHaveBeenCalledWith({
@@ -237,7 +237,7 @@ describe("HotelsRepository check-in QR creation", () => {
       data: expect.objectContaining({
         status: "ACTIVE",
         deactivatedAt: null,
-        expiresAt: stay.plannedCheckOutAt,
+        expiresAt: null,
       }),
     });
     expect(result.roomQrCode).toMatchObject({ id: "qr-1", status: "ACTIVE" });
@@ -582,7 +582,7 @@ describe("HotelsRepository QR rotation", () => {
         publicCode: newPublicCode,
         status: "ACTIVE",
         version: 4,
-        expiresAt,
+        expiresAt: null,
         revokedAt: null,
       }),
     });
