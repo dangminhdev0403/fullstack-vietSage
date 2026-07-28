@@ -2614,6 +2614,6 @@ Remaining manual checkpoint:
 ### Verification Result
 
 - Frontend TypeScript, targeted ESLint, and the Next.js production build passed with 40 pages.
-- Backend focused GuestOS/device/QR lifecycle tests passed (6 suites, 55 tests); backend build
+- Backend focused GuestOS/device/QR/payment lifecycle tests passed (7 suites, 69 tests); backend build
   remains subject to the repository's existing dependency-layout/type baseline noted in the
   backend plan.

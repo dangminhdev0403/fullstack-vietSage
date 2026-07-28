@@ -9,8 +9,9 @@
     `GUEST_SESSION_LIMIT_REACHED`.
   - Scheduled checkout time no longer invalidates QR access by itself; actual active-stay state and
     `checkedOutAt` remain authoritative.
-  - Active room QR records no longer expire at `plannedCheckOutAt`; actual checkout and explicit QR
-    lifecycle operations deactivate or revoke them.
+  - Active room QR records no longer expire at `plannedCheckOutAt`, and checkout preserves their
+    status. Explicit QR lifecycle operations remain the only way to activate, deactivate, or revoke
+    them.
 
 - Hotel Google Sheets configuration is now hotel-scoped:
   - `POST /hotels` accepts an optional `googleSheetUrl` for Admin-created hotels.
@@ -61,7 +62,7 @@
 - Added additive `Reservation` persistence with `CONFIRMED -> ARRIVAL_READY -> CHECKED_IN` lifecycle and an optional unique link from `GuestStay` for compatibility with legacy stay endpoints.
 - Added `hotel.reservations.view` and `hotel.reservations.manage` business capabilities. They are fail-closed; migration `0034_workspace_role_capabilities` applies one-time defaults to built-in Owner, Manager, and Front Desk roles, after which administrator changes are preserved.
 - Corrected `GET /auth/me` runtime output to include deduplicated `permissions` from active role grants and `accessibleHotels` from active hotel assignments constrained by active tenant memberships; clients must explicitly select hotel context.
-- Checkout safety semantics: `POST /hotels/{hotelId}/folios/{folioId}/checkout/issue-invoice` now validates folio freshness before issuing/reusing an invoice and moves an open folio to `CHECKOUT_PENDING`; checkout side effects (folio close, stay checkout/access revocation, room `PROCESSING`, active QR deactivation) occur only after a verified `payment.succeeded`/`payment.success` webhook. `POST /payments/webhook/{provider}` bypasses JWT only for the exact provider path and requires `X-VietSage-Payment-Webhook-Secret`.
+- Checkout safety semantics: `POST /hotels/{hotelId}/folios/{folioId}/checkout/issue-invoice` now validates folio freshness before issuing/reusing an invoice and moves an open folio to `CHECKOUT_PENDING`; checkout side effects (folio close, stay checkout/access revocation, room `PROCESSING`) occur only after a verified `payment.succeeded`/`payment.success` webhook, while room QR status is preserved. `POST /payments/webhook/{provider}` bypasses JWT only for the exact provider path and requires `X-VietSage-Payment-Webhook-Secret`.
 - Added protected `POST /hotels/{hotelId}/request-realtime-ticket`, returning only a short-lived `ticket` and `expiresAt` after hotel access authorization.
 - Owner tickets use audience `request-realtime` and type `request_realtime_owner`; Socket.IO authentication now uses `handshake.auth` for owners and guests, with no join-event authentication fallback.
 - Disabled ticket issuance returns `503`; frontend rollback uses `NEXT_PUBLIC_REQUEST_REALTIME_ENABLED=false`.

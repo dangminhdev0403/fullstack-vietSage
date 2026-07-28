@@ -597,17 +597,6 @@ export class HotelRoomsRepository {
         data: { status: input.nextRoomStatus },
       });
 
-      await tx.roomQRCode.updateMany({
-        where: {
-          roomId: input.roomId,
-          status: RoomQRCodeStatus.ACTIVE,
-        },
-        data: {
-          status: RoomQRCodeStatus.INACTIVE,
-          deactivatedAt: now,
-        },
-      });
-
       await tx.guestSession.updateMany({
         where: {
           stayId: input.stayId,
@@ -628,15 +617,6 @@ export class HotelRoomsRepository {
         hotelId: input.hotelId,
         tenantId: input.tenantId,
         payload: { stayId: stay.id, roomId: input.roomId, actorUserId: input.actorUserId },
-      });
-
-      await this.createDomainEvent(tx, {
-        eventType: "ROOM_QR_DEACTIVATED",
-        aggregateType: "Room",
-        aggregateId: input.roomId,
-        hotelId: input.hotelId,
-        tenantId: input.tenantId,
-        payload: { roomId: input.roomId, stayId: stay.id },
       });
 
       await this.createDomainEvent(tx, {

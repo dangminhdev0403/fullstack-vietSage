@@ -10,7 +10,6 @@ import {
   PaymentProvider,
   PaymentStatus,
   Prisma,
-  RoomQRCodeStatus,
   RoomStatus,
 } from "@prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
@@ -800,11 +799,6 @@ export class BillingService {
           where: { id: invoice.stay.roomId },
           data: { status: RoomStatus.PROCESSING },
         });
-        await tx.roomQRCode.updateMany({
-          where: { roomId: invoice.stay.roomId, status: RoomQRCodeStatus.ACTIVE },
-          data: { status: RoomQRCodeStatus.INACTIVE, deactivatedAt: new Date() },
-        });
-
         return {
           payment,
           conversation: { hotelId, stayId: invoice.stayId, roomId: invoice.stay.roomId },
@@ -987,11 +981,6 @@ export class BillingService {
             where: { id: lockedPayment.invoice.stay.roomId },
             data: { status: RoomStatus.PROCESSING },
           });
-          await tx.roomQRCode.updateMany({
-            where: { roomId: lockedPayment.invoice.stay.roomId, status: RoomQRCodeStatus.ACTIVE },
-            data: { status: RoomQRCodeStatus.INACTIVE, deactivatedAt: new Date() },
-          });
-
           return {
             received: true,
             idempotent: false,

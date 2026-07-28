@@ -135,7 +135,7 @@ Staff issues invoice
   -> Staff records successful payment or zero-balance settlement
   -> Backend closes invoice and folio
   -> Backend checks out stay and revokes GuestOS access
-  -> Backend deactivates active room QR
+  -> Backend preserves the room QR status
   -> Backend moves the room to processing
 ```
 
@@ -143,8 +143,8 @@ GuestOS access follows the actual stay lifecycle, not the scheduled checkout tim
 
 - A session is usable only while `GuestStay.status = ACTIVE` and `checkedOutAt IS NULL`.
 - Passing `plannedCheckOutAt` does not close an unpaid or operationally delayed stay.
-- An active room QR has no scheduled expiry; checkout, manual deactivation, or rotation controls its
-  lifecycle.
+- An active room QR has no scheduled expiry and checkout does not change its status. Only explicit
+  QR activation, deactivation, or rotation controls its lifecycle.
 - A new QR scan receives a bounded 24-hour session and may renew access while the stay remains
   active.
 - Actual checkout closes active/idle guest sessions in the checkout transaction.
@@ -188,7 +188,7 @@ primary refresh path; bounded 30-second polling is recovery only. Read receipts 
 
 ```txt
 Checkout transaction commits GuestStay as checked out
-  -> Guest sessions and room QR are revoked in the same checkout flow
+  -> Guest sessions are closed; the room QR status is preserved
   -> After commit, publish conversation.closed for hotelId + stayId + roomId
   -> Staff removes that stay from the waiting list
   -> If staff or guest is viewing it, UI disables sending and shows the ended-session state

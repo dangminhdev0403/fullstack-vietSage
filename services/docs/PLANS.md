@@ -81,7 +81,7 @@ Verification result:
 - [x] Allowed folio list filters to include all persisted folio statuses, including
   `CHECKOUT_PENDING`, and completed zero-balance checkout handling through manual-payment.
 - [x] On invoice issue, open stays move to checkout pending; after successful/zero-balance payment,
-  checkout closes folio/stay, revokes GuestOS access, deactivates active room QR, and moves the room
+  checkout closes folio/stay, revokes GuestOS access, preserves room QR status, and moves the room
   to processing.
 - [x] Exported OpenAPI and synchronized shared/frontend generated contracts.
 
@@ -264,10 +264,10 @@ The modular-monolith boundary consolidation is complete for the current codebase
   stays awaiting payment or manual checkout.
 - Device enforcement and room projections count the same distinct, unexpired `ACTIVE + IDLE`
   identities; expired or closed sessions do not consume capacity.
-- Room QR activation and rotation no longer copy `plannedCheckOutAt` into `expiresAt`; actual
-  checkout or an explicit QR operation closes access.
+- Room QR activation and rotation no longer copy `plannedCheckOutAt` into `expiresAt`; checkout
+  preserves QR status, while the inactive stay independently closes GuestOS access.
 - The device-limit failure exposes stable code `GUEST_SESSION_LIMIT_REACHED`.
-- Focused validation: 6 suites / 55 tests passed and targeted backend ESLint passed.
+- Focused validation: 7 suites / 69 tests passed and targeted backend ESLint passed.
 - Full declaration build remains blocked by pre-existing Prisma pnpm portability errors in
   unrelated controllers; npm lockfile installation was unavailable in the review environment.
 # 2026-07-14 - GuestOS Reliable Request Recovery Batch A

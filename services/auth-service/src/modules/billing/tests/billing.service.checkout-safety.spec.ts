@@ -7,7 +7,6 @@ import {
   PaymentProvider,
   PaymentStatus,
   Prisma,
-  RoomQRCodeStatus,
   RoomStatus,
 } from "@prisma/client";
 import { ConflictException } from "@nestjs/common";
@@ -266,10 +265,7 @@ describe("BillingService checkout safety", () => {
       where: { id: "room-1" },
       data: { status: RoomStatus.PROCESSING },
     });
-    expect(tx.roomQRCode.updateMany).toHaveBeenCalledWith({
-      where: { roomId: "room-1", status: RoomQRCodeStatus.ACTIVE },
-      data: { status: RoomQRCodeStatus.INACTIVE, deactivatedAt: now },
-    });
+    expect(tx.roomQRCode.updateMany).not.toHaveBeenCalled();
     expect(eventPublisher.publishConversationClosed).toHaveBeenCalledWith({
       hotelId: "hotel-1",
       stayId: "stay-1",
@@ -326,6 +322,7 @@ describe("BillingService checkout safety", () => {
       stayId: "stay-1",
       roomId: "room-1",
     });
+    expect(tx.roomQRCode.updateMany).not.toHaveBeenCalled();
   });
 
   it("confirmManualPayment records the counter method and settles through the guarded payment flow", async () => {
