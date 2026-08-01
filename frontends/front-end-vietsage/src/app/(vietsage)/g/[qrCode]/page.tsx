@@ -85,23 +85,61 @@ function inferGuestQrErrorStatus(error: unknown): number {
   return 500;
 }
 
-function getGuestQrErrorKey(error: unknown): string {
-  if (error instanceof HttpError && isRecord(error.data)) {
-    const backendMessage = readStringField(error.data, "message");
-    const backendDetail = isRecord(error.data.data) ? readStringField(error.data.data, "detail") : null;
-    const text = `${backendMessage ?? ""} ${backendDetail ?? ""}`.toLowerCase();
+type GuestQrErrorInfo = {
+  titleKey: string;
+  messageKey: string;
+  params?: Record<string, string | number>;
+};
 
-    if (text.includes("session expired")) {
-      return GUEST_QR_ERROR_KEYS[401];
+function parseGuestQrError(error: unknown): GuestQrErrorInfo {
+  if (error instanceof HttpError) {
+    const errorData = isRecord(error.data) && isRecord(error.data.data) ? error.data.data : isRecord(error.data) ? error.data : null;
+    const code = readStringField(errorData, "code") ?? readStringField(errorData, "message") ?? readStringField(error.data, "message");
+    const roomNumber = readStringField(errorData, "roomNumber") ?? readStringField(errorData, "targetRoomNumber");
+    const maxDevices = readNumberField(errorData, "maxDistinctDevices") ?? 3;
+
+    if (code === "GUEST_SESSION_LIMIT_REACHED" || code === "SESSION_LIMIT_REACHED") {
+      return {
+        titleKey: "qr.deviceLimitTitle",
+        messageKey: "qr.deviceLimitMessage",
+        params: { max: maxDevices, room: roomNumber ?? "" },
+      };
     }
 
-    if (text.includes("invalid qr") || text.includes("forbidden")) {
-      return GUEST_QR_ERROR_KEYS[403];
+    if (code === "NO_ACTIVE_STAY" || code === "ACCESS_CLOSED") {
+      return {
+        titleKey: "qr.noActiveStayTitle",
+        messageKey: "qr.noActiveStayMessage",
+        params: { room: roomNumber ?? "" },
+      };
+    }
+
+    if (code === "GUEST_SESSION_SWITCH_REQUIRED" || code === "SESSION_SWITCH_REQUIRED") {
+      const currentRoomObj = isRecord(errorData?.currentRoom) ? errorData.currentRoom : null;
+      const targetRoomObj = isRecord(errorData?.targetRoom) ? errorData.targetRoom : null;
+      const currentRoomNum = currentRoomObj ? readStringField(currentRoomObj, "roomNumber") : null;
+      const targetRoomNum = targetRoomObj ? readStringField(targetRoomObj, "roomNumber") : null;
+
+      return {
+        titleKey: "qr.roomMismatchTitle",
+        messageKey: "qr.roomMismatchMessage",
+        params: { currentRoom: currentRoomNum ?? "", targetRoom: targetRoomNum ?? "" },
+      };
     }
   }
 
   const status = inferGuestQrErrorStatus(error);
-  return GUEST_QR_ERROR_KEYS[status] ?? GUEST_QR_ERROR_KEYS[500];
+  if (status === 401) {
+    return { titleKey: "qr.expired", messageKey: "qr.retryMessage" };
+  }
+  if (status === 403) {
+    return { titleKey: "qr.unavailable", messageKey: "qr.errorMessage" };
+  }
+  if (status === 404) {
+    return { titleKey: "qr.notFound", messageKey: "qr.retryMessage" };
+  }
+
+  return { titleKey: "qr.interrupted", messageKey: "qr.errorMessage" };
 }
 
 function QrSwitchCard({ onConfirm, title, message, confirmLabel }: { onConfirm: () => void; title: string; message: string; confirmLabel: string }) {
@@ -136,12 +174,14 @@ export default function GuestQrEntryPage() {
   const setGuestSession = useGuestStore((state) => state.setGuestSession);
   const clearSession = useGuestStore((state) => state.clearSession);
   const hasScannedRef = useRef(false);
-  const [scanError, setScanError] = useState<string | null>(null);
+  const [scanErrorInfo, setScanErrorInfo] = useState<GuestQrErrorInfo | null>(null);
   const [needsSwitchConfirmation, setNeedsSwitchConfirmation] = useState(false);
+  const [switchParams, setSwitchParams] = useState<{ currentRoom?: string; targetRoom?: string } | null>(null);
 
   const scanRoomQr = useCallback((forceSwitch = false) => {
-    setScanError(null);
+    setScanErrorInfo(null);
     setNeedsSwitchConfirmation(false);
+    setSwitchParams(null);
 
     guestOsService
       .scanQr({
@@ -157,6 +197,15 @@ export default function GuestQrEntryPage() {
       })
       .catch((error: unknown) => {
         if (isSessionSwitchRequired(error)) {
+          if (error instanceof HttpError) {
+            const errorData = isRecord(error.data) && isRecord(error.data.data) ? error.data.data : null;
+            const currentRoomObj = isRecord(errorData?.currentRoom) ? errorData.currentRoom : null;
+            const targetRoomObj = isRecord(errorData?.targetRoom) ? errorData.targetRoom : null;
+            setSwitchParams({
+              currentRoom: currentRoomObj ? readStringField(currentRoomObj, "roomNumber") ?? undefined : undefined,
+              targetRoom: targetRoomObj ? readStringField(targetRoomObj, "roomNumber") ?? undefined : undefined,
+            });
+          }
           setNeedsSwitchConfirmation(true);
           return;
         }
@@ -164,7 +213,7 @@ export default function GuestQrEntryPage() {
         if (forceSwitch) {
           clearSession();
         }
-        setScanError(getGuestQrErrorKey(error));
+        setScanErrorInfo(parseGuestQrError(error));
       });
   }, [clearSession, language, locale, qrCode, router, sessionToken, setGuestSession]);
 
@@ -190,17 +239,22 @@ export default function GuestQrEntryPage() {
     return <div className="min-h-screen bg-[#fffdfa]" />;
   }
 
-  const stateKey = !qrCode ? "missing" : scanError ? "error" : needsSwitchConfirmation ? "switch" : "loading";
+  const stateKey = !qrCode ? "missing" : scanErrorInfo ? "error" : needsSwitchConfirmation ? "switch" : "loading";
 
   return (
     <AnimatePresence mode="wait">
       <m.div key={stateKey} className="min-h-screen" exit={{ opacity: 0 }} transition={{ duration: guestMotionTokens.duration.fast }}>
         {!qrCode ? (
           <GuestStateCard title={t("qr.unavailable")} message={t("qr.retryMessage")} icon={<VsIcon name="qr_code_scanner" className="text-3xl" />} live="assertive" />
-        ) : scanError ? (
-          <GuestStateCard title={t(scanError)} message={t("qr.errorMessage")} icon={<VsIcon name="qr_code_scanner" className="text-3xl" />} live="assertive" />
+        ) : scanErrorInfo ? (
+          <GuestStateCard title={t(scanErrorInfo.titleKey, scanErrorInfo.params)} message={t(scanErrorInfo.messageKey, scanErrorInfo.params)} icon={<VsIcon name="qr_code_scanner" className="text-3xl" />} live="assertive" />
         ) : needsSwitchConfirmation ? (
-          <QrSwitchCard onConfirm={() => scanRoomQr(true)} title={t("qr.switchTitle")} message={t("qr.switchMessage")} confirmLabel={t("qr.switchConfirm")} />
+          <QrSwitchCard
+            onConfirm={() => scanRoomQr(true)}
+            title={switchParams?.targetRoom ? t("qr.roomMismatchTitle", { targetRoom: switchParams.targetRoom }) : t("qr.switchTitle")}
+            message={switchParams?.currentRoom && switchParams?.targetRoom ? t("qr.roomMismatchMessage", { currentRoom: switchParams.currentRoom, targetRoom: switchParams.targetRoom }) : t("qr.switchMessage")}
+            confirmLabel={t("qr.switchConfirm")}
+          />
         ) : (
           <GuestStateCard
             title={t("qr.opening")}
