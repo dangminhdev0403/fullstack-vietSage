@@ -179,15 +179,6 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
       // Optimistic update
       markThreadReadInCache(id);
 
-      // Multi-tab BroadcastChannel sync
-      if (typeof window !== "undefined" && "BroadcastChannel" in window) {
-        try {
-          const channel = new BroadcastChannel("vietsage_thread_read_channel");
-          channel.postMessage({ hotelId, threadId: id });
-          channel.close();
-        } catch {}
-      }
-
       requestInternalApi(`${base}/${encodeURIComponent(id)}/read`, { method: "POST" })
         .catch(() => {
           // Rollback on error
@@ -213,20 +204,6 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
         });
     }
   };
-
-  // Listen for BroadcastChannel read sync from other tabs
-  useEffect(() => {
-    if (typeof window === "undefined" || !("BroadcastChannel" in window)) return;
-    try {
-      const channel = new BroadcastChannel("vietsage_thread_read_channel");
-      channel.onmessage = (event) => {
-        if (event.data?.hotelId === hotelId && event.data?.threadId) {
-          markThreadReadInCache(event.data.threadId);
-        }
-      };
-      return () => channel.close();
-    } catch {}
-  }, [hotelId]);
 
   const detail = useInfiniteQuery({
     ...detailOptions,
@@ -339,34 +316,52 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
         const { thread, message } = event as { thread: Thread; message: Message };
         if (!thread?.id || !message?.id) return;
 
-        // Message deduplication
-        if (processedMessageIdsRef.current.has(message.id)) return;
+        // Condition 1: Check if event/message is unprocessed
+        const isUnprocessed = !processedMessageIdsRef.current.has(message.id);
+
+        // Condition 2: Sender is GUEST
+        const isSenderGuest = message.senderType === "GUEST";
+
+        // Condition 3: Room is not currently open/selected
+        const isNotOpenThread = selectedId !== thread.id;
+
+        // Condition 4: Message does not already exist in detail cache or thread latestMessage
+        const existingThread = threadItems.find((t) => t.id === thread.id);
+        const isMessageInCache =
+          existingThread?.latestMessage?.id === message.id ||
+          messages.some((m) => m.id === message.id);
+        const isMessageNotInCache = !isMessageInCache;
+
+        // Track processed message ID
         processedMessageIdsRef.current.add(message.id);
         if (processedMessageIdsRef.current.size > 200) {
           const oldestKey = processedMessageIdsRef.current.values().next().value;
           if (oldestKey) processedMessageIdsRef.current.delete(oldestKey);
         }
 
-        const isOpenThread = selectedId === thread.id;
-        const isGuestMsg = message.senderType === "GUEST";
+        const shouldIncrementUnread =
+          isUnprocessed && isSenderGuest && isNotOpenThread && isMessageNotInCache;
 
         upsertWaitingThread(
           {
             ...thread,
             latestMessage: message,
           },
-          !isOpenThread && isGuestMsg,
+          shouldIncrementUnread,
         );
 
-        if (isOpenThread) {
+        if (!isNotOpenThread) {
           appendMessageToThreadCache(thread.id, message);
-          if (isGuestMsg) {
+          if (isSenderGuest) {
             requestInternalApi(`${base}/${encodeURIComponent(thread.id)}/read`, { method: "POST" })
               .then(() => markThreadReadInCache(thread.id))
               .catch(() => {});
           }
         }
-        if (isGuestMsg) playMessageAlertSound();
+
+        if (isSenderGuest && shouldIncrementUnread) {
+          playMessageAlertSound();
+        }
       },
       onConversationClosed: (event) => {
         if (!event || typeof event !== "object" || !("stayId" in event)) return;
