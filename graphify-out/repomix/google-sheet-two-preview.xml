@@ -1,0 +1,313 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: services/auth-service/src/modules/property/infrastructure/imports/google-sheets-service-catalog-sync.service.ts, services/auth-service/src/modules/property/infrastructure/imports/service-catalog-import.adapter.ts, services/auth-service/src/modules/property/tests/infrastructure/imports/google-sheets-service-catalog-sync.service.spec.ts
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+services/
+  auth-service/
+    src/
+      modules/
+        property/
+          infrastructure/
+            imports/
+              google-sheets-service-catalog-sync.service.ts
+              service-catalog-import.adapter.ts
+          tests/
+            infrastructure/
+              imports/
+                google-sheets-service-catalog-sync.service.spec.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="services/auth-service/src/modules/property/infrastructure/imports/service-catalog-import.adapter.ts">
+import { Injectable, OnModuleInit } from "@nestjs/common";
+import { Prisma, ServiceCatalogStatus } from "@prisma/client";
+import {
+  ImportAdapter,
+  ImportCommitInput,
+  ImportCommitResult,
+  ImportContext,
+  ImportDiffEntry,
+  ImportValidationIssue,
+  ImportWorkbookSchema,
+  ParsedImportWorkbook,
+} from "../../../../common/import/import.types";
+import { ImportRegistry } from "../../../../common/import/import.registry";
+import { PrismaService } from "../../../../prisma/prisma.service";
+import { HotelAccessService } from "../../application/hotel-access.service";
+⋮----
+type TranslationLocale = (typeof TRANSLATION_COLUMNS)[number]["locale"];
+⋮----
+type TranslationInput = Partial<
+  Record<
+    TranslationLocale,
+    {
+      name?: string;
+      description?: string | null;
+    }
+  >
+>;
+⋮----
+interface ParsedServiceCatalogCategory {
+  rowNumber: number;
+  importKey: string;
+  name: string;
+  description?: string | null;
+  defaultPrice: number;
+  currency: string;
+  sortOrder: number;
+  status: ServiceCatalogStatus;
+  translations: TranslationInput;
+}
+⋮----
+interface ParsedServiceCatalogItem {
+  rowNumber: number;
+  importKey: string;
+  categoryKey: string;
+  name: string;
+  description?: string | null;
+  priceOverride?: number | null;
+  quantityEnabled: boolean;
+  minQuantity: number;
+  maxQuantity?: number | null;
+  sortOrder: number;
+  status: ServiceCatalogStatus;
+  translations: TranslationInput;
+}
+⋮----
+export interface ServiceCatalogImportPayload {
+  categories: ParsedServiceCatalogCategory[];
+  items: ParsedServiceCatalogItem[];
+}
+⋮----
+type ServiceCatalogImportState = {
+  categories: Array<{
+    id: string;
+    importKey: string | null;
+    name: string;
+    description: string | null;
+    defaultPrice: Prisma.Decimal;
+    currency: string;
+    sortOrder: number;
+    status: ServiceCatalogStatus;
+    translations: Array<{ locale: string; name: string; description: string | null }>;
+  }>;
+  items: Array<{
+    id: string;
+    importKey: string | null;
+    categoryId: string;
+    category: { importKey: string | null };
+    name: string;
+    description: string | null;
+    priceOverride: Prisma.Decimal | null;
+    quantityEnabled: boolean;
+    minQuantity: number;
+    maxQuantity: number | null;
+    sortOrder: number;
+    status: ServiceCatalogStatus;
+    translations: Array<{ locale: string; name: string; description: string | null }>;
+  }>;
+};
+⋮----
+export class ServiceCatalogImportAdapter
+implements ImportAdapter<ServiceCatalogImportPayload, ServiceCatalogImportState>, OnModuleInit
+⋮----
+constructor(
+⋮----
+onModuleInit(): void
+⋮----
+getSchema(): ImportWorkbookSchema
+⋮----
+async authorize(context: ImportContext): Promise<void>
+⋮----
+parse(workbook: ParsedImportWorkbook): ServiceCatalogImportPayload
+⋮----
+validate(payload: ServiceCatalogImportPayload): ImportValidationIssue[]
+⋮----
+async loadCurrentState(context: ImportContext): Promise<ServiceCatalogImportState>
+⋮----
+diff(payload: ServiceCatalogImportPayload, state: ServiceCatalogImportState): ImportDiffEntry[]
+⋮----
+async commit(
+    input: ImportCommitInput<ServiceCatalogImportPayload, ServiceCatalogImportState>,
+): Promise<ImportCommitResult>
+⋮----
+private summarize(diff: ImportDiffEntry[])
+⋮----
+private diffCategory(
+    category: ParsedServiceCatalogCategory,
+    existing: ServiceCatalogImportState["categories"][number] | undefined,
+): ImportDiffEntry
+⋮----
+private diffItem(
+    item: ParsedServiceCatalogItem,
+    existing: ServiceCatalogImportState["items"][number] | undefined,
+): ImportDiffEntry
+⋮----
+private diffFields(fields: Record<string, [unknown, unknown]>)
+⋮----
+private diffTranslations(
+    existing: Array<{ locale: string; name: string; description: string | null }>,
+    next: TranslationInput,
+)
+⋮----
+private async upsertCategoryTranslations(
+    tx: Prisma.TransactionClient,
+    categoryId: string,
+    translations: TranslationInput,
+)
+⋮----
+private async upsertItemTranslations(
+    tx: Prisma.TransactionClient,
+    itemId: string,
+    translations: TranslationInput,
+)
+⋮----
+private validateKey(
+    key: string,
+    sheet: string,
+    row: number,
+    column: string,
+    issues: ImportValidationIssue[],
+)
+⋮----
+private readTranslations(values: Record<string, unknown>): TranslationInput
+⋮----
+private translationColumns(kind: "category" | "item")
+⋮----
+private error(
+    sheet: string,
+    row: number,
+    column: string,
+    code: string,
+    message: string,
+): ImportValidationIssue
+⋮----
+private text(value: unknown): string
+⋮----
+private optionalText(value: unknown): string | undefined
+⋮----
+private number(value: unknown, defaultValue: number): number
+⋮----
+private optionalNumber(value: unknown): number | undefined
+⋮----
+private boolean(value: unknown, defaultValue: boolean): boolean
+⋮----
+private enumValue(value: unknown, defaultValue: string): string
+</file>
+
+<file path="services/auth-service/src/modules/property/infrastructure/imports/google-sheets-service-catalog-sync.service.ts">
+import { BadRequestException, Injectable } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
+import { google } from "googleapis";
+import { AppLogger } from "../../../../common/logging/app-logger.service";
+import { ImportService } from "../../../../common/import/import.service";
+import type {
+  ImportValidationIssue,
+  ParsedImportWorkbook,
+} from "../../../../common/import/import.types";
+import { PrismaService } from "../../../../prisma/prisma.service";
+import { HotelAccessService } from "../../application/hotel-access.service";
+⋮----
+type SyncSummary = {
+  categoriesProcessed: number;
+  itemsProcessed: number;
+  inserted: number;
+  updated: number;
+  skipped: number;
+  skippedRows: number;
+  durationMs: number;
+  errors: string[];
+  warnings: string[];
+};
+⋮----
+export class GoogleSheetsServiceCatalogSyncService {
+⋮----
+constructor(
+⋮----
+async syncHotel(
+    hotelId: string,
+    actorUserId: string,
+    activeRoleId: string,
+): Promise<SyncSummary>
+⋮----
+async validateSpreadsheet(spreadsheetId: string): Promise<void>
+⋮----
+async syncAllHotels(): Promise<void>
+⋮----
+private async runSync(
+    hotelId: string,
+    spreadsheetId: string | null,
+    actorUserId: string,
+    activeRoleId?: string,
+    enforceConcurrency = true,
+): Promise<SyncSummary>
+⋮----
+private async readWorkbook(spreadsheetId: string): Promise<ParsedImportWorkbook>
+⋮----
+private toGoogleSheetsError(error: unknown): BadRequestException
+⋮----
+private rangesForFirstTwoSheets(titles: string[]): string[]
+⋮----
+private formatValidationErrors(issues: ImportValidationIssue[]): string
+⋮----
+private async previewValidRows(input: Parameters<ImportService["preview"]>[0])
+⋮----
+private toParsedSheet(name: "categories" | "items", values: unknown[][])
+⋮----
+private normalizeHeader(value: string): string
+⋮----
+private stripVietnameseDiacritics(value: string): string
+⋮----
+private sheetCellText(value: unknown): string
+</file>
+
+<file path="services/auth-service/src/modules/property/tests/infrastructure/imports/google-sheets-service-catalog-sync.service.spec.ts">
+import { GoogleSheetsServiceCatalogSyncService } from "../../../infrastructure/imports/google-sheets-service-catalog-sync.service";
+⋮----
+function createService(importService: Record<string, unknown> =
+</file>
+
+</files>

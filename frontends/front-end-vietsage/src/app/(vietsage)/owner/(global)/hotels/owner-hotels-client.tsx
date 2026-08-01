@@ -1,6 +1,7 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import type { Hotel } from "@/features/admin/types/admin-contract";
@@ -34,6 +35,7 @@ function getErrorMessage(error: unknown): string {
 }
 
 export function OwnerHotelsClient() {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const hotelsQuery = useOwnerHotelsQuery();
 
@@ -144,9 +146,13 @@ export function OwnerHotelsClient() {
 
               {!hotelsQuery.isLoading
                 ? filteredHotels.map((hotel: Hotel) => (
-                    <tr key={hotel.id} className="align-top transition-colors hover:bg-[#f8f1e6]/70">
+                    <tr
+                      key={hotel.id}
+                      onClick={() => router.push(`/owner/hotels/${hotel.id}`)}
+                      className="group cursor-pointer align-top transition-colors hover:bg-[#f8f1e6]/80"
+                    >
                       <td className="px-5 py-4">
-                        <p className="font-semibold text-[#17201b]">{hotel.name}</p>
+                        <p className="font-semibold text-[#17201b] transition-colors group-hover:text-[#24473d]">{hotel.name}</p>
                         <p className="mt-1 text-xs text-[#6d756e]">{hotel.code ?? hotel.id}</p>
                       </td>
                       <td className="px-5 py-4">
@@ -155,7 +161,11 @@ export function OwnerHotelsClient() {
                       <td className="px-5 py-4 text-[var(--on-surface-variant)]">{hotel.timezone ?? "Asia/Saigon"}</td>
                       <td className="px-5 py-4 text-[var(--on-surface-variant)]">{formatDate(hotel.updatedAt ?? hotel.createdAt)}</td>
                       <td className="px-5 py-4 text-right">
-                        <Link href={`/owner/hotels/${hotel.id}`} className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[#24473d]/15 bg-[#f8f1e6] px-3 py-2 text-xs font-bold text-[#24473d] transition-colors hover:bg-[#efe3cf]">
+                        <Link
+                          href={`/owner/hotels/${hotel.id}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[#24473d]/15 bg-[#f8f1e6] px-3 py-2 text-xs font-bold text-[#24473d] transition-colors group-hover:bg-[#24473d] group-hover:text-white"
+                        >
                           <VsIcon name="settings" className="text-[16px]" />
                           Quản lý
                         </Link>
