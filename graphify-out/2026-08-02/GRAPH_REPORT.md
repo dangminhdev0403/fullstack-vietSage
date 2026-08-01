@@ -1,11 +1,11 @@
 # Graph Report - fullstack-vietSage  (2026-08-02)
 
 ## Corpus Check
-- 820 files · ~526,291 words
+- 820 files · ~526,445 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 6450 nodes · 14194 edges · 322 communities (270 shown, 52 thin omitted)
+- 6450 nodes · 14194 edges · 323 communities (271 shown, 52 thin omitted)
 - Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 317 edges (avg confidence: 0.64)
 - Token cost: 0 input · 0 output
 
@@ -306,6 +306,7 @@
 - import.service.ts
 - change-password-dialog.tsx
 - app-logger.service.ts
+- @dangminhdev04032005/query-resource
 - check-in-workspace-layout.test.ts
 - qrcode.react
 - use-google-sheet-config.ts
@@ -346,7 +347,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (322 total, 52 thin omitted)
+## Communities (323 total, 52 thin omitted)
 
 ### Community 0 - "executeOwnerBackendRequest"
 Cohesion: 0.06
@@ -417,12 +418,12 @@ Cohesion: 0.15
 Nodes (10): I18N_CATALOG, TranslationCatalog, I18nService, LEGACY_MESSAGE_KEYS, LOCALE_ALIASES, RequestLanguageCarrier, CONTENT_TRANSLATION_LOCALES, ContentTranslationLocale (+2 more)
 
 ### Community 17 - "contract-schemas.ts"
-Cohesion: 0.12
-Nodes (5): Interval, AuthService, Injectable, LocalStrategy, Injectable
+Cohesion: 0.15
+Nodes (3): Interval, AuthService, Injectable
 
 ### Community 18 - "TenantOwnersService"
-Cohesion: 0.14
-Nodes (8): TenantOwnerItem, ListTenantOwnersQueryInput, TenantOwnerRoleNotConfiguredError, TenantOwnerRow, TenantOwnersRepository, Injectable, OrganizationModule, Module
+Cohesion: 0.23
+Nodes (7): generateTemporaryPassword(), validatePasswordPolicy(), TenantOwnerItem, TenantOwnerRoleNotConfiguredError, TenantOwnerRow, OrganizationModule, Module
 
 ### Community 19 - "vs-icon.tsx"
 Cohesion: 0.14
@@ -441,8 +442,8 @@ Cohesion: 0.07
 Nodes (47): canActivateQr(), compareRooms(), formatPriceInput(), formatVnd(), getActiveGuestDeviceCount(), getBusinessErrorMessage(), getClientOriginSnapshot(), getNestedMessage() (+39 more)
 
 ### Community 23 - "guest-os-contract.ts"
-Cohesion: 0.11
-Nodes (32): AdminDashboardPage(), DashboardPageProps, AdminLayout(), redirectToLogin(), AdminUsersPage(), first(), Props, AuthRefreshGate() (+24 more)
+Cohesion: 0.14
+Nodes (25): AdminDashboardPage(), DashboardPageProps, AdminLayout(), redirectToLogin(), AuthRefreshGate(), AuthRefreshGateProps, loginUrl(), logoutToLogin() (+17 more)
 
 ### Community 24 - "ApiDescript"
 Cohesion: 0.15
@@ -453,8 +454,8 @@ Cohesion: 0.11
 Nodes (16): createOwnerSchema, editOwnerSchema, emptyForm, formatDate(), FormMode, OwnerFormState, ownerStatuses, requestJson() (+8 more)
 
 ### Community 26 - "hotel-requests.service.ts"
-Cohesion: 0.08
-Nodes (33): Context, DELETE(), GET(), POST(), Context, POST(), Context, DELETE() (+25 more)
+Cohesion: 0.09
+Nodes (32): AdminHotelsPage(), listTenantOwnersForSelector(), AdminUsersPage(), first(), Props, ownerAccessMessage(), first(), OwnerStaffPage() (+24 more)
 
 ### Community 27 - "EmergencyRepository"
 Cohesion: 0.30
@@ -509,8 +510,8 @@ Cohesion: 0.04
 Nodes (70): createServiceItemBodySchema, hotelServiceItemDataSchema, hotelStaffAssignmentDataSchema, listHotelServiceItemsDataSchema, listHotelStaffAssignmentsDataSchema, revokeHotelStaffAssignmentDataSchema, updateServiceItemBodySchema, ZodTaggedBadRequest (+62 more)
 
 ### Community 41 - "route.ts"
-Cohesion: 0.11
-Nodes (23): containsTenantId(), FormState, hotelToForm(), OwnerHotelDetailClient(), OwnerHotelDetailClientProps, parseBrandSettings(), ApiEnvelope, isRecord() (+15 more)
+Cohesion: 0.12
+Nodes (21): containsTenantId(), FormState, hotelToForm(), OwnerHotelDetailClient(), OwnerHotelDetailClientProps, parseBrandSettings(), ApiEnvelope, isRecord() (+13 more)
 
 ### Community 42 - "compilerOptions"
 Cohesion: 0.06
@@ -545,12 +546,12 @@ Cohesion: 0.13
 Nodes (17): AdminService, AdminServiceOptions, createAdminService(), TemporaryPasswordResult, AdminPage, CreateHotelInput, Hotel, HotelListQuery (+9 more)
 
 ### Community 50 - "env.config.ts"
-Cohesion: 0.06
-Nodes (25): DpapiSecretStore, User-scoped DPAPI secret store for the bridge communicationKey.      Parameters, Encrypt and store *plaintext* using DPAPI.          The plaintext is encoded as, Decrypt and return the protected secret as raw bytes.          The returned byte, True if a secret has been protected (blob is non-None)., _FakeAdapter, test_local_settings.py – TDD tests for local_settings.py and local_secrets.py., In-process DPAPI stub: XOR-encrypt with 0x55 (detectable, not secure). (+17 more)
+Cohesion: 0.04
+Nodes (34): DpapiSecretStore, User-scoped DPAPI secret store for the bridge communicationKey.      Parameters, Encrypt and store *plaintext* using DPAPI.          The plaintext is encoded as, Decrypt and return the protected secret as raw bytes.          The returned byte, True if a secret has been protected (blob is non-None)., _FakeAdapter, test_local_settings.py – TDD tests for local_settings.py and local_secrets.py., AC1: Atomic write with same-dir temp, flush/fsync, os.replace. (+26 more)
 
 ### Community 51 - "request-realtime.controller.ts"
-Cohesion: 0.10
-Nodes (9): AC1: Atomic write with same-dir temp, flush/fsync, os.replace., AC1: If os.replace raises, the old settings file is preserved.          We patch, Generation and in-memory running config are NOT changed on failure., Orphaned temp files must be removed even when replace fails., Atomic rename is only safe same-filesystem; temp must be in the same dir., AC5: Generation incremented exactly once after full success., Idempotency guard: one successful put → generation is exactly 1., TestAtomicWrite (+1 more)
+Cohesion: 0.18
+Nodes (12): Context, DELETE(), GET(), POST(), Context, POST(), Context, DELETE() (+4 more)
 
 ### Community 52 - "ImportAdapter"
 Cohesion: 0.10
@@ -661,8 +662,8 @@ Cohesion: 0.08
 Nodes (24): Compose Design, Current Context, `docker-compose.prod.yml`, `docker-compose.yml`, Env Ownership Model, Git Policy, Open Questions Before Execution, Proposed Target Structure (+16 more)
 
 ### Community 80 - "tenant-owners.service.ts"
-Cohesion: 0.11
-Nodes (29): GET(), HotelsLayout(), redirectToLogin(), APP_ROLE_PRIORITY, getPrimaryAppRole(), hasAppRole(), isRoleMatch(), normalizeRole() (+21 more)
+Cohesion: 0.09
+Nodes (33): GET(), HotelsLayout(), redirectToLogin(), assertCanAccessOwner(), redirectOwnerToLogin(), requireOwnerServerTokens(), OwnerLayout(), APP_ROLE_PRIORITY (+25 more)
 
 ### Community 81 - "Graphify-first Code Navigation Policy"
 Cohesion: 0.08
@@ -714,7 +715,7 @@ Nodes (18): HOTEL_ASSIGNMENT_REQUIRED_ROLE_CODES, HOTEL_OPERATOR_ROLE_CODES, Hot
 
 ### Community 94 - "dependencies"
 Cohesion: 0.11
-Nodes (19): @auth/core, dependencies, @auth/core, @dangminhdev04032005/query-resource, motion, next, react-dom, socket.io-client (+11 more)
+Nodes (19): @auth/core, dependencies, @auth/core, motion, next, react-dom, socket.io-client, sonner (+11 more)
 
 ### Community 95 - "page.tsx"
 Cohesion: 0.15
@@ -907,8 +908,8 @@ Cohesion: 0.15
 Nodes (12): allowScripts, argon2@0.44.0, prisma@7.9.0, @prisma/engines@7.9.0, unrs-resolver@1.12.2, author, description, license (+4 more)
 
 ### Community 142 - "HttpError"
-Cohesion: 0.10
-Nodes (14): PairingStore, Operator-issued single-use pairing codes and session tokens.      Security prope, Validate *code* with constant-time compare; if valid issue a session token., Return True if *token* is valid and not expired., After first successful redeem, the same code must not work again., Codes with ttl=0 should not be redeemable., Session tokens issued with ttl=0 expire immediately., Session tokens must not be excessively long. (+6 more)
+Cohesion: 0.12
+Nodes (11): PairingStore, Operator-issued single-use pairing codes and session tokens.      Security prope, Validate *code* with constant-time compare; if valid issue a session token., Return True if *token* is valid and not expired., After first successful redeem, the same code must not work again., Codes with ttl=0 should not be redeemable., Session tokens issued with ttl=0 expire immediately., Session tokens must not be excessively long. (+3 more)
 
 ### Community 143 - "package.json"
 Cohesion: 0.25
@@ -968,7 +969,7 @@ Nodes (13): API Logging Rule (Mandatory), API Transport Rule (Mandatory), Auth &
 
 ### Community 157 - ".getDashboard"
 Cohesion: 0.05
-Nodes (66): actionMeta, compareValues(), defaultLabels, escapeHtml(), formatDayFilterValue(), formatRequestMoney(), getHttpErrorMessage(), getServiceDetailPrice() (+58 more)
+Nodes (68): actionMeta, compareValues(), defaultLabels, escapeHtml(), formatDayFilterValue(), formatRequestMoney(), getHttpErrorMessage(), getServiceDetailPrice() (+60 more)
 
 ### Community 158 - "verify-contract.cjs"
 Cohesion: 0.33
@@ -995,8 +996,8 @@ Cohesion: 0.18
 Nodes (10): 1. Pull code on the VPS, 2. Create production secret files, 3. Build, migrate, and start Docker services, 4. Docker-managed Nginx (current production path), 5. Legacy host-Nginx cutover reference, 6. Open firewall ports, 7. Issue HTTPS certificates with Docker Certbot, 8. Verify externally (+2 more)
 
 ### Community 165 - "route-permission-key.util.ts"
-Cohesion: 0.08
-Nodes (21): Exception, _dpapi_available(), _dpapi_protect(), _dpapi_unprotect(), local_secrets.py – Windows user-scoped DPAPI secret adapter.  Design rules (Slic, Wraps the actual ctypes DPAPI calls., Raised when the DPAPI secret store is not available or not on Windows., Return True only when running on Windows with ctypes access. (+13 more)
+Cohesion: 0.09
+Nodes (12): LocalSettingsStore, Thread-safe store for non-secret local settings.      Persistence is atomic: a t, Parameters         ----------         path:          absolute path to the JSON s, Return a copy of the current in-memory running settings., Read and validate the settings file.          If the file does not exist, return, Validate *raw*, persist atomically, update generation.          If communication, Write *data* to a tempfile then atomically rename to self._path., AC6: Pair bootstrap only from loopback. (+4 more)
 
 ### Community 166 - ".getInvoiceDetail"
 Cohesion: 0.20
@@ -1044,19 +1045,19 @@ Nodes (8): Anti-patterns, Auth and Session Rules, Contract Rules, Error Contract
 
 ### Community 188 - ".issue"
 Cohesion: 0.05
-Nodes (15): normalizeModuleKey(), normalizeOptionalText(), normalizePermissionIds(), PERMISSION_PROTECTED_ROLE_CODES, RbacService, Injectable, CreateRoleBodyInput, ListRolePermissionModulePermissionsQueryInput (+7 more)
+Nodes (17): normalizeModuleKey(), normalizeOptionalText(), normalizePermissionIds(), PERMISSION_PROTECTED_ROLE_CODES, RbacService, Injectable, CreateRoleBodyInput, ListRolePermissionModulePermissionsQueryInput (+9 more)
 
 ### Community 189 - "sweetalert2"
-Cohesion: 0.17
-Nodes (7): generateTemporaryPassword(), validatePasswordPolicy(), ActorContext, PROTECTED_ROLE_CODES, TenantScopedHotelUser, ListHotelUsersQueryInput, TenantScopedHotelUserRow
+Cohesion: 0.21
+Nodes (5): ActorContext, PROTECTED_ROLE_CODES, TenantScopedHotelUser, ListHotelUsersQueryInput, TenantScopedHotelUserRow
 
 ### Community 190 - "@tanstack/react-query"
 Cohesion: 0.29
 Nodes (5): changePasswordDialog, owners, secretDialog, staff, topbar
 
 ### Community 193 - "guest-operations-public.ts"
-Cohesion: 0.13
-Nodes (8): ImportContext, ParsedServiceCatalogCategory, ParsedServiceCatalogItem, ServiceCatalogImportPayload, ServiceCatalogImportState, TRANSLATION_COLUMNS, TranslationInput, TranslationLocale
+Cohesion: 0.17
+Nodes (7): ImportContext, ParsedServiceCatalogCategory, ParsedServiceCatalogItem, ServiceCatalogImportPayload, ServiceCatalogImportState, TranslationInput, TranslationLocale
 
 ### Community 194 - "staff-management-service.ts"
 Cohesion: 0.20
@@ -1159,8 +1160,8 @@ Cohesion: 0.09
 Nodes (41): AdminShell(), AdminShellProps, VsDashboardSidebar(), VsDashboardSidebarProps, HotelOpsLayout(), OwnerShell(), OwnerShellProps, OwnerGlobalLayout() (+33 more)
 
 ### Community 225 - "route.ts"
-Cohesion: 0.19
-Nodes (4): TenantOwnersService, Injectable, CreateTenantOwnerBodyInput, UpdateTenantOwnerBodyInput
+Cohesion: 0.12
+Nodes (7): TenantOwnersService, Injectable, CreateTenantOwnerBodyInput, ListTenantOwnersQueryInput, UpdateTenantOwnerBodyInput, TenantOwnersRepository, Injectable
 
 ### Community 226 - "Contract Changes"
 Cohesion: 0.33
@@ -1235,8 +1236,8 @@ Cohesion: 0.23
 Nodes (10): assignHotelUserRolesBodySchema, createHotelUserBodySchema, listHotelUsersQuerySchema, ResetHotelUserPasswordBodyInput, resetHotelUserPasswordBodySchema, roleIdParamSchema, tenantUserStatusSchema, updateHotelUserBodySchema (+2 more)
 
 ### Community 270 - "getNestedMessage"
-Cohesion: 0.33
-Nodes (8): assertCanAccessOwner(), ownerAccessMessage(), redirectOwnerToLogin(), requireOwnerServerTokens(), getOwnerVisibleHotel(), OwnerHotelPage(), OwnerHotelPageProps, OwnerLayout()
+Cohesion: 0.19
+Nodes (12): Exception, _dpapi_available(), _dpapi_protect(), _dpapi_unprotect(), local_secrets.py – Windows user-scoped DPAPI secret adapter.  Design rules (Slic, Wraps the actual ctypes DPAPI calls., Raised when the DPAPI secret store is not available or not on Windows., Return True only when running on Windows with ctypes access. (+4 more)
 
 ### Community 271 - "@dangminhdev04032005/query-resource"
 Cohesion: 0.33
@@ -1271,8 +1272,8 @@ Cohesion: 0.11
 Nodes (16): WorkstationScanState, createIntakeSessionSchema, IntakePayload, intakePayloadSchema, IntakePayloadV2, intakePayloadV2Schema, IntakeSessionIssued, IntakeSessionStatus (+8 more)
 
 ### Community 287 - "tenant-owners.service.ts"
-Cohesion: 0.16
-Nodes (11): ImportTemplateService, Injectable, ImportAction, ImportColumnSchema, ImportColumnType, ImportFieldChange, ImportIssueSeverity, ImportSheetSchema (+3 more)
+Cohesion: 0.22
+Nodes (8): ImportAction, ImportColumnSchema, ImportColumnType, ImportFieldChange, ImportIssueSeverity, ImportSheetSchema, ParsedImportRow, ParsedImportSheet
 
 ### Community 288 - "global-exception.filter.ts"
 Cohesion: 0.31
@@ -1321,6 +1322,10 @@ Nodes (5): ApiOkResponse, ApiParam, Get, Param, Req
 ### Community 300 - ".createRequest"
 Cohesion: 0.40
 Nodes (4): Params, translationSchema, translationsSchema, updateItemSchema
+
+### Community 302 - "workspace-context.ts"
+Cohesion: 0.27
+Nodes (4): ImportTemplateService, Injectable, ImportWorkbookSchema, TRANSLATION_COLUMNS
 
 ### Community 303 - "staff-management-client.tsx"
 Cohesion: 0.50

@@ -16,12 +16,15 @@ export type CccdCheckInCapture = {
 type Props = {
   hotelId: string;
   onCapture: (capture: CccdCheckInCapture | null) => void;
+  activeGuestLabel?: string;
+  autoRequestScanKey?: string | number;
 };
 
-export function CccdCheckInPanel({ hotelId, onCapture }: Props) {
+export function CccdCheckInPanel({ hotelId, onCapture, activeGuestLabel, autoRequestScanKey }: Props) {
   const { state, requestScan } = useWorkstationScan(hotelId);
   const [now, setNow] = useState(() => Date.now());
   const emittedTransferId = useRef<string | null>(null);
+  const prevScanKeyRef = useRef<string | number | undefined>(autoRequestScanKey);
 
   useEffect(() => {
     if (state.phase !== "requested") return;
@@ -45,18 +48,34 @@ export function CccdCheckInPanel({ hotelId, onCapture }: Props) {
     });
   }, [onCapture, state]);
 
+  // Continuous auto-scan stream when active guest slot changes
+  useEffect(() => {
+    if (autoRequestScanKey === undefined) return;
+    if (prevScanKeyRef.current !== autoRequestScanKey) {
+      prevScanKeyRef.current = autoRequestScanKey;
+      emittedTransferId.current = null;
+      onCapture(null);
+      const online = ["ready", "requested", "receiving", "received", "expired"].includes(state.phase);
+      if (online && state.phase !== "requested" && state.phase !== "receiving") {
+        requestScan();
+      }
+    }
+  }, [autoRequestScanKey, onCapture, requestScan, state.phase]);
+
   const timeLeft = state.phase === "requested" ? Math.max(0, Math.ceil((state.expiresAt - now) / 1000)) : 0;
   const online = ["ready", "requested", "receiving", "received", "expired"].includes(state.phase);
   const busy = state.phase === "requested" || state.phase === "receiving";
   const received = state.phase === "received";
 
+  const guestSuffix = activeGuestLabel ? ` (${activeGuestLabel})` : "";
+
   let title = "Đang kiểm tra máy quét";
   let message = "Vui lòng chờ trong giây lát.";
   if (state.phase === "offline") { title = "Máy quét chưa kết nối"; message = "Cấu hình máy quét tại Dashboard Tiếp Tân rồi quay lại quét."; }
-  if (state.phase === "ready") { title = "Máy quét đã sẵn sàng"; message = "Đặt CCCD lên máy HN-212 rồi bắt đầu quét."; }
-  if (busy) { title = "Đang đọc chip CCCD"; message = `Giữ nguyên thẻ trên máy. Còn ${timeLeft} giây.`; }
-  if (received) { title = "Đã đọc CCCD"; message = "Kiểm tra ảnh và thông tin trước khi hoàn tất."; }
-  if (state.phase === "expired") { title = "Lượt quét đã hết hạn"; message = "Bắt đầu lượt quét mới khi khách đã đặt thẻ lên máy."; }
+  if (state.phase === "ready") { title = `Máy quét sẵn sàng${guestSuffix}`; message = "Đặt thẻ CCCD lên máy đọc HN-212 để tự động quét."; }
+  if (busy) { title = `Đang đọc chip CCCD${guestSuffix}`; message = `Giữ nguyên thẻ trên máy. Còn ${timeLeft} giây.`; }
+  if (received) { title = `Đã đọc CCCD${guestSuffix}`; message = "Tự động nạp thông tin vị trí này. Đang chờ thẻ tiếp theo..."; }
+  if (state.phase === "expired") { title = `Lượt quét đã hết hạn${guestSuffix}`; message = "Bấm 'Quét CCCD' để bắt đầu lượt quét mới."; }
 
   const error = state.phase === "error" ? state.message : null;
 
@@ -78,7 +97,7 @@ export function CccdCheckInPanel({ hotelId, onCapture }: Props) {
             disabled={!online || busy}
             className={`min-h-[44px] rounded-xl px-4 py-2 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-50 ${received ? "border border-slate-300 bg-white text-slate-800 hover:bg-slate-50" : "bg-blue-700 text-white hover:bg-blue-800"}`}
           >
-            {busy ? "Đang chờ CCCD..." : received ? "Quét lại" : "Quét CCCD"}
+            {busy ? "Đang chờ CCCD..." : received ? "Quét lại slot này" : "Quét CCCD"}
           </button>
         </div>
       </div>

@@ -169,21 +169,21 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
             <span className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-emerald-800 shadow-sm ring-1 ring-emerald-200">{roomStatus}</span>
           </section>
 
-          <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(340px,2fr)] lg:gap-6">
+          <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(340px,2.2fr)] lg:gap-6">
             <section className="min-w-0 space-y-4" aria-labelledby="identity-heading">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <h3 id="identity-heading" className="text-base font-bold text-slate-950">
-                    Quét CCCD {activeGuestIndex === 0 ? "(Khách đại diện)" : `(Khách ở cùng #${activeGuestIndex + 1})`}
+                    Máy quét CCCD {activeGuestIndex === 0 ? "(Khách 1 - Đại diện)" : `(Khách ở cùng #${activeGuestIndex + 1})`}
                   </h3>
-                  <p className="mt-0.5 text-sm text-slate-600">Đặt CCCD lên máy quét để tự động nạp dữ liệu vị trí này.</p>
+                  <p className="mt-0.5 text-sm text-slate-600">Đặt thẻ CCCD lên máy đọc HN-212 để tự động nạp vị trí đang chọn.</p>
                 </div>
                 {capture ? <span className="shrink-0 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">Xác thực thành công</span> : null}
               </div>
 
-              {/* Guest slot selector for scanner */}
+              {/* Guest slot selector tabs */}
               <div className="flex flex-wrap items-center gap-2 rounded-xl bg-slate-100 p-2 text-xs font-semibold">
-                <span className="text-slate-500">Mục tiêu quét:</span>
+                <span className="text-slate-500">Vị trí quét:</span>
                 <button
                   type="button"
                   onClick={() => setActiveGuestIndex(0)}
@@ -205,92 +205,147 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                     </button>
                   );
                 })}
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleAddOccupant();
+                    setActiveGuestIndex(occupants.length + 1);
+                  }}
+                  className="rounded-lg bg-blue-50 px-3 py-1.5 text-blue-700 transition hover:bg-blue-100"
+                >
+                  + Thêm người ở cùng
+                </button>
               </div>
 
-              <CccdCheckInPanel hotelId={hotelId} onCapture={handleCapture} />
+              <CccdCheckInPanel
+                hotelId={hotelId}
+                onCapture={handleCapture}
+                activeGuestLabel={activeGuestIndex === 0 ? "Khách 1 - Đại diện" : `Khách ở cùng #${activeGuestIndex + 1}`}
+                autoRequestScanKey={activeGuestIndex}
+              />
               {previewModel ? <CccdPreview model={previewModel} /> : null}
             </section>
 
-            <form data-ui="stay-form" id="ciw-form" onSubmit={(event) => { event.preventDefault(); onSubmit({ ...fields, occupants }); }} className="min-w-0 space-y-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
-              <div>
-                <h3 className="text-base font-bold text-slate-950">Thông tin lưu trú</h3>
-                <p className="mt-1 text-sm text-slate-600">Kiểm tra dữ liệu và bổ sung thông tin còn thiếu.</p>
+            <form data-ui="stay-form" id="ciw-form" onSubmit={(event) => { event.preventDefault(); onSubmit({ ...fields, occupants }); }} className="min-w-0 space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                <div>
+                  <h3 className="text-base font-bold text-slate-950">
+                    {activeGuestIndex === 0 ? "Khách 1 (Đại diện phòng)" : `Khách ở cùng #${activeGuestIndex + 1}`}
+                  </h3>
+                  <p className="mt-0.5 text-xs text-slate-600">Điền hoặc xem dữ liệu nạp từ CCCD cho khách này.</p>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {activeGuestIndex > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleRemoveOccupant(activeGuestIndex - 1);
+                        setActiveGuestIndex(Math.max(0, activeGuestIndex - 1));
+                      }}
+                      className="rounded-lg bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100"
+                    >
+                      Xóa khách này
+                    </button>
+                  ) : null}
+                </div>
               </div>
 
               {submitError ? <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800" role="alert" aria-live="assertive">{submitError}</div> : null}
 
-              <div className="space-y-2">
-                <label htmlFor="ciw-name" className="block text-sm font-semibold text-slate-800">Họ và tên khách đại diện <span className="text-red-700" aria-hidden="true">*</span></label>
-                <input id="ciw-name" type="text" required value={fields.guestDisplayName} onChange={(event) => setFields({ ...fields, guestDisplayName: event.target.value })} className={inputClass} />
-                {capture ? <p className="text-xs font-medium text-emerald-700">Đã điền từ CCCD</p> : null}
-              </div>
+              {/* Active Guest Focused Fields */}
+              {activeGuestIndex === 0 ? (
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label htmlFor="ciw-name" className="block text-xs font-bold text-slate-800">Họ và tên khách đại diện <span className="text-red-700" aria-hidden="true">*</span></label>
+                    <input id="ciw-name" type="text" required value={fields.guestDisplayName} onChange={(event) => setFields({ ...fields, guestDisplayName: event.target.value })} className={inputClass} placeholder="Ví dụ: NGUYỄN VĂN A" />
+                    {fields.guestDisplayName ? <p className="text-[11px] font-semibold text-emerald-700">✓ Đã nạp thông tin</p> : null}
+                  </div>
 
-              <div className="space-y-2">
-                <label htmlFor="ciw-phone" className="block text-sm font-semibold text-slate-800">Số điện thoại khách chính <span className="font-normal text-slate-500">(không bắt buộc)</span></label>
-                <input id="ciw-phone" type="tel" inputMode="tel" value={fields.guestPhone} onChange={(event) => setFields({ ...fields, guestPhone: event.target.value })} className={inputClass} />
-              </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <label htmlFor="ciw-phone" className="block text-xs font-bold text-slate-800">Số điện thoại <span className="font-normal text-slate-500">(tùy chọn)</span></label>
+                      <input id="ciw-phone" type="tel" inputMode="tel" value={fields.guestPhone} onChange={(event) => setFields({ ...fields, guestPhone: event.target.value })} className={inputClass} placeholder="0901234567" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label htmlFor="ciw-id" className="block text-xs font-bold text-slate-800">Số CCCD / Hộ chiếu <span className="font-normal text-slate-500">(tùy chọn)</span></label>
+                      <input id="ciw-id" type="text" value={fields.guestIdentityNumber || ""} onChange={(event) => setFields({ ...fields, guestIdentityNumber: event.target.value })} className={inputClass} placeholder="012345678901" />
+                    </div>
+                  </div>
 
-              <div className="space-y-2">
-                <label htmlFor="ciw-checkout" className="block text-sm font-semibold text-slate-800">Dự kiến trả phòng <span className="text-red-700" aria-hidden="true">*</span></label>
-                <input id="ciw-checkout" type="datetime-local" required value={fields.plannedCheckOutAt} onChange={(event) => setFields({ ...fields, plannedCheckOutAt: event.target.value })} className={inputClass} />
-              </div>
+                  <div className="space-y-1.5 pt-1">
+                    <label htmlFor="ciw-checkout" className="block text-xs font-bold text-slate-800">Dự kiến trả phòng <span className="text-red-700" aria-hidden="true">*</span></label>
+                    <input id="ciw-checkout" type="datetime-local" required value={fields.plannedCheckOutAt} onChange={(event) => setFields({ ...fields, plannedCheckOutAt: event.target.value })} className={inputClass} />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label htmlFor={`occ-name-${activeGuestIndex}`} className="block text-xs font-bold text-slate-800">Họ và tên khách ở cùng #{activeGuestIndex + 1} <span className="text-red-700" aria-hidden="true">*</span></label>
+                    <input
+                      id={`occ-name-${activeGuestIndex}`}
+                      type="text"
+                      required
+                      value={occupants[activeGuestIndex - 1]?.fullName || ""}
+                      onChange={(e) => handleOccupantChange(activeGuestIndex - 1, "fullName", e.target.value)}
+                      className={inputClass}
+                      placeholder="Ví dụ: TRẦN THỊ B"
+                    />
+                    {occupants[activeGuestIndex - 1]?.fullName ? <p className="text-[11px] font-semibold text-emerald-700">✓ Đã nạp thông tin</p> : null}
+                  </div>
 
-              <div className="border-t border-slate-200 pt-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-slate-900">Người ở cùng phòng ({occupants.length})</span>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <label htmlFor={`occ-phone-${activeGuestIndex}`} className="block text-xs font-bold text-slate-800">Số điện thoại <span className="font-normal text-slate-500">(tùy chọn)</span></label>
+                      <input
+                        id={`occ-phone-${activeGuestIndex}`}
+                        type="tel"
+                        inputMode="tel"
+                        value={occupants[activeGuestIndex - 1]?.phone || ""}
+                        onChange={(e) => handleOccupantChange(activeGuestIndex - 1, "phone", e.target.value)}
+                        className={inputClass}
+                        placeholder="SĐT đi cùng"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label htmlFor={`occ-id-${activeGuestIndex}`} className="block text-xs font-bold text-slate-800">Số CCCD / Hộ chiếu <span className="font-normal text-slate-500">(tùy chọn)</span></label>
+                      <input
+                        id={`occ-id-${activeGuestIndex}`}
+                        type="text"
+                        value={occupants[activeGuestIndex - 1]?.identityNumber || ""}
+                        onChange={(e) => handleOccupantChange(activeGuestIndex - 1, "identityNumber", e.target.value)}
+                        className={inputClass}
+                        placeholder="Số CCCD"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Guest slot navigation & summary footer */}
+              <div className="border-t border-slate-200 pt-3">
+                <div className="flex items-center justify-between gap-2">
                   <button
                     type="button"
-                    onClick={handleAddOccupant}
-                    className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+                    disabled={activeGuestIndex === 0}
+                    onClick={() => setActiveGuestIndex((curr) => Math.max(0, curr - 1))}
+                    className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-200 disabled:opacity-40"
                   >
-                    + Thêm người ở cùng
+                    ← Khách trước
+                  </button>
+
+                  <span className="text-xs font-medium text-slate-500">
+                    Khách {activeGuestIndex + 1} / {1 + occupants.length}
+                  </span>
+
+                  <button
+                    type="button"
+                    disabled={activeGuestIndex >= occupants.length}
+                    onClick={() => setActiveGuestIndex((curr) => Math.min(occupants.length, curr + 1))}
+                    className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-200 disabled:opacity-40"
+                  >
+                    Khách tiếp →
                   </button>
                 </div>
-
-                {occupants.length > 0 ? (
-                  <div className="mt-3 space-y-3">
-                    {occupants.map((occ, idx) => (
-                      <div key={idx} className="relative space-y-2 rounded-xl border border-slate-200 bg-slate-50/70 p-3 text-sm">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold text-slate-700">Khách đi cùng #{idx + 2}</span>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveOccupant(idx)}
-                            className="text-xs text-red-600 hover:underline"
-                          >
-                            Xóa
-                          </button>
-                        </div>
-                        <input
-                          type="text"
-                          placeholder="Họ và tên khách *"
-                          value={occ.fullName}
-                          onChange={(e) => handleOccupantChange(idx, "fullName", e.target.value)}
-                          className={inputClass}
-                          required
-                        />
-                        <div className="grid grid-cols-2 gap-2">
-                          <input
-                            type="tel"
-                            placeholder="SĐT (tùy chọn)"
-                            value={occ.phone || ""}
-                            onChange={(e) => handleOccupantChange(idx, "phone", e.target.value)}
-                            className={inputClass}
-                          />
-                          <input
-                            type="text"
-                            placeholder="CCCD / Hộ chiếu"
-                            value={occ.identityNumber || ""}
-                            onChange={(e) => handleOccupantChange(idx, "identityNumber", e.target.value)}
-                            className={inputClass}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="mt-2 text-xs italic text-slate-500">Chưa có người ở cùng. Nhấn &quot;+ Thêm người ở cùng&quot; nếu phòng có từ 2 khách trở lên.</p>
-                )}
               </div>
             </form>
           </div>
