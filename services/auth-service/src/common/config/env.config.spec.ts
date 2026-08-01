@@ -4,8 +4,8 @@ const baseEnv = {
   DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/vietsage_auth?schema=public",
   NODE_ENV: "development",
   PORT: "3000",
-  JWT_ACCESS_SECRET: "access-secret",
-  JWT_REFRESH_SECRET: "refresh-secret",
+  JWT_ACCESS_SECRET: "test-access-secret-with-32-characters",
+  JWT_REFRESH_SECRET: "test-refresh-secret-with-32-characters",
   JWT_ACCESS_TTL: "15m",
   JWT_REFRESH_TTL: "7d",
 };
@@ -17,9 +17,9 @@ describe("env config", () => {
     ).toEqual(["http://localhost:3000", "https://app.example.com"]);
   });
 
-  it("defaults Swagger off in production and on outside production", () => {
+  it("defaults Swagger off in every environment", () => {
     expect(shouldEnableSwagger("production", undefined)).toBe(false);
-    expect(shouldEnableSwagger("development", undefined)).toBe(true);
+    expect(shouldEnableSwagger("development", undefined)).toBe(false);
   });
 
   it("allows Swagger to be explicitly enabled in production", () => {
@@ -39,6 +39,44 @@ describe("env config", () => {
     expect(config.corsOrigins).toEqual(["http://localhost:3000", "https://app.example.com"]);
     expect(config.rateLimits.login).toEqual({ ttlSeconds: 30, limit: 5 });
     expect(config.rateLimits.refresh).toEqual({ ttlSeconds: 45, limit: 12 });
+  });
+
+  it("loads an explicit trusted proxy allowlist and defaults to none", () => {
+    expect(loadAppConfig(baseEnv).trustedProxies).toEqual([]);
+    expect(
+      loadAppConfig({ ...baseEnv, AUTH_TRUSTED_PROXIES: " 10.0.0.8,10.0.0.9,10.0.0.8 " })
+        .trustedProxies,
+    ).toEqual(["10.0.0.8", "10.0.0.9"]);
+  });
+
+  it.each([
+    ["JWT_ACCESS_SECRET", "short-secret"],
+    ["JWT_REFRESH_SECRET", "short-secret"],
+    ["JWT_ACCESS_SECRET", "replace-with-access-secret-at-least-32-characters"],
+    ["JWT_REFRESH_SECRET", "change-me-refresh-secret-at-least-32-characters"],
+  ])("rejects weak or placeholder %s values", (name, value) => {
+    expect(() =>
+      loadAppConfig({
+        ...baseEnv,
+        NODE_ENV: "production",
+        [name]: value,
+      }),
+    ).toThrow(name);
+  });
+
+  it.each([
+    ["AUTHZ_ENFORCEMENT_ENABLED", "false"],
+    ["AUTHZ_STRICT_MODE", "false"],
+  ])("rejects production with %s disabled", (name, value) => {
+    expect(() =>
+      loadAppConfig({
+        ...baseEnv,
+        NODE_ENV: "production",
+        JWT_ACCESS_SECRET: "a-secure-access-secret-with-32-characters",
+        JWT_REFRESH_SECRET: "a-secure-refresh-secret-with-32-characters",
+        [name]: value,
+      }),
+    ).toThrow(name);
   });
 
   it("defaults request realtime off with a 60 second ticket TTL", () => {

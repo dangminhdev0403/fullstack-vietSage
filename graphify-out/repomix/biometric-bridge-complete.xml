@@ -1,0 +1,2440 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: tools/biometric-bridge/*.py
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+tools/
+  biometric-bridge/
+    biometric_api.py
+    bridge_app.py
+    hn212_client.py
+    local_secrets.py
+    local_settings.py
+    push_receiver.py
+    test_biometric_api.py
+    test_bridge_app.py
+    test_hn212_client.py
+    test_local_settings.py
+    test_push_receiver.py
+    test_zkteco_bridge.py
+    zkteco_bridge.py
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="tools/biometric-bridge/biometric_api.py">
+_VALID_MODES = frozenset(("CHECK_IN", "TEST"))
+⋮----
+def mask_identity(value)
+⋮----
+value = str(value or "")
+⋮----
+class BiometricStore
+⋮----
+def __init__(self, push_queue, provision, ttl_seconds=1800, now=time.time)
+⋮----
+def start_scan(self, mode="CHECK_IN")
+⋮----
+"""
+        Create a new scan.  If there is a prior active scan it is silently
+        discarded first (AC5: replacement scan deterministically cancels prior).
+
+        Parameters
+        ----------
+        mode : str
+            "CHECK_IN" (default) or "TEST".  Any other value raises ValueError.
+        """
+⋮----
+scan_id = "scan_" + secrets.token_urlsafe(24)
+⋮----
+# AC5: discard any currently-active scan before registering the new one.
+prev_id = self.active_scan_id
+⋮----
+def ingest_active(self, message)
+⋮----
+scan_id = self.active_scan_id
+⋮----
+def ingest(self, scan_id, message)
+⋮----
+scan = self._scan(scan_id)
+data = scan["data"]
+message_id = str(message.get("id", ""))
+⋮----
+encoded = message["data"].get("img_data") or message["data"].get("dg2")
+⋮----
+def get_scan(self, scan_id)
+⋮----
+def discard_scan(self, scan_id)
+⋮----
+"""
+        Discard a scan: remove it from memory (including portrait), reset active
+        pointer if this was the active scan.  Raises ValueError if not found/invalid.
+
+        AC5: discarded scans are inaccessible; portrait removed from memory.
+        """
+⋮----
+scan = self.scans.get(scan_id)
+⋮----
+def enroll(self, stay_id, scan_id)
+⋮----
+existing = self.by_stay.get(stay_id)
+⋮----
+# AC6: TEST scans can never enroll.
+⋮----
+identity = str(data.get("idCode", "")).strip()
+⋮----
+photo = base64.b64decode(encoded, validate=True)
+⋮----
+profile = {"idCode": identity, "biometricUserId": identity, "personName": str(data.get("personName", ""))}
+request_id = "enr_" + secrets.token_urlsafe(24)
+enrollment = {"requestId": request_id, "stayId": stay_id, "scanId": scan_id, "identity": identity, "status": "PENDING", "error": None, "profile": profile, "photo": photo}
+# Record exists before any side-effects (AC1)
+⋮----
+# Provision and enqueue are called outside the lock (AC1)
+⋮----
+def get_enrollment(self, request_id)
+⋮----
+enrollment = self.enrollments.get(request_id)
+⋮----
+def fail(self, request_id, error)
+⋮----
+enrollment = self.enrollments[request_id]
+⋮----
+def fail_identity(self, identity, error)
+⋮----
+def synced(self, identity)
+⋮----
+def retry(self, request_id)
+⋮----
+profile = enrollment["profile"]
+photo = enrollment["photo"]
+# Publish retry state before enqueue so a synchronous ACK can complete it.
+⋮----
+def _scan(self, scan_id)
+⋮----
+@staticmethod
+    def _public_scan(scan)
+⋮----
+data = dict(scan["data"])
+⋮----
+@staticmethod
+    def _public_enrollment(enrollment)
+⋮----
+# ---------------------------------------------------------------------------
+# Module-level helper (used inside lock – must not acquire additional locks)
+⋮----
+def _discard_scan_locked(scans_dict, scan_id)
+⋮----
+"""Remove scan from dict, clearing portrait from memory. Called under lock."""
+scan = scans_dict.pop(scan_id, None)
+⋮----
+# Explicitly clear photo bytes to allow GC immediately.
+</file>
+
+<file path="tools/biometric-bridge/bridge_app.py">
+# Fixed freshness window for diagnostics (AC1).
+_DIAG_FRESHNESS_S = 60
+⋮----
+# How long a PUSH heartbeat from the expected serial is considered fresh (AC3).
+_PUSH_FRESHNESS_S = 60
+⋮----
+# ---------------------------------------------------------------------------
+# Pairing store
+⋮----
+class PairingStore
+⋮----
+"""
+    Operator-issued single-use pairing codes and session tokens.
+
+    Security properties:
+      - Codes are single-use and expire after ttl_seconds.
+      - Comparison is constant-time (hmac.compare_digest).
+      - Session tokens are bounded (32–256 chars) and expire independently.
+    """
+⋮----
+def __init__(self)
+⋮----
+# {code: {"expires_at": float}}
+⋮----
+# {token: {"expires_at": float}}
+⋮----
+def issue_code(self, ttl_seconds: int = 300) -> str
+⋮----
+"""Generate and store a new single-use pairing code."""
+code = secrets.token_urlsafe(32)
+expires_at = time.monotonic() + ttl_seconds
+⋮----
+def redeem(self, code: str, session_ttl_seconds: int = 86400) -> str | None
+⋮----
+"""
+        Validate *code* with constant-time compare; if valid issue a session token.
+
+        Returns the session token, or None if the code is invalid/expired/already used.
+        """
+now = time.monotonic()
+⋮----
+# Build a canonical list for constant-time scan.
+found_code = None
+⋮----
+found_code = stored_code
+expires_at = meta["expires_at"]
+⋮----
+# Single-use: remove immediately.
+⋮----
+# Issue session token outside the lock.
+token = secrets.token_urlsafe(48)  # 64-char URL-safe string < 256 chars
+session_expires = time.monotonic() + session_ttl_seconds
+⋮----
+def validate_token(self, token: str) -> bool
+⋮----
+"""Return True if *token* is valid and not expired."""
+⋮----
+# Diagnostics helper
+⋮----
+def _run_diagnostics(device_state, hn_state, push_queue, expected_serial=None, now=None)
+⋮----
+"""
+    Collect component readiness and return a diagnostics dict.
+
+    AC1: bridge/hn212/senseFaceTcp/senseFacePush each has 'status': PASS|FAIL|UNKNOWN.
+    AC2: hn212 readiness requires connected WebSocket + recent valid reader state.
+    AC3: senseFacePush requires last_serial == expected_serial within 60 s.
+
+    Parameters
+    ----------
+    device_state:    DeviceState instance.
+    hn_state:        LocalState instance.
+    push_queue:      PushQueue instance.
+    expected_serial: The only serial number that counts as PASS for PUSH.
+                     If None, PUSH is always FAIL (unknown serial never passes).
+    now:             Callable returning current Unix timestamp (injectable for tests).
+    """
+⋮----
+now = time.time
+ts = now()
+checked_at = datetime.fromtimestamp(ts, timezone.utc).isoformat()
+expires_at = datetime.fromtimestamp(ts + _DIAG_FRESHNESS_S, timezone.utc).isoformat()
+⋮----
+# --- bridge: always PASS (if we can reply, bridge is up) ---
+bridge = {"status": "PASS"}
+⋮----
+# --- hn212: requires online + recent valid reader message ---
+⋮----
+hn_ready = hn_state.has_valid_reader_state()
+hn_data = hn_state.get()
+⋮----
+hn212 = {"status": "PASS"}
+⋮----
+# Connected but no valid reader data yet.
+hn212 = {"status": "FAIL", "reason": "Kết nối nhưng chưa có dữ liệu đọc hợp lệ"}
+⋮----
+hn212 = {"status": "FAIL", "reason": hn_data.get("error") or "Chưa kết nối"}
+⋮----
+hn212 = {"status": "UNKNOWN", "reason": str(exc)[:120]}
+⋮----
+# --- senseFaceTcp: requires online + serial ---
+⋮----
+dev = device_state.get()
+⋮----
+sense_tcp = {"status": "PASS"}
+⋮----
+sense_tcp = {"status": "FAIL", "reason": "Kết nối TCP nhưng không lấy được số serial"}
+⋮----
+sense_tcp = {"status": "FAIL", "reason": dev.get("error") or "Chưa kết nối TCP"}
+⋮----
+sense_tcp = {"status": "UNKNOWN", "reason": str(exc)[:120]}
+⋮----
+# --- senseFacePush: expected serial seen within 60 s ---
+# AC3: unknown serial never passes; expected_serial=None → always FAIL.
+⋮----
+last_serial = push_queue.last_serial
+last_seen = push_queue.last_seen
+⋮----
+sense_push = {"status": "FAIL", "reason": "Chưa cấu hình số serial mong đợi"}
+⋮----
+sense_push = {"status": "FAIL", "reason": "Chưa nhận PUSH heartbeat"}
+⋮----
+# AC7: never log the serial value – just indicate mismatch.
+sense_push = {"status": "FAIL", "reason": "Serial không khớp với thiết bị mong đợi"}
+⋮----
+sense_push = {"status": "FAIL", "reason": f"PUSH heartbeat cũ hơn {_PUSH_FRESHNESS_S}s"}
+⋮----
+sense_push = {"status": "PASS"}
+⋮----
+sense_push = {"status": "UNKNOWN", "reason": str(exc)[:120]}
+⋮----
+# --- Composite readiness ---
+scan_ready = bridge["status"] == "PASS" and hn212["status"] == "PASS"
+face_ready = scan_ready and sense_tcp["status"] == "PASS" and sense_push["status"] == "PASS"
+⋮----
+# CORS / auth helpers captured in make_api_handler closure
+⋮----
+_LOOPBACK_HOSTS = frozenset(("127.0.0.1", "::1", "localhost"))
+⋮----
+_PUBLIC_GET_PATHS = frozenset(("/health", "/settings"))
+_PUBLIC_POST_PATHS = frozenset(("/pair",))
+⋮----
+_VALID_SCAN_MODES = frozenset(("CHECK_IN", "TEST"))
+⋮----
+"""
+    Build the HTTP request handler class.
+
+    Parameters
+    ----------
+    store, device_state, hn_state, push_queue, allowed_origins:
+        Same as before (Slice 1 interface).
+    settings_store:    LocalSettingsStore instance (optional; enables /settings).
+    secret_store:      DpapiSecretStore instance (optional; enables communicationKey).
+    pairing_store:     PairingStore instance (optional; enables /pair).
+    expected_serial:   The only PUSH serial that counts as PASS in diagnostics (AC3).
+    """
+allowed_origins = frozenset(allowed_origins)
+⋮----
+class Handler(BaseHTTPRequestHandler)
+⋮----
+server_version = "VietSageBiometricBridge/1.0"
+⋮----
+# ------------------------------------------------------------------
+# Helpers
+⋮----
+def _origin(self)
+⋮----
+def _cors_allowed(self)
+⋮----
+origin = self._origin()
+⋮----
+def _reply(self, payload, status=200)
+⋮----
+body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+⋮----
+def _json(self)
+⋮----
+length = int(self.headers.get("Content-Length", "0"))
+⋮----
+# Drain only a bounded near-limit body so Windows can deliver the
+# JSON error instead of resetting a connection with unread data.
+⋮----
+value = json.loads(self.rfile.read(length))
+⋮----
+def _bearer_token(self) -> str | None
+⋮----
+"""Extract Bearer token from Authorization header, or None."""
+auth = self.headers.get("Authorization", "")
+⋮----
+def _require_auth(self) -> bool
+⋮----
+"""
+            Check Bearer token.  Returns True if authorised, else sends 401 and returns False.
+            Never echoes the token back.
+            """
+⋮----
+# No pairing store configured; deny all protected requests.
+⋮----
+token = self._bearer_token()
+⋮----
+def _is_loopback(self) -> bool
+⋮----
+"""Return True if the connection came from a loopback address."""
+client_host = self.client_address[0]
+⋮----
+# HTTP verbs
+⋮----
+def do_OPTIONS(self)
+⋮----
+def do_GET(self)
+⋮----
+path = urlparse(self.path).path
+⋮----
+# ---- Public endpoints (no auth) ----
+⋮----
+device = device_state.get()
+last_push = push_queue.last_seen
+sense_ready = bool(device.get("online")) and bool(last_push and time.time() - last_push < 120)
+⋮----
+# Public: returns only communicationKeyConfigured (no secret value).
+configured = secret_store.is_configured if secret_store else False
+⋮----
+# ---- Protected GET endpoints (require auth) ----
+⋮----
+def do_PUT(self)
+⋮----
+# Requires authentication.
+⋮----
+raw = self._json()
+⋮----
+# Slice 2: do NOT hot-reconnect; just signal that restart is required.
+⋮----
+def do_POST(self)
+⋮----
+# ---- Public POST: /pair (loopback only) ----
+⋮----
+payload = self._json()
+code = payload.get("code")
+⋮----
+token = pairing_store.redeem(code)
+⋮----
+# ---- Protected POST endpoints (require auth) ----
+⋮----
+# AC1: POST /diagnostics/run
+⋮----
+result = _run_diagnostics(device_state, hn_state, push_queue, expected_serial=expected_serial)
+⋮----
+# AC4: accept optional mode field; default to CHECK_IN for backward compat.
+payload = {}
+content_length = int(self.headers.get("Content-Length", "0"))
+⋮----
+mode = payload.get("mode", "CHECK_IN")
+⋮----
+scan_id = store.start_scan(mode=mode)
+⋮----
+# AC5: POST /scans/{scanId}/discard
+⋮----
+parts = path.split("/")
+if len(parts) == 4:  # /scans/{scanId}/discard
+scan_id = parts[2]
+⋮----
+request_id = path.split("/")[2]
+⋮----
+def log_message(self, fmt, *args)
+⋮----
+# Avoid logging bodies, identities, scan IDs, or enrollment IDs.
+⋮----
+def main()
+⋮----
+parser = argparse.ArgumentParser(description="VietSage local HN-212 + SenseFace bridge")
+⋮----
+# AC3: expected serial for PUSH diagnostics; no default so PUSH is FAIL until set.
+⋮----
+args = parser.parse_args()
+⋮----
+# Initialise Slice 2 stores (best-effort; unavailable on non-Windows).
+settings_store = None
+secret_store = None
+pairing_store = PairingStore()
+⋮----
+secret_store = DpapiSecretStore()
+⋮----
+settings_store = LocalSettingsStore(
+⋮----
+stop = threading.Event()
+events = EventStore()
+device_state = DeviceState(args.device_ip, args.device_port)
+hn_state = LocalState(online=False, lastSeen=None, error="Chưa kết nối")
+holder = {}
+⋮----
+def result(identity, ok, error)
+⋮----
+store = holder.get("store")
+⋮----
+push_queue = PushQueue([], face_only=True, on_result=result)
+store = BiometricStore(
+⋮----
+push_server = ThreadingHTTPServer((args.push_listen, args.push_port), make_push_handler(push_queue))
+⋮----
+api_server = ThreadingHTTPServer(
+⋮----
+context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+⋮----
+threads = [
+⋮----
+scheme = "https" if args.api_cert else "http"
+</file>
+
+<file path="tools/biometric-bridge/hn212_client.py">
+# AC2: Maximum WebSocket frame payload accepted (1 MiB); larger frames are discarded.
+_MAX_FRAME_BYTES = 1_048_576  # 1 MiB
+# How long a lastSeen timestamp may be before the connection is considered stale.
+_READER_STATE_FRESHNESS_S = 30
+⋮----
+class Hn212Client
+⋮----
+def __init__(self, url, on_message, state, stop)
+⋮----
+def run(self)
+⋮----
+sock = None
+⋮----
+sock = self._connect()
+⋮----
+message = self._recv_text(sock)
+⋮----
+# AC2: update state with timestamp then parse.
+⋮----
+parsed = json.loads(message)
+# AC2: record reader message for readiness check.
+⋮----
+# AC2: reconnect bounded to ≤ 2 seconds
+⋮----
+def _connect(self)
+⋮----
+parsed = urlparse(self.url)
+⋮----
+sock = socket.create_connection((parsed.hostname, parsed.port or 80), timeout=5)
+⋮----
+key = base64.b64encode(os.urandom(16)).decode()
+path = parsed.path or "/"
+request = (
+⋮----
+response = self._recv_until(sock, b"\r\n\r\n")
+expected = base64.b64encode(hashlib.sha1((key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").encode()).digest()).decode()
+⋮----
+@staticmethod
+    def _recv_until(sock, marker)
+⋮----
+data = b""
+⋮----
+chunk = sock.recv(4096)
+⋮----
+@staticmethod
+    def _exact(sock, size)
+⋮----
+chunk = sock.recv(size - len(data))
+⋮----
+def _recv_text(self, sock)
+⋮----
+header = self._exact(sock, 2)
+⋮----
+ext = self._exact(sock, 2)
+⋮----
+length = struct.unpack("!H", ext)[0]
+⋮----
+ext = self._exact(sock, 8)
+⋮----
+length = struct.unpack("!Q", ext)[0]
+# AC2: reject oversized frames – discard payload, return None (treated as close).
+⋮----
+mask = self._exact(sock, 4) if second & 0x80 else None
+payload = self._exact(sock, length)
+⋮----
+payload = bytes(value ^ mask[index % 4] for index, value in enumerate(payload))
+⋮----
+@staticmethod
+    def _send_pong(sock, payload)
+⋮----
+length = len(payload)
+⋮----
+class LocalState
+⋮----
+def __init__(self, **values)
+⋮----
+# AC2: last reader message (id==2) that contained idCode + personName.
+⋮----
+def update(self, **values)
+⋮----
+def get(self)
+⋮----
+def update_reader_message(self, message)
+⋮----
+"""
+        Record a reader message if it contains idCode and personName.
+        Thread-safe; called from the HN-212 client loop.
+
+        AC2: HN readiness requires a recent valid reader state/message.
+        """
+⋮----
+# id=="2" carries NFC chip data; we only care about messages with identity fields.
+msg_id = str(message.get("id", ""))
+data = message.get("data", {})
+⋮----
+def has_valid_reader_state(self, freshness_s=_READER_STATE_FRESHNESS_S)
+⋮----
+"""
+        Return True iff:
+          - online is True
+          - lastSeen is not None and within freshness_s seconds of now
+          - at least one reader message with idCode + personName has been seen
+
+        AC2: socket open alone is insufficient.
+        """
+⋮----
+data = dict(self.data)
+reader_msg = self._last_reader_message
+⋮----
+last_seen = data.get("lastSeen")
+⋮----
+# Validate the reader message still has required fields.
+msg_data = reader_msg.get("data", {})
+</file>
+
+<file path="tools/biometric-bridge/local_secrets.py">
+"""
+local_secrets.py – Windows user-scoped DPAPI secret adapter.
+
+Design rules (Slice 2):
+  - Windows only, user scope (CRYPTPROTECT_UI_FORBIDDEN).
+  - No plaintext fallback under any circumstance.
+  - Non-Windows or unavailable ctypes → raise SecretStoreUnavailable.
+  - Never log, print, or return the plaintext secret.
+  - Public surface: protect(plaintext: str) → None
+                    unprotect() → bytes   (consumed immediately, never cached)
+  - Injectable boundary: DpapiSecretStore(adapter=None) accepts a test adapter
+    that replaces the real ctypes calls.
+"""
+⋮----
+class SecretStoreUnavailable(Exception)
+⋮----
+"""Raised when the DPAPI secret store is not available or not on Windows."""
+⋮----
+# ---------------------------------------------------------------------------
+# Low-level DPAPI shim
+⋮----
+def _dpapi_available() -> bool
+⋮----
+"""Return True only when running on Windows with ctypes access."""
+⋮----
+def _dpapi_protect(plaintext_bytes: bytes) -> bytes
+⋮----
+"""
+    Encrypt *plaintext_bytes* with Windows DPAPI (user scope).
+
+    Raises SecretStoreUnavailable if not on Windows.
+    Raises OSError if CryptProtectData fails.
+    """
+⋮----
+import ctypes.wintypes  # only importable on Windows
+⋮----
+class DATA_BLOB(ctypes.Structure)
+⋮----
+_fields_ = [("cbData", ctypes.wintypes.DWORD),
+⋮----
+buf = ctypes.create_string_buffer(plaintext_bytes)
+src = DATA_BLOB(cbData=len(plaintext_bytes), pbData=buf)
+dst = DATA_BLOB()
+# CRYPTPROTECT_UI_FORBIDDEN = 0x1 (no UI prompt)
+ok = ctypes.windll.crypt32.CryptProtectData(
+⋮----
+None,   # description
+None,   # optional entropy
+None,   # reserved
+None,   # prompt struct
+0x1,    # CRYPTPROTECT_UI_FORBIDDEN
+⋮----
+def _dpapi_unprotect(blob: bytes) -> bytes
+⋮----
+"""
+    Decrypt a DPAPI blob back to plaintext bytes.
+
+    Raises SecretStoreUnavailable if not on Windows.
+    Raises OSError if CryptUnprotectData fails.
+    """
+⋮----
+buf = ctypes.create_string_buffer(blob)
+src = DATA_BLOB(cbData=len(blob), pbData=buf)
+⋮----
+ok = ctypes.windll.crypt32.CryptUnprotectData(
+⋮----
+None,   # description (out)
+⋮----
+# Injectable adapter protocol
+⋮----
+class _RealDpapiAdapter
+⋮----
+"""Wraps the actual ctypes DPAPI calls."""
+⋮----
+def protect(self, plaintext_bytes: bytes) -> bytes
+⋮----
+def unprotect(self, blob: bytes) -> bytes
+⋮----
+# Public store
+⋮----
+class DpapiSecretStore
+⋮----
+"""
+    User-scoped DPAPI secret store for the bridge communicationKey.
+
+    Parameters
+    ----------
+    adapter:   Injectable in tests.  Must expose protect(bytes)->bytes
+               and unprotect(bytes)->bytes.  Defaults to the real DPAPI
+               adapter (raises SecretStoreUnavailable on non-Windows).
+    """
+⋮----
+def __init__(self, adapter=None)
+⋮----
+adapter = _RealDpapiAdapter()
+⋮----
+self._blob: bytes | None = None  # encrypted ciphertext in memory
+⋮----
+def protect(self, plaintext: str) -> None
+⋮----
+"""
+        Encrypt and store *plaintext* using DPAPI.
+
+        The plaintext is encoded as UTF-8, encrypted, and the ciphertext
+        is held in memory.  The plaintext is never stored, logged, or returned.
+
+        Raises SecretStoreUnavailable if DPAPI is unavailable.
+        Raises TypeError if plaintext is not a str.
+        """
+⋮----
+plaintext_bytes = plaintext.encode("utf-8")
+encrypted = self._adapter.protect(plaintext_bytes)
+⋮----
+# Wipe the local plaintext bytes variable from the reference chain.
+⋮----
+def unprotect(self) -> bytes
+⋮----
+"""
+        Decrypt and return the protected secret as raw bytes.
+
+        The returned bytes should be consumed immediately and not stored.
+        Returns None if no secret has been protected yet.
+
+        Raises SecretStoreUnavailable if DPAPI is unavailable.
+        """
+⋮----
+blob = self._blob
+⋮----
+@property
+    def is_configured(self) -> bool
+⋮----
+"""True if a secret has been protected (blob is non-None)."""
+</file>
+
+<file path="tools/biometric-bridge/local_settings.py">
+"""
+local_settings.py – non-secret bridge settings with atomic persistence.
+
+Design rules (Slice 2):
+  - Atomic write: write to same-dir tempfile, flush+fsync, os.replace.
+    A failed os.replace leaves the old config intact.
+  - Strict schema validation: only known fields, typed values.
+  - Generation counter incremented exactly once after full success.
+  - No secrets stored here; communicationKey is handled by local_secrets.py.
+"""
+⋮----
+# ---------------------------------------------------------------------------
+# Known fields and their validators
+⋮----
+_LOOPBACK_ADDRS = frozenset(("127.0.0.1", "::1", "localhost"))
+⋮----
+_ORIGIN_RE = re.compile(
+⋮----
+_PATH_RE = re.compile(r"^[^\x00]+$")  # Non-null, non-empty string
+⋮----
+class SettingsValidationError(ValueError)
+⋮----
+"""Raised when a settings dict fails schema validation."""
+⋮----
+def _validate_ipv4(field, value)
+⋮----
+addr = ipaddress.ip_address(value)
+⋮----
+def _validate_port(field, value)
+⋮----
+def _validate_origin(field, value)
+⋮----
+def _validate_origins_list(field, value)
+⋮----
+def _validate_path_str(field, value)
+⋮----
+def _validate_loopback_addr(field, value)
+⋮----
+# Mapping: field_name -> (required, validator_fn)
+_FIELD_SPECS = {
+⋮----
+# communicationKey is NOT allowed here – it is a secret (local_secrets.py)
+⋮----
+def validate_settings(raw: dict) -> dict
+⋮----
+"""
+    Validate *raw* against the strict settings schema.
+
+    Returns a new dict with validated (and type-normalised) values.
+    Raises SettingsValidationError on any violation, including unknown fields.
+    """
+⋮----
+unknown = set(raw.keys()) - set(_FIELD_SPECS.keys())
+⋮----
+out = {}
+⋮----
+# Atomic persistence
+⋮----
+class LocalSettingsStore
+⋮----
+"""
+    Thread-safe store for non-secret local settings.
+
+    Persistence is atomic: a tempfile in the same directory is written,
+    flushed, fsynced, then renamed over the target path.  If the rename
+    fails (e.g. cross-device move), the original file is untouched.
+
+    generation is incremented exactly once after a full successful
+    validate → write → replace cycle.  Any failure preserves both the
+    in-memory running config and the generation counter.
+    """
+⋮----
+def __init__(self, path: str, _secret_store=None)
+⋮----
+"""
+        Parameters
+        ----------
+        path:          absolute path to the JSON settings file.
+        _secret_store: optional injectable secret store (for DPAPI adapter);
+                       used only by put() when communicationKey is provided.
+        """
+⋮----
+# ------------------------------------------------------------------
+# Public interface
+⋮----
+@property
+    def generation(self) -> int
+⋮----
+def get_running(self) -> dict
+⋮----
+"""Return a copy of the current in-memory running settings."""
+⋮----
+def load(self) -> dict
+⋮----
+"""
+        Read and validate the settings file.
+
+        If the file does not exist, returns {}.
+        Raises SettingsValidationError if the file contains invalid data.
+        """
+⋮----
+raw = json.load(fh)
+⋮----
+validated = validate_settings(raw)
+⋮----
+def put(self, raw: dict) -> dict
+⋮----
+"""
+        Validate *raw*, persist atomically, update generation.
+
+        If communicationKey is present in raw, it is extracted and
+        forwarded to _secret_store.protect() before validation of
+        non-secret fields.  The communicationKey is NEVER written to disk.
+
+        Returns the validated non-secret settings that were persisted.
+        Raises SettingsValidationError on validation failure.
+        Raises any OS error raised by the file system (caller sees it;
+        running config and generation are NOT changed on failure).
+        """
+# Extract secret before schema validation so it never touches the
+# non-secret validator or disk.
+comm_key = raw.pop("communicationKey", None) if isinstance(raw, dict) else None
+⋮----
+# Validate non-secret fields; raises on error (running config preserved).
+⋮----
+# Persist secret first; if it fails we must NOT advance generation.
+⋮----
+# Raises SecretStoreUnavailable / OSError on failure.
+⋮----
+# Serialize replace plus publication: Windows rejects concurrent replaces.
+⋮----
+# Internal helpers
+⋮----
+def _atomic_write(self, data: dict) -> None
+⋮----
+"""Write *data* to a tempfile then atomically rename to self._path."""
+directory = os.path.dirname(os.path.abspath(self._path))
+# Use a UUID so concurrent writes on the same file do not collide.
+tmp_path = os.path.join(directory, f".settings_tmp_{uuid.uuid4().hex}")
+⋮----
+# Best-effort cleanup of orphaned tempfile.
+</file>
+
+<file path="tools/biometric-bridge/push_receiver.py">
+ROOT = Path(__file__).resolve().parent
+⋮----
+def validate_pin(value)
+⋮----
+pin = str(value or "").strip()
+⋮----
+def make_tls_context(cert, key)
+⋮----
+context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+⋮----
+def load_profiles(root=ROOT)
+⋮----
+root = Path(root).resolve()
+profiles = json.loads((root / "profiles.json").read_text(encoding="utf-8"))
+loaded = []
+⋮----
+portrait = (root / profile["portraitPath"]).resolve()
+⋮----
+def build_user_command(cmd_id, profile)
+⋮----
+pin = validate_pin(profile["idCode"])
+name = str(profile.get("personName", "")).replace("\t", " ").replace("\r", " ").replace("\n", " ")[:24]
+⋮----
+def build_biophoto_command(cmd_id, pin, photo)
+⋮----
+pin = validate_pin(pin)
+encoded = base64.b64encode(photo).decode("ascii")
+⋮----
+def upload_response(path, query)
+⋮----
+table = query.get("tablename", [""])[0]
+count = query.get("count", ["1"])[0]
+⋮----
+class PushQueue
+⋮----
+def __init__(self, profiles, face_only=False, on_result=None)
+⋮----
+def enqueue(self, profile, photo)
+⋮----
+# AC3: do NOT clear existing device errors; each device manages its own
+# error state independently of the profile queue.
+⋮----
+def _state(self, sn)
+⋮----
+def next_command(self, sn)
+⋮----
+state = self._state(sn)
+⋮----
+cmd_id = self.next_id
+⋮----
+command = build_user_command(cmd_id, profile)
+⋮----
+command = build_biophoto_command(cmd_id, profile["idCode"], photo)
+⋮----
+def ack(self, sn, body)
+⋮----
+pending = state["outstanding"]
+match = re.search(r"(?:Return|return)=(-?\d+)", body)
+command_id = re.search(r"(?:^|[&\s])ID=(\d+)(?:[&\s]|$)", body, re.IGNORECASE)
+⋮----
+result = int(match.group(1))
+⋮----
+def status(self)
+⋮----
+def seen(self, sn)
+⋮----
+def make_handler(queue)
+⋮----
+class Handler(BaseHTTPRequestHandler)
+⋮----
+server_version = "ZKPush/1.0"
+⋮----
+def _reply(self, body="OK", status=200, content_type="text/plain; charset=utf-8")
+⋮----
+data = body.encode("utf-8")
+⋮----
+def _request(self)
+⋮----
+parsed = urlparse(self.path)
+query = parse_qs(parsed.query)
+sn = query.get("SN", ["unknown"])[0]
+⋮----
+def _body(self)
+⋮----
+length = int(self.headers.get("Content-Length", "0"))
+⋮----
+# AC4: reject bodies larger than 1 MiB to prevent memory exhaustion
+⋮----
+def do_GET(self)
+⋮----
+def do_POST(self)
+⋮----
+body = self._body()
+⋮----
+def log_message(self, fmt, *args)
+⋮----
+def main()
+⋮----
+parser = argparse.ArgumentParser(description="Minimal non-destructive ZKTeco PUSH face-photo provisioner")
+⋮----
+args = parser.parse_args()
+queue = PushQueue(load_profiles(), face_only=args.face_only)
+server = ThreadingHTTPServer((args.listen, args.port), make_handler(queue))
+</file>
+
+<file path="tools/biometric-bridge/test_biometric_api.py">
+class Queue
+⋮----
+def __init__(self)
+⋮----
+def enqueue(self, profile, photo)
+⋮----
+class FailingQueue(Queue)
+⋮----
+class CallbackQueue(Queue)
+⋮----
+class BiometricStoreTests(unittest.TestCase)
+⋮----
+def test_scan_stays_pending_and_does_not_queue_before_enroll(self)
+⋮----
+queue = Queue()
+store = BiometricStore(queue, lambda _profile: None, now=lambda: 100)
+scan_id = store.start_scan()
+⋮----
+def test_oversized_scan_photo_is_rejected(self)
+⋮----
+store = BiometricStore(Queue(), lambda _profile: None, now=lambda: 100)
+⋮----
+def test_expired_scan_is_unavailable(self)
+⋮----
+clock = [100]
+store = BiometricStore(Queue(), lambda _profile: None, ttl_seconds=10, now=lambda: clock[0])
+⋮----
+def test_explicit_enroll_is_idempotent_and_queues_face_once(self)
+⋮----
+store = BiometricStore(queue, provisioned.append, now=lambda: 100)
+⋮----
+first = store.enroll("stay_12345678", scan_id)
+second = store.enroll("stay_12345678", scan_id)
+⋮----
+def test_retry_requeues_failed_enrollment(self)
+⋮----
+request_id = store.enroll("stay_12345678", scan_id)["requestId"]
+⋮----
+def test_enroll_queue_failure_leaves_retryable_failed_record(self)
+⋮----
+store = BiometricStore(FailingQueue(), lambda _profile: None, now=lambda: 100)
+⋮----
+enrollment = store.enroll("stay_12345678", scan_id)
+⋮----
+def test_retry_marks_pending_before_synchronous_ack_callback(self)
+⋮----
+queue = CallbackQueue()
+⋮----
+def test_identity_is_masked(self)
+⋮----
+def test_enroll_record_exists_even_when_provision_fails(self)
+⋮----
+# AC1: record must be stored before side-effects; a provision error should
+# leave the enrollment as FAILED (retryable), not erase it.
+⋮----
+def bad_provision(_profile)
+store = BiometricStore(queue, bad_provision, now=lambda: 100)
+⋮----
+result = store.enroll("stay_12345678", scan_id)
+# The call must not propagate the exception; enrollment is FAILED but exists
+⋮----
+# Record must be retrievable by requestId
+stored = store.get_enrollment(result["requestId"])
+⋮----
+# Queue must NOT have received the photo (provision failed before enqueue)
+⋮----
+def test_synced_does_not_promote_failed_enrollment(self)
+⋮----
+# AC2: a late ACK (synced) must not change FAILED back to SYNCED
+⋮----
+# Now simulate a late ACK for the same identity
+⋮----
+def test_identity_ack_completes_only_one_pending_enrollment(self)
+⋮----
+request_ids = []
+⋮----
+statuses = [store.get_enrollment(request_id)["status"] for request_id in request_ids]
+⋮----
+def test_enroll_does_not_hold_lock_during_provision(self)
+⋮----
+# AC1: provision must be called outside the store lock.  We detect a
+# deadlock by calling store.get_enrollment() from inside provision.
+⋮----
+result_box = [None]
+lock_held_during_provision = [False]
+⋮----
+def reentering_provision(_profile)
+⋮----
+# If the store lock is held, this will deadlock.  We use a non-blocking
+# acquire to detect it instead of actually deadlocking.
+acquired = store.lock.acquire(blocking=False)
+⋮----
+store = BiometricStore(queue, reentering_provision, now=lambda: 100)
+⋮----
+def test_retry_does_not_hold_lock_during_provision(self)
+⋮----
+# AC1: same lock-freedom requirement for retry
+⋮----
+lock_held = [False]
+⋮----
+req = store.enroll("stay_12345678", scan_id)
+⋮----
+class TestScanModeAndDiscard(unittest.TestCase)
+⋮----
+"""Slice 3: TEST mode scan + discard_scan."""
+⋮----
+def _make_store(self, queue=None, provision=None)
+⋮----
+provision = lambda _p: None
+⋮----
+# -- start_scan mode --
+⋮----
+def test_start_scan_default_mode_is_check_in(self)
+⋮----
+"""start_scan() with no args produces a CHECK_IN scan."""
+store = self._make_store()
+⋮----
+scan = store.scans[scan_id]
+⋮----
+def test_start_scan_explicit_check_in(self)
+⋮----
+scan_id = store.start_scan(mode="CHECK_IN")
+⋮----
+def test_start_scan_test_mode(self)
+⋮----
+scan_id = store.start_scan(mode="TEST")
+⋮----
+def test_start_scan_invalid_mode_raises(self)
+⋮----
+# -- TEST scan enroll rejection --
+⋮----
+def test_enroll_rejects_test_scan(self)
+⋮----
+def test_test_scan_is_ready_when_data_complete(self)
+⋮----
+"""TEST scans still reach READY state (parser reused)."""
+⋮----
+def test_test_scan_public_view_includes_mode(self)
+⋮----
+"""get_scan response includes mode field."""
+⋮----
+pub = store.get_scan(scan_id)
+⋮----
+def test_check_in_scan_public_view_includes_mode(self)
+⋮----
+"""get_scan response includes mode=CHECK_IN for default scans."""
+⋮----
+# -- discard_scan --
+⋮----
+def test_discard_scan_removes_from_scans_dict(self)
+⋮----
+def test_discard_scan_resets_active_pointer_when_active(self)
+⋮----
+def test_discard_scan_does_not_reset_pointer_when_not_active(self)
+⋮----
+"""Discarding a non-active scan must not change the active pointer."""
+⋮----
+old_id = store.start_scan()
+⋮----
+new_id = store.start_scan()
+# Manually add an old entry to test
+⋮----
+# Active should still be new_id, not changed
+⋮----
+def test_discard_scan_unknown_id_raises_value_error(self)
+⋮----
+def test_discard_scan_clears_photo_from_memory(self)
+⋮----
+"""Portrait data is no longer in memory after discard."""
+⋮----
+# Confirm portrait exists before discard
+⋮----
+def test_start_scan_discards_prior_active(self)
+⋮----
+"""Starting a second scan must discard the first active scan."""
+⋮----
+first_id = store.start_scan()
+⋮----
+second_id = store.start_scan()
+⋮----
+def test_start_scan_no_prior_active_is_safe(self)
+⋮----
+"""First start_scan with no prior active must not raise."""
+</file>
+
+<file path="tools/biometric-bridge/test_bridge_app.py">
+"""
+test_bridge_app.py – TDD tests for Slice 2 bridge endpoints.
+
+Covers:
+  - POST /pair       (pairing, single-use code, expiry, constant-time compare)
+  - GET  /settings   (public; returns only communicationKeyConfigured)
+  - PUT  /settings   (requires Bearer token; validates & persists; generation)
+  - GET  /health     (remains public, no auth required)
+  - Auth: 401 on missing/wrong token for mutating endpoints
+  - 1 MiB JSON cap enforced
+  - Pairing only from loopback
+
+Run:
+    python -m unittest -v test_bridge_app.py
+"""
+⋮----
+# ============================================================
+# Helpers
+⋮----
+class _FakeAdapter
+⋮----
+def protect(self, data: bytes) -> bytes
+⋮----
+def unprotect(self, blob: bytes) -> bytes
+⋮----
+def _build_stores(tmp_dir)
+⋮----
+"""Return (settings_store, secret_store, pairing_store) for test use."""
+⋮----
+secret_store = DpapiSecretStore(adapter=_FakeAdapter())
+settings_store = LocalSettingsStore(
+pairing_store = PairingStore()
+⋮----
+def _start_test_server(handler_class, host="127.0.0.1")
+⋮----
+"""Start a ThreadingHTTPServer on a random port; return (server, url, thread)."""
+server = ThreadingHTTPServer((host, 0), handler_class)
+port = server.server_address[1]
+thread = threading.Thread(target=server.serve_forever, daemon=True)
+⋮----
+def _do_request(url, method="GET", body=None, headers=None, token=None)
+⋮----
+"""Simple HTTP helper. Returns (status, dict_or_None)."""
+req_headers = {"Content-Type": "application/json; charset=utf-8"}
+⋮----
+data = json.dumps(body).encode("utf-8")
+⋮----
+data = None
+req = urllib.request.Request(url, data=data, headers=req_headers, method=method)
+⋮----
+body_text = exc.read()
+⋮----
+# Pairing Store unit tests (no HTTP)
+⋮----
+class TestPairingStore(unittest.TestCase)
+⋮----
+"""AC4: Pairing store logic, constant-time compare, expiry, single-use."""
+⋮----
+def _store(self)
+⋮----
+def test_issue_code_returns_nonempty_string(self)
+⋮----
+store = self._store()
+code = store.issue_code(ttl_seconds=300)
+⋮----
+def test_valid_code_produces_session_token(self)
+⋮----
+token = store.redeem(code)
+⋮----
+def test_wrong_code_returns_none(self)
+⋮----
+result = store.redeem("wrong-code-xxxx")
+⋮----
+def test_code_is_single_use(self)
+⋮----
+"""After first successful redeem, the same code must not work again."""
+⋮----
+token1 = store.redeem(code)
+⋮----
+token2 = store.redeem(code)
+⋮----
+def test_expired_code_returns_none(self)
+⋮----
+"""Codes with ttl=0 should not be redeemable."""
+⋮----
+code = store.issue_code(ttl_seconds=0)
+# Ensure at least 1 ms has passed
+⋮----
+result = store.redeem(code)
+⋮----
+def test_validate_token_returns_true_for_valid(self)
+⋮----
+def test_validate_token_returns_false_for_wrong(self)
+⋮----
+def test_validate_token_returns_false_for_expired_session(self)
+⋮----
+"""Session tokens issued with ttl=0 expire immediately."""
+⋮----
+token = store.redeem(code, session_ttl_seconds=0)
+⋮----
+def test_session_token_is_bounded_length(self)
+⋮----
+"""Session tokens must not be excessively long."""
+⋮----
+# tokens should be between 32 and 256 chars
+⋮----
+def test_compare_is_constant_time(self)
+⋮----
+"""
+        Prove that redeem() uses hmac.compare_digest (or secrets.compare_digest)
+        rather than == by checking that the implementation calls it.
+        We can verify the method exists and the store uses it indirectly.
+        This is a structural test — we patch hmac.compare_digest and verify it's called.
+        """
+⋮----
+original_compare = hmac_module.compare_digest
+calls = []
+⋮----
+def tracking_compare(a, b)
+⋮----
+# HTTP endpoint tests
+⋮----
+class TestBridgeEndpointSetup(unittest.TestCase)
+⋮----
+"""Base class that starts the bridge handler with test stubs."""
+⋮----
+@classmethod
+    def setUpClass(cls)
+⋮----
+# Minimal stubs for existing bridge dependencies
+⋮----
+# Issue a valid pairing code + session token for auth tests.
+code = cls._pairing_store.issue_code(ttl_seconds=300)
+⋮----
+handler = make_api_handler(
+⋮----
+@classmethod
+    def tearDownClass(cls)
+⋮----
+class TestHealthEndpoint(TestBridgeEndpointSetup)
+⋮----
+"""GET /health must remain public (no auth required)."""
+⋮----
+def test_health_returns_200(self)
+⋮----
+def test_health_no_auth_required(self)
+⋮----
+"""Health must not require a Bearer token."""
+⋮----
+class TestGetSettingsEndpoint(TestBridgeEndpointSetup)
+⋮----
+"""GET /settings is public; returns only communicationKeyConfigured."""
+⋮----
+def test_get_settings_returns_200(self)
+⋮----
+def test_get_settings_returns_communication_key_configured_false_initially(self)
+⋮----
+def test_get_settings_does_not_return_secret_values(self)
+⋮----
+"""The response must NEVER contain any plaintext secret."""
+⋮----
+body_str = json.dumps(body)
+# No sensitive field names in the response.
+⋮----
+def test_get_settings_no_auth_required(self)
+⋮----
+class TestPutSettingsEndpoint(TestBridgeEndpointSetup)
+⋮----
+"""PUT /settings requires Bearer token, validates, persists, increments generation."""
+⋮----
+def test_put_settings_without_token_returns_401(self)
+⋮----
+def test_put_settings_with_wrong_token_returns_401(self)
+⋮----
+def test_put_settings_with_valid_token_returns_200(self)
+⋮----
+def test_put_settings_returns_restart_required_true(self)
+⋮----
+def test_put_invalid_settings_returns_422(self)
+⋮----
+body={"devicePort": 99999},  # out of range
+⋮----
+def test_put_unknown_field_returns_422(self)
+⋮----
+def test_put_invalid_does_not_change_generation(self)
+⋮----
+gen_before = self._settings_store.generation
+⋮----
+def test_put_valid_increments_generation_exactly_once(self)
+⋮----
+def test_put_oversized_body_rejected(self)
+⋮----
+"""Bodies > 1 MiB must be rejected (414 or 400)."""
+big = {"devicePort": 4370, "apiCert": "x" * (1_100_000)}
+⋮----
+class TestPostPairEndpoint(TestBridgeEndpointSetup)
+⋮----
+"""POST /pair: single-use code, issues session token."""
+⋮----
+def _issue_code_and_get_token(self, ttl=300)
+⋮----
+"""Helper: issue code via pairing store, exchange it via POST /pair."""
+code = self._pairing_store.issue_code(ttl_seconds=ttl)
+⋮----
+def test_valid_code_returns_200_and_token(self)
+⋮----
+def test_wrong_code_returns_401(self)
+⋮----
+def test_code_is_single_use_http(self)
+⋮----
+"""Second use of the same code must return 401."""
+code = self._pairing_store.issue_code(ttl_seconds=300)
+⋮----
+def test_expired_code_returns_401(self)
+⋮----
+code = self._pairing_store.issue_code(ttl_seconds=0)
+⋮----
+def test_missing_code_field_returns_400(self)
+⋮----
+def test_oversized_pair_body_rejected(self)
+⋮----
+big_body = {"code": "x" * 1_100_000}
+⋮----
+def test_pair_token_can_authorize_put_settings(self)
+⋮----
+"""Token from POST /pair must work for PUT /settings."""
+⋮----
+token = pair_body.get("token")
+⋮----
+class TestPairBootstrapLoopbackOnly(unittest.TestCase)
+⋮----
+"""AC6: Pair bootstrap only from loopback."""
+⋮----
+def test_pair_endpoint_is_registered(self)
+⋮----
+"""
+        The /pair endpoint must be present.  We test from 127.0.0.1 (loopback).
+        A full non-loopback restriction test would require a second network interface,
+        which is outside the test scope; the handler binds to loopback by design.
+        """
+# This is validated by TestPostPairEndpoint which runs on 127.0.0.1.
+# The bridge_app.main() enforces loopback binding via args.api_listen check.
+⋮----
+class TestAuthorizationEnforcement(TestBridgeEndpointSetup)
+⋮----
+"""Verify mutating endpoints need auth; GET /health and GET /settings are public."""
+⋮----
+def test_put_settings_requires_auth(self)
+⋮----
+def test_post_scans_start_requires_auth(self)
+⋮----
+"""POST /scans/start is an existing endpoint; it must require auth in Slice 2."""
+⋮----
+def test_get_health_no_auth(self)
+⋮----
+def test_get_settings_no_auth(self)
+⋮----
+def test_401_response_does_not_include_token_value(self)
+⋮----
+"""Error bodies on 401 must not echo the supplied token."""
+⋮----
+body_str = json.dumps(body or {})
+⋮----
+class TestDiagnosticsEndpoint(TestBridgeEndpointSetup)
+⋮----
+"""Slice 3 AC1: POST /diagnostics/run – authenticated, fixed 60 s freshness."""
+⋮----
+def test_diagnostics_requires_auth(self)
+⋮----
+"""POST /diagnostics/run without token → 401."""
+⋮----
+def test_diagnostics_with_token_returns_200(self)
+⋮----
+"""POST /diagnostics/run with valid token → 200."""
+⋮----
+def test_diagnostics_response_has_required_fields(self)
+⋮----
+"""Response must contain checkedAt, expiresAt, bridge, hn212, senseFaceTcp, senseFacePush."""
+⋮----
+def test_diagnostics_expiry_is_60_seconds_after_checked(self)
+⋮----
+"""expiresAt must be exactly 60 seconds after checkedAt."""
+⋮----
+checked = datetime.fromisoformat(body["checkedAt"])
+expires = datetime.fromisoformat(body["expiresAt"])
+delta = (expires - checked).total_seconds()
+⋮----
+def test_diagnostics_sub_fields_are_pass_fail_unknown(self)
+⋮----
+"""bridge/hn212/senseFaceTcp/senseFacePush must be PASS, FAIL, or UNKNOWN dicts with 'status'."""
+⋮----
+valid_statuses = {"PASS", "FAIL", "UNKNOWN"}
+⋮----
+sub = body[field]
+⋮----
+def test_diagnostics_scan_ready_is_boolean(self)
+⋮----
+def test_diagnostics_face_ready_is_boolean(self)
+⋮----
+def test_diagnostics_bridge_always_pass(self)
+⋮----
+"""bridge component is always PASS when the API itself is responding."""
+⋮----
+def test_diagnostics_hn212_fails_when_offline(self)
+⋮----
+"""hn_state offline → hn212.status == FAIL."""
+# _hn_state mock returns online=False
+⋮----
+def test_diagnostics_scan_ready_false_when_hn_offline(self)
+⋮----
+"""scanReady = bridge PASS && hn212 PASS; with hn offline it must be False."""
+⋮----
+def test_diagnostics_response_contains_no_secrets(self)
+⋮----
+"""Response body must not contain identity numbers, portraits, or tokens."""
+⋮----
+# token value must not appear in response
+⋮----
+def test_diagnostics_push_readiness_requires_expected_serial(self)
+⋮----
+"""
+        push_queue.last_serial is None → senseFacePush.status is FAIL or UNKNOWN (not PASS).
+        Unknown serial never passes (AC3).
+        """
+⋮----
+class TestScanStartMode(TestBridgeEndpointSetup)
+⋮----
+"""Slice 3 AC4: POST /scans/start accepts mode CHECK_IN|TEST."""
+⋮----
+def test_start_scan_check_in_mode_returns_201(self)
+⋮----
+"""Explicit CHECK_IN mode returns 201."""
+⋮----
+def test_start_scan_test_mode_returns_201(self)
+⋮----
+"""TEST mode returns 201."""
+⋮----
+def test_start_scan_no_mode_defaults_to_check_in(self)
+⋮----
+"""Backward compatibility: missing mode field defaults to CHECK_IN."""
+⋮----
+def test_start_scan_invalid_mode_returns_400(self)
+⋮----
+"""Invalid mode value (not CHECK_IN or TEST) returns 400."""
+⋮----
+def test_start_scan_test_mode_response_includes_mode(self)
+⋮----
+"""TEST mode response includes mode field in body."""
+⋮----
+def test_start_scan_check_in_mode_response_includes_mode(self)
+⋮----
+"""CHECK_IN mode response includes mode='CHECK_IN'."""
+⋮----
+class TestScanDiscard(TestBridgeEndpointSetup)
+⋮----
+"""Slice 3 AC5: POST /scans/{scanId}/discard – authenticated."""
+⋮----
+def test_discard_requires_auth(self)
+⋮----
+"""POST /scans/{id}/discard without token → 401."""
+⋮----
+def test_discard_valid_scan_returns_200(self)
+⋮----
+"""POST /scans/{id}/discard with valid token and existing scan → 200."""
+self._bio_store.discard_scan.side_effect = None  # clear any prior side_effect
+self._bio_store.discard_scan.return_value = None  # success → None
+⋮----
+def test_discard_unknown_scan_returns_404(self)
+⋮----
+"""Discarding unknown scanId raises ValueError → 404."""
+⋮----
+class TestEnrollRejectsTestScan(unittest.TestCase)
+⋮----
+"""Slice 3 AC6: TEST scans must never enroll."""
+⋮----
+def test_enroll_raises_for_test_scan(self)
+⋮----
+"""Enrolling a TEST scan must raise ValueError."""
+⋮----
+class FakeQueue
+⋮----
+def enqueue(self, profile, photo)
+⋮----
+store = BiometricStore(FakeQueue(), lambda _p: None, now=lambda: 100)
+scan_id = store.start_scan(mode="TEST")
+⋮----
+def test_test_scan_never_queues_face(self)
+⋮----
+"""Ingesting into TEST scan never queues a face (even if READY)."""
+⋮----
+class TrackingQueue
+⋮----
+def __init__(self)
+⋮----
+queue = TrackingQueue()
+store = BiometricStore(queue, lambda _p: None, now=lambda: 100)
+⋮----
+def test_check_in_scan_can_enroll(self)
+⋮----
+"""CHECK_IN (default) scans can still enroll normally."""
+⋮----
+queue = FakeQueue()
+⋮----
+scan_id = store.start_scan()  # default = CHECK_IN
+⋮----
+result = store.enroll("stay_12345678", scan_id)
+⋮----
+class TestDiscardScanBehavior(unittest.TestCase)
+⋮----
+"""Slice 3 AC5: discard_scan behavior in BiometricStore."""
+⋮----
+def _make_store(self)
+⋮----
+def test_discarded_scan_is_inaccessible(self)
+⋮----
+"""get_scan after discard → ValueError."""
+store = self._make_store()
+scan_id = store.start_scan()
+⋮----
+def test_discard_resets_active_scan_pointer(self)
+⋮----
+"""Discarding the active scan resets active_scan_id to None."""
+⋮----
+def test_discard_removes_portrait_from_memory(self)
+⋮----
+"""Portrait bytes are cleared from the scan data on discard."""
+⋮----
+# Before discard, portrait should exist in internal store
+raw_scan = store.scans.get(scan_id)
+⋮----
+# After discard, scan must be gone
+⋮----
+def test_discard_unknown_scan_raises_value_error(self)
+⋮----
+"""discard_scan with unknown ID → ValueError."""
+⋮----
+def test_start_scan_cancels_prior_active_scan(self)
+⋮----
+"""Starting a new scan deterministically discards the prior active scan."""
+⋮----
+first_id = store.start_scan()
+second_id = store.start_scan()
+# The first scan should be gone (discarded)
+⋮----
+# The second is the active scan
+⋮----
+def test_start_scan_with_no_prior_active_is_safe(self)
+⋮----
+"""Starting a scan when there is no prior active scan must not raise."""
+</file>
+
+<file path="tools/biometric-bridge/test_hn212_client.py">
+"""
+test_hn212_client.py – TDD tests for Slice 3 HN-212 client enhancements.
+
+Covers:
+  - LocalState.has_valid_reader_state(): requires online=True + recent lastSeen
+    + a valid reader message (idCode/personName present in last_reader_message).
+  - Malformed / oversized WebSocket frame must not kill worker (caught internally).
+  - Reconnect is bounded (max 2-second wait between retries).
+  - Frame size cap: frames > 1 MiB are discarded, not propagated.
+
+Run:
+    python -m unittest -v test_hn212_client.py
+"""
+⋮----
+# ---------------------------------------------------------------------------
+# LocalState readiness
+⋮----
+class TestLocalStateHasValidReaderState(unittest.TestCase)
+⋮----
+"""AC2: HN readiness = connected socket + recent valid reader state."""
+⋮----
+def _state(self, **kw)
+⋮----
+def test_offline_state_is_not_ready(self)
+⋮----
+"""online=False → not ready even if lastSeen is recent."""
+state = self._state(online=False, lastSeen=time.time(), error=None)
+⋮----
+def test_online_but_no_last_seen_is_not_ready(self)
+⋮----
+"""online=True but lastSeen=None → not ready."""
+state = self._state(online=True, lastSeen=None, error=None)
+⋮----
+def test_online_but_stale_last_seen_is_not_ready(self)
+⋮----
+"""online=True but lastSeen > 30 s ago → not ready."""
+state = self._state(online=True, lastSeen=time.time() - 31, error=None)
+⋮----
+def test_online_fresh_but_no_valid_reader_message_is_not_ready(self)
+⋮----
+"""online=True, recent lastSeen, but no idCode/personName → not ready."""
+state = self._state(online=True, lastSeen=time.time(), error=None)
+# no last_reader_message set
+⋮----
+def test_online_fresh_with_valid_reader_message_is_ready(self)
+⋮----
+"""online=True + recent + last_reader_message with idCode + personName → ready."""
+⋮----
+def test_valid_reader_message_but_offline_is_not_ready(self)
+⋮----
+"""A valid reader message does not help if the socket went offline."""
+⋮----
+def test_reader_message_without_id_code_is_not_valid(self)
+⋮----
+"""A message with personName but no idCode → not sufficient."""
+⋮----
+def test_reader_message_without_person_name_is_not_valid(self)
+⋮----
+"""A message with idCode but no personName → not sufficient."""
+⋮----
+def test_update_reader_message_is_threadsafe(self)
+⋮----
+"""update_reader_message must not raise under concurrent access."""
+⋮----
+errors = []
+⋮----
+def writer()
+⋮----
+def reader()
+⋮----
+threads = [threading.Thread(target=writer), threading.Thread(target=reader)]
+⋮----
+# Frame size cap
+⋮----
+class TestHn212ClientFrameSizeCap(unittest.TestCase)
+⋮----
+"""AC2: Malformed/oversized frame must not kill worker."""
+⋮----
+def test_recv_text_discards_oversized_frame(self)
+⋮----
+"""
+        A text frame claiming length > 1 MiB must be discarded without raising;
+        _recv_text should return None or raise a controlled ValueError,
+        NOT propagate to the caller as an unhandled exception.
+        """
+⋮----
+stop = threading.Event()
+state = LocalState(online=False, lastSeen=None, error=None)
+client = Hn212Client("ws://localhost:9999", lambda m: None, state, stop)
+⋮----
+# Build a fake socket that returns a frame with 2-byte extended length = 2 MiB
+oversized_length = 2 * 1024 * 1024
+header = bytes([0x81, 126]) + struct.pack("!H", 65535)  # max 16-bit = 65535 < 1MiB; safe
+⋮----
+# For the > 1 MiB test we use 127 (64-bit length)
+header_huge = bytes([0x81, 127]) + struct.pack("!Q", oversized_length)
+# Followed by `oversized_length` bytes of payload – but the socket will EOF quickly
+# We only test that _recv_text raises ValueError (not crashes) for oversized frames.
+⋮----
+payloads = [header_huge]
+call_count = [0]
+⋮----
+class FakeSocket
+⋮----
+def recv(self, n)
+⋮----
+chunk = payloads[0][call_count[0]:call_count[0] + n]
+⋮----
+fake_sock = FakeSocket()
+# _recv_text should NOT raise an unhandled exception for oversized frames
+⋮----
+result = client._recv_text(fake_sock)
+# Acceptable: returns None (treated as close) or raises ValueError
+# The critical thing is it does NOT raise anything other than ValueError
+⋮----
+pass  # Acceptable – controlled rejection
+⋮----
+def test_recv_text_handles_empty_payload(self)
+⋮----
+"""EOF immediately → None returned, not an exception."""
+⋮----
+result = client._recv_text(FakeSocket())
+⋮----
+# Reconnect is bounded
+⋮----
+class TestHn212ClientReconnectBounded(unittest.TestCase)
+⋮----
+"""AC2: Reconnect wait ≤ 2 seconds (stop.wait(2) in the loop)."""
+⋮----
+def test_reconnect_waits_at_most_2_seconds(self)
+⋮----
+"""
+        When connection fails, the client must call stop.wait with ≤ 2 seconds.
+        We confirm this by inspecting the source code constraint is in place via
+        a timed execution that fails fast.
+        """
+⋮----
+# Patch _connect to always fail, run loop briefly
+connect_calls = [0]
+⋮----
+def bad_connect()
+⋮----
+stop.set()  # stop after second attempt
+⋮----
+t = threading.Thread(target=client.run, daemon=True)
+start = time.monotonic()
+⋮----
+elapsed = time.monotonic() - start
+# With 2 s max wait, two attempts should complete well under 6 s
+</file>
+
+<file path="tools/biometric-bridge/test_local_settings.py">
+"""
+test_local_settings.py – TDD tests for local_settings.py and local_secrets.py.
+
+Every test class documents its RED phase (what fails before implementation)
+and then proves GREEN after the correct implementation exists.
+
+Run:
+    python -m unittest -v test_local_settings.py
+"""
+⋮----
+# ============================================================
+# Helpers / Stubs
+⋮----
+class _FakeAdapter
+⋮----
+"""In-process DPAPI stub: XOR-encrypt with 0x55 (detectable, not secure)."""
+⋮----
+def protect(self, plaintext_bytes: bytes) -> bytes
+⋮----
+def unprotect(self, blob: bytes) -> bytes
+⋮----
+# 1. Validation – RED before validate_settings exists
+⋮----
+class TestValidateSettingsSchema(unittest.TestCase)
+⋮----
+"""AC2: Strict schema validation."""
+⋮----
+def setUp(self)
+⋮----
+# --- happy-path -----------------------------------------------------
+⋮----
+def test_empty_dict_is_valid(self)
+⋮----
+"""An empty dict (no fields overridden) must be accepted."""
+result = self.validate({})
+⋮----
+def test_valid_full_config(self)
+⋮----
+cfg = {
+result = self.validate(cfg)
+⋮----
+def test_loopback_variants_accepted_for_api_listen(self)
+⋮----
+result = self.validate({"apiListen": addr})
+⋮----
+# --- rejection cases -----------------------------------------------
+⋮----
+def test_unknown_field_rejected(self)
+⋮----
+def test_communication_key_rejected_as_unknown_field(self)
+⋮----
+"""communicationKey must NOT be a known non-secret field."""
+⋮----
+def test_invalid_ipv4_rejected(self)
+⋮----
+def test_ipv6_rejected_for_deviceip(self)
+⋮----
+def test_port_zero_rejected(self)
+⋮----
+def test_port_65536_rejected(self)
+⋮----
+def test_port_1_and_65535_accepted(self)
+⋮----
+result = self.validate({"devicePort": 1})
+⋮----
+result = self.validate({"devicePort": 65535})
+⋮----
+def test_port_boolean_rejected(self)
+⋮----
+"""True/False must not pass as port (bool is subclass of int in Python)."""
+⋮----
+def test_invalid_origin_bare_hostname_rejected(self)
+⋮----
+def test_invalid_origin_no_scheme_rejected(self)
+⋮----
+def test_http_origin_accepted(self)
+⋮----
+result = self.validate({"allowedOrigins": ["http://localhost:3000"]})
+⋮----
+def test_https_origin_accepted(self)
+⋮----
+result = self.validate({"allowedOrigins": ["https://vietsage.example"]})
+⋮----
+def test_empty_origins_list_rejected(self)
+⋮----
+def test_non_loopback_api_listen_rejected(self)
+⋮----
+def test_empty_cert_path_rejected(self)
+⋮----
+def test_non_dict_input_rejected(self)
+⋮----
+# 2. Atomic write – RED before LocalSettingsStore exists
+⋮----
+class TestAtomicWrite(unittest.TestCase)
+⋮----
+"""AC1: Atomic write with same-dir temp, flush/fsync, os.replace."""
+⋮----
+def tearDown(self)
+⋮----
+def _make_store(self)
+⋮----
+def test_put_creates_settings_file(self)
+⋮----
+store = self._make_store()
+⋮----
+def test_put_writes_valid_json(self)
+⋮----
+data = json.load(fh)
+⋮----
+def test_load_returns_persisted_data(self)
+⋮----
+store2 = self._make_store()
+result = store2.load()
+⋮----
+def test_load_nonexistent_file_returns_empty(self)
+⋮----
+result = store.load()
+⋮----
+def test_no_temp_file_left_after_successful_write(self)
+⋮----
+tmp_files = [f for f in os.listdir(self._tmp_dir) if f.startswith(".settings_tmp_")]
+⋮----
+def test_failed_replace_preserves_old_config(self)
+⋮----
+"""
+        AC1: If os.replace raises, the old settings file is preserved.
+
+        We patch os.replace to raise on its first call (the atomic rename),
+        so the original file must remain intact.
+        """
+⋮----
+# Write initial good config.
+⋮----
+original_replace = os.replace
+call_count = [0]
+⋮----
+def failing_replace(src, dst)
+⋮----
+# The settings file must still contain the original value.
+⋮----
+def test_failed_replace_preserves_in_memory_config(self)
+⋮----
+"""Generation and in-memory running config are NOT changed on failure."""
+⋮----
+gen_before = store.generation
+running_before = store.get_running()
+⋮----
+def test_no_temp_file_left_after_failed_replace(self)
+⋮----
+"""Orphaned temp files must be removed even when replace fails."""
+⋮----
+def test_temp_file_is_in_same_directory_as_settings(self)
+⋮----
+"""Atomic rename is only safe same-filesystem; temp must be in the same dir."""
+created_temps = []
+original_open = open
+⋮----
+def tracking_open(path, *a, **kw)
+⋮----
+# 3. Generation counter – RED before LocalSettingsStore exists
+⋮----
+class TestGenerationCounter(unittest.TestCase)
+⋮----
+"""AC5: Generation incremented exactly once after full success."""
+⋮----
+def test_initial_generation_is_zero(self)
+⋮----
+def test_successful_put_increments_generation_by_one(self)
+⋮----
+def test_two_successful_puts_increment_generation_twice(self)
+⋮----
+def test_failed_put_does_not_change_generation(self)
+⋮----
+store.put({"devicePort": 99999})  # out of range
+⋮----
+def test_generation_incremented_exactly_once_not_zero_times_or_twice(self)
+⋮----
+"""Idempotency guard: one successful put → generation is exactly 1."""
+⋮----
+# 4. DPAPI secret adapter – RED before local_secrets.py exists
+⋮----
+class TestDpapiSecretStore(unittest.TestCase)
+⋮----
+"""AC3: DPAPI adapter with injectable boundary."""
+⋮----
+def test_protect_and_unprotect_round_trip(self)
+⋮----
+"""protect() then unprotect() recovers the original bytes."""
+⋮----
+result = store.unprotect()
+⋮----
+def test_is_configured_false_before_protect(self)
+⋮----
+def test_is_configured_true_after_protect(self)
+⋮----
+def test_unprotect_returns_none_before_protect(self)
+⋮----
+def test_protect_raises_on_non_string(self)
+⋮----
+def test_non_windows_raises_secret_store_unavailable(self)
+⋮----
+"""On non-Windows with no adapter, SecretStoreUnavailable must be raised."""
+⋮----
+DpapiSecretStore()  # no adapter → should raise
+⋮----
+def test_secret_never_appears_in_exception_message(self)
+⋮----
+"""If protect fails, the secret must not appear in the error message."""
+⋮----
+class BoomAdapter
+⋮----
+def protect(self, data)
+⋮----
+def unprotect(self, blob)
+⋮----
+store = DpapiSecretStore(adapter=BoomAdapter())
+⋮----
+def test_protect_overwrites_previous_secret(self)
+⋮----
+"""Calling protect() twice replaces the old secret."""
+⋮----
+def test_adapter_protect_called_with_utf8_bytes(self)
+⋮----
+"""The adapter must receive UTF-8 encoded bytes."""
+adapter = MagicMock()
+⋮----
+store = DpapiSecretStore(adapter=adapter)
+⋮----
+# 5. Settings store + secret store integration
+⋮----
+class TestSettingsStoreWithSecretStore(unittest.TestCase)
+⋮----
+"""AC5: PUT with communicationKey routes to secret store."""
+⋮----
+def _make_store(self, secret_store)
+⋮----
+def test_communication_key_is_forwarded_to_secret_store(self)
+⋮----
+"""communicationKey in put() payload is forwarded to secret_store.protect()."""
+⋮----
+secret_store = DpapiSecretStore(adapter=_FakeAdapter())
+settings_store = self._make_store(secret_store)
+⋮----
+# communicationKey must not remain in raw (put() pops it)
+raw = {"devicePort": 4370, "communicationKey": "mykey"}
+⋮----
+def test_communication_key_not_written_to_disk(self)
+⋮----
+"""communicationKey must NEVER appear in the settings JSON file."""
+⋮----
+disk_data = fh.read()
+⋮----
+def test_secret_store_failure_preserves_generation(self)
+⋮----
+"""If the secret store raises, generation must NOT be incremented."""
+⋮----
+class FailAdapter
+⋮----
+secret_store = DpapiSecretStore(adapter=FailAdapter())
+⋮----
+gen_before = settings_store.generation  # 0
+⋮----
+def test_secret_store_failure_after_successful_put_preserves_generation(self)
+⋮----
+"""Second put with failing secret store keeps generation at 1 (not 2)."""
+⋮----
+# First put has no communicationKey so it succeeds.
+⋮----
+gen_after_first = settings_store.generation  # 1
+⋮----
+def test_put_without_secret_store_and_communication_key_raises(self)
+⋮----
+"""put() with communicationKey but no configured secret store raises."""
+⋮----
+store = LocalSettingsStore(self._settings_path, _secret_store=None)
+⋮----
+# 6. Thread-safety
+⋮----
+class TestThreadSafety(unittest.TestCase)
+⋮----
+"""Concurrent writes must not corrupt generation or config."""
+⋮----
+def test_concurrent_puts_increment_generation_correctly(self)
+⋮----
+store = LocalSettingsStore(self._settings_path)
+errors = []
+⋮----
+def worker()
+⋮----
+threads = [threading.Thread(target=worker) for _ in range(10)]
+⋮----
+# 7. Public settings view (communicationKeyConfigured)
+⋮----
+class TestPublicSettingsView(unittest.TestCase)
+⋮----
+"""
+    AC4: GET /settings must return only communicationKeyConfigured.
+    This tests the helper used by the bridge handler.
+    """
+⋮----
+def _public_settings(self, settings_store, secret_store)
+⋮----
+"""Mirror the logic bridge_app will use for GET /settings."""
+⋮----
+def test_communication_key_not_configured_returns_false(self)
+⋮----
+result = self._public_settings(None, secret_store)
+⋮----
+def test_communication_key_configured_returns_true(self)
+</file>
+
+<file path="tools/biometric-bridge/test_push_receiver.py">
+class PushReceiverTests(unittest.TestCase)
+⋮----
+def test_builds_user_then_visible_face_photo_after_successful_ack(self)
+⋮----
+profile = {"idCode": "034205005951", "personName": "Đặng Hoàng Minh"}
+photo = b"\xff\xd8\xff\xd9"
+queue = PushQueue([(profile, photo)])
+⋮----
+user = queue.next_command("2145254200013")
+⋮----
+face = queue.next_command("2145254200013")
+⋮----
+def test_failed_user_ack_does_not_send_face(self)
+⋮----
+queue = PushQueue([({"idCode": "000000001", "personName": "A"}, b"jpeg")])
+⋮----
+def test_face_only_starts_with_biophoto(self)
+⋮----
+queue = PushQueue([({"idCode": "000000001", "personName": "A"}, b"jpeg")], face_only=True)
+⋮----
+def test_dynamic_queue_is_empty_until_save_enqueues_profile(self)
+⋮----
+queue = PushQueue([], face_only=True)
+⋮----
+def test_face_only_stays_face_only_for_second_saved_profile(self)
+⋮----
+def test_biophoto_size_is_base64_length(self)
+⋮----
+command = build_biophoto_command(7, "000000001", b"abc")
+⋮----
+def test_user_fields_are_tab_separated(self)
+⋮----
+command = build_user_command(3, {"idCode": "000000001", "personName": "A"})
+⋮----
+def test_load_profiles_reads_portrait_bytes(self)
+⋮----
+root = Path(folder)
+⋮----
+def test_commands_reject_invalid_identity_pin(self)
+⋮----
+def test_stale_ack_id_does_not_advance_current_command(self)
+⋮----
+queue = PushQueue([({"idCode": "034205005951", "personName": "A"}, b"jpeg")])
+⋮----
+def test_load_profiles_rejects_portrait_outside_root(self)
+⋮----
+outside = root.parent / "outside-portrait.jpg"
+⋮----
+def test_fdata_upload_is_acknowledged_without_storage(self)
+⋮----
+def test_tls_context_is_server_context(self)
+⋮----
+cert = Path(folder) / "cert.pem"
+key = Path(folder) / "key.pem"
+⋮----
+def test_enqueue_does_not_clear_existing_device_error(self)
+⋮----
+# AC3: enqueue of a new profile must not clear an existing device error
+queue = PushQueue([({"idCode": "000000001", "personName": "A"}, b"first")], face_only=True)
+# Simulate a device that has already failed
+⋮----
+# Now enqueue a new profile — error must NOT be cleared
+⋮----
+def test_ack_without_outstanding_is_noop(self)
+⋮----
+# AC3: ACK arriving before any command is sent must not change state
+⋮----
+# No next_command called yet, so outstanding is None
+before = queue.status()
+⋮----
+after = queue.status()
+# Status should not have changed (still no state for SN or same state)
+# The key check: no spurious index advance
+cmd = queue.next_command("SN")
+⋮----
+def test_push_body_over_1mib_returns_413(self)
+⋮----
+# AC4: a PUSH POST body larger than 1 MiB must be rejected with 413
+⋮----
+handler_class = make_handler(queue)
+large_body = b"x" * (1024 * 1024 + 1)
+request_line = b"POST /iclock/devicecmd?SN=TEST HTTP/1.1\r\n"
+headers_str = (
+raw = request_line + headers_str + large_body
+rfile = io.BytesIO(raw)
+wfile = io.BytesIO()
+# We need to call the handler; simulate minimal request environment
+⋮----
+h = handler_class.__new__(handler_class)
+⋮----
+# Patch send_response to track status
+responses = []
+</file>
+
+<file path="tools/biometric-bridge/test_zkteco_bridge.py">
+class Attendance
+⋮----
+user_id = "7"
+timestamp = datetime(2026, 7, 29, 15, 30, 0)
+status = 1
+punch = 15
+⋮----
+class BridgeTests(unittest.TestCase)
+⋮----
+def test_normalize_attendance_preserves_raw_codes(self)
+⋮----
+event = normalize_attendance(Attendance(), "192.168.55.11")
+⋮----
+def test_firmware_status_15_means_face_and_unknown_stays_unknown(self)
+⋮----
+face = Attendance()
+⋮----
+other = Attendance()
+⋮----
+def test_store_rejects_duplicate_events(self)
+⋮----
+store = EventStore(limit=5)
+event = {"userId": "7", "timestamp": "2026-07-29T15:30:00", "statusCode": 1, "punchCode": 15}
+⋮----
+def test_clear_events_removes_pc_session_and_allows_same_event_again(self)
+⋮----
+def test_profile_store_rejects_duplicate_identity_number(self)
+⋮----
+store = ProfileStore(Path(folder) / "profiles.json")
+first = store.create({"idCode": "001234567890", "personName": "A", "photo": "data:image/jpeg;base64,/9j/AA=="})
+⋮----
+def test_event_store_enriches_attendance_from_identity_profile(self)
+⋮----
+profiles = {"001234567890": {"idCode": "001234567890", "personName": "Nguyễn Văn A"}}
+store = EventStore(profile_lookup=lambda user_id: profiles.get(user_id))
+event = {"userId": "001234567890", "timestamp": "2026-07-29T15:30:00", "statusCode": 1, "punchCode": 15}
+⋮----
+def test_display_name_prefers_pc_then_device_then_user_id(self)
+⋮----
+def test_persist_portrait_writes_image_and_returns_relative_link(self)
+⋮----
+profile = {"idCode": "001234567890", "photo": "data:image/jpeg;base64,/9j/AA=="}
+saved = persist_portrait(profile, Path(folder))
+⋮----
+def test_clear_removes_pc_profiles_and_biometric_files_only(self)
+⋮----
+root = Path(folder)
+store = ProfileStore(root / "profiles.json")
+⋮----
+def test_persist_biometric_capture_writes_pc_file(self)
+⋮----
+relative = persist_biometric_capture("001234567890", "fingerprints", "data:image/png;base64,iVBORw==", Path(folder), "20260729T170000")
+⋮----
+def test_both_save_persists_pc_before_device_provision(self)
+⋮----
+observed = []
+⋮----
+def failing_provision(profile)
+⋮----
+def test_persist_portrait_rejects_path_traversal(self)
+⋮----
+# AC5: idCode must match \d{9,12}; path traversal idCodes must be rejected
+⋮----
+def test_persist_biometric_capture_rejects_path_traversal(self)
+⋮----
+# AC5: same guard for persist_biometric_capture
+</file>
+
+<file path="tools/biometric-bridge/zkteco_bridge.py">
+ROOT = Path(__file__).resolve().parent
+⋮----
+# AC6: process-level lock to serialize provision_user UID allocation
+_provision_lock = threading.Lock()
+⋮----
+def persist_portrait(profile, root=ROOT)
+⋮----
+saved = dict(profile)
+id_code = str(saved.get("idCode", "")).strip()
+photo = saved.pop("photo", "")
+# AC5: validate idCode is exactly 9-12 digits before using as path segment
+⋮----
+image = base64.b64decode(encoded, validate=True)
+⋮----
+relative = Path("data") / "portraits" / id_code / "cccd.jpg"
+target = root / relative
+⋮----
+def persist_biometric_capture(id_code, kind, data_url, root=ROOT, stamp=None)
+⋮----
+extension = "png" if "png" in header else "jpg"
+stamp = stamp or datetime.now().strftime("%Y%m%dT%H%M%S%f")
+relative = Path("data") / kind / str(id_code).strip() / f"{stamp}.{extension}"
+⋮----
+def resolve_display_name(user_id, profile, device_users)
+⋮----
+def normalize_attendance(attendance, device_ip)
+⋮----
+timestamp = attendance.timestamp
+⋮----
+# Verified against this SenseFace 7A firmware's real attendance log.
+⋮----
+class ProfileStore
+⋮----
+def __init__(self, path)
+⋮----
+def create(self, profile)
+⋮----
+id_code = str(profile.get("idCode", "")).strip()
+⋮----
+saved = persist_portrait(dict(profile, biometricUserId=id_code, savedAt=datetime.now().isoformat(timespec="seconds")), self.path.parent)
+⋮----
+def get(self, id_code)
+⋮----
+profile = self.profiles.get(str(id_code))
+⋮----
+def list(self)
+⋮----
+def clear(self)
+⋮----
+id_codes = tuple(self.profiles)
+⋮----
+def _write(self)
+⋮----
+class EventStore
+⋮----
+def __init__(self, limit=200, profile_lookup=None)
+⋮----
+@staticmethod
+    def key(event)
+⋮----
+def add(self, event)
+⋮----
+event = dict(event)
+profile = self.profile_lookup(event.get("userId"))
+⋮----
+key = self.key(event)
+⋮----
+subscribers = tuple(self.subscribers)
+⋮----
+count = len(self.events)
+⋮----
+def subscribe(self)
+⋮----
+subscriber = queue.Queue()
+⋮----
+def unsubscribe(self, subscriber)
+⋮----
+class DeviceState
+⋮----
+def __init__(self, ip, port)
+⋮----
+def update(self, **values)
+⋮----
+def get(self)
+⋮----
+def device_worker(ip, port, password, store, state, stop)
+⋮----
+connection = None
+⋮----
+connection = ZK(ip, port=port, timeout=5, password=password, force_udp=False, ommit_ping=False).connect()
+serial = None
+⋮----
+serial = connection.get_serialnumber()
+⋮----
+device_users = {str(user.user_id): user.name for user in connection.get_users()}
+⋮----
+seen = {store.key(normalize_attendance(item, ip)) for item in connection.get_attendance()}
+⋮----
+event = normalize_attendance(attendance, ip)
+key = store.key(event)
+⋮----
+def provision_user(ip, port, password, profile)
+⋮----
+user_id = str(profile.get("biometricUserId", "")).strip()
+⋮----
+# AC6: serialize UID allocation so concurrent calls do not pick the same uid
+⋮----
+connection = ZK(ip, port=port, timeout=5, password=password).connect()
+⋮----
+users = connection.get_users()
+existing = next((user for user in users if str(user.user_id) == user_id), None)
+uid = existing.uid if existing else max((user.uid for user in users), default=0) + 1
+⋮----
+def clear_device_attendance(ip, port, password)
+⋮----
+count = len(connection.get_attendance())
+⋮----
+def save_profile(profiles, payload, target, provision)
+⋮----
+device_profile = dict(payload, biometricUserId=str(payload.get("idCode", "")).strip())
+⋮----
+profile = profiles.create(payload)
+⋮----
+def make_handler(store, profiles, state, device_config, push_queue=None)
+⋮----
+class Handler(SimpleHTTPRequestHandler)
+⋮----
+def __init__(self, *args, **kwargs)
+⋮----
+def send_json(self, payload, status=200)
+⋮----
+body = json.dumps(payload, ensure_ascii=False).encode()
+⋮----
+def do_GET(self)
+⋮----
+path = urlparse(self.path).path
+⋮----
+def read_json(self)
+⋮----
+length = int(self.headers.get("Content-Length", "0"))
+⋮----
+payload = json.loads(self.rfile.read(length))
+⋮----
+def do_POST(self)
+⋮----
+payload = self.read_json()
+id_code = str(payload.get("idCode", "")).strip()
+⋮----
+relative = persist_biometric_capture(id_code, payload.get("kind"), payload.get("data", ""))
+⋮----
+target = payload.pop("saveTarget", "both")
+⋮----
+saved = save_profile(
+⋮----
+profile = profiles.get(saved["idCode"])
+photo = (profiles.path.parent / profile["portraitPath"]).read_bytes()
+⋮----
+device = state.get()
+user_id = next(iter(device.get("users", {})), "TEST-01")
+event = {"userId": user_id, "deviceName": device.get("users", {}).get(user_id), "timestamp": datetime.now().isoformat(timespec="seconds"), "statusCode": 1, "punchCode": 15, "deviceIp": device["ip"], "result": "success", "method": "unknown"}
+⋮----
+def do_DELETE(self)
+⋮----
+count = clear_device_attendance(*device_config)
+⋮----
+def stream_events(self)
+⋮----
+subscriber = store.subscribe()
+⋮----
+event = subscriber.get(timeout=15)
+payload = json.dumps(event, ensure_ascii=False).encode()
+⋮----
+def log_message(self, format, *args)
+⋮----
+def main()
+⋮----
+parser = argparse.ArgumentParser(description="SenseFace 7A local bridge")
+⋮----
+args = parser.parse_args()
+profiles = ProfileStore(ROOT / "profiles.json")
+store = EventStore(profile_lookup=profiles.get)
+⋮----
+push_queue = PushQueue([], face_only=True)
+push_server = ThreadingHTTPServer((args.push_listen, args.push_port), make_push_handler(push_queue))
+⋮----
+server = ThreadingHTTPServer((args.listen, args.http_port), make_handler(store, profiles, state, (args.device_ip, args.device_port, args.password), push_queue))
+</file>
+
+</files>

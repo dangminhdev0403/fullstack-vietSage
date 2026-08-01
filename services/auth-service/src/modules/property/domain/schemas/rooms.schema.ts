@@ -116,6 +116,15 @@ export const createStayBodySchema = z
       .min(2, "Tên khách hàng phải từ 2 ký tự")
       .max(120, "Tên khách hàng tối đa 120 ký tự"),
     guestPhone: z.string().trim().max(40, "Số điện thoại tối đa 40 ký tự").optional(),
+    guestIdentityNumber: z
+      .string()
+      .trim()
+      .regex(/^\d{9,12}$/, "Số CCCD phải gồm 9 đến 12 chữ số")
+      .optional(),
+    guestDateOfBirth: z.string().trim().max(20, "Ngày sinh tối đa 20 ký tự").optional(),
+    guestGender: z.string().trim().max(20, "Giới tính tối đa 20 ký tự").optional(),
+    guestNationality: z.string().trim().max(80, "Quốc tịch tối đa 80 ký tự").optional(),
+    guestResidencePlace: z.string().trim().max(500, "Địa chỉ tối đa 500 ký tự").optional(),
     plannedCheckInAt: z.coerce.date({ message: "Ngày nhận phòng không hợp lệ" }),
     plannedCheckOutAt: z.coerce.date({ message: "Ngày trả phòng không hợp lệ" }),
   })

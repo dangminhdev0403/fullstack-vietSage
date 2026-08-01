@@ -1,0 +1,500 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: tools/biometric-bridge/security_push_protocol.py, tools/biometric-bridge/security_push_store.py, tools/biometric-bridge/test_security_push_protocol.py, tools/biometric-bridge/test_security_push_store.py
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+tools/
+  biometric-bridge/
+    security_push_protocol.py
+    security_push_store.py
+    test_security_push_protocol.py
+    test_security_push_store.py
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="tools/biometric-bridge/security_push_protocol.py">
+"""
+security_push_protocol.py - Phase 0 Security PUSH protocol emulator contracts.
+
+Uses Python stdlib only.
+Implements opaque PIN validation, JPEG validation, PUSH command builders,
+ACK parsing, rtlog/transaction parsing, fdata handling, and safe logging.
+"""
+⋮----
+def validate_pin(value: Any) -> str
+⋮----
+"""
+    Validate opaque numeric PIN without CCCD length semantics.
+
+    Accepts any non-empty numeric string or integer composed only of digits.
+    Raises ValueError if value is missing, non-numeric, or empty.
+    """
+⋮----
+pin_str = str(value).strip()
+⋮----
+def sanitize_name(name: Any) -> str
+⋮----
+"""
+    Sanitize name field by replacing tabs and newlines with spaces.
+    """
+clean_name = str(name or "").replace("\t", " ").replace("\r", " ").replace("\n", " ")
+⋮----
+def validate_jpeg(photo: bytes, max_size: int = 1024 * 1024) -> bool
+⋮----
+"""
+    Validate JPEG bytes with SOI (0xFF 0xD8), EOI (0xFF 0xD9), and bounded size.
+    """
+⋮----
+photo_len = len(photo)
+⋮----
+def build_user_command(cmd_id: int, pin: Any, name: Any) -> str
+⋮----
+"""
+    Build PUSH command for user creation/update.
+
+    Enforces non-zero CmdID, numeric PIN, and sanitized name.
+    """
+⋮----
+valid_pin = validate_pin(pin)
+clean_name = sanitize_name(name)
+⋮----
+def build_biophoto_command(cmd_id: int, pin: Any, photo: bytes, max_size: int = 1024 * 1024) -> str
+⋮----
+"""
+    Build PUSH command for Type=9 biophoto.
+
+    Enforces non-zero CmdID, numeric PIN, valid JPEG, Type=9, and exact Base64 size.
+    """
+⋮----
+encoded_b64 = base64.b64encode(photo).decode("ascii")
+exact_size = len(encoded_b64)
+⋮----
+def parse_ack(body: str) -> Optional[Dict[str, int]]
+⋮----
+"""
+    Parse PUSH command ACK response body, preserving raw Return integer code
+    and matching command ID.
+
+    Returns dict with 'cmd_id' and 'return_code', or None if unparseable.
+    """
+⋮----
+id_match = re.search(r"(?:^|[&\s\n])ID=(\d+)(?:[&\s\n]|$)", body, re.IGNORECASE)
+ret_match = re.search(r"(?:^|[&\s\n])(?:Return|return)=(-?\d+)(?:[&\s\n]|$)", body, re.IGNORECASE)
+⋮----
+"""
+    Parse real-time attendance transaction/rtlog line, preserving raw fields and verifytype.
+
+    Supports both tab-separated positional lines and key-value formats.
+    """
+line = str(body_line or "").strip()
+fields = line.split("\t")
+⋮----
+raw_fields_map = {}
+is_kv = any("=" in f for f in fields)
+⋮----
+pin = raw_fields_map.get("pin") or raw_fields_map.get("PIN") or raw_fields_map.get("user_id") or ""
+timestamp = raw_fields_map.get("time") or raw_fields_map.get("timestamp") or ""
+verifytype_raw = raw_fields_map.get("verifytype") or raw_fields_map.get("verify_type") or ""
+eventcode_raw = raw_fields_map.get("event") or raw_fields_map.get("eventcode") or raw_fields_map.get("status") or ""
+device_index = raw_fields_map.get("index", "")
+in_out_status = raw_fields_map.get("inoutstatus", "")
+⋮----
+# Standard tab-separated positional fields: [timestamp, pin, verifytype, eventcode, inoutstatus, workcode]
+timestamp = fields[0] if len(fields) > 0 else ""
+pin = fields[1] if len(fields) > 1 else ""
+verifytype_raw = fields[2] if len(fields) > 2 else ""
+eventcode_raw = fields[3] if len(fields) > 3 else ""
+in_out_status = fields[4] if len(fields) > 4 else ""
+device_index = fields[5] if len(fields) > 5 else ""
+⋮----
+def upload_response(path: str, query: Dict[str, Any]) -> str
+⋮----
+"""
+    Generate response for PUSH data upload requests.
+
+    /iclock/fdata responds OK without blocking /getrequest.
+    """
+⋮----
+table = query.get("tablename", [""])[0] if isinstance(query, dict) else ""
+count = query.get("count", ["1"])[0] if isinstance(query, dict) else "1"
+⋮----
+def mask_sn(sn: Any) -> str
+⋮----
+"""
+    Safe masked logging for Serial Numbers.
+    """
+s = str(sn or "").strip()
+⋮----
+def mask_pin(pin: Any) -> str
+⋮----
+"""
+    Safe masked logging for PINs.
+    """
+p = str(pin or "").strip()
+</file>
+
+<file path="tools/biometric-bridge/security_push_store.py">
+"""
+security_push_store.py - SQLite storage engine and state machine for Phase 0 Security PUSH.
+
+Uses Python stdlib (sqlite3, threading) only.
+Persists enrollment queue, device ACK state, command IDs, and spooled events across process restarts.
+"""
+⋮----
+class SecurityPushStore
+⋮----
+"""
+    SQLite-backed state engine for Security PUSH protocol emulator.
+
+    Enforces:
+      - 1 outstanding command per device.
+      - User command -> User ACK 0 -> Type=9 Biophoto -> Face ACK 0 -> Complete profile.
+      - Nonzero user ACK blocks face.
+      - Sequential profile enrollments reset to user stage.
+      - Deterministic event dedupe on event spool.
+      - Persistent state across process restart.
+    """
+⋮----
+def __init__(self, db_path: str = ":memory:")
+⋮----
+def _init_db(self) -> None
+⋮----
+def _get_next_cmd_id(self) -> int
+⋮----
+cur = self._conn.cursor()
+⋮----
+row = cur.fetchone()
+⋮----
+def enqueue(self, pin: Any, name: Any, photo: bytes) -> int
+⋮----
+"""
+        Enqueue a new profile into the enrollment queue.
+        Validates PIN, name, and photo prior to insertion.
+        """
+valid_pin = validate_pin(pin)
+clean_name = sanitize_name(name)
+⋮----
+def _get_or_create_device_state(self, sn: str) -> dict
+⋮----
+def next_command(self, sn: str) -> Optional[str]
+⋮----
+"""
+        Get next command to send to device sn.
+
+        Enforces 1 outstanding command per device.
+        Returns command string or None.
+        """
+⋮----
+state = self._get_or_create_device_state(sn)
+⋮----
+# Blocked if error exists or command already outstanding
+⋮----
+profile = cur.fetchone()
+⋮----
+cmd_id = self._get_next_cmd_id()
+stage = state["stage"]
+⋮----
+cmd_str = build_user_command(cmd_id, profile["pin"], profile["name"])
+else: # stage == "face"
+cmd_str = build_biophoto_command(cmd_id, profile["pin"], bytes(profile["photo"]))
+⋮----
+# Update state with outstanding command
+⋮----
+def ack(self, sn: str, ack_body_or_dict: Union[str, dict]) -> None
+⋮----
+"""
+        Process command ACK for device sn.
+
+        Matches command ID to outstanding command.
+        Nonzero user ACK blocks face command.
+        Face Return=0 completes enrollment and advances queue.
+        """
+⋮----
+parsed = parse_ack(ack_body_or_dict)
+⋮----
+parsed = ack_body_or_dict
+⋮----
+parsed = None
+⋮----
+cmd_id = parsed["cmd_id"]
+return_code = parsed["return_code"]
+⋮----
+outstanding_id = state["outstanding_id"]
+⋮----
+return  # Stale or unmatched ACK
+⋮----
+outstanding_stage = state["outstanding_stage"]
+⋮----
+# Clear outstanding command state
+⋮----
+# Command failed
+error_msg = f"{outstanding_stage} return={return_code}"
+⋮----
+# Command succeeded (return_code == 0)
+⋮----
+else: # outstanding_stage == "face"
+# Profile enrollment completed
+⋮----
+def add_event(self, sn: str, event_line_or_dict: Union[str, dict]) -> bool
+⋮----
+"""
+        Spool an attendance/rtlog event with deterministic deduplication.
+
+        Returns True if inserted, False if duplicate.
+        """
+⋮----
+event = parse_rtlog_or_transaction(event_line_or_dict, sn=sn)
+⋮----
+event = dict(event_line_or_dict)
+⋮----
+dedupe_parts = (
+dedupe_str = "\x1f".join(str(part or "") for part in dedupe_parts)
+dedupe_key = hashlib.sha256(dedupe_str.encode("utf-8")).hexdigest()
+⋮----
+def get_events(self) -> List[Dict[str, Any]]
+⋮----
+"""
+        Get all spooled events.
+        """
+⋮----
+def get_device_state(self, sn: str) -> Dict[str, Any]
+⋮----
+"""
+        Get current state of device sn.
+        """
+⋮----
+def get_outstanding(self, sn: str) -> Optional[Dict[str, Any]]
+⋮----
+"""
+        Get outstanding command information for device sn if any.
+        """
+⋮----
+def close(self) -> None
+⋮----
+"""
+        Close underlying SQLite connection.
+        """
+</file>
+
+<file path="tools/biometric-bridge/test_security_push_protocol.py">
+"""
+test_security_push_protocol.py - Unit tests for Phase 0 Security PUSH protocol contracts.
+"""
+⋮----
+class TestSecurityPushProtocol(unittest.TestCase)
+⋮----
+def test_opaque_numeric_pin_validation(self)
+⋮----
+# Valid numeric PINs of various lengths (without CCCD length restrictions)
+⋮----
+# Invalid PINs: non-numeric characters, empty strings, None
+⋮----
+def test_sanitize_name_tabs_and_newlines(self)
+⋮----
+raw_name = "Nguyen\tVan\r\nA"
+sanitized = sanitize_name(raw_name)
+⋮----
+def test_jpeg_soi_eoi_and_bounded_size_validation(self)
+⋮----
+valid_jpeg = b"\xff\xd8\x00\x10JFIF\x00\xff\xd9"
+⋮----
+# Rejects missing SOI or EOI
+⋮----
+# Rejects empty or non-bytes
+⋮----
+# Bounded size validation
+⋮----
+validate_jpeg(valid_jpeg, max_size=5)  # len is 10 > 5
+⋮----
+def test_nonzero_cmd_id_required(self)
+⋮----
+valid_jpeg = b"\xff\xd8\xff\xd9"
+⋮----
+def test_build_user_command_format(self)
+⋮----
+cmd = build_user_command(10, "12345", "Nguyen\tVan\nA")
+⋮----
+def test_build_biophoto_command_format_and_exact_base64_size(self)
+⋮----
+photo = b"\xff\xd8\x00\x00\xff\xd9"
+cmd = build_biophoto_command(11, "12345", photo)
+⋮----
+# Verify Base64 Size exact match
+b64_str = base64.b64encode(photo).decode("ascii")
+expected_size = len(b64_str)
+⋮----
+def test_parse_ack_preserving_raw_return_and_cmd_id(self)
+⋮----
+parsed = parse_ack("ID=100&Return=0&CMD=DATA")
+⋮----
+parsed_neg = parse_ack("ID=101&return=-100")
+⋮----
+parsed_space = parse_ack("Return=-1 ID=5")
+⋮----
+# Invalid ACK format
+⋮----
+def test_parse_rtlog_or_transaction_preserving_raw_fields(self)
+⋮----
+# Tab-separated positional line
+line = "2026-08-01 12:30:00\t12345\t15\t1\t0\t0"
+parsed = parse_rtlog_or_transaction(line, sn="TEST-SN", source_table="transaction")
+⋮----
+# Tab-separated key-value line
+kv_line = "time=2026-08-01 12:30:00\tpin=54321\tverifytype=1010000000000000\tevent=0\tindex=77\tinoutstatus=1\textra=val"
+parsed_kv = parse_rtlog_or_transaction(kv_line, sn="TEST-SN", source_table="rtlog")
+⋮----
+def test_upload_response_fdata_returns_ok(self)
+⋮----
+resp = upload_response("/iclock/fdata", {})
+⋮----
+def test_safe_masked_logging(self)
+</file>
+
+<file path="tools/biometric-bridge/test_security_push_store.py">
+"""
+test_security_push_store.py - Unit tests for SecurityPushStore SQLite state machine, queue, and event spool persistence.
+"""
+⋮----
+class TestSecurityPushStore(unittest.TestCase)
+⋮----
+def setUp(self)
+⋮----
+def tearDown(self)
+⋮----
+def test_one_outstanding_command_per_device(self)
+⋮----
+cmd1 = self.store.next_command(self.sn)
+⋮----
+# Calling next_command while command is outstanding must return None
+cmd2 = self.store.next_command(self.sn)
+⋮----
+def test_user_ack_zero_advances_to_type9_biophoto(self)
+⋮----
+user_cmd = self.store.next_command(self.sn)
+⋮----
+# Extract cmd ID
+parsed_cmd_id = self.store.get_outstanding(self.sn)["id"]
+⋮----
+# ACK return=0 for user command
+⋮----
+# Next command must be biophoto Type=9
+face_cmd = self.store.next_command(self.sn)
+⋮----
+def test_nonzero_user_ack_blocks_face_command(self)
+⋮----
+# Non-zero user ACK (error)
+⋮----
+# Device is now blocked in error state
+⋮----
+state = self.store.get_device_state(self.sn)
+⋮----
+def test_face_return_zero_completes_enrollment(self)
+⋮----
+user_id = self.store.get_outstanding(self.sn)["id"]
+⋮----
+face_id = self.store.get_outstanding(self.sn)["id"]
+⋮----
+# Enrollment is complete
+⋮----
+def test_sequential_enrollments_restart_at_user(self)
+⋮----
+# Profile 1: User -> ACK -> Face -> ACK
+cmd_user1 = self.store.next_command(self.sn)
+id1 = self.store.get_outstanding(self.sn)["id"]
+⋮----
+cmd_face1 = self.store.next_command(self.sn)
+id2 = self.store.get_outstanding(self.sn)["id"]
+⋮----
+# Profile 2: Must start at User
+cmd_user2 = self.store.next_command(self.sn)
+⋮----
+def test_stale_ack_does_not_advance_state(self)
+⋮----
+# ACK with wrong command ID
+⋮----
+# State remains outstanding for the original command
+outstanding = self.store.get_outstanding(self.sn)
+⋮----
+def test_deterministic_event_dedupe(self)
+⋮----
+event_line = "2026-08-01 12:00:00\t12345\t15\t1\t0\t0"
+⋮----
+# First insert succeeds
+added1 = self.store.add_event(self.sn, event_line)
+⋮----
+# Duplicate insert returns False and is deduplicated
+added2 = self.store.add_event(self.sn, event_line)
+⋮----
+events = self.store.get_events()
+⋮----
+def test_event_dedupe_distinguishes_table_and_index(self)
+⋮----
+base = {
+⋮----
+def test_restart_preserves_outstanding_command(self)
+⋮----
+restarted_store = SecurityPushStore(self.db_path)
+⋮----
+def test_sqlite_persists_state_and_spool_across_restart(self)
+⋮----
+# Send User cmd, receive ACK 0
+⋮----
+# Add an event
+⋮----
+# Close first store connection
+⋮----
+# Re-open store with same SQLite file (simulating process restart)
+⋮----
+# Stage should still be 'face' for profile 1
+face_cmd = restarted_store.next_command(self.sn)
+⋮----
+# Event spool retained across restart
+events = restarted_store.get_events()
+⋮----
+# Dedupe still works after restart
+dup_added = restarted_store.add_event(self.sn, event_line)
+</file>
+
+</files>

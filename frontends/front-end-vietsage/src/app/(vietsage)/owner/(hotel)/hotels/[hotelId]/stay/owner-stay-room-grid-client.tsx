@@ -1,12 +1,14 @@
 "use client";
 
-import { type FormEvent, startTransition, useMemo, useState } from "react";
+import { startTransition, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Swal from "sweetalert2";
-import { z } from "zod";
+
 
 import { HttpError } from "@/core/http/http-error";
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import { CheckInWorkspace } from "@/features/local-biometric/components/check-in-workspace";
+import type { CheckInStayFields } from "@/features/local-biometric/types/check-in-workspace";
 import type {
   HotelCheckInResult,
   HotelRoomSummary,
@@ -29,13 +31,6 @@ type RoomStatusFilter =
   | "maintenance"
   | "blocked";
 
-type CheckInForm = {
-  guestDisplayName: string;
-  guestPhone: string;
-  plannedCheckOutAt: string;
-};
-
-type FormErrors = Partial<Record<keyof CheckInForm, string>>;
 
 type RoomAvailability =
   | "available"
@@ -55,19 +50,6 @@ const statusFilters: { value: RoomStatusFilter; label: string }[] = [
   { value: "blocked", label: "Đã khóa" },
 ];
 
-const checkInFormSchema = z.object({
-  guestDisplayName: z.string().trim().min(1, "Nhập tên khách."),
-  guestPhone: z
-    .string()
-    .trim()
-    .regex(/^$|^[0-9+()\s.-]{8,20}$/, "Số điện thoại không hợp lệ."),
-  plannedCheckOutAt: z
-    .string()
-    .refine(
-      (value) => Boolean(toIsoFromLocal(value)),
-      "Chọn thời gian check-out hợp lệ.",
-    ),
-});
 
 function getRoomNumber(room: HotelRoomSummary): string {
   return room.roomNumber?.trim() || room.id;
@@ -167,13 +149,6 @@ function defaultCheckOutValue(): string {
   return new Date(value.getTime() - offsetMs).toISOString().slice(0, 16);
 }
 
-function emptyForm(): CheckInForm {
-  return {
-    guestDisplayName: "",
-    guestPhone: "",
-    plannedCheckOutAt: defaultCheckOutValue(),
-  };
-}
 
 function toIsoFromLocal(value: string): string | undefined {
   if (!value) return undefined;
@@ -181,17 +156,6 @@ function toIsoFromLocal(value: string): string | undefined {
   return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
 }
 
-function validateForm(form: CheckInForm): FormErrors {
-  const result = checkInFormSchema.safeParse(form);
-  if (result.success) return {};
-
-  const fieldErrors = result.error.flatten().fieldErrors;
-  return {
-    guestDisplayName: fieldErrors.guestDisplayName?.[0],
-    guestPhone: fieldErrors.guestPhone?.[0],
-    plannedCheckOutAt: fieldErrors.plannedCheckOutAt?.[0],
-  };
-}
 
 function isTechnicalMessage(message: string): boolean {
   return /PRISMA_|Prisma|Record to update not found|Foreign key constraint|Unique constraint/i.test(
@@ -204,18 +168,24 @@ function getNestedMessage(value: unknown): string | undefined {
     return undefined;
 
   const record = value as Record<string, unknown>;
+  if (record.data && typeof record.data === "object" && !Array.isArray(record.data)) {
+    const dataMessage = getNestedMessage(record.data);
+    if (dataMessage) return dataMessage;
+  }
+
   const candidates = [record.detail, record.message, record.errorMessage];
   for (const candidate of candidates) {
     if (
       typeof candidate === "string" &&
       candidate.trim() &&
+      candidate.trim() !== "VALIDATION_ERROR" &&
       !isTechnicalMessage(candidate)
     ) {
       return candidate.trim();
     }
   }
 
-  return getNestedMessage(record.data) ?? getNestedMessage(record.error);
+  return getNestedMessage(record.error);
 }
 
 function getBusinessErrorMessage(error: unknown, fallback: string): string {
@@ -249,9 +219,8 @@ export function OwnerStayRoomGridClient({
   );
   const [detailRoom, setDetailRoom] = useState<HotelRoomSummary | null>(null);
   const [isCheckInOpen, setIsCheckInOpen] = useState(false);
-  const [form, setForm] = useState<CheckInForm>(() => emptyForm());
-  const [errors, setErrors] = useState<FormErrors>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [submitError, setSubmitError] = useState<string | undefined>();
 
   const filteredRooms = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -288,8 +257,7 @@ export function OwnerStayRoomGridClient({
     if (!isCheckInAllowed(room)) return;
 
     setSelectedRoom(room);
-    setForm(emptyForm());
-    setErrors({});
+    setSubmitError(undefined);
     setIsCheckInOpen(true);
   }
 
@@ -382,34 +350,22 @@ export function OwnerStayRoomGridClient({
     if (isSaving) return;
     setIsCheckInOpen(false);
     setSelectedRoom(null);
-    setErrors({});
+    setSubmitError(undefined);
   }
 
-  function updateField<Key extends keyof CheckInForm>(
-    field: Key,
-    value: CheckInForm[Key],
-  ) {
-    setForm((current) => ({ ...current, [field]: value }));
-    setErrors((current) => ({ ...current, [field]: undefined }));
-  }
-
-  async function submitCheckIn(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function submitCheckIn(fields: CheckInStayFields) {
     if (!selectedRoom || !isCheckInAllowed(selectedRoom)) return;
 
-    const validationErrors = validateForm(form);
-    if (Object.values(validationErrors).some(Boolean)) {
-      setErrors(validationErrors);
+    const plannedCheckOutAt = toIsoFromLocal(fields.plannedCheckOutAt);
+    if (!plannedCheckOutAt) {
+      setSubmitError("Chọn thời gian check-out hợp lệ.");
       return;
     }
-
-    const plannedCheckOutAt = toIsoFromLocal(form.plannedCheckOutAt);
-    if (!plannedCheckOutAt) return;
 
     const confirmed = await Swal.fire({
       icon: "question",
       title: "Xác nhận check-in",
-      text: `Bạn muốn check-in khách ${form.guestDisplayName.trim()} vào phòng ${getRoomNumber(selectedRoom)}?`,
+      text: `Bạn muốn check-in khách ${fields.guestDisplayName.trim()} vào phòng ${getRoomNumber(selectedRoom)}?`,
       showCancelButton: true,
       confirmButtonColor: "#00003c",
       cancelButtonColor: "#6b7280",
@@ -420,6 +376,7 @@ export function OwnerStayRoomGridClient({
     if (!confirmed.isConfirmed) return;
 
     setIsSaving(true);
+    setSubmitError(undefined);
     try {
       const result = await requestInternalApiEnvelope<HotelCheckInResult>(
         `${apiBasePath}/stays`,
@@ -427,9 +384,24 @@ export function OwnerStayRoomGridClient({
           method: "POST",
           body: {
             roomId: selectedRoom.id,
-            guestDisplayName: form.guestDisplayName.trim(),
-            ...(form.guestPhone.trim()
-              ? { guestPhone: form.guestPhone.trim() }
+            guestDisplayName: fields.guestDisplayName.trim(),
+            ...(fields.guestPhone.trim()
+              ? { guestPhone: fields.guestPhone.trim() }
+              : {}),
+            ...(fields.guestIdentityNumber?.trim()
+              ? { guestIdentityNumber: fields.guestIdentityNumber.trim() }
+              : {}),
+            ...(fields.guestDateOfBirth?.trim()
+              ? { guestDateOfBirth: fields.guestDateOfBirth.trim() }
+              : {}),
+            ...(fields.guestGender?.trim()
+              ? { guestGender: fields.guestGender.trim() }
+              : {}),
+            ...(fields.guestNationality?.trim()
+              ? { guestNationality: fields.guestNationality.trim() }
+              : {}),
+            ...(fields.guestResidencePlace?.trim()
+              ? { guestResidencePlace: fields.guestResidencePlace.trim() }
               : {}),
             plannedCheckInAt: new Date().toISOString(),
             plannedCheckOutAt,
@@ -437,16 +409,18 @@ export function OwnerStayRoomGridClient({
         },
       );
 
+
       setIsCheckInOpen(false);
       setSelectedRoom(null);
       await Swal.fire({
         icon: "success",
         title: "Đã mở phòng cho khách",
-        text: `Mã truy cập GuestOS: ${result.data.accessCode}. QR phòng đã được kích hoạt để khách quét và gọi dịch vụ.`,
+        text: `Mã truy cập GuestOS: ${result.data.accessCode}. QR phòng đã được kích hoạt.`,
         confirmButtonText: "Hoàn tất",
         confirmButtonColor: "#00003c",
       });
     } catch (error) {
+      setSubmitError(getBusinessErrorMessage(error, "Không thể check-in. Vui lòng thử lại."));
       await Swal.fire({
         icon: "error",
         title: "Không thể check-in",
@@ -670,11 +644,16 @@ export function OwnerStayRoomGridClient({
                 <p className="mt-2 text-lg font-semibold text-blue-950">
                   {detailRoom.activeStay.guestDisplayName || "Khách lưu trú"}
                 </p>
-                <div className="mt-3 grid gap-2 text-sm text-blue-900 sm:grid-cols-2">
-                  <p>SĐT: {detailRoom.activeStay.guestPhone || "--"}</p>
-                  <p>Mã: {detailRoom.activeStay.reservationCode || "--"}</p>
-                  <p>Check-in: {formatRoomDate(detailRoom.activeStay.checkedInAt)}</p>
-                  <p>Check-out: {formatRoomDate(detailRoom.activeStay.plannedCheckOutAt)}</p>
+                <div className="mt-3 grid gap-2.5 text-sm text-blue-900 sm:grid-cols-2">
+                  <p><span className="font-semibold text-blue-950">SĐT:</span> {detailRoom.activeStay.guestPhone || "chưa có"}</p>
+                  <p><span className="font-semibold text-blue-950">Mã đặt phòng:</span> {detailRoom.activeStay.reservationCode || "chưa có"}</p>
+                  <p><span className="font-semibold text-blue-950">Số CCCD:</span> {detailRoom.activeStay.guestIdentityNumber || "chưa có"}</p>
+                  <p><span className="font-semibold text-blue-950">Ngày sinh:</span> {detailRoom.activeStay.guestDateOfBirth || "chưa có"}</p>
+                  <p><span className="font-semibold text-blue-950">Giới tính:</span> {detailRoom.activeStay.guestGender || "chưa có"}</p>
+                  <p><span className="font-semibold text-blue-950">Quốc tịch:</span> {detailRoom.activeStay.guestNationality || "chưa có"}</p>
+                  <p className="sm:col-span-2"><span className="font-semibold text-blue-950">Địa chỉ thường trú:</span> {detailRoom.activeStay.guestResidencePlace || "chưa có"}</p>
+                  <p><span className="font-semibold text-blue-950">Check-in:</span> {formatRoomDate(detailRoom.activeStay.checkedInAt)}</p>
+                  <p><span className="font-semibold text-blue-950">Check-out:</span> {formatRoomDate(detailRoom.activeStay.plannedCheckOutAt)}</p>
                 </div>
               </div>
             ) : (
@@ -774,149 +753,18 @@ export function OwnerStayRoomGridClient({
       ) : null}
 
       {isCheckInOpen && selectedRoom ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8">
-          <button
-            type="button"
-            aria-label="Đóng hộp thoại check-in"
-            onClick={closeCheckIn}
-            className="absolute inset-0 bg-[color:rgba(26,28,28,0.48)] backdrop-blur-sm"
-          />
-          <form
-            noValidate
-            onSubmit={submitCheckIn}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="check-in-title"
-            className="relative z-10 w-full max-w-3xl rounded-2xl border border-[color:rgba(198,197,213,0.62)] bg-white p-6 shadow-[0_28px_80px_rgba(0,0,60,0.22)]"
-          >
-            <div className="mb-6 flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--secondary)]">
-                  Check-in
-                </p>
-                <h2
-                  id="check-in-title"
-                  className="mt-2 text-2xl font-semibold text-[var(--primary)]"
-                >
-                  Check-in khách lưu trú
-                </h2>
-                <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--on-surface-variant)]">
-                  Nhập thông tin khách để hoàn tất check-in cho phòng đã chọn.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={closeCheckIn}
-                disabled={isSaving}
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[var(--primary)] transition hover:bg-[var(--primary-fixed)] disabled:opacity-50"
-                title="Đóng"
-              >
-                <VsIcon name="close" />
-              </button>
-            </div>
-
-            <div className="mb-5 rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">
-                Phòng đã chọn
-              </p>
-              <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <p className="text-2xl font-semibold text-[var(--primary)]">
-                    Phòng {getRoomNumber(selectedRoom)}
-                  </p>
-                  {getRoomType(selectedRoom) ? (
-                    <p className="mt-1 text-sm text-[var(--on-surface-variant)]">
-                      {getRoomType(selectedRoom)}
-                    </p>
-                  ) : null}
-                </div>
-                <span className="inline-flex w-fit rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
-                  {roomStatusLabel(selectedRoom)}
-                </span>
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">
-                  Tên khách
-                </span>
-                <input
-                  value={form.guestDisplayName}
-                  onChange={(event) =>
-                    updateField("guestDisplayName", event.target.value)
-                  }
-                  aria-invalid={Boolean(errors.guestDisplayName)}
-                  className="min-h-12 w-full rounded-xl border border-[var(--outline-variant)] bg-white px-4 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary-fixed)]"
-                  placeholder="Nguyễn Văn A"
-                />
-                {errors.guestDisplayName ? (
-                  <span className="text-xs font-semibold text-[var(--error)]">
-                    {errors.guestDisplayName}
-                  </span>
-                ) : null}
-              </label>
-
-              <label className="space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">
-                  Số điện thoại
-                </span>
-                <input
-                  value={form.guestPhone}
-                  onChange={(event) =>
-                    updateField("guestPhone", event.target.value)
-                  }
-                  aria-invalid={Boolean(errors.guestPhone)}
-                  className="min-h-12 w-full rounded-xl border border-[var(--outline-variant)] bg-white px-4 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary-fixed)]"
-                  placeholder="0901 234 567"
-                />
-                {errors.guestPhone ? (
-                  <span className="text-xs font-semibold text-[var(--error)]">
-                    {errors.guestPhone}
-                  </span>
-                ) : null}
-              </label>
-
-              <label className="space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">
-                  Dự kiến check-out
-                </span>
-                <input
-                  type="datetime-local"
-                  value={form.plannedCheckOutAt}
-                  onChange={(event) =>
-                    updateField("plannedCheckOutAt", event.target.value)
-                  }
-                  aria-invalid={Boolean(errors.plannedCheckOutAt)}
-                  className="min-h-12 w-full rounded-xl border border-[var(--outline-variant)] bg-white px-4 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary-fixed)]"
-                />
-                {errors.plannedCheckOutAt ? (
-                  <span className="text-xs font-semibold text-[var(--error)]">
-                    {errors.plannedCheckOutAt}
-                  </span>
-                ) : null}
-              </label>
-            </div>
-
-            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                onClick={closeCheckIn}
-                disabled={isSaving}
-                className="min-h-11 rounded-xl border border-[var(--outline-variant)] px-5 text-sm font-bold text-[var(--primary)] transition hover:bg-[var(--surface-container-low)] disabled:opacity-50"
-              >
-                Hủy
-              </button>
-              <button
-                disabled={isSaving}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-5 text-sm font-bold text-[var(--on-primary)] transition hover:bg-[color:rgba(0,0,60,0.88)] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <VsIcon name={isSaving ? "sync" : "task_alt"} />
-                {isSaving ? "Đang đồng bộ..." : "Đồng bộ check-in"}
-              </button>
-            </div>
-          </form>
-        </div>
+        <CheckInWorkspace
+          key={selectedRoom.id}
+          open={isCheckInOpen}
+          hotelId={hotelId}
+          room={{ id: selectedRoom.id, roomNumber: getRoomNumber(selectedRoom), type: getRoomType(selectedRoom), status: roomStatusLabel(selectedRoom) }}
+          canManageStays={true}
+          initialStayFields={{ plannedCheckOutAt: defaultCheckOutValue() }}
+          submitState={isSaving ? 'submitting' : 'idle'}
+          submitError={submitError}
+          onSubmit={submitCheckIn}
+          onClose={closeCheckIn}
+        />
       ) : null}
     </section>
   );

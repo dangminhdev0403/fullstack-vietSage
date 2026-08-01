@@ -4,13 +4,13 @@ These instructions are mandatory for Codex and any delegated coding agent workin
 
 ---
 
-## Graphify-first Code Navigation Policy
+## Graphify + Repomix Code Navigation Policy
 
 ### Primary Rule
 
 Do NOT scan the entire repository by default.
 
-Always use `graphify-out/` as the primary navigation index before reading any source files.
+Always use `graphify-out/` as the primary navigation index, then use Repomix to pack only the graph-selected working set before reading source files.
 
 Treat `graphify-out/graph.json` as the authoritative project map.
 
@@ -105,8 +105,25 @@ Minimize:
 - Repository scanning
 - Unnecessary file reads
 
+**Mandatory pipeline:** Graphify query/impact map → minimal file list → scoped Repomix pack → exact current source ranges → edit/test.
+
 **The graph is the source of navigation.**
-**The filesystem is only the source of implementation details.**
+**Repomix is the compact working-set context.**
+**The filesystem is only the source of implementation truth.**
+
+### Scoped Repomix Rule
+
+After Graphify identifies the minimal working set, pack only those paths:
+
+```bash
+npx repomix@latest . --include "path/a.ts,path/b.ts,path/a.spec.ts" --compress --style xml --output graphify-out/repomix/task-scope.xml
+```
+
+- Never pack the whole repository when Graphify produced a bounded file set.
+- Search/read the scoped pack before opening current source ranges.
+- If Repomix excludes a selected path through its security scanner, record the exclusion; never bypass the scanner. Read only that Graphify-selected file's exact current source range directly.
+- If Repomix is unavailable, record the command/error, then read only Graphify-selected ranges; do not widen scope.
+- Broad `search_files`, repository walking, guessed-file browsing, and direct whole-tree grep are fallback-only. State the exact Graphify/Repomix gap before fallback.
 
 ### Graphify Maintenance
 

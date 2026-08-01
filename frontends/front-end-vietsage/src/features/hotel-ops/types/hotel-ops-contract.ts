@@ -101,6 +101,11 @@ export type HotelStaySummary = {
   reservationCode?: string | null;
   guestDisplayName?: string | null;
   guestPhone?: string | null;
+  guestIdentityNumber?: string | null;
+  guestDateOfBirth?: string | null;
+  guestGender?: string | null;
+  guestNationality?: string | null;
+  guestResidencePlace?: string | null;
   status?: string | null;
   plannedCheckInAt?: string | null;
   plannedCheckOutAt?: string | null;
@@ -339,6 +344,11 @@ export type CreateHotelStayInput = {
   roomId: string;
   guestDisplayName: string;
   guestPhone?: string;
+  guestIdentityNumber?: string;
+  guestDateOfBirth?: string;
+  guestGender?: string;
+  guestNationality?: string;
+  guestResidencePlace?: string;
   plannedCheckInAt: string;
   plannedCheckOutAt: string;
 };

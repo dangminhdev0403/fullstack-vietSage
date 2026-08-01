@@ -5,12 +5,12 @@ import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
 import { SkipAuthorization } from "../../../shared/decorators/skip-authorization.decorator";
 import { TelegramNotificationService } from "../application/telegram-notification.service";
 
-@SkipAuthorization()
 @Controller("integrations/telegram")
 export class TelegramWebhookController {
   constructor(private readonly telegramNotificationService: TelegramNotificationService) {}
 
   @Post("webhook")
+  @SkipAuthorization()
   @ApiHeader({
     name: "X-Telegram-Bot-Api-Secret-Token",
     required: true,

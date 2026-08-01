@@ -62,12 +62,31 @@ export default async function HotelRequestsPage({ params, searchParams }: Reques
     assignedToUserId: query.assignedToUserId,
   };
 
-  const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
-  const [requestsPage, requestSummary, serviceItemsPage] = await Promise.all([
-    authorizedApi("list hotel requests", (accessToken) => hotelOpsService.listRequests(hotelId, { query, accessToken })),
-    authorizedApi("summarize hotel requests", (accessToken) => hotelOpsService.getRequestsSummary(hotelId, { query: summaryQuery, accessToken })),
-    authorizedApi("list service items", (accessToken) => hotelOpsService.listServiceItems(hotelId, { query: { page: 1, limit: 100 }, accessToken })),
-  ]);
+  let requestsPage;
+  let requestSummary;
+  let serviceItemsPage;
+
+  try {
+    const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
+    [requestsPage, requestSummary, serviceItemsPage] = await Promise.all([
+      authorizedApi("list hotel requests", (accessToken) => hotelOpsService.listRequests(hotelId, { query, accessToken })),
+      authorizedApi("summarize hotel requests", (accessToken) => hotelOpsService.getRequestsSummary(hotelId, { query: summaryQuery, accessToken })),
+      authorizedApi("list service items", (accessToken) => hotelOpsService.listServiceItems(hotelId, { query: { page: 1, limit: 100 }, accessToken })),
+    ]);
+  } catch (error) {
+    console.error("[STAFF_REQUESTS_PAGE_ERROR]", {
+      hotelId,
+      errorName: error instanceof Error ? error.name : "Unknown",
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+
+    return (
+      <section className="rounded-xl border border-[var(--outline-variant)] bg-white p-6 text-sm text-[var(--on-surface-variant)]">
+        <p className="font-semibold text-[var(--primary)]">Không thể tải trung tâm yêu cầu</p>
+        <p className="mt-1">Vui lòng kiểm tra quyền hạn của vai trò hiện tại ({workspaceContext.activeRole.name}).</p>
+      </section>
+    );
+  }
 
   const initialFilters = Object.fromEntries(
     ["q", "status", "roomNumber", "priority", "assignedToUserId", "from", "to"].map((key) => [key, getFirst(resolvedSearchParams[key]) ?? ""]),
@@ -75,21 +94,21 @@ export default async function HotelRequestsPage({ params, searchParams }: Reques
 
   return (
     <>
-          <header className="flex flex-col gap-2">
-            <p className="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">TRUNG TÂM YÊU CẦU</p>
-            <h1 className="vs-display text-[32px] font-semibold text-[var(--primary)] md:text-[40px]">Yêu cầu và hội thoại</h1>
-            <p className="max-w-3xl text-base text-[var(--on-surface-variant)]">Theo dõi yêu cầu từ QR phòng, phân công người xử lý, trao đổi ghi chú và hoàn tất dịch vụ theo thời gian thực.</p>
-          </header>
-          <RequestQueueClient
-            hotelId={hotelId}
-            requests={requestsPage.items}
-            total={requestsPage.total}
-            summary={requestSummary}
-            serviceItems={serviceItemsPage.items}
-            initialFilters={initialFilters}
-            ownerApiBasePath={`/api/hotel-ops/hotels/${hotelId}/requests`}
-            detailMode="modal"
-          />
+      <header className="flex flex-col gap-2">
+        <p className="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">TRUNG TÂM YÊU CẦU</p>
+        <h1 className="vs-display text-[32px] font-semibold text-[var(--primary)] md:text-[40px]">Yêu cầu và hội thoại</h1>
+        <p className="max-w-3xl text-base text-[var(--on-surface-variant)]">Theo dõi yêu cầu từ QR phòng, phân công người xử lý, trao đổi ghi chú và hoàn tất dịch vụ theo thời gian thực.</p>
+      </header>
+      <RequestQueueClient
+        hotelId={hotelId}
+        requests={requestsPage.items}
+        total={requestsPage.total}
+        summary={requestSummary}
+        serviceItems={serviceItemsPage.items}
+        initialFilters={initialFilters}
+        ownerApiBasePath={`/api/hotel-ops/hotels/${hotelId}/requests`}
+        detailMode="modal"
+      />
     </>
   );
 }

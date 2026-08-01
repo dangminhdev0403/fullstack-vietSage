@@ -1,3 +1,21 @@
+## [pending-production] 2026-08-01 - Mission: CCCD-first check-in redesign
+
+- Reworked the shared Owner/Staff `CheckInWorkspace` into a guided three-step flow with compact room context, stronger CCCD verification hierarchy, balanced desktop columns, and full-screen mobile behavior.
+- Kept the existing stay submission contract and volatile portrait boundary unchanged. Successful scans now emphasize verification; rescanning becomes secondary.
+- Added responsive and hierarchy regression contracts. Header/footer stay visible while only the body scrolls.
+
+Verification result:
+
+- Focused component contracts passed 6/6; scoped ESLint, TypeScript, and `git diff --check` passed.
+- Production compilation and TypeScript phase passed. Page-data collection remains blocked by the existing invalid local production `AUTH_SECRET`.
+- Runtime/login page loaded on `http://localhost:3000`; authenticated Owner/Staff modal verification remains blocked because the ignored local UAT credential file is unavailable.
+
+Remaining blockers/risks:
+
+- Authenticated desktop/mobile browser smoke requires a valid local UAT session. HN-212 hardware E2E remains separate.
+- Production multi-instance deployment still requires a separately approved shared volatile store; process-local `Map` is dev-only.
+- No production deploy or cutover performed.
+
 ## [complete] 2026-07-28 - Mission: checkout-qr-recovery
 
 - Redirected successful room QR scans to GuestOS services after language selection.

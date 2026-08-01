@@ -38,6 +38,7 @@ const ConfigSchema = z.object({
   AUTH_LOGIN_RATE_LIMIT_LIMIT: z.string().optional(),
   AUTH_REFRESH_RATE_LIMIT_TTL_SECONDS: z.string().optional(),
   AUTH_REFRESH_RATE_LIMIT_LIMIT: z.string().optional(),
+  AUTH_TRUSTED_PROXIES: z.string().optional(),
   GOOGLE_APPLICATION_CREDENTIALS: z.string().optional(),
   GOOGLE_SERVICE_CATEGORY_RANGE: z.string().optional(),
   GOOGLE_SERVICE_ITEM_RANGE: z.string().optional(),
@@ -104,6 +105,7 @@ export interface AppConfig {
   authAdmin: AuthAdminConfig;
   corsOrigins: string[];
   swaggerEnabled: boolean;
+  trustedProxies: string[];
   requestRealtime: RequestRealtimeConfig;
   rateLimits: {
     login: RateLimitConfig;
@@ -204,14 +206,54 @@ export function parseCorsOrigins(rawValue: string | undefined): string[] {
 }
 
 export function shouldEnableSwagger(
-  nodeEnv: string,
+  _nodeEnv: string,
   rawSwaggerEnabled: string | undefined,
 ): boolean {
-  return parseBooleanEnv(rawSwaggerEnabled, nodeEnv !== "production", "SWAGGER_ENABLED");
+  return parseBooleanEnv(rawSwaggerEnabled, false, "SWAGGER_ENABLED");
+}
+
+function validateJwtSecret(rawValue: string, envName: string, nodeEnv: string): string {
+  const value = rawValue.trim();
+  const normalized = value.toLowerCase();
+  if (
+    (nodeEnv === "production" && value.length < 32) ||
+    (nodeEnv !== "test" &&
+      (normalized.startsWith("replace-with") || normalized.startsWith("change-me")))
+  ) {
+    throw new Error(
+      `Invalid ${envName} environment variable. Expected at least 32 non-placeholder characters.`,
+    );
+  }
+
+  return value;
 }
 
 export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const validated = validateEnv(env);
+  const jwtAccessSecret = validateJwtSecret(
+    validated.JWT_ACCESS_SECRET,
+    "JWT_ACCESS_SECRET",
+    validated.NODE_ENV,
+  );
+  const jwtRefreshSecret = validateJwtSecret(
+    validated.JWT_REFRESH_SECRET,
+    "JWT_REFRESH_SECRET",
+    validated.NODE_ENV,
+  );
+  const authzStrictMode = parseBooleanEnv(validated.AUTHZ_STRICT_MODE, true, "AUTHZ_STRICT_MODE");
+  const authzEnforcementEnabled = parseBooleanEnv(
+    validated.AUTHZ_ENFORCEMENT_ENABLED,
+    true,
+    "AUTHZ_ENFORCEMENT_ENABLED",
+  );
+  if (validated.NODE_ENV === "production" && !authzStrictMode) {
+    throw new Error("Invalid AUTHZ_STRICT_MODE environment variable. Production requires true.");
+  }
+  if (validated.NODE_ENV === "production" && !authzEnforcementEnabled) {
+    throw new Error(
+      "Invalid AUTHZ_ENFORCEMENT_ENABLED environment variable. Production requires true.",
+    );
+  }
   const requestRealtimeEnabled = parseBooleanEnv(
     validated.REQUEST_REALTIME_ENABLED,
     false,
@@ -234,8 +276,8 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     port: parsePort(validated.PORT),
     databaseUrl: validated.DATABASE_URL,
     auth: {
-      jwtAccessSecret: validated.JWT_ACCESS_SECRET,
-      jwtRefreshSecret: validated.JWT_REFRESH_SECRET,
+      jwtAccessSecret,
+      jwtRefreshSecret,
       jwtAccessTtl: validated.JWT_ACCESS_TTL as StringValue,
       jwtRefreshTtl: validated.JWT_REFRESH_TTL as StringValue,
       jwtIssuer: normalizeOptionalEnvText(validated.JWT_ISSUER) ?? "vietsage-auth",
@@ -250,8 +292,7 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
         "AUTH_REFRESH_IDEMPOTENCY_TTL_SECONDS",
       ),
       idempotencyEncryptionKey:
-        normalizeOptionalEnvText(validated.AUTH_IDEMPOTENCY_ENCRYPTION_KEY) ??
-        validated.JWT_REFRESH_SECRET,
+        normalizeOptionalEnvText(validated.AUTH_IDEMPOTENCY_ENCRYPTION_KEY) ?? jwtRefreshSecret,
       legacyRefreshAcceptUntil: parseOptionalDateEnv(
         validated.AUTH_LEGACY_REFRESH_ACCEPT_UNTIL,
         "AUTH_LEGACY_REFRESH_ACCEPT_UNTIL",
@@ -263,12 +304,8 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
         true,
         "AUTHZ_ROUTE_SYNC_ENABLED",
       ),
-      strictMode: parseBooleanEnv(validated.AUTHZ_STRICT_MODE, true, "AUTHZ_STRICT_MODE"),
-      enforcementEnabled: parseBooleanEnv(
-        validated.AUTHZ_ENFORCEMENT_ENABLED,
-        true,
-        "AUTHZ_ENFORCEMENT_ENABLED",
-      ),
+      strictMode: authzStrictMode,
+      enforcementEnabled: authzEnforcementEnabled,
     },
     authAdmin: {
       email: normalizeOptionalEnvText(validated.AUTH_ADMIN_EMAIL),
@@ -277,6 +314,7 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     },
     corsOrigins: parseCorsOrigins(validated.CORS_ORIGINS),
     swaggerEnabled: shouldEnableSwagger(validated.NODE_ENV, validated.SWAGGER_ENABLED),
+    trustedProxies: parseCorsOrigins(validated.AUTH_TRUSTED_PROXIES),
     requestRealtime: {
       enabled: requestRealtimeEnabled,
       ticketSecret: requestRealtimeTicketSecret,

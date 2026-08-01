@@ -27,20 +27,39 @@ export default async function StaffRoomsPage({ params }: PageProps) {
   const to = new Date(from);
   to.setDate(to.getDate() + 7);
 
-  const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
-  const [roomsPage, arrivals, dashboard] = await Promise.all([
-    authorizedApi("list staff rooms", (accessToken) =>
-      hotelOpsService.listRooms(hotelId, { query: { page: 1, limit: 100 }, accessToken }),
-    ),
-    canViewReservations
-      ? authorizedApi("list staff arrivals", (accessToken) =>
-          hotelOpsService.listArrivals(hotelId, { query: { from: from.toISOString(), to: to.toISOString(), page: 1, limit: 100 }, accessToken }),
-        )
-      : Promise.resolve({ page: 1, limit: 100, total: 0, items: [] }),
-    authorizedApi("load room dashboard", (accessToken) =>
-      hotelOpsService.getDashboard(hotelId, { accessToken }),
-    ),
-  ]);
+  let roomsPage;
+  let arrivals;
+  let dashboard;
+
+  try {
+    const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
+    [roomsPage, arrivals, dashboard] = await Promise.all([
+      authorizedApi("list staff rooms", (accessToken) =>
+        hotelOpsService.listRooms(hotelId, { query: { page: 1, limit: 100 }, accessToken }),
+      ),
+      canViewReservations
+        ? authorizedApi("list staff arrivals", (accessToken) =>
+            hotelOpsService.listArrivals(hotelId, { query: { from: from.toISOString(), to: to.toISOString(), page: 1, limit: 100 }, accessToken }),
+          )
+        : Promise.resolve({ page: 1, limit: 100, total: 0, items: [] }),
+      authorizedApi("load room dashboard", (accessToken) =>
+        hotelOpsService.getDashboard(hotelId, { accessToken }),
+      ),
+    ]);
+  } catch (error) {
+    console.error("[STAFF_ROOMS_PAGE_ERROR]", {
+      hotelId,
+      errorName: error instanceof Error ? error.name : "Unknown",
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+
+    return (
+      <section className="rounded-xl border border-[var(--outline-variant)] bg-white p-6 text-sm text-[var(--on-surface-variant)]">
+        <p className="font-semibold text-[var(--primary)]">Không thể tải dữ liệu sơ đồ phòng</p>
+        <p className="mt-1">Vui lòng kiểm tra phân công khách sạn và quyền của vai trò hiện tại ({context.activeRole.name}).</p>
+      </section>
+    );
+  }
 
   const metrics = [
     ["Sẵn sàng", dashboard.rooms.byStatus.available, "text-emerald-700"],

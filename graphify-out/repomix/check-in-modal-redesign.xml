@@ -1,0 +1,107 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: frontends/front-end-vietsage/src/features/local-biometric/components/check-in-workspace.tsx, frontends/front-end-vietsage/src/features/local-biometric/components/cccd-check-in-panel.tsx, frontends/front-end-vietsage/src/features/local-biometric/components/cccd-preview.tsx, frontends/front-end-vietsage/src/features/local-biometric/components/check-in-workspace-layout.test.ts
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    src/
+      features/
+        local-biometric/
+          components/
+            cccd-check-in-panel.tsx
+            cccd-preview.tsx
+            check-in-workspace-layout.test.ts
+            check-in-workspace.tsx
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/components/cccd-check-in-panel.tsx">
+import { useEffect, useRef, useState } from "react";
+import { useWorkstationScan } from "../hooks/use-workstation-scan";
+⋮----
+export type CccdCheckInCapture = {
+  guestDisplayName: string;
+  guestIdentityNumber: string;
+  payload?: import("../intake/intake-contract").IntakePayloadV2;
+};
+⋮----
+type Props = {
+  hotelId: string;
+  onCapture: (capture: CccdCheckInCapture | null) => void;
+};
+⋮----
+export function CccdCheckInPanel(
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/components/cccd-preview.tsx">
+import React from "react";
+import type { CccdPreviewModel } from "../utils/cccd-preview";
+⋮----
+type Props = { model: CccdPreviewModel };
+⋮----
+// Volatile data URL must not pass through Next image optimization or cache.
+// eslint-disable-next-line @next/next/no-img-element
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/components/check-in-workspace-layout.test.ts">
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/components/check-in-workspace.tsx">
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import type { CheckInWorkspaceProps, CheckInStayFields } from "../types/check-in-workspace";
+import { buildCccdPreviewModel } from "../utils/cccd-preview";
+import { CccdCheckInPanel, type CccdCheckInCapture } from "./cccd-check-in-panel";
+import { CccdPreview } from "./cccd-preview";
+⋮----
+export function CheckInWorkspace(props: CheckInWorkspaceProps)
+⋮----
+const onKeyDown = (event: KeyboardEvent) =>
+</file>
+
+</files>

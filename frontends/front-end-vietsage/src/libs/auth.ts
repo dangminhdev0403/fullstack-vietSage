@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { AuthServiceError } from "@/features/auth/service/auth-service";
 import { authService } from "@/features/auth/service/auth-service-instance";
+import { resolveAuthSecret } from "@/libs/auth-secret";
 
 export type UserRole = "admin" | "tenant_owner" | "staff" | "guest";
 
@@ -96,7 +97,7 @@ function applySessionTokenUpdate(token: JWT, update: SessionTokenUpdate): void {
 }
 
 export const authOptions = {
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: resolveAuthSecret(),
   logger: {
     error: (message) => console.error("[NEXT_AUTH_ERROR]", message),
     warn: (message) => console.warn("[NEXT_AUTH_WARN]", message),

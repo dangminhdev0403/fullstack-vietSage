@@ -173,7 +173,7 @@ Run the real renewal rehearsal after the production certificate exists:
 bash scripts/renew-production-certificates.sh dry-run
 ```
 
-Schedule `bash scripts/renew-production-certificates.sh renew` through the VPS scheduler only after the dry run succeeds. The renewal script validates and reloads Nginx after Certbot succeeds. HSTS remains intentionally disabled until the public Docker TLS cutover is verified and rollback access is confirmed.
+Schedule `bash scripts/renew-production-certificates.sh renew` through the VPS scheduler only after the dry run succeeds. The renewal script validates and reloads Nginx after Certbot succeeds. HSTS is emitted only by the TLS virtual hosts; the HTTP bootstrap virtual hosts do not emit it.
 
 ## 8. Verify externally
 

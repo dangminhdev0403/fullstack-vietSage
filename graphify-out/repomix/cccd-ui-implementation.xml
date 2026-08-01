@@ -1,0 +1,493 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: frontends/front-end-vietsage/src/features/local-biometric/intake/intake-contract.ts, frontends/front-end-vietsage/src/features/local-biometric/workstation/workstation-store.ts, frontends/front-end-vietsage/src/features/local-biometric/workstation/workstation-store.test.ts, frontends/front-end-vietsage/src/features/local-biometric/components/cccd-check-in-panel.tsx, frontends/front-end-vietsage/src/app/api/biometric-workstations/scans/[scanRequestId]/route.ts, frontends/front-end-vietsage/src/app/api/biometric-workstations/scans/[scanRequestId]/complete/route.ts, frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/stay/owner-stay-room-grid-client.tsx, frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/rooms/staff-rooms-client.tsx, frontends/front-end-vietsage/package.json
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    src/
+      app/
+        (vietsage)/
+          hotels/
+            [hotelId]/
+              rooms/
+                staff-rooms-client.tsx
+          owner/
+            (hotel)/
+              hotels/
+                [hotelId]/
+                  stay/
+                    owner-stay-room-grid-client.tsx
+        api/
+          biometric-workstations/
+            scans/
+              [scanRequestId]/
+                complete/
+                  route.ts
+                route.ts
+      features/
+        local-biometric/
+          components/
+            cccd-check-in-panel.tsx
+          intake/
+            intake-contract.ts
+          workstation/
+            workstation-store.test.ts
+            workstation-store.ts
+    package.json
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="frontends/front-end-vietsage/src/app/api/biometric-workstations/scans/[scanRequestId]/complete/route.ts">
+import { NextResponse } from "next/server";
+import { intakePayloadSchema } from "@/features/local-biometric/intake/intake-contract";
+import { bearerToken } from "@/features/local-biometric/workstation/workstation-auth";
+import { workstationStore } from "@/features/local-biometric/workstation/workstation-store";
+export const dynamic="force-dynamic";const MAX=1_048_576;type Context={params:Promise<{scanRequestId:string}>|{scanRequestId:string}};
+export async function POST(request:Request,context:Context)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/api/biometric-workstations/scans/[scanRequestId]/route.ts">
+import { NextResponse } from "next/server";
+import { auth } from "@/auth";
+import { workstationStore } from "@/features/local-biometric/workstation/workstation-store";
+export const dynamic="force-dynamic";type Context={params:Promise<{scanRequestId:string}>|{scanRequestId:string}};
+export async function GET(request:Request,context:Context)
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/components/cccd-check-in-panel.tsx">
+import { useEffect, useRef, useState } from "react";
+⋮----
+export type CccdCheckInCapture = {
+  guestDisplayName: string;
+  guestIdentityNumber: string;
+};
+⋮----
+type Props = {
+  hotelId: string;
+  onCapture: (capture: CccdCheckInCapture | null) => void;
+};
+⋮----
+async function api<T>(url: string, init?: RequestInit): Promise<T>
+⋮----
+async function check()
+⋮----
+async function createPairing()
+⋮----
+async function scan()
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/intake/intake-contract.ts">
+import { z } from "zod";
+⋮----
+export type IntakePayload = z.infer<typeof intakePayloadSchema>;
+⋮----
+export type IntakeSessionIssued = {
+  sessionId: string;
+  code: string;
+  expiresAt: number;
+};
+⋮----
+export type IntakeSessionStatus = {
+  sessionId: string;
+  hotelId: string;
+  expiresAt: number;
+  status: "waiting" | "received";
+  payload: IntakePayload | null;
+};
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/workstation/workstation-store.test.ts">
+import assert from "node:assert/strict";
+import test from "node:test";
+⋮----
+// @ts-expect-error Node strip-types requires explicit extension.
+import { WorkstationStore } from "./workstation-store.ts";
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/workstation/workstation-store.ts">
+import type { IntakePayload } from "../intake/intake-contract";
+⋮----
+type Pairing = { code: string; hotelId: string; operatorId: string; expiresAt: number };
+type Workstation = { token: string; hotelId: string; pairedAt: number; lastSeenAt: number; expiresAt: number };
+type Scan = {
+  scanRequestId: string;
+  hotelId: string;
+  operatorId: string;
+  expiresAt: number;
+  payload: IntakePayload | null;
+  claimedBy: string | null;
+};
+⋮----
+export class WorkstationStore
+⋮----
+constructor(
+    now: () => number = Date.now,
+    createSecret: () => string = () => crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, ""),
+)
+⋮----
+issuePairing(hotelId: string, operatorId: string, ttlSeconds = 300)
+⋮----
+pair(code: string, ttlSeconds = 30 * 24 * 60 * 60)
+⋮----
+requestScan(hotelId: string, operatorId: string, ttlSeconds = 60)
+⋮----
+poll(token: string)
+⋮----
+complete(token: string, scanRequestId: string, payload: IntakePayload)
+⋮----
+readScan(scanRequestId: string, hotelId: string, operatorId: string)
+⋮----
+hasOnlineWorkstation(hotelId: string, freshnessMs = 10_000)
+⋮----
+// ponytail: process-local state is for local/dev; replace with Redis before multi-instance deployment.
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/stay/owner-stay-room-grid-client.tsx">
+import { type FormEvent, startTransition, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import Swal from "sweetalert2";
+import { z } from "zod";
+⋮----
+import { HttpError } from "@/core/http/http-error";
+import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import { CccdCheckInPanel, type CccdCheckInCapture } from "@/features/local-biometric/components/cccd-check-in-panel";
+import type {
+  HotelCheckInResult,
+  HotelRoomSummary,
+} from "@/features/hotel-ops/types/hotel-ops-contract";
+⋮----
+import { VsIcon } from "../../../../../_components/vs-icon";
+⋮----
+type Props = {
+  hotelId: string;
+  rooms: HotelRoomSummary[];
+  apiBasePath?: string;
+  onRoomsChanged?: () => Promise<unknown>;
+};
+⋮----
+type RoomStatusFilter =
+  | "all"
+  | "available"
+  | "occupied"
+  | "processing"
+  | "maintenance"
+  | "blocked";
+⋮----
+type CheckInForm = {
+  guestDisplayName: string;
+  guestPhone: string;
+  plannedCheckOutAt: string;
+};
+⋮----
+type FormErrors = Partial<Record<keyof CheckInForm, string>>;
+⋮----
+type RoomAvailability =
+  | "available"
+  | "occupied"
+  | "processing"
+  | "maintenance"
+  | "blocked";
+⋮----
+function getRoomNumber(room: HotelRoomSummary): string
+⋮----
+function getRoomType(room: HotelRoomSummary): string
+⋮----
+function getRoomStatus(room: HotelRoomSummary): string
+⋮----
+function roomHasActiveStay(room: HotelRoomSummary): boolean
+⋮----
+function getRoomAvailability(room: HotelRoomSummary): RoomAvailability
+⋮----
+function roomStatusLabel(room: HotelRoomSummary): string
+⋮----
+function roomTileClass(room: HotelRoomSummary): string
+⋮----
+function isCheckInAllowed(room: HotelRoomSummary): boolean
+⋮----
+function roomSearchText(room: HotelRoomSummary): string
+⋮----
+function formatRoomPrice(room: HotelRoomSummary): string
+⋮----
+function formatRoomDate(value: string | null | undefined): string
+⋮----
+function defaultCheckOutValue(): string
+⋮----
+function emptyForm(): CheckInForm
+⋮----
+function toIsoFromLocal(value: string): string | undefined
+⋮----
+function validateForm(form: CheckInForm): FormErrors
+⋮----
+function isTechnicalMessage(message: string): boolean
+⋮----
+function getNestedMessage(value: unknown): string | undefined
+⋮----
+function getBusinessErrorMessage(error: unknown, fallback: string): string
+⋮----
+function updateQuery(value: string)
+⋮----
+function updateStatusFilter(value: RoomStatusFilter)
+⋮----
+function openCheckIn(room: HotelRoomSummary)
+⋮----
+function handleTileClick(room: HotelRoomSummary)
+⋮----
+async function markRoomCleaned(room: HotelRoomSummary)
+⋮----
+async function updateRoomStatus(
+    room: HotelRoomSummary,
+    targetStatus: "AVAILABLE" | "PROCESSING" | "MAINTENANCE" | "BLOCKED",
+)
+⋮----
+function closeCheckIn()
+⋮----
+function updateField<Key extends keyof CheckInForm>(
+    field: Key,
+    value: CheckInForm[Key],
+)
+⋮----
+async function submitCheckIn(event: FormEvent<HTMLFormElement>)
+⋮----
+<p>Check-in:
+⋮----
+
+⋮----
+<CccdCheckInPanel hotelId=
+</file>
+
+<file path="frontends/front-end-vietsage/package.json">
+{
+  "name": "font-end-vietsage",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "smoke:lint": "eslint src/app/(vietsage) src/app/page.tsx src/app/layout.tsx",
+    "smoke:build": "next build",
+    "sync:api:types": "node ./scripts/sync-openapi-types.mjs"
+  },
+  "dependencies": {
+    "@auth/core": "0.41.2",
+    "@dangminhdev04032005/query-resource": "^0.1.1",
+    "@tanstack/react-query": "^5.101.0",
+    "motion": "12.42.2",
+    "next": "16.2.6",
+    "next-auth": "5.0.0-beta.31",
+    "qrcode.react": "^4.2.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "socket.io-client": "^4.8.3",
+    "sonner": "^2.0.7",
+    "sweetalert2": "^11.26.25",
+    "zod": "^4.4.3",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.1",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.6",
+    "openapi-typescript": "^7.13.0",
+    "tailwindcss": "^4",
+    "typescript": "^5.9.3"
+  }
+}
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/rooms/staff-rooms-client.tsx">
+import { createPortal } from "react-dom";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import Swal from "sweetalert2";
+import {
+  keepPreviousData,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+⋮----
+import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import { CccdCheckInPanel, type CccdCheckInCapture } from "@/features/local-biometric/components/cccd-check-in-panel";
+import { BrandedRoomQr } from "@/features/hotel-ops/components/branded-room-qr";
+import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
+import type {
+  HotelArrival,
+  HotelCheckInResult,
+  HotelOpsPage,
+  HotelReservationCheckInResult,
+  HotelRoomSummary,
+} from "@/features/hotel-ops/types/hotel-ops-contract";
+import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+⋮----
+type Props = {
+  hotelId: string;
+  initialRoomsPage: HotelOpsPage<HotelRoomSummary>;
+  arrivals: HotelArrival[];
+  canManageRooms: boolean;
+  canManageReservations: boolean;
+  canManageStays: boolean;
+};
+⋮----
+type RoomStatusFilter =
+  | "all"
+  | "available"
+  | "occupied"
+  | "processing"
+  | "maintenance"
+  | "blocked";
+type FlowMode = "walk-in" | "reservation";
+⋮----
+type WalkInForm = {
+  roomId: string;
+  guestDisplayName: string;
+  guestPhone: string;
+  plannedCheckOutAt: string;
+};
+⋮----
+type ReservationForm = {
+  roomId: string;
+  guestDisplayName: string;
+  guestPhone: string;
+  plannedCheckInAt: string;
+  plannedCheckOutAt: string;
+};
+⋮----
+type RoomQrPreview = {
+  room: HotelRoomSummary;
+  guestUrl: string | null;
+};
+⋮----
+function localDateTime(offsetDays: number, hour: number): string
+⋮----
+function formatDateTime(value: string | null | undefined): string
+⋮----
+function getRoomNumber(room: HotelRoomSummary): string
+⋮----
+function getRoomQrValue(room: HotelRoomSummary): string | null
+⋮----
+function getGuestQrUrl(room: HotelRoomSummary, origin: string): string | null
+⋮----
+function getRoomStatus(room: HotelRoomSummary): RoomStatusFilter
+⋮----
+function roomStatusLabel(status: RoomStatusFilter): string
+⋮----
+function roomCardClass(status: RoomStatusFilter): string
+⋮----
+function isAvailable(room: HotelRoomSummary): boolean
+⋮----
+function emptyWalkIn(roomId = ""): WalkInForm
+⋮----
+function emptyReservation(roomId = ""): ReservationForm
+⋮----
+function activeStayProgress(room: HotelRoomSummary): number
+⋮----
+const range = (start: number, end: number) =>
+⋮----
+function printActiveStayList()
+⋮----
+function openWalkIn(room: HotelRoomSummary)
+⋮----
+async function markRoomCleaned(room: HotelRoomSummary)
+⋮----
+async function toggleRoomBlocked(room: HotelRoomSummary)
+⋮----
+async function updateRoomStatus(
+    room: HotelRoomSummary,
+    targetStatus: "AVAILABLE" | "PROCESSING" | "MAINTENANCE" | "BLOCKED",
+)
+⋮----
+function handleCardClick(room: HotelRoomSummary)
+⋮----
+async function submitWalkIn(event: FormEvent<HTMLFormElement>)
+⋮----
+async function createReservation(event: FormEvent<HTMLFormElement>)
+⋮----
+async function assignArrivalRoom(arrival: HotelArrival)
+⋮----
+async function checkInArrival(arrival: HotelArrival)
+⋮----
+setFloor(event.target.value);
+setPage(1);
+⋮----
+setVipOnly(event.target.checked);
+⋮----
+{/* Header */}
+⋮----
+{/* Middle Body */}
+⋮----
+{/* Footer */}
+⋮----
+{/* Animated hover popover menu */}
+⋮----
+{/* Cleaning Action */}
+⋮----
+event.stopPropagation();
+markRoomCleaned(room);
+⋮----
+updateRoomStatus(room, "PROCESSING");
+⋮----
+updateRoomStatus(room, "MAINTENANCE");
+⋮----
+{/* Single Update Trigger Button */}
+⋮----
+
+⋮----
+onClick=
+⋮----
+Phòng
+⋮----
+<CccdCheckInPanel hotelId=
+⋮----
+setReservationForm((current) => (
+⋮----
+<p className="mt-3 text-center text-sm font-black uppercase tracking-[0.16em] text-[var(--primary)]">Phòng
+</file>
+
+</files>

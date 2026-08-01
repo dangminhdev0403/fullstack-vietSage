@@ -641,6 +641,11 @@ model GuestStay {
   reservationCode     String          @db.VarChar(80)
   guestDisplayName    String          @db.VarChar(120)
   guestPhone          String?         @db.VarChar(40)
+  guestIdentityNumber String?         @db.VarChar(32)
+  guestDateOfBirth    String?         @db.VarChar(20)
+  guestGender         String?         @db.VarChar(20)
+  guestNationality    String?         @db.VarChar(80)
+  guestResidencePlace String?         @db.VarChar(500)
   status              GuestStayStatus @default(RESERVED)
   plannedCheckInAt    DateTime
   plannedCheckOutAt   DateTime

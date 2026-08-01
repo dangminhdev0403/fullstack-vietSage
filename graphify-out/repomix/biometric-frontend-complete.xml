@@ -1,0 +1,894 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: frontends/front-end-vietsage/src/features/local-biometric/**/*.{ts,tsx}, frontends/front-end-vietsage/src/features/workspace/config/workspace-registry.ts, frontends/front-end-vietsage/src/features/workspace/config/workspace-registry.test.ts, frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/stay/owner-stay-room-grid-client.tsx, frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/rooms/staff-rooms-client.tsx, frontends/front-end-vietsage/src/app/api/owner/hotels/[hotelId]/stays/route.ts, frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/stays/route.ts
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    src/
+      app/
+        (vietsage)/
+          hotels/
+            [hotelId]/
+              rooms/
+                staff-rooms-client.tsx
+          owner/
+            (hotel)/
+              hotels/
+                [hotelId]/
+                  stay/
+                    owner-stay-room-grid-client.tsx
+        api/
+          hotel-ops/
+            hotels/
+              [hotelId]/
+                stays/
+                  route.ts
+          owner/
+            hotels/
+              [hotelId]/
+                stays/
+                  route.ts
+      features/
+        local-biometric/
+          components/
+            cccd-check-in-panel.tsx
+            local-biometric-settings.tsx
+          hooks/
+            use-local-biometric.ts
+          repositories/
+            local-biometric-repository.test.ts
+            local-biometric-repository.ts
+          resources/
+            local-biometric-resource.ts
+          types/
+            local-biometric-contract.ts
+          local-token.ts
+        workspace/
+          config/
+            workspace-registry.test.ts
+            workspace-registry.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/components/cccd-check-in-panel.tsx">
+import Image from "next/image";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { BRIDGE_DEFAULT_BASE_URL, type ScanGetResponse } from "../types/local-biometric-contract";
+import { createLocalBiometricRepository } from "../repositories/local-biometric-repository";
+import { getLocalBiometricToken } from "../local-token";
+⋮----
+export type CccdCheckInCapture = ScanGetResponse & { faceReady: boolean };
+⋮----
+export function CccdCheckInPanel(
+⋮----
+async function start()
+⋮----
+async function discard()
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/components/local-biometric-settings.tsx">
+import Link from "next/link";
+import Image from "next/image";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+⋮----
+import { useLocalBiometric } from "../hooks/use-local-biometric";
+import { getLocalBiometricToken, setLocalBiometricToken } from "../local-token";
+import { createLocalBiometricRepository } from "../repositories/local-biometric-repository";
+import {
+  BRIDGE_DEFAULT_BASE_URL,
+  deriveReadiness,
+  type BridgeSettingsPut,
+  type DiagnosticsResult,
+  type ScanGetResponse,
+} from "../types/local-biometric-contract";
+⋮----
+function safeMessage(error: unknown): string
+⋮----
+function statusLabel(status: string): string
+⋮----
+function maskedIdentity(value?: string): string
+⋮----
+async function pair(event: FormEvent)
+⋮----
+async function saveSettings(event: FormEvent)
+⋮----
+async function runDiagnostics()
+⋮----
+async function startTestScan()
+⋮----
+async function discardTestScan()
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/hooks/use-local-biometric.ts">
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { localBiometricResource, type LocalBiometricScope } from "../resources/local-biometric-resource";
+⋮----
+export function useLocalBiometric(scope: LocalBiometricScope)
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/repositories/local-biometric-repository.test.ts">
+/**
+ * Unit tests for local-biometric-repository.
+ *
+ * Run: node --experimental-strip-types src/features/local-biometric/repositories/local-biometric-repository.test.ts
+ *
+ * Tests:
+ *  - loopback guard rejects non-loopback origins
+ *  - pair: 401 throws BridgePairError
+ *  - pair: malformed JSON throws BridgeMalformedError
+ *  - putSettings: missing token throws BridgeUnauthorizedError
+ *  - putSettings: 401 from server throws BridgeUnauthorizedError
+ *  - runDiagnostics: success path
+ */
+⋮----
+import assert from "node:assert/strict";
+import test from "node:test";
+// @ts-expect-error Node's strip-types runner requires the explicit TypeScript extension.
+import { BridgeLoopbackError, BridgeMalformedError, BridgeNetworkError, BridgePairError, BridgeUnauthorizedError, createLocalBiometricRepository } from "./local-biometric-repository.ts";
+⋮----
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+⋮----
+function makeFetch(responses: Array<
+⋮----
+function repo(token: string | null = "valid-token")
+⋮----
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+⋮----
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+⋮----
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+⋮----
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+⋮----
+// getToken returns null → should throw before any fetch
+⋮----
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+⋮----
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+⋮----
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/repositories/local-biometric-repository.ts">
+/**
+ * Local biometric bridge repository.
+ *
+ * Security rules:
+ *  - Only communicates with verified loopback origins (127.0.0.1 / ::1).
+ *  - Pair token is stored ONLY in module-level memory (never localStorage/cookie).
+ *  - Bearer token attached to all mutations; never echoed in logs.
+ *  - Non-loopback baseUrl throws ERR_NOT_LOOPBACK synchronously.
+ */
+⋮----
+import {
+  BRIDGE_LOOPBACK_ORIGINS,
+  ERR_MALFORMED,
+  ERR_NETWORK,
+  ERR_NOT_LOOPBACK,
+  ERR_PAIR_INVALID,
+  ERR_UNAUTHORIZED,
+  type BridgeSettingsFull,
+  type BridgeSettingsPut,
+  type BridgeSettingsPutResponse,
+  type DiagnosticsResult,
+  type EnrollmentResponse,
+  type PairRequest,
+  type PairResponse,
+  type ScanDiscardResponse,
+  type ScanGetResponse,
+  type ScanStartRequest,
+  type ScanStartResponse,
+// @ts-expect-error Node's strip-types tests require the explicit TypeScript extension.
+} from "../types/local-biometric-contract.ts";
+⋮----
+// @ts-expect-error Node's strip-types tests require the explicit TypeScript extension.
+⋮----
+// ---------------------------------------------------------------------------
+// Loopback guard
+// ---------------------------------------------------------------------------
+⋮----
+function assertLoopback(baseUrl: string): void
+⋮----
+// ---------------------------------------------------------------------------
+// Error classes
+// ---------------------------------------------------------------------------
+⋮----
+export class BridgeLoopbackError extends Error
+⋮----
+export class BridgeUnauthorizedError extends Error
+⋮----
+export class BridgePairError extends Error
+⋮----
+export class BridgeMalformedError extends Error
+⋮----
+export class BridgeNetworkError extends Error
+⋮----
+export class BridgeApiError extends Error
+⋮----
+constructor(status: number, message: string)
+⋮----
+// ---------------------------------------------------------------------------
+// Low-level fetch helpers
+// ---------------------------------------------------------------------------
+⋮----
+async function bridgeFetch(
+  baseUrl: string,
+  path: string,
+  init: RequestInit,
+): Promise<Response>
+⋮----
+// Never send credentials (cookies/cert) beyond loopback fetch – header-only auth.
+⋮----
+async function parseJson<T>(res: Response): Promise<T>
+⋮----
+// ---------------------------------------------------------------------------
+// Repository
+// ---------------------------------------------------------------------------
+⋮----
+export type LocalBiometricRepositoryOptions = {
+  baseUrl?: string;
+  getToken: () => string | null;
+};
+⋮----
+export function createLocalBiometricRepository(
+  options: LocalBiometricRepositoryOptions,
+)
+⋮----
+function authHeaders(): Record<string, string>
+⋮----
+/** POST /pair – exchange operator code for session token (loopback-only). */
+async pair(req: PairRequest): Promise<PairResponse>
+⋮----
+/** GET /settings (public) */
+async getSettings(): Promise<BridgeSettingsFull>
+⋮----
+/** PUT /settings – requires Bearer token */
+async putSettings(data: BridgeSettingsPut): Promise<BridgeSettingsPutResponse>
+⋮----
+/** POST /diagnostics/run – requires Bearer token */
+async runDiagnostics(): Promise<DiagnosticsResult>
+⋮----
+/** POST /scans/start mode=TEST – requires Bearer token */
+async startTestScan(): Promise<ScanStartResponse>
+⋮----
+async startCheckInScan(): Promise<ScanStartResponse>
+⋮----
+/** GET /scans/:scanId – requires Bearer token */
+async getScan(scanId: string): Promise<ScanGetResponse>
+⋮----
+/** POST /scans/:scanId/discard – requires Bearer token */
+async discardScan(scanId: string): Promise<ScanDiscardResponse>
+⋮----
+async enroll(stayId: string, scanId: string): Promise<EnrollmentResponse>
+⋮----
+export type LocalBiometricRepository = ReturnType<typeof createLocalBiometricRepository>;
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/resources/local-biometric-resource.ts">
+/**
+ * Query-resource hook for local biometric bridge.
+ *
+ * Follows the same createResource / defineQuery / defineMutation pattern
+ * as staff-directory-resource.ts (using @dangminhdev04032005/query-resource).
+ *
+ * Scope = { baseUrl: string; getToken: () => string | null }
+ */
+⋮----
+import {
+  createResource,
+  defineMutation,
+  defineQuery,
+  type ResourceMutationContext,
+  type ResourceQueryContext,
+} from "@dangminhdev04032005/query-resource";
+⋮----
+import {
+  createLocalBiometricRepository,
+  type LocalBiometricRepositoryOptions,
+} from "@/features/local-biometric/repositories/local-biometric-repository";
+import type {
+  BridgeSettingsFull,
+  BridgeSettingsPut,
+  BridgeSettingsPutResponse,
+  DiagnosticsResult,
+  PairRequest,
+  PairResponse,
+  ScanDiscardResponse,
+  ScanGetResponse,
+  ScanStartResponse,
+} from "@/features/local-biometric/types/local-biometric-contract";
+⋮----
+// ---------------------------------------------------------------------------
+// Scope
+// ---------------------------------------------------------------------------
+⋮----
+export type LocalBiometricScope = LocalBiometricRepositoryOptions;
+⋮----
+// ---------------------------------------------------------------------------
+// Query handlers
+// ---------------------------------------------------------------------------
+⋮----
+async function getSettings({
+  scope,
+}: ResourceQueryContext<LocalBiometricScope, void>): Promise<BridgeSettingsFull>
+⋮----
+async function getScan({
+  scope,
+  input,
+}: ResourceQueryContext<LocalBiometricScope,
+⋮----
+// ---------------------------------------------------------------------------
+// Mutation handlers
+// ---------------------------------------------------------------------------
+⋮----
+async function pair({
+  scope,
+  variables,
+}: ResourceMutationContext<LocalBiometricScope, PairRequest>): Promise<PairResponse>
+⋮----
+async function putSettings({
+  scope,
+  variables,
+}: ResourceMutationContext<LocalBiometricScope, BridgeSettingsPut>): Promise<BridgeSettingsPutResponse>
+⋮----
+async function runDiagnostics({
+  scope,
+}: ResourceMutationContext<LocalBiometricScope, void>): Promise<DiagnosticsResult>
+⋮----
+async function startTestScan({
+  scope,
+}: ResourceMutationContext<LocalBiometricScope, void>): Promise<ScanStartResponse>
+⋮----
+async function discardScan({
+  scope,
+  variables,
+}: ResourceMutationContext<LocalBiometricScope,
+⋮----
+// ---------------------------------------------------------------------------
+// Resource
+// ---------------------------------------------------------------------------
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/types/local-biometric-contract.ts">
+/**
+ * Local biometric bridge contract types.
+ *
+ * These types mirror the bridge_app.py API surface (loopback-only, Bearer auth).
+ * All strings that appear in Vietnamese UI must be kept safe for Vietnamese locale.
+ *
+ * Bridge default: https://127.0.0.1:18080
+ * Auth: POST /pair → { token } → Bearer <token> for all mutations.
+ */
+⋮----
+// ---------------------------------------------------------------------------
+// Bridge base URL
+// ---------------------------------------------------------------------------
+⋮----
+/** The only host allowed for the local bridge (loopback). */
+⋮----
+// ---------------------------------------------------------------------------
+// Pairing
+// ---------------------------------------------------------------------------
+⋮----
+export type PairRequest = { code: string };
+export type PairResponse = { token: string };
+⋮----
+// ---------------------------------------------------------------------------
+// Settings
+// ---------------------------------------------------------------------------
+⋮----
+/** Public GET /settings – only indicates whether key is configured (no secret). */
+export type BridgeSettingsPublic = {
+  communicationKeyConfigured: boolean;
+};
+⋮----
+/** Full GET /settings (auth-required in future; currently public). */
+export type BridgeSettingsFull = BridgeSettingsPublic;
+⋮----
+/** PUT /settings payload. */
+export type BridgeSettingsPut = {
+  deviceIp?: string;
+  devicePort?: number;
+  pushListen?: string;
+  pushPort?: number;
+  apiListen?: string;
+  apiPort?: number;
+  allowedOrigins?: string[];
+  apiCert?: string;
+  apiKey?: string;
+  pushCert?: string;
+  pushKey?: string;
+  communicationKey?: string;
+};
+⋮----
+/** PUT /settings response. */
+export type BridgeSettingsPutResponse = {
+  restartRequired: boolean;
+};
+⋮----
+// ---------------------------------------------------------------------------
+// Diagnostics
+// ---------------------------------------------------------------------------
+⋮----
+export type ComponentStatus = "PASS" | "FAIL" | "UNKNOWN";
+⋮----
+export type ComponentDiagnostic = {
+  status: ComponentStatus;
+  reason?: string;
+};
+⋮----
+export type DiagnosticsResult = {
+  checkedAt: string;   // ISO-8601
+  expiresAt: string;   // ISO-8601
+  bridge: ComponentDiagnostic;
+  hn212: ComponentDiagnostic;
+  senseFaceTcp: ComponentDiagnostic;
+  senseFacePush: ComponentDiagnostic;
+  scanReady: boolean;
+  faceReady: boolean;
+};
+⋮----
+checkedAt: string;   // ISO-8601
+expiresAt: string;   // ISO-8601
+⋮----
+// ---------------------------------------------------------------------------
+// Readiness level (derived from DiagnosticsResult)
+// ---------------------------------------------------------------------------
+⋮----
+export type ReadinessLevel = "ready" | "partial" | "not_ready";
+⋮----
+export function deriveReadiness(diag: DiagnosticsResult): ReadinessLevel
+⋮----
+// ---------------------------------------------------------------------------
+// Scans (TEST mode only for UI)
+// ---------------------------------------------------------------------------
+⋮----
+export type ScanMode = "CHECK_IN" | "TEST";
+export type ScanStatus = "WAITING" | "READY" | "EXPIRED" | "DISCARDED";
+⋮----
+export type ScanStartRequest = { mode: ScanMode };
+export type ScanStartResponse = {
+  scanId: string;
+  status: ScanStatus;
+  mode: ScanMode;
+};
+⋮----
+export type ScanGetResponse = {
+  scanId: string;
+  status: ScanStatus;
+  mode: ScanMode;
+  guestDisplayName?: string;
+  guestIdentityNumber?: string;
+  portrait?: string;
+  chipAuthenticated?: boolean;
+  sodVerified?: boolean;
+};
+⋮----
+export type ScanDiscardResponse = { discarded: boolean };
+⋮----
+export type EnrollmentResponse = {
+  requestId: string;
+  stayId: string;
+  status: "PENDING" | "SYNCED" | "FAILED";
+  error?: string | null;
+};
+⋮----
+// ---------------------------------------------------------------------------
+// Error shapes
+// ---------------------------------------------------------------------------
+⋮----
+export type BridgeErrorBody = { error: string };
+⋮----
+/**
+ * Non-loopback access error (Vietnamese).
+ * Shown when bridge URL is not a recognised loopback host.
+ */
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/local-token.ts">
+export function getLocalBiometricToken(): string | null
+⋮----
+export function setLocalBiometricToken(value: string | null): void
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/stays/route.ts">
+import { z } from "zod";
+import { HttpError } from "@/core/http/http-error";
+import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
+import {
+  executeHotelOpsBackendRequest,
+  hotelOpsHttpErrorResponse,
+  successResponse,
+  unknownServerErrorResponse,
+  validationErrorResponse,
+} from "@/app/api/hotel-ops/_utils";
+⋮----
+type Params = { params: Promise<{ hotelId: string }> };
+⋮----
+export async function POST(request: Request, context: Params)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/api/owner/hotels/[hotelId]/stays/route.ts">
+import { z } from "zod";
+⋮----
+import { HttpError } from "@/core/http/http-error";
+import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
+import type { CreateHotelStayInput } from "@/features/hotel-ops/types/hotel-ops-contract";
+⋮----
+import {
+  executeOwnerBackendRequest,
+  ownerHttpErrorResponse,
+  successResponse,
+  unknownServerErrorResponse,
+  validationErrorResponse,
+} from "../../../_utils";
+⋮----
+type Params = {
+  params: Promise<{ hotelId: string }>;
+};
+⋮----
+function sanitizeCreateStayPayload(payload: unknown):
+⋮----
+export async function POST(request: Request, context: Params)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/stay/owner-stay-room-grid-client.tsx">
+import { type FormEvent, startTransition, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import Swal from "sweetalert2";
+import { z } from "zod";
+⋮----
+import { HttpError } from "@/core/http/http-error";
+import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import { CccdCheckInPanel, type CccdCheckInCapture } from "@/features/local-biometric/components/cccd-check-in-panel";
+import { createLocalBiometricRepository } from "@/features/local-biometric/repositories/local-biometric-repository";
+import { getLocalBiometricToken } from "@/features/local-biometric/local-token";
+import { BRIDGE_DEFAULT_BASE_URL } from "@/features/local-biometric/types/local-biometric-contract";
+import type {
+  HotelCheckInResult,
+  HotelRoomSummary,
+} from "@/features/hotel-ops/types/hotel-ops-contract";
+⋮----
+import { VsIcon } from "../../../../../_components/vs-icon";
+⋮----
+type Props = {
+  hotelId: string;
+  rooms: HotelRoomSummary[];
+  apiBasePath?: string;
+  onRoomsChanged?: () => Promise<unknown>;
+};
+⋮----
+type RoomStatusFilter =
+  | "all"
+  | "available"
+  | "occupied"
+  | "processing"
+  | "maintenance"
+  | "blocked";
+⋮----
+type CheckInForm = {
+  guestDisplayName: string;
+  guestPhone: string;
+  plannedCheckOutAt: string;
+};
+⋮----
+type FormErrors = Partial<Record<keyof CheckInForm, string>>;
+⋮----
+type RoomAvailability =
+  | "available"
+  | "occupied"
+  | "processing"
+  | "maintenance"
+  | "blocked";
+⋮----
+function getRoomNumber(room: HotelRoomSummary): string
+⋮----
+function getRoomType(room: HotelRoomSummary): string
+⋮----
+function getRoomStatus(room: HotelRoomSummary): string
+⋮----
+function roomHasActiveStay(room: HotelRoomSummary): boolean
+⋮----
+function getRoomAvailability(room: HotelRoomSummary): RoomAvailability
+⋮----
+function roomStatusLabel(room: HotelRoomSummary): string
+⋮----
+function roomTileClass(room: HotelRoomSummary): string
+⋮----
+function isCheckInAllowed(room: HotelRoomSummary): boolean
+⋮----
+function roomSearchText(room: HotelRoomSummary): string
+⋮----
+function formatRoomPrice(room: HotelRoomSummary): string
+⋮----
+function formatRoomDate(value: string | null | undefined): string
+⋮----
+function defaultCheckOutValue(): string
+⋮----
+function emptyForm(): CheckInForm
+⋮----
+function toIsoFromLocal(value: string): string | undefined
+⋮----
+function validateForm(form: CheckInForm): FormErrors
+⋮----
+function isTechnicalMessage(message: string): boolean
+⋮----
+function getNestedMessage(value: unknown): string | undefined
+⋮----
+function getBusinessErrorMessage(error: unknown, fallback: string): string
+⋮----
+function updateQuery(value: string)
+⋮----
+function updateStatusFilter(value: RoomStatusFilter)
+⋮----
+function openCheckIn(room: HotelRoomSummary)
+⋮----
+function handleTileClick(room: HotelRoomSummary)
+⋮----
+async function markRoomCleaned(room: HotelRoomSummary)
+⋮----
+async function updateRoomStatus(
+    room: HotelRoomSummary,
+    targetStatus: "AVAILABLE" | "PROCESSING" | "MAINTENANCE" | "BLOCKED",
+)
+⋮----
+function closeCheckIn()
+⋮----
+function updateField<Key extends keyof CheckInForm>(
+    field: Key,
+    value: CheckInForm[Key],
+)
+⋮----
+async function submitCheckIn(event: FormEvent<HTMLFormElement>)
+⋮----
+<p>Check-in:
+⋮----
+
+⋮----
+setCccdCapture(capture);
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/workspace/config/workspace-registry.test.ts">
+import assert from "node:assert/strict";
+import test from "node:test";
+⋮----
+// @ts-expect-error Node's strip-types runner requires the explicit TypeScript extension.
+import { buildWorkspaceNavigation, createWorkspaceRegistry, getWorkspaceDashboardWidgets, getWorkspaceDefinition, resolveWorkspacePersona } from "./workspace-registry.ts";
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/rooms/staff-rooms-client.tsx">
+import { createPortal } from "react-dom";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import Swal from "sweetalert2";
+import {
+  keepPreviousData,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+⋮----
+import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import { CccdCheckInPanel, type CccdCheckInCapture } from "@/features/local-biometric/components/cccd-check-in-panel";
+import { createLocalBiometricRepository } from "@/features/local-biometric/repositories/local-biometric-repository";
+import { getLocalBiometricToken } from "@/features/local-biometric/local-token";
+import { BRIDGE_DEFAULT_BASE_URL } from "@/features/local-biometric/types/local-biometric-contract";
+import { BrandedRoomQr } from "@/features/hotel-ops/components/branded-room-qr";
+import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
+import type {
+  HotelArrival,
+  HotelCheckInResult,
+  HotelOpsPage,
+  HotelReservationCheckInResult,
+  HotelRoomSummary,
+} from "@/features/hotel-ops/types/hotel-ops-contract";
+import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+⋮----
+type Props = {
+  hotelId: string;
+  initialRoomsPage: HotelOpsPage<HotelRoomSummary>;
+  arrivals: HotelArrival[];
+  canManageRooms: boolean;
+  canManageReservations: boolean;
+  canManageStays: boolean;
+};
+⋮----
+type RoomStatusFilter =
+  | "all"
+  | "available"
+  | "occupied"
+  | "processing"
+  | "maintenance"
+  | "blocked";
+type FlowMode = "walk-in" | "reservation";
+⋮----
+type WalkInForm = {
+  roomId: string;
+  guestDisplayName: string;
+  guestPhone: string;
+  plannedCheckOutAt: string;
+};
+⋮----
+type ReservationForm = {
+  roomId: string;
+  guestDisplayName: string;
+  guestPhone: string;
+  plannedCheckInAt: string;
+  plannedCheckOutAt: string;
+};
+⋮----
+type RoomQrPreview = {
+  room: HotelRoomSummary;
+  guestUrl: string | null;
+};
+⋮----
+function localDateTime(offsetDays: number, hour: number): string
+⋮----
+function formatDateTime(value: string | null | undefined): string
+⋮----
+function getRoomNumber(room: HotelRoomSummary): string
+⋮----
+function getRoomQrValue(room: HotelRoomSummary): string | null
+⋮----
+function getGuestQrUrl(room: HotelRoomSummary, origin: string): string | null
+⋮----
+function getRoomStatus(room: HotelRoomSummary): RoomStatusFilter
+⋮----
+function roomStatusLabel(status: RoomStatusFilter): string
+⋮----
+function roomCardClass(status: RoomStatusFilter): string
+⋮----
+function isAvailable(room: HotelRoomSummary): boolean
+⋮----
+function emptyWalkIn(roomId = ""): WalkInForm
+⋮----
+function emptyReservation(roomId = ""): ReservationForm
+⋮----
+function activeStayProgress(room: HotelRoomSummary): number
+⋮----
+const range = (start: number, end: number) =>
+⋮----
+function printActiveStayList()
+⋮----
+function openWalkIn(room: HotelRoomSummary)
+⋮----
+async function markRoomCleaned(room: HotelRoomSummary)
+⋮----
+async function toggleRoomBlocked(room: HotelRoomSummary)
+⋮----
+async function updateRoomStatus(
+    room: HotelRoomSummary,
+    targetStatus: "AVAILABLE" | "PROCESSING" | "MAINTENANCE" | "BLOCKED",
+)
+⋮----
+function handleCardClick(room: HotelRoomSummary)
+⋮----
+async function submitWalkIn(event: FormEvent<HTMLFormElement>)
+⋮----
+async function createReservation(event: FormEvent<HTMLFormElement>)
+⋮----
+async function assignArrivalRoom(arrival: HotelArrival)
+⋮----
+async function checkInArrival(arrival: HotelArrival)
+⋮----
+setFloor(event.target.value);
+setPage(1);
+⋮----
+setVipOnly(event.target.checked);
+⋮----
+{/* Header */}
+⋮----
+{/* Middle Body */}
+⋮----
+{/* Footer */}
+⋮----
+{/* Animated hover popover menu */}
+⋮----
+{/* Cleaning Action */}
+⋮----
+event.stopPropagation();
+markRoomCleaned(room);
+⋮----
+updateRoomStatus(room, "PROCESSING");
+⋮----
+updateRoomStatus(room, "MAINTENANCE");
+⋮----
+{/* Single Update Trigger Button */}
+⋮----
+
+⋮----
+Phòng
+⋮----
+setCccdCapture(capture);
+if (capture?.guestDisplayName) setWalkInForm((current) => (
+⋮----
+setReservationForm((current) => (
+⋮----
+<p className="mt-3 text-center text-sm font-black uppercase tracking-[0.16em] text-[var(--primary)]">Phòng
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/workspace/config/workspace-registry.ts">
+import type { DashboardNavItem } from "../types/workspace-navigation";
+⋮----
+import type {
+  WorkspaceDefinition,
+  WorkspaceNavigationDefinition,
+  WorkspacePersona,
+  WorkspaceRegistry,
+  WorkspaceRegistryExtension,
+  WorkspaceWidgetDefinition,
+} from "../types/workspace-registry";
+⋮----
+function normalizeRoleCode(roleCode: string): string
+⋮----
+function mergeByKey<T extends
+⋮----
+export function createWorkspaceRegistry(extensions: readonly WorkspaceRegistryExtension[] = []): WorkspaceRegistry
+⋮----
+function hasAnyCapability(permissions: readonly string[], required?: readonly string[]): boolean
+⋮----
+function resolvePath(path: `/$
+⋮----
+export function resolveWorkspacePersona(roleCode: string, registry: WorkspaceRegistry = workspaceRegistry): WorkspacePersona | null
+⋮----
+export function getWorkspaceDefinition(persona: WorkspacePersona, registry: WorkspaceRegistry = workspaceRegistry): WorkspaceDefinition
+⋮----
+export function buildWorkspaceNavigation(input:
+⋮----
+export function buildWorkspaceNavigationForContext(input: {
+  activeRole: { code: string };
+  permissions: readonly string[];
+  hotelId?: string | null;
+  registry?: WorkspaceRegistry;
+}): DashboardNavItem[]
+⋮----
+export function getWorkspaceDashboardWidgets(input:
+</file>
+
+</files>

@@ -14,8 +14,13 @@ const schema = z.object({
   roomId: z.string().trim().min(1),
   guestDisplayName: z.string().trim().min(1),
   guestPhone: z.string().trim().optional(),
-  plannedCheckInAt: z.string().datetime(),
-  plannedCheckOutAt: z.string().datetime(),
+  guestIdentityNumber: z.string().trim().max(32).optional(),
+  guestDateOfBirth: z.string().trim().max(20).optional(),
+  guestGender: z.string().trim().max(20).optional(),
+  guestNationality: z.string().trim().max(80).optional(),
+  guestResidencePlace: z.string().trim().max(500).optional(),
+  plannedCheckInAt: z.string().trim().min(1),
+  plannedCheckOutAt: z.string().trim().min(1),
 }).strict();
 
 export async function POST(request: Request, context: Params) {

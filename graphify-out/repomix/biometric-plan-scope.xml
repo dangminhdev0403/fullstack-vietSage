@@ -1,0 +1,1459 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: tools/biometric-bridge/bridge_app.py, tools/biometric-bridge/biometric_api.py, tools/biometric-bridge/hn212_client.py, tools/biometric-bridge/push_receiver.py, tools/biometric-bridge/zkteco_bridge.py, tools/biometric-bridge/test_biometric_api.py, tools/biometric-bridge/test_push_receiver.py, tools/biometric-bridge/test_zkteco_bridge.py, frontends/front-end-vietsage/src/features/hotel-ops/types/hotel-ops-contract.ts, frontends/front-end-vietsage/src/features/hotel-ops/service/hotel-ops-service.ts, frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/stays/route.ts, frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/stay/owner-stay-room-grid-client.tsx
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    src/
+      app/
+        (vietsage)/
+          owner/
+            (hotel)/
+              hotels/
+                [hotelId]/
+                  stay/
+                    owner-stay-room-grid-client.tsx
+        api/
+          hotel-ops/
+            hotels/
+              [hotelId]/
+                stays/
+                  route.ts
+      features/
+        hotel-ops/
+          service/
+            hotel-ops-service.ts
+          types/
+            hotel-ops-contract.ts
+tools/
+  biometric-bridge/
+    biometric_api.py
+    bridge_app.py
+    hn212_client.py
+    push_receiver.py
+    test_biometric_api.py
+    test_push_receiver.py
+    test_zkteco_bridge.py
+    zkteco_bridge.py
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="tools/biometric-bridge/biometric_api.py">
+def mask_identity(value)
+⋮----
+value = str(value or "")
+⋮----
+class BiometricStore
+⋮----
+def __init__(self, push_queue, provision, ttl_seconds=1800, now=time.time)
+⋮----
+def start_scan(self)
+⋮----
+scan_id = "scan_" + secrets.token_urlsafe(24)
+⋮----
+def ingest_active(self, message)
+⋮----
+scan_id = self.active_scan_id
+⋮----
+def ingest(self, scan_id, message)
+⋮----
+scan = self._scan(scan_id)
+data = scan["data"]
+message_id = str(message.get("id", ""))
+⋮----
+encoded = message["data"].get("img_data") or message["data"].get("dg2")
+⋮----
+def get_scan(self, scan_id)
+⋮----
+def enroll(self, stay_id, scan_id)
+⋮----
+existing = self.by_stay.get(stay_id)
+⋮----
+identity = str(data.get("idCode", "")).strip()
+⋮----
+photo = base64.b64decode(encoded, validate=True)
+⋮----
+profile = {"idCode": identity, "biometricUserId": identity, "personName": str(data.get("personName", ""))}
+⋮----
+request_id = "enr_" + secrets.token_urlsafe(24)
+enrollment = {"requestId": request_id, "stayId": stay_id, "scanId": scan_id, "identity": identity, "status": "PENDING", "error": None, "profile": profile, "photo": photo}
+⋮----
+def get_enrollment(self, request_id)
+⋮----
+enrollment = self.enrollments.get(request_id)
+⋮----
+def fail(self, request_id, error)
+⋮----
+enrollment = self.enrollments[request_id]
+⋮----
+def fail_identity(self, identity, error)
+⋮----
+def synced(self, identity)
+⋮----
+def retry(self, request_id)
+⋮----
+def _scan(self, scan_id)
+⋮----
+scan = self.scans.get(scan_id)
+⋮----
+@staticmethod
+    def _public_scan(scan)
+⋮----
+data = dict(scan["data"])
+⋮----
+@staticmethod
+    def _public_enrollment(enrollment)
+</file>
+
+<file path="tools/biometric-bridge/bridge_app.py">
+def make_api_handler(store, device_state, hn_state, push_queue, allowed_origins)
+⋮----
+allowed_origins = frozenset(allowed_origins)
+⋮----
+class Handler(BaseHTTPRequestHandler)
+⋮----
+server_version = "VietSageBiometricBridge/1.0"
+⋮----
+def _origin(self)
+⋮----
+def _cors_allowed(self)
+⋮----
+origin = self._origin()
+⋮----
+def _reply(self, payload, status=200)
+⋮----
+body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+⋮----
+def _json(self)
+⋮----
+length = int(self.headers.get("Content-Length", "0"))
+⋮----
+value = json.loads(self.rfile.read(length))
+⋮----
+def do_OPTIONS(self)
+⋮----
+def do_GET(self)
+⋮----
+path = urlparse(self.path).path
+⋮----
+device = device_state.get()
+last_push = push_queue.last_seen
+sense_ready = bool(device.get("online")) and bool(last_push and time.time() - last_push < 120)
+⋮----
+def do_POST(self)
+⋮----
+payload = self._json()
+⋮----
+request_id = path.split("/")[2]
+⋮----
+def log_message(self, fmt, *args)
+⋮----
+# Avoid logging bodies, identities, scan IDs, or enrollment IDs.
+⋮----
+def main()
+⋮----
+parser = argparse.ArgumentParser(description="VietSage local HN-212 + SenseFace bridge")
+⋮----
+args = parser.parse_args()
+⋮----
+stop = threading.Event()
+events = EventStore()
+device_state = DeviceState(args.device_ip, args.device_port)
+hn_state = LocalState(online=False, lastSeen=None, error="Chưa kết nối")
+holder = {}
+⋮----
+def result(identity, ok, error)
+⋮----
+store = holder.get("store")
+⋮----
+push_queue = PushQueue([], face_only=True, on_result=result)
+store = BiometricStore(
+⋮----
+push_server = ThreadingHTTPServer((args.push_listen, args.push_port), make_push_handler(push_queue))
+⋮----
+api_server = ThreadingHTTPServer((args.api_listen, args.api_port), make_api_handler(store, device_state, hn_state, push_queue, args.allowed_origin))
+⋮----
+context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+⋮----
+threads = [
+⋮----
+scheme = "https" if args.api_cert else "http"
+</file>
+
+<file path="tools/biometric-bridge/hn212_client.py">
+class Hn212Client
+⋮----
+def __init__(self, url, on_message, state, stop)
+⋮----
+def run(self)
+⋮----
+sock = None
+⋮----
+sock = self._connect()
+⋮----
+message = self._recv_text(sock)
+⋮----
+def _connect(self)
+⋮----
+parsed = urlparse(self.url)
+⋮----
+sock = socket.create_connection((parsed.hostname, parsed.port or 80), timeout=5)
+⋮----
+key = base64.b64encode(os.urandom(16)).decode()
+path = parsed.path or "/"
+request = (
+⋮----
+response = self._recv_until(sock, b"\r\n\r\n")
+expected = base64.b64encode(hashlib.sha1((key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").encode()).digest()).decode()
+⋮----
+@staticmethod
+    def _recv_until(sock, marker)
+⋮----
+data = b""
+⋮----
+chunk = sock.recv(4096)
+⋮----
+@staticmethod
+    def _exact(sock, size)
+⋮----
+chunk = sock.recv(size - len(data))
+⋮----
+def _recv_text(self, sock)
+⋮----
+header = self._exact(sock, 2)
+⋮----
+length = struct.unpack("!H", self._exact(sock, 2))[0]
+⋮----
+length = struct.unpack("!Q", self._exact(sock, 8))[0]
+mask = self._exact(sock, 4) if second & 0x80 else None
+payload = self._exact(sock, length)
+⋮----
+payload = bytes(value ^ mask[index % 4] for index, value in enumerate(payload))
+⋮----
+@staticmethod
+    def _send_pong(sock, payload)
+⋮----
+length = len(payload)
+⋮----
+class LocalState
+⋮----
+def __init__(self, **values)
+⋮----
+def update(self, **values)
+⋮----
+def get(self)
+</file>
+
+<file path="tools/biometric-bridge/push_receiver.py">
+ROOT = Path(__file__).resolve().parent
+⋮----
+def make_tls_context(cert, key)
+⋮----
+context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+⋮----
+def load_profiles(root=ROOT)
+⋮----
+root = Path(root)
+profiles = json.loads((root / "profiles.json").read_text(encoding="utf-8"))
+⋮----
+def build_user_command(cmd_id, profile)
+⋮----
+pin = str(profile["idCode"]).strip()
+name = str(profile.get("personName", "")).replace("\t", " ").replace("\r", " ").replace("\n", " ")[:24]
+⋮----
+def build_biophoto_command(cmd_id, pin, photo)
+⋮----
+encoded = base64.b64encode(photo).decode("ascii")
+⋮----
+def upload_response(path, query)
+⋮----
+table = query.get("tablename", [""])[0]
+count = query.get("count", ["1"])[0]
+⋮----
+class PushQueue
+⋮----
+def __init__(self, profiles, face_only=False, on_result=None)
+⋮----
+def enqueue(self, profile, photo)
+⋮----
+def _state(self, sn)
+⋮----
+def next_command(self, sn)
+⋮----
+state = self._state(sn)
+⋮----
+cmd_id = self.next_id
+⋮----
+command = build_user_command(cmd_id, profile)
+⋮----
+command = build_biophoto_command(cmd_id, profile["idCode"], photo)
+⋮----
+def ack(self, sn, body)
+⋮----
+pending = state["outstanding"]
+match = re.search(r"(?:Return|return)=(-?\d+)", body)
+⋮----
+result = int(match.group(1))
+⋮----
+def status(self)
+⋮----
+def seen(self, sn)
+⋮----
+def make_handler(queue)
+⋮----
+class Handler(BaseHTTPRequestHandler)
+⋮----
+server_version = "ZKPush/1.0"
+⋮----
+def _reply(self, body="OK", status=200, content_type="text/plain; charset=utf-8")
+⋮----
+data = body.encode("utf-8")
+⋮----
+def _request(self)
+⋮----
+parsed = urlparse(self.path)
+query = parse_qs(parsed.query)
+sn = query.get("SN", ["unknown"])[0]
+⋮----
+def _body(self)
+⋮----
+def do_GET(self)
+⋮----
+def do_POST(self)
+⋮----
+body = self._body()
+⋮----
+def log_message(self, fmt, *args)
+⋮----
+def main()
+⋮----
+parser = argparse.ArgumentParser(description="Minimal non-destructive ZKTeco PUSH face-photo provisioner")
+⋮----
+args = parser.parse_args()
+queue = PushQueue(load_profiles(), face_only=args.face_only)
+server = ThreadingHTTPServer((args.listen, args.port), make_handler(queue))
+</file>
+
+<file path="tools/biometric-bridge/test_biometric_api.py">
+class Queue
+⋮----
+def __init__(self)
+⋮----
+def enqueue(self, profile, photo)
+⋮----
+class BiometricStoreTests(unittest.TestCase)
+⋮----
+def test_scan_stays_pending_and_does_not_queue_before_enroll(self)
+⋮----
+queue = Queue()
+store = BiometricStore(queue, lambda _profile: None, now=lambda: 100)
+scan_id = store.start_scan()
+⋮----
+def test_expired_scan_is_unavailable(self)
+⋮----
+clock = [100]
+store = BiometricStore(Queue(), lambda _profile: None, ttl_seconds=10, now=lambda: clock[0])
+⋮----
+def test_explicit_enroll_is_idempotent_and_queues_face_once(self)
+⋮----
+store = BiometricStore(queue, provisioned.append, now=lambda: 100)
+⋮----
+first = store.enroll("stay_12345678", scan_id)
+second = store.enroll("stay_12345678", scan_id)
+⋮----
+def test_retry_requeues_failed_enrollment(self)
+⋮----
+request_id = store.enroll("stay_12345678", scan_id)["requestId"]
+⋮----
+def test_identity_is_masked(self)
+</file>
+
+<file path="tools/biometric-bridge/test_push_receiver.py">
+class PushReceiverTests(unittest.TestCase)
+⋮----
+def test_builds_user_then_visible_face_photo_after_successful_ack(self)
+⋮----
+profile = {"idCode": "034205005951", "personName": "Đặng Hoàng Minh"}
+photo = b"\xff\xd8\xff\xd9"
+queue = PushQueue([(profile, photo)])
+⋮----
+user = queue.next_command("2145254200013")
+⋮----
+face = queue.next_command("2145254200013")
+⋮----
+def test_failed_user_ack_does_not_send_face(self)
+⋮----
+queue = PushQueue([({"idCode": "1", "personName": "A"}, b"jpeg")])
+⋮----
+def test_face_only_starts_with_biophoto(self)
+⋮----
+queue = PushQueue([({"idCode": "1", "personName": "A"}, b"jpeg")], face_only=True)
+⋮----
+def test_dynamic_queue_is_empty_until_save_enqueues_profile(self)
+⋮----
+queue = PushQueue([], face_only=True)
+⋮----
+def test_face_only_stays_face_only_for_second_saved_profile(self)
+⋮----
+def test_biophoto_size_is_base64_length(self)
+⋮----
+command = build_biophoto_command(7, "1", b"abc")
+⋮----
+def test_user_fields_are_tab_separated(self)
+⋮----
+command = build_user_command(3, {"idCode": "1", "personName": "A"})
+⋮----
+def test_load_profiles_reads_portrait_bytes(self)
+⋮----
+root = Path(folder)
+⋮----
+def test_fdata_upload_is_acknowledged_without_storage(self)
+⋮----
+def test_tls_context_is_server_context(self)
+⋮----
+cert = Path(folder) / "cert.pem"
+key = Path(folder) / "key.pem"
+</file>
+
+<file path="tools/biometric-bridge/test_zkteco_bridge.py">
+class Attendance
+⋮----
+user_id = "7"
+timestamp = datetime(2026, 7, 29, 15, 30, 0)
+status = 1
+punch = 15
+⋮----
+class BridgeTests(unittest.TestCase)
+⋮----
+def test_normalize_attendance_preserves_raw_codes(self)
+⋮----
+event = normalize_attendance(Attendance(), "192.168.55.11")
+⋮----
+def test_firmware_status_15_means_face_and_unknown_stays_unknown(self)
+⋮----
+face = Attendance()
+⋮----
+other = Attendance()
+⋮----
+def test_store_rejects_duplicate_events(self)
+⋮----
+store = EventStore(limit=5)
+event = {"userId": "7", "timestamp": "2026-07-29T15:30:00", "statusCode": 1, "punchCode": 15}
+⋮----
+def test_clear_events_removes_pc_session_and_allows_same_event_again(self)
+⋮----
+def test_profile_store_rejects_duplicate_identity_number(self)
+⋮----
+store = ProfileStore(Path(folder) / "profiles.json")
+first = store.create({"idCode": "001234567890", "personName": "A", "photo": "data:image/jpeg;base64,/9j/AA=="})
+⋮----
+def test_event_store_enriches_attendance_from_identity_profile(self)
+⋮----
+profiles = {"001234567890": {"idCode": "001234567890", "personName": "Nguyễn Văn A"}}
+store = EventStore(profile_lookup=lambda user_id: profiles.get(user_id))
+event = {"userId": "001234567890", "timestamp": "2026-07-29T15:30:00", "statusCode": 1, "punchCode": 15}
+⋮----
+def test_display_name_prefers_pc_then_device_then_user_id(self)
+⋮----
+def test_persist_portrait_writes_image_and_returns_relative_link(self)
+⋮----
+profile = {"idCode": "001234567890", "photo": "data:image/jpeg;base64,/9j/AA=="}
+saved = persist_portrait(profile, Path(folder))
+⋮----
+def test_clear_removes_pc_profiles_and_biometric_files_only(self)
+⋮----
+root = Path(folder)
+store = ProfileStore(root / "profiles.json")
+⋮----
+def test_persist_biometric_capture_writes_pc_file(self)
+⋮----
+relative = persist_biometric_capture("001234567890", "fingerprints", "data:image/png;base64,iVBORw==", Path(folder), "20260729T170000")
+</file>
+
+<file path="tools/biometric-bridge/zkteco_bridge.py">
+ROOT = Path(__file__).resolve().parent
+⋮----
+def persist_portrait(profile, root=ROOT)
+⋮----
+saved = dict(profile)
+id_code = str(saved.get("idCode", "")).strip()
+photo = saved.pop("photo", "")
+⋮----
+image = base64.b64decode(encoded, validate=True)
+⋮----
+relative = Path("data") / "portraits" / id_code / "cccd.jpg"
+target = root / relative
+⋮----
+def persist_biometric_capture(id_code, kind, data_url, root=ROOT, stamp=None)
+⋮----
+extension = "png" if "png" in header else "jpg"
+stamp = stamp or datetime.now().strftime("%Y%m%dT%H%M%S%f")
+relative = Path("data") / kind / str(id_code).strip() / f"{stamp}.{extension}"
+⋮----
+def resolve_display_name(user_id, profile, device_users)
+⋮----
+def normalize_attendance(attendance, device_ip)
+⋮----
+timestamp = attendance.timestamp
+⋮----
+# Verified against this SenseFace 7A firmware's real attendance log.
+⋮----
+class ProfileStore
+⋮----
+def __init__(self, path)
+⋮----
+def create(self, profile)
+⋮----
+id_code = str(profile.get("idCode", "")).strip()
+⋮----
+saved = persist_portrait(dict(profile, biometricUserId=id_code, savedAt=datetime.now().isoformat(timespec="seconds")), self.path.parent)
+⋮----
+def get(self, id_code)
+⋮----
+profile = self.profiles.get(str(id_code))
+⋮----
+def list(self)
+⋮----
+def clear(self)
+⋮----
+id_codes = tuple(self.profiles)
+⋮----
+def _write(self)
+⋮----
+class EventStore
+⋮----
+def __init__(self, limit=200, profile_lookup=None)
+⋮----
+@staticmethod
+    def key(event)
+⋮----
+def add(self, event)
+⋮----
+event = dict(event)
+profile = self.profile_lookup(event.get("userId"))
+⋮----
+key = self.key(event)
+⋮----
+subscribers = tuple(self.subscribers)
+⋮----
+count = len(self.events)
+⋮----
+def subscribe(self)
+⋮----
+subscriber = queue.Queue()
+⋮----
+def unsubscribe(self, subscriber)
+⋮----
+class DeviceState
+⋮----
+def __init__(self, ip, port)
+⋮----
+def update(self, **values)
+⋮----
+def get(self)
+⋮----
+def device_worker(ip, port, password, store, state, stop)
+⋮----
+connection = None
+⋮----
+connection = ZK(ip, port=port, timeout=5, password=password, force_udp=False, ommit_ping=False).connect()
+serial = None
+⋮----
+serial = connection.get_serialnumber()
+⋮----
+device_users = {str(user.user_id): user.name for user in connection.get_users()}
+⋮----
+seen = {store.key(normalize_attendance(item, ip)) for item in connection.get_attendance()}
+⋮----
+event = normalize_attendance(attendance, ip)
+key = store.key(event)
+⋮----
+def provision_user(ip, port, password, profile)
+⋮----
+connection = ZK(ip, port=port, timeout=5, password=password).connect()
+⋮----
+users = connection.get_users()
+user_id = str(profile["biometricUserId"])
+existing = next((user for user in users if str(user.user_id) == user_id), None)
+uid = existing.uid if existing else max((user.uid for user in users), default=0) + 1
+⋮----
+def clear_device_attendance(ip, port, password)
+⋮----
+count = len(connection.get_attendance())
+⋮----
+def make_handler(store, profiles, state, device_config, push_queue=None)
+⋮----
+class Handler(SimpleHTTPRequestHandler)
+⋮----
+def __init__(self, *args, **kwargs)
+⋮----
+def send_json(self, payload, status=200)
+⋮----
+body = json.dumps(payload, ensure_ascii=False).encode()
+⋮----
+def do_GET(self)
+⋮----
+path = urlparse(self.path).path
+⋮----
+def do_POST(self)
+⋮----
+length = int(self.headers.get("Content-Length", "0"))
+payload = json.loads(self.rfile.read(length))
+id_code = str(payload.get("idCode", "")).strip()
+⋮----
+relative = persist_biometric_capture(id_code, payload.get("kind"), payload.get("data", ""))
+⋮----
+target = payload.pop("saveTarget", "both")
+⋮----
+device_profile = dict(payload, biometricUserId=str(payload.get("idCode", "")).strip())
+⋮----
+profile = profiles.create(payload)
+⋮----
+photo = (profiles.path.parent / profile["portraitPath"]).read_bytes()
+⋮----
+device = state.get()
+user_id = next(iter(device.get("users", {})), "TEST-01")
+event = {"userId": user_id, "deviceName": device.get("users", {}).get(user_id), "timestamp": datetime.now().isoformat(timespec="seconds"), "statusCode": 1, "punchCode": 15, "deviceIp": device["ip"], "result": "success", "method": "unknown"}
+⋮----
+def do_DELETE(self)
+⋮----
+count = clear_device_attendance(*device_config)
+⋮----
+def stream_events(self)
+⋮----
+subscriber = store.subscribe()
+⋮----
+event = subscriber.get(timeout=15)
+payload = json.dumps(event, ensure_ascii=False).encode()
+⋮----
+def log_message(self, format, *args)
+⋮----
+def main()
+⋮----
+parser = argparse.ArgumentParser(description="SenseFace 7A local bridge")
+⋮----
+args = parser.parse_args()
+profiles = ProfileStore(ROOT / "profiles.json")
+store = EventStore(profile_lookup=profiles.get)
+⋮----
+push_queue = PushQueue([], face_only=True)
+push_server = ThreadingHTTPServer((args.push_listen, args.push_port), make_push_handler(push_queue))
+⋮----
+server = ThreadingHTTPServer((args.listen, args.http_port), make_handler(store, profiles, state, (args.device_ip, args.device_port, args.password), push_queue))
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/stays/route.ts">
+import { z } from "zod";
+import { HttpError } from "@/core/http/http-error";
+import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
+import {
+  executeHotelOpsBackendRequest,
+  hotelOpsHttpErrorResponse,
+  successResponse,
+  unknownServerErrorResponse,
+  validationErrorResponse,
+} from "@/app/api/hotel-ops/_utils";
+⋮----
+type Params = { params: Promise<{ hotelId: string }> };
+⋮----
+export async function POST(request: Request, context: Params)
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/hotel-ops/types/hotel-ops-contract.ts">
+import type {
+  GuestRequestStatus,
+  GuestRequestType,
+} from "@/features/guest-os/types/guest-os-contract";
+⋮----
+export type HotelServiceStatus = "ACTIVE" | "DISABLED";
+⋮----
+export type ServiceCatalogTranslation = {
+  id?: string;
+  locale: string;
+  name: string;
+  description: string | null;
+};
+⋮----
+export type StaffRequestPriority = "NORMAL" | "URGENT";
+⋮----
+export type StaffRequestAction = "ACCEPT" | "START" | "COMPLETE" | "CANCEL" | "FAIL";
+⋮----
+export type HotelOpsPage<TItem> = {
+  page: number;
+  limit: number;
+  total: number;
+  totalItems?: number;
+  totalPages?: number;
+  totalAvailable?: number;
+  floors?: string[];
+  types?: string[];
+  items: TItem[];
+};
+⋮----
+export type HotelServiceCategory = {
+  id: string;
+  hotelId: string;
+  name: string;
+  description: string | null;
+  id_group?: string | null;
+  defaultPrice: string | number | null;
+  currency: string;
+  sortOrder: number;
+  status: HotelServiceStatus;
+  createdAt: string;
+  updatedAt: string;
+  translations?: ServiceCatalogTranslation[];
+};
+⋮----
+export type HotelServiceItem = {
+  id: string;
+  hotelId: string;
+  categoryId: string;
+  category?: HotelServiceCategory | null;
+  priceOverride: string | number | null;
+  effectivePrice: string | number | null;
+  effectiveCurrency: string;
+  quantityEnabled: boolean;
+  minQuantity: number;
+  maxQuantity: number | null;
+  /** @deprecated Service routing now belongs to ServiceCategory. */
+  name: string;
+  description: string | null;
+  /** @deprecated Use priceOverride/effectivePrice. */
+  price: string | number | null;
+  /** @deprecated Use category.currency/effectiveCurrency. */
+  currency: string;
+  metadata: Record<string, unknown> | null;
+  sortOrder: number;
+  status: HotelServiceStatus;
+  createdAt: string;
+  updatedAt: string;
+  translations?: ServiceCatalogTranslation[];
+};
+⋮----
+/** @deprecated Service routing now belongs to ServiceCategory. */
+⋮----
+/** @deprecated Use priceOverride/effectivePrice. */
+⋮----
+/** @deprecated Use category.currency/effectiveCurrency. */
+⋮----
+export type HotelRoomSummary = {
+  id: string;
+  hotelId?: string;
+  roomNumber?: string | null;
+  floor?: string | null;
+  type?: string | null;
+  price?: string | number | null;
+  maxActiveGuestDevices?: number | null;
+  activeGuestDeviceCount?: number | null;
+  status?: string | null;
+  publicCode?: string | null;
+  qrCode?: string | null;
+  qrStatus?: string | null;
+  qr?: {
+    id?: string | null;
+    publicCode?: string | null;
+    code?: string | null;
+    qrCode?: string | null;
+    status?: string | null;
+  } | null;
+  activeStay?: HotelStaySummary | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+⋮----
+export type HotelStaySummary = {
+  id: string;
+  hotelId?: string;
+  roomId?: string | null;
+  reservationCode?: string | null;
+  guestDisplayName?: string | null;
+  guestPhone?: string | null;
+  status?: string | null;
+  plannedCheckInAt?: string | null;
+  plannedCheckOutAt?: string | null;
+  checkedInAt?: string | null;
+  checkedOutAt?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+⋮----
+export type HotelCheckInResult = {
+  stay: HotelStaySummary;
+  roomQrCode: HotelRoomSummary["qr"];
+  accessCode: string;
+};
+⋮----
+export type HotelReservationInput = {
+  guestDisplayName: string;
+  guestPhone?: string;
+  plannedCheckInAt: string;
+  plannedCheckOutAt: string;
+};
+⋮----
+export type HotelReservationCheckInResult = {
+  idempotent: boolean;
+  accessCode: string | null;
+  reservation: { id: string; status: string };
+  stay: HotelStaySummary;
+  folio: { id: string; status: string };
+  roomQrCode: HotelRoomSummary["qr"];
+};
+⋮----
+export type HotelDashboard = {
+  hotelId: string;
+  generatedAt: string;
+  rooms: {
+    total: number;
+    occupied: number;
+    occupancyRate: number;
+    byStatus: { available: number; occupied: number; processing: number; maintenance: number };
+  };
+  stays: {
+    todayCheckIns: number;
+    todayCheckOuts: number;
+    pendingCheckOuts: number;
+    activeStays: number;
+  };
+  requests: {
+    unprocessed: number;
+    urgentUnprocessed: number;
+    byStatus: { sent: number; processing: number; completed: number; cancelled: number };
+    topServices: Array<{ serviceName: string; count: number }>;
+  };
+  revenue: {
+    available: boolean;
+    currency: string;
+    today: number;
+    last7Days: number;
+    currentMonth: number;
+    issues: Array<{ type: string; count: number }>;
+  };
+  health: {
+    score: number;
+    status: "excellent" | "good" | "warning" | "critical";
+    title: string;
+    factors: Array<{ type: string; label: string; impact: string; message: string }>;
+  };
+  attention: Array<{
+    id: string;
+    type: string;
+    priority: string;
+    title: string;
+    description: string;
+    createdAt: string;
+    action: { label: string; route: string };
+  }>;
+  insights: Array<{
+    id: string;
+    type: string;
+    severity: "info" | "warning" | "critical";
+    title: string;
+    description: string;
+    metric?: { current: number; previous?: number; changePercent?: number };
+  }>;
+  sla: {
+    available: boolean;
+    averageResponseMinutes: number | null;
+    averageCompletionMinutes: number | null;
+    completedWithinSlaPercent: number | null;
+    thresholdMinutes: number;
+  };
+  activities: Array<{
+    id: string;
+    type: string;
+    title: string;
+    description: string;
+    createdAt: string;
+  }>;
+  warnings: string[];
+};
+⋮----
+export type HotelArrival = {
+  id: string;
+  hotelId: string;
+  roomId: string | null;
+  reservationCode: string;
+  guestDisplayName: string;
+  guestPhone: string | null;
+  status: "CONFIRMED" | "ARRIVAL_READY" | "CHECKED_IN";
+  plannedCheckInAt: string;
+  plannedCheckOutAt: string;
+};
+⋮----
+export type ListHotelArrivalsQuery = {
+  from: string;
+  to: string;
+  page?: number;
+  limit?: number;
+};
+⋮----
+export type HotelRequestEvent = {
+  id: string;
+  requestId: string;
+  type?: string | null;
+  status?: GuestRequestStatus | null;
+  note?: string | null;
+  visibility?: "GUEST" | "INTERNAL" | string | null;
+  metadata?: Record<string, unknown> | null;
+  actorUserId?: string | null;
+  createdAt: string;
+};
+⋮----
+export type HotelGuestRequest = {
+  id: string;
+  hotelId: string;
+  roomId: string;
+  stayId: string;
+  sessionId: string | null;
+  serviceItemId: string | null;
+  serviceItem?: HotelServiceItem | null;
+  room?: HotelRoomSummary | null;
+  stay?: HotelStaySummary | null;
+  type: GuestRequestType;
+  status: GuestRequestStatus;
+  priority: StaffRequestPriority;
+  title: string | null;
+  details: string | null;
+  metadata: Record<string, unknown> | null;
+  assignedToUserId: string | null;
+  assignedToUser?: { id?: string; name?: string | null; email?: string | null } | null;
+  events?: HotelRequestEvent[];
+  createdAt: string;
+  updatedAt: string;
+  completedAt: string | null;
+  cancelledAt: string | null;
+};
+⋮----
+export type StaffRequestListItem = {
+  id: string;
+  displayName: string;
+  status: GuestRequestStatus;
+  priority: StaffRequestPriority;
+  quantity: number;
+  description: string | null;
+  latestNote: string | null;
+  createdAt: string;
+  roomNumber: string;
+  guestName: string | null;
+  categoryName: string | null;
+  assignedToName: string | null;
+  stayStatus?: string | null;
+  checkedOutAt?: string | null;
+  actions: StaffRequestAction[];
+};
+⋮----
+export type StaffRequestSummaryResponse = {
+  total: number;
+  statuses: Record<GuestRequestStatus, number>;
+};
+⋮----
+export type ListServiceCategoriesQuery = {
+  status?: HotelServiceStatus;
+  page?: number;
+  limit?: number;
+  q?: string;
+};
+⋮----
+export type ListServiceItemsQuery = {
+  categoryId?: string;
+  status?: HotelServiceStatus;
+  page?: number;
+  limit?: number;
+  q?: string;
+};
+⋮----
+export type ListHotelRequestsQuery = {
+  q?: string;
+  roomNumber?: string;
+  serviceItemId?: string;
+  priority?: StaffRequestPriority;
+  status?: GuestRequestStatus;
+  assignedToUserId?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  limit?: number;
+};
+⋮----
+export type ListHotelRoomsQuery = {
+  q?: string;
+  status?: string;
+  floor?: string;
+  type?: string;
+  vipOnly?: boolean;
+  page?: number;
+  limit?: number;
+};
+⋮----
+export type CreateHotelRoomInput = {
+  roomNumber: string;
+  floor?: string;
+  type?: string;
+  price?: number;
+  maxActiveGuestDevices?: number;
+};
+⋮----
+export type UpdateHotelRoomInput = {
+  roomNumber?: string;
+  floor?: string | null;
+  type?: string | null;
+  price?: number | null;
+  maxActiveGuestDevices?: number | null;
+  status?: string | null;
+};
+⋮----
+export type CreateHotelStayInput = {
+  roomId: string;
+  guestDisplayName: string;
+  guestPhone?: string;
+  guestIdentityNumber?: string;
+  plannedCheckInAt: string;
+  plannedCheckOutAt: string;
+};
+⋮----
+export type ServiceCatalogTranslationsInput = Partial<Record<"en" | "zh" | "ko" | "ru" | "hi", { name: string; description?: string | null }>>;
+⋮----
+export type CreateServiceCategoryInput = {
+  name: string;
+  description?: string;
+  id_group?: string | null;
+  defaultPrice?: number;
+  currency?: string;
+  sortOrder?: number;
+  status?: HotelServiceStatus;
+  translations?: ServiceCatalogTranslationsInput;
+};
+⋮----
+export type UpdateServiceCategoryInput = {
+  name?: string;
+  description?: string | null;
+  id_group?: string | null;
+  defaultPrice?: number | null;
+  currency?: string;
+  priceUpdateMode?: "CATEGORY_ONLY" | "OVERRIDE_ALL_ITEMS";
+  sortOrder?: number;
+  status?: HotelServiceStatus;
+  translations?: ServiceCatalogTranslationsInput;
+};
+⋮----
+export type CreateServiceItemInput = {
+  categoryId: string;
+  name: string;
+  description?: string;
+  priceOverride?: number | null;
+  quantityEnabled?: boolean;
+  minQuantity?: number;
+  maxQuantity?: number | null;
+  metadata?: Record<string, unknown>;
+  sortOrder?: number;
+  status?: HotelServiceStatus;
+  translations?: ServiceCatalogTranslationsInput;
+};
+⋮----
+export type UpdateServiceItemInput = {
+  categoryId?: string;
+  name?: string;
+  description?: string | null;
+  priceOverride?: number | null;
+  quantityEnabled?: boolean;
+  minQuantity?: number;
+  maxQuantity?: number | null;
+  metadata?: Record<string, unknown> | null;
+  sortOrder?: number;
+  status?: HotelServiceStatus;
+  translations?: ServiceCatalogTranslationsInput;
+};
+⋮----
+export type UpdateHotelRequestStatusInput = {
+  status: GuestRequestStatus;
+  note?: string;
+  assignedToUserId?: string;
+};
+⋮----
+export type UpdateHotelRequestAssignmentInput = {
+  assignedToUserId?: string | null;
+  note?: string;
+};
+⋮----
+export type CreateHotelRequestEventInput = {
+  note: string;
+  visibility?: "GUEST" | "INTERNAL";
+  metadata?: Record<string, unknown>;
+};
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/stay/owner-stay-room-grid-client.tsx">
+import { type FormEvent, startTransition, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import Swal from "sweetalert2";
+import { z } from "zod";
+⋮----
+import { HttpError } from "@/core/http/http-error";
+import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import type {
+  HotelCheckInResult,
+  HotelRoomSummary,
+} from "@/features/hotel-ops/types/hotel-ops-contract";
+⋮----
+import { VsIcon } from "../../../../../_components/vs-icon";
+⋮----
+type Props = {
+  hotelId: string;
+  rooms: HotelRoomSummary[];
+  apiBasePath?: string;
+  onRoomsChanged?: () => Promise<unknown>;
+};
+⋮----
+type RoomStatusFilter =
+  | "all"
+  | "available"
+  | "occupied"
+  | "processing"
+  | "maintenance"
+  | "blocked";
+⋮----
+type CheckInForm = {
+  guestDisplayName: string;
+  guestPhone: string;
+  plannedCheckOutAt: string;
+};
+⋮----
+type FormErrors = Partial<Record<keyof CheckInForm, string>>;
+⋮----
+type RoomAvailability =
+  | "available"
+  | "occupied"
+  | "processing"
+  | "maintenance"
+  | "blocked";
+⋮----
+function getRoomNumber(room: HotelRoomSummary): string
+⋮----
+function getRoomType(room: HotelRoomSummary): string
+⋮----
+function getRoomStatus(room: HotelRoomSummary): string
+⋮----
+function roomHasActiveStay(room: HotelRoomSummary): boolean
+⋮----
+function getRoomAvailability(room: HotelRoomSummary): RoomAvailability
+⋮----
+function roomStatusLabel(room: HotelRoomSummary): string
+⋮----
+function roomTileClass(room: HotelRoomSummary): string
+⋮----
+function isCheckInAllowed(room: HotelRoomSummary): boolean
+⋮----
+function roomSearchText(room: HotelRoomSummary): string
+⋮----
+function formatRoomPrice(room: HotelRoomSummary): string
+⋮----
+function formatRoomDate(value: string | null | undefined): string
+⋮----
+function defaultCheckOutValue(): string
+⋮----
+function emptyForm(): CheckInForm
+⋮----
+function toIsoFromLocal(value: string): string | undefined
+⋮----
+function validateForm(form: CheckInForm): FormErrors
+⋮----
+function isTechnicalMessage(message: string): boolean
+⋮----
+function getNestedMessage(value: unknown): string | undefined
+⋮----
+function getBusinessErrorMessage(error: unknown, fallback: string): string
+⋮----
+function updateQuery(value: string)
+⋮----
+function updateStatusFilter(value: RoomStatusFilter)
+⋮----
+function openCheckIn(room: HotelRoomSummary)
+⋮----
+function handleTileClick(room: HotelRoomSummary)
+⋮----
+async function markRoomCleaned(room: HotelRoomSummary)
+⋮----
+async function updateRoomStatus(
+    room: HotelRoomSummary,
+    targetStatus: "AVAILABLE" | "PROCESSING" | "MAINTENANCE" | "BLOCKED",
+)
+⋮----
+function closeCheckIn()
+⋮----
+function updateField<Key extends keyof CheckInForm>(
+    field: Key,
+    value: CheckInForm[Key],
+)
+⋮----
+async function submitCheckIn(event: FormEvent<HTMLFormElement>)
+⋮----
+<p>Check-in:
+⋮----
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/hotel-ops/service/hotel-ops-service.ts">
+import { unwrapApiEnvelope } from "@/core/http/api-envelope";
+import { HttpClient, type HttpQuery } from "@/core/http/http-client";
+import type {
+  CreateHotelRequestEventInput,
+  CreateHotelRoomInput,
+  CreateHotelStayInput,
+  CreateServiceCategoryInput,
+  CreateServiceItemInput,
+  HotelCheckInResult,
+  HotelDashboard,
+  HotelGuestRequest,
+  HotelArrival,
+  HotelOpsPage,
+  HotelRoomSummary,
+  HotelRequestEvent,
+  HotelReservationCheckInResult,
+  HotelReservationInput,
+  HotelServiceCategory,
+  HotelServiceItem,
+  HotelStaySummary,
+  ListHotelRoomsQuery,
+  ListHotelArrivalsQuery,
+  ListHotelRequestsQuery,
+  ListServiceCategoriesQuery,
+  ListServiceItemsQuery,
+  StaffRequestListItem,
+  StaffRequestSummaryResponse,
+  UpdateHotelRequestAssignmentInput,
+  UpdateHotelRequestStatusInput,
+  UpdateHotelRoomInput,
+  UpdateServiceCategoryInput,
+  UpdateServiceItemInput,
+} from "@/features/hotel-ops/types/hotel-ops-contract";
+⋮----
+export type HotelOpsServiceOptions = {
+  baseUrl: string;
+  timeoutMs?: number;
+};
+⋮----
+type AuthRequestOptions = {
+  accessToken?: string;
+  accessTokenExpiresAt?: number | null;
+};
+⋮----
+function hotelPath(hotelId: string, suffix: string): string
+⋮----
+export class HotelOpsService {
+⋮----
+constructor(options: HotelOpsServiceOptions)
+⋮----
+async issueRequestRealtimeTicket(hotelId: string, accessToken?: string): Promise<
+⋮----
+async getDashboard(hotelId: string, options: AuthRequestOptions =
+⋮----
+async listRooms(
+    hotelId: string,
+    options: { query?: ListHotelRoomsQuery } & AuthRequestOptions = {},
+): Promise<HotelOpsPage<HotelRoomSummary>>
+⋮----
+async listArrivals(
+    hotelId: string,
+    options: { query: ListHotelArrivalsQuery } & AuthRequestOptions,
+): Promise<HotelOpsPage<HotelArrival>>
+⋮----
+async createReservation(
+    hotelId: string,
+    body: HotelReservationInput,
+    accessToken?: string,
+): Promise<HotelArrival>
+⋮----
+async assignReservationRoom(
+    hotelId: string,
+    reservationId: string,
+    roomId: string,
+    accessToken?: string,
+): Promise<HotelArrival>
+⋮----
+async checkInReservation(
+    hotelId: string,
+    reservationId: string,
+    accessToken?: string,
+): Promise<HotelReservationCheckInResult>
+⋮----
+async createRoom(
+    hotelId: string,
+    body: CreateHotelRoomInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelRoomSummary>
+⋮----
+async updateRoom(
+    hotelId: string,
+    roomId: string,
+    body: UpdateHotelRoomInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelRoomSummary>
+⋮----
+async rotateRoomQr(hotelId: string, roomId: string, accessToken?: string, accessTokenExpiresAt?: number | null): Promise<HotelRoomSummary>
+⋮----
+async setRoomQrActive(
+    hotelId: string,
+    roomId: string,
+    active: boolean,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelRoomSummary>
+⋮----
+async createStay(
+    hotelId: string,
+    body: CreateHotelStayInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelStaySummary>
+⋮----
+async checkInStay(hotelId: string, stayId: string, accessToken?: string, accessTokenExpiresAt?: number | null): Promise<HotelStaySummary>
+⋮----
+async createAndCheckInStay(
+    hotelId: string,
+    body: CreateHotelStayInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelCheckInResult>
+⋮----
+async checkOutStay(hotelId: string, stayId: string, accessToken?: string, accessTokenExpiresAt?: number | null): Promise<HotelStaySummary>
+⋮----
+async syncServiceCatalogFromGoogleSheets(hotelId: string, options: AuthRequestOptions =
+⋮----
+async getHotel(
+    hotelId: string,
+    accessToken?: string,
+): Promise<
+⋮----
+async listServiceCategories(
+    hotelId: string,
+    options: { query?: ListServiceCategoriesQuery } & AuthRequestOptions = {},
+): Promise<HotelOpsPage<HotelServiceCategory>>
+⋮----
+async createServiceCategory(
+    hotelId: string,
+    body: CreateServiceCategoryInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelServiceCategory>
+⋮----
+async updateServiceCategory(
+    hotelId: string,
+    categoryId: string,
+    body: UpdateServiceCategoryInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelServiceCategory>
+⋮----
+async listServiceItems(
+    hotelId: string,
+    options: { query?: ListServiceItemsQuery } & AuthRequestOptions = {},
+): Promise<HotelOpsPage<HotelServiceItem>>
+⋮----
+async createServiceItem(
+    hotelId: string,
+    body: CreateServiceItemInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelServiceItem>
+⋮----
+async updateServiceItem(
+    hotelId: string,
+    itemId: string,
+    body: UpdateServiceItemInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelServiceItem>
+⋮----
+async listRequests(
+    hotelId: string,
+    options: { query?: ListHotelRequestsQuery } & AuthRequestOptions = {},
+): Promise<HotelOpsPage<StaffRequestListItem>>
+⋮----
+async getRequestsSummary(
+    hotelId: string,
+    options: { query?: Pick<ListHotelRequestsQuery, "q" | "roomNumber" | "serviceItemId" | "priority" | "assignedToUserId"> } & AuthRequestOptions = {},
+): Promise<StaffRequestSummaryResponse>
+⋮----
+async getRequest(hotelId: string, requestId: string, accessToken?: string, accessTokenExpiresAt?: number | null): Promise<HotelGuestRequest>
+⋮----
+async updateRequestStatus(
+    hotelId: string,
+    requestId: string,
+    body: UpdateHotelRequestStatusInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelGuestRequest>
+⋮----
+async updateRequestAssignment(
+    hotelId: string,
+    requestId: string,
+    body: UpdateHotelRequestAssignmentInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelGuestRequest>
+⋮----
+async createRequestEvent(
+    hotelId: string,
+    requestId: string,
+    body: CreateHotelRequestEventInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelRequestEvent>
+⋮----
+async listMessageThreads(hotelId: string, options:
+⋮----
+async getMessageThread(hotelId: string, threadId: string, options:
+⋮----
+async replyMessageThread(hotelId: string, threadId: string, body: string, accessToken?: string)
+⋮----
+async markMessageThreadRead(hotelId: string, threadId: string, accessToken?: string)
+⋮----
+export function createHotelOpsService(options: HotelOpsServiceOptions): HotelOpsService
+</file>
+
+</files>

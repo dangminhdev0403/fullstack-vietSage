@@ -79,6 +79,7 @@ def main() -> int:
             "listen 8443 ssl",
             "ssl_certificate /etc/letsencrypt/live/vietsage.com/fullchain.pem",
             "ssl_certificate_key /etc/letsencrypt/live/vietsage.com/privkey.pem",
+            'add_header Strict-Transport-Security "max-age=31536000" always',
             "return 301 https://$host$request_uri",
             "location ^~ /.well-known/acme-challenge/",
             "proxy_set_header X-Forwarded-Proto https",
@@ -87,8 +88,6 @@ def main() -> int:
         for required in required_tls:
             if required not in tls:
                 failures.append(f"HTTPS Nginx config is missing: {required}")
-        if "Strict-Transport-Security" in tls:
-            failures.append("HSTS must remain disabled until public TLS cutover is verified")
         if re.search(r"ssl_protocols[^;]*(TLSv1(?:\.0|\.1)?)(?:\s|;)", tls):
             failures.append("HTTPS config enables obsolete TLS protocol")
 

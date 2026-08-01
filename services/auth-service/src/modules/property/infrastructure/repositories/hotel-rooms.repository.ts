@@ -168,6 +168,11 @@ export class HotelRoomsRepository {
     roomId: string;
     guestDisplayName: string;
     guestPhone?: string;
+    guestIdentityNumber?: string;
+    guestDateOfBirth?: string;
+    guestGender?: string;
+    guestNationality?: string;
+    guestResidencePlace?: string;
     plannedCheckInAt: Date;
     plannedCheckOutAt: Date;
     createdByUserId: string;
@@ -184,6 +189,11 @@ export class HotelRoomsRepository {
           reservationCode,
           guestDisplayName: input.guestDisplayName,
           guestPhone: input.guestPhone,
+          guestIdentityNumber: input.guestIdentityNumber,
+          guestDateOfBirth: input.guestDateOfBirth,
+          guestGender: input.guestGender,
+          guestNationality: input.guestNationality,
+          guestResidencePlace: input.guestResidencePlace,
           plannedCheckInAt: input.plannedCheckInAt,
           plannedCheckOutAt: input.plannedCheckOutAt,
           createdByUserId: input.createdByUserId,
@@ -397,6 +407,11 @@ export class HotelRoomsRepository {
     roomId: string;
     guestDisplayName: string;
     guestPhone?: string;
+    guestIdentityNumber?: string;
+    guestDateOfBirth?: string;
+    guestGender?: string;
+    guestNationality?: string;
+    guestResidencePlace?: string;
     plannedCheckInAt: Date;
     plannedCheckOutAt: Date;
     createdByUserId: string;
@@ -497,6 +512,11 @@ export class HotelRoomsRepository {
           reservationCode,
           guestDisplayName: input.guestDisplayName.trim(),
           guestPhone: input.guestPhone,
+          guestIdentityNumber: input.guestIdentityNumber,
+          guestDateOfBirth: input.guestDateOfBirth,
+          guestGender: input.guestGender,
+          guestNationality: input.guestNationality,
+          guestResidencePlace: input.guestResidencePlace,
           plannedCheckInAt: input.plannedCheckInAt,
           plannedCheckOutAt: input.plannedCheckOutAt,
           createdByUserId: input.createdByUserId,

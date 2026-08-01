@@ -1,0 +1,305 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: src/features/workspace/config/workspace-registry.ts, src/features/workspace/config/workspace-registry.test.ts, src/features/staff-management/resources/staff-directory-resource.ts, src/features/staff-management/repositories/staff-directory-repository.ts, src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/rooms/page.tsx, src/app/(vietsage)/hotels/[hotelId]/rooms/page.tsx
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+src/
+  app/
+    (vietsage)/
+      hotels/
+        [hotelId]/
+          rooms/
+            page.tsx
+      owner/
+        (hotel)/
+          hotels/
+            [hotelId]/
+              rooms/
+                page.tsx
+  features/
+    staff-management/
+      repositories/
+        staff-directory-repository.ts
+      resources/
+        staff-directory-resource.ts
+    workspace/
+      config/
+        workspace-registry.test.ts
+        workspace-registry.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="src/app/(vietsage)/hotels/[hotelId]/rooms/page.tsx">
+import { notFound } from "next/navigation";
+import { auth } from "@/auth";
+import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
+import { assertCanAccessHotelOps, canUseHotelId, requireHotelOpsServerTokens } from "@/features/hotel-ops/utils/hotel-route-auth";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
+import { StaffRoomsClient } from "./staff-rooms-client";
+⋮----
+type PageProps = { params: Promise<{ hotelId: string }> | { hotelId: string } };
+⋮----
+export default async function StaffRoomsPage(
+</file>
+
+<file path="src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/rooms/page.tsx">
+import { auth } from "@/auth";
+import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
+⋮----
+import { OwnerRoomsClient } from "./owner-rooms-client";
+⋮----
+type PageProps = { params: Promise<{ hotelId: string }> | { hotelId: string } };
+⋮----
+export default async function OwnerHotelRoomsPage(
+</file>
+
+<file path="src/features/staff-management/repositories/staff-directory-repository.ts">
+import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import { HTTP_HEADER_TENANT_ID } from "@/core/http/tenant-scope";
+import type {
+  CreateAssignedHotelStaffUserInput,
+  StaffDirectorySnapshot,
+} from "@/features/staff-management/types/staff-management-contract";
+⋮----
+export type StaffManagementScope = {
+  surface: "owner" | "admin";
+  tenantId?: string | null;
+  hotelId?: string | null;
+};
+⋮----
+export type StaffDirectoryListInput = {
+  q?: string;
+  page: number;
+  limit: number;
+};
+⋮----
+export type AssignStaffRoleInput = {
+  userId: string;
+  roleId: string;
+};
+⋮----
+export type UpdateStaffAssignmentInput = {
+  userId: string;
+  assigned: boolean;
+};
+⋮----
+export type TemporaryPasswordResult = {
+  userId: string;
+  temporaryPassword: string;
+  resetAt: string;
+};
+export type UpdateStaffUserInput = { userId: string; fullName?: string; email?: string; status?: "ACTIVE" | "DISABLED" };
+⋮----
+type RepositoryRequestOptions = {
+  signal?: AbortSignal;
+};
+⋮----
+function tenantHeaders(
+  scope: StaffManagementScope,
+): Record<string, string> | undefined
+⋮----
+function directoryPath(
+  scope: StaffManagementScope,
+  input?: StaffDirectoryListInput,
+): string
+⋮----
+function userRolesPath(
+  scope: StaffManagementScope,
+  userId: string,
+): string
+⋮----
+async list(
+    scope: StaffManagementScope,
+    input: StaffDirectoryListInput,
+    options: RepositoryRequestOptions = {},
+): Promise<StaffDirectorySnapshot>
+⋮----
+async createUser(
+    scope: StaffManagementScope,
+    input: CreateAssignedHotelStaffUserInput,
+): Promise<unknown>
+⋮----
+async updateUser(scope: StaffManagementScope, input: UpdateStaffUserInput): Promise<unknown>
+⋮----
+async assignRole(
+    scope: StaffManagementScope,
+    input: AssignStaffRoleInput,
+): Promise<unknown>
+⋮----
+async revokeRole(
+    scope: StaffManagementScope,
+    input: AssignStaffRoleInput,
+): Promise<unknown>
+⋮----
+async updateAssignment(
+    scope: StaffManagementScope,
+    input: UpdateStaffAssignmentInput,
+): Promise<unknown>
+⋮----
+async resetFrontdeskPassword(
+    scope: StaffManagementScope,
+    userId: string,
+): Promise<TemporaryPasswordResult>
+</file>
+
+<file path="src/features/staff-management/resources/staff-directory-resource.ts">
+import {
+  createResource,
+  defineMutation,
+  defineQuery,
+  type ResourceMutationContext,
+  type ResourceQueryContext,
+} from "@dangminhdev04032005/query-resource";
+⋮----
+import {
+  staffDirectoryRepository,
+  type AssignStaffRoleInput,
+  type StaffDirectoryListInput,
+  type StaffManagementScope,
+  type UpdateStaffAssignmentInput,
+  type UpdateStaffUserInput,
+} from "@/features/staff-management/repositories/staff-directory-repository";
+import type {
+  CreateAssignedHotelStaffUserInput,
+  StaffDirectorySnapshot,
+} from "@/features/staff-management/types/staff-management-contract";
+⋮----
+async function listStaffDirectory({
+  scope,
+  input,
+  signal,
+}: ResourceQueryContext<
+  StaffManagementScope,
+  StaffDirectoryListInput
+>): Promise<StaffDirectorySnapshot>
+⋮----
+async function createStaffUser({
+  scope,
+  variables,
+}: ResourceMutationContext<
+  StaffManagementScope,
+  CreateAssignedHotelStaffUserInput
+>): Promise<unknown>
+⋮----
+async function assignStaffRole({
+  scope,
+  variables,
+}: ResourceMutationContext<
+  StaffManagementScope,
+  AssignStaffRoleInput
+>): Promise<unknown>
+⋮----
+async function revokeStaffRole({
+  scope,
+  variables,
+}: ResourceMutationContext<
+  StaffManagementScope,
+  AssignStaffRoleInput
+>): Promise<unknown>
+⋮----
+async function updateStaffAssignment({
+  scope,
+  variables,
+}: ResourceMutationContext<
+  StaffManagementScope,
+  UpdateStaffAssignmentInput
+>): Promise<unknown>
+async function updateStaffUser(
+⋮----
+async function resetFrontdeskPassword({
+  scope,
+  variables,
+}: ResourceMutationContext<StaffManagementScope,
+</file>
+
+<file path="src/features/workspace/config/workspace-registry.test.ts">
+import assert from "node:assert/strict";
+import test from "node:test";
+⋮----
+// @ts-expect-error Node's strip-types runner requires the explicit TypeScript extension.
+import { buildWorkspaceNavigation, createWorkspaceRegistry, getWorkspaceDashboardWidgets, getWorkspaceDefinition, resolveWorkspacePersona } from "./workspace-registry.ts";
+</file>
+
+<file path="src/features/workspace/config/workspace-registry.ts">
+import type { DashboardNavItem } from "../types/workspace-navigation";
+⋮----
+import type {
+  WorkspaceDefinition,
+  WorkspaceNavigationDefinition,
+  WorkspacePersona,
+  WorkspaceRegistry,
+  WorkspaceRegistryExtension,
+  WorkspaceWidgetDefinition,
+} from "../types/workspace-registry";
+⋮----
+function normalizeRoleCode(roleCode: string): string
+⋮----
+function mergeByKey<T extends
+⋮----
+export function createWorkspaceRegistry(extensions: readonly WorkspaceRegistryExtension[] = []): WorkspaceRegistry
+⋮----
+function hasAnyCapability(permissions: readonly string[], required?: readonly string[]): boolean
+⋮----
+function resolvePath(path: `/$
+⋮----
+export function resolveWorkspacePersona(roleCode: string, registry: WorkspaceRegistry = workspaceRegistry): WorkspacePersona | null
+⋮----
+export function getWorkspaceDefinition(persona: WorkspacePersona, registry: WorkspaceRegistry = workspaceRegistry): WorkspaceDefinition
+⋮----
+export function buildWorkspaceNavigation(input:
+⋮----
+export function buildWorkspaceNavigationForContext(input: {
+  activeRole: { code: string };
+  permissions: readonly string[];
+  hotelId?: string | null;
+  registry?: WorkspaceRegistry;
+}): DashboardNavItem[]
+⋮----
+export function getWorkspaceDashboardWidgets(input:
+</file>
+
+</files>

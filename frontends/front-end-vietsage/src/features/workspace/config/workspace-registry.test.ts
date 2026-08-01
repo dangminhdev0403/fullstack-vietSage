@@ -48,6 +48,23 @@ test("renders only registered labels and scopes owner staff navigation by capabi
   );
 });
 
+test("gives owners a separate biometric workstation connection tab", () => {
+  const navigation = buildWorkspaceNavigation({
+    persona: "owner",
+    permissions: ["hotel.stays.manage"],
+    hotelId: "hotel-1",
+  });
+
+  assert.equal(
+    navigation.some((item) => item.key === "owner.hotel.biometric" && item.href === "/owner/hotels/hotel-1/biometric"),
+    true,
+  );
+  assert.ok(
+    navigation.findIndex((item) => item.key === "owner.hotel.biometric")
+      < navigation.findIndex((item) => item.key === "owner.hotel.rooms"),
+  );
+});
+
 test("filters dashboard widgets by persona, capability, and explicit hotel scope", () => {
   const withoutHotel = getWorkspaceDashboardWidgets({
     persona: "manager",
@@ -114,6 +131,7 @@ test("adds role aliases, navigation, and widgets through an immutable extension"
     true,
   );
 });
+
 
 test("rejects accidental registry key overrides unless explicitly requested", () => {
   assert.throws(

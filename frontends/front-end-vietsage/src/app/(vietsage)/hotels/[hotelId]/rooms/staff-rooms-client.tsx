@@ -1,7 +1,7 @@
 "use client";
 
 import { createPortal } from "react-dom";
-import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Swal from "sweetalert2";
 import {
@@ -11,6 +11,8 @@ import {
 } from "@tanstack/react-query";
 
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import { CheckInWorkspace } from "@/features/local-biometric/components/check-in-workspace";
+import type { CheckInStayFields } from "@/features/local-biometric/types/check-in-workspace";
 import { BrandedRoomQr } from "@/features/hotel-ops/components/branded-room-qr";
 import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
 import type {
@@ -40,12 +42,6 @@ type RoomStatusFilter =
   | "blocked";
 type FlowMode = "walk-in" | "reservation";
 
-type WalkInForm = {
-  roomId: string;
-  guestDisplayName: string;
-  guestPhone: string;
-  plannedCheckOutAt: string;
-};
 
 type ReservationForm = {
   roomId: string;
@@ -140,14 +136,6 @@ function isAvailable(room: HotelRoomSummary): boolean {
   return getRoomStatus(room) === "available";
 }
 
-function emptyWalkIn(roomId = ""): WalkInForm {
-  return {
-    roomId,
-    guestDisplayName: "",
-    guestPhone: "",
-    plannedCheckOutAt: localDateTime(1, 12),
-  };
-}
 
 function emptyReservation(roomId = ""): ReservationForm {
   return {
@@ -273,9 +261,6 @@ export function StaffRoomsClient({
   const queryClient = useQueryClient();
   const apiBase = `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}`;
 
-  const checkInContainerRef = useRef<HTMLDivElement>(null);
-  const [flash, setFlash] = useState(false);
-  const flashTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [page, setPage] = useState(1);
   const [pageSize] = useState(100);
@@ -292,7 +277,9 @@ export function StaffRoomsClient({
   const [roomQrPreview, setRoomQrPreview] = useState<RoomQrPreview | null>(
     null,
   );
-  const [walkInForm, setWalkInForm] = useState<WalkInForm>(() => emptyWalkIn());
+  const [isCheckInOpen, setIsCheckInOpen] = useState(false);
+  const [submitError, setSubmitError] = useState<string | undefined>();
+
   const [reservationForm, setReservationForm] = useState<ReservationForm>(() =>
     emptyReservation(),
   );
@@ -363,8 +350,17 @@ export function StaffRoomsClient({
       });
     const popup = window.open("", "vietsage-stay-list");
     if (!popup) return;
-    const rows = activeStays.map(({ room, stay }) => `<tr><td>${getRoomNumber(room)}</td><td>${stay?.guestDisplayName ?? "-"}</td><td>${stay?.guestPhone ?? "-"}</td><td>${formatDateTime(stay?.checkedInAt ?? stay?.plannedCheckInAt)}</td></tr>`).join("");
-    popup.document.write(`<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>Danh sách lưu trú</title><style>body{font-family:Arial,sans-serif;padding:32px;color:#17201b}h1{margin:0 0 8px}p{color:#5d6a61}table{border-collapse:collapse;width:100%;margin-top:24px}th,td{border:1px solid #cbd5ce;padding:9px;text-align:left}th{background:#eef3ee}</style></head><body><h1>Danh sách khách đang lưu trú</h1><p>Khách sạn ${hotelId} · In lúc ${formatDateTime(printedAt.toISOString())}</p><table><thead><tr><th>Phòng</th><th>Họ tên</th><th>Số điện thoại</th><th>Nhận phòng</th></tr></thead><tbody>${rows || '<tr><td colspan="4">Không có khách lưu trú từ 0h hôm nay đến thời điểm in.</td></tr>'}</tbody></table><script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}</script></body></html>`);
+    const rows = activeStays.map(({ room, stay }) => {
+      const cccd = stay?.guestIdentityNumber || "chưa có";
+      const dob = stay?.guestDateOfBirth || "chưa có";
+      const gender = stay?.guestGender || "chưa có";
+      const nationality = stay?.guestNationality || "chưa có";
+      const address = stay?.guestResidencePlace || "chưa có";
+      const phone = stay?.guestPhone || "chưa có";
+      const checkIn = formatDateTime(stay?.checkedInAt ?? stay?.plannedCheckInAt);
+      return `<tr><td>${getRoomNumber(room)}</td><td>${stay?.guestDisplayName ?? "chưa có"}</td><td>${cccd}</td><td>${dob}</td><td>${gender}</td><td>${nationality}</td><td>${address}</td><td>${phone}</td><td>${checkIn}</td></tr>`;
+    }).join("");
+    popup.document.write(`<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>Danh sách lưu trú</title><style>body{font-family:Arial,sans-serif;padding:32px;color:#17201b}h1{margin:0 0 8px}p{color:#5d6a61}table{border-collapse:collapse;width:100%;margin-top:24px}th,td{border:1px solid #cbd5ce;padding:9px;text-align:left;font-size:13px}th{background:#eef3ee}</style></head><body><h1>Danh sách khách đang lưu trú</h1><p>Khách sạn ${hotelId} · In lúc ${formatDateTime(printedAt.toISOString())}</p><table><thead><tr><th>Phòng</th><th>Họ tên</th><th>Số CCCD</th><th>Ngày sinh</th><th>Giới tính</th><th>Quốc tịch</th><th>Địa chỉ</th><th>Số điện thoại</th><th>Nhận phòng</th></tr></thead><tbody>${rows || '<tr><td colspan="9">Không có khách lưu trú từ 0h hôm nay đến thời điểm in.</td></tr>'}</tbody></table><script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}</script></body></html>`);
     popup.document.close();
   }
 
@@ -373,30 +369,8 @@ export function StaffRoomsClient({
   function openWalkIn(room: HotelRoomSummary) {
     if (!isAvailable(room) || !canManageStays) return;
     setSelectedRoom(room);
-    setWalkInForm(emptyWalkIn(room.id));
-    setReservationForm(emptyReservation(room.id));
-
-    if (flashTimeoutRef.current) {
-      clearTimeout(flashTimeoutRef.current);
-    }
-    setFlash(true);
-    flashTimeoutRef.current = setTimeout(() => {
-      setFlash(false);
-    }, 800);
-
-    if (checkInContainerRef.current) {
-      const rect = checkInContainerRef.current.getBoundingClientRect();
-      const inViewport =
-        rect.top >= 0 &&
-        rect.bottom <=
-          (window.innerHeight || document.documentElement.clientHeight);
-      if (!inViewport) {
-        checkInContainerRef.current.scrollIntoView({
-          behavior: "smooth",
-          block: "nearest",
-        });
-      }
-    }
+    setSubmitError(undefined);
+    setIsCheckInOpen(true);
   }
 
   async function markRoomCleaned(room: HotelRoomSummary) {
@@ -540,14 +514,19 @@ export function StaffRoomsClient({
     }
   }
 
-  async function submitWalkIn(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function submitWalkIn(fields: CheckInStayFields) {
     if (!selectedRoom) return;
+
+    const plannedCheckOutAt = new Date(fields.plannedCheckOutAt).toISOString();
+    if (isNaN(new Date(plannedCheckOutAt).getTime())) {
+      setSubmitError("Thời gian check-out không hợp lệ.");
+      return;
+    }
 
     const confirmation = await Swal.fire({
       icon: "question",
       title: "Xác nhận mở phòng check-in?",
-      text: `Mở phòng ${getRoomNumber(selectedRoom)} cho khách "${walkInForm.guestDisplayName.trim()}". Hệ thống sẽ kích hoạt QR và mã GuestOS ngay.`,
+      text: `Mở phòng ${getRoomNumber(selectedRoom)} cho khách "${fields.guestDisplayName.trim()}". Hệ thống sẽ kích hoạt QR và mã GuestOS ngay.`,
       showCancelButton: true,
       confirmButtonText: "Xác nhận mở phòng",
       cancelButtonText: "Hủy",
@@ -557,29 +536,45 @@ export function StaffRoomsClient({
     if (!confirmation.isConfirmed) return;
 
     setSaving(true);
+    setSubmitError(undefined);
     try {
       const result = await requestInternalApiEnvelope<HotelCheckInResult>(
         `${apiBase}/stays`,
         {
           method: "POST",
           body: {
-            roomId: walkInForm.roomId,
-            guestDisplayName: walkInForm.guestDisplayName.trim(),
-            ...(walkInForm.guestPhone.trim()
-              ? { guestPhone: walkInForm.guestPhone.trim() }
+            roomId: selectedRoom.id,
+            guestDisplayName: fields.guestDisplayName.trim(),
+            ...(fields.guestPhone?.trim()
+              ? { guestPhone: fields.guestPhone.trim() }
+              : {}),
+            ...(fields.guestIdentityNumber?.trim()
+              ? { guestIdentityNumber: fields.guestIdentityNumber.trim() }
+              : {}),
+            ...(fields.guestDateOfBirth?.trim()
+              ? { guestDateOfBirth: fields.guestDateOfBirth.trim() }
+              : {}),
+            ...(fields.guestGender?.trim()
+              ? { guestGender: fields.guestGender.trim() }
+              : {}),
+            ...(fields.guestNationality?.trim()
+              ? { guestNationality: fields.guestNationality.trim() }
+              : {}),
+            ...(fields.guestResidencePlace?.trim()
+              ? { guestResidencePlace: fields.guestResidencePlace.trim() }
               : {}),
             plannedCheckInAt: new Date().toISOString(),
-            plannedCheckOutAt: new Date(
-              walkInForm.plannedCheckOutAt,
-            ).toISOString(),
+            plannedCheckOutAt,
           },
         },
       );
+
+      setIsCheckInOpen(false);
       setSelectedRoom(null);
       await Swal.fire({
         icon: "success",
         title: "Đã mở phòng",
-        text: `Mã GuestOS: ${result.data.accessCode}. Khách có thể quét QR để gọi dịch vụ và nhắn tin.`,
+        text: `Mã GuestOS: ${result.data.accessCode}.`,
         confirmButtonColor: "#00003c",
       });
       queryClient
@@ -587,6 +582,7 @@ export function StaffRoomsClient({
         .catch(() => {});
       router.refresh();
     } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "Vui lòng thử lại.");
       await Swal.fire({
         icon: "error",
         title: "Không thể mở phòng",
@@ -1147,12 +1143,7 @@ export function StaffRoomsClient({
         </div>
 
         <aside className="space-y-4">
-          <div
-            ref={checkInContainerRef}
-            className={`rounded-xl border bg-white p-5 shadow-[0_4px_20px_rgba(0,0,0,0.05)] transition-all duration-300 ${
-              flash ? "animate-subtle-flash" : "border-[var(--outline-variant)]"
-            }`}
-          >
+          <div className="rounded-xl border border-[var(--outline-variant)] bg-white p-5 shadow-[0_4px_20px_rgba(0,0,0,0.05)]">
             <div className="flex rounded-lg bg-[var(--surface-container-low)] p-1">
               <button
                 type="button"
@@ -1171,90 +1162,13 @@ export function StaffRoomsClient({
             </div>
 
             {flow === "walk-in" ? (
-              <form
-                key="walk-in-form"
-                onSubmit={submitWalkIn}
-                className="mt-5 space-y-4 animate-quick-check-in"
-              >
-                <div>
-                  <h2 className="vs-display text-2xl font-semibold text-[var(--primary)]">
-                    Check-in nhanh
-                  </h2>
-                  <p className="mt-1 text-sm text-[var(--on-surface-variant)]">
-                    Chọn phòng trống trên lưới hoặc trong danh sách.
-                  </p>
-                </div>
-                <select
-                  required
-                  value={walkInForm.roomId}
-                  onChange={(event) => {
-                    const room =
-                      rooms.find((item) => item.id === event.target.value) ??
-                      null;
-                    setSelectedRoom(room);
-                    setWalkInForm((current) => ({
-                      ...current,
-                      roomId: event.target.value,
-                    }));
-                  }}
-                  className="h-12 w-full rounded-lg border-0 bg-[var(--surface-container-low)] px-3 text-sm ring-1 ring-transparent focus:ring-[var(--primary)]"
-                >
-                  <option value="">Chọn phòng trống</option>
-                  {availableRooms.map((room) => (
-                    <option key={room.id} value={room.id}>
-                      Phòng {getRoomNumber(room)} · {room.type ?? "Tiêu chuẩn"}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  required
-                  minLength={2}
-                  value={walkInForm.guestDisplayName}
-                  onChange={(event) =>
-                    setWalkInForm((current) => ({
-                      ...current,
-                      guestDisplayName: event.target.value,
-                    }))
-                  }
-                  className="h-12 w-full rounded-lg border-0 bg-[var(--surface-container-low)] px-4 text-sm ring-1 ring-transparent focus:ring-[var(--primary)]"
-                  placeholder="Tên khách"
-                />
-                <input
-                  value={walkInForm.guestPhone}
-                  onChange={(event) =>
-                    setWalkInForm((current) => ({
-                      ...current,
-                      guestPhone: event.target.value,
-                    }))
-                  }
-                  className="h-12 w-full rounded-lg border-0 bg-[var(--surface-container-low)] px-4 text-sm ring-1 ring-transparent focus:ring-[var(--primary)]"
-                  placeholder="Số điện thoại"
-                />
-                <label className="block space-y-2">
-                  <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">
-                    Dự kiến trả phòng
-                  </span>
-                  <input
-                    required
-                    type="datetime-local"
-                    value={walkInForm.plannedCheckOutAt}
-                    onChange={(event) =>
-                      setWalkInForm((current) => ({
-                        ...current,
-                        plannedCheckOutAt: event.target.value,
-                      }))
-                    }
-                    className="h-12 w-full rounded-lg border-0 bg-[var(--surface-container-low)] px-4 text-sm ring-1 ring-transparent focus:ring-[var(--primary)]"
-                  />
-                </label>
-                <button
-                  disabled={saving || !canManageStays}
-                  className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[var(--primary)] px-5 text-sm font-bold text-white disabled:opacity-50"
-                >
-                  <VsIcon name="check_circle" />
-                  {saving ? "Đang xử lý..." : "Xác nhận check-in"}
-                </button>
-              </form>
+              <div className="mt-5 p-6 border border-dashed border-[var(--outline-variant)] rounded-xl text-center">
+                <VsIcon name="login" className="text-4xl text-[var(--primary)] opacity-50 mb-2" />
+                <h3 className="font-semibold text-[var(--primary)] text-lg">Check-in nhanh</h3>
+                <p className="text-sm text-[var(--on-surface-variant)] mt-1">
+                  Chọn một phòng TRỐNG trên lưới để mở giao diện Check-in.
+                </p>
+              </div>
             ) : (
               <form
                 key="reservation-form"
@@ -1485,11 +1399,53 @@ export function StaffRoomsClient({
                     </p>
                   </div>
                 )}
+
+                {roomQrPreview.room.activeStay ? (
+                  <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4 text-left">
+                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-blue-700">
+                      Thông tin khách lưu trú
+                    </p>
+                    <p className="mt-1 text-base font-bold text-blue-950">
+                      {roomQrPreview.room.activeStay.guestDisplayName || "Khách lưu trú"}
+                    </p>
+                    <div className="mt-2.5 grid gap-2 text-xs text-blue-900 sm:grid-cols-2">
+                      <p><span className="font-bold text-blue-950">SĐT:</span> {roomQrPreview.room.activeStay.guestPhone || "chưa có"}</p>
+                      <p><span className="font-bold text-blue-950">Mã đặt phòng:</span> {roomQrPreview.room.activeStay.reservationCode || "chưa có"}</p>
+                      <p><span className="font-bold text-blue-950">Số CCCD:</span> {roomQrPreview.room.activeStay.guestIdentityNumber || "chưa có"}</p>
+                      <p><span className="font-bold text-blue-950">Ngày sinh:</span> {roomQrPreview.room.activeStay.guestDateOfBirth || "chưa có"}</p>
+                      <p><span className="font-bold text-blue-950">Giới tính:</span> {roomQrPreview.room.activeStay.guestGender || "chưa có"}</p>
+                      <p><span className="font-bold text-blue-950">Quốc tịch:</span> {roomQrPreview.room.activeStay.guestNationality || "chưa có"}</p>
+                      <p className="sm:col-span-2"><span className="font-bold text-blue-950">Địa chỉ thường trú:</span> {roomQrPreview.room.activeStay.guestResidencePlace || "chưa có"}</p>
+                      <p><span className="font-bold text-blue-950">Check-in:</span> {formatDateTime(roomQrPreview.room.activeStay.checkedInAt ?? roomQrPreview.room.activeStay.plannedCheckInAt)}</p>
+                      <p><span className="font-bold text-blue-950">Check-out:</span> {formatDateTime(roomQrPreview.room.activeStay.plannedCheckOutAt)}</p>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </div>,
             document.body,
           )
         : null}
+
+      {isCheckInOpen && selectedRoom ? (
+        <CheckInWorkspace
+          key={selectedRoom.id}
+          open={isCheckInOpen}
+          hotelId={hotelId}
+          room={{ id: selectedRoom.id, roomNumber: getRoomNumber(selectedRoom), type: selectedRoom.type ?? undefined, status: "available" }}
+          canManageStays={canManageStays}
+          initialStayFields={{ plannedCheckOutAt: localDateTime(1, 12) }}
+          submitState={saving ? 'submitting' : 'idle'}
+          submitError={submitError}
+          onSubmit={submitWalkIn}
+          onClose={() => {
+            if (saving) return;
+            setIsCheckInOpen(false);
+            setSelectedRoom(null);
+            setSubmitError(undefined);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

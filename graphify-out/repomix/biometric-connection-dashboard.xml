@@ -1,0 +1,239 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: frontends/front-end-vietsage/src/features/local-biometric/components/check-in-workspace.tsx, frontends/front-end-vietsage/src/features/local-biometric/components/cccd-check-in-panel.tsx, frontends/front-end-vietsage/src/features/local-biometric/components/cccd-check-in-panel.test.ts, frontends/front-end-vietsage/src/features/local-biometric/components/check-in-workspace-layout.test.ts, frontends/front-end-vietsage/src/features/local-biometric/repositories/workstation-repository.ts, frontends/front-end-vietsage/src/features/local-biometric/resources/workstation-resource.ts, frontends/front-end-vietsage/src/app/api/biometric-workstations/hotels/[hotelId]/pairing/route.ts, frontends/front-end-vietsage/src/app/(vietsage)/_components/vs-dashboard-sidebar.tsx, frontends/front-end-vietsage/src/features/workspace/config/workspace-registry.ts, frontends/front-end-vietsage/src/features/workspace/config/workspace-registry.test.ts
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    src/
+      app/
+        (vietsage)/
+          _components/
+            vs-dashboard-sidebar.tsx
+        api/
+          biometric-workstations/
+            hotels/
+              [hotelId]/
+                pairing/
+                  route.ts
+      features/
+        local-biometric/
+          components/
+            cccd-check-in-panel.test.ts
+            cccd-check-in-panel.tsx
+            check-in-workspace-layout.test.ts
+            check-in-workspace.tsx
+          repositories/
+            workstation-repository.ts
+          resources/
+            workstation-resource.ts
+        workspace/
+          config/
+            workspace-registry.test.ts
+            workspace-registry.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="frontends/front-end-vietsage/src/app/api/biometric-workstations/hotels/[hotelId]/pairing/route.ts">
+import { NextResponse } from "next/server";
+import { auth } from "@/auth";
+import { authorizeHotelWorkstation } from "@/features/local-biometric/workstation/authorize-hotel-workstation";
+import { workstationStore } from "@/features/local-biometric/workstation/workstation-store";
+⋮----
+type Context={params:Promise<{hotelId:string}>|{hotelId:string}};
+export async function POST(_request:Request,context:Context)
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/components/cccd-check-in-panel.test.ts">
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/components/cccd-check-in-panel.tsx">
+import { useEffect, useRef, useState } from "react";
+import { useWorkstationScan } from "../hooks/use-workstation-scan";
+⋮----
+export type CccdCheckInCapture = {
+  guestDisplayName: string;
+  guestIdentityNumber: string;
+  payload?: import("../intake/intake-contract").IntakePayloadV2;
+};
+⋮----
+type Props = {
+  hotelId: string;
+  onCapture: (capture: CccdCheckInCapture | null) => void;
+};
+⋮----
+export function CccdCheckInPanel(
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/components/check-in-workspace-layout.test.ts">
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/components/check-in-workspace.tsx">
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import type { CheckInWorkspaceProps, CheckInStayFields } from "../types/check-in-workspace";
+import { buildCccdPreviewModel } from "../utils/cccd-preview";
+import { CccdCheckInPanel, type CccdCheckInCapture } from "./cccd-check-in-panel";
+import { CccdPreview } from "./cccd-preview";
+⋮----
+export function CheckInWorkspace(props: CheckInWorkspaceProps)
+⋮----
+const onKeyDown = (event: KeyboardEvent) =>
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/repositories/workstation-repository.ts">
+import type { IntakePayloadV2 } from "../intake/intake-contract";
+⋮----
+export type WorkstationPairingStatus = { online: boolean };
+export type ScanRequest = { scanRequestId: string; expiresAt: number };
+export type ScanResult = {
+  status: "waiting" | "claimed" | "received";
+  scanRequestId: string;
+  expiresAt: number;
+  payload: IntakePayloadV2 | null;
+};
+⋮----
+async function apiFetch<T>(url: string, init?: RequestInit): Promise<T>
+⋮----
+async getPairingStatus(hotelId: string): Promise<WorkstationPairingStatus>
+⋮----
+async createPairing(hotelId: string): Promise<
+⋮----
+async requestScan(hotelId: string): Promise<ScanRequest>
+⋮----
+async readScan(scanRequestId: string, hotelId: string): Promise<ScanResult>
+⋮----
+async acknowledgeScan(scanRequestId: string, hotelId: string): Promise<void>
+⋮----
+async discardScan(scanRequestId: string, hotelId: string): Promise<void>
+⋮----
+// Best-effort: use ack route to clear payload from volatile store
+⋮----
+// discard is best-effort; TTL is the fail-safe
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/resources/workstation-resource.ts">
+import {
+  createResource,
+  defineMutation,
+  defineQuery,
+  type ResourceMutationContext,
+  type ResourceQueryContext,
+} from "@dangminhdev04032005/query-resource";
+import { workstationRepository } from "../repositories/workstation-repository";
+⋮----
+type Scope = { hotelId: string };
+type ScanInput = { scanRequestId: string };
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/workspace/config/workspace-registry.test.ts">
+import assert from "node:assert/strict";
+import test from "node:test";
+⋮----
+// @ts-expect-error Node's strip-types runner requires the explicit TypeScript extension.
+import { buildWorkspaceNavigation, createWorkspaceRegistry, getWorkspaceDashboardWidgets, getWorkspaceDefinition, resolveWorkspacePersona } from "./workspace-registry.ts";
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/_components/vs-dashboard-sidebar.tsx">
+import Link from "next/link";
+⋮----
+import { VietSageBrand } from "@/components/brand/vietsage-brand";
+import type { DashboardNavItem } from "@/features/workspace/types/workspace-navigation";
+import { isNavItemActive } from "@/features/workspace/utils/workspace-nav-active";
+⋮----
+import { VsIcon } from "./vs-icon";
+⋮----
+type VsDashboardSidebarProps = {
+  activePath: string;
+  description?: string;
+  eyebrow?: string;
+  items?: readonly DashboardNavItem[];
+};
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/workspace/config/workspace-registry.ts">
+import type { DashboardNavItem } from "../types/workspace-navigation";
+⋮----
+import type {
+  WorkspaceDefinition,
+  WorkspaceNavigationDefinition,
+  WorkspacePersona,
+  WorkspaceRegistry,
+  WorkspaceRegistryExtension,
+  WorkspaceWidgetDefinition,
+} from "../types/workspace-registry";
+⋮----
+function normalizeRoleCode(roleCode: string): string
+⋮----
+function mergeByKey<T extends
+⋮----
+export function createWorkspaceRegistry(extensions: readonly WorkspaceRegistryExtension[] = []): WorkspaceRegistry
+⋮----
+function hasAnyCapability(permissions: readonly string[], required?: readonly string[]): boolean
+⋮----
+function resolvePath(path: `/$
+⋮----
+export function resolveWorkspacePersona(roleCode: string, registry: WorkspaceRegistry = workspaceRegistry): WorkspacePersona | null
+⋮----
+export function getWorkspaceDefinition(persona: WorkspacePersona, registry: WorkspaceRegistry = workspaceRegistry): WorkspaceDefinition
+⋮----
+export function buildWorkspaceNavigation(input:
+⋮----
+export function buildWorkspaceNavigationForContext(input: {
+  activeRole: { code: string };
+  permissions: readonly string[];
+  hotelId?: string | null;
+  registry?: WorkspaceRegistry;
+}): DashboardNavItem[]
+⋮----
+export function getWorkspaceDashboardWidgets(input:
+</file>
+
+</files>

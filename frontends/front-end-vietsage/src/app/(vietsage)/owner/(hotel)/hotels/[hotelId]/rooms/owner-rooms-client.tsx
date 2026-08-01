@@ -403,9 +403,16 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
     if (!popup) return;
     const rows = activeRooms.map((room) => {
       const stay = room.activeStay;
-      return `<tr><td>${getRoomNumber(room)}</td><td>${stay?.guestDisplayName ?? "-"}</td><td>${stay?.guestPhone ?? "-"}</td><td>${new Intl.DateTimeFormat("vi-VN", { dateStyle: "short", timeStyle: "short" }).format(new Date(stay?.checkedInAt ?? stay?.plannedCheckInAt ?? 0))}</td></tr>`;
+      const cccd = stay?.guestIdentityNumber || "chưa có";
+      const dob = stay?.guestDateOfBirth || "chưa có";
+      const gender = stay?.guestGender || "chưa có";
+      const nationality = stay?.guestNationality || "chưa có";
+      const address = stay?.guestResidencePlace || "chưa có";
+      const phone = stay?.guestPhone || "chưa có";
+      const checkIn = new Intl.DateTimeFormat("vi-VN", { dateStyle: "short", timeStyle: "short" }).format(new Date(stay?.checkedInAt ?? stay?.plannedCheckInAt ?? 0));
+      return `<tr><td>${getRoomNumber(room)}</td><td>${stay?.guestDisplayName ?? "chưa có"}</td><td>${cccd}</td><td>${dob}</td><td>${gender}</td><td>${nationality}</td><td>${address}</td><td>${phone}</td><td>${checkIn}</td></tr>`;
     }).join("");
-    popup.document.write(`<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>Danh sách lưu trú</title><style>body{font-family:Arial,sans-serif;padding:32px;color:#17201b}table{border-collapse:collapse;width:100%;margin-top:24px}th,td{border:1px solid #cbd5ce;padding:9px;text-align:left}th{background:#eef3ee}</style></head><body><h1>Danh sách khách đang lưu trú</h1><p>Khách sạn ${hotelId} · In lúc ${printedAt.toLocaleString("vi-VN")}</p><table><thead><tr><th>Phòng</th><th>Họ tên</th><th>Số điện thoại</th><th>Nhận phòng</th></tr></thead><tbody>${rows || '<tr><td colspan="4">Không có khách lưu trú từ 0h hôm nay đến thời điểm in.</td></tr>'}</tbody></table><script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}</script></body></html>`);
+    popup.document.write(`<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>Danh sách lưu trú</title><style>body{font-family:Arial,sans-serif;padding:32px;color:#17201b}table{border-collapse:collapse;width:100%;margin-top:24px}th,td{border:1px solid #cbd5ce;padding:9px;text-align:left;font-size:13px}th{background:#eef3ee}</style></head><body><h1>Danh sách khách đang lưu trú</h1><p>Khách sạn ${hotelId} · In lúc ${printedAt.toLocaleString("vi-VN")}</p><table><thead><tr><th>Phòng</th><th>Họ tên</th><th>Số CCCD</th><th>Ngày sinh</th><th>Giới tính</th><th>Quốc tịch</th><th>Địa chỉ</th><th>Số điện thoại</th><th>Nhận phòng</th></tr></thead><tbody>${rows || '<tr><td colspan="9">Không có khách lưu trú từ 0h hôm nay đến thời điểm in.</td></tr>'}</tbody></table><script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}</script></body></html>`);
     popup.document.close();
   }
   const [query, setQuery] = useState("");

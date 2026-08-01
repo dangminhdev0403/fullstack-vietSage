@@ -8,6 +8,7 @@ import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { formatDayMonth } from "./dashboard-presentation";
+import { WorkstationConnectionPanel } from "@/features/local-biometric/components/workstation-connection-panel";
 
 type PageProps = { params: Promise<{ hotelId: string }> | { hotelId: string } };
 export const dynamic = "force-dynamic";
@@ -74,6 +75,8 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
           <p className="vs-display mt-1 text-xl font-semibold text-[var(--primary)]">{formatDayMonth(dashboard.generatedAt)}</p>
         </div>
       </header>
+
+      {context.permissions.includes("hotel.stays.manage") ? <WorkstationConnectionPanel hotelId={hotelId} /> : null}
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {roomCards.map((card) => (

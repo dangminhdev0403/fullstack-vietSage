@@ -21,6 +21,11 @@ const createStaySchema = z.object({
   roomId: z.string().trim().min(1),
   guestDisplayName: z.string().trim().min(1),
   guestPhone: z.string().trim().optional(),
+  guestIdentityNumber: z.string().trim().max(32).optional(),
+  guestDateOfBirth: z.string().trim().max(20).optional(),
+  guestGender: z.string().trim().max(20).optional(),
+  guestNationality: z.string().trim().max(80).optional(),
+  guestResidencePlace: z.string().trim().max(500).optional(),
   plannedCheckInAt: z.string().trim().min(1),
   plannedCheckOutAt: z.string().trim().min(1),
 }).strict();
@@ -38,6 +43,11 @@ function sanitizeCreateStayPayload(payload: unknown): { body: CreateHotelStayInp
   };
 
   if (input.guestPhone) body.guestPhone = input.guestPhone;
+  if (input.guestIdentityNumber) body.guestIdentityNumber = input.guestIdentityNumber;
+  if (input.guestDateOfBirth) body.guestDateOfBirth = input.guestDateOfBirth;
+  if (input.guestGender) body.guestGender = input.guestGender;
+  if (input.guestNationality) body.guestNationality = input.guestNationality;
+  if (input.guestResidencePlace) body.guestResidencePlace = input.guestResidencePlace;
   return { body };
 }
 

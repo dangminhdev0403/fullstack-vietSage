@@ -229,6 +229,11 @@ export class HotelRoomsService {
       roomId: dto.roomId,
       guestDisplayName: dto.guestDisplayName.trim(),
       guestPhone: dto.guestPhone?.trim(),
+      guestIdentityNumber: dto.guestIdentityNumber,
+      guestDateOfBirth: dto.guestDateOfBirth?.trim(),
+      guestGender: dto.guestGender?.trim(),
+      guestNationality: dto.guestNationality?.trim(),
+      guestResidencePlace: dto.guestResidencePlace?.trim(),
       plannedCheckInAt: dto.plannedCheckInAt,
       plannedCheckOutAt: dto.plannedCheckOutAt,
       createdByUserId: actorUserId,
@@ -309,6 +314,11 @@ export class HotelRoomsService {
       roomId: dto.roomId,
       guestDisplayName: dto.guestDisplayName.trim(),
       guestPhone: dto.guestPhone?.trim(),
+      guestIdentityNumber: dto.guestIdentityNumber,
+      guestDateOfBirth: dto.guestDateOfBirth?.trim(),
+      guestGender: dto.guestGender?.trim(),
+      guestNationality: dto.guestNationality?.trim(),
+      guestResidencePlace: dto.guestResidencePlace?.trim(),
       plannedCheckInAt: dto.plannedCheckInAt,
       plannedCheckOutAt: dto.plannedCheckOutAt,
       createdByUserId: actorUserId,
@@ -498,6 +508,11 @@ export class HotelRoomsService {
     guestDisplayName: string;
     guestPhone?: string | null;
     guestPhoneMasked?: string | null;
+    guestIdentityNumber?: string | null;
+    guestDateOfBirth?: string | null;
+    guestGender?: string | null;
+    guestNationality?: string | null;
+    guestResidencePlace?: string | null;
     status: GuestStayStatus;
     plannedCheckInAt: Date;
     plannedCheckOutAt: Date;
@@ -515,6 +530,11 @@ export class HotelRoomsService {
       reservationCode: row.reservationCode,
       guestDisplayName: row.guestDisplayName,
       guestPhone: row.guestPhone ?? row.guestPhoneMasked ?? null,
+      guestIdentityNumber: row.guestIdentityNumber ?? null,
+      guestDateOfBirth: row.guestDateOfBirth ?? null,
+      guestGender: row.guestGender ?? null,
+      guestNationality: row.guestNationality ?? null,
+      guestResidencePlace: row.guestResidencePlace ?? null,
       status: row.status,
       plannedCheckInAt: row.plannedCheckInAt,
       plannedCheckOutAt: row.plannedCheckOutAt,

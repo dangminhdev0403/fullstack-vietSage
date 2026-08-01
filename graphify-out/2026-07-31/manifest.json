@@ -1,0 +1,4117 @@
+{
+  "frontends/front-end-vietsage/eslint.config.mjs": {
+    "mtime": 1783626773.2978578,
+    "ast_hash": "ccc23dd2b1ffdffe041d1a13cbd2a4f1",
+    "semantic_hash": "ccc23dd2b1ffdffe041d1a13cbd2a4f1"
+  },
+  "frontends/front-end-vietsage/next-auth.d.ts": {
+    "mtime": 1783626773.2978578,
+    "ast_hash": "a47aecc1e6535b197b7057b43d54bdf5",
+    "semantic_hash": "a47aecc1e6535b197b7057b43d54bdf5"
+  },
+  "frontends/front-end-vietsage/next.config.ts": {
+    "mtime": 1783892630.6721642,
+    "ast_hash": "f274b5898bd9afb919496af1dd74c0c8",
+    "semantic_hash": "f274b5898bd9afb919496af1dd74c0c8"
+  },
+  "frontends/front-end-vietsage/package.json": {
+    "mtime": 1784895521.5649838,
+    "ast_hash": "05fb8103126097051a00b93b48dbc2e6",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/postcss.config.mjs": {
+    "mtime": 1783626773.3008568,
+    "ast_hash": "481fac0fdecd70e1821cc30b86030c1a",
+    "semantic_hash": "481fac0fdecd70e1821cc30b86030c1a"
+  },
+  "frontends/front-end-vietsage/proxy.ts": {
+    "mtime": 1783626773.301857,
+    "ast_hash": "3e8f757e1514693863d61ace59b104e5",
+    "semantic_hash": "3e8f757e1514693863d61ace59b104e5"
+  },
+  "frontends/front-end-vietsage/scripts/auth-refresh-smoke.mjs": {
+    "mtime": 1783928907.0914721,
+    "ast_hash": "74010008e835b4b0558e4ccd1478929c",
+    "semantic_hash": "74010008e835b4b0558e4ccd1478929c"
+  },
+  "frontends/front-end-vietsage/scripts/auth-session-contract-smoke.mjs": {
+    "mtime": 1784013301.1865733,
+    "ast_hash": "c97b97c066b91b8a0ab75eefcdf06d9c",
+    "semantic_hash": "c97b97c066b91b8a0ab75eefcdf06d9c"
+  },
+  "frontends/front-end-vietsage/scripts/marketing-motion-smoke.test.mjs": {
+    "mtime": 1784177728.8728075,
+    "ast_hash": "049ec7ba68b8387bdd015d275c6b3f5b",
+    "semantic_hash": "049ec7ba68b8387bdd015d275c6b3f5b"
+  },
+  "frontends/front-end-vietsage/scripts/sync-openapi-types.mjs": {
+    "mtime": 1783626773.313963,
+    "ast_hash": "6d24a3c754452d25508bbe204390fc46",
+    "semantic_hash": "6d24a3c754452d25508bbe204390fc46"
+  },
+  "frontends/front-end-vietsage/skills-lock.json": {
+    "mtime": 1783626773.3144803,
+    "ast_hash": "0f1fd9c7063afd343fcfd0686b3fdb74",
+    "semantic_hash": "0f1fd9c7063afd343fcfd0686b3fdb74"
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/_components/auth-refresh-gate.tsx": {
+    "mtime": 1784013349.84046,
+    "ast_hash": "2076d08986f06c6bf044e1471cdf30f2",
+    "semantic_hash": "2076d08986f06c6bf044e1471cdf30f2"
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/_components/route-boundary-state.tsx": {
+    "mtime": 1784629398.3747268,
+    "ast_hash": "0cd606ecfde78fa9aa5560650adec96d",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/_components/vs-bottom-nav.tsx": {
+    "mtime": 1784687522.7238712,
+    "ast_hash": "7bc4621c27be3f857817098b83b3f4d2",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/_components/vs-dashboard-sidebar.tsx": {
+    "mtime": 1785150906.6341736,
+    "ast_hash": "a70f7248f00d24ede294a15fa4c74dbd",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/_components/vs-icon.tsx": {
+    "mtime": 1784718763.081135,
+    "ast_hash": "87745d73484268485369a2211ad5da16",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/_components/vs-logout-button.tsx": {
+    "mtime": 1785116732.7070177,
+    "ast_hash": "2f99c26f6f10e04db0a5c79938038cc7",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/_components/vs-sidebar.tsx": {
+    "mtime": 1785149848.3602178,
+    "ast_hash": "a3d97a538a4e5fe1a06b02bb86dc51cc",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/_components/vs-status-chip.tsx": {
+    "mtime": 1783626773.3175664,
+    "ast_hash": "3e3119a365af085c315b62ba39cf895f",
+    "semantic_hash": "3e3119a365af085c315b62ba39cf895f"
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/_components/vs-top-bar.tsx": {
+    "mtime": 1785149848.3612196,
+    "ast_hash": "6b86295ddb326cf210e7ca17b7e5480c",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/_data/mock.ts": {
+    "mtime": 1783626773.3180811,
+    "ast_hash": "c9aab01714ab7f9b26bc60c7516275ae",
+    "semantic_hash": "c9aab01714ab7f9b26bc60c7516275ae"
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/admin/_components/access-control-nav-header.tsx": {
+    "mtime": 1783626773.3186016,
+    "ast_hash": "e15ad9ddd778262e55f5b848342a3ec1",
+    "semantic_hash": "e15ad9ddd778262e55f5b848342a3ec1"
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/admin/_components/admin-shell.tsx": {
+    "mtime": 1784629398.376255,
+    "ast_hash": "3c0f7dc7129a2a6feb23a288a6188327",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/admin/dashboard/page.tsx": {
+    "mtime": 1784891721.6091526,
+    "ast_hash": "b2b0ed989aabf5091dd62ec694df5038",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/admin/error.tsx": {
+    "mtime": 1784605622.472499,
+    "ast_hash": "d352419b8010a4ab201ae213a6f0e112",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/admin/hotels/hotels-admin-client.tsx": {
+    "mtime": 1785165981.0728831,
+    "ast_hash": "02642d135a496cb3e8dd20eb2438c327",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/admin/hotels/page.tsx": {
+    "mtime": 1784891721.613568,
+    "ast_hash": "7ef120435dd85a74023d3ddf5e310c57",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/admin/layout.tsx": {
+    "mtime": 1784891721.6140938,
+    "ast_hash": "be8691b5f986b4ba4220c8e69aea1254",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/admin/loading.tsx": {
+    "mtime": 1784605622.4744978,
+    "ast_hash": "78e32c6d89af43712a506fe743fe0d15",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/admin/page.tsx": {
+    "mtime": 1784014147.438581,
+    "ast_hash": "d16510124af658644405148a84ecf757",
+    "semantic_hash": "d16510124af658644405148a84ecf757"
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/admin/permissions/_components/permission-workbench.tsx": {
+    "mtime": 1783626773.3216877,
+    "ast_hash": "1127d97a8902c9738f451120fc706204",
+    "semantic_hash": "1127d97a8902c9738f451120fc706204"
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/admin/permissions/_components/permissions-warnings-alert.tsx": {
+    "mtime": 1783626773.3216958,
+    "ast_hash": "7468a6422e81501530aa896d7ffb7515",
+    "semantic_hash": "7468a6422e81501530aa896d7ffb7515"
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/admin/permissions/_components/role-permissions-browser.tsx": {
+    "mtime": 1784605768.4336069,
+    "ast_hash": "97a4409e357f4523e10c6af04295ca93",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/admin/permissions/page.tsx": {
+    "mtime": 1784891721.614618,
+    "ast_hash": "857434d993d19e6090ffc4906bdb9373",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/admin/permissions/permission-types.ts": {
+    "mtime": 1783626773.3227322,
+    "ast_hash": "6cd0d7afd63eedb7ce145d82f5cd57fb",
+    "semantic_hash": "6cd0d7afd63eedb7ce145d82f5cd57fb"
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/admin/roles/_components/roles-live-filter.tsx": {
+    "mtime": 1784724631.0674868,
+    "ast_hash": "952f30e3b71a5357dd03589c773c2e33",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/admin/roles/page.tsx": {
+    "mtime": 1784891721.6161983,
+    "ast_hash": "84fb86c7988cf7ff57cfe0803f22902f",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/admin/users/page.tsx": {
+    "mtime": 1784891721.617321,
+    "ast_hash": "d616b7f6fc0fc365b39798d351e22c43",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/admin/users/tenant-owners-client.tsx": {
+    "mtime": 1785108487.384199,
+    "ast_hash": "9c0fbeb4fcbc9fc7a6850c1a98e2d4ff",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/g/[qrCode]/page.tsx": {
+    "mtime": 1785242896.7648227,
+    "ast_hash": "0cadb4523fcf409b9c74aed20c7bf53c",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/g/error.tsx": {
+    "mtime": 1783626773.3258379,
+    "ast_hash": "95b7fb089d9aa56179208ea0dc7ceea4",
+    "semantic_hash": "95b7fb089d9aa56179208ea0dc7ceea4"
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/g/home/page.tsx": {
+    "mtime": 1784018713.879983,
+    "ast_hash": "7908885528ce820a3569707dd69d8b0e",
+    "semantic_hash": "7908885528ce820a3569707dd69d8b0e"
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/g/language/page.tsx": {
+    "mtime": 1785149848.362217,
+    "ast_hash": "eafb4a49b40bb3ebb8691913a61a5d11",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/g/layout.tsx": {
+    "mtime": 1784040763.5038593,
+    "ast_hash": "f37e723e372133f473081633f839f4ce",
+    "semantic_hash": "f37e723e372133f473081633f839f4ce"
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/g/loading.tsx": {
+    "mtime": 1783626773.3268971,
+    "ast_hash": "33319f7140d0dc1fa7988ec31c5be054",
+    "semantic_hash": "33319f7140d0dc1fa7988ec31c5be054"
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/g/requests/page.tsx": {
+    "mtime": 1784040785.0690322,
+    "ast_hash": "5f186f50b19167f537adaad9f8e8256b",
+    "semantic_hash": "5f186f50b19167f537adaad9f8e8256b"
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/g/services/page.tsx": {
+    "mtime": 1784731917.587983,
+    "ast_hash": "058a5af22af13ef5539a0444d931eb20",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/requests/[requestId]/page.tsx": {
+    "mtime": 1784632330.5480866,
+    "ast_hash": "a28f9997cc9b37742d915c588db85d13",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/requests/[requestId]/request-detail-client.tsx": {
+    "mtime": 1784687730.8569589,
+    "ast_hash": "b368301f506005b17a4f842dc4633a9a",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/requests/page.tsx": {
+    "mtime": 1784891721.640946,
+    "ast_hash": "d5df7049775281888ea324e546792f00",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/requests/request-queue-client.tsx": {
+    "mtime": 1785125256.9741476,
+    "ast_hash": "8a95223e4b86b3f033272ea690e195eb",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/services/page.tsx": {
+    "mtime": 1784891721.6484013,
+    "ast_hash": "081a1c34a9397fdbdcc867eaf06e2487",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/services/service-catalog-client.tsx": {
+    "mtime": 1784731912.4962714,
+    "ast_hash": "9aff67a67887210a37a06c0d7cdd9941",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/hotels/error.tsx": {
+    "mtime": 1783626773.3309999,
+    "ast_hash": "cc7329edcdec7ebc52b7c2abc4b38fa1",
+    "semantic_hash": "cc7329edcdec7ebc52b7c2abc4b38fa1"
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/hotels/layout.tsx": {
+    "mtime": 1784891721.62652,
+    "ast_hash": "a212dcb520585c0318371d7844be9b84",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/hotels/loading.tsx": {
+    "mtime": 1783626773.3315158,
+    "ast_hash": "9900102f07fc545486604efbe22a0925",
+    "semantic_hash": "9900102f07fc545486604efbe22a0925"
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/login/page.tsx": {
+    "mtime": 1785149848.362217,
+    "ast_hash": "584bce5407fff36600ea805eea312dd7",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/owner/_components/owner-auth.ts": {
+    "mtime": 1784891721.6778152,
+    "ast_hash": "dab2d0c73883d2c55f465f6c5bd09039",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/owner/_components/owner-request-realtime-notifier.tsx": {
+    "mtime": 1784687889.8185053,
+    "ast_hash": "6409064e4bc8ee77647d5fa03c3c3b4c",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/owner/_components/owner-shell.tsx": {
+    "mtime": 1784659858.4384823,
+    "ast_hash": "6919cb097c6bf839b50146df4ddb13c9",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/owner/error.tsx": {
+    "mtime": 1784629398.4177678,
+    "ast_hash": "bce78913cca5b9a63c682a929cab4bb8",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/owner/layout.tsx": {
+    "mtime": 1784629398.4187677,
+    "ast_hash": "2d60cfd37890c8787f535be938eaa063",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/owner/loading.tsx": {
+    "mtime": 1784629398.4187677,
+    "ast_hash": "3f568eb44a176ca3c7c03065762609f8",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/owner/page.tsx": {
+    "mtime": 1784014147.438581,
+    "ast_hash": "91e304bdc319bc9e6269d8a3ef60fc71",
+    "semantic_hash": "91e304bdc319bc9e6269d8a3ef60fc71"
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/register/page.tsx": {
+    "mtime": 1785149848.3632212,
+    "ast_hash": "233de6185101de133ad75dbf9ff4b55c",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/staff/dashboard/page.tsx": {
+    "mtime": 1783626773.3758059,
+    "ast_hash": "0edcfc795aec592ac11ef7a02de084e9",
+    "semantic_hash": "0edcfc795aec592ac11ef7a02de084e9"
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/staff/error.tsx": {
+    "mtime": 1784605622.4794986,
+    "ast_hash": "eca09766ab0ebd17cff0e3f5e9ce03f7",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/staff/front-desk/page.tsx": {
+    "mtime": 1784636336.3691318,
+    "ast_hash": "0a5302e7eacba1f697cc531e6d09644b",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/staff/layout.tsx": {
+    "mtime": 1784891721.6808145,
+    "ast_hash": "53427db0728c14651f4670f9e6779b61",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/staff/loading.tsx": {
+    "mtime": 1784605622.4804988,
+    "ast_hash": "7fd000670958c6fe9e3bd5a0ccb41851",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/staff/manager/page.tsx": {
+    "mtime": 1784636336.3901296,
+    "ast_hash": "367530e35f908c9fd6c275ba5aff3f18",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/staff/operations/page.tsx": {
+    "mtime": 1784636336.3991282,
+    "ast_hash": "a704829fc38a43882bd3e8d2b3e9a930",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/staff/page.tsx": {
+    "mtime": 1784891721.7068355,
+    "ast_hash": "97112733b9fc148087a809ef4357dbc7",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/_components/app-toaster.tsx": {
+    "mtime": 1783626773.3768058,
+    "ast_hash": "11e9120ee5123fd5231267a7cd7332e0",
+    "semantic_hash": "11e9120ee5123fd5231267a7cd7332e0"
+  },
+  "frontends/front-end-vietsage/src/app/_components/react-query-provider.tsx": {
+    "mtime": 1783626773.3768058,
+    "ast_hash": "a8b9c58deda3381c3b6a3477233d6357",
+    "semantic_hash": "a8b9c58deda3381c3b6a3477233d6357"
+  },
+  "frontends/front-end-vietsage/src/app/about/page.tsx": {
+    "mtime": 1783626773.3778057,
+    "ast_hash": "81183b0347ee9bf9d18785e78ec0e461",
+    "semantic_hash": "81183b0347ee9bf9d18785e78ec0e461"
+  },
+  "frontends/front-end-vietsage/src/app/api/admin/_utils.ts": {
+    "mtime": 1783626773.3778057,
+    "ast_hash": "ed700a9acdd69700292a70ab5f968d51",
+    "semantic_hash": "ed700a9acdd69700292a70ab5f968d51"
+  },
+  "frontends/front-end-vietsage/src/app/api/admin/hotels/[hotelId]/route.ts": {
+    "mtime": 1785163551.1656628,
+    "ast_hash": "ac24c8e1e73393ea0f2f1d4f8cfc1dc9",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/admin/hotels/[hotelId]/staff-assignments/[userId]/route.ts": {
+    "mtime": 1784538601.304115,
+    "ast_hash": "2e10df5bf42a9318c091aba0a8564ce2",
+    "semantic_hash": "2e10df5bf42a9318c091aba0a8564ce2"
+  },
+  "frontends/front-end-vietsage/src/app/api/admin/hotels/route.ts": {
+    "mtime": 1785165981.073883,
+    "ast_hash": "6c27541e2a908df85ec80e4b709fffe7",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/admin/staff/[userId]/roles/[roleId]/route.ts": {
+    "mtime": 1784605622.5500777,
+    "ast_hash": "fd3ecca62340b691c2f94da5fb741845",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/admin/staff/[userId]/roles/route.ts": {
+    "mtime": 1784605622.5510778,
+    "ast_hash": "d0541e6cf6f2c0d4a447ff5250658397",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/admin/staff/route.ts": {
+    "mtime": 1784900025.3677123,
+    "ast_hash": "fde3b45d24f03824773009c3a8d36b9e",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/admin/tenant-owners/[tenantOwnerId]/route.ts": {
+    "mtime": 1783626773.3788059,
+    "ast_hash": "633175f2de2740f577a38b71df02b62e",
+    "semantic_hash": "633175f2de2740f577a38b71df02b62e"
+  },
+  "frontends/front-end-vietsage/src/app/api/admin/tenant-owners/route.ts": {
+    "mtime": 1783626773.3788059,
+    "ast_hash": "ecc887ab3f661db2754a3858a55df867",
+    "semantic_hash": "ecc887ab3f661db2754a3858a55df867"
+  },
+  "frontends/front-end-vietsage/src/app/api/auth/[...nextauth]/route.ts": {
+    "mtime": 1783626773.3798056,
+    "ast_hash": "20df44cbafee6248eb5802a8e05deb6f",
+    "semantic_hash": "20df44cbafee6248eb5802a8e05deb6f"
+  },
+  "frontends/front-end-vietsage/src/app/api/auth/refresh-session/route.ts": {
+    "mtime": 1784985756.1566782,
+    "ast_hash": "a29a0f61a53bbb86f8787d090a9b8ffc",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/auth/refresh/route.ts": {
+    "mtime": 1784891721.725159,
+    "ast_hash": "d39d3af6e70f1283eb772530bf5833ec",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/guest/_utils.ts": {
+    "mtime": 1783626773.3808057,
+    "ast_hash": "05a62ab0f058fdd6f291e7db6d484223",
+    "semantic_hash": "05a62ab0f058fdd6f291e7db6d484223"
+  },
+  "frontends/front-end-vietsage/src/app/api/guest/emergency/calls/route.ts": {
+    "mtime": 1783626773.3808057,
+    "ast_hash": "2bb04cc47173762f9cf9503c3e5fb2d5",
+    "semantic_hash": "2bb04cc47173762f9cf9503c3e5fb2d5"
+  },
+  "frontends/front-end-vietsage/src/app/api/guest/qr/scan/route.ts": {
+    "mtime": 1783626773.3818057,
+    "ast_hash": "8cafe00c1614452a05190c5c20f468eb",
+    "semantic_hash": "8cafe00c1614452a05190c5c20f468eb"
+  },
+  "frontends/front-end-vietsage/src/app/api/guest/requests/[requestId]/cancel/route.ts": {
+    "mtime": 1783626773.3818057,
+    "ast_hash": "4895279cb7472db9751c93340cce71b3",
+    "semantic_hash": "4895279cb7472db9751c93340cce71b3"
+  },
+  "frontends/front-end-vietsage/src/app/api/guest/requests/route.ts": {
+    "mtime": 1783626773.383059,
+    "ast_hash": "328eed27393a6db668cd841fdabc27e8",
+    "semantic_hash": "328eed27393a6db668cd841fdabc27e8"
+  },
+  "frontends/front-end-vietsage/src/app/api/guest/service-categories/[categoryId]/services/route.ts": {
+    "mtime": 1783626773.383059,
+    "ast_hash": "cdedb295c9e1fb3a1493a22e883a39ba",
+    "semantic_hash": "cdedb295c9e1fb3a1493a22e883a39ba"
+  },
+  "frontends/front-end-vietsage/src/app/api/guest/services/route.ts": {
+    "mtime": 1783626773.384052,
+    "ast_hash": "266e4f0aac7303b0cb6906bdf21acbe5",
+    "semantic_hash": "266e4f0aac7303b0cb6906bdf21acbe5"
+  },
+  "frontends/front-end-vietsage/src/app/api/guest/session/close/route.ts": {
+    "mtime": 1783626773.384052,
+    "ast_hash": "a8f63d0ae1e441253887cd91ebaa0704",
+    "semantic_hash": "a8f63d0ae1e441253887cd91ebaa0704"
+  },
+  "frontends/front-end-vietsage/src/app/api/guest/session/me/route.ts": {
+    "mtime": 1783626773.385052,
+    "ast_hash": "49decb0326f97b34b6033d41c25480c7",
+    "semantic_hash": "49decb0326f97b34b6033d41c25480c7"
+  },
+  "frontends/front-end-vietsage/src/app/api/owner/_utils.ts": {
+    "mtime": 1784891721.7770832,
+    "ast_hash": "8bdd2138f921e43bdebdf00b6fa0b2a5",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/owner/hotels/[hotelId]/billing/folios/[folioId]/invoice/route.ts": {
+    "mtime": 1783626773.3862727,
+    "ast_hash": "9f2ff39eee594fd5a98977d06f05bf27",
+    "semantic_hash": "9f2ff39eee594fd5a98977d06f05bf27"
+  },
+  "frontends/front-end-vietsage/src/app/api/owner/hotels/[hotelId]/request-realtime-ticket/route.ts": {
+    "mtime": 1784037693.329928,
+    "ast_hash": "7dd2f1355d2a48ac2f09ab3c8a5a5249",
+    "semantic_hash": "7dd2f1355d2a48ac2f09ab3c8a5a5249"
+  },
+  "frontends/front-end-vietsage/src/app/api/owner/hotels/[hotelId]/requests/[requestId]/assignment/route.ts": {
+    "mtime": 1783626773.3869061,
+    "ast_hash": "9ce6b6059920f608243b427bb032230d",
+    "semantic_hash": "9ce6b6059920f608243b427bb032230d"
+  },
+  "frontends/front-end-vietsage/src/app/api/owner/hotels/[hotelId]/requests/[requestId]/events/route.ts": {
+    "mtime": 1783626773.3873239,
+    "ast_hash": "fb771c0a3462f2ea14cfde28e2fd99b9",
+    "semantic_hash": "fb771c0a3462f2ea14cfde28e2fd99b9"
+  },
+  "frontends/front-end-vietsage/src/app/api/owner/hotels/[hotelId]/requests/[requestId]/route.ts": {
+    "mtime": 1783626773.3873239,
+    "ast_hash": "635db326117c37a656808c7e40cd911e",
+    "semantic_hash": "635db326117c37a656808c7e40cd911e"
+  },
+  "frontends/front-end-vietsage/src/app/api/owner/hotels/[hotelId]/requests/[requestId]/status/route.ts": {
+    "mtime": 1783626773.3873239,
+    "ast_hash": "c4cd4104ab020f1c181666f1e639184e",
+    "semantic_hash": "c4cd4104ab020f1c181666f1e639184e"
+  },
+  "frontends/front-end-vietsage/src/app/api/owner/hotels/[hotelId]/requests/route.ts": {
+    "mtime": 1783626773.388328,
+    "ast_hash": "3cd425726c921b464c62f2d48cab4e8d",
+    "semantic_hash": "3cd425726c921b464c62f2d48cab4e8d"
+  },
+  "frontends/front-end-vietsage/src/app/api/owner/hotels/[hotelId]/requests/summary/route.ts": {
+    "mtime": 1783626773.388328,
+    "ast_hash": "25f8eede0dee0f572a4976c12fa5e8a5",
+    "semantic_hash": "25f8eede0dee0f572a4976c12fa5e8a5"
+  },
+  "frontends/front-end-vietsage/src/app/api/owner/hotels/[hotelId]/rooms/[roomId]/qr/activate/route.ts": {
+    "mtime": 1783626773.3899179,
+    "ast_hash": "d14d6d483d250f03fa3d708e43964f30",
+    "semantic_hash": "d14d6d483d250f03fa3d708e43964f30"
+  },
+  "frontends/front-end-vietsage/src/app/api/owner/hotels/[hotelId]/rooms/[roomId]/qr/deactivate/route.ts": {
+    "mtime": 1783626773.3899179,
+    "ast_hash": "f5e8b6f3ece8becda87f202b1a6024ac",
+    "semantic_hash": "f5e8b6f3ece8becda87f202b1a6024ac"
+  },
+  "frontends/front-end-vietsage/src/app/api/owner/hotels/[hotelId]/rooms/[roomId]/qr/rotate/route.ts": {
+    "mtime": 1783626773.3911943,
+    "ast_hash": "7986a5f61117266f99f91bb1e522ee0d",
+    "semantic_hash": "7986a5f61117266f99f91bb1e522ee0d"
+  },
+  "frontends/front-end-vietsage/src/app/api/owner/hotels/[hotelId]/rooms/[roomId]/route.ts": {
+    "mtime": 1784690241.61036,
+    "ast_hash": "3b3735d8585d5c75eec1a10798d62250",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/owner/hotels/[hotelId]/rooms/route.ts": {
+    "mtime": 1783626773.3917117,
+    "ast_hash": "37726f33c9e8d5ae1a79950cc721d40f",
+    "semantic_hash": "37726f33c9e8d5ae1a79950cc721d40f"
+  },
+  "frontends/front-end-vietsage/src/app/api/owner/hotels/[hotelId]/route.ts": {
+    "mtime": 1785164227.1827126,
+    "ast_hash": "77682fe56e2ae2122a58e6dd5ec09886",
+    "semantic_hash": "77682fe56e2ae2122a58e6dd5ec09886"
+  },
+  "frontends/front-end-vietsage/src/app/api/owner/hotels/[hotelId]/service-catalog/sync/route.ts": {
+    "mtime": 1783626773.3927045,
+    "ast_hash": "f7b6ac04883fa9ba26b90391b634e884",
+    "semantic_hash": "f7b6ac04883fa9ba26b90391b634e884"
+  },
+  "frontends/front-end-vietsage/src/app/api/owner/hotels/[hotelId]/service-categories/[categoryId]/route.ts": {
+    "mtime": 1783626773.3927045,
+    "ast_hash": "0dfc658398e623bb5fcdac85013f5d35",
+    "semantic_hash": "0dfc658398e623bb5fcdac85013f5d35"
+  },
+  "frontends/front-end-vietsage/src/app/api/owner/hotels/[hotelId]/service-categories/route.ts": {
+    "mtime": 1783626773.3937047,
+    "ast_hash": "231ad5fa5fcd85a9e1ccd376b6ac2c08",
+    "semantic_hash": "231ad5fa5fcd85a9e1ccd376b6ac2c08"
+  },
+  "frontends/front-end-vietsage/src/app/api/owner/hotels/[hotelId]/service-items/[itemId]/route.ts": {
+    "mtime": 1783626773.3937047,
+    "ast_hash": "6081aab3f1348529ead7bc98fb871044",
+    "semantic_hash": "6081aab3f1348529ead7bc98fb871044"
+  },
+  "frontends/front-end-vietsage/src/app/api/owner/hotels/[hotelId]/service-items/route.ts": {
+    "mtime": 1783626773.3937047,
+    "ast_hash": "3cde75403c1d7a37b2ef3b69c8be6d36",
+    "semantic_hash": "3cde75403c1d7a37b2ef3b69c8be6d36"
+  },
+  "frontends/front-end-vietsage/src/app/api/owner/hotels/[hotelId]/staff-assignments/[userId]/route.ts": {
+    "mtime": 1784538601.3061137,
+    "ast_hash": "b23d3ab93d8e64602e7fe35dbcb1a55a",
+    "semantic_hash": "b23d3ab93d8e64602e7fe35dbcb1a55a"
+  },
+  "frontends/front-end-vietsage/src/app/api/owner/hotels/[hotelId]/stays/route.ts": {
+    "mtime": 1785450134.114572,
+    "ast_hash": "f8d5a19ee1d3bb8ad58b803695ab66ab",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/owner/hotels/route.ts": {
+    "mtime": 1783626773.3947048,
+    "ast_hash": "fc0b18f62fb797614cd143e919f3b8cd",
+    "semantic_hash": "fc0b18f62fb797614cd143e919f3b8cd"
+  },
+  "frontends/front-end-vietsage/src/app/api/owner/staff/[userId]/roles/[roleId]/route.ts": {
+    "mtime": 1784605622.5550804,
+    "ast_hash": "039ba3a64884386a77a21f49b1d1eec8",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/owner/staff/[userId]/roles/route.ts": {
+    "mtime": 1784605622.55608,
+    "ast_hash": "64908eaa89475e108737880d430a4215",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/owner/staff/route.ts": {
+    "mtime": 1784900021.9519384,
+    "ast_hash": "938250e0941cc139e0751647293e2e18",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/rbac/roles/[roleId]/disable/route.ts": {
+    "mtime": 1783626773.3957047,
+    "ast_hash": "ca45898795b5b85126ce96ae7e484321",
+    "semantic_hash": "ca45898795b5b85126ce96ae7e484321"
+  },
+  "frontends/front-end-vietsage/src/app/api/rbac/roles/[roleId]/permissions/route.ts": {
+    "mtime": 1783626773.3957047,
+    "ast_hash": "69588d524feec67909083fb463372151",
+    "semantic_hash": "69588d524feec67909083fb463372151"
+  },
+  "frontends/front-end-vietsage/src/app/api/rbac/roles/[roleId]/route.ts": {
+    "mtime": 1783626773.3957047,
+    "ast_hash": "9d2fba76850a46d09235c9e8a7adec5f",
+    "semantic_hash": "9d2fba76850a46d09235c9e8a7adec5f"
+  },
+  "frontends/front-end-vietsage/src/app/api/rbac/roles/route.ts": {
+    "mtime": 1783626773.3967044,
+    "ast_hash": "f2372e21d7f8578e00c034fb0efcc6a3",
+    "semantic_hash": "f2372e21d7f8578e00c034fb0efcc6a3"
+  },
+  "frontends/front-end-vietsage/src/app/b2b/page.tsx": {
+    "mtime": 1783626773.3977048,
+    "ast_hash": "36b7cec806fcdab0cf01a873c5134e25",
+    "semantic_hash": "36b7cec806fcdab0cf01a873c5134e25"
+  },
+  "frontends/front-end-vietsage/src/app/blog/page.tsx": {
+    "mtime": 1783626773.3977048,
+    "ast_hash": "fc7652153619b871701580d3e4fae81b",
+    "semantic_hash": "fc7652153619b871701580d3e4fae81b"
+  },
+  "frontends/front-end-vietsage/src/app/commerce/page.tsx": {
+    "mtime": 1783626773.3977048,
+    "ast_hash": "efd9d5d55cf3ed1c733e1f23a27610f0",
+    "semantic_hash": "efd9d5d55cf3ed1c733e1f23a27610f0"
+  },
+  "frontends/front-end-vietsage/src/app/contact/page.tsx": {
+    "mtime": 1783626773.398705,
+    "ast_hash": "42601f3e11fd18f27bca05ee1db0cfbc",
+    "semantic_hash": "42601f3e11fd18f27bca05ee1db0cfbc"
+  },
+  "frontends/front-end-vietsage/src/app/health/page.tsx": {
+    "mtime": 1783626773.398705,
+    "ast_hash": "094d2222362cb4ce36a55770c80eb1c5",
+    "semantic_hash": "094d2222362cb4ce36a55770c80eb1c5"
+  },
+  "frontends/front-end-vietsage/src/app/layout.tsx": {
+    "mtime": 1785155156.9210374,
+    "ast_hash": "2cb7ae43ba40ad7d89d996777cc6952c",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/not-found.tsx": {
+    "mtime": 1783626773.4007044,
+    "ast_hash": "25f8390fb67c284b82d0300d3d17180d",
+    "semantic_hash": "25f8390fb67c284b82d0300d3d17180d"
+  },
+  "frontends/front-end-vietsage/src/app/page.tsx": {
+    "mtime": 1785130393.822469,
+    "ast_hash": "bca82a781e8c20ae5f8a04ad098512d9",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/auth.ts": {
+    "mtime": 1784891721.7806025,
+    "ast_hash": "a61af806927b9f278bed1f29b947885a",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/components/marketing/marketing-header.tsx": {
+    "mtime": 1785213065.0165515,
+    "ast_hash": "fca62ae789635422c1b9f071af68d86f",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/components/marketing/marketing-motion-root.tsx": {
+    "mtime": 1784177941.5641234,
+    "ast_hash": "3b1af38a9ad4fe67dc149521024270c2",
+    "semantic_hash": "3b1af38a9ad4fe67dc149521024270c2"
+  },
+  "frontends/front-end-vietsage/src/components/marketing/marketing-shell.tsx": {
+    "mtime": 1785213065.0175505,
+    "ast_hash": "d8555a306d057aecb9b6aea72613c6b2",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/components/ui/data-table.tsx": {
+    "mtime": 1784724588.0619512,
+    "ast_hash": "dcf9f19c03a45927a377d1361fa6aaa4",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/core/errors/error-mapper.ts": {
+    "mtime": 1783626773.4024284,
+    "ast_hash": "48e218a705e57a0c902cb3a76518ca87",
+    "semantic_hash": "48e218a705e57a0c902cb3a76518ca87"
+  },
+  "frontends/front-end-vietsage/src/core/http/api-envelope.ts": {
+    "mtime": 1783626773.4024284,
+    "ast_hash": "9052d3d7b9b5175cb85fb3651ae6f106",
+    "semantic_hash": "9052d3d7b9b5175cb85fb3651ae6f106"
+  },
+  "frontends/front-end-vietsage/src/core/http/backend-api-config.test.ts": {
+    "mtime": 1784720174.4181743,
+    "ast_hash": "ed4e44b04353d03d0c5e32c62a1d65e6",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/core/http/backend-api-config.ts": {
+    "mtime": 1784720154.579041,
+    "ast_hash": "bafdb0c10556402924e89e40992b5e00",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/core/http/http-auth-refresh.server.ts": {
+    "mtime": 1784891721.7825992,
+    "ast_hash": "e7468e4d4b37d7ee591f9fe5e4afc340",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/core/http/http-client.ts": {
+    "mtime": 1784605622.4815006,
+    "ast_hash": "8b769aac0095d6b64519fd53863748c4",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/core/http/http-error.ts": {
+    "mtime": 1783626773.403427,
+    "ast_hash": "57b800a81c624a494d9373fe4511bad5",
+    "semantic_hash": "57b800a81c624a494d9373fe4511bad5"
+  },
+  "frontends/front-end-vietsage/src/core/http/http-server.ts": {
+    "mtime": 1784605622.4830797,
+    "ast_hash": "488f4d3912c9a0e7fc23d478e3abd821",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/core/http/internal-api-client.ts": {
+    "mtime": 1785238640.975949,
+    "ast_hash": "01c63feb96204c31d2de2bd64407ae62",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/core/http/internal-session-refresh.ts": {
+    "mtime": 1784903976.5673718,
+    "ast_hash": "fe5706b6bb4bb2d867291020cca9fa09",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/core/http/public-api-paths.ts": {
+    "mtime": 1784012325.3799965,
+    "ast_hash": "9807d5fe19f8c0c196a59b171fb7a864",
+    "semantic_hash": "9807d5fe19f8c0c196a59b171fb7a864"
+  },
+  "frontends/front-end-vietsage/src/core/i18n/translations.ts": {
+    "mtime": 1783626773.404427,
+    "ast_hash": "18cb11c4943a374b4c7936909b69e0ed",
+    "semantic_hash": "18cb11c4943a374b4c7936909b69e0ed"
+  },
+  "frontends/front-end-vietsage/src/features/admin/service/admin-service-instance.ts": {
+    "mtime": 1783626773.4054265,
+    "ast_hash": "5d9d50367c7aab0206667b7be7d56c88",
+    "semantic_hash": "5d9d50367c7aab0206667b7be7d56c88"
+  },
+  "frontends/front-end-vietsage/src/features/admin/service/admin-service.ts": {
+    "mtime": 1785106249.8761983,
+    "ast_hash": "e6f69741a06757091e9c566b776f1b94",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/admin/types/admin-contract.ts": {
+    "mtime": 1785165981.073883,
+    "ast_hash": "509f45e7351dbd17089fdd7cb4bc323a",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/auth/service/auth-service-instance.ts": {
+    "mtime": 1783626773.4064274,
+    "ast_hash": "36b27e9bcc129853974adaf0075a8d55",
+    "semantic_hash": "36b27e9bcc129853974adaf0075a8d55"
+  },
+  "frontends/front-end-vietsage/src/features/auth/service/auth-service.ts": {
+    "mtime": 1784512774.2806888,
+    "ast_hash": "b9095265703ab3803f56cf997cd8860a",
+    "semantic_hash": "b9095265703ab3803f56cf997cd8860a"
+  },
+  "frontends/front-end-vietsage/src/features/auth/types/auth-contract.ts": {
+    "mtime": 1784512774.2806888,
+    "ast_hash": "1d24f1c28f1a39e25eabf642413e9808",
+    "semantic_hash": "1d24f1c28f1a39e25eabf642413e9808"
+  },
+  "frontends/front-end-vietsage/src/features/auth/utils/auth-role.test.ts": {
+    "mtime": 1784629398.4767573,
+    "ast_hash": "a0a861d7f0fc9060e91dd64c7453a0ff",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/auth/utils/auth-role.ts": {
+    "mtime": 1784891721.7987266,
+    "ast_hash": "d62bef887fa76bd13c8bda54e8c905ed",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/auth/utils/token-ttl.ts": {
+    "mtime": 1783626773.4084268,
+    "ast_hash": "6507a6216ce71567c34d105edc4ede07",
+    "semantic_hash": "6507a6216ce71567c34d105edc4ede07"
+  },
+  "frontends/front-end-vietsage/src/features/billing/service/billing-service-instance.ts": {
+    "mtime": 1783626773.4084268,
+    "ast_hash": "27c737bd1f2eece6ccba356971f44a44",
+    "semantic_hash": "27c737bd1f2eece6ccba356971f44a44"
+  },
+  "frontends/front-end-vietsage/src/features/billing/service/billing-service.ts": {
+    "mtime": 1784641286.2964616,
+    "ast_hash": "598dabcd25ae1f7d9cd0ec7c8037d70d",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/billing/types/billing-contract.ts": {
+    "mtime": 1783626773.409427,
+    "ast_hash": "d2b83c21a07f402affeb74ba19bc25a0",
+    "semantic_hash": "d2b83c21a07f402affeb74ba19bc25a0"
+  },
+  "frontends/front-end-vietsage/src/features/billing/utils/money.ts": {
+    "mtime": 1783626773.409427,
+    "ast_hash": "fbd23d8a7d1cb03b2c950f9624bccf14",
+    "semantic_hash": "fbd23d8a7d1cb03b2c950f9624bccf14"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/components/guest-emergency-call-card.tsx": {
+    "mtime": 1783626773.409427,
+    "ast_hash": "d46dc5b88ec8048dd7f28b2eba0a1ab3",
+    "semantic_hash": "d46dc5b88ec8048dd7f28b2eba0a1ab3"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/components/guest-session-bootstrap.tsx": {
+    "mtime": 1784031739.4114022,
+    "ast_hash": "525991a65d44e042056afc7130de0547",
+    "semantic_hash": "525991a65d44e042056afc7130de0547"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/components/home/guest-home-cta.tsx": {
+    "mtime": 1784018689.1735382,
+    "ast_hash": "1f3ffb7bcaf5349dfa68cecbcee7dbae",
+    "semantic_hash": "1f3ffb7bcaf5349dfa68cecbcee7dbae"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/components/home/guest-home-experiences.tsx": {
+    "mtime": 1784018689.1735382,
+    "ast_hash": "720c0a3e3a67c112c837c16168bfdca9",
+    "semantic_hash": "720c0a3e3a67c112c837c16168bfdca9"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/components/home/guest-home-hero.tsx": {
+    "mtime": 1784018689.172536,
+    "ast_hash": "05e80a0d267e2d295255940aa263111e",
+    "semantic_hash": "05e80a0d267e2d295255940aa263111e"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/components/home/guest-home-highlights.tsx": {
+    "mtime": 1784018689.172536,
+    "ast_hash": "9d623be0c0521031f31a2c6edb0534c5",
+    "semantic_hash": "9d623be0c0521031f31a2c6edb0534c5"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/components/motion/guest-motion-provider.tsx": {
+    "mtime": 1784018020.901885,
+    "ast_hash": "b91b3f9a5b751962485b46ea21a2c9b6",
+    "semantic_hash": "b91b3f9a5b751962485b46ea21a2c9b6"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/components/motion/guest-motion-tokens.ts": {
+    "mtime": 1784018020.901289,
+    "ast_hash": "937a15d09a9edab739df8ac99db15a2c",
+    "semantic_hash": "937a15d09a9edab739df8ac99db15a2c"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/components/motion/guest-page-transition.tsx": {
+    "mtime": 1784018020.9028776,
+    "ast_hash": "5c203524b4f67e853e7491ee85d3092a",
+    "semantic_hash": "5c203524b4f67e853e7491ee85d3092a"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/components/motion/guest-reveal.tsx": {
+    "mtime": 1784018133.830658,
+    "ast_hash": "a3c287216e221570c8d85dedafba9367",
+    "semantic_hash": "a3c287216e221570c8d85dedafba9367"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/components/motion/guest-stagger.tsx": {
+    "mtime": 1784018020.9038754,
+    "ast_hash": "ae9ec583e61d3b822bc6cc0efbd444be",
+    "semantic_hash": "ae9ec583e61d3b822bc6cc0efbd444be"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/components/requests/guest-current-request.tsx": {
+    "mtime": 1784687528.58254,
+    "ast_hash": "6c5e683e1a6739cfd5bb21b81e56bcf7",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/components/requests/guest-request-card.tsx": {
+    "mtime": 1784042981.5432992,
+    "ast_hash": "932e6185ccd8cdd9a0722b12d70ab0c4",
+    "semantic_hash": "932e6185ccd8cdd9a0722b12d70ab0c4"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/components/requests/guest-request-cta.tsx": {
+    "mtime": 1784019906.815199,
+    "ast_hash": "35b36524a77bc4d0f69b15a07aeec81d",
+    "semantic_hash": "35b36524a77bc4d0f69b15a07aeec81d"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/components/requests/guest-request-display.ts": {
+    "mtime": 1785125256.9791474,
+    "ast_hash": "10d9bf88e3f38ac898ac22b1e1afd992",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/components/requests/guest-request-filters.tsx": {
+    "mtime": 1784019906.805346,
+    "ast_hash": "1a4716e86c13fbff4a58ad7d5d9c84c9",
+    "semantic_hash": "1a4716e86c13fbff4a58ad7d5d9c84c9"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/components/requests/guest-request-hero.tsx": {
+    "mtime": 1784019827.6967828,
+    "ast_hash": "471176269b0c24b1a75f4b6ea350f5f7",
+    "semantic_hash": "471176269b0c24b1a75f4b6ea350f5f7"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/components/requests/guest-request-list.tsx": {
+    "mtime": 1784019906.814198,
+    "ast_hash": "360fcb9f2453a6507d70df9ba3569f56",
+    "semantic_hash": "360fcb9f2453a6507d70df9ba3569f56"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/components/requests/guest-request-progress.tsx": {
+    "mtime": 1784019827.6976771,
+    "ast_hash": "c2bb16a42f54cada98beca952864f5c1",
+    "semantic_hash": "c2bb16a42f54cada98beca952864f5c1"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/components/requests/guest-request-states.tsx": {
+    "mtime": 1784019906.814198,
+    "ast_hash": "9c62e392f3093c542f5f7f767983b901",
+    "semantic_hash": "9c62e392f3093c542f5f7f767983b901"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/components/services/guest-request-sheet.tsx": {
+    "mtime": 1784019261.677712,
+    "ast_hash": "789d9b6304a08537d39dd74a3ffa5975",
+    "semantic_hash": "789d9b6304a08537d39dd74a3ffa5975"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/components/services/guest-service-card.tsx": {
+    "mtime": 1784019120.1561413,
+    "ast_hash": "9462009e7b47c9d0c86d68c75cfb771b",
+    "semantic_hash": "9462009e7b47c9d0c86d68c75cfb771b"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/components/services/guest-service-empty-state.tsx": {
+    "mtime": 1784019120.1581428,
+    "ast_hash": "20da40420fbd15d34efe06b846bcca3c",
+    "semantic_hash": "20da40420fbd15d34efe06b846bcca3c"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/components/services/guest-service-error-state.tsx": {
+    "mtime": 1784019120.1581428,
+    "ast_hash": "a2ccd0adda85f16ac249b47c6def2719",
+    "semantic_hash": "a2ccd0adda85f16ac249b47c6def2719"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/components/services/guest-service-list.tsx": {
+    "mtime": 1784019120.1571453,
+    "ast_hash": "0e92277da55b5785ae20afae25242d8c",
+    "semantic_hash": "0e92277da55b5785ae20afae25242d8c"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/components/services/guest-service-skeleton.tsx": {
+    "mtime": 1784019120.1571453,
+    "ast_hash": "a81f8b2f8cd419cad7515358fab1816c",
+    "semantic_hash": "a81f8b2f8cd419cad7515358fab1816c"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/components/services/guest-services-header.tsx": {
+    "mtime": 1784019120.1551425,
+    "ast_hash": "38ccad7b1697422bd3045e55f101a0f0",
+    "semantic_hash": "38ccad7b1697422bd3045e55f101a0f0"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/components/shared/guest-access-required-state.tsx": {
+    "mtime": 1784018458.6560163,
+    "ast_hash": "ba01ab4de2234d406d01fbada04116c7",
+    "semantic_hash": "ba01ab4de2234d406d01fbada04116c7"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/components/shared/guest-state-card.tsx": {
+    "mtime": 1784018458.655536,
+    "ast_hash": "0e5051e160cff3616e695d5dd07aa250",
+    "semantic_hash": "0e5051e160cff3616e695d5dd07aa250"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/hooks/use-guest-session.ts": {
+    "mtime": 1784032734.8031764,
+    "ast_hash": "d4eb673196de724f66708e068a9e9694",
+    "semantic_hash": "d4eb673196de724f66708e068a9e9694"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/i18n/config.ts": {
+    "mtime": 1783626773.410427,
+    "ast_hash": "52271c17830fa6546ccf0a28c1ac6a2a",
+    "semantic_hash": "52271c17830fa6546ccf0a28c1ac6a2a"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/i18n/dictionary.test.ts": {
+    "mtime": 1784088732.9917452,
+    "ast_hash": "24ee345c5e22904a8a9994599cd1211b",
+    "semantic_hash": "24ee345c5e22904a8a9994599cd1211b"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/i18n/dictionary.ts": {
+    "mtime": 1785111642.3174253,
+    "ast_hash": "43aa8d5d9fa427e62cfeb4a82101af8d",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/i18n/use-guest-i18n.ts": {
+    "mtime": 1783626773.4114282,
+    "ast_hash": "cabd04d7db939959a475c3ca9dd5d2db",
+    "semantic_hash": "cabd04d7db939959a475c3ca9dd5d2db"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/service/guest-os-service-instance.ts": {
+    "mtime": 1783626773.4114282,
+    "ast_hash": "f7755e0839dc2c0246ad6bec47793c5b",
+    "semantic_hash": "f7755e0839dc2c0246ad6bec47793c5b"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/service/guest-os-service.ts": {
+    "mtime": 1784695140.0676343,
+    "ast_hash": "1a7b0363e1d6f81b5d1e88b47519caab",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/store/guest-store.ts": {
+    "mtime": 1784030326.152031,
+    "ast_hash": "07521c9a6a38afe426b8d9dfd18462f3",
+    "semantic_hash": "07521c9a6a38afe426b8d9dfd18462f3"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/types/guest-os-contract.ts": {
+    "mtime": 1784695140.0686345,
+    "ast_hash": "86acc3db26a84e048f5d86b9cf6b6721",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/utils/guest-catalog-request-guard.test.ts": {
+    "mtime": 1784032596.9624453,
+    "ast_hash": "20ab7dc4615cba9294e58784fbdfaef4",
+    "semantic_hash": "20ab7dc4615cba9294e58784fbdfaef4"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/utils/guest-catalog-request-guard.ts": {
+    "mtime": 1784032640.7603347,
+    "ast_hash": "30dba79ce928b152f3b68034e254df72",
+    "semantic_hash": "30dba79ce928b152f3b68034e254df72"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/utils/guest-os-display.ts": {
+    "mtime": 1783626773.4134266,
+    "ast_hash": "2dbb28552bd7b5899789eb7a0b1b4034",
+    "semantic_hash": "2dbb28552bd7b5899789eb7a0b1b4034"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/utils/guest-os-errors.ts": {
+    "mtime": 1783626773.4134266,
+    "ast_hash": "e7dc9a6585230b5744635873a8933ebb",
+    "semantic_hash": "e7dc9a6585230b5744635873a8933ebb"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/utils/guest-service-catalog.test.ts": {
+    "mtime": 1784031160.395114,
+    "ast_hash": "07789bd099828e2917b7efe376fe064d",
+    "semantic_hash": "07789bd099828e2917b7efe376fe064d"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/utils/guest-service-catalog.ts": {
+    "mtime": 1784031231.4916906,
+    "ast_hash": "d6109a85b8d5823bcd0d27a89ce0e59b",
+    "semantic_hash": "d6109a85b8d5823bcd0d27a89ce0e59b"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/utils/guest-session-bootstrap-policy.test.ts": {
+    "mtime": 1784031670.1307733,
+    "ast_hash": "2cafd03215bf7dc1d172338737dd16ed",
+    "semantic_hash": "2cafd03215bf7dc1d172338737dd16ed"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/utils/guest-session-bootstrap-policy.ts": {
+    "mtime": 1784042705.5064192,
+    "ast_hash": "21083c3de65a3927c30a0a883f6f8a07",
+    "semantic_hash": "21083c3de65a3927c30a0a883f6f8a07"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/utils/guest-session-storage.test.ts": {
+    "mtime": 1784031182.229599,
+    "ast_hash": "6488cc8f0b0b06beaac15d8a02647f63",
+    "semantic_hash": "6488cc8f0b0b06beaac15d8a02647f63"
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/utils/guest-session-storage.ts": {
+    "mtime": 1784030360.646953,
+    "ast_hash": "6f3d0c4f0c14984c82372e29b51a6e1d",
+    "semantic_hash": "6f3d0c4f0c14984c82372e29b51a6e1d"
+  },
+  "frontends/front-end-vietsage/src/features/hotel-ops/service/hotel-ops-service-instance.ts": {
+    "mtime": 1783626773.4144268,
+    "ast_hash": "079bc5c3743c84a8b3d80f8b47b6132a",
+    "semantic_hash": "079bc5c3743c84a8b3d80f8b47b6132a"
+  },
+  "frontends/front-end-vietsage/src/features/hotel-ops/service/hotel-ops-service.ts": {
+    "mtime": 1785163551.1686628,
+    "ast_hash": "167ea6c13d0a015cddc886c4ddcb4d92",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/hotel-ops/service/staff-dashboard-loader.ts": {
+    "mtime": 1784891721.8322084,
+    "ast_hash": "474ce6be3b72ec4b53d288429eb13005",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/hotel-ops/types/hotel-ops-contract.ts": {
+    "mtime": 1785438825.7619505,
+    "ast_hash": "60e10dd945a5a4be78af9fd1cbe70447",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/hotel-ops/utils/hotel-ops-display.ts": {
+    "mtime": 1784645736.070444,
+    "ast_hash": "38eb7ea84f608312e6e2c7258fc1225d",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/hotel-ops/utils/hotel-route-auth.ts": {
+    "mtime": 1784891721.8362074,
+    "ast_hash": "05c7fd6cd25ea1086c06656870f37aad",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/owner/queries/use-owner-hotels-query.ts": {
+    "mtime": 1784889421.865343,
+    "ast_hash": "01ab052b2f340a89f15f6c72c7bb8070",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/rbac/service/rbac-service-instance.ts": {
+    "mtime": 1783626773.416427,
+    "ast_hash": "2e4e7374382f2ebc214ab22efb704eb0",
+    "semantic_hash": "2e4e7374382f2ebc214ab22efb704eb0"
+  },
+  "frontends/front-end-vietsage/src/features/rbac/service/rbac-service.ts": {
+    "mtime": 1784891721.839208,
+    "ast_hash": "7317ed1d6df0f75b7a55a5633765bef9",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/rbac/types/rbac-contract.ts": {
+    "mtime": 1784538601.310114,
+    "ast_hash": "f49d9145e1d728a6f76097f25b16949a",
+    "semantic_hash": "f49d9145e1d728a6f76097f25b16949a"
+  },
+  "frontends/front-end-vietsage/src/features/request-realtime/guest-connection-manager.test.ts": {
+    "mtime": 1784695140.0696347,
+    "ast_hash": "b35d03e8924d159bc2348ccfaf0b0dbb",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/request-realtime/guest-connection-manager.ts": {
+    "mtime": 1784695140.0706346,
+    "ast_hash": "c781f7c3239ba43ea9eb41126e688cd5",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/request-realtime/guest-request-realtime-notifier.tsx": {
+    "mtime": 1784660010.1792617,
+    "ast_hash": "335ffdc2c6bb60465d900f5d52955dad",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/request-realtime/owner-connection-manager.test.ts": {
+    "mtime": 1784695140.071635,
+    "ast_hash": "be79e6fc841ec5a223f75bb54f968b10",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/request-realtime/owner-connection-manager.ts": {
+    "mtime": 1784695140.0726342,
+    "ast_hash": "3386d3284e56e55d676369eb1935a4df",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/request-realtime/owner-request-realtime-manager.ts": {
+    "mtime": 1784632330.689525,
+    "ast_hash": "3e5aac75e8323f85a16c6df3a50e52d1",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/request-realtime/request-realtime-client.ts": {
+    "mtime": 1784720160.645171,
+    "ast_hash": "7a8d9a395c9e67de16a2a9a338181fcb",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/request-realtime/request-realtime-config.ts": {
+    "mtime": 1784719475.1579583,
+    "ast_hash": "dea39c98a1f669d3cd833054649f975a",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/request-realtime/use-guest-request-realtime.ts": {
+    "mtime": 1784695140.0726342,
+    "ast_hash": "7d00273ae8cf405f18a335cf411ed850",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/request-realtime/use-owner-request-realtime.ts": {
+    "mtime": 1784695140.0736344,
+    "ast_hash": "1566b9569b53df16f7d21b45f5823095",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/staff-management/components/staff-management-client.tsx": {
+    "mtime": 1785126238.165955,
+    "ast_hash": "99d48a440f93d4181b8f8f3b14bb2b68",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/staff-management/queries/use-staff-directory-query.ts": {
+    "mtime": 1785126238.1669517,
+    "ast_hash": "6c0aca2d53eef9b04e4b4abea264dcf5",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/staff-management/service/staff-management-service-instance.ts": {
+    "mtime": 1784538601.312116,
+    "ast_hash": "ff3f95dafad89dd26674609bc70dd8ca",
+    "semantic_hash": "ff3f95dafad89dd26674609bc70dd8ca"
+  },
+  "frontends/front-end-vietsage/src/features/staff-management/service/staff-management-service.ts": {
+    "mtime": 1785126238.167952,
+    "ast_hash": "b34a5e107b9130f755e59b4b0fac5180",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/staff-management/types/staff-management-contract.ts": {
+    "mtime": 1784636336.475155,
+    "ast_hash": "e97502187a6ecead28814c29a78dc664",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/workspace/components/workspace-shell.tsx": {
+    "mtime": 1784659907.2069492,
+    "ast_hash": "255ac02db2bcba58d5080e61d11fc5d9",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/workspace/config/workspace-registry.test.ts": {
+    "mtime": 1785475770.8688097,
+    "ast_hash": "1a9d6bba910a15ccf56b800da611151d",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/workspace/config/workspace-registry.ts": {
+    "mtime": 1785475761.0382636,
+    "ast_hash": "0f214a4600d128776bbaaf82b66203ee",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/workspace/types/workspace-navigation.ts": {
+    "mtime": 1784538601.3151152,
+    "ast_hash": "b3566a8e69be6b6c7c0acc60ef4a6510",
+    "semantic_hash": "b3566a8e69be6b6c7c0acc60ef4a6510"
+  },
+  "frontends/front-end-vietsage/src/features/workspace/types/workspace-registry.ts": {
+    "mtime": 1784538601.3151152,
+    "ast_hash": "9eed4ed01075461df02b35150a760aa2",
+    "semantic_hash": "9eed4ed01075461df02b35150a760aa2"
+  },
+  "frontends/front-end-vietsage/src/features/workspace/utils/workspace-context.test.ts": {
+    "mtime": 1784636336.4891546,
+    "ast_hash": "3a009985da38915eb4418d4a3896265a",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/workspace/utils/workspace-context.ts": {
+    "mtime": 1784636336.4941564,
+    "ast_hash": "fe616b84253dab4a8120d40e847e9345",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/generated/openapi/v1.ts": {
+    "mtime": 1785165981.074883,
+    "ast_hash": "dd3f0355a99277d760de4b60c6572766",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/proxy.ts": {
+    "mtime": 1784985733.9515636,
+    "ast_hash": "fdb5d3f258ee325c5386e279d7f656e3",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/types/next-auth.d.ts": {
+    "mtime": 1784512774.2876883,
+    "ast_hash": "3ae4f6246ec14c4f32e214a3135fc84e",
+    "semantic_hash": "3ae4f6246ec14c4f32e214a3135fc84e"
+  },
+  "frontends/front-end-vietsage/tsconfig.json": {
+    "mtime": 1784891343.3985417,
+    "ast_hash": "080a05735c37a6ada31949cb73dcbf7a",
+    "semantic_hash": "080a05735c37a6ada31949cb73dcbf7a"
+  },
+  "scripts/backup-production-postgres.sh": {
+    "mtime": 1784104862.5136685,
+    "ast_hash": "36744f705f8b3a2c38f9114f0c1154a2",
+    "semantic_hash": "36744f705f8b3a2c38f9114f0c1154a2"
+  },
+  "scripts/bootstrap-production-certificates.sh": {
+    "mtime": 1784096306.5280561,
+    "ast_hash": "d7cefb45e3a12231fb240b0459cd611e",
+    "semantic_hash": "d7cefb45e3a12231fb240b0459cd611e"
+  },
+  "scripts/init-secrets.sh": {
+    "mtime": 1785163551.1696622,
+    "ast_hash": "32e06c3137a52c47d4304efe30c471d7",
+    "semantic_hash": ""
+  },
+  "scripts/renew-production-certificates.sh": {
+    "mtime": 1784095073.7118957,
+    "ast_hash": "2cc3453915209e5df581d33586115ad8",
+    "semantic_hash": "2cc3453915209e5df581d33586115ad8"
+  },
+  "scripts/restore-production-postgres.sh": {
+    "mtime": 1784104862.445394,
+    "ast_hash": "1664f3b299cb2021ff3b051795377236",
+    "semantic_hash": "1664f3b299cb2021ff3b051795377236"
+  },
+  "scripts/verify-production-backup.py": {
+    "mtime": 1784104822.551333,
+    "ast_hash": "055f1d50d88c887b34f9f2110edac672",
+    "semantic_hash": "055f1d50d88c887b34f9f2110edac672"
+  },
+  "scripts/verify-production-hardening.py": {
+    "mtime": 1784104362.3614762,
+    "ast_hash": "cf034ea6d0dc90e7a00186b4de5ce4f1",
+    "semantic_hash": "cf034ea6d0dc90e7a00186b4de5ce4f1"
+  },
+  "scripts/verify-production-migration.py": {
+    "mtime": 1785240005.585704,
+    "ast_hash": "473f97a60fde5c857efeb1c854413a21",
+    "semantic_hash": ""
+  },
+  "scripts/verify-production-nginx.py": {
+    "mtime": 1784104681.9884818,
+    "ast_hash": "d2c018580b93a2d4c87636f379a9b7af",
+    "semantic_hash": "d2c018580b93a2d4c87636f379a9b7af"
+  },
+  "scripts/verify-production-tls.py": {
+    "mtime": 1785386614.9576094,
+    "ast_hash": "b205c77e26487ab697e901b4beecda7c",
+    "semantic_hash": ""
+  },
+  "scripts/verify-production-topology.py": {
+    "mtime": 1784709355.2068028,
+    "ast_hash": "14dbdcefdaaa0fe953a2e589af298316",
+    "semantic_hash": ""
+  },
+  "services/auth-service/eslint.config.mjs": {
+    "mtime": 1783626773.4261477,
+    "ast_hash": "ed98b32040f2594401f8c5887e34192e",
+    "semantic_hash": "ed98b32040f2594401f8c5887e34192e"
+  },
+  "services/auth-service/nest-cli.json": {
+    "mtime": 1783626773.4261477,
+    "ast_hash": "fa439650fa28a1a7aa8c2b6d81c8cc20",
+    "semantic_hash": "fa439650fa28a1a7aa8c2b6d81c8cc20"
+  },
+  "services/auth-service/package.json": {
+    "mtime": 1784707437.8276083,
+    "ast_hash": "131d7c022611117f5479d6a8eb56fbab",
+    "semantic_hash": ""
+  },
+  "services/auth-service/prisma.config.ts": {
+    "mtime": 1783626773.4301481,
+    "ast_hash": "71d0a98e317358515e3eefcc83e5dc8b",
+    "semantic_hash": "71d0a98e317358515e3eefcc83e5dc8b"
+  },
+  "services/auth-service/prisma/migrations/0001_init/migration.sql": {
+    "mtime": 1783626773.431149,
+    "ast_hash": "7d8268bd71b8cc3667966e5ed142bb56",
+    "semantic_hash": "7d8268bd71b8cc3667966e5ed142bb56"
+  },
+  "services/auth-service/prisma/migrations/0002_permission_method_path/migration.sql": {
+    "mtime": 1783626773.4316876,
+    "ast_hash": "66949cfb14108707c66add28df8cd88e",
+    "semantic_hash": "66949cfb14108707c66add28df8cd88e"
+  },
+  "services/auth-service/prisma/migrations/0003_user_role_soft_delete/migration.sql": {
+    "mtime": 1783626773.4316876,
+    "ast_hash": "d855e9114cfce0bf6014fd8344c2a26a",
+    "semantic_hash": "d855e9114cfce0bf6014fd8344c2a26a"
+  },
+  "services/auth-service/prisma/migrations/0004_permission_module_key/migration.sql": {
+    "mtime": 1783626773.4316876,
+    "ast_hash": "78e370d0e4ab6eb976d3eb92792eacc9",
+    "semantic_hash": "78e370d0e4ab6eb976d3eb92792eacc9"
+  },
+  "services/auth-service/prisma/migrations/0005_role_status/migration.sql": {
+    "mtime": 1783626773.432681,
+    "ast_hash": "69d9293570db9fbe9fdc446af84bd29a",
+    "semantic_hash": "69d9293570db9fbe9fdc446af84bd29a"
+  },
+  "services/auth-service/prisma/migrations/0006_guest_os/migration.sql": {
+    "mtime": 1783626773.4336815,
+    "ast_hash": "3286509de317e94146af87ab46856b86",
+    "semantic_hash": "3286509de317e94146af87ab46856b86"
+  },
+  "services/auth-service/prisma/migrations/0007_guest_os_service_catalog/migration.sql": {
+    "mtime": 1783626773.4336815,
+    "ast_hash": "f8921b2556c1e6ae50614255e478bd54",
+    "semantic_hash": "f8921b2556c1e6ae50614255e478bd54"
+  },
+  "services/auth-service/prisma/migrations/0007_simplify_guest_request_priority/migration.sql": {
+    "mtime": 1783626773.4346814,
+    "ast_hash": "251a8e52164ef2dfafbb4fb797e575b1",
+    "semantic_hash": "251a8e52164ef2dfafbb4fb797e575b1"
+  },
+  "services/auth-service/prisma/migrations/0008_permission_groups_modules/migration.sql": {
+    "mtime": 1783626773.4346814,
+    "ast_hash": "9f36684fb5040957329c32de79e41332",
+    "semantic_hash": "9f36684fb5040957329c32de79e41332"
+  },
+  "services/auth-service/prisma/migrations/0009_permission_module_domain_reconcile/migration.sql": {
+    "mtime": 1783626773.4356816,
+    "ast_hash": "b701f69eb86299591fc3ad993df6a642",
+    "semantic_hash": "b701f69eb86299591fc3ad993df6a642"
+  },
+  "services/auth-service/prisma/migrations/0010_code_sequences/migration.sql": {
+    "mtime": 1783626773.4356816,
+    "ast_hash": "a752e71968100e98e2012f6895641a77",
+    "semantic_hash": "a752e71968100e98e2012f6895641a77"
+  },
+  "services/auth-service/prisma/migrations/0011_refresh_token_hard_rotation/migration.sql": {
+    "mtime": 1783626773.4356816,
+    "ast_hash": "304c3d95444d4d5f1b7a18ad70a69881",
+    "semantic_hash": "304c3d95444d4d5f1b7a18ad70a69881"
+  },
+  "services/auth-service/prisma/migrations/0012_vietnamese_permission_labels/migration.sql": {
+    "mtime": 1783626773.4367101,
+    "ast_hash": "756faa71fcaeee06477cd0c075eb1207",
+    "semantic_hash": "756faa71fcaeee06477cd0c075eb1207"
+  },
+  "services/auth-service/prisma/migrations/0013_room_code/migration.sql": {
+    "mtime": 1783626773.4367101,
+    "ast_hash": "19a7eb73e1f13adca85939571dda7c38",
+    "semantic_hash": "19a7eb73e1f13adca85939571dda7c38"
+  },
+  "services/auth-service/prisma/migrations/0014_room_price/migration.sql": {
+    "mtime": 1783626773.4372225,
+    "ast_hash": "2fc3fab834e6e109aaa32b8ee13c157d",
+    "semantic_hash": "2fc3fab834e6e109aaa32b8ee13c157d"
+  },
+  "services/auth-service/prisma/migrations/0015_room_status_processing/migration.sql": {
+    "mtime": 1783626773.4372225,
+    "ast_hash": "f9c38bbd95607108c6fb2a240e5ef018",
+    "semantic_hash": "f9c38bbd95607108c6fb2a240e5ef018"
+  },
+  "services/auth-service/prisma/migrations/0016_service_catalog_category_pricing/migration.sql": {
+    "mtime": 1783626773.4382205,
+    "ast_hash": "510f4fdfbcd2efe9b4f7aa5ccb51cf86",
+    "semantic_hash": "510f4fdfbcd2efe9b4f7aa5ccb51cf86"
+  },
+  "services/auth-service/prisma/migrations/0017_reservation_code_sequence/migration.sql": {
+    "mtime": 1783626773.4382205,
+    "ast_hash": "39d2023b417abb2d54cb0f64942a528d",
+    "semantic_hash": "39d2023b417abb2d54cb0f64942a528d"
+  },
+  "services/auth-service/prisma/migrations/0018_guest_phone_rename/migration.sql": {
+    "mtime": 1783626773.439221,
+    "ast_hash": "fb3291332b1095fd89b8d8cf39ceddf8",
+    "semantic_hash": "fb3291332b1095fd89b8d8cf39ceddf8"
+  },
+  "services/auth-service/prisma/migrations/0019_remove_room_qr_token_hash/migration.sql": {
+    "mtime": 1783626773.439221,
+    "ast_hash": "df78d4923213630c8c913b6b4ef039e9",
+    "semantic_hash": "df78d4923213630c8c913b6b4ef039e9"
+  },
+  "services/auth-service/prisma/migrations/0020_guest_request_description_category_type/migration.sql": {
+    "mtime": 1783626773.4402206,
+    "ast_hash": "73c2cd3981204c61c20b76db1b88d6ed",
+    "semantic_hash": "73c2cd3981204c61c20b76db1b88d6ed"
+  },
+  "services/auth-service/prisma/migrations/0021_service_item_quantity/migration.sql": {
+    "mtime": 1783626773.441221,
+    "ast_hash": "da249228329e200a42907e0933fb18e3",
+    "semantic_hash": "da249228329e200a42907e0933fb18e3"
+  },
+  "services/auth-service/prisma/migrations/0022_remove_guest_request_type/migration.sql": {
+    "mtime": 1783626773.441221,
+    "ast_hash": "a1bfd11d69e2fd1f737814aa0ae8e172",
+    "semantic_hash": "a1bfd11d69e2fd1f737814aa0ae8e172"
+  },
+  "services/auth-service/prisma/migrations/0023_emergency_handling/migration.sql": {
+    "mtime": 1783626773.4422202,
+    "ast_hash": "58518d5664f43e3a6ee99668d4b0e99f",
+    "semantic_hash": "58518d5664f43e3a6ee99668d4b0e99f"
+  },
+  "services/auth-service/prisma/migrations/0024_live_schema_baseline/migration.sql": {
+    "mtime": 1783626773.4422202,
+    "ast_hash": "6accc1b698598bf4ba905c4c09dfa0d1",
+    "semantic_hash": "6accc1b698598bf4ba905c4c09dfa0d1"
+  },
+  "services/auth-service/prisma/migrations/0025_add_billing_tables/migration.sql": {
+    "mtime": 1783626773.4422202,
+    "ast_hash": "3248743dc6e0e15bd3e2bcd3ab79623f",
+    "semantic_hash": "3248743dc6e0e15bd3e2bcd3ab79623f"
+  },
+  "services/auth-service/prisma/migrations/0026_add_room_max_active_guest_devices/migration.sql": {
+    "mtime": 1783626773.4422202,
+    "ast_hash": "b7adde37edf9da6a46fc446238904005",
+    "semantic_hash": "b7adde37edf9da6a46fc446238904005"
+  },
+  "services/auth-service/prisma/migrations/0026_telegram_guest_request_notifications/migration.sql": {
+    "mtime": 1783626773.4432201,
+    "ast_hash": "aa561c6a47194226e19f685e1f43852d",
+    "semantic_hash": "aa561c6a47194226e19f685e1f43852d"
+  },
+  "services/auth-service/prisma/migrations/0027_drop_guest_request_type_enum/migration.sql": {
+    "mtime": 1783626773.4432201,
+    "ast_hash": "d3e9ad3a09a535e208c2b57f78a7732a",
+    "semantic_hash": "d3e9ad3a09a535e208c2b57f78a7732a"
+  },
+  "services/auth-service/prisma/migrations/0027_service_catalog_translations/migration.sql": {
+    "mtime": 1783626773.4442205,
+    "ast_hash": "5bd1811881f5cd3803366249c0703bd7",
+    "semantic_hash": "5bd1811881f5cd3803366249c0703bd7"
+  },
+  "services/auth-service/prisma/migrations/0028_add_service_catalog_import_keys/migration.sql": {
+    "mtime": 1783626773.4442205,
+    "ast_hash": "13ebb2ffefaeb9748186babee1be9446",
+    "semantic_hash": "13ebb2ffefaeb9748186babee1be9446"
+  },
+  "services/auth-service/prisma/migrations/0028_guest_request_telegram_confirm/migration.sql": {
+    "mtime": 1783626773.4442205,
+    "ast_hash": "97917c71d51af06a86cbdbc0f6c28c49",
+    "semantic_hash": "97917c71d51af06a86cbdbc0f6c28c49"
+  },
+  "services/auth-service/prisma/migrations/0029_remove_permission_module/migration.sql": {
+    "mtime": 1783626773.4442205,
+    "ast_hash": "9d4ea8ba3bd8bc22a70cb69f17fe3b94",
+    "semantic_hash": "9d4ea8ba3bd8bc22a70cb69f17fe3b94"
+  },
+  "services/auth-service/prisma/migrations/0030_auth_sessions/migration.sql": {
+    "mtime": 1784003944.3512955,
+    "ast_hash": "2e39bd5222f71bc305b1fdda6185fd06",
+    "semantic_hash": "2e39bd5222f71bc305b1fdda6185fd06"
+  },
+  "services/auth-service/prisma/migrations/0031_guest_request_canonical_status_compatibility/migration.sql": {
+    "mtime": 1784025355.7759287,
+    "ast_hash": "49718fd6bed2cac68f57431e7538a23f",
+    "semantic_hash": "49718fd6bed2cac68f57431e7538a23f"
+  },
+  "services/auth-service/prisma/migrations/0032_hotel_staff_assignments/migration.sql": {
+    "mtime": 1784374116.117352,
+    "ast_hash": "a0772be85fb46e10b6668bb3f990d518",
+    "semantic_hash": "a0772be85fb46e10b6668bb3f990d518"
+  },
+  "services/auth-service/prisma/migrations/0033_reservations_arrivals/migration.sql": {
+    "mtime": 1784377117.2060516,
+    "ast_hash": "2ec53728ac398c5e08761e3c9654732d",
+    "semantic_hash": "2ec53728ac398c5e08761e3c9654732d"
+  },
+  "services/auth-service/prisma/migrations/0034_workspace_role_capabilities/migration.sql": {
+    "mtime": 1784538601.317115,
+    "ast_hash": "f7b94bfd070c4c9144ad2802540b7e42",
+    "semantic_hash": "f7b94bfd070c4c9144ad2802540b7e42"
+  },
+  "services/auth-service/prisma/migrations/20260706194932_update_new/migration.sql": {
+    "mtime": 1783626773.4452202,
+    "ast_hash": "7fe2c74b1db9aeb5a816970ef7361c37",
+    "semantic_hash": "7fe2c74b1db9aeb5a816970ef7361c37"
+  },
+  "services/auth-service/prisma/seed.js": {
+    "mtime": 1784538601.3181138,
+    "ast_hash": "151d2eb2927adab690c6adcc97ea0df2",
+    "semantic_hash": "151d2eb2927adab690c6adcc97ea0df2"
+  },
+  "services/auth-service/prisma/test.json": {
+    "mtime": 1783626773.4462206,
+    "ast_hash": "c7f8d0062249afbdcd4cb1341bc8921a",
+    "semantic_hash": "c7f8d0062249afbdcd4cb1341bc8921a"
+  },
+  "services/auth-service/scripts/check-service-boundaries.mjs": {
+    "mtime": 1784538601.3181138,
+    "ast_hash": "96fad09b33bd84d0ac89ad0ba2b697bb",
+    "semantic_hash": "96fad09b33bd84d0ac89ad0ba2b697bb"
+  },
+  "services/auth-service/scripts/export-openapi.cjs": {
+    "mtime": 1783626773.4462206,
+    "ast_hash": "3169c668dda3860647210aa11a69b5cc",
+    "semantic_hash": "3169c668dda3860647210aa11a69b5cc"
+  },
+  "services/auth-service/scripts/repair-processing-rooms-without-active-stay-or-qr.sql": {
+    "mtime": 1783626773.4472206,
+    "ast_hash": "9f895e0edc6e02317ad5f7071aaddd3c",
+    "semantic_hash": "9f895e0edc6e02317ad5f7071aaddd3c"
+  },
+  "services/auth-service/src/app.bootstrap.ts": {
+    "mtime": 1783626773.4472206,
+    "ast_hash": "cdeac2b8315fea51d8e01e938356cc5d",
+    "semantic_hash": "cdeac2b8315fea51d8e01e938356cc5d"
+  },
+  "services/auth-service/src/app.controller.spec.ts": {
+    "mtime": 1783626773.4472206,
+    "ast_hash": "25d6a89c77fcb78d15c86ce8075d8f32",
+    "semantic_hash": "25d6a89c77fcb78d15c86ce8075d8f32"
+  },
+  "services/auth-service/src/app.controller.ts": {
+    "mtime": 1783626773.4472206,
+    "ast_hash": "114aacb2f88219d0a9895f9f01f73bba",
+    "semantic_hash": "114aacb2f88219d0a9895f9f01f73bba"
+  },
+  "services/auth-service/src/app.module.ts": {
+    "mtime": 1784538601.3191173,
+    "ast_hash": "5fec44c9100dd24b192fbe9390fd4b6f",
+    "semantic_hash": "5fec44c9100dd24b192fbe9390fd4b6f"
+  },
+  "services/auth-service/src/app.service.ts": {
+    "mtime": 1783626773.4482205,
+    "ast_hash": "61567130544004a647b8704beaeb294e",
+    "semantic_hash": "61567130544004a647b8704beaeb294e"
+  },
+  "services/auth-service/src/common/config/business-permission-menu.util.ts": {
+    "mtime": 1784538601.3191173,
+    "ast_hash": "9e0dc16c36d259e00852e50fa1decb3b",
+    "semantic_hash": "9e0dc16c36d259e00852e50fa1decb3b"
+  },
+  "services/auth-service/src/common/config/business-permissions.registry.ts": {
+    "mtime": 1784538601.3201146,
+    "ast_hash": "ffbc44abcf7021fbeadf8cdfa6c42594",
+    "semantic_hash": "ffbc44abcf7021fbeadf8cdfa6c42594"
+  },
+  "services/auth-service/src/common/config/env.config.spec.ts": {
+    "mtime": 1785386623.1698666,
+    "ast_hash": "6cd6062c75cf60ac4b39aaf910407d34",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/common/config/env.config.ts": {
+    "mtime": 1785386711.459936,
+    "ast_hash": "23f7d15cebf4d90dfa93346651dd4832",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/common/config/navigation.config.ts": {
+    "mtime": 1783626773.4492204,
+    "ast_hash": "1030634e0471d0db56b9dd4387e7ecd0",
+    "semantic_hash": "1030634e0471d0db56b9dd4387e7ecd0"
+  },
+  "services/auth-service/src/common/config/permission-module.util.spec.ts": {
+    "mtime": 1784378214.706854,
+    "ast_hash": "91696ce2e0722bb5beb50c3b03ffadb3",
+    "semantic_hash": "91696ce2e0722bb5beb50c3b03ffadb3"
+  },
+  "services/auth-service/src/common/config/permission-module.util.ts": {
+    "mtime": 1784379117.9045281,
+    "ast_hash": "5cd70f0229c8aacaec98846973e2868e",
+    "semantic_hash": "5cd70f0229c8aacaec98846973e2868e"
+  },
+  "services/auth-service/src/common/config/public-route.matcher.ts": {
+    "mtime": 1783626773.4492204,
+    "ast_hash": "ff019372229f4f4d36c45a47e1b742a6",
+    "semantic_hash": "ff019372229f4f4d36c45a47e1b742a6"
+  },
+  "services/auth-service/src/common/config/routes.config.spec.ts": {
+    "mtime": 1785351140.2094233,
+    "ast_hash": "f31d20e1313e00407d434d17d77a8992",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/common/config/routes.config.ts": {
+    "mtime": 1785351261.175413,
+    "ast_hash": "1c9cf96cbf33206df471a9bceb58928c",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/common/constants/request.constants.ts": {
+    "mtime": 1783626773.4502203,
+    "ast_hash": "cdccf683ece20ee12590e82dc50dabcf",
+    "semantic_hash": "cdccf683ece20ee12590e82dc50dabcf"
+  },
+  "services/auth-service/src/common/filters/global-exception.filter.spec.ts": {
+    "mtime": 1784006190.7509513,
+    "ast_hash": "76d81feab3a05b5a67673826ac1ea8ce",
+    "semantic_hash": "76d81feab3a05b5a67673826ac1ea8ce"
+  },
+  "services/auth-service/src/common/filters/global-exception.filter.ts": {
+    "mtime": 1784697236.4190793,
+    "ast_hash": "75e5e908bbe2da9930c952b295f7763b",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/common/i18n/i18n.catalog.ts": {
+    "mtime": 1783626773.4512205,
+    "ast_hash": "4025fa673aa194ba24ffd1486b5d0457",
+    "semantic_hash": "4025fa673aa194ba24ffd1486b5d0457"
+  },
+  "services/auth-service/src/common/i18n/i18n.service.spec.ts": {
+    "mtime": 1783626773.4512205,
+    "ast_hash": "03858b155a7fd89464d62f8c6500b758",
+    "semantic_hash": "03858b155a7fd89464d62f8c6500b758"
+  },
+  "services/auth-service/src/common/i18n/i18n.service.ts": {
+    "mtime": 1783626773.4512205,
+    "ast_hash": "15bcb1ea3ede5bff6b8383ba6bc3b911",
+    "semantic_hash": "15bcb1ea3ede5bff6b8383ba6bc3b911"
+  },
+  "services/auth-service/src/common/i18n/i18n.types.ts": {
+    "mtime": 1783626773.4522204,
+    "ast_hash": "e7881c91f4d58022f85558c189ee1ef6",
+    "semantic_hash": "e7881c91f4d58022f85558c189ee1ef6"
+  },
+  "services/auth-service/src/common/import/import-error-report.service.ts": {
+    "mtime": 1783626773.4522204,
+    "ast_hash": "eb88efbb7fa095882ecf05491d469db5",
+    "semantic_hash": "eb88efbb7fa095882ecf05491d469db5"
+  },
+  "services/auth-service/src/common/import/import-template.service.ts": {
+    "mtime": 1783626773.4532218,
+    "ast_hash": "f0b4f06e977c2ef8d804b5a673f51a25",
+    "semantic_hash": "f0b4f06e977c2ef8d804b5a673f51a25"
+  },
+  "services/auth-service/src/common/import/import.module.ts": {
+    "mtime": 1783626773.4532218,
+    "ast_hash": "d8e38294bc6a29d4f734c9d84ad88603",
+    "semantic_hash": "d8e38294bc6a29d4f734c9d84ad88603"
+  },
+  "services/auth-service/src/common/import/import.registry.ts": {
+    "mtime": 1783626773.4532218,
+    "ast_hash": "effec0f79295af1c8315f4e39a0ddeb1",
+    "semantic_hash": "effec0f79295af1c8315f4e39a0ddeb1"
+  },
+  "services/auth-service/src/common/import/import.service.ts": {
+    "mtime": 1783799516.601934,
+    "ast_hash": "7db796b8165fe2a400140d7dbeeedfd6",
+    "semantic_hash": "7db796b8165fe2a400140d7dbeeedfd6"
+  },
+  "services/auth-service/src/common/import/import.types.ts": {
+    "mtime": 1784512774.2886908,
+    "ast_hash": "2b9fb3ac37b5aa0f9cabfcb34b5e696c",
+    "semantic_hash": "2b9fb3ac37b5aa0f9cabfcb34b5e696c"
+  },
+  "services/auth-service/src/common/interceptors/transformation.interceptor.ts": {
+    "mtime": 1783799516.6039326,
+    "ast_hash": "6ab1cd70125c10fbb70f7e2651480f6f",
+    "semantic_hash": "6ab1cd70125c10fbb70f7e2651480f6f"
+  },
+  "services/auth-service/src/common/logging/app-logger.service.ts": {
+    "mtime": 1783626773.4552197,
+    "ast_hash": "28ee2d20d2fbfeeb6947fcc758bde4fb",
+    "semantic_hash": "28ee2d20d2fbfeeb6947fcc758bde4fb"
+  },
+  "services/auth-service/src/common/logging/log-redactor.ts": {
+    "mtime": 1783626773.4552197,
+    "ast_hash": "25b08bb90b43bb2a8df9c6b09cae0382",
+    "semantic_hash": "25b08bb90b43bb2a8df9c6b09cae0382"
+  },
+  "services/auth-service/src/common/logging/logging.module.ts": {
+    "mtime": 1783626773.4552197,
+    "ast_hash": "ed244f574cd06d6e128558dfa2ab768b",
+    "semantic_hash": "ed244f574cd06d6e128558dfa2ab768b"
+  },
+  "services/auth-service/src/common/logging/request-context.ts": {
+    "mtime": 1783626773.4552197,
+    "ast_hash": "f0360d90d57831c1c6465807d268cb4b",
+    "semantic_hash": "f0360d90d57831c1c6465807d268cb4b"
+  },
+  "services/auth-service/src/common/middleware/request-id.middleware.ts": {
+    "mtime": 1783626773.4562197,
+    "ast_hash": "95ab0c8ebb3b5455b81651ef5f928204",
+    "semantic_hash": "95ab0c8ebb3b5455b81651ef5f928204"
+  },
+  "services/auth-service/src/common/middleware/request-logging.middleware.ts": {
+    "mtime": 1783626773.4562197,
+    "ast_hash": "aa47204661a2eaab0d86396ebe236058",
+    "semantic_hash": "aa47204661a2eaab0d86396ebe236058"
+  },
+  "services/auth-service/src/common/openapi/contract-schemas.ts": {
+    "mtime": 1785165981.074883,
+    "ast_hash": "10b6dabb6be3704deeb78f5b7ee74f0a",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/common/openapi/swagger.config.ts": {
+    "mtime": 1784702724.6514628,
+    "ast_hash": "66f247079dfb84418a92a8829a13957e",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/common/prisma/prisma-record-not-found.util.ts": {
+    "mtime": 1783626773.4572217,
+    "ast_hash": "1e27f192603d3e5777a4e97e0d549e52",
+    "semantic_hash": "1e27f192603d3e5777a4e97e0d549e52"
+  },
+  "services/auth-service/src/common/security/auth-rate-limit.decorator.ts": {
+    "mtime": 1785102112.552014,
+    "ast_hash": "2a63ac650a6a001694ea427d5f2315b0",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/common/security/auth-rate-limit.guard.spec.ts": {
+    "mtime": 1785387090.986655,
+    "ast_hash": "c49ae665773c36a02e842e74911c12fb",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/common/security/auth-rate-limit.guard.ts": {
+    "mtime": 1785387047.118813,
+    "ast_hash": "f882c958d7aa5c14bb652de33e19e2b3",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/common/security/token-hash.util.ts": {
+    "mtime": 1783626773.4582212,
+    "ast_hash": "4b4a4d1268b1bca31b9883e1492f51a4",
+    "semantic_hash": "4b4a4d1268b1bca31b9883e1492f51a4"
+  },
+  "services/auth-service/src/common/validation/parse-with-zod.ts": {
+    "mtime": 1783626773.4582212,
+    "ast_hash": "ba42bd68e633e864b76679cb412c34f9",
+    "semantic_hash": "ba42bd68e633e864b76679cb412c34f9"
+  },
+  "services/auth-service/src/main.ts": {
+    "mtime": 1783831805.229683,
+    "ast_hash": "8d56f373527de69ac3d2bda01e583a8d",
+    "semantic_hash": "8d56f373527de69ac3d2bda01e583a8d"
+  },
+  "services/auth-service/src/modules/billing/api/folio.controller.ts": {
+    "mtime": 1784641286.30646,
+    "ast_hash": "c09127c78ae987a6811a9e4498da10d0",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/billing/api/invoice.controller.ts": {
+    "mtime": 1784632330.7157156,
+    "ast_hash": "583096328b356c84b38a9f3be43e84c0",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/billing/api/payment.controller.ts": {
+    "mtime": 1784632330.7187164,
+    "ast_hash": "63155329bbb9b95882ba8feaa5185e6d",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/billing/application/billing.service.ts": {
+    "mtime": 1785243488.5201752,
+    "ast_hash": "500ffdfdeb3c481939f5aaa28cfa233c",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/billing/billing.module.ts": {
+    "mtime": 1784695140.0866342,
+    "ast_hash": "39035883cb0ce5874b500a19036fee80",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/billing/domain/schemas/billing.schema.ts": {
+    "mtime": 1784641286.3084598,
+    "ast_hash": "4c1734199eb1b5ade3d52756eb887924",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/billing/infrastructure/repositories/billing.repository.ts": {
+    "mtime": 1783831910.0792751,
+    "ast_hash": "7a9f671a7cab1163d97a2363f5d417d5",
+    "semantic_hash": "7a9f671a7cab1163d97a2363f5d417d5"
+  },
+  "services/auth-service/src/modules/billing/tests/billing.module.spec.ts": {
+    "mtime": 1783831101.313334,
+    "ast_hash": "23c5c3e0622cf60c23c5ddd058dd78f3",
+    "semantic_hash": "23c5c3e0622cf60c23c5ddd058dd78f3"
+  },
+  "services/auth-service/src/modules/billing/tests/billing.service.checkout-safety.spec.ts": {
+    "mtime": 1785243488.5201752,
+    "ast_hash": "bcff5a4ed6940f9eba16bd00452f585c",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/billing/tests/payment-webhook.controller.spec.ts": {
+    "mtime": 1784372764.9259808,
+    "ast_hash": "e7af56937ebcc772fa4af7a803e082dd",
+    "semantic_hash": "e7af56937ebcc772fa4af7a803e082dd"
+  },
+  "services/auth-service/src/modules/codes/codes-public.ts": {
+    "mtime": 1784538601.3211124,
+    "ast_hash": "792a8f1f5c23cd1fccf1bd26193a4778",
+    "semantic_hash": "792a8f1f5c23cd1fccf1bd26193a4778"
+  },
+  "services/auth-service/src/modules/codes/codes.module.ts": {
+    "mtime": 1783626773.46622,
+    "ast_hash": "4e6128e76bd2ce3b5db84fa5dcab8a24",
+    "semantic_hash": "4e6128e76bd2ce3b5db84fa5dcab8a24"
+  },
+  "services/auth-service/src/modules/codes/codes.repository.ts": {
+    "mtime": 1784696837.1222694,
+    "ast_hash": "85bbdba5de1a130d7cfaaad918609192",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/codes/codes.service.ts": {
+    "mtime": 1784646677.6302795,
+    "ast_hash": "7c536822ba4e8b5111baf101a75d5be3",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/codes/tests/codes.repository.spec.ts": {
+    "mtime": 1784701120.3749888,
+    "ast_hash": "a40ad4e8964516d5f27475c28dfac59c",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/codes/tests/codes.service.spec.ts": {
+    "mtime": 1783626773.4672196,
+    "ast_hash": "77a4792fe2cf6cbd1d09eddb9272ceee",
+    "semantic_hash": "77a4792fe2cf6cbd1d09eddb9272ceee"
+  },
+  "services/auth-service/src/modules/emergency/api/emergency.controller.ts": {
+    "mtime": 1783833471.273343,
+    "ast_hash": "aa078d1e871e9c5c19b480cc42a40eda",
+    "semantic_hash": "aa078d1e871e9c5c19b480cc42a40eda"
+  },
+  "services/auth-service/src/modules/emergency/application/emergency.service.ts": {
+    "mtime": 1783833471.274917,
+    "ast_hash": "27c4ba045dd16ab85d829cbc9fe1a676",
+    "semantic_hash": "27c4ba045dd16ab85d829cbc9fe1a676"
+  },
+  "services/auth-service/src/modules/emergency/domain/schemas/emergency.schema.ts": {
+    "mtime": 1783626773.4692202,
+    "ast_hash": "d2c7a20fc2299e585846091866e928f6",
+    "semantic_hash": "d2c7a20fc2299e585846091866e928f6"
+  },
+  "services/auth-service/src/modules/emergency/emergency.module.ts": {
+    "mtime": 1783833471.272767,
+    "ast_hash": "d8f4d72d4a50dc8c10c15a1811e9dba3",
+    "semantic_hash": "d8f4d72d4a50dc8c10c15a1811e9dba3"
+  },
+  "services/auth-service/src/modules/emergency/infrastructure/repositories/emergency.repository.ts": {
+    "mtime": 1783833551.9204898,
+    "ast_hash": "4b5ff52bc95b2697238b4be897754ac2",
+    "semantic_hash": "4b5ff52bc95b2697238b4be897754ac2"
+  },
+  "services/auth-service/src/modules/emergency/tests/emergency-boundary.spec.ts": {
+    "mtime": 1783833551.934492,
+    "ast_hash": "0facfaa5ee5f7feb4ed3ebe4a35e483e",
+    "semantic_hash": "0facfaa5ee5f7feb4ed3ebe4a35e483e"
+  },
+  "services/auth-service/src/modules/emergency/tests/emergency.module.spec.ts": {
+    "mtime": 1783833349.8057592,
+    "ast_hash": "fed18e6148a793a9500cb7efd3d7d9bd",
+    "semantic_hash": "fed18e6148a793a9500cb7efd3d7d9bd"
+  },
+  "services/auth-service/src/modules/emergency/tests/emergency.service.spec.ts": {
+    "mtime": 1783833551.951831,
+    "ast_hash": "31fe174be9cc38548ed735bfc66ff24d",
+    "semantic_hash": "31fe174be9cc38548ed735bfc66ff24d"
+  },
+  "services/auth-service/src/modules/guest-operations/api/guest-os.controller.ts": {
+    "mtime": 1784695140.0906334,
+    "ast_hash": "0dc905c44ad2aae0e7c861cb10059639",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/guest-operations/api/hotel-requests.controller.ts": {
+    "mtime": 1784695140.091633,
+    "ast_hash": "85eff6aede0bcb79463baf2325bc2583",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/guest-operations/application/guest-emergency-context.service.ts": {
+    "mtime": 1783833471.2738712,
+    "ast_hash": "a1800661eedc24180a2990f3a6a406e1",
+    "semantic_hash": "a1800661eedc24180a2990f3a6a406e1"
+  },
+  "services/auth-service/src/modules/guest-operations/application/guest-os.service.ts": {
+    "mtime": 1785242896.7828207,
+    "ast_hash": "675307ff6206e945f9f17a3a62888091",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/guest-operations/application/hotel-requests.service.ts": {
+    "mtime": 1784685158.559162,
+    "ast_hash": "3ea7324f5fad3cd712a9b683b38e70c2",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/guest-operations/domain/guest-request-status.ts": {
+    "mtime": 1784025273.2591572,
+    "ast_hash": "e3194dd3a8ef93d678953e0ef84cfb4c",
+    "semantic_hash": "e3194dd3a8ef93d678953e0ef84cfb4c"
+  },
+  "services/auth-service/src/modules/guest-operations/domain/schemas/guest-os.schema.ts": {
+    "mtime": 1784667384.2231963,
+    "ast_hash": "43b04bbaafd9d3c11ea4a66edffa4109",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/guest-operations/domain/schemas/requests.schema.ts": {
+    "mtime": 1784695140.094632,
+    "ast_hash": "6a2402cdc8edf0ca20a2618bae89a3b7",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/guest-operations/guest-operations-public.ts": {
+    "mtime": 1783833471.274917,
+    "ast_hash": "c25edb9abcfc915df028c78200938e8f",
+    "semantic_hash": "c25edb9abcfc915df028c78200938e8f"
+  },
+  "services/auth-service/src/modules/guest-operations/guest-operations.module.ts": {
+    "mtime": 1784662815.4820259,
+    "ast_hash": "a57edeef3d57a1f999be8c291a9c5f86",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/guest-operations/infrastructure/guards/guest-session.guard.ts": {
+    "mtime": 1783824820.9996688,
+    "ast_hash": "00f2564bbea1e798fc59d1855bf120e2",
+    "semantic_hash": "00f2564bbea1e798fc59d1855bf120e2"
+  },
+  "services/auth-service/src/modules/guest-operations/infrastructure/repositories/guest-os.repository.ts": {
+    "mtime": 1785242896.7838218,
+    "ast_hash": "73035afecab6025860a2e2e1f85786ba",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/guest-operations/infrastructure/repositories/guest-request-repository.types.ts": {
+    "mtime": 1783831371.065612,
+    "ast_hash": "dce5629ce1bf638cc2c42cf81bf106f1",
+    "semantic_hash": "dce5629ce1bf638cc2c42cf81bf106f1"
+  },
+  "services/auth-service/src/modules/guest-operations/infrastructure/repositories/hotel-requests.repository.ts": {
+    "mtime": 1784641286.3104599,
+    "ast_hash": "26840d9b5bbde0b7ccec25da26a4d7bc",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/guest-operations/tests/fixtures/hotel-simulation.fixture.ts": {
+    "mtime": 1784111525.8448634,
+    "ast_hash": "b522ad5ab4f34d7816ff76306d4252a3",
+    "semantic_hash": "b522ad5ab4f34d7816ff76306d4252a3"
+  },
+  "services/auth-service/src/modules/guest-operations/tests/guest-emergency-context.service.spec.ts": {
+    "mtime": 1783833349.8047597,
+    "ast_hash": "36a3ed73a501e7c76bcda77ff6aa9c87",
+    "semantic_hash": "36a3ed73a501e7c76bcda77ff6aa9c87"
+  },
+  "services/auth-service/src/modules/guest-operations/tests/guest-operations.module.spec.ts": {
+    "mtime": 1783833791.880509,
+    "ast_hash": "51950d7fa6a9a540245ff94ab9f8bc2e",
+    "semantic_hash": "51950d7fa6a9a540245ff94ab9f8bc2e"
+  },
+  "services/auth-service/src/modules/guest-operations/tests/guest-os.repository.spec.ts": {
+    "mtime": 1785242896.7838218,
+    "ast_hash": "5322a5aaa2a9623b0c7808a6fd77bdd1",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/guest-operations/tests/guest-os.service.spec.ts": {
+    "mtime": 1785242896.7848222,
+    "ast_hash": "6415901cafaca0b1afdfe42720e5b807",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/guest-operations/tests/guest-request-workflow-boundary.spec.ts": {
+    "mtime": 1783832119.2424273,
+    "ast_hash": "dc2df8cd4ddf2233d2622e85a9fc1a0c",
+    "semantic_hash": "dc2df8cd4ddf2233d2622e85a9fc1a0c"
+  },
+  "services/auth-service/src/modules/guest-operations/tests/hotel-requests.repository.spec.ts": {
+    "mtime": 1784027705.2917542,
+    "ast_hash": "3bcac6aa19f9b8979fbec693a12e1a03",
+    "semantic_hash": "3bcac6aa19f9b8979fbec693a12e1a03"
+  },
+  "services/auth-service/src/modules/guest-operations/tests/hotel-simulation.integration.spec.ts": {
+    "mtime": 1784114226.0139117,
+    "ast_hash": "051079d39f97c5692f05b0163e53ca51",
+    "semantic_hash": "051079d39f97c5692f05b0163e53ca51"
+  },
+  "services/auth-service/src/modules/health/health.controller.ts": {
+    "mtime": 1783799516.6549332,
+    "ast_hash": "99e1843586caedeb7d0978d8744b1a1e",
+    "semantic_hash": "99e1843586caedeb7d0978d8744b1a1e"
+  },
+  "services/auth-service/src/modules/health/health.module.ts": {
+    "mtime": 1783626773.472221,
+    "ast_hash": "0c74d0367672d7522917c0c78adfd5de",
+    "semantic_hash": "0c74d0367672d7522917c0c78adfd5de"
+  },
+  "services/auth-service/src/modules/health/health.service.ts": {
+    "mtime": 1783626773.472221,
+    "ast_hash": "6ec2bfbe576139a8a872bb9fe2f87e34",
+    "semantic_hash": "6ec2bfbe576139a8a872bb9fe2f87e34"
+  },
+  "services/auth-service/src/modules/identity/api/auth.controller.ts": {
+    "mtime": 1785102247.7705128,
+    "ast_hash": "d3c1a481e4e698163bc2c6d42f8d84dc",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/identity/api/hotel-users.controller.ts": {
+    "mtime": 1785126238.167952,
+    "ast_hash": "477951444208e73306bfc2456abb758b",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/identity/api/rbac.controller.ts": {
+    "mtime": 1783799383.462282,
+    "ast_hash": "01949e7c8c4cf53b10a6057e9cbbac01",
+    "semantic_hash": "01949e7c8c4cf53b10a6057e9cbbac01"
+  },
+  "services/auth-service/src/modules/identity/application/authentication.service.ts": {
+    "mtime": 1785105066.0022058,
+    "ast_hash": "b376126b0b3b0459a3f4d978fc42c664",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/identity/application/authorization.service.ts": {
+    "mtime": 1784512774.2946892,
+    "ast_hash": "415ec01d0fe8b74320715f1cce0f758e",
+    "semantic_hash": "415ec01d0fe8b74320715f1cce0f758e"
+  },
+  "services/auth-service/src/modules/identity/application/hotel-user-directory.service.ts": {
+    "mtime": 1784538601.322113,
+    "ast_hash": "fdcb4a0164d0e5705ff5c763ac5a647e",
+    "semantic_hash": "fdcb4a0164d0e5705ff5c763ac5a647e"
+  },
+  "services/auth-service/src/modules/identity/application/hotel-users.service.ts": {
+    "mtime": 1785126238.1689527,
+    "ast_hash": "a2ac8a637282fe366e0ca899e30e5490",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/identity/application/rbac.service.ts": {
+    "mtime": 1784006190.574221,
+    "ast_hash": "0809f3f1775d63b2d4128e819a46bb00",
+    "semantic_hash": "0809f3f1775d63b2d4128e819a46bb00"
+  },
+  "services/auth-service/src/modules/identity/application/route-permission-sync.service.ts": {
+    "mtime": 1784703099.392989,
+    "ast_hash": "16f55573f165615430e935e6dcbb4027",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/identity/domain/authenticated-user.ts": {
+    "mtime": 1783725862.9273787,
+    "ast_hash": "14d25a67639e3117951e679e33687338",
+    "semantic_hash": "14d25a67639e3117951e679e33687338"
+  },
+  "services/auth-service/src/modules/identity/domain/permissions.template.json": {
+    "mtime": 1783626773.48322,
+    "ast_hash": "833a728fa71feec935def6b26b18c833",
+    "semantic_hash": "833a728fa71feec935def6b26b18c833"
+  },
+  "services/auth-service/src/modules/identity/domain/route-permission-key.util.ts": {
+    "mtime": 1783626773.4642198,
+    "ast_hash": "3909f7a24eecd2c0a5d32c284874a016",
+    "semantic_hash": "3909f7a24eecd2c0a5d32c284874a016"
+  },
+  "services/auth-service/src/modules/identity/domain/schemas/auth.schema.ts": {
+    "mtime": 1785106454.3893456,
+    "ast_hash": "b696c30d77c76dd1d33175f14d7fdc22",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/identity/domain/schemas/hotel-users.schema.ts": {
+    "mtime": 1785126238.1689527,
+    "ast_hash": "4f0cc698877551577905244a74f96fc0",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/identity/domain/schemas/rbac.schema.ts": {
+    "mtime": 1783626773.4847832,
+    "ast_hash": "48840bd30f63845bbc39ea587ef3aca3",
+    "semantic_hash": "48840bd30f63845bbc39ea587ef3aca3"
+  },
+  "services/auth-service/src/modules/identity/identity-public.ts": {
+    "mtime": 1784538601.3231125,
+    "ast_hash": "acdb197531a19e964c8b93a6fe3cb9d0",
+    "semantic_hash": "acdb197531a19e964c8b93a6fe3cb9d0"
+  },
+  "services/auth-service/src/modules/identity/identity.module.ts": {
+    "mtime": 1784538601.3231125,
+    "ast_hash": "629d2b22f44967e521005e62950287f4",
+    "semantic_hash": "629d2b22f44967e521005e62950287f4"
+  },
+  "services/auth-service/src/modules/identity/infrastructure/guards/jwt-auth.guard.ts": {
+    "mtime": 1783799383.4687912,
+    "ast_hash": "c8e3a446a20b5bf219f884dbbab66d95",
+    "semantic_hash": "c8e3a446a20b5bf219f884dbbab66d95"
+  },
+  "services/auth-service/src/modules/identity/infrastructure/guards/local-auth.guard.ts": {
+    "mtime": 1784012333.8759212,
+    "ast_hash": "c1f89b62ef76676e528d97475a8eee9c",
+    "semantic_hash": "c1f89b62ef76676e528d97475a8eee9c"
+  },
+  "services/auth-service/src/modules/identity/infrastructure/repositories/auth.repository.ts": {
+    "mtime": 1785104996.8706062,
+    "ast_hash": "232507e255542242b123e74a41682f1a",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/identity/infrastructure/repositories/hotel-users.repository.ts": {
+    "mtime": 1785126238.169952,
+    "ast_hash": "a64f50a9aab2a99d1b4c6689cdbea5b5",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/identity/infrastructure/repositories/rbac.repository.ts": {
+    "mtime": 1783826790.1944027,
+    "ast_hash": "ddb3d82b8b845a1ea5b403ce57a89b96",
+    "semantic_hash": "ddb3d82b8b845a1ea5b403ce57a89b96"
+  },
+  "services/auth-service/src/modules/identity/infrastructure/strategies/jwt.strategy.ts": {
+    "mtime": 1784006190.538222,
+    "ast_hash": "28d8a043fa8a5172fdbcc3a488a855f4",
+    "semantic_hash": "28d8a043fa8a5172fdbcc3a488a855f4"
+  },
+  "services/auth-service/src/modules/identity/infrastructure/strategies/local.strategy.ts": {
+    "mtime": 1784012343.4075525,
+    "ast_hash": "4c1eaa510f5ef7cd8ef88421545aa966",
+    "semantic_hash": "4c1eaa510f5ef7cd8ef88421545aa966"
+  },
+  "services/auth-service/src/modules/identity/tests/application/authorization.service.spec.ts": {
+    "mtime": 1784512774.2956896,
+    "ast_hash": "2e63277dc88642f82ce30cbe867a04ee",
+    "semantic_hash": "2e63277dc88642f82ce30cbe867a04ee"
+  },
+  "services/auth-service/src/modules/identity/tests/application/route-permission-sync.service.spec.ts": {
+    "mtime": 1783826788.7320628,
+    "ast_hash": "dc1bfa63669124b6f816860236e81458",
+    "semantic_hash": "dc1bfa63669124b6f816860236e81458"
+  },
+  "services/auth-service/src/modules/identity/tests/authentication.service.spec.ts": {
+    "mtime": 1785105943.4074545,
+    "ast_hash": "fcffbe712137331210c1bf3e1c5ad2c0",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/identity/tests/domain/route-permission-key.util.spec.ts": {
+    "mtime": 1783799383.472792,
+    "ast_hash": "b109a2add69bd24df9b60bdff934fe05",
+    "semantic_hash": "b109a2add69bd24df9b60bdff934fe05"
+  },
+  "services/auth-service/src/modules/identity/tests/hotel-users.service.spec.ts": {
+    "mtime": 1785104282.7017438,
+    "ast_hash": "4cd11407dee9dbd4eef0444b0e2ea8ed",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/identity/tests/identity.module.spec.ts": {
+    "mtime": 1784538601.3251126,
+    "ast_hash": "0592d0a79ddf94f743c97a0314a76810",
+    "semantic_hash": "0592d0a79ddf94f743c97a0314a76810"
+  },
+  "services/auth-service/src/modules/identity/tests/infrastructure/local-auth.guard.spec.ts": {
+    "mtime": 1784012167.8726356,
+    "ast_hash": "329d46d5cc7662948ad9f4d3b70fb5c0",
+    "semantic_hash": "329d46d5cc7662948ad9f4d3b70fb5c0"
+  },
+  "services/auth-service/src/modules/identity/tests/rbac.service.spec.ts": {
+    "mtime": 1784006190.6362233,
+    "ast_hash": "1d019bf42071febc2d7a8138392fe7c0",
+    "semantic_hash": "1d019bf42071febc2d7a8138392fe7c0"
+  },
+  "services/auth-service/src/modules/identity/tests/schemas/auth.schema.spec.ts": {
+    "mtime": 1783799383.4737918,
+    "ast_hash": "d5102f876c1af2bc47ea68f60e59bdab",
+    "semantic_hash": "d5102f876c1af2bc47ea68f60e59bdab"
+  },
+  "services/auth-service/src/modules/identity/tests/schemas/hotel-users.schema.spec.ts": {
+    "mtime": 1784641286.3114607,
+    "ast_hash": "28205d0f08ccf34e7a8ff08ab74872c2",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/identity/tests/schemas/rbac.schema.spec.ts": {
+    "mtime": 1783799383.4747927,
+    "ast_hash": "049057ee4b852c723afa409da350c796",
+    "semantic_hash": "049057ee4b852c723afa409da350c796"
+  },
+  "services/auth-service/src/modules/notifications/api/hotel-notification-routes.controller.ts": {
+    "mtime": 1784512774.2966883,
+    "ast_hash": "0303d2828f8c298f18f1ad48a09d2d14",
+    "semantic_hash": "0303d2828f8c298f18f1ad48a09d2d14"
+  },
+  "services/auth-service/src/modules/notifications/api/telegram-webhook.controller.ts": {
+    "mtime": 1785351244.597911,
+    "ast_hash": "0a91584a531c820a522e87dff65bacc5",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/notifications/application/hotel-notification-routes.service.ts": {
+    "mtime": 1784512774.2976892,
+    "ast_hash": "726cd4d219fb6963b32a7b0978f88f24",
+    "semantic_hash": "726cd4d219fb6963b32a7b0978f88f24"
+  },
+  "services/auth-service/src/modules/notifications/application/telegram-notification.service.ts": {
+    "mtime": 1784027449.0245514,
+    "ast_hash": "48d6df387a5fce85a3281657879fb1f3",
+    "semantic_hash": "48d6df387a5fce85a3281657879fb1f3"
+  },
+  "services/auth-service/src/modules/notifications/notifications-public.ts": {
+    "mtime": 1783828259.5763872,
+    "ast_hash": "c4e0468dc09e57439fc4b998348f1afa",
+    "semantic_hash": "c4e0468dc09e57439fc4b998348f1afa"
+  },
+  "services/auth-service/src/modules/notifications/notifications.module.ts": {
+    "mtime": 1783828259.5763872,
+    "ast_hash": "ad3f964e0f56edfe9021fd919e43b998",
+    "semantic_hash": "ad3f964e0f56edfe9021fd919e43b998"
+  },
+  "services/auth-service/src/modules/notifications/tests/notifications.module.spec.ts": {
+    "mtime": 1783827903.2966716,
+    "ast_hash": "17e365a2dadd040e032c296da2b548f9",
+    "semantic_hash": "17e365a2dadd040e032c296da2b548f9"
+  },
+  "services/auth-service/src/modules/notifications/tests/telegram-notification.service.spec.ts": {
+    "mtime": 1784695140.1053197,
+    "ast_hash": "e9fb75e5d01fd6fb65bc379e68eb9bab",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/notifications/tests/telegram-webhook.controller.spec.ts": {
+    "mtime": 1783828722.7776272,
+    "ast_hash": "56771621e0dc884f53d6b9d4a0ea404c",
+    "semantic_hash": "56771621e0dc884f53d6b9d4a0ea404c"
+  },
+  "services/auth-service/src/modules/organization/api/tenant-owners.controller.ts": {
+    "mtime": 1785102283.6223154,
+    "ast_hash": "f090dcbaa7216743f529467a9b89bd61",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/organization/application/tenant-owners.service.ts": {
+    "mtime": 1785104795.6188848,
+    "ast_hash": "59fb22e5356c85229fa392bb190e840a",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/organization/domain/schemas/tenant-owners.schema.ts": {
+    "mtime": 1785106461.060514,
+    "ast_hash": "e3134b48e91a01ada642e34404cd8b53",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/organization/infrastructure/repositories/tenant-owners.repository.ts": {
+    "mtime": 1785102260.568685,
+    "ast_hash": "2ac44938c07c842d289693b3d77addf9",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/organization/organization.module.ts": {
+    "mtime": 1784006190.669346,
+    "ast_hash": "3da146fe88fce3518e2d1e3ef114dfb7",
+    "semantic_hash": "3da146fe88fce3518e2d1e3ef114dfb7"
+  },
+  "services/auth-service/src/modules/organization/tests/domain/schemas/tenant-owners.schema.spec.ts": {
+    "mtime": 1783831805.229683,
+    "ast_hash": "0baf8a282804ad3c38c858000a24a6b0",
+    "semantic_hash": "0baf8a282804ad3c38c858000a24a6b0"
+  },
+  "services/auth-service/src/modules/organization/tests/organization.module.spec.ts": {
+    "mtime": 1783832119.2504272,
+    "ast_hash": "044f3db8c65a5df4c23f0354785dd51e",
+    "semantic_hash": "044f3db8c65a5df4c23f0354785dd51e"
+  },
+  "services/auth-service/src/modules/organization/tests/tenant-owners.service.spec.ts": {
+    "mtime": 1785104373.0284698,
+    "ast_hash": "c096fd1dd81b0bb79b27b40b6ec57f75",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/property/api/hotel-dashboard.controller.ts": {
+    "mtime": 1784632330.7387137,
+    "ast_hash": "5040060c0e537e50e7ac870aa152f0ed",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/property/api/hotel-rooms.controller.ts": {
+    "mtime": 1784632330.7447162,
+    "ast_hash": "0f14c18900d22af441db60b8d702f634",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/property/api/hotel-services.controller.ts": {
+    "mtime": 1784512774.2986896,
+    "ast_hash": "52f0c32f1b1bcfb6b5629ba6711de135",
+    "semantic_hash": "52f0c32f1b1bcfb6b5629ba6711de135"
+  },
+  "services/auth-service/src/modules/property/api/hotel-staff-assignments.controller.ts": {
+    "mtime": 1784538601.3251126,
+    "ast_hash": "c3cd76323f7d1ce96b16809a42b7331d",
+    "semantic_hash": "c3cd76323f7d1ce96b16809a42b7331d"
+  },
+  "services/auth-service/src/modules/property/api/hotels.controller.ts": {
+    "mtime": 1784629404.50872,
+    "ast_hash": "1cd0e9e0ef3a996866872431c35e5bcd",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/property/api/reservations.controller.ts": {
+    "mtime": 1784538601.3261127,
+    "ast_hash": "1c9b121ee6fc848dfbf2e45924e113a1",
+    "semantic_hash": "1c9b121ee6fc848dfbf2e45924e113a1"
+  },
+  "services/auth-service/src/modules/property/application/hotel-access.service.ts": {
+    "mtime": 1784605622.5760763,
+    "ast_hash": "4d9d5666253ec8d96d51c14d77f2dd15",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/property/application/hotel-dashboard.service.ts": {
+    "mtime": 1784703366.079778,
+    "ast_hash": "0c3d083d929acc90d8eb0eea37785a05",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/property/application/hotel-rooms.service.ts": {
+    "mtime": 1785438430.0382783,
+    "ast_hash": "61b48c041d7ce15c674ea3297def08b4",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/property/application/hotel-services.service.ts": {
+    "mtime": 1784512774.301689,
+    "ast_hash": "5452ad683bca24492fb7eec3cc164171",
+    "semantic_hash": "5452ad683bca24492fb7eec3cc164171"
+  },
+  "services/auth-service/src/modules/property/application/hotel-staff-assignments.service.ts": {
+    "mtime": 1784636336.5631196,
+    "ast_hash": "a5644d4746d6414e95c83523ac1833a7",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/property/application/hotels.service.ts": {
+    "mtime": 1785165981.075883,
+    "ast_hash": "017e0dca15cd28d51ae8c7f6074c54c7",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/property/application/reservations.service.ts": {
+    "mtime": 1784538601.3281145,
+    "ast_hash": "030c0ad60887ae45f99f685db2982bcf",
+    "semantic_hash": "030c0ad60887ae45f99f685db2982bcf"
+  },
+  "services/auth-service/src/modules/property/domain/schemas/hotel-staff-assignments.schema.ts": {
+    "mtime": 1784538601.3291144,
+    "ast_hash": "fefdeba66e303ac1ef98f99e272a8a81",
+    "semantic_hash": "fefdeba66e303ac1ef98f99e272a8a81"
+  },
+  "services/auth-service/src/modules/property/domain/schemas/hotel.schema.ts": {
+    "mtime": 1785165981.075883,
+    "ast_hash": "d938795da7db37c2748fcb346493b38c",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/property/domain/schemas/hotels.schema.ts": {
+    "mtime": 1783831371.069612,
+    "ast_hash": "6689602b300b80f43ddab293e575fb2d",
+    "semantic_hash": "6689602b300b80f43ddab293e575fb2d"
+  },
+  "services/auth-service/src/modules/property/domain/schemas/reservations.schema.ts": {
+    "mtime": 1784376610.5077417,
+    "ast_hash": "0bafb80db650bd42ace859d11de35829",
+    "semantic_hash": "0bafb80db650bd42ace859d11de35829"
+  },
+  "services/auth-service/src/modules/property/domain/schemas/rooms.schema.ts": {
+    "mtime": 1785438327.167198,
+    "ast_hash": "b8f72e71a73d6f642e3fbe5d676e179a",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/property/domain/schemas/service-catalog.schema.ts": {
+    "mtime": 1783711708.5238006,
+    "ast_hash": "461b8489c701f74f375710f577d18754",
+    "semantic_hash": "461b8489c701f74f375710f577d18754"
+  },
+  "services/auth-service/src/modules/property/domain/schemas/shared.schema.ts": {
+    "mtime": 1784377140.7985766,
+    "ast_hash": "1e7136fe9906c650034528ae4cc16c4f",
+    "semantic_hash": "1e7136fe9906c650034528ae4cc16c4f"
+  },
+  "services/auth-service/src/modules/property/infrastructure/imports/google-sheets-service-catalog-sync.service.ts": {
+    "mtime": 1785163551.172662,
+    "ast_hash": "89ef990cb8c764a1bfe1438debd17b36",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/property/infrastructure/imports/service-catalog-import.adapter.ts": {
+    "mtime": 1784512774.3036895,
+    "ast_hash": "2ef93eb9d8f398a9559f3082b7d2f5ba",
+    "semantic_hash": "2ef93eb9d8f398a9559f3082b7d2f5ba"
+  },
+  "services/auth-service/src/modules/property/infrastructure/repositories/hotel-core.repository.ts": {
+    "mtime": 1785163551.172662,
+    "ast_hash": "eb3ca90ef2bf5478a02d790718ce988c",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/property/infrastructure/repositories/hotel-repository.types.ts": {
+    "mtime": 1783831371.0676124,
+    "ast_hash": "611a586e17fd6e003b56c51216e7add7",
+    "semantic_hash": "611a586e17fd6e003b56c51216e7add7"
+  },
+  "services/auth-service/src/modules/property/infrastructure/repositories/hotel-rooms.repository.ts": {
+    "mtime": 1785438623.7438238,
+    "ast_hash": "9372960ed4b93bcb6c2614895f5f7cb9",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/property/infrastructure/repositories/hotel-service-catalog.repository.ts": {
+    "mtime": 1783801214.8494573,
+    "ast_hash": "2b32d8bff47ba2e610bfa7319f61650c",
+    "semantic_hash": "2b32d8bff47ba2e610bfa7319f61650c"
+  },
+  "services/auth-service/src/modules/property/infrastructure/repositories/hotel-staff-assignments.repository.ts": {
+    "mtime": 1784636336.5661194,
+    "ast_hash": "37a52ddb78f4a79c8646fc0ac69f736c",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/property/infrastructure/repositories/hotels.repository.ts": {
+    "mtime": 1783832119.2754264,
+    "ast_hash": "11e08df5ae92abe5ea2b7afee76c3eb4",
+    "semantic_hash": "11e08df5ae92abe5ea2b7afee76c3eb4"
+  },
+  "services/auth-service/src/modules/property/infrastructure/repositories/reservations.repository.ts": {
+    "mtime": 1785242896.787825,
+    "ast_hash": "72c2c204068e481598c7ddb17b0f8ff8",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/property/property-public.ts": {
+    "mtime": 1784538601.3291144,
+    "ast_hash": "6aabf3811a3fa88654f75ff0ed129ff4",
+    "semantic_hash": "6aabf3811a3fa88654f75ff0ed129ff4"
+  },
+  "services/auth-service/src/modules/property/property.module.ts": {
+    "mtime": 1784695140.1085882,
+    "ast_hash": "640296ff338816dd0859845461e16c9f",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/property/tests/domain/schemas/hotels.schema.spec.ts": {
+    "mtime": 1785165981.0768838,
+    "ast_hash": "369ed07eed214699f69f5b6be71ff3d5",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/property/tests/hotel-access.service.spec.ts": {
+    "mtime": 1784701255.8141234,
+    "ast_hash": "b17604717d97ec4ecf3ac0ec25f946c8",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/property/tests/hotel-core.repository.spec.ts": {
+    "mtime": 1784512774.305689,
+    "ast_hash": "a8d5654491c60f8e02d9c93110a492cd",
+    "semantic_hash": "a8d5654491c60f8e02d9c93110a492cd"
+  },
+  "services/auth-service/src/modules/property/tests/hotel-staff-assignments.service.spec.ts": {
+    "mtime": 1784641286.3144598,
+    "ast_hash": "eaecabf6c13649db67ea1ef19c7faccd",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/property/tests/hotels.repository.spec.ts": {
+    "mtime": 1785242896.792821,
+    "ast_hash": "bf8b83ffc10c4b6321977bfff2a27010",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/property/tests/hotels.schema.spec.ts": {
+    "mtime": 1783801214.8544552,
+    "ast_hash": "02a88dd2ee17be4a99cccf4c6abbaadc",
+    "semantic_hash": "02a88dd2ee17be4a99cccf4c6abbaadc"
+  },
+  "services/auth-service/src/modules/property/tests/hotels.service.spec.ts": {
+    "mtime": 1785165981.0768838,
+    "ast_hash": "356bc90edc87bc2c5ff2e98594238e4c",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/property/tests/infrastructure/imports/google-sheets-service-catalog-sync.service.spec.ts": {
+    "mtime": 1785163551.1736622,
+    "ast_hash": "56dc01ee7803a84d8ba3a9ea793afb4f",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/property/tests/infrastructure/imports/service-catalog-import.adapter.spec.ts": {
+    "mtime": 1783801214.856454,
+    "ast_hash": "93fa52455f570af5ea58f3b8c0462648",
+    "semantic_hash": "93fa52455f570af5ea58f3b8c0462648"
+  },
+  "services/auth-service/src/modules/property/tests/property.module.spec.ts": {
+    "mtime": 1783801770.989159,
+    "ast_hash": "999cde6d7f7f56b942217544b9fa2c5b",
+    "semantic_hash": "999cde6d7f7f56b942217544b9fa2c5b"
+  },
+  "services/auth-service/src/modules/property/tests/reservations.repository.spec.ts": {
+    "mtime": 1785242896.793822,
+    "ast_hash": "ef8c236f0cb089ce94431c38db3799b2",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/property/tests/reservations.service.spec.ts": {
+    "mtime": 1784512774.3066888,
+    "ast_hash": "ce1509857ba28a90b724bcf9fc8f5033",
+    "semantic_hash": "ce1509857ba28a90b724bcf9fc8f5033"
+  },
+  "services/auth-service/src/modules/request-realtime/api/request-realtime.controller.ts": {
+    "mtime": 1784632330.7497165,
+    "ast_hash": "15cee00c91690ae8f9ce95311adf3684",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/request-realtime/application/request-realtime-ticket.service.ts": {
+    "mtime": 1784512774.3076887,
+    "ast_hash": "bff58ed87f95c465f5a3a9c6df11e6fb",
+    "semantic_hash": "bff58ed87f95c465f5a3a9c6df11e6fb"
+  },
+  "services/auth-service/src/modules/request-realtime/domain/schemas/request-realtime.schema.ts": {
+    "mtime": 1784037435.7937295,
+    "ast_hash": "9ce61b93c8388c8b7136bc6d09c546ca",
+    "semantic_hash": "9ce61b93c8388c8b7136bc6d09c546ca"
+  },
+  "services/auth-service/src/modules/request-realtime/request-realtime.module.ts": {
+    "mtime": 1784037435.7967317,
+    "ast_hash": "3f898cbbdd86ef1ad127b73e29c372a5",
+    "semantic_hash": "3f898cbbdd86ef1ad127b73e29c372a5"
+  },
+  "services/auth-service/src/modules/request-realtime/tests/request-realtime-ticket.service.spec.ts": {
+    "mtime": 1784701217.1249356,
+    "ast_hash": "e30929a60951c6fdc1639f9e78e2ee7e",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/request-realtime/tests/request-realtime.gateway.spec.ts": {
+    "mtime": 1784039187.5830827,
+    "ast_hash": "d00e9e18644fcdbbde088c509ce455a7",
+    "semantic_hash": "d00e9e18644fcdbbde088c509ce455a7"
+  },
+  "services/auth-service/src/modules/tests/final-boundary-release.spec.ts": {
+    "mtime": 1783836060.5185652,
+    "ast_hash": "aceabf7057fa2da72e8e36cb87b9f2b8",
+    "semantic_hash": "aceabf7057fa2da72e8e36cb87b9f2b8"
+  },
+  "services/auth-service/src/prisma/prisma.module.ts": {
+    "mtime": 1783626773.489936,
+    "ast_hash": "e30fd5749df9d5117b7d63cfffce8fc4",
+    "semantic_hash": "e30fd5749df9d5117b7d63cfffce8fc4"
+  },
+  "services/auth-service/src/prisma/prisma.service.ts": {
+    "mtime": 1783626773.489936,
+    "ast_hash": "d449469efbd443d443f190bf7f4b36bf",
+    "semantic_hash": "d449469efbd443d443f190bf7f4b36bf"
+  },
+  "services/auth-service/src/request-realtime.emitter.ts": {
+    "mtime": 1784695140.1160245,
+    "ast_hash": "3d01d82112dc8937090f062fb57cb8d7",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/request-realtime.gateway.ts": {
+    "mtime": 1784695140.1170242,
+    "ast_hash": "e1554af3d64d2509b1dffcfbae90b1e7",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/shared/decorators/api-descript.decorator.ts": {
+    "mtime": 1783626773.490936,
+    "ast_hash": "2d31efe64567d1dff554b499a420fc05",
+    "semantic_hash": "2d31efe64567d1dff554b499a420fc05"
+  },
+  "services/auth-service/src/shared/decorators/require-permission.decorator.ts": {
+    "mtime": 1783626773.490936,
+    "ast_hash": "ce6f3d614813f3b24772b4b88e9c0c79",
+    "semantic_hash": "ce6f3d614813f3b24772b4b88e9c0c79"
+  },
+  "services/auth-service/src/shared/decorators/skip-authorization.decorator.ts": {
+    "mtime": 1783626773.490936,
+    "ast_hash": "1ffa62e5f88f7fc4c2183e76d4ff3afb",
+    "semantic_hash": "1ffa62e5f88f7fc4c2183e76d4ff3afb"
+  },
+  "services/auth-service/src/shared/decorators/success-message.decorator.ts": {
+    "mtime": 1783626773.490936,
+    "ast_hash": "d686fc39ecfb7d90848368246dc4d383",
+    "semantic_hash": "d686fc39ecfb7d90848368246dc4d383"
+  },
+  "services/auth-service/src/shared/events/guest-request-events.module.ts": {
+    "mtime": 1783743045.3875382,
+    "ast_hash": "d2c816e05d9108f8d54732fb679e7dc8",
+    "semantic_hash": "d2c816e05d9108f8d54732fb679e7dc8"
+  },
+  "services/auth-service/src/shared/events/guest-request-events.port.ts": {
+    "mtime": 1784695140.11874,
+    "ast_hash": "b9a5d1673d5c15e2b0007e99111d072f",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/shared/events/index.ts": {
+    "mtime": 1783743045.373539,
+    "ast_hash": "73f24f42170b8c7cf8c62418e659da1c",
+    "semantic_hash": "73f24f42170b8c7cf8c62418e659da1c"
+  },
+  "services/auth-service/src/shared/events/request-realtime-event.publisher.ts": {
+    "mtime": 1784695140.11874,
+    "ast_hash": "2fa2112ae210e9a16f1e99b75a888f16",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/shared/events/tests/guest-request-event-boundary.spec.ts": {
+    "mtime": 1783831371.069612,
+    "ast_hash": "f09d82a2c5613d6110cc187f80e57963",
+    "semantic_hash": "f09d82a2c5613d6110cc187f80e57963"
+  },
+  "services/auth-service/src/shared/guard/authorization.guard.spec.ts": {
+    "mtime": 1784512774.3086889,
+    "ast_hash": "f7a022bbed0a5866ed5b2c2e1f30eec6",
+    "semantic_hash": "f7a022bbed0a5866ed5b2c2e1f30eec6"
+  },
+  "services/auth-service/src/shared/guard/authorization.guard.ts": {
+    "mtime": 1784538601.331114,
+    "ast_hash": "027712c2d5a68962269bb10fb4b39711",
+    "semantic_hash": "027712c2d5a68962269bb10fb4b39711"
+  },
+  "services/auth-service/src/shared/security/authenticated-user.ts": {
+    "mtime": 1784004935.390297,
+    "ast_hash": "964f09b3a87a4b3f35a0ee6ac42d6a21",
+    "semantic_hash": "964f09b3a87a4b3f35a0ee6ac42d6a21"
+  },
+  "services/auth-service/src/shared/security/index.ts": {
+    "mtime": 1783725860.9814079,
+    "ast_hash": "ac792ae66a63b131fee4142e7132b45e",
+    "semantic_hash": "ac792ae66a63b131fee4142e7132b45e"
+  },
+  "services/auth-service/src/shared/security/request-with-authenticated-user.ts": {
+    "mtime": 1783725858.8396804,
+    "ast_hash": "9a83eda4a303b97dcf44398d69773ad4",
+    "semantic_hash": "9a83eda4a303b97dcf44398d69773ad4"
+  },
+  "services/auth-service/test/app.e2e-spec.ts": {
+    "mtime": 1784006190.8309493,
+    "ast_hash": "7026714c0190370a26b00fbb558d7520",
+    "semantic_hash": "7026714c0190370a26b00fbb558d7520"
+  },
+  "services/auth-service/test/jest-e2e.json": {
+    "mtime": 1783626773.492936,
+    "ast_hash": "707a50895cb1c565825637916e9cf290",
+    "semantic_hash": "707a50895cb1c565825637916e9cf290"
+  },
+  "services/auth-service/tsconfig.build.json": {
+    "mtime": 1783626773.492936,
+    "ast_hash": "496300b046ba58ae724f75aa82f4eab5",
+    "semantic_hash": "496300b046ba58ae724f75aa82f4eab5"
+  },
+  "services/auth-service/tsconfig.json": {
+    "mtime": 1783836795.3420172,
+    "ast_hash": "0720947bbb1a44b63c02ff3e0cc18c0d",
+    "semantic_hash": "0720947bbb1a44b63c02ff3e0cc18c0d"
+  },
+  "shared/api-contract/openapi/v1/auth-service.postman_collection.json": {
+    "mtime": 1783626773.4979367,
+    "ast_hash": "6c3cb1f0c8b878a47fee9cd004a229c1",
+    "semantic_hash": "6c3cb1f0c8b878a47fee9cd004a229c1"
+  },
+  "shared/api-contract/openapi/v1/openapi.json": {
+    "mtime": 1785165981.078884,
+    "ast_hash": "6bb1185f6dcd95d75af633cf51fac0e1",
+    "semantic_hash": ""
+  },
+  "shared/api-contract/package.json": {
+    "mtime": 1783626773.500514,
+    "ast_hash": "11d9b78cf7d7e40910ca9cae63ef3893",
+    "semantic_hash": "11d9b78cf7d7e40910ca9cae63ef3893"
+  },
+  "shared/api-contract/scripts/verify-contract.cjs": {
+    "mtime": 1783626773.500514,
+    "ast_hash": "9d121dbb955f62b9516628d42a9edc78",
+    "semantic_hash": "9d121dbb955f62b9516628d42a9edc78"
+  },
+  "skills-lock.json": {
+    "mtime": 1783626773.501511,
+    "ast_hash": "3bde83090ce9f0d4d2bff9591428c949",
+    "semantic_hash": "3bde83090ce9f0d4d2bff9591428c949"
+  },
+  "frontends/front-end-vietsage/src/app/api/admin/tenant-options/route.ts": {
+    "mtime": 1784891721.7111466,
+    "ast_hash": "5ecb89cedf35413cf85d6c4abe85d625",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/auth/post-login/route.ts": {
+    "mtime": 1784891721.7241626,
+    "ast_hash": "4571b69a950ada0f415c38d6baf4da1f",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/core/http/tenant-scope.ts": {
+    "mtime": 1784605622.4830797,
+    "ast_hash": "03919d0db16faa2ac03b3e594379d25a",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/auth/utils/landing-action-core.ts": {
+    "mtime": 1784605515.8527212,
+    "ast_hash": "83adaadd86873869d451def3893d74bd",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/auth/utils/landing-action.test.ts": {
+    "mtime": 1784605768.5192125,
+    "ast_hash": "b202be36dafe3762eff11216687b1146",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/auth/utils/landing-action.ts": {
+    "mtime": 1784891721.8057244,
+    "ast_hash": "51026e884bcee61555ece809f739d266",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/auth/utils/redirect-isolation-core.ts": {
+    "mtime": 1785012040.047139,
+    "ast_hash": "a8c9e9e69803418a6f73237d7b036dca",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/auth/utils/redirect-isolation.test.ts": {
+    "mtime": 1785012017.9817913,
+    "ast_hash": "8aaf1356bcbab774c9294ea5a1fbb5ce",
+    "semantic_hash": ""
+  },
+  ".agents/AGENTS.md": {
+    "mtime": 1785398247.3473222,
+    "ast_hash": "80bf452d8722aff3a88b86dcd7060778",
+    "semantic_hash": ""
+  },
+  ".agents/rules/graphify.md": {
+    "mtime": 1784553777.9305727,
+    "ast_hash": "a0e4d192b9e2e17256124dbfc8e24e6a",
+    "semantic_hash": ""
+  },
+  ".agents/workflows/graphify.md": {
+    "mtime": 1784553777.9316251,
+    "ast_hash": "637776aa6f7496d069afe7520c845c8a",
+    "semantic_hash": ""
+  },
+  ".github/workflows/ci-gate.yml": {
+    "mtime": 1784512774.267689,
+    "ast_hash": "f08e7d3f021748f473bc08ecabfa6b46",
+    "semantic_hash": ""
+  },
+  ".hermes/plans/2026-07-06_0450-secrets-env-consolidation.md": {
+    "mtime": 1784629398.3004572,
+    "ast_hash": "21acbdb1fabbbc2060dce393b8220015",
+    "semantic_hash": ""
+  },
+  ".hermes/plans/2026-07-11_060641-vietsage-docx-architecture-refactor.md": {
+    "mtime": 1784629398.3014603,
+    "ast_hash": "439c87d06ee59050eab4638798e3d02b",
+    "semantic_hash": ""
+  },
+  ".hermes/plans/2026-07-12_101634-notifications-shell-phase.md": {
+    "mtime": 1784629398.3014603,
+    "ast_hash": "091b74551955d995fdd7dd3eca222cb4",
+    "semantic_hash": ""
+  },
+  ".hermes/plans/2026-07-12_120512-emergency-boundary-hardening-phase.md": {
+    "mtime": 1784629398.3049748,
+    "ast_hash": "99e1866075d0fe4c15a1dc6cd35c7f9f",
+    "semantic_hash": ""
+  },
+  ".hermes/plans/2026-07-12_125154-final-release-boundary-gate-phase.md": {
+    "mtime": 1784629398.3079774,
+    "ast_hash": "311b09f876f07ecb5fd5c69b27ee7b02",
+    "semantic_hash": ""
+  },
+  ".hermes/plans/2026-07-14_134929-fix-auth-session-contracts.md": {
+    "mtime": 1784629398.3089614,
+    "ast_hash": "f3b0059cc12c6b29cf352ea9c3078d96",
+    "semantic_hash": ""
+  },
+  ".hermes/plans/2026-07-15_120039-production-docker-nginx.md": {
+    "mtime": 1784629398.3133163,
+    "ast_hash": "4e96d05de7b61ba242e8f99ce0f3f76b",
+    "semantic_hash": ""
+  },
+  ".hermes/plans/2026-07-15_160419-vps-cutover-deployment.md": {
+    "mtime": 1784629398.313849,
+    "ast_hash": "10f2173cc71f01fca686279a3619e6cc",
+    "semantic_hash": ""
+  },
+  "AGENTS.md": {
+    "mtime": 1785398256.2351632,
+    "ast_hash": "b7cdc28c1350c85eb5253a2453a31d2e",
+    "semantic_hash": ""
+  },
+  "CODEX.md": {
+    "mtime": 1783626773.2873902,
+    "ast_hash": "42bcd840a4790bd0d0a06e2c03516701",
+    "semantic_hash": ""
+  },
+  "docker-compose.prod.yml": {
+    "mtime": 1785113537.2756028,
+    "ast_hash": "2948195be279c730df26a83c8c3e1238",
+    "semantic_hash": ""
+  },
+  "docker-compose.yml": {
+    "mtime": 1784512774.267689,
+    "ast_hash": "e9a36970d49c54b9e4dfa0fcbd736175",
+    "semantic_hash": ""
+  },
+  "docs/API_SPEC.md": {
+    "mtime": 1785165981.0718822,
+    "ast_hash": "bba0388cc5faa303ff2e8d8f416649c8",
+    "semantic_hash": ""
+  },
+  "docs/ARCHITECTURE.md": {
+    "mtime": 1783921718.988093,
+    "ast_hash": "620402044f45e448da10bfeb27a1b4b6",
+    "semantic_hash": ""
+  },
+  "docs/DEPLOYMENT.md": {
+    "mtime": 1785386631.346769,
+    "ast_hash": "4f1073b003d2000c7e47b7cf00dfc094",
+    "semantic_hash": ""
+  },
+  "docs/DOMAIN_MAP.md": {
+    "mtime": 1783833597.122467,
+    "ast_hash": "5e362532bcc7bf0e0332bc2d3ea4fa1f",
+    "semantic_hash": ""
+  },
+  "docs/EVENT_FLOW.md": {
+    "mtime": 1785243488.5171762,
+    "ast_hash": "207ba2e3b184ca18db9b8728836f768d",
+    "semantic_hash": ""
+  },
+  "docs/FRONTEND_SYNC_VALIDATION.md": {
+    "mtime": 1783921718.990093,
+    "ast_hash": "310537e3301be1d6e1df258e3b638797",
+    "semantic_hash": ""
+  },
+  "docs/FRONT_DESK_VERTICAL_SLICES.md": {
+    "mtime": 1784512774.268689,
+    "ast_hash": "04363b761404a7594c280d72409e89b8",
+    "semantic_hash": ""
+  },
+  "docs/P1_QA_MIGRATION_VERIFICATION_CHECKLIST.md": {
+    "mtime": 1783921718.9910927,
+    "ast_hash": "6b71326198f5deeb00a9cd36fc9be304",
+    "semantic_hash": ""
+  },
+  "docs/RBAC_ARCHITECTURE.md": {
+    "mtime": 1784538601.285115,
+    "ast_hash": "4369757a799f1b818dc385f290887665",
+    "semantic_hash": ""
+  },
+  "docs/README.md": {
+    "mtime": 1783921718.9870913,
+    "ast_hash": "be39d163ef96f7da97fd618ca153431b",
+    "semantic_hash": ""
+  },
+  "docs/RULES.md": {
+    "mtime": 1784629398.3148956,
+    "ast_hash": "70255f99b8cad7019a7e8e6b92f52f7e",
+    "semantic_hash": ""
+  },
+  "docs/SERVICE_BOUNDARY.md": {
+    "mtime": 1784538601.2861145,
+    "ast_hash": "dc47330b4cd8bb7a22b8c9df6e5115bc",
+    "semantic_hash": ""
+  },
+  "docs/SERVICE_EVOLUTION.md": {
+    "mtime": 1783725820.3218253,
+    "ast_hash": "eea474b090ab2fe9311120103e8d688d",
+    "semantic_hash": ""
+  },
+  "docs/adr/ADR-001-modular-monolith-first.md": {
+    "mtime": 1783725823.9753172,
+    "ast_hash": "b3dcc96183326fd5e2d7ed9ff879d021",
+    "semantic_hash": ""
+  },
+  "docs/adr/ADR-002-openapi-contract-source.md": {
+    "mtime": 1783725824.734559,
+    "ast_hash": "3a3e177cb26a9011a579213480359c22",
+    "semantic_hash": ""
+  },
+  "docs/adr/ADR-003-outbox-readiness-before-broker.md": {
+    "mtime": 1783725825.385846,
+    "ast_hash": "615cb17c501d069800023d14e2d5be4a",
+    "semantic_hash": ""
+  },
+  "docs/adr/ADR-004-service-extraction-criteria.md": {
+    "mtime": 1783725826.0207193,
+    "ast_hash": "fa4db45f2354225b8998701895280bf3",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/.hermes/codex-auth-http-stabilization-prompt.txt": {
+    "mtime": 1784629398.3189664,
+    "ast_hash": "c6b6628ca8b8c420a0576c3dc2b8fdec",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/.hermes/plans/2026-07-13_123341-auth-http-stabilization-phases.md": {
+    "mtime": 1784629398.34818,
+    "ast_hash": "968d75274795ba95a561ed20a36d67bf",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/AGENTS.md": {
+    "mtime": 1784895521.5619395,
+    "ast_hash": "acf209969d8d84c92518b72d7c8cecdf",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/CODEX-STITCH-SYNC.md": {
+    "mtime": 1783626773.2933052,
+    "ast_hash": "e1108aa5029c527e7eb0571c2c1467b1",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/CODEX.md": {
+    "mtime": 1783626773.2933052,
+    "ast_hash": "9f82f9f50357693dd31384b5053943ec",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/PRODUCT.md": {
+    "mtime": 1784019120.154142,
+    "ast_hash": "c817cbcb296c48e7b86defec80ccadc5",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/README.md": {
+    "mtime": 1783626773.294305,
+    "ast_hash": "9162add00befbcdb432430f405c4ad8d",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/docs/ARCHITECTURE.md": {
+    "mtime": 1784891730.5504422,
+    "ast_hash": "970b567abec2f488124c8f116e4bb59b",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/docs/BACKEND_GUEST_I18N_PROPOSAL.md": {
+    "mtime": 1783626773.2953045,
+    "ast_hash": "fd3ec693033086b095eb5f063a89cf8d",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/docs/CONTRACT_GUIDE.md": {
+    "mtime": 1784512774.2696896,
+    "ast_hash": "58a92d0d6949f75569564a577cb4c738",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/docs/DESIGN.md": {
+    "mtime": 1783626773.2953045,
+    "ast_hash": "5e7f60f30be5ffb5ee8400e214a0b3ba",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/docs/FRONTEND_GUEST_I18N_INSTRUCTIONS.md": {
+    "mtime": 1783626773.2963474,
+    "ast_hash": "4f7650703853b1fe07d1db506f5e2e8e",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/docs/FRONTEND_SMOKE_TESTS.md": {
+    "mtime": 1784629398.371213,
+    "ast_hash": "40687db3f0936f1fd963aef44e1a3784",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/docs/MODULE_GUIDE.md": {
+    "mtime": 1784895521.562468,
+    "ast_hash": "13631e28aa628bed920c005e35f39166",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/docs/PLANS.md": {
+    "mtime": 1785492884.151535,
+    "ast_hash": "dbb0539b5993988c09f9d4b3d70e6886",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/docs/RULES.md": {
+    "mtime": 1784895521.5639856,
+    "ast_hash": "b3f82a00a83a4ad54f7f30e7de708380",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/docs/RUNTIME_UI_GUIDE.md": {
+    "mtime": 1785242896.7638223,
+    "ast_hash": "628cfaeea79bafa82641e7a5597e99fe",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/pnpm-workspace.yaml": {
+    "mtime": 1784895521.5665052,
+    "ast_hash": "5a5b5184feb2ee3d2cebe6756a8d30da",
+    "semantic_hash": ""
+  },
+  "services/AGENTS.md": {
+    "mtime": 1783626773.423974,
+    "ast_hash": "6f9deedff88366ab37139b5b88b78e68",
+    "semantic_hash": ""
+  },
+  "services/CODEX.md": {
+    "mtime": 1783626773.4243474,
+    "ast_hash": "6f9deedff88366ab37139b5b88b78e68",
+    "semantic_hash": ""
+  },
+  "services/auth-service/README.md": {
+    "mtime": 1783725829.7012627,
+    "ast_hash": "391f135048663acf79fde9a30473323a",
+    "semantic_hash": ""
+  },
+  "services/auth-service/pnpm-workspace.yaml": {
+    "mtime": 1783626773.4301481,
+    "ast_hash": "51a236aa98e7267fe3e2c12073780b5a",
+    "semantic_hash": ""
+  },
+  "services/docs/.trash/STATUS.md.deleted-20260528-154611.md": {
+    "mtime": 1783626773.4939363,
+    "ast_hash": "738a91ca90bf0c2a0ce575159df64507",
+    "semantic_hash": ""
+  },
+  "services/docs/ARCHITECTURE.md": {
+    "mtime": 1783833599.1856873,
+    "ast_hash": "36b12dc011a8bd46196df8b1e6b1f22c",
+    "semantic_hash": ""
+  },
+  "services/docs/CONTRACT_GUIDE.md": {
+    "mtime": 1783626773.4949362,
+    "ast_hash": "36b7103600b3f0b70e6600da0698c24f",
+    "semantic_hash": ""
+  },
+  "services/docs/EXTENSION_GUIDE.md": {
+    "mtime": 1783725828.173701,
+    "ast_hash": "bbd1e294f65e00b41dcce6304dfc472b",
+    "semantic_hash": ""
+  },
+  "services/docs/MIGRATION_GUIDE.md": {
+    "mtime": 1783626773.4949362,
+    "ast_hash": "051ec535447aaecdc220bf1c762c9623",
+    "semantic_hash": ""
+  },
+  "services/docs/MODULE_GUIDE.md": {
+    "mtime": 1784629404.5174487,
+    "ast_hash": "0e16e45a4495e2f8ce8cc43749a3d3a3",
+    "semantic_hash": ""
+  },
+  "services/docs/MULTILINGUAL_BACKEND_PLAN.md": {
+    "mtime": 1783626773.4959364,
+    "ast_hash": "2d59f09b9938823aa4aca963b9eee145",
+    "semantic_hash": ""
+  },
+  "services/docs/PLANS.md": {
+    "mtime": 1785243488.5221746,
+    "ast_hash": "de8a28b2caa21675a75b05aab95fe202",
+    "semantic_hash": ""
+  },
+  "services/docs/RULES.md": {
+    "mtime": 1784629404.5194485,
+    "ast_hash": "cf43199a37671f3d7aee629c8102f920",
+    "semantic_hash": ""
+  },
+  "shared/api-contract/README.md": {
+    "mtime": 1783921718.9920938,
+    "ast_hash": "085377647f6483c931d9505169a1171d",
+    "semantic_hash": ""
+  },
+  "shared/api-contract/docs/API_CATALOG.md": {
+    "mtime": 1784512774.3096888,
+    "ast_hash": "784780c8d14c0330b1cf7f41473400c9",
+    "semantic_hash": ""
+  },
+  "shared/api-contract/docs/CONTRACT_CHANGES.md": {
+    "mtime": 1785243488.5221746,
+    "ast_hash": "8cb57a60a6649994cc5d638f5eecd08e",
+    "semantic_hash": ""
+  },
+  "shared/api-contract/openapi/v1/openapi.yaml": {
+    "mtime": 1785165981.0798833,
+    "ast_hash": "d27bf7a930747c02e33343e645466be0",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/public/brand/register-hero.png": {
+    "mtime": 1783626773.3103185,
+    "ast_hash": "f24e9e72e3c11f9d202f60264e0734a9",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/public/brand/vietsage-icon.png": {
+    "mtime": 1783626773.3118868,
+    "ast_hash": "4a63a3f712ccb6a345c57f06d7fc3410",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/public/brand/vietsage-logo.jpg": {
+    "mtime": 1783626773.312406,
+    "ast_hash": "896ae445af7717f21bec5502d2d8059e",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/public/file.svg": {
+    "mtime": 1783626773.312406,
+    "ast_hash": "d09f95206c3fa0bb9bd9fefabfd0ea71",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/public/globe.svg": {
+    "mtime": 1783626773.3129306,
+    "ast_hash": "2aaafa6a49b6563925fe440891e32717",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/public/next.svg": {
+    "mtime": 1783626773.3134477,
+    "ast_hash": "8e061864f388b47f33a1c3780831193e",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/public/vercel.svg": {
+    "mtime": 1783626773.3134477,
+    "ast_hash": "c0af2f507b369b085b35ef4bbe3bcf1e",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/public/window.svg": {
+    "mtime": 1783626773.3134477,
+    "ast_hash": "a2760511c65806022ad20adf74370ff3",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/apple-icon.png": {
+    "mtime": 1785149848.3642166,
+    "ast_hash": "739f5c3688b86db380cf8991cc4f48e6",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/icon.png": {
+    "mtime": 1785149848.365218,
+    "ast_hash": "1110a094757fb4e19aa3055058dd35c1",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/workspace/components/workspace-profile-context.tsx": {
+    "mtime": 1784629398.4827569,
+    "ast_hash": "42a2c28d4d2b48b66e9e399c8d51106c",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/layout.tsx": {
+    "mtime": 1784891721.6359658,
+    "ast_hash": "3edad219b91db9f6e9fbec5167459820",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/owner/(global)/dashboard/animated-dashboard-number.tsx": {
+    "mtime": 1784629398.389374,
+    "ast_hash": "5a9eac0409fb18d56d1d6112c4bb8c76",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/owner/(global)/dashboard/error.tsx": {
+    "mtime": 1784629398.389374,
+    "ast_hash": "a6e3244a768db19e3ae5def83dd028f6",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/owner/(global)/dashboard/loading.tsx": {
+    "mtime": 1784629398.3903742,
+    "ast_hash": "4ec41417034428f54c59538b37c6790b",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/owner/(global)/dashboard/page.tsx": {
+    "mtime": 1784891721.6580229,
+    "ast_hash": "2db9c96aacfeb77ae984940329b96fcc",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/owner/(global)/hotels/owner-hotels-client.tsx": {
+    "mtime": 1784629398.391374,
+    "ast_hash": "062567f096e8120e0215facc0229d115",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/owner/(global)/hotels/page.tsx": {
+    "mtime": 1784891721.6590226,
+    "ast_hash": "e22be615bb688bb9627f4d6ffc97a55e",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/owner/(global)/layout.tsx": {
+    "mtime": 1784891721.6637082,
+    "ast_hash": "9baedd4b147885875cb285bf12c5bd9b",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/owner/(global)/staff/page.tsx": {
+    "mtime": 1784891721.6642241,
+    "ast_hash": "5594608840897d66213b45eb9bc9b911",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/billing/billing-folio-table-client.tsx": {
+    "mtime": 1784632330.571089,
+    "ast_hash": "cc4c1b13e8e23b8fa43154f6dcfcd9b2",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/billing/invoices/[invoiceId]/invoice-print-button.tsx": {
+    "mtime": 1784629398.4003732,
+    "ast_hash": "eb8d119ae973d31cc415ae8d2106bab1",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/billing/invoices/[invoiceId]/page.tsx": {
+    "mtime": 1784891721.6668437,
+    "ast_hash": "42b281e67fb7174ccdd0d7c7fbec16ef",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/billing/page.tsx": {
+    "mtime": 1784891721.6679268,
+    "ast_hash": "1626bd7671b787582b097540e8772148",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/layout.tsx": {
+    "mtime": 1784891721.6679268,
+    "ast_hash": "3099a4643b1fb11e2a58196013a8851e",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/owner-hotel-detail-client.tsx": {
+    "mtime": 1784629398.403823,
+    "ast_hash": "f073648e64a2d3b95fd8e4fadff3d0e5",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/page.tsx": {
+    "mtime": 1784891721.6689274,
+    "ast_hash": "3af50b1684d19479926f34285516e609",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/requests/[requestId]/page.tsx": {
+    "mtime": 1784629398.4073358,
+    "ast_hash": "204bd54c33a8e520cb748a48c00d6095",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/requests/page.tsx": {
+    "mtime": 1784891721.6689274,
+    "ast_hash": "ef88d165242bcbfc14cddbd8deedcf88",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/rooms/owner-rooms-client.tsx": {
+    "mtime": 1785242896.7658212,
+    "ast_hash": "b149255685190385f4e0908f1e0cca50",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/rooms/page.tsx": {
+    "mtime": 1785242896.766821,
+    "ast_hash": "98bac81969f2254673368c143b3abfdb",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/rooms/qr-export/page.tsx": {
+    "mtime": 1784629398.4103355,
+    "ast_hash": "8f9b8a7b26564ffddd5ed22de336e8da",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/rooms/qr-export/qr-export-client.tsx": {
+    "mtime": 1785153250.4001806,
+    "ast_hash": "868151caf56289a09ceb99498c493129",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/rooms/room-qr-utils.ts": {
+    "mtime": 1785238553.1843395,
+    "ast_hash": "9d947db480758049f78ca1fc25b1dcf3",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/services/owner-service-catalog-client.tsx": {
+    "mtime": 1785164227.1817124,
+    "ast_hash": "992dd26f431cd987cfa59570e310fb1c",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/services/page.tsx": {
+    "mtime": 1785164227.1817124,
+    "ast_hash": "497769989152bc23ed037a670d9d8015",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/stay/owner-stay-room-grid-client.tsx": {
+    "mtime": 1785493223.978778,
+    "ast_hash": "604a836d1ebedd4d1dc54312df2156a4",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/stay/page.tsx": {
+    "mtime": 1784691596.4123168,
+    "ast_hash": "9b4ce4d657e80347ddd22e0f7b9d9ea5",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/.vscode/settings.json": {
+    "mtime": 1783834338.6078372,
+    "ast_hash": "21147450e7adcb6f24120b006f918af0",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/billing/invoices/[invoiceId]/invoice-actions.tsx": {
+    "mtime": 1784632330.5312734,
+    "ast_hash": "f937a43e3c3b2ff0c5a534ceea7c3f23",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/billing/invoices/[invoiceId]/page.tsx": {
+    "mtime": 1784891721.630376,
+    "ast_hash": "632d22642f5aa6ef91fb31a1e1340613",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/billing/page.tsx": {
+    "mtime": 1784891721.6313746,
+    "ast_hash": "867b7c50a494da4fbebf1c596d65a191",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/billing/staff-billing-workspace-client.tsx": {
+    "mtime": 1784686569.57432,
+    "ast_hash": "fa4fb297fc74e4766c21581cf1689fb5",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/dashboard/page.tsx": {
+    "mtime": 1785103245.0409245,
+    "ast_hash": "9bb4cf108127cd3cfaa2560775c77dd4",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/rooms/page.tsx": {
+    "mtime": 1785125256.975148,
+    "ast_hash": "03476b0957e24801d8b86e7995ae1f4e",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/rooms/staff-rooms-client.tsx": {
+    "mtime": 1785493224.9228303,
+    "ast_hash": "355fd3772892eb2c82c0893019c1a299",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/hotel-ops/_utils.ts": {
+    "mtime": 1784891721.7509792,
+    "ast_hash": "edb0ac074ec765123e8473df8d5edf33",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/billing/folios/[folioId]/invoice/route.ts": {
+    "mtime": 1784632330.5890872,
+    "ast_hash": "1cd0ca89f4c7a66fcf436d9c667e796e",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/billing/folios/[folioId]/items/route.ts": {
+    "mtime": 1784641286.2788322,
+    "ast_hash": "f7d74e407da0059d8e619a3ff3a933f5",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/billing/folios/[folioId]/route.ts": {
+    "mtime": 1784641286.2838326,
+    "ast_hash": "045ceb09c0d67050c6a903955bcd9a0e",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/billing/folios/[folioId]/summary/route.ts": {
+    "mtime": 1784641286.2894533,
+    "ast_hash": "ccf9c452435c10862d10831bf3de523a",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/billing/invoices/[invoiceId]/manual-payment/route.ts": {
+    "mtime": 1784632330.5949137,
+    "ast_hash": "f3f5012d93d19318031aad484ad3fadf",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/request-realtime-ticket/route.ts": {
+    "mtime": 1784632330.598914,
+    "ast_hash": "c7ef129c0512519b03160b22328ceb2d",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/requests/[requestId]/assignment/route.ts": {
+    "mtime": 1784632330.6069143,
+    "ast_hash": "4c71bdc157bdeaf218c159a512e20cbc",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/requests/[requestId]/events/route.ts": {
+    "mtime": 1784632330.6139138,
+    "ast_hash": "9886d76d75c5fb8709fa2f190214a3b4",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/requests/[requestId]/route.ts": {
+    "mtime": 1784632330.6189134,
+    "ast_hash": "08ae109860bd29a3fd0214ba5779e0b1",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/requests/[requestId]/status/route.ts": {
+    "mtime": 1784632330.6275215,
+    "ast_hash": "b59e68ab6f3f81b508e648da61149c72",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/requests/route.ts": {
+    "mtime": 1784632330.6325219,
+    "ast_hash": "4eca022f66b507b3ddd0139384dd1c55",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/requests/summary/route.ts": {
+    "mtime": 1784632330.6385229,
+    "ast_hash": "434fe14314b5842ee047c481884aa9a1",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/reservations/[reservationId]/check-in/route.ts": {
+    "mtime": 1784632330.645524,
+    "ast_hash": "8a747d09cf9521391a95a97f9bd19950",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/reservations/[reservationId]/room/route.ts": {
+    "mtime": 1784632330.651521,
+    "ast_hash": "c0a0fa4af2d3cf6b12c0ffbaa115231c",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/reservations/route.ts": {
+    "mtime": 1784645273.1381311,
+    "ast_hash": "e85d311b1784e4b5c03d662cb5aae730",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/rooms/route.ts": {
+    "mtime": 1784659742.4799323,
+    "ast_hash": "b8440855812b7a7b08d7f2536ca974d5",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/service-categories/[categoryId]/route.ts": {
+    "mtime": 1784636336.4161298,
+    "ast_hash": "7b0db6d6d00d6c78ce235a6d1da53ea3",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/service-categories/route.ts": {
+    "mtime": 1784636336.4271293,
+    "ast_hash": "b55d092d7d04448c65ea82961ea8f3a6",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/service-items/[itemId]/route.ts": {
+    "mtime": 1784636336.434697,
+    "ast_hash": "9da01e24ae4706f5069c43e418857911",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/service-items/route.ts": {
+    "mtime": 1784636336.4396834,
+    "ast_hash": "1692d22b6f2ba29a189009254adce050",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/stays/route.ts": {
+    "mtime": 1785438783.7638922,
+    "ast_hash": "b0028ff2cca87a754ba985db2464cd37",
+    "semantic_hash": ""
+  },
+  "services/auth-service/prisma/migrations/20260721120000_frontdesk_billing_checkout/migration.sql": {
+    "mtime": 1784632330.7055235,
+    "ast_hash": "5cd43b9d743f75872630c02d52fbb1b8",
+    "semantic_hash": ""
+  },
+  "services/auth-service/prisma/migrations/20260721143000_single_active_hotel_staff_assignment/migration.sql": {
+    "mtime": 1784636336.5051541,
+    "ast_hash": "0e46ed0d46a1bb597ecf8dacb84b229f",
+    "semantic_hash": ""
+  },
+  "services/auth-service/prisma/migrations/20260721170000_guest_request_event_visibility/migration.sql": {
+    "mtime": 1784641286.3014586,
+    "ast_hash": "389441f87a25c054b8b91d69e4899722",
+    "semantic_hash": ""
+  },
+  "shared/stitch_vietsage/DESIGN.md": {
+    "mtime": 1784629404.5336063,
+    "ast_hash": "5e7f60f30be5ffb5ee8400e214a0b3ba",
+    "semantic_hash": ""
+  },
+  "shared/stitch_vietsage/advanced_check_in_workflow.html": {
+    "mtime": 1784629404.5426078,
+    "ast_hash": "ea6ecd3bf3bfbad82720cf4cf861eb7f",
+    "semantic_hash": ""
+  },
+  "shared/stitch_vietsage/front_desk_payment.html": {
+    "mtime": 1784629404.5510676,
+    "ast_hash": "b9570211a928a02f953f71c8b240da5a",
+    "semantic_hash": ""
+  },
+  "shared/stitch_vietsage/real_time_request_center.html": {
+    "mtime": 1784629404.5525825,
+    "ast_hash": "c294de9a1134312520107ed62122d1df",
+    "semantic_hash": ""
+  },
+  "shared/stitch_vietsage/reception_operations_dashboard.html": {
+    "mtime": 1784629404.527288,
+    "ast_hash": "61232f9d80fe929098fca2d1d7b241fc",
+    "semantic_hash": ""
+  },
+  "shared/stitch_vietsage/room_management.html": {
+    "mtime": 1784629404.5406103,
+    "ast_hash": "cb50de39fcc1715509b291e9c765f429",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/scripts/chat-layout-regression.test.mjs": {
+    "mtime": 1785111642.3134248,
+    "ast_hash": "d6d175e0d37f9e231f6d249d9e43e085",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/g/messages/page.tsx": {
+    "mtime": 1785107659.3906724,
+    "ast_hash": "38344cd94dc91b0c149b5ca442ebcd26",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/messages/page.tsx": {
+    "mtime": 1784891721.6399522,
+    "ast_hash": "cd49b06b142afe60b84bc7472498635a",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/messages/room-messages-client.tsx": {
+    "mtime": 1785107661.273092,
+    "ast_hash": "a4cf4ef54e880da809b642527ca71a2d",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/guest/messages/route.ts": {
+    "mtime": 1784667463.469199,
+    "ast_hash": "cac374d0e92782e1df000b5751f06473",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/messages/[threadId]/reply/route.ts": {
+    "mtime": 1784662815.4409204,
+    "ast_hash": "253a6340dcbc97ef74ff70f51479d2e3",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/messages/[threadId]/route.ts": {
+    "mtime": 1784695140.063637,
+    "ast_hash": "c20bc1a91c200e86358a758899048805",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/messages/route.ts": {
+    "mtime": 1784695140.0666335,
+    "ast_hash": "0f4676dfa52264a40d83766152eb417b",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/hotel-ops/components/hotel-ops-realtime-notifier.tsx": {
+    "mtime": 1784687504.4502046,
+    "ast_hash": "e2b9b39927d29d71d79e100a8fb26400",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/request-realtime/audio-notifier.ts": {
+    "mtime": 1784664384.894512,
+    "ast_hash": "8e91133c4d1b1456b929798817595fed",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/workspace/utils/workspace-nav-active.test.ts": {
+    "mtime": 1784718637.7718754,
+    "ast_hash": "ebbe15eb5eec7943d276581316f7b193",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/workspace/utils/workspace-nav-active.ts": {
+    "mtime": 1784659893.4831605,
+    "ast_hash": "1187694f5bb224ef5b78c55460dc4c46",
+    "semantic_hash": ""
+  },
+  "services/auth-service/prisma/migrations/20260722110000_guest_stay_messages/migration.sql": {
+    "mtime": 1784662815.4647565,
+    "ast_hash": "f30bae46c7261660acdaac8fd1e8df4c",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/guest-operations/application/guest-messages.service.ts": {
+    "mtime": 1784695140.091633,
+    "ast_hash": "4ef84d9c9bd0e790900312663bff8b3f",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/guest-operations/infrastructure/repositories/guest-messages.repository.ts": {
+    "mtime": 1784695140.0956361,
+    "ast_hash": "7f80e9a8b2eca6eb2fcd9684e77af179",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/scripts/message-send-regression.test.mjs": {
+    "mtime": 1785107493.3653724,
+    "ast_hash": "64ca2f35ec05e197cd793d356f7725d3",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/loading.tsx": {
+    "mtime": 1784687042.6506224,
+    "ast_hash": "2d4b739979b6f7384d33953da25e774d",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/rooms/[roomId]/route.ts": {
+    "mtime": 1784690237.8431737,
+    "ast_hash": "77c291df7b353f464720f3418b4d8af3",
+    "semantic_hash": ""
+  },
+  "services/auth-service/prisma/migrations/20260722143000_add_blocked_room_status/migration.sql": {
+    "mtime": 1784689982.2748406,
+    "ast_hash": "2f9ccaf20c43cfb5b3cf883ff96d2ed0",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/guest/messages/read/route.ts": {
+    "mtime": 1784695140.051633,
+    "ast_hash": "d0bffddda5782ae345ed3d33b7ac11a6",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/messages/[threadId]/read/route.ts": {
+    "mtime": 1784695140.056632,
+    "ast_hash": "c6d04adcece1f8190a25621bccea303f",
+    "semantic_hash": ""
+  },
+  "services/auth-service/prisma/migrations/20260722170000_harden_stay_message_inbox/migration.sql": {
+    "mtime": 1784695140.0776336,
+    "ast_hash": "3f45781586192097e6d829a68feb485b",
+    "semantic_hash": ""
+  },
+  "services/auth-service/prisma/migrations/20260722_sync_room_sequence/migration.sql": {
+    "mtime": 1784697465.319028,
+    "ast_hash": "6ef2d1af5b20ff60335adad031bc0a1a",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/guest-operations/tests/guest-messages.repository.spec.ts": {
+    "mtime": 1784695140.1006355,
+    "ast_hash": "ff87f040cec0e5830112d4190a4c7154",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/property/tests/hotel-rooms.conversation-close.spec.ts": {
+    "mtime": 1784695140.1096902,
+    "ast_hash": "7a09d006c2eabebf4fa5fd451127ffb9",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/owner/repositories/owner-hotels-repository.ts": {
+    "mtime": 1784889421.8663418,
+    "ast_hash": "4bb8c1b7843b57c89191914901a3f235",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/owner/resources/owner-hotels-resource.ts": {
+    "mtime": 1784895521.6080098,
+    "ast_hash": "0399ddff5427c05fe31d3ca1a0fe467a",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/staff-management/repositories/staff-directory-repository.ts": {
+    "mtime": 1785126238.1669517,
+    "ast_hash": "ae9db0acbc005faf7b962183b1b21396",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/staff-management/resources/staff-directory-resource.ts": {
+    "mtime": 1785126238.1669517,
+    "ast_hash": "f32dfa52973fdf1418a3a091cff22052",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/libs/auth-cookie-policy.test.ts": {
+    "mtime": 1784124973.6030133,
+    "ast_hash": "b4143e48b58930903555a11af7e902a1",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/libs/auth-cookie-policy.ts": {
+    "mtime": 1784125008.5478842,
+    "ast_hash": "78495c1c866ad16393eaa4257a97350b",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/libs/auth-session-refresh.ts": {
+    "mtime": 1785098984.670055,
+    "ast_hash": "77abe7965c242487a1b8c5e315df7030",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/libs/auth.ts": {
+    "mtime": 1785378518.0289862,
+    "ast_hash": "11ab3e824748de4aab878fc9c225bc51",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/libs/rbac.ts": {
+    "mtime": 1784891721.8662732,
+    "ast_hash": "816d216a64ac22f2c2c40b00eb1a5f3a",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/libs/server-api-auth.ts": {
+    "mtime": 1784891721.8672738,
+    "ast_hash": "19e92b3193fa5f66a628ffead153562f",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/libs/server-session-tokens.ts": {
+    "mtime": 1784730592.2191405,
+    "ast_hash": "60152845feecff54ade42363c9d76532",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/libs/server-workspace-context.ts": {
+    "mtime": 1784891721.868273,
+    "ast_hash": "af203ca98bbc68c3d9b1a2205d61655f",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/resources/guest-messages-resource.ts": {
+    "mtime": 1784895521.5715046,
+    "ast_hash": "6beaa9df457eaf49b7382a1a5139af83",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/hotel-ops/repositories/staff-rooms-repository.ts": {
+    "mtime": 1784895521.575991,
+    "ast_hash": "e03b499f6317e69c9ca48238186c4989",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/hotel-ops/resources/hotel-messages-resource.ts": {
+    "mtime": 1784895521.583072,
+    "ast_hash": "7d372d1f0971a1cefc250523501cf99f",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/hotel-ops/resources/request-queue-resource.ts": {
+    "mtime": 1784895521.588503,
+    "ast_hash": "13cc08de1bc96dec02b3749fc89472de",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/hotel-ops/resources/staff-rooms-resource.ts": {
+    "mtime": 1784895521.595012,
+    "ast_hash": "9e42114b738d283f73bf00330020107c",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/hotel-ops/types/hotel-messages-contract.ts": {
+    "mtime": 1784895521.6010132,
+    "ast_hash": "68a5e637115d1fc4489c6b4a2a354e98",
+    "semantic_hash": ""
+  },
+  "package.json": {
+    "mtime": 1784893734.8956873,
+    "ast_hash": "f053df145b7660fb0dfb182090f2e737",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/scripts/password-ui-entrypoints.test.mjs": {
+    "mtime": 1785111642.3144248,
+    "ast_hash": "3485c40ac8123d63dbe4322ee93eba48",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/scripts/staff-room-qr-regression.test.mjs": {
+    "mtime": 1785238553.165821,
+    "ast_hash": "14067f9080b59fdb8e3cda5f1d2b0f69",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/scripts/tenant-room-action-icons.test.mjs": {
+    "mtime": 1785113172.969949,
+    "ast_hash": "7cf67b16f52633e046da0c8382ddf3aa",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/dashboard/dashboard-presentation.test.ts": {
+    "mtime": 1785106000.2914827,
+    "ast_hash": "5016b1a514e10d1d7c4575118fc77f97",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/dashboard/dashboard-presentation.ts": {
+    "mtime": 1785103328.4024954,
+    "ast_hash": "809ee84ed991bc98b08171b0fbdc90fc",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/rooms/owner-room-modal-layout.test.ts": {
+    "mtime": 1785105560.7023897,
+    "ast_hash": "55e9dee9c7c94e908fa259748cbfdddf",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/_components/launch-hold.tsx": {
+    "mtime": 1785149848.3642166,
+    "ast_hash": "a4b6e81b480c8a2e31bb6de867989086",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/_components/marketing-home.tsx": {
+    "mtime": 1785209998.674494,
+    "ast_hash": "dfb7a8fb737a9a182c2ac740687b9c11",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/admin/staff/[userId]/route.ts": {
+    "mtime": 1785128524.2423131,
+    "ast_hash": "68bbbfcd1864cce5dcce0927c539a85b",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/admin/tenant-owners/[tenantOwnerId]/reset-password/route.ts": {
+    "mtime": 1785104130.6857228,
+    "ast_hash": "f323c89fd82245fc1dd5dd6adec7be09",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/auth/change-password/route.ts": {
+    "mtime": 1785104130.5860486,
+    "ast_hash": "1ed2a943e3e660eef78364323093ed69",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/owner/staff/[userId]/reset-password/route.ts": {
+    "mtime": 1785106166.8675413,
+    "ast_hash": "e60e73488e9b7750d274c8efdffa74f1",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/owner/staff/[userId]/route.ts": {
+    "mtime": 1785128524.243313,
+    "ast_hash": "b1ac259e89148d5c880ad111c0e8609b",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/preview/page.tsx": {
+    "mtime": 1785129452.5766308,
+    "ast_hash": "a04fe2be30790785d4420690dbd37f8c",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/trangchu/page.tsx": {
+    "mtime": 1785130393.822469,
+    "ast_hash": "9af3f3973cc82a8a53443cf12a7c0bec",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/components/brand/vietsage-brand.tsx": {
+    "mtime": 1785149848.3672173,
+    "ast_hash": "89c871375a4c55cafb19ac07388608f0",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/account/security/change-password-dialog.tsx": {
+    "mtime": 1785111642.3174253,
+    "ast_hash": "b14dc8e5a0aec2f3b7b8e6f58f489bd8",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/account/security/one-time-password-dialog.tsx": {
+    "mtime": 1785108369.8979547,
+    "ast_hash": "c1a8977e077a27d300d7724dd4c734e9",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/account/security/password-security.test.ts": {
+    "mtime": 1785109035.7747252,
+    "ast_hash": "1f611f754fcb0f0a56a459cbd56d6ccf",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/account/security/password-security.ts": {
+    "mtime": 1785109078.7589903,
+    "ast_hash": "db50206915c412fbc3caed46161bdd7d",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/admin/hooks/use-reset-tenant-owner-password.ts": {
+    "mtime": 1785106334.909611,
+    "ast_hash": "769973dacf582546007740b5e8e2021a",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/admin/repositories/admin-repository.ts": {
+    "mtime": 1785104087.0798602,
+    "ast_hash": "f1d34da8322c07b12550ebe5451ebd66",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/admin/resources/admin-resource.ts": {
+    "mtime": 1785104087.1048603,
+    "ast_hash": "b66ab236fc403eedf8898ba1d98e37cc",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/auth/hooks/use-change-password.ts": {
+    "mtime": 1785106334.8132982,
+    "ast_hash": "1876d716a268d6da0090412ed045432a",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/auth/repositories/auth-repository.ts": {
+    "mtime": 1785104087.0155358,
+    "ast_hash": "50b3d6aa2384eb09f19671c130090417",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/auth/resources/auth-resource.ts": {
+    "mtime": 1785104087.035532,
+    "ast_hash": "7add63408a9f7066d582069e4ded4408",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/hotel-ops/components/branded-room-qr.tsx": {
+    "mtime": 1785151941.2783077,
+    "ast_hash": "8eba2c7fa9d5ed040014c1e019419eb6",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/hotel-ops/queries/use-google-sheet-config.ts": {
+    "mtime": 1785164227.1827126,
+    "ast_hash": "89d8c7239a9ffdf80cb62d77bf427c15",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/hotel-ops/repositories/google-sheet-config-repository.ts": {
+    "mtime": 1785164227.1837127,
+    "ast_hash": "fde6a05902049b1ede586a4f01584053",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/hotel-ops/resources/google-sheet-config-resource.ts": {
+    "mtime": 1785164227.1837127,
+    "ast_hash": "d4bc0015b035be1f1611f06556f2c388",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/libs/auth-refresh-idempotency.test.ts": {
+    "mtime": 1785098782.6401882,
+    "ast_hash": "10e5d1a11d787f6d4414c824c37da780",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/libs/auth-refresh-idempotency.ts": {
+    "mtime": 1785098834.3908968,
+    "ast_hash": "6fa4fdf0e51411741d6e003786b255f8",
+    "semantic_hash": ""
+  },
+  "services/auth-service/prisma/migrations/20260727120000_add_hotel_google_sheet_id/migration.sql": {
+    "mtime": 1785163551.1706624,
+    "ast_hash": "dcc03b15c08c6b8fd7e59eb99b0d4b83",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/common/security/password-policy.util.ts": {
+    "mtime": 1785102119.0480926,
+    "ast_hash": "84ca23b3b34be0f103fc0e386d0e536a",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/common/security/tests/password-policy.util.spec.ts": {
+    "mtime": 1785102123.732598,
+    "ast_hash": "fb99b522ded8d2af90c4fa4ac0cddb11",
+    "semantic_hash": ""
+  },
+  "shared/api.md": {
+    "mtime": 1784995614.76769,
+    "ast_hash": "92f4eaa2687fdbedfdb85ddf363e1cdb",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/public/brand/vietsage-mark-white.png": {
+    "mtime": 1785149848.3572178,
+    "ast_hash": "325a5c9ff6f83c62e64e78c4a61234ac",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/public/brand/vietsage-wordmark-white.png": {
+    "mtime": 1785149848.3582153,
+    "ast_hash": "01e96b565fc61501d3c656cd8ac50f9c",
+    "semantic_hash": ""
+  },
+  ".sonarqube-issues.json": {
+    "mtime": 1785392570.0153,
+    "ast_hash": "36f55c4c2ca4370c4cdc4277fe8f6898",
+    "semantic_hash": ""
+  },
+  ".sonarqube-quality-gate.json": {
+    "mtime": 1785392565.6055222,
+    "ast_hash": "d6677f356e180126cd89e17c31e6a4a5",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/scripts/internal-api-error-regression.test.mjs": {
+    "mtime": 1785238671.5119028,
+    "ast_hash": "dfc43cd0811ad8817a3cf490e8a194fa",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/components/marketing/marketing-links.ts": {
+    "mtime": 1785213329.68126,
+    "ast_hash": "89c57fd99a529a71daca8eba57142d90",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/guest-os/utils/guest-device-id.ts": {
+    "mtime": 1785242896.7678218,
+    "ast_hash": "eee0f99d7704a2451d79f8cbf74b0f94",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/hotel-ops/repositories/owner-rooms-repository.ts": {
+    "mtime": 1785242896.7718232,
+    "ast_hash": "750981064186dee49bfdc95f09a9cc08",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/hotel-ops/resources/owner-rooms-resource.ts": {
+    "mtime": 1785242896.7768204,
+    "ast_hash": "147e99546e6b84f0dd6dfb60f20a9d0f",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/local-biometric/components/cccd-check-in-panel.tsx": {
+    "mtime": 1785493222.9531693,
+    "ast_hash": "99a303f1ced2f789d91f1256918b4361",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/libs/auth-secret.test.ts": {
+    "mtime": 1785378786.410522,
+    "ast_hash": "eaad06b1f598c2d9cdc2dc1d06c84cac",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/libs/auth-secret.ts": {
+    "mtime": 1785378506.3619678,
+    "ast_hash": "338b3735b28d5b489553a299ca1492e3",
+    "semantic_hash": ""
+  },
+  "services/auth-service/prisma/migrations/20260728130000_seed_payment_code/migration.sql": {
+    "mtime": 1785239991.03302,
+    "ast_hash": "a955272911b4f614aeb748fa9b20de4e",
+    "semantic_hash": ""
+  },
+  "services/auth-service/prisma/migrations/20260731150000_add_guest_stay_identity_number/migration.sql": {
+    "mtime": 1785438348.4262087,
+    "ast_hash": "fc60e27981966e4142cca836ef17a843",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/notifications/api/telegram-webhook.controller.spec.ts": {
+    "mtime": 1785351450.184982,
+    "ast_hash": "d802cf544ace850351362eae66a5fa18",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/property/tests/hotel-rooms.repository.device-count.spec.ts": {
+    "mtime": 1785243488.5211747,
+    "ast_hash": "ac7c980c994598baca0cd20918489b89",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/modules/property/tests/rooms.guest-identity.spec.ts": {
+    "mtime": 1785438296.0555756,
+    "ast_hash": "8f1a07710f5c37ed1d8f56967a7a47a4",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/shared/guest-device-identity.spec.ts": {
+    "mtime": 1785242896.793822,
+    "ast_hash": "f50f74ea931707ab28a1444217c901c9",
+    "semantic_hash": ""
+  },
+  "services/auth-service/src/shared/guest-device-identity.ts": {
+    "mtime": 1785242896.7988205,
+    "ast_hash": "287910751e2b1b0d5d090927842742b9",
+    "semantic_hash": ""
+  },
+  "tools/biometric-bridge/biometric_api.py": {
+    "mtime": 1785446727.6870856,
+    "ast_hash": "7c1830ba36354a9d345ab3d958fd8133",
+    "semantic_hash": ""
+  },
+  "tools/biometric-bridge/bridge_app.py": {
+    "mtime": 1785462494.5415535,
+    "ast_hash": "fe5b15ea02e1d29155b859e9b94b959b",
+    "semantic_hash": ""
+  },
+  "tools/biometric-bridge/hn212_client.py": {
+    "mtime": 1785466458.7332122,
+    "ast_hash": "54f4b2cf67b00601e9244d40742dd1fb",
+    "semantic_hash": ""
+  },
+  "tools/biometric-bridge/local_secrets.py": {
+    "mtime": 1785445405.3761044,
+    "ast_hash": "8abd5f3976d24f1660ed1c835f57f897",
+    "semantic_hash": ""
+  },
+  "tools/biometric-bridge/local_settings.py": {
+    "mtime": 1785445741.2399778,
+    "ast_hash": "75e21825dd6c212a17f557197d0e8599",
+    "semantic_hash": ""
+  },
+  "tools/biometric-bridge/push_receiver.py": {
+    "mtime": 1785451138.6323166,
+    "ast_hash": "eb132a2af1151f1b32c7e0b0a25afb9a",
+    "semantic_hash": ""
+  },
+  "tools/biometric-bridge/test_biometric_api.py": {
+    "mtime": 1785446683.5101268,
+    "ast_hash": "745b0a4452329c8ad626ef0e4cb59590",
+    "semantic_hash": ""
+  },
+  "tools/biometric-bridge/test_bridge_app.py": {
+    "mtime": 1785447125.1615286,
+    "ast_hash": "f19da6e8259294921b3cc9742b13f58b",
+    "semantic_hash": ""
+  },
+  "tools/biometric-bridge/test_hn212_client.py": {
+    "mtime": 1785466425.1425967,
+    "ast_hash": "5ed167abe817ec62ac6cefa2e86c9a3b",
+    "semantic_hash": ""
+  },
+  "tools/biometric-bridge/test_local_settings.py": {
+    "mtime": 1785445661.9032426,
+    "ast_hash": "fc200306b445c9bef8944c925ba00485",
+    "semantic_hash": ""
+  },
+  "tools/biometric-bridge/test_push_receiver.py": {
+    "mtime": 1785444595.576572,
+    "ast_hash": "f8bd69012a07f786e105d375dac93da4",
+    "semantic_hash": ""
+  },
+  "tools/biometric-bridge/test_zkteco_bridge.py": {
+    "mtime": 1785444873.8732386,
+    "ast_hash": "92d9ff37bfdbc5a3c6d09adef7fd65f3",
+    "semantic_hash": ""
+  },
+  "tools/biometric-bridge/zkteco_bridge.py": {
+    "mtime": 1785444906.9669175,
+    "ast_hash": "bd2bbde199a9947e522b2c7e5f9fdbcb",
+    "semantic_hash": ""
+  },
+  ".hermes/plans/2026-07-31_031612-biometric-readiness-checkin-completion.md": {
+    "mtime": 1785443331.7097335,
+    "ast_hash": "e5e1ef9ba7069abae66b5ebfbce54490",
+    "semantic_hash": ""
+  },
+  "deploy/verification/docker-compose.no-secrets.yml": {
+    "mtime": 1785396359.0670192,
+    "ast_hash": "529126b717839978992b089b96f30685",
+    "semantic_hash": ""
+  },
+  "tools/biometric-bridge/README.md": {
+    "mtime": 1785439281.0858078,
+    "ast_hash": "64e351169105a7f62c5b9b2f92457ef5",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/local-biometric/intake/intake-contract.ts": {
+    "mtime": 1785493220.8468907,
+    "ast_hash": "5ad92fd95df26d20128d6e880334ee76",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/biometric-workstations/commands/route.ts": {
+    "mtime": 1785493400.813746,
+    "ast_hash": "a8f0850fd8e92f544be99354c216cf08",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/biometric-workstations/hotels/[hotelId]/pairing/route.ts": {
+    "mtime": 1785493506.6805558,
+    "ast_hash": "526b70a6d6ddc76fc47eda772ad91999",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/biometric-workstations/hotels/[hotelId]/scans/route.ts": {
+    "mtime": 1785493509.3076756,
+    "ast_hash": "c1460ee316557f84463518907095909a",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/biometric-workstations/pair/route.ts": {
+    "mtime": 1785493403.2168264,
+    "ast_hash": "c37f92c49505506b467e272e2c23e52e",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/biometric-workstations/scans/[scanRequestId]/ack/route.ts": {
+    "mtime": 1785493359.3627918,
+    "ast_hash": "f8bd2736854ead10494c6ee998bacc07",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/biometric-workstations/scans/[scanRequestId]/complete/route.ts": {
+    "mtime": 1785493405.6751025,
+    "ast_hash": "8857234707defd0af06a5fdd0128bf8d",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/api/biometric-workstations/scans/[scanRequestId]/route.ts": {
+    "mtime": 1785493357.2544067,
+    "ast_hash": "69908bb5e152be86f6642cda16c03c54",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/local-biometric/components/cccd-check-in-panel.test.ts": {
+    "mtime": 1785491535.2609806,
+    "ast_hash": "f23491e402d10b2e96d675ac284005ca",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/local-biometric/components/cccd-preview.tsx": {
+    "mtime": 1785495708.4295697,
+    "ast_hash": "025cc8276a9a664f3a07c3ada7d54c1a",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/local-biometric/components/check-in-workspace.tsx": {
+    "mtime": 1785496087.527567,
+    "ast_hash": "ae7fa99d1ec9ff4a63003b873dc2a877",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/local-biometric/hooks/use-workstation-scan.ts": {
+    "mtime": 1785495710.0978303,
+    "ast_hash": "4e5b77f275e952483ad18cb39273ecc6",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/local-biometric/intake/intake-authorization.test.ts": {
+    "mtime": 1785477599.7350113,
+    "ast_hash": "82a47800584bbb146d4e999654bf93c9",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/local-biometric/intake/intake-authorization.ts": {
+    "mtime": 1785477616.3321133,
+    "ast_hash": "8be5320c82f37525be40372b6b9c9920",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/local-biometric/intake/intake-contract.test.ts": {
+    "mtime": 1785491527.191237,
+    "ast_hash": "30b3fa0c3ddcd507c6bed5dd78c7ec85",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/local-biometric/repositories/workstation-repository.ts": {
+    "mtime": 1785491264.2893217,
+    "ast_hash": "4350007601e98071e1148f6390c5c7c3",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/local-biometric/resources/workstation-resource.ts": {
+    "mtime": 1785491647.0172887,
+    "ast_hash": "7f70fc70319a731fe7be9b2d2c0830ca",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/local-biometric/types/check-in-workspace.ts": {
+    "mtime": 1785491995.0683627,
+    "ast_hash": "b63aae741211609dbbd8d0d4a9a6ee53",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/local-biometric/utils/cccd-preview.test.ts": {
+    "mtime": 1785491532.959048,
+    "ast_hash": "70f31727ba64b97d1be173bdb6d4476e",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/local-biometric/utils/cccd-preview.ts": {
+    "mtime": 1785490741.5462945,
+    "ast_hash": "1e4e8dc744ca9cc13c87e28ed7284e58",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/local-biometric/workstation/authorize-hotel-workstation.ts": {
+    "mtime": 1785478497.4549463,
+    "ast_hash": "bc746ddbc9ba506b44866b1759b1d7d8",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/local-biometric/workstation/workstation-auth.ts": {
+    "mtime": 1785478463.4622085,
+    "ast_hash": "b86593b300bda55b861b569fa94d89d8",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/local-biometric/workstation/workstation-store.test.ts": {
+    "mtime": 1785493080.2111018,
+    "ast_hash": "2ded5d35e5f8ec1efbebc421c7183bc8",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/local-biometric/workstation/workstation-store.ts": {
+    "mtime": 1785493174.7180395,
+    "ast_hash": "befed09417d2caba63893f57669755de",
+    "semantic_hash": ""
+  },
+  ".hermes/plans/2026-07-31_161107-cccd-preview-dashboard-local-tool-ui.md": {
+    "mtime": 1785489981.281713,
+    "ast_hash": "8fe914e496cc13f8deaf94395cc6063a",
+    "semantic_hash": ""
+  }
+}

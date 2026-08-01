@@ -1,0 +1,15 @@
+{
+  "name": "biometric-dashboard-connection",
+  "files": [
+    "frontends/front-end-vietsage/src/features/local-biometric/components/cccd-check-in-panel.tsx",
+    "frontends/front-end-vietsage/src/features/local-biometric/components/cccd-check-in-panel.test.ts",
+    "frontends/front-end-vietsage/src/features/local-biometric/components/workstation-connection-panel.tsx",
+    "frontends/front-end-vietsage/src/features/local-biometric/components/workstation-connection-panel.test.ts",
+    "frontends/front-end-vietsage/src/features/local-biometric/hooks/use-workstation-scan.ts",
+    "frontends/front-end-vietsage/src/features/local-biometric/repositories/workstation-repository.ts",
+    "frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/dashboard/page.tsx",
+    "frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/biometric/page.tsx",
+    "frontends/front-end-vietsage/src/features/workspace/config/workspace-registry.ts",
+    "frontends/front-end-vietsage/src/features/workspace/config/workspace-registry.test.ts"
+  ]
+}

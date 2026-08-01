@@ -5,8 +5,8 @@ export const PUBLIC_PATTERNS = ["/health", "/auth/login", "/auth/refresh"];
 
 // Regex should be exceptional. Prefer exact paths in PUBLIC_PATTERNS.
 export const PUBLIC_REGEX: RegExp[] = [
-  /^\/guest(?:\/|$)/,
-  /^\/emergency\/guest(?:\/|$)/,
+  /^\/guest\/(?:qr\/scan|session\/(?:me|close)|services|service-categories\/[^/]+\/services|requests|requests\/[^/]+\/cancel|messages|messages\/read)$/,
+  /^\/emergency\/guest\/calls$/,
   /^\/payments\/webhook\/[^/]+$/,
 ];
 
