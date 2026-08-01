@@ -15,6 +15,7 @@ import { CheckInWorkspace } from "@/features/local-biometric/components/check-in
 import type { CheckInStayFields } from "@/features/local-biometric/types/check-in-workspace";
 import { BrandedRoomQr } from "@/features/hotel-ops/components/branded-room-qr";
 import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
+import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 import type {
   HotelArrival,
   HotelCheckInResult,
@@ -588,9 +589,7 @@ export function StaffRoomsClient({
         text: `Mã GuestOS: ${result.data.accessCode}.`,
         confirmButtonColor: "#00003c",
       });
-      queryClient
-        .invalidateQueries({ queryKey: ["hotel-ops", hotelId] })
-        .catch(() => {});
+      await invalidateHotelRealtimeQueries(queryClient, hotelId);
       router.refresh();
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "Vui lòng thử lại.");
@@ -645,9 +644,7 @@ export function StaffRoomsClient({
         timer: 1400,
         showConfirmButton: false,
       });
-      queryClient
-        .invalidateQueries({ queryKey: ["hotel-ops", hotelId] })
-        .catch(() => {});
+      await invalidateHotelRealtimeQueries(queryClient, hotelId);
       router.refresh();
     } catch (error) {
       await Swal.fire({
@@ -685,9 +682,7 @@ export function StaffRoomsClient({
         `${apiBase}/reservations/${encodeURIComponent(arrival.id)}/room`,
         { method: "PUT", body: { roomId: result.value } },
       );
-      queryClient
-        .invalidateQueries({ queryKey: ["hotel-ops", hotelId] })
-        .catch(() => {});
+      await invalidateHotelRealtimeQueries(queryClient, hotelId);
       router.refresh();
     } catch (error) {
       await Swal.fire({
@@ -724,9 +719,7 @@ export function StaffRoomsClient({
           : "QR phòng đã sẵn sàng.",
         confirmButtonColor: "#00003c",
       });
-      queryClient
-        .invalidateQueries({ queryKey: ["hotel-ops", hotelId] })
-        .catch(() => {});
+      await invalidateHotelRealtimeQueries(queryClient, hotelId);
       router.refresh();
     } catch (error) {
       await Swal.fire({

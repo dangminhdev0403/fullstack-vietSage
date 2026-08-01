@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Swal from "sweetalert2";
 
 
+import { useQueryClient } from "@tanstack/react-query";
 import { HttpError } from "@/core/http/http-error";
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import { CheckInWorkspace } from "@/features/local-biometric/components/check-in-workspace";
@@ -15,6 +16,7 @@ import type {
 } from "@/features/hotel-ops/types/hotel-ops-contract";
 
 import { VsIcon } from "../../../../../_components/vs-icon";
+import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 
 type Props = {
   hotelId: string;
@@ -211,6 +213,7 @@ export function OwnerStayRoomGridClient({
   onRoomsChanged,
 }: Props) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<RoomStatusFilter>("all");
   const [page, setPage] = useState(1);
@@ -289,6 +292,7 @@ export function OwnerStayRoomGridClient({
         text: "Trạng thái phòng đã được cập nhật thành TRỐNG.",
         confirmButtonColor: "#17201b",
       });
+      await invalidateHotelRealtimeQueries(queryClient, hotelId);
       await onRoomsChanged?.();
       startTransition(() => router.refresh());
     } catch (error) {
@@ -334,6 +338,7 @@ export function OwnerStayRoomGridClient({
         title: `Phòng ${roomNum} đã chuyển sang ${labels[targetStatus]}!`,
         confirmButtonColor: "#17201b",
       });
+      await invalidateHotelRealtimeQueries(queryClient, hotelId);
       await onRoomsChanged?.();
       startTransition(() => router.refresh());
     } catch (error) {

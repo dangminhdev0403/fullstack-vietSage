@@ -8,7 +8,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Swal from "sweetalert2";
 import { z } from "zod";
 
@@ -38,6 +38,7 @@ import {
 } from "./room-qr-utils";
 import { OwnerStayRoomGridClient } from "../stay/owner-stay-room-grid-client";
 import { WorkstationConnectionPanel } from "@/features/local-biometric/components/workstation-connection-panel";
+import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 
 type Props = { hotelId: string; initialRooms: HotelRoomSummary[] };
 type RoomSortKey =
@@ -373,6 +374,7 @@ function showLoading(title: string) {
 
 export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const qrCodeRef = useRef<SVGSVGElement | null>(null);
   const {
     data: roomsPage,
@@ -385,9 +387,10 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
       total: initialRooms.length,
       items: initialRooms,
     },
-    refetchInterval: 15_000,
+    refetchInterval: 10_000,
     refetchIntervalInBackground: false,
   });
+
   const rooms = roomsPage.items;
 
   function printActiveStayList() {
@@ -505,7 +508,9 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
   }, [rooms]);
 
   async function refreshRooms() {
+    await invalidateHotelRealtimeQueries(queryClient, hotelId);
     await refetchRooms();
+    router.refresh();
   }
 
   function updateQuery(value: string) {

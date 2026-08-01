@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import type { StaffRequestListItem } from "@/features/hotel-ops/types/hotel-ops-contract";
 import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
 import { playRequestAlertSound } from "@/features/request-realtime/audio-notifier";
+import { invalidateHotelRealtimeQueries } from "../utils/invalidate-hotel-realtime-queries";
 
 export function HotelOpsRealtimeNotifier({ hotelId }: { hotelId: string }) {
   const router = useRouter();
@@ -42,8 +43,7 @@ export function HotelOpsRealtimeNotifier({ hotelId }: { hotelId: string }) {
         );
 
         // Invalidate TanStack Query caches so UI updates without page reload
-        queryClient.invalidateQueries({ queryKey: ["hotel-ops", hotelId] }).catch(() => {});
-        queryClient.invalidateQueries({ queryKey: ["hotel-requests", hotelId] }).catch(() => {});
+        void invalidateHotelRealtimeQueries(queryClient, hotelId);
         router.refresh();
       },
       onUpdated: (request: Partial<StaffRequestListItem> & { id: string }) => {
@@ -63,18 +63,15 @@ export function HotelOpsRealtimeNotifier({ hotelId }: { hotelId: string }) {
         } else if (String(request.status) === "PENDING") {
           playRequestAlertSound(false);
         }
-        queryClient.invalidateQueries({ queryKey: ["hotel-ops", hotelId] }).catch(() => {});
-        queryClient.invalidateQueries({ queryKey: ["hotel-requests", hotelId] }).catch(() => {});
+        void invalidateHotelRealtimeQueries(queryClient, hotelId);
         router.refresh();
       },
       onAnswered: () => {
-        queryClient.invalidateQueries({ queryKey: ["hotel-ops", hotelId] }).catch(() => {});
-        queryClient.invalidateQueries({ queryKey: ["hotel-requests", hotelId] }).catch(() => {});
+        void invalidateHotelRealtimeQueries(queryClient, hotelId);
         router.refresh();
       },
       onReconnect: () => {
-        queryClient.invalidateQueries({ queryKey: ["hotel-ops", hotelId] }).catch(() => {});
-        queryClient.invalidateQueries({ queryKey: ["hotel-requests", hotelId] }).catch(() => {});
+        void invalidateHotelRealtimeQueries(queryClient, hotelId);
         router.refresh();
       },
     }),

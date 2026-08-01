@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import type { StaffRequestListItem } from "@/features/hotel-ops/types/hotel-ops-contract";
 import { useOwnerHotelsQuery } from "@/features/owner/queries/use-owner-hotels-query";
 import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
+import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 
 type AudioWindow = Window &
   typeof globalThis & {
@@ -81,9 +82,7 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
             },
           },
         );
-        queryClient.invalidateQueries({ queryKey: ["hotel-ops", hotelId] }).catch(() => {});
-        queryClient.invalidateQueries({ queryKey: ["hotel-requests", hotelId] }).catch(() => {});
-        queryClient.invalidateQueries({ queryKey: ["owner-requests", hotelId] }).catch(() => {});
+        void invalidateHotelRealtimeQueries(queryClient, hotelId);
         startTransition(() => {
           router.refresh();
         });
@@ -103,25 +102,19 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
             },
           );
         }
-        queryClient.invalidateQueries({ queryKey: ["hotel-ops", hotelId] }).catch(() => {});
-        queryClient.invalidateQueries({ queryKey: ["hotel-requests", hotelId] }).catch(() => {});
-        queryClient.invalidateQueries({ queryKey: ["owner-requests", hotelId] }).catch(() => {});
+        void invalidateHotelRealtimeQueries(queryClient, hotelId);
         startTransition(() => {
           router.refresh();
         });
       },
       onAnswered: () => {
-        queryClient.invalidateQueries({ queryKey: ["hotel-ops", hotelId] }).catch(() => {});
-        queryClient.invalidateQueries({ queryKey: ["hotel-requests", hotelId] }).catch(() => {});
-        queryClient.invalidateQueries({ queryKey: ["owner-requests", hotelId] }).catch(() => {});
+        void invalidateHotelRealtimeQueries(queryClient, hotelId);
         startTransition(() => {
           router.refresh();
         });
       },
       onReconnect: () => {
-        queryClient.invalidateQueries({ queryKey: ["hotel-ops", hotelId] }).catch(() => {});
-        queryClient.invalidateQueries({ queryKey: ["hotel-requests", hotelId] }).catch(() => {});
-        queryClient.invalidateQueries({ queryKey: ["owner-requests", hotelId] }).catch(() => {});
+        void invalidateHotelRealtimeQueries(queryClient, hotelId);
         startTransition(() => {
           router.refresh();
         });
