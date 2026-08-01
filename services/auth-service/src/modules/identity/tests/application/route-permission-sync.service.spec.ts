@@ -2,6 +2,7 @@ import { RequestMethod } from "@nestjs/common";
 import { METHOD_METADATA, PATH_METADATA } from "@nestjs/common/constants";
 import { ModulesContainer } from "@nestjs/core/injector/modules-container";
 import { API_DESCRIPTION_KEY } from "../../../../shared/decorators/api-descript.decorator";
+import { HotelUsersController } from "../../api/hotel-users.controller";
 import { AuthRepository } from "../../infrastructure/repositories/auth.repository";
 import { RoutePermissionSyncService } from "../../application/route-permission-sync.service";
 
@@ -158,6 +159,18 @@ describe("RoutePermissionSyncService", () => {
       (call: [string, string]) => `${call[0]}:${call[1]}`,
     );
   }
+
+  it("describes every protected hotel-users route", () => {
+    for (const handlerName of Object.getOwnPropertyNames(HotelUsersController.prototype)) {
+      if (handlerName === "constructor") continue;
+      const handler = HotelUsersController.prototype[handlerName as keyof HotelUsersController];
+      if (typeof handler !== "function" || Reflect.getMetadata(METHOD_METADATA, handler) === undefined) {
+        continue;
+      }
+
+      expect(Reflect.getMetadata(API_DESCRIPTION_KEY, handler)).toEqual(expect.any(String));
+    }
+  });
 
   it("upserts non-public routes with descriptions", async () => {
     process.env.AUTHZ_ROUTE_SYNC_ENABLED = "true";
