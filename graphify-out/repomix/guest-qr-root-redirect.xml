@@ -1,0 +1,257 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: frontends/front-end-vietsage/src/app/(vietsage)/g/[qrCode]/page.tsx, frontends/front-end-vietsage/src/app/(vietsage)/g/language/page.tsx, frontends/front-end-vietsage/src/features/guest-os/components/guest-session-bootstrap.tsx, frontends/front-end-vietsage/src/features/guest-os/hooks/use-guest-session.ts, frontends/front-end-vietsage/src/features/guest-os/store/guest-store.ts, frontends/front-end-vietsage/src/proxy.ts, frontends/front-end-vietsage/src/auth.ts, frontends/front-end-vietsage/src/app/api/guest/session/route.ts
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    src/
+      app/
+        (vietsage)/
+          g/
+            [qrCode]/
+              page.tsx
+            language/
+              page.tsx
+      features/
+        guest-os/
+          components/
+            guest-session-bootstrap.tsx
+          hooks/
+            use-guest-session.ts
+          store/
+            guest-store.ts
+      auth.ts
+      proxy.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="frontends/front-end-vietsage/src/features/guest-os/components/guest-session-bootstrap.tsx">
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+⋮----
+import { HttpError } from "@/core/http/http-error";
+import { guestOsService } from "@/features/guest-os/service/guest-os-service-instance";
+import { useGuestStore, useGuestStoreHydrated } from "@/features/guest-os/store/guest-store";
+import {
+  decideGuestSessionValidationError,
+  isCurrentGuestSessionValidation,
+  isProtectedGuestRoute,
+} from "@/features/guest-os/utils/guest-session-bootstrap-policy";
+import { clearStoredGuestSession, migrateLegacyGuestSession } from "@/features/guest-os/utils/guest-session-storage";
+import { defaultGuestLocale, normalizeGuestLocale } from "@/features/guest-os/i18n/config";
+⋮----
+export function GuestSessionBootstrap(
+⋮----
+const revalidate = ()
+const onVisibilityChange = () =>
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/guest-os/hooks/use-guest-session.ts">
+import { useCallback, useState } from "react";
+import { useRouter } from "next/navigation";
+⋮----
+import { HttpError } from "@/core/http/http-error";
+import { defaultGuestLocale, normalizeGuestLocale } from "@/features/guest-os/i18n/config";
+import { guestOsService } from "@/features/guest-os/service/guest-os-service-instance";
+import { useGuestStore } from "@/features/guest-os/store/guest-store";
+import type { GuestCurrentSessionResult } from "@/features/guest-os/types/guest-os-contract";
+import {
+  decideGuestSessionValidationError,
+  isCurrentGuestSessionValidation,
+} from "@/features/guest-os/utils/guest-session-bootstrap-policy";
+import { clearStoredGuestSession } from "@/features/guest-os/utils/guest-session-storage";
+⋮----
+export type GuestSessionState = {
+  sessionToken: string | null;
+  currentSession: GuestCurrentSessionResult | null;
+  isLoading: boolean;
+  error: string | null;
+  refresh: () => Promise<void>;
+  close: () => Promise<void>;
+};
+⋮----
+export function useGuestSession(): GuestSessionState
+⋮----
+try { await guestOsService.closeSession(sessionToken, locale); } catch { /* Always finish local close. */ }
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/guest-os/store/guest-store.ts">
+import { useSyncExternalStore } from "react";
+import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
+⋮----
+import type { GuestCurrentSessionResult, GuestScanQrResult } from "@/features/guest-os/types/guest-os-contract";
+⋮----
+type GuestHotelState = GuestScanQrResult["hotel"];
+type GuestRoomState = GuestScanQrResult["room"];
+type GuestProfileState = GuestScanQrResult["guest"];
+⋮----
+type GuestStore = {
+  sessionToken: string | null;
+  expiresAt: string | null;
+  hotel: GuestHotelState | null;
+  room: GuestRoomState | null;
+  guest: GuestProfileState | null;
+  language: string | null;
+
+  setGuestSession: (session: GuestScanQrResult) => void;
+  importSessionToken: (sessionToken: string) => void;
+  refreshSessionSnapshot: (session: GuestCurrentSessionResult) => void;
+  setLanguage: (value: string) => void;
+  clearSession: () => void;
+};
+⋮----
+function sanitizeSession(session: GuestScanQrResult): Pick<GuestStore, "sessionToken" | "expiresAt" | "hotel" | "room" | "guest">
+⋮----
+function emitHydrationChange()
+⋮----
+function subscribeToHydration(listener: () => void): () => void
+⋮----
+export function useGuestStoreHydrated(): boolean
+</file>
+
+<file path="frontends/front-end-vietsage/src/auth.ts">
+import NextAuth from "next-auth";
+⋮----
+import { authOptions } from "@/libs/auth";
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/g/[qrCode]/page.tsx">
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { AnimatePresence, m, useReducedMotion } from "motion/react";
+⋮----
+import { VsIcon } from "../../_components/vs-icon";
+import { HttpError } from "@/core/http/http-error";
+import { guestMotionTokens } from "@/features/guest-os/components/motion/guest-motion-tokens";
+import { GuestStateCard } from "@/features/guest-os/components/shared/guest-state-card";
+import { useGuestI18n } from "@/features/guest-os/i18n/use-guest-i18n";
+import { guestOsService } from "@/features/guest-os/service/guest-os-service-instance";
+import { useGuestStore, useGuestStoreHydrated } from "@/features/guest-os/store/guest-store";
+import { getOrCreateGuestDeviceId } from "@/features/guest-os/utils/guest-device-id";
+⋮----
+function getQrCodeParam(value: string | string[] | undefined): string
+⋮----
+function isRecord(value: unknown): value is Record<string, unknown>
+⋮----
+function readStringField(payload: unknown, fieldName: string): string | null
+⋮----
+function readNumberField(payload: unknown, fieldName: string): number | null
+⋮----
+function readNestedData(payload: unknown): unknown
+⋮----
+function isSessionSwitchRequired(error: unknown): boolean
+⋮----
+function inferGuestQrErrorStatus(error: unknown): number
+⋮----
+function getGuestQrErrorKey(error: unknown): string
+⋮----
+function QrSwitchCard(
+⋮----
+<GuestStateCard title=
+⋮----
+<QrSwitchCard onConfirm=
+⋮----
+title=
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/g/language/page.tsx">
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { AnimatePresence, m } from "motion/react";
+⋮----
+import { VietSageBrand } from "@/components/brand/vietsage-brand";
+import { VsIcon } from "../../_components/vs-icon";
+import { guestMotionTokens } from "@/features/guest-os/components/motion/guest-motion-tokens";
+import { GuestReveal } from "@/features/guest-os/components/motion/guest-reveal";
+import { GuestAccessRequiredState } from "@/features/guest-os/components/shared/guest-access-required-state";
+import { guestLocaleOptions } from "@/features/guest-os/i18n/config";
+import { useGuestI18n } from "@/features/guest-os/i18n/use-guest-i18n";
+import { useGuestStore, useGuestStoreHydrated } from "@/features/guest-os/store/guest-store";
+⋮----
+function requestConfirmation()
+⋮----
+function selectLanguage(language: typeof selectedLanguage)
+⋮----
+function continueToServices()
+⋮----
+function closeConfirmation()
+⋮----
+const handleKeyDown = (event: KeyboardEvent) =>
+⋮----
+<h2 id="language-confirm-title" className="vs-display text-2xl font-semibold text-[#18211d]">
+</file>
+
+<file path="frontends/front-end-vietsage/src/proxy.ts">
+import { type NextRequest, NextResponse } from "next/server";
+⋮----
+import { auth } from "./auth";
+import { createRequestRedirectUrl } from "./features/auth/utils/redirect-isolation-core";
+import { canAccessPathByRoles, getDefaultPathForRoles, sanitizeInternalCallbackUrl } from "./libs/rbac";
+⋮----
+function matchesPrefix(pathname: string, prefix: string): boolean
+⋮----
+function isForcedReauth(request: NextRequest): boolean
+⋮----
+function isNextAuthCookie(cookieName: string): boolean
+⋮----
+function clearNextAuthCookies(request: NextRequest, response: NextResponse): NextResponse
+⋮----
+function buildLoginRedirect(request: NextRequest): NextResponse
+⋮----
+// Prevent callbackUrl nesting growth when a protected URL already carries callbackUrl
+⋮----
+function getStringTokenField(token: unknown, field: string): string | null
+⋮----
+function getNumberTokenField(token: unknown, field: string): number | null
+⋮----
+function buildRefreshSessionRedirect(request: NextRequest): NextResponse
+⋮----
+// Cross-workspace guard: if the user's role cannot access this protected prefix,
+// redirect to their correct dashboard instead of letting the layout return notFound().
+</file>
+
+</files>
