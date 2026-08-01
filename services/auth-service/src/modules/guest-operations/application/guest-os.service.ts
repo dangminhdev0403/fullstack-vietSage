@@ -271,6 +271,16 @@ export class GuestOsService {
       guest: {
         displayName: session.stay.guestDisplayName,
         plannedCheckOutAt: session.stay.plannedCheckOutAt,
+        occupants:
+          (
+            session.stay as {
+              occupants?: Array<{ id: string; fullName: string; isPrimary: boolean }>;
+            }
+          )?.occupants?.map((occ) => ({
+            id: occ.id,
+            fullName: occ.fullName,
+            isPrimary: occ.isPrimary,
+          })) ?? [],
       },
     };
   }

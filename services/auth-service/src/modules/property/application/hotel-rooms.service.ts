@@ -323,6 +323,7 @@ export class HotelRoomsService {
       plannedCheckOutAt: dto.plannedCheckOutAt,
       createdByUserId: actorUserId,
       actorUserId,
+      occupants: dto.occupants,
       accessCodeHash: hashOpaqueToken(accessCode),
       accessCodeExpiresAt: addHours(new Date(), 24),
       tenantId: hotel.tenantId,
@@ -522,6 +523,15 @@ export class HotelRoomsService {
     accessCodeExpiresAt: Date | null;
     createdAt: Date;
     updatedAt: Date;
+    occupants?: Array<{
+      id: string;
+      fullName: string;
+      phone?: string | null;
+      identityNumber?: string | null;
+      dateOfBirth?: string | null;
+      gender?: string | null;
+      isPrimary: boolean;
+    }> | null;
   }) {
     return {
       id: row.id,
@@ -544,6 +554,17 @@ export class HotelRoomsService {
       accessCodeExpiresAt: row.accessCodeExpiresAt,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
+      occupants: row.occupants
+        ? row.occupants.map((occ) => ({
+            id: occ.id,
+            fullName: occ.fullName,
+            phone: occ.phone ?? null,
+            identityNumber: occ.identityNumber ?? null,
+            dateOfBirth: occ.dateOfBirth ?? null,
+            gender: occ.gender ?? null,
+            isPrimary: occ.isPrimary,
+          }))
+        : [],
     };
   }
 

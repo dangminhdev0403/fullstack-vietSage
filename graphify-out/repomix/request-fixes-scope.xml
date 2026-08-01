@@ -1,0 +1,1175 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: services/auth-service/src/modules/property/api/hotel-services.controller.ts, services/auth-service/src/modules/property/infrastructure/imports/google-sheets-service-catalog-sync.service.ts, services/auth-service/src/modules/property/infrastructure/imports/service-catalog-import.adapter.ts, services/auth-service/src/modules/property/tests/infrastructure/imports/google-sheets-service-catalog-sync.service.spec.ts, services/auth-service/src/modules/property/tests/infrastructure/imports/service-catalog-import.adapter.spec.ts, services/auth-service/src/modules/guest-operations/api/hotel-requests.controller.ts, services/auth-service/src/modules/guest-operations/application/hotel-requests.service.ts, services/auth-service/src/modules/guest-operations/domain/schemas/requests.schema.ts, frontends/front-end-vietsage/src/features/hotel-ops/service/hotel-ops-service.ts, frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/requests/request-queue-client.tsx
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    src/
+      app/
+        (vietsage)/
+          hotels/
+            [hotelId]/
+              requests/
+                request-queue-client.tsx
+      features/
+        hotel-ops/
+          service/
+            hotel-ops-service.ts
+services/
+  auth-service/
+    src/
+      modules/
+        guest-operations/
+          api/
+            hotel-requests.controller.ts
+          application/
+            hotel-requests.service.ts
+          domain/
+            schemas/
+              requests.schema.ts
+        property/
+          api/
+            hotel-services.controller.ts
+          infrastructure/
+            imports/
+              google-sheets-service-catalog-sync.service.ts
+              service-catalog-import.adapter.ts
+          tests/
+            infrastructure/
+              imports/
+                google-sheets-service-catalog-sync.service.spec.ts
+                service-catalog-import.adapter.spec.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="services/auth-service/src/modules/property/tests/infrastructure/imports/service-catalog-import.adapter.spec.ts">
+import { ServiceCatalogImportAdapter } from "../../../infrastructure/imports/service-catalog-import.adapter";
+⋮----
+function createAdapter()
+</file>
+
+<file path="services/auth-service/src/modules/property/api/hotel-services.controller.ts">
+import { Body, Controller, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import { ApiBody, ApiCreatedResponse, ApiOkResponse, ApiParam, ApiTags } from "@nestjs/swagger";
+import type { Request } from "express";
+import {
+  createServiceItemBodySchema as createServiceItemBodyOpenApiSchema,
+  hotelServiceItemDataSchema,
+  listHotelServiceItemsDataSchema,
+  successEnvelopeSchema,
+  updateServiceItemBodySchema as updateServiceItemBodyOpenApiSchema,
+} from "../../../common/openapi/contract-schemas";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
+import type { AuthenticatedUser } from "../../../shared/security";
+import { HotelServicesService } from "../application/hotel-services.service";
+import { GoogleSheetsServiceCatalogSyncService } from "../infrastructure/imports/google-sheets-service-catalog-sync.service";
+import {
+  createServiceCategoryBodySchema,
+  createServiceItemBodySchema,
+  listServiceCategoriesQuerySchema,
+  listServiceItemsQuerySchema,
+  updateServiceCategoryBodySchema,
+  updateServiceItemBodySchema,
+} from "../domain/schemas/service-catalog.schema";
+import {
+  hotelIdParamSchema,
+  serviceCategoryIdParamSchema,
+  serviceItemIdParamSchema,
+} from "../domain/schemas/shared.schema";
+⋮----
+interface RequestWithUser extends Request {
+  user: AuthenticatedUser;
+}
+⋮----
+export class HotelServicesController {
+⋮----
+constructor(
+⋮----
+async syncServiceCatalogFromGoogleSheets(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+)
+⋮----
+async listServiceCategories(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Query() query: unknown,
+)
+⋮----
+async createServiceCategory(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async updateServiceCategory(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("categoryId") categoryIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async listServiceItems(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Query() query: unknown,
+)
+⋮----
+async createServiceItem(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async updateServiceItem(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("itemId") itemIdParam: string,
+    @Body() body: unknown,
+)
+</file>
+
+<file path="services/auth-service/src/modules/property/infrastructure/imports/service-catalog-import.adapter.ts">
+import { Injectable, OnModuleInit } from "@nestjs/common";
+import { Prisma, ServiceCatalogStatus } from "@prisma/client";
+import {
+  ImportAdapter,
+  ImportCommitInput,
+  ImportCommitResult,
+  ImportContext,
+  ImportDiffEntry,
+  ImportValidationIssue,
+  ImportWorkbookSchema,
+  ParsedImportWorkbook,
+} from "../../../../common/import/import.types";
+import { ImportRegistry } from "../../../../common/import/import.registry";
+import { PrismaService } from "../../../../prisma/prisma.service";
+import { HotelAccessService } from "../../application/hotel-access.service";
+⋮----
+type TranslationLocale = (typeof TRANSLATION_COLUMNS)[number]["locale"];
+⋮----
+type TranslationInput = Partial<
+  Record<
+    TranslationLocale,
+    {
+      name?: string;
+      description?: string | null;
+    }
+  >
+>;
+⋮----
+interface ParsedServiceCatalogCategory {
+  rowNumber: number;
+  importKey: string;
+  name: string;
+  description?: string | null;
+  defaultPrice: number;
+  currency: string;
+  sortOrder: number;
+  status: ServiceCatalogStatus;
+  translations: TranslationInput;
+}
+⋮----
+interface ParsedServiceCatalogItem {
+  rowNumber: number;
+  importKey: string;
+  categoryKey: string;
+  name: string;
+  description?: string | null;
+  priceOverride?: number | null;
+  quantityEnabled: boolean;
+  minQuantity: number;
+  maxQuantity?: number | null;
+  sortOrder: number;
+  status: ServiceCatalogStatus;
+  translations: TranslationInput;
+}
+⋮----
+export interface ServiceCatalogImportPayload {
+  categories: ParsedServiceCatalogCategory[];
+  items: ParsedServiceCatalogItem[];
+}
+⋮----
+type ServiceCatalogImportState = {
+  categories: Array<{
+    id: string;
+    importKey: string | null;
+    name: string;
+    description: string | null;
+    defaultPrice: Prisma.Decimal;
+    currency: string;
+    sortOrder: number;
+    status: ServiceCatalogStatus;
+    translations: Array<{ locale: string; name: string; description: string | null }>;
+  }>;
+  items: Array<{
+    id: string;
+    importKey: string | null;
+    categoryId: string;
+    category: { importKey: string | null };
+    name: string;
+    description: string | null;
+    priceOverride: Prisma.Decimal | null;
+    quantityEnabled: boolean;
+    minQuantity: number;
+    maxQuantity: number | null;
+    sortOrder: number;
+    status: ServiceCatalogStatus;
+    translations: Array<{ locale: string; name: string; description: string | null }>;
+  }>;
+};
+⋮----
+export class ServiceCatalogImportAdapter
+implements ImportAdapter<ServiceCatalogImportPayload, ServiceCatalogImportState>, OnModuleInit
+⋮----
+constructor(
+⋮----
+onModuleInit(): void
+⋮----
+getSchema(): ImportWorkbookSchema
+⋮----
+async authorize(context: ImportContext): Promise<void>
+⋮----
+parse(workbook: ParsedImportWorkbook): ServiceCatalogImportPayload
+⋮----
+validate(payload: ServiceCatalogImportPayload): ImportValidationIssue[]
+⋮----
+async loadCurrentState(context: ImportContext): Promise<ServiceCatalogImportState>
+⋮----
+diff(payload: ServiceCatalogImportPayload, state: ServiceCatalogImportState): ImportDiffEntry[]
+⋮----
+async commit(
+    input: ImportCommitInput<ServiceCatalogImportPayload, ServiceCatalogImportState>,
+): Promise<ImportCommitResult>
+⋮----
+private summarize(diff: ImportDiffEntry[])
+⋮----
+private diffCategory(
+    category: ParsedServiceCatalogCategory,
+    existing: ServiceCatalogImportState["categories"][number] | undefined,
+): ImportDiffEntry
+⋮----
+private diffItem(
+    item: ParsedServiceCatalogItem,
+    existing: ServiceCatalogImportState["items"][number] | undefined,
+): ImportDiffEntry
+⋮----
+private diffFields(fields: Record<string, [unknown, unknown]>)
+⋮----
+private diffTranslations(
+    existing: Array<{ locale: string; name: string; description: string | null }>,
+    next: TranslationInput,
+)
+⋮----
+private async upsertCategoryTranslations(
+    tx: Prisma.TransactionClient,
+    categoryId: string,
+    translations: TranslationInput,
+)
+⋮----
+private async upsertItemTranslations(
+    tx: Prisma.TransactionClient,
+    itemId: string,
+    translations: TranslationInput,
+)
+⋮----
+private validateKey(
+    key: string,
+    sheet: string,
+    row: number,
+    column: string,
+    issues: ImportValidationIssue[],
+)
+⋮----
+private readTranslations(values: Record<string, unknown>): TranslationInput
+⋮----
+private translationColumns(kind: "category" | "item")
+⋮----
+private error(
+    sheet: string,
+    row: number,
+    column: string,
+    code: string,
+    message: string,
+): ImportValidationIssue
+⋮----
+private text(value: unknown): string
+⋮----
+private optionalText(value: unknown): string | undefined
+⋮----
+private number(value: unknown, defaultValue: number): number
+⋮----
+private optionalNumber(value: unknown): number | undefined
+⋮----
+private boolean(value: unknown, defaultValue: boolean): boolean
+⋮----
+private enumValue(value: unknown, defaultValue: string): string
+</file>
+
+<file path="services/auth-service/src/modules/property/tests/infrastructure/imports/google-sheets-service-catalog-sync.service.spec.ts">
+import { GoogleSheetsServiceCatalogSyncService } from "../../../infrastructure/imports/google-sheets-service-catalog-sync.service";
+⋮----
+function createService()
+</file>
+
+<file path="services/auth-service/src/modules/property/infrastructure/imports/google-sheets-service-catalog-sync.service.ts">
+import { BadRequestException, Injectable } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
+import { google } from "googleapis";
+import { AppLogger } from "../../../../common/logging/app-logger.service";
+import { ImportService } from "../../../../common/import/import.service";
+import type { ParsedImportWorkbook } from "../../../../common/import/import.types";
+import { PrismaService } from "../../../../prisma/prisma.service";
+import { HotelAccessService } from "../../application/hotel-access.service";
+⋮----
+type SyncSummary = {
+  categoriesProcessed: number;
+  itemsProcessed: number;
+  inserted: number;
+  updated: number;
+  skipped: number;
+  durationMs: number;
+  errors: string[];
+};
+⋮----
+export class GoogleSheetsServiceCatalogSyncService {
+⋮----
+constructor(
+⋮----
+async syncHotel(
+    hotelId: string,
+    actorUserId: string,
+    activeRoleId: string,
+): Promise<SyncSummary>
+⋮----
+async validateSpreadsheet(spreadsheetId: string): Promise<void>
+⋮----
+async syncAllHotels(): Promise<void>
+⋮----
+private async runSync(
+    hotelId: string,
+    spreadsheetId: string | null,
+    actorUserId: string,
+    activeRoleId?: string,
+    enforceConcurrency = true,
+): Promise<SyncSummary>
+⋮----
+private async readWorkbook(spreadsheetId: string): Promise<ParsedImportWorkbook>
+⋮----
+private toGoogleSheetsError(error: unknown): BadRequestException
+⋮----
+private toParsedSheet(name: "categories" | "items", values: unknown[][])
+⋮----
+private normalizeHeader(value: string): string
+⋮----
+private stripVietnameseDiacritics(value: string): string
+⋮----
+private sheetCellText(value: unknown): string
+</file>
+
+<file path="services/auth-service/src/modules/guest-operations/domain/schemas/requests.schema.ts">
+import { z } from "zod";
+import { canonicalGuestRequestStatuses } from "../guest-request-status";
+⋮----
+export type ListStaffRequestsQueryInput = z.infer<typeof listStaffRequestsQuerySchema>;
+export type RequestSummaryQueryInput = z.infer<typeof requestSummaryQuerySchema>;
+export type UpdateRequestStatusBodyInput = z.infer<typeof updateRequestStatusBodySchema>;
+export type UpdateRequestAssignmentBodyInput = z.infer<typeof updateRequestAssignmentBodySchema>;
+export type CreateRequestEventBodyInput = z.infer<typeof createRequestEventBodySchema>;
+export type ListHotelMessagesQueryInput = z.infer<typeof listHotelMessagesQuerySchema>;
+export type SendHotelMessageBodyInput = z.infer<typeof sendHotelMessageBodySchema>;
+</file>
+
+<file path="services/auth-service/src/modules/guest-operations/application/hotel-requests.service.ts">
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  Optional,
+} from "@nestjs/common";
+import { GuestRequestPriority, GuestRequestStatus, GuestStayStatus, Prisma } from "@prisma/client";
+import {
+  GUEST_REQUEST_EVENT_PUBLISHER,
+  NOOP_GUEST_REQUEST_EVENT_PUBLISHER,
+  type GuestRequestEventPublisher,
+} from "../../../shared/events";
+import { HotelAccessService } from "../../property/property-public";
+import { HotelRequestsRepository } from "../infrastructure/repositories/hotel-requests.repository";
+import type { StaffRequestListRow } from "../infrastructure/repositories/guest-request-repository.types";
+import type {
+  CreateRequestEventBodyInput,
+  ListStaffRequestsQueryInput,
+  RequestSummaryQueryInput,
+  UpdateRequestAssignmentBodyInput,
+  UpdateRequestStatusBodyInput,
+} from "../domain/schemas/requests.schema";
+import {
+  activeGuestRequestStatuses,
+  canonicalGuestRequestStatuses,
+  compatibleGuestRequestStatuses,
+  normalizeGuestRequestStatus,
+  type CanonicalGuestRequestStatus,
+} from "../domain/guest-request-status";
+⋮----
+export interface StaffRequestListItemResponse {
+  id: string;
+  displayName: string;
+  status: CanonicalGuestRequestStatus;
+  priority: "NORMAL" | "URGENT";
+  quantity: number;
+  description: string | null;
+  latestNote: string | null;
+  createdAt: string;
+  roomNumber: string;
+  guestName: string | null;
+  categoryName: string | null;
+  assignedToName: string | null;
+  stayStatus: string | null;
+  checkedOutAt: string | null;
+  actions: StaffRequestAction[];
+}
+⋮----
+type StaffRequestAction = "ACCEPT" | "START" | "COMPLETE" | "CANCEL" | "FAIL";
+⋮----
+type RequestStatusSummary = Record<CanonicalGuestRequestStatus, number>;
+⋮----
+export interface RequestSummaryResponse {
+  total: number;
+  statuses: RequestStatusSummary;
+}
+⋮----
+function buildRequestSearchFilter(search: string | undefined): Prisma.GuestRequestWhereInput
+⋮----
+export class HotelRequestsService {
+⋮----
+constructor(
+    private readonly hotelRequestsRepository: HotelRequestsRepository,
+    private readonly hotelAccessService: HotelAccessService,
+    @Optional()
+    @Inject(GUEST_REQUEST_EVENT_PUBLISHER)
+    guestRequestEventPublisher?: GuestRequestEventPublisher,
+)
+private parseHotelArgs<T>(
+    arg2: string,
+    arg3?: string | T,
+    arg4?: T,
+):
+⋮----
+private parseHotelRequestArgs<T>(
+    arg2: string,
+    arg3: string,
+    arg4?: string | T,
+    arg5?: T,
+):
+⋮----
+async listRequests(
+    actorUserId: string,
+    activeRoleIdOrHotelId: string,
+    hotelIdOrQuery?: string | ListStaffRequestsQueryInput,
+    queryInput?: ListStaffRequestsQueryInput,
+)
+⋮----
+async getRequestsSummary(
+    actorUserId: string,
+    activeRoleIdOrHotelId: string,
+    hotelIdOrQuery?: string | RequestSummaryQueryInput,
+    queryInput?: RequestSummaryQueryInput,
+): Promise<RequestSummaryResponse>
+⋮----
+async getRequestDetail(
+    actorUserId: string,
+    activeRoleIdOrHotelId: string,
+    hotelIdOrRequestId: string,
+    requestIdParam?: string,
+)
+⋮----
+async updateRequestStatus(
+    actorUserId: string,
+    activeRoleIdOrHotelId: string,
+    hotelIdOrRequestId: string,
+    requestIdOrDto: string | UpdateRequestStatusBodyInput,
+    dtoParam?: UpdateRequestStatusBodyInput,
+)
+⋮----
+async updateRequestAssignment(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    requestId: string,
+    dto: UpdateRequestAssignmentBodyInput,
+)
+⋮----
+async createRequestEvent(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    requestId: string,
+    dto: CreateRequestEventBodyInput,
+)
+⋮----
+private assertRequestTransition(from: GuestRequestStatus, to: CanonicalGuestRequestStatus)
+⋮----
+private toStaffRequestListItem(row: StaffRequestListRow): StaffRequestListItemResponse
+⋮----
+private getStaffRequestActions(status: CanonicalGuestRequestStatus): StaffRequestAction[]
+⋮----
+private toStaffRequestListPriority(
+    priority: StaffRequestListRow["priority"],
+): "NORMAL" | "URGENT"
+⋮----
+private withProductRequestPriority<T extends { priority: unknown }>(
+    request: T,
+): Omit<T, "priority" | "status"> &
+⋮----
+private toInternalRequestPriorities(priority: "NORMAL" | "URGENT"): GuestRequestPriority[]
+⋮----
+private toRequestStatusSummary(
+    rows: Array<{ status: GuestRequestStatus; _count: { _all: number } }>,
+): RequestStatusSummary
+⋮----
+private toGuestRequestRealtimeItem(row: StaffRequestListRow)
+⋮----
+private toGuestPortalRequestStatus(status: GuestRequestStatus)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/requests/request-queue-client.tsx">
+import {
+  type Dispatch,
+  type FormEvent,
+  type SetStateAction,
+  startTransition,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  type QueryClient,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import Swal from "sweetalert2";
+⋮----
+import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+import {
+  DataTable,
+  type DataTableColumn,
+  type DataTableSortDirection,
+} from "@/components/ui/data-table";
+import { HttpError } from "@/core/http/http-error";
+import { requestInternalApi } from "@/core/http/internal-api-client";
+import type { GuestRequestStatus } from "@/features/guest-os/types/guest-os-contract";
+import type {
+  HotelGuestRequest,
+  HotelServiceItem,
+  StaffRequestAction,
+  StaffRequestListItem,
+  StaffRequestSummaryResponse,
+} from "@/features/hotel-ops/types/hotel-ops-contract";
+import { hotelRequestStatuses } from "@/features/hotel-ops/types/hotel-ops-contract";
+import {
+  formatOpsDateTime,
+  getGuestLabel,
+  getRequestTitle,
+  getRoomLabel,
+  priorityTone,
+  requestPriorityLabelMap,
+  requestStatusLabelMap,
+  requestTypeLabelMap,
+  statusTone,
+} from "@/features/hotel-ops/utils/hotel-ops-display";
+import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
+import { requestQueueResource } from "@/features/hotel-ops/resources/request-queue-resource";
+⋮----
+type RequestQueueLabels = {
+  allStatuses: string;
+  roomNumberPlaceholder: string;
+  allServiceItems: string;
+  assignedUserIdPlaceholder: string;
+  filterButton: string;
+  requestCountSuffix: string;
+  manageCatalog: string;
+  room: string;
+  guest: string;
+  service: string;
+  category: string;
+  quantity: string;
+  priority: string;
+  status: string;
+  assigned: string;
+  created: string;
+  unassigned: string;
+  emptyState: string;
+  closeDetail: string;
+  requestDetail: string;
+  reservationCode: string;
+  details: string;
+  actionNote: string;
+  assignmentNote: string;
+  timelineNote: string;
+  staffUserId: string;
+  statusActions: string;
+  assignment: string;
+  timeline: string;
+  saveAssignment: string;
+  unassign: string;
+  noTimeline: string;
+  guestVisibleNoteHelp: string;
+  openRequest: string;
+  loadingDetail: string;
+  operationError: string;
+};
+⋮----
+type UrgentRequestNotification = StaffRequestListItem & {
+  receivedAt: string;
+  acknowledgedAt?: string;
+};
+⋮----
+type RequestQueueClientProps = {
+  hotelId: string;
+  requests: StaffRequestListItem[];
+  total: number;
+  summary: StaffRequestSummaryResponse;
+  serviceItems: HotelServiceItem[];
+  initialFilters: Record<string, string>;
+  basePath?: string;
+  serviceCatalogPath?: string;
+  ownerApiBasePath?: string;
+  labels?: Partial<RequestQueueLabels>;
+  detailMode?: "page" | "modal";
+  initialDetailRequestId?: string;
+  page?: number;
+  pageSize?: number;
+  pageSizeOptions?: number[];
+};
+⋮----
+function isFinalRequestStatus(status: GuestRequestStatus): boolean
+⋮----
+function formatDayFilterValue(value: string | undefined): string
+⋮----
+function toFilterState(
+  initialFilters: Record<string, string>,
+): Record<string, string>
+⋮----
+function getHttpErrorMessage(error: unknown, fallback: string): string
+⋮----
+function escapeHtml(value: unknown): string
+⋮----
+function formatRequestMoney(value: unknown, currency = "VND"): string
+⋮----
+function getServiceDetailPrice(serviceItem: HotelGuestRequest["serviceItem"]):
+⋮----
+function renderTranslationRows(translations: Array<
+⋮----
+function showServiceCatalogDetails(request: HotelGuestRequest | null, row: StaffRequestListItem, labels: RequestQueueLabels)
+⋮----
+function hasDisplayableTimelineEvent(
+  event: NonNullable<HotelGuestRequest["events"]>[number],
+): boolean
+⋮----
+type RequestSortKey =
+  | "room"
+  | "guest"
+  | "service"
+  | "category"
+  | "quantity"
+  | "priority"
+  | "status"
+  | "assigned"
+  | "created";
+⋮----
+function compareValues(left: string | number, right: string | number): number
+⋮----
+function getSortableRequestValue(
+  request: StaffRequestListItem,
+  key: RequestSortKey,
+): string | number
+⋮----
+async function openRequestDetailModal({
+  request,
+  ownerApiBasePath,
+  queryClient,
+  operationErrorFallback,
+  setSelectedRow,
+  setSelectedRequest,
+  setAssignmentUserId,
+  setAssignmentNote,
+  setStatusNote,
+  setOperationError,
+}: {
+  request: StaffRequestListItem;
+  ownerApiBasePath?: string;
+  queryClient: QueryClient;
+  operationErrorFallback: string;
+  setSelectedRow: Dispatch<SetStateAction<StaffRequestListItem | null>>;
+  setSelectedRequest: Dispatch<SetStateAction<HotelGuestRequest | null>>;
+  setAssignmentUserId: Dispatch<SetStateAction<string>>;
+  setAssignmentNote: Dispatch<SetStateAction<string>>;
+  setStatusNote: Dispatch<SetStateAction<string>>;
+  setOperationError: Dispatch<SetStateAction<string | null>>;
+})
+⋮----
+function openRequestWithContext({
+  request,
+  detailMode,
+  basePath,
+  router,
+  ownerApiBasePath,
+  queryClient,
+  operationErrorFallback,
+  setSelectedRow,
+  setSelectedRequest,
+  setAssignmentUserId,
+  setAssignmentNote,
+  setStatusNote,
+  setOperationError,
+}: {
+  request: StaffRequestListItem;
+  detailMode: "page" | "modal";
+  basePath: string;
+  router: ReturnType<typeof useRouter>;
+  ownerApiBasePath?: string;
+  queryClient: QueryClient;
+  operationErrorFallback: string;
+  setSelectedRow: Dispatch<SetStateAction<StaffRequestListItem | null>>;
+  setSelectedRequest: Dispatch<SetStateAction<HotelGuestRequest | null>>;
+  setAssignmentUserId: Dispatch<SetStateAction<string>>;
+  setAssignmentNote: Dispatch<SetStateAction<string>>;
+  setStatusNote: Dispatch<SetStateAction<string>>;
+  setOperationError: Dispatch<SetStateAction<string | null>>;
+})
+⋮----
+function sortUrgentNotifications(
+  notifications: UrgentRequestNotification[],
+)
+⋮----
+function toUrgentNotification(
+  request: StaffRequestListItem,
+  existing?: UrgentRequestNotification,
+): UrgentRequestNotification
+⋮----
+function isCheckedOutRequest(
+  request: Partial<Pick<StaffRequestListItem, "checkedOutAt" | "stayStatus">>,
+): boolean
+⋮----
+function shouldShowInUrgentPanel(
+  request: Partial<Pick<StaffRequestListItem, "priority" | "status" | "checkedOutAt" | "stayStatus">>,
+): boolean
+⋮----
+function requestToListItem(request: HotelGuestRequest): StaffRequestListItem
+⋮----
+function mergeUrgentRequests(
+  currentNotifications: UrgentRequestNotification[],
+  requests: StaffRequestListItem[],
+)
+⋮----
+function openRequestRow(request: StaffRequestListItem)
+⋮----
+function syncUpdatedRequest(updated: HotelGuestRequest)
+⋮----
+function updateFilter(key: string, value: string)
+⋮----
+function applyFilters(event?: FormEvent<HTMLFormElement>)
+⋮----
+function resetFilters()
+⋮----
+function pushFilters(nextFilters: Record<string, string>)
+⋮----
+function getPaginationHref(nextPage: number, nextPageSize = pageSize)
+⋮----
+function applyStatusFilter(status: GuestRequestStatus)
+⋮----
+async function updateStatus(action: StaffRequestAction)
+⋮----
+async function saveAssignment(event: FormEvent<HTMLFormElement>)
+⋮----
+async function unassignRequest()
+⋮----
+acknowledgeUrgentRequest(notification.id);
+openRequestRow(notification);
+⋮----
+statusMutation.mutate({
+                          requestId: notification.id,
+                          status: "ACKNOWLEDGED",
+                          note: "Chúng tôi đã tiếp nhận yêu cầu và đang xử lý.",
+                        });
+</file>
+
+<file path="services/auth-service/src/modules/guest-operations/api/hotel-requests.controller.ts">
+import { Body, Controller, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import {
+  ApiBody,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiParam,
+  ApiQuery,
+  ApiTags,
+} from "@nestjs/swagger";
+import type { Request } from "express";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
+import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
+import type { AuthenticatedUser } from "../../../shared/security";
+import { HotelRequestsService } from "../application/hotel-requests.service";
+import { GuestMessagesService } from "../application/guest-messages.service";
+import {
+  createRequestEventBodySchema,
+  guestRequestPriorityValues,
+  listStaffRequestsQuerySchema,
+  requestSummaryQuerySchema,
+  updateRequestAssignmentBodySchema,
+  updateRequestStatusBodySchema,
+  hotelIdParamSchema,
+  listHotelMessagesQuerySchema,
+  messageThreadIdParamSchema,
+  requestIdParamSchema,
+  sendHotelMessageBodySchema,
+} from "../domain/schemas/requests.schema";
+⋮----
+interface RequestWithUser extends Request {
+  user: AuthenticatedUser;
+}
+⋮----
+export class HotelRequestsController {
+⋮----
+constructor(
+⋮----
+async listMessages(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Query() query: unknown,
+)
+⋮----
+async getMessageThread(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("threadId") threadIdParam: string,
+    @Query() query: unknown,
+)
+⋮----
+async replyMessage(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("threadId") threadIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async markMessageThreadRead(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("threadId") threadIdParam: string,
+)
+⋮----
+async listRequests(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Query() query: unknown,
+)
+⋮----
+async getRequestsSummary(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Query() query: unknown,
+)
+⋮----
+async getRequestDetail(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("requestId") requestIdParam: string,
+)
+⋮----
+async updateRequestStatus(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("requestId") requestIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async updateRequestAssignment(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("requestId") requestIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async createRequestEvent(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("requestId") requestIdParam: string,
+    @Body() body: unknown,
+)
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/hotel-ops/service/hotel-ops-service.ts">
+import { unwrapApiEnvelope } from "@/core/http/api-envelope";
+import { HttpClient, type HttpQuery } from "@/core/http/http-client";
+import type {
+  CreateHotelRequestEventInput,
+  CreateHotelRoomInput,
+  CreateHotelStayInput,
+  CreateServiceCategoryInput,
+  CreateServiceItemInput,
+  HotelCheckInResult,
+  HotelDashboard,
+  HotelGuestRequest,
+  HotelArrival,
+  HotelOpsPage,
+  HotelRoomSummary,
+  HotelRequestEvent,
+  HotelReservationCheckInResult,
+  HotelReservationInput,
+  HotelServiceCategory,
+  HotelServiceItem,
+  HotelStaySummary,
+  ListHotelRoomsQuery,
+  ListHotelArrivalsQuery,
+  ListHotelRequestsQuery,
+  ListServiceCategoriesQuery,
+  ListServiceItemsQuery,
+  StaffRequestListItem,
+  StaffRequestSummaryResponse,
+  UpdateHotelRequestAssignmentInput,
+  UpdateHotelRequestStatusInput,
+  UpdateHotelRoomInput,
+  UpdateServiceCategoryInput,
+  UpdateServiceItemInput,
+} from "@/features/hotel-ops/types/hotel-ops-contract";
+⋮----
+export type HotelOpsServiceOptions = {
+  baseUrl: string;
+  timeoutMs?: number;
+};
+⋮----
+type AuthRequestOptions = {
+  accessToken?: string;
+  accessTokenExpiresAt?: number | null;
+};
+⋮----
+function hotelPath(hotelId: string, suffix: string): string
+⋮----
+export class HotelOpsService {
+⋮----
+constructor(options: HotelOpsServiceOptions)
+⋮----
+async issueRequestRealtimeTicket(hotelId: string, accessToken?: string): Promise<
+⋮----
+async getDashboard(hotelId: string, options: AuthRequestOptions =
+⋮----
+async listRooms(
+    hotelId: string,
+    options: { query?: ListHotelRoomsQuery } & AuthRequestOptions = {},
+): Promise<HotelOpsPage<HotelRoomSummary>>
+⋮----
+async listArrivals(
+    hotelId: string,
+    options: { query: ListHotelArrivalsQuery } & AuthRequestOptions,
+): Promise<HotelOpsPage<HotelArrival>>
+⋮----
+async createReservation(
+    hotelId: string,
+    body: HotelReservationInput,
+    accessToken?: string,
+): Promise<HotelArrival>
+⋮----
+async assignReservationRoom(
+    hotelId: string,
+    reservationId: string,
+    roomId: string,
+    accessToken?: string,
+): Promise<HotelArrival>
+⋮----
+async checkInReservation(
+    hotelId: string,
+    reservationId: string,
+    accessToken?: string,
+): Promise<HotelReservationCheckInResult>
+⋮----
+async createRoom(
+    hotelId: string,
+    body: CreateHotelRoomInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelRoomSummary>
+⋮----
+async updateRoom(
+    hotelId: string,
+    roomId: string,
+    body: UpdateHotelRoomInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelRoomSummary>
+⋮----
+async rotateRoomQr(hotelId: string, roomId: string, accessToken?: string, accessTokenExpiresAt?: number | null): Promise<HotelRoomSummary>
+⋮----
+async setRoomQrActive(
+    hotelId: string,
+    roomId: string,
+    active: boolean,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelRoomSummary>
+⋮----
+async createStay(
+    hotelId: string,
+    body: CreateHotelStayInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelStaySummary>
+⋮----
+async checkInStay(hotelId: string, stayId: string, accessToken?: string, accessTokenExpiresAt?: number | null): Promise<HotelStaySummary>
+⋮----
+async createAndCheckInStay(
+    hotelId: string,
+    body: CreateHotelStayInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelCheckInResult>
+⋮----
+async checkOutStay(hotelId: string, stayId: string, accessToken?: string, accessTokenExpiresAt?: number | null): Promise<HotelStaySummary>
+⋮----
+async syncServiceCatalogFromGoogleSheets(hotelId: string, options: AuthRequestOptions =
+⋮----
+async getHotel(
+    hotelId: string,
+    accessToken?: string,
+): Promise<
+⋮----
+async listServiceCategories(
+    hotelId: string,
+    options: { query?: ListServiceCategoriesQuery } & AuthRequestOptions = {},
+): Promise<HotelOpsPage<HotelServiceCategory>>
+⋮----
+async createServiceCategory(
+    hotelId: string,
+    body: CreateServiceCategoryInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelServiceCategory>
+⋮----
+async updateServiceCategory(
+    hotelId: string,
+    categoryId: string,
+    body: UpdateServiceCategoryInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelServiceCategory>
+⋮----
+async listServiceItems(
+    hotelId: string,
+    options: { query?: ListServiceItemsQuery } & AuthRequestOptions = {},
+): Promise<HotelOpsPage<HotelServiceItem>>
+⋮----
+async createServiceItem(
+    hotelId: string,
+    body: CreateServiceItemInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelServiceItem>
+⋮----
+async updateServiceItem(
+    hotelId: string,
+    itemId: string,
+    body: UpdateServiceItemInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelServiceItem>
+⋮----
+async listRequests(
+    hotelId: string,
+    options: { query?: ListHotelRequestsQuery } & AuthRequestOptions = {},
+): Promise<HotelOpsPage<StaffRequestListItem>>
+⋮----
+async getRequestsSummary(
+    hotelId: string,
+    options: { query?: Pick<ListHotelRequestsQuery, "q" | "roomNumber" | "serviceItemId" | "priority" | "assignedToUserId"> } & AuthRequestOptions = {},
+): Promise<StaffRequestSummaryResponse>
+⋮----
+async getRequest(hotelId: string, requestId: string, accessToken?: string, accessTokenExpiresAt?: number | null): Promise<HotelGuestRequest>
+⋮----
+async updateRequestStatus(
+    hotelId: string,
+    requestId: string,
+    body: UpdateHotelRequestStatusInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelGuestRequest>
+⋮----
+async updateRequestAssignment(
+    hotelId: string,
+    requestId: string,
+    body: UpdateHotelRequestAssignmentInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelGuestRequest>
+⋮----
+async createRequestEvent(
+    hotelId: string,
+    requestId: string,
+    body: CreateHotelRequestEventInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelRequestEvent>
+⋮----
+async listMessageThreads(hotelId: string, options:
+⋮----
+async getMessageThread(hotelId: string, threadId: string, options:
+⋮----
+async replyMessageThread(hotelId: string, threadId: string, body: string, accessToken?: string)
+⋮----
+async markMessageThreadRead(hotelId: string, threadId: string, accessToken?: string)
+⋮----
+export function createHotelOpsService(options: HotelOpsServiceOptions): HotelOpsService
+</file>
+
+</files>

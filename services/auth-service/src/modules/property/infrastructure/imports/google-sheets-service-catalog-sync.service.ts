@@ -217,9 +217,12 @@ export class GoogleSheetsServiceCatalogSyncService {
       throw new BadRequestException("Máy chủ chưa cấu hình tài khoản dịch vụ Google Sheets");
     }
 
-    const categoryRange =
-      process.env.GOOGLE_SERVICE_CATEGORY_RANGE?.trim() || DEFAULT_CATEGORY_RANGE;
-    const itemRange = process.env.GOOGLE_SERVICE_ITEM_RANGE?.trim() || DEFAULT_ITEM_RANGE;
+    const categoryRange = this.normalizeRange(
+      process.env.GOOGLE_SERVICE_CATEGORY_RANGE?.trim() || DEFAULT_CATEGORY_RANGE,
+    );
+    const itemRange = this.normalizeRange(
+      process.env.GOOGLE_SERVICE_ITEM_RANGE?.trim() || DEFAULT_ITEM_RANGE,
+    );
 
     try {
       const auth = new google.auth.GoogleAuth({
@@ -269,6 +272,16 @@ export class GoogleSheetsServiceCatalogSyncService {
     return new BadRequestException(
       "Không thể kết nối Google Sheets. Vui lòng kiểm tra cấu hình và thử lại.",
     );
+  }
+
+  private normalizeRange(range: string): string {
+    const separatorIndex = range.indexOf("!");
+    if (separatorIndex < 0) return range;
+    const sheetName = range.slice(0, separatorIndex).trim();
+    if (!/\s/.test(sheetName) || (sheetName.startsWith("'") && sheetName.endsWith("'"))) {
+      return range;
+    }
+    return `'${sheetName.replace(/'/g, "''")}'${range.slice(separatorIndex)}`;
   }
 
   private toParsedSheet(name: "categories" | "items", values: unknown[][]) {

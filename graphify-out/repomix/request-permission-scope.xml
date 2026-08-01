@@ -1,0 +1,316 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: services/auth-service/prisma/seed.js, services/auth-service/src/shared/guard/authorization.guard.ts, services/auth-service/src/modules/identity/application/route-permission-sync.service.ts, services/auth-service/src/modules/identity/tests/application/route-permission-sync.service.spec.ts, services/auth-service/src/modules/property/application/hotel-access.service.ts, frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/requests/page.tsx, frontends/front-end-vietsage/src/app/(vietsage)/staff/front-desk/page.tsx
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    src/
+      app/
+        (vietsage)/
+          hotels/
+            [hotelId]/
+              requests/
+                page.tsx
+          staff/
+            front-desk/
+              page.tsx
+services/
+  auth-service/
+    prisma/
+      seed.js
+    src/
+      modules/
+        identity/
+          application/
+            route-permission-sync.service.ts
+          tests/
+            application/
+              route-permission-sync.service.spec.ts
+        property/
+          application/
+            hotel-access.service.ts
+      shared/
+        guard/
+          authorization.guard.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="services/auth-service/prisma/seed.js">
+async function seedCodes()
+⋮----
+async function seedRoles()
+⋮----
+async function syncExistingPermissionsToSuperAdmin(superAdminRole)
+⋮----
+async function seedSuperAdmin(superAdminRole)
+⋮----
+// Temporary deterministic hash for bootstrap only.
+⋮----
+async function main()
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/staff/front-desk/page.tsx">
+import { redirect } from "next/navigation";
+⋮----
+export default function FrontDeskDashboardPage()
+</file>
+
+<file path="services/auth-service/src/modules/identity/tests/application/route-permission-sync.service.spec.ts">
+import { RequestMethod } from "@nestjs/common";
+import { METHOD_METADATA, PATH_METADATA } from "@nestjs/common/constants";
+import { ModulesContainer } from "@nestjs/core/injector/modules-container";
+import { API_DESCRIPTION_KEY } from "../../../../shared/decorators/api-descript.decorator";
+import { HotelRequestsController } from "../../../guest-operations/api/hotel-requests.controller";
+import { HotelUsersController } from "../../api/hotel-users.controller";
+import { AuthRepository } from "../../infrastructure/repositories/auth.repository";
+import { RoutePermissionSyncService } from "../../application/route-permission-sync.service";
+⋮----
+const setRouteMetadata = (
+    controller: new (...args: any[]) => unknown,
+    controllerPath: string,
+    routes: Array<{
+      handlerName: string;
+      method: RequestMethod;
+      path: string;
+      description?: string;
+    }>,
+) =>
+⋮----
+class DemoController {
+⋮----
+list()
+⋮----
+detail()
+⋮----
+longPath()
+⋮----
+noDescription()
+⋮----
+class PublicController {
+⋮----
+login()
+⋮----
+const clearRouteMetadata = (controller: new (...args: any[]) => unknown, handlers: string[]) =>
+⋮----
+function createModulesContainer(): ModulesContainer
+⋮----
+function extractUpsertKeys(): string[]
+</file>
+
+<file path="services/auth-service/src/shared/guard/authorization.guard.ts">
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
+import type { Request } from "express";
+import { loadAppConfig } from "../../common/config/env.config";
+import { publicMatcher } from "../../common/config/routes.config";
+import type { AuthenticatedUser } from "../security";
+import {
+  AuthorizationService,
+  isPermissionPathTooLong,
+  resolveRoutePermissionKeyFromRequest,
+} from "../../modules/identity/identity-public";
+import { AppLogger } from "../../common/logging/app-logger.service";
+import { REQUIRED_PERMISSION_KEY } from "../decorators/require-permission.decorator";
+import { SKIP_AUTHORIZATION_KEY } from "../decorators/skip-authorization.decorator";
+⋮----
+interface RequestWithAuthenticatedUser extends Request {
+  user?: AuthenticatedUser;
+}
+⋮----
+export class AuthorizationGuard implements CanActivate {
+⋮----
+constructor(
+⋮----
+async canActivate(context: ExecutionContext): Promise<boolean>
+⋮----
+private async authorizeBusinessPermission(
+    request: Request,
+    userId: string,
+    roleId: string,
+    permissionKey: string,
+): Promise<boolean>
+⋮----
+private handleUnresolvedRoute(request: Request): boolean
+⋮----
+private handleOversizedPermissionPath(method: string, path: string): boolean
+</file>
+
+<file path="services/auth-service/src/modules/identity/application/route-permission-sync.service.ts">
+import { HttpMethod, UserStatus, UserType } from "@prisma/client";
+import { Injectable, OnApplicationBootstrap, RequestMethod } from "@nestjs/common";
+import { METHOD_METADATA, PATH_METADATA } from "@nestjs/common/constants";
+import { ModulesContainer } from "@nestjs/core/injector/modules-container";
+⋮----
+import { loadAppConfig } from "../../../common/config/env.config";
+import { AppLogger } from "../../../common/logging/app-logger.service";
+import { resolveModuleKeyFromPath } from "../../../common/config/permission-module.util";
+import { BUSINESS_PERMISSIONS } from "../../../common/config/business-permissions.registry";
+import { publicMatcher } from "../../../common/config/routes.config";
+import { API_DESCRIPTION_KEY } from "../../../shared/decorators/api-descript.decorator";
+import { AuthRepository } from "../infrastructure/repositories/auth.repository";
+import {
+  buildRoutePermissionKey,
+  isPermissionPathTooLong,
+} from "../domain/route-permission-key.util";
+⋮----
+interface RoutePermissionSeed {
+  method: HttpMethod;
+  path: string;
+  description: string;
+}
+⋮----
+interface BootstrapAdminConfig {
+  email: string;
+  name: string;
+  password: string;
+}
+⋮----
+export class RoutePermissionSyncService implements OnApplicationBootstrap {
+⋮----
+constructor(
+⋮----
+async onApplicationBootstrap(): Promise<void>
+⋮----
+private collectRoutePermissions(): RoutePermissionSeed[]
+⋮----
+private collectControllerPermissions(
+    controllerClass: unknown,
+    permissionsByKey: Map<string, RoutePermissionSeed>,
+): void
+⋮----
+private collectHandlerPermissions(
+    handlerCandidate: unknown,
+    controllerPaths: string[],
+    permissionsByKey: Map<string, RoutePermissionSeed>,
+): void
+⋮----
+private createRoutePermissionSeed(
+    method: HttpMethod,
+    controllerPath: string,
+    methodPath: string,
+    description: string | null,
+): RoutePermissionSeed | null
+⋮----
+private async syncAuthAdmin(superAdminRoleId: string): Promise<void>
+⋮----
+private resolveBootstrapAdminConfig(): BootstrapAdminConfig | null
+⋮----
+private resolveMethod(metadata: unknown): HttpMethod | null
+⋮----
+private resolveApiDescription(handler: (...args: unknown[]) => unknown): string | null
+⋮----
+private toPathList(pathMetadata: unknown): string[]
+⋮----
+private handleMissingKey(method: string, controllerPath: string, methodPath: string): void
+⋮----
+private handleOversizedPath(method: string, path: string): void
+⋮----
+private handleMissingDescription(method: string, path: string): void
+⋮----
+private buildMethodLookup(): Map<number, HttpMethod | "ALL">
+</file>
+
+<file path="services/auth-service/src/modules/property/application/hotel-access.service.ts">
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { HotelCoreRepository } from "../infrastructure/repositories/hotel-core.repository";
+import type { HotelDetailRow } from "../infrastructure/repositories/hotel-repository.types";
+⋮----
+export interface HotelActorContext {
+  userId: string;
+  roleCodes: Set<string>;
+  tenantIds: Set<string>;
+  assignedHotelIds?: Set<string>;
+  requiresHotelAssignment?: boolean;
+  isSuperAdmin: boolean;
+  isTenantOwner: boolean;
+}
+⋮----
+export class HotelAccessService {
+⋮----
+constructor(private readonly hotelCoreRepository: HotelCoreRepository)
+⋮----
+async loadActorContext(userId: string, activeRoleId: string): Promise<HotelActorContext>
+⋮----
+async resolveTenantId(actor: HotelActorContext, tenantHint: string | undefined)
+⋮----
+async assertTenantExists(tenantId: string)
+⋮----
+async assertHotelAccess(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+): Promise<HotelDetailRow>
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/requests/page.tsx">
+import { auth } from "@/auth";
+⋮----
+import { notFound } from "next/navigation";
+import { RequestQueueClient } from "./request-queue-client";
+import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
+import type { ListHotelRequestsQuery } from "@/features/hotel-ops/types/hotel-ops-contract";
+import { assertCanAccessHotelOps, canUseHotelId, requireHotelOpsServerTokens } from "@/features/hotel-ops/utils/hotel-route-auth";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
+⋮----
+type RequestsPageProps = {
+  params: Promise<{ hotelId: string }> | { hotelId: string };
+  searchParams?: Promise<Record<string, string | string[] | undefined>> | Record<string, string | string[] | undefined>;
+};
+⋮----
+function getFirst(value: string | string[] | undefined): string | undefined
+⋮----
+function normalizeDayFilter(value: string | undefined, boundary: "start" | "end"): string | undefined
+⋮----
+export default async function HotelRequestsPage(
+</file>
+
+</files>

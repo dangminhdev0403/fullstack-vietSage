@@ -418,7 +418,15 @@ export class HotelRoomsRepository {
     accessCodeHash: string;
     accessCodeExpiresAt: Date;
     actorUserId: string;
-    tenantId: string;
+    tenantId?: string;
+    occupants?: Array<{
+      fullName: string;
+      phone?: string;
+      identityNumber?: string;
+      dateOfBirth?: string;
+      gender?: string;
+      isPrimary?: boolean;
+    }>;
     generateReservationCode: (tx: Prisma.TransactionClient) => Promise<string>;
     generateFolioNumber: (tx: Prisma.TransactionClient) => Promise<string>;
   }) {
@@ -525,6 +533,37 @@ export class HotelRoomsRepository {
           activatedAt: now,
           accessCodeHash: input.accessCodeHash,
           accessCodeExpiresAt: input.accessCodeExpiresAt,
+          occupants: {
+            create: [
+              {
+                hotelId: input.hotelId,
+                fullName: input.guestDisplayName.trim(),
+                phone: input.guestPhone,
+                identityNumber: input.guestIdentityNumber,
+                dateOfBirth: input.guestDateOfBirth,
+                gender: input.guestGender,
+                isPrimary: true,
+              },
+              ...(input.occupants ?? [])
+                .filter(
+                  (occ) =>
+                    occ.fullName.trim() &&
+                    occ.fullName.trim() !== input.guestDisplayName.trim(),
+                )
+                .map((occ) => ({
+                  hotelId: input.hotelId,
+                  fullName: occ.fullName.trim(),
+                  phone: occ.phone?.trim(),
+                  identityNumber: occ.identityNumber?.trim(),
+                  dateOfBirth: occ.dateOfBirth?.trim(),
+                  gender: occ.gender?.trim(),
+                  isPrimary: false,
+                })),
+            ],
+          },
+        },
+        include: {
+          occupants: true,
         },
       });
 

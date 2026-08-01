@@ -5,6 +5,7 @@ import { RequestQueueClient } from "./request-queue-client";
 import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
 import type { ListHotelRequestsQuery } from "@/features/hotel-ops/types/hotel-ops-contract";
 import { assertCanAccessHotelOps, canUseHotelId, requireHotelOpsServerTokens } from "@/features/hotel-ops/utils/hotel-route-auth";
+import { canLoadRequestServiceCatalog } from "@/features/hotel-ops/utils/request-page-permissions";
 import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 
@@ -71,7 +72,9 @@ export default async function HotelRequestsPage({ params, searchParams }: Reques
     [requestsPage, requestSummary, serviceItemsPage] = await Promise.all([
       authorizedApi("list hotel requests", (accessToken) => hotelOpsService.listRequests(hotelId, { query, accessToken })),
       authorizedApi("summarize hotel requests", (accessToken) => hotelOpsService.getRequestsSummary(hotelId, { query: summaryQuery, accessToken })),
-      authorizedApi("list service items", (accessToken) => hotelOpsService.listServiceItems(hotelId, { query: { page: 1, limit: 100 }, accessToken })),
+      canLoadRequestServiceCatalog(workspaceContext.permissions)
+        ? authorizedApi("list service items", (accessToken) => hotelOpsService.listServiceItems(hotelId, { query: { page: 1, limit: 100 }, accessToken }))
+        : Promise.resolve({ page: 1, limit: 100, total: 0, items: [] }),
     ]);
   } catch (error) {
     console.error("[STAFF_REQUESTS_PAGE_ERROR]", {

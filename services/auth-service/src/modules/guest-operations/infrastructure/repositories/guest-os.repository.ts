@@ -40,6 +40,20 @@ export const guestSessionInclude = {
       status: true,
       plannedCheckOutAt: true,
       checkedOutAt: true,
+      occupants: {
+        select: {
+          id: true,
+          fullName: true,
+          isPrimary: true,
+        },
+      },
+    },
+  },
+  occupant: {
+    select: {
+      id: true,
+      fullName: true,
+      isPrimary: true,
     },
   },
 } satisfies Prisma.GuestSessionInclude;

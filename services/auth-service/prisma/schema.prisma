@@ -671,6 +671,7 @@ model GuestStay {
   invoices            Invoice[]
   payments            Payment[]
   messageThreads      GuestMessageThread[]
+  occupants           GuestStayOccupant[]
 
   @@index([hotelId, status])
   @@index([roomId, status])
@@ -678,11 +679,31 @@ model GuestStay {
   @@index([plannedCheckOutAt])
 }
 
+model GuestStayOccupant {
+  id                  String         @id @default(cuid())
+  stayId              String
+  hotelId             String
+  fullName            String         @db.VarChar(120)
+  phone               String?        @db.VarChar(40)
+  identityNumber      String?        @db.VarChar(32)
+  dateOfBirth         String?        @db.VarChar(20)
+  gender              String?        @db.VarChar(20)
+  isPrimary           Boolean        @default(false)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  stay                GuestStay      @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  guestSessions       GuestSession[]
+
+  @@index([stayId])
+  @@index([hotelId])
+}
+
 model GuestSession {
   id                        String                 @id @default(cuid())
   hotelId                   String
   roomId                    String
   stayId                    String
+  occupantId                String?
   roomQrCodeId              String
   sessionTokenHash          String                 @unique @db.VarChar(64)
   status                    GuestSessionStatus     @default(ACTIVE)
@@ -698,6 +719,7 @@ model GuestSession {
   hotel                     Hotel                  @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   room                      Room                   @relation(fields: [roomId], references: [id], onDelete: Cascade)
   stay                      GuestStay              @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  occupant                  GuestStayOccupant?     @relation(fields: [occupantId], references: [id], onDelete: SetNull)
   roomQrCode                RoomQRCode             @relation(fields: [roomQrCodeId], references: [id], onDelete: Cascade)
   guestRequests             GuestRequest[]
   requestEvents             GuestRequestEvent[]

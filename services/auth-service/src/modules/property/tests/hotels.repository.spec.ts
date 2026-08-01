@@ -277,6 +277,7 @@ describe("HotelsRepository check-in QR creation", () => {
         accessCodeExpiresAt: new Date("2026-06-11T07:00:00.000Z"),
         tenantId: "tenant-1",
         generateReservationCode: jest.fn(),
+        generateFolioNumber: jest.fn(),
       }),
     ).rejects.toThrow(
       new BadRequestException("Phòng chưa có QR. Vui lòng tạo QR trước khi check-in."),
@@ -316,9 +317,9 @@ describe("HotelsRepository check-in QR creation", () => {
         actorUserId: "actor-1",
         accessCodeHash: "hash",
         accessCodeExpiresAt: new Date("2026-06-11T07:00:00.000Z"),
-        publicCode: "token_new",
         tenantId: "tenant-1",
         generateReservationCode: jest.fn(),
+        generateFolioNumber: jest.fn(),
       }),
     ).rejects.toThrow(new BadRequestException("Tên khách là bắt buộc để check-in"));
 
@@ -391,7 +392,6 @@ describe("HotelsRepository check-in QR creation", () => {
         actorUserId: "actor-1",
         accessCodeHash: "hash",
         accessCodeExpiresAt: new Date("2026-06-14T07:00:00.000Z"),
-        publicCode: "token_new",
         tenantId: "tenant-1",
         generateReservationCode: jest.fn().mockResolvedValue("VSH_RESERVATION_0002"),
         generateFolioNumber: jest.fn().mockResolvedValue("VSH_FOLIO_0002"),

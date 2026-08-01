@@ -5,6 +5,15 @@ export type CheckInWorkspaceRoom = {
   status: string;
 };
 
+export type CheckInOccupantField = {
+  fullName: string;
+  phone?: string;
+  identityNumber?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  isPrimary?: boolean;
+};
+
 export type CheckInStayFields = {
   guestDisplayName: string;
   guestPhone: string;
@@ -14,6 +23,7 @@ export type CheckInStayFields = {
   guestGender?: string;
   guestNationality?: string;
   guestResidencePlace?: string;
+  occupants?: CheckInOccupantField[];
 };
 
 export type CheckInWorkspaceProps = {
