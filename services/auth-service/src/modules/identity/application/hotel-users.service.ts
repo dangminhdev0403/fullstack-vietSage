@@ -21,14 +21,7 @@ import type {
 import { AuthService } from "./authentication.service";
 import { generateTemporaryPassword } from "../../../common/security/password-policy.util";
 
-const MANAGED_ROLE_CODES = new Set([
-  "HOTEL_MANAGER",
-  "HOTEL_FRONTDESK",
-  "HOTEL_HOUSEKEEPING",
-  "HOTEL_MAINTENANCE",
-  "HOTEL_FNB",
-  "HOTEL_FINANCE",
-]);
+const MANAGED_ROLE_CODES = new Set(["HOTEL_FRONTDESK"]);
 const PROTECTED_ROLE_CODES = new Set(["SUPER_ADMIN", "VIETSAGE_OPERATION", "HOTEL_OWNER"]);
 
 interface ActorContext {
@@ -172,13 +165,27 @@ export class HotelUsersService {
     return this.getTenantScopedHotelUserOrThrow(tenantId, userId);
   }
 
-  async updateHotelUser(actorUserId: string, activeRoleId: string, tenantHint: string | undefined, userId: string, dto: UpdateHotelUserBodyInput): Promise<TenantScopedHotelUser> {
+  async updateHotelUser(
+    actorUserId: string,
+    activeRoleId: string,
+    tenantHint: string | undefined,
+    userId: string,
+    dto: UpdateHotelUserBodyInput,
+  ): Promise<TenantScopedHotelUser> {
     const actor = await this.loadActorContext(actorUserId, activeRoleId);
     const tenantId = await this.resolveTenantId(actor, tenantHint);
     await this.assertTargetUserInTenant(tenantId, userId);
-    const data = { ...(dto.fullName ? { fullName: dto.fullName.trim() } : {}), ...(dto.email ? { email: dto.email.trim().toLowerCase() } : {}) };
-    try { await this.hotelUsersRepository.updateUserProfile(userId, data); }
-    catch (error) { if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") throw new ConflictException("Email already exists"); throw error; }
+    const data = {
+      ...(dto.fullName ? { fullName: dto.fullName.trim() } : {}),
+      ...(dto.email ? { email: dto.email.trim().toLowerCase() } : {}),
+    };
+    try {
+      await this.hotelUsersRepository.updateUserProfile(userId, data);
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002")
+        throw new ConflictException("Email already exists");
+      throw error;
+    }
     return this.getTenantScopedHotelUserOrThrow(tenantId, userId);
   }
 
@@ -304,7 +311,10 @@ export class HotelUsersService {
     const tenantId = await this.resolveTenantId(actor, tenantHint);
     await this.assertTenantExists(tenantId);
 
-    const targetScoped = await this.hotelUsersRepository.findTenantScopedHotelUser(tenantId, targetUserId);
+    const targetScoped = await this.hotelUsersRepository.findTenantScopedHotelUser(
+      tenantId,
+      targetUserId,
+    );
 
     if (!targetScoped) {
       const existsInSystem = await this.hotelUsersRepository.findUserById(targetUserId);
@@ -327,7 +337,9 @@ export class HotelUsersService {
       targetRoles.includes("HOTEL_MANAGER") ||
       !targetRoles.includes("HOTEL_FRONTDESK")
     ) {
-      throw new ForbiddenException("Chỉ được cấp lại mật khẩu cho nhân viên có vai trò HOTEL_FRONTDESK");
+      throw new ForbiddenException(
+        "Chỉ được cấp lại mật khẩu cho nhân viên có vai trò HOTEL_FRONTDESK",
+      );
     }
 
     const temporaryPassword = generateTemporaryPassword(16);

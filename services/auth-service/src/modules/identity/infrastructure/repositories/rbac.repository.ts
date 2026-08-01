@@ -15,6 +15,7 @@ export class RbacRepository {
   async listRolesWithRelations() {
     return this.prisma.role.findMany({
       where: {
+        status: "ACTIVE",
         code: {
           not: "SUPER_ADMIN",
         },

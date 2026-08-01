@@ -122,6 +122,27 @@ describe("HotelUsersService", () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
+  it("blocks assigning legacy hotel roles", async () => {
+    hotelUsersRepository.findActorById.mockResolvedValue({
+      id: "owner-1",
+      userRoles: [{ role: { code: "TENANT_OWNER" } }],
+      tenantUsers: [{ tenantId: "tenant-1" }],
+    });
+    hotelUsersRepository.findTenantUserMembership.mockResolvedValue({
+      joinedAt: null,
+      user: { userType: UserType.HOTEL_STAFF },
+    });
+    hotelUsersRepository.findRolesByIds.mockResolvedValue([
+      { id: "role-manager", code: "HOTEL_MANAGER", name: "Quản lý khách sạn" },
+    ]);
+
+    await expect(
+      service.assignHotelUserRoles("owner-1", "role-owner", "tenant-1", "target-user", {
+        roleIds: ["role-manager"],
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
   it("revokes role by soft status transition", async () => {
     hotelUsersRepository.findActorById.mockResolvedValue({
       id: "actor-1",
@@ -212,10 +233,19 @@ describe("HotelUsersService", () => {
         { id: "role-owner", code: "TENANT_OWNER", name: "Tenant Owner" },
       ]);
       hotelUsersRepository.findTenantById = jest.fn().mockResolvedValue({ id: "tenant-1" });
-      hotelUsersRepository.findTenantScopedHotelUser = jest.fn().mockResolvedValue(frontdeskTargetScopedRow);
-      hotelUsersRepository.updateUserPasswordHashAndRevokeSessions = jest.fn().mockResolvedValue(undefined);
+      hotelUsersRepository.findTenantScopedHotelUser = jest
+        .fn()
+        .mockResolvedValue(frontdeskTargetScopedRow);
+      hotelUsersRepository.updateUserPasswordHashAndRevokeSessions = jest
+        .fn()
+        .mockResolvedValue(undefined);
 
-      const result = await service.resetFrontdeskPassword("owner-1", "role-owner", "tenant-1", "frontdesk-1");
+      const result = await service.resetFrontdeskPassword(
+        "owner-1",
+        "role-owner",
+        "tenant-1",
+        "frontdesk-1",
+      );
 
       expect(result.userId).toBe("frontdesk-1");
       expect(result.temporaryPassword.length).toBe(16);

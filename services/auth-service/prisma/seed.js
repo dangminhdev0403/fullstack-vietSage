@@ -1,28 +1,21 @@
-const crypto = require('node:crypto');
+const crypto = require("node:crypto");
 const {
   PrismaClient,
   UserStatus,
   UserType,
   TenantUserStatus,
   UserRoleStatus,
-} = require('@prisma/client');
+} = require("@prisma/client");
 
 const prisma = new PrismaClient();
 
 const DEFAULT_ROLES = [
-  { code: 'SUPER_ADMIN', name: 'Quản trị viên cấp cao' },
-  { code: 'VIETSAGE_OPERATION', name: 'Vận hành VietSage' },
-  { code: 'TENANT_OWNER', name: 'Chủ đơn vị' },
-  { code: 'HOTEL_OWNER', name: 'Chủ khách sạn' },
-  { code: 'HOTEL_MANAGER', name: 'Quản lý khách sạn' },
-  { code: 'HOTEL_FRONTDESK', name: 'Lễ tân khách sạn' },
-  { code: 'HOTEL_HOUSEKEEPING', name: 'Buồng phòng khách sạn' },
-  { code: 'HOTEL_MAINTENANCE', name: 'Kỹ thuật khách sạn' },
-  { code: 'HOTEL_FNB', name: 'Ẩm thực khách sạn' },
-  { code: 'HOTEL_FINANCE', name: 'Tài chính khách sạn' },
+  { code: "SUPER_ADMIN", name: "Quản trị viên cấp cao" },
+  { code: "TENANT_OWNER", name: "Chủ đơn vị" },
+  { code: "HOTEL_FRONTDESK", name: "Lễ tân khách sạn" },
 ];
 
-const DEFAULT_CODES = ['TENANT', 'HOTEL', 'ROOM', 'SERVICE', 'AIRPORT', 'RESERVATION'];
+const DEFAULT_CODES = ["TENANT", "HOTEL", "ROOM", "SERVICE", "AIRPORT", "RESERVATION"];
 
 async function seedCodes() {
   for (const name of DEFAULT_CODES) {
@@ -45,9 +38,9 @@ async function seedRoles() {
     roleByCode.set(savedRole.code, savedRole);
   }
 
-  const superAdminRole = roleByCode.get('SUPER_ADMIN');
+  const superAdminRole = roleByCode.get("SUPER_ADMIN");
   if (!superAdminRole) {
-    throw new Error('Không tạo được vai trò SUPER_ADMIN.');
+    throw new Error("Không tạo được vai trò SUPER_ADMIN.");
   }
 
   return { superAdminRole };
@@ -77,34 +70,33 @@ async function syncExistingPermissionsToSuperAdmin(superAdminRole) {
 
 async function seedSuperAdmin(superAdminRole) {
   const tenant = await prisma.tenant.upsert({
-    where: { code: 'VIETSAGE_ROOT' },
-    update: { name: 'Tenant gốc VietSage' },
+    where: { code: "VIETSAGE_ROOT" },
+    update: { name: "Tenant gốc VietSage" },
     create: {
-      code: 'VIETSAGE_ROOT',
-      name: 'Tenant gốc VietSage',
+      code: "VIETSAGE_ROOT",
+      name: "Tenant gốc VietSage",
     },
   });
 
-  const superAdminEmail =
-    process.env.SEED_SUPER_ADMIN_EMAIL ?? 'admin@vietsage.local';
+  const superAdminEmail = process.env.SEED_SUPER_ADMIN_EMAIL ?? "admin@vietsage.local";
 
   // Temporary deterministic hash for bootstrap only.
   const passwordHash = crypto
-    .createHash('sha256')
-    .update(process.env.SEED_SUPER_ADMIN_PASSWORD ?? 'ChangeMe123!')
-    .digest('hex');
+    .createHash("sha256")
+    .update(process.env.SEED_SUPER_ADMIN_PASSWORD ?? "ChangeMe123!")
+    .digest("hex");
 
   const superAdmin = await prisma.user.upsert({
     where: { email: superAdminEmail },
     update: {
-      fullName: 'Quản trị viên cấp cao VietSage',
+      fullName: "Quản trị viên cấp cao VietSage",
       status: UserStatus.ACTIVE,
       userType: UserType.VIETSAGE_ADMIN,
     },
     create: {
       email: superAdminEmail,
       passwordHash,
-      fullName: 'Quản trị viên cấp cao VietSage',
+      fullName: "Quản trị viên cấp cao VietSage",
       status: UserStatus.ACTIVE,
       userType: UserType.VIETSAGE_ADMIN,
     },

@@ -1,8 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-// @ts-expect-error Node's strip-types runner requires the explicit TypeScript extension.
-import { canAccessHotelScope, resolveExplicitAccessibleHotel, resolveSingleAssignedHotel, resolveWorkspacePersona, type WorkspaceContext } from "./workspace-context.ts";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore Node's strip-types runner requires the explicit TypeScript extension.
+const workspaceContext = await import("./workspace-context.ts");
+const {
+  canAccessHotelScope,
+  resolveExplicitAccessibleHotel,
+  resolveSingleAssignedHotel,
+  resolveWorkspacePersona,
+} = workspaceContext;
+type WorkspaceContext = import("./workspace-context").WorkspaceContext;
 
 const frontDeskContext: WorkspaceContext = {
   activeRole: {
@@ -20,15 +28,25 @@ const frontDeskContext: WorkspaceContext = {
 test("maps established role templates to workspace personas", () => {
   assert.equal(resolveWorkspacePersona("SUPER_ADMIN"), "platform_admin");
   assert.equal(resolveWorkspacePersona("HOTEL_OWNER"), "owner");
-  assert.equal(resolveWorkspacePersona("HOTEL_MANAGER"), "manager");
+  assert.equal(resolveWorkspacePersona("HOTEL_MANAGER"), "front_desk");
+  assert.equal(resolveWorkspacePersona("HOTEL_HOUSEKEEPING"), "front_desk");
+  assert.equal(resolveWorkspacePersona("HOTEL_MAINTENANCE"), "front_desk");
+  assert.equal(resolveWorkspacePersona("HOTEL_FNB"), "front_desk");
+  assert.equal(resolveWorkspacePersona("HOTEL_FINANCE"), "front_desk");
   assert.equal(resolveWorkspacePersona("HOTEL_FRONTDESK"), "front_desk");
   assert.equal(resolveWorkspacePersona("UNKNOWN_ROLE"), null);
 });
 
 test("requires an explicit hotel selection and never infers the first assignment", () => {
   assert.equal(resolveExplicitAccessibleHotel(frontDeskContext, null), null);
-  assert.equal(resolveExplicitAccessibleHotel(frontDeskContext, "hotel-2")?.id, "hotel-2");
-  assert.equal(resolveExplicitAccessibleHotel(frontDeskContext, "hotel-outside"), null);
+  assert.equal(
+    resolveExplicitAccessibleHotel(frontDeskContext, "hotel-2")?.id,
+    "hotel-2",
+  );
+  assert.equal(
+    resolveExplicitAccessibleHotel(frontDeskContext, "hotel-outside"),
+    null,
+  );
 });
 
 test("resolves a staff hotel only when exactly one active assignment exists", () => {
