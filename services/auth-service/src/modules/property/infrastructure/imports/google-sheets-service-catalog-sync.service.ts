@@ -18,8 +18,10 @@ type SyncSummary = {
   inserted: number;
   updated: number;
   skipped: number;
+  skippedRows: number;
   durationMs: number;
   errors: string[];
+  warnings: string[];
 };
 
 @Injectable()
@@ -133,9 +135,9 @@ export class GoogleSheetsServiceCatalogSyncService {
         hotelId,
       });
 
-      const preview = await this.importService.preview({
+      const previewInput = {
         type: "service-catalog",
-        mode: "upsert",
+        mode: "upsert" as const,
         context: {
           hotelId,
           actorUserId,
@@ -143,14 +145,8 @@ export class GoogleSheetsServiceCatalogSyncService {
           systemSync: actorUserId === SYSTEM_ACTOR_USER_ID,
         },
         workbook,
-      });
-
-      const validationErrors = preview.validation.filter((issue) => issue.severity === "error");
-      if (validationErrors.length) {
-        const detail = this.formatValidationErrors(validationErrors);
-        errors.push(detail);
-        throw new BadRequestException(detail);
-      }
+      };
+      const { preview, skippedIssues } = await this.previewValidRows(previewInput);
 
       this.logger.info("Google Sheets sync upsert started", {
         module: "hotels",
@@ -174,8 +170,10 @@ export class GoogleSheetsServiceCatalogSyncService {
         inserted: result.summary.create,
         updated: result.summary.update,
         skipped: result.summary.unchanged,
+        skippedRows: new Set(skippedIssues.map((issue) => `${issue.sheet}:${issue.row}`)).size,
         durationMs,
         errors,
+        warnings: skippedIssues.length ? [this.formatValidationErrors(skippedIssues)] : [],
       };
 
       this.logger.info("Google Sheets sync summary", {
@@ -305,6 +303,43 @@ export class GoogleSheetsServiceCatalogSyncService {
     return issues
       .map((issue) => `${issue.sheet}:${issue.row ?? "?"}:${issue.column ?? "?"} ${issue.message}`)
       .join("; ");
+  }
+
+  private async previewValidRows(input: Parameters<ImportService["preview"]>[0]) {
+    let workbook: ParsedImportWorkbook = {
+      ...input.workbook,
+      sheets: input.workbook.sheets.map((sheet) => ({ ...sheet, rows: [...sheet.rows] })),
+    };
+    const skippedIssues: ImportValidationIssue[] = [];
+
+    while (true) {
+      const preview = await this.importService.preview({ ...input, workbook });
+      const validationErrors = preview.validation.filter((issue) => issue.severity === "error");
+      if (validationErrors.length === 0) return { preview, skippedIssues };
+
+      const blockingErrors = validationErrors.filter((issue) => issue.row == null);
+      if (blockingErrors.length) {
+        throw new BadRequestException(this.formatValidationErrors(blockingErrors));
+      }
+
+      const invalidRows = new Set(validationErrors.map((issue) => `${issue.sheet}:${issue.row}`));
+      const nextWorkbook = {
+        ...workbook,
+        sheets: workbook.sheets.map((sheet) => ({
+          ...sheet,
+          rows: sheet.rows.filter((row) => !invalidRows.has(`${sheet.name}:${row.rowNumber}`)),
+        })),
+      };
+      const removedRows = workbook.sheets.reduce(
+        (count, sheet, index) => count + sheet.rows.length - nextWorkbook.sheets[index].rows.length,
+        0,
+      );
+      if (removedRows === 0) {
+        throw new BadRequestException(this.formatValidationErrors(validationErrors));
+      }
+      skippedIssues.push(...validationErrors);
+      workbook = nextWorkbook;
+    }
   }
 
   private toParsedSheet(name: "categories" | "items", values: unknown[][]) {

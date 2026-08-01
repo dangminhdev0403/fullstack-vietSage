@@ -1,8 +1,8 @@
 import { GoogleSheetsServiceCatalogSyncService } from "../../../infrastructure/imports/google-sheets-service-catalog-sync.service";
 
-function createService() {
+function createService(importService: Record<string, unknown> = {}) {
   return new GoogleSheetsServiceCatalogSyncService(
-    {} as never,
+    importService as never,
     {} as never,
     {} as never,
     {} as never,
@@ -10,6 +10,85 @@ function createService() {
 }
 
 describe("GoogleSheetsServiceCatalogSyncService", () => {
+  it("removes invalid rows, previews again, then commits valid rows", async () => {
+    const firstPreview = {
+      validation: [
+        {
+          severity: "error",
+          sheet: "items",
+          row: 3,
+          column: "category_key",
+          code: "CATEGORY_KEY_NOT_FOUND",
+          message: 'Mã nhóm "spa" chưa có trong tab Nhóm dịch vụ',
+        },
+      ],
+    };
+    const cleanPreview = { validation: [], marker: "clean" };
+    const importService = {
+      preview: jest.fn().mockResolvedValueOnce(firstPreview).mockResolvedValueOnce(cleanPreview),
+    };
+    const service = createService(importService) as unknown as {
+      previewValidRows: (input: Record<string, unknown>) => Promise<{
+        preview: unknown;
+        skippedIssues: Array<Record<string, unknown>>;
+      }>;
+    };
+    const workbook = {
+      fileName: "sheet",
+      sheets: [
+        { name: "categories", rows: [{ rowNumber: 2, values: { category_key: "room" } }] },
+        {
+          name: "items",
+          rows: [
+            { rowNumber: 2, values: { item_key: "valid" } },
+            { rowNumber: 3, values: { item_key: "invalid" } },
+          ],
+        },
+      ],
+    };
+
+    const result = await service.previewValidRows({
+      type: "service-catalog",
+      mode: "upsert",
+      context: {},
+      workbook,
+    });
+
+    expect(result.preview).toBe(cleanPreview);
+    expect(result.skippedIssues).toEqual(firstPreview.validation);
+    expect(importService.preview).toHaveBeenCalledTimes(2);
+    expect(importService.preview.mock.calls[1][0].workbook.sheets[1].rows).toEqual([
+      { rowNumber: 2, values: { item_key: "valid" } },
+    ]);
+  });
+
+  it("keeps sheet-level validation errors blocking", async () => {
+    const importService = {
+      preview: jest.fn().mockResolvedValue({
+        validation: [
+          {
+            severity: "error",
+            sheet: "items",
+            code: "REQUIRED_COLUMN_MISSING",
+            message: "Thiếu cột bắt buộc",
+          },
+        ],
+      }),
+    };
+    const service = createService(importService) as unknown as {
+      previewValidRows: (input: Record<string, unknown>) => Promise<unknown>;
+    };
+
+    await expect(
+      service.previewValidRows({
+        type: "service-catalog",
+        mode: "upsert",
+        context: {},
+        workbook: { fileName: "sheet", sheets: [{ name: "items", rows: [] }] },
+      }),
+    ).rejects.toThrow("Thiếu cột bắt buộc");
+  });
+
   it("summarizes repeated missing category errors", () => {
     const service = createService() as unknown as {
       formatValidationErrors: (issues: Array<Record<string, unknown>>) => string;
