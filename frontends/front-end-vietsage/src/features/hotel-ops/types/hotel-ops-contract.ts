@@ -113,6 +113,15 @@ export type HotelStaySummary = {
   checkedOutAt?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
+  occupants?: Array<{
+    id: string;
+    fullName: string;
+    phone?: string | null;
+    identityNumber?: string | null;
+    dateOfBirth?: string | null;
+    gender?: string | null;
+    isPrimary?: boolean;
+  }> | null;
 };
 
 export type HotelCheckInResult = {

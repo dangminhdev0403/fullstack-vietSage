@@ -309,7 +309,7 @@
   "307": "change-password-dialog.tsx",
   "308": "page.tsx",
   "309": "app-logger.service.ts",
-  "311": "config.ts",
+  "310": "@dangminhdev04032005/query-resource",
   "314": "check-in-workspace-layout.test.ts",
   "319": "qrcode.react",
   "321": "use-google-sheet-config.ts",

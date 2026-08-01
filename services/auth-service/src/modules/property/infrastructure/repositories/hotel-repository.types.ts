@@ -23,6 +23,13 @@ export const roomListInclude = {
         in: [GuestStayStatus.ACTIVE],
       },
     },
+    include: {
+      occupants: {
+        orderBy: {
+          createdAt: "asc",
+        },
+      },
+    },
     orderBy: {
       createdAt: "desc",
     },

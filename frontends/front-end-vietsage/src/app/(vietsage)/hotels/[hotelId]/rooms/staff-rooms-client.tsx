@@ -350,7 +350,7 @@ export function StaffRoomsClient({
       });
     const popup = window.open("", "vietsage-stay-list");
     if (!popup) return;
-    const rows = activeStays.map(({ room, stay }) => {
+    const rows = activeStays.flatMap(({ room, stay }) => {
       const cccd = stay?.guestIdentityNumber || "chưa có";
       const dob = stay?.guestDateOfBirth || "chưa có";
       const gender = stay?.guestGender || "chưa có";
@@ -358,7 +358,18 @@ export function StaffRoomsClient({
       const address = stay?.guestResidencePlace || "chưa có";
       const phone = stay?.guestPhone || "chưa có";
       const checkIn = formatDateTime(stay?.checkedInAt ?? stay?.plannedCheckInAt);
-      return `<tr><td>${getRoomNumber(room)}</td><td>${stay?.guestDisplayName ?? "chưa có"}</td><td>${cccd}</td><td>${dob}</td><td>${gender}</td><td>${nationality}</td><td>${address}</td><td>${phone}</td><td>${checkIn}</td></tr>`;
+
+      const primaryRow = `<tr><td><strong>${getRoomNumber(room)}</strong></td><td><strong>${stay?.guestDisplayName ?? "chưa có"}</strong> <span style="font-size:11px;color:#0284c7;font-weight:600">(Đại diện)</span></td><td>${cccd}</td><td>${dob}</td><td>${gender}</td><td>${nationality}</td><td>${address}</td><td>${phone}</td><td>${checkIn}</td></tr>`;
+
+      const occupantRows = (stay?.occupants || []).map((occ) => {
+        const occCccd = occ.identityNumber || "chưa có";
+        const occDob = occ.dateOfBirth || "chưa có";
+        const occGender = occ.gender || "chưa có";
+        const occPhone = occ.phone || "chưa có";
+        return `<tr><td style="color:#64748b;font-size:12px">↳ ${getRoomNumber(room)}</td><td>${occ.fullName} <span style="font-size:11px;color:#475569">(Ở cùng)</span></td><td>${occCccd}</td><td>${occDob}</td><td>${occGender}</td><td>-</td><td>-</td><td>${occPhone}</td><td>${checkIn}</td></tr>`;
+      });
+
+      return [primaryRow, ...occupantRows];
     }).join("");
     popup.document.write(`<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>Danh sách lưu trú</title><style>body{font-family:Arial,sans-serif;padding:32px;color:#17201b}h1{margin:0 0 8px}p{color:#5d6a61}table{border-collapse:collapse;width:100%;margin-top:24px}th,td{border:1px solid #cbd5ce;padding:9px;text-align:left;font-size:13px}th{background:#eef3ee}</style></head><body><h1>Danh sách khách đang lưu trú</h1><p>Khách sạn ${hotelId} · In lúc ${formatDateTime(printedAt.toISOString())}</p><table><thead><tr><th>Phòng</th><th>Họ tên</th><th>Số CCCD</th><th>Ngày sinh</th><th>Giới tính</th><th>Quốc tịch</th><th>Địa chỉ</th><th>Số điện thoại</th><th>Nhận phòng</th></tr></thead><tbody>${rows || '<tr><td colspan="9">Không có khách lưu trú từ 0h hôm nay đến thời điểm in.</td></tr>'}</tbody></table><script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}</script></body></html>`);
     popup.document.close();
