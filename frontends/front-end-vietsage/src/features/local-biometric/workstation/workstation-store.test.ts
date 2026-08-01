@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 // @ts-expect-error Node strip-types requires explicit extension.
+import { acceptsRecognitionBodyLength, recognitionRelayAvailable } from "./workstation-auth.ts";
+// @ts-expect-error Node strip-types requires explicit extension.
 import { WorkstationStore } from "./workstation-store.ts";
 
 const result = {
@@ -157,4 +159,89 @@ test("hot reload can upgrade an existing workstation store instance", () => {
   assert.equal(typeof store.disconnectHotel, "undefined");
   Object.setPrototypeOf(store, WorkstationStore.prototype);
   assert.equal(typeof store.disconnectHotel, "function");
+});
+
+test("recognition hotel is derived from workstation token and duplicate is idempotent", () => {
+  const secrets = ["pair-a", "token-a", "pair-b", "token-b"];
+  const store = new WorkstationStore(() => 1_000, () => secrets.shift()!);
+  const a = store.pair(store.issuePairing("hotel-a", "operator-a").code)!;
+  store.pair(store.issuePairing("hotel-b", "operator-b").code)!;
+  const payload = {
+    providerEventId: "event-1", deviceId: "senseface-1", deviceUserId: "900000001",
+    occurredAt: "2026-08-01T10:00:00.000Z", sourceTable: "ATTLOG", verifyType: "255", eventCode: "1",
+    deviceIndex: "7", inOutStatus: "0",
+  };
+  assert.deepEqual(store.ingestRecognition(a.token, payload), { accepted: true, duplicate: false });
+  assert.deepEqual(store.ingestRecognition(a.token, payload), { accepted: true, duplicate: true });
+  assert.equal(store.listRecognitions("hotel-a").length, 1);
+  assert.equal(store.listRecognitions("hotel-b").length, 0);
+  assert.equal(store.listRecognitions("hotel-a")[0]?.hotelId, "hotel-a");
+  assert.equal(store.listRecognitions("hotel-a")[0]?.deviceIndex, "7");
+  assert.equal(store.listRecognitions("hotel-a")[0]?.inOutStatus, "0");
+});
+
+test("unknown or expired workstation cannot ingest recognition", () => {
+  let now = 1_000;
+  const store = new WorkstationStore(() => now, () => "secret");
+  const workstation = store.pair(store.issuePairing("hotel-a", "operator-a").code, 1)!;
+  now = 2_000;
+  assert.equal(store.ingestRecognition(workstation.token, {
+    providerEventId: "event-1", deviceId: "senseface-1", deviceUserId: "900000001",
+    occurredAt: "2026-08-01T10:00:00.000Z", sourceTable: "ATTLOG", verifyType: "255", eventCode: "1",
+  }), null);
+});
+
+test("dedupe is isolated by hotel", () => {
+  const secrets = ["pair-a", "token-a", "pair-b", "token-b"];
+  const store = new WorkstationStore(() => 1_000, () => secrets.shift()!);
+  const a = store.pair(store.issuePairing("hotel-a", "operator-a").code)!;
+  const b = store.pair(store.issuePairing("hotel-b", "operator-b").code)!;
+  const payload = {
+    providerEventId: "event-1", deviceId: "senseface-1", deviceUserId: "900000001",
+    occurredAt: "2026-08-01T10:00:00.000Z", sourceTable: "ATTLOG", verifyType: "255", eventCode: "1",
+  };
+
+  assert.deepEqual(store.ingestRecognition(a.token, payload), { accepted: true, duplicate: false });
+  assert.deepEqual(store.ingestRecognition(b.token, payload), { accepted: true, duplicate: false });
+});
+
+test("recognitions expire and public listing omits device user id", () => {
+  let now = 1_000;
+  const store = new WorkstationStore(() => now, () => "secret");
+  const workstation = store.pair(store.issuePairing("hotel-a", "operator-a").code)!;
+  store.ingestRecognition(workstation.token, {
+    providerEventId: "event-1", deviceId: "senseface-1", deviceUserId: "900000001",
+    occurredAt: "2026-08-01T10:00:00.000Z", sourceTable: "ATTLOG", verifyType: "255", eventCode: "1",
+  });
+
+  assert.equal("deviceUserId" in store.listRecognitions("hotel-a")[0]!, false);
+  now += 24 * 60 * 60 * 1_000 + 1;
+  assert.equal(store.listRecognitions("hotel-a").length, 0);
+});
+
+test("recognition storage is bounded", () => {
+  const secrets = ["pair-a", "token-a"];
+  const store = new WorkstationStore(() => 1_000, () => secrets.shift()!);
+  const workstation = store.pair(store.issuePairing("hotel-a", "operator-a").code)!;
+  for (let index = 0; index <= 1_000; index++) {
+    store.ingestRecognition(workstation.token, {
+      providerEventId: `event-${index}`, deviceId: "senseface-1", deviceUserId: `${index}`,
+      occurredAt: "2026-08-01T10:00:00.000Z", sourceTable: "ATTLOG", verifyType: "255", eventCode: "1",
+    });
+  }
+
+  assert.equal(store.listRecognitions("hotel-a", 2_000).length, 1_000);
+});
+
+test("recognition body length is required and capped", () => {
+  assert.equal(acceptsRecognitionBodyLength(null), false);
+  assert.equal(acceptsRecognitionBodyLength("0"), false);
+  assert.equal(acceptsRecognitionBodyLength("1024"), true);
+  assert.equal(acceptsRecognitionBodyLength("65537"), false);
+});
+
+test("process-local recognition relay is unavailable in production", () => {
+  assert.equal(recognitionRelayAvailable("production"), false);
+  assert.equal(recognitionRelayAvailable("development"), true);
+  assert.equal(recognitionRelayAvailable("test"), true);
 });

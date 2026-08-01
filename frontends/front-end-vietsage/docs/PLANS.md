@@ -1,3 +1,20 @@
+## [local-complete] 2026-08-01 - Mission: FaceID recognition relay
+
+- Added hotel-scoped, credential-authenticated recognition ingestion with device/event dedupe.
+- Added authorized hotel recent-event API; hotel identity derives from workstation credential, never receiver payload.
+- Wired local SQLite event spool draining independently from command polling; local ACK occurs only after cloud acceptance.
+
+Verification result:
+
+- Local receiver focused suites passed 52/52; Python compile passed.
+- Workstation store contracts passed 13/13; scoped ESLint and TypeScript passed.
+- Runtime receiver restarted; `8765` and `18081` listening. Face readiness reports PUSH + TCP ready.
+
+Remaining blockers/risks:
+
+- Recognition relay returns `503` in production while storage is process-local. Shared persistent DB/store is required before production enablement or multi-instance deployment.
+- Real face scan, notification UI, production deploy remain pending.
+
 ## [pending-production] 2026-08-01 - Mission: CCCD-first check-in redesign
 
 - Reworked the shared Owner/Staff `CheckInWorkspace` into a guided three-step flow with compact room context, stronger CCCD verification hierarchy, balanced desktop columns, and full-screen mobile behavior.

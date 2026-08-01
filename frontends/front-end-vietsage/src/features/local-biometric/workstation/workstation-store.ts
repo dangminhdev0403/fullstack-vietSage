@@ -11,11 +11,22 @@ type Scan = {
   claimedBy: string | null;
   status: "waiting" | "claimed" | "received" | "acknowledged" | "discarded";
 };
+export type RecognitionInput = {
+  providerEventId: string; deviceId: string; deviceUserId: string; occurredAt: string;
+  sourceTable: string; verifyType: string; eventCode: string;
+  deviceIndex?: string; inOutStatus?: string;
+};
+export type Recognition = RecognitionInput & { hotelId: string; receivedAt: number };
+export type PublicRecognition = Omit<Recognition, "deviceUserId">;
+
+const RECOGNITION_TTL_MS = 24 * 60 * 60 * 1_000;
+const MAX_RECOGNITIONS = 1_000;
 
 export class WorkstationStore {
   private readonly pairings = new Map<string, Pairing>();
   private readonly workstations = new Map<string, Workstation>();
   private readonly scans = new Map<string, Scan>();
+  private readonly recognitions = new Map<string, Recognition>();
   private readonly now: () => number;
   private readonly createSecret: () => string;
 
@@ -147,6 +158,39 @@ export class WorkstationStore {
     return [...this.workstations.values()].some((item) =>
       item.hotelId === hotelId && this.now() < item.expiresAt && this.now() - item.lastSeenAt <= freshnessMs,
     );
+  }
+
+  ingestRecognition(token: string, payload: RecognitionInput) {
+    const workstation = this.workstations.get(token);
+    if (!workstation || this.now() >= workstation.expiresAt) return null;
+    workstation.lastSeenAt = this.now();
+    this.cleanupRecognitions();
+    const key = `${workstation.hotelId}\u001f${payload.deviceId}\u001f${payload.providerEventId}`;
+    if (this.recognitions.has(key)) return { accepted: true, duplicate: true };
+    this.recognitions.set(key, { ...payload, hotelId: workstation.hotelId, receivedAt: this.now() });
+    while (this.recognitions.size > MAX_RECOGNITIONS) {
+      this.recognitions.delete(this.recognitions.keys().next().value as string);
+    }
+    return { accepted: true, duplicate: false };
+  }
+
+  listRecognitions(hotelId: string, limit = 50): PublicRecognition[] {
+    this.cleanupRecognitions();
+    return [...this.recognitions.values()]
+      .filter((event) => event.hotelId === hotelId)
+      .sort((a, b) => b.receivedAt - a.receivedAt)
+      .slice(0, Math.min(Math.max(limit, 0), MAX_RECOGNITIONS))
+      .map(({ deviceUserId, ...event }) => {
+        void deviceUserId;
+        return event;
+      });
+  }
+
+  private cleanupRecognitions() {
+    const cutoff = this.now() - RECOGNITION_TTL_MS;
+    for (const [key, event] of this.recognitions) {
+      if (event.receivedAt < cutoff) this.recognitions.delete(key);
+    }
   }
 
   disconnectHotel(hotelId: string) {
