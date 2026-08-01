@@ -52,24 +52,29 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
   { key: "admin.hotels", personas: ["platform_admin"], href: "/admin/hotels", label: "Khách sạn", icon: "hotel", order: 20, anyCapabilities: ["platform.hotels.view", "platform.hotels.manage"] },
   { key: "admin.users", personas: ["platform_admin"], href: "/admin/users", label: "Người dùng", icon: "group", order: 30, anyCapabilities: ["platform.users.view", "platform.users.manage"] },
   { key: "admin.access", personas: ["platform_admin"], href: "/admin/roles", label: "Vai trò & quyền", icon: "verified_user", order: 40, anyCapabilities: ["platform.roles.view", "platform.roles.manage", "platform.permissions.manage"] },
+
   { key: "owner.home", personas: ["owner"], href: "/owner/dashboard", label: "Tổng quan danh mục", icon: "dashboard", order: 10 },
   { key: "owner.hotels", personas: ["owner"], href: "/owner/hotels", label: "Khách sạn", icon: "hotel", order: 20 },
   { key: "owner.staff", personas: ["owner"], href: "/owner/staff", label: "Nhân viên", icon: "group", order: 30, anyCapabilities: ["hotel.staff.view", "hotel.staff.manage"] },
-  { key: "owner.hotel.overview", personas: ["owner"], href: "/owner/hotels/{hotelId}", label: "Thông tin khách sạn", icon: "hotel", order: 100, requiresHotel: true, anyCapabilities: ["hotel.dashboard.view"] },
-  { key: "owner.hotel.biometric", personas: ["owner"], href: "/owner/hotels/{hotelId}/biometric", label: "Máy quét CCCD", icon: "badge", order: 110, requiresHotel: true, anyCapabilities: ["hotel.stays.manage"] },
-  { key: "owner.hotel.rooms", personas: ["owner"], href: "/owner/hotels/{hotelId}/rooms", label: "Phòng & lưu trú", icon: "bed", order: 120, requiresHotel: true, anyCapabilities: ["hotel.rooms.view", "hotel.rooms.manage", "hotel.rooms.qr.manage", "hotel.stays.view", "hotel.stays.manage", "hotel.reservations.view", "hotel.reservations.manage"] },
 
+  // Cấu hình / Thiết lập (Configuration & Catalog Setup)
+  { key: "owner.hotel.overview", personas: ["owner"], href: "/owner/hotels/{hotelId}", label: "Thông tin khách sạn", icon: "hotel", order: 100, requiresHotel: true, anyCapabilities: ["hotel.dashboard.view"] },
+  { key: "owner.hotel.biometric", personas: ["owner"], href: "/owner/hotels/{hotelId}/biometric", label: "Máy quét CCCD", icon: "badge", order: 105, requiresHotel: true, anyCapabilities: ["hotel.stays.manage"] },
+  { key: "owner.hotel.services", personas: ["owner"], href: "/owner/hotels/{hotelId}/services", label: "Dịch vụ", icon: "concierge", order: 110, requiresHotel: true, anyCapabilities: ["hotel.services.view", "hotel.services.manage"] },
+
+  // Xử lý / Vận hành (Operations & Processing)
+  { key: "owner.hotel.rooms", personas: ["owner"], href: "/owner/hotels/{hotelId}/rooms", label: "Phòng & lưu trú", icon: "bed", order: 120, requiresHotel: true, anyCapabilities: ["hotel.rooms.view", "hotel.rooms.manage", "hotel.rooms.qr.manage", "hotel.stays.view", "hotel.stays.manage", "hotel.reservations.view", "hotel.reservations.manage"] },
   { key: "owner.hotel.requests", personas: ["owner"], href: "/owner/hotels/{hotelId}/requests", label: "Yêu cầu khách", icon: "assignment", order: 130, requiresHotel: true, anyCapabilities: ["hotel.requests.view", "hotel.requests.manage"] },
-  { key: "owner.hotel.services", personas: ["owner"], href: "/owner/hotels/{hotelId}/services", label: "Dịch vụ", icon: "concierge", order: 150, requiresHotel: true, anyCapabilities: ["hotel.services.view", "hotel.services.manage"] },
-  { key: "owner.hotel.billing", personas: ["owner"], href: "/owner/hotels/{hotelId}/billing", label: "Thanh toán", icon: "inventory_2", order: 160, requiresHotel: true, anyCapabilities: ["hotel.billing.view", "hotel.billing.manage"] },
-  { key: "staff.dashboard", personas: STAFF_PERSONAS, href: "/hotels/{hotelId}/dashboard", label: "Điều hành hôm nay", icon: "space_dashboard", order: 20, requiresHotel: true, anyCapabilities: ["hotel.dashboard.view"] },
+  { key: "owner.hotel.billing", personas: ["owner"], href: "/owner/hotels/{hotelId}/billing", label: "Thanh toán", icon: "inventory_2", order: 140, requiresHotel: true, anyCapabilities: ["hotel.billing.view", "hotel.billing.manage"] },
+
+  // Staff Navigation (Cấu hình trước, Xử lý sau)
+  { key: "staff.dashboard", personas: STAFF_PERSONAS, href: "/hotels/{hotelId}/dashboard", label: "Điều hành hôm nay", icon: "space_dashboard", order: 10, requiresHotel: true, anyCapabilities: ["hotel.dashboard.view"] },
+  { key: "staff.biometric", personas: ["manager", "front_desk"], href: "/hotels/{hotelId}/biometric", label: "Máy quét CCCD", icon: "badge", order: 20, requiresHotel: true, anyCapabilities: ["hotel.stays.manage"] },
   { key: "staff.services", personas: STAFF_PERSONAS, href: "/hotels/{hotelId}/services", label: "Quản lý dịch vụ", icon: "room_service", order: 25, requiresHotel: true, anyCapabilities: ["hotel.services.view", "hotel.services.manage"] },
   { key: "staff.rooms", personas: ["manager", "front_desk"], href: "/hotels/{hotelId}/rooms", label: "Phòng & check-in", icon: "bed", order: 30, requiresHotel: true, anyCapabilities: ["hotel.rooms.view", "hotel.stays.manage", "hotel.reservations.view", "hotel.reservations.manage"] },
-  { key: "staff.biometric", personas: ["manager", "front_desk"], href: "/hotels/{hotelId}/biometric", label: "Máy quét CCCD", icon: "badge", order: 32, requiresHotel: true, anyCapabilities: ["hotel.stays.manage"] },
-
-  { key: "staff.requests", personas: STAFF_PERSONAS, href: "/hotels/{hotelId}/requests", label: "Xử lý yêu cầu", icon: "assignment", order: 50, requiresHotel: true, anyCapabilities: ["hotel.requests.view", "hotel.requests.manage"] },
-  { key: "staff.messages", personas: STAFF_PERSONAS, href: "/hotels/{hotelId}/messages", label: "Tin nhắn phòng", icon: "support_agent", order: 55, requiresHotel: true, anyCapabilities: ["hotel.requests.view", "hotel.requests.manage"] },
-  { key: "staff.billing", personas: ["manager", "front_desk", "finance"], href: "/hotels/{hotelId}/billing", label: "Thanh toán & doanh thu", icon: "payments", order: 60, requiresHotel: true, anyCapabilities: ["hotel.billing.view", "hotel.billing.manage"] },
+  { key: "staff.requests", personas: STAFF_PERSONAS, href: "/hotels/{hotelId}/requests", label: "Xử lý yêu cầu", icon: "assignment", order: 40, requiresHotel: true, anyCapabilities: ["hotel.requests.view", "hotel.requests.manage"] },
+  { key: "staff.messages", personas: STAFF_PERSONAS, href: "/hotels/{hotelId}/messages", label: "Tin nhắn phòng", icon: "support_agent", order: 45, requiresHotel: true, anyCapabilities: ["hotel.requests.view", "hotel.requests.manage"] },
+  { key: "staff.billing", personas: ["manager", "front_desk", "finance"], href: "/hotels/{hotelId}/billing", label: "Thanh toán & doanh thu", icon: "payments", order: 50, requiresHotel: true, anyCapabilities: ["hotel.billing.view", "hotel.billing.manage"] },
 ];
 
 const WIDGETS: readonly WorkspaceWidgetDefinition[] = [
