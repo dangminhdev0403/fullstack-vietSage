@@ -108,8 +108,11 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
   const [sendError, setSendError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search.trim());
+  const [filterMode, setFilterMode] = useState<"ALL" | "UNREAD">("ALL");
   const [showNewMessageBadge, setShowNewMessageBadge] = useState(false);
   const [closedStayId, setClosedStayId] = useState<string | null>(null);
+
+  const processedMessageIdsRef = useRef<Set<string>>(new Set());
 
   const body = selectedId ? (draftsByThread[selectedId] ?? "") : "";
 
@@ -125,20 +128,6 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
   const lastTypingEmitRef = useRef<number>(0);
   const [isPeerTyping, setIsPeerTyping] = useState(false);
   const peerTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  const handleSelectThread = (id: string | null) => {
-    if (id !== selectedId) {
-      setSelectedId(id);
-      setShowNewMessageBadge(false);
-      setClosedStayId(null);
-      prevMessageCountRef.current = 0;
-    }
-    if (id) {
-      requestInternalApi(`${base}/${encodeURIComponent(id)}/read`, { method: "POST" })
-        .then(() => markThreadReadInCache(id))
-        .catch(() => {});
-    }
-  };
 
   const threadListOptions = hotelMessages.infiniteQueries.threads.options({ q: deferredSearch });
   const detailOptions = hotelMessages.infiniteQueries.detail.options({ threadId: selectedId ?? "" });
@@ -172,6 +161,72 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
       if (!items.some((item) => item.id === thread.id)) items.push(thread);
       return items;
     }, []);
+
+  const totalUnreadCount = threadItems.reduce((acc, t) => acc + (t.unreadCount || 0), 0);
+  const unreadThreadsCount = threadItems.filter((t) => (t.unreadCount || 0) > 0).length;
+
+  const handleSelectThread = (id: string | null) => {
+    if (id !== selectedId) {
+      setSelectedId(id);
+      setShowNewMessageBadge(false);
+      setClosedStayId(null);
+      prevMessageCountRef.current = 0;
+    }
+    if (id) {
+      const existingThread = threadItems.find((t) => t.id === id);
+      const prevUnreadCount = existingThread?.unreadCount ?? 0;
+
+      // Optimistic update
+      markThreadReadInCache(id);
+
+      // Multi-tab BroadcastChannel sync
+      if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+        try {
+          const channel = new BroadcastChannel("vietsage_thread_read_channel");
+          channel.postMessage({ hotelId, threadId: id });
+          channel.close();
+        } catch {}
+      }
+
+      requestInternalApi(`${base}/${encodeURIComponent(id)}/read`, { method: "POST" })
+        .catch(() => {
+          // Rollback on error
+          if (prevUnreadCount > 0) {
+            queryClient.setQueryData<InfiniteData<ThreadList>>(
+              threadListOptions.queryKey,
+              (current) => current
+                ? {
+                    ...current,
+                    pages: current.pages.map((page) => ({
+                      ...page,
+                      items: page.items.map((thread) =>
+                        thread.id === id ? { ...thread, unreadCount: prevUnreadCount } : thread,
+                      ),
+                    })),
+                  }
+                : current,
+            );
+          }
+          void import("sonner").then(({ toast }) =>
+            toast.error("Không thể đánh dấu đã đọc tin nhắn", { id: `read-err-${id}` }),
+          );
+        });
+    }
+  };
+
+  // Listen for BroadcastChannel read sync from other tabs
+  useEffect(() => {
+    if (typeof window === "undefined" || !("BroadcastChannel" in window)) return;
+    try {
+      const channel = new BroadcastChannel("vietsage_thread_read_channel");
+      channel.onmessage = (event) => {
+        if (event.data?.hotelId === hotelId && event.data?.threadId) {
+          markThreadReadInCache(event.data.threadId);
+        }
+      };
+      return () => channel.close();
+    } catch {}
+  }, [hotelId]);
 
   const detail = useInfiniteQuery({
     ...detailOptions,
@@ -215,7 +270,7 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
     );
   };
 
-  const upsertWaitingThread = (thread: Thread) => {
+  const upsertWaitingThread = (thread: Thread, isNewGuestMessage = false) => {
     if (
       deferredSearch &&
       !thread.roomNumber.toLowerCase().includes(deferredSearch.toLowerCase()) &&
@@ -224,12 +279,31 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
 
     queryClient.setQueryData<InfiniteData<ThreadList>>(threadListOptions.queryKey, (current) => {
       if (!current?.pages.length) return current;
-      const existed = current.pages.some((page) => page.items.some((item) => item.id === thread.id));
+
+      const existingItem = current.pages.flatMap((p) => p.items).find((item) => item.id === thread.id);
+      const existed = Boolean(existingItem);
+
+      const isOpenThread = selectedId === thread.id;
+      let nextUnreadCount = 0;
+
+      if (isOpenThread) {
+        nextUnreadCount = 0;
+      } else if (isNewGuestMessage) {
+        nextUnreadCount = (existingItem?.unreadCount ?? thread.unreadCount ?? 0) + 1;
+      } else {
+        nextUnreadCount = thread.unreadCount ?? 0;
+      }
+
+      const updatedThread: Thread = {
+        ...thread,
+        unreadCount: nextUnreadCount,
+      };
+
       const pages = current.pages.map((page) => ({
         ...page,
         items: page.items.filter((item) => item.id !== thread.id),
       }));
-      pages[0] = { ...pages[0], items: [thread, ...pages[0].items] };
+      pages[0] = { ...pages[0], items: [updatedThread, ...pages[0].items] };
       return {
         ...current,
         pages: pages.map((page, index) => index === 0
@@ -265,21 +339,34 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
         const { thread, message } = event as { thread: Thread; message: Message };
         if (!thread?.id || !message?.id) return;
 
+        // Message deduplication
+        if (processedMessageIdsRef.current.has(message.id)) return;
+        processedMessageIdsRef.current.add(message.id);
+        if (processedMessageIdsRef.current.size > 200) {
+          const oldestKey = processedMessageIdsRef.current.values().next().value;
+          if (oldestKey) processedMessageIdsRef.current.delete(oldestKey);
+        }
+
         const isOpenThread = selectedId === thread.id;
-        upsertWaitingThread({
-          ...thread,
-          latestMessage: message,
-          unreadCount: isOpenThread ? 0 : thread.unreadCount,
-        });
+        const isGuestMsg = message.senderType === "GUEST";
+
+        upsertWaitingThread(
+          {
+            ...thread,
+            latestMessage: message,
+          },
+          !isOpenThread && isGuestMsg,
+        );
+
         if (isOpenThread) {
           appendMessageToThreadCache(thread.id, message);
-          if (message.senderType === "GUEST") {
+          if (isGuestMsg) {
             requestInternalApi(`${base}/${encodeURIComponent(thread.id)}/read`, { method: "POST" })
               .then(() => markThreadReadInCache(thread.id))
               .catch(() => {});
           }
         }
-        if (message.senderType === "GUEST") playMessageAlertSound();
+        if (isGuestMsg) playMessageAlertSound();
       },
       onConversationClosed: (event) => {
         if (!event || typeof event !== "object" || !("stayId" in event)) return;
@@ -531,13 +618,19 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
           <span className="rounded-full bg-[#17201b] px-3.5 py-1 text-xs font-bold text-white shadow-sm">
             {threads.data?.pages[0]?.total ?? 0} hội thoại
           </span>
+          {totalUnreadCount > 0 && (
+            <span className="rounded-full bg-red-600 px-3.5 py-1 text-xs font-extrabold text-white shadow-sm animate-pulse flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-white animate-ping" />
+              {totalUnreadCount} tin chưa đọc
+            </span>
+          )}
         </div>
       </header>
 
       <section className="flex-1 min-h-0 grid overflow-hidden rounded-2xl border border-[var(--outline-variant)] bg-white shadow-[0_8px_30px_rgba(0,0,0,0.04)] lg:grid-cols-[360px_1fr]">
         {/* Sidebar: Thread List */}
         <aside className={`${selectedId ? "hidden lg:flex" : "flex"} min-h-0 flex-col border-b border-[var(--outline-variant)] bg-[var(--surface-container-lowest,#fdfbf7)] lg:border-b-0 lg:border-r`}>
-          <div className="border-b border-[var(--outline-variant)] p-4">
+          <div className="border-b border-[var(--outline-variant)] p-3.5 space-y-2.5">
             <div className="relative">
               <VsIcon
                 name="search"
@@ -550,56 +643,99 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
                 className="h-10 w-full rounded-xl border-0 bg-[var(--surface-container-low,#f4efe6)] pl-9 pr-3 text-sm outline-none ring-1 ring-transparent focus:ring-[var(--primary)]"
               />
             </div>
+            <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--surface-container-low,#f4efe6)] text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setFilterMode("ALL")}
+                className={`flex-1 py-1.5 rounded-lg transition-all ${
+                  filterMode === "ALL"
+                    ? "bg-white text-[var(--primary)] font-bold shadow-xs"
+                    : "text-[var(--on-surface-variant)] hover:text-black"
+                }`}
+              >
+                Tất cả ({threadItems.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterMode("UNREAD")}
+                className={`flex-1 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                  filterMode === "UNREAD"
+                    ? "bg-white text-red-600 font-bold shadow-xs"
+                    : "text-[var(--on-surface-variant)] hover:text-black"
+                }`}
+              >
+                {unreadThreadsCount > 0 && <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />}
+                Chưa đọc ({unreadThreadsCount})
+              </button>
+            </div>
           </div>
 
           <div onScroll={handleThreadListScroll} className="flex-1 overflow-y-auto divide-y divide-[var(--outline-variant)]/40">
-            {threadItems.map((thread) => {
-              const isSelected = selectedId === thread.id;
-              const hasGuestUnread = thread.unreadCount > 0;
+            {(() => {
+              const visibleThreads = filterMode === "UNREAD"
+                ? threadItems.filter((t) => (t.unreadCount || 0) > 0)
+                : threadItems;
 
-              return (
-                <button
-                  key={thread.id}
-                  type="button"
-                  onClick={() => handleSelectThread(thread.id)}
-                  className={`w-full p-4 text-left transition-all ${
-                    isSelected
-                      ? "bg-[#17201b]/10 border-l-4 border-l-[var(--primary)]"
-                      : "hover:bg-[var(--surface-container-low)]"
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="rounded-md bg-[var(--primary)] px-2 py-0.5 text-xs font-extrabold text-white">
-                        Phòng {thread.roomNumber}
-                      </span>
-                      {hasGuestUnread && (
-                        <span className="min-w-5 rounded-full bg-emerald-500 px-1.5 py-0.5 text-center text-[10px] font-bold text-white" title="Có tin mới từ khách">
-                          {thread.unreadCount > 99 ? "99+" : thread.unreadCount}
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-[11px] font-semibold text-[var(--on-surface-variant)]">
-                      {formatMessageTime(thread.lastMessageAt)}
-                    </span>
+              if (visibleThreads.length === 0) {
+                return (
+                  <div className="p-8 text-center text-xs text-[var(--on-surface-variant)]">
+                    {threads.isLoading
+                      ? "Đang tải danh sách tin nhắn..."
+                      : filterMode === "UNREAD"
+                        ? "Không có tin nhắn chưa đọc."
+                        : "Không tìm thấy hội thoại phù hợp."}
                   </div>
-                  <p className="mt-1.5 font-bold text-[var(--primary)] text-sm">{thread.guestName}</p>
-                  <p className="mt-1 line-clamp-1 text-xs text-[var(--on-surface-variant)]">
-                    {thread.latestMessage?.body ?? "Chưa có tin nhắn"}
-                  </p>
-                </button>
-              );
-            })}
+                );
+              }
+
+              return visibleThreads.map((thread) => {
+                const isSelected = selectedId === thread.id;
+                const hasGuestUnread = thread.unreadCount > 0;
+
+                return (
+                  <button
+                    key={thread.id}
+                    type="button"
+                    onClick={() => handleSelectThread(thread.id)}
+                    className={`w-full p-4 text-left transition-all ${
+                      isSelected
+                        ? "bg-[#17201b]/10 border-l-4 border-l-[var(--primary)]"
+                        : hasGuestUnread
+                          ? "bg-amber-50/40 hover:bg-amber-50/70"
+                          : "hover:bg-[var(--surface-container-low)]"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        {hasGuestUnread && (
+                          <span
+                            className="flex items-center gap-1 rounded-full bg-red-600 px-2 py-0.5 text-center text-[10px] font-black text-white shadow-sm animate-pulse"
+                            title="Tin nhắn mới từ khách"
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                            {thread.unreadCount > 99 ? "99+" : thread.unreadCount}
+                          </span>
+                        )}
+                        <span className="rounded-md bg-[var(--primary)] px-2 py-0.5 text-xs font-extrabold text-white">
+                          Phòng {thread.roomNumber}
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-semibold text-[var(--on-surface-variant)]">
+                        {formatMessageTime(thread.lastMessageAt)}
+                      </span>
+                    </div>
+                    <p className="mt-1.5 font-bold text-[var(--primary)] text-sm">{thread.guestName}</p>
+                    <p className={`mt-1 line-clamp-1 text-xs ${hasGuestUnread ? "font-semibold text-neutral-900" : "text-[var(--on-surface-variant)]"}`}>
+                      {thread.latestMessage?.body ?? "Chưa có tin nhắn"}
+                    </p>
+                  </button>
+                );
+              });
+            })()}
 
             {threads.isFetchingNextPage ? (
               <div className="p-3 text-center text-xs text-[var(--on-surface-variant)]">Đang tải thêm hội thoại...</div>
             ) : null}
-
-            {threadItems.length === 0 && (
-              <div className="p-8 text-center text-xs text-[var(--on-surface-variant)]">
-                {threads.isLoading ? "Đang tải danh sách tin nhắn..." : "Không tìm thấy hội thoại phù hợp."}
-              </div>
-            )}
           </div>
         </aside>
 
