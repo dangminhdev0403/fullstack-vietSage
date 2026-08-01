@@ -2370,9 +2370,9 @@
     "semantic_hash": ""
   },
   "services/auth-service/src/modules/property/infrastructure/imports/service-catalog-import.adapter.ts": {
-    "mtime": 1784512774.3036895,
-    "ast_hash": "2ef93eb9d8f398a9559f3082b7d2f5ba",
-    "semantic_hash": "2ef93eb9d8f398a9559f3082b7d2f5ba"
+    "mtime": 1785610044.6843808,
+    "ast_hash": "e8ef078f1751b4547def8e47889298d6",
+    "semantic_hash": ""
   },
   "services/auth-service/src/modules/property/infrastructure/repositories/hotel-core.repository.ts": {
     "mtime": 1785163551.172662,
@@ -2460,9 +2460,9 @@
     "semantic_hash": ""
   },
   "services/auth-service/src/modules/property/tests/infrastructure/imports/service-catalog-import.adapter.spec.ts": {
-    "mtime": 1783801214.856454,
-    "ast_hash": "93fa52455f570af5ea58f3b8c0462648",
-    "semantic_hash": "93fa52455f570af5ea58f3b8c0462648"
+    "mtime": 1785610203.1057172,
+    "ast_hash": "5f17916be91c2478aff69882e3ed73af",
+    "semantic_hash": ""
   },
   "services/auth-service/src/modules/property/tests/property.module.spec.ts": {
     "mtime": 1783801770.989159,
@@ -3200,8 +3200,8 @@
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/services/owner-service-catalog-client.tsx": {
-    "mtime": 1785164227.1817124,
-    "ast_hash": "992dd26f431cd987cfa59570e310fb1c",
+    "mtime": 1785610052.8803735,
+    "ast_hash": "5d5630800aaa2fd3e6abccb5c1a31ab8",
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/services/page.tsx": {
@@ -3725,13 +3725,13 @@
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/features/account/security/password-security.test.ts": {
-    "mtime": 1785109035.7747252,
-    "ast_hash": "1f611f754fcb0f0a56a459cbd56d6ccf",
+    "mtime": 1785608333.164446,
+    "ast_hash": "811c1cd89cd409e1ea981090ac385ed2",
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/features/account/security/password-security.ts": {
-    "mtime": 1785109078.7589903,
-    "ast_hash": "db50206915c412fbc3caed46161bdd7d",
+    "mtime": 1785608346.8851948,
+    "ast_hash": "d6f9d8e02e4e257302b08c006e433670",
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/features/admin/hooks/use-reset-tenant-owner-password.ts": {
@@ -3860,8 +3860,8 @@
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/features/local-biometric/components/cccd-check-in-panel.tsx": {
-    "mtime": 1785558831.017256,
-    "ast_hash": "ce26a3a37a4772f0c07b5c8383c99770",
+    "mtime": 1785610314.9855967,
+    "ast_hash": "55ab2252cdb3f5b6ec46f686bcfb8883",
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/libs/auth-secret.test.ts": {
@@ -4040,8 +4040,8 @@
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/features/local-biometric/components/check-in-workspace.tsx": {
-    "mtime": 1785605681.3005004,
-    "ast_hash": "158bc82d9e2486f96d83b7715543d661",
+    "mtime": 1785610323.9860842,
+    "ast_hash": "6ebb0dd958b5ed1fb2003eb1c5439a9d",
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/features/local-biometric/hooks/use-workstation-scan.ts": {
@@ -4222,6 +4222,21 @@
   "frontends/front-end-vietsage/src/features/hotel-ops/utils/request-page-permissions.test.ts": {
     "mtime": 1785606072.7865956,
     "ast_hash": "4e2fe3535167aaaeceb60788384aba7c",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/hotel-ops/utils/service-catalog-error.test.ts": {
+    "mtime": 1785609999.9859693,
+    "ast_hash": "1c1d7d70721e5bb4f20cf86768706016",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/features/hotel-ops/utils/service-catalog-error.ts": {
+    "mtime": 1785610050.2942147,
+    "ast_hash": "6111d8fcf402bf112c87dc435f404b9f",
+    "semantic_hash": ""
+  },
+  "services/auth-service/prisma/migrations/20260802005919_add_guest_stay_occupants/migration.sql": {
+    "mtime": 1785607178.2851863,
+    "ast_hash": "7fb5a850e7a08f02a7a05c43ad395138",
     "semantic_hash": ""
   }
 }
