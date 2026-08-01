@@ -389,9 +389,7 @@ describe("HotelsService", () => {
       googleSheetUrl: spreadsheetId,
     });
 
-    expect(service.googleSheetsSyncService.validateSpreadsheet).toHaveBeenCalledWith(
-      spreadsheetId,
-    );
+    expect(service.googleSheetsSyncService.validateSpreadsheet).toHaveBeenCalledWith(spreadsheetId);
     expect(repository.createHotel).toHaveBeenCalledWith(
       expect.objectContaining({ googleSheetId: spreadsheetId }),
     );
@@ -517,6 +515,32 @@ describe("HotelsService", () => {
     await expect(
       service.listServiceCategories("actor-1", "active-role", "hotel-2", {}),
     ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("mặc định chỉ liệt kê nhóm dịch vụ đang hoạt động", async () => {
+    const repository = createRepository();
+    const service = createService(repository);
+
+    await service.listServiceCategories("actor-1", "active-role", "hotel-1", {});
+
+    expect(repository.listServiceCategories).toHaveBeenCalledWith(
+      { hotelId: "hotel-1", status: ServiceCatalogStatus.ACTIVE },
+      0,
+      20,
+    );
+  });
+
+  it("mặc định chỉ liệt kê dịch vụ đang hoạt động", async () => {
+    const repository = createRepository();
+    const service = createService(repository);
+
+    await service.listServiceItems("actor-1", "active-role", "hotel-1", {});
+
+    expect(repository.listServiceItems).toHaveBeenCalledWith(
+      { hotelId: "hotel-1", status: ServiceCatalogStatus.ACTIVE },
+      0,
+      20,
+    );
   });
 
   it("yêu cầu danh mục của dịch vụ phải thuộc về khách sạn", async () => {

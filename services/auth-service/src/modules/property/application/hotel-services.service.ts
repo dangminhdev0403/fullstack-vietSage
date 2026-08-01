@@ -29,7 +29,7 @@ export class HotelServicesService {
     const limit = query.limit ?? 20;
     const where: Prisma.HotelServiceCategoryWhereInput = {
       hotelId,
-      ...(query.status ? { status: query.status } : {}),
+      status: query.status ?? ServiceCatalogStatus.ACTIVE,
     };
 
     const q = query.q?.trim();
@@ -138,7 +138,7 @@ export class HotelServicesService {
     const where: Prisma.HotelServiceItemWhereInput = {
       hotelId,
       ...(query.categoryId ? { categoryId: query.categoryId } : {}),
-      ...(query.status ? { status: query.status } : {}),
+      status: query.status ?? ServiceCatalogStatus.ACTIVE,
     };
 
     const q = query.q?.trim();
