@@ -35,6 +35,17 @@ def main() -> int:
         if not (ROOT / context).is_dir():
             failures.append(f"frontend build context does not exist: {context}")
 
+    frontend_dockerfile = (ROOT / "frontends/front-end-vietsage/Dockerfile").read_text(encoding="utf-8")
+    if "--mount=type=secret,id=frontend_build_auth,required=true" not in frontend_dockerfile:
+        failures.append("frontend build must consume an ephemeral BuildKit auth secret")
+    if "frontend_build_auth" not in frontend:
+        failures.append("frontend Compose build must provide the ephemeral auth secret")
+    if not re.search(
+        r"(?ms)^secrets:\n.*?^  frontend_build_auth:\n    environment: FRONTEND_BUILD_AUTH_SECRET$",
+        compose,
+    ):
+        failures.append("production Compose must source frontend build auth from the process environment")
+
     for service in APP_SERVICES:
         block = service_block(compose, service)
         if re.search(r"(?m)^    ports:\n", block):

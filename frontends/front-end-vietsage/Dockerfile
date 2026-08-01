@@ -13,7 +13,10 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
 COPY . .
-RUN pnpm run build
+RUN --mount=type=secret,id=frontend_build_auth,required=true \
+    export NEXTAUTH_SECRET="$(cat /run/secrets/frontend_build_auth)" && \
+    export AUTH_SECRET="$NEXTAUTH_SECRET" && \
+    pnpm run build
 
 FROM node:22-alpine AS runtime
 

@@ -104,6 +104,8 @@ services:
     build:
       context: ./frontends/front-end-vietsage
       dockerfile: Dockerfile
+      secrets:
+        - frontend_build_auth
     container_name: vietsage-frontend
     restart: unless-stopped
     mem_limit: 384m
@@ -218,3 +220,7 @@ networks:
   edge:
   backend:
     internal: true
+
+secrets:
+  frontend_build_auth:
+    environment: FRONTEND_BUILD_AUTH_SECRET

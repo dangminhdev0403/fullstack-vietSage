@@ -47,10 +47,14 @@ docker compose -f docker-compose.yml up -d --build
 ```bash
 docker compose -f docker-compose.prod.yml config
 python scripts/verify-production-migration.py
+export FRONTEND_BUILD_AUTH_SECRET="$(openssl rand -hex 32)"
 docker compose -f docker-compose.prod.yml build auth-service frontend
+unset FRONTEND_BUILD_AUTH_SECRET
 docker compose -f docker-compose.prod.yml run --rm migrate
 docker compose -f docker-compose.prod.yml up -d
 ```
+
+`FRONTEND_BUILD_AUTH_SECRET` is an ephemeral BuildKit secret used only while Next.js collects route data. It is not persisted in the image or production secret files.
 
 The one-shot `migrate` service runs `prisma migrate deploy` from the production auth-service image after PostgreSQL becomes healthy. `auth-service` uses `condition: service_completed_successfully`, so a failed migration prevents backend rollout. Never replace this step with `prisma db push`, `prisma migrate reset`, or database recreation. Review migration failures and stop the release instead.
 
