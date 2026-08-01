@@ -7,8 +7,6 @@ import type { ParsedImportWorkbook } from "../../../../common/import/import.type
 import { PrismaService } from "../../../../prisma/prisma.service";
 import { HotelAccessService } from "../../application/hotel-access.service";
 
-const DEFAULT_CATEGORY_RANGE = "'Nhóm dịch vụ'!A1:Z";
-const DEFAULT_ITEM_RANGE = "'Danh sách dịch vụ'!A1:Z";
 const SYSTEM_ACTOR_USER_ID = "google-sheets-sync";
 
 type SyncSummary = {
@@ -217,21 +215,25 @@ export class GoogleSheetsServiceCatalogSyncService {
       throw new BadRequestException("Máy chủ chưa cấu hình tài khoản dịch vụ Google Sheets");
     }
 
-    const categoryRange = this.normalizeRange(
-      process.env.GOOGLE_SERVICE_CATEGORY_RANGE?.trim() || DEFAULT_CATEGORY_RANGE,
-    );
-    const itemRange = this.normalizeRange(
-      process.env.GOOGLE_SERVICE_ITEM_RANGE?.trim() || DEFAULT_ITEM_RANGE,
-    );
-
     try {
       const auth = new google.auth.GoogleAuth({
         scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
       });
       const sheets = google.sheets({ version: "v4", auth });
+      const metadata = await sheets.spreadsheets.get({
+        spreadsheetId,
+        fields: "sheets.properties(index,title)",
+      });
+      const ranges = this.rangesForFirstTwoSheets(
+        (metadata.data.sheets ?? [])
+          .map((sheet) => sheet.properties)
+          .filter((properties): properties is NonNullable<typeof properties> => Boolean(properties))
+          .sort((left, right) => (left.index ?? 0) - (right.index ?? 0))
+          .map((properties) => properties.title ?? ""),
+      );
       const response = await sheets.spreadsheets.values.batchGet({
         spreadsheetId,
-        ranges: [categoryRange, itemRange],
+        ranges,
         valueRenderOption: "UNFORMATTED_VALUE",
       });
       const valueRanges = response.data.valueRanges ?? [];
@@ -274,14 +276,11 @@ export class GoogleSheetsServiceCatalogSyncService {
     );
   }
 
-  private normalizeRange(range: string): string {
-    const separatorIndex = range.indexOf("!");
-    if (separatorIndex < 0) return range;
-    const sheetName = range.slice(0, separatorIndex).trim();
-    if (!/\s/.test(sheetName) || (sheetName.startsWith("'") && sheetName.endsWith("'"))) {
-      return range;
+  private rangesForFirstTwoSheets(titles: string[]): string[] {
+    if (titles.length < 2 || !titles[0] || !titles[1]) {
+      throw new BadRequestException("Google Sheets phải có ít nhất 2 tab dữ liệu");
     }
-    return `'${sheetName.replace(/'/g, "''")}'${range.slice(separatorIndex)}`;
+    return titles.slice(0, 2).map((title) => `'${title.replace(/'/g, "''")}'!A1:Z`);
   }
 
   private toParsedSheet(name: "categories" | "items", values: unknown[][]) {

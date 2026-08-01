@@ -10,15 +10,15 @@ function createService() {
 }
 
 describe("GoogleSheetsServiceCatalogSyncService", () => {
-  it("quotes configured ranges whose sheet names contain spaces", () => {
+  it("uses the first two sheet tabs regardless of their names", () => {
     const service = createService() as unknown as {
-      normalizeRange: (range: string) => string;
+      rangesForFirstTwoSheets: (titles: string[]) => string[];
     };
 
-    expect(service.normalizeRange("Nhóm dịch vụ!A1:Z")).toBe("'Nhóm dịch vụ'!A1:Z");
-    expect(service.normalizeRange("'Danh sách dịch vụ'!A1:Z")).toBe(
-      "'Danh sách dịch vụ'!A1:Z",
-    );
+    expect(service.rangesForFirstTwoSheets(["Nhóm dịch vụ", "Dịch vụ"])).toEqual([
+      "'Nhóm dịch vụ'!A1:Z",
+      "'Dịch vụ'!A1:Z",
+    ]);
   });
 
   it("maps accented Google Sheet translation headers to import keys", () => {
