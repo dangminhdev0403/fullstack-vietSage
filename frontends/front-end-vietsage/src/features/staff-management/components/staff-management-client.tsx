@@ -101,8 +101,31 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
     }
   }
 
-  async function editStaff(user: { id: string; fullName: string; email: string }) {
-    const result = await Swal.fire({ title: "Sửa thông tin nhân viên", html: `<input id="staff-name" class="swal2-input" value="${user.fullName.replace(/"/g, "&quot;")}" placeholder="Họ tên"><input id="staff-email" class="swal2-input" value="${user.email.replace(/"/g, "&quot;")}" placeholder="Email">`, showCancelButton: true, confirmButtonText: "Lưu", cancelButtonText: "Hủy", confirmButtonColor: "#00003c", preConfirm: () => ({ fullName: (document.getElementById("staff-name") as HTMLInputElement)?.value.trim(), email: (document.getElementById("staff-email") as HTMLInputElement)?.value.trim().toLowerCase() }) });
+  async function editStaff(user: { id: string; fullName: string; email: string; roles?: Array<{ code: string }> }) {
+    const userRoleCodes = user.roles?.map((role) => role.code) ?? [];
+    const canReset = (scope.surface === "owner" || scope.surface === "admin") && canResetFrontdeskPassword(userRoleCodes);
+
+    const result = await Swal.fire({
+      title: "Sửa thông tin nhân viên",
+      html: `<input id="staff-name" class="swal2-input" value="${user.fullName.replace(/"/g, "&quot;")}" placeholder="Họ tên"><input id="staff-email" class="swal2-input" value="${user.email.replace(/"/g, "&quot;")}" placeholder="Email">`,
+      showCancelButton: true,
+      showDenyButton: canReset,
+      confirmButtonText: "Lưu",
+      denyButtonText: "🔑 Cấp lại mật khẩu",
+      cancelButtonText: "Hủy",
+      confirmButtonColor: "#00003c",
+      denyButtonColor: "#b45309",
+      preConfirm: () => ({
+        fullName: (document.getElementById("staff-name") as HTMLInputElement)?.value.trim(),
+        email: (document.getElementById("staff-email") as HTMLInputElement)?.value.trim().toLowerCase(),
+      }),
+    });
+
+    if (result.isDenied) {
+      void resetFrontdesk(user);
+      return;
+    }
+
     if (!result.isConfirmed) return;
     await runMutation(`edit-${user.id}`, () => mutations.updateUser.mutateAsync({ userId: user.id, ...result.value }), "Đã cập nhật nhân viên");
   }
@@ -608,7 +631,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                   const assigned = assignedUserIds.has(user.id);
                   const isTransfer = Boolean(user.assignedHotel && !assigned);
                   const isUpdatingAssignment = activeActionKey === `assignment-${user.id}`;
-                  const canResetPassword = scope.surface === "owner" && canResetFrontdeskPassword(user.roles.map((role) => role.code));
+                  const canResetPassword = (scope.surface === "owner" || scope.surface === "admin") && canResetFrontdeskPassword(user.roles.map((role) => role.code));
                   return (
                     <div className="flex min-h-10 items-center justify-end gap-2">
                       <button type="button" disabled={isBusy} onClick={() => editStaff(user)} className="h-10 whitespace-nowrap rounded-lg border border-[var(--outline-variant)] px-3 text-xs font-semibold text-[var(--primary)] disabled:opacity-40"><VsIcon name="edit" className="mr-1 inline text-sm" />Sửa</button>
@@ -684,7 +707,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
             const availableRoles = data.roles.filter((role) => !user.roles.some((current) => current.id === role.id));
             const isAssigning = activeActionKey === `assign-${user.id}`;
             const isUpdatingAssignment = activeActionKey === `assignment-${user.id}`;
-            const canResetPassword = scope.surface === "owner" && canResetFrontdeskPassword(user.roles.map((role) => role.code));
+            const canResetPassword = (scope.surface === "owner" || scope.surface === "admin") && canResetFrontdeskPassword(user.roles.map((role) => role.code));
             return (
               <article key={user.id} className="rounded-xl border border-[var(--outline-variant)] bg-white p-5 shadow-sm space-y-3">
                 <div className="flex items-start justify-between gap-3">

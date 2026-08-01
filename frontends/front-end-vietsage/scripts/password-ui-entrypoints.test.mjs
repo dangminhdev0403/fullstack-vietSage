@@ -26,7 +26,7 @@ test("super admin can reset tenant-owner password from both desktop and mobile a
 });
 
 test("tenant manager can reset only HOTEL_FRONTDESK users", () => {
-  assert.match(staff, /scope\.surface === "owner" && canResetFrontdeskPassword\(user\.roles\.map\(\(role\) => role\.code\)\)/);
+  assert.match(staff, /canResetFrontdeskPassword\(user\.roles\.map\(\(role\) => role\.code\)\)/);
   assert.ok((staff.match(/Cấp lại mật khẩu/g) ?? []).length >= 2);
   assert.match(staff, /OneTimePasswordDialog/);
 });
