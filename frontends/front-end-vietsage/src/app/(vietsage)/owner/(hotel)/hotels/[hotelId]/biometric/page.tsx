@@ -8,7 +8,7 @@ export default async function OwnerHotelBiometricPage({ params }: PageProps) {
     <main className="space-y-6">
       <header>
         <h1 className="vs-display text-3xl font-bold text-[var(--primary)]">Thiết bị nhận diện</h1>
-        <p className="mt-2 text-sm text-[var(--on-surface-variant)]">Quản lý và kiểm tra CCCD, FaceID theo khách sạn.</p>
+        <p className="mt-2 text-sm text-[var(--on-surface-variant)]">Quản lý và kiểm tra thiết bị đọc chip CCCD theo khách sạn.</p>
       </header>
       <BiometricOwnerTabs hotelId={hotelId} />
     </main>

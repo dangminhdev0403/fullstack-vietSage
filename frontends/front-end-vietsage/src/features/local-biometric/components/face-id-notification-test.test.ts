@@ -7,11 +7,9 @@ const tabs = readFileSync(new URL("./biometric-owner-tabs.tsx", import.meta.url)
 const page = readFileSync(new URL("../../../app/(vietsage)/owner/(hotel)/hotels/[hotelId]/biometric/page.tsx", import.meta.url), "utf8");
 const registry = readFileSync(new URL("../../workspace/config/workspace-registry.ts", import.meta.url), "utf8");
 
-test("FaceID is a horizontal tab inside the CCCD device page", () => {
-  assert.match(tabs, /role="tablist"/);
-  assert.match(tabs, />CCCD</);
-  assert.match(tabs, />FaceID</);
-  assert.match(tabs, /FaceIdNotificationTest/);
+test("FaceID tab is hidden and CCCD device panels are rendered directly", () => {
+  assert.match(tabs, /WorkstationConnectionPanel/);
+  assert.match(tabs, /WorkstationTestScanPanel/);
   assert.match(page, /BiometricOwnerTabs/);
   assert.doesNotMatch(registry, /owner\.hotel\.face-id|\/owner\/hotels\/\{hotelId\}\/face-id/);
 });
