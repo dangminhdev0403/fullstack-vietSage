@@ -3,6 +3,7 @@ import type {
   Hotel,
   UpdateHotelInput,
 } from "@/features/admin/types/admin-contract";
+import type { ServiceCatalogSyncResult } from "@/features/hotel-ops/service/service-catalog-sync-response";
 
 export const googleSheetConfigRepository = {
   async update(hotelId: string, input: UpdateHotelInput): Promise<Hotel> {
@@ -23,12 +24,4 @@ export const googleSheetConfigRepository = {
     );
     return payload.data;
   },
-};
-
-export type ServiceCatalogSyncResult = {
-  inserted: number;
-  updated: number;
-  skipped: number;
-  skippedRows: number;
-  warnings: string[];
 };

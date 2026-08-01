@@ -1,4 +1,5 @@
 import { unwrapApiEnvelope } from "@/core/http/api-envelope";
+import { parseServiceCatalogSyncResponse } from "@/features/hotel-ops/service/service-catalog-sync-response";
 import { HttpClient, type HttpQuery } from "@/core/http/http-client";
 import type {
   CreateHotelRequestEventInput,
@@ -56,12 +57,23 @@ export class HotelOpsService {
     });
   }
 
-  async issueRequestRealtimeTicket(hotelId: string, accessToken?: string): Promise<{ ticket: string; expiresAt: string }> {
-    const payload = await this.httpClient.request<unknown>({ method: "POST", path: hotelPath(hotelId, "/request-realtime-ticket"), accessToken });
-    return unwrapApiEnvelope<{ ticket: string; expiresAt: string }>(payload).data;
+  async issueRequestRealtimeTicket(
+    hotelId: string,
+    accessToken?: string,
+  ): Promise<{ ticket: string; expiresAt: string }> {
+    const payload = await this.httpClient.request<unknown>({
+      method: "POST",
+      path: hotelPath(hotelId, "/request-realtime-ticket"),
+      accessToken,
+    });
+    return unwrapApiEnvelope<{ ticket: string; expiresAt: string }>(payload)
+      .data;
   }
 
-  async getDashboard(hotelId: string, options: AuthRequestOptions = {}): Promise<HotelDashboard> {
+  async getDashboard(
+    hotelId: string,
+    options: AuthRequestOptions = {},
+  ): Promise<HotelDashboard> {
     const payload = await this.httpClient.request<unknown>({
       method: "GET",
       path: hotelPath(hotelId, "/dashboard"),
@@ -106,7 +118,10 @@ export class HotelOpsService {
     body: HotelReservationInput,
     accessToken?: string,
   ): Promise<HotelArrival> {
-    const payload = await this.httpClient.request<unknown, HotelReservationInput>({
+    const payload = await this.httpClient.request<
+      unknown,
+      HotelReservationInput
+    >({
       method: "POST",
       path: hotelPath(hotelId, "/reservations"),
       body,
@@ -123,7 +138,10 @@ export class HotelOpsService {
   ): Promise<HotelArrival> {
     const payload = await this.httpClient.request<unknown, { roomId: string }>({
       method: "PUT",
-      path: hotelPath(hotelId, `/reservations/${encodeURIComponent(reservationId)}/room`),
+      path: hotelPath(
+        hotelId,
+        `/reservations/${encodeURIComponent(reservationId)}/room`,
+      ),
       body: { roomId },
       accessToken,
     });
@@ -137,7 +155,10 @@ export class HotelOpsService {
   ): Promise<HotelReservationCheckInResult> {
     const payload = await this.httpClient.request<unknown>({
       method: "POST",
-      path: hotelPath(hotelId, `/reservations/${encodeURIComponent(reservationId)}/check-in`),
+      path: hotelPath(
+        hotelId,
+        `/reservations/${encodeURIComponent(reservationId)}/check-in`,
+      ),
       accessToken,
     });
     return unwrapApiEnvelope<HotelReservationCheckInResult>(payload).data;
@@ -149,7 +170,10 @@ export class HotelOpsService {
     accessToken?: string,
     accessTokenExpiresAt?: number | null,
   ): Promise<HotelRoomSummary> {
-    const payload = await this.httpClient.request<unknown, CreateHotelRoomInput>({
+    const payload = await this.httpClient.request<
+      unknown,
+      CreateHotelRoomInput
+    >({
       method: "POST",
       path: hotelPath(hotelId, "/rooms"),
       body,
@@ -167,7 +191,10 @@ export class HotelOpsService {
     accessToken?: string,
     accessTokenExpiresAt?: number | null,
   ): Promise<HotelRoomSummary> {
-    const payload = await this.httpClient.request<unknown, UpdateHotelRoomInput>({
+    const payload = await this.httpClient.request<
+      unknown,
+      UpdateHotelRoomInput
+    >({
       method: "PATCH",
       path: hotelPath(hotelId, `/rooms/${encodeURIComponent(roomId)}`),
       body,
@@ -178,10 +205,18 @@ export class HotelOpsService {
     return unwrapApiEnvelope<HotelRoomSummary>(payload).data;
   }
 
-  async rotateRoomQr(hotelId: string, roomId: string, accessToken?: string, accessTokenExpiresAt?: number | null): Promise<HotelRoomSummary> {
+  async rotateRoomQr(
+    hotelId: string,
+    roomId: string,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+  ): Promise<HotelRoomSummary> {
     const payload = await this.httpClient.request<unknown>({
       method: "POST",
-      path: hotelPath(hotelId, `/rooms/${encodeURIComponent(roomId)}/qr/rotate`),
+      path: hotelPath(
+        hotelId,
+        `/rooms/${encodeURIComponent(roomId)}/qr/rotate`,
+      ),
       accessToken,
       accessTokenExpiresAt,
     });
@@ -198,7 +233,10 @@ export class HotelOpsService {
   ): Promise<HotelRoomSummary> {
     const payload = await this.httpClient.request<unknown>({
       method: "POST",
-      path: hotelPath(hotelId, `/rooms/${encodeURIComponent(roomId)}/qr/${active ? "activate" : "deactivate"}`),
+      path: hotelPath(
+        hotelId,
+        `/rooms/${encodeURIComponent(roomId)}/qr/${active ? "activate" : "deactivate"}`,
+      ),
       accessToken,
       accessTokenExpiresAt,
     });
@@ -212,7 +250,10 @@ export class HotelOpsService {
     accessToken?: string,
     accessTokenExpiresAt?: number | null,
   ): Promise<HotelStaySummary> {
-    const payload = await this.httpClient.request<unknown, CreateHotelStayInput>({
+    const payload = await this.httpClient.request<
+      unknown,
+      CreateHotelStayInput
+    >({
       method: "POST",
       path: hotelPath(hotelId, "/stays"),
       body,
@@ -223,7 +264,12 @@ export class HotelOpsService {
     return unwrapApiEnvelope<HotelStaySummary>(payload).data;
   }
 
-  async checkInStay(hotelId: string, stayId: string, accessToken?: string, accessTokenExpiresAt?: number | null): Promise<HotelStaySummary> {
+  async checkInStay(
+    hotelId: string,
+    stayId: string,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+  ): Promise<HotelStaySummary> {
     const payload = await this.httpClient.request<unknown>({
       method: "POST",
       path: hotelPath(hotelId, `/stays/${encodeURIComponent(stayId)}/check-in`),
@@ -240,7 +286,10 @@ export class HotelOpsService {
     accessToken?: string,
     accessTokenExpiresAt?: number | null,
   ): Promise<HotelCheckInResult> {
-    const payload = await this.httpClient.request<unknown, CreateHotelStayInput>({
+    const payload = await this.httpClient.request<
+      unknown,
+      CreateHotelStayInput
+    >({
       method: "POST",
       path: hotelPath(hotelId, "/stays/check-in"),
       body,
@@ -251,10 +300,18 @@ export class HotelOpsService {
     return unwrapApiEnvelope<HotelCheckInResult>(payload).data;
   }
 
-  async checkOutStay(hotelId: string, stayId: string, accessToken?: string, accessTokenExpiresAt?: number | null): Promise<HotelStaySummary> {
+  async checkOutStay(
+    hotelId: string,
+    stayId: string,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+  ): Promise<HotelStaySummary> {
     const payload = await this.httpClient.request<unknown>({
       method: "POST",
-      path: hotelPath(hotelId, `/stays/${encodeURIComponent(stayId)}/check-out`),
+      path: hotelPath(
+        hotelId,
+        `/stays/${encodeURIComponent(stayId)}/check-out`,
+      ),
       accessToken,
       accessTokenExpiresAt,
     });
@@ -262,7 +319,10 @@ export class HotelOpsService {
     return unwrapApiEnvelope<HotelStaySummary>(payload).data;
   }
 
-  async syncServiceCatalogFromGoogleSheets(hotelId: string, options: AuthRequestOptions = {}) {
+  async syncServiceCatalogFromGoogleSheets(
+    hotelId: string,
+    options: AuthRequestOptions = {},
+  ) {
     const payload = await this.httpClient.request<unknown>({
       method: "POST",
       path: hotelPath(hotelId, "/service-catalog/sync"),
@@ -270,7 +330,7 @@ export class HotelOpsService {
       accessTokenExpiresAt: options.accessTokenExpiresAt,
     });
 
-    return unwrapApiEnvelope(payload);
+    return parseServiceCatalogSyncResponse(payload);
   }
 
   async getHotel(
@@ -282,7 +342,9 @@ export class HotelOpsService {
       path: hotelPath(hotelId, ""),
       accessToken,
     });
-    return unwrapApiEnvelope<{ id: string; googleSheetId?: string | null }>(payload).data;
+    return unwrapApiEnvelope<{ id: string; googleSheetId?: string | null }>(
+      payload,
+    ).data;
   }
 
   async listServiceCategories(
@@ -306,7 +368,10 @@ export class HotelOpsService {
     accessToken?: string,
     accessTokenExpiresAt?: number | null,
   ): Promise<HotelServiceCategory> {
-    const payload = await this.httpClient.request<unknown, CreateServiceCategoryInput>({
+    const payload = await this.httpClient.request<
+      unknown,
+      CreateServiceCategoryInput
+    >({
       method: "POST",
       path: hotelPath(hotelId, "/service-categories"),
       body,
@@ -324,9 +389,15 @@ export class HotelOpsService {
     accessToken?: string,
     accessTokenExpiresAt?: number | null,
   ): Promise<HotelServiceCategory> {
-    const payload = await this.httpClient.request<unknown, UpdateServiceCategoryInput>({
+    const payload = await this.httpClient.request<
+      unknown,
+      UpdateServiceCategoryInput
+    >({
       method: "PATCH",
-      path: hotelPath(hotelId, `/service-categories/${encodeURIComponent(categoryId)}`),
+      path: hotelPath(
+        hotelId,
+        `/service-categories/${encodeURIComponent(categoryId)}`,
+      ),
       body,
       accessToken,
       accessTokenExpiresAt,
@@ -356,7 +427,10 @@ export class HotelOpsService {
     accessToken?: string,
     accessTokenExpiresAt?: number | null,
   ): Promise<HotelServiceItem> {
-    const payload = await this.httpClient.request<unknown, CreateServiceItemInput>({
+    const payload = await this.httpClient.request<
+      unknown,
+      CreateServiceItemInput
+    >({
       method: "POST",
       path: hotelPath(hotelId, "/service-items"),
       body,
@@ -374,7 +448,10 @@ export class HotelOpsService {
     accessToken?: string,
     accessTokenExpiresAt?: number | null,
   ): Promise<HotelServiceItem> {
-    const payload = await this.httpClient.request<unknown, UpdateServiceItemInput>({
+    const payload = await this.httpClient.request<
+      unknown,
+      UpdateServiceItemInput
+    >({
       method: "PATCH",
       path: hotelPath(hotelId, `/service-items/${encodeURIComponent(itemId)}`),
       body,
@@ -402,7 +479,12 @@ export class HotelOpsService {
 
   async getRequestsSummary(
     hotelId: string,
-    options: { query?: Pick<ListHotelRequestsQuery, "q" | "roomNumber" | "serviceItemId" | "priority" | "assignedToUserId"> } & AuthRequestOptions = {},
+    options: {
+      query?: Pick<
+        ListHotelRequestsQuery,
+        "q" | "roomNumber" | "serviceItemId" | "priority" | "assignedToUserId"
+      >;
+    } & AuthRequestOptions = {},
   ): Promise<StaffRequestSummaryResponse> {
     const payload = await this.httpClient.request<unknown>({
       method: "GET",
@@ -415,7 +497,12 @@ export class HotelOpsService {
     return unwrapApiEnvelope<StaffRequestSummaryResponse>(payload).data;
   }
 
-  async getRequest(hotelId: string, requestId: string, accessToken?: string, accessTokenExpiresAt?: number | null): Promise<HotelGuestRequest> {
+  async getRequest(
+    hotelId: string,
+    requestId: string,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+  ): Promise<HotelGuestRequest> {
     const payload = await this.httpClient.request<unknown>({
       method: "GET",
       path: hotelPath(hotelId, `/requests/${encodeURIComponent(requestId)}`),
@@ -433,9 +520,15 @@ export class HotelOpsService {
     accessToken?: string,
     accessTokenExpiresAt?: number | null,
   ): Promise<HotelGuestRequest> {
-    const payload = await this.httpClient.request<unknown, UpdateHotelRequestStatusInput>({
+    const payload = await this.httpClient.request<
+      unknown,
+      UpdateHotelRequestStatusInput
+    >({
       method: "PATCH",
-      path: hotelPath(hotelId, `/requests/${encodeURIComponent(requestId)}/status`),
+      path: hotelPath(
+        hotelId,
+        `/requests/${encodeURIComponent(requestId)}/status`,
+      ),
       body,
       accessToken,
       accessTokenExpiresAt,
@@ -451,9 +544,15 @@ export class HotelOpsService {
     accessToken?: string,
     accessTokenExpiresAt?: number | null,
   ): Promise<HotelGuestRequest> {
-    const payload = await this.httpClient.request<unknown, UpdateHotelRequestAssignmentInput>({
+    const payload = await this.httpClient.request<
+      unknown,
+      UpdateHotelRequestAssignmentInput
+    >({
       method: "PATCH",
-      path: hotelPath(hotelId, `/requests/${encodeURIComponent(requestId)}/assignment`),
+      path: hotelPath(
+        hotelId,
+        `/requests/${encodeURIComponent(requestId)}/assignment`,
+      ),
       body,
       accessToken,
       accessTokenExpiresAt,
@@ -469,9 +568,15 @@ export class HotelOpsService {
     accessToken?: string,
     accessTokenExpiresAt?: number | null,
   ): Promise<HotelRequestEvent> {
-    const payload = await this.httpClient.request<unknown, CreateHotelRequestEventInput>({
+    const payload = await this.httpClient.request<
+      unknown,
+      CreateHotelRequestEventInput
+    >({
       method: "POST",
-      path: hotelPath(hotelId, `/requests/${encodeURIComponent(requestId)}/events`),
+      path: hotelPath(
+        hotelId,
+        `/requests/${encodeURIComponent(requestId)}/events`,
+      ),
       body,
       accessToken,
       accessTokenExpiresAt,
@@ -480,27 +585,76 @@ export class HotelOpsService {
     return unwrapApiEnvelope<HotelRequestEvent>(payload).data;
   }
 
-  async listMessageThreads(hotelId: string, options: { query?: { cursor?: string; limit?: number; q?: string } } & AuthRequestOptions = {}) {
-    const payload = await this.httpClient.request<unknown>({ method: "GET", path: hotelPath(hotelId, "/messages"), query: options.query as HttpQuery, accessToken: options.accessToken, accessTokenExpiresAt: options.accessTokenExpiresAt });
+  async listMessageThreads(
+    hotelId: string,
+    options: {
+      query?: { cursor?: string; limit?: number; q?: string };
+    } & AuthRequestOptions = {},
+  ) {
+    const payload = await this.httpClient.request<unknown>({
+      method: "GET",
+      path: hotelPath(hotelId, "/messages"),
+      query: options.query as HttpQuery,
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
     return unwrapApiEnvelope<unknown>(payload).data;
   }
 
-  async getMessageThread(hotelId: string, threadId: string, options: { query?: { page?: number; limit?: number; before?: string } } & AuthRequestOptions = {}) {
-    const payload = await this.httpClient.request<unknown>({ method: "GET", path: hotelPath(hotelId, `/messages/${encodeURIComponent(threadId)}`), query: options.query as HttpQuery, accessToken: options.accessToken, accessTokenExpiresAt: options.accessTokenExpiresAt });
+  async getMessageThread(
+    hotelId: string,
+    threadId: string,
+    options: {
+      query?: { page?: number; limit?: number; before?: string };
+    } & AuthRequestOptions = {},
+  ) {
+    const payload = await this.httpClient.request<unknown>({
+      method: "GET",
+      path: hotelPath(hotelId, `/messages/${encodeURIComponent(threadId)}`),
+      query: options.query as HttpQuery,
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
     return unwrapApiEnvelope<unknown>(payload).data;
   }
 
-  async replyMessageThread(hotelId: string, threadId: string, body: string, accessToken?: string) {
-    const payload = await this.httpClient.request<unknown, { body: string }>({ method: "POST", path: hotelPath(hotelId, `/messages/${encodeURIComponent(threadId)}/reply`), body: { body }, accessToken });
+  async replyMessageThread(
+    hotelId: string,
+    threadId: string,
+    body: string,
+    accessToken?: string,
+  ) {
+    const payload = await this.httpClient.request<unknown, { body: string }>({
+      method: "POST",
+      path: hotelPath(
+        hotelId,
+        `/messages/${encodeURIComponent(threadId)}/reply`,
+      ),
+      body: { body },
+      accessToken,
+    });
     return unwrapApiEnvelope<unknown>(payload).data;
   }
 
-  async markMessageThreadRead(hotelId: string, threadId: string, accessToken?: string) {
-    const payload = await this.httpClient.request<unknown>({ method: "POST", path: hotelPath(hotelId, `/messages/${encodeURIComponent(threadId)}/read`), accessToken });
+  async markMessageThreadRead(
+    hotelId: string,
+    threadId: string,
+    accessToken?: string,
+  ) {
+    const payload = await this.httpClient.request<unknown>({
+      method: "POST",
+      path: hotelPath(
+        hotelId,
+        `/messages/${encodeURIComponent(threadId)}/read`,
+      ),
+      accessToken,
+    });
     return unwrapApiEnvelope<unknown>(payload).data;
   }
 }
 
-export function createHotelOpsService(options: HotelOpsServiceOptions): HotelOpsService {
+export function createHotelOpsService(
+  options: HotelOpsServiceOptions,
+): HotelOpsService {
   return new HotelOpsService(options);
 }

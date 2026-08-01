@@ -1,0 +1,432 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: frontends/front-end-vietsage/src/features/hotel-ops/service/hotel-ops-service.ts, frontends/front-end-vietsage/src/features/hotel-ops/service/service-catalog-sync-response.ts, frontends/front-end-vietsage/src/features/hotel-ops/service/service-catalog-sync-response.test.ts, frontends/front-end-vietsage/src/features/hotel-ops/repositories/google-sheet-config-repository.ts, frontends/front-end-vietsage/src/features/hotel-ops/utils/service-catalog-error.ts, frontends/front-end-vietsage/src/features/hotel-ops/utils/service-catalog-error.test.ts, frontends/front-end-vietsage/src/app/api/owner/hotels/[hotelId]/service-catalog/sync/route.ts
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    src/
+      app/
+        api/
+          owner/
+            hotels/
+              [hotelId]/
+                service-catalog/
+                  sync/
+                    route.ts
+      features/
+        hotel-ops/
+          repositories/
+            google-sheet-config-repository.ts
+          service/
+            hotel-ops-service.ts
+            service-catalog-sync-response.test.ts
+            service-catalog-sync-response.ts
+          utils/
+            service-catalog-error.test.ts
+            service-catalog-error.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="frontends/front-end-vietsage/src/app/api/owner/hotels/[hotelId]/service-catalog/sync/route.ts">
+import { HttpError } from "@/core/http/http-error";
+import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
+⋮----
+import {
+  executeOwnerBackendRequest,
+  ownerHttpErrorResponse,
+  successResponse,
+  unknownServerErrorResponse,
+  validationErrorResponse,
+} from "../../../../_utils";
+⋮----
+type Params = {
+  params: Promise<{ hotelId: string }>;
+};
+⋮----
+export async function POST(_request: Request, context: Params)
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/hotel-ops/service/service-catalog-sync-response.test.ts">
+import assert from "node:assert/strict";
+import test from "node:test";
+⋮----
+// @ts-expect-error Node's strip-types runner requires the explicit TypeScript extension.
+import { parseServiceCatalogSyncResponse } from "./service-catalog-sync-response.ts";
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/hotel-ops/service/service-catalog-sync-response.ts">
+export type ServiceCatalogSyncResult = {
+  inserted: number;
+  updated: number;
+  skipped: number;
+  skippedRows: number;
+  warnings: string[];
+};
+⋮----
+function isRecord(value: unknown): value is Record<string, unknown>
+⋮----
+export function parseServiceCatalogSyncResponse(
+  payload: unknown,
+): ServiceCatalogSyncResult
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/hotel-ops/utils/service-catalog-error.test.ts">
+import assert from "node:assert/strict";
+import test from "node:test";
+⋮----
+// @ts-expect-error Node's strip-types runner requires the explicit TypeScript extension.
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/hotel-ops/utils/service-catalog-error.ts">
+function isRecord(value: unknown): value is Record<string, unknown>
+⋮----
+function nestedDetail(value: unknown): string | undefined
+⋮----
+export function getServiceCatalogErrorMessage(error: unknown): string
+⋮----
+type SyncNoticeInput = {
+  inserted: number;
+  updated: number;
+  skippedRows?: number;
+  skipped?: number;
+  warnings: string[];
+};
+⋮----
+export function getServiceCatalogSyncNotice(result: SyncNoticeInput)
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/hotel-ops/repositories/google-sheet-config-repository.ts">
+import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import type {
+  Hotel,
+  UpdateHotelInput,
+} from "@/features/admin/types/admin-contract";
+import type { ServiceCatalogSyncResult } from "@/features/hotel-ops/service/service-catalog-sync-response";
+⋮----
+async update(hotelId: string, input: UpdateHotelInput): Promise<Hotel>
+⋮----
+async sync(hotelId: string): Promise<ServiceCatalogSyncResult>
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/hotel-ops/service/hotel-ops-service.ts">
+import { unwrapApiEnvelope } from "@/core/http/api-envelope";
+import { parseServiceCatalogSyncResponse } from "@/features/hotel-ops/service/service-catalog-sync-response";
+import { HttpClient, type HttpQuery } from "@/core/http/http-client";
+import type {
+  CreateHotelRequestEventInput,
+  CreateHotelRoomInput,
+  CreateHotelStayInput,
+  CreateServiceCategoryInput,
+  CreateServiceItemInput,
+  HotelCheckInResult,
+  HotelDashboard,
+  HotelGuestRequest,
+  HotelArrival,
+  HotelOpsPage,
+  HotelRoomSummary,
+  HotelRequestEvent,
+  HotelReservationCheckInResult,
+  HotelReservationInput,
+  HotelServiceCategory,
+  HotelServiceItem,
+  HotelStaySummary,
+  ListHotelRoomsQuery,
+  ListHotelArrivalsQuery,
+  ListHotelRequestsQuery,
+  ListServiceCategoriesQuery,
+  ListServiceItemsQuery,
+  StaffRequestListItem,
+  StaffRequestSummaryResponse,
+  UpdateHotelRequestAssignmentInput,
+  UpdateHotelRequestStatusInput,
+  UpdateHotelRoomInput,
+  UpdateServiceCategoryInput,
+  UpdateServiceItemInput,
+} from "@/features/hotel-ops/types/hotel-ops-contract";
+⋮----
+export type HotelOpsServiceOptions = {
+  baseUrl: string;
+  timeoutMs?: number;
+};
+⋮----
+type AuthRequestOptions = {
+  accessToken?: string;
+  accessTokenExpiresAt?: number | null;
+};
+⋮----
+function hotelPath(hotelId: string, suffix: string): string
+⋮----
+export class HotelOpsService
+⋮----
+constructor(options: HotelOpsServiceOptions)
+⋮----
+async issueRequestRealtimeTicket(
+    hotelId: string,
+    accessToken?: string,
+): Promise<
+⋮----
+async getDashboard(
+    hotelId: string,
+    options: AuthRequestOptions = {},
+): Promise<HotelDashboard>
+⋮----
+async listRooms(
+    hotelId: string,
+    options: { query?: ListHotelRoomsQuery } & AuthRequestOptions = {},
+): Promise<HotelOpsPage<HotelRoomSummary>>
+⋮----
+async listArrivals(
+    hotelId: string,
+    options: { query: ListHotelArrivalsQuery } & AuthRequestOptions,
+): Promise<HotelOpsPage<HotelArrival>>
+⋮----
+async createReservation(
+    hotelId: string,
+    body: HotelReservationInput,
+    accessToken?: string,
+): Promise<HotelArrival>
+⋮----
+async assignReservationRoom(
+    hotelId: string,
+    reservationId: string,
+    roomId: string,
+    accessToken?: string,
+): Promise<HotelArrival>
+⋮----
+async checkInReservation(
+    hotelId: string,
+    reservationId: string,
+    accessToken?: string,
+): Promise<HotelReservationCheckInResult>
+⋮----
+async createRoom(
+    hotelId: string,
+    body: CreateHotelRoomInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelRoomSummary>
+⋮----
+async updateRoom(
+    hotelId: string,
+    roomId: string,
+    body: UpdateHotelRoomInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelRoomSummary>
+⋮----
+async rotateRoomQr(
+    hotelId: string,
+    roomId: string,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelRoomSummary>
+⋮----
+async setRoomQrActive(
+    hotelId: string,
+    roomId: string,
+    active: boolean,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelRoomSummary>
+⋮----
+async createStay(
+    hotelId: string,
+    body: CreateHotelStayInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelStaySummary>
+⋮----
+async checkInStay(
+    hotelId: string,
+    stayId: string,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelStaySummary>
+⋮----
+async createAndCheckInStay(
+    hotelId: string,
+    body: CreateHotelStayInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelCheckInResult>
+⋮----
+async checkOutStay(
+    hotelId: string,
+    stayId: string,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelStaySummary>
+⋮----
+async syncServiceCatalogFromGoogleSheets(
+    hotelId: string,
+    options: AuthRequestOptions = {},
+)
+⋮----
+async getHotel(
+    hotelId: string,
+    accessToken?: string,
+): Promise<
+⋮----
+async listServiceCategories(
+    hotelId: string,
+    options: { query?: ListServiceCategoriesQuery } & AuthRequestOptions = {},
+): Promise<HotelOpsPage<HotelServiceCategory>>
+⋮----
+async createServiceCategory(
+    hotelId: string,
+    body: CreateServiceCategoryInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelServiceCategory>
+⋮----
+async updateServiceCategory(
+    hotelId: string,
+    categoryId: string,
+    body: UpdateServiceCategoryInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelServiceCategory>
+⋮----
+async listServiceItems(
+    hotelId: string,
+    options: { query?: ListServiceItemsQuery } & AuthRequestOptions = {},
+): Promise<HotelOpsPage<HotelServiceItem>>
+⋮----
+async createServiceItem(
+    hotelId: string,
+    body: CreateServiceItemInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelServiceItem>
+⋮----
+async updateServiceItem(
+    hotelId: string,
+    itemId: string,
+    body: UpdateServiceItemInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelServiceItem>
+⋮----
+async listRequests(
+    hotelId: string,
+    options: { query?: ListHotelRequestsQuery } & AuthRequestOptions = {},
+): Promise<HotelOpsPage<StaffRequestListItem>>
+⋮----
+async getRequestsSummary(
+    hotelId: string,
+    options: {
+      query?: Pick<
+        ListHotelRequestsQuery,
+        "q" | "roomNumber" | "serviceItemId" | "priority" | "assignedToUserId"
+      >;
+    } & AuthRequestOptions = {},
+): Promise<StaffRequestSummaryResponse>
+⋮----
+async getRequest(
+    hotelId: string,
+    requestId: string,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelGuestRequest>
+⋮----
+async updateRequestStatus(
+    hotelId: string,
+    requestId: string,
+    body: UpdateHotelRequestStatusInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelGuestRequest>
+⋮----
+async updateRequestAssignment(
+    hotelId: string,
+    requestId: string,
+    body: UpdateHotelRequestAssignmentInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelGuestRequest>
+⋮----
+async createRequestEvent(
+    hotelId: string,
+    requestId: string,
+    body: CreateHotelRequestEventInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelRequestEvent>
+⋮----
+async listMessageThreads(
+    hotelId: string,
+    options: {
+      query?: { cursor?: string; limit?: number; q?: string };
+    } & AuthRequestOptions = {},
+)
+⋮----
+async getMessageThread(
+    hotelId: string,
+    threadId: string,
+    options: {
+      query?: { page?: number; limit?: number; before?: string };
+    } & AuthRequestOptions = {},
+)
+⋮----
+async replyMessageThread(
+    hotelId: string,
+    threadId: string,
+    body: string,
+    accessToken?: string,
+)
+⋮----
+async markMessageThreadRead(
+    hotelId: string,
+    threadId: string,
+    accessToken?: string,
+)
+⋮----
+export function createHotelOpsService(
+  options: HotelOpsServiceOptions,
+): HotelOpsService
+</file>
+
+</files>
