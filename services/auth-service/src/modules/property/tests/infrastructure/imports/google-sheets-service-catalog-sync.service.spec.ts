@@ -89,6 +89,68 @@ describe("GoogleSheetsServiceCatalogSyncService", () => {
     ).rejects.toThrow("Thiếu cột bắt buộc");
   });
 
+  it("removes items depending on an invalid category within two previews", async () => {
+    const importService = {
+      preview: jest.fn().mockImplementation(({ workbook }) => {
+        const categoryRows = workbook.sheets.find((sheet) => sheet.name === "categories").rows;
+        const itemRows = workbook.sheets.find((sheet) => sheet.name === "items").rows;
+        if (categoryRows.some((row) => row.rowNumber === 2)) {
+          return {
+            validation: [
+              {
+                severity: "error",
+                sheet: "categories",
+                row: 2,
+                column: "category_key",
+                code: "INVALID_KEY",
+                message: "Mã nhóm không hợp lệ",
+              },
+            ],
+          };
+        }
+        if (itemRows.some((row) => row.values.category_key === "bad category")) {
+          return {
+            validation: [
+              {
+                severity: "error",
+                sheet: "items",
+                row: 2,
+                column: "category_key",
+                code: "CATEGORY_KEY_NOT_FOUND",
+                message: 'Mã nhóm "bad category" chưa có trong tab Nhóm dịch vụ',
+              },
+            ],
+          };
+        }
+        return { validation: [], marker: "clean" };
+      }),
+    };
+    const service = createService(importService) as unknown as {
+      previewValidRows: (input: Record<string, unknown>) => Promise<unknown>;
+    };
+
+    await service.previewValidRows({
+      type: "service-catalog",
+      mode: "upsert",
+      context: {},
+      workbook: {
+        fileName: "sheet",
+        sheets: [
+          {
+            name: "categories",
+            rows: [{ rowNumber: 2, values: { category_key: "bad category" } }],
+          },
+          {
+            name: "items",
+            rows: [{ rowNumber: 2, values: { category_key: "bad category" } }],
+          },
+        ],
+      },
+    });
+
+    expect(importService.preview).toHaveBeenCalledTimes(2);
+  });
+
   it("summarizes repeated missing category errors", () => {
     const service = createService() as unknown as {
       formatValidationErrors: (issues: Array<Record<string, unknown>>) => string;

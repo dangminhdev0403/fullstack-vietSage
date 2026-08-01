@@ -306,40 +306,57 @@ export class GoogleSheetsServiceCatalogSyncService {
   }
 
   private async previewValidRows(input: Parameters<ImportService["preview"]>[0]) {
-    let workbook: ParsedImportWorkbook = {
-      ...input.workbook,
-      sheets: input.workbook.sheets.map((sheet) => ({ ...sheet, rows: [...sheet.rows] })),
-    };
-    const skippedIssues: ImportValidationIssue[] = [];
+    const firstPreview = await this.importService.preview(input);
+    const validationErrors = firstPreview.validation.filter((issue) => issue.severity === "error");
+    if (validationErrors.length === 0) return { preview: firstPreview, skippedIssues: [] };
 
-    while (true) {
-      const preview = await this.importService.preview({ ...input, workbook });
-      const validationErrors = preview.validation.filter((issue) => issue.severity === "error");
-      if (validationErrors.length === 0) return { preview, skippedIssues };
-
-      const blockingErrors = validationErrors.filter((issue) => issue.row == null);
-      if (blockingErrors.length) {
-        throw new BadRequestException(this.formatValidationErrors(blockingErrors));
-      }
-
-      const invalidRows = new Set(validationErrors.map((issue) => `${issue.sheet}:${issue.row}`));
-      const nextWorkbook = {
-        ...workbook,
-        sheets: workbook.sheets.map((sheet) => ({
-          ...sheet,
-          rows: sheet.rows.filter((row) => !invalidRows.has(`${sheet.name}:${row.rowNumber}`)),
-        })),
-      };
-      const removedRows = workbook.sheets.reduce(
-        (count, sheet, index) => count + sheet.rows.length - nextWorkbook.sheets[index].rows.length,
-        0,
-      );
-      if (removedRows === 0) {
-        throw new BadRequestException(this.formatValidationErrors(validationErrors));
-      }
-      skippedIssues.push(...validationErrors);
-      workbook = nextWorkbook;
+    const blockingErrors = validationErrors.filter((issue) => issue.row == null);
+    if (blockingErrors.length) {
+      throw new BadRequestException(this.formatValidationErrors(blockingErrors));
     }
+
+    const invalidRows = new Set(validationErrors.map((issue) => `${issue.sheet}:${issue.row}`));
+    const categories = input.workbook.sheets.find((sheet) => sheet.name === "categories");
+    const invalidCategoryKeys = new Set(
+      (categories?.rows ?? [])
+        .filter((row) => invalidRows.has(`categories:${row.rowNumber}`))
+        .map((row) => this.sheetCellText(row.values.category_key).trim())
+        .filter(Boolean),
+    );
+    const dependentItemIssues: ImportValidationIssue[] = [];
+    const workbook = {
+      ...input.workbook,
+      sheets: input.workbook.sheets.map((sheet) => ({
+        ...sheet,
+        rows: sheet.rows.filter((row) => {
+          const directlyInvalid = invalidRows.has(`${sheet.name}:${row.rowNumber}`);
+          const categoryKey = this.sheetCellText(row.values.category_key).trim();
+          const dependsOnInvalidCategory =
+            sheet.name === "items" && invalidCategoryKeys.has(categoryKey);
+          if (dependsOnInvalidCategory && !directlyInvalid) {
+            dependentItemIssues.push({
+              severity: "error",
+              sheet: "items",
+              row: row.rowNumber,
+              column: "category_key",
+              code: "CATEGORY_KEY_NOT_FOUND",
+              message: `Mã nhóm "${categoryKey}" chưa có trong tab Nhóm dịch vụ`,
+            });
+          }
+          return !directlyInvalid && !dependsOnInvalidCategory;
+        }),
+      })),
+    };
+
+    const cleanPreview = await this.importService.preview({ ...input, workbook });
+    const remainingErrors = cleanPreview.validation.filter((issue) => issue.severity === "error");
+    if (remainingErrors.length) {
+      throw new BadRequestException(this.formatValidationErrors(remainingErrors));
+    }
+    return {
+      preview: cleanPreview,
+      skippedIssues: [...validationErrors, ...dependentItemIssues],
+    };
   }
 
   private toParsedSheet(name: "categories" | "items", values: unknown[][]) {
