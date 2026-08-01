@@ -6,6 +6,7 @@ import { canResetFrontdeskPassword, resetResponseHeaders, validatePasswordChange
 
 test("password change validation rejects weak, reused, and mismatched passwords", () => {
   assert.equal(validatePasswordChange({ currentPassword: "oldSecret1!", newPassword: "short", confirmPassword: "short" }), "Mật khẩu mới cần tối thiểu 8 ký tự.");
+  assert.equal(validatePasswordChange({ currentPassword: "oldSecret1!", newPassword: "12345678", confirmPassword: "12345678" }), "Mật khẩu mới cần chữ hoa, chữ thường, chữ số và ký tự đặc biệt.");
   assert.equal(validatePasswordChange({ currentPassword: "oldSecret1!", newPassword: "oldSecret1!", confirmPassword: "oldSecret1!" }), "Mật khẩu mới phải khác mật khẩu hiện tại.");
   assert.equal(validatePasswordChange({ currentPassword: "oldSecret1!", newPassword: "newSecret1!", confirmPassword: "newSecret2!" }), "Xác nhận mật khẩu không khớp.");
   assert.equal(validatePasswordChange({ currentPassword: "oldSecret1!", newPassword: "newSecret1!", confirmPassword: "newSecret1!" }), null);
