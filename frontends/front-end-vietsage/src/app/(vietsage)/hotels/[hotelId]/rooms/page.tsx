@@ -5,6 +5,7 @@ import { assertCanAccessHotelOps, canUseHotelId, requireHotelOpsServerTokens } f
 import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 import { StaffRoomsClient } from "./staff-rooms-client";
+import { WorkstationConnectionPanel } from "@/features/local-biometric/components/workstation-connection-panel";
 
 type PageProps = { params: Promise<{ hotelId: string }> | { hotelId: string } };
 export const dynamic = "force-dynamic";
@@ -77,6 +78,8 @@ export default async function StaffRoomsPage({ params }: PageProps) {
           <p className="mt-2 max-w-3xl text-sm text-[var(--on-surface-variant)]">Chọn phòng sẵn sàng để check-in khách vãng lai. Sau khi mở phòng, QR GuestOS và mã truy cập được kích hoạt ngay.</p>
         </div>
       </header>
+
+      {context.permissions.includes("hotel.stays.manage") ? <WorkstationConnectionPanel hotelId={hotelId} /> : null}
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {metrics.map(([label, value, tone]) => (

@@ -1200,8 +1200,8 @@
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/features/workspace/config/workspace-registry.ts": {
-    "mtime": 1785560964.454456,
-    "ast_hash": "8c2e5d3ee04dfa755c7199c223e68aca",
+    "mtime": 1785605845.8238645,
+    "ast_hash": "1b58fcb7b953571a000eba2feb90f5ac",
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/features/workspace/types/workspace-navigation.ts": {
@@ -2455,8 +2455,8 @@
     "semantic_hash": ""
   },
   "services/auth-service/src/modules/property/tests/infrastructure/imports/google-sheets-service-catalog-sync.service.spec.ts": {
-    "mtime": 1785605492.0789464,
-    "ast_hash": "fcea1a07b46ec1664b38b6bd9d085736",
+    "mtime": 1785605781.866138,
+    "ast_hash": "21413aefe05ab9141bd0fc233e62ed68",
     "semantic_hash": ""
   },
   "services/auth-service/src/modules/property/tests/infrastructure/imports/service-catalog-import.adapter.spec.ts": {
@@ -3250,8 +3250,8 @@
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/rooms/page.tsx": {
-    "mtime": 1785555160.2815082,
-    "ast_hash": "4c21413702ed4bbf608ef8a4542cf257",
+    "mtime": 1785605862.192219,
+    "ast_hash": "93dced72bbb3e52840bc4caa2a04cb47",
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/rooms/staff-rooms-client.tsx": {
@@ -4040,8 +4040,8 @@
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/features/local-biometric/components/check-in-workspace.tsx": {
-    "mtime": 1785605599.7051463,
-    "ast_hash": "b41055cfd3614b1a071d78b43edd12f0",
+    "mtime": 1785605681.3005004,
+    "ast_hash": "158bc82d9e2486f96d83b7715543d661",
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/features/local-biometric/hooks/use-workstation-scan.ts": {
@@ -4205,7 +4205,7 @@
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/features/hotel-ops/utils/request-page-permissions.test.ts": {
-    "mtime": 1785605613.3602626,
+    "mtime": 1785605885.7827635,
     "ast_hash": "be4a358697543b37e3ed77462db99841",
     "semantic_hash": ""
   },
@@ -4217,6 +4217,11 @@
   "services/auth-service/prisma/migrations/20260801123344_add_guest_stay_cccd_details/migration.sql": {
     "mtime": 1785587630.744384,
     "ast_hash": "d23d39e22fa0cb027d77fb8c93d1836c",
+    "semantic_hash": ""
+  },
+  "frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/biometric/page.tsx": {
+    "mtime": 1785605851.8563354,
+    "ast_hash": "1d3ac21267507f9dd2b4094279d7be98",
     "semantic_hash": ""
   }
 }

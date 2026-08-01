@@ -65,6 +65,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
   { key: "staff.dashboard", personas: STAFF_PERSONAS, href: "/hotels/{hotelId}/dashboard", label: "Điều hành hôm nay", icon: "space_dashboard", order: 20, requiresHotel: true, anyCapabilities: ["hotel.dashboard.view"] },
   { key: "staff.services", personas: STAFF_PERSONAS, href: "/hotels/{hotelId}/services", label: "Quản lý dịch vụ", icon: "room_service", order: 25, requiresHotel: true, anyCapabilities: ["hotel.services.view", "hotel.services.manage"] },
   { key: "staff.rooms", personas: ["manager", "front_desk"], href: "/hotels/{hotelId}/rooms", label: "Phòng & check-in", icon: "bed", order: 30, requiresHotel: true, anyCapabilities: ["hotel.rooms.view", "hotel.stays.manage", "hotel.reservations.view", "hotel.reservations.manage"] },
+  { key: "staff.biometric", personas: ["manager", "front_desk"], href: "/hotels/{hotelId}/biometric", label: "Máy quét CCCD", icon: "badge", order: 32, requiresHotel: true, anyCapabilities: ["hotel.stays.manage"] },
 
   { key: "staff.requests", personas: STAFF_PERSONAS, href: "/hotels/{hotelId}/requests", label: "Xử lý yêu cầu", icon: "assignment", order: 50, requiresHotel: true, anyCapabilities: ["hotel.requests.view", "hotel.requests.manage"] },
   { key: "staff.messages", personas: STAFF_PERSONAS, href: "/hotels/{hotelId}/messages", label: "Tin nhắn phòng", icon: "support_agent", order: 55, requiresHotel: true, anyCapabilities: ["hotel.requests.view", "hotel.requests.manage"] },
