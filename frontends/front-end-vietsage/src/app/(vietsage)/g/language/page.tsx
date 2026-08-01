@@ -34,11 +34,11 @@ export default function GuestLanguagePage() {
     setLocale(language);
   }
 
-  function continueToHome() {
+  function continueToServices() {
     if (!sessionToken) return;
     setLocale(selectedLanguage);
     setIsConfirmOpen(false);
-    router.replace("/g/home");
+    router.replace("/g/services");
   }
 
   function closeConfirmation() {
@@ -128,7 +128,7 @@ export default function GuestLanguagePage() {
               <h2 id="language-confirm-title" className="vs-display text-2xl font-semibold text-[#18211d]">{t("language.confirmTitle")}</h2>
               <p className="mt-3 text-sm leading-6 text-[#5e6a62]">{t("language.confirmMessage", { language: activeLanguageOption.nativeName })}</p>
               <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                <button ref={confirmButtonRef} type="button" onClick={continueToHome} className="min-h-12 flex-1 rounded-[17px] bg-[#25483f] px-5 text-sm font-black text-white shadow-[0_14px_30px_rgba(31,61,53,0.2)] transition-colors hover:bg-[#1d3932] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b18b26]">
+                <button ref={confirmButtonRef} type="button" onClick={continueToServices} className="min-h-12 flex-1 rounded-[17px] bg-[#25483f] px-5 text-sm font-black text-white shadow-[0_14px_30px_rgba(31,61,53,0.2)] transition-colors hover:bg-[#1d3932] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b18b26]">
                   {t("common.confirm")}
                 </button>
                 <button type="button" onClick={closeConfirmation} className="min-h-12 flex-1 rounded-[17px] border border-[#25483f]/18 bg-white px-5 text-sm font-black text-[#25483f] transition-colors hover:bg-[#f1eee4] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b18b26]">
