@@ -1,0 +1,172 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: frontends/front-end-vietsage/src/features/local-biometric/workstation/workstation-store.ts, frontends/front-end-vietsage/src/features/local-biometric/workstation/workstation-store.test.ts, frontends/front-end-vietsage/src/features/local-biometric/workstation/authorize-hotel-workstation.ts, frontends/front-end-vietsage/src/app/api/biometric-workstations/commands/route.ts, frontends/front-end-vietsage/src/app/api/biometric-workstations/pair/route.ts, frontends/front-end-vietsage/src/app/api/biometric-workstations/scans/[scanRequestId]/complete/route.ts
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    src/
+      app/
+        api/
+          biometric-workstations/
+            commands/
+              route.ts
+            pair/
+              route.ts
+            scans/
+              [scanRequestId]/
+                complete/
+                  route.ts
+      features/
+        local-biometric/
+          workstation/
+            authorize-hotel-workstation.ts
+            workstation-store.test.ts
+            workstation-store.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="frontends/front-end-vietsage/src/app/api/biometric-workstations/commands/route.ts">
+import { NextResponse } from "next/server";
+import { bearerToken } from "@/features/local-biometric/workstation/workstation-auth";
+import { workstationStore } from "@/features/local-biometric/workstation/workstation-store";
+⋮----
+export async function GET(request:Request)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/api/biometric-workstations/pair/route.ts">
+import { NextResponse } from "next/server";
+import { workstationStore } from "@/features/local-biometric/workstation/workstation-store";
+⋮----
+export async function POST(request:Request)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/api/biometric-workstations/scans/[scanRequestId]/complete/route.ts">
+import { NextResponse } from "next/server";
+import { parseIntakePayload } from "@/features/local-biometric/intake/intake-contract";
+import { bearerToken } from "@/features/local-biometric/workstation/workstation-auth";
+import { workstationStore } from "@/features/local-biometric/workstation/workstation-store";
+export const dynamic="force-dynamic";const MAX=1_048_576;type Context={params:Promise<{scanRequestId:string}>|{scanRequestId:string}};
+export async function POST(request:Request,context:Context)
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/workstation/authorize-hotel-workstation.ts">
+import type { Session } from "next-auth";
+⋮----
+import { executeOwnerBackendRequest } from "@/app/api/owner/_utils";
+import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
+import { canUseHotelId } from "@/features/hotel-ops/utils/hotel-route-auth";
+import { resolveIntakeAuthorizationMode } from "../intake/intake-authorization";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
+⋮----
+export async function authorizeHotelWorkstation(session: Session, hotelId: string): Promise<Response | null>
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/workstation/workstation-store.test.ts">
+import assert from "node:assert/strict";
+import test from "node:test";
+⋮----
+// @ts-expect-error Node strip-types requires explicit extension.
+import { WorkstationStore } from "./workstation-store.ts";
+⋮----
+assert.equal(readAfterAck, null); // readScan returns null for acknowledged scans
+⋮----
+store.issuePairing("hotel-1", "operator-1", 300); // expires at 301,000
+store.requestScan("hotel-1", "operator-1", 60); // expires at 61,000
+⋮----
+assert.equal(store.cleanupExpired(), 1); // scan expired
+⋮----
+assert.equal(store.cleanupExpired(), 1); // pairing expired
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/workstation/workstation-store.ts">
+import type { IntakePayload, IntakePayloadV2 } from "../intake/intake-contract";
+⋮----
+type Pairing = { code: string; hotelId: string; operatorId: string; expiresAt: number };
+type Workstation = { token: string; hotelId: string; pairedAt: number; lastSeenAt: number; expiresAt: number };
+type Scan = {
+  scanRequestId: string;
+  hotelId: string;
+  operatorId: string;
+  expiresAt: number;
+  payload: IntakePayload | IntakePayloadV2 | null;
+  claimedBy: string | null;
+  status: "waiting" | "claimed" | "received" | "acknowledged" | "discarded";
+};
+⋮----
+export class WorkstationStore
+⋮----
+constructor(
+    now: () => number = Date.now,
+    createSecret: () => string = () => crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, ""),
+)
+⋮----
+issuePairing(hotelId: string, operatorId: string, ttlSeconds = 300)
+⋮----
+pair(code: string, ttlSeconds = 30 * 24 * 60 * 60)
+⋮----
+requestScan(hotelId: string, operatorId: string, ttlSeconds = 60)
+⋮----
+poll(token: string)
+⋮----
+complete(token: string, scanRequestId: string, payload: IntakePayload | IntakePayloadV2)
+⋮----
+readScan(scanRequestId: string, hotelId: string, operatorId: string)
+⋮----
+acknowledgeScan(scanRequestId: string, hotelId: string, operatorId: string)
+⋮----
+discardScan(scanRequestId: string, hotelId: string, operatorId: string)
+⋮----
+cleanupExpired()
+⋮----
+hasOnlineWorkstation(hotelId: string, freshnessMs = 10_000)
+⋮----
+disconnectHotel(hotelId: string)
+⋮----
+// ponytail: process-local state is for local/dev; replace with Redis before multi-instance deployment.
+</file>
+
+</files>

@@ -1,0 +1,10 @@
+{
+  "files": [
+    "frontends/front-end-vietsage/src/features/local-biometric/workstation/workstation-store.ts",
+    "frontends/front-end-vietsage/src/features/local-biometric/workstation/workstation-store.test.ts",
+    "frontends/front-end-vietsage/src/app/api/biometric-workstations/recognitions/route.ts",
+    "frontends/front-end-vietsage/src/app/api/biometric-workstations/hotels/[hotelId]/recognitions/route.ts",
+    "frontends/front-end-vietsage/docs/PLANS.md"
+  ],
+  "repomix_pack": "graphify-out/repomix/faceid-recognition-relay-scope.xml"
+}
