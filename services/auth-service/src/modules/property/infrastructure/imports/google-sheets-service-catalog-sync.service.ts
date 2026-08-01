@@ -3,7 +3,10 @@ import { Cron, CronExpression } from "@nestjs/schedule";
 import { google } from "googleapis";
 import { AppLogger } from "../../../../common/logging/app-logger.service";
 import { ImportService } from "../../../../common/import/import.service";
-import type { ParsedImportWorkbook } from "../../../../common/import/import.types";
+import type {
+  ImportValidationIssue,
+  ParsedImportWorkbook,
+} from "../../../../common/import/import.types";
 import { PrismaService } from "../../../../prisma/prisma.service";
 import { HotelAccessService } from "../../application/hotel-access.service";
 
@@ -144,13 +147,9 @@ export class GoogleSheetsServiceCatalogSyncService {
 
       const validationErrors = preview.validation.filter((issue) => issue.severity === "error");
       if (validationErrors.length) {
-        errors.push(
-          ...validationErrors.map(
-            (issue) =>
-              `${issue.sheet}:${issue.row ?? "?"}:${issue.column ?? "?"} ${issue.code} - ${issue.message}`,
-          ),
-        );
-        throw new BadRequestException(errors.join("; "));
+        const detail = this.formatValidationErrors(validationErrors);
+        errors.push(detail);
+        throw new BadRequestException(detail);
       }
 
       this.logger.info("Google Sheets sync upsert started", {
@@ -281,6 +280,31 @@ export class GoogleSheetsServiceCatalogSyncService {
       throw new BadRequestException("Google Sheets phải có ít nhất 2 tab dữ liệu");
     }
     return titles.slice(0, 2).map((title) => `'${title.replace(/'/g, "''")}'!A1:Z`);
+  }
+
+  private formatValidationErrors(issues: ImportValidationIssue[]): string {
+    const missingCategories = new Map<string, number[]>();
+    for (const issue of issues) {
+      if (issue.code !== "CATEGORY_KEY_NOT_FOUND") continue;
+      const key = issue.message.match(/"([^"]+)"/)?.[1];
+      if (!key) continue;
+      const rows = missingCategories.get(key) ?? [];
+      if (issue.row != null) rows.push(issue.row);
+      missingCategories.set(key, rows);
+    }
+    if (
+      missingCategories.size > 0 &&
+      issues.every((issue) => issue.code === "CATEGORY_KEY_NOT_FOUND")
+    ) {
+      const details = Array.from(
+        missingCategories,
+        ([key, rows]) => `${key} (dòng ${rows.join(", ")})`,
+      ).join("; ");
+      return `Tab Dịch vụ đang dùng mã nhóm chưa có trong tab Nhóm dịch vụ: ${details}. Hãy thêm các mã nhóm này vào tab Nhóm dịch vụ rồi đồng bộ lại.`;
+    }
+    return issues
+      .map((issue) => `${issue.sheet}:${issue.row ?? "?"}:${issue.column ?? "?"} ${issue.message}`)
+      .join("; ");
   }
 
   private toParsedSheet(name: "categories" | "items", values: unknown[][]) {

@@ -10,6 +10,40 @@ function createService() {
 }
 
 describe("GoogleSheetsServiceCatalogSyncService", () => {
+  it("summarizes repeated missing category errors", () => {
+    const service = createService() as unknown as {
+      formatValidationErrors: (issues: Array<Record<string, unknown>>) => string;
+    };
+
+    expect(
+      service.formatValidationErrors([
+        {
+          sheet: "items",
+          row: 6,
+          column: "category_key",
+          code: "CATEGORY_KEY_NOT_FOUND",
+          message: 'Mã nhóm "food_ordering" chưa có trong tab Nhóm dịch vụ',
+        },
+        {
+          sheet: "items",
+          row: 7,
+          column: "category_key",
+          code: "CATEGORY_KEY_NOT_FOUND",
+          message: 'Mã nhóm "food_ordering" chưa có trong tab Nhóm dịch vụ',
+        },
+        {
+          sheet: "items",
+          row: 10,
+          column: "category_key",
+          code: "CATEGORY_KEY_NOT_FOUND",
+          message: 'Mã nhóm "spa" chưa có trong tab Nhóm dịch vụ',
+        },
+      ]),
+    ).toBe(
+      "Tab Dịch vụ đang dùng mã nhóm chưa có trong tab Nhóm dịch vụ: food_ordering (dòng 6, 7); spa (dòng 10). Hãy thêm các mã nhóm này vào tab Nhóm dịch vụ rồi đồng bộ lại.",
+    );
+  });
+
   it("uses the first two sheet tabs regardless of their names", () => {
     const service = createService() as unknown as {
       rangesForFirstTwoSheets: (titles: string[]) => string[];

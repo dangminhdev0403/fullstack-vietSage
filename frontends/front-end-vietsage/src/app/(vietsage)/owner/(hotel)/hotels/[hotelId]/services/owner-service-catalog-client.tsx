@@ -10,6 +10,7 @@ import { requestInternalApi, requestInternalApiEnvelope } from "@/core/http/inte
 import type { HotelServiceCategory, HotelServiceItem, HotelServiceStatus } from "@/features/hotel-ops/types/hotel-ops-contract";
 import { hotelServiceStatuses } from "@/features/hotel-ops/types/hotel-ops-contract";
 import { useOwnerGoogleSheetSync } from "@/features/hotel-ops/queries/use-google-sheet-config";
+import { getServiceCatalogErrorMessage } from "@/features/hotel-ops/utils/service-catalog-error";
 import { serviceStatusLabelMap, serviceStatusTone } from "@/features/hotel-ops/utils/hotel-ops-display";
 
 type Props = {
@@ -620,7 +621,7 @@ export function OwnerServiceCatalogClient({
       await Swal.fire({ icon: "success", title: "Đồng bộ Google Sheets thành công.", timer: 1300, showConfirmButton: false });
     } catch (error) {
       closeLoading();
-      await Swal.fire({ icon: "error", title: "Không thể đồng bộ Google Sheets", text: getBusinessErrorMessage(error, "Vui lòng kiểm tra cấu hình Google Sheets và thử lại."), confirmButtonColor: "#00003c" });
+      await Swal.fire({ icon: "error", title: "Dữ liệu Google Sheets chưa hợp lệ", text: getServiceCatalogErrorMessage(error), confirmButtonColor: "#00003c" });
     } finally {
       setIsImporting(false);
     }

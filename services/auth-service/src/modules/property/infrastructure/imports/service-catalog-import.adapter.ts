@@ -347,7 +347,7 @@ export class ServiceCatalogImportAdapter
             item.rowNumber,
             "category_key",
             "CATEGORY_KEY_NOT_FOUND",
-            "category_key is not present in categories sheet",
+            `Mã nhóm "${item.categoryKey}" chưa có trong tab Nhóm dịch vụ`,
           ),
         );
       }
