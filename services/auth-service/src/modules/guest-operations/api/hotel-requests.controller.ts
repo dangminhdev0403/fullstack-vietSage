@@ -43,6 +43,7 @@ export class HotelRequestsController {
 
   @SuccessMessage("Lấy danh sách hội thoại phòng thành công")
   @RequirePermission("hotel.requests.view")
+  @ApiDescript("Xem danh sách hội thoại phòng")
   @Get(":hotelId/messages")
   async listMessages(
     @Req() request: RequestWithUser,
@@ -63,6 +64,7 @@ export class HotelRequestsController {
 
   @SuccessMessage("Lấy hội thoại phòng thành công")
   @RequirePermission("hotel.requests.view")
+  @ApiDescript("Xem chi tiết hội thoại phòng")
   @Get(":hotelId/messages/:threadId")
   async getMessageThread(
     @Req() request: RequestWithUser,
@@ -86,6 +88,7 @@ export class HotelRequestsController {
 
   @SuccessMessage("Đã gửi tin nhắn cho khách")
   @RequirePermission("hotel.requests.manage")
+  @ApiDescript("Gửi tin nhắn cho khách")
   @Post(":hotelId/messages/:threadId/reply")
   async replyMessage(
     @Req() request: RequestWithUser,
@@ -107,6 +110,7 @@ export class HotelRequestsController {
 
   @SuccessMessage("Đã đánh dấu hội thoại là đã đọc")
   @RequirePermission("hotel.requests.manage")
+  @ApiDescript("Đánh dấu hội thoại phòng đã đọc")
   @Post(":hotelId/messages/:threadId/read")
   async markMessageThreadRead(
     @Req() request: RequestWithUser,

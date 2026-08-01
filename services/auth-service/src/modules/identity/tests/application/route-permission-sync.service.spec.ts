@@ -2,6 +2,7 @@ import { RequestMethod } from "@nestjs/common";
 import { METHOD_METADATA, PATH_METADATA } from "@nestjs/common/constants";
 import { ModulesContainer } from "@nestjs/core/injector/modules-container";
 import { API_DESCRIPTION_KEY } from "../../../../shared/decorators/api-descript.decorator";
+import { HotelRequestsController } from "../../../guest-operations/api/hotel-requests.controller";
 import { HotelUsersController } from "../../api/hotel-users.controller";
 import { AuthRepository } from "../../infrastructure/repositories/auth.repository";
 import { RoutePermissionSyncService } from "../../application/route-permission-sync.service";
@@ -160,11 +161,17 @@ describe("RoutePermissionSyncService", () => {
     );
   }
 
-  it("describes every protected hotel-users route", () => {
-    for (const handlerName of Object.getOwnPropertyNames(HotelUsersController.prototype)) {
+  it.each([
+    ["hotel-users", HotelUsersController.prototype],
+    ["hotel-requests", HotelRequestsController.prototype],
+  ])("describes every protected %s route", (_name, prototype) => {
+    for (const handlerName of Object.getOwnPropertyNames(prototype)) {
       if (handlerName === "constructor") continue;
-      const handler = HotelUsersController.prototype[handlerName as keyof HotelUsersController];
-      if (typeof handler !== "function" || Reflect.getMetadata(METHOD_METADATA, handler) === undefined) {
+      const handler = prototype[handlerName as keyof typeof prototype];
+      if (
+        typeof handler !== "function" ||
+        Reflect.getMetadata(METHOD_METADATA, handler) === undefined
+      ) {
         continue;
       }
 
