@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Biometric workstation pairing is now restart-safe:
+  - One-time pairing codes and workstation credentials are persisted as SHA-256 hashes in PostgreSQL.
+  - `POST /biometric-workstations/pair` and `/authenticate` validate receiver credentials without storing plaintext tokens.
+  - Hotel-scoped issue/status/disconnect endpoints require `hotel.stays.manage` plus resource access.
+  - CCCD scan payloads and recognition relay data remain volatile and are not persisted by this change.
+
 - GuestOS QR/device semantics:
   - `POST /guest/qr/scan` continues to accept optional `deviceFingerprint`; the VietSage browser
     now supplies a stable anonymous value.

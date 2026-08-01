@@ -13,7 +13,7 @@ export type { AccountAction } from "./landing-action-core";
  * the decision to `resolveLandingAction`.
  *
  * Rules:
- *  - No session / expired / error → Sign in → /login
+ *  - No session / expired / error → Sign in → /dangnhap
  *  - Guest session              → Open guest experience → /g/home
  *  - Admin/Owner/Staff session  → Go to dashboard → role's homePath
  */

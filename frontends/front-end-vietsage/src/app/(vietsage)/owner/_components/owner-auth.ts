@@ -18,7 +18,7 @@ export function redirectOwnerToLogin(callbackUrl: `/${string}`, reason: string):
     pathname: callbackUrl,
   });
 
-  redirect(`/login?reauth=1&callbackUrl=${encodeURIComponent(callbackUrl)}`);
+  redirect(`/dangnhap?reauth=1&callbackUrl=${encodeURIComponent(callbackUrl)}`);
 }
 
 export function assertCanAccessOwner(session: Session | null, callbackUrl: `/${string}`): asserts session is Session {

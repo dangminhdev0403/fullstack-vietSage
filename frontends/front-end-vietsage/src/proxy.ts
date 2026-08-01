@@ -2,10 +2,11 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { auth } from "./auth";
 import { createRequestRedirectUrl } from "./features/auth/utils/redirect-isolation-core";
+import { LEGACY_LOGIN_PATH, LOGIN_PATH } from "./features/auth/utils/login-route";
 import { canAccessPathByRoles, getDefaultPathForRoles, sanitizeInternalCallbackUrl } from "./libs/rbac";
 
 const protectedPrefixes = ["/admin", "/owner", "/staff", "/hotels"] as const;
-const authRoutes = new Set(["/login", "/register"]);
+const authRoutes = new Set([LOGIN_PATH, LEGACY_LOGIN_PATH, "/register"]);
 const nextAuthCookiePrefixes = [
   "next-auth.",
   "__Secure-next-auth.",
@@ -51,7 +52,7 @@ function clearNextAuthCookies(request: NextRequest, response: NextResponse): Nex
 }
 
 function buildLoginRedirect(request: NextRequest): NextResponse {
-  const loginUrl = createRequestRedirectUrl("/login", request);
+  const loginUrl = createRequestRedirectUrl(LOGIN_PATH, request);
   const callbackSource = request.nextUrl.clone();
 
   // Prevent callbackUrl nesting growth when a protected URL already carries callbackUrl

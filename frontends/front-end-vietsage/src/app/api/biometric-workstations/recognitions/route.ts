@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { authenticatePersistentWorkstation } from "@/features/local-biometric/workstation/persistent-workstation-client";
 import {
   acceptsRecognitionBodyLength,
   bearerToken,
@@ -26,13 +27,17 @@ export async function POST(request: Request) {
   }
   const token = bearerToken(request);
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers });
+  let workstation: { hotelId: string };
+  try {
+    workstation = await authenticatePersistentWorkstation(token);
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers });
+  }
   if (!acceptsRecognitionBodyLength(request.headers.get("content-length"))) {
     return NextResponse.json({ error: "Invalid recognition size" }, { status: 413, headers });
   }
   const payload = parseRecognition(await request.json().catch(() => null));
   if (!payload) return NextResponse.json({ error: "Invalid recognition" }, { status: 400, headers });
-  const result = workstationStore.ingestRecognition(token, payload);
-  return result
-    ? NextResponse.json(result, { status: result.duplicate ? 200 : 202, headers })
-    : NextResponse.json({ error: "Unauthorized" }, { status: 401, headers });
+  const result = workstationStore.ingestRecognitionHotel(workstation.hotelId, payload);
+  return NextResponse.json(result, { status: result.duplicate ? 200 : 202, headers });
 }

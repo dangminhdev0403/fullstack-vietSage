@@ -528,10 +528,12 @@ model Hotel {
   invoices            Invoice[]
   payments            Payment[]
   paymentTransactions PaymentTransaction[]
-  staffAssignments    HotelStaffAssignment[]
-  emergencyLocations  EmergencyLocation[]
-  emergencyCallEvents EmergencyCallEvent[]
-  emergencyIncidents  EmergencyIncident[]
+  staffAssignments      HotelStaffAssignment[]
+  emergencyLocations    EmergencyLocation[]
+  emergencyCallEvents   EmergencyCallEvent[]
+  emergencyIncidents    EmergencyIncident[]
+  biometricPairings     BiometricWorkstationPairing[]
+  biometricWorkstations BiometricWorkstation[]
 
   @@unique([tenantId, code])
   @@index([tenantId, status])
@@ -556,6 +558,32 @@ model HotelStaffAssignment {
   @@unique([userId, hotelId])
   @@index([userId, status])
   @@index([hotelId, status])
+}
+
+model BiometricWorkstationPairing {
+  id         String    @id @default(cuid())
+  codeHash   String    @unique @db.Char(64)
+  hotelId    String
+  operatorId String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+  hotel      Hotel     @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@index([hotelId, expiresAt])
+}
+
+model BiometricWorkstation {
+  id         String    @id @default(cuid())
+  tokenHash  String    @unique @db.Char(64)
+  hotelId    String
+  pairedAt   DateTime  @default(now())
+  lastSeenAt DateTime
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  hotel      Hotel     @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@index([hotelId, revokedAt, expiresAt, lastSeenAt])
 }
 
 model Room {

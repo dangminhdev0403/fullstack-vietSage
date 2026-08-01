@@ -9,7 +9,7 @@ import { resolveLandingAction } from "./landing-action-core.ts";
 test("returns Sign in when session is null", () => {
   const action = resolveLandingAction(null, false, "/admin/dashboard");
   assert.equal(action.label, "Sign in");
-  assert.equal(action.href, "/login");
+  assert.equal(action.href, "/dangnhap");
 });
 
 // ── Expired / error sessions ──────────────────────────────────────
@@ -21,7 +21,7 @@ test("returns Sign in when session has authError", () => {
     "/admin/dashboard",
   );
   assert.equal(action.label, "Sign in");
-  assert.equal(action.href, "/login");
+  assert.equal(action.href, "/dangnhap");
 });
 
 test("returns Sign in when session cannot refresh", () => {
@@ -31,7 +31,7 @@ test("returns Sign in when session cannot refresh", () => {
     "/admin/dashboard",
   );
   assert.equal(action.label, "Sign in");
-  assert.equal(action.href, "/login");
+  assert.equal(action.href, "/dangnhap");
 });
 
 test("returns Sign in when activeRoleCode is null", () => {
@@ -41,7 +41,7 @@ test("returns Sign in when activeRoleCode is null", () => {
     "/admin/dashboard",
   );
   assert.equal(action.label, "Sign in");
-  assert.equal(action.href, "/login");
+  assert.equal(action.href, "/dangnhap");
 });
 
 // ── Authenticated admin/owner/staff ───────────────────────────────

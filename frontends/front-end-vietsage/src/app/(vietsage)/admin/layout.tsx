@@ -19,7 +19,7 @@ function redirectToLogin(reason: string): never {
     pathname: "/admin/dashboard",
   });
 
-  redirect("/login?reauth=1&callbackUrl=/admin/dashboard");
+  redirect("/dangnhap?reauth=1&callbackUrl=/admin/dashboard");
 }
 
 export default async function AdminLayout({

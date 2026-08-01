@@ -9290,6 +9290,127 @@
           "request-realtime"
         ]
       }
+    },
+    "/biometric-workstations/pair": {
+      "post": {
+        "operationId": "BiometricWorkstationsController_pair",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "biometric-workstations"
+        ]
+      }
+    },
+    "/biometric-workstations/authenticate": {
+      "post": {
+        "operationId": "BiometricWorkstationsController_authenticate",
+        "parameters": [
+          {
+            "name": "authorization",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "biometric-workstations"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/biometric-workstations/pairing": {
+      "post": {
+        "operationId": "BiometricWorkstationsController_issuePairing",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "biometric-workstations"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/biometric-workstations/status": {
+      "get": {
+        "operationId": "BiometricWorkstationsController_status",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "biometric-workstations"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/biometric-workstations": {
+      "delete": {
+        "operationId": "BiometricWorkstationsController_disconnect",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "biometric-workstations"
+        ]
+      }
     }
   },
   "info": {

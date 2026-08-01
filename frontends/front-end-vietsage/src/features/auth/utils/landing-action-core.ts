@@ -6,7 +6,7 @@ export type SessionSnapshot = {
   authError: string | null;
 } | null;
 
-const SIGN_IN_ACTION: AccountAction = { label: "Sign in", href: "/login" };
+const SIGN_IN_ACTION: AccountAction = { label: "Sign in", href: "/dangnhap" };
 const GUEST_ACTION: AccountAction = { label: "Open guest experience", href: "/g/home" };
 
 /**

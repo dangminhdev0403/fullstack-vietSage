@@ -115,7 +115,7 @@ async function requestJson<TData>(path: string, options: { method: "POST" | "PAT
       reason: "backend_401_after_refresh_failed",
       pathname: callbackUrl,
     });
-    window.location.assign(`/login?reauth=1&callbackUrl=${encodeURIComponent(callbackUrl)}`);
+    window.location.assign(`/dangnhap?reauth=1&callbackUrl=${encodeURIComponent(callbackUrl)}`);
     throw new Error("UNAUTHORIZED");
   }
 

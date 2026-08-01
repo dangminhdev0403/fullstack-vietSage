@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { resolveSessionCookiePolicy } from "./auth-cookie-policy";
+import { loginUrl } from "@/features/auth/utils/login-route";
 
 export type ServerSessionTokens = {
   accessToken: string | null;
@@ -67,5 +68,5 @@ export function redirectToLogin(callbackUrl: `/${string}`, reason: string, sourc
     pathname: callbackUrl,
   });
 
-  redirect(`/login?reauth=1&callbackUrl=${encodeURIComponent(callbackUrl)}`);
+  redirect(loginUrl(callbackUrl));
 }

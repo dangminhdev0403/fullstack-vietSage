@@ -16,7 +16,7 @@ export function useChangePassword() {
   async function changePassword(input: ChangePasswordInput) {
     await mutation.mutateAsync(input);
     mutation.reset();
-    await signOut({ callbackUrl: "/login?reauth=1&passwordChanged=1" });
+    await signOut({ callbackUrl: "/dangnhap?reauth=1&passwordChanged=1" });
   }
 
   return { changePassword, isPending: mutation.isPending, error: mutation.error };

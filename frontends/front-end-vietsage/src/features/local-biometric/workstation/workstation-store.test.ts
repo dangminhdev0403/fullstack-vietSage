@@ -54,6 +54,16 @@ test("one workstation claims a scan command", () => {
   assert.equal(store.complete(first.token, scan.scanRequestId, result), true);
 });
 
+test("persistent workstation claim stays isolated between two workstations at one hotel", () => {
+  const store = new WorkstationStore(() => 1_000);
+  const scan = store.requestScan("hotel-1", "operator-1");
+
+  assert.equal(store.pollWorkstation("hotel-1", "station-a")?.scanRequestId, scan.scanRequestId);
+  assert.equal(store.pollWorkstation("hotel-1", "station-b"), null);
+  assert.equal(store.completeWorkstation("hotel-1", "station-b", scan.scanRequestId, result), false);
+  assert.equal(store.completeWorkstation("hotel-1", "station-a", scan.scanRequestId, result), true);
+});
+
 test("expired pairing, scan, and workstation token are rejected", () => {
   let now = 1_000;
   const secrets = ["pair-expired", "pair-live", "token-live"];

@@ -18,7 +18,7 @@ function redirectToLogin(callbackUrl: `/${string}`, reason: string): never {
     pathname: callbackUrl,
   });
 
-  redirect(`/login?reauth=1&callbackUrl=${encodeURIComponent(callbackUrl)}`);
+  redirect(`/dangnhap?reauth=1&callbackUrl=${encodeURIComponent(callbackUrl)}`);
 }
 
 export function assertCanAccessHotelOps(session: Session | null, callbackUrl: `/${string}`): asserts session is Session {

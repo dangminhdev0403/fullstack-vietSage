@@ -234,7 +234,7 @@ function redirectToLogin(): never {
   });
 
   window.location.assign(
-    `/login?reauth=1&callbackUrl=${encodeURIComponent(callbackUrl)}`,
+    `/dangnhap?reauth=1&callbackUrl=${encodeURIComponent(callbackUrl)}`,
   );
 
   throw new AuthRedirectError();

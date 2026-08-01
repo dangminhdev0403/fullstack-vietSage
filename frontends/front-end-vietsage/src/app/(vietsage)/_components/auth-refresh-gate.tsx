@@ -17,7 +17,7 @@ type AuthRefreshGateProps = {
 };
 
 function loginUrl(pathname: string): string {
-  return `/login?reauth=1&callbackUrl=${encodeURIComponent(pathname)}`;
+  return `/dangnhap?reauth=1&callbackUrl=${encodeURIComponent(pathname)}`;
 }
 
 async function logoutToLogin(pathname: string): Promise<void> {

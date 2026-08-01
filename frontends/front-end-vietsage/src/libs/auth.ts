@@ -108,7 +108,7 @@ export const authOptions = {
     strategy: "jwt",
   },
   pages: {
-    signIn: "/login",
+    signIn: "/dangnhap",
   },
   providers: [
     CredentialsProvider({

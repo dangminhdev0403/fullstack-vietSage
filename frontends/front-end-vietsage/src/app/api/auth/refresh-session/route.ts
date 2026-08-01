@@ -49,7 +49,7 @@ function getCallbackUrl(request: NextRequest): string {
 }
 
 function buildLoginRedirect(request: NextRequest, callbackUrl: string): NextResponse {
-  const loginUrl = createRequestRedirectUrl("/login", request);
+  const loginUrl = createRequestRedirectUrl("/dangnhap", request);
 
   loginUrl.searchParams.set("reauth", "1");
   loginUrl.searchParams.set("callbackUrl", sanitizeInternalCallbackUrl(callbackUrl));

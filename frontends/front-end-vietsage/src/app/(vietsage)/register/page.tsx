@@ -565,7 +565,7 @@ export default function RegisterPage() {
             <div className="mt-10 text-center">
               <p className="font-body-md text-body-md text-on-surface-variant">
                 Bạn đã có tài khoản?
-                <Link href="/login" className="ml-2 inline-flex items-center font-bold text-primary hover:underline">
+                <Link href="/dangnhap" className="ml-2 inline-flex items-center font-bold text-primary hover:underline">
                   Đăng nhập
                   <VsIcon name="arrow_forward" className="ml-1 text-[18px]" />
                 </Link>

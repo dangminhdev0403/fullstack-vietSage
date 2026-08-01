@@ -94,6 +94,18 @@ export class WorkstationStore {
     return { scanRequestId: scan.scanRequestId, expiresAt: scan.expiresAt };
   }
 
+  pollWorkstation(hotelId: string, workstationId: string) {
+    const scan = [...this.scans.values()].find((item) =>
+      item.hotelId === hotelId
+      && (item.status === "waiting" || (item.status === "claimed" && item.claimedBy === workstationId))
+      && this.now() < item.expiresAt,
+    );
+    if (!scan) return null;
+    scan.claimedBy = workstationId;
+    if (scan.status === "waiting") scan.status = "claimed";
+    return { scanRequestId: scan.scanRequestId, expiresAt: scan.expiresAt };
+  }
+
   complete(token: string, scanRequestId: string, payload: IntakePayload | IntakePayloadV2) {
     const workstation = this.workstations.get(token);
     const scan = this.scans.get(scanRequestId);
@@ -102,6 +114,14 @@ export class WorkstationStore {
       || scan.claimedBy !== token || this.now() >= scan.expiresAt || scan.status !== "claimed"
     ) return false;
     workstation.lastSeenAt = this.now();
+    scan.payload = payload;
+    scan.status = "received";
+    return true;
+  }
+
+  completeWorkstation(hotelId: string, workstationId: string, scanRequestId: string, payload: IntakePayload | IntakePayloadV2) {
+    const scan = this.scans.get(scanRequestId);
+    if (!scan || scan.hotelId !== hotelId || scan.claimedBy !== workstationId || this.now() >= scan.expiresAt || scan.status !== "claimed") return false;
     scan.payload = payload;
     scan.status = "received";
     return true;
@@ -168,6 +188,17 @@ export class WorkstationStore {
     const key = `${workstation.hotelId}\u001f${payload.deviceId}\u001f${payload.providerEventId}`;
     if (this.recognitions.has(key)) return { accepted: true, duplicate: true };
     this.recognitions.set(key, { ...payload, hotelId: workstation.hotelId, receivedAt: this.now() });
+    while (this.recognitions.size > MAX_RECOGNITIONS) {
+      this.recognitions.delete(this.recognitions.keys().next().value as string);
+    }
+    return { accepted: true, duplicate: false };
+  }
+
+  ingestRecognitionHotel(hotelId: string, payload: RecognitionInput) {
+    this.cleanupRecognitions();
+    const key = `${hotelId}\u001f${payload.deviceId}\u001f${payload.providerEventId}`;
+    if (this.recognitions.has(key)) return { accepted: true, duplicate: true };
+    this.recognitions.set(key, { ...payload, hotelId, receivedAt: this.now() });
     while (this.recognitions.size > MAX_RECOGNITIONS) {
       this.recognitions.delete(this.recognitions.keys().next().value as string);
     }

@@ -16,7 +16,7 @@ function redirectToLogin(reason: string): never {
     pathname: "/staff",
   });
 
-  redirect("/login?reauth=1&callbackUrl=/staff");
+  redirect("/dangnhap?reauth=1&callbackUrl=/staff");
 }
 
 export default async function StaffLayout({

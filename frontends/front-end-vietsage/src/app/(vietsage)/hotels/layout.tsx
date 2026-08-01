@@ -13,7 +13,7 @@ function redirectToLogin(reason: string): never {
     pathname: "/hotels",
   });
 
-  redirect("/login?reauth=1&callbackUrl=/hotels");
+  redirect("/dangnhap?reauth=1&callbackUrl=/hotels");
 }
 
 export default async function HotelsLayout({ children }: { children: ReactNode }) {

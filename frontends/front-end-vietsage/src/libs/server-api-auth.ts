@@ -6,6 +6,7 @@ import { notFound, redirect } from "next/navigation";
 import { HttpError } from "@/core/http/http-error";
 import { refreshAndSaveSessionTokens, type RefreshedSessionTokens } from "@/libs/auth-session-refresh";
 import { readServerSessionTokens } from "@/libs/server-session-tokens";
+import { loginUrl } from "@/features/auth/utils/login-route";
 
 type AuthorizedApiCall<T> = (accessToken?: string) => Promise<T>;
 
@@ -22,7 +23,7 @@ function logLoginRedirect(source: string, reason: string, pathname: string): voi
 
 function redirectToLogin(callbackUrl: `/${string}`, reason: string): never {
   logLoginRedirect("server-api-auth", reason, callbackUrl);
-  redirect(`/login?reauth=1&callbackUrl=${encodeURIComponent(callbackUrl)}`);
+  redirect(loginUrl(callbackUrl));
 }
 
 export function createAuthorizedApiExecutor(options: AuthorizedApiExecutorOptions): AuthorizedApiExecutor {
