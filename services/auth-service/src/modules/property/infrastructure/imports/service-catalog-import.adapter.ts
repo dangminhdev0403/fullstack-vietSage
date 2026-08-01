@@ -6,6 +6,7 @@ import {
   ImportCommitResult,
   ImportContext,
   ImportDiffEntry,
+  ImportMode,
   ImportValidationIssue,
   ImportWorkbookSchema,
   ParsedImportWorkbook,
@@ -101,7 +102,7 @@ export class ServiceCatalogImportAdapter
   implements ImportAdapter<ServiceCatalogImportPayload, ServiceCatalogImportState>, OnModuleInit
 {
   readonly type = "service-catalog";
-  readonly supportedModes = ["upsert"] as const;
+  readonly supportedModes = ["upsert", "replace"] as const;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -383,18 +384,55 @@ export class ServiceCatalogImportAdapter
     return { categories, items };
   }
 
-  diff(payload: ServiceCatalogImportPayload, state: ServiceCatalogImportState): ImportDiffEntry[] {
+  diff(
+    payload: ServiceCatalogImportPayload,
+    state: ServiceCatalogImportState,
+    context: ImportContext,
+    mode: ImportMode,
+  ): ImportDiffEntry[] {
     const categoryByKey = new Map(
       state.categories.map((category) => [category.importKey, category]),
     );
     const itemByKey = new Map(state.items.map((item) => [item.importKey, item]));
-
-    return [
+    const changes = [
       ...payload.categories.map((category) =>
         this.diffCategory(category, categoryByKey.get(category.importKey)),
       ),
       ...payload.items.map((item) => this.diffItem(item, itemByKey.get(item.importKey))),
     ];
+    if (mode !== "replace") return changes;
+
+    const categoryKeys = new Set(payload.categories.map((category) => category.importKey));
+    const itemKeys = new Set(payload.items.map((item) => item.importKey));
+    const preservedCategoryKeys = new Set(
+      Array.isArray(context.preserveCategoryImportKeys)
+        ? context.preserveCategoryImportKeys.map(String)
+        : [],
+    );
+    const preservedItemKeys = new Set(
+      Array.isArray(context.preserveItemImportKeys)
+        ? context.preserveItemImportKeys.map(String)
+        : [],
+    );
+    const disabledItems = state.items
+      .filter(
+        (item) =>
+          item.importKey &&
+          !itemKeys.has(item.importKey) &&
+          !preservedItemKeys.has(item.importKey) &&
+          item.status !== ServiceCatalogStatus.DISABLED,
+      )
+      .map((item) => this.disableDiff("serviceItem", item.importKey!, item.name));
+    const disabledCategories = state.categories
+      .filter(
+        (category) =>
+          category.importKey &&
+          !categoryKeys.has(category.importKey) &&
+          !preservedCategoryKeys.has(category.importKey) &&
+          category.status !== ServiceCatalogStatus.DISABLED,
+      )
+      .map((category) => this.disableDiff("serviceCategory", category.importKey!, category.name));
+    return [...changes, ...disabledItems, ...disabledCategories];
   }
 
   async commit(
@@ -430,7 +468,12 @@ export class ServiceCatalogImportAdapter
         },
       });
       categoryIdsByKey.set(category.importKey, saved.id);
-      await this.upsertCategoryTranslations(input.tx, saved.id, category.translations);
+      await this.upsertCategoryTranslations(
+        input.tx,
+        saved.id,
+        category.translations,
+        input.mode === "replace",
+      );
     }
 
     for (const item of input.payload.items) {
@@ -463,7 +506,33 @@ export class ServiceCatalogImportAdapter
           status: item.status,
         },
       });
-      await this.upsertItemTranslations(input.tx, saved.id, item.translations);
+      await this.upsertItemTranslations(
+        input.tx,
+        saved.id,
+        item.translations,
+        input.mode === "replace",
+      );
+    }
+
+    if (input.mode === "replace") {
+      const disabledItems = input.diff.filter(
+        (entry) => entry.entityType === "serviceItem" && entry.action === "disable",
+      );
+      const disabledCategories = input.diff.filter(
+        (entry) => entry.entityType === "serviceCategory" && entry.action === "disable",
+      );
+      if (disabledItems.length) {
+        await input.tx.hotelServiceItem.updateMany({
+          where: { hotelId, importKey: { in: disabledItems.map((entry) => entry.key) } },
+          data: { status: ServiceCatalogStatus.DISABLED },
+        });
+      }
+      if (disabledCategories.length) {
+        await input.tx.hotelServiceCategory.updateMany({
+          where: { hotelId, importKey: { in: disabledCategories.map((entry) => entry.key) } },
+          data: { status: ServiceCatalogStatus.DISABLED },
+        });
+      }
     }
 
     const summary = this.summarize(input.diff);
@@ -559,26 +628,53 @@ export class ServiceCatalogImportAdapter
     const existingByLocale = new Map(
       existing.map((translation) => [translation.locale, translation]),
     );
+    const locales = new Set([...existingByLocale.keys(), ...Object.keys(next)]);
     return Object.fromEntries(
-      Object.entries(next).flatMap(([locale, value]) => {
-        if (!value?.name) return [];
+      Array.from(locales).flatMap((locale) => {
+        const value = next[locale as TranslationLocale];
         const current = existingByLocale.get(locale);
         return [
-          [`translations.${locale}.name`, [current?.name ?? null, value.name]],
+          [`translations.${locale}.name`, [current?.name ?? null, value?.name ?? null]],
           [
             `translations.${locale}.description`,
-            [current?.description ?? null, value.description ?? null],
+            [current?.description ?? null, value?.description ?? null],
           ],
         ];
       }),
     );
   }
 
+  private disableDiff(
+    entityType: "serviceCategory" | "serviceItem",
+    key: string,
+    label: string,
+  ): ImportDiffEntry {
+    return {
+      entityType,
+      key,
+      action: "disable",
+      label,
+      changes: [
+        {
+          field: "status",
+          from: ServiceCatalogStatus.ACTIVE,
+          to: ServiceCatalogStatus.DISABLED,
+        },
+      ],
+    };
+  }
+
   private async upsertCategoryTranslations(
     tx: Prisma.TransactionClient,
     categoryId: string,
     translations: TranslationInput,
+    replace: boolean,
   ) {
+    if (replace) {
+      await tx.hotelServiceCategoryTranslation.deleteMany({
+        where: { categoryId, locale: { notIn: Object.keys(translations) } },
+      });
+    }
     for (const [locale, value] of Object.entries(translations)) {
       if (!value?.name) continue;
       await tx.hotelServiceCategoryTranslation.upsert({
@@ -593,7 +689,13 @@ export class ServiceCatalogImportAdapter
     tx: Prisma.TransactionClient,
     itemId: string,
     translations: TranslationInput,
+    replace: boolean,
   ) {
+    if (replace) {
+      await tx.hotelServiceItemTranslation.deleteMany({
+        where: { itemId, locale: { notIn: Object.keys(translations) } },
+      });
+    }
     for (const [locale, value] of Object.entries(translations)) {
       if (!value?.name) continue;
       await tx.hotelServiceItemTranslation.upsert({

@@ -62,6 +62,28 @@ describe("GoogleSheetsServiceCatalogSyncService", () => {
     ]);
   });
 
+  it("rejects replace sync when a required sheet has no valid rows", async () => {
+    const importService = { preview: jest.fn().mockResolvedValue({ validation: [] }) };
+    const service = createService(importService) as unknown as {
+      previewValidRows: (input: Record<string, unknown>) => Promise<unknown>;
+    };
+
+    await expect(
+      service.previewValidRows({
+        type: "service-catalog",
+        mode: "replace",
+        context: {},
+        workbook: {
+          fileName: "sheet",
+          sheets: [
+            { name: "categories", rows: [{ rowNumber: 2, values: {} }] },
+            { name: "items", rows: [] },
+          ],
+        },
+      }),
+    ).rejects.toThrow("không có dòng dữ liệu hợp lệ");
+  });
+
   it("keeps sheet-level validation errors blocking", async () => {
     const importService = {
       preview: jest.fn().mockResolvedValue({

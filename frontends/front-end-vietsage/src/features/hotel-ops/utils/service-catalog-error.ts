@@ -27,6 +27,8 @@ export function getServiceCatalogErrorMessage(error: unknown): string {
 type SyncNoticeInput = {
   inserted: number;
   updated: number;
+  disabled: number;
+  unchanged: number;
   skippedRows?: number;
   skipped?: number;
   warnings: string[];
@@ -38,12 +40,12 @@ export function getServiceCatalogSyncNotice(result: SyncNoticeInput) {
     return {
       icon: "warning" as const,
       title: "Đồng bộ một phần",
-      text: `Đã thêm ${result.inserted}, cập nhật ${result.updated}, bỏ qua ${skippedRows} dòng. ${result.warnings.join(" ")}`,
+      text: `Đã thêm ${result.inserted}, cập nhật ${result.updated}, vô hiệu hóa ${result.disabled}, giữ nguyên ${result.unchanged}, bỏ qua ${skippedRows} dòng lỗi. ${result.warnings.join(" ")}`,
     };
   }
   return {
     icon: "success" as const,
     title: "Đồng bộ Google Sheets thành công.",
-    text: `Đã thêm ${result.inserted}, cập nhật ${result.updated}.`,
+    text: `Đã thêm ${result.inserted}, cập nhật ${result.updated}, vô hiệu hóa ${result.disabled}, giữ nguyên ${result.unchanged}.`,
   };
 }

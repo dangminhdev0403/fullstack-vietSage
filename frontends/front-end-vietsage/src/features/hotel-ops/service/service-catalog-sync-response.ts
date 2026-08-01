@@ -1,6 +1,8 @@
 export type ServiceCatalogSyncResult = {
   inserted: number;
   updated: number;
+  disabled: number;
+  unchanged: number;
   skipped: number;
   skippedRows: number;
   warnings: string[];
@@ -20,6 +22,8 @@ export function parseServiceCatalogSyncResponse(
   if (
     typeof data.inserted !== "number" ||
     typeof data.updated !== "number" ||
+    typeof data.disabled !== "number" ||
+    typeof data.unchanged !== "number" ||
     typeof data.skipped !== "number" ||
     typeof data.skippedRows !== "number" ||
     !Array.isArray(data.warnings) ||

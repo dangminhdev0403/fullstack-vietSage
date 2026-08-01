@@ -8,6 +8,8 @@ test("returns sync summary from backend envelope", () => {
   const summary = {
     inserted: 0,
     updated: 0,
+    disabled: 57,
+    unchanged: 5,
     skipped: 5,
     skippedRows: 52,
     warnings: ["52 dòng cần chỉnh"],

@@ -6,6 +6,87 @@ function createAdapter() {
 }
 
 describe("ServiceCatalogImportAdapter", () => {
+  it("supports replace mode", () => {
+    expect(createAdapter().supportedModes).toContain("replace");
+  });
+
+  it("disables imported records missing from Excel but preserves invalid-row keys", () => {
+    const adapter = createAdapter();
+    const diff = adapter.diff(
+      { categories: [], items: [] },
+      {
+        categories: [
+          { importKey: "remove_category", name: "Remove" },
+          { importKey: "invalid_category", name: "Keep" },
+        ],
+        items: [
+          { importKey: "remove_item", name: "Remove", category: { importKey: "remove_category" } },
+          { importKey: "invalid_item", name: "Keep", category: { importKey: "invalid_category" } },
+        ],
+      } as never,
+      {
+        hotelId: "hotel-1",
+        preserveCategoryImportKeys: ["invalid_category"],
+        preserveItemImportKeys: ["invalid_item"],
+      },
+      "replace",
+    );
+
+    expect(diff).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          entityType: "serviceItem",
+          key: "remove_item",
+          action: "disable",
+        }),
+        expect.objectContaining({
+          entityType: "serviceCategory",
+          key: "remove_category",
+          action: "disable",
+        }),
+      ]),
+    );
+    expect(diff.map((entry) => entry.key)).not.toContain("invalid_item");
+    expect(diff.map((entry) => entry.key)).not.toContain("invalid_category");
+  });
+
+  it("marks removal of an Excel translation as an update", () => {
+    const adapter = createAdapter();
+    const category = {
+      rowNumber: 2,
+      importKey: "room_service",
+      name: "Dịch vụ phòng",
+      description: null,
+      defaultPrice: 0,
+      currency: "VND",
+      sortOrder: 10,
+      status: ServiceCatalogStatus.ACTIVE,
+      translations: {},
+    };
+    const diff = adapter.diff(
+      { categories: [category], items: [] },
+      {
+        categories: [
+          {
+            ...category,
+            id: "category-1",
+            translations: [{ locale: "en", name: "Room service", description: null }],
+          },
+        ],
+        items: [],
+      } as never,
+      { hotelId: "hotel-1" },
+      "replace",
+    );
+
+    expect(diff[0]).toMatchObject({ action: "update" });
+    expect(diff[0].changes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ field: "translations.en.name", from: "Room service", to: null }),
+      ]),
+    );
+  });
+
   it("reports the missing category key in Vietnamese", () => {
     const adapter = createAdapter();
     const issues = adapter.validate({

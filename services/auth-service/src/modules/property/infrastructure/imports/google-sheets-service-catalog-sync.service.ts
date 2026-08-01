@@ -137,7 +137,7 @@ export class GoogleSheetsServiceCatalogSyncService {
 
       const previewInput = {
         type: "service-catalog",
-        mode: "upsert" as const,
+        mode: "replace" as const,
         context: {
           hotelId,
           actorUserId,
@@ -148,10 +148,10 @@ export class GoogleSheetsServiceCatalogSyncService {
       };
       const { preview, skippedIssues } = await this.previewValidRows(previewInput);
 
-      this.logger.info("Google Sheets sync upsert started", {
+      this.logger.info("Google Sheets sync replace started", {
         module: "hotels",
         service: GoogleSheetsServiceCatalogSyncService.name,
-        event: "SERVICE_CATALOG_SYNC_UPSERT",
+        event: "SERVICE_CATALOG_SYNC_REPLACE",
         hotelId,
       });
       const result = await this.importService.commit(preview);
@@ -169,6 +169,8 @@ export class GoogleSheetsServiceCatalogSyncService {
             (result.summary.byEntityType.serviceItem?.unchanged ?? 0),
         inserted: result.summary.create,
         updated: result.summary.update,
+        disabled: result.summary.disable,
+        unchanged: result.summary.unchanged,
         skipped: result.summary.unchanged,
         skippedRows: new Set(skippedIssues.map((issue) => `${issue.sheet}:${issue.row}`)).size,
         durationMs,
@@ -306,6 +308,7 @@ export class GoogleSheetsServiceCatalogSyncService {
   }
 
   private async previewValidRows(input: Parameters<ImportService["preview"]>[0]) {
+    if (input.mode === "replace") this.assertRequiredSheetsHaveRows(input.workbook);
     const firstPreview = await this.importService.preview(input);
     const validationErrors = firstPreview.validation.filter((issue) => issue.severity === "error");
     if (validationErrors.length === 0) return { preview: firstPreview, skippedIssues: [] };
@@ -324,6 +327,8 @@ export class GoogleSheetsServiceCatalogSyncService {
         .filter(Boolean),
     );
     const dependentItemIssues: ImportValidationIssue[] = [];
+    const preservedCategoryKeys = new Set<string>();
+    const preservedItemKeys = new Set<string>();
     const workbook = {
       ...input.workbook,
       sheets: input.workbook.sheets.map((sheet) => ({
@@ -343,12 +348,31 @@ export class GoogleSheetsServiceCatalogSyncService {
               message: `Mã nhóm "${categoryKey}" chưa có trong tab Nhóm dịch vụ`,
             });
           }
+          if (directlyInvalid || dependsOnInvalidCategory) {
+            const importKey = this.sheetCellText(
+              row.values[sheet.name === "categories" ? "category_key" : "item_key"],
+            ).trim();
+            if (importKey) {
+              (sheet.name === "categories" ? preservedCategoryKeys : preservedItemKeys).add(
+                importKey,
+              );
+            }
+          }
           return !directlyInvalid && !dependsOnInvalidCategory;
         }),
       })),
     };
+    if (input.mode === "replace") this.assertRequiredSheetsHaveRows(workbook);
 
-    const cleanPreview = await this.importService.preview({ ...input, workbook });
+    const cleanPreview = await this.importService.preview({
+      ...input,
+      context: {
+        ...input.context,
+        preserveCategoryImportKeys: Array.from(preservedCategoryKeys),
+        preserveItemImportKeys: Array.from(preservedItemKeys),
+      },
+      workbook,
+    });
     const remainingErrors = cleanPreview.validation.filter((issue) => issue.severity === "error");
     if (remainingErrors.length) {
       throw new BadRequestException(this.formatValidationErrors(remainingErrors));
@@ -357,6 +381,21 @@ export class GoogleSheetsServiceCatalogSyncService {
       preview: cleanPreview,
       skippedIssues: [...validationErrors, ...dependentItemIssues],
     };
+  }
+
+  private assertRequiredSheetsHaveRows(workbook: ParsedImportWorkbook): void {
+    for (const sheetName of ["categories", "items"] as const) {
+      const sheet = workbook.sheets.find((candidate) => candidate.name === sheetName);
+      const importKeyColumn = sheetName === "categories" ? "category_key" : "item_key";
+      const hasValidRow = sheet?.rows.some(
+        (row) => this.sheetCellText(row.values[importKeyColumn]).trim().length > 0,
+      );
+      if (!hasValidRow) {
+        throw new BadRequestException(
+          `Tab ${sheetName === "categories" ? "Nhóm dịch vụ" : "Dịch vụ"} không có dòng dữ liệu hợp lệ. Hệ thống không thay đổi catalog để tránh vô hiệu hóa hàng loạt.`,
+        );
+      }
+    }
   }
 
   private toParsedSheet(name: "categories" | "items", values: unknown[][]) {
