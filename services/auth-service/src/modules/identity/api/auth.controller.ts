@@ -76,6 +76,7 @@ export class AuthController {
     return this.authService.refresh(dto.refreshToken, this.normalizeIdempotencyKey(idempotencyKey));
   }
 
+  @SkipAuthorization()
   @HttpCode(HttpStatus.OK)
   @SuccessMessage("Đăng xuất thành công")
   @ApiDescript("Đăng xuất")
@@ -91,6 +92,7 @@ export class AuthController {
     return { success: true };
   }
 
+  @SkipAuthorization()
   @HttpCode(HttpStatus.OK)
   @SuccessMessage("Đăng xuất tất cả thiết bị thành công")
   @ApiDescript("Đăng xuất tất cả phiên")
@@ -108,6 +110,7 @@ export class AuthController {
     return { success: true };
   }
 
+  @SkipAuthorization()
   @HttpCode(HttpStatus.OK)
   @SuccessMessage("Đổi mật khẩu thành công")
   @ApiDescript("Đổi mật khẩu tài khoản")
