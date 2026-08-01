@@ -499,6 +499,7 @@ export function OwnerServiceCatalogClient({
   const [itemForm, setItemForm] = useState<ItemFormState | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const [categorySort, setCategorySort] = useState<SortState<CategorySortKey>>({
     key: "name",
     direction: "asc",
@@ -1052,6 +1053,7 @@ export function OwnerServiceCatalogClient({
   }
 
   async function syncGoogleSheets() {
+    setSyncError(null);
     const confirmed = await Swal.fire({
       icon: "question",
       title: "Đồng bộ Google Sheets?",
@@ -1075,12 +1077,7 @@ export function OwnerServiceCatalogClient({
       await Swal.fire({ ...notice, confirmButtonColor: "#00003c" });
     } catch (error) {
       closeLoading();
-      await Swal.fire({
-        icon: "error",
-        title: "Dữ liệu Google Sheets chưa hợp lệ",
-        text: getServiceCatalogErrorMessage(error),
-        confirmButtonColor: "#00003c",
-      });
+      setSyncError(getServiceCatalogErrorMessage(error));
     } finally {
       setIsImporting(false);
     }
@@ -1273,6 +1270,16 @@ export function OwnerServiceCatalogClient({
               <p className="text-xs text-[var(--on-surface-variant)]">
                 Chưa có Google Sheets. Vui lòng liên hệ quản trị viên nền tảng.
               </p>
+            ) : null}
+            {syncError ? (
+              <div
+                role="alert"
+                aria-live="assertive"
+                className="w-full rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900"
+              >
+                <p className="font-semibold">Không thể đồng bộ Google Sheets</p>
+                <p className="mt-1 whitespace-pre-wrap">{syncError}</p>
+              </div>
             ) : null}
           </div>
         </div>

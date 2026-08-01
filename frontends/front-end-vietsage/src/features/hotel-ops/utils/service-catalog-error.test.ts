@@ -21,6 +21,13 @@ test("shows nested backend detail instead of BAD_REQUEST", () => {
   );
 });
 
+test("does not expose English network errors to the owner", () => {
+  assert.equal(
+    getServiceCatalogErrorMessage(new Error("Network request failed")),
+    "Không thể kết nối đến máy chủ. Vui lòng kiểm tra mạng rồi thử lại.",
+  );
+});
+
 test("reports partial synchronization warnings to the owner", () => {
   assert.deepEqual(
     getServiceCatalogSyncNotice({

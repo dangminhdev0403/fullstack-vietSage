@@ -19,7 +19,19 @@ export function getServiceCatalogErrorMessage(error: unknown): string {
     error.message &&
     error.message !== "BAD_REQUEST"
   ) {
-    return error.message;
+    if (
+      /network|failed to fetch|fetch failed|connection/i.test(error.message)
+    ) {
+      return "Không thể kết nối đến máy chủ. Vui lòng kiểm tra mạng rồi thử lại.";
+    }
+    if (
+      /[À-ỹ]/.test(error.message) ||
+      /\b(không|vui lòng|hãy|chưa|dòng|dịch vụ|khách sạn)\b/i.test(
+        error.message,
+      )
+    ) {
+      return error.message;
+    }
   }
   return "Vui lòng kiểm tra dữ liệu trong hai tab đầu của Google Sheets rồi thử lại.";
 }
