@@ -16,16 +16,21 @@ export interface GuestRequestUpdatedEventInput {
 }
 
 export interface GuestMessageCreatedEventInput {
+  eventId: string;
+  messageId: string;
   hotelId: string;
   stayId: string;
+  threadId: string;
   thread: unknown;
   message: unknown;
 }
 
 export interface ConversationClosedEventInput {
+  eventId?: string;
   hotelId: string;
   stayId: string;
-  roomId: string;
+  roomId?: string;
+  threadId?: string;
 }
 
 export interface GuestRequestEventPublisher {

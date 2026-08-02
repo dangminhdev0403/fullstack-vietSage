@@ -1,10 +1,13 @@
-import { createResource, defineInfiniteQuery, defineMutation } from "@dangminhdev04032005/query-resource";
+import { createResource, defineInfiniteQuery, defineMutation, defineQuery } from "@dangminhdev04032005/query-resource";
 import { requestInternalApi } from "@/core/http/internal-api-client";
 import type { HotelMessageThreadList, HotelMessageThreadPage } from "@/features/hotel-ops/types/hotel-messages-contract";
 
 type Scope = { hotelId: string };
 export const hotelMessagesResource = createResource<Scope>()({
   namespace: ["vietsage"], name: "hotel-messages", scopeKey: ({ hotelId }) => ["hotel", hotelId],
+  queries: {
+    unreadSummary: defineQuery({ inputKey: () => [], queryFn: ({ scope }) => requestInternalApi<{ unreadCount: number }>(`/api/hotel-ops/hotels/${encodeURIComponent(scope.hotelId)}/messages/unread-summary`, { method: "GET" }) }),
+  },
   infiniteQueries: {
     threads: defineInfiniteQuery({ inputKey: (input: { q: string }) => [input], initialPageParam: undefined as string | undefined,
       getNextPageParam: (page: HotelMessageThreadList) => page.hasMore ? (page.nextCursor ?? undefined) : undefined,

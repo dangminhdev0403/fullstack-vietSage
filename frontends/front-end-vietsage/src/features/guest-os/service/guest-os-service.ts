@@ -9,6 +9,7 @@ import type {
   GuestCurrentSessionResult,
   GuestLocaleCode,
   GuestMessagesResult,
+  MessageUnreadSummary,
   GuestMessageThread,
   GuestRequest,
   GuestRequestsResult,
@@ -158,14 +159,19 @@ export class GuestOsService {
     return unwrapApiEnvelope<GuestMessagesResult>(payload).data;
   }
 
-  async sendMessage(sessionToken: string, body: string, locale?: GuestLocaleCode): Promise<{ thread: GuestMessageThread; message: GuestMessagesResult["items"][number] }> {
-    const payload = await this.httpClient.request<unknown, { body: string }>({ method: "POST", path: this.path("/guest/messages"), accessToken: sessionToken, body: { body }, headers: localeHeaders(locale) });
+  async getMessageUnreadSummary(sessionToken: string, locale?: GuestLocaleCode): Promise<MessageUnreadSummary> {
+    const payload = await this.httpClient.request<unknown>({ method: "GET", path: this.path("/guest/messages/unread-summary"), accessToken: sessionToken, headers: localeHeaders(locale) });
+    return unwrapApiEnvelope<MessageUnreadSummary>(payload).data;
+  }
+
+  async sendMessage(sessionToken: string, body: string, clientMessageId: string, locale?: GuestLocaleCode): Promise<{ thread: GuestMessageThread; message: GuestMessagesResult["items"][number] }> {
+    const payload = await this.httpClient.request<unknown, { body: string; clientMessageId: string }>({ method: "POST", path: this.path("/guest/messages"), accessToken: sessionToken, body: { body, clientMessageId }, headers: localeHeaders(locale) });
     return unwrapApiEnvelope<{ thread: GuestMessageThread; message: GuestMessagesResult["items"][number] }>(payload).data;
   }
 
-  async markMessagesRead(sessionToken: string, locale?: GuestLocaleCode): Promise<{ read: true }> {
-    const payload = await this.httpClient.request<unknown>({ method: "POST", path: this.path("/guest/messages/read"), accessToken: sessionToken, headers: localeHeaders(locale) });
-    return unwrapApiEnvelope<{ read: true }>(payload).data;
+  async markMessagesRead(sessionToken: string, readThroughMessageId: string, locale?: GuestLocaleCode): Promise<{ read: true; updatedCount: number }> {
+    const payload = await this.httpClient.request<unknown, { readThroughMessageId: string }>({ method: "POST", path: this.path("/guest/messages/read"), accessToken: sessionToken, body: { readThroughMessageId }, headers: localeHeaders(locale) });
+    return unwrapApiEnvelope<{ read: true; updatedCount: number }>(payload).data;
   }
 
   async createEmergencyCall(

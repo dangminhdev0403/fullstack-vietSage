@@ -70,6 +70,9 @@ export const listHotelMessagesQuerySchema = z
 export const sendHotelMessageBodySchema = z
   .object({ body: z.string().trim().min(1).max(1000) })
   .strict();
+export const markHotelMessageReadBodySchema = z
+  .object({ readThroughMessageId: z.string().trim().min(1) })
+  .strict();
 
 export type ListStaffRequestsQueryInput = z.infer<typeof listStaffRequestsQuerySchema>;
 export type RequestSummaryQueryInput = z.infer<typeof requestSummaryQuerySchema>;
@@ -78,3 +81,4 @@ export type UpdateRequestAssignmentBodyInput = z.infer<typeof updateRequestAssig
 export type CreateRequestEventBodyInput = z.infer<typeof createRequestEventBodySchema>;
 export type ListHotelMessagesQueryInput = z.infer<typeof listHotelMessagesQuerySchema>;
 export type SendHotelMessageBodyInput = z.infer<typeof sendHotelMessageBodySchema>;
+export type MarkHotelMessageReadBodyInput = z.infer<typeof markHotelMessageReadBodySchema>;

@@ -53,6 +53,8 @@ const BUSINESS_PERMISSION_DESCRIPTIONS: Record<string, string> = {
   "hotel.staff.manage": "Quản lý nhân viên, vai trò và phân công khách sạn",
   "hotel.requests.view": "Xem danh sách yêu cầu khách",
   "hotel.requests.manage": "Quản lý yêu cầu khách",
+  "hotel.messages.view": "Xem tin nhắn phòng",
+  "hotel.messages.manage": "Quản lý tin nhắn phòng",
   "hotel.billing.view": "Xem danh sách thanh toán",
   "hotel.billing.manage": "Quản lý thanh toán",
   "hotel.services.view": "Xem danh mục và dịch vụ",

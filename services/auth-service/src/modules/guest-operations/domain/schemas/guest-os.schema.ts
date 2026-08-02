@@ -80,7 +80,14 @@ export const serviceCategoryIdParamSchema = z.string().trim().min(1, "categoryId
 export const guestRequestIdParamSchema = z.string().trim().min(1, "requestId is required");
 
 export const guestMessageBodySchema = z
-  .object({ body: z.string().trim().min(1).max(1000) })
+  .object({
+    body: z.string().trim().min(1).max(1000),
+    clientMessageId: z.string().trim().min(1).max(80),
+  })
+  .strict();
+
+export const markGuestMessageReadBodySchema = z
+  .object({ readThroughMessageId: z.string().trim().min(1) })
   .strict();
 
 export const listGuestMessagesQuerySchema = z
@@ -108,4 +115,5 @@ export type ListGuestCategoryServicesQueryInput = z.infer<
   typeof listGuestCategoryServicesQuerySchema
 >;
 export type GuestMessageBodyInput = z.infer<typeof guestMessageBodySchema>;
+export type MarkGuestMessageReadBodyInput = z.infer<typeof markGuestMessageReadBodySchema>;
 export type ListGuestMessagesQueryInput = z.infer<typeof listGuestMessagesQuerySchema>;

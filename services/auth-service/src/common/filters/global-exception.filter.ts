@@ -62,6 +62,17 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const payload = this.localizeErrorResponse(this.toErrorResponse(exception, request), request);
     this.logException(exception, host, request, payload);
 
+    if (payload.status === HttpStatus.TOO_MANY_REQUESTS) {
+      const raw = exception instanceof HttpException ? exception.getResponse() : null;
+      const retryAfterSeconds =
+        raw && typeof raw === "object" && "retryAfterSeconds" in raw
+          ? Number(raw.retryAfterSeconds)
+          : 60;
+      response.setHeader(
+        "Retry-After",
+        String(Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0 ? Math.ceil(retryAfterSeconds) : 60),
+      );
+    }
     response.status(payload.status).json(payload);
   }
 

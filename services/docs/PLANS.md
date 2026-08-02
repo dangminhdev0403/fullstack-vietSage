@@ -1,5 +1,20 @@
 # VietSage Backend Plan
 
+## 2026-08-02 - Room Messaging Reliability and Two-Sided Unread Badges (Backend Core)
+
+- [x] Added `hotel.messages.view` and `hotel.messages.manage` business permissions with additive idempotent migration and seed/sync grants for `TENANT_OWNER`, `HOTEL_FRONTDESK`, and `SUPER_ADMIN`.
+- [x] Staff unread count (`GET /hotels/:hotelId/messages/unread-summary`) and Guest unread count (`GET /guest/messages/unread-summary`) calculated by exact hotel/stay and active stay status (`status = ACTIVE` and `checkedOutAt = null`, not `Room.status`).
+- [x] Watermark read-receipt logic (`readThroughMessageId`) resolving pivot `(createdAt, id)` in thread and marking only opposite-sender messages at or before pivot as read.
+- [x] Enforced `clientMessageId` requirement for Guest send, unique `(sessionId, clientMessageId)` constraint, and idempotent retry returning existing message without duplicate event/insert.
+- [x] Per stayId + deviceFingerprintHash (fallback sessionId) rate limiting with 429 `Retry-After` header and no DB write/event when throttled.
+- [x] Standardized event envelope containing `eventId`, `messageId`, `hotelId`, `stayId`, `threadId`, `thread`, and `message`.
+- [x] Checked-out stays reject send/read/list operations.
+
+Verification result:
+- Focused guest-messages repository and service unit suites passed: 2 suites, 12 tests passed.
+- Additive Prisma schema validated.
+- Backend build passed.
+
 ## 2026-07-28 - Checkout Charge and Active Guest QR Recovery
 
 - [x] Recalculated room charges at invoice issuance from actual check-in through the earlier of the current time or planned checkout, with a one-night minimum.

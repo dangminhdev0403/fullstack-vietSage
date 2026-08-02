@@ -289,6 +289,7 @@ export class HttpClient {
           status: response.status,
           requestUrl: url.toString(),
           data: responseBody,
+          headers: response.headers,
         });
       }
 

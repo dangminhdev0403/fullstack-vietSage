@@ -967,6 +967,7 @@ model GuestMessage {
   senderType   GuestRequestActorType
   senderUserId String?
   sessionId    String?
+  clientMessageId String?          @db.VarChar(80)
   body         String              @db.VarChar(1000)
   readAt       DateTime?
   createdAt    DateTime            @default(now())
@@ -977,6 +978,7 @@ model GuestMessage {
   senderUser   User?               @relation("GuestMessageStaffSender", fields: [senderUserId], references: [id], onDelete: SetNull)
   session      GuestSession?       @relation(fields: [sessionId], references: [id], onDelete: SetNull)
 
+  @@unique([sessionId, clientMessageId])
   @@index([threadId, createdAt])
   @@index([hotelId, createdAt])
   @@index([stayId, createdAt])

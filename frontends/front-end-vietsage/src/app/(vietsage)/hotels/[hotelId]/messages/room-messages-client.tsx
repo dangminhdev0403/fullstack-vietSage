@@ -9,6 +9,11 @@ import { requestInternalApi } from "@/core/http/internal-api-client";
 import { playMessageAlertSound } from "@/features/request-realtime/audio-notifier";
 import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
 import { hotelMessagesResource } from "@/features/hotel-ops/resources/hotel-messages-resource";
+import {
+  createEventDeduper,
+  isConversationClosedEventForHotel,
+  isGuestMessageEventForHotel,
+} from "@/features/request-realtime/message-unread";
 
 type Message = {
   id: string;
@@ -113,6 +118,8 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
   const [closedStayId, setClosedStayId] = useState<string | null>(null);
 
   const processedMessageIdsRef = useRef<Set<string>>(new Set());
+  const realtimeEventDeduperRef = useRef(createEventDeduper(200));
+  const unreadSummaryKey = hotelMessages.queries.unreadSummary.options(undefined as never).queryKey;
 
   const body = selectedId ? (draftsByThread[selectedId] ?? "") : "";
 
@@ -175,11 +182,20 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
     if (id) {
       const existingThread = threadItems.find((t) => t.id === id);
       const prevUnreadCount = existingThread?.unreadCount ?? 0;
+      const readThroughMessageId = existingThread?.latestMessage?.senderType === "GUEST"
+        ? existingThread.latestMessage.id
+        : null;
+      if (!readThroughMessageId) return;
 
       // Optimistic update
       markThreadReadInCache(id);
 
-      requestInternalApi(`${base}/${encodeURIComponent(id)}/read`, { method: "POST" })
+      requestInternalApi(`${base}/${encodeURIComponent(id)}/read`, { method: "POST", body: { readThroughMessageId } })
+        .then(() => {
+          void queryClient.invalidateQueries({
+            queryKey: unreadSummaryKey,
+          });
+        })
         .catch(() => {
           // Rollback on error
           if (prevUnreadCount > 0) {
@@ -312,8 +328,9 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
     hotelId,
     {
       onGuestMessageCreated: (event) => {
-        if (!event || typeof event !== "object" || !("thread" in event) || !("message" in event)) return;
-        const { thread, message } = event as { thread: Thread; message: Message };
+        if (!isGuestMessageEventForHotel(event, hotelId)) return;
+        if (!realtimeEventDeduperRef.current.accept(event.eventId)) return;
+        const { thread, message } = (event as unknown) as { thread: Thread; message: Message };
         if (!thread?.id || !message?.id) return;
 
         // Condition 1: Check if event/message is unprocessed
@@ -353,7 +370,7 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
         if (!isNotOpenThread) {
           appendMessageToThreadCache(thread.id, message);
           if (isSenderGuest) {
-            requestInternalApi(`${base}/${encodeURIComponent(thread.id)}/read`, { method: "POST" })
+            requestInternalApi(`${base}/${encodeURIComponent(thread.id)}/read`, { method: "POST", body: { readThroughMessageId: message.id } })
               .then(() => markThreadReadInCache(thread.id))
               .catch(() => {});
           }
@@ -364,10 +381,14 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
         }
       },
       onConversationClosed: (event) => {
-        if (!event || typeof event !== "object" || !("stayId" in event)) return;
+        if (!isConversationClosedEventForHotel(event, hotelId)) return;
+        if (!event.eventId || !realtimeEventDeduperRef.current.accept(event.eventId)) return;
         const stayId = String(event.stayId);
         removeClosedStayFromWaitingList(stayId);
         if (selectedThread?.stayId === stayId) setClosedStayId(stayId);
+        void queryClient.invalidateQueries({
+          queryKey: unreadSummaryKey,
+        });
       },
       onReconnect: () => {
         queryClient.invalidateQueries({ queryKey: threadListOptions.queryKey }).catch(() => {});

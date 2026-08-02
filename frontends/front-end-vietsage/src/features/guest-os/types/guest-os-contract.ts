@@ -233,6 +233,7 @@ export type GuestMessagesResult = {
   thread: GuestMessageThread | null;
   items: GuestMessage[];
 };
+export type MessageUnreadSummary = { unreadCount: number };
 
 export type EmergencyLocationSource =
   | "GPS"

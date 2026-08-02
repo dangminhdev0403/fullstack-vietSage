@@ -639,17 +639,32 @@ export class HotelOpsService {
   async markMessageThreadRead(
     hotelId: string,
     threadId: string,
+    readThroughMessageId: string,
     accessToken?: string,
   ) {
-    const payload = await this.httpClient.request<unknown>({
+    const payload = await this.httpClient.request<unknown, { readThroughMessageId: string }>({
       method: "POST",
       path: hotelPath(
         hotelId,
         `/messages/${encodeURIComponent(threadId)}/read`,
       ),
+      body: { readThroughMessageId },
       accessToken,
     });
     return unwrapApiEnvelope<unknown>(payload).data;
+  }
+
+  async getMessageUnreadSummary(
+    hotelId: string,
+    options: AuthRequestOptions = {},
+  ): Promise<{ unreadCount: number }> {
+    const payload = await this.httpClient.request<unknown>({
+      method: "GET",
+      path: hotelPath(hotelId, "/messages/unread-summary"),
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+    return unwrapApiEnvelope<{ unreadCount: number }>(payload).data;
   }
 }
 

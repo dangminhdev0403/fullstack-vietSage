@@ -17,9 +17,14 @@ export function guestValidationErrorResponse(detail: string) {
 }
 
 export function guestHttpErrorResponse(error: HttpError) {
+  const headers = new Headers();
+  const retryAfter = error.headers?.get("retry-after");
+  if (retryAfter) {
+    headers.set("Retry-After", retryAfter);
+  }
   return NextResponse.json(
     error.data ?? { status: error.status, message: error.message },
-    { status: error.status || 500 },
+    { status: error.status || 500, headers },
   );
 }
 

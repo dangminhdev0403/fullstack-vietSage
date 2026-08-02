@@ -13,6 +13,6 @@ export default async function RoomMessagesPage({ params }: { params: Promise<{ h
   assertCanAccessHotelOps(session, callbackUrl);
   const tokens = await requireHotelOpsServerTokens(callbackUrl);
   const context = await loadServerWorkspaceContext(callbackUrl, tokens.accessToken);
-  if (!canUseHotelId(context, hotelId) || (!context.permissions.includes("hotel.requests.view") && !context.permissions.includes("hotel.requests.manage"))) notFound();
-  return <RoomMessagesClient hotelId={hotelId} canReply={context.permissions.includes("hotel.requests.manage")} />;
+  if (!canUseHotelId(context, hotelId) || (!context.permissions.includes("hotel.messages.view") && !context.permissions.includes("hotel.messages.manage"))) notFound();
+  return <RoomMessagesClient hotelId={hotelId} canReply={context.permissions.includes("hotel.messages.manage")} />;
 }

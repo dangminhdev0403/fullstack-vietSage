@@ -10,6 +10,8 @@ type GuestProfileState = GuestScanQrResult["guest"];
 
 type GuestStore = {
   sessionToken: string | null;
+  hotelId: string | null;
+  stayId: string | null;
   expiresAt: string | null;
   hotel: GuestHotelState | null;
   room: GuestRoomState | null;
@@ -23,8 +25,10 @@ type GuestStore = {
   clearSession: () => void;
 };
 
-const initialGuestState: Pick<GuestStore, "sessionToken" | "expiresAt" | "hotel" | "room" | "guest" | "language"> = {
+const initialGuestState: Pick<GuestStore, "sessionToken" | "hotelId" | "stayId" | "expiresAt" | "hotel" | "room" | "guest" | "language"> = {
   sessionToken: null,
+  hotelId: null,
+  stayId: null,
   expiresAt: null,
   hotel: null,
   room: null,
@@ -32,9 +36,11 @@ const initialGuestState: Pick<GuestStore, "sessionToken" | "expiresAt" | "hotel"
   language: null,
 };
 
-function sanitizeSession(session: GuestScanQrResult): Pick<GuestStore, "sessionToken" | "expiresAt" | "hotel" | "room" | "guest"> {
+function sanitizeSession(session: GuestScanQrResult): Pick<GuestStore, "sessionToken" | "hotelId" | "stayId" | "expiresAt" | "hotel" | "room" | "guest"> {
   return {
     sessionToken: session.sessionToken.trim() || null,
+    hotelId: null,
+    stayId: null,
     expiresAt: session.expiresAt.trim() || null,
     hotel: {
       name: session.hotel.name,
@@ -60,6 +66,8 @@ export const useGuestStore = create<GuestStore>()(
       setGuestSession: (session) => set(sanitizeSession(session)),
       importSessionToken: (sessionToken) => set({ sessionToken: sessionToken.trim() || null }),
       refreshSessionSnapshot: ({ session }) => set({
+        hotelId: session.hotelId,
+        stayId: session.stayId,
         expiresAt: session.expiresAt,
         hotel: { name: session.hotel.name, timezone: session.hotel.timezone, brandSettings: session.hotel.brandSettings as Record<string, unknown> | null },
         room: { roomNumber: session.room.roomNumber, floor: session.room.floor, type: session.room.type },
@@ -77,6 +85,8 @@ export const useGuestStore = create<GuestStore>()(
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         sessionToken: state.sessionToken,
+        hotelId: state.hotelId,
+        stayId: state.stayId,
         expiresAt: state.expiresAt,
         hotel: state.hotel,
         room: state.room,

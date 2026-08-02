@@ -10,6 +10,7 @@ import {
   successEnvelopeSchema,
 } from "../../../common/openapi/contract-schemas";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
 import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
 import { GuestOsService } from "../application/guest-os.service";
 import { GuestMessagesService } from "../application/guest-messages.service";
@@ -23,6 +24,7 @@ import {
   listGuestCategoryServicesQuerySchema,
   listGuestRequestsQuerySchema,
   guestMessageBodySchema,
+  markGuestMessageReadBodySchema,
   listGuestMessagesQuerySchema,
   scanQrBodyOpenApiSchema,
   scanQrBodySchema,
@@ -141,6 +143,14 @@ export class GuestOsController {
   }
 
   @UseGuards(GuestSessionGuard)
+  @SuccessMessage("Lấy số tin nhắn chưa đọc của khách thành công")
+  @ApiDescript("Lấy số tin nhắn chưa đọc của khách")
+  @Get("messages/unread-summary")
+  async getUnreadSummary(@Req() request: RequestWithGuestSession) {
+    return this.guestMessagesService.getGuestUnreadSummary(request.guestSession);
+  }
+
+  @UseGuards(GuestSessionGuard)
   @SuccessMessage("Lấy hội thoại lễ tân thành công")
   @Get("messages")
   async listMessages(@Req() request: RequestWithGuestSession, @Query() query: unknown) {
@@ -163,14 +173,19 @@ export class GuestOsController {
       request.guestSession,
       parsed.body,
       new Date(session.session.stay.plannedCheckOutAt),
+      parsed.clientMessageId,
     );
   }
 
   @UseGuards(GuestSessionGuard)
   @SuccessMessage("Đã đánh dấu tin nhắn là đã đọc")
   @Post("messages/read")
-  async markMessagesRead(@Req() request: RequestWithGuestSession) {
-    return this.guestMessagesService.markReadForGuest(request.guestSession);
+  async markMessagesRead(@Req() request: RequestWithGuestSession, @Body() body: unknown) {
+    const parsed = parseWithZod(markGuestMessageReadBodySchema, body);
+    return this.guestMessagesService.markReadForGuest(
+      request.guestSession,
+      parsed.readThroughMessageId,
+    );
   }
 
   @UseGuards(GuestSessionGuard)

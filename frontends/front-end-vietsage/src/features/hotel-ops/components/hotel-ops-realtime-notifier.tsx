@@ -44,7 +44,6 @@ export function HotelOpsRealtimeNotifier({ hotelId }: { hotelId: string }) {
 
         // Invalidate TanStack Query caches so UI updates without page reload
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
-        router.refresh();
       },
       onUpdated: (request: Partial<StaffRequestListItem> & { id: string }) => {
         if (String(request.status) === "CANCELLED") {
@@ -64,15 +63,12 @@ export function HotelOpsRealtimeNotifier({ hotelId }: { hotelId: string }) {
           playRequestAlertSound(false);
         }
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
-        router.refresh();
       },
       onAnswered: () => {
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
-        router.refresh();
       },
       onReconnect: () => {
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
-        router.refresh();
       },
     }),
     [hotelId, queryClient, router],

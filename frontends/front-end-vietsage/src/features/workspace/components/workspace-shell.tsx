@@ -4,11 +4,13 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 
+import { useMemo } from "react";
 import { VsDashboardSidebar } from "@/app/(vietsage)/_components/vs-dashboard-sidebar";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { VsTopBar } from "@/app/(vietsage)/_components/vs-top-bar";
 import type { DashboardNavItem } from "@/features/workspace/types/workspace-navigation";
 import { isNavItemActive } from "@/features/workspace/utils/workspace-nav-active";
+import { useHotelMessageUnread } from "@/features/hotel-ops/hooks/use-hotel-message-unread";
 import { useWorkspaceProfile } from "./workspace-profile-context";
 
 import type { WorkspaceDefinition } from "../config/workspace-registry";
@@ -41,6 +43,30 @@ export function WorkspaceShell({
   const inheritedProfile = useWorkspaceProfile();
   const resolvedProfileName = profileName ?? inheritedProfile.profileName;
 
+  const hotelIdMatch = pathname?.match(/^\/(?:hotels|owner\/hotels)\/([^/]+)/);
+  const hotelId = hotelIdMatch?.[1] ?? null;
+  const hasMessagePermission = useMemo(
+    () =>
+      navItems.some(
+        (item) =>
+          item.key === "staff.messages" ||
+          item.key === "room-messages" ||
+          item.href.includes("/messages"),
+      ),
+    [navItems],
+  );
+  const { unreadCount } = useHotelMessageUnread(hotelId, {
+    enabled: hasMessagePermission,
+  });
+
+  const badgeByKey = useMemo<Record<string, number>>(
+    () => ({
+      "staff.messages": unreadCount,
+      "room-messages": unreadCount,
+    }),
+    [unreadCount],
+  );
+
   return (
     <div
       className={`relative min-h-screen overflow-hidden bg-[#f5f1e8] text-[#17201b] ${printFriendly ? "owner-shell-print" : ""}`}
@@ -61,6 +87,7 @@ export function WorkspaceShell({
           items={navItems}
           eyebrow={definition.eyebrow}
           description={definition.description}
+          badgeByKey={badgeByKey}
         />
       </div>
       <main
@@ -75,13 +102,24 @@ export function WorkspaceShell({
       <nav className="fixed inset-x-3 bottom-3 z-50 flex items-stretch justify-around gap-1 rounded-2xl border border-[#24473d]/10 bg-[#17201b]/95 p-2 text-[#fff8e8] shadow-[0_18px_50px_rgba(23,32,27,0.28)] backdrop-blur-xl print:hidden md:hidden">
         {navItems.slice(0, 4).map((item) => {
           const active = isNavItemActive(item.href, activePath, navItems);
+          const badge = badgeByKey[item.key] ?? 0;
           return (
             <Link
               key={item.key}
               href={item.href}
-              className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-center text-[10px] font-bold ${active ? "bg-[#f8f1e6] text-[#17201b]" : "text-[#d7cbb8]"}`}
+              className={`relative flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-center text-[10px] font-bold ${active ? "bg-[#f8f1e6] text-[#17201b]" : "text-[#d7cbb8]"}`}
             >
-              <VsIcon name={item.icon} className="text-xl" />
+              <span className="relative">
+                <VsIcon name={item.icon} className="text-xl" />
+                {badge > 0 ? (
+                  <span
+                    className="absolute -right-2 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#e8b363] px-1 text-[9px] font-bold text-[#17201b] shadow"
+                    aria-label={`${item.label}, ${badge} tin chưa đọc`}
+                  >
+                    {badge > 99 ? "99+" : badge}
+                  </span>
+                ) : null}
+              </span>
               <span className="max-w-full truncate">{item.label}</span>
             </Link>
           );

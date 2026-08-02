@@ -27,12 +27,13 @@ export function resolveBrowserReachableBackendUrl(baseUrl: string): string {
     const frontendProtocol = window.location.protocol;
     const isLocalBackendHost = parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
     const isRemoteFrontendHost = frontendHost !== "localhost" && frontendHost !== "127.0.0.1";
+    const isDevTunnel = frontendHost.includes("devtunnels.ms") || frontendHost.includes("ngrok");
 
-    if (isLocalBackendHost && isRemoteFrontendHost) {
+    if (isLocalBackendHost && isRemoteFrontendHost && !isDevTunnel) {
       parsed.hostname = frontendHost;
       parsed.protocol = frontendProtocol;
       parsed.port = "";
-    } else if (frontendProtocol === "https:" && parsed.protocol === "http:") {
+    } else if (frontendProtocol === "https:" && parsed.protocol === "http:" && !isLocalBackendHost) {
       parsed.protocol = "https:";
       if (parsed.port === "80" || parsed.port === "8080") {
         parsed.port = "";

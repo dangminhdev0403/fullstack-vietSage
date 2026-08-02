@@ -142,6 +142,7 @@ function iconGlyph(name: string): ReactNode {
       );
 
     case "dashboard":
+    case "space_dashboard":
       return (
         <>
           <rect x="3" y="3" width="8" height="8" rx="1.5" />
@@ -206,6 +207,7 @@ function iconGlyph(name: string): ReactNode {
       );
 
     case "concierge":
+    case "room_service":
       return (
         <>
           <path d="M4 13h16" />
@@ -213,6 +215,35 @@ function iconGlyph(name: string): ReactNode {
           <path d="M12 8V6" />
           <path d="M3 17h18" />
           <path d="M6 21h12" />
+        </>
+      );
+
+    case "badge":
+      return (
+        <>
+          <rect x="3" y="4" width="18" height="16" rx="2" />
+          <circle cx="9" cy="11" r="2.5" />
+          <path d="M14 10h4" />
+          <path d="M14 14h3" />
+        </>
+      );
+
+    case "assignment":
+      return (
+        <>
+          <rect x="5" y="4" width="14" height="16" rx="2" />
+          <path d="M9 9h6" />
+          <path d="M9 13h6" />
+          <path d="M9 17h4" />
+        </>
+      );
+
+    case "payments":
+      return (
+        <>
+          <rect x="2" y="5" width="20" height="14" rx="2" />
+          <line x1="2" y1="10" x2="22" y2="10" />
+          <path d="M6 15h4" />
         </>
       );
 

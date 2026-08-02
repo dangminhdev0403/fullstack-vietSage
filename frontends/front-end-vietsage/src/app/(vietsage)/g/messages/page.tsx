@@ -11,10 +11,14 @@ import { useGuestI18n } from "@/features/guest-os/i18n/use-guest-i18n";
 import { guestOsService } from "@/features/guest-os/service/guest-os-service-instance";
 import { useGuestStore, useGuestStoreHydrated } from "@/features/guest-os/store/guest-store";
 
-import { playMessageAlertSound } from "@/features/request-realtime/audio-notifier";
-import { useGuestRequestRealtime } from "@/features/request-realtime/use-guest-request-realtime";
 import type { GuestMessagesResult } from "@/features/guest-os/types/guest-os-contract";
 import { guestMessagesResource } from "@/features/guest-os/resources/guest-messages-resource";
+import { useGuestRequestRealtime } from "@/features/request-realtime/use-guest-request-realtime";
+import {
+  createEventDeduper,
+  isConversationClosedEventForScope,
+  isGuestMessageEventForScope,
+} from "@/features/request-realtime/message-unread";
 
 function TypewriterMessageBody({ body, createdAt }: Readonly<{ body: string; createdAt: string }>) {
   const [displayedText, setDisplayedText] = useState(() => {
@@ -62,6 +66,8 @@ export default function GuestMessagesPage() {
   const { locale, t } = useGuestI18n();
   const hydrated = useGuestStoreHydrated();
   const sessionToken = useGuestStore((state) => state.sessionToken);
+  const hotelId = useGuestStore((state) => state.hotelId);
+  const trustedStayId = useGuestStore((state) => state.stayId);
   const room = useGuestStore((state) => state.room);
   const [body, setBody] = useState("");
   const [sendError, setSendError] = useState<string | null>(null);
@@ -127,25 +133,34 @@ export default function GuestMessagesPage() {
     );
   };
 
+  const pageDeduperRef = useRef(createEventDeduper(200));
+
   useGuestRequestRealtime(sessionToken, {
-    onGuestMessageCreated: (event) => {
-      if (!event || typeof event !== "object" || !("message" in event) || !("thread" in event)) return;
-      const realtimeThread = event.thread as GuestMessagesResult["thread"];
-      const currentStayId = pages[0]?.thread?.stayId;
-      if (currentStayId && realtimeThread?.stayId !== currentStayId) return;
-      const message = event.message as GuestMessagesResult["items"][number];
+    onGuestMessageCreated: (event: unknown) => {
+      if (!hotelId || !trustedStayId || !isGuestMessageEventForScope(event, hotelId, trustedStayId)) return;
+      if (typeof event === "object" && event !== null && "eventId" in event && (event as { eventId?: string }).eventId) {
+        if (!pageDeduperRef.current.accept((event as { eventId: string }).eventId)) return;
+      }
+      const message = (event as unknown as { message?: GuestMessagesResult["items"][number] }).message;
       if (!message?.id) return;
       appendRealtimeMessage(message);
-      if (message.senderType === "STAFF") {
-        playMessageAlertSound();
-      }
     },
-    onConversationClosed: () => setConversationClosed(true),
+    onConversationClosed: (event: unknown) => {
+      if (!hotelId || !trustedStayId || !isConversationClosedEventForScope(event, hotelId, trustedStayId)) return;
+      if (typeof event === "object" && event !== null && "eventId" in event && (event as { eventId?: string }).eventId) {
+        if (!pageDeduperRef.current.accept((event as { eventId: string }).eventId)) return;
+      }
+      setConversationClosed(true);
+      void queryClient.invalidateQueries({
+        queryKey: guestMessages.queries.unreadSummary.options(undefined as never).queryKey,
+      });
+    },
     onReconnect: () => {
       queryClient.invalidateQueries({ queryKey: historyOptions.queryKey }).catch(() => {});
+      queryClient.invalidateQueries({ queryKey: guestMessages.queries.unreadSummary.options(undefined as never).queryKey }).catch(() => {});
     },
-    onError: (error) => {
-      if (error && typeof error === "object" && "code" in error && error.code === "SESSION_INVALID") {
+    onError: (error: unknown) => {
+      if (error && typeof error === "object" && "code" in error && (error as { code?: string }).code === "SESSION_INVALID") {
         setConversationClosed(true);
       }
     },
@@ -153,7 +168,9 @@ export default function GuestMessagesPage() {
 
   useEffect(() => {
     if (!sessionToken || !unreadStaffMessageKey) return;
-    guestOsService.markMessagesRead(sessionToken, locale)
+    const readThroughMessageId = unreadStaffMessageKey.split(",").at(-1);
+    if (!readThroughMessageId) return;
+    guestOsService.markMessagesRead(sessionToken, readThroughMessageId, locale)
       .then(() => {
         const readIds = new Set(unreadStaffMessageKey.split(","));
         queryClient.setQueryData<InfiniteData<GuestMessagesResult>>(
@@ -170,9 +187,12 @@ export default function GuestMessagesPage() {
               }
             : current,
         );
+        void queryClient.invalidateQueries({
+          queryKey: guestMessages.queries.unreadSummary.options(undefined as never).queryKey,
+        });
       })
       .catch(() => {});
-  }, [historyOptions.queryKey, locale, queryClient, sessionToken, unreadStaffMessageKey]);
+  }, [guestMessages.queries.unreadSummary, historyOptions.queryKey, locale, queryClient, sessionToken, unreadStaffMessageKey]);
 
   const handleScroll = () => {
     const container = scrollContainerRef.current;
@@ -357,7 +377,7 @@ export default function GuestMessagesPage() {
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
     }
-    send.mutate({ body: body.trim() });
+    send.mutate({ body: body.trim(), clientMessageId: crypto.randomUUID() });
   };
 
 

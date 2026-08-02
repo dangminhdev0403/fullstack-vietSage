@@ -58,6 +58,7 @@ export interface GuestSessionContext {
   stayId: string;
   status: GuestSessionStatus;
   expiresAt: Date;
+  deviceFingerprintHash?: string | null;
 }
 
 export interface GuestRequestResponse {
@@ -306,6 +307,7 @@ export class GuestOsService {
       stayId: stale.stayId,
       status: stale.status,
       expiresAt: stale.expiresAt,
+      deviceFingerprintHash: stale.deviceFingerprintHash ?? null,
     };
   }
 

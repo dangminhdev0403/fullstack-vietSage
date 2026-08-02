@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { Server } from "socket.io";
 
 const OWNER_ROOM_PREFIX = "owner:hotel:";
@@ -45,18 +46,41 @@ export class RequestRealtimeEmitter {
   }
 
   static emitGuestMessageCreated(input: {
+    eventId: string;
+    messageId: string;
     hotelId: string;
     stayId: string;
+    threadId: string;
     thread: unknown;
     message: unknown;
   }) {
-    const payload = { thread: input.thread, message: input.message };
+    const payload = {
+      eventId: input.eventId,
+      messageId: input.messageId,
+      hotelId: input.hotelId,
+      stayId: input.stayId,
+      threadId: input.threadId,
+      thread: input.thread,
+      message: input.message,
+    };
     this.serverRef?.to(this.ownerHotelRoom(input.hotelId)).emit("guest_message.created", payload);
     this.serverRef?.to(this.guestStayRoom(input.stayId)).emit("guest_message.created", payload);
   }
 
-  static emitConversationClosed(input: { hotelId: string; stayId: string; roomId: string }) {
-    const payload = { stayId: input.stayId, roomId: input.roomId };
+  static emitConversationClosed(input: {
+    eventId?: string;
+    hotelId: string;
+    stayId: string;
+    roomId?: string;
+    threadId?: string;
+  }) {
+    const payload = {
+      eventId: input.eventId ?? randomUUID(),
+      hotelId: input.hotelId,
+      stayId: input.stayId,
+      roomId: input.roomId,
+      threadId: input.threadId,
+    };
     this.serverRef?.to(this.ownerHotelRoom(input.hotelId)).emit("conversation.closed", payload);
     this.serverRef?.to(this.guestStayRoom(input.stayId)).emit("conversation.closed", payload);
   }

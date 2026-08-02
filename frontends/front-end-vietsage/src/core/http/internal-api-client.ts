@@ -87,6 +87,7 @@ async function fetchInternalApi<TData, TBody>(
       status: response.status,
       requestUrl: path,
       data: payload,
+      headers: response.headers,
     });
   }
 

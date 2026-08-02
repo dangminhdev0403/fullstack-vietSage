@@ -21,9 +21,9 @@ export async function POST(request: Request) {
   const token = getBearerToken(request);
   if (!token) return guestValidationErrorResponse("sessionToken is required");
   const payload = await readJsonBody(request);
-  if (!payload || typeof payload !== "object" || Array.isArray(payload) || typeof (payload as { body?: unknown }).body !== "string") return guestValidationErrorResponse("body is required");
+  if (!payload || typeof payload !== "object" || Array.isArray(payload) || typeof (payload as { body?: unknown }).body !== "string" || typeof (payload as { clientMessageId?: unknown }).clientMessageId !== "string") return guestValidationErrorResponse("body và clientMessageId là bắt buộc");
   try {
-    const data = await guestOsService.sendMessage(token, (payload as { body: string }).body, getGuestLocaleCode(request));
+    const data = await guestOsService.sendMessage(token, (payload as { body: string }).body, (payload as { clientMessageId: string }).clientMessageId, getGuestLocaleCode(request));
     return guestSuccessResponse({ status: 201, error: null, message: "OK", data });
   } catch (error) {
     return error instanceof HttpError ? guestHttpErrorResponse(error) : guestUnknownErrorResponse();

@@ -27,6 +27,7 @@ import {
   messageThreadIdParamSchema,
   requestIdParamSchema,
   sendHotelMessageBodySchema,
+  markHotelMessageReadBodySchema,
 } from "../domain/schemas/requests.schema";
 
 interface RequestWithUser extends Request {
@@ -41,8 +42,24 @@ export class HotelRequestsController {
     private readonly guestMessagesService: GuestMessagesService,
   ) {}
 
+  @SuccessMessage("Lấy tổng số tin nhắn chưa đọc của lễ tân thành công")
+  @RequirePermission("hotel.messages.view")
+  @ApiDescript("Xem tổng số tin nhắn chưa đọc của lễ tân")
+  @Get(":hotelId/messages/unread-summary")
+  async getUnreadSummary(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    return this.guestMessagesService.getStaffUnreadSummary(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+    );
+  }
+
   @SuccessMessage("Lấy danh sách hội thoại phòng thành công")
-  @RequirePermission("hotel.requests.view")
+  @RequirePermission("hotel.messages.view")
   @ApiDescript("Xem danh sách hội thoại phòng")
   @Get(":hotelId/messages")
   async listMessages(
@@ -63,7 +80,7 @@ export class HotelRequestsController {
   }
 
   @SuccessMessage("Lấy hội thoại phòng thành công")
-  @RequirePermission("hotel.requests.view")
+  @RequirePermission("hotel.messages.view")
   @ApiDescript("Xem chi tiết hội thoại phòng")
   @Get(":hotelId/messages/:threadId")
   async getMessageThread(
@@ -87,7 +104,7 @@ export class HotelRequestsController {
   }
 
   @SuccessMessage("Đã gửi tin nhắn cho khách")
-  @RequirePermission("hotel.requests.manage")
+  @RequirePermission("hotel.messages.manage")
   @ApiDescript("Gửi tin nhắn cho khách")
   @Post(":hotelId/messages/:threadId/reply")
   async replyMessage(
@@ -109,21 +126,24 @@ export class HotelRequestsController {
   }
 
   @SuccessMessage("Đã đánh dấu hội thoại là đã đọc")
-  @RequirePermission("hotel.requests.manage")
+  @RequirePermission("hotel.messages.manage")
   @ApiDescript("Đánh dấu hội thoại phòng đã đọc")
   @Post(":hotelId/messages/:threadId/read")
   async markMessageThreadRead(
     @Req() request: RequestWithUser,
     @Param("hotelId") hotelIdParam: string,
     @Param("threadId") threadIdParam: string,
+    @Body() body: unknown,
   ) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     const threadId = parseWithZod(messageThreadIdParamSchema, threadIdParam);
+    const parsed = parseWithZod(markHotelMessageReadBodySchema, body);
     return this.guestMessagesService.markReadForHotel(
       request.user.userId,
       request.user.roleId,
       hotelId,
       threadId,
+      parsed.readThroughMessageId,
     );
   }
 

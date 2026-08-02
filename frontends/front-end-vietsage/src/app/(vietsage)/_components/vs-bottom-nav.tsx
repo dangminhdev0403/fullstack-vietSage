@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { useGuestI18n } from "@/features/guest-os/i18n/use-guest-i18n";
+import { useGuestMessageUnread } from "@/features/guest-os/hooks/use-guest-message-unread";
 
 import { VsIcon } from "./vs-icon";
 
@@ -21,6 +22,7 @@ const navItems: Array<{ key: NavKey; labelKey: string; href: string; icon: strin
 
 export function VsBottomNav({ active }: VsBottomNavProps) {
   const { t } = useGuestI18n();
+  const { unreadCount } = useGuestMessageUnread();
 
   return (
     <nav
@@ -39,13 +41,23 @@ export function VsBottomNav({ active }: VsBottomNavProps) {
               <Link
                 href={item.href}
                 aria-current={isActive ? "page" : undefined}
-                className={`mx-auto flex min-h-11 w-full max-w-24 flex-col items-center justify-center rounded-xl px-2 py-1.5 text-[11px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b18b26] ${
+                className={`relative mx-auto flex min-h-11 w-full max-w-24 flex-col items-center justify-center rounded-xl px-2 py-1.5 text-[11px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b18b26] ${
                   isActive
                     ? "bg-[#25483f]/9 text-[#25483f]"
                     : "text-[#66736b] hover:bg-[#25483f]/6 hover:text-[#25483f]"
                 }`}
               >
-                <VsIcon name={item.icon} className="text-[22px]" />
+                <span className="relative">
+                  <VsIcon name={item.icon} className="text-[22px]" />
+                  {item.key === "messages" && unreadCount > 0 && !isActive ? (
+                    <span
+                      className="absolute -right-2.5 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#e8b363] px-1 text-[9px] font-bold text-[#17201b] shadow"
+                      aria-label={`${t(item.labelKey)}, ${unreadCount} tin chưa đọc`}
+                    >
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  ) : null}
+                </span>
                 {t(item.labelKey)}
               </Link>
             </li>

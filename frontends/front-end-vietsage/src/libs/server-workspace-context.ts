@@ -1,7 +1,7 @@
 import "server-only";
 
 import { authService } from "@/features/auth/service/auth-service-instance";
-import type { AuthIdentity } from "@/features/auth/service/auth-service";
+import { AuthServiceError, type AuthIdentity } from "@/features/auth/service/auth-service";
 import {
   redirectToLogin,
   requireRefreshableServerSession,
@@ -24,5 +24,16 @@ export async function loadServerWorkspaceContext(
     redirectToLogin(callbackUrl, "no_access_token", "server-workspace-context");
   }
 
-  return authService.getProfile(resolvedAccessToken);
+  try {
+    return await authService.getProfile(resolvedAccessToken);
+  } catch (error) {
+    if (
+      error instanceof AuthServiceError &&
+      (error.code === "INVALID_CREDENTIALS" || error.code === "UNAUTHORIZED")
+    ) {
+      redirectToLogin(callbackUrl, "invalid_credentials", "server-workspace-context");
+    }
+
+    throw error;
+  }
 }

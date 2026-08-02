@@ -1,3 +1,21 @@
+## [complete] 2026-08-02 - Mission: workspace-sidebar-icon-fallback-and-api-description
+
+- Added missing SVG icon glyph mappings (`space_dashboard`, `badge`, `assignment`, `payments`, `room_service`) in `vs-icon.tsx`, replacing the default `!` (info circle) fallback icon in the staff/workspace sidebar navigation.
+- Resolved backend route permission warning for `GET /guest/messages/unread-summary` by adding `messages/unread-summary` to `PUBLIC_REGEX` in `routes.config.ts` and adding `@ApiDescript` decorator in `guest-os.controller.ts`.
+- Handled `AuthServiceError` (`INVALID_CREDENTIALS` / `UNAUTHORIZED`) in `loadServerWorkspaceContext` (`src/libs/server-workspace-context.ts`) to cleanly trigger `redirectToLogin` when user access tokens expire or become invalid, preventing Server Component crash error screens.
+- Added realtime guest message unread badge count to sidebar navigation item "Tin nhắn phòng" (`staff.messages` / `room-messages`) across desktop and mobile views: created BFF endpoint `GET /api/hotel-ops/hotels/[hotelId]/messages/unread-summary`, `useHotelMessageUnread` hook with Socket.IO `guest_message.created` realtime refetch and audio alert, and updated `WorkspaceShell` / `VsDashboardSidebar` to render animated unread badge pills.
+- Resolved API re-fetch loop and 404 socket polling errors: excluded Dev Tunnels (`devtunnels.ms`/`ngrok`) from `resolveBrowserReachableBackendUrl` in `backend-api-config.ts` so local Socket.IO connects directly to backend (`:8080`), removed aggressive `router.refresh()` calls on socket reconnect in `HotelOpsRealtimeNotifier`, and eliminated duplicate socket subscriptions in `useHotelMessageUnread`.
+- Added GuestOS realtime unread message badge and audio notification when staff replies to guest: created BFF endpoint `GET /api/guest/messages/unread-summary`, client hook `useGuestMessageUnread`, updated `VsBottomNav` to render unread badge on "Tin nhắn" item when guest is navigating other tabs (`/g/home`, `/g/services`, `/g/requests`), toast alert with action to open message view, and automatic badge clear on mark read.
+
+Verification result:
+
+- `npx tsc --noEmit` passed with 0 errors in `frontends/front-end-vietsage`.
+- Backend `npm test -- --runInBand route-permission-sync` passed 7/7 tests and `npm run build` completed successfully.
+
+Remaining blockers/risks:
+
+- None.
+
 ## [local-complete] 2026-08-01 - Mission: FaceID recognition relay
 
 - Added hotel-scoped, credential-authenticated recognition ingestion with device/event dedupe.

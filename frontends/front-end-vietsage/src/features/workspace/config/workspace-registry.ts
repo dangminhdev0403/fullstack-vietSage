@@ -312,7 +312,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     icon: "support_agent",
     order: 45,
     requiresHotel: true,
-    anyCapabilities: ["hotel.requests.view", "hotel.requests.manage"],
+    anyCapabilities: ["hotel.messages.view", "hotel.messages.manage"],
   },
   {
     key: "staff.billing",

@@ -21,6 +21,8 @@ const BUSINESS_PERMISSION_MENU_PATHS: Record<BusinessPermissionKey, string | nul
   "hotel.staff.manage": "/owner/staff",
   "hotel.requests.view": "/owner/hotels/[hotelId]/requests",
   "hotel.requests.manage": "/owner/hotels/[hotelId]/requests",
+  "hotel.messages.view": "/owner/hotels/[hotelId]/messages",
+  "hotel.messages.manage": "/owner/hotels/[hotelId]/messages",
   "hotel.billing.view": "/owner/hotels/[hotelId]/billing",
   "hotel.billing.manage": "/owner/hotels/[hotelId]/billing",
   "hotel.services.view": "/owner/hotels/[hotelId]/services",

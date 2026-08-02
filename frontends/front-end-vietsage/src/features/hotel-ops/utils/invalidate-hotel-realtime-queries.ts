@@ -28,5 +28,8 @@ export async function invalidateHotelRealtimeQueries(
     queryClient.invalidateQueries({ queryKey: ["owner-requests", hotelId] }),
     queryClient.invalidateQueries({ queryKey: ["biometric-workstations", hotelId] }),
     queryClient.invalidateQueries({ queryKey: ["owner-hotels"] }),
+    queryClient.invalidateQueries({
+      queryKey: ["hotel-ops", hotelId, "messages", "unread-summary"],
+    }),
   ]);
 }

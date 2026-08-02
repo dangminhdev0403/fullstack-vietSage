@@ -99,23 +99,27 @@ export function successResponse<T>(data: T, status = 200, message = "OK") {
 }
 
 export function hotelOpsHttpErrorResponse(error: HttpError) {
+  const headers = new Headers();
+  const retryAfter = error.headers?.get("retry-after");
+  if (retryAfter) headers.set("Retry-After", retryAfter);
+
   if (error.status === 403) {
     return NextResponse.json(
       { status: 403, message: "FORBIDDEN", data: { detail: "Không có quyền thực hiện thao tác này." } },
-      { status: 403 },
+      { status: 403, headers },
     );
   }
 
   if (error.status === 404) {
     return NextResponse.json(
       { status: 404, message: "NOT_FOUND", data: { detail: "Không tìm thấy dữ liệu trong phạm vi khách sạn." } },
-      { status: 404 },
+      { status: 404, headers },
     );
   }
 
   return NextResponse.json(
     error.data ?? { status: error.status, message: error.message },
-    { status: error.status },
+    { status: error.status, headers },
   );
 }
 

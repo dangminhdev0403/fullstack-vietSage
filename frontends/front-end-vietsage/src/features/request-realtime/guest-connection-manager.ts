@@ -17,45 +17,63 @@ function isTerminalRealtimeError(value: unknown): boolean {
   );
 }
 
+export type GuestRealtimeHandlers = OwnerRealtimeHandlers;
+
+type Entry = {
+  subscribers: Set<GuestRealtimeHandlers>;
+  socket?: GuestSocket;
+  cancelReconnect?: () => void;
+};
+
 export function createGuestConnectionManager(deps: {
   enabled: boolean;
   createSocket(auth: { mode: "guest"; sessionToken: string }): GuestSocket;
   scheduleReconnect?: (callback: () => void) => () => void;
 }) {
-  let socket: GuestSocket | undefined;
-  let token: string | null = null;
-  let handlers: OwnerRealtimeHandlers = {};
-  let cancelReconnect: (() => void) | undefined;
+  const entries = new Map<string, Entry>();
 
-  const unwrapRequest = (event: unknown) =>
-    typeof event === "object" && event !== null && "request" in event ? event.request : event;
+  function connect(token: string, entry: Entry) {
+    if (!deps.enabled || entry.subscribers.size === 0 || entry.socket) return;
 
-  function connect(expectedToken: string) {
-    if (!deps.enabled || token !== expectedToken || socket) return;
-
-    const current = deps.createSocket({ mode: "guest", sessionToken: expectedToken });
+    const current = deps.createSocket({ mode: "guest", sessionToken: token });
     let terminal = false;
-    socket = current;
-    current.on("request_realtime.ready", (event) => handlers.onReady?.(event));
-    current.on("guest_request.created", (event) => handlers.onCreated?.(unwrapRequest(event)));
-    current.on("guest_request.updated", (event) => handlers.onUpdated?.(unwrapRequest(event)));
-    current.on("guest_request.answered", (event) => handlers.onAnswered?.(unwrapRequest(event)));
-    current.on("guest_message.created", (event) => handlers.onGuestMessageCreated?.(event));
-    current.on("conversation.closed", (event) => handlers.onConversationClosed?.(event));
+    entry.socket = current;
+
+    const fanout = (name: keyof GuestRealtimeHandlers) => (event?: unknown) => {
+      const request =
+        typeof event === "object" && event !== null && "request" in event
+          ? (event as { request?: unknown }).request
+          : event;
+      entry.subscribers.forEach((subscriber) => {
+        (subscriber[name] as ((value?: unknown) => void) | undefined)?.(request);
+      });
+    };
+    const fanoutRaw = (name: keyof GuestRealtimeHandlers) => (event?: unknown) => {
+      entry.subscribers.forEach((subscriber) => {
+        (subscriber[name] as ((value?: unknown) => void) | undefined)?.(event);
+      });
+    };
+
+    current.on("request_realtime.ready", fanout("onReady"));
+    current.on("guest_request.created", fanout("onCreated"));
+    current.on("guest_request.updated", fanout("onUpdated"));
+    current.on("guest_request.answered", fanout("onAnswered"));
+    current.on("guest_message.created", fanoutRaw("onGuestMessageCreated"));
+    current.on("conversation.closed", fanoutRaw("onConversationClosed"));
     current.on("request_realtime.error", (error) => {
       terminal = isTerminalRealtimeError(error);
-      handlers.onError?.(error);
+      fanout("onError")(error);
     });
     const reconnect = () => {
-      if (socket !== current) return;
-      socket = undefined;
-      if (terminal || token !== expectedToken) return;
-      handlers.onReconnect?.();
+      if (entry.socket !== current) return;
+      entry.socket = undefined;
+      if (terminal || entry.subscribers.size === 0) return;
+      entry.subscribers.forEach((subscriber) => subscriber.onReconnect?.());
       const retry = () => {
-        cancelReconnect = undefined;
-        connect(expectedToken);
+        entry.cancelReconnect = undefined;
+        connect(token, entry);
       };
-      cancelReconnect = deps.scheduleReconnect?.(retry) ?? (retry(), () => undefined);
+      entry.cancelReconnect = deps.scheduleReconnect?.(retry) ?? (retry(), () => undefined);
     };
     current.on("connect_error", reconnect);
     current.on("disconnect", reconnect);
@@ -63,27 +81,26 @@ export function createGuestConnectionManager(deps: {
   }
 
   return {
-    update(nextToken: string | null | undefined, nextHandlers: OwnerRealtimeHandlers) {
-      handlers = nextHandlers;
-      const normalized = nextToken?.trim() || null;
-      if (!deps.enabled) return;
-      if (normalized === token) return;
+    subscribe(sessionToken: string, handlers: GuestRealtimeHandlers) {
+      let entry = entries.get(sessionToken);
+      if (!entry) {
+        entry = { subscribers: new Set() };
+        entries.set(sessionToken, entry);
+      }
+      entry.subscribers.add(handlers);
+      connect(sessionToken, entry);
 
-      const previous = socket;
-      socket = undefined;
-      cancelReconnect?.();
-      cancelReconnect = undefined;
-      token = normalized;
-      previous?.disconnect();
-      if (token) connect(token);
-    },
-    disconnect() {
-      const previous = socket;
-      socket = undefined;
-      cancelReconnect?.();
-      cancelReconnect = undefined;
-      token = null;
-      previous?.disconnect();
+      return () => {
+        entry!.subscribers.delete(handlers);
+        if (entry!.subscribers.size === 0) {
+          entry!.cancelReconnect?.();
+          entry!.cancelReconnect = undefined;
+          const socket = entry!.socket;
+          entry!.socket = undefined;
+          socket?.disconnect();
+          entries.delete(sessionToken);
+        }
+      };
     },
   };
 }

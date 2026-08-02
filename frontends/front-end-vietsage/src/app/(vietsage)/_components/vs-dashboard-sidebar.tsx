@@ -11,6 +11,7 @@ type VsDashboardSidebarProps = {
   description?: string;
   eyebrow?: string;
   items?: readonly DashboardNavItem[];
+  badgeByKey?: Readonly<Record<string, number>>;
 };
 
 export function VsDashboardSidebar({
@@ -18,6 +19,7 @@ export function VsDashboardSidebar({
   description = "Trung tâm điều hành theo phạm vi và quyền của phiên hiện tại.",
   eyebrow = "Workspace",
   items,
+  badgeByKey,
 }: Readonly<VsDashboardSidebarProps>) {
   const navigationItems = items ?? [];
 
@@ -47,6 +49,7 @@ export function VsDashboardSidebar({
       <nav className="relative flex flex-col gap-2 px-5">
         {navigationItems.map((item) => {
           const isActive = isNavItemActive(item.href, activePath, navigationItems);
+          const badge = badgeByKey?.[item.key] ?? 0;
 
           return (
             <Link
@@ -68,6 +71,14 @@ export function VsDashboardSidebar({
                 <VsIcon name={item.icon} className="text-[20px]" />
               </span>
               <span className="font-semibold">{item.label}</span>
+              {badge > 0 ? (
+                <span
+                  className="ml-auto flex h-6 min-w-6 items-center justify-center rounded-full bg-[#e8b363] px-2 text-xs font-bold text-[#17201b] shadow-sm transition-all"
+                  aria-label={`${item.label}, ${badge} tin chưa đọc`}
+                >
+                  {badge > 99 ? "99+" : badge}
+                </span>
+              ) : null}
             </Link>
           );
         })}

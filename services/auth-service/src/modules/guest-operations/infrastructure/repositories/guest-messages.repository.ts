@@ -67,6 +67,119 @@ function decodeThreadCursor(cursor?: string) {
 export class GuestMessagesRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  async appendGuestMessageAtomic(input: {
+    hotelId: string;
+    roomId: string;
+    stayId: string;
+    sessionId: string;
+    deviceFingerprintHash?: string;
+    clientMessageId: string;
+    senderType: GuestRequestActorType;
+    body: string;
+    expiresAt: Date;
+  }): Promise<
+    | { kind: "created" | "existing"; value: NonNullable<Awaited<ReturnType<GuestMessagesRepository["appendGuestMessage"]>>> }
+    | { kind: "rate-limited"; retryAfterSeconds: number }
+    | { kind: "inactive"; value: null }
+  > {
+    const rateIdentity = input.deviceFingerprintHash?.trim() || input.sessionId;
+    const rateKey = `${input.stayId}:${rateIdentity}`;
+    const windowMs = 60_000;
+    const limit = 30;
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${rateKey}, 0))`;
+
+      const existingMessage = await tx.guestMessage.findFirst({
+        where: { sessionId: input.sessionId, clientMessageId: input.clientMessageId },
+        include: messageInclude,
+      });
+      if (existingMessage) {
+        const existingThread = await tx.guestMessageThread.findFirst({
+          where: { id: existingMessage.threadId, stay: { is: activeStayWhere } },
+          include: threadSummaryInclude,
+        });
+        if (!existingThread) return { kind: "inactive" as const, value: null };
+        return {
+          kind: "existing" as const,
+          value: { thread: existingThread, message: existingMessage },
+        };
+      }
+
+      const since = new Date(Date.now() - windowMs);
+      const identityWhere: Prisma.GuestMessageWhereInput = input.deviceFingerprintHash
+        ? { session: { is: { deviceFingerprintHash: input.deviceFingerprintHash } } }
+        : { sessionId: input.sessionId };
+      const recentWhere: Prisma.GuestMessageWhereInput = {
+        stayId: input.stayId,
+        senderType: GuestRequestActorType.GUEST,
+        createdAt: { gte: since },
+        ...identityWhere,
+      };
+      const recentCount = await tx.guestMessage.count({ where: recentWhere });
+      if (recentCount >= limit) {
+        const oldest = await tx.guestMessage.findFirst({
+          where: recentWhere,
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+          select: { createdAt: true },
+        });
+        const retryAfterSeconds = Math.max(
+          1,
+          Math.ceil(((oldest?.createdAt.getTime() ?? Date.now()) + windowMs - Date.now()) / 1000),
+        );
+        return { kind: "rate-limited" as const, retryAfterSeconds };
+      }
+
+      const activeStay = await tx.guestStay.findFirst({
+        where: {
+          id: input.stayId,
+          hotelId: input.hotelId,
+          roomId: input.roomId,
+          ...activeStayWhere,
+        },
+        select: { id: true },
+      });
+      if (!activeStay) return { kind: "inactive" as const, value: null };
+
+      const now = new Date();
+      const thread = await tx.guestMessageThread.upsert({
+        where: { stayId: input.stayId },
+        create: {
+          hotelId: input.hotelId,
+          roomId: input.roomId,
+          stayId: input.stayId,
+          expiresAt: input.expiresAt,
+          status: "OPEN",
+          lastMessageAt: now,
+        },
+        update: {
+          status: "OPEN",
+          clearedAt: null,
+          lastMessageAt: now,
+          expiresAt: input.expiresAt,
+        },
+      });
+      const message = await tx.guestMessage.create({
+        data: {
+          threadId: thread.id,
+          hotelId: input.hotelId,
+          roomId: input.roomId,
+          stayId: input.stayId,
+          senderType: input.senderType,
+          sessionId: input.sessionId,
+          clientMessageId: input.clientMessageId,
+          body: input.body,
+        },
+        include: messageInclude,
+      });
+      const summary = await tx.guestMessageThread.findUniqueOrThrow({
+        where: { id: thread.id },
+        include: threadSummaryInclude,
+      });
+      return { kind: "created" as const, value: { thread: summary, message } };
+    });
+  }
+
   async isActiveStay(stayId: string, hotelId: string) {
     return Boolean(
       await this.prisma.guestStay.findFirst({
@@ -130,6 +243,7 @@ export class GuestMessagesRepository {
     roomId: string;
     stayId: string;
     sessionId?: string;
+    clientMessageId?: string;
     senderType: GuestRequestActorType;
     senderUserId?: string;
     body: string;
@@ -169,6 +283,7 @@ export class GuestMessagesRepository {
           senderType: input.senderType,
           senderUserId: input.senderUserId,
           sessionId: input.sessionId,
+          clientMessageId: input.clientMessageId,
           body: input.body,
         },
         include: messageInclude,
@@ -274,28 +389,116 @@ export class GuestMessagesRepository {
     return { thread, total, items, nextCursor, hasMore };
   }
 
-  async markReadForStaff(hotelId: string, threadId: string) {
-    return this.prisma.guestMessage.updateMany({
+  async getStaffUnreadSummary(hotelId: string) {
+    const unreadCount = await this.prisma.guestMessage.count({
+      where: {
+        hotelId,
+        senderType: GuestRequestActorType.GUEST,
+        readAt: null,
+        stay: { is: activeStayWhere },
+      },
+    });
+    return { unreadCount };
+  }
+
+  async getGuestUnreadSummary(stayId: string, hotelId: string) {
+    const unreadCount = await this.prisma.guestMessage.count({
+      where: {
+        stayId,
+        hotelId,
+        senderType: GuestRequestActorType.STAFF,
+        readAt: null,
+        stay: { is: activeStayWhere },
+      },
+    });
+    return { unreadCount };
+  }
+
+  async findGuestMessageByClientMessageId(sessionId: string, clientMessageId: string) {
+    const message = await this.prisma.guestMessage.findFirst({
+      where: { sessionId, clientMessageId },
+      include: messageInclude,
+    });
+    if (!message) return null;
+    const thread = await this.prisma.guestMessageThread.findFirst({
+      where: { id: message.threadId, stay: { is: activeStayWhere } },
+      include: threadSummaryInclude,
+    });
+    if (!thread) return null;
+    return { thread, message };
+  }
+
+  async countRecentGuestMessages(stayId: string, windowMs = 60000) {
+    const since = new Date(Date.now() - windowMs);
+    return this.prisma.guestMessage.count({
+      where: {
+        stayId,
+        senderType: GuestRequestActorType.GUEST,
+        createdAt: { gte: since },
+      },
+    });
+  }
+
+  async markReadForStaff(hotelId: string, threadId: string, readThroughMessageId?: string) {
+    let watermarkFilter: Prisma.GuestMessageWhereInput = {};
+    if (readThroughMessageId) {
+      const pivot = await this.prisma.guestMessage.findFirst({
+        where: { id: readThroughMessageId, threadId },
+        select: { id: true, createdAt: true },
+      });
+      if (!pivot) {
+        return { count: 0 };
+      }
+      watermarkFilter = {
+        OR: [
+          { createdAt: { lt: pivot.createdAt } },
+          { createdAt: pivot.createdAt, id: { lte: pivot.id } },
+        ],
+      };
+    }
+
+    const result = await this.prisma.guestMessage.updateMany({
       where: {
         threadId,
         senderType: GuestRequestActorType.GUEST,
         readAt: null,
         thread: { is: { hotelId, stay: { is: activeStayWhere } } },
+        ...watermarkFilter,
       },
       data: { readAt: new Date() },
     });
+    return { count: result.count };
   }
 
-  async markReadForGuest(hotelId: string, stayId: string) {
-    return this.prisma.guestMessage.updateMany({
+  async markReadForGuest(hotelId: string, stayId: string, readThroughMessageId?: string) {
+    let watermarkFilter: Prisma.GuestMessageWhereInput = {};
+    if (readThroughMessageId) {
+      const pivot = await this.prisma.guestMessage.findFirst({
+        where: { id: readThroughMessageId, stayId },
+        select: { id: true, createdAt: true },
+      });
+      if (!pivot) {
+        return { count: 0 };
+      }
+      watermarkFilter = {
+        OR: [
+          { createdAt: { lt: pivot.createdAt } },
+          { createdAt: pivot.createdAt, id: { lte: pivot.id } },
+        ],
+      };
+    }
+
+    const result = await this.prisma.guestMessage.updateMany({
       where: {
         stayId,
         hotelId,
         senderType: GuestRequestActorType.STAFF,
         readAt: null,
         thread: { is: { stay: { is: activeStayWhere } } },
+        ...watermarkFilter,
       },
       data: { readAt: new Date() },
     });
+    return { count: result.count };
   }
 }

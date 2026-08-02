@@ -2,6 +2,7 @@ import {
   createResource,
   defineInfiniteQuery,
   defineMutation,
+  defineQuery,
   type ResourceInfiniteQueryContext,
   type ResourceMutationContext,
 } from "@dangminhdev04032005/query-resource";
@@ -23,6 +24,13 @@ export const guestMessagesResource = createResource<GuestMessagesScope>()({
   namespace: ["vietsage"],
   name: "guest-messages",
   scopeKey: (scope) => ["session", scope.sessionToken, "locale", scope.locale],
+  queries: {
+    unreadSummary: defineQuery({
+      inputKey: () => [],
+      queryFn: ({ scope }) =>
+        guestOsService.getMessageUnreadSummary(scope.sessionToken, scope.locale),
+    }),
+  },
   infiniteQueries: {
     history: defineInfiniteQuery({
       inputKey: (input: HistoryInput) => [input],
@@ -45,13 +53,24 @@ export const guestMessagesResource = createResource<GuestMessagesScope>()({
     send: defineMutation({
       mutationFn: ({ scope, variables }: ResourceMutationContext<
         GuestMessagesScope,
-        { body: string }
-      >) => guestOsService.sendMessage(scope.sessionToken, variables.body, scope.locale),
-      invalidates: [{ type: "infinite", operation: "history" }],
+        { body: string; clientMessageId: string }
+      >) => guestOsService.sendMessage(
+        scope.sessionToken,
+        variables.body,
+        variables.clientMessageId,
+        scope.locale,
+      ),
     }),
     markRead: defineMutation({
-      mutationFn: ({ scope }: ResourceMutationContext<GuestMessagesScope, void>) =>
-        guestOsService.markMessagesRead(scope.sessionToken, scope.locale),
+      mutationFn: ({ scope, variables }: ResourceMutationContext<
+        GuestMessagesScope,
+        { readThroughMessageId: string }
+      >) => guestOsService.markMessagesRead(
+        scope.sessionToken,
+        variables.readThroughMessageId,
+        scope.locale,
+      ),
+      invalidates: [{ type: "query", operation: "unreadSummary" }],
     }),
   },
 });
