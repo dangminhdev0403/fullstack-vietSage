@@ -1,3 +1,6 @@
+.git
+graphify-out
+secrets
 node_modules
 dist
 coverage
@@ -7,6 +10,7 @@ coverage
 .env.docker
 src/common/config/google-service-account.json
 .sonarqube-*.json
+*.log
 npm-debug.log*
 pnpm-debug.log*
 *.tsbuildinfo

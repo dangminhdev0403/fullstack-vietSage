@@ -7,7 +7,7 @@ This repo ships a production Docker Compose stack with Nginx as the only public 
 - `www.vietsage.com/` -> temporary launch-hold page served by Nginx
 - `www.vietsage.com/preview` -> current landing page proxied to `frontend:3000`
 - `stay.vietsage.com` -> dashboard/frontend on `frontend:3000`
-- `vietsage.com/api/*` -> core API on `auth-service:8080`
+- `vietsage.com/api/*` -> frontend BFF on `frontend:3000` (which reaches `auth-service:8080`); `/socket.io/` -> `auth-service:8080`
 
 The current codebase contains one Next.js frontend app with dashboard routes inside it, so `stay.vietsage.com` points to the same local frontend port. If the dashboard becomes a separate process later, change the `stay.vietsage.com` `proxy_pass` in `deploy/nginx/vietsage.conf` to that dashboard port.
 
@@ -83,8 +83,8 @@ python scripts/verify-production-topology.py
 
 Production Compose includes `nginxinc/nginx-unprivileged:1.28-alpine` as the only published HTTP/HTTPS service. Host ports `80/443` map to unprivileged container ports `8080/8443`. It mounts the selected Docker Nginx config, waits for healthy frontend/backend containers, and routes by Docker service DNS:
 
-- `frontend:3000` for the frontend and Auth.js;
-- `auth-service:8080` for backend API and Socket.IO;
+- `frontend:3000` for the frontend, `/api/*` BFF, and Auth.js;
+- `auth-service:8080` for Socket.IO (and direct backend services);
 - `postgres` remains available only to the backend network.
 
 Run the static checks before building:
