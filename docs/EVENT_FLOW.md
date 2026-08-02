@@ -12,6 +12,8 @@ Request realtime transport authenticates at the Socket.IO handshake. Owner brows
 
 Polling, an outbox dispatcher, durable retry/backoff delivery, urgent SLA escalation, and a broker remain Batch D and are not implemented here.
 
+Financial correctness note: Platform Billing ledger generation (`PlatformBillableDay`) is derived deterministically from persisted operational database state (`GuestStay` -> `PlatformUsage`), not from ephemeral event handlers or bus messages. Domain events (e.g. `PLATFORM_BILLING_RECONCILIATION_FAILED`) serve exclusively as audit signals.
+
 ```txt
 HTTP request
   -> Controller validates request shape

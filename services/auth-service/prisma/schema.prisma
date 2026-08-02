@@ -229,6 +229,18 @@ enum PaymentProvider {
   BANK_TRANSFER
 }
 
+enum PlatformBillingContractStatus {
+  ACTIVE
+  SUSPENDED
+  TERMINATED
+}
+
+enum PlatformBillingPeriodStatus {
+  DRAFT
+  FINALIZED
+  VOID
+}
+
 enum EmergencyLocationSource {
   GPS
   QR
@@ -291,15 +303,15 @@ enum EmergencyNotificationType {
 }
 
 model User {
-  id                    String              @id @default(cuid())
-  email                 String              @unique @db.VarChar(320)
-  passwordHash          String              @db.VarChar(255)
-  fullName              String              @db.VarChar(120)
-  status                UserStatus          @default(ACTIVE)
+  id                    String                 @id @default(cuid())
+  email                 String                 @unique @db.VarChar(320)
+  passwordHash          String                 @db.VarChar(255)
+  fullName              String                 @db.VarChar(120)
+  status                UserStatus             @default(ACTIVE)
   userType              UserType
   lastLoginAt           DateTime?
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
   userRoles             UserRole[]
   refreshTokens         RefreshToken[]
   authSessions          AuthSession[]
@@ -307,20 +319,20 @@ model User {
   hotelAssignments      HotelStaffAssignment[] @relation("HotelStaffAssignmentUser")
   assignedHotelStaff    HotelStaffAssignment[] @relation("HotelStaffAssignmentAssignedBy")
   revokedHotelStaff     HotelStaffAssignment[] @relation("HotelStaffAssignmentRevokedBy")
-  auditLogs             AuditLog[]          @relation("AuditActor")
-  createdStays          GuestStay[]         @relation("GuestStayCreatedBy")
-  closedStays           GuestStay[]         @relation("GuestStayClosedBy")
-  assignedGuestRequests GuestRequest[]      @relation("GuestRequestAssignedTo")
-  guestRequestEvents    GuestRequestEvent[] @relation("GuestRequestEventActor")
-  sentGuestMessages     GuestMessage[]      @relation("GuestMessageStaffSender")
-  createdFolios         Folio[]             @relation("FolioCreatedBy")
-  closedFolios          Folio[]             @relation("FolioClosedBy")
-  postedFolioItems      FolioItem[]         @relation("FolioItemPostedBy")
-  voidedFolioItems      FolioItem[]         @relation("FolioItemVoidedBy")
-  issuedInvoices        Invoice[]           @relation("InvoiceIssuedBy")
-  paidInvoices          Invoice[]           @relation("InvoicePaidBy")
-  voidedInvoices        Invoice[]           @relation("InvoiceVoidedBy")
-  createdPayments       Payment[]           @relation("PaymentCreatedBy")
+  auditLogs             AuditLog[]             @relation("AuditActor")
+  createdStays          GuestStay[]            @relation("GuestStayCreatedBy")
+  closedStays           GuestStay[]            @relation("GuestStayClosedBy")
+  assignedGuestRequests GuestRequest[]         @relation("GuestRequestAssignedTo")
+  guestRequestEvents    GuestRequestEvent[]    @relation("GuestRequestEventActor")
+  sentGuestMessages     GuestMessage[]         @relation("GuestMessageStaffSender")
+  createdFolios         Folio[]                @relation("FolioCreatedBy")
+  closedFolios          Folio[]                @relation("FolioClosedBy")
+  postedFolioItems      FolioItem[]            @relation("FolioItemPostedBy")
+  voidedFolioItems      FolioItem[]            @relation("FolioItemVoidedBy")
+  issuedInvoices        Invoice[]              @relation("InvoiceIssuedBy")
+  paidInvoices          Invoice[]              @relation("InvoicePaidBy")
+  voidedInvoices        Invoice[]              @relation("InvoiceVoidedBy")
+  createdPayments       Payment[]              @relation("PaymentCreatedBy")
 }
 
 model Role {
@@ -499,44 +511,218 @@ model AuditLog {
 }
 
 model Hotel {
-  id                  String                 @id @default(cuid())
-  tenantId            String
-  name                String                 @db.VarChar(160)
-  code                String                 @db.VarChar(80)
-  brandSettings       Json?
-  googleSheetId       String?                @unique @db.VarChar(200)
-  timezone            String                 @default("Asia/Saigon") @db.VarChar(80)
-  status              HotelStatus            @default(ACTIVE)
-  createdAt           DateTime               @default(now())
-  updatedAt           DateTime               @updatedAt
-  tenant              Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  rooms               Room[]
-  roomQRCodes         RoomQRCode[]
-  guestStays          GuestStay[]
-  reservations        Reservation[]
-  guestSessions       GuestSession[]
-  guestRequests       GuestRequest[]
-  guestMessageThreads GuestMessageThread[]
-  guestMessages       GuestMessage[]
-  notificationRoutes  NotificationRoute[]
-  requestEvents       GuestRequestEvent[]
-  serviceCategories   HotelServiceCategory[]
-  serviceItems        HotelServiceItem[]
-  domainEvents        DomainEvent[]
-  folios              Folio[]
-  folioItems          FolioItem[]
-  invoices            Invoice[]
-  payments            Payment[]
-  paymentTransactions PaymentTransaction[]
-  staffAssignments      HotelStaffAssignment[]
-  emergencyLocations    EmergencyLocation[]
-  emergencyCallEvents   EmergencyCallEvent[]
-  emergencyIncidents    EmergencyIncident[]
-  biometricPairings     BiometricWorkstationPairing[]
-  biometricWorkstations BiometricWorkstation[]
+  id                       String                        @id @default(cuid())
+  tenantId                 String
+  name                     String                        @db.VarChar(160)
+  code                     String                        @db.VarChar(80)
+  brandSettings            Json?
+  googleSheetId            String?                       @unique @db.VarChar(200)
+  timezone                 String                        @default("Asia/Saigon") @db.VarChar(80)
+  status                   HotelStatus                   @default(ACTIVE)
+  createdAt                DateTime                      @default(now())
+  updatedAt                DateTime                      @updatedAt
+  tenant                   Tenant                        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  rooms                    Room[]
+  roomQRCodes              RoomQRCode[]
+  guestStays               GuestStay[]
+  reservations             Reservation[]
+  guestSessions            GuestSession[]
+  guestRequests            GuestRequest[]
+  guestMessageThreads      GuestMessageThread[]
+  guestMessages            GuestMessage[]
+  notificationRoutes       NotificationRoute[]
+  requestEvents            GuestRequestEvent[]
+  serviceCategories        HotelServiceCategory[]
+  serviceItems             HotelServiceItem[]
+  domainEvents             DomainEvent[]
+  folios                   Folio[]
+  folioItems               FolioItem[]
+  invoices                 Invoice[]
+  payments                 Payment[]
+  paymentTransactions      PaymentTransaction[]
+  staffAssignments         HotelStaffAssignment[]
+  emergencyLocations       EmergencyLocation[]
+  emergencyCallEvents      EmergencyCallEvent[]
+  emergencyIncidents       EmergencyIncident[]
+  biometricPairings        BiometricWorkstationPairing[]
+  biometricWorkstations    BiometricWorkstation[]
+  platformBillingContracts      PlatformBillingContract[]
+  platformUsages                PlatformUsage[]
+  platformBillableDays          PlatformBillableDay[]
+  platformBillingDailySummaries PlatformBillingDailySummary[]
 
   @@unique([tenantId, code])
   @@index([tenantId, status])
+}
+
+model PlatformBillingContract {
+  id                    String                            @id @default(cuid())
+  hotelId               String
+  status                PlatformBillingContractStatus     @default(ACTIVE)
+  onboardedAt           DateTime
+  billingStartedAt      DateTime
+  reconciledThroughDate DateTime?                         @db.Date
+  createdAt             DateTime                          @default(now())
+  updatedAt             DateTime                          @updatedAt
+  hotel                 Hotel                             @relation(fields: [hotelId], references: [id], onDelete: Restrict)
+  revisions             PlatformBillingContractRevision[]
+  billableDays          PlatformBillableDay[]
+  periods               PlatformBillingPeriod[]
+  adjustments           PlatformBillingAdjustment[]
+  summaries             PlatformBillingDailySummary[]
+
+  @@index([hotelId, status])
+  @@index([status, reconciledThroughDate, id])
+}
+
+model PlatformBillingContractRevision {
+  id               String                  @id @default(cuid())
+  contractId       String
+  effectiveFrom    DateTime                @db.Date
+  starTierSnapshot Int
+  roomDayUnitPrice Decimal                 @db.Decimal(12, 2)
+  currency         String                  @default("VND") @db.VarChar(3)
+  paymentTermDays  Int                     @default(7)
+  createdByUserId  String?
+  createdAt        DateTime                @default(now())
+  contract         PlatformBillingContract @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  billableDays     PlatformBillableDay[]
+
+  @@unique([contractId, effectiveFrom])
+  @@index([contractId, effectiveFrom])
+}
+
+model PlatformUsage {
+  id                    String    @id @default(cuid())
+  hotelId               String
+  subjectType           String    @default("ROOM") @db.VarChar(32)
+  subjectId             String    @db.VarChar(120)
+  usageKind             String    @default("STAY") @db.VarChar(32)
+  sourceType            String    @default("GUEST_STAY") @db.VarChar(32)
+  sourceId              String    @db.VarChar(120)
+  occurrence            Int       @default(1)
+  startedAt             DateTime
+  endedAt               DateTime?
+  durationMinutes       Int?
+  hotelTimezoneSnapshot String    @db.VarChar(80)
+  createdAt             DateTime  @default(now())
+  closedAt              DateTime?
+  hotel                 Hotel     @relation(fields: [hotelId], references: [id], onDelete: Restrict)
+
+  @@unique([sourceType, sourceId, occurrence])
+  @@index([hotelId, startedAt, endedAt])
+  @@index([subjectType, subjectId, startedAt])
+}
+
+model PlatformBillableDay {
+  id                    String                          @id @default(cuid())
+  contractId            String
+  contractRevisionId    String
+  hotelId               String
+  subjectType           String                          @default("ROOM") @db.VarChar(32)
+  subjectId             String                          @db.VarChar(120)
+  serviceDate           DateTime                        @db.Date
+  hotelTimezoneSnapshot String                          @db.VarChar(80)
+  starTierSnapshot      Int
+  unitPrice             Decimal                         @db.Decimal(12, 2)
+  quantity              Int                             @default(1)
+  amount                Decimal                         @db.Decimal(12, 2)
+  currency              String                          @default("VND") @db.VarChar(3)
+  calculationVersion    Int                             @default(1)
+  sourceWindowStart     DateTime
+  sourceWindowEnd       DateTime
+  createdAt             DateTime                        @default(now())
+  contract              PlatformBillingContract         @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  contractRevision      PlatformBillingContractRevision @relation(fields: [contractRevisionId], references: [id], onDelete: Restrict)
+  hotel                 Hotel                           @relation(fields: [hotelId], references: [id], onDelete: Restrict)
+  adjustments           PlatformBillingAdjustment[]
+
+  @@unique([contractId, subjectType, subjectId, serviceDate])
+  @@index([contractId, serviceDate])
+  @@index([hotelId, serviceDate])
+  @@index([contractRevisionId, serviceDate])
+}
+
+model PlatformBillingPeriod {
+  id                String                      @id @default(cuid())
+  contractId        String
+  periodStart       DateTime                    @db.Date
+  periodEnd         DateTime                    @db.Date
+  status            PlatformBillingPeriodStatus @default(DRAFT)
+  dueAt             DateTime?
+  chargeCount       Int                         @default(0)
+  subtotal          Decimal                     @default(0) @db.Decimal(12, 2)
+  adjustmentTotal   Decimal                     @default(0) @db.Decimal(12, 2)
+  total             Decimal                     @default(0) @db.Decimal(12, 2)
+  currency          String                      @default("VND") @db.VarChar(3)
+  finalizedAt       DateTime?
+  finalizedByUserId String?
+  snapshotHash      String?                     @db.VarChar(120)
+  createdAt         DateTime                    @default(now())
+  updatedAt         DateTime                    @updatedAt
+  contract          PlatformBillingContract     @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  adjustments       PlatformBillingAdjustment[]
+  settlements       PlatformBillingSettlement[]
+
+  @@unique([contractId, periodStart, periodEnd])
+  @@index([contractId, status, periodStart, periodEnd])
+  @@index([dueAt, status])
+}
+
+model PlatformBillingAdjustment {
+  id                   String                   @id @default(cuid())
+  contractId           String
+  billableDayId        String?
+  periodId             String?
+  amount               Decimal                  @db.Decimal(12, 2)
+  currency             String                   @default("VND") @db.VarChar(3)
+  reasonCode           String                   @db.VarChar(80)
+  note                 String?                  @db.VarChar(500)
+  actorUserId          String?
+  reversesAdjustmentId String?
+  idempotencyKey       String                   @db.VarChar(120)
+  createdAt            DateTime                 @default(now())
+  contract             PlatformBillingContract  @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  billableDay          PlatformBillableDay?     @relation(fields: [billableDayId], references: [id], onDelete: SetNull)
+  period               PlatformBillingPeriod?   @relation(fields: [periodId], references: [id], onDelete: SetNull)
+
+  @@unique([contractId, idempotencyKey])
+  @@index([contractId, createdAt])
+  @@index([periodId, createdAt])
+}
+
+model PlatformBillingSettlement {
+  id             String                @id @default(cuid())
+  periodId       String
+  amount         Decimal               @db.Decimal(12, 2)
+  method         String                @default("BANK_TRANSFER") @db.VarChar(40)
+  reference      String?               @db.VarChar(160)
+  paidAt         DateTime              @default(now())
+  idempotencyKey String                @db.VarChar(120)
+  actorUserId    String?
+  createdAt      DateTime              @default(now())
+  period         PlatformBillingPeriod @relation(fields: [periodId], references: [id], onDelete: Restrict)
+
+  @@unique([periodId, idempotencyKey])
+  @@index([periodId, createdAt])
+}
+
+model PlatformBillingDailySummary {
+  id                String                  @id @default(cuid())
+  serviceDate       DateTime                @db.Date
+  hotelId           String
+  contractId        String
+  billableRoomCount Int                     @default(0)
+  grossAmount       Decimal                 @default(0) @db.Decimal(12, 2)
+  adjustmentAmount  Decimal                 @default(0) @db.Decimal(12, 2)
+  netAmount         Decimal                 @default(0) @db.Decimal(12, 2)
+  updatedAt         DateTime                @updatedAt
+  contract          PlatformBillingContract @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  hotel             Hotel                   @relation(fields: [hotelId], references: [id], onDelete: Restrict)
+
+  @@unique([contractId, serviceDate])
+  @@index([serviceDate])
+  @@index([hotelId, serviceDate])
 }
 
 model HotelStaffAssignment {
@@ -636,25 +822,25 @@ model RoomQRCode {
 }
 
 model Reservation {
-  id                  String            @id @default(cuid())
-  hotelId             String
-  roomId              String?
-  reservationCode     String            @db.VarChar(80)
-  guestDisplayName    String            @db.VarChar(120)
-  guestPhone          String?           @db.VarChar(40)
-  status              ReservationStatus @default(CONFIRMED)
-  plannedCheckInAt    DateTime
-  plannedCheckOutAt   DateTime
-  assignedAt          DateTime?
-  assignedByUserId    String?
-  checkedInAt         DateTime?
-  checkedInByUserId   String?
-  createdByUserId     String?
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
-  hotel               Hotel             @relation(fields: [hotelId], references: [id], onDelete: Cascade)
-  room                Room?             @relation(fields: [roomId], references: [id], onDelete: SetNull)
-  stay                GuestStay?
+  id                String            @id @default(cuid())
+  hotelId           String
+  roomId            String?
+  reservationCode   String            @db.VarChar(80)
+  guestDisplayName  String            @db.VarChar(120)
+  guestPhone        String?           @db.VarChar(40)
+  status            ReservationStatus @default(CONFIRMED)
+  plannedCheckInAt  DateTime
+  plannedCheckOutAt DateTime
+  assignedAt        DateTime?
+  assignedByUserId  String?
+  checkedInAt       DateTime?
+  checkedInByUserId String?
+  createdByUserId   String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  hotel             Hotel             @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  room              Room?             @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  stay              GuestStay?
 
   @@unique([hotelId, reservationCode])
   @@index([hotelId, status, plannedCheckInAt])
@@ -662,35 +848,35 @@ model Reservation {
 }
 
 model GuestStay {
-  id                  String          @id @default(cuid())
-  reservationId       String?         @unique
+  id                  String               @id @default(cuid())
+  reservationId       String?              @unique
   hotelId             String
   roomId              String
-  reservationCode     String          @db.VarChar(80)
-  guestDisplayName    String          @db.VarChar(120)
-  guestPhone          String?         @db.VarChar(40)
-  guestIdentityNumber String?         @db.VarChar(32)
-  guestDateOfBirth    String?         @db.VarChar(20)
-  guestGender         String?         @db.VarChar(20)
-  guestNationality    String?         @db.VarChar(80)
-  guestResidencePlace String?         @db.VarChar(500)
-  status              GuestStayStatus @default(RESERVED)
+  reservationCode     String               @db.VarChar(80)
+  guestDisplayName    String               @db.VarChar(120)
+  guestPhone          String?              @db.VarChar(40)
+  guestIdentityNumber String?              @db.VarChar(32)
+  guestDateOfBirth    String?              @db.VarChar(20)
+  guestGender         String?              @db.VarChar(20)
+  guestNationality    String?              @db.VarChar(80)
+  guestResidencePlace String?              @db.VarChar(500)
+  status              GuestStayStatus      @default(RESERVED)
   plannedCheckInAt    DateTime
   plannedCheckOutAt   DateTime
   checkedInAt         DateTime?
   activatedAt         DateTime?
   checkedOutAt        DateTime?
-  accessCodeHash      String?         @db.VarChar(64)
+  accessCodeHash      String?              @db.VarChar(64)
   accessCodeExpiresAt DateTime?
   createdByUserId     String?
   closedByUserId      String?
-  createdAt           DateTime        @default(now())
-  updatedAt           DateTime        @updatedAt
-  hotel               Hotel           @relation(fields: [hotelId], references: [id], onDelete: Cascade)
-  room                Room            @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  reservation         Reservation?     @relation(fields: [reservationId], references: [id], onDelete: SetNull)
-  createdBy           User?           @relation("GuestStayCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
-  closedBy            User?           @relation("GuestStayClosedBy", fields: [closedByUserId], references: [id], onDelete: SetNull)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  hotel               Hotel                @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  room                Room                 @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  reservation         Reservation?         @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+  createdBy           User?                @relation("GuestStayCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  closedBy            User?                @relation("GuestStayClosedBy", fields: [closedByUserId], references: [id], onDelete: SetNull)
   guestSessions       GuestSession[]
   guestRequests       GuestRequest[]
   guestMessages       GuestMessage[]
@@ -708,19 +894,19 @@ model GuestStay {
 }
 
 model GuestStayOccupant {
-  id                  String         @id @default(cuid())
-  stayId              String
-  hotelId             String
-  fullName            String         @db.VarChar(120)
-  phone               String?        @db.VarChar(40)
-  identityNumber      String?        @db.VarChar(32)
-  dateOfBirth         String?        @db.VarChar(20)
-  gender              String?        @db.VarChar(20)
-  isPrimary           Boolean        @default(false)
-  createdAt           DateTime       @default(now())
-  updatedAt           DateTime       @updatedAt
-  stay                GuestStay      @relation(fields: [stayId], references: [id], onDelete: Cascade)
-  guestSessions       GuestSession[]
+  id             String         @id @default(cuid())
+  stayId         String
+  hotelId        String
+  fullName       String         @db.VarChar(120)
+  phone          String?        @db.VarChar(40)
+  identityNumber String?        @db.VarChar(32)
+  dateOfBirth    String?        @db.VarChar(20)
+  gender         String?        @db.VarChar(20)
+  isPrimary      Boolean        @default(false)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  stay           GuestStay      @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  guestSessions  GuestSession[]
 
   @@index([stayId])
   @@index([hotelId])
@@ -937,19 +1123,19 @@ model GuestRequestEvent {
 }
 
 model GuestMessageThread {
-  id            String   @id @default(cuid())
+  id            String         @id @default(cuid())
   hotelId       String
   roomId        String
-  stayId        String   @unique
-  status        String   @default("OPEN") @db.VarChar(16)
-  lastMessageAt DateTime @default(now())
+  stayId        String         @unique
+  status        String         @default("OPEN") @db.VarChar(16)
+  lastMessageAt DateTime       @default(now())
   clearedAt     DateTime?
   expiresAt     DateTime
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  hotel         Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
-  room          Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  stay          GuestStay @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  hotel         Hotel          @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  room          Room           @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  stay          GuestStay      @relation(fields: [stayId], references: [id], onDelete: Cascade)
   messages      GuestMessage[]
 
   @@index([hotelId, status, lastMessageAt])
@@ -959,24 +1145,24 @@ model GuestMessageThread {
 }
 
 model GuestMessage {
-  id           String              @id @default(cuid())
-  threadId     String
-  hotelId      String
-  roomId       String
-  stayId       String
-  senderType   GuestRequestActorType
-  senderUserId String?
-  sessionId    String?
-  clientMessageId String?          @db.VarChar(80)
-  body         String              @db.VarChar(1000)
-  readAt       DateTime?
-  createdAt    DateTime            @default(now())
-  thread       GuestMessageThread  @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  hotel        Hotel               @relation(fields: [hotelId], references: [id], onDelete: Cascade)
-  room         Room                @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  stay         GuestStay           @relation(fields: [stayId], references: [id], onDelete: Cascade)
-  senderUser   User?               @relation("GuestMessageStaffSender", fields: [senderUserId], references: [id], onDelete: SetNull)
-  session      GuestSession?       @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  id              String                @id @default(cuid())
+  threadId        String
+  hotelId         String
+  roomId          String
+  stayId          String
+  senderType      GuestRequestActorType
+  senderUserId    String?
+  sessionId       String?
+  clientMessageId String?               @db.VarChar(80)
+  body            String                @db.VarChar(1000)
+  readAt          DateTime?
+  createdAt       DateTime              @default(now())
+  thread          GuestMessageThread    @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  hotel           Hotel                 @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  room            Room                  @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  stay            GuestStay             @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  senderUser      User?                 @relation("GuestMessageStaffSender", fields: [senderUserId], references: [id], onDelete: SetNull)
+  session         GuestSession?         @relation(fields: [sessionId], references: [id], onDelete: SetNull)
 
   @@unique([sessionId, clientMessageId])
   @@index([threadId, createdAt])

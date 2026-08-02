@@ -6001,6 +6001,14 @@ paths:
                   - message
                   - data
       tags: *a20
+  /guest/messages/unread-summary:
+    get:
+      operationId: GuestOsController_getUnreadSummary
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: *a20
   /guest/messages:
     get:
       operationId: GuestOsController_listMessages
@@ -6032,6 +6040,20 @@ paths:
         "200":
           description: Đã đóng phiên khách
       tags: *a20
+  /hotels/{hotelId}/messages/unread-summary:
+    get:
+      operationId: HotelRequestsController_getUnreadSummary
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: &a21
+        - hotel-requests
   /hotels/{hotelId}/messages:
     get:
       operationId: HotelRequestsController_listMessages
@@ -6044,8 +6066,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: &a21
-        - hotel-requests
+      tags: *a21
   /hotels/{hotelId}/messages/{threadId}:
     get:
       operationId: HotelRequestsController_getMessageThread
@@ -6409,6 +6430,203 @@ paths:
       security:
         - bearer: []
       tags: *a23
+  /platform-billing/dashboard/summary:
+    get:
+      operationId: PlatformBillingController_getDashboardSummary
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      security: &a24
+        - bearer: []
+      summary: Get platform billing dashboard summary
+      tags: &a25
+        - platform-billing
+  /platform-billing/contracts:
+    get:
+      operationId: PlatformBillingController_listContracts
+      parameters:
+        - name: search
+          required: true
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      security: *a24
+      summary: List platform billing contracts for admin
+      tags: *a25
+    post:
+      operationId: PlatformBillingController_createContract
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateContractDto"
+      responses:
+        "201":
+          description: ""
+      security: *a24
+      summary: Onboard new platform billing contract for hotel
+      tags: *a25
+  /platform-billing/contracts/{contractId}/periods:
+    get:
+      operationId: PlatformBillingController_listPeriods
+      parameters:
+        - name: contractId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      security: *a24
+      summary: List billing periods for contract
+      tags: *a25
+  /platform-billing/periods/{periodId}:
+    get:
+      operationId: PlatformBillingController_getPeriod
+      parameters:
+        - name: periodId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      security: *a24
+      summary: Get period detail with adjustments and settlements
+      tags: *a25
+  /platform-billing/contracts/{contractId}/revisions:
+    post:
+      operationId: PlatformBillingController_addContractRevision
+      parameters:
+        - name: contractId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddRevisionDto"
+      responses:
+        "201":
+          description: ""
+      security: *a24
+      summary: Add contract price revision
+      tags: *a25
+  /platform-billing/contracts/{contractId}/status:
+    patch:
+      operationId: PlatformBillingController_updateContractStatus
+      parameters:
+        - name: contractId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateContractStatusDto"
+      responses:
+        "200":
+          description: ""
+      security: *a24
+      summary: Update contract status
+      tags: *a25
+  /platform-billing/contracts/{contractId}/finalize:
+    post:
+      operationId: PlatformBillingController_finalizePeriod
+      parameters:
+        - name: contractId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FinalizePeriodDto"
+      responses:
+        "201":
+          description: ""
+      security: *a24
+      summary: Finalize period snapshot idempotently
+      tags: *a25
+  /platform-billing/periods/{periodId}/settlements:
+    post:
+      operationId: PlatformBillingController_recordSettlement
+      parameters:
+        - name: periodId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecordSettlementDto"
+      responses:
+        "201":
+          description: ""
+      security: *a24
+      summary: Record settlement for finalized period
+      tags: *a25
+  /platform-billing/contracts/{contractId}/adjustments:
+    post:
+      operationId: PlatformBillingController_createAdjustment
+      parameters:
+        - name: contractId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAdjustmentDto"
+      responses:
+        "201":
+          description: ""
+      security: *a24
+      summary: Create append-only adjustment record
+      tags: *a25
+  /platform-billing/owner/analytics/{hotelId}:
+    get:
+      operationId: PlatformBillingController_getOwnerAnalytics
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: monthDate
+          required: true
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      security: *a24
+      summary: Get revenue protection analytics for hotel owner
+      tags: *a25
 info:
   title: VietSage Auth Service API
   description: HTTP API contract for auth, rbac, and hotel-users modules
@@ -6422,4 +6640,22 @@ components:
       scheme: bearer
       bearerFormat: JWT
       type: http
-  schemas: {}
+  schemas:
+    CreateContractDto:
+      type: object
+      properties: {}
+    AddRevisionDto:
+      type: object
+      properties: {}
+    UpdateContractStatusDto:
+      type: object
+      properties: {}
+    FinalizePeriodDto:
+      type: object
+      properties: {}
+    RecordSettlementDto:
+      type: object
+      properties: {}
+    CreateAdjustmentDto:
+      type: object
+      properties: {}

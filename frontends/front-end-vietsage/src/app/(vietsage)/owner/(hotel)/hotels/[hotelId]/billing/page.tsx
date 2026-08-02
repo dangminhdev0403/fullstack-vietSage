@@ -3,6 +3,8 @@ import { billingService } from "@/features/billing/service/billing-service-insta
 import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 
 import { BillingFolioTableClient } from "./billing-folio-table-client";
+import { OwnerSaasBillingClient } from "./owner-saas-billing-client";
+import { BillingTabSwitcher } from "./billing-tab-switcher";
 
 type PageProps = { params: Promise<{ hotelId: string }> | { hotelId: string } };
 
@@ -11,26 +13,28 @@ export const dynamic = "force-dynamic";
 export default async function OwnerBillingPage({ params }: PageProps) {
   const { hotelId } = await Promise.resolve(params);
   const session = await auth();
-    const callbackUrl = `/owner/hotels/${hotelId}/billing` as const;
+  const callbackUrl = `/owner/hotels/${hotelId}/billing` as const;
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
-    
+
   const folios = await authorizedApi("list billing folios", (accessToken) =>
     billingService.listFolios(hotelId, { query: { page: 1, limit: 50 }, accessToken }),
   );
 
   return (
-    <>
-      <div className="space-y-6">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[var(--primary)]">Billing</p>
-          <h1 className="mt-2 text-3xl font-black text-[var(--on-surface)]">Folio khách đang lưu trú</h1>
-          <p className="mt-2 max-w-2xl text-sm text-[var(--on-surface-variant)]">
-            Màn hình chỉ hiển thị tổng tiền từ backend. Folio chỉ có hai trạng thái: đang mở hoặc đã đóng.
-          </p>
-        </div>
-
-        <BillingFolioTableClient hotelId={hotelId} folios={folios.items} />
+    <div className="space-y-6">
+      <div>
+        <p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">Billing & Revenue Protection</p>
+        <h1 className="mt-2 text-3xl font-black text-slate-900 dark:text-white">Quản lý Tài chính & Phí VietSage SaaS</h1>
+        <p className="mt-2 max-w-2xl text-sm text-slate-500">
+          Xem thông tin hóa đơn folio khách đang lưu trú và đối soát minh bạch chi phí VietSage SaaS theo lượt phòng/ngày.
+        </p>
       </div>
-    </>
+
+      <BillingTabSwitcher
+        hotelId={hotelId}
+        folioComponent={<BillingFolioTableClient hotelId={hotelId} folios={folios.items} />}
+        saasComponent={<OwnerSaasBillingClient hotelId={hotelId} />}
+      />
+    </div>
   );
 }

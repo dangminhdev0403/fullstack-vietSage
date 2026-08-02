@@ -1,5 +1,51 @@
 # VietSage Backend Plan
 
+## 2026-08-03 - Billing & Revenue Protection (Phase 3 Contract Onboarding & Phase 4 Owner Analytics UI/APIs)
+
+- [x] Implemented `createContract()`, `addContractRevision()`, `updateContractStatus()`, `listContracts()`, and `getOwnerAnalytics()` in `PlatformBillingService`.
+- [x] Exposed REST endpoints in `PlatformBillingController`: `POST /platform-billing/contracts`, `POST /platform-billing/contracts/:contractId/revisions`, `PATCH /platform-billing/contracts/:contractId/status`, `GET /platform-billing/contracts`, `GET /platform-billing/owner/analytics/:hotelId`.
+- [x] Exported updated OpenAPI specification (`npm run openapi:export`) to `shared/api-contract/openapi/v1/openapi.json` (108 paths total).
+- [x] Built Admin Backoffice Billing UI (`admin/billing/page.tsx`, `admin-billing-client.tsx`) with SaaS metric overview, contract listing, onboarding form modal, and period finalization modal.
+- [x] Built Owner Revenue Protection Analytics UI (`owner/hotels/[hotelId]/billing/owner-saas-billing-client.tsx`, `billing-tab-switcher.tsx`) with room-days usage breakdown, unit price tracking, and estimated SaaS fee calculation.
+- [x] Added Next.js API proxy routes (`api/admin/platform-billing/[...path]`, `api/owner/platform-billing/analytics/[hotelId]`) to cleanly connect frontend client components with the NestJS backend.
+
+Verification result:
+- Platform Billing unit test suites passed: 4 suites, 11 tests passed.
+- NestJS backend build passed (`npm run build`).
+- OpenAPI specification exported: 108 OpenAPI paths.
+- Next.js frontend production build passed (`npm run build`).
+
+## 2026-08-03 - Billing & Revenue Protection (Phase 2 Idempotent Period Finalization, Debt & Private API)
+
+- [x] Defined Prisma models and additive SQL migration (`20260803030000_platform_billing_period_settlement`) for `PlatformBillingAdjustment`, `PlatformBillingSettlement`, `PlatformBillingDailySummary`, and expanded `PlatformBillingPeriod` fields.
+- [x] Added DB triggers enforcing immutability on `PlatformBillingAdjustment` and `PlatformBillingSettlement`.
+- [x] Registered new Business Permissions (`platform.billing.view`, `platform.billing.manage`, `hotel.revenue-protection.view`) and updated business permission menu utilities.
+- [x] Implemented idempotent `finalizePeriod()` in `PlatformBillingService` with strict snapshot generation, date interval validation, subtotal/adjustment calculation, and transaction isolation.
+- [x] Implemented idempotent `recordSettlement()`, `createAdjustment()`, `listPeriods()`, `getPeriod()`, and `getDashboardSummary()`.
+- [x] Exposed private REST endpoints in `PlatformBillingController` under tag `platform-billing` protected with `@RequirePermission`.
+- [x] Exported OpenAPI specification (`npm run openapi:export`) to `shared/api-contract/openapi/v1/openapi.json` (104 paths total).
+
+Verification result:
+- Platform Billing unit test suites passed: 3 suites, 8 tests passed.
+- Full seam & platform billing integration test suites passed: 7 suites, 40 tests passed.
+- Prisma schema validated (`npx prisma validate`) and generated (`npx prisma generate`).
+- NestJS backend build passed (`npm run build`).
+
+## 2026-08-03 - Billing & Revenue Protection (Phase 1 Core Ledger, Usage, Reconciler & Integration Seams)
+
+- [x] Defined Prisma models and additive SQL migration (`20260803020000_platform_billing_ledger`) for `PlatformBillingContract`, `PlatformBillingContractRevision`, `PlatformUsage`, `PlatformBillableDay`, and `PlatformBillingPeriod`.
+- [x] Added PostgreSQL DB triggers (`PlatformBillableDay_immutable`, `PlatformBillingContractRevision_immutable`, `GuestStay_platform_usage_sync`) enforcing native financial immutability.
+- [x] Implemented `PlatformBillingService` core reconciler with deterministic set-difference reconciliation, half-open timezone intervals `[startedAt, effectiveEnd)`, and bounded catch-up range assertions.
+- [x] Integrated `recordPlatformUsageAtCheckIn` into all 3 check-in paths (`checkInReservation`, `checkInStay`, `createAndCheckInStay`).
+- [x] Integrated `closePlatformUsageAtCheckout` into all 3 checkout paths (`checkOutStay`, `settleZeroBalanceCheckout`, `processPaymentWebhook`).
+- [x] Configured `@nestjs/schedule` internal catch-up interval reconciler in `AppModule`.
+
+Verification result:
+- Platform Billing focused unit suites passed: 2 suites, 5 tests passed.
+- Seams integration unit suites passed: 4 suites, 32 tests passed.
+- Additive Prisma schema validated (`npx prisma validate`).
+- Backend build passed (`npm run build`).
+
 ## 2026-08-02 - Room Messaging Reliability and Two-Sided Unread Badges (Backend Core)
 
 - [x] Added `hotel.messages.view` and `hotel.messages.manage` business permissions with additive idempotent migration and seed/sync grants for `TENANT_OWNER`, `HOTEL_FRONTDESK`, and `SUPER_ADMIN`.

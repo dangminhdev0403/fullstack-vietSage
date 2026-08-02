@@ -14,6 +14,7 @@ import {
   RoomStatus,
 } from "@prisma/client";
 import { PrismaService } from "../../../../prisma/prisma.service";
+import { recordPlatformUsageAtCheckIn } from "../../../platform-billing/application/platform-billing.service";
 
 const ACTIVE_RESERVATION_STATUSES: ReservationStatus[] = [
   ReservationStatus.CONFIRMED,
@@ -252,6 +253,12 @@ export class ReservationsRepository {
           accessCodeExpiresAt: input.accessCodeExpiresAt,
           createdByUserId: input.actorUserId,
         },
+      });
+      await recordPlatformUsageAtCheckIn(tx, {
+        hotelId: input.hotelId,
+        roomId: room.id,
+        stayId: stay.id,
+        startedAt: now,
       });
       const folioNumber = await input.generateFolioNumber(tx);
       const folio = await tx.folio.create({

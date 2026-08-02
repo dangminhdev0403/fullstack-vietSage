@@ -8720,6 +8720,20 @@
         ]
       }
     },
+    "/guest/messages/unread-summary": {
+      "get": {
+        "operationId": "GuestOsController_getUnreadSummary",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "guest-os"
+        ]
+      }
+    },
     "/guest/messages": {
       "get": {
         "operationId": "GuestOsController_listMessages",
@@ -8771,6 +8785,29 @@
         },
         "tags": [
           "guest-os"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/messages/unread-summary": {
+      "get": {
+        "operationId": "HotelRequestsController_getUnreadSummary",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "hotel-requests"
         ]
       }
     },
@@ -9411,6 +9448,373 @@
           "biometric-workstations"
         ]
       }
+    },
+    "/platform-billing/dashboard/summary": {
+      "get": {
+        "operationId": "PlatformBillingController_getDashboardSummary",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get platform billing dashboard summary",
+        "tags": [
+          "platform-billing"
+        ]
+      }
+    },
+    "/platform-billing/contracts": {
+      "get": {
+        "operationId": "PlatformBillingController_listContracts",
+        "parameters": [
+          {
+            "name": "search",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List platform billing contracts for admin",
+        "tags": [
+          "platform-billing"
+        ]
+      },
+      "post": {
+        "operationId": "PlatformBillingController_createContract",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateContractDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Onboard new platform billing contract for hotel",
+        "tags": [
+          "platform-billing"
+        ]
+      }
+    },
+    "/platform-billing/contracts/{contractId}/periods": {
+      "get": {
+        "operationId": "PlatformBillingController_listPeriods",
+        "parameters": [
+          {
+            "name": "contractId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List billing periods for contract",
+        "tags": [
+          "platform-billing"
+        ]
+      }
+    },
+    "/platform-billing/periods/{periodId}": {
+      "get": {
+        "operationId": "PlatformBillingController_getPeriod",
+        "parameters": [
+          {
+            "name": "periodId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get period detail with adjustments and settlements",
+        "tags": [
+          "platform-billing"
+        ]
+      }
+    },
+    "/platform-billing/contracts/{contractId}/revisions": {
+      "post": {
+        "operationId": "PlatformBillingController_addContractRevision",
+        "parameters": [
+          {
+            "name": "contractId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddRevisionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Add contract price revision",
+        "tags": [
+          "platform-billing"
+        ]
+      }
+    },
+    "/platform-billing/contracts/{contractId}/status": {
+      "patch": {
+        "operationId": "PlatformBillingController_updateContractStatus",
+        "parameters": [
+          {
+            "name": "contractId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateContractStatusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update contract status",
+        "tags": [
+          "platform-billing"
+        ]
+      }
+    },
+    "/platform-billing/contracts/{contractId}/finalize": {
+      "post": {
+        "operationId": "PlatformBillingController_finalizePeriod",
+        "parameters": [
+          {
+            "name": "contractId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinalizePeriodDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Finalize period snapshot idempotently",
+        "tags": [
+          "platform-billing"
+        ]
+      }
+    },
+    "/platform-billing/periods/{periodId}/settlements": {
+      "post": {
+        "operationId": "PlatformBillingController_recordSettlement",
+        "parameters": [
+          {
+            "name": "periodId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordSettlementDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Record settlement for finalized period",
+        "tags": [
+          "platform-billing"
+        ]
+      }
+    },
+    "/platform-billing/contracts/{contractId}/adjustments": {
+      "post": {
+        "operationId": "PlatformBillingController_createAdjustment",
+        "parameters": [
+          {
+            "name": "contractId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAdjustmentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create append-only adjustment record",
+        "tags": [
+          "platform-billing"
+        ]
+      }
+    },
+    "/platform-billing/owner/analytics/{hotelId}": {
+      "get": {
+        "operationId": "PlatformBillingController_getOwnerAnalytics",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "monthDate",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get revenue protection analytics for hotel owner",
+        "tags": [
+          "platform-billing"
+        ]
+      }
     }
   },
   "info": {
@@ -9429,6 +9833,31 @@
         "type": "http"
       }
     },
-    "schemas": {}
+    "schemas": {
+      "CreateContractDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "AddRevisionDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdateContractStatusDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "FinalizePeriodDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "RecordSettlementDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateAdjustmentDto": {
+        "type": "object",
+        "properties": {}
+      }
+    }
   }
 }

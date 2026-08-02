@@ -23,6 +23,9 @@ platform.roles.manage
 platform.permissions.manage
 platform.hotels.view
 platform.hotels.manage
+platform.billing.view
+platform.billing.manage
+hotel.revenue-protection.view
 hotel.dashboard.view
 hotel.rooms.view
 hotel.rooms.manage

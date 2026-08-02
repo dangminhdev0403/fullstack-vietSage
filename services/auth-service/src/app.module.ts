@@ -19,6 +19,7 @@ import { LoggingModule } from "./common/logging/logging.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
 import { AuthRateLimitGuard } from "./common/security/auth-rate-limit.guard";
 import { BiometricWorkstationsModule } from "./modules/biometric-workstations/biometric-workstations.module";
+import { PlatformBillingModule } from "./modules/platform-billing/platform-billing.module";
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { BiometricWorkstationsModule } from "./modules/biometric-workstations/bi
     NotificationsModule,
     RequestRealtimeModule,
     BiometricWorkstationsModule,
+    PlatformBillingModule,
   ],
   providers: [
     {

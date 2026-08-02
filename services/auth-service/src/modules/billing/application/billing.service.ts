@@ -21,6 +21,7 @@ import {
 } from "../../../shared/events";
 import { CodesService } from "../../codes/codes-public";
 import { HotelAccessService } from "../../property/property-public";
+import { closePlatformUsageAtCheckout } from "../../platform-billing/application/platform-billing.service";
 import { BillingRepository } from "../infrastructure/repositories/billing.repository";
 
 const DEFAULT_PAGE = 1;
@@ -721,7 +722,7 @@ export class BillingService {
         );
         const invoice = await tx.invoice.findFirst({
           where: { id: invoiceId, hotelId },
-          include: { stay: { select: { roomId: true } } },
+          include: { stay: { select: { roomId: true, checkedInAt: true } } },
         });
 
         if (!invoice) {
@@ -777,14 +778,22 @@ export class BillingService {
           where: { id: invoice.folioId },
           data: { status: FolioStatus.CLOSED, closedAt: new Date() },
         });
+        const checkedOutAt = new Date();
         await tx.guestStay.update({
           where: { id: invoice.stayId },
           data: {
             status: GuestStayStatus.CHECKED_OUT,
-            checkedOutAt: new Date(),
+            checkedOutAt,
             accessCodeHash: null,
             accessCodeExpiresAt: null,
           },
+        });
+        await closePlatformUsageAtCheckout(tx, {
+          hotelId: invoice.hotelId,
+          roomId: invoice.stay.roomId,
+          stayId: invoice.stayId,
+          startedAt: invoice.stay.checkedInAt ?? checkedOutAt,
+          endedAt: checkedOutAt,
         });
         await tx.guestSession.updateMany({
           where: {
@@ -955,14 +964,22 @@ export class BillingService {
             where: { id: lockedPayment.folioId },
             data: { status: FolioStatus.CLOSED, closedAt: new Date() },
           });
+          const checkedOutAt = new Date();
           await tx.guestStay.update({
             where: { id: lockedPayment.stayId },
             data: {
               status: GuestStayStatus.CHECKED_OUT,
-              checkedOutAt: new Date(),
+              checkedOutAt,
               accessCodeHash: null,
               accessCodeExpiresAt: null,
             },
+          });
+          await closePlatformUsageAtCheckout(tx, {
+            hotelId: lockedPayment.hotelId,
+            roomId: lockedPayment.invoice.stay.roomId,
+            stayId: lockedPayment.stayId,
+            startedAt: lockedPayment.invoice.stay.checkedInAt ?? checkedOutAt,
+            endedAt: checkedOutAt,
           });
           await tx.guestSession.updateMany({
             where: {
