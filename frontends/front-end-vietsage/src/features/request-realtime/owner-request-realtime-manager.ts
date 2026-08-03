@@ -11,7 +11,7 @@ export const ownerRequestRealtimeManager = createOwnerConnectionManager({
   ),
   createSocket: createRequestRealtimeSocket,
   scheduleReconnect: (callback) => {
-    const timer = window.setTimeout(callback, 1_000);
+    const timer = window.setTimeout(callback, 30_000);
     return () => window.clearTimeout(timer);
   },
 });

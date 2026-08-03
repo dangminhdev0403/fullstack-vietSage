@@ -21,6 +21,8 @@ type Entry = {
   generation: number;
   pending?: Promise<void>;
   cancelReconnect?: () => void;
+  consecutiveFailures: number;
+  lastFailureAt?: number;
 };
 
 type RealtimeError = { retryable?: unknown };
@@ -38,13 +40,22 @@ export function createOwnerConnectionManager(deps: {
   enabled: boolean;
   getTicket(hotelId: string): Promise<{ ticket: string; expiresAt: string }>;
   createSocket(auth: { mode: "owner"; ticket: string }): ManagedSocket;
-  scheduleReconnect?: (callback: () => void) => () => void;
+  scheduleReconnect?: (callback: () => void, attempt: number) => () => void;
 }) {
   const entries = new Map<string, Entry>();
 
   function acquire(hotelId: string, entry: Entry): Promise<void> {
     if (!deps.enabled || entry.subscribers.size === 0 || entry.socket) return Promise.resolve();
     if (entry.pending) return entry.pending;
+
+    // Cooldown check: if failed recently with consecutive failures, enforce backoff
+    const now = Date.now();
+    if (entry.lastFailureAt && entry.consecutiveFailures > 0) {
+      const cooldownMs = Math.min(300_000, Math.pow(2, entry.consecutiveFailures) * 2_000);
+      if (now - entry.lastFailureAt < cooldownMs) {
+        return Promise.resolve();
+      }
+    }
 
     const generation = entry.generation;
     const acquisition = deps
@@ -54,6 +65,7 @@ export function createOwnerConnectionManager(deps: {
 
         const socket = deps.createSocket({ mode: "owner", ticket });
         let terminal = false;
+        let wasConnected = false;
         entry.socket = socket;
 
         const fanout = (name: keyof OwnerRealtimeHandlers) => (event?: unknown) => {
@@ -71,6 +83,15 @@ export function createOwnerConnectionManager(deps: {
           });
         };
 
+        socket.on("connect", () => {
+          entry.consecutiveFailures = 0;
+          entry.lastFailureAt = undefined;
+          if (wasConnected) {
+            entry.subscribers.forEach((subscriber) => subscriber.onReconnect?.());
+          }
+          wasConnected = true;
+        });
+
         socket.on("request_realtime.ready", fanout("onReady"));
         socket.on("guest_request.created", fanout("onCreated"));
         socket.on("guest_request.updated", fanout("onUpdated"));
@@ -84,15 +105,17 @@ export function createOwnerConnectionManager(deps: {
         const reconnect = () => {
           if (entry.socket !== socket || entry.subscribers.size === 0) return;
           entry.socket = undefined;
+          entry.consecutiveFailures += 1;
+          entry.lastFailureAt = Date.now();
           if (terminal) return;
 
           entry.generation += 1;
-          entry.subscribers.forEach((subscriber) => subscriber.onReconnect?.());
+          const currentAttempt = entry.consecutiveFailures;
           const retry = () => {
             entry.cancelReconnect = undefined;
             void acquire(hotelId, entry);
           };
-          entry.cancelReconnect = deps.scheduleReconnect?.(retry) ?? (retry(), () => undefined);
+          entry.cancelReconnect = deps.scheduleReconnect?.(retry, currentAttempt) ?? (retry(), () => undefined);
         };
         socket.on("connect_error", reconnect);
         socket.on("disconnect", reconnect);
@@ -100,6 +123,8 @@ export function createOwnerConnectionManager(deps: {
       })
       .catch((error: unknown) => {
         if (entry.generation !== generation) return;
+        entry.consecutiveFailures += 1;
+        entry.lastFailureAt = Date.now();
         entry.subscribers.forEach((subscriber) => subscriber.onError?.(error));
       })
       .finally(() => {
@@ -114,7 +139,7 @@ export function createOwnerConnectionManager(deps: {
     subscribe(hotelId: string, handlers: OwnerRealtimeHandlers) {
       let entry = entries.get(hotelId);
       if (!entry) {
-        entry = { subscribers: new Set(), generation: 0 };
+        entry = { subscribers: new Set(), generation: 0, consecutiveFailures: 0 };
         entries.set(hotelId, entry);
       }
       entry.subscribers.add(handlers);
