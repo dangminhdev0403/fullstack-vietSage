@@ -1,0 +1,950 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: services/auth-service/src/modules/guest-operations/application/hotel-requests.service.ts, services/auth-service/src/modules/guest-operations/domain/guest-request-status.ts, services/auth-service/src/modules/guest-operations/tests/guest-request-lifecycle.spec.ts, services/auth-service/src/modules/guest-operations/tests/urgent-request-escalation.spec.ts, services/auth-service/src/modules/billing/api/folio.controller.ts, services/auth-service/src/modules/billing/application/billing.service.ts, services/auth-service/src/modules/billing/domain/schemas/billing.schema.ts, services/auth-service/src/modules/billing/tests/checkout-service-reconciliation.spec.ts, frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/billing/staff-billing-workspace-client.tsx, frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/billing/invoices/[invoiceId]/invoice-actions.tsx, frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/billing/folios/[folioId]/invoice/route.ts, frontends/front-end-vietsage/src/app/api/owner/hotels/[hotelId]/billing/folios/[folioId]/invoice/route.ts, frontends/front-end-vietsage/src/features/billing/service/billing-service.ts, frontends/front-end-vietsage/src/features/billing/types/billing-contract.ts, frontends/front-end-vietsage/src/features/hotel-ops/utils/invalidate-hotel-realtime-queries.ts, frontends/front-end-vietsage/src/features/guest-os/components/requests/guest-request-display.ts
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    src/
+      app/
+        (vietsage)/
+          hotels/
+            [hotelId]/
+              billing/
+                invoices/
+                  [invoiceId]/
+                    invoice-actions.tsx
+                staff-billing-workspace-client.tsx
+        api/
+          hotel-ops/
+            hotels/
+              [hotelId]/
+                billing/
+                  folios/
+                    [folioId]/
+                      invoice/
+                        route.ts
+          owner/
+            hotels/
+              [hotelId]/
+                billing/
+                  folios/
+                    [folioId]/
+                      invoice/
+                        route.ts
+      features/
+        billing/
+          service/
+            billing-service.ts
+          types/
+            billing-contract.ts
+        guest-os/
+          components/
+            requests/
+              guest-request-display.ts
+        hotel-ops/
+          utils/
+            invalidate-hotel-realtime-queries.ts
+services/
+  auth-service/
+    src/
+      modules/
+        billing/
+          api/
+            folio.controller.ts
+          application/
+            billing.service.ts
+          domain/
+            schemas/
+              billing.schema.ts
+          tests/
+            checkout-service-reconciliation.spec.ts
+        guest-operations/
+          application/
+            hotel-requests.service.ts
+          domain/
+            guest-request-status.ts
+          tests/
+            guest-request-lifecycle.spec.ts
+            urgent-request-escalation.spec.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/billing/invoices/[invoiceId]/invoice-actions.tsx">
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import Swal from "sweetalert2";
+import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
+⋮----
+type Props = {
+  hotelId: string;
+  invoiceId: string;
+  isPaid: boolean;
+  showPrint?: boolean;
+};
+⋮----
+export function InvoiceActions(
+⋮----
+async function collectPayment()
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/billing/folios/[folioId]/invoice/route.ts">
+import { HttpError } from "@/core/http/http-error";
+import { billingService } from "@/features/billing/service/billing-service-instance";
+import {
+  executeHotelOpsBackendRequest,
+  hotelOpsHttpErrorResponse,
+  successResponse,
+  unknownServerErrorResponse,
+  validationErrorResponse,
+} from "@/app/api/hotel-ops/_utils";
+⋮----
+type Params = { params: Promise<{ hotelId: string; folioId: string }> };
+⋮----
+export async function POST(request: Request, context: Params)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/api/owner/hotels/[hotelId]/billing/folios/[folioId]/invoice/route.ts">
+import { billingService } from "@/features/billing/service/billing-service-instance";
+import {
+  executeOwnerBackendRequest,
+  ownerHttpErrorResponse,
+  successResponse,
+  unknownServerErrorResponse,
+} from "@/app/api/owner/_utils";
+import { HttpError } from "@/core/http/http-error";
+⋮----
+type Params = {
+  params: Promise<{ hotelId: string; folioId: string }> | { hotelId: string; folioId: string };
+};
+⋮----
+export async function POST(request: Request, context: Params)
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/billing/types/billing-contract.ts">
+export type BillingPage<TItem> = {
+  page: number;
+  limit: number;
+  total: number;
+  items: TItem[];
+};
+⋮----
+export type MoneyValue = string | number;
+⋮----
+export type FolioSummary = {
+  id?: string;
+  hotelId?: string;
+  stayId?: string;
+  folioNumber?: string;
+  status?: string;
+  currency?: string;
+  subtotal: MoneyValue;
+  tax: MoneyValue;
+  discount: MoneyValue;
+  total: MoneyValue;
+  itemCount: number;
+  serviceCount?: number;
+  roomChargeCount?: number;
+  isStale?: boolean;
+  requiresRecalculation?: boolean;
+  hasDuplicateOpenFolios?: boolean;
+  activeServiceRequests?: Array<{ id: string; name: string; roomNumber: string | null; status: string; quantity: number; unitPrice: MoneyValue }>;
+};
+⋮----
+export type FolioListItem = FolioSummary & {
+  id: string;
+  invoiceId?: string | null;
+  billId?: string | null;
+  invoice?: { id?: string | null; invoiceNumber?: string | null } | null;
+  subtotalAmount?: MoneyValue;
+  taxAmount?: MoneyValue;
+  discountAmount?: MoneyValue;
+  totalAmount?: MoneyValue;
+  openedAt?: string | null;
+  createdAt?: string | null;
+  room?: { id?: string; roomNumber?: string | null } | null;
+  stay?: { id?: string; guestNameSnapshot?: string | null; status?: string | null } | null;
+};
+⋮----
+export type FolioItem = {
+  id: string;
+  itemType: string;
+  nameSnapshot: string;
+  quantity: number;
+  unitPriceSnapshot: MoneyValue;
+  subtotalSnapshot: MoneyValue;
+  taxAmountSnapshot?: MoneyValue;
+  discountAmountSnapshot?: MoneyValue;
+  totalSnapshot: MoneyValue;
+  currency: string;
+  postedAt?: string | null;
+};
+⋮----
+export type Invoice = {
+  id: string;
+  hotelId: string;
+  folioId: string;
+  stayId: string;
+  invoiceNumber: string;
+  status: string;
+  currency: string;
+  subtotalAmount: MoneyValue;
+  taxAmount: MoneyValue;
+  discountAmount: MoneyValue;
+  totalAmount: MoneyValue;
+  paidAmount?: MoneyValue;
+  balanceAmount?: MoneyValue;
+  invoiceSnapshotJson?: unknown;
+  issuedAt?: string | null;
+  paidAt?: string | null;
+};
+⋮----
+export type InvoiceDetail = {
+  invoice: Invoice;
+  folio: {
+    id: string;
+    folioNumber: string;
+    status: string;
+  };
+  stay: {
+    id: string;
+    guestName: string | null;
+    roomNumber: string | null;
+    checkInAt: string | null;
+    checkOutAt: string | null;
+  };
+  items: Array<{
+    id: string;
+    type: string;
+    name: string;
+    quantity: number;
+    unitPrice: MoneyValue;
+    subtotal: MoneyValue;
+    taxAmount: MoneyValue;
+    discountAmount: MoneyValue;
+    total: MoneyValue;
+    postedAt: string | null;
+  }>;
+  payments: Array<{
+    id: string;
+    status: string;
+    method: string;
+    amount: MoneyValue;
+    paidAmount: MoneyValue;
+    confirmedAt: string | null;
+  }>;
+};
+⋮----
+export type Payment = {
+  id: string;
+  hotelId: string;
+  invoiceId: string;
+  folioId: string;
+  stayId: string;
+  paymentNumber: string;
+  status: string;
+  provider: string;
+  method: string;
+  currency: string;
+  amount: MoneyValue;
+  paidAmount?: MoneyValue;
+  providerSessionId?: string | null;
+  providerPaymentId?: string | null;
+  paymentUrl?: string | null;
+  confirmedAt?: string | null;
+};
+</file>
+
+<file path="services/auth-service/src/modules/billing/tests/checkout-service-reconciliation.spec.ts">
+import { BillingService } from "../application/billing.service";
+import { BadRequestException } from "@nestjs/common";
+</file>
+
+<file path="services/auth-service/src/modules/guest-operations/domain/guest-request-status.ts">
+import { GuestRequestStatus } from "@prisma/client";
+⋮----
+export type CanonicalGuestRequestStatus = (typeof canonicalGuestRequestStatuses)[number];
+⋮----
+export function normalizeGuestRequestStatus(
+  status: GuestRequestStatus,
+): CanonicalGuestRequestStatus
+⋮----
+export function compatibleGuestRequestStatuses(
+  status: CanonicalGuestRequestStatus,
+): GuestRequestStatus[]
+</file>
+
+<file path="services/auth-service/src/modules/guest-operations/tests/guest-request-lifecycle.spec.ts">
+import { GuestRequestStatus } from "@prisma/client";
+import {
+  activeGuestRequestStatuses,
+  canonicalGuestRequestStatuses,
+  compatibleGuestRequestStatuses,
+  normalizeGuestRequestStatus,
+} from "../domain/guest-request-status";
+import { guestRequestStatusValues } from "../domain/schemas/guest-os.schema";
+import {
+  getProgressStep,
+  getRequestStatusLabel,
+} from "../../../../../../frontends/front-end-vietsage/src/features/guest-os/components/requests/guest-request-display";
+⋮----
+const t = (key: string)
+</file>
+
+<file path="services/auth-service/src/modules/guest-operations/tests/urgent-request-escalation.spec.ts">
+import { GuestRequestPriority, GuestRequestStatus, GuestStayStatus } from "@prisma/client";
+import { HotelRequestsService } from "../application/hotel-requests.service";
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/billing/service/billing-service.ts">
+import { unwrapApiEnvelope } from "@/core/http/api-envelope";
+import { HttpClient, type HttpQuery } from "@/core/http/http-client";
+import type { BillingPage, FolioItem, FolioListItem, FolioSummary, Invoice, InvoiceDetail, Payment } from "@/features/billing/types/billing-contract";
+⋮----
+type AuthRequestOptions = {
+  accessToken?: string;
+  accessTokenExpiresAt?: number | null;
+};
+⋮----
+export type IssueInvoiceInput = { reconciliations: Array<{ requestId: string; action: "provided" | "cancelled"; cancelReason?: string }> };
+⋮----
+export type BillingServiceOptions = {
+  baseUrl: string;
+  timeoutMs?: number;
+};
+⋮----
+function hotelPath(hotelId: string, suffix: string): string
+⋮----
+export function createBillingService(options: BillingServiceOptions): BillingService
+⋮----
+export class BillingService {
+⋮----
+constructor(options: BillingServiceOptions)
+⋮----
+async listFolios(hotelId: string, options:
+⋮----
+async getFolioSummary(hotelId: string, folioId: string, options: AuthRequestOptions =
+⋮----
+async getFolioDetail(hotelId: string, folioId: string, options: AuthRequestOptions =
+⋮----
+async listFolioItems(hotelId: string, folioId: string, options:
+⋮----
+async issueInvoice(
+    hotelId: string,
+    folioId: string,
+    input: IssueInvoiceInput = { reconciliations: [] },
+    options: AuthRequestOptions = {},
+): Promise<Invoice>
+⋮----
+async getInvoice(hotelId: string, invoiceId: string, options: AuthRequestOptions =
+⋮----
+async getInvoiceDetail(hotelId: string, invoiceId: string, options: AuthRequestOptions =
+⋮----
+async createPaymentSession(hotelId: string, invoiceId: string, options: AuthRequestOptions =
+⋮----
+async confirmManualPayment(
+    hotelId: string,
+    invoiceId: string,
+    input: { method: "CASH" | "CARD" | "BANK_TRANSFER" | "MANUAL"; note?: string },
+    options: AuthRequestOptions = {},
+): Promise<
+⋮----
+async getPaymentStatus(hotelId: string, paymentId: string, options: AuthRequestOptions =
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/guest-os/components/requests/guest-request-display.ts">
+import type { GuestPortalRequestStatus, GuestRequest } from "../../types/guest-os-contract";
+import { requestStatusLabelMap } from "../../utils/guest-os-display";
+⋮----
+export type GuestRequestTranslator = (
+  key: string,
+  replacements?: Record<string, string | number | null | undefined>,
+) => string;
+⋮----
+export type GuestRequestTabStatus = GuestPortalRequestStatus | "ENDED" | undefined;
+⋮----
+export function getRequestTitle(request: GuestRequest, t: GuestRequestTranslator): string
+⋮----
+export function getRequestSummary(request: GuestRequest, t: GuestRequestTranslator): string
+⋮----
+export function getRequestPriorityLabel(request: GuestRequest, t: GuestRequestTranslator): string
+⋮----
+export function getRequestPriorityTone(request: GuestRequest): string
+⋮----
+export function getRequestStatusLabel(status: GuestPortalRequestStatus, t: GuestRequestTranslator): string
+⋮----
+export function getRequestCurrency(request: GuestRequest): string
+⋮----
+function readMoneyValue(value: string | number | null | undefined): number | null
+⋮----
+export function getRequestUnitPrice(request: GuestRequest): number | null
+⋮----
+export function getRequestTotalPrice(request: GuestRequest): number | null
+⋮----
+export function getEstimatedTotal(requests: GuestRequest[]): number | null
+⋮----
+export function formatGuestMoney(
+  value: number | null,
+  currency: string,
+  intlLocale: string,
+  t: GuestRequestTranslator,
+): string
+⋮----
+export function matchesRequestSearch(request: GuestRequest, query: string, t: GuestRequestTranslator): boolean
+⋮----
+export function getProgressStep(status: GuestPortalRequestStatus): 1 | 2 | 3 | 4
+⋮----
+export function getMiddleProgressLabel(status: GuestPortalRequestStatus, t: GuestRequestTranslator): string
+⋮----
+export function getMiddleProgressIcon(status: GuestPortalRequestStatus): string
+</file>
+
+<file path="services/auth-service/src/modules/billing/api/folio.controller.ts">
+import { Body, Controller, Get, Param, Post, Query, Req } from "@nestjs/common";
+import { ApiBody, ApiOkResponse, ApiParam, ApiQuery, ApiTags } from "@nestjs/swagger";
+import { FolioStatus } from "@prisma/client";
+import type { Request } from "express";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
+import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
+import type { AuthenticatedUser } from "../../../shared/security";
+import { BillingService } from "../application/billing.service";
+import {
+  billingIdParamSchema,
+  issueInvoiceBodySchema,
+  listFolioItemsQuerySchema,
+  listFoliosQuerySchema,
+} from "../domain/schemas/billing.schema";
+⋮----
+interface RequestWithUser extends Request {
+  user: AuthenticatedUser;
+}
+⋮----
+export class FolioController {
+⋮----
+constructor(private readonly billingService: BillingService)
+⋮----
+async listFolios(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Query() query: unknown,
+)
+⋮----
+async getActiveFolioByStay(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("stayId") stayIdParam: string,
+)
+⋮----
+async getFolioSummary(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("folioId") folioIdParam: string,
+)
+⋮----
+async issueInvoice(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("folioId") folioIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async listFolioItems(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("folioId") folioIdParam: string,
+    @Query() query: unknown,
+)
+⋮----
+async getFolioDetail(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("folioId") folioIdParam: string,
+)
+</file>
+
+<file path="services/auth-service/src/modules/billing/domain/schemas/billing.schema.ts">
+import { FolioStatus, PaymentMethod, PaymentProvider } from "@prisma/client";
+import { z } from "zod";
+⋮----
+export type ListFoliosQueryInput = z.infer<typeof listFoliosQuerySchema>;
+export type ListFolioItemsQueryInput = z.infer<typeof listFolioItemsQuerySchema>;
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/hotel-ops/utils/invalidate-hotel-realtime-queries.ts">
+import type { QueryClient } from "@tanstack/react-query";
+import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
+import { ownerRoomsResource } from "@/features/hotel-ops/resources/owner-rooms-resource";
+⋮----
+export async function invalidateHotelRealtimeQueries(
+  queryClient: QueryClient,
+  hotelId: string,
+): Promise<void>
+⋮----
+// Resource-based query invalidations using @dangminhdev04032005/query-resource helpers
+⋮----
+// Scope key prefixes for broader matching
+⋮----
+// Legacy / string-based query keys
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/billing/staff-billing-workspace-client.tsx">
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import Swal from "sweetalert2";
+⋮----
+import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import type { FolioItem, FolioListItem, FolioSummary, Invoice } from "@/features/billing/types/billing-contract";
+import { formatMoney } from "@/features/billing/utils/money";
+import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
+⋮----
+type Props = {
+  hotelId: string;
+  folios: FolioListItem[];
+  canManage: boolean;
+};
+⋮----
+type FolioItemsPage = {
+  items: FolioItem[];
+};
+⋮----
+type StatusFilter = "ALL" | "CHECKOUT_PENDING" | "OPEN" | "CLOSED";
+type ReconciliationChoice = { action: "provided" | "cancelled" | ""; cancelReason: string };
+⋮----
+function toNumber(value: unknown): number
+⋮----
+function getStatusBadge(status: string | undefined)
+⋮----
+function formatDate(value: string | null | undefined): string
+⋮----
+function displayRoom(folio: FolioListItem | undefined): string
+⋮----
+function displayGuest(folio: FolioListItem | undefined): string
+⋮----
+function getFolioInvoiceId(folio: FolioListItem | undefined): string | null
+⋮----
+function getItemIcon(itemType: string): string
+⋮----
+export function StaffBillingWorkspaceClient(
+⋮----
+async function issueInvoiceAndCollect()
+⋮----
+{/* CỘT TÁI CHÍNH 1: HÀNG ĐỢI FOLIO / PHÒNG CHỜ THANH TOÁN */}
+⋮----
+{/* Search bar */}
+⋮----
+{/* Filter Pills */}
+⋮----
+{/* List items */}
+⋮----
+{/* CỘT CENTRAL 2: CHI TIẾT FOLIO & DANH SÁCH CHI PHÍ */}
+⋮----
+{/* Header Chi Tiết */}
+⋮----
+{/* Bảng Dịch Vụ & Chi Phí (Fluent Fluid Layout - Proportional Column Widths) */}
+⋮----
+<VsIcon name=
+⋮----
+{/* CỘT RIGHT 3: TỔNG TIỀN & XÁC NHẬN THU THỦ TỤC */}
+⋮----
+{/* Luxurious Orange-Yellow Golden Checkout Card */}
+⋮----
+{/* Quy trình checkout */}
+</file>
+
+<file path="services/auth-service/src/modules/guest-operations/application/hotel-requests.service.ts">
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  Optional,
+} from "@nestjs/common";
+import { GuestRequestPriority, GuestRequestStatus, GuestStayStatus, Prisma } from "@prisma/client";
+import {
+  GUEST_REQUEST_EVENT_PUBLISHER,
+  NOOP_GUEST_REQUEST_EVENT_PUBLISHER,
+  type GuestRequestEventPublisher,
+} from "../../../shared/events";
+import { HotelAccessService } from "../../property/property-public";
+import { HotelRequestsRepository } from "../infrastructure/repositories/hotel-requests.repository";
+import type { StaffRequestListRow } from "../infrastructure/repositories/guest-request-repository.types";
+import type {
+  CreateRequestEventBodyInput,
+  ListStaffRequestsQueryInput,
+  RequestSummaryQueryInput,
+  UpdateRequestAssignmentBodyInput,
+  UpdateRequestStatusBodyInput,
+} from "../domain/schemas/requests.schema";
+import {
+  activeGuestRequestStatuses,
+  canonicalGuestRequestStatuses,
+  compatibleGuestRequestStatuses,
+  normalizeGuestRequestStatus,
+  type CanonicalGuestRequestStatus,
+} from "../domain/guest-request-status";
+⋮----
+export interface StaffRequestListItemResponse {
+  id: string;
+  displayName: string;
+  status: CanonicalGuestRequestStatus;
+  priority: "NORMAL" | "URGENT";
+  isOverdue: boolean;
+  ackDeadlineAt: string | null;
+  quantity: number;
+  description: string | null;
+  latestNote: string | null;
+  createdAt: string;
+  roomNumber: string;
+  guestName: string | null;
+  categoryName: string | null;
+  assignedToName: string | null;
+  stayStatus: string | null;
+  checkedOutAt: string | null;
+  actions: StaffRequestAction[];
+}
+⋮----
+type StaffRequestAction = "ACCEPT" | "START" | "COMPLETE" | "CANCEL" | "FAIL";
+⋮----
+type RequestStatusSummary = Record<CanonicalGuestRequestStatus, number>;
+⋮----
+export interface RequestSummaryResponse {
+  total: number;
+  statuses: RequestStatusSummary;
+}
+⋮----
+function buildRequestSearchFilter(search: string | undefined): Prisma.GuestRequestWhereInput
+⋮----
+export class HotelRequestsService {
+⋮----
+constructor(
+    private readonly hotelRequestsRepository: HotelRequestsRepository,
+    private readonly hotelAccessService: HotelAccessService,
+    @Optional()
+    @Inject(GUEST_REQUEST_EVENT_PUBLISHER)
+    guestRequestEventPublisher?: GuestRequestEventPublisher,
+)
+private parseHotelArgs<T>(
+    arg2: string,
+    arg3?: string | T,
+    arg4?: T,
+):
+⋮----
+private parseHotelRequestArgs<T>(
+    arg2: string,
+    arg3: string,
+    arg4?: string | T,
+    arg5?: T,
+):
+⋮----
+async listRequests(
+    actorUserId: string,
+    activeRoleIdOrHotelId: string,
+    hotelIdOrQuery?: string | ListStaffRequestsQueryInput,
+    queryInput?: ListStaffRequestsQueryInput,
+)
+⋮----
+async getRequestsSummary(
+    actorUserId: string,
+    activeRoleIdOrHotelId: string,
+    hotelIdOrQuery?: string | RequestSummaryQueryInput,
+    queryInput?: RequestSummaryQueryInput,
+): Promise<RequestSummaryResponse>
+⋮----
+async getRequestDetail(
+    actorUserId: string,
+    activeRoleIdOrHotelId: string,
+    hotelIdOrRequestId: string,
+    requestIdParam?: string,
+)
+⋮----
+async updateRequestStatus(
+    actorUserId: string,
+    activeRoleIdOrHotelId: string,
+    hotelIdOrRequestId: string,
+    requestIdOrDto: string | UpdateRequestStatusBodyInput,
+    dtoParam?: UpdateRequestStatusBodyInput,
+)
+⋮----
+async updateRequestAssignment(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    requestId: string,
+    dto: UpdateRequestAssignmentBodyInput,
+)
+⋮----
+async createRequestEvent(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    requestId: string,
+    dto: CreateRequestEventBodyInput,
+)
+⋮----
+private assertRequestTransition(from: GuestRequestStatus, to: CanonicalGuestRequestStatus)
+⋮----
+private toStaffRequestListItem(row: StaffRequestListRow): StaffRequestListItemResponse
+⋮----
+private getStaffRequestActions(status: CanonicalGuestRequestStatus): StaffRequestAction[]
+⋮----
+private toStaffRequestListPriority(
+    priority: StaffRequestListRow["priority"],
+): "NORMAL" | "URGENT"
+⋮----
+private withProductRequestPriority<T extends { priority: unknown }>(
+    request: T,
+): Omit<T, "priority" | "status"> &
+⋮----
+private toInternalRequestPriorities(priority: "NORMAL" | "URGENT"): GuestRequestPriority[]
+⋮----
+private toRequestStatusSummary(
+    rows: Array<{ status: GuestRequestStatus; _count: { _all: number } }>,
+): RequestStatusSummary
+⋮----
+private toGuestRequestRealtimeItem(row: StaffRequestListRow)
+⋮----
+private toGuestPortalRequestStatus(status: GuestRequestStatus)
+</file>
+
+<file path="services/auth-service/src/modules/billing/application/billing.service.ts">
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, Optional } from "@nestjs/common";
+import {
+  FolioItemSourceType,
+  FolioItemType,
+  FolioStatus,
+  GuestRequestStatus,
+  GuestSessionStatus,
+  GuestStayStatus,
+  InvoiceStatus,
+  PaymentMethod,
+  PaymentProvider,
+  PaymentStatus,
+  Prisma,
+  RoomStatus,
+} from "@prisma/client";
+import { PrismaService } from "../../../prisma/prisma.service";
+import { AppLogger } from "../../../common/logging/app-logger.service";
+import {
+  GUEST_REQUEST_EVENT_PUBLISHER,
+  NOOP_GUEST_REQUEST_EVENT_PUBLISHER,
+  type GuestRequestEventPublisher,
+} from "../../../shared/events";
+import { CodesService } from "../../codes/codes-public";
+import { HotelAccessService } from "../../property/property-public";
+import { closePlatformUsageAtCheckout } from "../../platform-billing/application/platform-billing.service";
+import { activeGuestRequestStatuses } from "../../guest-operations/domain/guest-request-status";
+import { BillingRepository } from "../infrastructure/repositories/billing.repository";
+⋮----
+function toPagination(page?: number, limit?: number)
+⋮----
+// Checkout/invoice generation must use FolioItem rows as financial source of truth;
+// Folio cached totals are a read model only and must not be trusted for snapshots.
+⋮----
+export class BillingService {
+⋮----
+constructor(
+    private readonly billingRepository: BillingRepository,
+    private readonly hotelAccessService: HotelAccessService,
+    private readonly prisma: PrismaService,
+    private readonly codesService: CodesService,
+    private readonly logger: AppLogger,
+    @Optional()
+    @Inject(GUEST_REQUEST_EVENT_PUBLISHER)
+    eventPublisher?: GuestRequestEventPublisher,
+)
+⋮----
+async listFolios(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    query: { status?: FolioStatus; page?: number; limit?: number },
+)
+⋮----
+async getFolioDetail(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    folioId: string,
+)
+⋮----
+async getActiveFolioByStay(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    stayId: string,
+)
+⋮----
+async listFolioItems(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    folioId: string,
+    query: { page?: number; limit?: number },
+)
+⋮----
+async getFolioSummary(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    folioId: string,
+)
+⋮----
+async getInvoiceDetail(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    invoiceId: string,
+)
+⋮----
+async validateFolioForCheckout(hotelId: string, folioId: string)
+⋮----
+private async buildFolioSummary(hotelId: string, folioId: string)
+⋮----
+async issueInvoice(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    folioId: string,
+    options?: {
+      reconciliations?: Array<{
+        requestId: string;
+        action: "provided" | "cancelled";
+        cancelReason?: string;
+      }>;
+    },
+)
+⋮----
+async createPaymentSession(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    invoiceId: string,
+    input: {
+      provider: PaymentProvider;
+      providerSessionId?: string;
+      providerPaymentId?: string;
+      metadataReference?: string;
+    },
+)
+⋮----
+async getPaymentStatus(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    paymentId: string,
+)
+⋮----
+async confirmManualPayment(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    invoiceId: string,
+    input: {
+      method: PaymentMethod;
+      note?: string;
+    },
+)
+⋮----
+private async settleZeroBalanceCheckout(
+    actorUserId: string,
+    hotelId: string,
+    invoiceId: string,
+    method: PaymentMethod,
+    note?: string,
+)
+⋮----
+async processPaymentWebhook(provider: PaymentProvider, body: Record<string, unknown>)
+⋮----
+private isDuplicateWebhookEventError(error: unknown): boolean
+⋮----
+private async findWebhookPayment(
+    tx: Prisma.TransactionClient,
+    provider: PaymentProvider,
+    body: Record<string, unknown>,
+)
+⋮----
+private async ensureRoomChargeFolioItem(
+    tx: Prisma.TransactionClient,
+    folio: Prisma.FolioGetPayload<{
+      include: { room: true; stay: true; hotel: { select: { id: true; name: true } } };
+    }>,
+    actorUserId: string,
+)
+⋮----
+private computeTotalsFromFolioItems(
+    items: Array<{
+      subtotalSnapshot: Prisma.Decimal;
+      taxAmountSnapshot: Prisma.Decimal;
+      discountAmountSnapshot: Prisma.Decimal;
+      totalSnapshot: Prisma.Decimal;
+    }>,
+)
+⋮----
+private async reconcileStayServiceRequests(
+    tx: any,
+    hotelId: string,
+    folio: any,
+    actorUserId: string,
+    reconciliations?: Array<{
+      requestId: string;
+      action: "provided" | "cancelled";
+      cancelReason?: string;
+    }>,
+)
+⋮----
+private methodFromProvider(provider: PaymentProvider)
+⋮----
+private async ensureFolioExists(hotelId: string, folioId: string)
+⋮----
+private webhookText(value: unknown): string
+</file>
+
+</files>

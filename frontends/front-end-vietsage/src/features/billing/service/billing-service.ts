@@ -7,6 +7,8 @@ type AuthRequestOptions = {
   accessTokenExpiresAt?: number | null;
 };
 
+export type IssueInvoiceInput = { reconciliations: Array<{ requestId: string; action: "provided" | "cancelled"; cancelReason?: string }> };
+
 export type BillingServiceOptions = {
   baseUrl: string;
   timeoutMs?: number;
@@ -83,10 +85,57 @@ export class BillingService {
     return unwrapApiEnvelope<BillingPage<FolioItem>>(payload).data;
   }
 
-  async issueInvoice(hotelId: string, folioId: string, options: AuthRequestOptions = {}): Promise<Invoice> {
+  async addFolioItem(
+    hotelId: string,
+    folioId: string,
+    input: {
+      itemType: "MANUAL_CHARGE" | "DISCOUNT" | "ADJUSTMENT" | "SERVICE";
+      name: string;
+      description?: string;
+      amount: number;
+      quantity?: number;
+    },
+    options: AuthRequestOptions = {},
+  ): Promise<FolioItem> {
+    const payload = await this.httpClient.request<unknown>({
+      method: "POST",
+      path: hotelPath(hotelId, `/folios/${encodeURIComponent(folioId)}/items`),
+      body: input,
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+
+    return unwrapApiEnvelope<FolioItem>(payload).data;
+  }
+
+  async voidFolioItem(
+    hotelId: string,
+    folioId: string,
+    itemId: string,
+    input?: { reason?: string },
+    options: AuthRequestOptions = {},
+  ): Promise<FolioItem> {
+    const payload = await this.httpClient.request<unknown>({
+      method: "POST",
+      path: hotelPath(hotelId, `/folios/${encodeURIComponent(folioId)}/items/${encodeURIComponent(itemId)}/void`),
+      body: input ?? {},
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+
+    return unwrapApiEnvelope<FolioItem>(payload).data;
+  }
+
+  async issueInvoice(
+    hotelId: string,
+    folioId: string,
+    input: IssueInvoiceInput = { reconciliations: [] },
+    options: AuthRequestOptions = {},
+  ): Promise<Invoice> {
     const payload = await this.httpClient.request<unknown>({
       method: "POST",
       path: hotelPath(hotelId, `/folios/${encodeURIComponent(folioId)}/checkout/issue-invoice`),
+      body: input,
       accessToken: options.accessToken,
       accessTokenExpiresAt: options.accessTokenExpiresAt,
     });

@@ -27,3 +27,19 @@ export async function GET(request: Request, context: Params) {
     return error instanceof HttpError ? hotelOpsHttpErrorResponse(error) : unknownServerErrorResponse();
   }
 }
+
+export async function POST(request: Request, context: Params) {
+  const { hotelId, folioId } = await context.params;
+  if (!hotelId || !folioId) return validationErrorResponse("hotelId and folioId are required");
+  try {
+    const body = await request.json();
+    const data = await executeHotelOpsBackendRequest("add billing folio item", (accessToken) =>
+      billingService.addFolioItem(hotelId, folioId, body, { accessToken }),
+    );
+    if (data instanceof NextResponse) return data;
+    return successResponse(data);
+  } catch (error) {
+    return error instanceof HttpError ? hotelOpsHttpErrorResponse(error) : unknownServerErrorResponse();
+  }
+}
+

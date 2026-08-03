@@ -1,0 +1,390 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: frontends/front-end-vietsage/src/features/workspace/components/workspace-shell.tsx, frontends/front-end-vietsage/src/features/hotel-ops/hooks/use-hotel-message-unread.ts, frontends/front-end-vietsage/src/features/hotel-ops/components/hotel-ops-realtime-notifier.tsx, frontends/front-end-vietsage/src/features/hotel-ops/utils/invalidate-hotel-realtime-queries.ts, frontends/front-end-vietsage/src/features/request-realtime/use-owner-request-realtime.ts, frontends/front-end-vietsage/src/features/request-realtime/owner-request-realtime-manager.ts, frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/layout.tsx, frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/rooms/staff-rooms-client.tsx, frontends/front-end-vietsage/src/features/local-biometric/hooks/use-workstation-scan.ts, frontends/front-end-vietsage/src/app/_components/react-query-provider.tsx
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    src/
+      app/
+        _components/
+          react-query-provider.tsx
+        (vietsage)/
+          hotels/
+            [hotelId]/
+              rooms/
+                staff-rooms-client.tsx
+              layout.tsx
+      features/
+        hotel-ops/
+          components/
+            hotel-ops-realtime-notifier.tsx
+          hooks/
+            use-hotel-message-unread.ts
+          utils/
+            invalidate-hotel-realtime-queries.ts
+        local-biometric/
+          hooks/
+            use-workstation-scan.ts
+        request-realtime/
+          owner-request-realtime-manager.ts
+          use-owner-request-realtime.ts
+        workspace/
+          components/
+            workspace-shell.tsx
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="frontends/front-end-vietsage/src/app/_components/react-query-provider.tsx">
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactNode } from "react";
+⋮----
+function makeQueryClient()
+⋮----
+function getQueryClient()
+⋮----
+type ReactQueryProviderProps = {
+  children: ReactNode;
+};
+⋮----
+export function ReactQueryProvider(
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/request-realtime/owner-request-realtime-manager.ts">
+import { requestInternalApi } from "@/core/http/internal-api-client";
+import { createOwnerConnectionManager } from "./owner-connection-manager";
+import { createRequestRealtimeSocket } from "./request-realtime-client";
+import { requestRealtimeEnabled } from "./request-realtime-config";
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/hotel-ops/hooks/use-hotel-message-unread.ts">
+import { useEffect, useMemo, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { hotelMessagesResource } from "@/features/hotel-ops/resources/hotel-messages-resource";
+import { ownerRequestRealtimeManager } from "@/features/request-realtime/owner-request-realtime-manager";
+import {
+  createEventDeduper,
+  isConversationClosedEventForHotel,
+  isGuestMessageEventForHotel,
+} from "@/features/request-realtime/message-unread";
+⋮----
+export type UseHotelMessageUnreadOptions = {
+  enabled?: boolean;
+};
+⋮----
+export function useHotelMessageUnread(
+  hotelId: string | null,
+  options?: UseHotelMessageUnreadOptions,
+)
+⋮----
+const reconcile = () =>
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/hooks/use-workstation-scan.ts">
+import { useState, useEffect, useCallback, useRef } from "react";
+import { workstationRepository } from "../repositories/workstation-repository";
+import type { IntakePayloadV2 } from "../intake/intake-contract";
+⋮----
+export type WorkstationScanState = 
+  | { phase: 'checking' }
+  | { phase: 'offline' }
+  | { phase: 'ready' }
+  | { phase: 'requested'; scanRequestId: string; expiresAt: number }
+  | { phase: 'receiving' }
+  | { phase: 'received'; payload: IntakePayloadV2; capturedTransferId: string }
+  | { phase: 'expired' }
+  | { phase: 'error'; message: string };
+⋮----
+export function useWorkstationScan(hotelId: string)
+⋮----
+// ignore
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/request-realtime/use-owner-request-realtime.ts">
+import { useEffect, useRef } from "react";
+import type { StaffRequestListItem } from "@/features/hotel-ops/types/hotel-ops-contract";
+import { ownerRequestRealtimeManager } from "./owner-request-realtime-manager";
+import { requestRealtimeEnabled } from "./request-realtime-config";
+⋮----
+type Handlers = {
+  onReady?: () => void;
+  onCreated?: (request: StaffRequestListItem) => void;
+  onUpdated?: (request: Partial<StaffRequestListItem> & { id: string }) => void;
+  onAnswered?: (request: Partial<StaffRequestListItem> & { id: string }) => void;
+  onGuestMessageCreated?: (event: unknown) => void;
+  onConversationClosed?: (event: unknown) => void;
+  onReconnect?: () => void;
+};
+⋮----
+export function useOwnerRequestRealtime(hotelId: string, handlers: Handlers, options:
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/layout.tsx">
+import { type ReactNode } from "react";
+import { notFound } from "next/navigation";
+import { auth } from "@/auth";
+⋮----
+import { assertCanAccessHotelOps, canUseHotelId, requireHotelOpsServerTokens } from "@/features/hotel-ops/utils/hotel-route-auth";
+import { buildWorkspaceNavigationForContext, getWorkspaceDefinition, resolveWorkspacePersona } from "@/features/workspace/config/workspace-registry";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
+import { WorkspaceProfileProvider } from "@/features/workspace/components/workspace-profile-context";
+import { WorkspaceShell } from "@/features/workspace/components/workspace-shell";
+⋮----
+import { HotelOpsRealtimeNotifier } from "@/features/hotel-ops/components/hotel-ops-realtime-notifier";
+⋮----
+export default async function HotelOpsLayout({
+  children,
+  params,
+}: Readonly<{
+  children: ReactNode;
+  params: Promise<{ hotelId: string }>;
+}>)
+⋮----
+definition=
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/hotel-ops/utils/invalidate-hotel-realtime-queries.ts">
+import type { QueryClient } from "@tanstack/react-query";
+import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
+import { ownerRoomsResource } from "@/features/hotel-ops/resources/owner-rooms-resource";
+⋮----
+export async function invalidateHotelRealtimeQueries(
+  queryClient: QueryClient,
+  hotelId: string,
+): Promise<void>
+⋮----
+// Resource-based query invalidations using @dangminhdev04032005/query-resource helpers
+⋮----
+// Scope key prefixes for broader matching
+⋮----
+// Legacy / string-based query keys
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/workspace/components/workspace-shell.tsx">
+import type { ReactNode } from "react";
+import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
+⋮----
+import { useMemo } from "react";
+import { VsDashboardSidebar } from "@/app/(vietsage)/_components/vs-dashboard-sidebar";
+import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+import { VsTopBar } from "@/app/(vietsage)/_components/vs-top-bar";
+import type { DashboardNavItem } from "@/features/workspace/types/workspace-navigation";
+import { isNavItemActive } from "@/features/workspace/utils/workspace-nav-active";
+import { useHotelMessageUnread } from "@/features/hotel-ops/hooks/use-hotel-message-unread";
+import { useWorkspaceProfile } from "./workspace-profile-context";
+⋮----
+import type { WorkspaceDefinition } from "../config/workspace-registry";
+⋮----
+type WorkspaceShellProps = {
+  children: ReactNode;
+  definition: WorkspaceDefinition;
+  navItems: readonly DashboardNavItem[];
+  contextLabel?: string;
+  activePath?: string;
+  profileName?: string | null;
+  printFriendly?: boolean;
+};
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/hotel-ops/components/hotel-ops-realtime-notifier.tsx">
+import { useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+⋮----
+import type { StaffRequestListItem } from "@/features/hotel-ops/types/hotel-ops-contract";
+import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
+import { playRequestAlertSound } from "@/features/request-realtime/audio-notifier";
+import { invalidateHotelRealtimeQueries } from "../utils/invalidate-hotel-realtime-queries";
+⋮----
+export function HotelOpsRealtimeNotifier(
+⋮----
+// Play request sound notification
+⋮----
+// Invalidate TanStack Query caches so UI updates without page reload
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/rooms/staff-rooms-client.tsx">
+import { createPortal } from "react-dom";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import Swal from "sweetalert2";
+import {
+  keepPreviousData,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+⋮----
+import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import { CheckInWorkspace } from "@/features/local-biometric/components/check-in-workspace";
+import type { CheckInStayFields } from "@/features/local-biometric/types/check-in-workspace";
+import { BrandedRoomQr } from "@/features/hotel-ops/components/branded-room-qr";
+import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
+import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
+import type {
+  HotelArrival,
+  HotelCheckInResult,
+  HotelOpsPage,
+  HotelReservationCheckInResult,
+  HotelRoomSummary,
+} from "@/features/hotel-ops/types/hotel-ops-contract";
+import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+⋮----
+type Props = {
+  hotelId: string;
+  initialRoomsPage: HotelOpsPage<HotelRoomSummary>;
+  arrivals: HotelArrival[];
+  canManageRooms: boolean;
+  canManageReservations: boolean;
+  canManageStays: boolean;
+};
+⋮----
+type RoomStatusFilter =
+  | "all"
+  | "available"
+  | "occupied"
+  | "processing"
+  | "maintenance"
+  | "blocked";
+type FlowMode = "walk-in" | "reservation";
+⋮----
+type ReservationForm = {
+  roomId: string;
+  guestDisplayName: string;
+  guestPhone: string;
+  plannedCheckInAt: string;
+  plannedCheckOutAt: string;
+};
+⋮----
+type RoomQrPreview = {
+  room: HotelRoomSummary;
+  guestUrl: string | null;
+};
+⋮----
+function localDateTime(offsetDays: number, hour: number): string
+⋮----
+function formatDateTime(value: string | null | undefined): string
+⋮----
+function getRoomNumber(room: HotelRoomSummary): string
+⋮----
+function getRoomQrValue(room: HotelRoomSummary): string | null
+⋮----
+function getGuestQrUrl(room: HotelRoomSummary, origin: string): string | null
+⋮----
+function getRoomStatus(room: HotelRoomSummary): RoomStatusFilter
+⋮----
+function roomStatusLabel(status: RoomStatusFilter): string
+⋮----
+function roomCardClass(status: RoomStatusFilter): string
+⋮----
+function isAvailable(room: HotelRoomSummary): boolean
+⋮----
+function emptyReservation(roomId = ""): ReservationForm
+⋮----
+const range = (start: number, end: number) =>
+⋮----
+function printActiveStayList()
+⋮----
+function openWalkIn(room: HotelRoomSummary)
+⋮----
+async function markRoomCleaned(room: HotelRoomSummary)
+⋮----
+async function toggleRoomBlocked(room: HotelRoomSummary)
+⋮----
+async function updateRoomStatus(
+    room: HotelRoomSummary,
+    targetStatus: "AVAILABLE" | "PROCESSING" | "MAINTENANCE" | "BLOCKED",
+)
+⋮----
+function handleCardClick(room: HotelRoomSummary)
+⋮----
+async function submitWalkIn(fields: CheckInStayFields)
+⋮----
+async function createReservation(event: FormEvent<HTMLFormElement>)
+⋮----
+async function assignArrivalRoom(arrival: HotelArrival)
+⋮----
+async function checkInArrival(arrival: HotelArrival)
+⋮----
+setFloor(event.target.value);
+setPage(1);
+⋮----
+setVipOnly(event.target.checked);
+⋮----
+{/* Header */}
+⋮----
+{/* Middle Body */}
+⋮----
+{/* Footer */}
+⋮----
+{/* Animated hover popover menu */}
+⋮----
+{/* Cleaning Action */}
+⋮----
+event.stopPropagation();
+markRoomCleaned(room);
+⋮----
+updateRoomStatus(room, "PROCESSING");
+⋮----
+updateRoomStatus(room, "MAINTENANCE");
+⋮----
+{/* Single Update Trigger Button */}
+⋮----
+
+⋮----
+Phòng
+⋮----
+setReservationForm((current) => (
+⋮----
+<p className="mt-3 text-center text-sm font-black uppercase tracking-[0.16em] text-[var(--primary)]">Phòng
+⋮----
+if (saving) return;
+setIsCheckInOpen(false);
+setSelectedRoom(null);
+setSubmitError(undefined);
+</file>
+
+</files>

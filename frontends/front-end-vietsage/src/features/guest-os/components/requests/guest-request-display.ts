@@ -11,8 +11,6 @@ export type GuestRequestTabStatus = GuestPortalRequestStatus | "ENDED" | undefin
 export const guestRequestTabs: Array<{ value: GuestRequestTabStatus; labelKey: string }> = [
   { value: undefined, labelKey: "requests.all" },
   { value: "CREATED", labelKey: "requests.sent" },
-  { value: "ACKNOWLEDGED", labelKey: "requests.acknowledged" },
-  { value: "IN_PROGRESS", labelKey: "requests.inProgress" },
   { value: "COMPLETED", labelKey: "requests.done" },
   { value: "ENDED", labelKey: "requests.ended" },
 ];
@@ -37,12 +35,12 @@ export function getRequestPriorityTone(request: GuestRequest): string {
 
 export function getRequestStatusLabel(status: GuestPortalRequestStatus, t: GuestRequestTranslator): string {
   if (status === "CREATED") return t("requests.sent");
-  if (status === "ACKNOWLEDGED") return t("requests.inProgress");
+  if (status === "ACKNOWLEDGED") return t("requests.acknowledged");
   if (status === "IN_PROGRESS") return t("requests.inProgress");
   if (status === "COMPLETED") return t("requests.completed");
   if (status === "CANCELLED") return t("requests.cancelled");
   if (status === "FAILED") return t("requests.failed");
-  return requestStatusLabelMap[status];
+  return requestStatusLabelMap[status] ?? t("requests.sent");
 }
 
 export function getRequestCurrency(request: GuestRequest): string {
@@ -95,26 +93,24 @@ export function matchesRequestSearch(request: GuestRequest, query: string, t: Gu
   ].join(" ").toLowerCase().includes(normalizedQuery);
 }
 
-export function getProgressStep(status: GuestPortalRequestStatus): 1 | 2 | 3 {
-  if (status === "COMPLETED") return 3;
-  if (status === "FAILED" || status === "CANCELLED") return 2;
-  if (status === "ACKNOWLEDGED" || status === "IN_PROGRESS") return 2;
+export function getProgressStep(status: GuestPortalRequestStatus): 1 | 2 | 3 | 4 {
+  if (status === "COMPLETED") return 4;
+  if (status === "IN_PROGRESS") return 3;
+  if (status === "ACKNOWLEDGED") return 2;
+  if (status === "FAILED" || status === "CANCELLED") return 1;
   return 1;
 }
 
 export function getMiddleProgressLabel(status: GuestPortalRequestStatus, t: GuestRequestTranslator): string {
   if (status === "COMPLETED") return t("requests.processed");
-  if (status === "ACKNOWLEDGED") return t("requests.inProgress");
-  if (status === "IN_PROGRESS") return t("requests.inProgress");
   if (status === "FAILED") return t("requests.failed");
   if (status === "CANCELLED") return t("requests.cancelled");
-  return t("requests.inProgress");
+  return t("requests.sent");
 }
 
 export function getMiddleProgressIcon(status: GuestPortalRequestStatus): string {
   if (status === "COMPLETED") return "check";
   if (status === "FAILED") return "error";
   if (status === "CANCELLED") return "close";
-  if (status === "ACKNOWLEDGED") return "task_alt";
   return "room_service";
 }

@@ -8,7 +8,10 @@ import { toast } from "sonner";
 import type { StaffRequestListItem } from "@/features/hotel-ops/types/hotel-ops-contract";
 import { useOwnerHotelsQuery } from "@/features/owner/queries/use-owner-hotels-query";
 import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
-import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
+import {
+  invalidateHotelRealtimeQueries,
+  invalidateHotelRequestRealtimeQueries,
+} from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 
 type AudioWindow = Window &
   typeof globalThis & {
@@ -114,10 +117,7 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
         });
       },
       onReconnect: () => {
-        void invalidateHotelRealtimeQueries(queryClient, hotelId);
-        startTransition(() => {
-          router.refresh();
-        });
+        void invalidateHotelRequestRealtimeQueries(queryClient, hotelId);
       },
     }),
     [hotelId, queryClient, router],

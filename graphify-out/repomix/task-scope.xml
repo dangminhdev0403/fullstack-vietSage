@@ -1,0 +1,1880 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: services/auth-service/prisma/schema.prisma, services/auth-service/prisma/seed.js, services/auth-service/src/modules/identity/application/route-permission-sync.service.ts, services/auth-service/src/modules/guest-operations/domain/schemas/requests.schema.ts, services/auth-service/src/modules/guest-operations/infrastructure/repositories/guest-messages.repository.ts, services/auth-service/src/modules/guest-operations/application/guest-messages.service.ts, services/auth-service/src/modules/guest-operations/api/guest-os.controller.ts, services/auth-service/src/modules/guest-operations/api/hotel-requests.controller.ts
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+services/
+  auth-service/
+    prisma/
+      schema.prisma
+      seed.js
+    src/
+      modules/
+        guest-operations/
+          api/
+            guest-os.controller.ts
+            hotel-requests.controller.ts
+          application/
+            guest-messages.service.ts
+          domain/
+            schemas/
+              requests.schema.ts
+          infrastructure/
+            repositories/
+              guest-messages.repository.ts
+        identity/
+          application/
+            route-permission-sync.service.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="services/auth-service/prisma/seed.js">
+async function seedCodes()
+⋮----
+async function seedRoles()
+⋮----
+async function syncExistingPermissionsToSuperAdmin(superAdminRole)
+⋮----
+async function seedSuperAdmin(superAdminRole)
+⋮----
+// Temporary deterministic hash for bootstrap only.
+⋮----
+async function main()
+</file>
+
+<file path="services/auth-service/src/modules/identity/application/route-permission-sync.service.ts">
+import { HttpMethod, UserStatus, UserType } from "@prisma/client";
+import { Injectable, OnApplicationBootstrap, RequestMethod } from "@nestjs/common";
+import { METHOD_METADATA, PATH_METADATA } from "@nestjs/common/constants";
+import { ModulesContainer } from "@nestjs/core/injector/modules-container";
+⋮----
+import { loadAppConfig } from "../../../common/config/env.config";
+import { AppLogger } from "../../../common/logging/app-logger.service";
+import { resolveModuleKeyFromPath } from "../../../common/config/permission-module.util";
+import { BUSINESS_PERMISSIONS } from "../../../common/config/business-permissions.registry";
+import { publicMatcher } from "../../../common/config/routes.config";
+import { API_DESCRIPTION_KEY } from "../../../shared/decorators/api-descript.decorator";
+import { AuthRepository } from "../infrastructure/repositories/auth.repository";
+import {
+  buildRoutePermissionKey,
+  isPermissionPathTooLong,
+} from "../domain/route-permission-key.util";
+⋮----
+interface RoutePermissionSeed {
+  method: HttpMethod;
+  path: string;
+  description: string;
+}
+⋮----
+interface BootstrapAdminConfig {
+  email: string;
+  name: string;
+  password: string;
+}
+⋮----
+export class RoutePermissionSyncService implements OnApplicationBootstrap {
+⋮----
+constructor(
+⋮----
+async onApplicationBootstrap(): Promise<void>
+⋮----
+private collectRoutePermissions(): RoutePermissionSeed[]
+⋮----
+private collectControllerPermissions(
+    controllerClass: unknown,
+    permissionsByKey: Map<string, RoutePermissionSeed>,
+): void
+⋮----
+private collectHandlerPermissions(
+    handlerCandidate: unknown,
+    controllerPaths: string[],
+    permissionsByKey: Map<string, RoutePermissionSeed>,
+): void
+⋮----
+private createRoutePermissionSeed(
+    method: HttpMethod,
+    controllerPath: string,
+    methodPath: string,
+    description: string | null,
+): RoutePermissionSeed | null
+⋮----
+private async syncAuthAdmin(superAdminRoleId: string): Promise<void>
+⋮----
+private resolveBootstrapAdminConfig(): BootstrapAdminConfig | null
+⋮----
+private resolveMethod(metadata: unknown): HttpMethod | null
+⋮----
+private resolveApiDescription(handler: (...args: unknown[]) => unknown): string | null
+⋮----
+private toPathList(pathMetadata: unknown): string[]
+⋮----
+private handleMissingKey(method: string, controllerPath: string, methodPath: string): void
+⋮----
+private handleOversizedPath(method: string, path: string): void
+⋮----
+private handleMissingDescription(method: string, path: string): void
+⋮----
+private buildMethodLookup(): Map<number, HttpMethod | "ALL">
+</file>
+
+<file path="services/auth-service/src/modules/guest-operations/api/guest-os.controller.ts">
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
+import { ApiBody, ApiCreatedResponse, ApiOkResponse, ApiTags } from "@nestjs/swagger";
+import type { Request } from "express";
+import {
+  createGuestRequestBodySchema as createGuestRequestBodyOpenApiSchema,
+  guestRequestDataSchema,
+  guestServiceCatalogDataSchema,
+  listGuestCategoryServicesDataSchema,
+  listGuestRequestsDataSchema,
+  successEnvelopeSchema,
+} from "../../../common/openapi/contract-schemas";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
+import { GuestOsService } from "../application/guest-os.service";
+import { GuestMessagesService } from "../application/guest-messages.service";
+import {
+  GuestSessionGuard,
+  type RequestWithGuestSession,
+} from "../infrastructure/guards/guest-session.guard";
+import {
+  createGuestRequestBodySchema,
+  guestRequestIdParamSchema,
+  listGuestCategoryServicesQuerySchema,
+  listGuestRequestsQuerySchema,
+  guestMessageBodySchema,
+  listGuestMessagesQuerySchema,
+  scanQrBodyOpenApiSchema,
+  scanQrBodySchema,
+  serviceCategoryIdParamSchema,
+} from "../domain/schemas/guest-os.schema";
+⋮----
+export class GuestOsController {
+⋮----
+constructor(
+⋮----
+async scanQr(@Req() request: Request, @Body() body: unknown)
+⋮----
+async getCurrentSession(@Req() request: RequestWithGuestSession)
+⋮----
+async listServices(@Req() request: RequestWithGuestSession)
+⋮----
+async listCategoryServices(
+    @Req() request: RequestWithGuestSession,
+    @Param("categoryId") categoryId: string,
+    @Query() query: unknown,
+)
+⋮----
+async createRequest(@Req() request: RequestWithGuestSession, @Body() body: unknown)
+⋮----
+async listRequests(@Req() request: RequestWithGuestSession, @Query() query: unknown)
+⋮----
+async cancelRequest(
+    @Req() request: RequestWithGuestSession,
+    @Param("requestId") requestId: string,
+)
+⋮----
+async listMessages(@Req() request: RequestWithGuestSession, @Query() query: unknown)
+⋮----
+async sendMessage(@Req() request: RequestWithGuestSession, @Body() body: unknown)
+⋮----
+async markMessagesRead(@Req() request: RequestWithGuestSession)
+⋮----
+async closeSession(@Req() request: RequestWithGuestSession)
+</file>
+
+<file path="services/auth-service/src/modules/guest-operations/application/guest-messages.service.ts">
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  Optional,
+} from "@nestjs/common";
+import { GuestRequestActorType, GuestStayStatus } from "@prisma/client";
+import {
+  GUEST_REQUEST_EVENT_PUBLISHER,
+  NOOP_GUEST_REQUEST_EVENT_PUBLISHER,
+  type GuestRequestEventPublisher,
+} from "../../../shared/events";
+import { HotelAccessService } from "../../property/property-public";
+import type { GuestSessionContext } from "./guest-os.service";
+import { GuestMessagesRepository } from "../infrastructure/repositories/guest-messages.repository";
+⋮----
+export class GuestMessagesService {
+⋮----
+constructor(
+    private readonly repository: GuestMessagesRepository,
+    private readonly hotelAccessService: HotelAccessService,
+    @Optional()
+    @Inject(GUEST_REQUEST_EVENT_PUBLISHER)
+    eventPublisher?: GuestRequestEventPublisher,
+)
+⋮----
+async listForGuest(context: GuestSessionContext, page = 1, limit = 20, before?: string)
+⋮----
+async sendFromGuest(context: GuestSessionContext, body: string, plannedCheckOutAt: Date)
+⋮----
+async listForHotel(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    limit = 30,
+    q?: string,
+    cursor?: string,
+)
+⋮----
+async getForHotel(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    threadId: string,
+    page = 1,
+    limit = 20,
+    before?: string,
+)
+⋮----
+async replyFromStaff(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    threadId: string,
+    body: string,
+)
+⋮----
+async markReadForHotel(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    threadId: string,
+)
+⋮----
+async markReadForGuest(context: GuestSessionContext)
+⋮----
+private async assertActiveGuestStay(context: GuestSessionContext)
+⋮----
+private normalizeBody(value: string)
+⋮----
+private expiry(checkOutAt: Date)
+⋮----
+private message(row: {
+    id: string;
+    senderType: GuestRequestActorType;
+    body: string;
+    createdAt: Date;
+    readAt?: Date | null;
+    senderUser?: { id: string; fullName: string } | null;
+})
+⋮----
+private thread(
+    row: {
+      id: string;
+      status: string;
+      lastMessageAt: Date;
+      expiresAt: Date;
+      clearedAt: Date | null;
+      stayId: string;
+      room: { roomNumber: string; floor: string | null; type: string | null };
+      stay: {
+        guestDisplayName: string;
+        status: GuestStayStatus;
+        checkedOutAt: Date | null;
+        plannedCheckOutAt?: Date;
+      };
+      _count?: { messages: number };
+    },
+    latestMessage?: ReturnType<GuestMessagesService["message"]> | null,
+)
+</file>
+
+<file path="services/auth-service/src/modules/guest-operations/infrastructure/repositories/guest-messages.repository.ts">
+import { Injectable } from "@nestjs/common";
+import { GuestRequestActorType, GuestStayStatus, Prisma } from "@prisma/client";
+import { PrismaService } from "../../../../prisma/prisma.service";
+⋮----
+export type GuestMessageRow = Prisma.GuestMessageGetPayload<{
+  include: typeof messageInclude;
+}>;
+⋮----
+function encodeThreadCursor(value:
+⋮----
+function decodeThreadCursor(cursor?: string)
+⋮----
+export class GuestMessagesRepository {
+⋮----
+constructor(private readonly prisma: PrismaService)
+⋮----
+async isActiveStay(stayId: string, hotelId: string)
+⋮----
+async listGuestMessages(stayId: string, skip = 0, take = 20, before?: string)
+⋮----
+async appendGuestMessage(input: {
+    hotelId: string;
+    roomId: string;
+    stayId: string;
+    sessionId?: string;
+    senderType: GuestRequestActorType;
+    senderUserId?: string;
+    body: string;
+    expiresAt: Date;
+})
+⋮----
+async listHotelThreads(hotelId: string, take: number, query?: string, cursor?: string)
+⋮----
+async getHotelThread(hotelId: string, threadId: string, skip = 0, take = 20, before?: string)
+⋮----
+async markReadForStaff(hotelId: string, threadId: string)
+⋮----
+async markReadForGuest(hotelId: string, stayId: string)
+</file>
+
+<file path="services/auth-service/src/modules/guest-operations/api/hotel-requests.controller.ts">
+import { Body, Controller, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import {
+  ApiBody,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiParam,
+  ApiQuery,
+  ApiTags,
+} from "@nestjs/swagger";
+import type { Request } from "express";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
+import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
+import type { AuthenticatedUser } from "../../../shared/security";
+import { HotelRequestsService } from "../application/hotel-requests.service";
+import { GuestMessagesService } from "../application/guest-messages.service";
+import {
+  createRequestEventBodySchema,
+  guestRequestPriorityValues,
+  listStaffRequestsQuerySchema,
+  requestSummaryQuerySchema,
+  updateRequestAssignmentBodySchema,
+  updateRequestStatusBodySchema,
+  hotelIdParamSchema,
+  listHotelMessagesQuerySchema,
+  messageThreadIdParamSchema,
+  requestIdParamSchema,
+  sendHotelMessageBodySchema,
+} from "../domain/schemas/requests.schema";
+⋮----
+interface RequestWithUser extends Request {
+  user: AuthenticatedUser;
+}
+⋮----
+export class HotelRequestsController {
+⋮----
+constructor(
+⋮----
+async listMessages(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Query() query: unknown,
+)
+⋮----
+async getMessageThread(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("threadId") threadIdParam: string,
+    @Query() query: unknown,
+)
+⋮----
+async replyMessage(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("threadId") threadIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async markMessageThreadRead(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("threadId") threadIdParam: string,
+)
+⋮----
+async listRequests(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Query() query: unknown,
+)
+⋮----
+async getRequestsSummary(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Query() query: unknown,
+)
+⋮----
+async getRequestDetail(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("requestId") requestIdParam: string,
+)
+⋮----
+async updateRequestStatus(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("requestId") requestIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async updateRequestAssignment(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("requestId") requestIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async createRequestEvent(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("requestId") requestIdParam: string,
+    @Body() body: unknown,
+)
+</file>
+
+<file path="services/auth-service/src/modules/guest-operations/domain/schemas/requests.schema.ts">
+import { z } from "zod";
+import { canonicalGuestRequestStatuses } from "../guest-request-status";
+⋮----
+export type ListStaffRequestsQueryInput = z.infer<typeof listStaffRequestsQuerySchema>;
+export type RequestSummaryQueryInput = z.infer<typeof requestSummaryQuerySchema>;
+export type UpdateRequestStatusBodyInput = z.infer<typeof updateRequestStatusBodySchema>;
+export type UpdateRequestAssignmentBodyInput = z.infer<typeof updateRequestAssignmentBodySchema>;
+export type CreateRequestEventBodyInput = z.infer<typeof createRequestEventBodySchema>;
+export type ListHotelMessagesQueryInput = z.infer<typeof listHotelMessagesQuerySchema>;
+export type SendHotelMessageBodyInput = z.infer<typeof sendHotelMessageBodySchema>;
+</file>
+
+<file path="services/auth-service/prisma/schema.prisma">
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserStatus {
+  ACTIVE
+  LOCKED
+  DISABLED
+}
+
+enum UserType {
+  VIETSAGE_ADMIN
+  HOTEL_STAFF
+  PARTNER
+}
+
+enum TenantUserStatus {
+  ACTIVE
+  INVITED
+  DISABLED
+}
+
+enum HotelStaffAssignmentStatus {
+  ACTIVE
+  REVOKED
+}
+
+enum HttpMethod {
+  GET
+  POST
+  PUT
+  PATCH
+  DELETE
+  OPTIONS
+}
+
+enum UserRoleStatus {
+  ACTIVE
+  REVOKED
+}
+
+enum RoleStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum AuthSessionStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+  COMPROMISED
+}
+
+enum AuthSessionRevokeReason {
+  LOGOUT
+  LOGOUT_ALL
+  USER_DISABLED
+  ROLE_CHANGED
+  REFRESH_TOKEN_REPLAYED
+  SESSION_REPLACED
+  SECURITY_EVENT
+  EXPIRED
+}
+
+enum HotelStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum RoomStatus {
+  AVAILABLE
+  RESERVED
+  OCCUPIED
+  MAINTENANCE
+  OUT_OF_SERVICE
+  BLOCKED
+  PROCESSING
+}
+
+enum RoomQRCodeStatus {
+  ACTIVE
+  INACTIVE
+  EXPIRED
+  REVOKED
+}
+
+enum GuestStayStatus {
+  RESERVED
+  CHECKED_IN
+  ACTIVE
+  CHECKOUT_PENDING
+  CHECKED_OUT
+  CANCELLED
+}
+
+enum ReservationStatus {
+  CONFIRMED
+  ARRIVAL_READY
+  CHECKED_IN
+  CANCELLED
+  NO_SHOW
+}
+
+enum GuestSessionStatus {
+  CREATED
+  ACTIVE
+  IDLE
+  EXPIRED
+  CLOSED
+}
+
+enum GuestRequestStatus {
+  NEW
+  CONFIRMED
+  PENDING
+  ACCEPTED
+  ON_THE_WAY
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+  CREATED
+  ACKNOWLEDGED
+  CANCELLED
+  FAILED
+}
+
+enum GuestRequestPriority {
+  NORMAL
+  URGENT
+}
+
+enum GuestRequestActorType {
+  GUEST
+  STAFF
+  SYSTEM
+}
+
+enum NotificationProvider {
+  TELEGRAM
+}
+
+enum GuestRequestNotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum ServiceCatalogStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum CategoryPriceUpdateMode {
+  CATEGORY_ONLY
+  OVERRIDE_ALL_ITEMS
+}
+
+enum DomainEventStatus {
+  PENDING
+  PROCESSED
+  FAILED
+}
+
+enum FolioStatus {
+  OPEN
+  CHECKOUT_PENDING
+  CLOSED
+  VOID
+}
+
+enum FolioItemType {
+  SERVICE
+  ROOM_CHARGE
+  MANUAL_CHARGE
+  DISCOUNT
+  ADJUSTMENT
+}
+
+enum FolioItemSourceType {
+  GUEST_REQUEST
+  ROOM
+  STAY
+  MANUAL
+  SYSTEM
+}
+
+enum GuestRequestBillingPostStatus {
+  NONE
+  POSTED
+  FAILED
+}
+
+enum InvoiceStatus {
+  ISSUED
+  PAID
+  VOID
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+  EXPIRED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  BANK_TRANSFER
+  MOMO
+  VNPAY
+  STRIPE
+  MANUAL
+}
+
+enum PaymentProvider {
+  MANUAL
+  MOMO
+  VNPAY
+  STRIPE
+  BANK_TRANSFER
+}
+
+enum EmergencyLocationSource {
+  GPS
+  QR
+  INVITE
+  HOST_SELECTED
+  GUEST_SELECTED
+  MANUAL_ADDRESS
+  TENANT_DEFAULT
+  IP_DERIVED
+  UNKNOWN
+}
+
+enum EmergencyLocationConfidence {
+  HIGH
+  MEDIUM
+  LOW
+  UNKNOWN
+}
+
+enum EmergencyCallLifecycleStatus {
+  ATTEMPTED
+  ROUTED
+  RINGING
+  CONNECTED
+  FAILED
+  ABANDONED
+  COMPLETED
+}
+
+enum EmergencyIncidentSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum EmergencyIncidentStatus {
+  OPEN
+  ESCALATING
+  ACKNOWLEDGED
+  MONITORING
+  RESOLVED
+  REOPENED
+}
+
+enum EmergencyNotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  ACKNOWLEDGED
+}
+
+enum EmergencyNotificationType {
+  INITIAL
+  SEVERITY_ESCALATION
+  ROOM_UPDATE
+  FAILURE
+  RESOLUTION
+  REOPENED
+}
+
+model User {
+  id                    String              @id @default(cuid())
+  email                 String              @unique @db.VarChar(320)
+  passwordHash          String              @db.VarChar(255)
+  fullName              String              @db.VarChar(120)
+  status                UserStatus          @default(ACTIVE)
+  userType              UserType
+  lastLoginAt           DateTime?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  userRoles             UserRole[]
+  refreshTokens         RefreshToken[]
+  authSessions          AuthSession[]
+  tenantUsers           TenantUser[]
+  hotelAssignments      HotelStaffAssignment[] @relation("HotelStaffAssignmentUser")
+  assignedHotelStaff    HotelStaffAssignment[] @relation("HotelStaffAssignmentAssignedBy")
+  revokedHotelStaff     HotelStaffAssignment[] @relation("HotelStaffAssignmentRevokedBy")
+  auditLogs             AuditLog[]          @relation("AuditActor")
+  createdStays          GuestStay[]         @relation("GuestStayCreatedBy")
+  closedStays           GuestStay[]         @relation("GuestStayClosedBy")
+  assignedGuestRequests GuestRequest[]      @relation("GuestRequestAssignedTo")
+  guestRequestEvents    GuestRequestEvent[] @relation("GuestRequestEventActor")
+  sentGuestMessages     GuestMessage[]      @relation("GuestMessageStaffSender")
+  createdFolios         Folio[]             @relation("FolioCreatedBy")
+  closedFolios          Folio[]             @relation("FolioClosedBy")
+  postedFolioItems      FolioItem[]         @relation("FolioItemPostedBy")
+  voidedFolioItems      FolioItem[]         @relation("FolioItemVoidedBy")
+  issuedInvoices        Invoice[]           @relation("InvoiceIssuedBy")
+  paidInvoices          Invoice[]           @relation("InvoicePaidBy")
+  voidedInvoices        Invoice[]           @relation("InvoiceVoidedBy")
+  createdPayments       Payment[]           @relation("PaymentCreatedBy")
+}
+
+model Role {
+  id              String           @id @default(cuid())
+  code            String           @unique @db.VarChar(80)
+  name            String           @db.VarChar(120)
+  description     String?          @db.VarChar(255)
+  status          RoleStatus       @default(ACTIVE)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@index([status])
+}
+
+model Permission {
+  id              String           @id @default(cuid())
+  method          HttpMethod
+  moduleKey       String           @db.VarChar(80)
+  path            String           @db.VarChar(255)
+  description     String           @db.VarChar(255)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  rolePermissions RolePermission[]
+
+  @@unique([method, path])
+  @@index([moduleKey, method, path])
+}
+
+model Code {
+  id           String   @id @default(cuid())
+  name         String   @unique @db.VarChar(80)
+  sequenceNext Int      @default(1)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([name])
+  @@index([isActive])
+}
+
+model UserRole {
+  id           String         @id @default(cuid())
+  userId       String
+  roleId       String
+  status       UserRoleStatus @default(ACTIVE)
+  assignedAt   DateTime       @default(now())
+  assignedById String?
+  revokedAt    DateTime?
+  revokedById  String?
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role         Role           @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@index([userId, status])
+  @@index([roleId, status])
+}
+
+model RolePermission {
+  id           String     @id @default(cuid())
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique @db.VarChar(255)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model AuthSession {
+  id                 String                    @id @default(cuid())
+  userId             String
+  roleId             String
+  status             AuthSessionStatus         @default(ACTIVE)
+  currentRefreshHash String                    @unique @db.VarChar(255)
+  refreshFamilyId    String                    @db.VarChar(64)
+  version            Int                       @default(1)
+  idleExpiresAt      DateTime
+  absoluteExpiresAt  DateTime
+  lastUsedAt         DateTime                  @default(now())
+  rotatedAt          DateTime?
+  revokedAt          DateTime?
+  revokeReason       AuthSessionRevokeReason?
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+  user               User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshHistory     AuthRefreshTokenHistory[]
+  refreshIdempotency AuthRefreshIdempotency[]
+
+  @@index([userId, status])
+  @@index([refreshFamilyId, status])
+  @@index([status, idleExpiresAt])
+  @@index([status, absoluteExpiresAt])
+}
+
+model AuthRefreshTokenHistory {
+  id        String      @id @default(cuid())
+  sessionId String
+  tokenHash String      @unique @db.VarChar(255)
+  expiresAt DateTime
+  createdAt DateTime    @default(now())
+  session   AuthSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+  @@index([expiresAt])
+}
+
+model AuthRefreshIdempotency {
+  id                 String      @id @default(cuid())
+  sessionId          String
+  idempotencyKey     String      @db.VarChar(64)
+  requestFingerprint String      @db.VarChar(64)
+  encryptedResult    String      @db.Text
+  expiresAt          DateTime
+  createdAt          DateTime    @default(now())
+  session            AuthSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, idempotencyKey])
+  @@index([expiresAt])
+}
+
+model Tenant {
+  id                  String               @id @default(cuid())
+  code                String               @unique @db.VarChar(80)
+  name                String               @db.VarChar(160)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  tenantUsers         TenantUser[]
+  auditLogs           AuditLog[]
+  hotels              Hotel[]
+  emergencyLocations  EmergencyLocation[]
+  emergencyCallEvents EmergencyCallEvent[]
+  emergencyIncidents  EmergencyIncident[]
+}
+
+model TenantUser {
+  id        String           @id @default(cuid())
+  tenantId  String
+  userId    String
+  status    TenantUserStatus @default(INVITED)
+  joinedAt  DateTime?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId])
+  @@index([tenantId, status])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  tenantId   String
+  action     String   @db.VarChar(120)
+  entityType String   @db.VarChar(120)
+  entityId   String?  @db.VarChar(120)
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  actor      User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([actorId, createdAt])
+  @@index([tenantId, createdAt])
+}
+
+model Hotel {
+  id                  String                 @id @default(cuid())
+  tenantId            String
+  name                String                 @db.VarChar(160)
+  code                String                 @db.VarChar(80)
+  brandSettings       Json?
+  googleSheetId       String?                @unique @db.VarChar(200)
+  timezone            String                 @default("Asia/Saigon") @db.VarChar(80)
+  status              HotelStatus            @default(ACTIVE)
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+  tenant              Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  rooms               Room[]
+  roomQRCodes         RoomQRCode[]
+  guestStays          GuestStay[]
+  reservations        Reservation[]
+  guestSessions       GuestSession[]
+  guestRequests       GuestRequest[]
+  guestMessageThreads GuestMessageThread[]
+  guestMessages       GuestMessage[]
+  notificationRoutes  NotificationRoute[]
+  requestEvents       GuestRequestEvent[]
+  serviceCategories   HotelServiceCategory[]
+  serviceItems        HotelServiceItem[]
+  domainEvents        DomainEvent[]
+  folios              Folio[]
+  folioItems          FolioItem[]
+  invoices            Invoice[]
+  payments            Payment[]
+  paymentTransactions PaymentTransaction[]
+  staffAssignments      HotelStaffAssignment[]
+  emergencyLocations    EmergencyLocation[]
+  emergencyCallEvents   EmergencyCallEvent[]
+  emergencyIncidents    EmergencyIncident[]
+  biometricPairings     BiometricWorkstationPairing[]
+  biometricWorkstations BiometricWorkstation[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, status])
+}
+
+model HotelStaffAssignment {
+  id           String                     @id @default(cuid())
+  userId       String
+  hotelId      String
+  status       HotelStaffAssignmentStatus @default(ACTIVE)
+  assignedAt   DateTime                   @default(now())
+  assignedById String?
+  revokedAt    DateTime?
+  revokedById  String?
+  createdAt    DateTime                   @default(now())
+  updatedAt    DateTime                   @updatedAt
+  user         User                       @relation("HotelStaffAssignmentUser", fields: [userId], references: [id], onDelete: Cascade)
+  hotel        Hotel                      @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  assignedBy   User?                      @relation("HotelStaffAssignmentAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+  revokedBy    User?                      @relation("HotelStaffAssignmentRevokedBy", fields: [revokedById], references: [id], onDelete: SetNull)
+
+  @@unique([userId, hotelId])
+  @@index([userId, status])
+  @@index([hotelId, status])
+}
+
+model BiometricWorkstationPairing {
+  id         String    @id @default(cuid())
+  codeHash   String    @unique @db.Char(64)
+  hotelId    String
+  operatorId String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+  hotel      Hotel     @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@index([hotelId, expiresAt])
+}
+
+model BiometricWorkstation {
+  id         String    @id @default(cuid())
+  tokenHash  String    @unique @db.Char(64)
+  hotelId    String
+  pairedAt   DateTime  @default(now())
+  lastSeenAt DateTime
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  hotel      Hotel     @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@index([hotelId, revokedAt, expiresAt, lastSeenAt])
+}
+
+model Room {
+  id                    String               @id @default(cuid())
+  hotelId               String
+  code                  String               @unique @db.VarChar(80)
+  roomNumber            String               @db.VarChar(40)
+  floor                 String?              @db.VarChar(40)
+  type                  String?              @db.VarChar(80)
+  price                 Decimal?             @db.Decimal(12, 2)
+  maxActiveGuestDevices Int?
+  status                RoomStatus           @default(AVAILABLE)
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  hotel                 Hotel                @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  qrCodes               RoomQRCode[]
+  guestStays            GuestStay[]
+  reservations          Reservation[]
+  guestSessions         GuestSession[]
+  guestRequests         GuestRequest[]
+  guestMessageThreads   GuestMessageThread[]
+  guestMessages         GuestMessage[]
+  folios                Folio[]
+  folioItems            FolioItem[]
+  emergencyCallEvents   EmergencyCallEvent[]
+
+  @@unique([hotelId, roomNumber])
+  @@index([hotelId, status])
+}
+
+model RoomQRCode {
+  id            String           @id @default(cuid())
+  hotelId       String
+  roomId        String
+  publicCode    String           @unique @db.VarChar(120)
+  status        RoomQRCodeStatus @default(INACTIVE)
+  version       Int              @default(1)
+  activatedAt   DateTime?
+  deactivatedAt DateTime?
+  expiresAt     DateTime?
+  revokedAt     DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  hotel         Hotel            @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  room          Room             @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  guestSessions GuestSession[]
+
+  @@index([roomId, status])
+  @@index([hotelId, status])
+}
+
+model Reservation {
+  id                  String            @id @default(cuid())
+  hotelId             String
+  roomId              String?
+  reservationCode     String            @db.VarChar(80)
+  guestDisplayName    String            @db.VarChar(120)
+  guestPhone          String?           @db.VarChar(40)
+  status              ReservationStatus @default(CONFIRMED)
+  plannedCheckInAt    DateTime
+  plannedCheckOutAt   DateTime
+  assignedAt          DateTime?
+  assignedByUserId    String?
+  checkedInAt         DateTime?
+  checkedInByUserId   String?
+  createdByUserId     String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  hotel               Hotel             @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  room                Room?             @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  stay                GuestStay?
+
+  @@unique([hotelId, reservationCode])
+  @@index([hotelId, status, plannedCheckInAt])
+  @@index([roomId, status, plannedCheckInAt, plannedCheckOutAt])
+}
+
+model GuestStay {
+  id                  String          @id @default(cuid())
+  reservationId       String?         @unique
+  hotelId             String
+  roomId              String
+  reservationCode     String          @db.VarChar(80)
+  guestDisplayName    String          @db.VarChar(120)
+  guestPhone          String?         @db.VarChar(40)
+  guestIdentityNumber String?         @db.VarChar(32)
+  guestDateOfBirth    String?         @db.VarChar(20)
+  guestGender         String?         @db.VarChar(20)
+  guestNationality    String?         @db.VarChar(80)
+  guestResidencePlace String?         @db.VarChar(500)
+  status              GuestStayStatus @default(RESERVED)
+  plannedCheckInAt    DateTime
+  plannedCheckOutAt   DateTime
+  checkedInAt         DateTime?
+  activatedAt         DateTime?
+  checkedOutAt        DateTime?
+  accessCodeHash      String?         @db.VarChar(64)
+  accessCodeExpiresAt DateTime?
+  createdByUserId     String?
+  closedByUserId      String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  hotel               Hotel           @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  room                Room            @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  reservation         Reservation?     @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+  createdBy           User?           @relation("GuestStayCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  closedBy            User?           @relation("GuestStayClosedBy", fields: [closedByUserId], references: [id], onDelete: SetNull)
+  guestSessions       GuestSession[]
+  guestRequests       GuestRequest[]
+  guestMessages       GuestMessage[]
+  folios              Folio[]
+  folioItems          FolioItem[]
+  invoices            Invoice[]
+  payments            Payment[]
+  messageThreads      GuestMessageThread[]
+  occupants           GuestStayOccupant[]
+
+  @@index([hotelId, status])
+  @@index([roomId, status])
+  @@index([reservationCode])
+  @@index([plannedCheckOutAt])
+}
+
+model GuestStayOccupant {
+  id                  String         @id @default(cuid())
+  stayId              String
+  hotelId             String
+  fullName            String         @db.VarChar(120)
+  phone               String?        @db.VarChar(40)
+  identityNumber      String?        @db.VarChar(32)
+  dateOfBirth         String?        @db.VarChar(20)
+  gender              String?        @db.VarChar(20)
+  isPrimary           Boolean        @default(false)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  stay                GuestStay      @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  guestSessions       GuestSession[]
+
+  @@index([stayId])
+  @@index([hotelId])
+}
+
+model GuestSession {
+  id                        String                 @id @default(cuid())
+  hotelId                   String
+  roomId                    String
+  stayId                    String
+  occupantId                String?
+  roomQrCodeId              String
+  sessionTokenHash          String                 @unique @db.VarChar(64)
+  status                    GuestSessionStatus     @default(ACTIVE)
+  deviceFingerprintHash     String?                @db.VarChar(64)
+  ipHash                    String?                @db.VarChar(64)
+  userAgent                 String?                @db.VarChar(255)
+  createdAt                 DateTime               @default(now())
+  activatedAt               DateTime?
+  lastSeenAt                DateTime?
+  idleAt                    DateTime?
+  expiresAt                 DateTime
+  closedAt                  DateTime?
+  hotel                     Hotel                  @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  room                      Room                   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  stay                      GuestStay              @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  occupant                  GuestStayOccupant?     @relation(fields: [occupantId], references: [id], onDelete: SetNull)
+  roomQrCode                RoomQRCode             @relation(fields: [roomQrCodeId], references: [id], onDelete: Cascade)
+  guestRequests             GuestRequest[]
+  requestEvents             GuestRequestEvent[]
+  guestMessages             GuestMessage[]
+  emergencyLocationContexts GuestLocationContext[]
+  emergencyCallEvents       EmergencyCallEvent[]
+
+  @@index([stayId, status])
+  @@index([sessionTokenHash])
+  @@index([hotelId, status, lastSeenAt])
+}
+
+model GuestRequest {
+  id                       String                        @id @default(cuid())
+  hotelId                  String
+  roomId                   String
+  stayId                   String
+  sessionId                String?
+  status                   GuestRequestStatus            @default(CREATED)
+  priority                 GuestRequestPriority          @default(NORMAL)
+  title                    String?                       @db.VarChar(160)
+  description              String?                       @db.VarChar(1000)
+  metadata                 Json?
+  quantity                 Int                           @default(1)
+  serviceItemId            String?
+  assignedToUserId         String?
+  confirmedBy              String?                       @db.VarChar(160)
+  confirmedAt              DateTime?
+  billingPostStatus        GuestRequestBillingPostStatus @default(NONE)
+  billingPostFailureReason String?                       @db.VarChar(1000)
+  billingPostedAt          DateTime?
+  billingFolioItemId       String?                       @unique
+  createdAt                DateTime                      @default(now())
+  updatedAt                DateTime                      @updatedAt
+  completedAt              DateTime?
+  cancelledAt              DateTime?
+  hotel                    Hotel                         @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  room                     Room                          @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  stay                     GuestStay                     @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  session                  GuestSession?                 @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  serviceItem              HotelServiceItem?             @relation(fields: [serviceItemId], references: [id], onDelete: SetNull)
+  assignedTo               User?                         @relation("GuestRequestAssignedTo", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  billingFolioItem         FolioItem?                    @relation("GuestRequestBillingFolioItem", fields: [billingFolioItemId], references: [id], onDelete: SetNull)
+  folioItems               FolioItem[]                   @relation("GuestRequestFolioItems")
+  events                   GuestRequestEvent[]
+  notifications            GuestRequestNotification[]
+
+  @@index([hotelId, status, createdAt])
+  @@index([roomId, status])
+  @@index([stayId, createdAt])
+  @@index([serviceItemId])
+  @@index([billingPostStatus])
+}
+
+model HotelServiceCategory {
+  id                 String                            @id @default(cuid())
+  hotelId            String
+  importKey          String?                           @db.VarChar(120)
+  name               String                            @db.VarChar(120)
+  description        String?                           @db.VarChar(500)
+  defaultPrice       Decimal                           @default(0) @db.Decimal(12, 2)
+  currency           String                            @default("VND") @db.VarChar(3)
+  sortOrder          Int                               @default(0)
+  status             ServiceCatalogStatus              @default(ACTIVE)
+  createdAt          DateTime                          @default(now())
+  updatedAt          DateTime                          @updatedAt
+  hotel              Hotel                             @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  items              HotelServiceItem[]
+  translations       HotelServiceCategoryTranslation[]
+  notificationRoutes NotificationRoute[]
+
+  @@unique([hotelId, importKey])
+  @@index([hotelId, status, sortOrder])
+}
+
+model HotelServiceCategoryTranslation {
+  id          String               @id @default(cuid())
+  categoryId  String
+  locale      String               @db.VarChar(10)
+  name        String               @db.VarChar(120)
+  description String?              @db.VarChar(500)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  category    HotelServiceCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, locale])
+  @@index([locale])
+}
+
+model HotelServiceItem {
+  id                  String                        @id @default(cuid())
+  hotelId             String
+  categoryId          String
+  importKey           String?                       @db.VarChar(120)
+  name                String                        @db.VarChar(160)
+  description         String?                       @db.VarChar(1000)
+  priceOverride       Decimal?                      @db.Decimal(12, 2)
+  quantityEnabled     Boolean                       @default(false)
+  minQuantity         Int                           @default(1)
+  maxQuantity         Int?
+  metadata            Json?
+  sortOrder           Int                           @default(0)
+  status              ServiceCatalogStatus          @default(ACTIVE)
+  createdAt           DateTime                      @default(now())
+  updatedAt           DateTime                      @updatedAt
+  hotel               Hotel                         @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  category            HotelServiceCategory          @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  translations        HotelServiceItemTranslation[]
+  guestRequests       GuestRequest[]
+  folioItems          FolioItem[]
+  emergencyCallEvents EmergencyCallEvent[]
+
+  @@unique([hotelId, importKey])
+  @@index([hotelId, status, sortOrder])
+  @@index([categoryId, status, sortOrder])
+}
+
+model HotelServiceItemTranslation {
+  id          String           @id @default(cuid())
+  itemId      String
+  locale      String           @db.VarChar(10)
+  name        String           @db.VarChar(160)
+  description String?          @db.VarChar(1000)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  item        HotelServiceItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, locale])
+  @@index([locale])
+}
+
+model NotificationRoute {
+  id                String                     @id @default(cuid())
+  hotelId           String
+  serviceCategoryId String?
+  telegramChatId    String                     @db.VarChar(128)
+  isActive          Boolean                    @default(true)
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
+  hotel             Hotel                      @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  serviceCategory   HotelServiceCategory?      @relation(fields: [serviceCategoryId], references: [id], onDelete: Cascade)
+  notifications     GuestRequestNotification[]
+
+  @@index([hotelId, serviceCategoryId, isActive])
+}
+
+model GuestRequestNotification {
+  id                String                         @id @default(cuid())
+  guestRequestId    String
+  provider          NotificationProvider
+  routeId           String
+  telegramChatId    String                         @db.VarChar(128)
+  telegramMessageId String?                        @db.VarChar(64)
+  status            GuestRequestNotificationStatus @default(PENDING)
+  errorMessage      String?                        @db.VarChar(1000)
+  sentAt            DateTime?
+  createdAt         DateTime                       @default(now())
+  updatedAt         DateTime                       @updatedAt
+  guestRequest      GuestRequest                   @relation(fields: [guestRequestId], references: [id], onDelete: Cascade)
+  route             NotificationRoute              @relation(fields: [routeId], references: [id], onDelete: Cascade)
+
+  @@unique([guestRequestId, provider])
+}
+
+model GuestRequestEvent {
+  id          String                @id @default(cuid())
+  requestId   String
+  hotelId     String
+  actorType   GuestRequestActorType
+  actorUserId String?
+  sessionId   String?
+  eventType   String                @db.VarChar(80)
+  fromStatus  GuestRequestStatus?
+  toStatus    GuestRequestStatus?
+  note        String?               @db.VarChar(1000)
+  visibility  String                @default("GUEST") @db.VarChar(16)
+  metadata    Json?
+  createdAt   DateTime              @default(now())
+  request     GuestRequest          @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  hotel       Hotel                 @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  actorUser   User?                 @relation("GuestRequestEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  session     GuestSession?         @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([requestId, createdAt])
+  @@index([hotelId, createdAt])
+  @@index([requestId, visibility, createdAt])
+}
+
+model GuestMessageThread {
+  id            String   @id @default(cuid())
+  hotelId       String
+  roomId        String
+  stayId        String   @unique
+  status        String   @default("OPEN") @db.VarChar(16)
+  lastMessageAt DateTime @default(now())
+  clearedAt     DateTime?
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  hotel         Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  room          Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  stay          GuestStay @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  messages      GuestMessage[]
+
+  @@index([hotelId, status, lastMessageAt])
+  @@index([hotelId, lastMessageAt, id])
+  @@index([roomId, lastMessageAt])
+  @@index([expiresAt])
+}
+
+model GuestMessage {
+  id           String              @id @default(cuid())
+  threadId     String
+  hotelId      String
+  roomId       String
+  stayId       String
+  senderType   GuestRequestActorType
+  senderUserId String?
+  sessionId    String?
+  body         String              @db.VarChar(1000)
+  readAt       DateTime?
+  createdAt    DateTime            @default(now())
+  thread       GuestMessageThread  @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  hotel        Hotel               @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  room         Room                @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  stay         GuestStay           @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  senderUser   User?               @relation("GuestMessageStaffSender", fields: [senderUserId], references: [id], onDelete: SetNull)
+  session      GuestSession?       @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([threadId, createdAt])
+  @@index([hotelId, createdAt])
+  @@index([stayId, createdAt])
+  @@index([threadId, senderType, readAt])
+}
+
+model Folio {
+  id                String      @id @default(cuid())
+  hotelId           String
+  stayId            String
+  roomId            String
+  folioNumber       String      @db.VarChar(80)
+  status            FolioStatus @default(OPEN)
+  currency          String      @default("VND") @db.VarChar(3)
+  subtotalAmount    Decimal     @default(0) @db.Decimal(12, 2)
+  taxAmount         Decimal     @default(0) @db.Decimal(12, 2)
+  discountAmount    Decimal     @default(0) @db.Decimal(12, 2)
+  totalAmount       Decimal     @default(0) @db.Decimal(12, 2)
+  openedAt          DateTime    @default(now())
+  checkoutStartedAt DateTime?
+  closedAt          DateTime?
+  voidedAt          DateTime?
+  createdByUserId   String?
+  closedByUserId    String?
+  metadataJson      Json?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  hotel             Hotel       @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  stay              GuestStay   @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  room              Room        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  createdBy         User?       @relation("FolioCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  closedBy          User?       @relation("FolioClosedBy", fields: [closedByUserId], references: [id], onDelete: SetNull)
+  items             FolioItem[]
+  invoices          Invoice[]
+  payments          Payment[]
+
+  @@unique([hotelId, folioNumber])
+  @@index([hotelId])
+  @@index([stayId])
+  @@index([roomId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([hotelId, status])
+  @@index([hotelId, stayId])
+}
+
+model FolioItem {
+  id                     String              @id @default(cuid())
+  hotelId                String
+  folioId                String
+  stayId                 String
+  itemType               FolioItemType
+  sourceType             FolioItemSourceType
+  sourceId               String?             @db.VarChar(120)
+  roomId                 String?
+  serviceItemId          String?
+  guestRequestId         String?             @unique
+  codeSnapshot           String?             @db.VarChar(80)
+  nameSnapshot           String              @db.VarChar(160)
+  descriptionSnapshot    String?             @db.VarChar(1000)
+  quantity               Int                 @default(1)
+  unitPriceSnapshot      Decimal             @default(0) @db.Decimal(12, 2)
+  taxRateSnapshot        Decimal             @default(0) @db.Decimal(5, 4)
+  taxAmountSnapshot      Decimal             @default(0) @db.Decimal(12, 2)
+  discountAmountSnapshot Decimal             @default(0) @db.Decimal(12, 2)
+  subtotalSnapshot       Decimal             @default(0) @db.Decimal(12, 2)
+  totalSnapshot          Decimal             @default(0) @db.Decimal(12, 2)
+  currency               String              @default("VND") @db.VarChar(3)
+  metadataSnapshotJson   Json?
+  billingSourceSnapshot  Json
+  serviceCompletedAt     DateTime?
+  postedAt               DateTime            @default(now())
+  postedByUserId         String?
+  voidedAt               DateTime?
+  voidedByUserId         String?
+  voidReason             String?             @db.VarChar(500)
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+  hotel                  Hotel               @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  folio                  Folio               @relation(fields: [folioId], references: [id], onDelete: Cascade)
+  stay                   GuestStay           @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  room                   Room?               @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  serviceItem            HotelServiceItem?   @relation(fields: [serviceItemId], references: [id], onDelete: SetNull)
+  guestRequest           GuestRequest?       @relation("GuestRequestFolioItems", fields: [guestRequestId], references: [id], onDelete: SetNull)
+  billingGuestRequest    GuestRequest?       @relation("GuestRequestBillingFolioItem")
+  postedBy               User?               @relation("FolioItemPostedBy", fields: [postedByUserId], references: [id], onDelete: SetNull)
+  voidedBy               User?               @relation("FolioItemVoidedBy", fields: [voidedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([hotelId])
+  @@index([folioId])
+  @@index([stayId])
+  @@index([itemType])
+  @@index([sourceType, sourceId])
+  @@index([serviceItemId])
+  @@index([postedAt])
+  @@index([hotelId, folioId])
+  @@index([hotelId, sourceType, sourceId])
+}
+
+model Invoice {
+  id                  String               @id @default(cuid())
+  hotelId             String
+  folioId             String
+  stayId              String
+  invoiceNumber       String               @db.VarChar(80)
+  status              InvoiceStatus        @default(ISSUED)
+  currency            String               @default("VND") @db.VarChar(3)
+  subtotalAmount      Decimal              @default(0) @db.Decimal(12, 2)
+  taxAmount           Decimal              @default(0) @db.Decimal(12, 2)
+  discountAmount      Decimal              @default(0) @db.Decimal(12, 2)
+  totalAmount         Decimal              @default(0) @db.Decimal(12, 2)
+  paidAmount          Decimal              @default(0) @db.Decimal(12, 2)
+  balanceAmount       Decimal              @default(0) @db.Decimal(12, 2)
+  invoiceSnapshotJson Json
+  issuedAt            DateTime             @default(now())
+  paidAt              DateTime?
+  voidedAt            DateTime?
+  refundedAt          DateTime?
+  issuedByUserId      String?
+  paidByUserId        String?
+  voidedByUserId      String?
+  metadataJson        Json?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  hotel               Hotel                @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  folio               Folio                @relation(fields: [folioId], references: [id], onDelete: Cascade)
+  stay                GuestStay            @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  issuedBy            User?                @relation("InvoiceIssuedBy", fields: [issuedByUserId], references: [id], onDelete: SetNull)
+  paidBy              User?                @relation("InvoicePaidBy", fields: [paidByUserId], references: [id], onDelete: SetNull)
+  voidedBy            User?                @relation("InvoiceVoidedBy", fields: [voidedByUserId], references: [id], onDelete: SetNull)
+  payments            Payment[]
+  paymentTransactions PaymentTransaction[]
+
+  @@unique([hotelId, invoiceNumber])
+  @@index([hotelId])
+  @@index([folioId])
+  @@index([stayId])
+  @@index([status])
+  @@index([issuedAt])
+  @@index([hotelId, status])
+  @@index([hotelId, issuedAt])
+}
+
+model Payment {
+  id                String               @id @default(cuid())
+  hotelId           String
+  invoiceId         String
+  folioId           String
+  stayId            String
+  paymentNumber     String               @db.VarChar(80)
+  status            PaymentStatus        @default(PENDING)
+  provider          PaymentProvider      @default(MANUAL)
+  method            PaymentMethod
+  currency          String               @default("VND") @db.VarChar(3)
+  amount            Decimal              @default(0) @db.Decimal(12, 2)
+  paidAmount        Decimal              @default(0) @db.Decimal(12, 2)
+  refundedAmount    Decimal              @default(0) @db.Decimal(12, 2)
+  providerSessionId String?              @db.VarChar(255)
+  providerPaymentId String?              @db.VarChar(255)
+  paymentUrl        String?              @db.VarChar(1000)
+  expiresAt         DateTime?
+  createdByUserId   String?
+  confirmedAt       DateTime?
+  failedAt          DateTime?
+  failureReason     String?              @db.VarChar(1000)
+  metadataJson      Json?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  hotel             Hotel                @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  invoice           Invoice              @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  folio             Folio                @relation(fields: [folioId], references: [id], onDelete: Cascade)
+  stay              GuestStay            @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  createdBy         User?                @relation("PaymentCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  transactions      PaymentTransaction[]
+
+  @@unique([hotelId, paymentNumber])
+  @@index([hotelId])
+  @@index([invoiceId])
+  @@index([folioId])
+  @@index([stayId])
+  @@index([status])
+  @@index([provider])
+  @@index([providerSessionId])
+  @@index([providerPaymentId])
+}
+
+model PaymentTransaction {
+  id                    String          @id @default(cuid())
+  hotelId               String
+  paymentId             String
+  invoiceId             String
+  provider              PaymentProvider
+  providerEventId       String?         @db.VarChar(255)
+  providerTransactionId String?         @db.VarChar(255)
+  eventType             String          @db.VarChar(120)
+  status                PaymentStatus
+  amount                Decimal         @default(0) @db.Decimal(12, 2)
+  currency              String          @default("VND") @db.VarChar(3)
+  rawPayloadJson        Json?
+  signatureVerified     Boolean         @default(false)
+  processedAt           DateTime?
+  createdAt             DateTime        @default(now())
+  hotel                 Hotel           @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  payment               Payment         @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  invoice               Invoice         @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@unique([hotelId, provider, providerEventId])
+  @@index([paymentId])
+  @@index([invoiceId])
+  @@index([provider])
+  @@index([providerEventId])
+  @@index([providerTransactionId])
+  @@index([processedAt])
+}
+
+model DomainEvent {
+  id            String            @id @default(cuid())
+  eventType     String            @db.VarChar(80)
+  aggregateType String            @db.VarChar(80)
+  aggregateId   String            @db.VarChar(120)
+  hotelId       String?
+  tenantId      String?
+  payload       Json
+  status        DomainEventStatus @default(PENDING)
+  occurredAt    DateTime          @default(now())
+  processedAt   DateTime?
+  retryCount    Int               @default(0)
+  hotel         Hotel?            @relation(fields: [hotelId], references: [id], onDelete: SetNull)
+
+  @@index([eventType, occurredAt])
+  @@index([hotelId, occurredAt])
+  @@index([status, occurredAt])
+}
+
+model EmergencyLocation {
+  id                        String                 @id @default(cuid())
+  tenantId                  String
+  hotelId                   String?
+  name                      String                 @db.VarChar(160)
+  dispatchableAddress       String                 @db.VarChar(500)
+  building                  String?                @db.VarChar(120)
+  floor                     String?                @db.VarChar(40)
+  room                      String?                @db.VarChar(80)
+  zone                      String?                @db.VarChar(120)
+  latitude                  Decimal?               @db.Decimal(10, 7)
+  longitude                 Decimal?               @db.Decimal(10, 7)
+  providerValidationStatus  String                 @default("PENDING") @db.VarChar(40)
+  providerLocationReference String?                @db.VarChar(160)
+  effectiveStartAt          DateTime?
+  effectiveEndAt            DateTime?
+  usableForEmergencyRouting Boolean                @default(true)
+  assignableToGuests        Boolean                @default(true)
+  lastValidatedAt           DateTime?
+  createdAt                 DateTime               @default(now())
+  updatedAt                 DateTime               @updatedAt
+  tenant                    Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  hotel                     Hotel?                 @relation(fields: [hotelId], references: [id], onDelete: SetNull)
+  guestContexts             GuestLocationContext[]
+  callEvents                EmergencyCallEvent[]
+  incidents                 EmergencyIncident[]
+
+  @@index([tenantId, usableForEmergencyRouting])
+  @@index([hotelId, assignableToGuests])
+}
+
+model GuestLocationContext {
+  id                      String                      @id @default(cuid())
+  sessionId               String
+  tenantId                String
+  hotelId                 String
+  emergencyLocationId     String?
+  rawAddress              String?                     @db.VarChar(500)
+  latitude                Decimal?                    @db.Decimal(10, 7)
+  longitude               Decimal?                    @db.Decimal(10, 7)
+  source                  EmergencyLocationSource     @default(UNKNOWN)
+  confidence              EmergencyLocationConfidence @default(UNKNOWN)
+  confirmedAt             DateTime?
+  explicitlyConfirmed     Boolean                     @default(false)
+  stale                   Boolean                     @default(false)
+  emergencyCallingAllowed Boolean                     @default(true)
+  metadata                Json?
+  createdAt               DateTime                    @default(now())
+  updatedAt               DateTime                    @updatedAt
+  session                 GuestSession                @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  emergencyLocation       EmergencyLocation?          @relation(fields: [emergencyLocationId], references: [id], onDelete: SetNull)
+
+  @@index([sessionId, updatedAt])
+  @@index([tenantId, hotelId])
+}
+
+model EmergencyIncident {
+  id                 String                      @id @default(cuid())
+  tenantId           String
+  hotelId            String?
+  primaryLocationId  String?
+  building           String?                     @db.VarChar(120)
+  floor              String?                     @db.VarChar(40)
+  zone               String?                     @db.VarChar(120)
+  status             EmergencyIncidentStatus     @default(OPEN)
+  severity           EmergencyIncidentSeverity   @default(LOW)
+  callCount          Int                         @default(0)
+  uniqueCallerCount  Int                         @default(0)
+  uniqueRoomCount    Int                         @default(0)
+  uniqueFloorCount   Int                         @default(0)
+  connectedCallCount Int                         @default(0)
+  failedCallCount    Int                         @default(0)
+  abandonedCallCount Int                         @default(0)
+  locationUncertain  Boolean                     @default(false)
+  providerDegraded   Boolean                     @default(false)
+  spamAbuseSuspicion Boolean                     @default(false)
+  startedAt          DateTime                    @default(now())
+  lastActivityAt     DateTime                    @default(now())
+  acknowledgedAt     DateTime?
+  resolvedAt         DateTime?
+  resolutionReason   String?                     @db.VarChar(500)
+  createdAt          DateTime                    @default(now())
+  updatedAt          DateTime                    @updatedAt
+  tenant             Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  hotel              Hotel?                      @relation(fields: [hotelId], references: [id], onDelete: SetNull)
+  primaryLocation    EmergencyLocation?          @relation(fields: [primaryLocationId], references: [id], onDelete: SetNull)
+  callEvents         EmergencyCallEvent[]
+  notifications      EmergencyNotification[]
+  timeline           EmergencyIncidentTimeline[]
+
+  @@index([tenantId, status, lastActivityAt])
+  @@index([hotelId, status, lastActivityAt])
+}
+
+model EmergencyCallEvent {
+  id                           String                       @id @default(cuid())
+  tenantId                     String
+  hotelId                      String?
+  roomId                       String?
+  sessionId                    String?
+  incidentId                   String?
+  emergencyLocationId          String?
+  sourceType                   String                       @db.VarChar(40)
+  callerReference              String?                      @db.VarChar(160)
+  dialedNumber                 String                       @db.VarChar(40)
+  resolvedDispatchableLocation String?                      @db.VarChar(500)
+  locationSource               EmergencyLocationSource      @default(UNKNOWN)
+  locationConfidence           EmergencyLocationConfidence  @default(UNKNOWN)
+  callbackNumber               String?                      @db.VarChar(40)
+  provider                     String?                      @db.VarChar(80)
+  providerCallId               String?                      @db.VarChar(160)
+  lifecycleStatus              EmergencyCallLifecycleStatus @default(ATTEMPTED)
+  spamRiskScore                Int                          @default(0)
+  spamRiskLevel                String                       @default("LOW") @db.VarChar(40)
+  locationUncertain            Boolean                      @default(false)
+  metadata                     Json?
+  attemptedAt                  DateTime                     @default(now())
+  routedAt                     DateTime?
+  connectedAt                  DateTime?
+  failedAt                     DateTime?
+  abandonedAt                  DateTime?
+  completedAt                  DateTime?
+  createdAt                    DateTime                     @default(now())
+  updatedAt                    DateTime                     @updatedAt
+  tenant                       Tenant                       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  hotel                        Hotel?                       @relation(fields: [hotelId], references: [id], onDelete: SetNull)
+  room                         Room?                        @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  session                      GuestSession?                @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  incident                     EmergencyIncident?           @relation(fields: [incidentId], references: [id], onDelete: SetNull)
+  emergencyLocation            EmergencyLocation?           @relation(fields: [emergencyLocationId], references: [id], onDelete: SetNull)
+  notifications                EmergencyNotification[]
+  hotelServiceItem             HotelServiceItem?            @relation(fields: [hotelServiceItemId], references: [id])
+  hotelServiceItemId           String?
+
+  @@index([tenantId, attemptedAt])
+  @@index([hotelId, attemptedAt])
+  @@index([incidentId, attemptedAt])
+  @@index([providerCallId])
+}
+
+model EmergencyIncidentTimeline {
+  id         String            @id @default(cuid())
+  incidentId String
+  eventType  String            @db.VarChar(80)
+  note       String?           @db.VarChar(1000)
+  metadata   Json?
+  createdAt  DateTime          @default(now())
+  incident   EmergencyIncident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@index([incidentId, createdAt])
+}
+
+model EmergencyNotification {
+  id              String                      @id @default(cuid())
+  incidentId      String
+  callEventId     String?
+  recipientGroup  String                      @db.VarChar(120)
+  deliveryChannel String                      @db.VarChar(80)
+  status          EmergencyNotificationStatus @default(PENDING)
+  type            EmergencyNotificationType   @default(INITIAL)
+  retryCount      Int                         @default(0)
+  lastAttemptAt   DateTime?
+  acknowledgedAt  DateTime?
+  payload         Json?
+  createdAt       DateTime                    @default(now())
+  updatedAt       DateTime                    @updatedAt
+  incident        EmergencyIncident           @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  callEvent       EmergencyCallEvent?         @relation(fields: [callEventId], references: [id], onDelete: SetNull)
+
+  @@index([incidentId, status])
+  @@index([callEventId])
+}
+</file>
+
+</files>

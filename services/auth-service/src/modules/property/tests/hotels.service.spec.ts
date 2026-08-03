@@ -723,6 +723,8 @@ describe("HotelsService", () => {
       displayName: "Extra towels",
       status: GuestRequestStatus.CREATED,
       priority: GuestRequestPriority.URGENT,
+      isOverdue: expect.any(Boolean),
+      ackDeadlineAt: expect.any(String),
       quantity: 2,
       description: "Two towels please",
       latestNote: "We received your request",

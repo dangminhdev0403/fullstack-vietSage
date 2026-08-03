@@ -7605,6 +7605,44 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reconciliations": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "requestId",
+                        "action"
+                      ],
+                      "properties": {
+                        "requestId": {
+                          "type": "string"
+                        },
+                        "action": {
+                          "type": "string",
+                          "enum": [
+                            "provided",
+                            "cancelled"
+                          ]
+                        },
+                        "cancelReason": {
+                          "type": "string",
+                          "maxLength": 500
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Invoice đã phát hành"
@@ -9472,16 +9510,7 @@
     "/platform-billing/contracts": {
       "get": {
         "operationId": "PlatformBillingController_listContracts",
-        "parameters": [
-          {
-            "name": "search",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
+        "parameters": [],
         "responses": {
           "200": {
             "description": ""
@@ -9500,16 +9529,6 @@
       "post": {
         "operationId": "PlatformBillingController_createContract",
         "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateContractDto"
-              }
-            }
-          }
-        },
         "responses": {
           "201": {
             "description": ""
@@ -9597,16 +9616,6 @@
             }
           }
         ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AddRevisionDto"
-              }
-            }
-          }
-        },
         "responses": {
           "201": {
             "description": ""
@@ -9636,16 +9645,6 @@
             }
           }
         ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateContractStatusDto"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "description": ""
@@ -9675,16 +9674,6 @@
             }
           }
         ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/FinalizePeriodDto"
-              }
-            }
-          }
-        },
         "responses": {
           "201": {
             "description": ""
@@ -9701,7 +9690,7 @@
         ]
       }
     },
-    "/platform-billing/periods/{periodId}/settlements": {
+    "/platform-billing/periods/{periodId}/settlement": {
       "post": {
         "operationId": "PlatformBillingController_recordSettlement",
         "parameters": [
@@ -9714,16 +9703,6 @@
             }
           }
         ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RecordSettlementDto"
-              }
-            }
-          }
-        },
         "responses": {
           "201": {
             "description": ""
@@ -9753,16 +9732,6 @@
             }
           }
         ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateAdjustmentDto"
-              }
-            }
-          }
-        },
         "responses": {
           "201": {
             "description": ""
@@ -9833,31 +9802,6 @@
         "type": "http"
       }
     },
-    "schemas": {
-      "CreateContractDto": {
-        "type": "object",
-        "properties": {}
-      },
-      "AddRevisionDto": {
-        "type": "object",
-        "properties": {}
-      },
-      "UpdateContractStatusDto": {
-        "type": "object",
-        "properties": {}
-      },
-      "FinalizePeriodDto": {
-        "type": "object",
-        "properties": {}
-      },
-      "RecordSettlementDto": {
-        "type": "object",
-        "properties": {}
-      },
-      "CreateAdjustmentDto": {
-        "type": "object",
-        "properties": {}
-      }
-    }
+    "schemas": {}
   }
 }

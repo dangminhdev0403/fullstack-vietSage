@@ -31,11 +31,13 @@ const rolePaths: Record<string, string> = {
 };
 
 function fakeCanAccess(roles: readonly string[], path: string): boolean {
+  if (!path.startsWith("/") || path.startsWith("//")) return false;
   const pathname = path.split("?")[0] ?? path;
+  if (pathname === "/") return true;
   const policy = policies.find(
     (p) => pathname === p.prefix || pathname.startsWith(`${p.prefix}/`),
   );
-  if (!policy) return true; // public
+  if (!policy) return false; // unknown routes fallback to homePath
   return policy.roles.some((r) => roles.includes(r));
 }
 
@@ -94,6 +96,19 @@ test("Empty string callback → homePath", () => {
 
 test("Whitespace-only callback → homePath", () => {
   assert.equal(resolve("tenant_owner", "   "), "/owner/dashboard");
+});
+
+// ── Hostile and Unknown Callback Sanitization ─────────────────────
+
+test("Hostile external callbackUrl → falls back to role homePath without open redirect", () => {
+  assert.equal(resolve("tenant_owner", "https://evil-phishing-site.com/steal"), "/owner/dashboard");
+  assert.equal(resolve("tenant_owner", "//evil-phishing-site.com"), "/owner/dashboard");
+  assert.equal(resolve("admin", "javascript:alert(1)"), "/admin/dashboard");
+});
+
+test("Unknown/unmapped callbackUrl → falls back to role homePath", () => {
+  assert.equal(resolve("tenant_owner", "/some/nonexistent/404/page"), "/owner/dashboard");
+  assert.equal(resolve("staff", "/random-unknown-route"), "/staff");
 });
 
 // ── No activeRoleCode ────────────────────────────────────────────

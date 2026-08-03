@@ -66,6 +66,15 @@ function ownerToForm(owner: TenantOwner): OwnerFormState {
   };
 }
 
+function formatTenantDisplayName(name: string, code: string): string {
+  const cleanName = name.trim();
+  if (!cleanName || cleanName.toUpperCase() === "TENANT_OWNER" || cleanName.toUpperCase().startsWith("TENANT_OWNER_")) {
+    const numericSuffix = code.replace(/^VSH_TENANT_0*/i, "").replace(/^0+/, "");
+    return `Tổ chức Quản lý ${numericSuffix || code}`;
+  }
+  return cleanName;
+}
+
 function formatDate(value: string | null | undefined): string {
   if (!value) {
     return "--";
@@ -323,20 +332,20 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
         ))}
       </section>
 
-      <section className="rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-5">
+      <section className="rounded-[1.4rem] border border-[#e8dfd1] bg-white/90 p-5 shadow-[0_16px_40px_rgba(23,32,27,0.05)] backdrop-blur-md">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="relative flex-1">
-            <VsIcon name="search" className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--outline)]" />
+            <VsIcon name="search" className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#8b948d]" />
             <input
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Tìm theo tên, email, tổ chức..."
-              className="min-h-11 w-full rounded-lg border border-[var(--outline-variant)] bg-white px-11 text-sm outline-none focus:border-[var(--primary)]"
+              className="w-full rounded-xl border border-[#e2d7c5] bg-[#faf6ef] pl-11 pr-4 py-3 text-sm font-semibold text-[#17201b] outline-none transition-all focus:border-[#24473d] focus:bg-white focus:ring-2 focus:ring-[#24473d]/20"
             />
           </div>
-          <button type="button" onClick={openCreateDialog} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-3 text-sm font-semibold text-[var(--on-primary)]">
-            <VsIcon name="person_add" className="text-[20px]" />
+          <button type="button" onClick={openCreateDialog} className="inline-flex items-center justify-center gap-2 rounded-full bg-[#24473d] px-5 py-3 text-sm font-bold text-[#fff8e8] shadow-md shadow-[#24473d]/20 transition-all hover:bg-[#1a352d] active:scale-98">
+            <VsIcon name="person_add" className="text-lg text-[#e8b363]" />
             Tạo đối tác khách sạn
           </button>
         </div>
@@ -349,9 +358,14 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
               key: "owner",
               header: "Chủ sở hữu",
               cell: (owner) => (
-                <div>
-                  <p className="font-semibold text-[var(--primary)]">{owner.fullName}</p>
-                  <p className="mt-1 text-sm text-[var(--on-surface-variant)]">{owner.email}</p>
+                <div className="flex items-center gap-3">
+                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#24473d] font-extrabold text-[#e8b363] shadow-xs ring-2 ring-[#e8b363]/30">
+                    {owner.fullName.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="font-extrabold text-[#17201b]">{owner.fullName}</p>
+                    <p className="text-xs font-medium text-[#69726b]">{owner.email}</p>
+                  </div>
                 </div>
               ),
             },
@@ -359,25 +373,37 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
               key: "tenant",
               header: "Tổ chức",
               cell: (owner) => (
-                <div>
-                  <p className="font-semibold text-[var(--on-surface)]">{owner.tenant.name}</p>
-                  <p className="mt-1 text-sm text-[var(--on-surface-variant)]">{owner.tenant.code}</p>
-                </div>
+                <span className="inline-flex items-center gap-1.5 rounded-xl border border-[#e8dfd1] bg-[#fbf8f2] px-3 py-1.5 font-sans text-xs font-bold text-[#17201b]">
+                  <VsIcon name="domain" className="text-[#24473d]" />
+                  {formatTenantDisplayName(owner.tenant.name, owner.tenant.code)}
+                </span>
               ),
             },
             {
               key: "status",
               header: "Trạng thái",
-              cell: (owner) => (
-                <span className="rounded-full bg-[var(--secondary-container)] px-3 py-1 text-sm font-semibold text-[var(--on-secondary-container)]">
-                  {owner.status}
-                </span>
-              ),
+              cell: (owner) =>
+                owner.status === "ACTIVE" ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-[#cbe5d8] bg-[#ecf7f1] px-3.5 py-1 text-xs font-extrabold text-[#1a5d3f]">
+                    <span className="h-2 w-2 rounded-full bg-[#1a5d3f] animate-pulse"></span>
+                    Hoạt động
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-[#e2dad0] bg-[#f5efe8] px-3.5 py-1 text-xs font-extrabold text-[#6b6660]">
+                    <span className="h-2 w-2 rounded-full bg-[#8c857d]"></span>
+                    Tạm ngưng
+                  </span>
+                ),
             },
             {
               key: "role",
               header: "Vai trò",
-              cell: (owner) => owner.role.code,
+              cell: () => (
+                <span className="inline-flex items-center gap-1.5 rounded-xl border border-[#eddab9] bg-[#fcf6ea] px-3 py-1 text-xs font-extrabold text-[#8c5e1a]">
+                  <VsIcon name="shield_person" className="text-[#c89b4f]" />
+                  Chủ sở hữu
+                </span>
+              ),
             },
             {
               key: "updatedAt",
@@ -392,13 +418,19 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
                   <button
                     type="button"
                     onClick={() => openEditDialog(owner)}
-                    className="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-[var(--outline-variant)] px-4 py-2 text-sm font-semibold text-[var(--primary)] hover:bg-[var(--surface-container-low)]"
+                    className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-[#dcd1bf] bg-[#fffcf7] px-4 py-1.5 text-xs font-bold text-[#24473d] shadow-2xs transition-all hover:border-[#24473d] hover:bg-[#f5efe4]"
                   >
-                    <VsIcon name="edit" className="text-[16px]" />
+                    <VsIcon name="edit" className="text-sm" />
                     Sửa
                   </button>
-                  <button type="button" disabled={resetPassword.isPending} onClick={() => resetOwnerPassword(owner)} className="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-amber-300 px-4 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-50 disabled:opacity-50">
-                    <VsIcon name="key" className="text-[16px]" /> Cấp lại mật khẩu
+                  <button
+                    type="button"
+                    disabled={resetPassword.isPending}
+                    onClick={() => resetOwnerPassword(owner)}
+                    className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-[#ebd6b7] bg-[#fffaf3] px-4 py-1.5 text-xs font-bold text-[#8c5e1a] shadow-2xs transition-all hover:bg-[#f9efe0] disabled:opacity-50"
+                  >
+                    <VsIcon name="key" className="text-sm text-[#c89b4f]" />
+                    Cấp lại mật khẩu
                   </button>
                 </div>
               ),

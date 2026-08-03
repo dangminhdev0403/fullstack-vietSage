@@ -1,0 +1,579 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: services/auth-service/prisma/seed.js, services/auth-service/prisma/migrations/20260802133000_simplify_hotel_roles/migration.sql, services/auth-service/src/modules/identity/application/hotel-users.service.ts, services/auth-service/src/modules/identity/infrastructure/repositories/rbac.repository.ts, services/auth-service/src/modules/identity/tests/hotel-users.service.spec.ts, services/auth-service/src/modules/identity/tests/rbac.repository.spec.ts, frontends/front-end-vietsage/src/features/workspace/config/workspace-registry.ts, frontends/front-end-vietsage/src/features/workspace/utils/workspace-context.test.ts
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    src/
+      features/
+        workspace/
+          config/
+            workspace-registry.ts
+          utils/
+            workspace-context.test.ts
+services/
+  auth-service/
+    prisma/
+      migrations/
+        20260802133000_simplify_hotel_roles/
+          migration.sql
+      seed.js
+    src/
+      modules/
+        identity/
+          application/
+            hotel-users.service.ts
+          infrastructure/
+            repositories/
+              rbac.repository.ts
+          tests/
+            hotel-users.service.spec.ts
+            rbac.repository.spec.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="services/auth-service/prisma/migrations/20260802133000_simplify_hotel_roles/migration.sql">
+-- Canonical production roles: SUPER_ADMIN, TENANT_OWNER, HOTEL_FRONTDESK.
+-- Legacy hotel roles remain as disabled records for rollback/audit compatibility.
+
+UPDATE "Role"
+SET
+  "name" = CASE "code"
+    WHEN 'SUPER_ADMIN' THEN 'Quản trị viên cấp cao'
+    WHEN 'TENANT_OWNER' THEN 'Chủ khách sạn'
+    WHEN 'HOTEL_FRONTDESK' THEN 'Lễ tân khách sạn'
+    ELSE "name"
+  END,
+  "status" = 'ACTIVE',
+  "updatedAt" = CURRENT_TIMESTAMP
+WHERE "code" IN ('SUPER_ADMIN', 'TENANT_OWNER', 'HOTEL_FRONTDESK');
+
+-- Every hotel employee with a legacy operational role becomes front desk.
+WITH legacy_users AS (
+  SELECT DISTINCT ur."userId"
+  FROM "UserRole" ur
+  JOIN "Role" r ON r."id" = ur."roleId"
+  WHERE ur."status" = 'ACTIVE'
+    AND r."code" IN (
+      'HOTEL_MANAGER',
+      'HOTEL_HOUSEKEEPING',
+      'HOTEL_MAINTENANCE',
+      'HOTEL_FNB',
+      'HOTEL_FINANCE'
+    )
+), frontdesk_role AS (
+  SELECT "id" FROM "Role" WHERE "code" = 'HOTEL_FRONTDESK'
+)
+INSERT INTO "UserRole" (
+  "id", "userId", "roleId", "status", "assignedAt", "assignedById", "revokedAt", "revokedById"
+)
+SELECT
+  'ur_' || md5(legacy_users."userId" || ':' || frontdesk_role."id"),
+  legacy_users."userId",
+  frontdesk_role."id",
+  'ACTIVE'::"UserRoleStatus",
+  CURRENT_TIMESTAMP,
+  NULL,
+  NULL,
+  NULL
+FROM legacy_users
+CROSS JOIN frontdesk_role
+ON CONFLICT ("userId", "roleId") DO UPDATE SET
+  "status" = 'ACTIVE',
+  "assignedAt" = CURRENT_TIMESTAMP,
+  "revokedAt" = NULL,
+  "revokedById" = NULL;
+
+-- Preserve legacy HOTEL_OWNER accounts as canonical tenant owners.
+WITH legacy_owners AS (
+  SELECT DISTINCT ur."userId"
+  FROM "UserRole" ur
+  JOIN "Role" r ON r."id" = ur."roleId"
+  WHERE ur."status" = 'ACTIVE' AND r."code" = 'HOTEL_OWNER'
+), owner_role AS (
+  SELECT "id" FROM "Role" WHERE "code" = 'TENANT_OWNER'
+)
+INSERT INTO "UserRole" (
+  "id", "userId", "roleId", "status", "assignedAt", "assignedById", "revokedAt", "revokedById"
+)
+SELECT
+  'ur_' || md5(legacy_owners."userId" || ':' || owner_role."id"),
+  legacy_owners."userId",
+  owner_role."id",
+  'ACTIVE'::"UserRoleStatus",
+  CURRENT_TIMESTAMP,
+  NULL,
+  NULL,
+  NULL
+FROM legacy_owners
+CROSS JOIN owner_role
+ON CONFLICT ("userId", "roleId") DO UPDATE SET
+  "status" = 'ACTIVE',
+  "assignedAt" = CURRENT_TIMESTAMP,
+  "revokedAt" = NULL,
+  "revokedById" = NULL;
+
+-- Revoke every non-canonical assignment before disabling its role.
+UPDATE "UserRole" ur
+SET
+  "status" = 'REVOKED',
+  "revokedAt" = CURRENT_TIMESTAMP
+FROM "Role" r
+WHERE ur."roleId" = r."id"
+  AND ur."status" = 'ACTIVE'
+  AND r."code" NOT IN ('SUPER_ADMIN', 'TENANT_OWNER', 'HOTEL_FRONTDESK');
+
+-- Revoke sessions/tokens of users touched by legacy role consolidation.
+UPDATE "AuthSession" session
+SET
+  "status" = 'REVOKED',
+  "revokedAt" = CURRENT_TIMESTAMP,
+  "revokeReason" = 'ROLE_CHANGED',
+  "version" = session."version" + 1,
+  "updatedAt" = CURRENT_TIMESTAMP
+WHERE session."status" = 'ACTIVE'
+  AND EXISTS (
+    SELECT 1
+    FROM "UserRole" ur
+    JOIN "Role" r ON r."id" = ur."roleId"
+    WHERE ur."userId" = session."userId"
+      AND r."code" NOT IN ('SUPER_ADMIN', 'TENANT_OWNER', 'HOTEL_FRONTDESK')
+  );
+
+DELETE FROM "RefreshToken" token
+WHERE EXISTS (
+  SELECT 1
+  FROM "UserRole" ur
+  JOIN "Role" r ON r."id" = ur."roleId"
+  WHERE ur."userId" = token."userId"
+    AND r."code" NOT IN ('SUPER_ADMIN', 'TENANT_OWNER', 'HOTEL_FRONTDESK')
+);
+
+UPDATE "Role"
+SET "status" = 'DISABLED', "updatedAt" = CURRENT_TIMESTAMP
+WHERE "code" NOT IN ('SUPER_ADMIN', 'TENANT_OWNER', 'HOTEL_FRONTDESK');
+
+-- Front desk receives only daily hotel-operation capabilities.
+DELETE FROM "RolePermission" rp
+USING "Role" r, "Permission" p
+WHERE rp."roleId" = r."id"
+  AND rp."permissionId" = p."id"
+  AND r."code" = 'HOTEL_FRONTDESK'
+  AND NOT (
+    p."method" = 'OPTIONS'::"HttpMethod"
+    AND p."path" IN (
+      'hotel.dashboard.view',
+      'hotel.rooms.view',
+      'hotel.stays.view',
+      'hotel.stays.manage',
+      'hotel.reservations.view',
+      'hotel.reservations.manage',
+      'hotel.requests.view',
+      'hotel.requests.manage',
+      'hotel.billing.view',
+      'hotel.billing.manage'
+    )
+  );
+
+INSERT INTO "RolePermission" ("id", "roleId", "permissionId")
+SELECT
+  'rp_' || md5(r."id" || ':' || p."id"),
+  r."id",
+  p."id"
+FROM "Role" r
+JOIN "Permission" p
+  ON p."method" = 'OPTIONS'::"HttpMethod"
+ AND p."path" IN (
+   'hotel.dashboard.view',
+   'hotel.rooms.view',
+   'hotel.stays.view',
+   'hotel.stays.manage',
+   'hotel.reservations.view',
+   'hotel.reservations.manage',
+   'hotel.requests.view',
+   'hotel.requests.manage',
+   'hotel.billing.view',
+   'hotel.billing.manage'
+ )
+WHERE r."code" = 'HOTEL_FRONTDESK'
+ON CONFLICT ("roleId", "permissionId") DO NOTHING;
+</file>
+
+<file path="services/auth-service/prisma/seed.js">
+async function seedCodes()
+⋮----
+async function seedRoles()
+⋮----
+async function syncExistingPermissionsToSuperAdmin(superAdminRole)
+⋮----
+async function seedSuperAdmin(superAdminRole)
+⋮----
+// Temporary deterministic hash for bootstrap only.
+⋮----
+async function main()
+</file>
+
+<file path="services/auth-service/src/modules/identity/infrastructure/repositories/rbac.repository.ts">
+import { Injectable } from "@nestjs/common";
+import { Prisma, RoleStatus, UserRoleStatus } from "@prisma/client";
+import { PrismaService } from "../../../../prisma/prisma.service";
+⋮----
+export class RbacRepository {
+⋮----
+constructor(private readonly prisma: PrismaService)
+⋮----
+async createRole(data:
+⋮----
+async listRolesWithRelations()
+⋮----
+async findRoleWithRelationsById(roleId: string)
+⋮----
+async findRoleWithRelationsByName(name: string)
+⋮----
+async findRoleById(roleId: string)
+⋮----
+async updateRole(
+    roleId: string,
+    data: {
+      name?: string;
+      description?: string | null;
+      status?: RoleStatus;
+    },
+)
+⋮----
+async deleteRole(roleId: string)
+⋮----
+async disableRole(roleId: string)
+⋮----
+async listPermissions(where: Prisma.PermissionWhereInput)
+⋮----
+async listPermissionTotalsByModule()
+⋮----
+async listRolePermissionModuleKeys(roleId: string)
+⋮----
+async countPermissionsByModuleKey(moduleKey: string)
+⋮----
+async countRolePermissionsByModuleKey(roleId: string, moduleKey: string)
+⋮----
+async listPermissionsByModuleKey(moduleKey: string, page: number, limit: number)
+⋮----
+async listRolePermissionIdsByRoleAndPermissionIds(roleId: string, permissionIds: string[])
+⋮----
+async findPermissionById(permissionId: string)
+⋮----
+async findPermissionsByIds(permissionIds: string[])
+⋮----
+async findPermissionsByIdsWithModuleKey(permissionIds: string[])
+⋮----
+async listActiveSystemRoleCodesByUserId(userId: string)
+⋮----
+async listActivePermissionIdsByUserId(userId: string)
+⋮----
+async listRolePermissions(roleId: string)
+⋮----
+async createRolePermissions(roleId: string, permissionIds: string[])
+⋮----
+async deleteRolePermissions(roleId: string, permissionIds: string[])
+⋮----
+async clearRolePermissions(roleId: string)
+⋮----
+async replaceRolePermissions(roleId: string, permissionIds: string[])
+</file>
+
+<file path="services/auth-service/src/modules/identity/tests/rbac.repository.spec.ts">
+import { RoleStatus } from "@prisma/client";
+import { PrismaService } from "../../../prisma/prisma.service";
+import { RbacRepository } from "../infrastructure/repositories/rbac.repository";
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/workspace/utils/workspace-context.test.ts">
+import assert from "node:assert/strict";
+import test from "node:test";
+⋮----
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore Node's strip-types runner requires the explicit TypeScript extension.
+⋮----
+type WorkspaceContext = import("./workspace-context").WorkspaceContext;
+</file>
+
+<file path="services/auth-service/src/modules/identity/tests/hotel-users.service.spec.ts">
+import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
+import { TenantUserStatus, UserType } from "@prisma/client";
+import { HotelUsersRepository } from "../infrastructure/repositories/hotel-users.repository";
+import { HotelUsersService } from "../application/hotel-users.service";
+import { AuthService } from "../application/authentication.service";
+</file>
+
+<file path="services/auth-service/src/modules/identity/application/hotel-users.service.ts">
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { Prisma, TenantUserStatus, UserStatus, UserType } from "@prisma/client";
+⋮----
+import {
+  HotelUsersRepository,
+  type TenantScopedHotelUserRow,
+} from "../infrastructure/repositories/hotel-users.repository";
+import type {
+  AssignHotelUserRolesBodyInput,
+  CreateHotelUserBodyInput,
+  ListHotelUsersQueryInput,
+  UpdateHotelUserStatusBodyInput,
+  UpdateHotelUserBodyInput,
+} from "../domain/schemas/hotel-users.schema";
+import { AuthService } from "./authentication.service";
+import { generateTemporaryPassword } from "../../../common/security/password-policy.util";
+⋮----
+interface ActorContext {
+  userId: string;
+  tenantIds: Set<string>;
+  isSuperAdmin: boolean;
+}
+⋮----
+export interface TenantScopedHotelUser {
+  id: string;
+  email: string;
+  fullName: string;
+  userStatus: UserStatus;
+  tenantStatus: TenantUserStatus;
+  tenantId: string;
+  joinedAt: Date | null;
+  roles: Array<{
+    id: string;
+    code: string;
+    name: string;
+    assignedAt: Date;
+    assignedById: string | null;
+  }>;
+  assignedHotel: {
+    id: string;
+    code: string;
+    name: string;
+  } | null;
+}
+⋮----
+export class HotelUsersService {
+⋮----
+constructor(
+⋮----
+async createHotelUser(
+    actorUserId: string,
+    activeRoleId: string,
+    tenantHint: string | undefined,
+    dto: CreateHotelUserBodyInput,
+): Promise<TenantScopedHotelUser>
+⋮----
+async listHotelUsers(
+    actorUserId: string,
+    activeRoleId: string,
+    tenantHint: string | undefined,
+    query: ListHotelUsersQueryInput,
+): Promise<
+⋮----
+async getHotelUser(
+    actorUserId: string,
+    activeRoleId: string,
+    tenantHint: string | undefined,
+    userId: string,
+): Promise<TenantScopedHotelUser>
+⋮----
+async updateHotelUserStatus(
+    actorUserId: string,
+    activeRoleId: string,
+    tenantHint: string | undefined,
+    userId: string,
+    dto: UpdateHotelUserStatusBodyInput,
+): Promise<TenantScopedHotelUser>
+⋮----
+async updateHotelUser(
+    actorUserId: string,
+    activeRoleId: string,
+    tenantHint: string | undefined,
+    userId: string,
+    dto: UpdateHotelUserBodyInput,
+): Promise<TenantScopedHotelUser>
+⋮----
+async assignHotelUserRoles(
+    actorUserId: string,
+    activeRoleId: string,
+    tenantHint: string | undefined,
+    userId: string,
+    dto: AssignHotelUserRolesBodyInput,
+): Promise<TenantScopedHotelUser>
+⋮----
+async revokeHotelUserRole(
+    actorUserId: string,
+    activeRoleId: string,
+    tenantHint: string | undefined,
+    userId: string,
+    roleId: string,
+): Promise<
+⋮----
+private buildTenantUserListFilter(
+    tenantId: string,
+    status: TenantUserStatus,
+    queryText: string | undefined,
+): Prisma.TenantUserWhereInput
+⋮----
+async listManagedRoles(
+    actorUserId: string,
+    activeRoleId: string,
+    tenantHint: string | undefined,
+)
+⋮----
+async resetFrontdeskPassword(
+    actorUserId: string,
+    activeRoleId: string,
+    tenantHint: string | undefined,
+    targetUserId: string,
+): Promise<
+⋮----
+private async loadActorContext(userId: string, activeRoleId: string): Promise<ActorContext>
+⋮----
+private async resolveTenantId(
+    actor: ActorContext,
+    tenantHint: string | undefined,
+): Promise<string>
+⋮----
+private async assertTenantExists(tenantId: string): Promise<void>
+⋮----
+private async assertTargetUserInTenant(
+    tenantId: string,
+    userId: string,
+): Promise<
+⋮----
+private async resolveAssignableRoles(
+    roleIds: string[],
+): Promise<Array<
+⋮----
+private async getTenantScopedHotelUserOrThrow(
+    tenantId: string,
+    userId: string,
+): Promise<TenantScopedHotelUser>
+⋮----
+private toTenantScopedHotelUser(row: TenantScopedHotelUserRow): TenantScopedHotelUser
+⋮----
+function normalizeIds(ids: string[] | undefined): string[]
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/workspace/config/workspace-registry.ts">
+import type { DashboardNavItem } from "../types/workspace-navigation";
+⋮----
+import type {
+  WorkspaceDefinition,
+  WorkspaceNavigationDefinition,
+  WorkspacePersona,
+  WorkspaceRegistry,
+  WorkspaceRegistryExtension,
+  WorkspaceWidgetDefinition,
+} from "../types/workspace-registry";
+⋮----
+// Cấu hình / Thiết lập (Configuration & Catalog Setup)
+⋮----
+// Xử lý / Vận hành (Operations & Processing)
+⋮----
+// Staff Navigation (Cấu hình trước, Xử lý sau)
+⋮----
+function normalizeRoleCode(roleCode: string): string
+⋮----
+function mergeByKey<T extends { key: string }>(
+  base: readonly T[],
+  additions: readonly T[],
+  replaceExisting: boolean,
+  kind: string,
+): T[]
+⋮----
+export function createWorkspaceRegistry(
+  extensions: readonly WorkspaceRegistryExtension[] = [],
+): WorkspaceRegistry
+⋮----
+function hasAnyCapability(
+  permissions: readonly string[],
+  required?: readonly string[],
+): boolean
+⋮----
+function resolvePath(
+  path: `/${string}`,
+  hotelId: string | null,
+): `/$
+⋮----
+export function resolveWorkspacePersona(
+  roleCode: string,
+  registry: WorkspaceRegistry = workspaceRegistry,
+): WorkspacePersona | null
+⋮----
+export function getWorkspaceDefinition(
+  persona: WorkspacePersona,
+  registry: WorkspaceRegistry = workspaceRegistry,
+): WorkspaceDefinition
+⋮----
+export function buildWorkspaceNavigation(input: {
+  persona: WorkspacePersona;
+  permissions: readonly string[];
+  hotelId?: string | null;
+  registry?: WorkspaceRegistry;
+}): DashboardNavItem[]
+⋮----
+export function buildWorkspaceNavigationForContext(input: {
+  activeRole: { code: string };
+  permissions: readonly string[];
+  hotelId?: string | null;
+  registry?: WorkspaceRegistry;
+}): DashboardNavItem[]
+⋮----
+export function getWorkspaceDashboardWidgets(input: {
+  persona: WorkspacePersona;
+  permissions: readonly string[];
+  hotelId?: string | null;
+  registry?: WorkspaceRegistry;
+}): WorkspaceWidgetDefinition[]
+</file>
+
+</files>

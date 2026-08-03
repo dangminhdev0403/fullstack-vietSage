@@ -25,12 +25,13 @@ export function useGuestMessageUnread() {
   const stayId = useGuestStore((state) => state.stayId);
   const hydrated = useGuestStoreHydrated();
 
-  const guestMessages = guestMessagesResource.bind({
-    sessionToken: sessionToken ?? "",
-    locale,
-  });
-
-  const unreadSummaryOptions = guestMessages.queries.unreadSummary.options(undefined as never);
+  const unreadSummaryOptions = useMemo(
+    () =>
+      guestMessagesResource
+        .bind({ sessionToken: sessionToken ?? "", locale })
+        .queries.unreadSummary.options(undefined as never),
+    [sessionToken, locale],
+  );
   const enabled = Boolean(hydrated && sessionToken && hotelId && stayId);
 
   const query = useQuery({

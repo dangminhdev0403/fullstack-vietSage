@@ -1,0 +1,202 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: frontends/front-end-vietsage/src/features/request-realtime/owner-connection-manager.ts, frontends/front-end-vietsage/src/features/request-realtime/owner-connection-manager.test.ts, frontends/front-end-vietsage/src/features/request-realtime/request-realtime-client.ts, frontends/front-end-vietsage/src/features/request-realtime/request-realtime-config.ts, frontends/front-end-vietsage/src/app/api/biometric-workstations/commands/route.ts, frontends/front-end-vietsage/src/features/local-biometric/repositories/workstation-repository.ts
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    src/
+      app/
+        api/
+          biometric-workstations/
+            commands/
+              route.ts
+      features/
+        local-biometric/
+          repositories/
+            workstation-repository.ts
+        request-realtime/
+          owner-connection-manager.test.ts
+          owner-connection-manager.ts
+          request-realtime-client.ts
+          request-realtime-config.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/repositories/workstation-repository.ts">
+import type { IntakePayloadV2 } from "../intake/intake-contract";
+⋮----
+export type WorkstationPairingStatus = { online: boolean };
+export type ScanRequest = { scanRequestId: string; expiresAt: number };
+export type ScanResult = {
+  status: "waiting" | "claimed" | "received";
+  scanRequestId: string;
+  expiresAt: number;
+  payload: IntakePayloadV2 | null;
+};
+⋮----
+async function apiFetch<T>(url: string, init?: RequestInit): Promise<T>
+⋮----
+async getPairingStatus(hotelId: string): Promise<WorkstationPairingStatus>
+⋮----
+async createPairing(hotelId: string): Promise<
+⋮----
+async disconnect(hotelId: string): Promise<void>
+⋮----
+async requestScan(hotelId: string): Promise<ScanRequest>
+⋮----
+async readScan(scanRequestId: string, hotelId: string): Promise<ScanResult>
+⋮----
+async acknowledgeScan(scanRequestId: string, hotelId: string): Promise<void>
+⋮----
+async discardScan(scanRequestId: string, hotelId: string): Promise<void>
+⋮----
+// Best-effort: use ack route to clear payload from volatile store
+⋮----
+// discard is best-effort; TTL is the fail-safe
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/request-realtime/owner-connection-manager.test.ts">
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-function-type */
+import assert from "node:assert/strict";
+import test from "node:test";
+// @ts-expect-error Node's strip-types runner requires the explicit TypeScript extension.
+import { createOwnerConnectionManager } from "./owner-connection-manager.ts";
+⋮----
+function deferred<T>()
+⋮----
+const manager = createOwnerConnectionManager(
+⋮----
+const socket: any =
+⋮----
+connect()
+disconnect()
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/request-realtime/owner-connection-manager.ts">
+export type OwnerRealtimeHandlers = {
+  onReady?: (scope: unknown) => void;
+  onCreated?: (request: unknown) => void;
+  onUpdated?: (request: unknown) => void;
+  onAnswered?: (request: unknown) => void;
+  onGuestMessageCreated?: (event: unknown) => void;
+  onConversationClosed?: (event: unknown) => void;
+  onReconnect?: () => void;
+  onError?: (error: unknown) => void;
+};
+⋮----
+type ManagedSocket = {
+  on(event: string, handler: (value?: unknown) => void): void;
+  connect(): void;
+  disconnect(): void;
+};
+⋮----
+on(event: string, handler: (value?: unknown)
+connect(): void;
+disconnect(): void;
+⋮----
+type Entry = {
+  subscribers: Set<OwnerRealtimeHandlers>;
+  socket?: ManagedSocket;
+  generation: number;
+  pending?: Promise<void>;
+  cancelReconnect?: () => void;
+};
+⋮----
+type RealtimeError = { retryable?: unknown };
+⋮----
+function isTerminalRealtimeError(value: unknown): boolean
+⋮----
+export function createOwnerConnectionManager(deps: {
+  enabled: boolean;
+getTicket(hotelId: string): Promise<
+⋮----
+getTicket(hotelId: string): Promise<
+createSocket(auth:
+⋮----
+function acquire(hotelId: string, entry: Entry): Promise<void>
+⋮----
+const fanout = (name: keyof OwnerRealtimeHandlers) => (event?: unknown) =>
+const fanoutRaw = (name: keyof OwnerRealtimeHandlers) => (event?: unknown) =>
+⋮----
+const reconnect = () =>
+⋮----
+const retry = () =>
+⋮----
+subscribe(hotelId: string, handlers: OwnerRealtimeHandlers)
+settled(hotelId: string)
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/request-realtime/request-realtime-client.ts">
+import { getBrowserBackendApiBaseUrl, resolveBrowserReachableBackendUrl } from "@/core/http/backend-api-config";
+import { io, type Socket } from "socket.io-client";
+⋮----
+export type RequestRealtimeEvent<TRequest> = {
+  request: TRequest;
+};
+⋮----
+export function getRequestRealtimeUrl(): string
+⋮----
+export type RequestRealtimeAuth =
+  | { mode: "owner"; ticket: string }
+  | { mode: "guest"; sessionToken: string };
+⋮----
+export function createRequestRealtimeSocket(auth: RequestRealtimeAuth): Socket
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/request-realtime/request-realtime-config.ts">
+
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/api/biometric-workstations/commands/route.ts">
+import { NextResponse } from "next/server";
+import { authenticatePersistentWorkstation } from "@/features/local-biometric/workstation/persistent-workstation-client";
+import { bearerToken } from "@/features/local-biometric/workstation/workstation-auth";
+import { workstationStore } from "@/features/local-biometric/workstation/workstation-store";
+⋮----
+export async function GET(request: Request)
+</file>
+
+</files>

@@ -43,7 +43,6 @@ const loginSchema = z.object({
     .string()
     .min(1, "Vui lòng nhập mật khẩu.")
     .min(8, "Mật khẩu cần tối thiểu 8 ký tự."),
-  remember: z.boolean(),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -52,7 +51,6 @@ type LoginFormErrors = Partial<Record<keyof LoginFormValues, string>>;
 const initialLoginValues: LoginFormValues = {
   email: "",
   password: "",
-  remember: false,
 };
 
 function getLoginSearchParams(): URLSearchParams {
@@ -119,7 +117,6 @@ function getValidationErrors(values: LoginFormValues): LoginFormErrors {
   return {
     email: fieldErrors.email?.[0],
     password: fieldErrors.password?.[0],
-    remember: fieldErrors.remember?.[0],
   };
 }
 
@@ -374,7 +371,7 @@ export default function LoginPage() {
     }
 
     hasAutoSubmittedRef.current = true;
-    void submitLogin({ email, password, remember: false });
+    void submitLogin({ email, password });
   }, []);
 
   const emailInputClass = `${fieldClassName} ${
@@ -536,24 +533,6 @@ export default function LoginPage() {
                     {formErrors.password}
                   </p>
                 ) : null}
-              </div>
-
-              <div className="flex items-center space-x-3">
-                <input
-                  id="remember"
-                  name="remember"
-                  type="checkbox"
-                  checked={formValues.remember}
-                  onChange={handleInputChange}
-                  onBlur={handleFieldBlur}
-                  className="h-5 w-5 rounded border-outline-variant text-primary focus:ring-primary"
-                />
-                <label
-                  htmlFor="remember"
-                  className="select-none font-body-md text-on-surface-variant"
-                >
-                  Ghi nhớ đăng nhập
-                </label>
               </div>
 
               <button

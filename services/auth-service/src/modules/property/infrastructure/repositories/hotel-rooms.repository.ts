@@ -558,8 +558,7 @@ export class HotelRoomsRepository {
               ...(input.occupants ?? [])
                 .filter(
                   (occ) =>
-                    occ.fullName.trim() &&
-                    occ.fullName.trim() !== input.guestDisplayName.trim(),
+                    occ.fullName.trim() && occ.fullName.trim() !== input.guestDisplayName.trim(),
                 )
                 .map((occ) => ({
                   hotelId: input.hotelId,
@@ -644,6 +643,24 @@ export class HotelRoomsRepository {
       });
 
       return { stay, roomQrCode: activeQr };
+    });
+  }
+
+  async updateStay(
+    hotelId: string,
+    stayId: string,
+    input: { plannedCheckOutAt?: Date; guestDisplayName?: string; guestPhone?: string },
+  ) {
+    return this.prisma.guestStay.update({
+      where: { id: stayId, hotelId },
+      data: {
+        ...(input.plannedCheckOutAt ? { plannedCheckOutAt: input.plannedCheckOutAt } : {}),
+        ...(input.guestDisplayName ? { guestDisplayName: input.guestDisplayName } : {}),
+        ...(input.guestPhone !== undefined ? { guestPhone: input.guestPhone } : {}),
+      },
+      include: {
+        occupants: true,
+      },
     });
   }
 

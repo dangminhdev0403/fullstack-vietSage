@@ -1,0 +1,1089 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: services/auth-service/src/modules/property/infrastructure/imports/google-sheets-service-catalog-sync.service.ts, services/auth-service/src/modules/property/api/hotel-services.controller.ts, services/auth-service/src/modules/property/application/hotels.service.ts, services/auth-service/src/modules/property/infrastructure/imports/google-sheets-service-catalog-sync.service.spec.ts, services/auth-service/src/modules/guest-operations/application/guest-os.service.ts, services/auth-service/src/modules/guest-operations/infrastructure/repositories/guest-os.repository.ts, frontends/front-end-vietsage/src/app/(vietsage)/g/services/page.tsx, frontends/front-end-vietsage/src/features/guest-os/service/guest-os-service.ts, frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/messages/room-messages-client.tsx, frontends/front-end-vietsage/src/app/(vietsage)/_components/vs-dashboard-sidebar.tsx, frontends/front-end-vietsage/src/features/workspace/config/workspace-registry.ts, frontends/front-end-vietsage/src/features/workspace/utils/workspace-navigation.ts, frontends/front-end-vietsage/src/features/hotel-ops/hooks/use-owner-request-realtime.ts, services/auth-service/src/modules/guest-operations/application/guest-messages.service.ts
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    src/
+      app/
+        (vietsage)/
+          _components/
+            vs-dashboard-sidebar.tsx
+          g/
+            services/
+              page.tsx
+          hotels/
+            [hotelId]/
+              messages/
+                room-messages-client.tsx
+      features/
+        guest-os/
+          service/
+            guest-os-service.ts
+        workspace/
+          config/
+            workspace-registry.ts
+services/
+  auth-service/
+    src/
+      modules/
+        guest-operations/
+          application/
+            guest-messages.service.ts
+            guest-os.service.ts
+          infrastructure/
+            repositories/
+              guest-os.repository.ts
+        property/
+          api/
+            hotel-services.controller.ts
+          application/
+            hotels.service.ts
+          infrastructure/
+            imports/
+              google-sheets-service-catalog-sync.service.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="services/auth-service/src/modules/property/api/hotel-services.controller.ts">
+import { Body, Controller, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import { ApiBody, ApiCreatedResponse, ApiOkResponse, ApiParam, ApiTags } from "@nestjs/swagger";
+import type { Request } from "express";
+import {
+  createServiceItemBodySchema as createServiceItemBodyOpenApiSchema,
+  hotelServiceItemDataSchema,
+  listHotelServiceItemsDataSchema,
+  successEnvelopeSchema,
+  updateServiceItemBodySchema as updateServiceItemBodyOpenApiSchema,
+} from "../../../common/openapi/contract-schemas";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
+import type { AuthenticatedUser } from "../../../shared/security";
+import { HotelServicesService } from "../application/hotel-services.service";
+import { GoogleSheetsServiceCatalogSyncService } from "../infrastructure/imports/google-sheets-service-catalog-sync.service";
+import {
+  createServiceCategoryBodySchema,
+  createServiceItemBodySchema,
+  listServiceCategoriesQuerySchema,
+  listServiceItemsQuerySchema,
+  updateServiceCategoryBodySchema,
+  updateServiceItemBodySchema,
+} from "../domain/schemas/service-catalog.schema";
+import {
+  hotelIdParamSchema,
+  serviceCategoryIdParamSchema,
+  serviceItemIdParamSchema,
+} from "../domain/schemas/shared.schema";
+⋮----
+interface RequestWithUser extends Request {
+  user: AuthenticatedUser;
+}
+⋮----
+export class HotelServicesController {
+⋮----
+constructor(
+⋮----
+async syncServiceCatalogFromGoogleSheets(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+)
+⋮----
+async listServiceCategories(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Query() query: unknown,
+)
+⋮----
+async createServiceCategory(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async updateServiceCategory(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("categoryId") categoryIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async listServiceItems(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Query() query: unknown,
+)
+⋮----
+async createServiceItem(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async updateServiceItem(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("itemId") itemIdParam: string,
+    @Body() body: unknown,
+)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/g/services/page.tsx">
+import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import Swal from "sweetalert2";
+⋮----
+import { VsBottomNav } from "../../_components/vs-bottom-nav";
+import { VsIcon } from "../../_components/vs-icon";
+import { VsTopBar } from "../../_components/vs-top-bar";
+import { GuestReveal } from "@/features/guest-os/components/motion/guest-reveal";
+import { GuestAccessRequiredState } from "@/features/guest-os/components/shared/guest-access-required-state";
+import { GuestRequestSheet } from "@/features/guest-os/components/services/guest-request-sheet";
+import { GuestServiceEmptyState } from "@/features/guest-os/components/services/guest-service-empty-state";
+import { GuestServiceErrorState } from "@/features/guest-os/components/services/guest-service-error-state";
+import { GuestServiceList } from "@/features/guest-os/components/services/guest-service-list";
+import { GuestServiceSkeleton } from "@/features/guest-os/components/services/guest-service-skeleton";
+import { GuestServicesHeader } from "@/features/guest-os/components/services/guest-services-header";
+import { useGuestI18n } from "@/features/guest-os/i18n/use-guest-i18n";
+import { guestOsService } from "@/features/guest-os/service/guest-os-service-instance";
+import { useGuestStore, useGuestStoreHydrated } from "@/features/guest-os/store/guest-store";
+import type { CreateGuestRequestInput, GuestPortalRequestPriority, GuestServiceCategory, GuestServiceItem } from "@/features/guest-os/types/guest-os-contract";
+import { GuestCatalogRequestGuard } from "@/features/guest-os/utils/guest-catalog-request-guard";
+import { adaptGuestServiceCatalog } from "@/features/guest-os/utils/guest-service-catalog";
+import { getGuestFriendlyErrorMessage } from "@/features/guest-os/utils/guest-os-errors";
+import { useGuestRequestRealtime } from "@/features/request-realtime/use-guest-request-realtime";
+⋮----
+type GuestTranslator = ReturnType<typeof useGuestI18n>["t"];
+⋮----
+function getServicePrice(service: GuestServiceItem, t: GuestTranslator, intlLocale: string): string
+⋮----
+function getQuantityHint(service: GuestServiceItem, t: GuestTranslator): string | null
+⋮----
+function buildGuestRequestPayload(
+⋮----
+function validateQuantity(service: GuestServiceItem, t: GuestTranslator, quantity?: number): true | string
+⋮----
+function escapeHtml(value: string): string
+⋮----
+function buildConfirmHtml(service: GuestServiceItem, note: string, t: GuestTranslator): string
+⋮----
+function openRequestSheet(service: GuestServiceItem)
+setSelectedService(service);
+setRequestNote("");
+setRequestQuantity(String(service.quantityEnabled ? service.minQuantity || 1 : 1));
+setRequestPriority("NORMAL");
+setRequestError(null);
+⋮----
+function updateQuantityBy(delta: number)
+⋮----
+async function submitGuestRequest(event: FormEvent<HTMLFormElement>)
+⋮----
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/guest-os/service/guest-os-service.ts">
+import { unwrapApiEnvelope } from "@/core/http/api-envelope";
+import { HttpClient, type HttpQuery } from "@/core/http/http-client";
+import type {
+  CancelGuestRequestResult,
+  CreateGuestEmergencyCallInput,
+  CreateGuestRequestInput,
+  GuestCategoryServicesResult,
+  GuestEmergencyCallResult,
+  GuestCurrentSessionResult,
+  GuestLocaleCode,
+  GuestMessagesResult,
+  GuestMessageThread,
+  GuestRequest,
+  GuestRequestsResult,
+  GuestScanQrRequest,
+  GuestScanQrResult,
+  GuestServicesResult,
+  GuestSessionCloseResult,
+  ListGuestRequestsQuery,
+} from "@/features/guest-os/types/guest-os-contract";
+⋮----
+export type GuestOsServiceOptions = {
+  baseUrl: string;
+  pathPrefix?: string;
+  timeoutMs?: number;
+};
+⋮----
+function localeHeaders(locale?: GuestLocaleCode): Record<string, string> | undefined
+⋮----
+export class GuestOsService {
+⋮----
+constructor(options: GuestOsServiceOptions)
+⋮----
+private path(pathname: string): string
+⋮----
+async scanQr(input: GuestScanQrRequest): Promise<GuestScanQrResult>
+⋮----
+async getCurrentSession(sessionToken: string, locale?: GuestLocaleCode): Promise<GuestCurrentSessionResult>
+⋮----
+async listServices(sessionToken: string, locale?: GuestLocaleCode): Promise<GuestServicesResult>
+⋮----
+async listServicesByCategory(sessionToken: string, categoryId: string, query:
+⋮----
+async createRequest(sessionToken: string, input: CreateGuestRequestInput, locale?: GuestLocaleCode): Promise<GuestRequest>
+⋮----
+async listRequests(sessionToken: string, query: ListGuestRequestsQuery =
+⋮----
+async cancelRequest(sessionToken: string, requestId: string, locale?: GuestLocaleCode): Promise<CancelGuestRequestResult>
+⋮----
+async closeSession(sessionToken: string, locale?: GuestLocaleCode): Promise<GuestSessionCloseResult>
+⋮----
+async listMessages(
+    sessionToken: string,
+    options?: { before?: string; limit?: number },
+    locale?: GuestLocaleCode,
+): Promise<GuestMessagesResult>
+⋮----
+async sendMessage(sessionToken: string, body: string, locale?: GuestLocaleCode): Promise<
+⋮----
+async markMessagesRead(sessionToken: string, locale?: GuestLocaleCode): Promise<
+⋮----
+async createEmergencyCall(
+    sessionToken: string,
+    input: CreateGuestEmergencyCallInput,
+    locale?: GuestLocaleCode,
+): Promise<GuestEmergencyCallResult>
+⋮----
+export function createGuestOsService(options: GuestOsServiceOptions): GuestOsService
+</file>
+
+<file path="services/auth-service/src/modules/guest-operations/application/guest-messages.service.ts">
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  Optional,
+} from "@nestjs/common";
+import { GuestRequestActorType, GuestStayStatus } from "@prisma/client";
+import {
+  GUEST_REQUEST_EVENT_PUBLISHER,
+  NOOP_GUEST_REQUEST_EVENT_PUBLISHER,
+  type GuestRequestEventPublisher,
+} from "../../../shared/events";
+import { HotelAccessService } from "../../property/property-public";
+import type { GuestSessionContext } from "./guest-os.service";
+import { GuestMessagesRepository } from "../infrastructure/repositories/guest-messages.repository";
+⋮----
+export class GuestMessagesService {
+⋮----
+constructor(
+    private readonly repository: GuestMessagesRepository,
+    private readonly hotelAccessService: HotelAccessService,
+    @Optional()
+    @Inject(GUEST_REQUEST_EVENT_PUBLISHER)
+    eventPublisher?: GuestRequestEventPublisher,
+)
+⋮----
+async listForGuest(context: GuestSessionContext, page = 1, limit = 20, before?: string)
+⋮----
+async sendFromGuest(context: GuestSessionContext, body: string, plannedCheckOutAt: Date)
+⋮----
+async listForHotel(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    limit = 30,
+    q?: string,
+    cursor?: string,
+)
+⋮----
+async getForHotel(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    threadId: string,
+    page = 1,
+    limit = 20,
+    before?: string,
+)
+⋮----
+async replyFromStaff(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    threadId: string,
+    body: string,
+)
+⋮----
+async markReadForHotel(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    threadId: string,
+)
+⋮----
+async markReadForGuest(context: GuestSessionContext)
+⋮----
+private async assertActiveGuestStay(context: GuestSessionContext)
+⋮----
+private normalizeBody(value: string)
+⋮----
+private expiry(checkOutAt: Date)
+⋮----
+private message(row: {
+    id: string;
+    senderType: GuestRequestActorType;
+    body: string;
+    createdAt: Date;
+    readAt?: Date | null;
+    senderUser?: { id: string; fullName: string } | null;
+})
+⋮----
+private thread(
+    row: {
+      id: string;
+      status: string;
+      lastMessageAt: Date;
+      expiresAt: Date;
+      clearedAt: Date | null;
+      stayId: string;
+      room: { roomNumber: string; floor: string | null; type: string | null };
+      stay: {
+        guestDisplayName: string;
+        status: GuestStayStatus;
+        checkedOutAt: Date | null;
+        plannedCheckOutAt?: Date;
+      };
+      _count?: { messages: number };
+    },
+    latestMessage?: ReturnType<GuestMessagesService["message"]> | null,
+)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/_components/vs-dashboard-sidebar.tsx">
+import Link from "next/link";
+⋮----
+import { VietSageBrand } from "@/components/brand/vietsage-brand";
+import type { DashboardNavItem } from "@/features/workspace/types/workspace-navigation";
+import { isNavItemActive } from "@/features/workspace/utils/workspace-nav-active";
+⋮----
+import { VsIcon } from "./vs-icon";
+⋮----
+type VsDashboardSidebarProps = {
+  activePath: string;
+  description?: string;
+  eyebrow?: string;
+  items?: readonly DashboardNavItem[];
+};
+</file>
+
+<file path="services/auth-service/src/modules/property/application/hotels.service.ts">
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { HotelStatus, Prisma } from "@prisma/client";
+import { AppLogger } from "../../../common/logging/app-logger.service";
+import { CodesService } from "../../codes/codes-public";
+import { HotelAccessService } from "./hotel-access.service";
+import { HotelCoreRepository } from "../infrastructure/repositories/hotel-core.repository";
+import type { HotelDetailRow } from "../infrastructure/repositories/hotel-repository.types";
+import type {
+  CreateHotelBodyInput,
+  ListHotelsQueryInput,
+  UpdateHotelBodyInput,
+} from "../domain/schemas/hotel.schema";
+import { GoogleSheetsServiceCatalogSyncService } from "../infrastructure/imports/google-sheets-service-catalog-sync.service";
+⋮----
+export class HotelsService {
+⋮----
+constructor(
+async createHotel(actorUserId: string, activeRoleId: string, dto: CreateHotelBodyInput)
+⋮----
+async listHotels(actorUserId: string, activeRoleId: string, query: ListHotelsQueryInput)
+⋮----
+async getHotel(actorUserId: string, activeRoleId: string, hotelId: string)
+⋮----
+async updateHotel(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    dto: UpdateHotelBodyInput,
+)
+⋮----
+private logBusinessEvent(
+    message: string,
+    event: string,
+    operation: string,
+    metadata: Record<string, unknown>,
+): void
+⋮----
+private toHotelData(row: HotelDetailRow)
+</file>
+
+<file path="services/auth-service/src/modules/guest-operations/application/guest-os.service.ts">
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  Optional,
+  UnauthorizedException,
+} from "@nestjs/common";
+import {
+  GuestRequestPriority,
+  GuestRequestStatus as InternalGuestRequestStatus,
+  GuestSessionStatus,
+  Prisma,
+} from "@prisma/client";
+import type { Request } from "express";
+import { I18nService } from "../../../common/i18n/i18n.service";
+import type { SupportedLocale } from "../../../common/i18n/i18n.types";
+import {
+  addHours,
+  generateOpaqueToken,
+  hashOpaqueToken,
+} from "../../../common/security/token-hash.util";
+import { AppLogger } from "../../../common/logging/app-logger.service";
+import {
+  GUEST_REQUEST_EVENT_PUBLISHER,
+  NOOP_GUEST_REQUEST_EVENT_PUBLISHER,
+  type GuestRequestEventPublisher,
+} from "../../../shared/events";
+import { TelegramNotificationService } from "../../notifications/notifications-public";
+import {
+  GuestOsRepository,
+  type GuestRequestGuestRow,
+  type GuestSessionContextRow,
+} from "../infrastructure/repositories/guest-os.repository";
+import type {
+  CreateGuestRequestBodyInput,
+  GuestPortalRequestPriority,
+  GuestPortalRequestStatus,
+  GuestPortalRequestStatusFilter,
+  ListGuestCategoryServicesQueryInput,
+  ListGuestRequestsQueryInput,
+  ScanQrBodyInput,
+} from "../domain/schemas/guest-os.schema";
+import {
+  compatibleGuestRequestStatuses,
+  normalizeGuestRequestStatus,
+} from "../domain/guest-request-status";
+⋮----
+export interface GuestSessionContext {
+  sessionId: string;
+  hotelId: string;
+  roomId: string;
+  stayId: string;
+  status: GuestSessionStatus;
+  expiresAt: Date;
+}
+⋮----
+export interface GuestRequestResponse {
+  id: string;
+  service: {
+    id: string | null;
+    name: string | null;
+  };
+  status: GuestPortalRequestStatus;
+  priority: GuestPortalRequestPriority;
+  quantity: number;
+  note: string | null;
+  answer: string | null;
+  createdAt: Date;
+}
+⋮----
+export interface GuestRequestListItemResponse {
+  id: string;
+  displayName: string;
+  status: GuestPortalRequestStatus;
+  priority: GuestPortalRequestPriority;
+  quantity: number;
+  currency: string;
+  unitPrice: Prisma.Decimal;
+  estimatedTotalAmount: Prisma.Decimal;
+  service?: {
+    id: string;
+    name: string;
+    price: Prisma.Decimal;
+    currency: string;
+  };
+  description: string | null;
+  answer: string | null;
+  createdAt: string;
+  canCancel: boolean;
+}
+⋮----
+export class GuestOsService {
+⋮----
+constructor(
+    private readonly guestOsRepository: GuestOsRepository,
+    private readonly logger: AppLogger = new AppLogger(),
+    private readonly telegramNotificationService?: TelegramNotificationService,
+    @Optional()
+    @Inject(GUEST_REQUEST_EVENT_PUBLISHER)
+    guestRequestEventPublisher?: GuestRequestEventPublisher,
+)
+⋮----
+async scanQr(dto: ScanQrBodyInput, request: Request)
+⋮----
+private async resolveCurrentSessionForScan(sessionToken?: string)
+⋮----
+private toScanQrResponse(session: GuestSessionContextRow, sessionToken: string)
+⋮----
+async authenticateGuestToken(sessionToken: string): Promise<GuestSessionContext>
+⋮----
+async getCurrentSession(context: GuestSessionContext)
+⋮----
+async listServices(context: GuestSessionContext, request?: Request)
+⋮----
+async listCategoryServices(
+    context: GuestSessionContext,
+    categoryId: string,
+    query: ListGuestCategoryServicesQueryInput,
+    request?: Request,
+)
+⋮----
+async createRequest(
+    context: GuestSessionContext,
+    dto: CreateGuestRequestBodyInput,
+    httpRequest?: Request,
+)
+⋮----
+async listRequests(
+    context: GuestSessionContext,
+    query: ListGuestRequestsQueryInput,
+    httpRequest?: Request,
+)
+⋮----
+async cancelRequest(context: GuestSessionContext, requestId: string, httpRequest?: Request)
+⋮----
+async closeSession(context: GuestSessionContext)
+⋮----
+private resolveCatalogText(
+    row: {
+      name: string;
+      description?: string | null;
+      translations?: Array<{ locale: string; name: string; description?: string | null }>;
+    },
+    locale: SupportedLocale,
+)
+⋮----
+private async loadUsableSession(sessionId: string)
+⋮----
+private async refreshSessionState(
+    session: GuestSessionContextRow,
+    now: Date,
+): Promise<GuestSessionContextRow>
+⋮----
+private toSessionData(row: GuestSessionContextRow)
+⋮----
+private toGuestRequestData(
+    row: GuestRequestGuestRow,
+    locale: SupportedLocale = "vi-VN",
+): GuestRequestResponse
+⋮----
+private toGuestRequestListItem(
+    row: GuestRequestGuestRow,
+    locale: SupportedLocale = "vi-VN",
+): GuestRequestListItemResponse
+⋮----
+private resolveGuestRequestUnitPrice(row: GuestRequestGuestRow)
+⋮----
+private toGuestRequestStatus(status: GuestRequestGuestRow["status"]): GuestPortalRequestStatus
+⋮----
+private toInternalRequestStatuses(
+    status: GuestPortalRequestStatusFilter,
+): InternalGuestRequestStatus[]
+⋮----
+private toGuestRequestPriority(
+    priority: GuestRequestGuestRow["priority"],
+): GuestPortalRequestPriority
+⋮----
+private toInternalRequestPriority(priority: GuestPortalRequestPriority): GuestRequestPriority
+⋮----
+private toInternalRequestPriorities(
+    priority: GuestPortalRequestPriority,
+): GuestRequestPriority[]
+⋮----
+private denyAccess(): never
+⋮----
+private async recordDeniedScan(
+    aggregateId: string,
+    deniedReason: string,
+    publicCode: string,
+    dto: ScanQrBodyInput,
+    request: Request,
+    context?: {
+      hotelId?: string;
+      tenantId?: string;
+      roomId?: string;
+      stayId?: string;
+      qrStatus?: string;
+      roomStatus?: string;
+      stayStatus?: string;
+    },
+)
+⋮----
+private compactJson(input: Record<string, string | undefined>): Prisma.InputJsonObject
+⋮----
+private resolveIp(request: Request): string | undefined
+⋮----
+private hashOptional(value: string | undefined): string | undefined
+⋮----
+private truncate(value: unknown, maxLength: number): string | undefined
+⋮----
+private tail(value: string, length = 8): string
+⋮----
+private resolveRequestQuantity(
+    submittedQuantity: number | undefined,
+    serviceItem: {
+      quantityEnabled: boolean;
+      minQuantity: number;
+      maxQuantity: number | null;
+    } | null,
+): number
+</file>
+
+<file path="services/auth-service/src/modules/guest-operations/infrastructure/repositories/guest-os.repository.ts">
+import { Injectable } from "@nestjs/common";
+import {
+  DomainEventStatus,
+  GuestRequestActorType,
+  GuestRequestStatus,
+  GuestSessionStatus,
+  GuestStayStatus,
+  Prisma,
+  RoomQRCodeStatus,
+  ServiceCatalogStatus,
+} from "@prisma/client";
+import { PrismaService } from "../../../../prisma/prisma.service";
+import { countDistinctGuestDevices } from "../../../../shared/guest-device-identity";
+⋮----
+export type GuestSessionContextRow = Prisma.GuestSessionGetPayload<{
+  include: typeof guestSessionInclude;
+}>;
+⋮----
+export type GuestRequestGuestRow = Prisma.GuestRequestGetPayload<{
+  include: typeof guestRequestGuestInclude;
+}>;
+⋮----
+export class GuestOsRepository {
+⋮----
+constructor(private readonly prisma: PrismaService)
+⋮----
+async findQrForScan(publicCode: string)
+⋮----
+async findActiveStayForRoom(hotelId: string, roomId: string)
+⋮----
+async createGuestSession(input: {
+    hotelId: string;
+    tenantId: string;
+    roomId: string;
+    stayId: string;
+    roomQrCodeId: string;
+    sessionTokenHash: string;
+    deviceFingerprintHash?: string;
+    ipHash?: string;
+    userAgent?: string;
+    expiresAt: Date;
+    maxDistinctDevices?: number;
+})
+⋮----
+async findActiveSessionByStayAndDeviceFingerprint(stayId: string, deviceFingerprintHash: string)
+⋮----
+async revokeActiveSessionsForDevice(stayId: string, deviceFingerprintHash: string)
+⋮----
+async countDistinctActiveDevices(stayId: string)
+⋮----
+async recordQrScan(input: {
+    eventType?: string;
+    hotelId?: string;
+    tenantId?: string;
+    aggregateId: string;
+    payload: Prisma.InputJsonValue;
+})
+⋮----
+async findSessionByTokenHash(sessionTokenHash: string)
+⋮----
+async findSessionById(sessionId: string)
+⋮----
+async updateSessionHeartbeat(sessionId: string, status: GuestSessionStatus)
+⋮----
+async closeSession(sessionId: string)
+⋮----
+async createRequest(input: {
+    hotelId: string;
+    tenantId: string;
+    roomId: string;
+    stayId: string;
+    sessionId: string;
+    serviceItemId: string;
+    priority: Prisma.GuestRequestCreateInput["priority"];
+    description?: string;
+    quantity: number;
+    metadata?: Prisma.InputJsonValue;
+})
+⋮----
+async listRequests(where: Prisma.GuestRequestWhereInput, skip: number, take: number)
+⋮----
+async findRequestForGuest(requestId: string, stayId: string)
+⋮----
+async cancelCreatedRequest(input: {
+    hotelId: string;
+    tenantId: string;
+    stayId: string;
+    sessionId: string;
+    requestId: string;
+    sourceStatus: GuestRequestStatus;
+})
+⋮----
+async findActiveServiceItemInHotel(hotelId: string, serviceItemId: string)
+⋮----
+async listActiveServiceCatalog(hotelId: string)
+⋮----
+async findActiveServiceCategoryWithItems(input: {
+    hotelId: string;
+    categoryId: string;
+    skip: number;
+    take: number;
+})
+⋮----
+isAccessOpen(input: {
+    qrStatus: RoomQRCodeStatus;
+    stayStatus: GuestStayStatus;
+    checkedOutAt: Date | null;
+})
+⋮----
+private async findActiveSessionsForSameDevice(
+    tx: Prisma.TransactionClient,
+    input: { stayId: string; deviceFingerprintHash?: string; ipHash?: string; userAgent?: string },
+)
+⋮----
+private async revokeActiveSessionsForSameDevice(
+    tx: Prisma.TransactionClient,
+    sessionIds: string[],
+    closedAt: Date,
+)
+⋮----
+private async countDistinctActiveDevicesForStay(
+    tx: Prisma.TransactionClient | PrismaService,
+    stayId: string,
+)
+⋮----
+private async createDomainEvent(
+    tx: Prisma.TransactionClient,
+    input: {
+      eventType: string;
+      aggregateType: string;
+      aggregateId: string;
+      hotelId?: string;
+      tenantId?: string;
+      payload: Prisma.InputJsonValue;
+    },
+)
+</file>
+
+<file path="services/auth-service/src/modules/property/infrastructure/imports/google-sheets-service-catalog-sync.service.ts">
+import { BadRequestException, Injectable } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
+import { google } from "googleapis";
+import { AppLogger } from "../../../../common/logging/app-logger.service";
+import { ImportService } from "../../../../common/import/import.service";
+import type {
+  ImportValidationIssue,
+  ParsedImportWorkbook,
+} from "../../../../common/import/import.types";
+import { PrismaService } from "../../../../prisma/prisma.service";
+import { HotelAccessService } from "../../application/hotel-access.service";
+⋮----
+type SyncSummary = {
+  categoriesProcessed: number;
+  itemsProcessed: number;
+  inserted: number;
+  updated: number;
+  skipped: number;
+  skippedRows: number;
+  durationMs: number;
+  errors: string[];
+  warnings: string[];
+};
+⋮----
+export class GoogleSheetsServiceCatalogSyncService {
+⋮----
+constructor(
+⋮----
+async syncHotel(
+    hotelId: string,
+    actorUserId: string,
+    activeRoleId: string,
+): Promise<SyncSummary>
+⋮----
+async validateSpreadsheet(spreadsheetId: string): Promise<void>
+⋮----
+async syncAllHotels(): Promise<void>
+⋮----
+private async runSync(
+    hotelId: string,
+    spreadsheetId: string | null,
+    actorUserId: string,
+    activeRoleId?: string,
+    enforceConcurrency = true,
+): Promise<SyncSummary>
+⋮----
+private async readWorkbook(spreadsheetId: string): Promise<ParsedImportWorkbook>
+⋮----
+private toGoogleSheetsError(error: unknown): BadRequestException
+⋮----
+private rangesForFirstTwoSheets(titles: string[]): string[]
+⋮----
+private formatValidationErrors(issues: ImportValidationIssue[]): string
+⋮----
+private async previewValidRows(input: Parameters<ImportService["preview"]>[0])
+⋮----
+private assertRequiredSheetsHaveRows(workbook: ParsedImportWorkbook): void
+⋮----
+private toParsedSheet(name: "categories" | "items", values: unknown[][])
+⋮----
+private normalizeHeader(value: string): string
+⋮----
+private stripVietnameseDiacritics(value: string): string
+⋮----
+private sheetCellText(value: unknown): string
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/messages/room-messages-client.tsx">
+import { type InfiniteData, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { type FormEvent, useDeferredValue, useEffect, useLayoutEffect, useRef, useState } from "react";
+⋮----
+import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+import { HttpError } from "@/core/http/http-error";
+import { requestInternalApi } from "@/core/http/internal-api-client";
+import { playMessageAlertSound } from "@/features/request-realtime/audio-notifier";
+import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
+import { hotelMessagesResource } from "@/features/hotel-ops/resources/hotel-messages-resource";
+⋮----
+type Message = {
+  id: string;
+  senderType: "GUEST" | "STAFF" | "SYSTEM";
+  senderName: string | null;
+  body: string;
+  createdAt: string;
+  readAt?: string | null;
+};
+⋮----
+type Thread = {
+  id: string;
+  stayId: string;
+  status: string;
+  roomNumber: string;
+  floor: string | null;
+  roomType: string | null;
+  guestName: string;
+  lastMessageAt: string;
+  unreadCount: number;
+  latestMessage: Message | null;
+};
+⋮----
+type ThreadList = {
+  items: Thread[];
+  total: number;
+  nextCursor?: string | null;
+  hasMore?: boolean;
+};
+type ThreadPage = {
+  thread: Thread;
+  items: Message[];
+  nextCursor?: string | null;
+  hasMore?: boolean;
+};
+⋮----
+function formatMessageTime(dateString: string): string
+⋮----
+function TypewriterMessageBody(
+⋮----
+const threadDetailKey = (threadId: string)
+⋮----
+const markThreadReadInCache = (threadId: string) =>
+⋮----
+const handleSelectThread = (id: string | null) =>
+⋮----
+// Optimistic update
+⋮----
+// Rollback on error
+⋮----
+// Flatten messages from pages in chronological order (oldest page first, newest page last)
+⋮----
+const appendMessageToThreadCache = (threadId: string, message: Message) =>
+⋮----
+const upsertWaitingThread = (thread: Thread, isNewGuestMessage = false) =>
+⋮----
+const removeClosedStayFromWaitingList = (stayId: string) =>
+⋮----
+// Condition 1: Check if event/message is unprocessed
+⋮----
+// Condition 2: Sender is GUEST
+⋮----
+// Condition 3: Room is not currently open/selected
+⋮----
+// Condition 4: Message does not already exist in detail cache or thread latestMessage
+⋮----
+// Track processed message ID
+⋮----
+// Handle Reverse Infinite Scroll (Scroll Up to fetch older history)
+const handleScroll = () =>
+⋮----
+// Restore scroll position after prepending older messages
+⋮----
+// Initial scroll to bottom & Realtime auto-scroll / New message badge
+⋮----
+const scrollToBottom = () =>
+⋮----
+// Listen for peer typing signals across windows/tabs
+⋮----
+const handleSignal = (detail?:
+⋮----
+const handleLocal = (e: Event) =>
+⋮----
+const handleStorage = (e: StorageEvent) =>
+⋮----
+// Optimistically insert sent message into the submitted thread cache.
+⋮----
+const emitTypingSignal = () =>
+⋮----
+const handleInput = (e: React.ChangeEvent<HTMLInputElement>) =>
+⋮----
+const executeSend = () =>
+⋮----
+function submit(event: FormEvent<HTMLFormElement>)
+⋮----
+const handleThreadListScroll = (event: React.UIEvent<HTMLDivElement>) =>
+⋮----
+{/* Sidebar: Thread List */}
+⋮----
+{/* Main Conversation Box */}
+⋮----
+{/* Header inside Conversation Box */}
+⋮----
+{/* Floating "Tin nhắn mới" Badge */}
+⋮----
+if (scrollContainerRef.current)
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/workspace/config/workspace-registry.ts">
+import type { DashboardNavItem } from "../types/workspace-navigation";
+⋮----
+import type {
+  WorkspaceDefinition,
+  WorkspaceNavigationDefinition,
+  WorkspacePersona,
+  WorkspaceRegistry,
+  WorkspaceRegistryExtension,
+  WorkspaceWidgetDefinition,
+} from "../types/workspace-registry";
+⋮----
+// Cấu hình / Thiết lập (Configuration & Catalog Setup)
+⋮----
+// Xử lý / Vận hành (Operations & Processing)
+⋮----
+// Staff Navigation (Cấu hình trước, Xử lý sau)
+⋮----
+function normalizeRoleCode(roleCode: string): string
+⋮----
+function mergeByKey<T extends { key: string }>(
+  base: readonly T[],
+  additions: readonly T[],
+  replaceExisting: boolean,
+  kind: string,
+): T[]
+⋮----
+export function createWorkspaceRegistry(
+  extensions: readonly WorkspaceRegistryExtension[] = [],
+): WorkspaceRegistry
+⋮----
+function hasAnyCapability(
+  permissions: readonly string[],
+  required?: readonly string[],
+): boolean
+⋮----
+function resolvePath(
+  path: `/${string}`,
+  hotelId: string | null,
+): `/$
+⋮----
+export function resolveWorkspacePersona(
+  roleCode: string,
+  registry: WorkspaceRegistry = workspaceRegistry,
+): WorkspacePersona | null
+⋮----
+export function getWorkspaceDefinition(
+  persona: WorkspacePersona,
+  registry: WorkspaceRegistry = workspaceRegistry,
+): WorkspaceDefinition
+⋮----
+export function buildWorkspaceNavigation(input: {
+  persona: WorkspacePersona;
+  permissions: readonly string[];
+  hotelId?: string | null;
+  registry?: WorkspaceRegistry;
+}): DashboardNavItem[]
+⋮----
+export function buildWorkspaceNavigationForContext(input: {
+  activeRole: { code: string };
+  permissions: readonly string[];
+  hotelId?: string | null;
+  registry?: WorkspaceRegistry;
+}): DashboardNavItem[]
+⋮----
+export function getWorkspaceDashboardWidgets(input: {
+  persona: WorkspacePersona;
+  permissions: readonly string[];
+  hotelId?: string | null;
+  registry?: WorkspaceRegistry;
+}): WorkspaceWidgetDefinition[]
+</file>
+
+</files>

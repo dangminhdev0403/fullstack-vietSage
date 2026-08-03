@@ -2,7 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 
 const migration = fs.readFileSync(
-  path.resolve(__dirname, "../../../../prisma/migrations/20260802133000_simplify_hotel_roles/migration.sql"),
+  path.resolve(
+    __dirname,
+    "../../../../prisma/migrations/20260802133000_simplify_hotel_roles/migration.sql",
+  ),
   "utf8",
 );
 
@@ -18,8 +21,10 @@ const LEGACY_ROLE_CODES = [
 describe("simplify hotel roles migration", () => {
   it("touches and disables only active legacy hotel roles", () => {
     expect(migration).toContain('CREATE TEMP TABLE "_RoleSimplificationTouchedUser"');
-    expect(migration).toContain('ur."status" = \'ACTIVE\'');
-    expect(migration).not.toContain("WHERE \"code\" NOT IN ('SUPER_ADMIN', 'TENANT_OWNER', 'HOTEL_FRONTDESK')");
+    expect(migration).toContain("ur.\"status\" = 'ACTIVE'");
+    expect(migration).not.toContain(
+      "WHERE \"code\" NOT IN ('SUPER_ADMIN', 'TENANT_OWNER', 'HOTEL_FRONTDESK')",
+    );
 
     for (const code of LEGACY_ROLE_CODES) {
       expect(migration).toContain(`'${code}'`);

@@ -129,10 +129,7 @@ export class AuthRepository {
     });
   }
 
-  async revokeUserSessionsAndRefreshTokens(
-    userId: string,
-    reason: AuthSessionRevokeReason,
-  ) {
+  async revokeUserSessionsAndRefreshTokens(userId: string, reason: AuthSessionRevokeReason) {
     return this.prisma.$transaction(async (tx) => {
       await tx.authSession.updateMany({
         where: { userId, status: AuthSessionStatus.ACTIVE },

@@ -1,6 +1,21 @@
 import type { QueryClient } from "@tanstack/react-query";
-import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
-import { ownerRoomsResource } from "@/features/hotel-ops/resources/owner-rooms-resource";
+import { staffRoomsResource } from "../resources/staff-rooms-resource";
+import { ownerRoomsResource } from "../resources/owner-rooms-resource";
+
+export async function invalidateHotelRequestRealtimeQueries(
+  queryClient: QueryClient,
+  hotelId: string,
+): Promise<void> {
+  if (!hotelId) return;
+
+  await Promise.allSettled([
+    queryClient.invalidateQueries({ queryKey: ["hotel-requests", hotelId] }),
+    queryClient.invalidateQueries({ queryKey: ["owner-requests", hotelId] }),
+    queryClient.invalidateQueries({
+      queryKey: ["hotel-ops", hotelId, "messages", "unread-summary"],
+    }),
+  ]);
+}
 
 export async function invalidateHotelRealtimeQueries(
   queryClient: QueryClient,
@@ -28,6 +43,9 @@ export async function invalidateHotelRealtimeQueries(
     queryClient.invalidateQueries({ queryKey: ["owner-requests", hotelId] }),
     queryClient.invalidateQueries({ queryKey: ["biometric-workstations", hotelId] }),
     queryClient.invalidateQueries({ queryKey: ["owner-hotels"] }),
+    queryClient.invalidateQueries({ queryKey: ["platform-billing"] }),
+    queryClient.invalidateQueries({ queryKey: ["owner-analytics"] }),
+    queryClient.invalidateQueries({ queryKey: ["owner-saas-billing"] }),
     queryClient.invalidateQueries({
       queryKey: ["hotel-ops", hotelId, "messages", "unread-summary"],
     }),

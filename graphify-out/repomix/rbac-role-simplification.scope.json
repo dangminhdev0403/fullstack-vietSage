@@ -1,0 +1,21 @@
+{
+  "files": [
+    "services/auth-service/prisma/seed.js",
+    "services/auth-service/prisma/migrations/20260802133000_simplify_hotel_roles/migration.sql",
+    "services/auth-service/src/modules/identity/application/hotel-users.service.ts",
+    "services/auth-service/src/modules/identity/infrastructure/repositories/rbac.repository.ts",
+    "services/auth-service/src/modules/identity/tests/hotel-users.service.spec.ts",
+    "services/auth-service/src/modules/identity/tests/rbac.repository.spec.ts",
+    "frontends/front-end-vietsage/src/features/workspace/config/workspace-registry.ts",
+    "frontends/front-end-vietsage/src/features/workspace/utils/workspace-context.test.ts"
+  ],
+  "repomix_pack": "graphify-out/repomix/rbac-role-simplification.xml",
+  "repomix_tokens": 12000,
+  "tests": [
+    "cd services/auth-service && npm test -- --runInBand",
+    "cd services/auth-service && npm run build",
+    "cd frontends/front-end-vietsage && node --experimental-strip-types --test src/features/workspace/config/workspace-registry.test.ts src/features/workspace/utils/workspace-context.test.ts",
+    "cd frontends/front-end-vietsage && npx eslint src/features/workspace/config/workspace-registry.ts src/features/workspace/config/workspace-registry.test.ts src/features/workspace/utils/workspace-context.ts src/features/workspace/utils/workspace-context.test.ts",
+    "cd frontends/front-end-vietsage && npx tsc --noEmit"
+  ]
+}

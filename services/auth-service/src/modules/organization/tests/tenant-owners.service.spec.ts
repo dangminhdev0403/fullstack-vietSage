@@ -192,7 +192,9 @@ describe("TenantOwnersService", () => {
 
   describe("resetTenantOwnerPassword", () => {
     it("resets password for valid tenant owner when actor is SUPER_ADMIN", async () => {
-      tenantOwnersRepository.updatePasswordHashAndRevokeSessions = jest.fn().mockResolvedValue(undefined);
+      tenantOwnersRepository.updatePasswordHashAndRevokeSessions = jest
+        .fn()
+        .mockResolvedValue(undefined);
       tenantOwnersRepository.findActorRoleCodes
         .mockResolvedValueOnce(["SUPER_ADMIN"]) // actor check
         .mockResolvedValueOnce(["TENANT_OWNER"]); // target check

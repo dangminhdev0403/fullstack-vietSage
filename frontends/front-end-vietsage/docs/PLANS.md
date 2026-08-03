@@ -1,3 +1,376 @@
+## [complete] 2026-08-04 - Mission: remove-overdue-alert-view-stay-button-and-fix-checkout-room-redirect
+
+- Removed the **"Xem thông tin lượt ở & Khách"** (`swal-btn-view-stay`) button from the Overdue Check-out Alert Modal in `StaffRoomsClient` (`src/app/(vietsage)/hotels/[hotelId]/rooms/staff-rooms-client.tsx`).
+- Updated the **"Check-out & Chốt Folio (Thanh toán)"** button click handler to pass URL search query parameters (`roomNumber`, `stayId`, `roomId`) when redirecting to `/hotels/[hotelId]/billing`.
+- Enhanced `StaffBillingWorkspaceClient` (`src/app/(vietsage)/hotels/[hotelId]/billing/staff-billing-workspace-client.tsx`) with `useSearchParams()` support to auto-detect and select the exact target room's Folio upon navigation from the alert.
+
+Verification result:
+
+- `npx eslint` checked clean with **0 errors**.
+
+Remaining blockers/risks:
+
+- None.
+
+## [complete] 2026-08-04 - Mission: format-checkout-success-sweetalert-title-and-description
+
+- Standardized checkout success SweetAlert2 popup modal structure in `StaffBillingWorkspaceClient` (`src/app/(vietsage)/hotels/[hotelId]/billing/staff-billing-workspace-client.tsx`).
+- Set modal `title: "Thành công"` and moved the detailed message (`Đã thu tiền và đóng phòng` / `Đã đóng phòng không còn số dư`) into the modal `text` description field for clear visual hierarchy and proper alert formatting.
+
+Verification result:
+
+- `npx eslint` checked clean with **0 errors**.
+
+Remaining blockers/risks:
+
+- None.
+
+## [complete] 2026-08-04 - Mission: replace-user-avatar-with-vietsage-brand-logo
+
+- Replaced external user photo avatar (`lh3.googleusercontent.com`) and default `account_circle` icon in `VsTopBar` (`src/app/(vietsage)/_components/vs-top-bar.tsx`) with the official VietSage brand logo (`/brand/vietsage-icon.png`).
+- Applied dark brand pill background (`bg-[#17201b] p-1`) with crisp object fit (`object-contain`) to ensure high contrast and clear brand visibility across all workspace top bar layouts (`rightMode="profile"` and `rightMode="icons"`).
+
+- Added missing `requestQueue.queries.detail` dependency in `useEffect` and extracted `nowTimestamp = Date.now()` outside JSX map iterations in `RequestQueueClient` (`request-queue-client.tsx`).
+- Refactored `OwnerHotelRoomsPage` (`owner/(hotel)/hotels/[hotelId]/rooms/page.tsx`) to render `<OwnerRoomsClient>` outside of `try...catch` block to resolve React error boundary linting rule.
+
+Verification result:
+
+- `npx eslint` checked clean with **0 errors** (15 non-blocking warnings).
+- `npx tsc --noEmit` passed with 0 errors.
+
+Remaining blockers/risks:
+
+- None.
+
+## [complete] 2026-08-04 - Mission: receptionist-billing-explanation-and-reason-notes
+
+- Added mandatory **Diễn giải / Lý do** text inputs (`surchargeNote` and `discountNote`) for **Phụ thu (Tăng giá)** and **Giảm giá** in `StaffBillingWorkspaceClient` (`src/app/(vietsage)/hotels/[hotelId]/billing/staff-billing-workspace-client.tsx`).
+- Dynamic Folio item name formatting (`Phụ thu: Check-in sớm`, `Giảm giá: Khách VIP`) so reason notes are explicitly recorded and displayed on customer billing statements/invoices.
+- Added quick explanation preset chips: `+50k Sớm`, `+100k Muộn`, `-5% VIP`, `-10% VIP`, `-15% Voucher`.
+- Reorganized sidebar layout: Made guidance box text large, clear, and prominent (`text-xs sm:text-sm font-medium`), and positioned the primary action button (`Phát hành & thu tiền` / `Xem & xuất hóa đơn`) at the **VERY BOTTOM** of the dark checkout card after all calculations & cash calculator rows.
+
+Verification result:
+
+- `npx tsc --noEmit` passed with 0 errors.
+- `npx eslint` verified clean with 0 errors.
+
+Remaining blockers/risks:
+
+- None.
+
+## [complete] 2026-08-04 - Mission: overdue-checkout-visual-alert-and-handling-in-rooms-ui
+
+- Implemented automatic **Overdue Check-out detection (`isOverdueCheckOut`)** in `StaffRoomsClient` (`src/app/(vietsage)/hotels/[hotelId]/rooms/staff-rooms-client.tsx`) and `OwnerStayRoomGridClient` (`src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/stay/owner-stay-room-grid-client.tsx`) for stays where `plannedCheckOutAt < NOW()` and stay `status === "ACTIVE"`.
+- Added distinct visual alert styling:
+  - Vibrant red gradient card background (`border-2 border-red-500 bg-gradient-to-br from-red-950 via-slate-900 to-red-900 text-white`).
+  - Animated pulsing badge ("⚠️ QUÁ HẠN CHECK-OUT").
+  - Warning banner with bouncing icon in room card body.
+- Added quick filter chip **"⚠️ Quá hạn trả"** in toolbar status filters for 1-click filtering of overdue stays across room grid views.
+- Added 1-click **Overdue Action Modal** (`handleOverdueRoomClick`) when clicking on an overdue room card, providing options:
+  1. 🧾 **Check-out & Chốt Folio** (routes directly to `/hotels/[hotelId]/billing`).
+  2. ⏳ **Gia hạn lưu trú** (opens modal to set new `plannedCheckOutAt` date/time and updates stay via API).
+  3. 👤 **Xem thông tin lượt ở & Khách** (opens full occupant detail modal).
+
+Verification result:
+
+- `npx tsc --noEmit` passed with 0 errors.
+- `npx eslint` checked clean across updated files (0 errors).
+
+Remaining blockers/risks:
+
+- None.
+
+## [complete] 2026-08-04 - Mission: support-percentage-surcharge-and-discount-inputs
+
+- Added support for percentage inputs (e.g. `5%`, `10%`, `15%`) in **Phụ thu (Tăng giá)** and **Giảm giá** in `StaffBillingWorkspaceClient` (`src/app/(vietsage)/hotels/[hotelId]/billing/staff-billing-workspace-client.tsx`).
+- Created `parseAmountOrPercentage` to parse percentage strings relative to **Tạm tính dịch vụ (subtotal)** and calculate the exact numeric VNĐ amount.
+- Rendered live conversion feedback badges (e.g. `⚡ Quy đổi 10% Tạm tính: -35.000 đ`) below the inputs for instant visual verification.
+- Added quick percentage chips (`+5%`, `+10%`, `-5% VIP`, `-10% VIP`, `-15%`).
+
+Verification result:
+
+- `npx eslint` verified clean with 0 errors.
+
+Remaining blockers/risks:
+
+- None.
+
+## [complete] 2026-08-04 - Mission: add-receptionist-cash-calculator-and-disable-closed-folio-inputs
+
+- Disabled Phụ thu & Giảm giá input fields (`disabled={selectedFolio?.status === "CLOSED"}`) when viewing a closed folio to prevent invalid billing modifications.
+- Implemented a **Công cụ tính tiền thừa Lễ tân (Cash & Change Calculator)** widget right inside the golden checkout card in `StaffBillingWorkspaceClient` (`src/app/(vietsage)/hotels/[hotelId]/billing/staff-billing-workspace-client.tsx`).
+- Enabled typing or selecting preset cash notes (`Đủ tiền`, `500k`, `1 Triệu`) to instantly compute `Tiền thừa trả khách` (green) or `Khách còn thiếu` (amber) with zero manual math errors.
+
+Verification result:
+
+- `npx eslint` verified clean with 0 errors.
+
+Remaining blockers/risks:
+
+- None.
+
+## [complete] 2026-08-04 - Mission: format-checkout-surcharge-discount-number-inputs
+
+- Implemented automatic Vietnamese currency dot separators (e.g. `1.000.000`) for **Phụ thu (Tăng giá)** and **Giảm giá** text inputs in `StaffBillingWorkspaceClient` (`src/app/(vietsage)/hotels/[hotelId]/billing/staff-billing-workspace-client.tsx`).
+- Created `formatNumberInput` to format typed digits visually while preserving clean numeric extraction (`parseFormattedNumber`) for backend API requests and total calculations.
+- Applied formatted preset chip handlers (`+50k Muộn`, `-10% VIP`, etc.).
+
+Verification result:
+
+- `npx eslint` verified clean with 0 errors.
+
+Remaining blockers/risks:
+
+- None.
+
+## [complete] 2026-08-04 - Mission: fix-input-and-card-overflow-in-checkout-card
+
+- Fixed UI overflow where Phụ thu & Giảm giá input elements protruded past the right border of the dark checkout card in `StaffBillingWorkspaceClient` (`src/app/(vietsage)/hotels/[hotelId]/billing/staff-billing-workspace-client.tsx`).
+- Set `dd` width to `flex-1 min-w-0 max-w-[155px]` and input to `w-full min-w-0 h-9.5 text-sm font-bold` so the input box and `+` button scale fluently within the available sidebar width without spilling over.
+- Added `min-w-0 truncate` to `dt` labels for clean line rendering without overflow.
+
+Verification result:
+
+- `npx eslint` verified clean with 0 errors.
+
+Remaining blockers/risks:
+
+- None.
+
+## [complete] 2026-08-04 - Mission: adjust-checkout-total-amount-and-input-text-sizes
+
+- Adjusted **TỔNG THÀNH TIỀN CHECKOUT** font size to `text-2xl sm:text-3xl font-black break-words` in `StaffBillingWorkspaceClient` (`src/app/(vietsage)/hotels/[hotelId]/billing/staff-billing-workspace-client.tsx`) to prevent text overflow when handling large amounts (e.g. 100,000,000+ đ).
+- Prevented label text wrapping for `Phụ thu (Tăng giá)` and `Giảm giá` by applying `whitespace-nowrap`.
+- Increased text size inside input fields for Phụ thu & Giảm giá to `text-base font-bold` with `h-10` height for improved legibility and ease of typing.
+
+Verification result:
+
+- `npx eslint` verified clean with 0 errors.
+
+Remaining blockers/risks:
+
+- None.
+
+## [complete] 2026-08-04 - Mission: enlarge-total-checkout-amount-card
+
+- Increased font size and prominence of the **TỔNG THÀNH TIỀN CHECKOUT** card in `StaffBillingWorkspaceClient` (`src/app/(vietsage)/hotels/[hotelId]/billing/staff-billing-workspace-client.tsx`).
+- Upgraded title header to `text-xs md:text-sm font-black text-[#fce8b3]` and total amount number to `text-4xl sm:text-5xl font-black text-[#ffe270] drop-shadow-md`.
+- Expanded breakdown list font sizes to `text-sm font-semibold` and values to `text-base font-bold`.
+- Enlarged input fields for Phụ thu and Giảm giá to `h-9 w-44 text-sm font-bold`, plus buttons to `h-9 w-9 text-base font-black`, and preset chips to `text-xs font-bold`.
+- Increased main checkout action button size to `h-13 text-sm md:text-base font-black shadow-xl`.
+
+Verification result:
+
+- Checked clean across billing workspace components.
+
+Remaining blockers/risks:
+
+- None.
+
+## [complete] 2026-08-04 - Mission: enable-locked-room-card-status-update-action
+
+- Enabled card click interaction and hover/click status update options for `BLOCKED` (Đã khóa) and `MAINTENANCE` (Bảo trì) room status cards in `StaffRoomsClient` (`src/app/(vietsage)/hotels/[hotelId]/rooms/staff-rooms-client.tsx`).
+- Added `handleBlockedRoomClick` dialog when clicking on a locked room card (`roomStatus === "blocked"`), presenting options:
+  1. 🔓 **Mở khóa phòng → Chuyển sang TRỐNG**
+  2. 🛠️ **Chuyển sang BẢO TRÌ**
+  3. 🧹 **Chuyển sang CHỜ DỌN**
+- Added `handleMaintenanceRoomClick` dialog when clicking on a maintenance room card (`roomStatus === "maintenance"`), presenting options:
+  1. ✅ **Hoàn thành bảo trì → Chuyển sang TRỐNG**
+  2. 🔒 **KHÓA PHÒNG**
+  3. 🧹 **Chuyển sang CHỜ DỌN**
+- Updated `isInteractiveCard` to include `blocked` and `maintenance` rooms, enabling pointer cursor and hover elevation.
+- Wired the "Cập nhật phòng" button to directly trigger `handleCardClick(room)`.
+
+Verification result:
+
+- `npx eslint` checked clean with 0 errors.
+
+Remaining blockers/risks:
+
+- None.
+
+## [complete] 2026-08-04 - Mission: fix-duplicate-occupant-rendering-and-printing
+
+- Fixed root-cause duplicate occupant rendering when a primary guest (`Đại diện`) is ALSO listed as an accompanying guest (`Ở cùng`) in stay occupants.
+- Added `filterExtraOccupants` utility function in `hotel-ops-display.ts` (`src/features/hotel-ops/utils/hotel-ops-display.ts`). The filter compares name, identity number (CCCD), phone number, and `isPrimary`/`isLeader` flags against the primary guest to eliminate redundant duplicate rows.
+- Applied `filterExtraOccupants` across all guest view and print contexts:
+  - `StaffRoomsClient` (`src/app/(vietsage)/hotels/[hotelId]/rooms/staff-rooms-client.tsx`): Fixed `printActiveStayList` and `StayOccupantsViewer`.
+  - `OwnerRoomsClient` (`src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/rooms/owner-rooms-client.tsx`): Fixed `printActiveStayList`.
+  - `OwnerStayRoomGridClient` (`src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/stay/owner-stay-room-grid-client.tsx`): Fixed `StayOccupantsViewer`.
+  - `CheckInWorkspace` (`src/features/local-biometric/components/check-in-workspace.tsx`): Automatically deduplicates occupants before form submission.
+
+Verification result:
+
+- `npx eslint` checked clean across updated files.
+
+Remaining blockers/risks:
+
+- None.
+
+## [complete] 2026-08-04 - Mission: fix-room-status-ui-distinction-and-vip-badge-contrast
+
+- Fixed status badge text vertical wrapping (`ĐANG \n Ở`, `ĐÃ \n KHÓA`) in `StaffRoomsClient` (`src/app/(vietsage)/hotels/[hotelId]/rooms/staff-rooms-client.tsx`). Added `shrink-0 whitespace-nowrap py-0.5` to `roomStatusBadgeClass`, forcing all status badges onto 1 single line with compact padding.
+- Fixed washed-out/faded VIP badge contrast in `StaffRoomsClient` (`src/app/(vietsage)/hotels/[hotelId]/rooms/staff-rooms-client.tsx`). Replaced low-contrast pale yellow text (`text-yellow-300` on white) with high-contrast, premium badges:
+  - On light cards: Dark slate pill container with bright gold text (`bg-slate-900 text-amber-300 font-black border border-amber-400/80`).
+  - On dark cards: Vibrant gold gradient badge (`bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400 text-slate-950 font-black border border-yellow-200`).
+- Completely redesigned room card & status badge color schemes to eliminate confusion between Maintenance (`BẢO TRÌ`/`ĐÃ KHÓA`) and Vacant (`TRỐNG`):
+  - **Vacant (`TRỐNG`)**: Fresh emerald green card tint (`border-2 border-emerald-300 bg-gradient-to-br from-emerald-50/50...`), `check_circle` icon + `Sẵn sàng đón khách`, and solid emerald badge (`bg-emerald-700 text-white`).
+  - **Maintenance (`BẢO TRÌ`)**: Distinct rose/red warning card (`border-2 border-rose-300 bg-gradient-to-br from-rose-50/90...`), `build` icon + `Đang bảo trì / Tạm ngưng`, and solid rose badge (`bg-rose-700 text-white`).
+  - **Locked (`ĐÃ KHÓA`)**: Distinct dark slate card (`border-2 border-slate-400 bg-gradient-to-br from-slate-100...`), `lock` icon + `Đã khóa phòng`, and solid slate badge (`bg-slate-900 text-amber-300`).
+  - **Cleaning (`CHỜ DỌN`)**: Warm amber card (`border-2 border-amber-300 bg-gradient-to-br from-amber-50/70...`), `cleaning_services` icon + `Đang chờ dọn dẹp...`, and solid amber badge (`bg-amber-600 text-white`).
+- Aligned owner stay room grid tiles in `OwnerStayRoomGridClient` (`src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/stay/owner-stay-room-grid-client.tsx`) to match the new rose (Maintenance) vs slate (Blocked) vs emerald (Vacant) color semantics.
+
+Verification result:
+
+- `npx eslint` checked clean across updated files.
+
+Remaining blockers/risks:
+
+- None.
+
+## [complete] 2026-08-04 - Mission: fix-socket-connect-error-loop-and-biometric-auth-cache
+
+- Fixed root-cause connection error loop in `owner-connection-manager.ts` (`src/features/request-realtime/owner-connection-manager.ts`). Previously, Socket.IO `connect_error` events fired `onReconnect` callbacks on all subscribers, triggering immediate TanStack Query invalidations (`GET /messages/unread-summary`) on every connection failure. Restricted `onReconnect` execution to actual successful reconnections (`socket.on("connect")` when `wasConnected === true`).
+- Increased `scheduleReconnect` backoff interval in `owner-request-realtime-manager.ts` (`src/features/request-realtime/owner-request-realtime-manager.ts`) from 5 seconds to 30 seconds when the Socket.IO server is unreachable, eliminating rapid ticket request polling (`POST /request-realtime-ticket`).
+- Added in-memory token authentication caching (`authCache`) in `commands/route.ts` (`src/app/api/biometric-workstations/commands/route.ts`), reducing `POST /biometric-workstations/authenticate` backend requests from 1 per 2 seconds down to 1 per 10 seconds per workstation token.
+
+Verification result:
+
+- `node --experimental-strip-types --test src/features/request-realtime/owner-connection-manager.test.ts` passed (8/8 tests).
+- `npx eslint` checked clean across updated files (0 errors).
+
+Remaining blockers/risks:
+
+- None.
+
+## [complete] 2026-08-04 - Mission: fix-staff-billing-workspace-ui-size-and-room-avatar-badge
+
+- Redesigned room avatar badge in `StaffBillingWorkspaceClient` (`src/app/(vietsage)/hotels/[hotelId]/billing/staff-billing-workspace-client.tsx`). Replaced cramped 44px fixed square box with a flexible, luxury dark-slate & gold gradient pill card (`h-12 min-w-12 px-3.5`) featuring a room door icon (`meeting_room`) and `whitespace-nowrap font-black text-base text-white`. Completely eliminated room text clipping, wrapping, and vertical overflow.
+- Resolved uneven bottom column gap by setting `items-stretch` on grid container and `h-full` on all three column wrappers (`aside` and `main`). All 3 columns now align perfectly in a straight horizontal line at both top and bottom edges.
+- Enlarged fonts, badges, search bar, and padding spacing across all three columns of the Staff Billing Workspace (`/hotels/[hotelId]/billing`):
+  - Left sidebar: enlarged search input (`h-10.5`), filter pills (`px-3 py-1.5 text-xs`), room badges (`text-xs font-black`), guest name (`text-base font-extrabold`), and amount text (`text-base font-black`).
+  - Central detail header: enlarged title (`text-2xl font-extrabold`), guest badge (`px-3 py-1 text-xs font-black`), folio code subtitle (`text-sm font-bold`), and table rows (`py-4 px-4 text-sm`).
+  - Item icons & tags: enlarged item icons (`h-10 w-10 text-xl`), item titles (`text-base font-bold`), and type tags (`text-xs font-extrabold`).
+
+Verification result:
+
+- `npx eslint` checked clean across updated billing workspace files (0 errors).
+
+Remaining blockers/risks:
+
+- None.
+
+## [complete] 2026-08-04 - Mission: fix-socket-reconnect-api-spam-and-post-login-404
+
+- Resolved Bug 1 (API spam and UI flicker on socket reconnect):
+  - Updated `onReconnect` handlers in `HotelOpsRealtimeNotifier` (`src/features/hotel-ops/components/hotel-ops-realtime-notifier.tsx`) and `OwnerRequestRealtimeNotifier` (`src/app/(vietsage)/owner/_components/owner-request-realtime-notifier.tsx`) to call new narrow invalidation helper `invalidateHotelRequestRealtimeQueries`, invalidating only `hotel-requests`, `owner-requests`, and `messages/unread-summary` queries instead of broad hotel domain invalidations (rooms, biometrics, billing, analytics).
+  - Restored safe default options in `ReactQueryProvider` (`src/app/_components/react-query-provider.tsx`): `refetchOnWindowFocus: false`, `staleTime: 60000`, and removed `refetchOnMount: "always"`.
+  - Removed duplicate `refetchQueries` execution on rooms in `invalidateHotelRealtimeQueries` (`src/features/hotel-ops/utils/invalidate-hotel-realtime-queries.ts`).
+  - Added unit test in `src/features/hotel-ops/utils/invalidate-hotel-realtime-queries.test.ts`.
+
+- Resolved Bug 2 (post-login navigation 404 / open redirect vulnerability):
+  - Updated server post-login route (`src/app/api/auth/post-login/route.ts`) to safely combine `session.activeRoleCode` and `session.user.roles` when deriving safe path through `resolveSafeRedirectByRoles`.
+  - Sanitized `callbackUrl` against external origins, double slashes, and unmapped routes, falling back to role `homePath` (e.g. `/owner/dashboard`, `/admin/dashboard`, `/staff`).
+  - Added focused unit tests in `src/features/auth/utils/redirect-isolation.test.ts` covering hostile callback sanitization and unknown route fallback.
+
+Verification result:
+
+- `node --experimental-strip-types --test src/features/auth/utils/redirect-isolation.test.ts src/features/hotel-ops/utils/invalidate-hotel-realtime-queries.test.ts src/libs/server-session-tokens.test.ts` passed (22/22 tests).
+- `tsc --noEmit` passed in `frontends/front-end-vietsage` with 0 type errors.
+
+Remaining blockers/risks:
+
+- None.
+
+## [complete] 2026-08-04 - Mission: fix-root-cause-api-spamming
+
+- Memoized `unreadSummaryOptions` in `useHotelMessageUnread` (`src/features/hotel-ops/hooks/use-hotel-message-unread.ts`) and `useGuestMessageUnread` (`src/features/guest-os/hooks/use-guest-message-unread.ts`). Resolved infinite `useEffect` re-subscription loop caused by unmemoized array references (`unreadSummaryOptions.queryKey`) in hook dependency arrays triggering socket event re-subscriptions and API refetches on every render.
+- Removed redundant second-pass `refetchQueries` execution in `invalidateHotelRealtimeQueries` (`src/features/hotel-ops/utils/invalidate-hotel-realtime-queries.ts`), eliminating double HTTP API requests issued back-to-back for active queries on every realtime socket notification.
+- Removed `startTransition(() => router.refresh())` from `onReconnect` in `OwnerHotelRequestRealtimeNotifier` (`src/app/(vietsage)/owner/_components/owner-request-realtime-notifier.tsx`), preventing socket reconnection events from triggering full Next.js RSC server re-renders.
+
+Verification result:
+
+- `npx eslint` checked clean across all updated hooks and realtime components (0 errors).
+
+Remaining blockers/risks:
+
+- None.
+
+## [complete] 2026-08-04 - Mission: fix-staff-rooms-api-spamming
+
+- Removed `initialDataUpdatedAt: 0` in `StaffRoomsClient` (`src/app/(vietsage)/hotels/[hotelId]/rooms/staff-rooms-client.tsx`), preventing TanStack Query from marking server props as instantly expired at epoch 0 and eliminating immediate duplicate API fetch on component mount.
+- Increased query `refetchInterval` in `StaffRoomsClient` from 15s to 60s, relying on Socket.IO realtime events for instant room state updates.
+- Removed top-level wildcard `queryKey: ["vietsage"]` invalidation from `invalidateHotelRealtimeQueries` (`src/features/hotel-ops/utils/invalidate-hotel-realtime-queries.ts`) which was invalidating every query in the application cache on any realtime event or socket reconnection.
+- Reduced idle workstation pairing status polling interval in `useWorkstationScan` (`src/features/local-biometric/hooks/use-workstation-scan.ts`) from 5s to 30s to prevent constant HTTP requests to `/api/biometric-workstations/hotels/[hotelId]/pairing`.
+
+Verification result:
+
+- `npx eslint` on updated files checked clean.
+
+Remaining blockers/risks:
+
+- None.
+
+## [complete] 2026-08-04 - Mission: fix-query-client-provider-ssr-initialization
+
+- Updated `ReactQueryProvider` in `src/app/_components/react-query-provider.tsx` to adopt the official TanStack Query v5 `getQueryClient()` pattern for Next.js App Router SSR.
+- Replaced `useState(() => new QueryClient(...))` with a singleton `browserQueryClient` for client-side hydration and synchronous `makeQueryClient()` creation for server rendering (SSR).
+- Resolved Next.js SSR hydration fallback error ("No QueryClient set, use QueryClientProvider to set one at HotelOpsRealtimeNotifier") caused by React state initialization boundaries during initial server-side rendering pass.
+
+Verification result:
+
+- `npx eslint src/app/_components/react-query-provider.tsx src/features/hotel-ops/components/hotel-ops-realtime-notifier.tsx` checked clean (0 errors).
+
+Remaining blockers/risks:
+
+- None.
+
+## [complete] 2026-08-04 - Mission: fix-post-login-session-token-header-extraction
+
+- Updated `readServerSessionTokens` in `src/libs/server-session-tokens.ts` to construct a plain `{ cookie, authorization }` headers dictionary when passing headers to `@auth/core` `getToken()`.
+- Resolved post-login redirect loop where Next.js `ReadonlyHeaders` instance (from `await headers()`) failed `req.headers instanceof Headers` check in `@auth/core`, producing empty header objects and causing `readServerSessionTokens` to return `no_refresh_token` and redirect users back to `/dangnhap` immediately after successful authentication.
+- Added test coverage in `src/libs/server-session-tokens.test.ts`.
+
+Verification result:
+
+- `node --test src/libs/server-session-tokens.test.ts` passed (1/1 test).
+- `node --test src/libs/auth-cookie-policy.test.ts` passed (4/4 tests).
+- `npx eslint src/libs/server-session-tokens.ts` checked clean.
+
+Remaining blockers/risks:
+
+- None.
+
+## [complete] 2026-08-03 - Mission: urgent-request-overdue-and-folio-item-void-presets
+
+- Enhanced `RequestQueueClient` with animated overdue badge ("🔥 QUÁ HẠN") and pulse highlight for urgent requests unacknowledged after 5 minutes (`ackDeadlineAt`).
+- Added 1-click preset chips for Phụ thu (`+50k Muộn`, `+100k Muộn`, `+30k Minibar`) and Giảm giá (`-5% VIP`, `-10% VIP`, `-50k`, `-100k`) in `StaffBillingWorkspaceClient`.
+- Added BFF route `POST /api/hotel-ops/hotels/[hotelId]/billing/folios/[folioId]/items/[itemId]/void` and 1-click table void action with SweetAlert2 confirmation dialog.
+
+Verification result:
+
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+- Backend test suites passed: 74 test suites (433 tests passed).
+
+## [complete] 2026-08-03 - Mission: guest-request-checkout-room-sync
+
+- Restored request full lifecycle (`CREATED -> ACKNOWLEDGED -> IN_PROGRESS -> COMPLETED`) across contract types (`GuestRequestStatus` in `guest-os-contract.ts`), display labels, and progress indicators (`guest-request-display.ts`).
+- Added inline checkout reconciliation for every unfinished service request: provided or cancelled with a mandatory reason.
+- Updated `invalidateHotelRealtimeQueries` to await active refetches for exact staff/owner room resource keys after payment.
+- Configured room initial-data freshness so committed room state is not masked by stale server props.
+- Authenticated browser proof across payment/navigation remains pending; code gates alone do not prove no-F5 runtime behavior.
+
+Verification result:
+
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+- Backend test suites passed: 10 guest-operations suites (68 tests), 4 billing suites (18 tests), 15 property suites (126 tests).
+- Backend build passed (`npm run build`).
+
+Remaining blockers/risks:
+
+- None.
+
+
 ## [complete] 2026-08-02 - Mission: workspace-sidebar-icon-fallback-and-api-description
 
 - Added missing SVG icon glyph mappings (`space_dashboard`, `badge`, `assignment`, `payments`, `room_service`) in `vs-icon.tsx`, replacing the default `!` (info circle) fallback icon in the staff/workspace sidebar navigation.

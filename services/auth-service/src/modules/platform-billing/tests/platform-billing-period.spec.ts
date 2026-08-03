@@ -26,11 +26,15 @@ describe("PlatformBillingService Period & Settlement Invariants", () => {
       platformBillingAdjustment: {
         aggregate: jest.fn().mockResolvedValue({ _sum: { amount: 0 } }),
         findUnique: jest.fn().mockResolvedValue(null),
-        create: jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: "adj-1", ...data })),
+        create: jest
+          .fn()
+          .mockImplementation(({ data }) => Promise.resolve({ id: "adj-1", ...data })),
       },
       platformBillingSettlement: {
         findUnique: jest.fn().mockResolvedValue(null),
-        create: jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: "set-1", ...data })),
+        create: jest
+          .fn()
+          .mockImplementation(({ data }) => Promise.resolve({ id: "set-1", ...data })),
       },
     };
 

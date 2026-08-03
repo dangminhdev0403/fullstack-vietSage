@@ -106,20 +106,6 @@ function formatTime(value: string): string {
   }).format(new Date(value));
 }
 
-function healthTone(status: Dashboard["health"]["status"]): string {
-  if (status === "excellent" || status === "good")
-    return "border-[#87b59d]/50 bg-[#e9f4ed] text-[#1f5f45]";
-  if (status === "critical")
-    return "border-[#d37a68]/50 bg-[#fff0ea] text-[#9b3f2f]";
-  return "border-[#e8b363]/60 bg-[#fff7df] text-[#8a5a14]";
-}
-
-function severityTone(severity: string): string {
-  if (severity === "critical") return "bg-[#9b3f2f] text-white";
-  if (severity === "warning") return "bg-[#e8b363] text-[#17201b]";
-  return "bg-[#24473d] text-[#fff8e8]";
-}
-
 const roomStatusLabels: Record<string, string> = {
   AVAILABLE: "Còn trống",
   OCCUPIED: "Đang có khách",
@@ -140,12 +126,6 @@ const requestStatusLabels: Record<string, string> = {
   FAILED: "Thất bại",
 };
 
-const insightSeverityLabels: Record<string, string> = {
-  info: "Thông tin",
-  warning: "Cảnh báo",
-  critical: "Khẩn cấp",
-};
-
 function fallbackStatusLabel(status: string): string {
   return status
     .trim()
@@ -164,11 +144,6 @@ function roomStatusLabel(status: string): string {
 function requestStatusLabel(status: string): string {
   const normalized = status.trim().toUpperCase();
   return requestStatusLabels[normalized] ?? fallbackStatusLabel(status);
-}
-
-function insightSeverityLabel(severity: string): string {
-  const normalized = severity.trim().toLowerCase();
-  return insightSeverityLabels[normalized] ?? fallbackStatusLabel(severity);
 }
 
 function StatCard({
@@ -317,32 +292,21 @@ export default async function OwnerDashboardPage() {
 
   return (
     <>
-      <section className="vs-owner-hero vs-owner-reveal relative overflow-hidden rounded-[2rem] border border-white/70 bg-[#17201b] px-6 py-7 text-[#fff8e8] shadow-[0_24px_80px_rgba(23,32,27,0.24)] md:px-9 md:py-10">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(232,179,99,0.35),transparent_28%),linear-gradient(135deg,rgba(255,255,255,0.12),transparent_42%)]" />
-        <div className="vs-owner-scanline pointer-events-none absolute inset-x-8 top-0 h-px" />
-        <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+      <section className="vs-owner-hero vs-owner-reveal relative overflow-hidden rounded-3xl border border-white/70 bg-[#17201b] px-6 py-6 text-[#fff8e8] shadow-[0_20px_60px_rgba(23,32,27,0.20)] md:px-8 md:py-8">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(232,179,99,0.25),transparent_28%),linear-gradient(135deg,rgba(255,255,255,0.08),transparent_42%)]" />
+        <div className="relative z-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="inline-flex rounded-full border border-[#e8b363]/35 bg-[#e8b363]/10 px-4 py-2 text-sm font-bold uppercase tracking-[0.28em] text-[#e8b363]">
-              Operational dashboard
-            </p>
-            <h1 className="vs-display mt-5 max-w-4xl text-5xl font-semibold leading-[0.95] tracking-[-0.05em] md:text-7xl">
-              Bức tranh vận hành trong 10 giây.
+            <div className="flex items-center gap-3">
+              <span className="rounded-full border border-[#e8b363]/35 bg-[#e8b363]/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-[#e8b363]">
+                Operational Dashboard
+              </span>
+              <span className="text-xs font-bold text-[#d7cbb8]">
+                Snapshot: {dashboard ? formatTime(dashboard.generatedAt) : "Chưa có dữ liệu"}
+              </span>
+            </div>
+            <h1 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl text-white">
+              Tổng quan vận hành — {hotel?.name ?? "Khách sạn"}
             </h1>
-            <p className="mt-5 max-w-2xl text-base leading-7 text-[#d7cbb8] md:text-lg">
-              Tập trung vào sức khỏe vận hành, việc cần xử lý, phòng, yêu cầu và
-              doanh thu thật của khách sạn.
-            </p>
-          </div>
-          <div className="vs-owner-glass rounded-2xl border border-white/15 bg-white/10 p-4 text-sm text-[#d7cbb8] backdrop-blur">
-            <p className="font-bold text-[#e8b363]">
-              {hotel?.name ?? "Chưa có khách sạn"}
-            </p>
-            <p className="mt-2">
-              Snapshot:{" "}
-              {dashboard
-                ? formatTime(dashboard.generatedAt)
-                : "Chưa đủ dữ liệu"}
-            </p>
           </div>
         </div>
       </section>
@@ -353,119 +317,20 @@ export default async function OwnerDashboardPage() {
         </EmptyState>
       ) : (
         <>
+          {/* Executive KPI Cards */}
           <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
             {kpis.map((item, index) => (
               <StatCard key={item.label} {...item} delay={80 + index * 45} />
             ))}
           </section>
 
-          <section
-            className={`rounded-[1.75rem] border p-6 shadow-[0_18px_60px_rgba(31,61,53,0.10)] ${healthTone(dashboard.health.status)}`}
-          >
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div>
-                <p className="text-sm font-bold uppercase tracking-[0.22em]">
-                  Sức khỏe vận hành
-                </p>
-                <h2 className="mt-2 text-3xl font-semibold tracking-[-0.04em]">
-                  {dashboard.health.title}
-                </h2>
-              </div>
-              <div className="text-left md:text-right">
-                <p className="text-sm font-bold">Điểm vận hành</p>
-                <p className="text-5xl font-semibold tracking-[-0.06em]">
-                  <AnimatedDashboardNumber
-                    value={dashboard.health.score ?? "--"}
-                  />
-                </p>
-              </div>
-            </div>
-            <div className="mt-5 grid gap-3 md:grid-cols-3">
-              {dashboard.health.factors.map((factor) => (
-                <div
-                  key={factor.type}
-                  className="vs-owner-metric rounded-2xl bg-white/60 p-4"
-                >
-                  <p className="font-bold">{factor.label}</p>
-                  <p className="mt-2 text-sm opacity-80">{factor.message}</p>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <SectionCard>
-            <h2 className="text-2xl font-semibold tracking-[-0.03em] text-[#17201b]">
-              Cần xử lý
-            </h2>
-            <div className="mt-4 space-y-3">
-              {dashboard.attention.length ? (
-                dashboard.attention.map((item) => (
-                  <div
-                    key={`${item.type}-${item.id}`}
-                    className="vs-owner-attention grid gap-3 rounded-2xl border border-[#eadfce] bg-[#fffaf0] p-4 md:grid-cols-[1fr_auto] md:items-center"
-                  >
-                    <div>
-                      <span
-                        className={`rounded-full px-3 py-1 text-sm font-bold ${item.priority === "urgent" ? "bg-[#9b3f2f] text-white" : "bg-[#e8b363] text-[#17201b]"}`}
-                      >
-                        {item.priority === "urgent" ? "Khẩn cấp" : "Cần chú ý"}
-                      </span>
-                      <p className="mt-3 font-bold text-[#17201b]">
-                        {item.title}
-                      </p>
-                      <p className="mt-1 text-sm text-[#6d756e]">
-                        {item.description}
-                      </p>
-                    </div>
-                    <Link
-                      href={ownerAttentionRoute(item.action.route, hotel.id)}
-                      className="vs-touch-button inline-flex items-center justify-center rounded-full bg-[#24473d] px-4 py-2 text-sm font-bold text-[#fff8e8] shadow-[0_10px_24px_rgba(36,71,61,0.18)]"
-                    >
-                      {item.action.label}
-                    </Link>
-                  </div>
-                ))
-              ) : (
-                <EmptyState>Không có việc cần xử lý ngay.</EmptyState>
-              )}
-            </div>
-          </SectionCard>
-
-          <section className="grid gap-4 lg:grid-cols-2">
+          {/* Core Operations Grid: Row 1 - Status Tiles (1:1 Symmetry) */}
+          <section className="grid gap-6 lg:grid-cols-2">
             <SectionCard>
-              <h2 className="text-2xl font-semibold tracking-[-0.03em] text-[#17201b]">
-                Insight vận hành
-              </h2>
-              <div className="mt-4 space-y-3">
-                {dashboard.insights.length ? (
-                  dashboard.insights.map((item) => (
-                    <div
-                      key={item.id}
-                      className="vs-owner-attention rounded-2xl border border-[#eadfce] bg-[#f8f1e6]/70 p-4"
-                    >
-                      <span
-                        className={`rounded-full px-3 py-1 text-sm font-bold ${severityTone(item.severity)}`}
-                      >
-                        {insightSeverityLabel(item.severity)}
-                      </span>
-                      <p className="mt-3 font-bold text-[#17201b]">
-                        {item.title}
-                      </p>
-                      <p className="mt-1 text-sm text-[#6d756e]">
-                        {item.description}
-                      </p>
-                    </div>
-                  ))
-                ) : (
-                  <EmptyState>Chưa có insight vận hành.</EmptyState>
-                )}
-              </div>
-            </SectionCard>
-            <SectionCard>
-              <h2 className="text-2xl font-semibold tracking-[-0.03em] text-[#17201b]">
+              <h2 className="text-xl font-semibold tracking-tight text-[#17201b]">
                 Tình trạng phòng
               </h2>
-              <div className="mt-5 grid grid-cols-2 gap-3">
+              <div className="mt-4 grid grid-cols-2 gap-3">
                 {Object.entries(dashboard.rooms.byStatus).map(
                   ([key, value]) => (
                     <MetricTile
@@ -477,14 +342,12 @@ export default async function OwnerDashboardPage() {
                 )}
               </div>
             </SectionCard>
-          </section>
 
-          <section className="grid gap-4 lg:grid-cols-2">
             <SectionCard>
-              <h2 className="text-2xl font-semibold tracking-[-0.03em] text-[#17201b]">
-                Yêu cầu của khách
+              <h2 className="text-xl font-semibold tracking-tight text-[#17201b]">
+                Yêu cầu dịch vụ của khách
               </h2>
-              <div className="mt-5 grid grid-cols-2 gap-3">
+              <div className="mt-4 grid grid-cols-2 gap-3">
                 {Object.entries(dashboard.requests.byStatus).map(
                   ([key, value]) => (
                     <MetricTile
@@ -495,92 +358,99 @@ export default async function OwnerDashboardPage() {
                   ),
                 )}
               </div>
-              <h3 className="mt-5 font-bold text-[#17201b]">
-                Dịch vụ được yêu cầu nhiều
-              </h3>
-              <div className="mt-3 space-y-2">
+            </SectionCard>
+          </section>
+
+          {/* Core Operations Grid: Row 2 - Revenue & Top Services (1:1 Symmetry) */}
+          <section className="grid gap-6 lg:grid-cols-2">
+            {dashboard.revenue.available ? (
+              <SectionCard>
+                <h2 className="text-xl font-semibold tracking-tight text-[#17201b]">
+                  Doanh thu tổng hợp
+                </h2>
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <MetricTile
+                    label="Doanh thu 7 ngày"
+                    value={formatVnd(dashboard.revenue.last7Days)}
+                  />
+                  <MetricTile
+                    label="Doanh thu tháng này"
+                    value={formatVnd(dashboard.revenue.currentMonth)}
+                  />
+                </div>
+              </SectionCard>
+            ) : (
+              <SectionCard>
+                <h2 className="text-xl font-semibold tracking-tight text-[#17201b]">
+                  Doanh thu tổng hợp
+                </h2>
+                <div className="mt-4">
+                  <EmptyState>Chưa đủ dữ liệu doanh thu.</EmptyState>
+                </div>
+              </SectionCard>
+            )}
+
+            <SectionCard>
+              <h2 className="text-xl font-semibold tracking-tight text-[#17201b]">
+                Top dịch vụ được yêu cầu nhiều
+              </h2>
+              <div className="mt-4 space-y-2">
                 {dashboard.requests.topServices.length ? (
                   dashboard.requests.topServices.map((item) => (
                     <div
                       key={item.serviceName}
-                      className="vs-owner-service-row flex items-center justify-between rounded-xl bg-[#fffaf0] px-4 py-3 text-sm"
+                      className="vs-owner-service-row flex items-center justify-between rounded-xl bg-[#fffaf0] px-4 py-2.5 text-sm"
                     >
-                      <span>{item.serviceName}</span>
-                      <strong>
-                        <AnimatedDashboardNumber value={item.count} />
+                      <span className="font-medium">{item.serviceName}</span>
+                      <strong className="font-bold text-[#24473d]">
+                        <AnimatedDashboardNumber value={item.count} /> yêu cầu
                       </strong>
                     </div>
                   ))
                 ) : (
-                  <EmptyState>Chưa có dữ liệu yêu cầu dịch vụ.</EmptyState>
+                  <EmptyState>Chưa có dữ liệu dịch vụ.</EmptyState>
                 )}
               </div>
             </SectionCard>
-            {dashboard.sla.available ? (
-              <SectionCard>
-                <h2 className="text-2xl font-semibold tracking-[-0.03em] text-[#17201b]">
-                  SLA xử lý yêu cầu
-                </h2>
-                <div className="mt-5 space-y-3">
-                  <StatCard
-                    label="Thời gian phản hồi trung bình"
-                    value={`${dashboard.sla.averageResponseMinutes ?? "--"} phút`}
-                    icon="schedule"
-                  />
-                  <StatCard
-                    label="Thời gian hoàn thành trung bình"
-                    value={`${dashboard.sla.averageCompletionMinutes ?? "--"} phút`}
-                    icon="task_alt"
-                  />
-                  <StatCard
-                    label="Hoàn thành đúng SLA"
-                    value={`${dashboard.sla.completedWithinSlaPercent ?? "--"}%`}
-                    icon="verified"
-                  />
-                </div>
-              </SectionCard>
-            ) : null}
           </section>
 
-          {dashboard.revenue.available ? (
-            <section className="grid gap-4 md:grid-cols-3">
-              <StatCard
-                label="Doanh thu hôm nay"
-                value={formatVnd(dashboard.revenue.today)}
-                icon="payments"
-              />
-              <StatCard
-                label="Doanh thu 7 ngày"
-                value={formatVnd(dashboard.revenue.last7Days)}
-                icon="calendar_view_week"
-              />
-              <StatCard
-                label="Doanh thu tháng này"
-                value={formatVnd(dashboard.revenue.currentMonth)}
-                icon="calendar_month"
-              />
-            </section>
-          ) : null}
-
+          {/* Action Needed Card at the Bottom */}
           <SectionCard>
-            <h2 className="text-2xl font-semibold tracking-[-0.03em] text-[#17201b]">
-              Hoạt động gần đây
-            </h2>
-            <div className="mt-4 divide-y divide-[#eadfce]">
-              {dashboard.activities.length ? (
-                dashboard.activities.map((item) => (
-                  <div key={item.id} className="vs-owner-activity py-4">
-                    <p className="font-bold text-[#17201b]">{item.title}</p>
-                    <p className="mt-1 text-sm text-[#6d756e]">
-                      {item.description}
-                    </p>
-                    <p className="mt-2 text-sm font-bold uppercase tracking-[0.16em] text-[#bf7836]">
-                      {formatTime(item.createdAt)}
-                    </p>
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold tracking-tight text-[#17201b]">
+                Cần xử lý ngay ({dashboard.attention.length})
+              </h2>
+            </div>
+            <div className="mt-4 space-y-3">
+              {dashboard.attention.length ? (
+                dashboard.attention.map((item) => (
+                  <div
+                    key={`${item.type}-${item.id}`}
+                    className="vs-owner-attention grid gap-3 rounded-2xl border border-[#eadfce] bg-[#fffaf0] p-4 md:grid-cols-[1fr_auto] md:items-center"
+                  >
+                    <div>
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-bold ${item.priority === "urgent" ? "bg-[#9b3f2f] text-white" : "bg-[#e8b363] text-[#17201b]"}`}
+                      >
+                        {item.priority === "urgent" ? "Khẩn cấp" : "Cần chú ý"}
+                      </span>
+                      <p className="mt-2 text-base font-bold text-[#17201b]">
+                        {item.title}
+                      </p>
+                      <p className="mt-0.5 text-sm text-[#6d756e]">
+                        {item.description}
+                      </p>
+                    </div>
+                    <Link
+                      href={ownerAttentionRoute(item.action.route, hotel.id)}
+                      className="vs-touch-button inline-flex items-center justify-center rounded-full bg-[#24473d] px-4 py-2 text-sm font-bold text-[#fff8e8] shadow-sm"
+                    >
+                      {item.action.label}
+                    </Link>
                   </div>
                 ))
               ) : (
-                <EmptyState>Chưa có hoạt động gần đây.</EmptyState>
+                <EmptyState>Vận hành mượt mà, không có việc cần xử lý ngay.</EmptyState>
               )}
             </div>
           </SectionCard>

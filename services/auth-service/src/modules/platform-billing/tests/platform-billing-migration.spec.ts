@@ -8,14 +8,20 @@ const migration = readFileSync(
 
 describe("platform billing database invariants", () => {
   it("enforces exactly-once immutable room-day charges", () => {
-    expect(migration).toContain('CREATE UNIQUE INDEX "PlatformBillableDay_contract_subject_date_key"');
+    expect(migration).toContain(
+      'CREATE UNIQUE INDEX "PlatformBillableDay_contract_subject_date_key"',
+    );
     expect(migration).toContain('CREATE TRIGGER "PlatformBillableDay_immutable"');
-    expect(migration).toContain('ON CONFLICT ("contractId", "subjectType", "subjectId", "serviceDate") DO NOTHING');
+    expect(migration).toContain(
+      'ON CONFLICT ("contractId", "subjectType", "subjectId", "serviceDate") DO NOTHING',
+    );
   });
 
   it("captures every GuestStay check-in and checkout path at the database boundary", () => {
     expect(migration).toContain('CREATE TRIGGER "GuestStay_platform_usage_sync"');
-    expect(migration).toContain('AFTER INSERT OR UPDATE OF "checkedInAt", "checkedOutAt" ON "GuestStay"');
+    expect(migration).toContain(
+      'AFTER INSERT OR UPDATE OF "checkedInAt", "checkedOutAt" ON "GuestStay"',
+    );
   });
 
   it("provides indexed bounded reconciliation access paths", () => {

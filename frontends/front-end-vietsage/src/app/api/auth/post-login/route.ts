@@ -26,7 +26,11 @@ export async function GET(request: NextRequest) {
     ? sanitizeInternalCallbackUrl(rawCallbackUrl)
     : null;
 
-  const roles = session?.activeRoleCode ? [session.activeRoleCode] : [];
+  const roles = Array.from(
+    new Set(
+      [session?.activeRoleCode, ...(session?.user?.roles ?? [])].filter((role): role is string => Boolean(role)),
+    ),
+  );
   const safePath = resolveSafeRedirectByRoles(roles, callbackUrl);
 
   console.info("[POST_LOGIN_REDIRECT]", {

@@ -14,3 +14,6 @@ export {
   GuestEmergencyContextService,
   type GuestEmergencyContext,
 } from "./application/guest-emergency-context.service";
+
+export { activeGuestRequestStatuses } from "./domain/guest-request-status";
+

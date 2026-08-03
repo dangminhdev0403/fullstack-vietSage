@@ -1,4 +1,63 @@
-# VietSage Backend Plan
+## 2026-08-04 - QR Access Revenue Control & Dual-Counter Usage Analytics (Complete)
+
+- [x] Enhanced `getOwnerAnalytics` in `PlatformBillingService` to query `PlatformUsage` records and return `usageCount` (actual check-in/out usage count) alongside `billableDaysCount`.
+- [x] Added `roomUsageSummary` breakdown mapping `usageCount` vs `billableDaysCount` for each room in the target month.
+- [x] Enhanced Owner SaaS Billing Dashboard UI (`OwnerSaasBillingClient`) with a 4th KPI Stat Card for **Usage Count** (`data.usageCount` lượt ở thực tế).
+- [x] Rendered dual-counter room usage summary grid displaying room-by-room `Usage Count` and `Billable Day` comparison cards.
+
+Verification result:
+- Platform Billing unit test suite passed: `platform-billing-period.spec.ts` (3 passed tests).
+- Backend NestJS build passed (`npm run build`).
+
+## 2026-08-04 - Overdue Check-out Operational Alert & Projections (Complete)
+
+- [x] Exposed `isOverdueCheckOut` boolean flag & overdue duration (`overdueHours`) in room list stay projections (`GET /hotels/:hotelId/rooms`) when `plannedCheckOutAt < NOW()` and active stay status (`ACTIVE`, `CHECKED_IN`, `CHECKOUT_PENDING`) has `checkedOutAt === null`.
+- [x] Implemented `@Cron(CronExpression.EVERY_5_MINUTES)` background alert service (`OverdueCheckoutAlertService`) publishing `stay.overdue_checkout` Socket.IO events to Front Desk / Owner workspace when active stays exceed planned checkout time.
+- [x] Expanded realtime publisher contracts (`guest-request-events.port.ts`, `request-realtime.emitter.ts`, `request-realtime-event.publisher.ts`) to support `publishStayOverdueCheckout`.
+- [x] Updated PropertyModule public boundary assertion in `property.module.spec.ts` to include `OverdueCheckoutAlertService`.
+
+Verification result:
+- Full backend unit test suite passed: 75 passed suites, 439 passed tests (100% green).
+- Backend NestJS build passed (`npm run build`).
+
+## 2026-08-03 - Urgent Overdue Highlighting & Folio Item Void / Surcharge Preset UX (Complete)
+
+- [x] Exposed `isOverdue` & `ackDeadlineAt` projections on `StaffRequestListItem` contract for urgent request SLA visibility.
+- [x] Enhanced `RequestQueueClient` with urgent overdue pulse badge and animated red card highlight for requests exceeding `ackDeadlineAt`.
+- [x] Added 1-click preset chips (`+50k Muộn`, `+100k Muộn`, `+30k Minibar`, `-5% VIP`, `-10% VIP`, `-50k`, `-100k`) to `StaffBillingWorkspaceClient`.
+- [x] Added BFF route `POST /api/hotel-ops/hotels/[hotelId]/billing/folios/[folioId]/items/[itemId]/void` and table action button for 1-click folio item voiding with SweetAlert2 confirmation dialog.
+
+Verification result:
+- Full backend unit test suites passed: 74 passed suites, 433 passed tests.
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+
+## 2026-08-03 - Offline Payment Streamlining & Discount / Surcharge Invoice Calculation (Complete)
+
+- [x] Streamlined manual/offline cash & bank transfer payments for receptionists/owners to settle checkouts directly.
+- [x] Added Zod validation schemas `addFolioItemBodySchema` and `voidFolioItemBodySchema` in `billing.schema.ts`.
+- [x] Implemented `addFolioItem` in `BillingService` to support adding Surcharges (`ADJUSTMENT` / `MANUAL_CHARGE`) and Discounts (`DISCOUNT`) with instant Folio totals recalculation.
+- [x] Implemented `voidFolioItem` in `BillingService` to void manual folio adjustments and recalculate Folio totals.
+- [x] Added REST endpoints `POST :hotelId/folios/:folioId/items` and `POST :hotelId/folios/:folioId/items/:itemId/void` in `FolioController`.
+- [x] Added unit test coverage for `addFolioItem` (surcharge & discount) and `voidFolioItem` in `billing.service.checkout-safety.spec.ts`.
+
+Verification result:
+- Billing unit test suites passed: 16 passed tests in `billing.service.checkout-safety.spec.ts`.
+- Backend build passed (`npm run build`).
+
+## 2026-08-03 - Guest Request, Checkout Reconciliation, and Room Sync (Complete)
+
+- [x] Restored request full lifecycle (`CREATED -> ACKNOWLEDGED -> IN_PROGRESS -> COMPLETED`) with terminal states (`CANCELLED`, `FAILED`).
+- [x] Restored request status normalization, schema values, and compatibility maps preserving `ACKNOWLEDGED` and `IN_PROGRESS` as distinct canonical states.
+- [x] Added urgent-request ACK deadline projection (`isOverdue`, `ackDeadlineAt`), suppressed after checkout. Durable notification escalation remains pending.
+- [x] Implemented checkout service-request reconciliation before invoice generation: required staff choice, mandatory cancellation reason, transactional request update, and idempotent `FolioItem` linkage.
+- [x] Updated post-payment cache invalidation to await exact staff/owner room resource refetches; authenticated browser proof remains pending.
+- [x] Replaced the incorrect simplified-lifecycle test with full lifecycle coverage.
+
+Verification result:
+- Guest operations unit test suites passed: 10 suites, 68 tests passed.
+- Billing unit test suites passed: 4 suites, 18 tests passed.
+- Property unit test suites passed: 15 suites, 126 tests passed.
+- NestJS backend build passed (`npm run build`).
 
 ## 2026-08-03 - Billing & Revenue Protection (Phase 3 Contract Onboarding & Phase 4 Owner Analytics UI/APIs)
 

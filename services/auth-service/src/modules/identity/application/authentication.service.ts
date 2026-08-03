@@ -16,7 +16,6 @@ import type { AuthenticatedUser } from "../domain/authenticated-user";
 import { AuthRepository } from "../infrastructure/repositories/auth.repository";
 import type { ChangePasswordBodyInput } from "../domain/schemas/auth.schema";
 
-
 const ACCESS_TOKEN_TYPE = "access";
 const REFRESH_TOKEN_TYPE = "refresh";
 
@@ -178,10 +177,7 @@ export class AuthService {
     );
   }
 
-  async changePassword(
-    userId: string,
-    dto: ChangePasswordBodyInput,
-  ): Promise<{ changed: true }> {
+  async changePassword(userId: string, dto: ChangePasswordBodyInput): Promise<{ changed: true }> {
     const user = await this.authRepository.findUserById(userId);
     if (!user || user.status !== UserStatus.ACTIVE) {
       throw new BadRequestException({

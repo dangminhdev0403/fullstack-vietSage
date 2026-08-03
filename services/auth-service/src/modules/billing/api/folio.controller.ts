@@ -1,5 +1,5 @@
-import { Controller, Get, Param, Post, Query, Req } from "@nestjs/common";
-import { ApiOkResponse, ApiParam, ApiQuery, ApiTags } from "@nestjs/swagger";
+import { Body, Controller, Get, Param, Post, Query, Req } from "@nestjs/common";
+import { ApiBody, ApiOkResponse, ApiParam, ApiQuery, ApiTags } from "@nestjs/swagger";
 import { FolioStatus } from "@prisma/client";
 import type { Request } from "express";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
@@ -9,9 +9,12 @@ import { SuccessMessage } from "../../../shared/decorators/success-message.decor
 import type { AuthenticatedUser } from "../../../shared/security";
 import { BillingService } from "../application/billing.service";
 import {
+  addFolioItemBodySchema,
   billingIdParamSchema,
+  issueInvoiceBodySchema,
   listFolioItemsQuerySchema,
   listFoliosQuerySchema,
+  voidFolioItemBodySchema,
 } from "../domain/schemas/billing.schema";
 
 interface RequestWithUser extends Request {
@@ -98,20 +101,42 @@ export class FolioController {
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "folioId", type: String })
   @ApiOkResponse({ description: "Invoice đã phát hành" })
+  @ApiBody({
+    schema: {
+      type: "object",
+      properties: {
+        reconciliations: {
+          type: "array",
+          items: {
+            type: "object",
+            required: ["requestId", "action"],
+            properties: {
+              requestId: { type: "string" },
+              action: { type: "string", enum: ["provided", "cancelled"] },
+              cancelReason: { type: "string", maxLength: 500 },
+            },
+          },
+        },
+      },
+    },
+  })
   @Post(":hotelId/folios/:folioId/checkout/issue-invoice")
   async issueInvoice(
     @Req() request: RequestWithUser,
     @Param("hotelId") hotelIdParam: string,
     @Param("folioId") folioIdParam: string,
+    @Body() body: unknown,
   ) {
     const hotelId = parseWithZod(billingIdParamSchema, hotelIdParam);
     const folioId = parseWithZod(billingIdParamSchema, folioIdParam);
+    const options = parseWithZod(issueInvoiceBodySchema, body ?? {});
 
     return this.billingService.issueInvoice(
       request.user.userId,
       request.user.roleId,
       hotelId,
       folioId,
+      options,
     );
   }
 
@@ -161,6 +186,62 @@ export class FolioController {
       request.user.roleId,
       hotelId,
       folioId,
+    );
+  }
+
+  @SuccessMessage("Thêm mục phụ thu / giảm giá vào folio thành công")
+  @RequirePermission("hotel.billing.manage")
+  @ApiDescript("Thêm khoản phụ thu hoặc giảm giá vào folio")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiParam({ name: "folioId", type: String })
+  @ApiOkResponse({ description: "Mục FolioItem đã tạo" })
+  @Post(":hotelId/folios/:folioId/items")
+  async addFolioItem(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("folioId") folioIdParam: string,
+    @Body() body: unknown,
+  ) {
+    const hotelId = parseWithZod(billingIdParamSchema, hotelIdParam);
+    const folioId = parseWithZod(billingIdParamSchema, folioIdParam);
+    const input = parseWithZod(addFolioItemBodySchema, body ?? {});
+
+    return this.billingService.addFolioItem(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      folioId,
+      input,
+    );
+  }
+
+  @SuccessMessage("Hủy mục folio thành công")
+  @RequirePermission("hotel.billing.manage")
+  @ApiDescript("Hủy một khoản mục trong folio")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiParam({ name: "folioId", type: String })
+  @ApiParam({ name: "itemId", type: String })
+  @ApiOkResponse({ description: "Kết quả hủy mục" })
+  @Post(":hotelId/folios/:folioId/items/:itemId/void")
+  async voidFolioItem(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("folioId") folioIdParam: string,
+    @Param("itemId") itemIdParam: string,
+    @Body() body: unknown,
+  ) {
+    const hotelId = parseWithZod(billingIdParamSchema, hotelIdParam);
+    const folioId = parseWithZod(billingIdParamSchema, folioIdParam);
+    const itemId = parseWithZod(billingIdParamSchema, itemIdParam);
+    const { reason } = parseWithZod(voidFolioItemBodySchema, body ?? {});
+
+    return this.billingService.voidFolioItem(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      folioId,
+      itemId,
+      reason,
     );
   }
 }

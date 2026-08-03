@@ -20,7 +20,6 @@ import type {
 import { AuthService } from "../../identity/identity-public";
 import { generateTemporaryPassword } from "../../../common/security/password-policy.util";
 
-
 export interface TenantOwnerItem {
   id: string;
   email: string;
@@ -167,7 +166,9 @@ export class TenantOwnersService {
       throw new NotFoundException("Không tìm thấy chủ đơn vị");
     }
 
-    const targetRoleCodes = await this.tenantOwnersRepository.findActorRoleCodes(targetUserId.trim());
+    const targetRoleCodes = await this.tenantOwnersRepository.findActorRoleCodes(
+      targetUserId.trim(),
+    );
     if (targetRoleCodes.includes("SUPER_ADMIN")) {
       throw new ForbiddenException("Không thể cấp lại mật khẩu cho SUPER_ADMIN");
     }

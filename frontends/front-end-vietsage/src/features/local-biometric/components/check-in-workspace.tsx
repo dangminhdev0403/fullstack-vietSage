@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import Swal from "sweetalert2";
+import { filterExtraOccupants } from "@/features/hotel-ops/utils/hotel-ops-display";
 import type { CheckInWorkspaceProps, CheckInStayFields } from "../types/check-in-workspace";
 import { buildCccdPreviewModel } from "../utils/cccd-preview";
 import { CccdCheckInPanel, type CccdCheckInCapture } from "./cccd-check-in-panel";
@@ -226,7 +227,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
               {previewModel ? <CccdPreview model={previewModel} /> : null}
             </section>
 
-            <form data-ui="stay-form" id="ciw-form" onSubmit={(event) => { event.preventDefault(); onSubmit({ ...fields, occupants }); }} className="min-w-0 space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
+            <form data-ui="stay-form" id="ciw-form" onSubmit={(event) => { event.preventDefault(); onSubmit({ ...fields, occupants: filterExtraOccupants(occupants, fields) }); }} className="min-w-0 space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
               <div className="flex items-center justify-between border-b border-slate-200 pb-3">
                 <div>
                   <h3 className="text-base font-bold text-slate-950">

@@ -26,6 +26,42 @@ export const listFolioItemsQuerySchema = z
   })
   .strict();
 
+export const addFolioItemBodySchema = z
+  .object({
+    itemType: z.enum(["MANUAL_CHARGE", "DISCOUNT", "ADJUSTMENT", "SERVICE"]).default("ADJUSTMENT"),
+    name: z.string().trim().min(1).max(160),
+    description: z.string().trim().max(1000).optional(),
+    amount: z.preprocess(
+      (val) => (typeof val === "string" ? Number(val) : val),
+      z.number().nonnegative(),
+    ),
+    quantity: z.preprocess(
+      (val) => (typeof val === "string" ? Number(val) : val),
+      z.number().int().positive().default(1),
+    ),
+  })
+  .strict();
+
+export const voidFolioItemBodySchema = z
+  .object({
+    reason: z.string().trim().max(500).optional(),
+  })
+  .strict();
+
+export const issueInvoiceBodySchema = z
+  .object({
+    reconciliations: z
+      .array(
+        z.object({
+          requestId: billingIdParamSchema,
+          action: z.enum(["provided", "cancelled"]),
+          cancelReason: z.string().trim().max(500).optional(),
+        }),
+      )
+      .default([]),
+  })
+  .strict();
+
 export const paymentProviderParamSchema = z.nativeEnum(PaymentProvider);
 
 export const createPaymentSessionBodySchema = z

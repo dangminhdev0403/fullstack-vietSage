@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { hotelMessagesResource } from "@/features/hotel-ops/resources/hotel-messages-resource";
 import { ownerRequestRealtimeManager } from "@/features/request-realtime/owner-request-realtime-manager";
@@ -21,9 +21,13 @@ export function useHotelMessageUnread(
   const queryClient = useQueryClient();
   const isEnabled = Boolean(hotelId && options?.enabled !== false);
 
-  const unreadSummaryOptions = hotelMessagesResource
-    .bind({ hotelId: hotelId ?? "" })
-    .queries.unreadSummary.options(undefined as never);
+  const unreadSummaryOptions = useMemo(
+    () =>
+      hotelMessagesResource
+        .bind({ hotelId: hotelId ?? "" })
+        .queries.unreadSummary.options(undefined as never),
+    [hotelId],
+  );
 
   const query = useQuery({
     ...unreadSummaryOptions,
@@ -56,7 +60,7 @@ export function useHotelMessageUnread(
     });
 
     return unsubscribe;
-  }, [hotelId, isEnabled, queryClient, unreadSummaryOptions.queryKey]);
+  }, [hotelId, isEnabled, queryClient, unreadSummaryOptions]);
 
   return {
     unreadCount: query.data?.unreadCount ?? 0,

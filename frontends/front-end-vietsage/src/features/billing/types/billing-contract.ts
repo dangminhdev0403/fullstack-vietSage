@@ -24,6 +24,7 @@ export type FolioSummary = {
   isStale?: boolean;
   requiresRecalculation?: boolean;
   hasDuplicateOpenFolios?: boolean;
+  activeServiceRequests?: Array<{ id: string; name: string; roomNumber: string | null; status: string; quantity: number; unitPrice: MoneyValue }>;
 };
 
 export type FolioListItem = FolioSummary & {
@@ -52,6 +53,8 @@ export type FolioItem = {
   discountAmountSnapshot?: MoneyValue;
   totalSnapshot: MoneyValue;
   currency: string;
+  status?: string | null;
+  voidedAt?: string | null;
   postedAt?: string | null;
 };
 

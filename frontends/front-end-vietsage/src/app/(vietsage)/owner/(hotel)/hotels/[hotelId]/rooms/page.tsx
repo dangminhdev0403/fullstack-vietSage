@@ -15,13 +15,11 @@ export default async function OwnerHotelRoomsPage({ params }: PageProps) {
   const callbackUrl = `/owner/hotels/${hotelId}/rooms` as const;
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
 
-  try {
-    const roomsPage = await authorizedApi("list owner rooms", (accessToken) =>
-      hotelOpsService.listRooms(hotelId, { query: { page: 1, limit: 100 }, accessToken }),
-    );
+  let roomsPage;
 
-    return (
-      <OwnerRoomsClient hotelId={hotelId} initialRooms={roomsPage.items} />
+  try {
+    roomsPage = await authorizedApi("list owner rooms", (accessToken) =>
+      hotelOpsService.listRooms(hotelId, { query: { page: 1, limit: 100 }, accessToken }),
     );
   } catch (error) {
     console.error("[OWNER_ROOMS_PAGE_ERROR]", {
@@ -44,4 +42,8 @@ export default async function OwnerHotelRoomsPage({ params }: PageProps) {
     // Re-throw to let createAuthorizedApiExecutor handle 401/403
     throw error;
   }
+
+  return (
+    <OwnerRoomsClient hotelId={hotelId} initialRooms={roomsPage.items} />
+  );
 }

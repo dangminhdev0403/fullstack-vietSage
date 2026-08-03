@@ -65,6 +65,18 @@ export const BUSINESS_PERMISSIONS: readonly BusinessPermissionDefinition[] = [
     moduleKey: "platform-hotels",
   },
   {
+    key: "platform.billing.view",
+    moduleKey: "platform-billing",
+  },
+  {
+    key: "platform.billing.manage",
+    moduleKey: "platform-billing",
+  },
+  {
+    key: "hotel.revenue-protection.view",
+    moduleKey: "hotel-revenue-protection",
+  },
+  {
     key: "hotel.dashboard.view",
     moduleKey: "hotel-dashboard",
   },

@@ -685,6 +685,7 @@ export function RequestQueueClient({
     operationErrorFallback,
     ownerApiBasePath,
     queryClient,
+    requestQueue.queries.detail,
     requestedDetailId,
     requests,
   ]);
@@ -1493,75 +1494,83 @@ export function RequestQueueClient({
           </div>
           {isUrgentPanelOpen ? (
             <div className="mt-4 grid gap-3 lg:grid-cols-2">
-              {urgentNotifications.map((notification) => (
-              <article
-                key={notification.id}
-                className={`rounded-xl border bg-white p-4 ${notification.acknowledgedAt ? "border-red-100 opacity-75" : "border-red-300 shadow-sm"}`}
-              >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-black text-red-950">
-                      Phòng {notification.roomNumber}
-                    </p>
-                    <p className="mt-1 text-sm text-red-900">
-                      {notification.displayName}
-                    </p>
-                    <p className="mt-1 text-xs text-red-900/70">
-                      {notification.guestName ?? "Khách"} -{" "}
-                      {formatOpsDateTime(notification.createdAt)}
-                    </p>
-                  </div>
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-black ${notification.acknowledgedAt ? "bg-zinc-100 text-zinc-700" : "bg-red-700 text-white"}`}
+              {urgentNotifications.map((notification) => {
+                const isOverdue =
+                  notification.isOverdue ||
+                  (!notification.acknowledgedAt &&
+                    notification.priority === "URGENT");
+                return (
+                  <article
+                    key={notification.id}
+                    className={`rounded-xl border bg-white p-4 transition-all ${
+                      isOverdue
+                        ? "border-red-600 ring-2 ring-red-500/50 bg-red-50/90 shadow-md animate-pulse"
+                        : notification.acknowledgedAt
+                        ? "border-red-100 opacity-75"
+                        : "border-red-300 shadow-sm"
+                    }`}
                   >
-                    {notification.acknowledgedAt
-                      ? "Đã xác nhận"
-                      : "Chưa xác nhận"}
-                  </span>
-                </div>
-                {(notification.latestNote ?? notification.description) ? (
-                  <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-950">
-                    {notification.latestNote ?? notification.description}
-                  </p>
-                ) : null}
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      acknowledgeUrgentRequest(notification.id);
-                      openRequestRow(notification);
-                    }}
-                    className="rounded-lg bg-red-700 px-3 py-2 text-xs font-black uppercase tracking-wide text-white"
-                  >
-                    Xử lý ngay
-                  </button>
-                  {!notification.acknowledgedAt ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        acknowledgeUrgentRequest(notification.id);
-                        statusMutation.mutate({
-                          requestId: notification.id,
-                          status: "ACKNOWLEDGED",
-                          note: "Chúng tôi đã tiếp nhận yêu cầu và đang xử lý.",
-                        });
-                      }}
-                      disabled={statusMutation.isPending}
-                      className="rounded-lg bg-white px-3 py-2 text-xs font-black uppercase tracking-wide text-red-800 ring-1 ring-red-200"
-                    >
-                      Đã thấy · đang xử lý
-                    </button>
-                  ) : null}
-                  <button
-                    type="button"
-                    onClick={() => removeUrgentRequest(notification.id)}
-                    className="rounded-lg px-3 py-2 text-xs font-black uppercase tracking-wide text-red-800 hover:bg-red-100"
-                  >
-                    Ẩn khỏi bảng
-                  </button>
-                </div>
-              </article>
-              ))}
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-black text-red-950">
+                            Phòng {notification.roomNumber}
+                          </p>
+                          {isOverdue && !notification.acknowledgedAt ? (
+                            <span className="rounded-md bg-red-600 px-2 py-0.5 text-[10px] font-black uppercase text-white shadow-xs animate-bounce">
+                              🔥 QUÁ HẠN (Overdue 5m)
+                            </span>
+                          ) : null}
+                        </div>
+                        <p className="mt-1 text-sm text-red-900 font-bold">
+                          {notification.displayName}
+                        </p>
+                        <p className="mt-1 text-xs text-red-900/70">
+                          {notification.guestName ?? "Khách"} -{" "}
+                          {formatOpsDateTime(notification.createdAt)}
+                        </p>
+                      </div>
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-black ${
+                          notification.acknowledgedAt
+                            ? "bg-zinc-100 text-zinc-700"
+                            : isOverdue
+                            ? "bg-red-700 text-white"
+                            : "bg-red-700 text-white"
+                        }`}
+                      >
+                        {notification.acknowledgedAt
+                          ? "Đã xác nhận"
+                          : "Chưa xác nhận"}
+                      </span>
+                    </div>
+                    {(notification.latestNote ?? notification.description) ? (
+                      <p className="mt-3 rounded-lg bg-red-100/70 p-3 text-sm text-red-950">
+                        {notification.latestNote ?? notification.description}
+                      </p>
+                    ) : null}
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          acknowledgeUrgentRequest(notification.id);
+                          openRequestRow(notification);
+                        }}
+                        className="rounded-lg bg-red-700 px-3 py-2 text-xs font-black uppercase tracking-wide text-white hover:bg-red-800"
+                      >
+                        Xử lý ngay
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeUrgentRequest(notification.id)}
+                        className="rounded-lg px-3 py-2 text-xs font-black uppercase tracking-wide text-red-800 hover:bg-red-100"
+                      >
+                        Ẩn khỏi bảng
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           ) : null}
         </section>

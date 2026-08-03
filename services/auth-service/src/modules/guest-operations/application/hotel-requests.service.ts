@@ -34,6 +34,8 @@ export interface StaffRequestListItemResponse {
   displayName: string;
   status: CanonicalGuestRequestStatus;
   priority: "NORMAL" | "URGENT";
+  isOverdue: boolean;
+  ackDeadlineAt: string | null;
   quantity: number;
   description: string | null;
   latestNote: string | null;
@@ -414,11 +416,25 @@ export class HotelRequestsService {
   }
 
   private toStaffRequestListItem(row: StaffRequestListRow): StaffRequestListItemResponse {
+    const normalizedStatus = normalizeGuestRequestStatus(row.status);
+    const priority = this.toStaffRequestListPriority(row.priority);
+    const isCheckedOut =
+      row.stay.status === GuestStayStatus.CHECKED_OUT || Boolean(row.stay.checkedOutAt);
+    const ackDeadlineMs = 5 * 60 * 1000;
+    const ackDeadlineAtDate = new Date(row.createdAt.getTime() + ackDeadlineMs);
+    const isOverdue =
+      priority === "URGENT" &&
+      normalizedStatus === GuestRequestStatus.CREATED &&
+      !isCheckedOut &&
+      Date.now() > ackDeadlineAtDate.getTime();
+
     return {
       id: row.id,
       displayName: row.serviceItem?.name ?? row.title ?? "Request",
-      status: normalizeGuestRequestStatus(row.status),
-      priority: this.toStaffRequestListPriority(row.priority),
+      status: normalizedStatus,
+      priority,
+      isOverdue,
+      ackDeadlineAt: priority === "URGENT" ? ackDeadlineAtDate.toISOString() : null,
       quantity: row.quantity,
       description: row.description,
       latestNote: row.events?.[0]?.note ?? null,
@@ -429,7 +445,7 @@ export class HotelRequestsService {
       assignedToName: row.assignedTo?.fullName ?? row.assignedTo?.email ?? null,
       stayStatus: row.stay.status ?? null,
       checkedOutAt: row.stay.checkedOutAt?.toISOString() ?? null,
-      actions: this.getStaffRequestActions(normalizeGuestRequestStatus(row.status)),
+      actions: this.getStaffRequestActions(normalizedStatus),
     };
   }
 

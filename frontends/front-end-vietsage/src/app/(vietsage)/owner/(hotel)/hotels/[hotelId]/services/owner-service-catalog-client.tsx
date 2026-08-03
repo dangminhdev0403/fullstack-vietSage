@@ -1052,8 +1052,16 @@ export function OwnerServiceCatalogClient({
     setItemPage(1);
   }
 
+  const [syncNotice, setSyncNotice] = useState<{
+    type: "success" | "warning" | "error";
+    title: string;
+    text: string;
+    details?: string[];
+  } | null>(null);
+
   async function syncGoogleSheets() {
     setSyncError(null);
+    setSyncNotice(null);
     const confirmed = await Swal.fire({
       icon: "question",
       title: "Đồng bộ Google Sheets?",
@@ -1074,10 +1082,23 @@ export function OwnerServiceCatalogClient({
       router.refresh();
       closeLoading();
       const notice = getServiceCatalogSyncNotice(result);
+      const skippedRows = result.skippedRows ?? result.skipped ?? 0;
+      setSyncNotice({
+        type: skippedRows > 0 ? "warning" : "success",
+        title: notice.title,
+        text: notice.text,
+        details: result.warnings && result.warnings.length > 0 ? result.warnings : undefined,
+      });
       await Swal.fire({ ...notice, confirmButtonColor: "#00003c" });
     } catch (error) {
       closeLoading();
-      setSyncError(getServiceCatalogErrorMessage(error));
+      const errorMsg = getServiceCatalogErrorMessage(error);
+      setSyncError(errorMsg);
+      setSyncNotice({
+        type: "error",
+        title: "Không thể đồng bộ Google Sheets",
+        text: errorMsg,
+      });
     } finally {
       setIsImporting(false);
     }
@@ -1271,14 +1292,42 @@ export function OwnerServiceCatalogClient({
                 Chưa có Google Sheets. Vui lòng liên hệ quản trị viên nền tảng.
               </p>
             ) : null}
-            {syncError ? (
+            {syncNotice ? (
               <div
                 role="alert"
                 aria-live="assertive"
-                className="w-full rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900"
+                className={`w-full rounded-xl border p-4 text-sm ${
+                  syncNotice.type === "error"
+                    ? "border-red-300 bg-red-50 text-red-900"
+                    : syncNotice.type === "warning"
+                    ? "border-amber-300 bg-amber-50 text-amber-900"
+                    : "border-emerald-300 bg-emerald-50 text-emerald-900"
+                }`}
               >
-                <p className="font-semibold">Không thể đồng bộ Google Sheets</p>
-                <p className="mt-1 whitespace-pre-wrap">{syncError}</p>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-bold text-base">{syncNotice.title}</p>
+                    <p className="mt-1 leading-relaxed whitespace-pre-wrap font-medium">{syncNotice.text}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSyncNotice(null)}
+                    className="rounded-lg p-1 text-slate-400 hover:bg-black/5 hover:text-slate-700"
+                    title="Ẩn thông báo"
+                  >
+                    ✕
+                  </button>
+                </div>
+                {syncNotice.details && syncNotice.details.length > 0 ? (
+                  <div className="mt-3 border-t border-current/20 pt-3">
+                    <p className="font-bold text-xs uppercase tracking-wider mb-1.5 opacity-80">Chi tiết cảnh báo / dòng bỏ qua:</p>
+                    <ul className="list-disc pl-5 space-y-1 text-xs font-mono">
+                      {syncNotice.details.map((detail, idx) => (
+                        <li key={idx} className="whitespace-pre-wrap">{detail}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </div>

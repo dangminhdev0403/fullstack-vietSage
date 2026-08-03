@@ -9,13 +9,24 @@ const stayInput = {
 };
 
 describe("guest stay CCCD identity", () => {
-  it.each(["123456789", " 034205005951 "])("accepts and trims a valid identity number: %s", (value) => {
-    expect(createStayBodySchema.parse({ ...stayInput, guestIdentityNumber: value }).guestIdentityNumber).toBe(value.trim());
-  });
+  it.each(["123456789", " 034205005951 "])(
+    "accepts and trims a valid identity number: %s",
+    (value) => {
+      expect(
+        createStayBodySchema.parse({ ...stayInput, guestIdentityNumber: value })
+          .guestIdentityNumber,
+      ).toBe(value.trim());
+    },
+  );
 
-  it.each(["12345678", "1234567890123", "03420A005951"])("rejects an invalid identity number: %s", (value) => {
-    expect(createStayBodySchema.safeParse({ ...stayInput, guestIdentityNumber: value }).success).toBe(false);
-  });
+  it.each(["12345678", "1234567890123", "03420A005951"])(
+    "rejects an invalid identity number: %s",
+    (value) => {
+      expect(
+        createStayBodySchema.safeParse({ ...stayInput, guestIdentityNumber: value }).success,
+      ).toBe(false);
+    },
+  );
 
   it("keeps manual check-in valid without an identity number", () => {
     expect(createStayBodySchema.safeParse(stayInput).success).toBe(true);
@@ -31,7 +42,9 @@ describe("guest stay CCCD identity", () => {
       room: { update: jest.fn() },
       domainEvent: { create: jest.fn() },
     };
-    const prisma = { $transaction: jest.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)) };
+    const prisma = {
+      $transaction: jest.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
+    };
     const repository = new HotelRoomsRepository(prisma as never);
 
     await repository.createStay({
@@ -76,7 +89,9 @@ describe("guest stay CCCD identity", () => {
       room: { update: jest.fn() },
       domainEvent: { create: jest.fn() },
     };
-    const prisma = { $transaction: jest.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)) };
+    const prisma = {
+      $transaction: jest.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
+    };
     const repository = new HotelRoomsRepository(prisma as never);
 
     await repository.createStay({

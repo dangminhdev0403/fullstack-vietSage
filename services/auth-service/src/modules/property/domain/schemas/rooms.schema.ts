@@ -161,6 +161,14 @@ export const checkOutBodySchema = z
   })
   .strict();
 
+export const updateStayBodySchema = z
+  .object({
+    plannedCheckOutAt: z.coerce.date({ message: "Ngày trả phòng không hợp lệ" }).optional(),
+    guestDisplayName: z.string().trim().min(2, "Tên khách hàng phải từ 2 ký tự").max(120, "Tên khách hàng tối đa 120 ký tự").optional(),
+    guestPhone: z.string().trim().max(40, "Số điện thoại tối đa 40 ký tự").optional(),
+  })
+  .strict();
+
 export const qrReasonBodySchema = z
   .object({
     reason: z
@@ -184,4 +192,5 @@ export type UpdateRoomBodyInput = z.infer<typeof updateRoomBodySchema>;
 export type ListRoomsQueryInput = z.infer<typeof listRoomsQuerySchema>;
 export type CreateStayBodyInput = z.infer<typeof createStayBodySchema>;
 export type CheckOutBodyInput = z.infer<typeof checkOutBodySchema>;
+export type UpdateStayBodyInput = z.infer<typeof updateStayBodySchema>;
 export type QrReasonBodyInput = z.infer<typeof qrReasonBodySchema>;

@@ -211,10 +211,21 @@ export class HotelUsersController {
   @SuccessMessage("Cập nhật thông tin nhân viên thành công")
   @ApiDescript("Cập nhật thông tin nhân viên")
   @Patch(":id")
-  async updateHotelUser(@Req() request: RequestWithUser, @Param("id") userIdParam: string, @Body() body: unknown, @Headers("x-tenant-id") tenantIdHeader?: string) {
+  async updateHotelUser(
+    @Req() request: RequestWithUser,
+    @Param("id") userIdParam: string,
+    @Body() body: unknown,
+    @Headers("x-tenant-id") tenantIdHeader?: string,
+  ) {
     const userId = parseWithZod(userIdParamSchema, userIdParam);
     const dto = parseWithZod(updateHotelUserBodyZodSchema, body);
-    return this.hotelUsersService.updateHotelUser(request.user.userId, request.user.roleId, this.resolveTenantHint(tenantIdHeader, undefined), userId, dto);
+    return this.hotelUsersService.updateHotelUser(
+      request.user.userId,
+      request.user.roleId,
+      this.resolveTenantHint(tenantIdHeader, undefined),
+      userId,
+      dto,
+    );
   }
 
   @RequirePermission("hotel.staff.manage")

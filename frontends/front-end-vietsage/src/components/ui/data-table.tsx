@@ -167,17 +167,17 @@ export function DataTable<TItem>({
   const pageSizeOptions = pagination?.pageSizeOptions ?? [10, 25, 50];
 
   return (
-    <div className="overflow-hidden rounded-xl border border-[var(--outline-variant)] bg-white">
+    <div className="overflow-hidden rounded-[1.6rem] border border-[#e8dfd1] bg-white/95 shadow-[0_16px_45px_rgba(23,32,27,0.06)] backdrop-blur-md">
       {header}
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm" style={{ minWidth }}>
-          <thead className="bg-[var(--surface-container-low)] text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
+          <thead className="border-b border-[#e5dcd0] bg-[#f6f1e7]/90 text-[11px] font-extrabold uppercase tracking-[0.1em] text-[#69726b]">
             <tr>
               {columns.map((column) => {
                 const isSorted = sort?.key === column.key;
                 const nextDirection: DataTableSortDirection = isSorted && sort.direction === "asc" ? "desc" : "asc";
                 const headerContent = column.sortable ? (
-                  <span className={joinClasses("inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-bold transition-colors", isSorted ? "text-[var(--primary)]" : "text-[var(--on-surface-variant)]")}>
+                  <span className={joinClasses("inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-bold transition-colors", isSorted ? "text-[#24473d]" : "text-[#69726b]")}>
                     <span>{column.header}</span>
                     <SortIndicator direction={isSorted ? sort.direction : undefined} />
                   </span>
@@ -186,7 +186,7 @@ export function DataTable<TItem>({
                 return (
                   <th
                     key={column.key}
-                    className={joinClasses("px-4 py-3", column.headerClassName)}
+                    className={joinClasses("px-6 py-4 font-extrabold", column.headerClassName)}
                     aria-sort={isSorted ? (sort.direction === "asc" ? "ascending" : "descending") : undefined}
                   >
                     {column.sortable && sort?.getSortHref ? (
@@ -203,7 +203,7 @@ export function DataTable<TItem>({
               })}
             </tr>
           </thead>
-          <tbody className="divide-y divide-[var(--outline-variant)]">
+          <tbody className="divide-y divide-[#f2ebd9]">
             {pageData.map((item) => (
               <tr
                 key={getRowKey(item)}
@@ -221,8 +221,8 @@ export function DataTable<TItem>({
                     : undefined
                 }
                 className={joinClasses(
-                  "transition-colors hover:bg-[var(--surface-container-low)]",
-                  onRowClick && "cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]",
+                  "transition-colors hover:bg-[#fcf8f2]",
+                  onRowClick && "cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#24473d]",
                   rowClassName?.(item),
                 )}
               >
@@ -230,7 +230,7 @@ export function DataTable<TItem>({
                   <td
                     key={column.key}
                     className={joinClasses(
-                      "px-4 py-3 align-middle",
+                      "px-6 py-4.5 align-middle text-sm font-medium text-[#17201b]",
                       column.className,
                     )}
                   >
@@ -243,7 +243,7 @@ export function DataTable<TItem>({
               <tr>
                 <td
                   colSpan={columns.length}
-                  className="px-4 py-10 text-center text-sm text-[var(--on-surface-variant)]"
+                  className="px-6 py-12 text-center text-sm font-semibold text-[#6d756e]"
                 >
                   {emptyMessage}
                 </td>

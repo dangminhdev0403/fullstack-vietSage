@@ -1,4 +1,4 @@
-﻿import Image from "next/image";
+import Image from "next/image";
 
 import Link from "next/link";
 
@@ -22,8 +22,7 @@ type VsTopBarProps = {
   languageBadge?: string;
 };
 
-const profileImage =
-  "https://lh3.googleusercontent.com/aida-public/AB6AXuDPd6uCb1c2F8aIIiLrrawFVOrjjuXTN5Vpq9r7j5JSag4DOMkWRMHX4R_Q7EG7KuSaJOYmfZpVcDMsroJlQ58x--oNm0FqYSWCk2KtZnRqBsN9F7JxI4kH-91zWiOKYBK68wda-sKd1T5N4mZfcMyY_s06VVirMasqzCikQ8ytArSK4iL842ulcsli5_KfyWRq_igPogBmoNjbHVq5YqayZYTzH9lQuoTTZaNtSmNntaRKpZ42nLWvYy-kUu0FS8hIuHdDYkDX_kE";
+const profileImage = "/brand/vietsage-logo.jpg";
 
 export function VsTopBar({
   title = "VietSage",
@@ -97,13 +96,15 @@ export function VsTopBar({
           >
             {languageBadge}
           </Link>
-          <button
-            type="button"
-            aria-label="Tai khoan"
-            className="flex size-11 items-center justify-center rounded-full transition-colors hover:bg-[#24473d]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b18b26]"
-          >
-            <VsIcon name="account_circle" className="text-[24px]" />
-          </button>
+          <div className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#24473d]/15 bg-white p-0.5 shadow-sm">
+            <Image
+              src={profileImage}
+              alt="Logo VietSage"
+              width={44}
+              height={44}
+              className="h-full w-full object-cover rounded-full"
+            />
+          </div>
         </div>
       ) : (
         <div className="flex min-w-0 items-center gap-4">
@@ -123,13 +124,13 @@ export function VsTopBar({
           <ChangePasswordDialog />
           <VsLogoutButton className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-full border border-[#24473d]/15 bg-white/50 px-3 py-2 text-xs font-bold tracking-[0.04em] text-[#24473d] transition-colors hover:bg-[#f8f1e6] disabled:cursor-not-allowed disabled:opacity-60" />
 
-          <div className="size-10 shrink-0 overflow-hidden rounded-full border border-[#24473d]/15 bg-[#f8f1e6] shadow-[0_10px_24px_rgba(31,61,53,0.12)]">
+          <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#24473d]/15 bg-white p-0.5 shadow-[0_10px_24px_rgba(31,61,53,0.12)]">
             <Image
               src={profileImage}
-              alt={`Ảnh đại diện của ${rightLabel}`}
+              alt={`Logo VietSage (${rightLabel})`}
               width={40}
               height={40}
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover rounded-full"
             />
           </div>
         </div>

@@ -149,6 +149,20 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
       "platform.permissions.manage",
     ],
   },
+  {
+    key: "admin.billing",
+    personas: ["platform_admin"],
+    href: "/admin/billing",
+    label: "Phí VietSage SaaS",
+    icon: "payments",
+    order: 50,
+    anyCapabilities: [
+      "platform.billing.view",
+      "platform.billing.manage",
+      "platform.roles.view",
+      "platform.hotels.view",
+    ],
+  },
 
   {
     key: "owner.home",

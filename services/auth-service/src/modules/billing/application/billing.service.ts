@@ -1,8 +1,9 @@
-import { ConflictException, Inject, Injectable, NotFoundException, Optional } from "@nestjs/common";
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, Optional } from "@nestjs/common";
 import {
   FolioItemSourceType,
   FolioItemType,
   FolioStatus,
+  GuestRequestStatus,
   GuestSessionStatus,
   GuestStayStatus,
   InvoiceStatus,
@@ -22,6 +23,7 @@ import {
 import { CodesService } from "../../codes/codes-public";
 import { HotelAccessService } from "../../property/property-public";
 import { closePlatformUsageAtCheckout } from "../../platform-billing/application/platform-billing.service";
+import { activeGuestRequestStatuses } from "../../guest-operations/guest-operations-public";
 import { BillingRepository } from "../infrastructure/repositories/billing.repository";
 
 const DEFAULT_PAGE = 1;
@@ -177,6 +179,147 @@ export class BillingService {
     };
   }
 
+  async addFolioItem(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    folioId: string,
+    input: {
+      itemType: FolioItemType;
+      name: string;
+      description?: string;
+      amount: number;
+      quantity?: number;
+    },
+  ) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+
+    return this.prisma.$transaction(async (tx) => {
+      const folio = await tx.folio.findFirst({
+        where: { id: folioId, hotelId },
+      });
+      if (!folio) {
+        throw new NotFoundException("Không tìm thấy folio");
+      }
+      if (folio.status !== FolioStatus.OPEN) {
+        throw new BadRequestException("Folio không ở trạng thái Mở để thêm mục");
+      }
+
+      const qty = input.quantity ?? 1;
+      const amountDecimal = new Prisma.Decimal(input.amount);
+
+      let subtotalSnapshot = new Prisma.Decimal(0);
+      let discountAmountSnapshot = new Prisma.Decimal(0);
+      let totalSnapshot = new Prisma.Decimal(0);
+
+      if (input.itemType === FolioItemType.DISCOUNT) {
+        discountAmountSnapshot = amountDecimal.mul(qty);
+        totalSnapshot = discountAmountSnapshot.negated();
+      } else {
+        subtotalSnapshot = amountDecimal.mul(qty);
+        totalSnapshot = subtotalSnapshot;
+      }
+
+      const item = await tx.folioItem.create({
+        data: {
+          hotelId,
+          folioId,
+          stayId: folio.stayId,
+          itemType: input.itemType,
+          sourceType: FolioItemSourceType.MANUAL,
+          nameSnapshot: input.name,
+          descriptionSnapshot: input.description,
+          quantity: qty,
+          unitPriceSnapshot: amountDecimal,
+          subtotalSnapshot,
+          discountAmountSnapshot,
+          totalSnapshot,
+          currency: folio.currency,
+          billingSourceSnapshot: {
+            addedByUserId: actorUserId,
+            addedAt: new Date().toISOString(),
+          },
+          postedByUserId: actorUserId,
+        },
+      });
+
+      const folioItems = await tx.folioItem.findMany({
+        where: { hotelId, folioId, voidedAt: null },
+      });
+      const totals = this.computeTotalsFromFolioItems(folioItems);
+      await tx.folio.update({
+        where: { id: folioId },
+        data: {
+          subtotalAmount: totals.subtotalAmount,
+          taxAmount: totals.taxAmount,
+          discountAmount: totals.discountAmount,
+          totalAmount: totals.totalAmount,
+        },
+      });
+
+      return item;
+    });
+  }
+
+  async voidFolioItem(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    folioId: string,
+    itemId: string,
+    reason?: string,
+  ) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+
+    return this.prisma.$transaction(async (tx) => {
+      const folio = await tx.folio.findFirst({
+        where: { id: folioId, hotelId },
+      });
+      if (!folio) {
+        throw new NotFoundException("Không tìm thấy folio");
+      }
+      if (folio.status !== FolioStatus.OPEN) {
+        throw new BadRequestException("Folio không ở trạng thái Mở để hủy mục");
+      }
+
+      const item = await tx.folioItem.findFirst({
+        where: { id: itemId, folioId, hotelId },
+      });
+      if (!item) {
+        throw new NotFoundException("Không tìm thấy mục folio");
+      }
+      if (item.voidedAt) {
+        throw new BadRequestException("Mục này đã bị hủy trước đó");
+      }
+
+      await tx.folioItem.update({
+        where: { id: itemId },
+        data: {
+          voidedAt: new Date(),
+          voidedByUserId: actorUserId,
+          voidReason: reason ?? "Hủy bởi lễ tân",
+        },
+      });
+
+      const folioItems = await tx.folioItem.findMany({
+        where: { hotelId, folioId, voidedAt: null },
+      });
+      const totals = this.computeTotalsFromFolioItems(folioItems);
+      await tx.folio.update({
+        where: { id: folioId },
+        data: {
+          subtotalAmount: totals.subtotalAmount,
+          taxAmount: totals.taxAmount,
+          discountAmount: totals.discountAmount,
+          totalAmount: totals.totalAmount,
+        },
+      });
+
+      return { success: true };
+    });
+  }
+
+
   async getFolioSummary(
     actorUserId: string,
     activeRoleId: string,
@@ -305,6 +448,17 @@ export class BillingService {
       },
       { itemCount: 0, serviceCount: 0, roomChargeCount: 0 },
     );
+    const activeServiceRequests = this.prisma.guestRequest?.findMany
+      ? await this.prisma.guestRequest.findMany({
+          where: {
+            hotelId,
+            stayId: result.folio.stayId,
+            status: { in: [...activeGuestRequestStatuses] },
+          },
+          include: { serviceItem: true, room: true },
+          orderBy: { createdAt: "asc" },
+        })
+      : [];
     const latestItemPostedAt = result.latestItemPostedAt;
     const isStale = Boolean(latestItemPostedAt && result.folio.updatedAt < latestItemPostedAt);
     const requiresRecalculation = isStale;
@@ -336,14 +490,34 @@ export class BillingService {
       isStale,
       requiresRecalculation,
       hasDuplicateOpenFolios: false,
+      activeServiceRequests: activeServiceRequests.map((request) => ({
+        id: request.id,
+        name: request.serviceItem?.name ?? request.title ?? "Dịch vụ",
+        roomNumber: request.room?.roomNumber ?? null,
+        status: request.status,
+        quantity: request.quantity,
+        unitPrice: request.serviceItem?.priceOverride ?? 0,
+      })),
       latestItemPostedAt,
       updatedAt: result.folio.updatedAt,
     };
   }
 
-  async issueInvoice(actorUserId: string, activeRoleId: string, hotelId: string, folioId: string) {
+  async issueInvoice(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    folioId: string,
+    options?: {
+      reconciliations?: Array<{
+        requestId: string;
+        action: "provided" | "cancelled";
+        cancelReason?: string;
+      }>;
+    },
+  ) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
-    this.logger.log({
+    this.logger?.log?.({
       event: "CHECKOUT_ISSUE_INVOICE_REQUESTED",
       hotelId,
       folioId,
@@ -370,7 +544,7 @@ export class BillingService {
           data: { status: GuestStayStatus.CHECKOUT_PENDING },
         });
       }
-      this.logger.warn({
+      this.logger?.warn?.({
         event: "CHECKOUT_ISSUE_INVOICE_REUSED_EXISTING_BEFORE_VALIDATION",
         hotelId,
         folioId,
@@ -420,7 +594,7 @@ export class BillingService {
               });
             }
           }
-          this.logger.warn({
+          this.logger?.warn?.({
             event: "CHECKOUT_ISSUE_INVOICE_REUSED_EXISTING",
             hotelId,
             stayId: folio.stayId,
@@ -433,7 +607,7 @@ export class BillingService {
         }
 
         if (folio.status !== FolioStatus.OPEN) {
-          this.logger.warn({
+          this.logger?.warn?.({
             event: "CHECKOUT_ISSUE_INVOICE_BLOCKED_INVALID_FOLIO_STATUS",
             hotelId,
             stayId: folio.stayId,
@@ -443,6 +617,14 @@ export class BillingService {
           });
           throw new ConflictException("FOLIO_NOT_OPEN_FOR_CHECKOUT");
         }
+
+        await this.reconcileStayServiceRequests(
+          tx,
+          hotelId,
+          folio,
+          actorUserId,
+          options?.reconciliations,
+        );
 
         const invoiceNumber = await this.codesService.generateEntityCode("INVOICE", tx);
 
@@ -481,7 +663,7 @@ export class BillingService {
             totalAmount: totals.totalAmount,
             paidAmount: new Prisma.Decimal(0),
             balanceAmount: totals.totalAmount,
-            invoiceSnapshotJson: snapshot,
+            invoiceSnapshotJson: JSON.parse(JSON.stringify(snapshot)) as Prisma.InputJsonValue,
             issuedByUserId: actorUserId,
           },
         });
@@ -1132,15 +1314,17 @@ export class BillingService {
       unitPriceSnapshot: unitPrice,
       subtotalSnapshot: subtotal,
       totalSnapshot: subtotal,
-      billingSourceSnapshot: {
-        stayId: folio.stayId,
-        roomId: folio.roomId,
-        roomNumber: folio.room.roomNumber,
-        nightlyRate: unitPrice,
-        chargeStart: chargeStart.toISOString(),
-        chargeEnd: chargeEnd.toISOString(),
-        nights,
-      },
+      billingSourceSnapshot: JSON.parse(
+        JSON.stringify({
+          stayId: folio.stayId,
+          roomId: folio.roomId,
+          roomNumber: folio.room.roomNumber,
+          nightlyRate: unitPrice,
+          chargeStart: chargeStart.toISOString(),
+          chargeEnd: chargeEnd.toISOString(),
+          nights,
+        }),
+      ) as Prisma.InputJsonValue,
     };
 
     if (existing) {
@@ -1187,6 +1371,114 @@ export class BillingService {
         totalAmount: new Prisma.Decimal(0),
       },
     );
+  }
+
+  private async reconcileStayServiceRequests(
+    tx: any,
+    hotelId: string,
+    folio: any,
+    actorUserId: string,
+    reconciliations?: Array<{
+      requestId: string;
+      action: "provided" | "cancelled";
+      cancelReason?: string;
+    }>,
+  ) {
+    if (!tx.guestRequest) return;
+    const activeRequests = await tx.guestRequest.findMany({
+      where: {
+        stayId: folio.stayId,
+        status: {
+          in: [
+            GuestRequestStatus.CREATED,
+            GuestRequestStatus.NEW,
+            GuestRequestStatus.ACKNOWLEDGED,
+            GuestRequestStatus.CONFIRMED,
+            GuestRequestStatus.ACCEPTED,
+            GuestRequestStatus.IN_PROGRESS,
+            GuestRequestStatus.PENDING,
+            GuestRequestStatus.ON_THE_WAY,
+          ],
+        },
+      },
+      include: { serviceItem: true, room: true },
+    });
+
+    if (!activeRequests.length) return;
+
+    const reconciliationsMap = new Map(
+      (reconciliations ?? []).map((item) => [item.requestId, item]),
+    );
+
+    const unhandled = activeRequests.filter((req: any) => !reconciliationsMap.has(req.id));
+    if (unhandled.length > 0) {
+      const first = unhandled[0];
+      const name = first.serviceItem?.name ?? first.title ?? "Yêu cầu dịch vụ";
+      const room = first.room?.roomNumber ?? "chưa xác định";
+      throw new BadRequestException(
+        `Yêu cầu dịch vụ "${name}" phòng ${room} chưa được xử lý. Vui lòng xác nhận trạng thái phục vụ (Đã cung cấp hoặc Hủy) trước khi xuất hóa đơn.`,
+      );
+    }
+
+    for (const req of activeRequests) {
+      const rec = reconciliationsMap.get(req.id)!;
+      if (rec.action === "cancelled") {
+        const reason = rec.cancelReason?.trim() || "Hủy khi checkout";
+        await tx.guestRequest.update({
+          where: { id: req.id },
+          data: {
+            status: GuestRequestStatus.CANCELLED,
+            cancelledAt: new Date(),
+            cancelledByUserId: actorUserId,
+            cancelReason: reason,
+          },
+        });
+      } else if (rec.action === "provided") {
+        await tx.guestRequest.update({
+          where: { id: req.id },
+          data: {
+            status: GuestRequestStatus.COMPLETED,
+            completedAt: new Date(),
+            completedByUserId: actorUserId,
+          },
+        });
+
+        const existingItem = await tx.folioItem.findFirst({
+          where: {
+            folioId: folio.id,
+            OR: [{ guestRequestId: req.id }, { sourceId: req.id }],
+          },
+        });
+
+        if (!existingItem) {
+          const unitPrice = req.serviceItem?.priceOverride ?? req.unitPrice ?? 0;
+          const subtotal = new Prisma.Decimal(unitPrice).mul(req.quantity ?? 1);
+          await tx.folioItem.create({
+            data: {
+              hotelId,
+              folioId: folio.id,
+              stayId: folio.stayId,
+              itemType: FolioItemType.SERVICE,
+              sourceType: FolioItemSourceType.GUEST_REQUEST,
+              sourceId: req.id,
+              guestRequestId: req.id,
+              serviceItemId: req.serviceItemId,
+              nameSnapshot: req.serviceItem?.name ?? "Dịch vụ",
+              quantity: req.quantity ?? 1,
+              unitPriceSnapshot: new Prisma.Decimal(unitPrice),
+              subtotalSnapshot: subtotal,
+              totalSnapshot: subtotal,
+              currency: folio.currency,
+              billingSourceSnapshot: {
+                requestId: req.id,
+                reconciledAt: new Date().toISOString(),
+              },
+              postedByUserId: actorUserId,
+            },
+          });
+        }
+      }
+    }
   }
 
   private methodFromProvider(provider: PaymentProvider) {

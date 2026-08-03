@@ -8,9 +8,12 @@ import { toast } from "sonner";
 import type { StaffRequestListItem } from "@/features/hotel-ops/types/hotel-ops-contract";
 import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
 import { playRequestAlertSound } from "@/features/request-realtime/audio-notifier";
-import { invalidateHotelRealtimeQueries } from "../utils/invalidate-hotel-realtime-queries";
+import {
+  invalidateHotelRealtimeQueries,
+  invalidateHotelRequestRealtimeQueries,
+} from "../utils/invalidate-hotel-realtime-queries";
 
-export function HotelOpsRealtimeNotifier({ hotelId }: { hotelId: string }) {
+export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string }>) {
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -68,7 +71,7 @@ export function HotelOpsRealtimeNotifier({ hotelId }: { hotelId: string }) {
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
       },
       onReconnect: () => {
-        void invalidateHotelRealtimeQueries(queryClient, hotelId);
+        void invalidateHotelRequestRealtimeQueries(queryClient, hotelId);
       },
     }),
     [hotelId, queryClient, router],

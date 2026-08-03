@@ -33,11 +33,23 @@ export interface ConversationClosedEventInput {
   threadId?: string;
 }
 
+export interface StayOverdueCheckoutEventInput {
+  eventId?: string;
+  hotelId: string;
+  stayId: string;
+  roomId: string;
+  roomNumber: string;
+  guestDisplayName: string;
+  plannedCheckOutAt: Date;
+  overdueHours: number;
+}
+
 export interface GuestRequestEventPublisher {
   publishGuestRequestCreated(input: GuestRequestCreatedEventInput): void;
   publishGuestRequestUpdated(input: GuestRequestUpdatedEventInput): void;
   publishGuestMessageCreated(input: GuestMessageCreatedEventInput): void;
   publishConversationClosed(input: ConversationClosedEventInput): void;
+  publishStayOverdueCheckout?(input: StayOverdueCheckoutEventInput): void;
 }
 
 export const GUEST_REQUEST_EVENT_PUBLISHER = Symbol("GUEST_REQUEST_EVENT_PUBLISHER");
@@ -47,4 +59,6 @@ export const NOOP_GUEST_REQUEST_EVENT_PUBLISHER: GuestRequestEventPublisher = {
   publishGuestRequestUpdated: () => undefined,
   publishGuestMessageCreated: () => undefined,
   publishConversationClosed: () => undefined,
+  publishStayOverdueCheckout: () => undefined,
 };
+

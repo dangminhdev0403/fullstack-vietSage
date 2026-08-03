@@ -1,4 +1,14 @@
-import { Body, Controller, Delete, Get, Headers, Param, Post, Req, UnauthorizedException } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  Param,
+  Post,
+  Req,
+  UnauthorizedException,
+} from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import type { Request } from "express";
 import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
@@ -11,7 +21,8 @@ type RequestWithUser = Request & { user: AuthenticatedUser };
 
 function bearer(value: string | undefined) {
   const [scheme, token] = value?.trim().split(/\s+/, 2) ?? [];
-  if (scheme?.toLowerCase() !== "bearer" || !token) throw new UnauthorizedException("Thiếu thông tin kết nối máy quét");
+  if (scheme?.toLowerCase() !== "bearer" || !token)
+    throw new UnauthorizedException("Thiếu thông tin kết nối máy quét");
   return token;
 }
 
@@ -40,7 +51,11 @@ export class BiometricWorkstationsController {
   @ApiDescript("Cấp mã ghép nối trạm sinh trắc học")
   @Post("hotels/:hotelId/biometric-workstations/pairing")
   async issuePairing(@Req() request: RequestWithUser, @Param("hotelId") hotelId: string) {
-    await this.hotelAccessService.assertHotelAccess(request.user.userId, request.user.roleId, hotelId);
+    await this.hotelAccessService.assertHotelAccess(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+    );
     return this.service.issuePairing(hotelId, request.user.userId);
   }
 
@@ -49,7 +64,11 @@ export class BiometricWorkstationsController {
   @ApiDescript("Kiểm tra trạng thái trạm sinh trắc học")
   @Get("hotels/:hotelId/biometric-workstations/status")
   async status(@Req() request: RequestWithUser, @Param("hotelId") hotelId: string) {
-    await this.hotelAccessService.assertHotelAccess(request.user.userId, request.user.roleId, hotelId);
+    await this.hotelAccessService.assertHotelAccess(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+    );
     return { online: await this.service.hasOnlineWorkstation(hotelId) };
   }
 
@@ -58,7 +77,11 @@ export class BiometricWorkstationsController {
   @ApiDescript("Thu hồi kết nối trạm sinh trắc học")
   @Delete("hotels/:hotelId/biometric-workstations")
   async disconnect(@Req() request: RequestWithUser, @Param("hotelId") hotelId: string) {
-    await this.hotelAccessService.assertHotelAccess(request.user.userId, request.user.roleId, hotelId);
+    await this.hotelAccessService.assertHotelAccess(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+    );
     return { disconnected: true, revoked: await this.service.disconnectHotel(hotelId) };
   }
 }

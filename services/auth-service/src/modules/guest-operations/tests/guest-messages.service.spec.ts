@@ -51,7 +51,11 @@ describe("GuestMessagesService Reliability and Unread Badges TDD", () => {
 
       const result = await service.getStaffUnreadSummary("user-1", "role-1", "hotel-1");
 
-      expect(hotelAccessService.assertHotelAccess).toHaveBeenCalledWith("user-1", "role-1", "hotel-1");
+      expect(hotelAccessService.assertHotelAccess).toHaveBeenCalledWith(
+        "user-1",
+        "role-1",
+        "hotel-1",
+      );
       expect(repository.getStaffUnreadSummary).toHaveBeenCalledWith("hotel-1");
       expect(result).toEqual({ unreadCount: 5 });
     });
@@ -97,7 +101,13 @@ describe("GuestMessagesService Reliability and Unread Badges TDD", () => {
       });
       repository.markReadForStaff.mockResolvedValue({ count: 3 });
 
-      const result = await service.markReadForHotel("user-1", "role-1", "hotel-1", "t-1", "msg-pivot");
+      const result = await service.markReadForHotel(
+        "user-1",
+        "role-1",
+        "hotel-1",
+        "t-1",
+        "msg-pivot",
+      );
 
       expect(repository.markReadForStaff).toHaveBeenCalledWith("hotel-1", "t-1", "msg-pivot");
       expect(result).toEqual({ read: true, updatedCount: 3 });
@@ -108,16 +118,20 @@ describe("GuestMessagesService Reliability and Unread Badges TDD", () => {
 
       const result = await service.markReadForGuest(mockContext, "msg-guest-pivot");
 
-      expect(repository.markReadForGuest).toHaveBeenCalledWith("hotel-1", "stay-123", "msg-guest-pivot");
+      expect(repository.markReadForGuest).toHaveBeenCalledWith(
+        "hotel-1",
+        "stay-123",
+        "msg-guest-pivot",
+      );
       expect(result).toEqual({ read: true, updatedCount: 2 });
     });
   });
 
   describe("3. ClientMessageId and Idempotent Retry", () => {
     it("guest send requires clientMessageId", async () => {
-      await expect(
-        service.sendFromGuest(mockContext, "Hello", new Date(), ""),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.sendFromGuest(mockContext, "Hello", new Date(), "")).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it("idempotent retry returns existing message without duplicate event publishing", async () => {
@@ -125,9 +139,17 @@ describe("GuestMessagesService Reliability and Unread Badges TDD", () => {
         thread: { id: "t-1", stayId: "stay-123", room: {}, stay: {} },
         message: { id: "msg-existing", body: "Hello retry", createdAt: new Date() },
       };
-      repository.appendGuestMessageAtomic.mockResolvedValue({ kind: "existing", value: existingMsg });
+      repository.appendGuestMessageAtomic.mockResolvedValue({
+        kind: "existing",
+        value: existingMsg,
+      });
 
-      const response = await service.sendFromGuest(mockContext, "Hello retry", new Date(), "client-msg-001");
+      const response = await service.sendFromGuest(
+        mockContext,
+        "Hello retry",
+        new Date(),
+        "client-msg-001",
+      );
 
       expect(repository.appendGuestMessageAtomic).toHaveBeenCalledWith(
         expect.objectContaining({ sessionId: "sess-123", clientMessageId: "client-msg-001" }),
@@ -238,7 +260,9 @@ describe("GuestMessagesService Reliability and Unread Badges TDD", () => {
           updateMany: jest.fn(),
         },
       };
-      const { GuestMessagesRepository } = require("../infrastructure/repositories/guest-messages.repository");
+      const {
+        GuestMessagesRepository,
+      } = require("../infrastructure/repositories/guest-messages.repository");
       const realRepo = new GuestMessagesRepository(mockPrisma);
 
       const staffResult = await realRepo.markReadForStaff("hotel-1", "t-1", "invalid-pivot");
@@ -258,7 +282,9 @@ describe("GuestMessagesService Reliability and Unread Badges TDD", () => {
           updateMany: jest.fn().mockResolvedValue({ count: 2 }),
         },
       };
-      const { GuestMessagesRepository } = require("../infrastructure/repositories/guest-messages.repository");
+      const {
+        GuestMessagesRepository,
+      } = require("../infrastructure/repositories/guest-messages.repository");
       const realRepo = new GuestMessagesRepository(mockPrisma);
 
       const result = await realRepo.markReadForStaff("hotel-1", "t-1", "msg-pivot");

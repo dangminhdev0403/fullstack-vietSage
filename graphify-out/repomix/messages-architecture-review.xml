@@ -1,0 +1,3058 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: services/auth-service/prisma/schema.prisma, services/auth-service/prisma/migrations/20260722110000_guest_stay_messages/migration.sql, services/auth-service/prisma/migrations/20260722170000_harden_stay_message_inbox/migration.sql, services/auth-service/src/modules/guest-operations/application/guest-messages.service.ts, services/auth-service/src/modules/guest-operations/infrastructure/repositories/guest-messages.repository.ts, services/auth-service/src/modules/guest-operations/api/guest-os.controller.ts, services/auth-service/src/modules/guest-operations/domain/schemas/guest-os.schema.ts, services/auth-service/src/request-realtime.emitter.ts, services/auth-service/src/request-realtime.gateway.ts, services/auth-service/src/shared/events/request-realtime-event.publisher.ts, services/auth-service/src/common/security/auth-rate-limit.guard.ts, services/auth-service/src/common/security/auth-rate-limit.decorator.ts, services/auth-service/src/common/config/business-permissions.registry.ts, services/auth-service/src/common/config/business-permission-menu.util.ts, services/auth-service/src/modules/identity/application/rbac.service.ts, services/auth-service/src/modules/identity/infrastructure/repositories/rbac.repository.ts, services/auth-service/src/modules/identity/domain/permissions.template.json, frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/messages/room-messages-client.tsx, frontends/front-end-vietsage/src/app/(vietsage)/g/messages/page.tsx, frontends/front-end-vietsage/src/app/api/guest/messages/route.ts, frontends/front-end-vietsage/src/app/api/guest/messages/read/route.ts, frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/messages/route.ts, frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/messages/[threadId]/route.ts, frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/messages/[threadId]/reply/route.ts, frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/messages/[threadId]/read/route.ts, frontends/front-end-vietsage/src/features/guest-os/resources/guest-messages-resource.ts, frontends/front-end-vietsage/src/features/hotel-ops/resources/hotel-messages-resource.ts, frontends/front-end-vietsage/src/features/hotel-ops/types/hotel-messages-contract.ts, frontends/front-end-vietsage/src/features/request-realtime/request-realtime-client.ts, frontends/front-end-vietsage/src/features/request-realtime/guest-connection-manager.ts, frontends/front-end-vietsage/src/features/request-realtime/owner-connection-manager.ts, frontends/front-end-vietsage/src/features/request-realtime/use-guest-request-realtime.ts, frontends/front-end-vietsage/src/features/request-realtime/use-owner-request-realtime.ts, frontends/front-end-vietsage/src/features/hotel-ops/utils/invalidate-hotel-realtime-queries.ts, services/auth-service/src/modules/property/infrastructure/repositories/hotel-rooms.repository.ts, services/auth-service/src/modules/property/application/hotel-rooms.service.ts
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    src/
+      app/
+        (vietsage)/
+          g/
+            messages/
+              page.tsx
+          hotels/
+            [hotelId]/
+              messages/
+                room-messages-client.tsx
+        api/
+          guest/
+            messages/
+              read/
+                route.ts
+              route.ts
+          hotel-ops/
+            hotels/
+              [hotelId]/
+                messages/
+                  [threadId]/
+                    read/
+                      route.ts
+                    reply/
+                      route.ts
+                    route.ts
+                  route.ts
+      features/
+        guest-os/
+          resources/
+            guest-messages-resource.ts
+        hotel-ops/
+          resources/
+            hotel-messages-resource.ts
+          types/
+            hotel-messages-contract.ts
+          utils/
+            invalidate-hotel-realtime-queries.ts
+        request-realtime/
+          guest-connection-manager.ts
+          owner-connection-manager.ts
+          request-realtime-client.ts
+          use-guest-request-realtime.ts
+          use-owner-request-realtime.ts
+services/
+  auth-service/
+    prisma/
+      migrations/
+        20260722110000_guest_stay_messages/
+          migration.sql
+        20260722170000_harden_stay_message_inbox/
+          migration.sql
+      schema.prisma
+    src/
+      common/
+        config/
+          business-permission-menu.util.ts
+          business-permissions.registry.ts
+        security/
+          auth-rate-limit.decorator.ts
+          auth-rate-limit.guard.ts
+      modules/
+        guest-operations/
+          api/
+            guest-os.controller.ts
+          application/
+            guest-messages.service.ts
+          domain/
+            schemas/
+              guest-os.schema.ts
+          infrastructure/
+            repositories/
+              guest-messages.repository.ts
+        identity/
+          application/
+            rbac.service.ts
+          domain/
+            permissions.template.json
+          infrastructure/
+            repositories/
+              rbac.repository.ts
+        property/
+          application/
+            hotel-rooms.service.ts
+          infrastructure/
+            repositories/
+              hotel-rooms.repository.ts
+      shared/
+        events/
+          request-realtime-event.publisher.ts
+      request-realtime.emitter.ts
+      request-realtime.gateway.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="services/auth-service/src/common/config/business-permission-menu.util.ts">
+import type { BusinessPermissionKey } from "./business-permissions.registry";
+import { isBusinessPermissionKey } from "./business-permissions.registry";
+⋮----
+export function resolveBusinessPermissionMenuPath(key: string): string | null
+</file>
+
+<file path="services/auth-service/src/common/config/business-permissions.registry.ts">
+export type BusinessPermissionKey =
+  | "platform.users.view"
+  | "platform.users.manage"
+  | "platform.roles.view"
+  | "platform.roles.manage"
+  | "platform.permissions.manage"
+  | "platform.hotels.view"
+  | "platform.hotels.manage"
+  | "hotel.dashboard.view"
+  | "hotel.rooms.view"
+  | "hotel.rooms.manage"
+  | "hotel.rooms.qr.manage"
+  | "hotel.stays.view"
+  | "hotel.stays.manage"
+  | "hotel.reservations.view"
+  | "hotel.reservations.manage"
+  | "hotel.staff.view"
+  | "hotel.staff.manage"
+  | "hotel.requests.view"
+  | "hotel.requests.manage"
+  | "hotel.billing.view"
+  | "hotel.billing.manage"
+  | "hotel.services.view"
+  | "hotel.services.manage"
+  | "guest.experience.use"
+  | "system.health.view";
+⋮----
+export type BusinessPermissionDefinition = {
+  key: BusinessPermissionKey;
+  moduleKey: string;
+};
+⋮----
+export function isBusinessPermissionKey(value: string): value is BusinessPermissionKey
+</file>
+
+<file path="services/auth-service/src/modules/identity/application/rbac.service.ts">
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { Prisma, RoleStatus, type Permission, type Role } from "@prisma/client";
+import {
+  compareModuleKeysByNavigationOrder,
+  humanizeModuleName,
+  isHiddenModuleKey,
+  resolveModuleKeyFromMenuPath,
+  resolvePermissionMenuPath,
+  sortMenuPathsByNavigationOrder,
+} from "../../../common/config/permission-module.util";
+import { DEFAULT_NAVIGATION_MENU } from "../../../common/config/navigation.config";
+import { resolveBusinessPermissionMenuPath } from "../../../common/config/business-permission-menu.util";
+import { AppLogger } from "../../../common/logging/app-logger.service";
+import { RbacRepository } from "../infrastructure/repositories/rbac.repository";
+import type {
+  CreateRoleBodyInput,
+  ListPermissionsQueryInput,
+  ListRolePermissionModulePermissionsQueryInput,
+  ReplaceRolePermissionsBodyInput,
+  RoleModulePermissionsBodyInput,
+  UpdateRoleBodyInput,
+} from "../domain/schemas/rbac.schema";
+import { AuthService } from "./authentication.service";
+⋮----
+type RoleWithRelations = Prisma.RoleGetPayload<{
+  include: {
+    rolePermissions: {
+      include: {
+        permission: true;
+      };
+    };
+    _count: {
+      select: {
+        userRoles: true;
+        rolePermissions: true;
+      };
+    };
+  };
+}>;
+⋮----
+type FrontendNavigationRole = {
+  id: string;
+  description: string | null;
+  createdAt: string;
+  name: string;
+  code: string;
+  status: RoleStatus;
+  menus: string[];
+  enabledCount: number;
+};
+⋮----
+export type PermissionModuleLookupItem = {
+  id: string;
+  module: string;
+  name: string;
+};
+⋮----
+export type RolePermissionModuleSummary = {
+  moduleKey: string;
+  moduleName: string;
+  totalPermissions: number;
+  enabledCount: number;
+  disabledCount: number;
+  allSelected: boolean;
+  allDisabled: boolean;
+};
+⋮----
+export type RolePermissionModulePermissionItem = {
+  permissionId: string;
+  method: Permission["method"];
+  path: string;
+  description: string;
+  enabled: boolean;
+};
+⋮----
+export type RolePermissionModulePermissionsPage = {
+  page: number;
+  limit: number;
+  total: number;
+  items: RolePermissionModulePermissionItem[];
+};
+⋮----
+export class RbacService {
+⋮----
+constructor(
+⋮----
+async createRole(dto: CreateRoleBodyInput): Promise<Role>
+⋮----
+async listRoles(): Promise<FrontendNavigationRole[]>
+⋮----
+async getRole(roleId: string): Promise<RoleWithRelations>
+⋮----
+async getRoleMenus(roleId: string): Promise<string[]>
+⋮----
+async getRoleByName(name: string): Promise<RoleWithRelations>
+⋮----
+async updateRole(roleId: string, dto: UpdateRoleBodyInput): Promise<Role>
+⋮----
+async disableRole(roleId: string): Promise<Role>
+⋮----
+async deleteRole(roleId: string): Promise<
+⋮----
+async listPermissions(query: ListPermissionsQueryInput): Promise<PermissionModuleLookupItem[]>
+⋮----
+async getPermission(permissionId: string): Promise<Permission>
+⋮----
+async listRolePermissions(roleId: string): Promise<Permission[]>
+⋮----
+async listRolePermissionModules(roleId: string): Promise<RolePermissionModuleSummary[]>
+⋮----
+async listRolePermissionModulePermissions(
+    roleId: string,
+    moduleKey: string,
+    query: ListRolePermissionModulePermissionsQueryInput,
+): Promise<RolePermissionModulePermissionsPage>
+⋮----
+async grantRolePermissionModulePermissions(
+    actorUserId: string,
+    roleId: string,
+    moduleKey: string,
+    dto: RoleModulePermissionsBodyInput,
+): Promise<RolePermissionModuleSummary>
+⋮----
+async revokeRolePermissionModulePermissions(
+    actorUserId: string,
+    roleId: string,
+    moduleKey: string,
+    dto: RoleModulePermissionsBodyInput,
+): Promise<RolePermissionModuleSummary>
+⋮----
+async replacePermissions(
+    roleId: string,
+    dto: ReplaceRolePermissionsBodyInput,
+): Promise<Permission[]>
+⋮----
+private logRoleEvent(
+    message: string,
+    event: string,
+    operation: string,
+    metadata: Record<string, unknown>,
+): void
+⋮----
+private async listRolePermissionsByRoleId(roleId: string): Promise<Permission[]>
+⋮----
+private async findRoleOrThrow(roleId: string): Promise<Role>
+⋮----
+private async findRoleWithRelationsOrThrow(roleId: string): Promise<RoleWithRelations>
+⋮----
+private assertRoleMutable(role: Role): void
+⋮----
+private assertRolePermissionsMutable(role: Role): void
+⋮----
+private buildPermissionFilter(query: ListPermissionsQueryInput): Prisma.PermissionWhereInput
+⋮----
+private mapPermissionModules(permissions: Permission[]): PermissionModuleLookupItem[]
+⋮----
+private mapRoleToFrontendNavigation(role: RoleWithRelations): FrontendNavigationRole
+⋮----
+private mapRoleToMenus(role: RoleWithRelations): string[]
+⋮----
+private async resolvePermissionIdsOrThrow(
+    permissionIds: string[],
+    allowEmpty: boolean,
+): Promise<string[]>
+⋮----
+private async resolvePermissionIdsInModuleOrThrow(
+    permissionIds: string[],
+    moduleKey: string,
+): Promise<string[]>
+⋮----
+private async assertActorCanManagePermissionIds(
+    actorUserId: string,
+    permissionIds: string[],
+): Promise<void>
+⋮----
+private async resolveModuleSummaryBaseOrThrow(
+    moduleKeyInput: string,
+): Promise<
+⋮----
+private async fetchRolePermissionModuleSummary(
+    roleId: string,
+    moduleKey: string,
+    totalPermissions: number,
+): Promise<RolePermissionModuleSummary>
+⋮----
+private buildPermissionModuleSummary(
+    moduleKey: string,
+    totalPermissions: number,
+    enabledCount: number,
+): RolePermissionModuleSummary
+⋮----
+function normalizePermissionIds(permissionIds: string[]): string[]
+⋮----
+function normalizeOptionalText(value: string | undefined): string | null
+⋮----
+function normalizeModuleKey(moduleKey: string): string
+</file>
+
+<file path="services/auth-service/src/modules/identity/domain/permissions.template.json">
+{
+  "[module]": {
+    "name": "[ten-nhom-quyen]",
+    "description": "[mo-ta-nhom-quyen]",
+    "permissions": [
+      {
+        "id": "[permission-id]",
+        "code": "[module]_[action]",
+        "description": "[mo-ta-quyen]"
+      }
+    ]
+  },
+  "[module-2]": {
+    "name": "[ten-nhom-quyen-2]",
+    "description": "[mo-ta-nhom-quyen-2]",
+    "permissions": [
+      {
+        "id": "[permission-id]",
+        "code": "[module-2]_[action]",
+        "description": "[mo-ta-quyen]"
+      }
+    ]
+  }
+}
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/api/guest/messages/read/route.ts">
+import { HttpError } from "@/core/http/http-error";
+import { guestOsService } from "@/features/guest-os/service/guest-os-service-instance";
+import { getBearerToken, getGuestLocaleCode, guestHttpErrorResponse, guestSuccessResponse, guestUnknownErrorResponse, guestValidationErrorResponse } from "../../_utils";
+⋮----
+export async function POST(request: Request)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/api/guest/messages/route.ts">
+import { HttpError } from "@/core/http/http-error";
+import { guestOsService } from "@/features/guest-os/service/guest-os-service-instance";
+import { getBearerToken, getGuestLocaleCode, guestHttpErrorResponse, guestSuccessResponse, guestUnknownErrorResponse, guestValidationErrorResponse, readJsonBody } from "../_utils";
+⋮----
+export async function GET(request: Request)
+⋮----
+export async function POST(request: Request)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/messages/[threadId]/read/route.ts">
+import { executeHotelOpsBackendRequest, hotelOpsHttpErrorResponse, successResponse, unknownServerErrorResponse } from "@/app/api/hotel-ops/_utils";
+import { HttpError } from "@/core/http/http-error";
+import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
+⋮----
+type Params = { params: Promise<{ hotelId: string; threadId: string }> };
+⋮----
+export async function POST(_: Request, context: Params)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/messages/[threadId]/reply/route.ts">
+import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
+import { executeHotelOpsBackendRequest, hotelOpsHttpErrorResponse, successResponse, unknownServerErrorResponse, validationErrorResponse } from "@/app/api/hotel-ops/_utils";
+import { HttpError } from "@/core/http/http-error";
+⋮----
+type Params = { params: Promise<{ hotelId: string; threadId: string }> };
+export async function POST(request: Request, context: Params)
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/guest-os/resources/guest-messages-resource.ts">
+import {
+  createResource,
+  defineInfiniteQuery,
+  defineMutation,
+  type ResourceInfiniteQueryContext,
+  type ResourceMutationContext,
+} from "@dangminhdev04032005/query-resource";
+⋮----
+import { guestOsService } from "@/features/guest-os/service/guest-os-service-instance";
+import type {
+  GuestLocaleCode,
+  GuestMessagesResult,
+} from "@/features/guest-os/types/guest-os-contract";
+⋮----
+export type GuestMessagesScope = Readonly<{
+  sessionToken: string;
+  locale: GuestLocaleCode;
+}>;
+⋮----
+type HistoryInput = Readonly<{ limit: number }>;
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/hotel-ops/resources/hotel-messages-resource.ts">
+import { createResource, defineInfiniteQuery, defineMutation } from "@dangminhdev04032005/query-resource";
+import { requestInternalApi } from "@/core/http/internal-api-client";
+import type { HotelMessageThreadList, HotelMessageThreadPage } from "@/features/hotel-ops/types/hotel-messages-contract";
+⋮----
+type Scope = { hotelId: string };
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/hotel-ops/types/hotel-messages-contract.ts">
+export type HotelMessage = { id: string; senderType: "GUEST" | "STAFF" | "SYSTEM"; senderName: string | null; body: string; createdAt: string; readAt?: string | null };
+export type HotelMessageThread = { id: string; stayId: string; status: string; roomNumber: string; floor: string | null; roomType: string | null; guestName: string; lastMessageAt: string; unreadCount: number; latestMessage: HotelMessage | null };
+export type HotelMessageThreadList = { items: HotelMessageThread[]; total: number; nextCursor?: string | null; hasMore?: boolean };
+export type HotelMessageThreadPage = { thread: HotelMessageThread; items: HotelMessage[]; nextCursor?: string | null; hasMore?: boolean };
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/hotel-ops/utils/invalidate-hotel-realtime-queries.ts">
+import type { QueryClient } from "@tanstack/react-query";
+import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
+import { ownerRoomsResource } from "@/features/hotel-ops/resources/owner-rooms-resource";
+⋮----
+export async function invalidateHotelRealtimeQueries(
+  queryClient: QueryClient,
+  hotelId: string,
+): Promise<void>
+⋮----
+// Resource-based query invalidations using @dangminhdev04032005/query-resource helpers
+⋮----
+// Scope key prefixes for broader matching
+⋮----
+// Legacy / string-based query keys
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/request-realtime/guest-connection-manager.ts">
+import type { OwnerRealtimeHandlers } from "./owner-connection-manager";
+⋮----
+type GuestSocket = {
+  on(event: string, handler: (value?: unknown) => void): void;
+  connect(): void;
+  disconnect(): void;
+};
+⋮----
+on(event: string, handler: (value?: unknown)
+connect(): void;
+disconnect(): void;
+⋮----
+type RealtimeError = { retryable?: unknown };
+⋮----
+function isTerminalRealtimeError(value: unknown): boolean
+⋮----
+export function createGuestConnectionManager(deps: {
+  enabled: boolean;
+createSocket(auth:
+⋮----
+createSocket(auth:
+⋮----
+const unwrapRequest = (event: unknown)
+⋮----
+function connect(expectedToken: string)
+⋮----
+const reconnect = () =>
+⋮----
+const retry = () =>
+⋮----
+update(nextToken: string | null | undefined, nextHandlers: OwnerRealtimeHandlers)
+disconnect()
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/request-realtime/owner-connection-manager.ts">
+export type OwnerRealtimeHandlers = {
+  onReady?: (scope: unknown) => void;
+  onCreated?: (request: unknown) => void;
+  onUpdated?: (request: unknown) => void;
+  onAnswered?: (request: unknown) => void;
+  onGuestMessageCreated?: (event: unknown) => void;
+  onConversationClosed?: (event: unknown) => void;
+  onReconnect?: () => void;
+  onError?: (error: unknown) => void;
+};
+⋮----
+type ManagedSocket = {
+  on(event: string, handler: (value?: unknown) => void): void;
+  connect(): void;
+  disconnect(): void;
+};
+⋮----
+on(event: string, handler: (value?: unknown)
+connect(): void;
+disconnect(): void;
+⋮----
+type Entry = {
+  subscribers: Set<OwnerRealtimeHandlers>;
+  socket?: ManagedSocket;
+  generation: number;
+  pending?: Promise<void>;
+  cancelReconnect?: () => void;
+};
+⋮----
+type RealtimeError = { retryable?: unknown };
+⋮----
+function isTerminalRealtimeError(value: unknown): boolean
+⋮----
+export function createOwnerConnectionManager(deps: {
+  enabled: boolean;
+getTicket(hotelId: string): Promise<
+⋮----
+getTicket(hotelId: string): Promise<
+createSocket(auth:
+⋮----
+function acquire(hotelId: string, entry: Entry): Promise<void>
+⋮----
+const fanout = (name: keyof OwnerRealtimeHandlers) => (event?: unknown) =>
+const fanoutRaw = (name: keyof OwnerRealtimeHandlers) => (event?: unknown) =>
+⋮----
+const reconnect = () =>
+⋮----
+const retry = () =>
+⋮----
+subscribe(hotelId: string, handlers: OwnerRealtimeHandlers)
+settled(hotelId: string)
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/request-realtime/request-realtime-client.ts">
+import { getBrowserBackendApiBaseUrl, resolveBrowserReachableBackendUrl } from "@/core/http/backend-api-config";
+import { io, type Socket } from "socket.io-client";
+⋮----
+export type RequestRealtimeEvent<TRequest> = {
+  request: TRequest;
+};
+⋮----
+export function getRequestRealtimeUrl(): string
+⋮----
+export type RequestRealtimeAuth =
+  | { mode: "owner"; ticket: string }
+  | { mode: "guest"; sessionToken: string };
+⋮----
+export function createRequestRealtimeSocket(auth: RequestRealtimeAuth): Socket
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/request-realtime/use-guest-request-realtime.ts">
+import { useEffect, useRef, useState } from "react";
+import type { GuestRequest } from "@/features/guest-os/types/guest-os-contract";
+import { createGuestConnectionManager } from "./guest-connection-manager";
+import { createRequestRealtimeSocket } from "./request-realtime-client";
+import { requestRealtimeEnabled } from "./request-realtime-config";
+⋮----
+type Handlers = { onReady?: () => void; onCreated?: (request: GuestRequest) => void; onUpdated?: (request: Partial<GuestRequest> & { id: string }) => void; onAnswered?: (request: Partial<GuestRequest> & { id: string }) => void; onGuestMessageCreated?: (event: unknown) => void; onConversationClosed?: (event: unknown) => void; onReconnect?: () => void; onError?: (error: unknown) => void };
+⋮----
+export function useGuestRequestRealtime(sessionToken: string | null | undefined, handlers: Handlers)
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/request-realtime/use-owner-request-realtime.ts">
+import { useEffect, useRef } from "react";
+import type { StaffRequestListItem } from "@/features/hotel-ops/types/hotel-ops-contract";
+import { ownerRequestRealtimeManager } from "./owner-request-realtime-manager";
+import { requestRealtimeEnabled } from "./request-realtime-config";
+⋮----
+type Handlers = {
+  onReady?: () => void;
+  onCreated?: (request: StaffRequestListItem) => void;
+  onUpdated?: (request: Partial<StaffRequestListItem> & { id: string }) => void;
+  onAnswered?: (request: Partial<StaffRequestListItem> & { id: string }) => void;
+  onGuestMessageCreated?: (event: unknown) => void;
+  onConversationClosed?: (event: unknown) => void;
+  onReconnect?: () => void;
+};
+⋮----
+export function useOwnerRequestRealtime(hotelId: string, handlers: Handlers, options:
+</file>
+
+<file path="services/auth-service/prisma/migrations/20260722110000_guest_stay_messages/migration.sql">
+CREATE TABLE "GuestMessageThread" (
+  "id" TEXT NOT NULL,
+  "hotelId" TEXT NOT NULL,
+  "roomId" TEXT NOT NULL,
+  "stayId" TEXT NOT NULL,
+  "status" VARCHAR(16) NOT NULL DEFAULT 'OPEN',
+  "lastMessageAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "clearedAt" TIMESTAMP(3),
+  "expiresAt" TIMESTAMP(3) NOT NULL,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL,
+  CONSTRAINT "GuestMessageThread_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "GuestMessage" (
+  "id" TEXT NOT NULL,
+  "threadId" TEXT NOT NULL,
+  "hotelId" TEXT NOT NULL,
+  "roomId" TEXT NOT NULL,
+  "stayId" TEXT NOT NULL,
+  "senderType" "GuestRequestActorType" NOT NULL,
+  "senderUserId" TEXT,
+  "sessionId" TEXT,
+  "body" VARCHAR(1000) NOT NULL,
+  "readAt" TIMESTAMP(3),
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "GuestMessage_pkey" PRIMARY KEY ("id")
+);
+
+CREATE UNIQUE INDEX "GuestMessageThread_stayId_key" ON "GuestMessageThread"("stayId");
+CREATE INDEX "GuestMessageThread_hotelId_status_lastMessageAt_idx" ON "GuestMessageThread"("hotelId", "status", "lastMessageAt");
+CREATE INDEX "GuestMessageThread_roomId_lastMessageAt_idx" ON "GuestMessageThread"("roomId", "lastMessageAt");
+CREATE INDEX "GuestMessageThread_expiresAt_idx" ON "GuestMessageThread"("expiresAt");
+CREATE INDEX "GuestMessage_threadId_createdAt_idx" ON "GuestMessage"("threadId", "createdAt");
+CREATE INDEX "GuestMessage_hotelId_createdAt_idx" ON "GuestMessage"("hotelId", "createdAt");
+CREATE INDEX "GuestMessage_stayId_createdAt_idx" ON "GuestMessage"("stayId", "createdAt");
+
+ALTER TABLE "GuestMessageThread" ADD CONSTRAINT "GuestMessageThread_hotelId_fkey" FOREIGN KEY ("hotelId") REFERENCES "Hotel"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "GuestMessageThread" ADD CONSTRAINT "GuestMessageThread_roomId_fkey" FOREIGN KEY ("roomId") REFERENCES "Room"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "GuestMessageThread" ADD CONSTRAINT "GuestMessageThread_stayId_fkey" FOREIGN KEY ("stayId") REFERENCES "GuestStay"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "GuestMessage" ADD CONSTRAINT "GuestMessage_threadId_fkey" FOREIGN KEY ("threadId") REFERENCES "GuestMessageThread"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "GuestMessage" ADD CONSTRAINT "GuestMessage_hotelId_fkey" FOREIGN KEY ("hotelId") REFERENCES "Hotel"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "GuestMessage" ADD CONSTRAINT "GuestMessage_roomId_fkey" FOREIGN KEY ("roomId") REFERENCES "Room"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "GuestMessage" ADD CONSTRAINT "GuestMessage_stayId_fkey" FOREIGN KEY ("stayId") REFERENCES "GuestStay"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "GuestMessage" ADD CONSTRAINT "GuestMessage_senderUserId_fkey" FOREIGN KEY ("senderUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "GuestMessage" ADD CONSTRAINT "GuestMessage_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "GuestSession"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+</file>
+
+<file path="services/auth-service/prisma/migrations/20260722170000_harden_stay_message_inbox/migration.sql">
+CREATE INDEX "GuestMessageThread_hotelId_lastMessageAt_id_idx"
+ON "GuestMessageThread"("hotelId", "lastMessageAt", "id");
+
+CREATE INDEX "GuestMessage_threadId_senderType_readAt_idx"
+ON "GuestMessage"("threadId", "senderType", "readAt");
+</file>
+
+<file path="services/auth-service/src/common/security/auth-rate-limit.decorator.ts">
+import { SetMetadata } from "@nestjs/common";
+⋮----
+export type AuthRateLimitKey = "login" | "refresh" | "change-password";
+⋮----
+export const AuthRateLimit = (key: AuthRateLimitKey)
+</file>
+
+<file path="services/auth-service/src/modules/guest-operations/domain/schemas/guest-os.schema.ts">
+import { z } from "zod";
+⋮----
+export type ScanQrBodyInput = z.infer<typeof scanQrBodySchema>;
+export type CreateGuestRequestBodyInput = z.infer<typeof createGuestRequestBodySchema>;
+export type GuestPortalRequestStatus = z.infer<typeof guestRequestStatusSchema>;
+export type GuestPortalRequestStatusFilter = z.infer<typeof guestRequestStatusFilterSchema>;
+export type GuestPortalRequestPriority = z.infer<typeof guestRequestPrioritySchema>;
+export type ListGuestRequestsQueryInput = z.infer<typeof listGuestRequestsQuerySchema>;
+export type ListGuestCategoryServicesQueryInput = z.infer<
+  typeof listGuestCategoryServicesQuerySchema
+>;
+export type GuestMessageBodyInput = z.infer<typeof guestMessageBodySchema>;
+export type ListGuestMessagesQueryInput = z.infer<typeof listGuestMessagesQuerySchema>;
+</file>
+
+<file path="services/auth-service/src/modules/identity/infrastructure/repositories/rbac.repository.ts">
+import { Injectable } from "@nestjs/common";
+import { Prisma, RoleStatus, UserRoleStatus } from "@prisma/client";
+import { PrismaService } from "../../../../prisma/prisma.service";
+⋮----
+export class RbacRepository {
+⋮----
+constructor(private readonly prisma: PrismaService)
+⋮----
+async createRole(data:
+⋮----
+async listRolesWithRelations()
+⋮----
+async findRoleWithRelationsById(roleId: string)
+⋮----
+async findRoleWithRelationsByName(name: string)
+⋮----
+async findRoleById(roleId: string)
+⋮----
+async updateRole(
+    roleId: string,
+    data: {
+      name?: string;
+      description?: string | null;
+      status?: RoleStatus;
+    },
+)
+⋮----
+async deleteRole(roleId: string)
+⋮----
+async disableRole(roleId: string)
+⋮----
+async listPermissions(where: Prisma.PermissionWhereInput)
+⋮----
+async listPermissionTotalsByModule()
+⋮----
+async listRolePermissionModuleKeys(roleId: string)
+⋮----
+async countPermissionsByModuleKey(moduleKey: string)
+⋮----
+async countRolePermissionsByModuleKey(roleId: string, moduleKey: string)
+⋮----
+async listPermissionsByModuleKey(moduleKey: string, page: number, limit: number)
+⋮----
+async listRolePermissionIdsByRoleAndPermissionIds(roleId: string, permissionIds: string[])
+⋮----
+async findPermissionById(permissionId: string)
+⋮----
+async findPermissionsByIds(permissionIds: string[])
+⋮----
+async findPermissionsByIdsWithModuleKey(permissionIds: string[])
+⋮----
+async listActiveSystemRoleCodesByUserId(userId: string)
+⋮----
+async listActivePermissionIdsByUserId(userId: string)
+⋮----
+async listRolePermissions(roleId: string)
+⋮----
+async createRolePermissions(roleId: string, permissionIds: string[])
+⋮----
+async deleteRolePermissions(roleId: string, permissionIds: string[])
+⋮----
+async clearRolePermissions(roleId: string)
+⋮----
+async replaceRolePermissions(roleId: string, permissionIds: string[])
+</file>
+
+<file path="services/auth-service/src/shared/events/request-realtime-event.publisher.ts">
+import { Injectable } from "@nestjs/common";
+import { RequestRealtimeEmitter } from "../../request-realtime.emitter";
+import type {
+  ConversationClosedEventInput,
+  GuestMessageCreatedEventInput,
+  GuestRequestCreatedEventInput,
+  GuestRequestEventPublisher,
+  GuestRequestUpdatedEventInput,
+} from "./guest-request-events.port";
+⋮----
+export class RequestRealtimeEventPublisher implements GuestRequestEventPublisher {
+⋮----
+publishGuestRequestCreated(input: GuestRequestCreatedEventInput): void
+⋮----
+publishGuestRequestUpdated(input: GuestRequestUpdatedEventInput): void
+⋮----
+publishGuestMessageCreated(input: GuestMessageCreatedEventInput): void
+⋮----
+publishConversationClosed(input: ConversationClosedEventInput): void
+</file>
+
+<file path="services/auth-service/src/request-realtime.emitter.ts">
+import type { Server } from "socket.io";
+⋮----
+export class RequestRealtimeEmitter {
+⋮----
+static bind(server: Server)
+⋮----
+static emitGuestRequestCreated(input: {
+    hotelId: string;
+    sessionId: string;
+    ownerRequest: unknown;
+    guestRequest: unknown;
+})
+⋮----
+static emitGuestRequestUpdated(input: {
+    hotelId: string;
+    sessionId?: string | null;
+    ownerRequest: unknown;
+    guestRequest?: unknown;
+    answered?: boolean;
+})
+⋮----
+static emitGuestMessageCreated(input: {
+    hotelId: string;
+    stayId: string;
+    thread: unknown;
+    message: unknown;
+})
+⋮----
+static emitConversationClosed(input:
+⋮----
+static ownerHotelRoom(hotelId: string): string
+⋮----
+static guestSessionRoom(sessionId: string): string
+⋮----
+static guestStayRoom(stayId: string): string
+</file>
+
+<file path="services/auth-service/src/request-realtime.gateway.ts">
+import { Inject, Optional } from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import {
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+  OnGatewayInit,
+  WebSocketGateway,
+  WebSocketServer,
+} from "@nestjs/websockets";
+import type { Server, Socket } from "socket.io";
+import { loadAppConfig, type RequestRealtimeConfig } from "./common/config/env.config";
+import { AppLogger } from "./common/logging/app-logger.service";
+import { GuestOsService } from "./modules/guest-operations/guest-operations-public";
+import { RequestRealtimeEmitter } from "./request-realtime.emitter";
+⋮----
+type OwnerTicketClaims = { sub?: unknown; hotelId?: unknown; type?: unknown; jti?: unknown };
+type HandshakeAuth = { mode?: unknown; ticket?: unknown; sessionToken?: unknown };
+⋮----
+export class RequestRealtimeGateway
+implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit
+⋮----
+constructor(
+    private readonly guestOsService: GuestOsService,
+    private readonly jwtService: JwtService,
+    private readonly logger: AppLogger,
+    @Optional() @Inject("REQUEST_REALTIME_CONFIG") config?: RequestRealtimeConfig,
+)
+⋮----
+async handleConnection(socket: Socket)
+⋮----
+handleDisconnect(socket: Socket)
+⋮----
+afterInit(server: Server)
+⋮----
+private async authenticateOwner(socket: Socket, auth: HandshakeAuth)
+⋮----
+private async authenticateGuest(socket: Socket, auth: HandshakeAuth)
+⋮----
+private reject(socket: Socket, code: string)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/messages/[threadId]/route.ts">
+import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
+import { executeHotelOpsBackendRequest, hotelOpsHttpErrorResponse, successResponse, unknownServerErrorResponse } from "@/app/api/hotel-ops/_utils";
+import { HttpError } from "@/core/http/http-error";
+⋮----
+type Params = { params: Promise<{ hotelId: string; threadId: string }> };
+⋮----
+export async function GET(request: Request, context: Params)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/messages/route.ts">
+import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
+import { executeHotelOpsBackendRequest, hotelOpsHttpErrorResponse, successResponse, unknownServerErrorResponse } from "@/app/api/hotel-ops/_utils";
+import { HttpError } from "@/core/http/http-error";
+⋮----
+type Params = { params: Promise<{ hotelId: string }> };
+⋮----
+export async function GET(request: Request, context: Params)
+</file>
+
+<file path="services/auth-service/src/common/security/auth-rate-limit.guard.ts">
+import {
+  CanActivate,
+  ExecutionContext,
+  HttpException,
+  HttpStatus,
+  Injectable,
+} from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
+import type { Request } from "express";
+import { loadAppConfig } from "../config/env.config";
+import { AUTH_RATE_LIMIT_METADATA_KEY, type AuthRateLimitKey } from "./auth-rate-limit.decorator";
+⋮----
+interface RateLimitBucket {
+  count: number;
+  resetAt: number;
+}
+⋮----
+export class AuthRateLimitGuard implements CanActivate {
+⋮----
+constructor(private readonly reflector: Reflector)
+⋮----
+canActivate(context: ExecutionContext): boolean
+⋮----
+private resolveClientId(request: Request): string
+⋮----
+private removeExpiredBuckets(now: number): void
+⋮----
+private ensureBucketCapacity(): void
+⋮----
+private normalizeIp(address: string): string
+</file>
+
+<file path="services/auth-service/src/modules/guest-operations/api/guest-os.controller.ts">
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
+import { ApiBody, ApiCreatedResponse, ApiOkResponse, ApiTags } from "@nestjs/swagger";
+import type { Request } from "express";
+import {
+  createGuestRequestBodySchema as createGuestRequestBodyOpenApiSchema,
+  guestRequestDataSchema,
+  guestServiceCatalogDataSchema,
+  listGuestCategoryServicesDataSchema,
+  listGuestRequestsDataSchema,
+  successEnvelopeSchema,
+} from "../../../common/openapi/contract-schemas";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
+import { GuestOsService } from "../application/guest-os.service";
+import { GuestMessagesService } from "../application/guest-messages.service";
+import {
+  GuestSessionGuard,
+  type RequestWithGuestSession,
+} from "../infrastructure/guards/guest-session.guard";
+import {
+  createGuestRequestBodySchema,
+  guestRequestIdParamSchema,
+  listGuestCategoryServicesQuerySchema,
+  listGuestRequestsQuerySchema,
+  guestMessageBodySchema,
+  listGuestMessagesQuerySchema,
+  scanQrBodyOpenApiSchema,
+  scanQrBodySchema,
+  serviceCategoryIdParamSchema,
+} from "../domain/schemas/guest-os.schema";
+⋮----
+export class GuestOsController {
+⋮----
+constructor(
+⋮----
+async scanQr(@Req() request: Request, @Body() body: unknown)
+⋮----
+async getCurrentSession(@Req() request: RequestWithGuestSession)
+⋮----
+async listServices(@Req() request: RequestWithGuestSession)
+⋮----
+async listCategoryServices(
+    @Req() request: RequestWithGuestSession,
+    @Param("categoryId") categoryId: string,
+    @Query() query: unknown,
+)
+⋮----
+async createRequest(@Req() request: RequestWithGuestSession, @Body() body: unknown)
+⋮----
+async listRequests(@Req() request: RequestWithGuestSession, @Query() query: unknown)
+⋮----
+async cancelRequest(
+    @Req() request: RequestWithGuestSession,
+    @Param("requestId") requestId: string,
+)
+⋮----
+async listMessages(@Req() request: RequestWithGuestSession, @Query() query: unknown)
+⋮----
+async sendMessage(@Req() request: RequestWithGuestSession, @Body() body: unknown)
+⋮----
+async markMessagesRead(@Req() request: RequestWithGuestSession)
+⋮----
+async closeSession(@Req() request: RequestWithGuestSession)
+</file>
+
+<file path="services/auth-service/src/modules/guest-operations/application/guest-messages.service.ts">
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  Optional,
+} from "@nestjs/common";
+import { GuestRequestActorType, GuestStayStatus } from "@prisma/client";
+import {
+  GUEST_REQUEST_EVENT_PUBLISHER,
+  NOOP_GUEST_REQUEST_EVENT_PUBLISHER,
+  type GuestRequestEventPublisher,
+} from "../../../shared/events";
+import { HotelAccessService } from "../../property/property-public";
+import type { GuestSessionContext } from "./guest-os.service";
+import { GuestMessagesRepository } from "../infrastructure/repositories/guest-messages.repository";
+⋮----
+export class GuestMessagesService {
+⋮----
+constructor(
+    private readonly repository: GuestMessagesRepository,
+    private readonly hotelAccessService: HotelAccessService,
+    @Optional()
+    @Inject(GUEST_REQUEST_EVENT_PUBLISHER)
+    eventPublisher?: GuestRequestEventPublisher,
+)
+⋮----
+async listForGuest(context: GuestSessionContext, page = 1, limit = 20, before?: string)
+⋮----
+async sendFromGuest(context: GuestSessionContext, body: string, plannedCheckOutAt: Date)
+⋮----
+async listForHotel(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    limit = 30,
+    q?: string,
+    cursor?: string,
+)
+⋮----
+async getForHotel(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    threadId: string,
+    page = 1,
+    limit = 20,
+    before?: string,
+)
+⋮----
+async replyFromStaff(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    threadId: string,
+    body: string,
+)
+⋮----
+async markReadForHotel(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    threadId: string,
+)
+⋮----
+async markReadForGuest(context: GuestSessionContext)
+⋮----
+private async assertActiveGuestStay(context: GuestSessionContext)
+⋮----
+private normalizeBody(value: string)
+⋮----
+private expiry(checkOutAt: Date)
+⋮----
+private message(row: {
+    id: string;
+    senderType: GuestRequestActorType;
+    body: string;
+    createdAt: Date;
+    readAt?: Date | null;
+    senderUser?: { id: string; fullName: string } | null;
+})
+⋮----
+private thread(
+    row: {
+      id: string;
+      status: string;
+      lastMessageAt: Date;
+      expiresAt: Date;
+      clearedAt: Date | null;
+      stayId: string;
+      room: { roomNumber: string; floor: string | null; type: string | null };
+      stay: {
+        guestDisplayName: string;
+        status: GuestStayStatus;
+        checkedOutAt: Date | null;
+        plannedCheckOutAt?: Date;
+      };
+      _count?: { messages: number };
+    },
+    latestMessage?: ReturnType<GuestMessagesService["message"]> | null,
+)
+</file>
+
+<file path="services/auth-service/src/modules/guest-operations/infrastructure/repositories/guest-messages.repository.ts">
+import { Injectable } from "@nestjs/common";
+import { GuestRequestActorType, GuestStayStatus, Prisma } from "@prisma/client";
+import { PrismaService } from "../../../../prisma/prisma.service";
+⋮----
+export type GuestMessageRow = Prisma.GuestMessageGetPayload<{
+  include: typeof messageInclude;
+}>;
+⋮----
+function encodeThreadCursor(value:
+⋮----
+function decodeThreadCursor(cursor?: string)
+⋮----
+export class GuestMessagesRepository {
+⋮----
+constructor(private readonly prisma: PrismaService)
+⋮----
+async isActiveStay(stayId: string, hotelId: string)
+⋮----
+async listGuestMessages(stayId: string, skip = 0, take = 20, before?: string)
+⋮----
+async appendGuestMessage(input: {
+    hotelId: string;
+    roomId: string;
+    stayId: string;
+    sessionId?: string;
+    senderType: GuestRequestActorType;
+    senderUserId?: string;
+    body: string;
+    expiresAt: Date;
+})
+⋮----
+async listHotelThreads(hotelId: string, take: number, query?: string, cursor?: string)
+⋮----
+async getHotelThread(hotelId: string, threadId: string, skip = 0, take = 20, before?: string)
+⋮----
+async markReadForStaff(hotelId: string, threadId: string)
+⋮----
+async markReadForGuest(hotelId: string, stayId: string)
+</file>
+
+<file path="services/auth-service/src/modules/property/application/hotel-rooms.service.ts">
+import {
+  BadRequestException,
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  Optional,
+} from "@nestjs/common";
+import { GuestStayStatus, Prisma, RoomQRCodeStatus, RoomStatus } from "@prisma/client";
+import {
+  addHours,
+  generateOpaqueToken,
+  hashOpaqueToken,
+} from "../../../common/security/token-hash.util";
+import { AppLogger } from "../../../common/logging/app-logger.service";
+import {
+  GUEST_REQUEST_EVENT_PUBLISHER,
+  NOOP_GUEST_REQUEST_EVENT_PUBLISHER,
+  type GuestRequestEventPublisher,
+} from "../../../shared/events";
+import { CodesService } from "../../codes/codes-public";
+import { HotelAccessService } from "./hotel-access.service";
+import { HotelRoomsRepository } from "../infrastructure/repositories/hotel-rooms.repository";
+import type { RoomListRow } from "../infrastructure/repositories/hotel-repository.types";
+import type {
+  CheckOutBodyInput,
+  CreateRoomBodyInput,
+  CreateRoomsBodyInput,
+  CreateStayBodyInput,
+  ListRoomsQueryInput,
+  QrReasonBodyInput,
+  UpdateRoomBodyInput,
+} from "../domain/schemas/rooms.schema";
+⋮----
+export class HotelRoomsService {
+⋮----
+constructor(
+    private readonly hotelRoomsRepository: HotelRoomsRepository,
+    private readonly codesService: CodesService,
+    private readonly hotelAccessService: HotelAccessService,
+    private readonly logger: AppLogger = new AppLogger(),
+    @Optional()
+    @Inject(GUEST_REQUEST_EVENT_PUBLISHER)
+    eventPublisher?: GuestRequestEventPublisher,
+)
+async createRoom(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    dto: CreateRoomBodyInput,
+)
+⋮----
+async createRooms(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    dto: CreateRoomsBodyInput,
+)
+⋮----
+private async createRoomRecord(hotelId: string, dto: CreateRoomBodyInput)
+⋮----
+async listRooms(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    query: ListRoomsQueryInput,
+)
+⋮----
+async updateRoom(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    roomId: string,
+    dto: UpdateRoomBodyInput,
+)
+⋮----
+async createStay(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    dto: CreateStayBodyInput,
+)
+⋮----
+async checkInStay(actorUserId: string, activeRoleId: string, hotelId: string, stayId: string)
+⋮----
+async createAndCheckInStay(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    dto: CreateStayBodyInput,
+)
+⋮----
+async checkOutStay(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    stayId: string,
+    dto: CheckOutBodyInput,
+)
+⋮----
+async rotateQr(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    roomId: string,
+    dto: QrReasonBodyInput,
+)
+⋮----
+async activateQr(actorUserId: string, activeRoleId: string, hotelId: string, roomId: string)
+⋮----
+async deactivateQr(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    roomId: string,
+    dto: QrReasonBodyInput,
+)
+⋮----
+private async assertRoomInHotel(hotelId: string, roomId: string)
+⋮----
+private logBusinessEvent(
+    message: string,
+    event: string,
+    operation: string,
+    metadata: Record<string, unknown>,
+): void
+⋮----
+private generateQrCode(): string
+⋮----
+private generateAccessCode(): string
+⋮----
+private toRoomData(row: RoomListRow)
+⋮----
+private toStayData(row: {
+    id: string;
+    hotelId: string;
+    roomId: string;
+    reservationCode: string;
+    guestDisplayName: string;
+    guestPhone?: string | null;
+    guestPhoneMasked?: string | null;
+    guestIdentityNumber?: string | null;
+    guestDateOfBirth?: string | null;
+    guestGender?: string | null;
+    guestNationality?: string | null;
+    guestResidencePlace?: string | null;
+    status: GuestStayStatus;
+    plannedCheckInAt: Date;
+    plannedCheckOutAt: Date;
+    checkedInAt: Date | null;
+    activatedAt: Date | null;
+    checkedOutAt: Date | null;
+    accessCodeExpiresAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+    occupants?: Array<{
+      id: string;
+      fullName: string;
+      phone?: string | null;
+      identityNumber?: string | null;
+      dateOfBirth?: string | null;
+      gender?: string | null;
+      isPrimary: boolean;
+    }> | null;
+})
+⋮----
+private toQrData(row: {
+    id: string;
+    hotelId: string;
+    roomId: string;
+    publicCode: string;
+    status: RoomQRCodeStatus;
+    version: number;
+    activatedAt: Date | null;
+    deactivatedAt: Date | null;
+    expiresAt: Date | null;
+    revokedAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+})
+</file>
+
+<file path="services/auth-service/src/modules/property/infrastructure/repositories/hotel-rooms.repository.ts">
+import { BadRequestException, ConflictException, Injectable } from "@nestjs/common";
+import {
+  DomainEventStatus,
+  FolioStatus,
+  GuestSessionStatus,
+  GuestStayStatus,
+  Prisma,
+  ReservationStatus,
+  RoomQRCodeStatus,
+  RoomStatus,
+} from "@prisma/client";
+import { countDistinctGuestDevicesByStay } from "../../../../shared/guest-device-identity";
+import { PrismaService } from "../../../../prisma/prisma.service";
+import { roomListInclude, type RoomListRow } from "./hotel-repository.types";
+⋮----
+export class HotelRoomsRepository {
+⋮----
+constructor(private readonly prisma: PrismaService)
+async createRoomWithQr(input: {
+    hotelId: string;
+    code: string;
+    roomNumber: string;
+    floor?: string;
+    type?: string;
+    price?: number;
+    maxActiveGuestDevices?: number;
+    publicCode: string;
+})
+⋮----
+async listRooms(where: Prisma.RoomWhereInput, skip: number, take: number)
+⋮----
+async updateRoomInHotel(hotelId: string, roomId: string, data: Prisma.RoomUpdateInput)
+⋮----
+private async withActiveGuestDeviceCounts(
+    tx: Prisma.TransactionClient,
+    rooms: Prisma.RoomGetPayload<{ include: typeof roomListInclude }>[],
+): Promise<RoomListRow[]>
+⋮----
+async findRoomInHotel(hotelId: string, roomId: string)
+⋮----
+async createStay(input: {
+    hotelId: string;
+    roomId: string;
+    guestDisplayName: string;
+    guestPhone?: string;
+    guestIdentityNumber?: string;
+    guestDateOfBirth?: string;
+    guestGender?: string;
+    guestNationality?: string;
+    guestResidencePlace?: string;
+    plannedCheckInAt: Date;
+    plannedCheckOutAt: Date;
+    createdByUserId: string;
+    tenantId: string;
+generateReservationCode: (tx: Prisma.TransactionClient)
+⋮----
+async findStayInHotel(hotelId: string, stayId: string)
+⋮----
+async findBlockingBillingFolio(hotelId: string, stayId: string)
+⋮----
+async checkInStay(input: {
+    hotelId: string;
+    stayId: string;
+    roomId: string;
+    accessCodeHash: string;
+    accessCodeExpiresAt: Date;
+    actorUserId: string;
+    tenantId: string;
+generateFolioNumber: (tx: Prisma.TransactionClient)
+⋮----
+async createAndCheckInStay(input: {
+    hotelId: string;
+    roomId: string;
+    guestDisplayName: string;
+    guestPhone?: string;
+    guestIdentityNumber?: string;
+    guestDateOfBirth?: string;
+    guestGender?: string;
+    guestNationality?: string;
+    guestResidencePlace?: string;
+    plannedCheckInAt: Date;
+    plannedCheckOutAt: Date;
+    createdByUserId: string;
+    accessCodeHash: string;
+    accessCodeExpiresAt: Date;
+    actorUserId: string;
+    tenantId?: string;
+    occupants?: Array<{
+      fullName: string;
+      phone?: string;
+      identityNumber?: string;
+      dateOfBirth?: string;
+      gender?: string;
+      isPrimary?: boolean;
+    }>;
+generateReservationCode: (tx: Prisma.TransactionClient)
+⋮----
+async checkOutStay(input: {
+    hotelId: string;
+    stayId: string;
+    roomId: string;
+    actorUserId: string;
+    tenantId: string;
+    nextRoomStatus: RoomStatus;
+})
+⋮----
+async rotateQr(input: {
+    hotelId: string;
+    roomId: string;
+    publicCode: string;
+    tenantId: string;
+    reason?: string;
+})
+⋮----
+async activateQr(input: {
+    hotelId: string;
+    roomId: string;
+    tenantId: string;
+    publicCode: string;
+})
+⋮----
+async deactivateQr(input: {
+    hotelId: string;
+    roomId: string;
+    tenantId: string;
+    reason?: string;
+})
+⋮----
+private async createOpenFolioForStay(
+    tx: Prisma.TransactionClient,
+    input: {
+      hotelId: string;
+      stayId: string;
+      roomId: string;
+      createdByUserId: string;
+generateFolioNumber: (tx: Prisma.TransactionClient)
+⋮----
+private async createDomainEvent(
+    tx: Prisma.TransactionClient,
+    input: {
+      eventType: string;
+      aggregateType: string;
+      aggregateId: string;
+      hotelId?: string;
+      tenantId?: string;
+      payload: Prisma.InputJsonValue;
+    },
+)
+⋮----
+private async findUsableQr(
+    tx: Prisma.TransactionClient,
+    input: {
+      hotelId: string;
+      roomId: string;
+    },
+)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/g/messages/page.tsx">
+import { type InfiniteData, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { type FormEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { VsBottomNav } from "../../_components/vs-bottom-nav";
+import { VsIcon } from "../../_components/vs-icon";
+import { VsTopBar } from "../../_components/vs-top-bar";
+import { GuestAccessRequiredState } from "@/features/guest-os/components/shared/guest-access-required-state";
+import { HttpError } from "@/core/http/http-error";
+import { useGuestI18n } from "@/features/guest-os/i18n/use-guest-i18n";
+import { guestOsService } from "@/features/guest-os/service/guest-os-service-instance";
+import { useGuestStore, useGuestStoreHydrated } from "@/features/guest-os/store/guest-store";
+⋮----
+import { playMessageAlertSound } from "@/features/request-realtime/audio-notifier";
+import { useGuestRequestRealtime } from "@/features/request-realtime/use-guest-request-realtime";
+import type { GuestMessagesResult } from "@/features/guest-os/types/guest-os-contract";
+import { guestMessagesResource } from "@/features/guest-os/resources/guest-messages-resource";
+⋮----
+function TypewriterMessageBody(
+⋮----
+const appendRealtimeMessage = (message: GuestMessagesResult["items"][number]) =>
+⋮----
+const handleScroll = () =>
+⋮----
+const scrollToBottom = () =>
+⋮----
+// Listen for staff typing signals across windows/tabs
+⋮----
+const handleSignal = (detail?:
+⋮----
+const handleLocal = (e: Event) =>
+⋮----
+const handleStorage = (e: StorageEvent) =>
+⋮----
+const emitTypingSignal = () =>
+⋮----
+const handleInput = (e: React.ChangeEvent<HTMLInputElement>) =>
+⋮----
+const executeSend = () =>
+⋮----
+if (now - lastSentAtRef.current < 600) return; // 600ms send cooldown debounce
+⋮----
+function submit(event: FormEvent<HTMLFormElement>)
+⋮----
+{/* Floating "Tin nhắn mới" Badge for Guest Chat */}
+⋮----
+if (scrollContainerRef.current)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/messages/room-messages-client.tsx">
+import { type InfiniteData, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { type FormEvent, useDeferredValue, useEffect, useLayoutEffect, useRef, useState } from "react";
+⋮----
+import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+import { HttpError } from "@/core/http/http-error";
+import { requestInternalApi } from "@/core/http/internal-api-client";
+import { playMessageAlertSound } from "@/features/request-realtime/audio-notifier";
+import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
+import { hotelMessagesResource } from "@/features/hotel-ops/resources/hotel-messages-resource";
+⋮----
+type Message = {
+  id: string;
+  senderType: "GUEST" | "STAFF" | "SYSTEM";
+  senderName: string | null;
+  body: string;
+  createdAt: string;
+  readAt?: string | null;
+};
+⋮----
+type Thread = {
+  id: string;
+  stayId: string;
+  status: string;
+  roomNumber: string;
+  floor: string | null;
+  roomType: string | null;
+  guestName: string;
+  lastMessageAt: string;
+  unreadCount: number;
+  latestMessage: Message | null;
+};
+⋮----
+type ThreadList = {
+  items: Thread[];
+  total: number;
+  nextCursor?: string | null;
+  hasMore?: boolean;
+};
+type ThreadPage = {
+  thread: Thread;
+  items: Message[];
+  nextCursor?: string | null;
+  hasMore?: boolean;
+};
+⋮----
+function formatMessageTime(dateString: string): string
+⋮----
+function TypewriterMessageBody(
+⋮----
+const threadDetailKey = (threadId: string)
+⋮----
+const markThreadReadInCache = (threadId: string) =>
+⋮----
+const handleSelectThread = (id: string | null) =>
+⋮----
+// Optimistic update
+⋮----
+// Rollback on error
+⋮----
+// Flatten messages from pages in chronological order (oldest page first, newest page last)
+⋮----
+const appendMessageToThreadCache = (threadId: string, message: Message) =>
+⋮----
+const upsertWaitingThread = (thread: Thread, isNewGuestMessage = false) =>
+⋮----
+const removeClosedStayFromWaitingList = (stayId: string) =>
+⋮----
+// Condition 1: Check if event/message is unprocessed
+⋮----
+// Condition 2: Sender is GUEST
+⋮----
+// Condition 3: Room is not currently open/selected
+⋮----
+// Condition 4: Message does not already exist in detail cache or thread latestMessage
+⋮----
+// Track processed message ID
+⋮----
+// Handle Reverse Infinite Scroll (Scroll Up to fetch older history)
+const handleScroll = () =>
+⋮----
+// Restore scroll position after prepending older messages
+⋮----
+// Initial scroll to bottom & Realtime auto-scroll / New message badge
+⋮----
+const scrollToBottom = () =>
+⋮----
+// Listen for peer typing signals across windows/tabs
+⋮----
+const handleSignal = (detail?:
+⋮----
+const handleLocal = (e: Event) =>
+⋮----
+const handleStorage = (e: StorageEvent) =>
+⋮----
+// Optimistically insert sent message into the submitted thread cache.
+⋮----
+const emitTypingSignal = () =>
+⋮----
+const handleInput = (e: React.ChangeEvent<HTMLInputElement>) =>
+⋮----
+const executeSend = () =>
+⋮----
+function submit(event: FormEvent<HTMLFormElement>)
+⋮----
+const handleThreadListScroll = (event: React.UIEvent<HTMLDivElement>) =>
+⋮----
+{/* Sidebar: Thread List */}
+⋮----
+{/* Main Conversation Box */}
+⋮----
+{/* Header inside Conversation Box */}
+⋮----
+{/* Floating "Tin nhắn mới" Badge */}
+⋮----
+if (scrollContainerRef.current)
+</file>
+
+<file path="services/auth-service/prisma/schema.prisma">
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserStatus {
+  ACTIVE
+  LOCKED
+  DISABLED
+}
+
+enum UserType {
+  VIETSAGE_ADMIN
+  HOTEL_STAFF
+  PARTNER
+}
+
+enum TenantUserStatus {
+  ACTIVE
+  INVITED
+  DISABLED
+}
+
+enum HotelStaffAssignmentStatus {
+  ACTIVE
+  REVOKED
+}
+
+enum HttpMethod {
+  GET
+  POST
+  PUT
+  PATCH
+  DELETE
+  OPTIONS
+}
+
+enum UserRoleStatus {
+  ACTIVE
+  REVOKED
+}
+
+enum RoleStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum AuthSessionStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+  COMPROMISED
+}
+
+enum AuthSessionRevokeReason {
+  LOGOUT
+  LOGOUT_ALL
+  USER_DISABLED
+  ROLE_CHANGED
+  REFRESH_TOKEN_REPLAYED
+  SESSION_REPLACED
+  SECURITY_EVENT
+  EXPIRED
+}
+
+enum HotelStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum RoomStatus {
+  AVAILABLE
+  RESERVED
+  OCCUPIED
+  MAINTENANCE
+  OUT_OF_SERVICE
+  BLOCKED
+  PROCESSING
+}
+
+enum RoomQRCodeStatus {
+  ACTIVE
+  INACTIVE
+  EXPIRED
+  REVOKED
+}
+
+enum GuestStayStatus {
+  RESERVED
+  CHECKED_IN
+  ACTIVE
+  CHECKOUT_PENDING
+  CHECKED_OUT
+  CANCELLED
+}
+
+enum ReservationStatus {
+  CONFIRMED
+  ARRIVAL_READY
+  CHECKED_IN
+  CANCELLED
+  NO_SHOW
+}
+
+enum GuestSessionStatus {
+  CREATED
+  ACTIVE
+  IDLE
+  EXPIRED
+  CLOSED
+}
+
+enum GuestRequestStatus {
+  NEW
+  CONFIRMED
+  PENDING
+  ACCEPTED
+  ON_THE_WAY
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+  CREATED
+  ACKNOWLEDGED
+  CANCELLED
+  FAILED
+}
+
+enum GuestRequestPriority {
+  NORMAL
+  URGENT
+}
+
+enum GuestRequestActorType {
+  GUEST
+  STAFF
+  SYSTEM
+}
+
+enum NotificationProvider {
+  TELEGRAM
+}
+
+enum GuestRequestNotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum ServiceCatalogStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum CategoryPriceUpdateMode {
+  CATEGORY_ONLY
+  OVERRIDE_ALL_ITEMS
+}
+
+enum DomainEventStatus {
+  PENDING
+  PROCESSED
+  FAILED
+}
+
+enum FolioStatus {
+  OPEN
+  CHECKOUT_PENDING
+  CLOSED
+  VOID
+}
+
+enum FolioItemType {
+  SERVICE
+  ROOM_CHARGE
+  MANUAL_CHARGE
+  DISCOUNT
+  ADJUSTMENT
+}
+
+enum FolioItemSourceType {
+  GUEST_REQUEST
+  ROOM
+  STAY
+  MANUAL
+  SYSTEM
+}
+
+enum GuestRequestBillingPostStatus {
+  NONE
+  POSTED
+  FAILED
+}
+
+enum InvoiceStatus {
+  ISSUED
+  PAID
+  VOID
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+  EXPIRED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  BANK_TRANSFER
+  MOMO
+  VNPAY
+  STRIPE
+  MANUAL
+}
+
+enum PaymentProvider {
+  MANUAL
+  MOMO
+  VNPAY
+  STRIPE
+  BANK_TRANSFER
+}
+
+enum EmergencyLocationSource {
+  GPS
+  QR
+  INVITE
+  HOST_SELECTED
+  GUEST_SELECTED
+  MANUAL_ADDRESS
+  TENANT_DEFAULT
+  IP_DERIVED
+  UNKNOWN
+}
+
+enum EmergencyLocationConfidence {
+  HIGH
+  MEDIUM
+  LOW
+  UNKNOWN
+}
+
+enum EmergencyCallLifecycleStatus {
+  ATTEMPTED
+  ROUTED
+  RINGING
+  CONNECTED
+  FAILED
+  ABANDONED
+  COMPLETED
+}
+
+enum EmergencyIncidentSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum EmergencyIncidentStatus {
+  OPEN
+  ESCALATING
+  ACKNOWLEDGED
+  MONITORING
+  RESOLVED
+  REOPENED
+}
+
+enum EmergencyNotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  ACKNOWLEDGED
+}
+
+enum EmergencyNotificationType {
+  INITIAL
+  SEVERITY_ESCALATION
+  ROOM_UPDATE
+  FAILURE
+  RESOLUTION
+  REOPENED
+}
+
+model User {
+  id                    String              @id @default(cuid())
+  email                 String              @unique @db.VarChar(320)
+  passwordHash          String              @db.VarChar(255)
+  fullName              String              @db.VarChar(120)
+  status                UserStatus          @default(ACTIVE)
+  userType              UserType
+  lastLoginAt           DateTime?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  userRoles             UserRole[]
+  refreshTokens         RefreshToken[]
+  authSessions          AuthSession[]
+  tenantUsers           TenantUser[]
+  hotelAssignments      HotelStaffAssignment[] @relation("HotelStaffAssignmentUser")
+  assignedHotelStaff    HotelStaffAssignment[] @relation("HotelStaffAssignmentAssignedBy")
+  revokedHotelStaff     HotelStaffAssignment[] @relation("HotelStaffAssignmentRevokedBy")
+  auditLogs             AuditLog[]          @relation("AuditActor")
+  createdStays          GuestStay[]         @relation("GuestStayCreatedBy")
+  closedStays           GuestStay[]         @relation("GuestStayClosedBy")
+  assignedGuestRequests GuestRequest[]      @relation("GuestRequestAssignedTo")
+  guestRequestEvents    GuestRequestEvent[] @relation("GuestRequestEventActor")
+  sentGuestMessages     GuestMessage[]      @relation("GuestMessageStaffSender")
+  createdFolios         Folio[]             @relation("FolioCreatedBy")
+  closedFolios          Folio[]             @relation("FolioClosedBy")
+  postedFolioItems      FolioItem[]         @relation("FolioItemPostedBy")
+  voidedFolioItems      FolioItem[]         @relation("FolioItemVoidedBy")
+  issuedInvoices        Invoice[]           @relation("InvoiceIssuedBy")
+  paidInvoices          Invoice[]           @relation("InvoicePaidBy")
+  voidedInvoices        Invoice[]           @relation("InvoiceVoidedBy")
+  createdPayments       Payment[]           @relation("PaymentCreatedBy")
+}
+
+model Role {
+  id              String           @id @default(cuid())
+  code            String           @unique @db.VarChar(80)
+  name            String           @db.VarChar(120)
+  description     String?          @db.VarChar(255)
+  status          RoleStatus       @default(ACTIVE)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@index([status])
+}
+
+model Permission {
+  id              String           @id @default(cuid())
+  method          HttpMethod
+  moduleKey       String           @db.VarChar(80)
+  path            String           @db.VarChar(255)
+  description     String           @db.VarChar(255)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  rolePermissions RolePermission[]
+
+  @@unique([method, path])
+  @@index([moduleKey, method, path])
+}
+
+model Code {
+  id           String   @id @default(cuid())
+  name         String   @unique @db.VarChar(80)
+  sequenceNext Int      @default(1)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([name])
+  @@index([isActive])
+}
+
+model UserRole {
+  id           String         @id @default(cuid())
+  userId       String
+  roleId       String
+  status       UserRoleStatus @default(ACTIVE)
+  assignedAt   DateTime       @default(now())
+  assignedById String?
+  revokedAt    DateTime?
+  revokedById  String?
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role         Role           @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@index([userId, status])
+  @@index([roleId, status])
+}
+
+model RolePermission {
+  id           String     @id @default(cuid())
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique @db.VarChar(255)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model AuthSession {
+  id                 String                    @id @default(cuid())
+  userId             String
+  roleId             String
+  status             AuthSessionStatus         @default(ACTIVE)
+  currentRefreshHash String                    @unique @db.VarChar(255)
+  refreshFamilyId    String                    @db.VarChar(64)
+  version            Int                       @default(1)
+  idleExpiresAt      DateTime
+  absoluteExpiresAt  DateTime
+  lastUsedAt         DateTime                  @default(now())
+  rotatedAt          DateTime?
+  revokedAt          DateTime?
+  revokeReason       AuthSessionRevokeReason?
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+  user               User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshHistory     AuthRefreshTokenHistory[]
+  refreshIdempotency AuthRefreshIdempotency[]
+
+  @@index([userId, status])
+  @@index([refreshFamilyId, status])
+  @@index([status, idleExpiresAt])
+  @@index([status, absoluteExpiresAt])
+}
+
+model AuthRefreshTokenHistory {
+  id        String      @id @default(cuid())
+  sessionId String
+  tokenHash String      @unique @db.VarChar(255)
+  expiresAt DateTime
+  createdAt DateTime    @default(now())
+  session   AuthSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+  @@index([expiresAt])
+}
+
+model AuthRefreshIdempotency {
+  id                 String      @id @default(cuid())
+  sessionId          String
+  idempotencyKey     String      @db.VarChar(64)
+  requestFingerprint String      @db.VarChar(64)
+  encryptedResult    String      @db.Text
+  expiresAt          DateTime
+  createdAt          DateTime    @default(now())
+  session            AuthSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, idempotencyKey])
+  @@index([expiresAt])
+}
+
+model Tenant {
+  id                  String               @id @default(cuid())
+  code                String               @unique @db.VarChar(80)
+  name                String               @db.VarChar(160)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  tenantUsers         TenantUser[]
+  auditLogs           AuditLog[]
+  hotels              Hotel[]
+  emergencyLocations  EmergencyLocation[]
+  emergencyCallEvents EmergencyCallEvent[]
+  emergencyIncidents  EmergencyIncident[]
+}
+
+model TenantUser {
+  id        String           @id @default(cuid())
+  tenantId  String
+  userId    String
+  status    TenantUserStatus @default(INVITED)
+  joinedAt  DateTime?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId])
+  @@index([tenantId, status])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  tenantId   String
+  action     String   @db.VarChar(120)
+  entityType String   @db.VarChar(120)
+  entityId   String?  @db.VarChar(120)
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  actor      User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([actorId, createdAt])
+  @@index([tenantId, createdAt])
+}
+
+model Hotel {
+  id                  String                 @id @default(cuid())
+  tenantId            String
+  name                String                 @db.VarChar(160)
+  code                String                 @db.VarChar(80)
+  brandSettings       Json?
+  googleSheetId       String?                @unique @db.VarChar(200)
+  timezone            String                 @default("Asia/Saigon") @db.VarChar(80)
+  status              HotelStatus            @default(ACTIVE)
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+  tenant              Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  rooms               Room[]
+  roomQRCodes         RoomQRCode[]
+  guestStays          GuestStay[]
+  reservations        Reservation[]
+  guestSessions       GuestSession[]
+  guestRequests       GuestRequest[]
+  guestMessageThreads GuestMessageThread[]
+  guestMessages       GuestMessage[]
+  notificationRoutes  NotificationRoute[]
+  requestEvents       GuestRequestEvent[]
+  serviceCategories   HotelServiceCategory[]
+  serviceItems        HotelServiceItem[]
+  domainEvents        DomainEvent[]
+  folios              Folio[]
+  folioItems          FolioItem[]
+  invoices            Invoice[]
+  payments            Payment[]
+  paymentTransactions PaymentTransaction[]
+  staffAssignments      HotelStaffAssignment[]
+  emergencyLocations    EmergencyLocation[]
+  emergencyCallEvents   EmergencyCallEvent[]
+  emergencyIncidents    EmergencyIncident[]
+  biometricPairings     BiometricWorkstationPairing[]
+  biometricWorkstations BiometricWorkstation[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, status])
+}
+
+model HotelStaffAssignment {
+  id           String                     @id @default(cuid())
+  userId       String
+  hotelId      String
+  status       HotelStaffAssignmentStatus @default(ACTIVE)
+  assignedAt   DateTime                   @default(now())
+  assignedById String?
+  revokedAt    DateTime?
+  revokedById  String?
+  createdAt    DateTime                   @default(now())
+  updatedAt    DateTime                   @updatedAt
+  user         User                       @relation("HotelStaffAssignmentUser", fields: [userId], references: [id], onDelete: Cascade)
+  hotel        Hotel                      @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  assignedBy   User?                      @relation("HotelStaffAssignmentAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+  revokedBy    User?                      @relation("HotelStaffAssignmentRevokedBy", fields: [revokedById], references: [id], onDelete: SetNull)
+
+  @@unique([userId, hotelId])
+  @@index([userId, status])
+  @@index([hotelId, status])
+}
+
+model BiometricWorkstationPairing {
+  id         String    @id @default(cuid())
+  codeHash   String    @unique @db.Char(64)
+  hotelId    String
+  operatorId String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+  hotel      Hotel     @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@index([hotelId, expiresAt])
+}
+
+model BiometricWorkstation {
+  id         String    @id @default(cuid())
+  tokenHash  String    @unique @db.Char(64)
+  hotelId    String
+  pairedAt   DateTime  @default(now())
+  lastSeenAt DateTime
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  hotel      Hotel     @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@index([hotelId, revokedAt, expiresAt, lastSeenAt])
+}
+
+model Room {
+  id                    String               @id @default(cuid())
+  hotelId               String
+  code                  String               @unique @db.VarChar(80)
+  roomNumber            String               @db.VarChar(40)
+  floor                 String?              @db.VarChar(40)
+  type                  String?              @db.VarChar(80)
+  price                 Decimal?             @db.Decimal(12, 2)
+  maxActiveGuestDevices Int?
+  status                RoomStatus           @default(AVAILABLE)
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  hotel                 Hotel                @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  qrCodes               RoomQRCode[]
+  guestStays            GuestStay[]
+  reservations          Reservation[]
+  guestSessions         GuestSession[]
+  guestRequests         GuestRequest[]
+  guestMessageThreads   GuestMessageThread[]
+  guestMessages         GuestMessage[]
+  folios                Folio[]
+  folioItems            FolioItem[]
+  emergencyCallEvents   EmergencyCallEvent[]
+
+  @@unique([hotelId, roomNumber])
+  @@index([hotelId, status])
+}
+
+model RoomQRCode {
+  id            String           @id @default(cuid())
+  hotelId       String
+  roomId        String
+  publicCode    String           @unique @db.VarChar(120)
+  status        RoomQRCodeStatus @default(INACTIVE)
+  version       Int              @default(1)
+  activatedAt   DateTime?
+  deactivatedAt DateTime?
+  expiresAt     DateTime?
+  revokedAt     DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  hotel         Hotel            @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  room          Room             @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  guestSessions GuestSession[]
+
+  @@index([roomId, status])
+  @@index([hotelId, status])
+}
+
+model Reservation {
+  id                  String            @id @default(cuid())
+  hotelId             String
+  roomId              String?
+  reservationCode     String            @db.VarChar(80)
+  guestDisplayName    String            @db.VarChar(120)
+  guestPhone          String?           @db.VarChar(40)
+  status              ReservationStatus @default(CONFIRMED)
+  plannedCheckInAt    DateTime
+  plannedCheckOutAt   DateTime
+  assignedAt          DateTime?
+  assignedByUserId    String?
+  checkedInAt         DateTime?
+  checkedInByUserId   String?
+  createdByUserId     String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  hotel               Hotel             @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  room                Room?             @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  stay                GuestStay?
+
+  @@unique([hotelId, reservationCode])
+  @@index([hotelId, status, plannedCheckInAt])
+  @@index([roomId, status, plannedCheckInAt, plannedCheckOutAt])
+}
+
+model GuestStay {
+  id                  String          @id @default(cuid())
+  reservationId       String?         @unique
+  hotelId             String
+  roomId              String
+  reservationCode     String          @db.VarChar(80)
+  guestDisplayName    String          @db.VarChar(120)
+  guestPhone          String?         @db.VarChar(40)
+  guestIdentityNumber String?         @db.VarChar(32)
+  guestDateOfBirth    String?         @db.VarChar(20)
+  guestGender         String?         @db.VarChar(20)
+  guestNationality    String?         @db.VarChar(80)
+  guestResidencePlace String?         @db.VarChar(500)
+  status              GuestStayStatus @default(RESERVED)
+  plannedCheckInAt    DateTime
+  plannedCheckOutAt   DateTime
+  checkedInAt         DateTime?
+  activatedAt         DateTime?
+  checkedOutAt        DateTime?
+  accessCodeHash      String?         @db.VarChar(64)
+  accessCodeExpiresAt DateTime?
+  createdByUserId     String?
+  closedByUserId      String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  hotel               Hotel           @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  room                Room            @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  reservation         Reservation?     @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+  createdBy           User?           @relation("GuestStayCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  closedBy            User?           @relation("GuestStayClosedBy", fields: [closedByUserId], references: [id], onDelete: SetNull)
+  guestSessions       GuestSession[]
+  guestRequests       GuestRequest[]
+  guestMessages       GuestMessage[]
+  folios              Folio[]
+  folioItems          FolioItem[]
+  invoices            Invoice[]
+  payments            Payment[]
+  messageThreads      GuestMessageThread[]
+  occupants           GuestStayOccupant[]
+
+  @@index([hotelId, status])
+  @@index([roomId, status])
+  @@index([reservationCode])
+  @@index([plannedCheckOutAt])
+}
+
+model GuestStayOccupant {
+  id                  String         @id @default(cuid())
+  stayId              String
+  hotelId             String
+  fullName            String         @db.VarChar(120)
+  phone               String?        @db.VarChar(40)
+  identityNumber      String?        @db.VarChar(32)
+  dateOfBirth         String?        @db.VarChar(20)
+  gender              String?        @db.VarChar(20)
+  isPrimary           Boolean        @default(false)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  stay                GuestStay      @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  guestSessions       GuestSession[]
+
+  @@index([stayId])
+  @@index([hotelId])
+}
+
+model GuestSession {
+  id                        String                 @id @default(cuid())
+  hotelId                   String
+  roomId                    String
+  stayId                    String
+  occupantId                String?
+  roomQrCodeId              String
+  sessionTokenHash          String                 @unique @db.VarChar(64)
+  status                    GuestSessionStatus     @default(ACTIVE)
+  deviceFingerprintHash     String?                @db.VarChar(64)
+  ipHash                    String?                @db.VarChar(64)
+  userAgent                 String?                @db.VarChar(255)
+  createdAt                 DateTime               @default(now())
+  activatedAt               DateTime?
+  lastSeenAt                DateTime?
+  idleAt                    DateTime?
+  expiresAt                 DateTime
+  closedAt                  DateTime?
+  hotel                     Hotel                  @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  room                      Room                   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  stay                      GuestStay              @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  occupant                  GuestStayOccupant?     @relation(fields: [occupantId], references: [id], onDelete: SetNull)
+  roomQrCode                RoomQRCode             @relation(fields: [roomQrCodeId], references: [id], onDelete: Cascade)
+  guestRequests             GuestRequest[]
+  requestEvents             GuestRequestEvent[]
+  guestMessages             GuestMessage[]
+  emergencyLocationContexts GuestLocationContext[]
+  emergencyCallEvents       EmergencyCallEvent[]
+
+  @@index([stayId, status])
+  @@index([sessionTokenHash])
+  @@index([hotelId, status, lastSeenAt])
+}
+
+model GuestRequest {
+  id                       String                        @id @default(cuid())
+  hotelId                  String
+  roomId                   String
+  stayId                   String
+  sessionId                String?
+  status                   GuestRequestStatus            @default(CREATED)
+  priority                 GuestRequestPriority          @default(NORMAL)
+  title                    String?                       @db.VarChar(160)
+  description              String?                       @db.VarChar(1000)
+  metadata                 Json?
+  quantity                 Int                           @default(1)
+  serviceItemId            String?
+  assignedToUserId         String?
+  confirmedBy              String?                       @db.VarChar(160)
+  confirmedAt              DateTime?
+  billingPostStatus        GuestRequestBillingPostStatus @default(NONE)
+  billingPostFailureReason String?                       @db.VarChar(1000)
+  billingPostedAt          DateTime?
+  billingFolioItemId       String?                       @unique
+  createdAt                DateTime                      @default(now())
+  updatedAt                DateTime                      @updatedAt
+  completedAt              DateTime?
+  cancelledAt              DateTime?
+  hotel                    Hotel                         @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  room                     Room                          @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  stay                     GuestStay                     @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  session                  GuestSession?                 @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  serviceItem              HotelServiceItem?             @relation(fields: [serviceItemId], references: [id], onDelete: SetNull)
+  assignedTo               User?                         @relation("GuestRequestAssignedTo", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  billingFolioItem         FolioItem?                    @relation("GuestRequestBillingFolioItem", fields: [billingFolioItemId], references: [id], onDelete: SetNull)
+  folioItems               FolioItem[]                   @relation("GuestRequestFolioItems")
+  events                   GuestRequestEvent[]
+  notifications            GuestRequestNotification[]
+
+  @@index([hotelId, status, createdAt])
+  @@index([roomId, status])
+  @@index([stayId, createdAt])
+  @@index([serviceItemId])
+  @@index([billingPostStatus])
+}
+
+model HotelServiceCategory {
+  id                 String                            @id @default(cuid())
+  hotelId            String
+  importKey          String?                           @db.VarChar(120)
+  name               String                            @db.VarChar(120)
+  description        String?                           @db.VarChar(500)
+  defaultPrice       Decimal                           @default(0) @db.Decimal(12, 2)
+  currency           String                            @default("VND") @db.VarChar(3)
+  sortOrder          Int                               @default(0)
+  status             ServiceCatalogStatus              @default(ACTIVE)
+  createdAt          DateTime                          @default(now())
+  updatedAt          DateTime                          @updatedAt
+  hotel              Hotel                             @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  items              HotelServiceItem[]
+  translations       HotelServiceCategoryTranslation[]
+  notificationRoutes NotificationRoute[]
+
+  @@unique([hotelId, importKey])
+  @@index([hotelId, status, sortOrder])
+}
+
+model HotelServiceCategoryTranslation {
+  id          String               @id @default(cuid())
+  categoryId  String
+  locale      String               @db.VarChar(10)
+  name        String               @db.VarChar(120)
+  description String?              @db.VarChar(500)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  category    HotelServiceCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, locale])
+  @@index([locale])
+}
+
+model HotelServiceItem {
+  id                  String                        @id @default(cuid())
+  hotelId             String
+  categoryId          String
+  importKey           String?                       @db.VarChar(120)
+  name                String                        @db.VarChar(160)
+  description         String?                       @db.VarChar(1000)
+  priceOverride       Decimal?                      @db.Decimal(12, 2)
+  quantityEnabled     Boolean                       @default(false)
+  minQuantity         Int                           @default(1)
+  maxQuantity         Int?
+  metadata            Json?
+  sortOrder           Int                           @default(0)
+  status              ServiceCatalogStatus          @default(ACTIVE)
+  createdAt           DateTime                      @default(now())
+  updatedAt           DateTime                      @updatedAt
+  hotel               Hotel                         @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  category            HotelServiceCategory          @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  translations        HotelServiceItemTranslation[]
+  guestRequests       GuestRequest[]
+  folioItems          FolioItem[]
+  emergencyCallEvents EmergencyCallEvent[]
+
+  @@unique([hotelId, importKey])
+  @@index([hotelId, status, sortOrder])
+  @@index([categoryId, status, sortOrder])
+}
+
+model HotelServiceItemTranslation {
+  id          String           @id @default(cuid())
+  itemId      String
+  locale      String           @db.VarChar(10)
+  name        String           @db.VarChar(160)
+  description String?          @db.VarChar(1000)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  item        HotelServiceItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, locale])
+  @@index([locale])
+}
+
+model NotificationRoute {
+  id                String                     @id @default(cuid())
+  hotelId           String
+  serviceCategoryId String?
+  telegramChatId    String                     @db.VarChar(128)
+  isActive          Boolean                    @default(true)
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
+  hotel             Hotel                      @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  serviceCategory   HotelServiceCategory?      @relation(fields: [serviceCategoryId], references: [id], onDelete: Cascade)
+  notifications     GuestRequestNotification[]
+
+  @@index([hotelId, serviceCategoryId, isActive])
+}
+
+model GuestRequestNotification {
+  id                String                         @id @default(cuid())
+  guestRequestId    String
+  provider          NotificationProvider
+  routeId           String
+  telegramChatId    String                         @db.VarChar(128)
+  telegramMessageId String?                        @db.VarChar(64)
+  status            GuestRequestNotificationStatus @default(PENDING)
+  errorMessage      String?                        @db.VarChar(1000)
+  sentAt            DateTime?
+  createdAt         DateTime                       @default(now())
+  updatedAt         DateTime                       @updatedAt
+  guestRequest      GuestRequest                   @relation(fields: [guestRequestId], references: [id], onDelete: Cascade)
+  route             NotificationRoute              @relation(fields: [routeId], references: [id], onDelete: Cascade)
+
+  @@unique([guestRequestId, provider])
+}
+
+model GuestRequestEvent {
+  id          String                @id @default(cuid())
+  requestId   String
+  hotelId     String
+  actorType   GuestRequestActorType
+  actorUserId String?
+  sessionId   String?
+  eventType   String                @db.VarChar(80)
+  fromStatus  GuestRequestStatus?
+  toStatus    GuestRequestStatus?
+  note        String?               @db.VarChar(1000)
+  visibility  String                @default("GUEST") @db.VarChar(16)
+  metadata    Json?
+  createdAt   DateTime              @default(now())
+  request     GuestRequest          @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  hotel       Hotel                 @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  actorUser   User?                 @relation("GuestRequestEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  session     GuestSession?         @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([requestId, createdAt])
+  @@index([hotelId, createdAt])
+  @@index([requestId, visibility, createdAt])
+}
+
+model GuestMessageThread {
+  id            String   @id @default(cuid())
+  hotelId       String
+  roomId        String
+  stayId        String   @unique
+  status        String   @default("OPEN") @db.VarChar(16)
+  lastMessageAt DateTime @default(now())
+  clearedAt     DateTime?
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  hotel         Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  room          Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  stay          GuestStay @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  messages      GuestMessage[]
+
+  @@index([hotelId, status, lastMessageAt])
+  @@index([hotelId, lastMessageAt, id])
+  @@index([roomId, lastMessageAt])
+  @@index([expiresAt])
+}
+
+model GuestMessage {
+  id           String              @id @default(cuid())
+  threadId     String
+  hotelId      String
+  roomId       String
+  stayId       String
+  senderType   GuestRequestActorType
+  senderUserId String?
+  sessionId    String?
+  body         String              @db.VarChar(1000)
+  readAt       DateTime?
+  createdAt    DateTime            @default(now())
+  thread       GuestMessageThread  @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  hotel        Hotel               @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  room         Room                @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  stay         GuestStay           @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  senderUser   User?               @relation("GuestMessageStaffSender", fields: [senderUserId], references: [id], onDelete: SetNull)
+  session      GuestSession?       @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([threadId, createdAt])
+  @@index([hotelId, createdAt])
+  @@index([stayId, createdAt])
+  @@index([threadId, senderType, readAt])
+}
+
+model Folio {
+  id                String      @id @default(cuid())
+  hotelId           String
+  stayId            String
+  roomId            String
+  folioNumber       String      @db.VarChar(80)
+  status            FolioStatus @default(OPEN)
+  currency          String      @default("VND") @db.VarChar(3)
+  subtotalAmount    Decimal     @default(0) @db.Decimal(12, 2)
+  taxAmount         Decimal     @default(0) @db.Decimal(12, 2)
+  discountAmount    Decimal     @default(0) @db.Decimal(12, 2)
+  totalAmount       Decimal     @default(0) @db.Decimal(12, 2)
+  openedAt          DateTime    @default(now())
+  checkoutStartedAt DateTime?
+  closedAt          DateTime?
+  voidedAt          DateTime?
+  createdByUserId   String?
+  closedByUserId    String?
+  metadataJson      Json?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  hotel             Hotel       @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  stay              GuestStay   @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  room              Room        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  createdBy         User?       @relation("FolioCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  closedBy          User?       @relation("FolioClosedBy", fields: [closedByUserId], references: [id], onDelete: SetNull)
+  items             FolioItem[]
+  invoices          Invoice[]
+  payments          Payment[]
+
+  @@unique([hotelId, folioNumber])
+  @@index([hotelId])
+  @@index([stayId])
+  @@index([roomId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([hotelId, status])
+  @@index([hotelId, stayId])
+}
+
+model FolioItem {
+  id                     String              @id @default(cuid())
+  hotelId                String
+  folioId                String
+  stayId                 String
+  itemType               FolioItemType
+  sourceType             FolioItemSourceType
+  sourceId               String?             @db.VarChar(120)
+  roomId                 String?
+  serviceItemId          String?
+  guestRequestId         String?             @unique
+  codeSnapshot           String?             @db.VarChar(80)
+  nameSnapshot           String              @db.VarChar(160)
+  descriptionSnapshot    String?             @db.VarChar(1000)
+  quantity               Int                 @default(1)
+  unitPriceSnapshot      Decimal             @default(0) @db.Decimal(12, 2)
+  taxRateSnapshot        Decimal             @default(0) @db.Decimal(5, 4)
+  taxAmountSnapshot      Decimal             @default(0) @db.Decimal(12, 2)
+  discountAmountSnapshot Decimal             @default(0) @db.Decimal(12, 2)
+  subtotalSnapshot       Decimal             @default(0) @db.Decimal(12, 2)
+  totalSnapshot          Decimal             @default(0) @db.Decimal(12, 2)
+  currency               String              @default("VND") @db.VarChar(3)
+  metadataSnapshotJson   Json?
+  billingSourceSnapshot  Json
+  serviceCompletedAt     DateTime?
+  postedAt               DateTime            @default(now())
+  postedByUserId         String?
+  voidedAt               DateTime?
+  voidedByUserId         String?
+  voidReason             String?             @db.VarChar(500)
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+  hotel                  Hotel               @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  folio                  Folio               @relation(fields: [folioId], references: [id], onDelete: Cascade)
+  stay                   GuestStay           @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  room                   Room?               @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  serviceItem            HotelServiceItem?   @relation(fields: [serviceItemId], references: [id], onDelete: SetNull)
+  guestRequest           GuestRequest?       @relation("GuestRequestFolioItems", fields: [guestRequestId], references: [id], onDelete: SetNull)
+  billingGuestRequest    GuestRequest?       @relation("GuestRequestBillingFolioItem")
+  postedBy               User?               @relation("FolioItemPostedBy", fields: [postedByUserId], references: [id], onDelete: SetNull)
+  voidedBy               User?               @relation("FolioItemVoidedBy", fields: [voidedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([hotelId])
+  @@index([folioId])
+  @@index([stayId])
+  @@index([itemType])
+  @@index([sourceType, sourceId])
+  @@index([serviceItemId])
+  @@index([postedAt])
+  @@index([hotelId, folioId])
+  @@index([hotelId, sourceType, sourceId])
+}
+
+model Invoice {
+  id                  String               @id @default(cuid())
+  hotelId             String
+  folioId             String
+  stayId              String
+  invoiceNumber       String               @db.VarChar(80)
+  status              InvoiceStatus        @default(ISSUED)
+  currency            String               @default("VND") @db.VarChar(3)
+  subtotalAmount      Decimal              @default(0) @db.Decimal(12, 2)
+  taxAmount           Decimal              @default(0) @db.Decimal(12, 2)
+  discountAmount      Decimal              @default(0) @db.Decimal(12, 2)
+  totalAmount         Decimal              @default(0) @db.Decimal(12, 2)
+  paidAmount          Decimal              @default(0) @db.Decimal(12, 2)
+  balanceAmount       Decimal              @default(0) @db.Decimal(12, 2)
+  invoiceSnapshotJson Json
+  issuedAt            DateTime             @default(now())
+  paidAt              DateTime?
+  voidedAt            DateTime?
+  refundedAt          DateTime?
+  issuedByUserId      String?
+  paidByUserId        String?
+  voidedByUserId      String?
+  metadataJson        Json?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  hotel               Hotel                @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  folio               Folio                @relation(fields: [folioId], references: [id], onDelete: Cascade)
+  stay                GuestStay            @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  issuedBy            User?                @relation("InvoiceIssuedBy", fields: [issuedByUserId], references: [id], onDelete: SetNull)
+  paidBy              User?                @relation("InvoicePaidBy", fields: [paidByUserId], references: [id], onDelete: SetNull)
+  voidedBy            User?                @relation("InvoiceVoidedBy", fields: [voidedByUserId], references: [id], onDelete: SetNull)
+  payments            Payment[]
+  paymentTransactions PaymentTransaction[]
+
+  @@unique([hotelId, invoiceNumber])
+  @@index([hotelId])
+  @@index([folioId])
+  @@index([stayId])
+  @@index([status])
+  @@index([issuedAt])
+  @@index([hotelId, status])
+  @@index([hotelId, issuedAt])
+}
+
+model Payment {
+  id                String               @id @default(cuid())
+  hotelId           String
+  invoiceId         String
+  folioId           String
+  stayId            String
+  paymentNumber     String               @db.VarChar(80)
+  status            PaymentStatus        @default(PENDING)
+  provider          PaymentProvider      @default(MANUAL)
+  method            PaymentMethod
+  currency          String               @default("VND") @db.VarChar(3)
+  amount            Decimal              @default(0) @db.Decimal(12, 2)
+  paidAmount        Decimal              @default(0) @db.Decimal(12, 2)
+  refundedAmount    Decimal              @default(0) @db.Decimal(12, 2)
+  providerSessionId String?              @db.VarChar(255)
+  providerPaymentId String?              @db.VarChar(255)
+  paymentUrl        String?              @db.VarChar(1000)
+  expiresAt         DateTime?
+  createdByUserId   String?
+  confirmedAt       DateTime?
+  failedAt          DateTime?
+  failureReason     String?              @db.VarChar(1000)
+  metadataJson      Json?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  hotel             Hotel                @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  invoice           Invoice              @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  folio             Folio                @relation(fields: [folioId], references: [id], onDelete: Cascade)
+  stay              GuestStay            @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  createdBy         User?                @relation("PaymentCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  transactions      PaymentTransaction[]
+
+  @@unique([hotelId, paymentNumber])
+  @@index([hotelId])
+  @@index([invoiceId])
+  @@index([folioId])
+  @@index([stayId])
+  @@index([status])
+  @@index([provider])
+  @@index([providerSessionId])
+  @@index([providerPaymentId])
+}
+
+model PaymentTransaction {
+  id                    String          @id @default(cuid())
+  hotelId               String
+  paymentId             String
+  invoiceId             String
+  provider              PaymentProvider
+  providerEventId       String?         @db.VarChar(255)
+  providerTransactionId String?         @db.VarChar(255)
+  eventType             String          @db.VarChar(120)
+  status                PaymentStatus
+  amount                Decimal         @default(0) @db.Decimal(12, 2)
+  currency              String          @default("VND") @db.VarChar(3)
+  rawPayloadJson        Json?
+  signatureVerified     Boolean         @default(false)
+  processedAt           DateTime?
+  createdAt             DateTime        @default(now())
+  hotel                 Hotel           @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  payment               Payment         @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  invoice               Invoice         @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@unique([hotelId, provider, providerEventId])
+  @@index([paymentId])
+  @@index([invoiceId])
+  @@index([provider])
+  @@index([providerEventId])
+  @@index([providerTransactionId])
+  @@index([processedAt])
+}
+
+model DomainEvent {
+  id            String            @id @default(cuid())
+  eventType     String            @db.VarChar(80)
+  aggregateType String            @db.VarChar(80)
+  aggregateId   String            @db.VarChar(120)
+  hotelId       String?
+  tenantId      String?
+  payload       Json
+  status        DomainEventStatus @default(PENDING)
+  occurredAt    DateTime          @default(now())
+  processedAt   DateTime?
+  retryCount    Int               @default(0)
+  hotel         Hotel?            @relation(fields: [hotelId], references: [id], onDelete: SetNull)
+
+  @@index([eventType, occurredAt])
+  @@index([hotelId, occurredAt])
+  @@index([status, occurredAt])
+}
+
+model EmergencyLocation {
+  id                        String                 @id @default(cuid())
+  tenantId                  String
+  hotelId                   String?
+  name                      String                 @db.VarChar(160)
+  dispatchableAddress       String                 @db.VarChar(500)
+  building                  String?                @db.VarChar(120)
+  floor                     String?                @db.VarChar(40)
+  room                      String?                @db.VarChar(80)
+  zone                      String?                @db.VarChar(120)
+  latitude                  Decimal?               @db.Decimal(10, 7)
+  longitude                 Decimal?               @db.Decimal(10, 7)
+  providerValidationStatus  String                 @default("PENDING") @db.VarChar(40)
+  providerLocationReference String?                @db.VarChar(160)
+  effectiveStartAt          DateTime?
+  effectiveEndAt            DateTime?
+  usableForEmergencyRouting Boolean                @default(true)
+  assignableToGuests        Boolean                @default(true)
+  lastValidatedAt           DateTime?
+  createdAt                 DateTime               @default(now())
+  updatedAt                 DateTime               @updatedAt
+  tenant                    Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  hotel                     Hotel?                 @relation(fields: [hotelId], references: [id], onDelete: SetNull)
+  guestContexts             GuestLocationContext[]
+  callEvents                EmergencyCallEvent[]
+  incidents                 EmergencyIncident[]
+
+  @@index([tenantId, usableForEmergencyRouting])
+  @@index([hotelId, assignableToGuests])
+}
+
+model GuestLocationContext {
+  id                      String                      @id @default(cuid())
+  sessionId               String
+  tenantId                String
+  hotelId                 String
+  emergencyLocationId     String?
+  rawAddress              String?                     @db.VarChar(500)
+  latitude                Decimal?                    @db.Decimal(10, 7)
+  longitude               Decimal?                    @db.Decimal(10, 7)
+  source                  EmergencyLocationSource     @default(UNKNOWN)
+  confidence              EmergencyLocationConfidence @default(UNKNOWN)
+  confirmedAt             DateTime?
+  explicitlyConfirmed     Boolean                     @default(false)
+  stale                   Boolean                     @default(false)
+  emergencyCallingAllowed Boolean                     @default(true)
+  metadata                Json?
+  createdAt               DateTime                    @default(now())
+  updatedAt               DateTime                    @updatedAt
+  session                 GuestSession                @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  emergencyLocation       EmergencyLocation?          @relation(fields: [emergencyLocationId], references: [id], onDelete: SetNull)
+
+  @@index([sessionId, updatedAt])
+  @@index([tenantId, hotelId])
+}
+
+model EmergencyIncident {
+  id                 String                      @id @default(cuid())
+  tenantId           String
+  hotelId            String?
+  primaryLocationId  String?
+  building           String?                     @db.VarChar(120)
+  floor              String?                     @db.VarChar(40)
+  zone               String?                     @db.VarChar(120)
+  status             EmergencyIncidentStatus     @default(OPEN)
+  severity           EmergencyIncidentSeverity   @default(LOW)
+  callCount          Int                         @default(0)
+  uniqueCallerCount  Int                         @default(0)
+  uniqueRoomCount    Int                         @default(0)
+  uniqueFloorCount   Int                         @default(0)
+  connectedCallCount Int                         @default(0)
+  failedCallCount    Int                         @default(0)
+  abandonedCallCount Int                         @default(0)
+  locationUncertain  Boolean                     @default(false)
+  providerDegraded   Boolean                     @default(false)
+  spamAbuseSuspicion Boolean                     @default(false)
+  startedAt          DateTime                    @default(now())
+  lastActivityAt     DateTime                    @default(now())
+  acknowledgedAt     DateTime?
+  resolvedAt         DateTime?
+  resolutionReason   String?                     @db.VarChar(500)
+  createdAt          DateTime                    @default(now())
+  updatedAt          DateTime                    @updatedAt
+  tenant             Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  hotel              Hotel?                      @relation(fields: [hotelId], references: [id], onDelete: SetNull)
+  primaryLocation    EmergencyLocation?          @relation(fields: [primaryLocationId], references: [id], onDelete: SetNull)
+  callEvents         EmergencyCallEvent[]
+  notifications      EmergencyNotification[]
+  timeline           EmergencyIncidentTimeline[]
+
+  @@index([tenantId, status, lastActivityAt])
+  @@index([hotelId, status, lastActivityAt])
+}
+
+model EmergencyCallEvent {
+  id                           String                       @id @default(cuid())
+  tenantId                     String
+  hotelId                      String?
+  roomId                       String?
+  sessionId                    String?
+  incidentId                   String?
+  emergencyLocationId          String?
+  sourceType                   String                       @db.VarChar(40)
+  callerReference              String?                      @db.VarChar(160)
+  dialedNumber                 String                       @db.VarChar(40)
+  resolvedDispatchableLocation String?                      @db.VarChar(500)
+  locationSource               EmergencyLocationSource      @default(UNKNOWN)
+  locationConfidence           EmergencyLocationConfidence  @default(UNKNOWN)
+  callbackNumber               String?                      @db.VarChar(40)
+  provider                     String?                      @db.VarChar(80)
+  providerCallId               String?                      @db.VarChar(160)
+  lifecycleStatus              EmergencyCallLifecycleStatus @default(ATTEMPTED)
+  spamRiskScore                Int                          @default(0)
+  spamRiskLevel                String                       @default("LOW") @db.VarChar(40)
+  locationUncertain            Boolean                      @default(false)
+  metadata                     Json?
+  attemptedAt                  DateTime                     @default(now())
+  routedAt                     DateTime?
+  connectedAt                  DateTime?
+  failedAt                     DateTime?
+  abandonedAt                  DateTime?
+  completedAt                  DateTime?
+  createdAt                    DateTime                     @default(now())
+  updatedAt                    DateTime                     @updatedAt
+  tenant                       Tenant                       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  hotel                        Hotel?                       @relation(fields: [hotelId], references: [id], onDelete: SetNull)
+  room                         Room?                        @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  session                      GuestSession?                @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  incident                     EmergencyIncident?           @relation(fields: [incidentId], references: [id], onDelete: SetNull)
+  emergencyLocation            EmergencyLocation?           @relation(fields: [emergencyLocationId], references: [id], onDelete: SetNull)
+  notifications                EmergencyNotification[]
+  hotelServiceItem             HotelServiceItem?            @relation(fields: [hotelServiceItemId], references: [id])
+  hotelServiceItemId           String?
+
+  @@index([tenantId, attemptedAt])
+  @@index([hotelId, attemptedAt])
+  @@index([incidentId, attemptedAt])
+  @@index([providerCallId])
+}
+
+model EmergencyIncidentTimeline {
+  id         String            @id @default(cuid())
+  incidentId String
+  eventType  String            @db.VarChar(80)
+  note       String?           @db.VarChar(1000)
+  metadata   Json?
+  createdAt  DateTime          @default(now())
+  incident   EmergencyIncident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@index([incidentId, createdAt])
+}
+
+model EmergencyNotification {
+  id              String                      @id @default(cuid())
+  incidentId      String
+  callEventId     String?
+  recipientGroup  String                      @db.VarChar(120)
+  deliveryChannel String                      @db.VarChar(80)
+  status          EmergencyNotificationStatus @default(PENDING)
+  type            EmergencyNotificationType   @default(INITIAL)
+  retryCount      Int                         @default(0)
+  lastAttemptAt   DateTime?
+  acknowledgedAt  DateTime?
+  payload         Json?
+  createdAt       DateTime                    @default(now())
+  updatedAt       DateTime                    @updatedAt
+  incident        EmergencyIncident           @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  callEvent       EmergencyCallEvent?         @relation(fields: [callEventId], references: [id], onDelete: SetNull)
+
+  @@index([incidentId, status])
+  @@index([callEventId])
+}
+</file>
+
+</files>

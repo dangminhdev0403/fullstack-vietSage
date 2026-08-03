@@ -98,7 +98,7 @@ describe("final bounded-context release guard", () => {
         .filter((context) => context !== currentContext)
         .filter((context) => {
           const directImplementationImport = new RegExp(
-            `from ["'][^"']*${context}/(api|application|domain|infrastructure)(/|["'])`,
+            `from ["'][^"']*/${context}/(api|application|domain|infrastructure)(/|["'])`,
           );
           return directImplementationImport.test(source);
         });

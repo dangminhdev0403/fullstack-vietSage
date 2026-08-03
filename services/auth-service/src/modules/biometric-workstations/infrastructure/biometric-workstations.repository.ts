@@ -5,7 +5,12 @@ import { PrismaService } from "../../../prisma/prisma.service";
 export class BiometricWorkstationsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createPairing(input: { codeHash: string; hotelId: string; operatorId: string; expiresAt: Date }) {
+  async createPairing(input: {
+    codeHash: string;
+    hotelId: string;
+    operatorId: string;
+    expiresAt: Date;
+  }) {
     await this.prisma.biometricWorkstationPairing.create({ data: input });
   }
 
@@ -24,7 +29,12 @@ export class BiometricWorkstationsRepository {
     });
   }
 
-  async createWorkstation(input: { tokenHash: string; hotelId: string; lastSeenAt: Date; expiresAt: Date }) {
+  async createWorkstation(input: {
+    tokenHash: string;
+    hotelId: string;
+    lastSeenAt: Date;
+    expiresAt: Date;
+  }) {
     await this.prisma.biometricWorkstation.create({ data: input });
   }
 
@@ -34,19 +44,27 @@ export class BiometricWorkstationsRepository {
       select: { id: true, hotelId: true },
     });
     if (!workstation) return null;
-    await this.prisma.biometricWorkstation.update({ where: { id: workstation.id }, data: { lastSeenAt: seenAt } });
+    await this.prisma.biometricWorkstation.update({
+      where: { id: workstation.id },
+      data: { lastSeenAt: seenAt },
+    });
     return { id: workstation.id, hotelId: workstation.hotelId };
   }
 
   async hasOnlineWorkstation(hotelId: string, cutoff: Date, at: Date) {
-    return (await this.prisma.biometricWorkstation.count({
-      where: { hotelId, revokedAt: null, expiresAt: { gt: at }, lastSeenAt: { gte: cutoff } },
-    })) > 0;
+    return (
+      (await this.prisma.biometricWorkstation.count({
+        where: { hotelId, revokedAt: null, expiresAt: { gt: at }, lastSeenAt: { gte: cutoff } },
+      })) > 0
+    );
   }
 
   async revokeHotel(hotelId: string, revokedAt: Date) {
     const [workstations] = await this.prisma.$transaction([
-      this.prisma.biometricWorkstation.updateMany({ where: { hotelId, revokedAt: null }, data: { revokedAt } }),
+      this.prisma.biometricWorkstation.updateMany({
+        where: { hotelId, revokedAt: null },
+        data: { revokedAt },
+      }),
       this.prisma.biometricWorkstationPairing.deleteMany({ where: { hotelId, consumedAt: null } }),
     ]);
     return workstations.count;

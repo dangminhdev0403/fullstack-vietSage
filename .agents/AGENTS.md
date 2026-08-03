@@ -198,6 +198,10 @@ Read:
 - Do not create architecture/rules/plans docs outside the canonical docs folders.
 - Do not modify any `package.json` unless explicitly approved by the user.
 - Do not add dependencies unless explicitly approved by the user.
+- **Backend Validation Standard**: All NestJS controller endpoints MUST validate payloads using Zod schemas in `src/modules/<module>/domain/schemas/<module>.schema.ts` combined with `parseWithZod(schema, payload)`. Never use `class-validator` decorators (`@IsString`, `@IsNumber`, `@IsEnum`, etc.).
+- **Timezone Standard**: The canonical timezone for Vietnam is `Asia/Ho_Chi_Minh` (UTC+7). All default timezone schema properties MUST use `Asia/Ho_Chi_Minh` (NOT `Asia/Saigon`). In raw SQL queries using `AT TIME ZONE`, handle legacy aliases safely with `CASE WHEN tz = 'Asia/Saigon' OR tz IS NULL THEN 'Asia/Ho_Chi_Minh' ELSE tz END`.
+- **Frontend Dropdown Rule**: Forms selecting entities (hotels, rooms, users) MUST render a `<select>` dropdown with human-readable names and codes. Never ask users to manually type raw UUID strings.
+- **Frontend Navigation Compatibility**: When adding workspace navigation definitions in `workspace-registry.ts`, include active session fallback capabilities so active JWT sessions display navigation immediately without needing re-login.
 - For frontend client server-state, use `@dangminhdev04032005/query-resource`: repository → resource → feature hook → component. Do not add a local copy of the package or write raw TanStack Query `queryKey`/`queryFn`/`mutationFn` configurations in pages or feature hooks. Raw hooks consume resource-generated options; the application `QueryClient` provider is exempt.
 - Do not write secrets, tokens, passwords, API keys, or connection strings into docs or code.
 - Do not commit unrelated modified/untracked files.

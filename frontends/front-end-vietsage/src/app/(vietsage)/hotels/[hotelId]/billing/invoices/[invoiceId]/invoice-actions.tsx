@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import Swal from "sweetalert2";
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 
 type Props = {
   hotelId: string;
@@ -14,6 +16,7 @@ type Props = {
 
 export function InvoiceActions({ hotelId, invoiceId, isPaid, showPrint = true }: Props) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [saving, setSaving] = useState(false);
 
   async function collectPayment() {
@@ -35,6 +38,7 @@ export function InvoiceActions({ hotelId, invoiceId, isPaid, showPrint = true }:
         { method: "POST", body: { method: result.value } },
       );
       await Swal.fire({ icon: "success", title: "Checkout hoàn tất", text: "Hóa đơn đã thanh toán và phòng đang chờ dọn." });
+      await invalidateHotelRealtimeQueries(queryClient, hotelId);
       router.refresh();
     } catch (error) {
       await Swal.fire({ icon: "error", title: "Không thể xác nhận thanh toán", text: error instanceof Error ? error.message : "Vui lòng kiểm tra lại." });

@@ -11,14 +11,22 @@ describe("PlatformBillingService Onboarding & Analytics", () => {
     mockPrisma = {
       $transaction: jest.fn((callback) => callback(mockPrisma)),
       hotel: {
-        findUnique: jest.fn().mockResolvedValue({ id: "hotel-1", name: "Grand Hotel", code: "GH01" }),
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ id: "hotel-1", name: "Grand Hotel", code: "GH01" }),
       },
       platformBillingContract: {
         findFirst: jest.fn().mockResolvedValue(null),
-        findUnique: jest.fn().mockResolvedValue({ id: "contract-1", hotelId: "hotel-1", status: "ACTIVE" }),
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ id: "contract-1", hotelId: "hotel-1", status: "ACTIVE" }),
         findMany: jest.fn().mockResolvedValue([]),
-        create: jest.fn().mockResolvedValue({ id: "contract-1", hotelId: "hotel-1", status: "ACTIVE" }),
-        update: jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: "contract-1", ...data })),
+        create: jest
+          .fn()
+          .mockResolvedValue({ id: "contract-1", hotelId: "hotel-1", status: "ACTIVE" }),
+        update: jest
+          .fn()
+          .mockImplementation(({ data }) => Promise.resolve({ id: "contract-1", ...data })),
       },
       platformBillingContractRevision: {
         create: jest.fn().mockResolvedValue({ id: "rev-1", roomDayUnitPrice: 10000 }),
@@ -27,6 +35,9 @@ describe("PlatformBillingService Onboarding & Analytics", () => {
         findMany: jest.fn().mockResolvedValue([{ id: "bd-1" }, { id: "bd-2" }]),
       },
       platformBillingPeriod: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      room: {
         findMany: jest.fn().mockResolvedValue([]),
       },
       platformBillingDailySummary: {

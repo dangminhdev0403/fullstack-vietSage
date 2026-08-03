@@ -4,8 +4,14 @@ import type { BiometricWorkstationsRepository } from "../infrastructure/biometri
 
 describe("BiometricWorkstationsService", () => {
   let now: Date;
-  let pairings: Map<string, { hotelId: string; operatorId: string; expiresAt: Date; consumedAt: Date | null }>;
-  let workstations: Map<string, { hotelId: string; expiresAt: Date; revokedAt: Date | null; lastSeenAt: Date }>;
+  let pairings: Map<
+    string,
+    { hotelId: string; operatorId: string; expiresAt: Date; consumedAt: Date | null }
+  >;
+  let workstations: Map<
+    string,
+    { hotelId: string; expiresAt: Date; revokedAt: Date | null; lastSeenAt: Date }
+  >;
   let repository: jest.Mocked<BiometricWorkstationsRepository>;
 
   beforeEach(() => {
@@ -38,7 +44,11 @@ describe("BiometricWorkstationsService", () => {
       }),
       hasOnlineWorkstation: jest.fn(async (hotelId, cutoff, at) =>
         [...workstations.values()].some(
-          (item) => item.hotelId === hotelId && !item.revokedAt && item.expiresAt > at && item.lastSeenAt >= cutoff,
+          (item) =>
+            item.hotelId === hotelId &&
+            !item.revokedAt &&
+            item.expiresAt > at &&
+            item.lastSeenAt >= cutoff,
         ),
       ),
       revokeHotel: jest.fn(async (hotelId, revokedAt) => {
@@ -56,11 +66,19 @@ describe("BiometricWorkstationsService", () => {
 
   it("keeps a paired workstation valid across service restarts and stores only hashes", async () => {
     const secrets = ["pairing-secret", "workstation-secret"];
-    const first = new BiometricWorkstationsService(repository, () => now, () => secrets.shift()!);
+    const first = new BiometricWorkstationsService(
+      repository,
+      () => now,
+      () => secrets.shift()!,
+    );
     const pairing = await first.issuePairing("hotel-1", "operator-1");
     const workstation = await first.pair(pairing.code);
 
-    const restarted = new BiometricWorkstationsService(repository, () => now, () => "unused");
+    const restarted = new BiometricWorkstationsService(
+      repository,
+      () => now,
+      () => "unused",
+    );
     await expect(restarted.authenticate(workstation.token)).resolves.toEqual({
       id: expect.any(String),
       hotelId: "hotel-1",
@@ -69,17 +87,29 @@ describe("BiometricWorkstationsService", () => {
     expect(repository.createPairing.mock.calls[0]?.[0].codeHash).toMatch(/^[a-f0-9]{64}$/);
     expect(repository.createPairing.mock.calls[0]?.[0].codeHash).not.toContain(pairing.code);
     expect(repository.createWorkstation.mock.calls[0]?.[0].tokenHash).toMatch(/^[a-f0-9]{64}$/);
-    expect(repository.createWorkstation.mock.calls[0]?.[0].tokenHash).not.toContain(workstation.token);
+    expect(repository.createWorkstation.mock.calls[0]?.[0].tokenHash).not.toContain(
+      workstation.token,
+    );
   });
 
   it("rejects unknown workstation credentials instead of reporting an empty command", async () => {
-    const service = new BiometricWorkstationsService(repository, () => now, () => "unused");
-    await expect(service.authenticate("unknown-token")).rejects.toBeInstanceOf(UnauthorizedException);
+    const service = new BiometricWorkstationsService(
+      repository,
+      () => now,
+      () => "unused",
+    );
+    await expect(service.authenticate("unknown-token")).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
   });
 
   it("revokes only the selected hotel", async () => {
     const secrets = ["pair-a", "token-a", "pair-b", "token-b"];
-    const service = new BiometricWorkstationsService(repository, () => now, () => secrets.shift()!);
+    const service = new BiometricWorkstationsService(
+      repository,
+      () => now,
+      () => secrets.shift()!,
+    );
     const a = await service.pair((await service.issuePairing("hotel-a", "operator-a")).code);
     const b = await service.pair((await service.issuePairing("hotel-b", "operator-b")).code);
 

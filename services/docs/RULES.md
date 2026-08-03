@@ -18,7 +18,8 @@
 - Put orchestration in application services/use cases.
 - Keep domain rules out of infrastructure and controllers.
 - Keep database access behind repositories or infrastructure services.
-- Use DTO validation for request payloads.
+- **Mandatory Zod Validation**: ALL request payload/query/param validation MUST use Zod schemas defined in `src/modules/<module>/domain/schemas/<module>.schema.ts` parsed via `parseWithZod(schema, payload)`. DO NOT use `class-validator` decorators (`@IsString`, `@IsNumber`, `@IsEnum`, etc.) on DTO classes. Controller action parameters MUST receive `@Body() body: unknown` or `@Query() query: unknown` or `@Param("id") idParam: string` and validate them via `parseWithZod`.
+- **PostgreSQL Timezone Standard**: The canonical timezone for Vietnam is `Asia/Ho_Chi_Minh` (UTC+7). All default timezone schema properties MUST use `Asia/Ho_Chi_Minh` (NOT `Asia/Saigon`). In raw SQL queries using `AT TIME ZONE`, handle non-canonical strings safely with: `CASE WHEN tz = 'Asia/Saigon' OR tz IS NULL THEN 'Asia/Ho_Chi_Minh' ELSE tz END`.
 - Use consistent error response shape.
 - Add or update tests for implemented behavior.
 

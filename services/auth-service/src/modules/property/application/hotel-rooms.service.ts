@@ -30,6 +30,7 @@ import type {
   ListRoomsQueryInput,
   QrReasonBodyInput,
   UpdateRoomBodyInput,
+  UpdateStayBodyInput,
 } from "../domain/schemas/rooms.schema";
 
 const MANUAL_ROOM_STATUSES = new Set<RoomStatus>([
@@ -288,6 +289,31 @@ export class HotelRoomsService {
     };
   }
 
+  async updateStay(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    stayId: string,
+    dto: UpdateStayBodyInput,
+  ) {
+    await this.hotelAccessService.assertHotelAccess(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    );
+    const stay = await this.hotelRoomsRepository.findStayInHotel(hotelId, stayId);
+    if (!stay) {
+      throw new NotFoundException("Không tìm thấy lượt lưu trú");
+    }
+
+    if (dto.plannedCheckOutAt && dto.plannedCheckOutAt <= stay.plannedCheckInAt) {
+      throw new BadRequestException("Thời gian check-out mới phải sau thời gian check-in");
+    }
+
+    const updated = await this.hotelRoomsRepository.updateStay(hotelId, stayId, dto);
+    return this.toStayData(updated);
+  }
+
   async createAndCheckInStay(
     actorUserId: string,
     activeRoleId: string,
@@ -533,6 +559,23 @@ export class HotelRoomsService {
       isPrimary: boolean;
     }> | null;
   }) {
+    const now = new Date();
+    const isOverdueCheckOut =
+      (row.status === GuestStayStatus.ACTIVE ||
+        row.status === GuestStayStatus.CHECKED_IN ||
+        row.status === GuestStayStatus.CHECKOUT_PENDING) &&
+      row.checkedOutAt === null &&
+      Boolean(row.plannedCheckOutAt) &&
+      new Date(row.plannedCheckOutAt).getTime() < now.getTime();
+    const overdueHours = isOverdueCheckOut
+      ? Number(
+          (
+            (now.getTime() - new Date(row.plannedCheckOutAt).getTime()) /
+            (1000 * 60 * 60)
+          ).toFixed(1),
+        )
+      : 0;
+
     return {
       id: row.id,
       hotelId: row.hotelId,
@@ -554,6 +597,8 @@ export class HotelRoomsService {
       accessCodeExpiresAt: row.accessCodeExpiresAt,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
+      isOverdueCheckOut,
+      overdueHours,
       occupants: row.occupants
         ? row.occupants.map((occ) => ({
             id: occ.id,

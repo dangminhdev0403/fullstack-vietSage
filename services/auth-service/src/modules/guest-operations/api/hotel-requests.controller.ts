@@ -46,10 +46,7 @@ export class HotelRequestsController {
   @RequirePermission("hotel.messages.view")
   @ApiDescript("Xem tổng số tin nhắn chưa đọc của lễ tân")
   @Get(":hotelId/messages/unread-summary")
-  async getUnreadSummary(
-    @Req() request: RequestWithUser,
-    @Param("hotelId") hotelIdParam: string,
-  ) {
+  async getUnreadSummary(@Req() request: RequestWithUser, @Param("hotelId") hotelIdParam: string) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     return this.guestMessagesService.getStaffUnreadSummary(
       request.user.userId,

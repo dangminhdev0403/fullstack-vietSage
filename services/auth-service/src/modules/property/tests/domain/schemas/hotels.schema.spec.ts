@@ -53,9 +53,7 @@ describe("hotels.schema", () => {
         "https://docs.google.com/spreadsheets/d/1Mnq_gk87qlCwXYOMTko4HeMdilOBd5KX_o8etN0SBLk/edit",
     });
 
-    expect(result.googleSheetUrl).toBe(
-      "1Mnq_gk87qlCwXYOMTko4HeMdilOBd5KX_o8etN0SBLk",
-    );
+    expect(result.googleSheetUrl).toBe("1Mnq_gk87qlCwXYOMTko4HeMdilOBd5KX_o8etN0SBLk");
   });
 
   it("phân tích dữ liệu cập nhật khách sạn không có trường mã hoặc tenant", () => {

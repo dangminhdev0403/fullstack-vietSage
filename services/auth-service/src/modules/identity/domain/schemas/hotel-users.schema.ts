@@ -43,10 +43,16 @@ export const updateHotelUserStatusBodySchema = z
     ),
   })
   .strict();
-export const updateHotelUserBodySchema = z.object({
-  fullName: z.string().trim().min(2).max(120).optional(),
-  email: z.string().trim().email().max(320).optional(),
-}).strict().refine((value) => value.fullName !== undefined || value.email !== undefined, "Cần ít nhất một trường để cập nhật");
+export const updateHotelUserBodySchema = z
+  .object({
+    fullName: z.string().trim().min(2).max(120).optional(),
+    email: z.string().trim().email().max(320).optional(),
+  })
+  .strict()
+  .refine(
+    (value) => value.fullName !== undefined || value.email !== undefined,
+    "Cần ít nhất một trường để cập nhật",
+  );
 
 export const assignHotelUserRolesBodySchema = z
   .object({

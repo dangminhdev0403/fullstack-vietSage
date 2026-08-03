@@ -36,12 +36,21 @@ export function assertReconciliationRange(
   }
 }
 
+const HTZ = Prisma.raw(
+  `CASE WHEN h.timezone = 'Asia/Saigon' OR h.timezone IS NULL THEN 'Asia/Ho_Chi_Minh' ELSE h.timezone END`,
+);
+const UTZ = Prisma.raw(
+  `CASE WHEN u."hotelTimezoneSnapshot" = 'Asia/Saigon' OR u."hotelTimezoneSnapshot" IS NULL THEN 'Asia/Ho_Chi_Minh' ELSE u."hotelTimezoneSnapshot" END`,
+);
+
 export async function recordPlatformUsageAtCheckIn(tx: Tx, input: StayUsageInput): Promise<void> {
   if (typeof tx?.$queryRaw !== "function" || typeof tx?.$executeRaw !== "function") return;
-  const bounds = await tx.$queryRaw<Array<{ contractId: string; serviceDate: string; nextDate: string }>>`
+  const bounds = await tx.$queryRaw<
+    Array<{ contractId: string; serviceDate: string; nextDate: string }>
+  >`
     SELECT c.id AS "contractId",
-           ((${input.startedAt} AT TIME ZONE h.timezone)::date)::text AS "serviceDate",
-           (((${input.startedAt} AT TIME ZONE h.timezone)::date + 1))::text AS "nextDate"
+           ((${input.startedAt} AT TIME ZONE ${HTZ})::date)::text AS "serviceDate",
+           (((${input.startedAt} AT TIME ZONE ${HTZ})::date + 1))::text AS "nextDate"
     FROM "PlatformBillingContract" c
     JOIN "Hotel" h ON h.id = c."hotelId"
     WHERE c."hotelId" = ${input.hotelId}
@@ -60,11 +69,18 @@ export async function recordPlatformUsageAtCheckIn(tx: Tx, input: StayUsageInput
       occurrence, "startedAt", "hotelTimezoneSnapshot", "createdAt"
     )
     SELECT 'pu_' || md5(${input.stayId} || ':1'), ${input.hotelId}, 'ROOM', ${input.roomId},
-           'STAY', 'GUEST_STAY', ${input.stayId}, 1, ${input.startedAt}, h.timezone, NOW()
+           'STAY', 'GUEST_STAY', ${input.stayId}, 1, ${input.startedAt},
+           CASE WHEN h.timezone = 'Asia/Saigon' THEN 'Asia/Ho_Chi_Minh' ELSE h.timezone END, NOW()
     FROM "Hotel" h WHERE h.id = ${input.hotelId}
     ON CONFLICT ("sourceType", "sourceId", occurrence) DO NOTHING
   `;
-  await reconcilePlatformBillingRange(tx, bound.contractId, bound.serviceDate, bound.nextDate, input.startedAt);
+  await reconcilePlatformBillingRange(
+    tx,
+    bound.contractId,
+    bound.serviceDate,
+    bound.nextDate,
+    input.startedAt,
+  );
 }
 
 export async function closePlatformUsageAtCheckout(tx: Tx, input: StayUsageInput): Promise<void> {
@@ -77,10 +93,12 @@ export async function closePlatformUsageAtCheckout(tx: Tx, input: StayUsageInput
     WHERE "sourceType" = 'GUEST_STAY' AND "sourceId" = ${input.stayId}
       AND occurrence = 1 AND "endedAt" IS NULL
   `;
-  const bounds = await tx.$queryRaw<Array<{ contractId: string; fromDate: string; toDate: string }>>`
+  const bounds = await tx.$queryRaw<
+    Array<{ contractId: string; fromDate: string; toDate: string }>
+  >`
     SELECT c.id AS "contractId",
-           date_trunc('month', ${input.endedAt} AT TIME ZONE h.timezone)::date::text AS "fromDate",
-           (date_trunc('month', ${input.endedAt} AT TIME ZONE h.timezone) + interval '1 month')::date::text AS "toDate"
+           date_trunc('month', ${input.endedAt} AT TIME ZONE ${HTZ})::date::text AS "fromDate",
+           (date_trunc('month', ${input.endedAt} AT TIME ZONE ${HTZ}) + interval '1 month')::date::text AS "toDate"
     FROM "PlatformBillingContract" c
     JOIN "Hotel" h ON h.id = c."hotelId"
     WHERE c."hotelId" = ${input.hotelId}
@@ -89,7 +107,13 @@ export async function closePlatformUsageAtCheckout(tx: Tx, input: StayUsageInput
   `;
   const bound = bounds[0];
   if (bound) {
-    await reconcilePlatformBillingRange(tx, bound.contractId, bound.fromDate, bound.toDate, input.endedAt!);
+    await reconcilePlatformBillingRange(
+      tx,
+      bound.contractId,
+      bound.fromDate,
+      bound.toDate,
+      input.endedAt!,
+    );
   }
 }
 
@@ -102,6 +126,12 @@ export async function reconcilePlatformBillingRange(
 ): Promise<void> {
   assertReconciliationRange(fromDate, toDateExclusive);
   await tx.$executeRaw`
+    UPDATE "Hotel" SET timezone = 'Asia/Ho_Chi_Minh' WHERE timezone = 'Asia/Saigon'
+  `;
+  await tx.$executeRaw`
+    UPDATE "PlatformUsage" SET "hotelTimezoneSnapshot" = 'Asia/Ho_Chi_Minh' WHERE "hotelTimezoneSnapshot" = 'Asia/Saigon'
+  `;
+  await tx.$executeRaw`
     INSERT INTO "PlatformUsage" (
       id, "hotelId", "subjectType", "subjectId", "usageKind", "sourceType", "sourceId", occurrence,
       "startedAt", "endedAt", "durationMinutes", "hotelTimezoneSnapshot", "createdAt", "closedAt"
@@ -109,13 +139,13 @@ export async function reconcilePlatformBillingRange(
     SELECT 'pu_' || md5(s.id || ':1'), s."hotelId", 'ROOM', s."roomId", 'STAY', 'GUEST_STAY', s.id, 1,
            s."checkedInAt", s."checkedOutAt",
            CASE WHEN s."checkedOutAt" IS NULL THEN NULL ELSE GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (s."checkedOutAt" - s."checkedInAt")) / 60))::integer END,
-           h.timezone, NOW(), s."checkedOutAt"
+           CASE WHEN h.timezone = 'Asia/Saigon' THEN 'Asia/Ho_Chi_Minh' ELSE h.timezone END, NOW(), s."checkedOutAt"
     FROM "PlatformBillingContract" c
     JOIN "Hotel" h ON h.id = c."hotelId"
     JOIN "GuestStay" s ON s."hotelId" = c."hotelId"
     WHERE c.id = ${contractId} AND s."checkedInAt" IS NOT NULL
-      AND s."checkedInAt" < (${toDateExclusive}::date::timestamp AT TIME ZONE h.timezone)
-      AND (s."checkedOutAt" IS NULL OR s."checkedOutAt" > (${fromDate}::date::timestamp AT TIME ZONE h.timezone))
+      AND s."checkedInAt" < (${toDateExclusive}::date::timestamp AT TIME ZONE ${HTZ})
+      AND (s."checkedOutAt" IS NULL OR s."checkedOutAt" > (${fromDate}::date::timestamp AT TIME ZONE ${HTZ}))
     ON CONFLICT ("sourceType", "sourceId", occurrence) DO UPDATE
       SET "endedAt" = EXCLUDED."endedAt", "durationMinutes" = EXCLUDED."durationMinutes", "closedAt" = EXCLUDED."closedAt"
       WHERE "PlatformUsage"."endedAt" IS NULL AND EXCLUDED."endedAt" IS NOT NULL
@@ -126,10 +156,10 @@ export async function reconcilePlatformBillingRange(
       FROM generate_series(${fromDate}::date, ${toDateExclusive}::date - 1, interval '1 day') d
     ), expected AS (
       SELECT DISTINCT c.id AS "contractId", r.id AS "revisionId", c."hotelId", u."subjectType",
-             u."subjectId", d."serviceDate", u."hotelTimezoneSnapshot", r."starTierSnapshot",
+             u."subjectId", d."serviceDate", ${UTZ} AS "hotelTimezoneSnapshot", r."starTierSnapshot",
              r."roomDayUnitPrice", r.currency,
-             (d."serviceDate"::timestamp AT TIME ZONE u."hotelTimezoneSnapshot") AS "windowStart",
-             ((d."serviceDate" + 1)::timestamp AT TIME ZONE u."hotelTimezoneSnapshot") AS "windowEnd"
+             (d."serviceDate"::timestamp AT TIME ZONE ${UTZ}) AS "windowStart",
+             ((d."serviceDate" + 1)::timestamp AT TIME ZONE ${UTZ}) AS "windowEnd"
       FROM "PlatformBillingContract" c
       JOIN "PlatformUsage" u ON u."hotelId" = c."hotelId"
       CROSS JOIN days d
@@ -140,8 +170,8 @@ export async function reconcilePlatformBillingRange(
       ) r ON TRUE
       WHERE c.id = ${contractId}
         AND d."serviceDate" >= ${fromDate}::date AND d."serviceDate" < ${toDateExclusive}::date
-        AND u."startedAt" < ((d."serviceDate" + 1)::timestamp AT TIME ZONE u."hotelTimezoneSnapshot")
-        AND COALESCE(u."endedAt", ${watermark}) > (d."serviceDate"::timestamp AT TIME ZONE u."hotelTimezoneSnapshot")
+        AND u."startedAt" < ((d."serviceDate" + 1)::timestamp AT TIME ZONE ${UTZ})
+        AND COALESCE(u."endedAt", ${watermark}) > (d."serviceDate"::timestamp AT TIME ZONE ${UTZ})
         AND NOT EXISTS (
           SELECT 1 FROM "PlatformBillingPeriod" p
           WHERE p."contractId" = c.id AND p.status = 'FINALIZED'::"PlatformBillingPeriodStatus"
@@ -177,8 +207,8 @@ export async function reconcilePlatformBillingRange(
       ) r ON TRUE
       WHERE c.id = ${contractId}
         AND d."serviceDate" >= ${fromDate}::date AND d."serviceDate" < ${toDateExclusive}::date
-        AND u."startedAt" < ((d."serviceDate" + 1)::timestamp AT TIME ZONE u."hotelTimezoneSnapshot")
-        AND COALESCE(u."endedAt", ${watermark}) > (d."serviceDate"::timestamp AT TIME ZONE u."hotelTimezoneSnapshot")
+        AND u."startedAt" < ((d."serviceDate" + 1)::timestamp AT TIME ZONE ${UTZ})
+        AND COALESCE(u."endedAt", ${watermark}) > (d."serviceDate"::timestamp AT TIME ZONE ${UTZ})
         AND NOT EXISTS (
           SELECT 1 FROM "PlatformBillingPeriod" p WHERE p."contractId" = c.id
             AND p.status = 'FINALIZED'::"PlatformBillingPeriodStatus"
@@ -191,38 +221,57 @@ export async function reconcilePlatformBillingRange(
       AND b."serviceDate" = e."serviceDate"
     WHERE b.id IS NULL
   `;
-  if (Number(missing[0]?.count ?? 0) !== 0) throw new Error("PLATFORM_BILLING_RECONCILIATION_INCOMPLETE");
+  if (Number(missing[0]?.count ?? 0) !== 0)
+    throw new Error("PLATFORM_BILLING_RECONCILIATION_INCOMPLETE");
 }
 
 @Injectable()
 export class PlatformBillingService {
-  constructor(private readonly prisma: PrismaService, private readonly logger: AppLogger) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly logger: AppLogger,
+  ) {}
 
   @Interval(300_000)
   async reconcileCatchUp(): Promise<void> {
-    const contracts = await this.prisma.$queryRaw<Array<{ id: string; fromDate: string; toDate: string }>>`
+    const contracts = await this.prisma.$queryRaw<
+      Array<{ id: string; fromDate: string; toDate: string }>
+    >`
       SELECT c.id,
-             COALESCE((c."reconciledThroughDate" + 1)::text, (c."billingStartedAt" AT TIME ZONE h.timezone)::date::text) AS "fromDate",
-             LEAST(COALESCE(c."reconciledThroughDate" + 32, (c."billingStartedAt" AT TIME ZONE h.timezone)::date + 31),
-                   (NOW() AT TIME ZONE h.timezone)::date + 1)::text AS "toDate"
+             COALESCE((c."reconciledThroughDate" + 1)::text, (c."billingStartedAt" AT TIME ZONE ${HTZ})::date::text) AS "fromDate",
+             LEAST(COALESCE(c."reconciledThroughDate" + 32, (c."billingStartedAt" AT TIME ZONE ${HTZ})::date + 31),
+                   (NOW() AT TIME ZONE ${HTZ})::date + 1)::text AS "toDate"
       FROM "PlatformBillingContract" c JOIN "Hotel" h ON h.id = c."hotelId"
       WHERE c.status = ${PlatformBillingContractStatus.ACTIVE}::"PlatformBillingContractStatus"
-        AND COALESCE(c."reconciledThroughDate", (c."billingStartedAt" AT TIME ZONE h.timezone)::date - 1)
-            < (NOW() AT TIME ZONE h.timezone)::date
+        AND COALESCE(c."reconciledThroughDate", (c."billingStartedAt" AT TIME ZONE ${HTZ})::date - 1)
+            < (NOW() AT TIME ZONE ${HTZ})::date
       ORDER BY c."reconciledThroughDate" NULLS FIRST, c.id LIMIT 50
     `;
     for (const contract of contracts) {
       try {
-        await this.prisma.$transaction(async (tx) => {
-          await reconcilePlatformBillingRange(tx, contract.id, contract.fromDate, contract.toDate, new Date());
-          await tx.$executeRaw`
+        await this.prisma.$transaction(
+          async (tx) => {
+            await reconcilePlatformBillingRange(
+              tx,
+              contract.id,
+              contract.fromDate,
+              contract.toDate,
+              new Date(),
+            );
+            await tx.$executeRaw`
             UPDATE "PlatformBillingContract" SET "reconciledThroughDate" = ${contract.toDate}::date - 1
             WHERE id = ${contract.id}
               AND ("reconciledThroughDate" IS NULL OR "reconciledThroughDate" < ${contract.toDate}::date - 1)
           `;
-        }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+          },
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        );
       } catch (error) {
-        this.logger.error(error, { module: "platform-billing", event: "PLATFORM_BILLING_RECONCILIATION_FAILED", contractId: contract.id });
+        this.logger.error(error, {
+          module: "platform-billing",
+          event: "PLATFORM_BILLING_RECONCILIATION_FAILED",
+          contractId: contract.id,
+        });
       }
     }
   }
@@ -234,83 +283,89 @@ export class PlatformBillingService {
     actorUserId?: string,
   ) {
     assertReconciliationRange(periodStart, periodEnd);
-    return this.prisma.$transaction(async (tx) => {
-      await tx.$queryRawUnsafe('SELECT id FROM "PlatformBillingContract" WHERE id = $1 FOR UPDATE', contractId);
+    return this.prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRawUnsafe(
+          'SELECT id FROM "PlatformBillingContract" WHERE id = $1 FOR UPDATE',
+          contractId,
+        );
 
-      const existingPeriod = await tx.platformBillingPeriod.findUnique({
-        where: {
-          contractId_periodStart_periodEnd: {
+        const existingPeriod = await tx.platformBillingPeriod.findUnique({
+          where: {
+            contractId_periodStart_periodEnd: {
+              contractId,
+              periodStart: new Date(periodStart),
+              periodEnd: new Date(periodEnd),
+            },
+          },
+        });
+
+        if (existingPeriod && existingPeriod.status === "FINALIZED") {
+          return existingPeriod;
+        }
+
+        await reconcilePlatformBillingRange(tx, contractId, periodStart, periodEnd, new Date());
+
+        const charges = await tx.platformBillableDay.aggregate({
+          where: {
+            contractId,
+            serviceDate: { gte: new Date(periodStart), lt: new Date(periodEnd) },
+          },
+          _count: { id: true },
+          _sum: { amount: true },
+        });
+
+        const adjustments = await tx.platformBillingAdjustment.aggregate({
+          where: {
+            contractId,
+            createdAt: { gte: new Date(periodStart), lt: new Date(periodEnd) },
+          },
+          _sum: { amount: true },
+        });
+
+        const chargeCount = charges._count.id ?? 0;
+        const subtotal = charges._sum.amount ?? new Prisma.Decimal(0);
+        const adjustmentTotal = adjustments._sum.amount ?? new Prisma.Decimal(0);
+        const total = Prisma.Decimal.add(subtotal, adjustmentTotal);
+        const now = new Date();
+
+        const period = await tx.platformBillingPeriod.upsert({
+          where: {
+            contractId_periodStart_periodEnd: {
+              contractId,
+              periodStart: new Date(periodStart),
+              periodEnd: new Date(periodEnd),
+            },
+          },
+          create: {
             contractId,
             periodStart: new Date(periodStart),
             periodEnd: new Date(periodEnd),
+            status: "FINALIZED",
+            chargeCount,
+            subtotal,
+            adjustmentTotal,
+            total,
+            finalizedAt: now,
+            finalizedByUserId: actorUserId,
+            dueAt: new Date(Date.parse(periodEnd) + 7 * 86_400_000),
           },
-        },
-      });
-
-      if (existingPeriod && existingPeriod.status === "FINALIZED") {
-        return existingPeriod;
-      }
-
-      await reconcilePlatformBillingRange(tx, contractId, periodStart, periodEnd, new Date());
-
-      const charges = await tx.platformBillableDay.aggregate({
-        where: {
-          contractId,
-          serviceDate: { gte: new Date(periodStart), lt: new Date(periodEnd) },
-        },
-        _count: { id: true },
-        _sum: { amount: true },
-      });
-
-      const adjustments = await tx.platformBillingAdjustment.aggregate({
-        where: {
-          contractId,
-          createdAt: { gte: new Date(periodStart), lt: new Date(periodEnd) },
-        },
-        _sum: { amount: true },
-      });
-
-      const chargeCount = charges._count.id ?? 0;
-      const subtotal = charges._sum.amount ?? new Prisma.Decimal(0);
-      const adjustmentTotal = adjustments._sum.amount ?? new Prisma.Decimal(0);
-      const total = Prisma.Decimal.add(subtotal, adjustmentTotal);
-      const now = new Date();
-
-      const period = await tx.platformBillingPeriod.upsert({
-        where: {
-          contractId_periodStart_periodEnd: {
-            contractId,
-            periodStart: new Date(periodStart),
-            periodEnd: new Date(periodEnd),
+          update: {
+            status: "FINALIZED",
+            chargeCount,
+            subtotal,
+            adjustmentTotal,
+            total,
+            finalizedAt: now,
+            finalizedByUserId: actorUserId,
+            dueAt: new Date(Date.parse(periodEnd) + 7 * 86_400_000),
           },
-        },
-        create: {
-          contractId,
-          periodStart: new Date(periodStart),
-          periodEnd: new Date(periodEnd),
-          status: "FINALIZED",
-          chargeCount,
-          subtotal,
-          adjustmentTotal,
-          total,
-          finalizedAt: now,
-          finalizedByUserId: actorUserId,
-          dueAt: new Date(Date.parse(periodEnd) + 7 * 86_400_000),
-        },
-        update: {
-          status: "FINALIZED",
-          chargeCount,
-          subtotal,
-          adjustmentTotal,
-          total,
-          finalizedAt: now,
-          finalizedByUserId: actorUserId,
-          dueAt: new Date(Date.parse(periodEnd) + 7 * 86_400_000),
-        },
-      });
+        });
 
-      return period;
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+        return period;
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
   }
 
   async recordSettlement(
@@ -422,7 +477,10 @@ export class PlatformBillingService {
       }),
       this.prisma.platformBillingPeriod.findMany({
         where: { status: "FINALIZED" },
-        include: { contract: { include: { hotel: { select: { name: true } } } }, settlements: true },
+        include: {
+          contract: { include: { hotel: { select: { name: true } } } },
+          settlements: true,
+        },
         orderBy: { dueAt: "asc" },
         take: 20,
       }),
@@ -575,17 +633,23 @@ export class PlatformBillingService {
         hasContract: false,
         hotelId,
         billableDaysCount: 0,
+        usageCount: 0,
         estimatedFee: 0,
         periods: [],
         dailySummaries: [],
+        roomUsageSummary: [],
       };
     }
 
     const targetDate = monthDate ? new Date(monthDate) : new Date();
-    const startOfMonth = new Date(Date.UTC(targetDate.getUTCFullYear(), targetDate.getUTCMonth(), 1));
-    const endOfMonth = new Date(Date.UTC(targetDate.getUTCFullYear(), targetDate.getUTCMonth() + 1, 1));
+    const startOfMonth = new Date(
+      Date.UTC(targetDate.getUTCFullYear(), targetDate.getUTCMonth(), 1),
+    );
+    const endOfMonth = new Date(
+      Date.UTC(targetDate.getUTCFullYear(), targetDate.getUTCMonth() + 1, 1),
+    );
 
-    const [billableDays, periods, summaries] = await Promise.all([
+    const [billableDays, periods, summaries, rooms, platformUsages] = await Promise.all([
       this.prisma.platformBillableDay.findMany({
         where: {
           contractId: contract.id,
@@ -606,7 +670,70 @@ export class PlatformBillingService {
         },
         orderBy: { serviceDate: "desc" },
       }),
+      this.prisma.room.findMany({
+        where: { hotelId },
+        select: { id: true, roomNumber: true },
+      }),
+      this.prisma.platformUsage.findMany({
+        where: {
+          hotelId,
+          startedAt: { gte: startOfMonth, lt: endOfMonth },
+        },
+        select: {
+          id: true,
+          subjectId: true,
+          occurrence: true,
+          startedAt: true,
+          endedAt: true,
+          durationMinutes: true,
+        },
+        orderBy: { startedAt: "desc" },
+      }),
     ]);
+
+    const roomMap = new Map(rooms.map((r) => [r.id, r.roomNumber]));
+    const mappedBillableDays = billableDays.map((bd) => ({
+      ...bd,
+      roomNumber: roomMap.get(bd.subjectId) ?? bd.subjectId,
+    }));
+
+    const usageCount = platformUsages.length;
+    const roomUsageMap = new Map<
+      string,
+      { roomNumber: string; usageCount: number; billableDaysCount: number }
+    >();
+
+    for (const room of rooms) {
+      roomUsageMap.set(room.id, {
+        roomNumber: room.roomNumber,
+        usageCount: 0,
+        billableDaysCount: 0,
+      });
+    }
+
+    for (const pu of platformUsages) {
+      const entry = roomUsageMap.get(pu.subjectId) ?? {
+        roomNumber: roomMap.get(pu.subjectId) ?? pu.subjectId,
+        usageCount: 0,
+        billableDaysCount: 0,
+      };
+      entry.usageCount += 1;
+      roomUsageMap.set(pu.subjectId, entry);
+    }
+
+    for (const bd of billableDays) {
+      const entry = roomUsageMap.get(bd.subjectId) ?? {
+        roomNumber: roomMap.get(bd.subjectId) ?? bd.subjectId,
+        usageCount: 0,
+        billableDaysCount: 0,
+      };
+      entry.billableDaysCount += 1;
+      roomUsageMap.set(bd.subjectId, entry);
+    }
+
+    const roomUsageSummary = Array.from(roomUsageMap.values()).filter(
+      (r) => r.usageCount > 0 || r.billableDaysCount > 0,
+    );
 
     const activeRevision = contract.revisions[0];
     const unitPrice = activeRevision ? Number(activeRevision.roomDayUnitPrice) : 0;
@@ -618,8 +745,10 @@ export class PlatformBillingService {
       contract,
       unitPrice,
       billableDaysCount,
+      usageCount,
       estimatedFee,
-      billableDays,
+      billableDays: mappedBillableDays,
+      roomUsageSummary,
       periods,
       dailySummaries: summaries,
     };

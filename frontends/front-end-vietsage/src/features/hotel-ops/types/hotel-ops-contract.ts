@@ -276,6 +276,8 @@ export type StaffRequestListItem = {
   displayName: string;
   status: GuestRequestStatus;
   priority: StaffRequestPriority;
+  isOverdue?: boolean;
+  ackDeadlineAt?: string | null;
   quantity: number;
   description: string | null;
   latestNote: string | null;

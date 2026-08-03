@@ -24,6 +24,7 @@ import { ReservationsRepository } from "./infrastructure/repositories/reservatio
 import { HotelStaffAssignmentsController } from "./api/hotel-staff-assignments.controller";
 import { HotelStaffAssignmentsService } from "./application/hotel-staff-assignments.service";
 import { HotelStaffAssignmentsRepository } from "./infrastructure/repositories/hotel-staff-assignments.repository";
+import { OverdueCheckoutAlertService } from "./application/overdue-checkout-alert.service";
 
 @Module({
   imports: [PrismaModule, ImportModule, IdentityModule, GuestRequestEventsModule],
@@ -51,7 +52,8 @@ import { HotelStaffAssignmentsRepository } from "./infrastructure/repositories/h
     ReservationsRepository,
     HotelStaffAssignmentsService,
     HotelStaffAssignmentsRepository,
+    OverdueCheckoutAlertService,
   ],
-  exports: [HotelAccessService],
+  exports: [HotelAccessService, OverdueCheckoutAlertService],
 })
 export class PropertyModule {}

@@ -600,4 +600,184 @@ describe("BillingService checkout safety", () => {
       ),
     ).rejects.toThrow("ROOM_CHARGE_RECALCULATION_REQUIRES_OPEN_FOLIO");
   });
+
+  it("adds a surcharge (ADJUSTMENT) item to an open folio and updates folio totals", async () => {
+    const tx = {
+      folio: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: "folio-1",
+          hotelId: "hotel-1",
+          stayId: "stay-1",
+          status: FolioStatus.OPEN,
+          currency: "VND",
+        }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      folioItem: {
+        create: jest.fn().mockResolvedValue({
+          id: "item-adj-1",
+          itemType: "ADJUSTMENT",
+          totalSnapshot: new Prisma.Decimal(50000),
+        }),
+        findMany: jest.fn().mockResolvedValue([
+          {
+            subtotalSnapshot: new Prisma.Decimal(100000),
+            taxAmountSnapshot: new Prisma.Decimal(0),
+            discountAmountSnapshot: new Prisma.Decimal(0),
+            totalSnapshot: new Prisma.Decimal(100000),
+          },
+          {
+            subtotalSnapshot: new Prisma.Decimal(50000),
+            taxAmountSnapshot: new Prisma.Decimal(0),
+            discountAmountSnapshot: new Prisma.Decimal(0),
+            totalSnapshot: new Prisma.Decimal(50000),
+          },
+        ]),
+      },
+    };
+    const prisma = {
+      $transaction: jest.fn((callback: (tx: typeof tx) => Promise<unknown>) => callback(tx)),
+    };
+    const service = createService(prisma);
+
+    const result = await service.addFolioItem("user-1", "role-1", "hotel-1", "folio-1", {
+      itemType: "ADJUSTMENT" as never,
+      name: "Phụ thu Check-out muộn",
+      amount: 50000,
+    });
+
+    expect(tx.folioItem.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        hotelId: "hotel-1",
+        folioId: "folio-1",
+        itemType: "ADJUSTMENT",
+        nameSnapshot: "Phụ thu Check-out muộn",
+        subtotalSnapshot: new Prisma.Decimal(50000),
+        totalSnapshot: new Prisma.Decimal(50000),
+      }),
+    });
+    expect(tx.folio.update).toHaveBeenCalledWith({
+      where: { id: "folio-1" },
+      data: expect.objectContaining({
+        subtotalAmount: new Prisma.Decimal(150000),
+        totalAmount: new Prisma.Decimal(150000),
+      }),
+    });
+    expect(result).toEqual(expect.objectContaining({ id: "item-adj-1" }));
+  });
+
+  it("adds a DISCOUNT item to an open folio and updates folio totals", async () => {
+    const tx = {
+      folio: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: "folio-1",
+          hotelId: "hotel-1",
+          stayId: "stay-1",
+          status: FolioStatus.OPEN,
+          currency: "VND",
+        }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      folioItem: {
+        create: jest.fn().mockResolvedValue({
+          id: "item-disc-1",
+          itemType: "DISCOUNT",
+          discountAmountSnapshot: new Prisma.Decimal(20000),
+          totalSnapshot: new Prisma.Decimal(-20000),
+        }),
+        findMany: jest.fn().mockResolvedValue([
+          {
+            subtotalSnapshot: new Prisma.Decimal(100000),
+            taxAmountSnapshot: new Prisma.Decimal(0),
+            discountAmountSnapshot: new Prisma.Decimal(0),
+            totalSnapshot: new Prisma.Decimal(100000),
+          },
+          {
+            subtotalSnapshot: new Prisma.Decimal(0),
+            taxAmountSnapshot: new Prisma.Decimal(0),
+            discountAmountSnapshot: new Prisma.Decimal(20000),
+            totalSnapshot: new Prisma.Decimal(-20000),
+          },
+        ]),
+      },
+    };
+    const prisma = {
+      $transaction: jest.fn((callback: (tx: typeof tx) => Promise<unknown>) => callback(tx)),
+    };
+    const service = createService(prisma);
+
+    const result = await service.addFolioItem("user-1", "role-1", "hotel-1", "folio-1", {
+      itemType: "DISCOUNT" as never,
+      name: "Giảm giá 20k Khách thân thiết",
+      amount: 20000,
+    });
+
+    expect(tx.folioItem.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        itemType: "DISCOUNT",
+        discountAmountSnapshot: new Prisma.Decimal(20000),
+        totalSnapshot: new Prisma.Decimal(-20000),
+      }),
+    });
+    expect(tx.folio.update).toHaveBeenCalledWith({
+      where: { id: "folio-1" },
+      data: expect.objectContaining({
+        discountAmount: new Prisma.Decimal(20000),
+        totalAmount: new Prisma.Decimal(80000),
+      }),
+    });
+    expect(result).toEqual(expect.objectContaining({ id: "item-disc-1" }));
+  });
+
+  it("voids a folio item and recalculates folio totals", async () => {
+    const tx = {
+      folio: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: "folio-1",
+          hotelId: "hotel-1",
+          status: FolioStatus.OPEN,
+        }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      folioItem: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: "item-1",
+          folioId: "folio-1",
+          hotelId: "hotel-1",
+          voidedAt: null,
+        }),
+        update: jest.fn().mockResolvedValue({ id: "item-1", voidedAt: new Date() }),
+        findMany: jest.fn().mockResolvedValue([
+          {
+            subtotalSnapshot: new Prisma.Decimal(100000),
+            taxAmountSnapshot: new Prisma.Decimal(0),
+            discountAmountSnapshot: new Prisma.Decimal(0),
+            totalSnapshot: new Prisma.Decimal(100000),
+          },
+        ]),
+      },
+    };
+    const prisma = {
+      $transaction: jest.fn((callback: (tx: typeof tx) => Promise<unknown>) => callback(tx)),
+    };
+    const service = createService(prisma);
+
+    const result = await service.voidFolioItem(
+      "user-1",
+      "role-1",
+      "hotel-1",
+      "folio-1",
+      "item-1",
+      "Nhập nhầm",
+    );
+
+    expect(tx.folioItem.update).toHaveBeenCalledWith({
+      where: { id: "item-1" },
+      data: expect.objectContaining({
+        voidedByUserId: "user-1",
+        voidReason: "Nhập nhầm",
+      }),
+    });
+    expect(result).toEqual({ success: true });
+  });
 });

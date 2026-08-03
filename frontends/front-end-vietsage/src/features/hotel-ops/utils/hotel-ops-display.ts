@@ -110,3 +110,41 @@ export function serviceStatusTone(status: HotelServiceStatus): string {
     ? "bg-emerald-100 text-emerald-800"
     : "bg-zinc-200 text-zinc-700";
 }
+
+export function filterExtraOccupants<
+  T extends {
+    fullName?: string | null;
+    identityNumber?: string | null;
+    phone?: string | null;
+    isPrimary?: boolean | null;
+    isLeader?: boolean | null;
+  },
+>(
+  occupants: T[] | undefined | null,
+  leader:
+    | {
+        guestDisplayName?: string | null;
+        guestIdentityNumber?: string | null;
+        guestPhone?: string | null;
+      }
+    | undefined
+    | null,
+): T[] {
+  if (!occupants || occupants.length === 0) return [];
+  const leaderName = (leader?.guestDisplayName || "").trim().toLowerCase();
+  const leaderCccd = (leader?.guestIdentityNumber || "").trim().toLowerCase();
+  const leaderPhone = (leader?.guestPhone || "").trim().toLowerCase();
+
+  return occupants.filter((occ) => {
+    if (occ.isPrimary || occ.isLeader) return false;
+    const occName = (occ.fullName || "").trim().toLowerCase();
+    const occCccd = (occ.identityNumber || "").trim().toLowerCase();
+    const occPhone = (occ.phone || "").trim().toLowerCase();
+
+    const isSameName = Boolean(leaderName && occName && occName === leaderName);
+    const isSameCccd = Boolean(leaderCccd && occCccd && occCccd === leaderCccd);
+    const isSamePhone = Boolean(leaderPhone && occPhone && occPhone === leaderPhone);
+
+    return !(isSameName || isSameCccd || isSamePhone);
+  });
+}

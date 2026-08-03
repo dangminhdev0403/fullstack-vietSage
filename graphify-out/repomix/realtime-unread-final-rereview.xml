@@ -1,0 +1,1114 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: frontends/front-end-vietsage/src/app/api/guest/_utils.ts, frontends/front-end-vietsage/src/app/api/guest/messages/read/route.ts, frontends/front-end-vietsage/src/app/api/guest/messages/unread-summary/route.ts, frontends/front-end-vietsage/src/app/api/hotel-ops/_utils.ts, frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/messages/[threadId]/read/route.ts, frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/messages/unread-summary/route.ts, frontends/front-end-vietsage/src/features/guest-os/store/guest-store.ts, frontends/front-end-vietsage/src/features/guest-os/hooks/use-guest-message-unread.ts, frontends/front-end-vietsage/src/features/hotel-ops/hooks/use-hotel-message-unread.ts, frontends/front-end-vietsage/src/features/hotel-ops/resources/hotel-messages-resource.ts, frontends/front-end-vietsage/src/features/hotel-ops/components/hotel-ops-realtime-notifier.tsx, frontends/front-end-vietsage/src/features/request-realtime/message-unread.ts, frontends/front-end-vietsage/src/features/request-realtime/use-guest-request-realtime.ts, frontends/front-end-vietsage/src/features/request-realtime/guest-connection-manager.ts, frontends/front-end-vietsage/src/features/workspace/components/workspace-shell.tsx, frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/messages/room-messages-client.tsx, frontends/front-end-vietsage/src/app/(vietsage)/g/messages/page.tsx, services/auth-service/src/modules/guest-operations/application/guest-messages.service.ts, services/auth-service/src/modules/guest-operations/infrastructure/repositories/guest-messages.repository.ts, services/auth-service/src/modules/guest-operations/api/guest-os.controller.ts, services/auth-service/src/modules/guest-operations/api/hotel-requests.controller.ts, services/auth-service/src/request-realtime.emitter.ts, services/auth-service/src/shared/events/guest-request-events.port.ts
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    src/
+      app/
+        (vietsage)/
+          g/
+            messages/
+              page.tsx
+          hotels/
+            [hotelId]/
+              messages/
+                room-messages-client.tsx
+        api/
+          guest/
+            messages/
+              read/
+                route.ts
+              unread-summary/
+                route.ts
+            _utils.ts
+          hotel-ops/
+            hotels/
+              [hotelId]/
+                messages/
+                  [threadId]/
+                    read/
+                      route.ts
+                  unread-summary/
+                    route.ts
+            _utils.ts
+      features/
+        guest-os/
+          hooks/
+            use-guest-message-unread.ts
+          store/
+            guest-store.ts
+        hotel-ops/
+          components/
+            hotel-ops-realtime-notifier.tsx
+          hooks/
+            use-hotel-message-unread.ts
+          resources/
+            hotel-messages-resource.ts
+        request-realtime/
+          guest-connection-manager.ts
+          message-unread.ts
+          use-guest-request-realtime.ts
+        workspace/
+          components/
+            workspace-shell.tsx
+services/
+  auth-service/
+    src/
+      modules/
+        guest-operations/
+          api/
+            guest-os.controller.ts
+            hotel-requests.controller.ts
+          application/
+            guest-messages.service.ts
+          infrastructure/
+            repositories/
+              guest-messages.repository.ts
+      shared/
+        events/
+          guest-request-events.port.ts
+      request-realtime.emitter.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="frontends/front-end-vietsage/src/app/api/guest/messages/unread-summary/route.ts">
+import { HttpError } from "@/core/http/http-error";
+import { guestOsService } from "@/features/guest-os/service/guest-os-service-instance";
+import {
+  getBearerToken,
+  getGuestLocaleCode,
+  guestHttpErrorResponse,
+  guestSuccessResponse,
+  guestUnknownErrorResponse,
+  guestValidationErrorResponse,
+} from "../../_utils";
+⋮----
+export async function GET(request: Request)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/api/guest/_utils.ts">
+import { NextResponse } from "next/server";
+⋮----
+import { HttpError } from "@/core/http/http-error";
+import type { GuestLocaleCode } from "@/features/guest-os/types/guest-os-contract";
+⋮----
+export function guestSuccessResponse(payload: unknown, status = 200)
+⋮----
+export function guestValidationErrorResponse(detail: string)
+⋮----
+export function guestHttpErrorResponse(error: HttpError)
+⋮----
+export function guestUnknownErrorResponse()
+⋮----
+export function getBearerToken(request: Request): string | null
+⋮----
+export function getGuestLocaleCode(request: Request): GuestLocaleCode | undefined
+⋮----
+export async function readJsonBody(request: Request): Promise<unknown | null>
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/messages/unread-summary/route.ts">
+import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
+import {
+  executeHotelOpsBackendRequest,
+  hotelOpsHttpErrorResponse,
+  successResponse,
+  unknownServerErrorResponse,
+} from "@/app/api/hotel-ops/_utils";
+import { HttpError } from "@/core/http/http-error";
+⋮----
+type Params = { params: Promise<{ hotelId: string }> };
+⋮----
+export async function GET(_request: Request, context: Params)
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/guest-os/hooks/use-guest-message-unread.ts">
+import { useMemo, useRef } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { useGuestI18n } from "@/features/guest-os/i18n/use-guest-i18n";
+import { useGuestStore, useGuestStoreHydrated } from "@/features/guest-os/store/guest-store";
+import { useGuestRequestRealtime } from "@/features/request-realtime/use-guest-request-realtime";
+import { playMessageAlertSound } from "@/features/request-realtime/audio-notifier";
+import { guestMessagesResource } from "@/features/guest-os/resources/guest-messages-resource";
+import {
+  createEventDeduper,
+  isConversationClosedEventForScope,
+  isGuestMessageEventForScope,
+} from "@/features/request-realtime/message-unread";
+⋮----
+export function useGuestMessageUnread()
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/guest-os/store/guest-store.ts">
+import { useSyncExternalStore } from "react";
+import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
+⋮----
+import type { GuestCurrentSessionResult, GuestScanQrResult } from "@/features/guest-os/types/guest-os-contract";
+⋮----
+type GuestHotelState = GuestScanQrResult["hotel"];
+type GuestRoomState = GuestScanQrResult["room"];
+type GuestProfileState = GuestScanQrResult["guest"];
+⋮----
+type GuestStore = {
+  sessionToken: string | null;
+  hotelId: string | null;
+  stayId: string | null;
+  expiresAt: string | null;
+  hotel: GuestHotelState | null;
+  room: GuestRoomState | null;
+  guest: GuestProfileState | null;
+  language: string | null;
+
+  setGuestSession: (session: GuestScanQrResult) => void;
+  importSessionToken: (sessionToken: string) => void;
+  refreshSessionSnapshot: (session: GuestCurrentSessionResult) => void;
+  setLanguage: (value: string) => void;
+  clearSession: () => void;
+};
+⋮----
+function sanitizeSession(session: GuestScanQrResult): Pick<GuestStore, "sessionToken" | "hotelId" | "stayId" | "expiresAt" | "hotel" | "room" | "guest">
+⋮----
+function emitHydrationChange()
+⋮----
+function subscribeToHydration(listener: () => void): () => void
+⋮----
+export function useGuestStoreHydrated(): boolean
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/hotel-ops/hooks/use-hotel-message-unread.ts">
+import { useEffect, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { hotelMessagesResource } from "@/features/hotel-ops/resources/hotel-messages-resource";
+import { ownerRequestRealtimeManager } from "@/features/request-realtime/owner-request-realtime-manager";
+import {
+  createEventDeduper,
+  isConversationClosedEventForHotel,
+  isGuestMessageEventForHotel,
+} from "@/features/request-realtime/message-unread";
+⋮----
+export type UseHotelMessageUnreadOptions = {
+  enabled?: boolean;
+};
+⋮----
+export function useHotelMessageUnread(
+  hotelId: string | null,
+  options?: UseHotelMessageUnreadOptions,
+)
+⋮----
+const reconcile = () =>
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/request-realtime/message-unread.ts">
+export type GuestMessageRealtimeEvent = {
+  eventId: string;
+  messageId: string;
+  hotelId: string;
+  stayId: string;
+  threadId: string;
+  message: { id: string; senderType: "GUEST" | "STAFF" | "SYSTEM" };
+  thread?: unknown;
+};
+⋮----
+export function badgeText(count: number): string | null
+⋮----
+export function createEventDeduper(maxSize = 200)
+⋮----
+accept(eventId: string)
+⋮----
+function isEvent(value: unknown): value is GuestMessageRealtimeEvent
+⋮----
+export function isGuestMessageEventForHotel(
+  value: unknown,
+  hotelId: string,
+): value is GuestMessageRealtimeEvent
+⋮----
+export function isGuestMessageEventForStay(
+  value: unknown,
+  stayId: string,
+): value is GuestMessageRealtimeEvent
+⋮----
+export function isGuestMessageEventForScope(
+  value: unknown,
+  hotelId: string,
+  stayId: string,
+): value is GuestMessageRealtimeEvent
+⋮----
+export type ConversationClosedRealtimeEvent = {
+  eventId?: string;
+  hotelId: string;
+  stayId: string;
+  threadId?: string;
+  roomId?: string;
+};
+⋮----
+export function isConversationClosedEvent(
+  value: unknown,
+): value is ConversationClosedRealtimeEvent
+⋮----
+export function isConversationClosedEventForHotel(
+  value: unknown,
+  hotelId: string,
+): value is ConversationClosedRealtimeEvent
+⋮----
+export function isConversationClosedEventForStay(
+  value: unknown,
+  stayId: string,
+): value is ConversationClosedRealtimeEvent
+⋮----
+export function isConversationClosedEventForScope(
+  value: unknown,
+  hotelId: string,
+  stayId: string,
+): value is ConversationClosedRealtimeEvent
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/api/guest/messages/read/route.ts">
+import { HttpError } from "@/core/http/http-error";
+import { guestOsService } from "@/features/guest-os/service/guest-os-service-instance";
+import { getBearerToken, getGuestLocaleCode, guestHttpErrorResponse, guestSuccessResponse, guestUnknownErrorResponse, guestValidationErrorResponse } from "../../_utils";
+⋮----
+export async function POST(request: Request)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/messages/[threadId]/read/route.ts">
+import { executeHotelOpsBackendRequest, hotelOpsHttpErrorResponse, successResponse, unknownServerErrorResponse } from "@/app/api/hotel-ops/_utils";
+import { HttpError } from "@/core/http/http-error";
+import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
+⋮----
+type Params = { params: Promise<{ hotelId: string; threadId: string }> };
+⋮----
+export async function POST(request: Request, context: Params)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/api/hotel-ops/_utils.ts">
+import { NextResponse } from "next/server";
+import type { Session } from "next-auth";
+⋮----
+import { auth } from "@/auth";
+import { HttpError } from "@/core/http/http-error";
+import { refreshAndSaveSessionTokens } from "@/libs/auth-session-refresh";
+import { readServerSessionTokens } from "@/libs/server-session-tokens";
+import { resolveWorkspacePersona } from "@/features/workspace/config/workspace-registry";
+⋮----
+type SessionTokenMetadata = {
+  accessToken: string | null;
+  refreshToken: string | null;
+  accessTokenExpiresAt: number | null;
+};
+⋮----
+type AuthTokens = { accessToken: string; refreshToken: string | null };
+type BackendRequest<T> = (accessToken: string) => Promise<T>;
+⋮----
+function shouldRefresh(tokens: SessionTokenMetadata, session: Session | null): boolean
+⋮----
+async function getHotelOpsAuthTokens(): Promise<AuthTokens | NextResponse>
+⋮----
+export async function executeHotelOpsBackendRequest<T>(
+  operationName: string,
+  request: BackendRequest<T>,
+): Promise<T | NextResponse>
+⋮----
+export function validationErrorResponse(detail: string)
+⋮----
+export function successResponse<T>(data: T, status = 200, message = "OK")
+⋮----
+export function hotelOpsHttpErrorResponse(error: HttpError)
+⋮----
+export function unknownServerErrorResponse()
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/hotel-ops/resources/hotel-messages-resource.ts">
+import { createResource, defineInfiniteQuery, defineMutation, defineQuery } from "@dangminhdev04032005/query-resource";
+import { requestInternalApi } from "@/core/http/internal-api-client";
+import type { HotelMessageThreadList, HotelMessageThreadPage } from "@/features/hotel-ops/types/hotel-messages-contract";
+⋮----
+type Scope = { hotelId: string };
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/request-realtime/guest-connection-manager.ts">
+import type { OwnerRealtimeHandlers } from "./owner-connection-manager";
+⋮----
+type GuestSocket = {
+  on(event: string, handler: (value?: unknown) => void): void;
+  connect(): void;
+  disconnect(): void;
+};
+⋮----
+on(event: string, handler: (value?: unknown)
+connect(): void;
+disconnect(): void;
+⋮----
+type RealtimeError = { retryable?: unknown };
+⋮----
+function isTerminalRealtimeError(value: unknown): boolean
+⋮----
+export type GuestRealtimeHandlers = OwnerRealtimeHandlers;
+⋮----
+type Entry = {
+  subscribers: Set<GuestRealtimeHandlers>;
+  socket?: GuestSocket;
+  cancelReconnect?: () => void;
+};
+⋮----
+export function createGuestConnectionManager(deps: {
+  enabled: boolean;
+createSocket(auth:
+⋮----
+createSocket(auth:
+⋮----
+function connect(token: string, entry: Entry)
+⋮----
+const fanout = (name: keyof GuestRealtimeHandlers) => (event?: unknown) =>
+const fanoutRaw = (name: keyof GuestRealtimeHandlers) => (event?: unknown) =>
+⋮----
+const reconnect = () =>
+⋮----
+const retry = () =>
+⋮----
+subscribe(sessionToken: string, handlers: GuestRealtimeHandlers)
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/request-realtime/use-guest-request-realtime.ts">
+import { useEffect, useRef } from "react";
+import type { GuestRequest } from "@/features/guest-os/types/guest-os-contract";
+import { createGuestConnectionManager } from "./guest-connection-manager";
+import { createRequestRealtimeSocket } from "./request-realtime-client";
+import { requestRealtimeEnabled } from "./request-realtime-config";
+⋮----
+type Handlers = { onReady?: () => void; onCreated?: (request: GuestRequest) => void; onUpdated?: (request: Partial<GuestRequest> & { id: string }) => void; onAnswered?: (request: Partial<GuestRequest> & { id: string }) => void; onGuestMessageCreated?: (event: unknown) => void; onConversationClosed?: (event: unknown) => void; onReconnect?: () => void; onError?: (error: unknown) => void };
+⋮----
+export function useGuestRequestRealtime(sessionToken: string | null | undefined, handlers: Handlers)
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/workspace/components/workspace-shell.tsx">
+import type { ReactNode } from "react";
+import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
+⋮----
+import { useMemo } from "react";
+import { VsDashboardSidebar } from "@/app/(vietsage)/_components/vs-dashboard-sidebar";
+import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+import { VsTopBar } from "@/app/(vietsage)/_components/vs-top-bar";
+import type { DashboardNavItem } from "@/features/workspace/types/workspace-navigation";
+import { isNavItemActive } from "@/features/workspace/utils/workspace-nav-active";
+import { useHotelMessageUnread } from "@/features/hotel-ops/hooks/use-hotel-message-unread";
+import { useWorkspaceProfile } from "./workspace-profile-context";
+⋮----
+import type { WorkspaceDefinition } from "../config/workspace-registry";
+⋮----
+type WorkspaceShellProps = {
+  children: ReactNode;
+  definition: WorkspaceDefinition;
+  navItems: readonly DashboardNavItem[];
+  contextLabel?: string;
+  activePath?: string;
+  profileName?: string | null;
+  printFriendly?: boolean;
+};
+</file>
+
+<file path="services/auth-service/src/shared/events/guest-request-events.port.ts">
+export interface GuestRequestCreatedEventInput {
+  hotelId: string;
+  sessionId: string;
+  requestId: string;
+  ownerRequest: unknown;
+  guestRequest: unknown;
+}
+⋮----
+export interface GuestRequestUpdatedEventInput {
+  hotelId: string;
+  sessionId?: string | null;
+  requestId?: string;
+  ownerRequest: unknown;
+  guestRequest?: unknown;
+  answered?: boolean;
+}
+⋮----
+export interface GuestMessageCreatedEventInput {
+  eventId: string;
+  messageId: string;
+  hotelId: string;
+  stayId: string;
+  threadId: string;
+  thread: unknown;
+  message: unknown;
+}
+⋮----
+export interface ConversationClosedEventInput {
+  eventId?: string;
+  hotelId: string;
+  stayId: string;
+  roomId?: string;
+  threadId?: string;
+}
+⋮----
+export interface GuestRequestEventPublisher {
+  publishGuestRequestCreated(input: GuestRequestCreatedEventInput): void;
+  publishGuestRequestUpdated(input: GuestRequestUpdatedEventInput): void;
+  publishGuestMessageCreated(input: GuestMessageCreatedEventInput): void;
+  publishConversationClosed(input: ConversationClosedEventInput): void;
+}
+⋮----
+publishGuestRequestCreated(input: GuestRequestCreatedEventInput): void;
+publishGuestRequestUpdated(input: GuestRequestUpdatedEventInput): void;
+publishGuestMessageCreated(input: GuestMessageCreatedEventInput): void;
+publishConversationClosed(input: ConversationClosedEventInput): void;
+</file>
+
+<file path="services/auth-service/src/request-realtime.emitter.ts">
+import { randomUUID } from "node:crypto";
+import type { Server } from "socket.io";
+⋮----
+export class RequestRealtimeEmitter {
+⋮----
+static bind(server: Server)
+⋮----
+static emitGuestRequestCreated(input: {
+    hotelId: string;
+    sessionId: string;
+    ownerRequest: unknown;
+    guestRequest: unknown;
+})
+⋮----
+static emitGuestRequestUpdated(input: {
+    hotelId: string;
+    sessionId?: string | null;
+    ownerRequest: unknown;
+    guestRequest?: unknown;
+    answered?: boolean;
+})
+⋮----
+static emitGuestMessageCreated(input: {
+    eventId: string;
+    messageId: string;
+    hotelId: string;
+    stayId: string;
+    threadId: string;
+    thread: unknown;
+    message: unknown;
+})
+⋮----
+static emitConversationClosed(input: {
+    eventId?: string;
+    hotelId: string;
+    stayId: string;
+    roomId?: string;
+    threadId?: string;
+})
+⋮----
+static ownerHotelRoom(hotelId: string): string
+⋮----
+static guestSessionRoom(sessionId: string): string
+⋮----
+static guestStayRoom(stayId: string): string
+</file>
+
+<file path="services/auth-service/src/modules/guest-operations/api/guest-os.controller.ts">
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
+import { ApiBody, ApiCreatedResponse, ApiOkResponse, ApiTags } from "@nestjs/swagger";
+import type { Request } from "express";
+import {
+  createGuestRequestBodySchema as createGuestRequestBodyOpenApiSchema,
+  guestRequestDataSchema,
+  guestServiceCatalogDataSchema,
+  listGuestCategoryServicesDataSchema,
+  listGuestRequestsDataSchema,
+  successEnvelopeSchema,
+} from "../../../common/openapi/contract-schemas";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
+import { GuestOsService } from "../application/guest-os.service";
+import { GuestMessagesService } from "../application/guest-messages.service";
+import {
+  GuestSessionGuard,
+  type RequestWithGuestSession,
+} from "../infrastructure/guards/guest-session.guard";
+import {
+  createGuestRequestBodySchema,
+  guestRequestIdParamSchema,
+  listGuestCategoryServicesQuerySchema,
+  listGuestRequestsQuerySchema,
+  guestMessageBodySchema,
+  markGuestMessageReadBodySchema,
+  listGuestMessagesQuerySchema,
+  scanQrBodyOpenApiSchema,
+  scanQrBodySchema,
+  serviceCategoryIdParamSchema,
+} from "../domain/schemas/guest-os.schema";
+⋮----
+export class GuestOsController {
+⋮----
+constructor(
+⋮----
+async scanQr(@Req() request: Request, @Body() body: unknown)
+⋮----
+async getCurrentSession(@Req() request: RequestWithGuestSession)
+⋮----
+async listServices(@Req() request: RequestWithGuestSession)
+⋮----
+async listCategoryServices(
+    @Req() request: RequestWithGuestSession,
+    @Param("categoryId") categoryId: string,
+    @Query() query: unknown,
+)
+⋮----
+async createRequest(@Req() request: RequestWithGuestSession, @Body() body: unknown)
+⋮----
+async listRequests(@Req() request: RequestWithGuestSession, @Query() query: unknown)
+⋮----
+async cancelRequest(
+    @Req() request: RequestWithGuestSession,
+    @Param("requestId") requestId: string,
+)
+⋮----
+async getUnreadSummary(@Req() request: RequestWithGuestSession)
+⋮----
+async listMessages(@Req() request: RequestWithGuestSession, @Query() query: unknown)
+⋮----
+async sendMessage(@Req() request: RequestWithGuestSession, @Body() body: unknown)
+⋮----
+async markMessagesRead(@Req() request: RequestWithGuestSession, @Body() body: unknown)
+⋮----
+async closeSession(@Req() request: RequestWithGuestSession)
+</file>
+
+<file path="services/auth-service/src/modules/guest-operations/application/guest-messages.service.ts">
+import { randomUUID } from "node:crypto";
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Inject,
+  Injectable,
+  NotFoundException,
+  Optional,
+} from "@nestjs/common";
+import { GuestRequestActorType, GuestStayStatus } from "@prisma/client";
+import {
+  GUEST_REQUEST_EVENT_PUBLISHER,
+  NOOP_GUEST_REQUEST_EVENT_PUBLISHER,
+  type GuestRequestEventPublisher,
+} from "../../../shared/events";
+import { HotelAccessService } from "../../property/property-public";
+import type { GuestSessionContext } from "./guest-os.service";
+import { GuestMessagesRepository } from "../infrastructure/repositories/guest-messages.repository";
+⋮----
+export class GuestMessagesService
+⋮----
+constructor(
+    private readonly repository: GuestMessagesRepository,
+    private readonly hotelAccessService: HotelAccessService,
+    @Optional()
+    @Inject(GUEST_REQUEST_EVENT_PUBLISHER)
+    eventPublisher?: GuestRequestEventPublisher,
+)
+⋮----
+async getStaffUnreadSummary(actorUserId: string, activeRoleId: string, hotelId: string)
+⋮----
+async getGuestUnreadSummary(context: GuestSessionContext)
+⋮----
+async listForGuest(context: GuestSessionContext, page = 1, limit = 20, before?: string)
+⋮----
+async sendFromGuest(
+    context: GuestSessionContext,
+    body: string,
+    plannedCheckOutAt: Date,
+    clientMessageId?: string,
+)
+⋮----
+async listForHotel(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    limit = 30,
+    q?: string,
+    cursor?: string,
+)
+⋮----
+async getForHotel(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    threadId: string,
+    page = 1,
+    limit = 20,
+    before?: string,
+)
+⋮----
+async replyFromStaff(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    threadId: string,
+    body: string,
+)
+⋮----
+async markReadForHotel(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    threadId: string,
+    readThroughMessageId?: string,
+)
+⋮----
+async markReadForGuest(context: GuestSessionContext, readThroughMessageId?: string)
+⋮----
+private async assertActiveGuestStay(context: GuestSessionContext)
+⋮----
+private normalizeBody(value: string)
+⋮----
+private expiry(checkOutAt: Date)
+⋮----
+private message(row: {
+    id: string;
+    senderType: GuestRequestActorType;
+    body: string;
+    createdAt: Date;
+    readAt?: Date | null;
+    senderUser?: { id: string; fullName: string } | null;
+})
+⋮----
+private thread(
+    row: {
+      id: string;
+      status: string;
+      lastMessageAt: Date;
+      expiresAt: Date;
+      clearedAt: Date | null;
+      stayId: string;
+      room: { roomNumber: string; floor: string | null; type: string | null };
+      stay: {
+        guestDisplayName: string;
+        status: GuestStayStatus;
+        checkedOutAt: Date | null;
+        plannedCheckOutAt?: Date;
+      };
+      _count?: { messages: number };
+    },
+    latestMessage?: ReturnType<GuestMessagesService["message"]> | null,
+)
+</file>
+
+<file path="services/auth-service/src/modules/guest-operations/infrastructure/repositories/guest-messages.repository.ts">
+import { Injectable } from "@nestjs/common";
+import { GuestRequestActorType, GuestStayStatus, Prisma } from "@prisma/client";
+import { PrismaService } from "../../../../prisma/prisma.service";
+⋮----
+export type GuestMessageRow = Prisma.GuestMessageGetPayload<{
+  include: typeof messageInclude;
+}>;
+⋮----
+function encodeThreadCursor(value:
+⋮----
+function decodeThreadCursor(cursor?: string)
+⋮----
+export class GuestMessagesRepository {
+⋮----
+constructor(private readonly prisma: PrismaService)
+⋮----
+async appendGuestMessageAtomic(input: {
+    hotelId: string;
+    roomId: string;
+    stayId: string;
+    sessionId: string;
+    deviceFingerprintHash?: string;
+    clientMessageId: string;
+    senderType: GuestRequestActorType;
+    body: string;
+    expiresAt: Date;
+  }): Promise<
+    | { kind: "created" | "existing"; value: NonNullable<Awaited<ReturnType<GuestMessagesRepository["appendGuestMessage"]>>> }
+    | { kind: "rate-limited"; retryAfterSeconds: number }
+    | { kind: "inactive"; value: null }
+  > {
+    const rateIdentity = input.deviceFingerprintHash?.trim() || input.sessionId;
+⋮----
+async isActiveStay(stayId: string, hotelId: string)
+⋮----
+async listGuestMessages(stayId: string, skip = 0, take = 20, before?: string)
+⋮----
+async appendGuestMessage(input: {
+    hotelId: string;
+    roomId: string;
+    stayId: string;
+    sessionId?: string;
+    clientMessageId?: string;
+    senderType: GuestRequestActorType;
+    senderUserId?: string;
+    body: string;
+    expiresAt: Date;
+})
+⋮----
+async listHotelThreads(hotelId: string, take: number, query?: string, cursor?: string)
+⋮----
+async getHotelThread(hotelId: string, threadId: string, skip = 0, take = 20, before?: string)
+⋮----
+async getStaffUnreadSummary(hotelId: string)
+⋮----
+async getGuestUnreadSummary(stayId: string, hotelId: string)
+⋮----
+async findGuestMessageByClientMessageId(sessionId: string, clientMessageId: string)
+⋮----
+async countRecentGuestMessages(stayId: string, windowMs = 60000)
+⋮----
+async markReadForStaff(hotelId: string, threadId: string, readThroughMessageId?: string)
+⋮----
+async markReadForGuest(hotelId: string, stayId: string, readThroughMessageId?: string)
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/hotel-ops/components/hotel-ops-realtime-notifier.tsx">
+import { useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+⋮----
+import type { StaffRequestListItem } from "@/features/hotel-ops/types/hotel-ops-contract";
+import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
+import { playRequestAlertSound } from "@/features/request-realtime/audio-notifier";
+import { invalidateHotelRealtimeQueries } from "../utils/invalidate-hotel-realtime-queries";
+⋮----
+export function HotelOpsRealtimeNotifier(
+⋮----
+// Play request sound notification
+⋮----
+// Invalidate TanStack Query caches so UI updates without page reload
+</file>
+
+<file path="services/auth-service/src/modules/guest-operations/api/hotel-requests.controller.ts">
+import { Body, Controller, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import {
+  ApiBody,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiParam,
+  ApiQuery,
+  ApiTags,
+} from "@nestjs/swagger";
+import type { Request } from "express";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
+import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
+import type { AuthenticatedUser } from "../../../shared/security";
+import { HotelRequestsService } from "../application/hotel-requests.service";
+import { GuestMessagesService } from "../application/guest-messages.service";
+import {
+  createRequestEventBodySchema,
+  guestRequestPriorityValues,
+  listStaffRequestsQuerySchema,
+  requestSummaryQuerySchema,
+  updateRequestAssignmentBodySchema,
+  updateRequestStatusBodySchema,
+  hotelIdParamSchema,
+  listHotelMessagesQuerySchema,
+  messageThreadIdParamSchema,
+  requestIdParamSchema,
+  sendHotelMessageBodySchema,
+  markHotelMessageReadBodySchema,
+} from "../domain/schemas/requests.schema";
+⋮----
+interface RequestWithUser extends Request {
+  user: AuthenticatedUser;
+}
+⋮----
+export class HotelRequestsController {
+⋮----
+constructor(
+⋮----
+async getUnreadSummary(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+)
+⋮----
+async listMessages(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Query() query: unknown,
+)
+⋮----
+async getMessageThread(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("threadId") threadIdParam: string,
+    @Query() query: unknown,
+)
+⋮----
+async replyMessage(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("threadId") threadIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async markMessageThreadRead(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("threadId") threadIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async listRequests(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Query() query: unknown,
+)
+⋮----
+async getRequestsSummary(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Query() query: unknown,
+)
+⋮----
+async getRequestDetail(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("requestId") requestIdParam: string,
+)
+⋮----
+async updateRequestStatus(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("requestId") requestIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async updateRequestAssignment(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("requestId") requestIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async createRequestEvent(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("requestId") requestIdParam: string,
+    @Body() body: unknown,
+)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/g/messages/page.tsx">
+import { type InfiniteData, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { type FormEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { VsBottomNav } from "../../_components/vs-bottom-nav";
+import { VsIcon } from "../../_components/vs-icon";
+import { VsTopBar } from "../../_components/vs-top-bar";
+import { GuestAccessRequiredState } from "@/features/guest-os/components/shared/guest-access-required-state";
+import { HttpError } from "@/core/http/http-error";
+import { useGuestI18n } from "@/features/guest-os/i18n/use-guest-i18n";
+import { guestOsService } from "@/features/guest-os/service/guest-os-service-instance";
+import { useGuestStore, useGuestStoreHydrated } from "@/features/guest-os/store/guest-store";
+⋮----
+import type { GuestMessagesResult } from "@/features/guest-os/types/guest-os-contract";
+import { guestMessagesResource } from "@/features/guest-os/resources/guest-messages-resource";
+import { useGuestRequestRealtime } from "@/features/request-realtime/use-guest-request-realtime";
+import {
+  createEventDeduper,
+  isConversationClosedEventForScope,
+  isGuestMessageEventForScope,
+} from "@/features/request-realtime/message-unread";
+⋮----
+function TypewriterMessageBody(
+⋮----
+const appendRealtimeMessage = (message: GuestMessagesResult["items"][number]) =>
+⋮----
+const handleScroll = () =>
+⋮----
+const scrollToBottom = () =>
+⋮----
+// Listen for staff typing signals across windows/tabs
+⋮----
+const handleSignal = (detail?:
+⋮----
+const handleLocal = (e: Event) =>
+⋮----
+const handleStorage = (e: StorageEvent) =>
+⋮----
+const emitTypingSignal = () =>
+⋮----
+const handleInput = (e: React.ChangeEvent<HTMLInputElement>) =>
+⋮----
+const executeSend = () =>
+⋮----
+if (now - lastSentAtRef.current < 600) return; // 600ms send cooldown debounce
+⋮----
+function submit(event: FormEvent<HTMLFormElement>)
+⋮----
+{/* Floating "Tin nhắn mới" Badge for Guest Chat */}
+⋮----
+if (scrollContainerRef.current)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/messages/room-messages-client.tsx">
+import { type InfiniteData, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { type FormEvent, useDeferredValue, useEffect, useLayoutEffect, useRef, useState } from "react";
+⋮----
+import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+import { HttpError } from "@/core/http/http-error";
+import { requestInternalApi } from "@/core/http/internal-api-client";
+import { playMessageAlertSound } from "@/features/request-realtime/audio-notifier";
+import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
+import { hotelMessagesResource } from "@/features/hotel-ops/resources/hotel-messages-resource";
+import {
+  createEventDeduper,
+  isConversationClosedEventForHotel,
+  isGuestMessageEventForHotel,
+} from "@/features/request-realtime/message-unread";
+⋮----
+type Message = {
+  id: string;
+  senderType: "GUEST" | "STAFF" | "SYSTEM";
+  senderName: string | null;
+  body: string;
+  createdAt: string;
+  readAt?: string | null;
+};
+⋮----
+type Thread = {
+  id: string;
+  stayId: string;
+  status: string;
+  roomNumber: string;
+  floor: string | null;
+  roomType: string | null;
+  guestName: string;
+  lastMessageAt: string;
+  unreadCount: number;
+  latestMessage: Message | null;
+};
+⋮----
+type ThreadList = {
+  items: Thread[];
+  total: number;
+  nextCursor?: string | null;
+  hasMore?: boolean;
+};
+type ThreadPage = {
+  thread: Thread;
+  items: Message[];
+  nextCursor?: string | null;
+  hasMore?: boolean;
+};
+⋮----
+function formatMessageTime(dateString: string): string
+⋮----
+function TypewriterMessageBody(
+⋮----
+const threadDetailKey = (threadId: string)
+⋮----
+const markThreadReadInCache = (threadId: string) =>
+⋮----
+const handleSelectThread = (id: string | null) =>
+⋮----
+// Optimistic update
+⋮----
+// Rollback on error
+⋮----
+// Flatten messages from pages in chronological order (oldest page first, newest page last)
+⋮----
+const appendMessageToThreadCache = (threadId: string, message: Message) =>
+⋮----
+const upsertWaitingThread = (thread: Thread, isNewGuestMessage = false) =>
+⋮----
+const removeClosedStayFromWaitingList = (stayId: string) =>
+⋮----
+// Condition 1: Check if event/message is unprocessed
+⋮----
+// Condition 2: Sender is GUEST
+⋮----
+// Condition 3: Room is not currently open/selected
+⋮----
+// Condition 4: Message does not already exist in detail cache or thread latestMessage
+⋮----
+// Track processed message ID
+⋮----
+// Handle Reverse Infinite Scroll (Scroll Up to fetch older history)
+const handleScroll = () =>
+⋮----
+// Restore scroll position after prepending older messages
+⋮----
+// Initial scroll to bottom & Realtime auto-scroll / New message badge
+⋮----
+const scrollToBottom = () =>
+⋮----
+// Listen for peer typing signals across windows/tabs
+⋮----
+const handleSignal = (detail?:
+⋮----
+const handleLocal = (e: Event) =>
+⋮----
+const handleStorage = (e: StorageEvent) =>
+⋮----
+// Optimistically insert sent message into the submitted thread cache.
+⋮----
+const emitTypingSignal = () =>
+⋮----
+const handleInput = (e: React.ChangeEvent<HTMLInputElement>) =>
+⋮----
+const executeSend = () =>
+⋮----
+function submit(event: FormEvent<HTMLFormElement>)
+⋮----
+const handleThreadListScroll = (event: React.UIEvent<HTMLDivElement>) =>
+⋮----
+{/* Sidebar: Thread List */}
+⋮----
+{/* Main Conversation Box */}
+⋮----
+{/* Header inside Conversation Box */}
+⋮----
+{/* Floating "Tin nhắn mới" Badge */}
+⋮----
+if (scrollContainerRef.current)
+</file>
+
+</files>

@@ -78,7 +78,10 @@ export class GuestMessagesRepository {
     body: string;
     expiresAt: Date;
   }): Promise<
-    | { kind: "created" | "existing"; value: NonNullable<Awaited<ReturnType<GuestMessagesRepository["appendGuestMessage"]>>> }
+    | {
+        kind: "created" | "existing";
+        value: NonNullable<Awaited<ReturnType<GuestMessagesRepository["appendGuestMessage"]>>>;
+      }
     | { kind: "rate-limited"; retryAfterSeconds: number }
     | { kind: "inactive"; value: null }
   > {

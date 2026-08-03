@@ -22,6 +22,25 @@ const createHotelSchema = z.object({
   googleSheetUrl: z.string().trim().max(500).optional(),
 });
 
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const page = Number(searchParams.get("page") || "1");
+    const limit = Number(searchParams.get("limit") || "100");
+
+    const data = await adminService.listHotels({
+      query: { page, limit },
+    });
+
+    return successResponse(data, 200, "Hotels retrieved successfully");
+  } catch (error) {
+    if (error instanceof HttpError) {
+      return httpErrorResponse(error);
+    }
+    return unknownServerErrorResponse();
+  }
+}
+
 export async function POST(request: Request) {
   let payload: unknown;
   try {
@@ -57,3 +76,4 @@ export async function POST(request: Request) {
     return unknownServerErrorResponse();
   }
 }
+

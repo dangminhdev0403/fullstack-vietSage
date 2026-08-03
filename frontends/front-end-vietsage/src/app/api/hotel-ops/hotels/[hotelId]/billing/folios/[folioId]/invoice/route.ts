@@ -10,12 +10,13 @@ import {
 
 type Params = { params: Promise<{ hotelId: string; folioId: string }> };
 
-export async function POST(_request: Request, context: Params) {
+export async function POST(request: Request, context: Params) {
   const { hotelId, folioId } = await context.params;
   if (!hotelId || !folioId) return validationErrorResponse("hotelId and folioId are required");
   try {
+    const input = await request.json().catch(() => ({ reconciliations: [] }));
     const data = await executeHotelOpsBackendRequest("issue checkout invoice", (accessToken) =>
-      billingService.issueInvoice(hotelId, folioId, { accessToken }),
+      billingService.issueInvoice(hotelId, folioId, input, { accessToken }),
     );
     if (data instanceof Response) return data;
     return successResponse(data, 201, "Đã phát hành hóa đơn");

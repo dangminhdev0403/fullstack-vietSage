@@ -29,27 +29,24 @@
 - Keep authenticated server calls in the `httpServer` flow.
 - Keep refresh + `unstable_update` only in cookie-writable Route Handler or Server Action boundaries.
 
-## UI Theme Direction
+## Entity Selection & UX Rules (Mandatory)
+
+- **Dropdown Select for Entity IDs**: Forms requiring entity selection (such as Hotel, Room, User) MUST NOT ask the user to type raw UUID strings. You MUST fetch options from an API route and render a `<select>` dropdown displaying human-readable names and entity codes (e.g. `Khách sạn Grand Saigon (HSG)`).
+- **Workspace Navigation & Session Fallbacks**: When adding new navigation items to `workspace-registry.ts`, `anyCapabilities` MUST include both the new domain capability (e.g. `platform.billing.view`) AND existing active session capabilities (e.g. `platform.roles.view`, `platform.hotels.view`) so currently logged-in users see the navigation item immediately without needing re-authentication.
+
+## UI Theme Direction & Typography Scale
 
 The application should follow a:
 
 - follow file `@DESIGN.md`
-- fresh
-- bright
-- friendly
-- modern café-style UI
-
-Design feeling:
-
-- clean and spacious
-- soft modern colors
-- approachable restaurant experience
-- premium but not luxury-dark
+- fresh, bright, friendly, modern UI
+- clean and spacious layout (`p-6`+, `gap-6`+)
+- typography scale: main page headers MUST be `text-2xl` or `text-3xl font-extrabold`; content text MUST be `text-sm font-medium` or `text-base`. Avoid microscopic text (`text-[10px]` or `text-xs`) for critical content or primary CTA buttons.
 
 UI style preferences:
 
-- large rounded cards
-- soft shadows
+- large rounded cards (`rounded-2xl`)
+- soft shadows and backdrop-blur modals (`backdrop-blur-sm bg-slate-900/60`)
 - comfortable spacing
 - clean typography
 - product-focused visuals
@@ -61,7 +58,7 @@ Avoid:
 - overly dark UI
 - black/white corporate dashboards
 - crowded marketplace-style layouts
-- excessive gradients or glassmorphism
+- microscopic font sizes for main content
 
 ## Data Fetching
 

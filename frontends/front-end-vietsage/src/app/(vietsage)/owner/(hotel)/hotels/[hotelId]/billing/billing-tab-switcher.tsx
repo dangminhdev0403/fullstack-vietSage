@@ -3,11 +3,10 @@
 import { useState, type ReactNode } from "react";
 
 export function BillingTabSwitcher({
-  hotelId,
   folioComponent,
   saasComponent,
 }: {
-  hotelId: string;
+  hotelId?: string;
   folioComponent: ReactNode;
   saasComponent: ReactNode;
 }) {

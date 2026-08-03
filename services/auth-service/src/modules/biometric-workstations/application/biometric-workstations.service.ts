@@ -1,4 +1,10 @@
-import { Inject, Injectable, NotFoundException, Optional, UnauthorizedException } from "@nestjs/common";
+import {
+  Inject,
+  Injectable,
+  NotFoundException,
+  Optional,
+  UnauthorizedException,
+} from "@nestjs/common";
 import { generateOpaqueToken, hashOpaqueToken } from "../../../common/security/token-hash.util";
 import { BiometricWorkstationsRepository } from "../infrastructure/biometric-workstations.repository";
 
@@ -10,18 +16,26 @@ export class BiometricWorkstationsService {
   constructor(
     private readonly repository: BiometricWorkstationsRepository,
     @Optional() @Inject(BIOMETRIC_CLOCK) private readonly now: () => Date = () => new Date(),
-    @Optional() @Inject(BIOMETRIC_SECRET_FACTORY) private readonly createSecret: () => string = generateOpaqueToken,
+    @Optional()
+    @Inject(BIOMETRIC_SECRET_FACTORY)
+    private readonly createSecret: () => string = generateOpaqueToken,
   ) {}
 
   async issuePairing(hotelId: string, operatorId: string, ttlSeconds = 300) {
     const code = this.createSecret();
     const expiresAt = new Date(this.now().getTime() + ttlSeconds * 1_000);
-    await this.repository.createPairing({ codeHash: hashOpaqueToken(code), hotelId, operatorId, expiresAt });
+    await this.repository.createPairing({
+      codeHash: hashOpaqueToken(code),
+      hotelId,
+      operatorId,
+      expiresAt,
+    });
     return { code, expiresAt: expiresAt.getTime() };
   }
 
   async pair(code: string, ttlSeconds = 30 * 24 * 60 * 60) {
-    if (!code || code.length > 256) throw new NotFoundException("Mã kết nối không hợp lệ hoặc đã hết hạn");
+    if (!code || code.length > 256)
+      throw new NotFoundException("Mã kết nối không hợp lệ hoặc đã hết hạn");
     const pairedAt = this.now();
     const pairing = await this.repository.consumePairing(hashOpaqueToken(code), pairedAt);
     if (!pairing) throw new NotFoundException("Mã kết nối không hợp lệ hoặc đã hết hạn");
@@ -37,7 +51,8 @@ export class BiometricWorkstationsService {
 
   async authenticate(token: string) {
     const workstation = await this.repository.authenticate(hashOpaqueToken(token), this.now());
-    if (!workstation) throw new UnauthorizedException("Thông tin kết nối máy quét không hợp lệ hoặc đã hết hạn");
+    if (!workstation)
+      throw new UnauthorizedException("Thông tin kết nối máy quét không hợp lệ hoặc đã hết hạn");
     return workstation;
   }
 

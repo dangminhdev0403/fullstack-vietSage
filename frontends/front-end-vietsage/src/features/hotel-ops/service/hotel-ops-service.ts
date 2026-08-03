@@ -319,6 +319,24 @@ export class HotelOpsService {
     return unwrapApiEnvelope<HotelStaySummary>(payload).data;
   }
 
+  async updateStay(
+    hotelId: string,
+    stayId: string,
+    body: { plannedCheckOutAt?: string; guestDisplayName?: string; guestPhone?: string },
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+  ): Promise<HotelStaySummary> {
+    const payload = await this.httpClient.request<unknown>({
+      method: "PATCH",
+      path: hotelPath(hotelId, `/stays/${encodeURIComponent(stayId)}`),
+      body,
+      accessToken,
+      accessTokenExpiresAt,
+    });
+
+    return unwrapApiEnvelope<HotelStaySummary>(payload).data;
+  }
+
   async syncServiceCatalogFromGoogleSheets(
     hotelId: string,
     options: AuthRequestOptions = {},

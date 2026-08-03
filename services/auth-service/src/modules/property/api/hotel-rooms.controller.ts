@@ -22,6 +22,7 @@ import {
   listRoomsQuerySchema,
   qrReasonBodySchema,
   updateRoomBodySchema,
+  updateStayBodySchema,
 } from "../domain/schemas/rooms.schema";
 import {
   hotelIdParamSchema,
@@ -217,6 +218,32 @@ export class HotelRoomsController {
     const stayId = parseWithZod(stayIdParamSchema, stayIdParam);
     const dto = parseWithZod(checkOutBodySchema, body ?? {});
     return this.hotelRoomsService.checkOutStay(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      stayId,
+      dto,
+    );
+  }
+
+  @SuccessMessage("Cập nhật lượt lưu trú thành công")
+  @RequirePermission("hotel.stays.manage")
+  @ApiDescript("Cập nhật lượt lưu trú")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiParam({ name: "stayId", type: String })
+  @ApiBody({ schema: { type: "object" } })
+  @ApiOkResponse({ description: "Đã cập nhật lượt lưu trú" })
+  @Patch(":hotelId/stays/:stayId")
+  async updateStay(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("stayId") stayIdParam: string,
+    @Body() body: unknown,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    const stayId = parseWithZod(stayIdParamSchema, stayIdParam);
+    const dto = parseWithZod(updateStayBodySchema, body);
+    return this.hotelRoomsService.updateStay(
       request.user.userId,
       request.user.roleId,
       hotelId,

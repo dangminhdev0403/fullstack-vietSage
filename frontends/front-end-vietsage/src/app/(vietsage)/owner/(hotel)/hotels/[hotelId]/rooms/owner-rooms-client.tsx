@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/data-table";
 import { HttpError } from "@/core/http/http-error";
 import { VsIcon } from "../../../../../_components/vs-icon";
+import { filterExtraOccupants } from "@/features/hotel-ops/utils/hotel-ops-display";
 import type {
   HotelRoomSummary,
 } from "@/features/hotel-ops/types/hotel-ops-contract";
@@ -417,7 +418,8 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
 
       const primaryRow = `<tr><td><strong>${getRoomNumber(room)}</strong></td><td><strong>${stay?.guestDisplayName ?? "chưa có"}</strong> <span style="font-size:11px;color:#0284c7;font-weight:600">(Đại diện)</span></td><td>${cccd}</td><td>${dob}</td><td>${gender}</td><td>${nationality}</td><td>${address}</td><td>${phone}</td><td>${checkIn}</td></tr>`;
 
-      const occupantRows = (stay?.occupants || []).map((occ) => {
+      const extraOccupants = filterExtraOccupants(stay?.occupants, stay);
+      const occupantRows = extraOccupants.map((occ) => {
         const occCccd = occ.identityNumber || "chưa có";
         const occDob = occ.dateOfBirth || "chưa có";
         const occGender = occ.gender || "chưa có";

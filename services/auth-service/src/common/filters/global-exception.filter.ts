@@ -70,7 +70,11 @@ export class GlobalExceptionFilter implements ExceptionFilter {
           : 60;
       response.setHeader(
         "Retry-After",
-        String(Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0 ? Math.ceil(retryAfterSeconds) : 60),
+        String(
+          Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+            ? Math.ceil(retryAfterSeconds)
+            : 60,
+        ),
       );
     }
     response.status(payload.status).json(payload);

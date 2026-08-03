@@ -16,7 +16,12 @@ import type {
 } from "@/features/hotel-ops/types/hotel-ops-contract";
 
 import { VsIcon } from "../../../../../_components/vs-icon";
+import { filterExtraOccupants } from "@/features/hotel-ops/utils/hotel-ops-display";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
+
+function joinClasses(...classes: (string | boolean | undefined | null)[]): string {
+  return classes.filter(Boolean).join(" ");
+}
 
 type Props = {
   hotelId: string;
@@ -29,6 +34,7 @@ type RoomStatusFilter =
   | "all"
   | "available"
   | "occupied"
+  | "overdue"
   | "processing"
   | "maintenance"
   | "blocked";
@@ -37,6 +43,7 @@ type RoomStatusFilter =
 type RoomAvailability =
   | "available"
   | "occupied"
+  | "overdue"
   | "processing"
   | "maintenance"
   | "blocked";
@@ -47,6 +54,7 @@ const statusFilters: { value: RoomStatusFilter; label: string }[] = [
   { value: "all", label: "Tất cả" },
   { value: "available", label: "Trống" },
   { value: "occupied", label: "Đang ở" },
+  { value: "overdue", label: "⚠️ Quá hạn trả" },
   { value: "processing", label: "Chờ dọn" },
   { value: "maintenance", label: "Bảo trì" },
   { value: "blocked", label: "Đã khóa" },
@@ -65,11 +73,24 @@ function getRoomStatus(room: HotelRoomSummary): string {
   return room.status?.trim().toUpperCase() || "AVAILABLE";
 }
 
+function isOverdueCheckOut(room: HotelRoomSummary): boolean {
+  if (!room.activeStay) return false;
+  const stay = room.activeStay;
+  if (stay.checkedOutAt) return false;
+  if (!stay.plannedCheckOutAt) return false;
+  const stayStatus = (stay.status || "").toUpperCase();
+  if (stayStatus !== "ACTIVE" && stayStatus !== "CHECKED_IN" && stayStatus !== "CHECKOUT_PENDING") {
+    return false;
+  }
+  return new Date(stay.plannedCheckOutAt).getTime() < Date.now();
+}
+
 function roomHasActiveStay(room: HotelRoomSummary): boolean {
   return room.activeStay?.status?.toUpperCase() === "ACTIVE";
 }
 
 function getRoomAvailability(room: HotelRoomSummary): RoomAvailability {
+  if (isOverdueCheckOut(room)) return "overdue";
   const status = getRoomStatus(room);
 
   if (roomHasActiveStay(room) || status === "OCCUPIED") return "occupied";
@@ -92,6 +113,7 @@ function getRoomAvailability(room: HotelRoomSummary): RoomAvailability {
 
 function roomStatusLabel(room: HotelRoomSummary): string {
   const availability = getRoomAvailability(room);
+  if (availability === "overdue") return "QUÁ HẠN CHECK-OUT";
   if (availability === "occupied") return "Đang ở";
   if (availability === "processing") return "Chờ dọn";
   if (availability === "maintenance") return "Bảo trì";
@@ -101,15 +123,17 @@ function roomStatusLabel(room: HotelRoomSummary): string {
 
 function roomTileClass(room: HotelRoomSummary): string {
   const availability = getRoomAvailability(room);
+  if (availability === "overdue")
+    return "border-2 border-red-500 bg-red-950 text-white font-bold animate-pulse-subtle shadow-md shadow-red-900/40";
   if (availability === "occupied")
-    return "border-blue-200 bg-blue-50 text-blue-700 hover:-translate-y-0.5 hover:shadow-md";
+    return "border-blue-300 bg-blue-100 text-blue-900 font-bold hover:-translate-y-0.5 hover:shadow-md";
   if (availability === "processing")
-    return "border-amber-200 bg-amber-50 text-amber-800 hover:-translate-y-0.5 hover:shadow-md";
+    return "border-amber-300 bg-amber-100 text-amber-900 font-bold hover:-translate-y-0.5 hover:shadow-md";
   if (availability === "maintenance")
-    return "border-slate-300 bg-slate-100 text-slate-700 hover:-translate-y-0.5 hover:shadow-md";
+    return "border-rose-300 bg-rose-100 text-rose-900 font-bold hover:-translate-y-0.5 hover:shadow-md";
   if (availability === "blocked")
-    return "border-rose-200 bg-rose-50 text-rose-700 hover:-translate-y-0.5 hover:shadow-md";
-  return "border-green-200 bg-green-50 text-green-700 hover:-translate-y-0.5 hover:shadow-md";
+    return "border-slate-400 bg-slate-200 text-slate-900 font-bold hover:-translate-y-0.5 hover:shadow-md";
+  return "border-emerald-300 bg-emerald-100 text-emerald-900 font-bold hover:-translate-y-0.5 hover:shadow-md";
 }
 
 function isCheckInAllowed(room: HotelRoomSummary): boolean {
@@ -156,6 +180,106 @@ function toIsoFromLocal(value: string): string | undefined {
   if (!value) return undefined;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+}
+
+function StayOccupantsViewer({ stay }: { stay: NonNullable<HotelRoomSummary["activeStay"]> }) {
+  const [selectedGuestIndex, setSelectedGuestIndex] = useState(0);
+
+  const extraOccupants = useMemo(() => {
+    return filterExtraOccupants(stay.occupants, stay);
+  }, [stay]);
+
+  const totalGuests = 1 + extraOccupants.length;
+  const currentOccupant = selectedGuestIndex > 0 ? extraOccupants[selectedGuestIndex - 1] : null;
+
+  return (
+    <div className="mt-5 rounded-2xl border border-blue-200 bg-blue-50/70 p-5 shadow-2xs">
+      <div className="flex flex-col gap-3 border-b border-blue-200/80 pb-3">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-blue-700">
+            Khách đang lưu trú ({totalGuests} người)
+          </p>
+        </div>
+
+        <nav className="flex items-center gap-1.5 overflow-x-auto py-0.5">
+          <button
+            type="button"
+            onClick={() => setSelectedGuestIndex(0)}
+            className={joinClasses(
+              "inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer",
+              selectedGuestIndex === 0
+                ? "bg-blue-700 text-white shadow-sm shadow-blue-700/20"
+                : "bg-blue-100/90 text-blue-900 hover:bg-blue-200/80",
+            )}
+          >
+            <VsIcon name="person" className="text-sm" />
+            Đại diện (Chủ phòng)
+          </button>
+          {extraOccupants.map((occ, idx) => (
+            <button
+              key={occ.id || idx}
+              type="button"
+              onClick={() => setSelectedGuestIndex(idx + 1)}
+              className={joinClasses(
+                "inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer",
+                selectedGuestIndex === idx + 1
+                  ? "bg-blue-700 text-white shadow-sm shadow-blue-700/20"
+                  : "bg-blue-100/90 text-blue-900 hover:bg-blue-200/80",
+              )}
+            >
+              <VsIcon name="group" className="text-sm" />
+              Khách ở cùng {idx + 1}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {!currentOccupant ? (
+        <div className="mt-4">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-lg font-extrabold text-blue-950">
+              {stay.guestDisplayName || "Khách đại diện"}
+            </p>
+            <span className="rounded-lg bg-blue-200/80 px-2.5 py-0.5 text-xs font-bold text-blue-900">
+              Chủ đặt phòng
+            </span>
+          </div>
+          <div className="mt-3 grid gap-2.5 text-sm text-blue-900 sm:grid-cols-2">
+            <p><span className="font-semibold text-blue-950">SĐT:</span> {stay.guestPhone || "chưa có"}</p>
+            <p><span className="font-semibold text-blue-950">Mã đặt phòng:</span> {stay.reservationCode || "chưa có"}</p>
+            <p><span className="font-semibold text-blue-950">Số CCCD:</span> {stay.guestIdentityNumber || "chưa có"}</p>
+            <p><span className="font-semibold text-blue-950">Ngày sinh:</span> {stay.guestDateOfBirth || "chưa có"}</p>
+            <p><span className="font-semibold text-blue-950">Giới tính:</span> {stay.guestGender || "chưa có"}</p>
+            <p><span className="font-semibold text-blue-950">Quốc tịch:</span> {stay.guestNationality || "chưa có"}</p>
+            <p className="sm:col-span-2"><span className="font-semibold text-blue-950">Địa chỉ thường trú:</span> {stay.guestResidencePlace || "chưa có"}</p>
+            <p><span className="font-semibold text-blue-950">Check-in:</span> {formatRoomDate(stay.checkedInAt)}</p>
+            <p><span className="font-semibold text-blue-950">Check-out:</span> {formatRoomDate(stay.plannedCheckOutAt)}</p>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-4">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-lg font-extrabold text-blue-950">
+              {currentOccupant.fullName || `Khách ở cùng ${selectedGuestIndex}`}
+            </p>
+            <span className="rounded-lg bg-amber-200/90 px-2.5 py-0.5 text-xs font-bold text-amber-950">
+              Khách ở cùng #{selectedGuestIndex}
+            </span>
+          </div>
+          <div className="mt-3 grid gap-2.5 text-sm text-blue-900 sm:grid-cols-2">
+            <p><span className="font-semibold text-blue-950">SĐT:</span> {currentOccupant.phone || "chưa có"}</p>
+            <p><span className="font-semibold text-blue-950">Số CCCD:</span> {currentOccupant.identityNumber || "chưa có"}</p>
+            <p><span className="font-semibold text-blue-950">Ngày sinh:</span> {currentOccupant.dateOfBirth || "chưa có"}</p>
+            <p><span className="font-semibold text-blue-950">Giới tính:</span> {currentOccupant.gender || "chưa có"}</p>
+            <p><span className="font-semibold text-blue-950">Chủ phòng đại diện:</span> {stay.guestDisplayName}</p>
+            <p><span className="font-semibold text-blue-950">Mã đặt phòng:</span> {stay.reservationCode || "chưa có"}</p>
+            <p><span className="font-semibold text-blue-950">Check-in:</span> {formatRoomDate(stay.checkedInAt)}</p>
+            <p><span className="font-semibold text-blue-950">Check-out:</span> {formatRoomDate(stay.plannedCheckOutAt)}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 
@@ -642,25 +766,7 @@ export function OwnerStayRoomGridClient({
             </div>
 
             {detailRoom.activeStay ? (
-              <div className="mt-5 rounded-xl border border-blue-200 bg-blue-50 p-5">
-                <p className="text-xs font-bold uppercase tracking-[0.12em] text-blue-700">
-                  Khách đang lưu trú
-                </p>
-                <p className="mt-2 text-lg font-semibold text-blue-950">
-                  {detailRoom.activeStay.guestDisplayName || "Khách lưu trú"}
-                </p>
-                <div className="mt-3 grid gap-2.5 text-sm text-blue-900 sm:grid-cols-2">
-                  <p><span className="font-semibold text-blue-950">SĐT:</span> {detailRoom.activeStay.guestPhone || "chưa có"}</p>
-                  <p><span className="font-semibold text-blue-950">Mã đặt phòng:</span> {detailRoom.activeStay.reservationCode || "chưa có"}</p>
-                  <p><span className="font-semibold text-blue-950">Số CCCD:</span> {detailRoom.activeStay.guestIdentityNumber || "chưa có"}</p>
-                  <p><span className="font-semibold text-blue-950">Ngày sinh:</span> {detailRoom.activeStay.guestDateOfBirth || "chưa có"}</p>
-                  <p><span className="font-semibold text-blue-950">Giới tính:</span> {detailRoom.activeStay.guestGender || "chưa có"}</p>
-                  <p><span className="font-semibold text-blue-950">Quốc tịch:</span> {detailRoom.activeStay.guestNationality || "chưa có"}</p>
-                  <p className="sm:col-span-2"><span className="font-semibold text-blue-950">Địa chỉ thường trú:</span> {detailRoom.activeStay.guestResidencePlace || "chưa có"}</p>
-                  <p><span className="font-semibold text-blue-950">Check-in:</span> {formatRoomDate(detailRoom.activeStay.checkedInAt)}</p>
-                  <p><span className="font-semibold text-blue-950">Check-out:</span> {formatRoomDate(detailRoom.activeStay.plannedCheckOutAt)}</p>
-                </div>
-              </div>
+              <StayOccupantsViewer stay={detailRoom.activeStay} />
             ) : (
               <p className="mt-5 rounded-xl border border-dashed border-[var(--outline-variant)] p-4 text-sm text-[var(--on-surface-variant)]">
                 Phòng hiện không có khách lưu trú.
