@@ -10,6 +10,15 @@ import {
 } from "@/app/api/hotel-ops/_utils";
 
 type Params = { params: Promise<{ hotelId: string }> };
+const occupantSchema = z.object({
+  fullName: z.string().trim().min(1),
+  phone: z.string().trim().optional(),
+  identityNumber: z.string().trim().optional(),
+  dateOfBirth: z.string().trim().optional(),
+  gender: z.string().trim().optional(),
+  isPrimary: z.boolean().optional(),
+});
+
 const schema = z.object({
   roomId: z.string().trim().min(1),
   guestDisplayName: z.string().trim().min(1),
@@ -21,6 +30,7 @@ const schema = z.object({
   guestResidencePlace: z.string().trim().max(500).optional(),
   plannedCheckInAt: z.string().trim().min(1),
   plannedCheckOutAt: z.string().trim().min(1),
+  occupants: z.array(occupantSchema).optional(),
 }).strict();
 
 export async function POST(request: Request, context: Params) {

@@ -17,6 +17,15 @@ type Params = {
 };
 
 
+const occupantSchema = z.object({
+  fullName: z.string().trim().min(1),
+  phone: z.string().trim().optional(),
+  identityNumber: z.string().trim().optional(),
+  dateOfBirth: z.string().trim().optional(),
+  gender: z.string().trim().optional(),
+  isPrimary: z.boolean().optional(),
+});
+
 const createStaySchema = z.object({
   roomId: z.string().trim().min(1),
   guestDisplayName: z.string().trim().min(1),
@@ -28,6 +37,7 @@ const createStaySchema = z.object({
   guestResidencePlace: z.string().trim().max(500).optional(),
   plannedCheckInAt: z.string().trim().min(1),
   plannedCheckOutAt: z.string().trim().min(1),
+  occupants: z.array(occupantSchema).optional(),
 }).strict();
 
 function sanitizeCreateStayPayload(payload: unknown): { body: CreateHotelStayInput } | null {
@@ -48,6 +58,7 @@ function sanitizeCreateStayPayload(payload: unknown): { body: CreateHotelStayInp
   if (input.guestGender) body.guestGender = input.guestGender;
   if (input.guestNationality) body.guestNationality = input.guestNationality;
   if (input.guestResidencePlace) body.guestResidencePlace = input.guestResidencePlace;
+  if (input.occupants?.length) body.occupants = input.occupants;
   return { body };
 }
 

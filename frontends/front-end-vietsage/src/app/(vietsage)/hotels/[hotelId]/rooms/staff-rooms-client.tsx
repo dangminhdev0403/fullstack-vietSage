@@ -904,6 +904,7 @@ export function StaffRoomsClient({
             ...(fields.guestResidencePlace?.trim()
               ? { guestResidencePlace: fields.guestResidencePlace.trim() }
               : {}),
+            ...(fields.occupants?.length ? { occupants: fields.occupants } : {}),
             plannedCheckInAt: new Date().toISOString(),
             plannedCheckOutAt,
           },

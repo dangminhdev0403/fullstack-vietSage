@@ -558,7 +558,12 @@ export class HotelRoomsRepository {
               ...(input.occupants ?? [])
                 .filter(
                   (occ) =>
-                    occ.fullName.trim() && occ.fullName.trim() !== input.guestDisplayName.trim(),
+                    occ.fullName.trim() &&
+                    !(
+                      occ.fullName.trim() === input.guestDisplayName.trim() &&
+                      (!occ.identityNumber?.trim() ||
+                        occ.identityNumber?.trim() === input.guestIdentityNumber?.trim())
+                    ),
                 )
                 .map((occ) => ({
                   hotelId: input.hotelId,

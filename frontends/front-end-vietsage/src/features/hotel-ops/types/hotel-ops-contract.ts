@@ -362,6 +362,14 @@ export type CreateHotelStayInput = {
   guestResidencePlace?: string;
   plannedCheckInAt: string;
   plannedCheckOutAt: string;
+  occupants?: Array<{
+    fullName: string;
+    phone?: string;
+    identityNumber?: string;
+    dateOfBirth?: string;
+    gender?: string;
+    isPrimary?: boolean;
+  }>;
 };
 
 export type ServiceCatalogTranslationsInput = Partial<Record<"en" | "zh" | "ko" | "ru" | "hi", { name: string; description?: string | null }>>;
