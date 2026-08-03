@@ -21,9 +21,15 @@ function loginUrl(pathname: string): string {
 }
 
 async function logoutToLogin(pathname: string): Promise<void> {
-  await signOut({
-    callbackUrl: loginUrl(pathname),
-  });
+  try {
+    await signOut({
+      callbackUrl: loginUrl(pathname),
+    });
+  } catch {
+    if (typeof window !== "undefined") {
+      window.location.href = loginUrl(pathname);
+    }
+  }
 }
 
 export function AuthRefreshGate({
