@@ -1362,12 +1362,12 @@ export function StaffRoomsClient({
                           className="min-w-0 truncate text-xs font-extrabold text-amber-950 bg-amber-100/90 border border-amber-300 px-2 py-0.5 rounded-md shadow-2xs"
                           title={
                             room.price && Number(room.price) > 0
-                              ? `Giá phòng: ${formatMoney({ price: room.price ?? null, currency: "VND" })}/đêm`
+                              ? `Giá phòng: ${formatMoney({ price: room.price ?? null, currency: "VND" })}`
                               : room.type ? `Loại: ${room.type}` : `Phòng ${getRoomNumber(room)}`
                           }
                         >
                           {room.price && Number(room.price) > 0
-                            ? `${formatMoney({ price: room.price ?? null, currency: "VND" })}/đêm`
+                            ? `${formatMoney({ price: room.price ?? null, currency: "VND" })}`
                             : room.type ? room.type : "Giá linh hoạt"}
                         </span>
                         <span className={roomStatusBadgeClass(roomStatus)}>

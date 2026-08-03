@@ -34,11 +34,14 @@ describe("PlatformBillingService Onboarding & Analytics", () => {
       platformBillableDay: {
         findMany: jest.fn().mockResolvedValue([{ id: "bd-1" }, { id: "bd-2" }]),
       },
+      platformUsage: {
+        findMany: jest.fn().mockResolvedValue([{ id: "pu-1" }, { id: "pu-2" }, { id: "pu-3" }]),
+      },
       platformBillingPeriod: {
         findMany: jest.fn().mockResolvedValue([]),
       },
       room: {
-        findMany: jest.fn().mockResolvedValue([]),
+        findMany: jest.fn().mockResolvedValue([{ id: "r1", roomNumber: "101" }]),
       },
       platformBillingDailySummary: {
         findMany: jest.fn().mockResolvedValue([]),
