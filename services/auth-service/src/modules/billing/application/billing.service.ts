@@ -3,6 +3,8 @@ import {
   FolioItemSourceType,
   FolioItemType,
   FolioStatus,
+  GuestRequestActorType,
+  GuestRequestBillingPostStatus,
   GuestRequestStatus,
   GuestSessionStatus,
   GuestStayStatus,
@@ -1429,20 +1431,24 @@ export class BillingService {
           data: {
             status: GuestRequestStatus.CANCELLED,
             cancelledAt: new Date(),
-            cancelledByUserId: actorUserId,
-            cancelReason: reason,
           },
         });
+        if (tx.guestRequestEvent) {
+          await tx.guestRequestEvent.create({
+            data: {
+              requestId: req.id,
+              hotelId,
+              actorType: GuestRequestActorType.STAFF,
+              actorUserId,
+              eventType: "REQUEST_UPDATED",
+              fromStatus: req.status,
+              toStatus: GuestRequestStatus.CANCELLED,
+              note: reason,
+              visibility: "GUEST",
+            },
+          });
+        }
       } else if (rec.action === "provided") {
-        await tx.guestRequest.update({
-          where: { id: req.id },
-          data: {
-            status: GuestRequestStatus.COMPLETED,
-            completedAt: new Date(),
-            completedByUserId: actorUserId,
-          },
-        });
-
         const existingItem = await tx.folioItem.findFirst({
           where: {
             folioId: folio.id,
@@ -1450,10 +1456,11 @@ export class BillingService {
           },
         });
 
+        let folioItemIdToLink = existingItem?.id;
         if (!existingItem) {
           const unitPrice = req.serviceItem?.priceOverride ?? req.unitPrice ?? 0;
           const subtotal = new Prisma.Decimal(unitPrice).mul(req.quantity ?? 1);
-          await tx.folioItem.create({
+          const newItem = await tx.folioItem.create({
             data: {
               hotelId,
               folioId: folio.id,
@@ -1474,6 +1481,34 @@ export class BillingService {
                 reconciledAt: new Date().toISOString(),
               },
               postedByUserId: actorUserId,
+            },
+          });
+          folioItemIdToLink = newItem.id;
+        }
+
+        await tx.guestRequest.update({
+          where: { id: req.id },
+          data: {
+            status: GuestRequestStatus.COMPLETED,
+            completedAt: new Date(),
+            billingPostStatus: GuestRequestBillingPostStatus.POSTED,
+            billingPostedAt: new Date(),
+            billingFolioItemId: folioItemIdToLink,
+          },
+        });
+
+        if (tx.guestRequestEvent) {
+          await tx.guestRequestEvent.create({
+            data: {
+              requestId: req.id,
+              hotelId,
+              actorType: GuestRequestActorType.STAFF,
+              actorUserId,
+              eventType: "REQUEST_UPDATED",
+              fromStatus: req.status,
+              toStatus: GuestRequestStatus.COMPLETED,
+              note: "Đã cung cấp dịch vụ khi checkout",
+              visibility: "GUEST",
             },
           });
         }

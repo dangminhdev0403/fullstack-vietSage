@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import type { StaffRequestListItem } from "@/features/hotel-ops/types/hotel-ops-contract";
 import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
-import { playRequestAlertSound } from "@/features/request-realtime/audio-notifier";
+import { playMessageAlertSound, playRequestAlertSound } from "@/features/request-realtime/audio-notifier";
 import {
   invalidateHotelRealtimeQueries,
   invalidateHotelRequestRealtimeQueries,
@@ -70,6 +70,39 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
       onAnswered: () => {
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
       },
+      onGuestMessageCreated: (event: unknown) => {
+        void invalidateHotelRealtimeQueries(queryClient, hotelId);
+
+        const raw = event as {
+          hotelId?: string;
+          thread?: { roomNumber?: string };
+          message?: { id?: string; senderType?: string; body?: string };
+        } | null;
+
+        if (!raw || raw.hotelId !== hotelId) return;
+
+        if (raw.message?.senderType === "GUEST") {
+          playMessageAlertSound();
+          const isMessagesPage =
+            typeof window !== "undefined" &&
+            window.location.pathname.includes(`/hotels/${hotelId}/messages`);
+
+          if (!isMessagesPage) {
+            toast.info("Có tin nhắn mới từ khách", {
+              id: `hotel-ops-message-${raw.message.id ?? Date.now()}`,
+              description: `Phòng ${raw.thread?.roomNumber ?? ""}: ${raw.message.body ?? ""}`,
+              duration: 8000,
+              action: {
+                label: "Xem tin nhắn",
+                onClick: () => router.push(`/hotels/${hotelId}/messages`),
+              },
+            });
+          }
+        }
+      },
+      onConversationClosed: () => {
+        void invalidateHotelRealtimeQueries(queryClient, hotelId);
+      },
       onReconnect: () => {
         void invalidateHotelRequestRealtimeQueries(queryClient, hotelId);
       },
@@ -83,3 +116,4 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
 
   return null;
 }
+

@@ -3,7 +3,10 @@
 import { useMemo } from "react";
 import { toast } from "sonner";
 
+import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { useGuestI18n } from "@/features/guest-os/i18n/use-guest-i18n";
+import { guestMessagesResource } from "@/features/guest-os/resources/guest-messages-resource";
 import { useGuestStore } from "@/features/guest-os/store/guest-store";
 import type { GuestRequest } from "@/features/guest-os/types/guest-os-contract";
 import { useGuestRequestRealtime } from "./use-guest-request-realtime";
@@ -62,8 +65,11 @@ function dispatchGuestRequestRealtime(detail: GuestRequestRealtimeBrowserEvent) 
 }
 
 export function GuestRequestRealtimeNotifier() {
+  const router = useRouter();
+  const queryClient = useQueryClient();
   const sessionToken = useGuestStore((state) => state.sessionToken);
-  const { t } = useGuestI18n();
+  const { locale, t } = useGuestI18n();
+
   const handlers = useMemo(
     () => ({
       onReady: () => {
@@ -87,6 +93,39 @@ export function GuestRequestRealtimeNotifier() {
         dispatchGuestRequestRealtime({ kind: "answered", request });
         toast.success(t("requests.updatedAnswer"));
       },
+      onGuestMessageCreated: (event: unknown) => {
+        const rawMessage =
+          typeof event === "object" && event !== null && "message" in event
+            ? (event as { message?: { id?: string; senderType?: string; body?: string } }).message
+            : undefined;
+
+        if (sessionToken) {
+          void queryClient.invalidateQueries({
+            queryKey: guestMessagesResource
+              .bind({ sessionToken, locale })
+              .queries.unreadSummary.options(undefined as never).queryKey,
+          });
+        }
+
+        if (rawMessage?.senderType === "STAFF") {
+          playGuestRequestSound("updated");
+          const isMessagePage =
+            typeof window !== "undefined" && window.location.pathname.endsWith("/g/messages");
+
+          if (!isMessagePage) {
+            toast.info("Lễ tân vừa gửi tin nhắn mới", {
+              id: `guest-message-created-${rawMessage.id ?? Date.now()}`,
+              description:
+                typeof rawMessage.body === "string" ? rawMessage.body.slice(0, 80) : undefined,
+              duration: 6000,
+              action: {
+                label: "Xem ngay",
+                onClick: () => router.push("/g/messages"),
+              },
+            });
+          }
+        }
+      },
       onReconnect: () => dispatchGuestRequestRealtime({ kind: "reconnected" }),
       onError: () => {
         toast.error(t("requests.realtimeInterrupted"), {
@@ -95,9 +134,10 @@ export function GuestRequestRealtimeNotifier() {
         });
       },
     }),
-    [t],
+    [locale, queryClient, router, sessionToken, t],
   );
 
   useGuestRequestRealtime(sessionToken, handlers);
   return null;
 }
+

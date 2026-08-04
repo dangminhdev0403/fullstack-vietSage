@@ -16,8 +16,8 @@ import { guestMessagesResource } from "@/features/guest-os/resources/guest-messa
 import { useGuestRequestRealtime } from "@/features/request-realtime/use-guest-request-realtime";
 import {
   createEventDeduper,
-  isConversationClosedEventForScope,
-  isGuestMessageEventForScope,
+  isConversationClosedEventForStay,
+  isGuestMessageEventForStay,
 } from "@/features/request-realtime/message-unread";
 
 function TypewriterMessageBody({ body, createdAt }: Readonly<{ body: string; createdAt: string }>) {
@@ -66,7 +66,6 @@ export default function GuestMessagesPage() {
   const { locale, t } = useGuestI18n();
   const hydrated = useGuestStoreHydrated();
   const sessionToken = useGuestStore((state) => state.sessionToken);
-  const hotelId = useGuestStore((state) => state.hotelId);
   const trustedStayId = useGuestStore((state) => state.stayId);
   const room = useGuestStore((state) => state.room);
   const [body, setBody] = useState("");
@@ -137,16 +136,19 @@ export default function GuestMessagesPage() {
 
   useGuestRequestRealtime(sessionToken, {
     onGuestMessageCreated: (event: unknown) => {
-      if (!hotelId || !trustedStayId || !isGuestMessageEventForScope(event, hotelId, trustedStayId)) return;
+      if (trustedStayId && !isGuestMessageEventForStay(event, trustedStayId)) return;
       if (typeof event === "object" && event !== null && "eventId" in event && (event as { eventId?: string }).eventId) {
         if (!pageDeduperRef.current.accept((event as { eventId: string }).eventId)) return;
       }
       const message = (event as unknown as { message?: GuestMessagesResult["items"][number] }).message;
       if (!message?.id) return;
       appendRealtimeMessage(message);
+      void queryClient.invalidateQueries({
+        queryKey: guestMessages.queries.unreadSummary.options(undefined as never).queryKey,
+      });
     },
     onConversationClosed: (event: unknown) => {
-      if (!hotelId || !trustedStayId || !isConversationClosedEventForScope(event, hotelId, trustedStayId)) return;
+      if (trustedStayId && !isConversationClosedEventForStay(event, trustedStayId)) return;
       if (typeof event === "object" && event !== null && "eventId" in event && (event as { eventId?: string }).eventId) {
         if (!pageDeduperRef.current.accept((event as { eventId: string }).eventId)) return;
       }

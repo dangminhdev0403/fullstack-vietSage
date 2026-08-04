@@ -116,6 +116,33 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
           router.refresh();
         });
       },
+      onGuestMessageCreated: (event: unknown) => {
+        void invalidateHotelRealtimeQueries(queryClient, hotelId);
+        startTransition(() => {
+          router.refresh();
+        });
+        const raw = event as {
+          hotelId?: string;
+          thread?: { roomNumber?: string };
+          message?: { id?: string; senderType?: string; body?: string };
+        } | null;
+
+        if (raw?.hotelId !== hotelId) return;
+
+        if (raw.message?.senderType === "GUEST") {
+          toast.info("Có tin nhắn mới từ khách", {
+            id: `owner-message-${raw.message.id ?? Date.now()}`,
+            description: `Phòng ${raw.thread?.roomNumber ?? ""}: ${raw.message.body ?? ""}`,
+            duration: 8000,
+          });
+        }
+      },
+      onConversationClosed: () => {
+        void invalidateHotelRealtimeQueries(queryClient, hotelId);
+        startTransition(() => {
+          router.refresh();
+        });
+      },
       onReconnect: () => {
         void invalidateHotelRequestRealtimeQueries(queryClient, hotelId);
       },
