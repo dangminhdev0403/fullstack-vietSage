@@ -19,7 +19,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
     guestIdentityNumber: initialStayFields?.guestIdentityNumber || "",
   });
   const [capture, setCapture] = useState<CccdCheckInCapture | null>(null);
-  const [occupants, setOccupants] = useState<Array<{ fullName: string; phone?: string; identityNumber?: string; dateOfBirth?: string; gender?: string }>>([]);
+  const [occupants, setOccupants] = useState<Array<{ fullName: string; phone?: string; identityNumber?: string; dateOfBirth?: string; gender?: string; nationality?: string; residencePlace?: string }>>([]);
   const [activeGuestIndex, setActiveGuestIndex] = useState<number>(0);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -33,7 +33,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
     setActiveGuestIndex((curr) => (curr > index + 1 ? curr - 1 : curr === index + 1 ? 0 : curr));
   }, []);
 
-  const handleOccupantChange = useCallback((index: number, key: "fullName" | "phone" | "identityNumber" | "dateOfBirth" | "gender", value: string) => {
+  const handleOccupantChange = useCallback((index: number, key: "fullName" | "phone" | "identityNumber" | "dateOfBirth" | "gender" | "nationality" | "residencePlace", value: string) => {
     setOccupants((prev) => {
       const next = [...prev];
       next[index] = { ...next[index], [key]: value };
@@ -122,6 +122,8 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
           identityNumber: nextCapture.guestIdentityNumber,
           dateOfBirth: nextCapture.guestDateOfBirth,
           gender: nextCapture.guestGender,
+          nationality: nextCapture.guestNationality,
+          residencePlace: nextCapture.guestResidencePlace,
         };
         return next;
       });

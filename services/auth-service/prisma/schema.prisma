@@ -902,6 +902,8 @@ model GuestStayOccupant {
   identityNumber String?        @db.VarChar(32)
   dateOfBirth    String?        @db.VarChar(20)
   gender         String?        @db.VarChar(20)
+  nationality    String?        @db.VarChar(80)
+  residencePlace String?        @db.VarChar(500)
   isPrimary      Boolean        @default(false)
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt

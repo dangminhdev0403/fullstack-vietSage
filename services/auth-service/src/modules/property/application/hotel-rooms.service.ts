@@ -560,6 +560,8 @@ export class HotelRoomsService {
       identityNumber?: string | null;
       dateOfBirth?: string | null;
       gender?: string | null;
+      nationality?: string | null;
+      residencePlace?: string | null;
       isPrimary: boolean;
     }> | null;
   }) {
@@ -611,6 +613,8 @@ export class HotelRoomsService {
             identityNumber: occ.identityNumber ?? null,
             dateOfBirth: occ.dateOfBirth ?? null,
             gender: occ.gender ?? null,
+            nationality: occ.nationality ?? null,
+            residencePlace: occ.residencePlace ?? null,
             isPrimary: occ.isPrimary,
           }))
         : [],

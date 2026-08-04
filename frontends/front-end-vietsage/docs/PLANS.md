@@ -1,3 +1,18 @@
+## [complete] 2026-08-04 - Mission: capture-and-print-co-guest-nationality-and-address
+
+- Updated CCCD scanner in `check-in-workspace.tsx` to automatically populate nationality (`guestNationality`) & address (`guestResidencePlace`) for co-guests (`activeGuestIndex > 0`).
+- Added `nationality` and `residencePlace` fields to `CheckInOccupantField` contract, BFF route schema `occupantSchema`, and `CreateHotelStayInput` / `HotelStaySummary` types in `hotel-ops-contract.ts`.
+- Updated lodging list print template ("In danh sách lưu trú") in `staff-rooms-client.tsx` and `owner-rooms-client.tsx` to render co-guest Nationality and Residence Place instead of `-`.
+- Updated `StayOccupantsViewer` in `staff-rooms-client.tsx` and `owner-stay-room-grid-client.tsx` to display co-guest Nationality and Residence Place in stay detail modals.
+
+Verification result:
+
+- `npx tsc --noEmit` passed cleanly with **0 errors**.
+
+Remaining blockers/risks:
+
+- None.
+
 ## [complete] 2026-08-04 - Mission: fix-co-guest-occupants-filtering-and-lodging-list-print
 
 - Removed `isSamePhone` check from `filterExtraOccupants` in `hotel-ops-display.ts` (`src/features/hotel-ops/utils/hotel-ops-display.ts`) so co-guests sharing a contact phone number with the primary guest are preserved.

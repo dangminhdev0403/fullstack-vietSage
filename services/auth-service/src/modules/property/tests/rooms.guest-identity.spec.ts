@@ -60,9 +60,11 @@ describe("guest stay CCCD identity", () => {
       generateFolioNumber: async () => "FOLIO-1",
     });
 
-    expect(tx.guestStay.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ guestIdentityNumber: "034205005951" }),
-    });
+    expect(tx.guestStay.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ guestIdentityNumber: "034205005951" }),
+      }),
+    );
   });
 
   it("accepts and persists optional guest identity attributes", async () => {
@@ -111,14 +113,55 @@ describe("guest stay CCCD identity", () => {
       generateFolioNumber: async () => "FOLIO-1",
     });
 
-    expect(tx.guestStay.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        guestIdentityNumber: "034205005951",
-        guestDateOfBirth: "1990-01-01",
-        guestGender: "Nam",
-        guestNationality: "Việt Nam",
-        guestResidencePlace: "Lào Cai, Việt Nam",
+    expect(tx.guestStay.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          guestIdentityNumber: "034205005951",
+          guestDateOfBirth: "1990-01-01",
+          guestGender: "Nam",
+          guestNationality: "Việt Nam",
+          guestResidencePlace: "Lào Cai, Việt Nam",
+        }),
       }),
+    );
+  });
+
+  it("persists the primary guest and every co-guest in a reservation stay", async () => {
+    const tx = {
+      guestStay: { create: jest.fn().mockResolvedValue({ id: "stay-1" }) },
+      folio: {
+        findFirst: jest.fn().mockResolvedValue({ id: "folio-1" }),
+        create: jest.fn(),
+      },
+      room: { update: jest.fn() },
+      domainEvent: { create: jest.fn() },
+    };
+    const prisma = {
+      $transaction: jest.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
+    };
+    const repository = new HotelRoomsRepository(prisma as never);
+
+    await repository.createStay({
+      hotelId: "hotel-1",
+      roomId: "room-1",
+      guestDisplayName: "Nguyen Van A",
+      guestIdentityNumber: "034205005951",
+      occupants: [
+        { fullName: "Tran Thi B", identityNumber: "034205005952" },
+        { fullName: "Le Van C", identityNumber: "034205005953" },
+      ],
+      plannedCheckInAt: new Date(stayInput.plannedCheckInAt),
+      plannedCheckOutAt: new Date(stayInput.plannedCheckOutAt),
+      createdByUserId: "staff-1",
+      tenantId: "tenant-1",
+      generateReservationCode: async () => "RES-1",
+      generateFolioNumber: async () => "FOLIO-1",
     });
+
+    expect(tx.guestStay.create.mock.calls[0][0].data.occupants.create).toEqual([
+      expect.objectContaining({ fullName: "Nguyen Van A", isPrimary: true }),
+      expect.objectContaining({ fullName: "Tran Thi B", isPrimary: false }),
+      expect.objectContaining({ fullName: "Le Van C", isPrimary: false }),
+    ]);
   });
 });

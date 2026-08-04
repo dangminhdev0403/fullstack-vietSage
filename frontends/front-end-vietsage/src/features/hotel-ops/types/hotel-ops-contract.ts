@@ -120,6 +120,8 @@ export type HotelStaySummary = {
     identityNumber?: string | null;
     dateOfBirth?: string | null;
     gender?: string | null;
+    nationality?: string | null;
+    residencePlace?: string | null;
     isPrimary?: boolean;
   }> | null;
 };
@@ -368,6 +370,8 @@ export type CreateHotelStayInput = {
     identityNumber?: string;
     dateOfBirth?: string;
     gender?: string;
+    nationality?: string;
+    residencePlace?: string;
     isPrimary?: boolean;
   }>;
 };

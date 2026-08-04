@@ -271,6 +271,8 @@ function StayOccupantsViewer({ stay }: { stay: NonNullable<HotelRoomSummary["act
             <p><span className="font-semibold text-blue-950">Số CCCD:</span> {currentOccupant.identityNumber || "chưa có"}</p>
             <p><span className="font-semibold text-blue-950">Ngày sinh:</span> {currentOccupant.dateOfBirth || "chưa có"}</p>
             <p><span className="font-semibold text-blue-950">Giới tính:</span> {currentOccupant.gender || "chưa có"}</p>
+            <p><span className="font-semibold text-blue-950">Quốc tịch:</span> {currentOccupant.nationality || "chưa có"}</p>
+            <p className="sm:col-span-2"><span className="font-semibold text-blue-950">Địa chỉ thường trú:</span> {currentOccupant.residencePlace || "chưa có"}</p>
             <p><span className="font-semibold text-blue-950">Chủ phòng đại diện:</span> {stay.guestDisplayName}</p>
             <p><span className="font-semibold text-blue-950">Mã đặt phòng:</span> {stay.reservationCode || "chưa có"}</p>
             <p><span className="font-semibold text-blue-950">Check-in:</span> {formatRoomDate(stay.checkedInAt)}</p>

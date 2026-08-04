@@ -1,3 +1,10 @@
+## 2026-08-04 - Co-guest Nationality & Residence Place Persistence and Printing (Complete)
+
+- [x] Added `nationality` (`VARCHAR(80)`) and `residencePlace` (`VARCHAR(500)`) fields to `GuestStayOccupant` Prisma model and migration SQL `20260804150000_add_occupant_nationality_residence`.
+- [x] Updated `stayOccupantInputSchema` in `rooms.schema.ts`, `toStayData` in `hotel-rooms.service.ts`, and occupant creation mappings in `hotel-rooms.repository.ts`.
+- [x] Updated Frontend CCCD scanner in `check-in-workspace.tsx` to automatically populate nationality & residence place for co-guests.
+- [x] Updated lodging print list ("In danh sách lưu trú") and `StayOccupantsViewer` to render nationality & residence place for co-guests.
+
 ## 2026-08-04 - Co-guest (Occupant) Persistence & Lodging List Fix (Complete)
 
 - [x] Fixed `filterExtraOccupants` in `hotel-ops-display.ts` so co-guests sharing a phone number with the primary guest are no longer incorrectly filtered out.

@@ -187,6 +187,8 @@ export class HotelRoomsRepository {
       identityNumber?: string;
       dateOfBirth?: string;
       gender?: string;
+      nationality?: string;
+      residencePlace?: string;
       isPrimary?: boolean;
     }>;
     generateReservationCode: (tx: Prisma.TransactionClient) => Promise<string>;
@@ -219,6 +221,8 @@ export class HotelRoomsRepository {
                 identityNumber: input.guestIdentityNumber,
                 dateOfBirth: input.guestDateOfBirth,
                 gender: input.guestGender,
+                nationality: input.guestNationality,
+                residencePlace: input.guestResidencePlace,
                 isPrimary: true,
               },
               ...(input.occupants ?? [])
@@ -238,6 +242,8 @@ export class HotelRoomsRepository {
                   identityNumber: occ.identityNumber?.trim(),
                   dateOfBirth: occ.dateOfBirth?.trim(),
                   gender: occ.gender?.trim(),
+                  nationality: occ.nationality?.trim(),
+                  residencePlace: occ.residencePlace?.trim(),
                   isPrimary: false,
                 })),
             ],
@@ -493,6 +499,8 @@ export class HotelRoomsRepository {
       identityNumber?: string;
       dateOfBirth?: string;
       gender?: string;
+      nationality?: string;
+      residencePlace?: string;
       isPrimary?: boolean;
     }>;
     generateReservationCode: (tx: Prisma.TransactionClient) => Promise<string>;
@@ -610,6 +618,8 @@ export class HotelRoomsRepository {
                 identityNumber: input.guestIdentityNumber,
                 dateOfBirth: input.guestDateOfBirth,
                 gender: input.guestGender,
+                nationality: input.guestNationality,
+                residencePlace: input.guestResidencePlace,
                 isPrimary: true,
               },
               ...(input.occupants ?? [])
@@ -629,6 +639,8 @@ export class HotelRoomsRepository {
                   identityNumber: occ.identityNumber?.trim(),
                   dateOfBirth: occ.dateOfBirth?.trim(),
                   gender: occ.gender?.trim(),
+                  nationality: occ.nationality?.trim(),
+                  residencePlace: occ.residencePlace?.trim(),
                   isPrimary: false,
                 })),
             ],
@@ -721,6 +733,8 @@ export class HotelRoomsRepository {
         identityNumber?: string;
         dateOfBirth?: string;
         gender?: string;
+        nationality?: string;
+        residencePlace?: string;
         isPrimary?: boolean;
       }>;
     },
@@ -749,6 +763,8 @@ export class HotelRoomsRepository {
               identityNumber: existingStay.guestIdentityNumber ?? undefined,
               dateOfBirth: existingStay.guestDateOfBirth ?? undefined,
               gender: existingStay.guestGender ?? undefined,
+              nationality: existingStay.guestNationality ?? undefined,
+              residencePlace: existingStay.guestResidencePlace ?? undefined,
               isPrimary: true,
             },
             ...(input.occupants ?? [])
@@ -769,6 +785,8 @@ export class HotelRoomsRepository {
                 identityNumber: occ.identityNumber?.trim() || undefined,
                 dateOfBirth: occ.dateOfBirth?.trim() || undefined,
                 gender: occ.gender?.trim() || undefined,
+                nationality: occ.nationality?.trim() || undefined,
+                residencePlace: occ.residencePlace?.trim() || undefined,
                 isPrimary: false,
               })),
           ],

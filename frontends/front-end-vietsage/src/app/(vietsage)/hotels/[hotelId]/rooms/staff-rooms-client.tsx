@@ -269,6 +269,8 @@ function StayOccupantsViewer({ stay }: { stay: NonNullable<HotelRoomSummary["act
             <p><span className="font-bold text-blue-950">Số CCCD:</span> {currentOccupant.identityNumber || "chưa có"}</p>
             <p><span className="font-bold text-blue-950">Ngày sinh:</span> {currentOccupant.dateOfBirth || "chưa có"}</p>
             <p><span className="font-bold text-blue-950">Giới tính:</span> {currentOccupant.gender || "chưa có"}</p>
+            <p><span className="font-bold text-blue-950">Quốc tịch:</span> {currentOccupant.nationality || "chưa có"}</p>
+            <p className="sm:col-span-2"><span className="font-bold text-blue-950">Địa chỉ thường trú:</span> {currentOccupant.residencePlace || "chưa có"}</p>
             <p><span className="font-bold text-blue-950">Chủ phòng đại diện:</span> {stay.guestDisplayName}</p>
             <p><span className="font-bold text-blue-950">Mã đặt phòng:</span> {stay.reservationCode || "chưa có"}</p>
             <p><span className="font-bold text-blue-950">Check-in:</span> {formatDateTime(stay.checkedInAt ?? stay.plannedCheckInAt)}</p>
@@ -499,8 +501,10 @@ export function StaffRoomsClient({
         const occCccd = occ.identityNumber || "chưa có";
         const occDob = occ.dateOfBirth || "chưa có";
         const occGender = occ.gender || "chưa có";
+        const occNationality = occ.nationality || "chưa có";
+        const occAddress = occ.residencePlace || "chưa có";
         const occPhone = occ.phone || "chưa có";
-        return `<tr><td style="color:#64748b;font-size:12px">↳ ${getRoomNumber(room)}</td><td>${occ.fullName} <span style="font-size:11px;color:#475569">(Ở cùng)</span></td><td>${occCccd}</td><td>${occDob}</td><td>${occGender}</td><td>-</td><td>-</td><td>${occPhone}</td><td>${checkIn}</td></tr>`;
+        return `<tr><td style="color:#64748b;font-size:12px">↳ ${getRoomNumber(room)}</td><td>${occ.fullName} <span style="font-size:11px;color:#475569">(Ở cùng)</span></td><td>${occCccd}</td><td>${occDob}</td><td>${occGender}</td><td>${occNationality}</td><td>${occAddress}</td><td>${occPhone}</td><td>${checkIn}</td></tr>`;
       });
 
       return [primaryRow, ...occupantRows];

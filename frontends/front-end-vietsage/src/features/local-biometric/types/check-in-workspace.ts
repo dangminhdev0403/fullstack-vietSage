@@ -11,6 +11,8 @@ export type CheckInOccupantField = {
   identityNumber?: string;
   dateOfBirth?: string;
   gender?: string;
+  nationality?: string;
+  residencePlace?: string;
   isPrimary?: boolean;
 };
 

@@ -423,8 +423,10 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
         const occCccd = occ.identityNumber || "chưa có";
         const occDob = occ.dateOfBirth || "chưa có";
         const occGender = occ.gender || "chưa có";
+        const occNationality = occ.nationality || "chưa có";
+        const occAddress = occ.residencePlace || "chưa có";
         const occPhone = occ.phone || "chưa có";
-        return `<tr><td style="color:#64748b;font-size:12px">↳ ${getRoomNumber(room)}</td><td>${occ.fullName} <span style="font-size:11px;color:#475569">(Ở cùng)</span></td><td>${occCccd}</td><td>${occDob}</td><td>${occGender}</td><td>-</td><td>-</td><td>${occPhone}</td><td>${checkIn}</td></tr>`;
+        return `<tr><td style="color:#64748b;font-size:12px">↳ ${getRoomNumber(room)}</td><td>${occ.fullName} <span style="font-size:11px;color:#475569">(Ở cùng)</span></td><td>${occCccd}</td><td>${occDob}</td><td>${occGender}</td><td>${occNationality}</td><td>${occAddress}</td><td>${occPhone}</td><td>${checkIn}</td></tr>`;
       });
 
       return [primaryRow, ...occupantRows];

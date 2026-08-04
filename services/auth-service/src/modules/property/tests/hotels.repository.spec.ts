@@ -56,12 +56,14 @@ describe("HotelsRepository stay creation", () => {
     });
 
     expect(generateReservationCode).toHaveBeenCalledWith(tx);
-    expect(tx.guestStay.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        reservationCode: "VSH_RESERVATION_0001",
-        status: "RESERVED",
+    expect(tx.guestStay.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          reservationCode: "VSH_RESERVATION_0001",
+          status: "RESERVED",
+        }),
       }),
-    });
+    );
     expect(result).toMatchObject({ reservationCode: "VSH_RESERVATION_0001" });
   });
 });

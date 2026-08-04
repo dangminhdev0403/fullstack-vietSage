@@ -114,6 +114,8 @@ export const stayOccupantInputSchema = z.object({
   identityNumber: z.string().trim().max(32, "Số CCCD/Hộ chiếu tối đa 32 ký tự").optional(),
   dateOfBirth: z.string().trim().max(20, "Ngày sinh tối đa 20 ký tự").optional(),
   gender: z.string().trim().max(20, "Giới tính tối đa 20 ký tự").optional(),
+  nationality: z.string().trim().max(80, "Quốc tịch tối đa 80 ký tự").optional(),
+  residencePlace: z.string().trim().max(500, "Địa chỉ tối đa 500 ký tự").optional(),
   isPrimary: z.boolean().default(false),
 });
 
