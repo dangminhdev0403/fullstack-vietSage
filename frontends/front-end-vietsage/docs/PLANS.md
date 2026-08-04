@@ -1,3 +1,31 @@
+## [complete] 2026-08-04 - Mission: fix-billing-void-item-check-and-auto-refresh
+
+- Created `isFolioItemVoided(item)` helper in `StaffBillingWorkspaceClient` (`src/app/(vietsage)/hotels/[hotelId]/billing/staff-billing-workspace-client.tsx`) to check `voidedAt`, `status === "VOID"`, `status === "VOIDED"`, and `status === "CANCELLED"`.
+- Resolved the "Không thể hủy khoản mục - Mục này đã bị hủy trước đó" error popup bug by hiding the `Hủy` button for voided items and properly rendering the `Đã hủy` badge with line-through styling.
+- Enabled automatic background sync (10s polling), realtime event triggers via `useOwnerRequestRealtime`, and immediate `invalidateHotelRealtimeQueries(queryClient, hotelId)` + `router.refresh()` calls on item voiding, surcharge creation, and discount additions to keep the entire page and left-side folio list in sync without requiring manual F5 refreshes.
+
+Verification result:
+
+- `npx tsc --noEmit` passed cleanly with **0 errors**.
+
+Remaining blockers/risks:
+
+- None.
+
+## [complete] 2026-08-04 - Mission: redesign-status-actions-table-buttons-ui
+
+- Redesigned status action buttons (`actionMeta`) in `RequestQueueClient` (`src/app/(vietsage)/hotels/[hotelId]/requests/request-queue-client.tsx`).
+- Replaced dark/clunky multi-line solid blocks with single-line (`whitespace-nowrap`), soft-tinted pill buttons featuring subtle borders, status-aligned color palettes (`blue`, `indigo`, `emerald`, `rose`, `slate`), and inline icons (`check`, `arrow_forward`, `task_alt`, `close`, `block`).
+- Enforced `className: "whitespace-nowrap min-w-[210px]"` on the `statusActions` column in `DataTableColumn` to prevent button height discrepancies and vertical line wrapping.
+
+Verification result:
+
+- `npx tsc --noEmit` passed cleanly with **0 errors**.
+
+Remaining blockers/risks:
+
+- None.
+
 ## [complete] 2026-08-04 - Mission: fix-status-priority-badge-wrapping-and-ui-alignment
 
 - Fixed badge text vertical wrapping (`Bình \n thường`, `Đã tiếp \n nhận`) in `hotel-ops-display.ts` (`src/features/hotel-ops/utils/hotel-ops-display.ts`) and `RequestQueueClient` (`src/app/(vietsage)/hotels/[hotelId]/requests/request-queue-client.tsx`).

@@ -156,38 +156,53 @@ const defaultLabels: RequestQueueLabels = {
 
 const actionMeta: Record<
   StaffRequestAction,
-  { label: string; status: GuestRequestStatus; note: string; className: string }
+  {
+    label: string;
+    status: GuestRequestStatus;
+    note: string;
+    icon: string;
+    className: string;
+  }
 > = {
   ACCEPT: {
     label: "Tiếp nhận",
     status: "ACKNOWLEDGED",
     note: "Chúng tôi đã tiếp nhận yêu cầu.",
-    className: "bg-[var(--primary)] text-[var(--on-primary)]",
+    icon: "check",
+    className:
+      "border border-blue-200/80 bg-blue-50/80 text-blue-700 hover:bg-blue-100 hover:border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/60",
   },
   START: {
     label: "Bắt đầu",
     status: "IN_PROGRESS",
     note: "Nhân sự phụ trách đang trên đường hỗ trợ.",
+    icon: "arrow_forward",
     className:
-      "bg-[var(--secondary-container)] text-[var(--on-secondary-container)]",
+      "border border-indigo-200/80 bg-indigo-50/80 text-indigo-700 hover:bg-indigo-100 hover:border-indigo-300 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800/60",
   },
   COMPLETE: {
     label: "Hoàn thành",
     status: "COMPLETED",
     note: "Yêu cầu của quý khách đã được hoàn thành.",
-    className: "bg-emerald-700 text-white",
+    icon: "task_alt",
+    className:
+      "border border-emerald-200/80 bg-emerald-50/80 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60",
   },
   CANCEL: {
     label: "Hủy",
     status: "CANCELLED",
     note: "Rất tiếc, dịch vụ này hiện chưa khả dụng.",
-    className: "bg-[var(--error-container)] text-[var(--on-error-container)]",
+    icon: "close",
+    className:
+      "border border-rose-200/80 bg-rose-50/80 text-rose-700 hover:bg-rose-100 hover:border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/60",
   },
   FAIL: {
     label: "Đánh dấu thất bại",
     status: "FAILED",
     note: "Chúng tôi chưa thể hoàn tất yêu cầu này.",
-    className: "bg-zinc-800 text-white",
+    icon: "block",
+    className:
+      "border border-slate-200 bg-slate-100/90 text-slate-700 hover:bg-slate-200 hover:border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
   },
 };
 
@@ -1188,9 +1203,10 @@ export function RequestQueueClient({
                     type="button"
                     disabled={isMutating}
                     onClick={() => void updateStatus(action)}
-                    className={`rounded-lg px-4 py-2 text-sm font-semibold transition disabled:opacity-60 ${actionMeta[action].className}`}
+                    className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all duration-150 shadow-2xs hover:shadow-xs active:scale-[0.98] disabled:opacity-60 ${actionMeta[action].className}`}
                   >
-                    {actionMeta[action].label}
+                    <VsIcon name={actionMeta[action].icon} className="text-sm opacity-80 shrink-0" />
+                    <span>{actionMeta[action].label}</span>
                   </button>
                 ))}
               </div>
@@ -1373,11 +1389,12 @@ export function RequestQueueClient({
       key: "actions" as RequestSortKey,
       sortable: false,
       header: mergedLabels.statusActions,
+      className: "whitespace-nowrap min-w-[210px]",
       cell: (request) => {
         const available = request.actions ?? statusActions[request.status] ?? [];
-        if (!available.length || isCheckedOutRequest(request)) return <span className="text-xs text-[#888]">-</span>;
+        if (!available.length || isCheckedOutRequest(request)) return <span className="text-xs text-slate-400">-</span>;
         return (
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 whitespace-nowrap">
             {available.map((action) => {
               const meta = actionMeta[action];
               return (
@@ -1390,9 +1407,10 @@ export function RequestQueueClient({
                     setSelectedRow(request);
                     void updateStatusForRequest(request, action);
                   }}
-                  className={`rounded-lg px-2.5 py-1 text-xs font-bold transition hover:opacity-90 active:scale-95 disabled:opacity-50 ${meta.className}`}
+                  className={`inline-flex items-center justify-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold whitespace-nowrap transition-all duration-150 shadow-2xs hover:shadow-xs active:scale-[0.97] disabled:opacity-50 ${meta.className}`}
                 >
-                  {meta.label}
+                  <VsIcon name={meta.icon} className="text-xs opacity-75 shrink-0" />
+                  <span>{meta.label}</span>
                 </button>
               );
             })}
@@ -1531,9 +1549,10 @@ export function RequestQueueClient({
                               acknowledgeUrgentRequest(notification.id);
                               void updateStatusForRequest(notification, primaryAction);
                             }}
-                            className={`rounded-lg px-3 py-2 text-xs font-black uppercase tracking-wide text-white hover:opacity-90 active:scale-95 disabled:opacity-50 ${actionMeta[primaryAction].className}`}
+                            className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition hover:opacity-90 active:scale-95 disabled:opacity-50 ${actionMeta[primaryAction].className}`}
                           >
-                            {actionMeta[primaryAction].label}
+                            <VsIcon name={actionMeta[primaryAction].icon} className="text-xs shrink-0" />
+                            <span>{actionMeta[primaryAction].label}</span>
                           </button>
                         ) : null;
                       })()}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import Swal from "sweetalert2";
@@ -15,6 +15,7 @@ import type {
 import { formatMoney } from "@/features/billing/utils/money";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
+import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
 
 type Props = {
   hotelId: string;
@@ -31,6 +32,15 @@ type ReconciliationChoice = {
   action: "provided" | "cancelled" | "";
   cancelReason: string;
 };
+
+function isFolioItemVoided(item: FolioItem): boolean {
+  return (
+    Boolean(item.voidedAt) ||
+    item.status === "VOID" ||
+    item.status === "VOIDED" ||
+    item.status === "CANCELLED"
+  );
+}
 
 function parseFormattedNumber(value: unknown): number {
   if (typeof value === "number") return value;
@@ -271,13 +281,13 @@ export function StaffBillingWorkspaceClient({
 
   const roomChargeTotal = useMemo(() => {
     return activeItems
-      .filter((item) => item.itemType === "ROOM_CHARGE" && !item.voidedAt)
+      .filter((item) => item.itemType === "ROOM_CHARGE" && !isFolioItemVoided(item))
       .reduce((sum, item) => sum + toNumber(item.totalSnapshot), 0);
   }, [activeItems]);
 
   const serviceChargeTotal = useMemo(() => {
     return activeItems
-      .filter((item) => item.itemType === "SERVICE" && !item.voidedAt)
+      .filter((item) => item.itemType === "SERVICE" && !isFolioItemVoided(item))
       .reduce((sum, item) => sum + toNumber(item.totalSnapshot), 0);
   }, [activeItems]);
 
@@ -290,6 +300,27 @@ export function StaffBillingWorkspaceClient({
     0,
     subtotal + tax + surchargeVal - discountVal,
   );
+
+  const refreshActiveFolio = useCallback(async () => {
+    if (!selectedFolioId) return;
+    try {
+      const [summaryResponse, itemsResponse] = await Promise.all([
+        requestInternalApiEnvelope<FolioSummary>(
+          `${apiBase}/folios/${encodeURIComponent(selectedFolioId)}/summary`,
+          { method: "GET" },
+        ),
+        requestInternalApiEnvelope<FolioItemsPage>(
+          `${apiBase}/folios/${encodeURIComponent(selectedFolioId)}/items?page=1&limit=100`,
+          { method: "GET" },
+        ),
+      ]);
+      setSummary(summaryResponse.data);
+      setItems(itemsResponse.data.items);
+      setLoadedFolioId(selectedFolioId);
+    } catch {
+      // Background refresh silent catch
+    }
+  }, [apiBase, selectedFolioId]);
 
   useEffect(() => {
     if (!selectedFolioId) return;
@@ -322,10 +353,34 @@ export function StaffBillingWorkspaceClient({
         });
       });
 
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        void refreshActiveFolio();
+        router.refresh();
+      }
+    }, 10000);
+
     return () => {
       cancelled = true;
+      clearInterval(interval);
     };
-  }, [apiBase, selectedFolioId]);
+  }, [apiBase, selectedFolioId, refreshActiveFolio, router]);
+
+  const realtimeHandlers = useMemo(
+    () => ({
+      onUpdated: () => {
+        void refreshActiveFolio();
+        router.refresh();
+      },
+      onReconnect: () => {
+        void refreshActiveFolio();
+        router.refresh();
+      },
+    }),
+    [refreshActiveFolio, router],
+  );
+
+  useOwnerRequestRealtime(hotelId, realtimeHandlers, { showConnectionToasts: false });
 
   async function issueInvoiceAndCollect() {
     if (!selectedFolioId || !canManage) return;
@@ -727,6 +782,8 @@ export function StaffBillingWorkspaceClient({
                               ]);
                               setSummary(summaryRes.data);
                               setItems(itemsRes.data.items);
+                              await invalidateHotelRealtimeQueries(queryClient, hotelId);
+                              router.refresh();
                               void Swal.fire({
                                 icon: "success",
                                 title: "Đã hủy khoản mục thành công",
@@ -1012,6 +1069,8 @@ export function StaffBillingWorkspaceClient({
                           ]);
                           setSummary(summaryRes.data);
                           setItems(itemsRes.data.items);
+                          await invalidateHotelRealtimeQueries(queryClient, hotelId);
+                          router.refresh();
                           void Swal.fire({
                             icon: "success",
                             title: "Đã thêm phụ thu vào folio",
@@ -1171,6 +1230,8 @@ export function StaffBillingWorkspaceClient({
                           ]);
                           setSummary(summaryRes.data);
                           setItems(itemsRes.data.items);
+                          await invalidateHotelRealtimeQueries(queryClient, hotelId);
+                          router.refresh();
                           void Swal.fire({
                             icon: "success",
                             title: "Đã thêm giảm giá vào folio",
