@@ -192,7 +192,7 @@ const actionMeta: Record<
 
 const statusActions: Record<GuestRequestStatus, StaffRequestAction[]> = {
   CREATED: ["ACCEPT", "CANCEL"],
-  ACKNOWLEDGED: ["START", "CANCEL"],
+  ACKNOWLEDGED: ["COMPLETE", "FAIL"],
   IN_PROGRESS: ["COMPLETE", "FAIL"],
   COMPLETED: [],
   CANCELLED: [],
@@ -762,34 +762,32 @@ export function RequestQueueClient({
 
     for (const request of Object.values(liveRequestChanges)) {
       const existing = byId.get(request.id);
+      const nextStatus = request.status ?? existing?.status;
+      const nextActions = nextStatus ? (statusActions[nextStatus] ?? []) : (existing?.actions ?? []);
       byId.set(
         request.id,
         existing
-          ? { ...existing, ...request }
-          : (request as StaffRequestListItem),
+          ? { ...existing, ...request, actions: nextActions }
+          : { ...(request as StaffRequestListItem), actions: nextActions },
       );
     }
 
-    const liveIds = new Set(Object.keys(liveRequestChanges));
-    const liveRequests = [...byId.values()].filter((request) =>
-      liveIds.has(request.id),
-    );
-    const stableRequests = [...byId.values()].filter(
-      (request) => !liveIds.has(request.id),
-    );
+    let allItems = [...byId.values()];
 
-    return [...liveRequests, ...stableRequests].sort(
-      (leftRequest, rightRequest) => {
-        const directionMultiplier = sortState.direction === "asc" ? 1 : -1;
-        const result = compareValues(
-          getSortableRequestValue(leftRequest, sortState.key),
-          getSortableRequestValue(rightRequest, sortState.key),
-        );
+    if (filters.status) {
+      allItems = allItems.filter((item) => item.status === filters.status);
+    }
 
-        return result * directionMultiplier;
-      },
-    );
-  }, [liveRequestChanges, requests, sortState]);
+    return allItems.sort((leftRequest, rightRequest) => {
+      const directionMultiplier = sortState.direction === "asc" ? 1 : -1;
+      const result = compareValues(
+        getSortableRequestValue(leftRequest, sortState.key),
+        getSortableRequestValue(rightRequest, sortState.key),
+      );
+
+      return result * directionMultiplier;
+    });
+  }, [filters.status, liveRequestChanges, requests, sortState]);
 
 
   function openRequestRow(request: StaffRequestListItem) {
