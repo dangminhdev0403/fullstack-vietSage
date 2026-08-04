@@ -1335,9 +1335,10 @@ export function RequestQueueClient({
       key: "priority",
       sortable: true,
       header: mergedLabels.priority,
+      className: "whitespace-nowrap",
       cell: (request) => (
         <span
-          className={`rounded-full px-2.5 py-1 text-xs font-bold ${priorityTone(request.priority)}`}
+          className={`inline-flex items-center justify-center whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold shrink-0 ${priorityTone(request.priority)}`}
         >
           {requestPriorityLabelMap[request.priority]}
         </span>
@@ -1347,9 +1348,10 @@ export function RequestQueueClient({
       key: "status",
       sortable: true,
       header: mergedLabels.status,
+      className: "whitespace-nowrap",
       cell: (request) => (
         <span
-          className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusTone(request.status)}`}
+          className={`inline-flex items-center justify-center whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold shrink-0 ${statusTone(request.status)}`}
         >
           {requestStatusLabelMap[request.status]}
         </span>

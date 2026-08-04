@@ -1,3 +1,18 @@
+## [complete] 2026-08-04 - Mission: fix-status-priority-badge-wrapping-and-ui-alignment
+
+- Fixed badge text vertical wrapping (`Bình \n thường`, `Đã tiếp \n nhận`) in `hotel-ops-display.ts` (`src/features/hotel-ops/utils/hotel-ops-display.ts`) and `RequestQueueClient` (`src/app/(vietsage)/hotels/[hotelId]/requests/request-queue-client.tsx`).
+- Enhanced `statusTone` and `priorityTone` helper styles with `inline-flex items-center justify-center whitespace-nowrap` and crisp color tones (`slate`, `indigo`, `amber`, `emerald`, `zinc`, `rose`, `sky`) with subtle borders.
+- Applied `className: "whitespace-nowrap"` to `priority` and `status` columns in `DataTableColumn` definitions across request queue and service catalog views.
+
+Verification result:
+
+- `npx eslint` checked clean with **0 errors** (16 warnings).
+- `npx tsc --noEmit` passed with 0 errors.
+
+Remaining blockers/risks:
+
+- None.
+
 ## [complete] 2026-08-04 - Mission: remove-overdue-alert-view-stay-button-and-fix-checkout-room-redirect
 
 - Removed the **"Xem thông tin lượt ở & Khách"** (`swal-btn-view-stay`) button from the Overdue Check-out Alert Modal in `StaffRoomsClient` (`src/app/(vietsage)/hotels/[hotelId]/rooms/staff-rooms-client.tsx`).

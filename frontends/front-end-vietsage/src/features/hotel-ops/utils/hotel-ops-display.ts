@@ -82,33 +82,33 @@ export function getGuestLabel(request: HotelGuestRequest): string {
 export function statusTone(status: GuestRequestStatus): string {
   switch (status) {
     case "CREATED":
-      return "bg-[var(--surface-container-high)] text-[var(--on-surface-variant)]";
+      return "inline-flex items-center justify-center whitespace-nowrap bg-slate-100 text-slate-700 border border-slate-200/80 shadow-2xs";
     case "ACKNOWLEDGED":
-      return "bg-[var(--primary-fixed)] text-[var(--on-primary-fixed-variant)]";
+      return "inline-flex items-center justify-center whitespace-nowrap bg-indigo-50 text-indigo-700 border border-indigo-200/80 shadow-2xs";
     case "IN_PROGRESS":
-      return "bg-[var(--secondary-container)] text-[var(--on-secondary-container)]";
+      return "inline-flex items-center justify-center whitespace-nowrap bg-amber-50 text-amber-800 border border-amber-200/80 shadow-2xs";
     case "COMPLETED":
-      return "bg-emerald-100 text-emerald-800";
+      return "inline-flex items-center justify-center whitespace-nowrap bg-emerald-50 text-emerald-700 border border-emerald-200/80 shadow-2xs";
     case "CANCELLED":
-      return "bg-zinc-200 text-zinc-700";
+      return "inline-flex items-center justify-center whitespace-nowrap bg-zinc-100 text-zinc-600 border border-zinc-200 shadow-2xs";
     case "FAILED":
-      return "bg-[var(--error-container)] text-[var(--on-error-container)]";
+      return "inline-flex items-center justify-center whitespace-nowrap bg-rose-50 text-rose-700 border border-rose-200/80 shadow-2xs";
   }
 }
 
 export function priorityTone(priority: StaffRequestPriority): string {
   switch (priority) {
     case "URGENT":
-      return "bg-[var(--error-container)] text-[var(--on-error-container)]";
+      return "inline-flex items-center justify-center whitespace-nowrap bg-rose-100 text-rose-800 border border-rose-300 font-bold shadow-2xs animate-pulse";
     case "NORMAL":
-      return "bg-[var(--primary-fixed)] text-[var(--on-primary-fixed-variant)]";
+      return "inline-flex items-center justify-center whitespace-nowrap bg-sky-50 text-sky-700 border border-sky-200/80 shadow-2xs";
   }
 }
 
 export function serviceStatusTone(status: HotelServiceStatus): string {
   return status === "ACTIVE"
-    ? "bg-emerald-100 text-emerald-800"
-    : "bg-zinc-200 text-zinc-700";
+    ? "inline-flex items-center justify-center whitespace-nowrap bg-emerald-50 text-emerald-700 border border-emerald-200/80"
+    : "inline-flex items-center justify-center whitespace-nowrap bg-zinc-100 text-zinc-600 border border-zinc-200";
 }
 
 export function filterExtraOccupants<

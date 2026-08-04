@@ -305,9 +305,9 @@ export function ServiceCatalogClient({
       key: "status",
       header: "Trạng thái",
       headerClassName: "text-center",
-      className: "text-center",
+      className: "text-center whitespace-nowrap",
       cell: (category) => (
-        <span className={`inline-block rounded-full px-3 py-1 text-xs font-bold ${serviceStatusTone(category.status)}`}>
+        <span className={`inline-flex items-center justify-center whitespace-nowrap rounded-full px-3 py-1 text-xs font-bold ${serviceStatusTone(category.status)}`}>
           {serviceStatusLabelMap[category.status]}
         </span>
       ),
