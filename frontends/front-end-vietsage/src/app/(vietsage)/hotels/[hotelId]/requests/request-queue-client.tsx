@@ -1243,6 +1243,18 @@ export function RequestQueueClient({
     const meta = actionMeta[action];
     const note = statusNote.trim() || meta.note;
 
+    const confirmation = await Swal.fire({
+      icon: meta.status === "CANCELLED" || meta.status === "FAILED" ? "warning" : "question",
+      title: `${meta.label} yêu cầu phòng ${targetRow.roomNumber}?`,
+      text: "Xác nhận cập nhật trạng thái yêu cầu của phòng này.",
+      showCancelButton: true,
+      confirmButtonText: "Xác nhận",
+      cancelButtonText: "Hủy",
+      confirmButtonColor: swalButtonColor,
+    });
+
+    if (!confirmation.isConfirmed) return;
+
     setOperationError(null);
     try {
       const updated = await requestInternalApi<HotelGuestRequest>(
@@ -1657,7 +1669,6 @@ export function RequestQueueClient({
           onSortChange: (key, direction) =>
             setSortState({ key: key as RequestSortKey, direction }),
         }}
-        onRowClick={openRequestRow}
         pagination={
           page && pageSize
             ? {
@@ -1673,38 +1684,6 @@ export function RequestQueueClient({
             : undefined
         }
       />
-
-      {selectedRow ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="request-detail-modal-title"
-          onClick={() => setSelectedRow(null)}
-        >
-          <section
-            className={`max-h-[90vh] w-full overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl ${isFinalRequestStatus(selectedRequest?.status ?? selectedRow.status) ? "max-w-5xl" : "max-w-6xl"}`}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="mb-5 flex items-start justify-between gap-4">
-              <h2
-                id="request-detail-modal-title"
-                className="text-2xl font-semibold text-[var(--primary)]"
-              >
-                {mergedLabels.requestDetail}
-              </h2>
-              <button
-                type="button"
-                onClick={() => setSelectedRow(null)}
-                className="rounded-lg border border-[var(--outline-variant)] px-3 py-2 text-sm font-semibold text-[var(--primary)]"
-              >
-                {mergedLabels.closeDetail}
-              </button>
-            </div>
-            {renderRequestDetail(selectedRow, detailRequest)}
-          </section>
-        </div>
-      ) : null}
     </div>
   );
 }
