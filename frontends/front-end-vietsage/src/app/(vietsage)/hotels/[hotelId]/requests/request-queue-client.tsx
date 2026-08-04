@@ -20,6 +20,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import Swal from "sweetalert2";
+import { toast } from "sonner";
 
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import {
@@ -853,22 +854,12 @@ export function RequestQueueClient({
     onSuccess: ({ data: updated }) => {
       setStatusNote("");
       syncUpdatedRequest(updated);
-      void Swal.fire({
-        icon: "success",
-        title: "Đã cập nhật trạng thái",
-        timer: 1300,
-        showConfirmButton: false,
-      });
+      toast.success("Đã cập nhật trạng thái yêu cầu thành công");
     },
     onError: (error) => {
       const message = getHttpErrorMessage(error, mergedLabels.operationError);
       setOperationError(message);
-      void Swal.fire({
-        icon: "error",
-        title: "Không thể cập nhật trạng thái",
-        text: message,
-        confirmButtonColor: swalButtonColor,
-      });
+      toast.error(message);
     },
   }));
 
@@ -953,21 +944,6 @@ export function RequestQueueClient({
 
     const meta = actionMeta[action];
     const note = statusNote.trim() || meta.note;
-    const isDestructive = meta.status === "CANCELLED" || meta.status === "FAILED";
-
-    if (isDestructive) {
-      const confirmation = await Swal.fire({
-        icon: "warning",
-        title: `${meta.label} yêu cầu?`,
-        text: "Ghi chú cập nhật trạng thái sẽ hiển thị cho khách.",
-        showCancelButton: true,
-        confirmButtonText: "Xác nhận",
-        cancelButtonText: "Đóng",
-        confirmButtonColor: swalButtonColor,
-      });
-
-      if (!confirmation.isConfirmed) return;
-    }
 
     setOperationError(null);
     statusMutation.mutate({
@@ -1266,21 +1242,6 @@ export function RequestQueueClient({
 
     const meta = actionMeta[action];
     const note = statusNote.trim() || meta.note;
-    const isDestructive = meta.status === "CANCELLED" || meta.status === "FAILED";
-
-    if (isDestructive) {
-      const confirmation = await Swal.fire({
-        icon: "warning",
-        title: `${meta.label} yêu cầu phòng ${targetRow.roomNumber}?`,
-        text: "Trạng thái mới sẽ được cập nhật và thông báo cho khách.",
-        showCancelButton: true,
-        confirmButtonText: "Xác nhận",
-        cancelButtonText: "Hủy",
-        confirmButtonColor: swalButtonColor,
-      });
-
-      if (!confirmation.isConfirmed) return;
-    }
 
     setOperationError(null);
     try {
@@ -1296,21 +1257,11 @@ export function RequestQueueClient({
       );
       syncUpdatedRequest(updated);
       setStatusNote("");
-      void Swal.fire({
-        icon: "success",
-        title: `Đã ${meta.label.toLowerCase()} yêu cầu phòng ${targetRow.roomNumber}`,
-        timer: 1200,
-        showConfirmButton: false,
-      });
+      toast.success(`Đã ${meta.label.toLowerCase()} yêu cầu phòng ${targetRow.roomNumber}`);
     } catch (error) {
       const message = getHttpErrorMessage(error, mergedLabels.operationError);
       setOperationError(message);
-      void Swal.fire({
-        icon: "error",
-        title: "Không thể cập nhật trạng thái",
-        text: message,
-        confirmButtonColor: swalButtonColor,
-      });
+      toast.error(message);
     }
   }
 

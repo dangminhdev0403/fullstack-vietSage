@@ -398,9 +398,23 @@ export class HotelRequestsService {
   private assertRequestTransition(from: GuestRequestStatus, to: CanonicalGuestRequestStatus) {
     const normalizedFrom = normalizeGuestRequestStatus(from);
     const allowed: Record<CanonicalGuestRequestStatus, CanonicalGuestRequestStatus[]> = {
-      CREATED: [GuestRequestStatus.ACKNOWLEDGED, GuestRequestStatus.CANCELLED],
-      ACKNOWLEDGED: [GuestRequestStatus.IN_PROGRESS, GuestRequestStatus.CANCELLED],
-      IN_PROGRESS: [GuestRequestStatus.COMPLETED, GuestRequestStatus.FAILED],
+      CREATED: [
+        GuestRequestStatus.ACKNOWLEDGED,
+        GuestRequestStatus.COMPLETED,
+        GuestRequestStatus.CANCELLED,
+        GuestRequestStatus.FAILED,
+      ],
+      ACKNOWLEDGED: [
+        GuestRequestStatus.COMPLETED,
+        GuestRequestStatus.FAILED,
+        GuestRequestStatus.CANCELLED,
+        GuestRequestStatus.IN_PROGRESS,
+      ],
+      IN_PROGRESS: [
+        GuestRequestStatus.COMPLETED,
+        GuestRequestStatus.FAILED,
+        GuestRequestStatus.CANCELLED,
+      ],
       COMPLETED: [],
       CANCELLED: [],
       FAILED: [],
