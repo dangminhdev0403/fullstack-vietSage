@@ -181,6 +181,14 @@ export class HotelRoomsRepository {
     plannedCheckOutAt: Date;
     createdByUserId: string;
     tenantId: string;
+    occupants?: Array<{
+      fullName: string;
+      phone?: string;
+      identityNumber?: string;
+      dateOfBirth?: string;
+      gender?: string;
+      isPrimary?: boolean;
+    }>;
     generateReservationCode: (tx: Prisma.TransactionClient) => Promise<string>;
     generateFolioNumber: (tx: Prisma.TransactionClient) => Promise<string>;
   }) {
@@ -202,6 +210,45 @@ export class HotelRoomsRepository {
           plannedCheckOutAt: input.plannedCheckOutAt,
           createdByUserId: input.createdByUserId,
           status: GuestStayStatus.RESERVED,
+          occupants: {
+            create: [
+              {
+                hotelId: input.hotelId,
+                fullName: input.guestDisplayName.trim(),
+                phone: input.guestPhone,
+                identityNumber: input.guestIdentityNumber,
+                dateOfBirth: input.guestDateOfBirth,
+                gender: input.guestGender,
+                isPrimary: true,
+              },
+              ...(input.occupants ?? [])
+                .filter(
+                  (occ) =>
+                    occ.fullName.trim() &&
+                    !(
+                      occ.fullName.trim() === input.guestDisplayName.trim() &&
+                      (!occ.identityNumber?.trim() ||
+                        occ.identityNumber?.trim() === input.guestIdentityNumber?.trim())
+                    ),
+                )
+                .map((occ) => ({
+                  hotelId: input.hotelId,
+                  fullName: occ.fullName.trim(),
+                  phone: occ.phone?.trim(),
+                  identityNumber: occ.identityNumber?.trim(),
+                  dateOfBirth: occ.dateOfBirth?.trim(),
+                  gender: occ.gender?.trim(),
+                  isPrimary: false,
+                })),
+            ],
+          },
+        },
+        include: {
+          occupants: {
+            orderBy: {
+              createdAt: "asc",
+            },
+          },
         },
       });
 
@@ -232,7 +279,10 @@ export class HotelRoomsRepository {
   }
 
   async findStayInHotel(hotelId: string, stayId: string) {
-    return this.prisma.guestStay.findFirst({ where: { id: stayId, hotelId } });
+    return this.prisma.guestStay.findFirst({
+      where: { id: stayId, hotelId },
+      include: { occupants: { orderBy: { createdAt: "asc" } } },
+    });
   }
 
   async findBlockingBillingFolio(hotelId: string, stayId: string) {
@@ -351,6 +401,13 @@ export class HotelRoomsRepository {
           activatedAt: now,
           accessCodeHash: input.accessCodeHash,
           accessCodeExpiresAt: input.accessCodeExpiresAt,
+        },
+        include: {
+          occupants: {
+            orderBy: {
+              createdAt: "asc",
+            },
+          },
         },
       });
 
@@ -654,18 +711,85 @@ export class HotelRoomsRepository {
   async updateStay(
     hotelId: string,
     stayId: string,
-    input: { plannedCheckOutAt?: Date; guestDisplayName?: string; guestPhone?: string },
+    input: {
+      plannedCheckOutAt?: Date;
+      guestDisplayName?: string;
+      guestPhone?: string;
+      occupants?: Array<{
+        fullName: string;
+        phone?: string;
+        identityNumber?: string;
+        dateOfBirth?: string;
+        gender?: string;
+        isPrimary?: boolean;
+      }>;
+    },
   ) {
-    return this.prisma.guestStay.update({
-      where: { id: stayId, hotelId },
-      data: {
-        ...(input.plannedCheckOutAt ? { plannedCheckOutAt: input.plannedCheckOutAt } : {}),
-        ...(input.guestDisplayName ? { guestDisplayName: input.guestDisplayName } : {}),
-        ...(input.guestPhone !== undefined ? { guestPhone: input.guestPhone } : {}),
-      },
-      include: {
-        occupants: true,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const existingStay = await tx.guestStay.findFirst({
+        where: { id: stayId, hotelId },
+      });
+      if (!existingStay) return null;
+
+      const updatedDisplayName = input.guestDisplayName?.trim() || existingStay.guestDisplayName;
+      const updatedPhone = input.guestPhone !== undefined ? input.guestPhone : existingStay.guestPhone;
+
+      if (input.occupants !== undefined) {
+        await tx.guestStayOccupant.deleteMany({
+          where: { stayId, hotelId },
+        });
+
+        await tx.guestStayOccupant.createMany({
+          data: [
+            {
+              stayId,
+              hotelId,
+              fullName: updatedDisplayName,
+              phone: updatedPhone ?? undefined,
+              identityNumber: existingStay.guestIdentityNumber ?? undefined,
+              dateOfBirth: existingStay.guestDateOfBirth ?? undefined,
+              gender: existingStay.guestGender ?? undefined,
+              isPrimary: true,
+            },
+            ...(input.occupants ?? [])
+              .filter(
+                (occ) =>
+                  occ.fullName.trim() &&
+                  !(
+                    occ.fullName.trim() === updatedDisplayName &&
+                    (!occ.identityNumber?.trim() ||
+                      occ.identityNumber?.trim() === (existingStay.guestIdentityNumber?.trim() ?? ""))
+                  ),
+              )
+              .map((occ) => ({
+                stayId,
+                hotelId,
+                fullName: occ.fullName.trim(),
+                phone: occ.phone?.trim() || undefined,
+                identityNumber: occ.identityNumber?.trim() || undefined,
+                dateOfBirth: occ.dateOfBirth?.trim() || undefined,
+                gender: occ.gender?.trim() || undefined,
+                isPrimary: false,
+              })),
+          ],
+        });
+      }
+
+      return tx.guestStay.update({
+        where: { id: stayId },
+        data: {
+          ...(input.plannedCheckOutAt ? { plannedCheckOutAt: input.plannedCheckOutAt } : {}),
+          ...(input.guestDisplayName ? { guestDisplayName: input.guestDisplayName } : {}),
+          ...(input.guestPhone !== undefined ? { guestPhone: input.guestPhone } : {}),
+        },
+        include: {
+          occupants: {
+            orderBy: {
+              createdAt: "asc",
+            },
+          },
+        },
+      });
     });
   }
 

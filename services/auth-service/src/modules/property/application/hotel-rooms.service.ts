@@ -239,6 +239,7 @@ export class HotelRoomsService {
       plannedCheckOutAt: dto.plannedCheckOutAt,
       createdByUserId: actorUserId,
       tenantId: hotel.tenantId,
+      occupants: dto.occupants,
       generateReservationCode: (tx) => this.codesService.generateEntityCode("RESERVATION", tx),
       generateFolioNumber: (tx) => this.codesService.generateEntityCode("FOLIO", tx),
     });
@@ -311,6 +312,9 @@ export class HotelRoomsService {
     }
 
     const updated = await this.hotelRoomsRepository.updateStay(hotelId, stayId, dto);
+    if (!updated) {
+      throw new NotFoundException("Không tìm thấy lượt lưu trú");
+    }
     return this.toStayData(updated);
   }
 

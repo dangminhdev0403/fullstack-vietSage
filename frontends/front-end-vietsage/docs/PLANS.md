@@ -1,3 +1,16 @@
+## [complete] 2026-08-04 - Mission: fix-co-guest-occupants-filtering-and-lodging-list-print
+
+- Removed `isSamePhone` check from `filterExtraOccupants` in `hotel-ops-display.ts` (`src/features/hotel-ops/utils/hotel-ops-display.ts`) so co-guests sharing a contact phone number with the primary guest are preserved.
+- Ensured co-guests appear in room stay detail modals (`StayOccupantsViewer`) and browser print snapshots ("In danh sách lưu trú").
+
+Verification result:
+
+- `npx tsc --noEmit` passed cleanly with **0 errors**.
+
+Remaining blockers/risks:
+
+- None.
+
 ## [complete] 2026-08-04 - Mission: fix-billing-void-item-check-and-auto-refresh
 
 - Created `isFolioItemVoided(item)` helper in `StaffBillingWorkspaceClient` (`src/app/(vietsage)/hotels/[hotelId]/billing/staff-billing-workspace-client.tsx`) to check `voidedAt`, `status === "VOID"`, `status === "VOIDED"`, and `status === "CANCELLED"`.

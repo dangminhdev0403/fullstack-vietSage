@@ -1,0 +1,1642 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: frontends/front-end-vietsage/src/features/local-biometric/components/check-in-workspace.tsx, frontends/front-end-vietsage/src/features/local-biometric/types/check-in-workspace.ts, frontends/front-end-vietsage/src/features/hotel-ops/types/hotel-ops-contract.ts, frontends/front-end-vietsage/src/features/hotel-ops/service/hotel-ops-service.ts, frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/stays/route.ts, frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/rooms/staff-rooms-client.tsx, frontends/front-end-vietsage/src/features/hotel-ops/utils/hotel-ops-display.ts, services/auth-service/src/modules/property/api/hotel-rooms.controller.ts, services/auth-service/src/modules/property/domain/schemas/rooms.schema.ts, services/auth-service/src/modules/property/application/hotel-rooms.service.ts, services/auth-service/src/modules/property/infrastructure/repositories/hotel-rooms.repository.ts, services/auth-service/src/modules/property/tests/rooms.guest-identity.spec.ts
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    src/
+      app/
+        (vietsage)/
+          hotels/
+            [hotelId]/
+              rooms/
+                staff-rooms-client.tsx
+        api/
+          hotel-ops/
+            hotels/
+              [hotelId]/
+                stays/
+                  route.ts
+      features/
+        hotel-ops/
+          service/
+            hotel-ops-service.ts
+          types/
+            hotel-ops-contract.ts
+          utils/
+            hotel-ops-display.ts
+        local-biometric/
+          components/
+            check-in-workspace.tsx
+          types/
+            check-in-workspace.ts
+services/
+  auth-service/
+    src/
+      modules/
+        property/
+          api/
+            hotel-rooms.controller.ts
+          application/
+            hotel-rooms.service.ts
+          domain/
+            schemas/
+              rooms.schema.ts
+          infrastructure/
+            repositories/
+              hotel-rooms.repository.ts
+          tests/
+            rooms.guest-identity.spec.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="services/auth-service/src/modules/property/api/hotel-rooms.controller.ts">
+import { Body, Controller, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import {
+  ApiBody,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiParam,
+  ApiQuery,
+  ApiTags,
+} from "@nestjs/swagger";
+import type { Request } from "express";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
+import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
+import type { AuthenticatedUser } from "../../../shared/security";
+import { HotelRoomsService } from "../application/hotel-rooms.service";
+import {
+  checkOutBodySchema,
+  createRoomBodySchema,
+  createRoomsBodySchema,
+  createStayBodySchema,
+  listRoomsQuerySchema,
+  qrReasonBodySchema,
+  updateRoomBodySchema,
+  updateStayBodySchema,
+} from "../domain/schemas/rooms.schema";
+import {
+  hotelIdParamSchema,
+  roomIdParamSchema,
+  stayIdParamSchema,
+} from "../domain/schemas/shared.schema";
+⋮----
+interface RequestWithUser extends Request {
+  user: AuthenticatedUser;
+}
+⋮----
+export class HotelRoomsController {
+⋮----
+constructor(private readonly hotelRoomsService: HotelRoomsService)
+⋮----
+async createRoom(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async createRooms(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async listRooms(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Query() query: unknown,
+)
+⋮----
+async updateRoom(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("roomId") roomIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async createStay(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async createAndCheckInStay(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async checkInStay(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("stayId") stayIdParam: string,
+)
+⋮----
+async checkOutStay(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("stayId") stayIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async updateStay(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("stayId") stayIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async rotateQr(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("roomId") roomIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async activateQr(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("roomId") roomIdParam: string,
+)
+⋮----
+async deactivateQr(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("roomId") roomIdParam: string,
+    @Body() body: unknown,
+)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/stays/route.ts">
+import { z } from "zod";
+import { HttpError } from "@/core/http/http-error";
+import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
+import {
+  executeHotelOpsBackendRequest,
+  hotelOpsHttpErrorResponse,
+  successResponse,
+  unknownServerErrorResponse,
+  validationErrorResponse,
+} from "@/app/api/hotel-ops/_utils";
+⋮----
+type Params = { params: Promise<{ hotelId: string }> };
+⋮----
+export async function POST(request: Request, context: Params)
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/hotel-ops/utils/hotel-ops-display.ts">
+import type { GuestRequestStatus, GuestRequestType } from "@/features/guest-os/types/guest-os-contract";
+import type { HotelGuestRequest, HotelServiceItem, HotelServiceStatus, StaffRequestPriority } from "@/features/hotel-ops/types/hotel-ops-contract";
+⋮----
+export function formatOpsDateTime(value?: string | null): string
+⋮----
+export function formatMoney(item: Pick<HotelServiceItem, "price" | "currency">): string
+⋮----
+export function getRequestTitle(request: HotelGuestRequest): string
+⋮----
+export function getRoomLabel(request: HotelGuestRequest): string
+⋮----
+export function getGuestLabel(request: HotelGuestRequest): string
+⋮----
+export function statusTone(status: GuestRequestStatus): string
+⋮----
+export function priorityTone(priority: StaffRequestPriority): string
+⋮----
+export function serviceStatusTone(status: HotelServiceStatus): string
+⋮----
+export function filterExtraOccupants<
+  T extends {
+    fullName?: string | null;
+    identityNumber?: string | null;
+    phone?: string | null;
+    isPrimary?: boolean | null;
+    isLeader?: boolean | null;
+  },
+>(
+  occupants: T[] | undefined | null,
+  leader:
+    | {
+        guestDisplayName?: string | null;
+        guestIdentityNumber?: string | null;
+        guestPhone?: string | null;
+      }
+    | undefined
+    | null,
+): T[]
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/types/check-in-workspace.ts">
+export type CheckInWorkspaceRoom = {
+  id: string;
+  roomNumber: string;
+  type?: string;
+  status: string;
+};
+⋮----
+export type CheckInOccupantField = {
+  fullName: string;
+  phone?: string;
+  identityNumber?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  isPrimary?: boolean;
+};
+⋮----
+export type CheckInStayFields = {
+  guestDisplayName: string;
+  guestPhone: string;
+  plannedCheckOutAt: string;
+  guestIdentityNumber?: string;
+  guestDateOfBirth?: string;
+  guestGender?: string;
+  guestNationality?: string;
+  guestResidencePlace?: string;
+  occupants?: CheckInOccupantField[];
+};
+⋮----
+export type CheckInWorkspaceProps = {
+  open: boolean;
+  hotelId: string;
+  room: CheckInWorkspaceRoom;
+  canManageStays: boolean;
+  initialStayFields?: Partial<CheckInStayFields>;
+  submitState?: 'idle' | 'submitting' | 'error';
+  submitError?: string;
+  onSubmit: (fields: CheckInStayFields) => void;
+  onClose: () => void;
+};
+</file>
+
+<file path="services/auth-service/src/modules/property/tests/rooms.guest-identity.spec.ts">
+import { createStayBodySchema } from "../domain/schemas/rooms.schema";
+import { HotelRoomsRepository } from "../infrastructure/repositories/hotel-rooms.repository";
+</file>
+
+<file path="services/auth-service/src/modules/property/application/hotel-rooms.service.ts">
+import {
+  BadRequestException,
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  Optional,
+} from "@nestjs/common";
+import { GuestStayStatus, Prisma, RoomQRCodeStatus, RoomStatus } from "@prisma/client";
+import {
+  addHours,
+  generateOpaqueToken,
+  hashOpaqueToken,
+} from "../../../common/security/token-hash.util";
+import { AppLogger } from "../../../common/logging/app-logger.service";
+import {
+  GUEST_REQUEST_EVENT_PUBLISHER,
+  NOOP_GUEST_REQUEST_EVENT_PUBLISHER,
+  type GuestRequestEventPublisher,
+} from "../../../shared/events";
+import { CodesService } from "../../codes/codes-public";
+import { HotelAccessService } from "./hotel-access.service";
+import { HotelRoomsRepository } from "../infrastructure/repositories/hotel-rooms.repository";
+import type { RoomListRow } from "../infrastructure/repositories/hotel-repository.types";
+import type {
+  CheckOutBodyInput,
+  CreateRoomBodyInput,
+  CreateRoomsBodyInput,
+  CreateStayBodyInput,
+  ListRoomsQueryInput,
+  QrReasonBodyInput,
+  UpdateRoomBodyInput,
+  UpdateStayBodyInput,
+} from "../domain/schemas/rooms.schema";
+⋮----
+export class HotelRoomsService {
+⋮----
+constructor(
+    private readonly hotelRoomsRepository: HotelRoomsRepository,
+    private readonly codesService: CodesService,
+    private readonly hotelAccessService: HotelAccessService,
+    private readonly logger: AppLogger = new AppLogger(),
+    @Optional()
+    @Inject(GUEST_REQUEST_EVENT_PUBLISHER)
+    eventPublisher?: GuestRequestEventPublisher,
+)
+async createRoom(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    dto: CreateRoomBodyInput,
+)
+⋮----
+async createRooms(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    dto: CreateRoomsBodyInput,
+)
+⋮----
+private async createRoomRecord(hotelId: string, dto: CreateRoomBodyInput)
+⋮----
+async listRooms(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    query: ListRoomsQueryInput,
+)
+⋮----
+async updateRoom(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    roomId: string,
+    dto: UpdateRoomBodyInput,
+)
+⋮----
+async createStay(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    dto: CreateStayBodyInput,
+)
+⋮----
+async checkInStay(actorUserId: string, activeRoleId: string, hotelId: string, stayId: string)
+⋮----
+async updateStay(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    stayId: string,
+    dto: UpdateStayBodyInput,
+)
+⋮----
+async createAndCheckInStay(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    dto: CreateStayBodyInput,
+)
+⋮----
+async checkOutStay(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    stayId: string,
+    dto: CheckOutBodyInput,
+)
+⋮----
+async rotateQr(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    roomId: string,
+    dto: QrReasonBodyInput,
+)
+⋮----
+async activateQr(actorUserId: string, activeRoleId: string, hotelId: string, roomId: string)
+⋮----
+async deactivateQr(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    roomId: string,
+    dto: QrReasonBodyInput,
+)
+⋮----
+private async assertRoomInHotel(hotelId: string, roomId: string)
+⋮----
+private logBusinessEvent(
+    message: string,
+    event: string,
+    operation: string,
+    metadata: Record<string, unknown>,
+): void
+⋮----
+private generateQrCode(): string
+⋮----
+private generateAccessCode(): string
+⋮----
+private toRoomData(row: RoomListRow)
+⋮----
+private toStayData(row: {
+    id: string;
+    hotelId: string;
+    roomId: string;
+    reservationCode: string;
+    guestDisplayName: string;
+    guestPhone?: string | null;
+    guestPhoneMasked?: string | null;
+    guestIdentityNumber?: string | null;
+    guestDateOfBirth?: string | null;
+    guestGender?: string | null;
+    guestNationality?: string | null;
+    guestResidencePlace?: string | null;
+    status: GuestStayStatus;
+    plannedCheckInAt: Date;
+    plannedCheckOutAt: Date;
+    checkedInAt: Date | null;
+    activatedAt: Date | null;
+    checkedOutAt: Date | null;
+    accessCodeExpiresAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+    occupants?: Array<{
+      id: string;
+      fullName: string;
+      phone?: string | null;
+      identityNumber?: string | null;
+      dateOfBirth?: string | null;
+      gender?: string | null;
+      isPrimary: boolean;
+    }> | null;
+})
+⋮----
+private toQrData(row: {
+    id: string;
+    hotelId: string;
+    roomId: string;
+    publicCode: string;
+    status: RoomQRCodeStatus;
+    version: number;
+    activatedAt: Date | null;
+    deactivatedAt: Date | null;
+    expiresAt: Date | null;
+    revokedAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+})
+</file>
+
+<file path="services/auth-service/src/modules/property/domain/schemas/rooms.schema.ts">
+import { RoomQRCodeStatus, RoomStatus } from "@prisma/client";
+import { z } from "zod";
+⋮----
+function preprocessRoomStatus(val: unknown): unknown
+⋮----
+export type CreateRoomBodyInput = z.infer<typeof createRoomBodySchema>;
+export type CreateRoomsBodyInput = z.infer<typeof createRoomsBodySchema>;
+export type UpdateRoomBodyInput = z.infer<typeof updateRoomBodySchema>;
+export type ListRoomsQueryInput = z.infer<typeof listRoomsQuerySchema>;
+export type CreateStayBodyInput = z.infer<typeof createStayBodySchema>;
+export type CheckOutBodyInput = z.infer<typeof checkOutBodySchema>;
+export type UpdateStayBodyInput = z.infer<typeof updateStayBodySchema>;
+export type QrReasonBodyInput = z.infer<typeof qrReasonBodySchema>;
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/hotel-ops/service/hotel-ops-service.ts">
+import { unwrapApiEnvelope } from "@/core/http/api-envelope";
+import { parseServiceCatalogSyncResponse } from "@/features/hotel-ops/service/service-catalog-sync-response";
+import { HttpClient, type HttpQuery } from "@/core/http/http-client";
+import type {
+  CreateHotelRequestEventInput,
+  CreateHotelRoomInput,
+  CreateHotelStayInput,
+  CreateServiceCategoryInput,
+  CreateServiceItemInput,
+  HotelCheckInResult,
+  HotelDashboard,
+  HotelGuestRequest,
+  HotelArrival,
+  HotelOpsPage,
+  HotelRoomSummary,
+  HotelRequestEvent,
+  HotelReservationCheckInResult,
+  HotelReservationInput,
+  HotelServiceCategory,
+  HotelServiceItem,
+  HotelStaySummary,
+  ListHotelRoomsQuery,
+  ListHotelArrivalsQuery,
+  ListHotelRequestsQuery,
+  ListServiceCategoriesQuery,
+  ListServiceItemsQuery,
+  StaffRequestListItem,
+  StaffRequestSummaryResponse,
+  UpdateHotelRequestAssignmentInput,
+  UpdateHotelRequestStatusInput,
+  UpdateHotelRoomInput,
+  UpdateServiceCategoryInput,
+  UpdateServiceItemInput,
+} from "@/features/hotel-ops/types/hotel-ops-contract";
+⋮----
+export type HotelOpsServiceOptions = {
+  baseUrl: string;
+  timeoutMs?: number;
+};
+⋮----
+type AuthRequestOptions = {
+  accessToken?: string;
+  accessTokenExpiresAt?: number | null;
+};
+⋮----
+function hotelPath(hotelId: string, suffix: string): string
+⋮----
+export class HotelOpsService
+⋮----
+constructor(options: HotelOpsServiceOptions)
+⋮----
+async issueRequestRealtimeTicket(
+    hotelId: string,
+    accessToken?: string,
+): Promise<
+⋮----
+async getDashboard(
+    hotelId: string,
+    options: AuthRequestOptions = {},
+): Promise<HotelDashboard>
+⋮----
+async listRooms(
+    hotelId: string,
+    options: { query?: ListHotelRoomsQuery } & AuthRequestOptions = {},
+): Promise<HotelOpsPage<HotelRoomSummary>>
+⋮----
+async listArrivals(
+    hotelId: string,
+    options: { query: ListHotelArrivalsQuery } & AuthRequestOptions,
+): Promise<HotelOpsPage<HotelArrival>>
+⋮----
+async createReservation(
+    hotelId: string,
+    body: HotelReservationInput,
+    accessToken?: string,
+): Promise<HotelArrival>
+⋮----
+async assignReservationRoom(
+    hotelId: string,
+    reservationId: string,
+    roomId: string,
+    accessToken?: string,
+): Promise<HotelArrival>
+⋮----
+async checkInReservation(
+    hotelId: string,
+    reservationId: string,
+    accessToken?: string,
+): Promise<HotelReservationCheckInResult>
+⋮----
+async createRoom(
+    hotelId: string,
+    body: CreateHotelRoomInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelRoomSummary>
+⋮----
+async updateRoom(
+    hotelId: string,
+    roomId: string,
+    body: UpdateHotelRoomInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelRoomSummary>
+⋮----
+async rotateRoomQr(
+    hotelId: string,
+    roomId: string,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelRoomSummary>
+⋮----
+async setRoomQrActive(
+    hotelId: string,
+    roomId: string,
+    active: boolean,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelRoomSummary>
+⋮----
+async createStay(
+    hotelId: string,
+    body: CreateHotelStayInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelStaySummary>
+⋮----
+async checkInStay(
+    hotelId: string,
+    stayId: string,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelStaySummary>
+⋮----
+async createAndCheckInStay(
+    hotelId: string,
+    body: CreateHotelStayInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelCheckInResult>
+⋮----
+async checkOutStay(
+    hotelId: string,
+    stayId: string,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelStaySummary>
+⋮----
+async updateStay(
+    hotelId: string,
+    stayId: string,
+    body: { plannedCheckOutAt?: string; guestDisplayName?: string; guestPhone?: string },
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelStaySummary>
+⋮----
+async syncServiceCatalogFromGoogleSheets(
+    hotelId: string,
+    options: AuthRequestOptions = {},
+)
+⋮----
+async getHotel(
+    hotelId: string,
+    accessToken?: string,
+): Promise<
+⋮----
+async listServiceCategories(
+    hotelId: string,
+    options: { query?: ListServiceCategoriesQuery } & AuthRequestOptions = {},
+): Promise<HotelOpsPage<HotelServiceCategory>>
+⋮----
+async createServiceCategory(
+    hotelId: string,
+    body: CreateServiceCategoryInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelServiceCategory>
+⋮----
+async updateServiceCategory(
+    hotelId: string,
+    categoryId: string,
+    body: UpdateServiceCategoryInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelServiceCategory>
+⋮----
+async listServiceItems(
+    hotelId: string,
+    options: { query?: ListServiceItemsQuery } & AuthRequestOptions = {},
+): Promise<HotelOpsPage<HotelServiceItem>>
+⋮----
+async createServiceItem(
+    hotelId: string,
+    body: CreateServiceItemInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelServiceItem>
+⋮----
+async updateServiceItem(
+    hotelId: string,
+    itemId: string,
+    body: UpdateServiceItemInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelServiceItem>
+⋮----
+async listRequests(
+    hotelId: string,
+    options: { query?: ListHotelRequestsQuery } & AuthRequestOptions = {},
+): Promise<HotelOpsPage<StaffRequestListItem>>
+⋮----
+async getRequestsSummary(
+    hotelId: string,
+    options: {
+      query?: Pick<
+        ListHotelRequestsQuery,
+        "q" | "roomNumber" | "serviceItemId" | "priority" | "assignedToUserId"
+      >;
+    } & AuthRequestOptions = {},
+): Promise<StaffRequestSummaryResponse>
+⋮----
+async getRequest(
+    hotelId: string,
+    requestId: string,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelGuestRequest>
+⋮----
+async updateRequestStatus(
+    hotelId: string,
+    requestId: string,
+    body: UpdateHotelRequestStatusInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelGuestRequest>
+⋮----
+async updateRequestAssignment(
+    hotelId: string,
+    requestId: string,
+    body: UpdateHotelRequestAssignmentInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelGuestRequest>
+⋮----
+async createRequestEvent(
+    hotelId: string,
+    requestId: string,
+    body: CreateHotelRequestEventInput,
+    accessToken?: string,
+    accessTokenExpiresAt?: number | null,
+): Promise<HotelRequestEvent>
+⋮----
+async listMessageThreads(
+    hotelId: string,
+    options: {
+      query?: { cursor?: string; limit?: number; q?: string };
+    } & AuthRequestOptions = {},
+)
+⋮----
+async getMessageThread(
+    hotelId: string,
+    threadId: string,
+    options: {
+      query?: { page?: number; limit?: number; before?: string };
+    } & AuthRequestOptions = {},
+)
+⋮----
+async replyMessageThread(
+    hotelId: string,
+    threadId: string,
+    body: string,
+    accessToken?: string,
+)
+⋮----
+async markMessageThreadRead(
+    hotelId: string,
+    threadId: string,
+    readThroughMessageId: string,
+    accessToken?: string,
+)
+⋮----
+async getMessageUnreadSummary(
+    hotelId: string,
+    options: AuthRequestOptions = {},
+): Promise<
+⋮----
+export function createHotelOpsService(
+  options: HotelOpsServiceOptions,
+): HotelOpsService
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/hotel-ops/types/hotel-ops-contract.ts">
+import type {
+  GuestRequestStatus,
+  GuestRequestType,
+} from "@/features/guest-os/types/guest-os-contract";
+⋮----
+export type HotelServiceStatus = "ACTIVE" | "DISABLED";
+⋮----
+export type ServiceCatalogTranslation = {
+  id?: string;
+  locale: string;
+  name: string;
+  description: string | null;
+};
+⋮----
+export type StaffRequestPriority = "NORMAL" | "URGENT";
+⋮----
+export type StaffRequestAction = "ACCEPT" | "START" | "COMPLETE" | "CANCEL" | "FAIL";
+⋮----
+export type HotelOpsPage<TItem> = {
+  page: number;
+  limit: number;
+  total: number;
+  totalItems?: number;
+  totalPages?: number;
+  totalAvailable?: number;
+  floors?: string[];
+  types?: string[];
+  items: TItem[];
+};
+⋮----
+export type HotelServiceCategory = {
+  id: string;
+  hotelId: string;
+  name: string;
+  description: string | null;
+  id_group?: string | null;
+  defaultPrice: string | number | null;
+  currency: string;
+  sortOrder: number;
+  status: HotelServiceStatus;
+  createdAt: string;
+  updatedAt: string;
+  translations?: ServiceCatalogTranslation[];
+};
+⋮----
+export type HotelServiceItem = {
+  id: string;
+  hotelId: string;
+  categoryId: string;
+  category?: HotelServiceCategory | null;
+  priceOverride: string | number | null;
+  effectivePrice: string | number | null;
+  effectiveCurrency: string;
+  quantityEnabled: boolean;
+  minQuantity: number;
+  maxQuantity: number | null;
+  /** @deprecated Service routing now belongs to ServiceCategory. */
+  name: string;
+  description: string | null;
+  /** @deprecated Use priceOverride/effectivePrice. */
+  price: string | number | null;
+  /** @deprecated Use category.currency/effectiveCurrency. */
+  currency: string;
+  metadata: Record<string, unknown> | null;
+  sortOrder: number;
+  status: HotelServiceStatus;
+  createdAt: string;
+  updatedAt: string;
+  translations?: ServiceCatalogTranslation[];
+};
+⋮----
+/** @deprecated Service routing now belongs to ServiceCategory. */
+⋮----
+/** @deprecated Use priceOverride/effectivePrice. */
+⋮----
+/** @deprecated Use category.currency/effectiveCurrency. */
+⋮----
+export type HotelRoomSummary = {
+  id: string;
+  hotelId?: string;
+  roomNumber?: string | null;
+  floor?: string | null;
+  type?: string | null;
+  price?: string | number | null;
+  maxActiveGuestDevices?: number | null;
+  activeGuestDeviceCount?: number | null;
+  status?: string | null;
+  publicCode?: string | null;
+  qrCode?: string | null;
+  qrStatus?: string | null;
+  qr?: {
+    id?: string | null;
+    publicCode?: string | null;
+    code?: string | null;
+    qrCode?: string | null;
+    status?: string | null;
+  } | null;
+  activeStay?: HotelStaySummary | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+⋮----
+export type HotelStaySummary = {
+  id: string;
+  hotelId?: string;
+  roomId?: string | null;
+  reservationCode?: string | null;
+  guestDisplayName?: string | null;
+  guestPhone?: string | null;
+  guestIdentityNumber?: string | null;
+  guestDateOfBirth?: string | null;
+  guestGender?: string | null;
+  guestNationality?: string | null;
+  guestResidencePlace?: string | null;
+  status?: string | null;
+  plannedCheckInAt?: string | null;
+  plannedCheckOutAt?: string | null;
+  checkedInAt?: string | null;
+  checkedOutAt?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  occupants?: Array<{
+    id: string;
+    fullName: string;
+    phone?: string | null;
+    identityNumber?: string | null;
+    dateOfBirth?: string | null;
+    gender?: string | null;
+    isPrimary?: boolean;
+  }> | null;
+};
+⋮----
+export type HotelCheckInResult = {
+  stay: HotelStaySummary;
+  roomQrCode: HotelRoomSummary["qr"];
+  accessCode: string;
+};
+⋮----
+export type HotelReservationInput = {
+  guestDisplayName: string;
+  guestPhone?: string;
+  plannedCheckInAt: string;
+  plannedCheckOutAt: string;
+};
+⋮----
+export type HotelReservationCheckInResult = {
+  idempotent: boolean;
+  accessCode: string | null;
+  reservation: { id: string; status: string };
+  stay: HotelStaySummary;
+  folio: { id: string; status: string };
+  roomQrCode: HotelRoomSummary["qr"];
+};
+⋮----
+export type HotelDashboard = {
+  hotelId: string;
+  generatedAt: string;
+  rooms: {
+    total: number;
+    occupied: number;
+    occupancyRate: number;
+    byStatus: { available: number; occupied: number; processing: number; maintenance: number };
+  };
+  stays: {
+    todayCheckIns: number;
+    todayCheckOuts: number;
+    pendingCheckOuts: number;
+    activeStays: number;
+  };
+  requests: {
+    unprocessed: number;
+    urgentUnprocessed: number;
+    byStatus: { sent: number; processing: number; completed: number; cancelled: number };
+    topServices: Array<{ serviceName: string; count: number }>;
+  };
+  revenue: {
+    available: boolean;
+    currency: string;
+    today: number;
+    last7Days: number;
+    currentMonth: number;
+    issues: Array<{ type: string; count: number }>;
+  };
+  health: {
+    score: number;
+    status: "excellent" | "good" | "warning" | "critical";
+    title: string;
+    factors: Array<{ type: string; label: string; impact: string; message: string }>;
+  };
+  attention: Array<{
+    id: string;
+    type: string;
+    priority: string;
+    title: string;
+    description: string;
+    createdAt: string;
+    action: { label: string; route: string };
+  }>;
+  insights: Array<{
+    id: string;
+    type: string;
+    severity: "info" | "warning" | "critical";
+    title: string;
+    description: string;
+    metric?: { current: number; previous?: number; changePercent?: number };
+  }>;
+  sla: {
+    available: boolean;
+    averageResponseMinutes: number | null;
+    averageCompletionMinutes: number | null;
+    completedWithinSlaPercent: number | null;
+    thresholdMinutes: number;
+  };
+  activities: Array<{
+    id: string;
+    type: string;
+    title: string;
+    description: string;
+    createdAt: string;
+  }>;
+  warnings: string[];
+};
+⋮----
+export type HotelArrival = {
+  id: string;
+  hotelId: string;
+  roomId: string | null;
+  reservationCode: string;
+  guestDisplayName: string;
+  guestPhone: string | null;
+  status: "CONFIRMED" | "ARRIVAL_READY" | "CHECKED_IN";
+  plannedCheckInAt: string;
+  plannedCheckOutAt: string;
+};
+⋮----
+export type ListHotelArrivalsQuery = {
+  from: string;
+  to: string;
+  page?: number;
+  limit?: number;
+};
+⋮----
+export type HotelRequestEvent = {
+  id: string;
+  requestId: string;
+  type?: string | null;
+  status?: GuestRequestStatus | null;
+  note?: string | null;
+  visibility?: "GUEST" | "INTERNAL" | string | null;
+  metadata?: Record<string, unknown> | null;
+  actorUserId?: string | null;
+  createdAt: string;
+};
+⋮----
+export type HotelGuestRequest = {
+  id: string;
+  hotelId: string;
+  roomId: string;
+  stayId: string;
+  sessionId: string | null;
+  serviceItemId: string | null;
+  serviceItem?: HotelServiceItem | null;
+  room?: HotelRoomSummary | null;
+  stay?: HotelStaySummary | null;
+  type: GuestRequestType;
+  status: GuestRequestStatus;
+  priority: StaffRequestPriority;
+  title: string | null;
+  details: string | null;
+  metadata: Record<string, unknown> | null;
+  assignedToUserId: string | null;
+  assignedToUser?: { id?: string; name?: string | null; email?: string | null } | null;
+  events?: HotelRequestEvent[];
+  createdAt: string;
+  updatedAt: string;
+  completedAt: string | null;
+  cancelledAt: string | null;
+};
+⋮----
+export type StaffRequestListItem = {
+  id: string;
+  displayName: string;
+  status: GuestRequestStatus;
+  priority: StaffRequestPriority;
+  isOverdue?: boolean;
+  ackDeadlineAt?: string | null;
+  quantity: number;
+  description: string | null;
+  latestNote: string | null;
+  createdAt: string;
+  roomNumber: string;
+  guestName: string | null;
+  categoryName: string | null;
+  assignedToName: string | null;
+  stayStatus?: string | null;
+  checkedOutAt?: string | null;
+  actions: StaffRequestAction[];
+};
+⋮----
+export type StaffRequestSummaryResponse = {
+  total: number;
+  statuses: Record<GuestRequestStatus, number>;
+};
+⋮----
+export type ListServiceCategoriesQuery = {
+  status?: HotelServiceStatus;
+  page?: number;
+  limit?: number;
+  q?: string;
+};
+⋮----
+export type ListServiceItemsQuery = {
+  categoryId?: string;
+  status?: HotelServiceStatus;
+  page?: number;
+  limit?: number;
+  q?: string;
+};
+⋮----
+export type ListHotelRequestsQuery = {
+  q?: string;
+  roomNumber?: string;
+  serviceItemId?: string;
+  priority?: StaffRequestPriority;
+  status?: GuestRequestStatus;
+  assignedToUserId?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  limit?: number;
+};
+⋮----
+export type ListHotelRoomsQuery = {
+  q?: string;
+  status?: string;
+  floor?: string;
+  type?: string;
+  vipOnly?: boolean;
+  page?: number;
+  limit?: number;
+};
+⋮----
+export type CreateHotelRoomInput = {
+  roomNumber: string;
+  floor?: string;
+  type?: string;
+  price?: number;
+  maxActiveGuestDevices?: number;
+};
+⋮----
+export type UpdateHotelRoomInput = {
+  roomNumber?: string;
+  floor?: string | null;
+  type?: string | null;
+  price?: number | null;
+  maxActiveGuestDevices?: number | null;
+  status?: string | null;
+};
+⋮----
+export type CreateHotelStayInput = {
+  roomId: string;
+  guestDisplayName: string;
+  guestPhone?: string;
+  guestIdentityNumber?: string;
+  guestDateOfBirth?: string;
+  guestGender?: string;
+  guestNationality?: string;
+  guestResidencePlace?: string;
+  plannedCheckInAt: string;
+  plannedCheckOutAt: string;
+  occupants?: Array<{
+    fullName: string;
+    phone?: string;
+    identityNumber?: string;
+    dateOfBirth?: string;
+    gender?: string;
+    isPrimary?: boolean;
+  }>;
+};
+⋮----
+export type ServiceCatalogTranslationsInput = Partial<Record<"en" | "zh" | "ko" | "ru" | "hi", { name: string; description?: string | null }>>;
+⋮----
+export type CreateServiceCategoryInput = {
+  name: string;
+  description?: string;
+  id_group?: string | null;
+  defaultPrice?: number;
+  currency?: string;
+  sortOrder?: number;
+  status?: HotelServiceStatus;
+  translations?: ServiceCatalogTranslationsInput;
+};
+⋮----
+export type UpdateServiceCategoryInput = {
+  name?: string;
+  description?: string | null;
+  id_group?: string | null;
+  defaultPrice?: number | null;
+  currency?: string;
+  priceUpdateMode?: "CATEGORY_ONLY" | "OVERRIDE_ALL_ITEMS";
+  sortOrder?: number;
+  status?: HotelServiceStatus;
+  translations?: ServiceCatalogTranslationsInput;
+};
+⋮----
+export type CreateServiceItemInput = {
+  categoryId: string;
+  name: string;
+  description?: string;
+  priceOverride?: number | null;
+  quantityEnabled?: boolean;
+  minQuantity?: number;
+  maxQuantity?: number | null;
+  metadata?: Record<string, unknown>;
+  sortOrder?: number;
+  status?: HotelServiceStatus;
+  translations?: ServiceCatalogTranslationsInput;
+};
+⋮----
+export type UpdateServiceItemInput = {
+  categoryId?: string;
+  name?: string;
+  description?: string | null;
+  priceOverride?: number | null;
+  quantityEnabled?: boolean;
+  minQuantity?: number;
+  maxQuantity?: number | null;
+  metadata?: Record<string, unknown> | null;
+  sortOrder?: number;
+  status?: HotelServiceStatus;
+  translations?: ServiceCatalogTranslationsInput;
+};
+⋮----
+export type UpdateHotelRequestStatusInput = {
+  status: GuestRequestStatus;
+  note?: string;
+  assignedToUserId?: string;
+};
+⋮----
+export type UpdateHotelRequestAssignmentInput = {
+  assignedToUserId?: string | null;
+  note?: string;
+};
+⋮----
+export type CreateHotelRequestEventInput = {
+  note: string;
+  visibility?: "GUEST" | "INTERNAL";
+  metadata?: Record<string, unknown>;
+};
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/components/check-in-workspace.tsx">
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import Swal from "sweetalert2";
+import { filterExtraOccupants } from "@/features/hotel-ops/utils/hotel-ops-display";
+import type { CheckInWorkspaceProps, CheckInStayFields } from "../types/check-in-workspace";
+import { buildCccdPreviewModel } from "../utils/cccd-preview";
+import { CccdCheckInPanel, type CccdCheckInCapture } from "./cccd-check-in-panel";
+import { CccdPreview } from "./cccd-preview";
+⋮----
+export function CheckInWorkspace(props: CheckInWorkspaceProps)
+⋮----
+const onKeyDown = (event: KeyboardEvent) =>
+⋮----
+{/* Guest slot selector tabs */}
+⋮----
+onClick=
+⋮----
+handleRemoveOccupant(activeGuestIndex - 1);
+setActiveGuestIndex(Math.max(0, activeGuestIndex - 1));
+⋮----
+{/* Active Guest Focused Fields */}
+⋮----
+{/* Guest slot navigation & summary footer */}
+</file>
+
+<file path="services/auth-service/src/modules/property/infrastructure/repositories/hotel-rooms.repository.ts">
+import { BadRequestException, ConflictException, Injectable } from "@nestjs/common";
+import {
+  DomainEventStatus,
+  FolioStatus,
+  GuestSessionStatus,
+  GuestStayStatus,
+  Prisma,
+  ReservationStatus,
+  RoomQRCodeStatus,
+  RoomStatus,
+} from "@prisma/client";
+import { countDistinctGuestDevicesByStay } from "../../../../shared/guest-device-identity";
+import { PrismaService } from "../../../../prisma/prisma.service";
+import {
+  closePlatformUsageAtCheckout,
+  recordPlatformUsageAtCheckIn,
+} from "../../../platform-billing/application/platform-billing.service";
+import { roomListInclude, type RoomListRow } from "./hotel-repository.types";
+⋮----
+export class HotelRoomsRepository {
+⋮----
+constructor(private readonly prisma: PrismaService)
+async createRoomWithQr(input: {
+    hotelId: string;
+    code: string;
+    roomNumber: string;
+    floor?: string;
+    type?: string;
+    price?: number;
+    maxActiveGuestDevices?: number;
+    publicCode: string;
+})
+⋮----
+async listRooms(where: Prisma.RoomWhereInput, skip: number, take: number)
+⋮----
+async updateRoomInHotel(hotelId: string, roomId: string, data: Prisma.RoomUpdateInput)
+⋮----
+private async withActiveGuestDeviceCounts(
+    tx: Prisma.TransactionClient,
+    rooms: Prisma.RoomGetPayload<{ include: typeof roomListInclude }>[],
+): Promise<RoomListRow[]>
+⋮----
+async findRoomInHotel(hotelId: string, roomId: string)
+⋮----
+async createStay(input: {
+    hotelId: string;
+    roomId: string;
+    guestDisplayName: string;
+    guestPhone?: string;
+    guestIdentityNumber?: string;
+    guestDateOfBirth?: string;
+    guestGender?: string;
+    guestNationality?: string;
+    guestResidencePlace?: string;
+    plannedCheckInAt: Date;
+    plannedCheckOutAt: Date;
+    createdByUserId: string;
+    tenantId: string;
+    occupants?: Array<{
+      fullName: string;
+      phone?: string;
+      identityNumber?: string;
+      dateOfBirth?: string;
+      gender?: string;
+      isPrimary?: boolean;
+    }>;
+generateReservationCode: (tx: Prisma.TransactionClient)
+⋮----
+async findStayInHotel(hotelId: string, stayId: string)
+⋮----
+async findBlockingBillingFolio(hotelId: string, stayId: string)
+⋮----
+async checkInStay(input: {
+    hotelId: string;
+    stayId: string;
+    roomId: string;
+    accessCodeHash: string;
+    accessCodeExpiresAt: Date;
+    actorUserId: string;
+    tenantId: string;
+generateFolioNumber: (tx: Prisma.TransactionClient)
+⋮----
+async createAndCheckInStay(input: {
+    hotelId: string;
+    roomId: string;
+    guestDisplayName: string;
+    guestPhone?: string;
+    guestIdentityNumber?: string;
+    guestDateOfBirth?: string;
+    guestGender?: string;
+    guestNationality?: string;
+    guestResidencePlace?: string;
+    plannedCheckInAt: Date;
+    plannedCheckOutAt: Date;
+    createdByUserId: string;
+    accessCodeHash: string;
+    accessCodeExpiresAt: Date;
+    actorUserId: string;
+    tenantId?: string;
+    occupants?: Array<{
+      fullName: string;
+      phone?: string;
+      identityNumber?: string;
+      dateOfBirth?: string;
+      gender?: string;
+      isPrimary?: boolean;
+    }>;
+generateReservationCode: (tx: Prisma.TransactionClient)
+⋮----
+async updateStay(
+    hotelId: string,
+    stayId: string,
+    input: {
+      plannedCheckOutAt?: Date;
+      guestDisplayName?: string;
+      guestPhone?: string;
+      occupants?: Array<{
+        fullName: string;
+        phone?: string;
+        identityNumber?: string;
+        dateOfBirth?: string;
+        gender?: string;
+        isPrimary?: boolean;
+      }>;
+    },
+)
+⋮----
+async checkOutStay(input: {
+    hotelId: string;
+    stayId: string;
+    roomId: string;
+    actorUserId: string;
+    tenantId: string;
+    nextRoomStatus: RoomStatus;
+})
+⋮----
+async rotateQr(input: {
+    hotelId: string;
+    roomId: string;
+    publicCode: string;
+    tenantId: string;
+    reason?: string;
+})
+⋮----
+async activateQr(input: {
+    hotelId: string;
+    roomId: string;
+    tenantId: string;
+    publicCode: string;
+})
+⋮----
+async deactivateQr(input: {
+    hotelId: string;
+    roomId: string;
+    tenantId: string;
+    reason?: string;
+})
+⋮----
+private async createOpenFolioForStay(
+    tx: Prisma.TransactionClient,
+    input: {
+      hotelId: string;
+      stayId: string;
+      roomId: string;
+      createdByUserId: string;
+generateFolioNumber: (tx: Prisma.TransactionClient)
+⋮----
+private async createDomainEvent(
+    tx: Prisma.TransactionClient,
+    input: {
+      eventType: string;
+      aggregateType: string;
+      aggregateId: string;
+      hotelId?: string;
+      tenantId?: string;
+      payload: Prisma.InputJsonValue;
+    },
+)
+⋮----
+private async findUsableQr(
+    tx: Prisma.TransactionClient,
+    input: {
+      hotelId: string;
+      roomId: string;
+    },
+)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/rooms/staff-rooms-client.tsx">
+import { createPortal } from "react-dom";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import Swal from "sweetalert2";
+import {
+  keepPreviousData,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+⋮----
+import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import { CheckInWorkspace } from "@/features/local-biometric/components/check-in-workspace";
+import type { CheckInStayFields } from "@/features/local-biometric/types/check-in-workspace";
+import { BrandedRoomQr } from "@/features/hotel-ops/components/branded-room-qr";
+import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
+import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
+import { filterExtraOccupants, formatMoney } from "@/features/hotel-ops/utils/hotel-ops-display";
+import type {
+  HotelArrival,
+  HotelCheckInResult,
+  HotelOpsPage,
+  HotelReservationCheckInResult,
+  HotelRoomSummary,
+} from "@/features/hotel-ops/types/hotel-ops-contract";
+import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+⋮----
+type Props = {
+  hotelId: string;
+  initialRoomsPage: HotelOpsPage<HotelRoomSummary>;
+  arrivals: HotelArrival[];
+  canManageRooms: boolean;
+  canManageReservations: boolean;
+  canManageStays: boolean;
+};
+⋮----
+type RoomStatusFilter =
+  | "all"
+  | "available"
+  | "occupied"
+  | "overdue"
+  | "processing"
+  | "maintenance"
+  | "blocked";
+type FlowMode = "walk-in" | "reservation";
+⋮----
+type ReservationForm = {
+  roomId: string;
+  guestDisplayName: string;
+  guestPhone: string;
+  plannedCheckInAt: string;
+  plannedCheckOutAt: string;
+};
+⋮----
+type RoomQrPreview = {
+  room: HotelRoomSummary;
+  guestUrl: string | null;
+};
+⋮----
+function localDateTime(offsetDays: number, hour: number): string
+⋮----
+function formatDateTime(value: string | null | undefined): string
+⋮----
+function getRoomNumber(room: HotelRoomSummary): string
+⋮----
+function getRoomQrValue(room: HotelRoomSummary): string | null
+⋮----
+function getGuestQrUrl(room: HotelRoomSummary, origin: string): string | null
+⋮----
+function isOverdueCheckOut(room: HotelRoomSummary): boolean
+⋮----
+function getRoomStatus(room: HotelRoomSummary): RoomStatusFilter
+⋮----
+function roomStatusLabel(status: RoomStatusFilter): string
+⋮----
+function roomStatusBadgeClass(status: RoomStatusFilter): string
+⋮----
+function roomCardClass(status: RoomStatusFilter): string
+⋮----
+function isAvailable(room: HotelRoomSummary): boolean
+⋮----
+function emptyReservation(roomId = ""): ReservationForm
+⋮----
+const range = (start: number, end: number) =>
+⋮----
+function printActiveStayList()
+⋮----
+function openWalkIn(room: HotelRoomSummary)
+⋮----
+async function markRoomCleaned(room: HotelRoomSummary)
+⋮----
+async function toggleRoomBlocked(room: HotelRoomSummary)
+⋮----
+async function updateRoomStatus(
+    room: HotelRoomSummary,
+    targetStatus: "AVAILABLE" | "PROCESSING" | "MAINTENANCE" | "BLOCKED",
+)
+⋮----
+async function handleBlockedRoomClick(room: HotelRoomSummary)
+⋮----
+async function handleMaintenanceRoomClick(room: HotelRoomSummary)
+⋮----
+async function handleOverdueRoomClick(room: HotelRoomSummary)
+⋮----
+async function handleExtendStayModal(room: HotelRoomSummary)
+⋮----
+function handleCardClick(room: HotelRoomSummary)
+⋮----
+async function submitWalkIn(fields: CheckInStayFields)
+⋮----
+async function createReservation(event: FormEvent<HTMLFormElement>)
+⋮----
+async function assignArrivalRoom(arrival: HotelArrival)
+⋮----
+async function checkInArrival(arrival: HotelArrival)
+⋮----
+setFloor(event.target.value);
+setPage(1);
+⋮----
+setVipOnly(event.target.checked);
+⋮----
+{/* Header */}
+⋮----
+{/* Middle Body */}
+⋮----
+{/* Footer */}
+⋮----
+<span className=
+⋮----
+{/* Animated hover popover menu */}
+⋮----
+{/* Cleaning Action */}
+⋮----
+event.stopPropagation();
+markRoomCleaned(room);
+⋮----
+updateRoomStatus(room, "PROCESSING");
+⋮----
+updateRoomStatus(room, "MAINTENANCE");
+⋮----
+{/* Single Update Trigger Button */}
+⋮----
+
+⋮----
+Phòng
+⋮----
+setReservationForm((current) => (
+⋮----
+<p className="mt-3 text-center text-sm font-black uppercase tracking-[0.16em] text-[var(--primary)]">Phòng
+⋮----
+if (saving) return;
+setIsCheckInOpen(false);
+setSelectedRoom(null);
+setSubmitError(undefined);
+</file>
+
+</files>

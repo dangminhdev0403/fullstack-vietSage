@@ -166,6 +166,7 @@ export const updateStayBodySchema = z
     plannedCheckOutAt: z.coerce.date({ message: "Ngày trả phòng không hợp lệ" }).optional(),
     guestDisplayName: z.string().trim().min(2, "Tên khách hàng phải từ 2 ký tự").max(120, "Tên khách hàng tối đa 120 ký tự").optional(),
     guestPhone: z.string().trim().max(40, "Số điện thoại tối đa 40 ký tự").optional(),
+    occupants: z.array(stayOccupantInputSchema).optional(),
   })
   .strict();
 

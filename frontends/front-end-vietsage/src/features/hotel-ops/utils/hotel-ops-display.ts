@@ -133,18 +133,19 @@ export function filterExtraOccupants<
   if (!occupants || occupants.length === 0) return [];
   const leaderName = (leader?.guestDisplayName || "").trim().toLowerCase();
   const leaderCccd = (leader?.guestIdentityNumber || "").trim().toLowerCase();
-  const leaderPhone = (leader?.guestPhone || "").trim().toLowerCase();
 
   return occupants.filter((occ) => {
     if (occ.isPrimary || occ.isLeader) return false;
     const occName = (occ.fullName || "").trim().toLowerCase();
+    if (!occName) return false;
+
     const occCccd = (occ.identityNumber || "").trim().toLowerCase();
-    const occPhone = (occ.phone || "").trim().toLowerCase();
-
-    const isSameName = Boolean(leaderName && occName && occName === leaderName);
     const isSameCccd = Boolean(leaderCccd && occCccd && occCccd === leaderCccd);
-    const isSamePhone = Boolean(leaderPhone && occPhone && occPhone === leaderPhone);
+    if (isSameCccd) return false;
 
-    return !(isSameName || isSameCccd || isSamePhone);
+    const isSameName = Boolean(leaderName && occName === leaderName);
+    if (isSameName && (!leaderCccd || !occCccd || isSameCccd)) return false;
+
+    return true;
   });
 }

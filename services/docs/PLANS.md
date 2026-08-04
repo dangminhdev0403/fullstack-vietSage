@@ -1,3 +1,15 @@
+## 2026-08-04 - Co-guest (Occupant) Persistence & Lodging List Fix (Complete)
+
+- [x] Fixed `filterExtraOccupants` in `hotel-ops-display.ts` so co-guests sharing a phone number with the primary guest are no longer incorrectly filtered out.
+- [x] Updated `updateStayBodySchema` in `rooms.schema.ts` to accept `occupants` input.
+- [x] Fixed `createStay` in `hotel-rooms.service.ts` & `hotel-rooms.repository.ts` to pass and create `GuestStayOccupant` records for both primary guest and extra occupants.
+- [x] Fixed `findStayInHotel`, `checkInStay`, and `updateStay` in `hotel-rooms.repository.ts` to eager-load and return `occupants: { orderBy: { createdAt: "asc" } }`.
+
+Verification result:
+- Backend NestJS build passed (`npm run build`).
+- Property module unit test suites passed (`hotel-rooms.repository.device-count.spec.ts`, `hotel-rooms.conversation-close.spec.ts`).
+- Frontend TypeScript check passed (`npx tsc --noEmit`).
+
 ## 2026-08-04 - QR Access Revenue Control & Dual-Counter Usage Analytics (Complete)
 
 - [x] Enhanced `getOwnerAnalytics` in `PlatformBillingService` to query `PlatformUsage` records and return `usageCount` (actual check-in/out usage count) alongside `billableDaysCount`.
