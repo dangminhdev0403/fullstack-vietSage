@@ -955,20 +955,21 @@ export function RequestQueueClient({
 
     const meta = actionMeta[action];
     const note = statusNote.trim() || meta.note;
-    const confirmation = await Swal.fire({
-      icon:
-        meta.status === "CANCELLED" || meta.status === "FAILED"
-          ? "warning"
-          : "question",
-      title: `${meta.label} yêu cầu?`,
-      text: "Ghi chú cập nhật trạng thái sẽ hiển thị cho khách.",
-      showCancelButton: true,
-      confirmButtonText: "Xác nhận",
-      cancelButtonText: "Đóng",
-      confirmButtonColor: swalButtonColor,
-    });
+    const isDestructive = meta.status === "CANCELLED" || meta.status === "FAILED";
 
-    if (!confirmation.isConfirmed) return;
+    if (isDestructive) {
+      const confirmation = await Swal.fire({
+        icon: "warning",
+        title: `${meta.label} yêu cầu?`,
+        text: "Ghi chú cập nhật trạng thái sẽ hiển thị cho khách.",
+        showCancelButton: true,
+        confirmButtonText: "Xác nhận",
+        cancelButtonText: "Đóng",
+        confirmButtonColor: swalButtonColor,
+      });
+
+      if (!confirmation.isConfirmed) return;
+    }
 
     setOperationError(null);
     statusMutation.mutate({
@@ -1266,18 +1267,22 @@ export function RequestQueueClient({
     if (!ownerApiBasePath) return;
 
     const meta = actionMeta[action];
-    const note = meta.note;
-    const confirmation = await Swal.fire({
-      icon: meta.status === "CANCELLED" || meta.status === "FAILED" ? "warning" : "question",
-      title: `${meta.label} yêu cầu phòng ${targetRow.roomNumber}?`,
-      text: "Trạng thái mới sẽ được cập nhật và thông báo cho khách.",
-      showCancelButton: true,
-      confirmButtonText: "Xác nhận",
-      cancelButtonText: "Hủy",
-      confirmButtonColor: swalButtonColor,
-    });
+    const note = statusNote.trim() || meta.note;
+    const isDestructive = meta.status === "CANCELLED" || meta.status === "FAILED";
 
-    if (!confirmation.isConfirmed) return;
+    if (isDestructive) {
+      const confirmation = await Swal.fire({
+        icon: "warning",
+        title: `${meta.label} yêu cầu phòng ${targetRow.roomNumber}?`,
+        text: "Trạng thái mới sẽ được cập nhật và thông báo cho khách.",
+        showCancelButton: true,
+        confirmButtonText: "Xác nhận",
+        cancelButtonText: "Hủy",
+        confirmButtonColor: swalButtonColor,
+      });
+
+      if (!confirmation.isConfirmed) return;
+    }
 
     setOperationError(null);
     try {
@@ -1292,9 +1297,10 @@ export function RequestQueueClient({
         },
       );
       syncUpdatedRequest(updated);
+      setStatusNote("");
       void Swal.fire({
         icon: "success",
-        title: "Đã cập nhật trạng thái",
+        title: `Đã ${meta.label.toLowerCase()} yêu cầu phòng ${targetRow.roomNumber}`,
         timer: 1200,
         showConfirmButton: false,
       });
