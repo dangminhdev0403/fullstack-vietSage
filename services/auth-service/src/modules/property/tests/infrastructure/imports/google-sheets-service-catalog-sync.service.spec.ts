@@ -247,4 +247,32 @@ describe("GoogleSheetsServiceCatalogSyncService", () => {
       description_hi: "होटल सेवा",
     });
   });
+
+  it("correctly maps multiline and parenthesized 'Giá riêng' and quantity headers", () => {
+    const service = createService() as unknown as {
+      toParsedSheet: (
+        name: "categories" | "items",
+        values: unknown[][],
+      ) => { rows: Array<{ values: Record<string, unknown> }> };
+    };
+
+    const sheet = service.toParsedSheet("items", [
+      [
+        "Mã dịch vụ",
+        "Mã danh mục",
+        "Tên dịch vụ (Tiếng Việt)",
+        "Giá riêng\nĐể trống nếu dùng giá mặc định của danh mục",
+        "Cho phép\nnhập số\nlượng\nTRUE/FALSE\nhoặc\nCó/Không",
+      ],
+      ["laundry_complete", "laundry", "Áo comple", "50000", "TRUE"],
+    ]);
+
+    expect(sheet.rows[0].values).toMatchObject({
+      item_key: "laundry_complete",
+      category_key: "laundry",
+      name_vi: "Áo comple",
+      price_override: "50000",
+      quantity_enabled: "TRUE",
+    });
+  });
 });

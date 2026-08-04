@@ -782,13 +782,41 @@ export class ServiceCatalogImportAdapter
     return text.length ? text : undefined;
   }
 
+  private parseNumericString(val: string): number | undefined {
+    const cleaned = val
+      .replace(/đ|VND|vnd/gi, "")
+      .replace(/\s+/g, "")
+      .trim();
+    if (!cleaned) return undefined;
+
+    let normalized = cleaned;
+    if (/^\d{1,3}(\.\d{3})+$/.test(cleaned)) {
+      normalized = cleaned.replace(/\./g, "");
+    } else if (/^\d{1,3}(,\d{3})+$/.test(cleaned)) {
+      normalized = cleaned.replace(/,/g, "");
+    } else if (/^\d+,\d+$/.test(cleaned)) {
+      normalized = cleaned.replace(",", ".");
+    }
+    const num = Number(normalized);
+    return Number.isFinite(num) ? num : undefined;
+  }
+
   private number(value: unknown, defaultValue: number): number {
+    if (typeof value === "number") return Number.isFinite(value) ? value : defaultValue;
+    if (typeof value === "string") {
+      const parsed = this.parseNumericString(value);
+      if (parsed !== undefined) return parsed;
+    }
     const parsed = Number(value ?? defaultValue);
     return Number.isFinite(parsed) ? parsed : defaultValue;
   }
 
   private optionalNumber(value: unknown): number | undefined {
     if (value === undefined || value === null || value === "") return undefined;
+    if (typeof value === "number") return Number.isFinite(value) ? value : undefined;
+    if (typeof value === "string") {
+      return this.parseNumericString(value);
+    }
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : undefined;
   }

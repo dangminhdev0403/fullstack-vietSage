@@ -1,3 +1,10 @@
+## 2026-08-04 - Google Sheets Service Catalog Sync Header Normalization & Price Fix (Complete)
+
+- [x] Upgraded `normalizeHeader()` in `google-sheets-service-catalog-sync.service.ts` to strip punctuation, dashes, and newlines from sheet headers.
+- [x] Added robust prefix matching so any header starting with `gia_rieng` maps to `price_override` and any header starting with `cho_phep_nhap_so_luong` maps to `quantity_enabled`.
+- [x] Enhanced `number()` and `optionalNumber()` in `service-catalog-import.adapter.ts` to parse Vietnamese formatted string numbers (e.g. `50.000 đ`, `50,000`).
+- [x] Added unit tests in `google-sheets-service-catalog-sync.service.spec.ts` covering multi-line and parenthesized header variations.
+
 ## 2026-08-04 - Co-guest Nationality & Residence Place Persistence and Printing (Complete)
 
 - [x] Added `nationality` (`VARCHAR(80)`) and `residencePlace` (`VARCHAR(500)`) fields to `GuestStayOccupant` Prisma model and migration SQL `20260804150000_add_occupant_nationality_residence`.

@@ -415,18 +415,23 @@ export class GoogleSheetsServiceCatalogSyncService {
   }
 
   private normalizeHeader(value: string): string {
-    const normalized = this.stripVietnameseDiacritics(value)
-      .trim()
-      .toLowerCase()
+    const rawStripped = this.stripVietnameseDiacritics(value).trim().toLowerCase();
+
+    // Standardize to snake_case stripping punctuation
+    const cleaned = rawStripped
       .replace(/[\r\n]+/g, " ")
-      .replace(/\s+/g, "_");
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "");
+
     const aliases: Record<string, string> = {
       mã_danh_mục: "category_key",
       ma_danh_muc: "category_key",
+      category_key: "category_key",
+
       "tên_danh_mục_(tiếng_việt)": "name_vi",
-      "ten_danh_muc_(tieng_viet)": "name_vi",
+      ten_danh_muc_tieng_viet: "name_vi",
       "mô_tả_(tiếng_việt)": "description_vi",
-      "mo_ta_(tieng_viet)": "description_vi",
+      mo_ta_tieng_viet: "description_vi",
       giá_mặc_định: "default_price",
       gia_mac_dinh: "default_price",
       đơn_vị_tiền_tệ: "currency",
@@ -435,44 +440,87 @@ export class GoogleSheetsServiceCatalogSyncService {
       thu_tu_hien_thi: "sort_order",
       trạng_thái: "status",
       trang_thai: "status",
+
       mã_dịch_vụ: "item_key",
       ma_dich_vu: "item_key",
+      item_key: "item_key",
+
       "tên_dịch_vụ_(tiếng_việt)": "name_vi",
-      "ten_dich_vu_(tieng_viet)": "name_vi",
+      ten_dich_vu_tieng_viet: "name_vi",
+
       giá_riêng_để_trống_nếu_dùng_giá_mặc_định_của_danh_mục: "price_override",
       gia_rieng_de_trong_neu_dung_gia_mac_dinh_cua_danh_muc: "price_override",
+      gia_rieng: "price_override",
+
       "cho_phép_nhập_số_lượng_true/false_hoặc_có/không": "quantity_enabled",
-      "cho_phep_nhap_so_luong_true/false_hoac_co/khong": "quantity_enabled",
+      cho_phep_nhap_so_luong_true_false_hoac_co_khong: "quantity_enabled",
+      cho_phep_nhap_so_luong: "quantity_enabled",
+
       số_lượng_tối_thiểu: "min_quantity",
       so_luong_toi_thieu: "min_quantity",
       số_lượng_tối_đa: "max_quantity",
       so_luong_toi_da: "max_quantity",
+
       "ten_(tieng_anh)": "name_en",
+      ten_tieng_anh: "name_en",
       "ten_danh_muc_(tieng_anh)": "name_en",
       "ten_dich_vu_(tieng_anh)": "name_en",
       "mo_ta_(tieng_anh)": "description_en",
+      mo_ta_tieng_anh: "description_en",
+
       "ten_(tieng_trung)": "name_zh",
+      ten_tieng_trung: "name_zh",
       "ten_danh_muc_(tieng_trung)": "name_zh",
       "ten_dich_vu_(tieng_trung)": "name_zh",
       "mo_ta_(tieng_trung)": "description_zh",
+      mo_ta_tieng_trung: "description_zh",
+
       "ten_(tieng_han)": "name_ko",
+      ten_tieng_han: "name_ko",
       "ten_danh_muc_(tieng_han)": "name_ko",
       "ten_dich_vu_(tieng_han)": "name_ko",
       "mo_ta_(tieng_han)": "description_ko",
+      mo_ta_tieng_han: "description_ko",
+
       "ten_(tieng_nga)": "name_ru",
+      ten_tieng_nga: "name_ru",
       "ten_danh_muc_(tieng_nga)": "name_ru",
       "ten_dich_vu_(tieng_nga)": "name_ru",
       "mo_ta_(tieng_nga)": "description_ru",
+      mo_ta_tieng_nga: "description_ru",
+
       "ten_(tieng_an_do)": "name_hi",
+      ten_tieng_an_do: "name_hi",
       "ten_(tieng_hindi)": "name_hi",
+      ten_tieng_hindi: "name_hi",
       "ten_danh_muc_(tieng_an_do)": "name_hi",
       "ten_danh_muc_(tieng_hindi)": "name_hi",
       "ten_dich_vu_(tieng_an_do)": "name_hi",
       "ten_dich_vu_(tieng_hindi)": "name_hi",
       "mo_ta_(tieng_an_do)": "description_hi",
+      mo_ta_tieng_an_do: "description_hi",
       "mo_ta_(tieng_hindi)": "description_hi",
+      mo_ta_tieng_hindi: "description_hi",
     };
-    return aliases[normalized] ?? normalized;
+
+    if (aliases[cleaned]) return aliases[cleaned];
+
+    const legacyNormalized = rawStripped.replace(/[\r\n]+/g, " ").replace(/\s+/g, "_");
+    if (aliases[legacyNormalized]) return aliases[legacyNormalized];
+
+    // Prefix matching for robustness against header label variations
+    if (cleaned.startsWith("gia_rieng")) return "price_override";
+    if (cleaned.startsWith("cho_phep_nhap_so_luong")) return "quantity_enabled";
+    if (cleaned.startsWith("ma_danh_muc")) return "category_key";
+    if (cleaned.startsWith("ma_dich_vu")) return "item_key";
+    if (cleaned.startsWith("gia_mac_dinh")) return "default_price";
+    if (cleaned.startsWith("so_luong_toi_thieu")) return "min_quantity";
+    if (cleaned.startsWith("so_luong_toi_da")) return "max_quantity";
+    if (cleaned.startsWith("don_vi_tien_te")) return "currency";
+    if (cleaned.startsWith("thu_tu")) return "sort_order";
+    if (cleaned.startsWith("trang_thai")) return "status";
+
+    return cleaned;
   }
 
   private stripVietnameseDiacritics(value: string): string {

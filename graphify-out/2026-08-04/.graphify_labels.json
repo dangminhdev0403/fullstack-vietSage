@@ -353,5 +353,8 @@
   "351": "password-security.ts",
   "352": "platform-billing-migration.spec.ts",
   "353": ".getDashboard",
+  "354": "[complete] 2026-07-14 - Guest Experience Redesign (Phases 0-3)",
+  "355": "TestPairBootstrapLoopbackOnly",
+  "356": "@tanstack/react-query",
   "360": "guest-device-identity.ts"
 }

@@ -1,3 +1,38 @@
+## [complete] 2026-08-04 - Mission: fix-google-sheets-service-catalog-price-override-sync
+
+- Upgraded `normalizeHeader()` in `google-sheets-service-catalog-sync.service.ts` to strip punctuation, dashes, and multiline characters from column headers.
+- Added prefix matching rules mapping any header starting with `gia_rieng` to `price_override` and `cho_phep_nhap_so_luong` to `quantity_enabled`.
+- Enhanced `number()` and `optionalNumber()` in `service-catalog-import.adapter.ts` to parse formatted Vietnamese currency strings (`50.000 đ`, `50,000`).
+- Verified Google Sheets sync unit test suite `google-sheets-service-catalog-sync.service.spec.ts` (**8/8 passed**).
+
+Verification result:
+
+- `npx jest google-sheets-service-catalog-sync` passed **8 tests**.
+- Backend build passed (`npm run build`).
+
+Remaining blockers/risks:
+
+- None.
+
+## [complete] 2026-08-04 - Mission: preserve-checkin-guest-nationality-residence-and-hide-qr-url-text
+
+- Added optional manual text inputs for "Quốc tịch" (`guestNationality` / `nationality`) and "Quê quán" (`guestResidencePlace` / `residencePlace`) for primary guest and all co-guests in `check-in-workspace.tsx`.
+- Updated `handleCapture` in `check-in-workspace.tsx` so non-empty scanner values auto-fill active slot while missing/blank scanner values preserve manually entered inputs.
+- Expanded `occupantSchema` in BFF `stays/route.ts` with `nationality: z.string().trim().max(80).optional()` and `residencePlace: z.string().trim().max(500).optional()` to forward both fields without Zod stripping.
+- Updated owner room QR modal in `owner-rooms-client.tsx` to hide the raw URL text paragraph beneath the QR image while retaining `BrandedRoomQr` and download functionality.
+- Verified backend regression in `rooms.guest-identity.spec.ts` confirming co-guest nested creation persists both fields.
+
+Verification result:
+
+- `node .\src\features\local-biometric\components\check-in-workspace-layout.test.ts` passed **8 tests**.
+- `npm test -- --runInBand src/modules/property/tests/rooms.guest-identity.spec.ts` passed **9 tests**.
+- `npx eslint src/features/local-biometric/components/check-in-workspace.tsx "src/app/api/hotel-ops/hotels/[hotelId]/stays/route.ts" "src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/rooms/owner-rooms-client.tsx"` passed with **0 errors**.
+- `npx tsc --noEmit` passed cleanly with **0 errors**.
+
+Remaining blockers/risks:
+
+- None.
+
 ## [complete] 2026-08-04 - Mission: capture-and-print-co-guest-nationality-and-address
 
 - Updated CCCD scanner in `check-in-workspace.tsx` to automatically populate nationality (`guestNationality`) & address (`guestResidencePlace`) for co-guests (`activeGuestIndex > 0`).

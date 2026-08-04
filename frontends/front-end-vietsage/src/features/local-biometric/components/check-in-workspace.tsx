@@ -109,8 +109,8 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
         guestIdentityNumber: nextCapture.guestIdentityNumber,
         guestDateOfBirth: nextCapture.guestDateOfBirth,
         guestGender: nextCapture.guestGender,
-        guestNationality: nextCapture.guestNationality,
-        guestResidencePlace: nextCapture.guestResidencePlace,
+        guestNationality: nextCapture.guestNationality?.trim() || current.guestNationality,
+        guestResidencePlace: nextCapture.guestResidencePlace?.trim() || current.guestResidencePlace,
       }));
     } else {
       const occupantIdx = activeGuestIndex - 1;
@@ -122,8 +122,8 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
           identityNumber: nextCapture.guestIdentityNumber,
           dateOfBirth: nextCapture.guestDateOfBirth,
           gender: nextCapture.guestGender,
-          nationality: nextCapture.guestNationality,
-          residencePlace: nextCapture.guestResidencePlace,
+          nationality: nextCapture.guestNationality?.trim() || next[occupantIdx]?.nationality,
+          residencePlace: nextCapture.guestResidencePlace?.trim() || next[occupantIdx]?.residencePlace,
         };
         return next;
       });
@@ -275,6 +275,17 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                     </div>
                   </div>
 
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <label htmlFor="ciw-nationality" className="block text-xs font-bold text-slate-800">Quốc tịch <span className="font-normal text-slate-500">(tùy chọn)</span></label>
+                      <input id="ciw-nationality" type="text" value={fields.guestNationality || ""} onChange={(event) => setFields({ ...fields, guestNationality: event.target.value })} className={inputClass} placeholder="Việt Nam" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label htmlFor="ciw-residence" className="block text-xs font-bold text-slate-800">Quê quán <span className="font-normal text-slate-500">(tùy chọn)</span></label>
+                      <input id="ciw-residence" type="text" value={fields.guestResidencePlace || ""} onChange={(event) => setFields({ ...fields, guestResidencePlace: event.target.value })} className={inputClass} placeholder="Địa chỉ / Quê quán" />
+                    </div>
+                  </div>
+
                   <div className="space-y-1.5 pt-1">
                     <label htmlFor="ciw-checkout" className="block text-xs font-bold text-slate-800">Dự kiến trả phòng <span className="text-red-700" aria-hidden="true">*</span></label>
                     <input id="ciw-checkout" type="datetime-local" required value={fields.plannedCheckOutAt} onChange={(event) => setFields({ ...fields, plannedCheckOutAt: event.target.value })} className={inputClass} />
@@ -318,6 +329,31 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                         onChange={(e) => handleOccupantChange(activeGuestIndex - 1, "identityNumber", e.target.value)}
                         className={inputClass}
                         placeholder="Số CCCD"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <label htmlFor={`occ-nationality-${activeGuestIndex}`} className="block text-xs font-bold text-slate-800">Quốc tịch <span className="font-normal text-slate-500">(tùy chọn)</span></label>
+                      <input
+                        id={`occ-nationality-${activeGuestIndex}`}
+                        type="text"
+                        value={occupants[activeGuestIndex - 1]?.nationality || ""}
+                        onChange={(e) => handleOccupantChange(activeGuestIndex - 1, "nationality", e.target.value)}
+                        className={inputClass}
+                        placeholder="Việt Nam"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label htmlFor={`occ-residence-${activeGuestIndex}`} className="block text-xs font-bold text-slate-800">Quê quán <span className="font-normal text-slate-500">(tùy chọn)</span></label>
+                      <input
+                        id={`occ-residence-${activeGuestIndex}`}
+                        type="text"
+                        value={occupants[activeGuestIndex - 1]?.residencePlace || ""}
+                        onChange={(e) => handleOccupantChange(activeGuestIndex - 1, "residencePlace", e.target.value)}
+                        className={inputClass}
+                        placeholder="Địa chỉ / Quê quán"
                       />
                     </div>
                   </div>

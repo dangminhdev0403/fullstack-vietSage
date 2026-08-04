@@ -16,6 +16,8 @@ const occupantSchema = z.object({
   identityNumber: z.string().trim().optional(),
   dateOfBirth: z.string().trim().optional(),
   gender: z.string().trim().optional(),
+  nationality: z.string().trim().max(80).optional(),
+  residencePlace: z.string().trim().max(500).optional(),
   isPrimary: z.boolean().optional(),
 });
 
