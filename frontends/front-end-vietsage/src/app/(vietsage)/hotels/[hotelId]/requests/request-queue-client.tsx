@@ -1550,6 +1550,24 @@ export function RequestQueueClient({
                       </p>
                     ) : null}
                     <div className="mt-4 flex flex-wrap gap-2">
+                      {(() => {
+                        const cardActions = statusActions[notification.status] ?? [];
+                        const primaryAction = cardActions[0];
+                        return primaryAction ? (
+                          <button
+                            type="button"
+                            disabled={isMutating}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              acknowledgeUrgentRequest(notification.id);
+                              void updateStatusForRequest(notification, primaryAction);
+                            }}
+                            className={`rounded-lg px-3 py-2 text-xs font-black uppercase tracking-wide text-white hover:opacity-90 active:scale-95 disabled:opacity-50 ${actionMeta[primaryAction].className}`}
+                          >
+                            {actionMeta[primaryAction].label}
+                          </button>
+                        ) : null;
+                      })()}
                       <button
                         type="button"
                         onClick={() => {
