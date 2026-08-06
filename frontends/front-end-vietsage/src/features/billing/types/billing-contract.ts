@@ -95,6 +95,7 @@ export type InvoiceDetail = {
     id: string;
     type: string;
     name: string;
+    description?: string | null;
     quantity: number;
     unitPrice: MoneyValue;
     subtotal: MoneyValue;

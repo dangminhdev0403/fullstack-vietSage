@@ -159,7 +159,7 @@ function InvoiceDetailView({ detail }: { detail: InvoiceDetail }) {
           <tbody>
             {items.map((item) => (
               <tr key={item.id} className="invoice-table-row border-b border-slate-200 align-top">
-                <td className="break-words px-2 py-2 font-bold leading-4 text-slate-950">{item.name}</td>
+                <td className="break-words px-2 py-2 font-bold leading-4 text-slate-950"><div>{item.name}</div>{item.description ? <div className="mt-0.5 text-[10px] font-normal text-slate-500 leading-normal">{item.description}</div> : null}</td>
                 <td className="break-words px-2 py-2 leading-4 text-slate-600">{labelItemType(item.type)}</td>
                 <td className="px-1 py-2 text-center font-semibold">{formatQuantity(item.quantity)}</td>
                 <td className="px-2 py-2 text-right tabular-nums">{formatMoney(item.unitPrice, currency)}</td>

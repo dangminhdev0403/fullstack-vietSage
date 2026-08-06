@@ -375,6 +375,7 @@ export class BillingService {
         id: item.id,
         type: item.itemType,
         name: item.nameSnapshot,
+        description: item.descriptionSnapshot ?? null,
         quantity: item.quantity,
         unitPrice: item.unitPriceSnapshot,
         subtotal: item.subtotalSnapshot,
