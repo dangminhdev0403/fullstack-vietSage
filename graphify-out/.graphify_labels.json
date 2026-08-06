@@ -339,9 +339,9 @@
   "337": "security_push_store.py",
   "338": "Guest Request, Checkout Reconciliation, and Room Sync",
   "339": "workstation-repository.ts",
-  "340": "reservations.controller.ts",
+  "340": "ImportTemplateService",
+  "341": "sweetalert2",
   "342": "2. Invariants bắt buộc",
-  "343": "hotel-staff-assignments.controller.ts",
   "344": "5. Updated event/transaction flows",
   "345": "Phase 2 — Idempotent period finalization, debt, settlement, API",
   "346": "google-sheet-config-repository.ts",
@@ -351,7 +351,5 @@
   "352": "platform-billing-migration.spec.ts",
   "353": ".getDashboard",
   "354": "[complete] 2026-07-14 - Guest Experience Redesign (Phases 0-3)",
-  "355": "TestPairBootstrapLoopbackOnly",
-  "356": "@tanstack/react-query",
   "360": "guest-device-identity.ts"
 }

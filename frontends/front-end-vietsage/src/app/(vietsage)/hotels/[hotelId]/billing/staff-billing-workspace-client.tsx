@@ -265,15 +265,16 @@ export function StaffBillingWorkspaceClient({
     [isDetailLoaded, items],
   );
 
-  const [prevSummary, setPrevSummary] = useState<FolioSummary | null>(null);
-  if (activeSummary !== prevSummary) {
-    setPrevSummary(activeSummary);
-    if (activeSummary) {
-      setDiscountInput(
-        activeSummary.discount ? String(activeSummary.discount) : "0",
-      );
-    }
-  }
+  useEffect(() => {
+    setDiscountInput("");
+    setSurchargeInput("");
+    setDiscountNote("");
+    setSurchargeNote("");
+    setCashGivenInput("");
+    setReconciliations({});
+    setCheckoutError("");
+  }, [selectedFolioId]);
+
 
   const currency = activeSummary?.currency ?? selectedFolio?.currency ?? "VND";
   const subtotal = toNumber(activeSummary?.subtotal ?? 0);
