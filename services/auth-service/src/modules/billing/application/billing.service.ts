@@ -443,7 +443,7 @@ export class BillingService {
           await this.ensureRoomChargeFolioItem(
             this.prisma,
             rawFolio,
-            rawFolio.createdById ?? "system",
+            rawFolio.createdByUserId ?? "system",
           );
         } catch {
           // Silent catch for summary auto-ensure
