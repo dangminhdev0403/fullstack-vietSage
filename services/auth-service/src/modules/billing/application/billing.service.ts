@@ -428,6 +428,29 @@ export class BillingService {
   }
 
   private async buildFolioSummary(hotelId: string, folioId: string) {
+    if (this.prisma?.folio?.findFirst) {
+      const rawFolio = await this.prisma.folio.findFirst({
+        where: { id: folioId, hotelId },
+        include: {
+          hotel: { select: { id: true, name: true } },
+          room: true,
+          stay: true,
+        },
+      });
+
+      if (rawFolio && rawFolio.status === FolioStatus.OPEN && rawFolio.stay && rawFolio.room) {
+        try {
+          await this.ensureRoomChargeFolioItem(
+            this.prisma,
+            rawFolio,
+            rawFolio.createdById ?? "system",
+          );
+        } catch {
+          // Silent catch for summary auto-ensure
+        }
+      }
+    }
+
     const result = await this.billingRepository.getFolioSummary(hotelId, folioId);
 
     if (!result) {
@@ -1305,7 +1328,11 @@ export class BillingService {
     });
     const chargeStart = folio.stay.checkedInAt ?? folio.stay.plannedCheckInAt;
     const chargeEnd = new Date(Math.min(Date.now(), folio.stay.plannedCheckOutAt.getTime()));
-    const unitPrice = folio.room.price ?? new Prisma.Decimal(0);
+    const defaultPrice = new Prisma.Decimal(500000);
+    const unitPrice =
+      folio.room.price && !folio.room.price.isZero()
+        ? folio.room.price
+        : defaultPrice;
     const nights = Math.max(
       1,
       Math.ceil(Math.max(0, chargeEnd.getTime() - chargeStart.getTime()) / 86400000),
@@ -1329,26 +1356,42 @@ export class BillingService {
       ) as Prisma.InputJsonValue,
     };
 
-    if (existing) {
-      return tx.folioItem.update({ where: { id: existing.id }, data: chargeData });
+    const itemResult = existing
+      ? await tx.folioItem.update({ where: { id: existing.id }, data: chargeData })
+      : await tx.folioItem.create({
+          data: {
+            hotelId: folio.hotelId,
+            folioId: folio.id,
+            stayId: folio.stayId,
+            itemType: FolioItemType.ROOM_CHARGE,
+            sourceType: FolioItemSourceType.STAY,
+            sourceId: folio.stayId,
+            roomId: folio.roomId,
+            codeSnapshot: folio.room.roomNumber,
+            nameSnapshot: `Room charge - ${folio.room.roomNumber}`,
+            currency: folio.currency,
+            ...chargeData,
+            postedByUserId: actorUserId,
+          },
+        });
+
+    if (tx.folioItem?.findMany && tx.folio?.update) {
+      const activeItems = await tx.folioItem.findMany({
+        where: { folioId: folio.id, voidedAt: null },
+      });
+      const totals = this.computeTotalsFromFolioItems(activeItems);
+      await tx.folio.update({
+        where: { id: folio.id },
+        data: {
+          subtotalAmount: totals.subtotalAmount,
+          taxAmount: totals.taxAmount,
+          discountAmount: totals.discountAmount,
+          totalAmount: totals.totalAmount,
+        },
+      });
     }
 
-    return tx.folioItem.create({
-      data: {
-        hotelId: folio.hotelId,
-        folioId: folio.id,
-        stayId: folio.stayId,
-        itemType: FolioItemType.ROOM_CHARGE,
-        sourceType: FolioItemSourceType.STAY,
-        sourceId: folio.stayId,
-        roomId: folio.roomId,
-        codeSnapshot: folio.room.roomNumber,
-        nameSnapshot: `Room charge - ${folio.room.roomNumber}`,
-        currency: folio.currency,
-        ...chargeData,
-        postedByUserId: actorUserId,
-      },
-    });
+    return itemResult;
   }
 
   private computeTotalsFromFolioItems(

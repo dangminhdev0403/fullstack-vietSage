@@ -1,3 +1,18 @@
+## [complete] 2026-08-06 - Mission: fix-synchronous-setstate-in-effect-cascading-render
+
+- Replaced synchronous `setState()` calls inside `useEffect` with React's recommended state update during render pattern (`prevSelectedFolioId`) in `staff-billing-workspace-client.tsx`.
+- Removed `useEffect` reset block that triggered React 19 / linter warning: `Calling setState synchronously within an effect can trigger cascading renders`.
+- Verified TypeScript compilation (`npx tsc --noEmit`) and ESLint (`npx eslint`) (**0 errors**).
+
+Verification result:
+
+- `npx tsc --noEmit` passed cleanly with **0 errors**.
+- `npx eslint "src/app/(vietsage)/hotels/[hotelId]/billing/staff-billing-workspace-client.tsx"` passed cleanly with **0 errors**.
+
+Remaining blockers/risks:
+
+- None.
+
 ## [complete] 2026-08-04 - Mission: fix-google-sheets-service-catalog-price-override-sync
 
 - Upgraded `normalizeHeader()` in `google-sheets-service-catalog-sync.service.ts` to strip punctuation, dashes, and multiline characters from column headers.

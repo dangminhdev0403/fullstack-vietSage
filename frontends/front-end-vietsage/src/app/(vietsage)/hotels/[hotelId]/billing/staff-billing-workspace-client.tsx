@@ -96,7 +96,11 @@ function parseAmountOrPercentage(
     return { amount, isPercentage: true, percentage };
   }
   const amount = parseFormattedNumber(str);
-  return { amount: isNaN(amount) ? 0 : amount, isPercentage: false, percentage: 0 };
+  return {
+    amount: isNaN(amount) ? 0 : amount,
+    isPercentage: false,
+    percentage: 0,
+  };
 }
 
 function getStatusBadge(status: string | undefined) {
@@ -173,9 +177,12 @@ export function StaffBillingWorkspaceClient({
   const queryClient = useQueryClient();
   const apiBase = `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/billing`;
 
-  const queryRoomNumber = searchParams?.get("roomNumber") ?? searchParams?.get("room") ?? "";
-  const queryFolioId = searchParams?.get("folioId") ?? searchParams?.get("folio") ?? "";
-  const queryStayId = searchParams?.get("stayId") ?? searchParams?.get("stay") ?? "";
+  const queryRoomNumber =
+    searchParams?.get("roomNumber") ?? searchParams?.get("room") ?? "";
+  const queryFolioId =
+    searchParams?.get("folioId") ?? searchParams?.get("folio") ?? "";
+  const queryStayId =
+    searchParams?.get("stayId") ?? searchParams?.get("stay") ?? "";
   const queryRoomId = searchParams?.get("roomId") ?? "";
 
   const initialFolio = useMemo(() => {
@@ -206,6 +213,7 @@ export function StaffBillingWorkspaceClient({
   const [selectedFolioId, setSelectedFolioId] = useState(
     () => initialFolio?.id ?? "",
   );
+  const [prevSelectedFolioId, setPrevSelectedFolioId] = useState(selectedFolioId);
   const [summary, setSummary] = useState<FolioSummary | null>(
     initialFolio ?? null,
   );
@@ -218,6 +226,22 @@ export function StaffBillingWorkspaceClient({
     Record<string, ReconciliationChoice>
   >({});
   const [checkoutError, setCheckoutError] = useState("");
+  const [discountInput, setDiscountInput] = useState<string>("");
+  const [surchargeInput, setSurchargeInput] = useState<string>("");
+  const [discountNote, setDiscountNote] = useState<string>("");
+  const [surchargeNote, setSurchargeNote] = useState<string>("");
+  const [cashGivenInput, setCashGivenInput] = useState<string>("");
+
+  if (selectedFolioId !== prevSelectedFolioId) {
+    setPrevSelectedFolioId(selectedFolioId);
+    setDiscountInput("");
+    setSurchargeInput("");
+    setDiscountNote("");
+    setSurchargeNote("");
+    setCashGivenInput("");
+    setReconciliations({});
+    setCheckoutError("");
+  }
 
   const filteredFolios = useMemo(() => {
     return folios.filter((folio) => {
@@ -242,12 +266,6 @@ export function StaffBillingWorkspaceClient({
     });
   }, [folios, search, statusFilter]);
 
-  const [discountInput, setDiscountInput] = useState<string>("");
-  const [surchargeInput, setSurchargeInput] = useState<string>("");
-  const [discountNote, setDiscountNote] = useState<string>("");
-  const [surchargeNote, setSurchargeNote] = useState<string>("");
-  const [cashGivenInput, setCashGivenInput] = useState<string>("");
-
   const selectedFolio = useMemo(
     () =>
       folios.find((folio) => folio.id === selectedFolioId) ??
@@ -265,16 +283,6 @@ export function StaffBillingWorkspaceClient({
     [isDetailLoaded, items],
   );
 
-  useEffect(() => {
-    setDiscountInput("");
-    setSurchargeInput("");
-    setDiscountNote("");
-    setSurchargeNote("");
-    setCashGivenInput("");
-    setReconciliations({});
-    setCheckoutError("");
-  }, [selectedFolioId]);
-
 
   const currency = activeSummary?.currency ?? selectedFolio?.currency ?? "VND";
   const subtotal = toNumber(activeSummary?.subtotal ?? 0);
@@ -282,7 +290,9 @@ export function StaffBillingWorkspaceClient({
 
   const roomChargeTotal = useMemo(() => {
     return activeItems
-      .filter((item) => item.itemType === "ROOM_CHARGE" && !isFolioItemVoided(item))
+      .filter(
+        (item) => item.itemType === "ROOM_CHARGE" && !isFolioItemVoided(item),
+      )
       .reduce((sum, item) => sum + toNumber(item.totalSnapshot), 0);
   }, [activeItems]);
 
@@ -381,7 +391,9 @@ export function StaffBillingWorkspaceClient({
     [refreshActiveFolio, router],
   );
 
-  useOwnerRequestRealtime(hotelId, realtimeHandlers, { showConnectionToasts: false });
+  useOwnerRequestRealtime(hotelId, realtimeHandlers, {
+    showConnectionToasts: false,
+  });
 
   async function issueInvoiceAndCollect() {
     if (!selectedFolioId || !canManage) return;
@@ -783,7 +795,10 @@ export function StaffBillingWorkspaceClient({
                               ]);
                               setSummary(summaryRes.data);
                               setItems(itemsRes.data.items);
-                              await invalidateHotelRealtimeQueries(queryClient, hotelId);
+                              await invalidateHotelRealtimeQueries(
+                                queryClient,
+                                hotelId,
+                              );
                               router.refresh();
                               void Swal.fire({
                                 icon: "success",
@@ -868,25 +883,33 @@ export function StaffBillingWorkspaceClient({
             <li className="flex items-start gap-2">
               <span className="text-amber-700 font-extrabold">•</span>
               <span>
-                <strong className="font-black text-amber-950">Phụ thu (Tăng giá)</strong>: Nhận phòng sớm, trả trễ, ở quá số người, đền bù... (Nhập % hoặc số tiền).
+                <strong className="font-black text-amber-950">
+                  Phụ thu (Tăng giá)
+                </strong>
+                : Nhận phòng sớm, trả trễ, ở quá số người, đền bù... (Nhập %
+                hoặc số tiền).
               </span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-amber-700 font-extrabold">•</span>
               <span>
-                <strong className="font-black text-amber-950">Giảm giá</strong>: Ưu đãi khách VIP, mã voucher, đền bù dịch vụ... (Nhập % hoặc số tiền).
+                <strong className="font-black text-amber-950">Giảm giá</strong>:
+                Ưu đãi khách VIP, mã voucher, đền bù dịch vụ... (Nhập % hoặc số
+                tiền).
               </span>
             </li>
             <li className="flex items-start gap-2 text-amber-950 font-bold pt-0.5">
               <span className="text-[#d97706] text-base">📊</span>
               <span>
-                Tính theo <strong>%</strong>: Quy đổi dựa trên <strong>Tạm tính dịch vụ (Subtotal)</strong> của phòng.
+                Tính theo <strong>%</strong>: Quy đổi dựa trên{" "}
+                <strong>Tạm tính dịch vụ (Subtotal)</strong> của phòng.
               </span>
             </li>
             <li className="flex items-start gap-2 text-amber-950 font-bold">
               <span className="text-[#d97706] text-base">💡</span>
               <span>
-                Luôn nhập <strong>diễn giải / lý do</strong> để lưu vết minh bạch trên hóa đơn thanh toán.
+                Luôn nhập <strong>diễn giải / lý do</strong> để lưu vết minh
+                bạch trên hóa đơn thanh toán.
               </span>
             </li>
           </ul>
@@ -999,7 +1022,9 @@ export function StaffBillingWorkspaceClient({
             </div>
 
             <div className="flex justify-between items-center">
-              <dt className="text-amber-100/90 font-bold text-sm">Thuế (VAT)</dt>
+              <dt className="text-amber-100/90 font-bold text-sm">
+                Thuế (VAT)
+              </dt>
               <dd className="font-black text-base text-white">
                 {formatMoney(tax, currency)}
               </dd>
@@ -1039,7 +1064,9 @@ export function StaffBillingWorkspaceClient({
                         const defaultName = parsed.isPercentage
                           ? `Phụ thu ${parsed.percentage}%`
                           : "Phụ thu thủ công";
-                        const name = noteText ? `Phụ thu: ${noteText}` : defaultName;
+                        const name = noteText
+                          ? `Phụ thu: ${noteText}`
+                          : defaultName;
                         try {
                           await requestInternalApiEnvelope(
                             `${apiBase}/folios/${encodeURIComponent(selectedFolioId)}/items`,
@@ -1070,7 +1097,10 @@ export function StaffBillingWorkspaceClient({
                           ]);
                           setSummary(summaryRes.data);
                           setItems(itemsRes.data.items);
-                          await invalidateHotelRealtimeQueries(queryClient, hotelId);
+                          await invalidateHotelRealtimeQueries(
+                            queryClient,
+                            hotelId,
+                          );
                           router.refresh();
                           void Swal.fire({
                             icon: "success",
@@ -1200,7 +1230,9 @@ export function StaffBillingWorkspaceClient({
                         const defaultName = parsed.isPercentage
                           ? `Giảm giá ${parsed.percentage}%`
                           : "Giảm giá";
-                        const name = noteText ? `Giảm giá: ${noteText}` : defaultName;
+                        const name = noteText
+                          ? `Giảm giá: ${noteText}`
+                          : defaultName;
                         try {
                           await requestInternalApiEnvelope(
                             `${apiBase}/folios/${encodeURIComponent(selectedFolioId)}/items`,
@@ -1231,7 +1263,10 @@ export function StaffBillingWorkspaceClient({
                           ]);
                           setSummary(summaryRes.data);
                           setItems(itemsRes.data.items);
-                          await invalidateHotelRealtimeQueries(queryClient, hotelId);
+                          await invalidateHotelRealtimeQueries(
+                            queryClient,
+                            hotelId,
+                          );
                           router.refresh();
                           void Swal.fire({
                             icon: "success",
