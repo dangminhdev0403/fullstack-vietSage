@@ -422,6 +422,54 @@ export function StaffBillingWorkspaceClient({
 
     setSaving(true);
     try {
+      const surchargeParsed = parseAmountOrPercentage(surchargeInput, subtotal);
+      if (surchargeParsed.amount > 0) {
+        const noteText = surchargeNote.trim();
+        const defaultName = surchargeParsed.isPercentage
+          ? `Phụ thu ${surchargeParsed.percentage}%`
+          : "Phụ thu thủ công";
+        const name = noteText ? `Phụ thu: ${noteText}` : defaultName;
+        await requestInternalApiEnvelope(
+          `${apiBase}/folios/${encodeURIComponent(selectedFolioId)}/items`,
+          {
+            method: "POST",
+            body: {
+              itemType: "MANUAL_CHARGE",
+              name,
+              description: surchargeParsed.isPercentage
+                ? `Quy đổi ${surchargeParsed.percentage}% từ Tạm tính (${formatMoney(subtotal, currency)})`
+                : noteText || undefined,
+              amount: surchargeParsed.amount,
+              quantity: 1,
+            },
+          },
+        );
+      }
+
+      const discountParsed = parseAmountOrPercentage(discountInput, subtotal);
+      if (discountParsed.amount > 0) {
+        const noteText = discountNote.trim();
+        const defaultName = discountParsed.isPercentage
+          ? `Giảm giá ${discountParsed.percentage}%`
+          : "Giảm giá";
+        const name = noteText ? `Giảm giá: ${noteText}` : defaultName;
+        await requestInternalApiEnvelope(
+          `${apiBase}/folios/${encodeURIComponent(selectedFolioId)}/items`,
+          {
+            method: "POST",
+            body: {
+              itemType: "DISCOUNT",
+              name,
+              description: discountParsed.isPercentage
+                ? `Quy đổi ${discountParsed.percentage}% từ Tạm tính (${formatMoney(subtotal, currency)})`
+                : noteText || undefined,
+              amount: discountParsed.amount,
+              quantity: 1,
+            },
+          },
+        );
+      }
+
       const invoiceResponse = await requestInternalApiEnvelope<Invoice>(
         `${apiBase}/folios/${encodeURIComponent(selectedFolioId)}/invoice`,
         {
