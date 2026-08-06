@@ -1084,7 +1084,7 @@ export function StaffBillingWorkspaceClient({
                 <dt className="text-amber-100 font-extrabold text-sm min-w-0 truncate">
                   Phụ thu (Tăng giá)
                 </dt>
-                <dd className="flex-1 min-w-0 max-w-[165px] flex gap-1.5 shrink-0">
+                <dd className="flex-1 min-w-0 max-w-[165px] shrink-0">
                   <input
                     type="text"
                     inputMode="numeric"
@@ -1098,83 +1098,6 @@ export function StaffBillingWorkspaceClient({
                     placeholder="0 hoặc 10%"
                     className="h-10 w-full min-w-0 rounded-xl border border-[#d4af37]/70 bg-[#1c1204] px-3 py-1 text-right text-base font-black text-[#ffe270] outline-none focus:border-[#fbbf24] focus:ring-2 focus:ring-[#fbbf24]/60 shadow-inner disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-[#2b1e0d]"
                   />
-                  {canManage && selectedFolio?.status === "OPEN" ? (
-                    <button
-                      type="button"
-                      title="Cập nhật Phụ thu vào Folio"
-                      onClick={async () => {
-                        const parsed = parseAmountOrPercentage(
-                          surchargeInput,
-                          subtotal,
-                        );
-                        if (parsed.amount <= 0) return;
-                        const noteText = surchargeNote.trim();
-                        const defaultName = parsed.isPercentage
-                          ? `Phụ thu ${parsed.percentage}%`
-                          : "Phụ thu thủ công";
-                        const name = noteText
-                          ? `Phụ thu: ${noteText}`
-                          : defaultName;
-                        try {
-                          await requestInternalApiEnvelope(
-                            `${apiBase}/folios/${encodeURIComponent(selectedFolioId)}/items`,
-                            {
-                              method: "POST",
-                              body: {
-                                itemType: "MANUAL_CHARGE",
-                                name,
-                                description: parsed.isPercentage
-                                  ? `Quy đổi ${parsed.percentage}% từ Tạm tính (${formatMoney(subtotal, currency)})`
-                                  : noteText || undefined,
-                                amount: parsed.amount,
-                                quantity: 1,
-                              },
-                            },
-                          );
-                          setSurchargeInput("");
-                          setSurchargeNote("");
-                          const [summaryRes, itemsRes] = await Promise.all([
-                            requestInternalApiEnvelope<FolioSummary>(
-                              `${apiBase}/folios/${encodeURIComponent(selectedFolioId)}/summary`,
-                              { method: "GET" },
-                            ),
-                            requestInternalApiEnvelope<FolioItemsPage>(
-                              `${apiBase}/folios/${encodeURIComponent(selectedFolioId)}/items?page=1&limit=100`,
-                              { method: "GET" },
-                            ),
-                          ]);
-                          setSummary(summaryRes.data);
-                          setItems(itemsRes.data.items);
-                          await invalidateHotelRealtimeQueries(
-                            queryClient,
-                            hotelId,
-                          );
-                          router.refresh();
-                          void Swal.fire({
-                            icon: "success",
-                            title: "Đã thêm phụ thu vào folio",
-                            toast: true,
-                            position: "top-end",
-                            timer: 2000,
-                            showConfirmButton: false,
-                          });
-                        } catch (err) {
-                          void Swal.fire({
-                            icon: "error",
-                            title: "Không thể thêm phụ thu",
-                            text:
-                              err instanceof Error
-                                ? err.message
-                                : "Vui lòng thử lại",
-                            confirmButtonColor: "#17201b",
-                          });
-                        }
-                      }}
-                      className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#fbbf24] text-[#1c1204] font-black text-xl hover:bg-[#f59e0b] active:scale-95 transition shrink-0 shadow-sm cursor-pointer"
-                    >
-                      +
-                    </button>
-                  ) : null}
                 </dd>
               </div>
 
@@ -1250,7 +1173,7 @@ export function StaffBillingWorkspaceClient({
                 <dt className="text-amber-100 font-extrabold text-sm min-w-0 truncate">
                   Giảm giá
                 </dt>
-                <dd className="flex-1 min-w-0 max-w-[165px] flex gap-1.5 shrink-0">
+                <dd className="flex-1 min-w-0 max-w-[165px] shrink-0">
                   <input
                     type="text"
                     inputMode="numeric"
@@ -1264,83 +1187,6 @@ export function StaffBillingWorkspaceClient({
                     placeholder="0 hoặc 10%"
                     className="h-10 w-full min-w-0 rounded-xl border border-[#d4af37]/70 bg-[#1c1204] px-3 py-1 text-right text-base font-black text-[#fef08a] outline-none focus:border-[#fbbf24] focus:ring-2 focus:ring-[#fbbf24]/60 shadow-inner disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-[#2b1e0d]"
                   />
-                  {canManage && selectedFolio?.status === "OPEN" ? (
-                    <button
-                      type="button"
-                      title="Cập nhật Giảm giá vào Folio"
-                      onClick={async () => {
-                        const parsed = parseAmountOrPercentage(
-                          discountInput,
-                          subtotal,
-                        );
-                        if (parsed.amount <= 0) return;
-                        const noteText = discountNote.trim();
-                        const defaultName = parsed.isPercentage
-                          ? `Giảm giá ${parsed.percentage}%`
-                          : "Giảm giá";
-                        const name = noteText
-                          ? `Giảm giá: ${noteText}`
-                          : defaultName;
-                        try {
-                          await requestInternalApiEnvelope(
-                            `${apiBase}/folios/${encodeURIComponent(selectedFolioId)}/items`,
-                            {
-                              method: "POST",
-                              body: {
-                                itemType: "DISCOUNT",
-                                name,
-                                description: parsed.isPercentage
-                                  ? `Quy đổi ${parsed.percentage}% từ Tạm tính (${formatMoney(subtotal, currency)})`
-                                  : noteText || undefined,
-                                amount: parsed.amount,
-                                quantity: 1,
-                              },
-                            },
-                          );
-                          setDiscountInput("");
-                          setDiscountNote("");
-                          const [summaryRes, itemsRes] = await Promise.all([
-                            requestInternalApiEnvelope<FolioSummary>(
-                              `${apiBase}/folios/${encodeURIComponent(selectedFolioId)}/summary`,
-                              { method: "GET" },
-                            ),
-                            requestInternalApiEnvelope<FolioItemsPage>(
-                              `${apiBase}/folios/${encodeURIComponent(selectedFolioId)}/items?page=1&limit=100`,
-                              { method: "GET" },
-                            ),
-                          ]);
-                          setSummary(summaryRes.data);
-                          setItems(itemsRes.data.items);
-                          await invalidateHotelRealtimeQueries(
-                            queryClient,
-                            hotelId,
-                          );
-                          router.refresh();
-                          void Swal.fire({
-                            icon: "success",
-                            title: "Đã thêm giảm giá vào folio",
-                            toast: true,
-                            position: "top-end",
-                            timer: 2000,
-                            showConfirmButton: false,
-                          });
-                        } catch (err) {
-                          void Swal.fire({
-                            icon: "error",
-                            title: "Không thể thêm giảm giá",
-                            text:
-                              err instanceof Error
-                                ? err.message
-                                : "Vui lòng thử lại",
-                            confirmButtonColor: "#17201b",
-                          });
-                        }
-                      }}
-                      className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#fbbf24] text-[#1c1204] font-black text-xl hover:bg-[#f59e0b] active:scale-95 transition shrink-0 shadow-sm cursor-pointer"
-                    >
-                      +
-                    </button>
-                  ) : null}
                 </dd>
               </div>
 
