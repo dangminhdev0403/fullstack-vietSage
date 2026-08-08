@@ -1,15 +1,16 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
+import type { BillingPage, FolioListItem } from "@/features/billing/types/billing-contract";
+import { BillingFolioTableClient } from "./billing-folio-table-client";
+import { OwnerSaasBillingClient } from "./owner-saas-billing-client";
 
-export function BillingTabSwitcher({
-  folioComponent,
-  saasComponent,
-}: {
-  hotelId?: string;
-  folioComponent: ReactNode;
-  saasComponent: ReactNode;
-}) {
+type BillingTabSwitcherProps = {
+  hotelId: string;
+  foliosPage: BillingPage<FolioListItem>;
+};
+
+export function BillingTabSwitcher({ hotelId, foliosPage }: BillingTabSwitcherProps) {
   const [activeTab, setActiveTab] = useState<"folios" | "saas">("folios");
 
   return (
@@ -39,7 +40,11 @@ export function BillingTabSwitcher({
         </nav>
       </div>
 
-      {activeTab === "folios" ? folioComponent : saasComponent}
+      {activeTab === "folios" ? (
+        <BillingFolioTableClient hotelId={hotelId} foliosPage={foliosPage} />
+      ) : (
+        <OwnerSaasBillingClient hotelId={hotelId} />
+      )}
     </div>
   );
 }

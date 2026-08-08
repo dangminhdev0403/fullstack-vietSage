@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Added D3 permission catalog foundation contract:
+  - `GET /api/v1/admin/permissions` (Protected, requiring permission `identity.permissions.read`).
+  - Response success envelope payload `data.permissions` returns immutable catalog items with `key`, `label`, `description`, `bounded_context`, and `risk`.
+
+- Updated `AssignAccountRolesRequest` (`POST /hotel-users/{id}/roles`): accepts optional `confirm_critical` boolean and enforces `uniqueItems: true` on `roleIds`.
+
 - Biometric workstation pairing is now restart-safe:
   - One-time pairing codes and workstation credentials are persisted as SHA-256 hashes in PostgreSQL.
   - `POST /biometric-workstations/pair` and `/authenticate` validate receiver credentials without storing plaintext tokens.

@@ -1,6 +1,194 @@
 {
   "openapi": "3.0.0",
   "paths": {
+    "/admin/permissions": {
+      "get": {
+        "operationId": "AdminPermissionsController_listPermissions",
+        "summary": "Xem danh sách catalog quyền hệ thống (D3)",
+        "description": "Lấy danh sách catalog quyền hệ thống bất biến. Yêu cầu quyền identity.permissions.read.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Bao phản hồi danh sách catalog quyền hệ thống",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Lấy danh sách catalog quyền hệ thống thành công"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "permissions": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string",
+                                "example": "identity.permissions.read"
+                              },
+                              "label": {
+                                "type": "string",
+                                "example": "Xem danh sách quyền hệ thống"
+                              },
+                              "description": {
+                                "type": "string",
+                                "example": "Cho phép truy vấn catalog quyền hệ thống D3"
+                              },
+                              "bounded_context": {
+                                "type": "string",
+                                "example": "identity"
+                              },
+                              "risk": {
+                                "type": "string",
+                                "enum": [
+                                  "LOW",
+                                  "MEDIUM",
+                                  "HIGH",
+                                  "CRITICAL"
+                                ],
+                                "example": "LOW"
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "label",
+                              "description",
+                              "bounded_context",
+                              "risk"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "permissions"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin.permissions"
+        ]
+      }
+    },
+    "/api/v1/admin/permissions": {
+      "get": {
+        "operationId": "AdminPermissionsController_listPermissionsV1",
+        "summary": "Xem danh sách catalog quyền hệ thống (D3)",
+        "description": "Lấy danh sách catalog quyền hệ thống bất biến. Yêu cầu quyền identity.permissions.read.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Bao phản hồi danh sách catalog quyền hệ thống",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Lấy danh sách catalog quyền hệ thống thành công"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "permissions": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string",
+                                "example": "identity.permissions.read"
+                              },
+                              "label": {
+                                "type": "string",
+                                "example": "Xem danh sách quyền hệ thống"
+                              },
+                              "description": {
+                                "type": "string",
+                                "example": "Cho phép truy vấn catalog quyền hệ thống D3"
+                              },
+                              "bounded_context": {
+                                "type": "string",
+                                "example": "identity"
+                              },
+                              "risk": {
+                                "type": "string",
+                                "enum": [
+                                  "LOW",
+                                  "MEDIUM",
+                                  "HIGH",
+                                  "CRITICAL"
+                                ],
+                                "example": "LOW"
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "label",
+                              "description",
+                              "bounded_context",
+                              "risk"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "permissions"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "admin.permissions"
+        ]
+      }
+    },
     "/health": {
       "get": {
         "operationId": "HealthController_getHealth",
@@ -3447,10 +3635,14 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "confirm_critical": {
+                    "type": "boolean"
+                  },
                   "roleIds": {
                     "type": "array",
                     "minItems": 1,
                     "maxItems": 20,
+                    "uniqueItems": true,
                     "items": {
                       "type": "string",
                       "maxLength": 64

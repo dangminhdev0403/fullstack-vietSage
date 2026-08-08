@@ -350,6 +350,26 @@ never implies an active hotel; clients must require an explicit hotel selection.
 
 ## Module: rbac.permissions
 
+### `GET /api/v1/admin/permissions` (Protected)
+
+- Authorization: `Authorization` bearer token requiring `identity.permissions.read`.
+- Description: D3 system permission catalog (immutable catalog).
+- `data` response:
+
+```json
+{
+  "permissions": [
+    {
+      "key": "identity.permissions.read",
+      "label": "Xem danh sách quyền hệ thống",
+      "description": "Cho phép truy vấn catalog quyền hệ thống D3",
+      "bounded_context": "identity",
+      "risk": "LOW"
+    }
+  ]
+}
+```
+
 ### `GET /permissions` (Protected)
 
 - Query params (optional):
@@ -453,11 +473,12 @@ never implies an active hotel; clients must require an explicit hotel selection.
 
 ```json
 {
-  "roleIds": ["role-id-1", "role-id-2"]
+  "roleIds": ["role-id-1", "role-id-2"],
+  "confirm_critical": true
 }
 ```
 
-- Validation: `roleIds` required, size 1..20.
+- Validation: `roleIds` required, size 1..20, unique items only; optional `confirm_critical` boolean.
 - `data` response: `TenantScopedHotelUser`.
 
 ### `DELETE /hotel-users/:id/roles/:roleId` (Protected)

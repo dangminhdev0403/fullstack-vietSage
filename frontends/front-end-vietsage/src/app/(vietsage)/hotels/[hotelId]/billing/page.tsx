@@ -7,6 +7,7 @@ import { assertCanAccessHotelOps, canUseHotelId, requireHotelOpsServerTokens } f
 import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 import { StaffBillingWorkspaceClient } from "./staff-billing-workspace-client";
+import { StaffSaasReminder } from "./staff-saas-reminder";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 
 type PageProps = { params: Promise<{ hotelId: string }> | { hotelId: string } };
@@ -21,17 +22,27 @@ export default async function StaffBillingPage({ params }: PageProps) {
   const context = await loadServerWorkspaceContext(callbackUrl, tokens.accessToken);
   if (!canUseHotelId(context, hotelId) || !context.permissions.includes("hotel.billing.view")) notFound();
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
-  const [folios, dashboard] = await Promise.all([
+  const hasRevenueProtectionPermission = context.permissions.includes("hotel.revenue-protection.view");
+  const analyticsPromise = hasRevenueProtectionPermission
+    ? authorizedApi("load platform billing analytics for staff reminder", (accessToken) =>
+        billingService.getPlatformBillingAnalytics(hotelId, { accessToken }),
+      ).catch(() => null)
+    : Promise.resolve(null);
+
+  const [folios, dashboard, analytics] = await Promise.all([
     authorizedApi("list staff billing folios", (accessToken) =>
       billingService.listFolios(hotelId, { query: { page: 1, limit: 100 }, accessToken }),
     ),
     authorizedApi("load staff billing metrics", (accessToken) =>
       hotelOpsService.getDashboard(hotelId, { accessToken }),
     ),
+    analyticsPromise,
   ]);
 
   return (
     <div className="space-y-4">
+      <StaffSaasReminder reminder={analytics?.reminder ?? null} />
+
       <header className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--secondary)]">THANH TOÁN & THU DOANH THU</p>

@@ -3,6 +3,7 @@ import { Interval } from "@nestjs/schedule";
 import { PlatformBillingContractStatus, Prisma } from "@prisma/client";
 import { AppLogger } from "../../../common/logging/app-logger.service";
 import { PrismaService } from "../../../prisma/prisma.service";
+import { HotelAccessService } from "../../property/property-public";
 
 const DAY_MS = 86_400_000;
 const MAX_RECONCILIATION_DAYS = 31;
@@ -34,6 +35,69 @@ export function assertReconciliationRange(
   if ((to - from) / DAY_MS > maxDays) {
     throw new Error("PLATFORM_BILLING_RECONCILIATION_RANGE_TOO_LARGE");
   }
+}
+
+export type PeriodPaymentState = "UNPAID" | "PARTIALLY_PAID" | "PAID";
+
+export type PeriodProjection = {
+  settledAmount: Prisma.Decimal;
+  outstandingAmount: Prisma.Decimal;
+  paymentState: PeriodPaymentState;
+  isOverdue: boolean;
+};
+
+export function computePeriodProjection<
+  T extends {
+    total: Prisma.Decimal | number | string;
+    dueAt?: Date | string | null;
+    settlements?: Array<{ amount: Prisma.Decimal | number | string }>;
+  },
+>(period: T, now = new Date()): PeriodProjection {
+  const totalDec = new Prisma.Decimal(period?.total ?? 0);
+  const settledDec = (period?.settlements || []).reduce(
+    (acc, s) => Prisma.Decimal.add(acc, new Prisma.Decimal(s.amount ?? 0)),
+    new Prisma.Decimal(0),
+  );
+  const outstandingDec = Prisma.Decimal.max(
+    new Prisma.Decimal(0),
+    Prisma.Decimal.sub(totalDec, settledDec),
+  );
+
+  let paymentState: PeriodPaymentState = "UNPAID";
+  if (settledDec.equals(0)) {
+    paymentState = "UNPAID";
+  } else if (outstandingDec.equals(0)) {
+    paymentState = "PAID";
+  } else {
+    paymentState = "PARTIALLY_PAID";
+  }
+
+  const isOverdue =
+    paymentState !== "PAID" &&
+    period?.dueAt != null &&
+    now > new Date(period.dueAt);
+
+  return {
+    settledAmount: settledDec,
+    outstandingAmount: outstandingDec,
+    paymentState,
+    isOverdue,
+  };
+}
+
+export function attachPeriodProjection<
+  T extends {
+    total: Prisma.Decimal | number | string;
+    dueAt?: Date | string | null;
+    settlements?: Array<{ amount: Prisma.Decimal | number | string }>;
+  },
+>(period: T) {
+  if (!period) return period;
+  const projection = computePeriodProjection(period);
+  return {
+    ...period,
+    ...projection,
+  };
 }
 
 const HTZ = Prisma.raw(
@@ -230,6 +294,7 @@ export class PlatformBillingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly logger: AppLogger,
+    private readonly hotelAccessService: HotelAccessService,
   ) {}
 
   @Interval(300_000)
@@ -378,36 +443,69 @@ export class PlatformBillingService {
       actorUserId?: string;
     },
   ) {
-    return this.prisma.$transaction(async (tx) => {
-      const period = await tx.platformBillingPeriod.findUnique({
-        where: { id: periodId },
-      });
-      if (!period) throw new NotFoundException("Không tìm thấy kỳ thanh toán");
-      if (period.status !== "FINALIZED") {
-        throw new BadRequestException("Kỳ thanh toán chưa được chốt hóa đơn");
-      }
-
-      const existing = await tx.platformBillingSettlement.findUnique({
-        where: {
-          periodId_idempotencyKey: {
-            periodId,
-            idempotencyKey: input.idempotencyKey,
-          },
-        },
-      });
-      if (existing) return existing;
-
-      return tx.platformBillingSettlement.create({
-        data: {
+    return this.prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRawUnsafe(
+          'SELECT id FROM "PlatformBillingPeriod" WHERE id = $1 FOR UPDATE',
           periodId,
-          amount: new Prisma.Decimal(input.amount),
-          method: input.method ?? "BANK_TRANSFER",
-          reference: input.reference,
-          idempotencyKey: input.idempotencyKey,
-          actorUserId: input.actorUserId,
-        },
-      });
-    });
+        );
+
+        const period = await tx.platformBillingPeriod.findUnique({
+          where: { id: periodId },
+          include: { settlements: true },
+        });
+        if (!period) throw new NotFoundException("Không tìm thấy kỳ thanh toán");
+        if (period.status !== "FINALIZED") {
+          throw new BadRequestException("Kỳ thanh toán chưa được chốt hóa đơn");
+        }
+
+        const existing = await tx.platformBillingSettlement.findUnique({
+          where: {
+            periodId_idempotencyKey: {
+              periodId,
+              idempotencyKey: input.idempotencyKey,
+            },
+          },
+        });
+        if (existing) {
+          const projection = computePeriodProjection(period);
+          return {
+            ...existing,
+            ...projection,
+          };
+        }
+
+        const currentProjection = computePeriodProjection(period);
+        const settlementAmount = new Prisma.Decimal(input.amount);
+
+        if (settlementAmount.greaterThan(currentProjection.outstandingAmount)) {
+          throw new BadRequestException("Số tiền thanh toán vượt quá số tiền còn lại phải thanh toán");
+        }
+
+        const settlement = await tx.platformBillingSettlement.create({
+          data: {
+            periodId,
+            amount: settlementAmount,
+            method: input.method ?? "BANK_TRANSFER",
+            reference: input.reference,
+            idempotencyKey: input.idempotencyKey,
+            actorUserId: input.actorUserId,
+          },
+        });
+
+        const updatedSettlements = [...(period.settlements || []), settlement];
+        const updatedProjection = computePeriodProjection({
+          ...period,
+          settlements: updatedSettlements,
+        });
+
+        return {
+          ...settlement,
+          ...updatedProjection,
+        };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
   }
 
   async createAdjustment(
@@ -447,11 +545,12 @@ export class PlatformBillingService {
   }
 
   async listPeriods(contractId: string) {
-    return this.prisma.platformBillingPeriod.findMany({
+    const periods = await this.prisma.platformBillingPeriod.findMany({
       where: { contractId },
       include: { settlements: true, adjustments: true },
       orderBy: { periodStart: "desc" },
     });
+    return periods.map((p) => attachPeriodProjection(p));
   }
 
   async getPeriod(periodId: string) {
@@ -464,17 +563,37 @@ export class PlatformBillingService {
       },
     });
     if (!period) throw new NotFoundException("Không tìm thấy kỳ thanh toán");
-    return period;
+    return attachPeriodProjection(period);
   }
 
   async getDashboardSummary() {
-    const [contractCount, periodStats, duePeriods] = await Promise.all([
+    const [contractCount, kpiRows, rawDuePeriods] = await Promise.all([
       this.prisma.platformBillingContract.count({ where: { status: "ACTIVE" } }),
-      this.prisma.platformBillingPeriod.aggregate({
-        where: { status: "FINALIZED" },
-        _sum: { total: true },
-        _count: { id: true },
-      }),
+      this.prisma.$queryRaw<
+        Array<{
+          finalizedPeriods?: bigint | number | string;
+          finalizedAmount?: Prisma.Decimal | number | string;
+          collectedAmount?: Prisma.Decimal | number | string;
+          outstandingAmount?: Prisma.Decimal | number | string;
+          unpaidPeriodCount?: bigint | number | string;
+          overduePeriodCount?: bigint | number | string;
+        }>
+      >`
+        SELECT
+          COUNT(*)::bigint AS "finalizedPeriods",
+          COALESCE(SUM(p.total), 0) AS "finalizedAmount",
+          COALESCE(SUM(s.settled), 0) AS "collectedAmount",
+          COALESCE(SUM(GREATEST(0, p.total - COALESCE(s.settled, 0))), 0) AS "outstandingAmount",
+          COUNT(CASE WHEN p.total - COALESCE(s.settled, 0) > 0 THEN 1 END)::bigint AS "unpaidPeriodCount",
+          COUNT(CASE WHEN p.total - COALESCE(s.settled, 0) > 0 AND p."dueAt" < NOW() THEN 1 END)::bigint AS "overduePeriodCount"
+        FROM "PlatformBillingPeriod" p
+        LEFT JOIN (
+          SELECT "periodId", SUM(amount) AS settled
+          FROM "PlatformBillingSettlement"
+          GROUP BY "periodId"
+        ) s ON s."periodId" = p.id
+        WHERE p.status = 'FINALIZED'::"PlatformBillingPeriodStatus"
+      `,
       this.prisma.platformBillingPeriod.findMany({
         where: { status: "FINALIZED" },
         include: {
@@ -486,10 +605,49 @@ export class PlatformBillingService {
       }),
     ]);
 
+    const kpi = kpiRows?.[0];
+
+    const finalizedPeriods = Number(kpi?.finalizedPeriods ?? 0);
+
+    const rawFinalizedAmount = kpi?.finalizedAmount;
+    const finalizedAmount =
+      rawFinalizedAmount instanceof Prisma.Decimal
+        ? rawFinalizedAmount
+        : typeof rawFinalizedAmount === "number" || typeof rawFinalizedAmount === "string"
+        ? new Prisma.Decimal(rawFinalizedAmount)
+        : new Prisma.Decimal(0);
+
+    const rawCollectedAmount = kpi?.collectedAmount;
+    const collectedAmount =
+      rawCollectedAmount instanceof Prisma.Decimal
+        ? rawCollectedAmount
+        : typeof rawCollectedAmount === "number" || typeof rawCollectedAmount === "string"
+        ? new Prisma.Decimal(rawCollectedAmount)
+        : new Prisma.Decimal(0);
+
+    const rawOutstandingAmount = kpi?.outstandingAmount;
+    const outstandingAmount =
+      rawOutstandingAmount instanceof Prisma.Decimal
+        ? rawOutstandingAmount
+        : typeof rawOutstandingAmount === "number" || typeof rawOutstandingAmount === "string"
+        ? new Prisma.Decimal(rawOutstandingAmount)
+        : Prisma.Decimal.max(new Prisma.Decimal(0), Prisma.Decimal.sub(finalizedAmount, collectedAmount));
+
+    const unpaidPeriodCount = Number(kpi?.unpaidPeriodCount ?? 0);
+    const overduePeriodCount = Number(kpi?.overduePeriodCount ?? 0);
+
+    const duePeriods = rawDuePeriods
+      .map((p) => attachPeriodProjection(p))
+      .filter((p) => p.paymentState !== "PAID" && new Prisma.Decimal(p.outstandingAmount).gt(0));
+
     return {
       activeContracts: contractCount,
-      finalizedPeriods: periodStats._count.id ?? 0,
-      totalFinalizedRevenue: periodStats._sum.total ?? 0,
+      finalizedPeriods,
+      finalizedAmount,
+      collectedAmount,
+      outstandingAmount,
+      unpaidPeriodCount,
+      overduePeriodCount,
       duePeriods,
     };
   }
@@ -597,7 +755,7 @@ export class PlatformBillingService {
   }
 
   async listContracts(query?: { status?: PlatformBillingContractStatus; search?: string }) {
-    return this.prisma.platformBillingContract.findMany({
+    const contracts = await this.prisma.platformBillingContract.findMany({
       where: {
         ...(query?.status ? { status: query.status } : {}),
         ...(query?.search
@@ -614,13 +772,47 @@ export class PlatformBillingService {
       include: {
         hotel: { select: { id: true, name: true, code: true } },
         revisions: { orderBy: { effectiveFrom: "desc" }, take: 1 },
-        periods: { orderBy: { periodStart: "desc" }, take: 3 },
+        periods: {
+          include: { settlements: true },
+          orderBy: { periodStart: "desc" },
+          take: 3,
+        },
       },
       orderBy: { createdAt: "desc" },
     });
+
+    return contracts.map((c) => ({
+      ...c,
+      periods: (c.periods || []).map((p) => attachPeriodProjection(p)),
+    }));
   }
 
-  async getOwnerAnalytics(hotelId: string, monthDate?: string) {
+  async getOwnerAnalytics(
+    hotelId: string,
+    queryParam: {
+      monthDate?: string;
+      periodPage?: number;
+      periodLimit?: number;
+      billableDayPage?: number;
+      billableDayLimit?: number;
+    } | undefined,
+    actorContext: {
+      actorUserId: string;
+      actorRoleId: string;
+    },
+  ) {
+    const periodPage = Math.max(1, queryParam?.periodPage || 1);
+    const periodLimit = Math.min(50, Math.max(1, queryParam?.periodLimit || 10));
+    const billableDayPage = Math.max(1, queryParam?.billableDayPage || 1);
+    const billableDayLimit = Math.min(100, Math.max(1, queryParam?.billableDayLimit || 20));
+    const monthDate = queryParam?.monthDate;
+
+    await this.hotelAccessService.assertHotelAccess(
+      actorContext?.actorUserId,
+      actorContext?.actorRoleId,
+      hotelId,
+    );
+
     const contract = await this.prisma.platformBillingContract.findFirst({
       where: { hotelId },
       include: {
@@ -636,6 +828,16 @@ export class PlatformBillingService {
         usageCount: 0,
         estimatedFee: 0,
         periods: [],
+        billableDays: [],
+        periodsPage: { page: periodPage, limit: periodLimit, total: 0, items: [] },
+        billableDaysPage: { page: billableDayPage, limit: billableDayLimit, total: 0, items: [] },
+        reminder: {
+          dueSoonCount: 0,
+          overdueCount: 0,
+          dueSoonOutstandingAmount: new Prisma.Decimal(0),
+          overdueOutstandingAmount: new Prisma.Decimal(0),
+          nearestDueAt: null,
+        },
         dailySummaries: [],
         roomUsageSummary: [],
       };
@@ -649,19 +851,51 @@ export class PlatformBillingService {
       Date.UTC(targetDate.getUTCFullYear(), targetDate.getUTCMonth() + 1, 1),
     );
 
-    const [billableDays, periods, summaries, rooms, platformUsages] = await Promise.all([
+    const now = new Date();
+    const next7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    const [
+      totalBillableDaysCount,
+      paginatedBillableDays,
+      monthBillableDays,
+      totalPeriodsCount,
+      paginatedPeriods,
+      summaries,
+      rooms,
+      platformUsages,
+      reminderRaw,
+    ] = await Promise.all([
+      this.prisma.platformBillableDay.count({
+        where: {
+          contractId: contract.id,
+          serviceDate: { gte: startOfMonth, lt: endOfMonth },
+        },
+      }),
       this.prisma.platformBillableDay.findMany({
         where: {
           contractId: contract.id,
           serviceDate: { gte: startOfMonth, lt: endOfMonth },
         },
         orderBy: { serviceDate: "desc" },
+        skip: (billableDayPage - 1) * billableDayLimit,
+        take: billableDayLimit,
+      }),
+      this.prisma.platformBillableDay.findMany({
+        where: {
+          contractId: contract.id,
+          serviceDate: { gte: startOfMonth, lt: endOfMonth },
+        },
+        select: { subjectId: true, amount: true, currency: true },
+      }),
+      this.prisma.platformBillingPeriod.count({
+        where: { contractId: contract.id },
       }),
       this.prisma.platformBillingPeriod.findMany({
         where: { contractId: contract.id },
         include: { settlements: true, adjustments: true },
         orderBy: { periodStart: "desc" },
-        take: 12,
+        skip: (periodPage - 1) * periodLimit,
+        take: periodLimit,
       }),
       this.prisma.platformBillingDailySummary.findMany({
         where: {
@@ -689,18 +923,45 @@ export class PlatformBillingService {
         },
         orderBy: { startedAt: "desc" },
       }),
+      this.prisma.$queryRaw<
+        Array<{
+          dueSoonCount: number;
+          overdueCount: number;
+          dueSoonOutstandingAmount: Prisma.Decimal;
+          overdueOutstandingAmount: Prisma.Decimal;
+          nearestDueAt: Date | null;
+        }>
+      >`
+        SELECT
+          COUNT(CASE WHEN p."dueAt" >= ${now} AND p."dueAt" <= ${next7Days} AND (p."total" - COALESCE(s."settled_sum", 0)) > 0 THEN 1 END)::int AS "dueSoonCount",
+          COUNT(CASE WHEN p."dueAt" < ${now} AND (p."total" - COALESCE(s."settled_sum", 0)) > 0 THEN 1 END)::int AS "overdueCount",
+          COALESCE(SUM(CASE WHEN p."dueAt" >= ${now} AND p."dueAt" <= ${next7Days} AND (p."total" - COALESCE(s."settled_sum", 0)) > 0 THEN (p."total" - COALESCE(s."settled_sum", 0)) ELSE 0 END), 0) AS "dueSoonOutstandingAmount",
+          COALESCE(SUM(CASE WHEN p."dueAt" < ${now} AND (p."total" - COALESCE(s."settled_sum", 0)) > 0 THEN (p."total" - COALESCE(s."settled_sum", 0)) ELSE 0 END), 0) AS "overdueOutstandingAmount",
+          MIN(CASE WHEN (p."dueAt" >= ${now} AND p."dueAt" <= ${next7Days} AND (p."total" - COALESCE(s."settled_sum", 0)) > 0) OR (p."dueAt" < ${now} AND (p."total" - COALESCE(s."settled_sum", 0)) > 0) THEN p."dueAt" END) AS "nearestDueAt"
+        FROM "PlatformBillingPeriod" p
+        LEFT JOIN (
+          SELECT "periodId", SUM("amount") AS "settled_sum"
+          FROM "PlatformBillingSettlement"
+          GROUP BY "periodId"
+        ) s ON s."periodId" = p."id"
+        WHERE p."contractId" = ${contract.id}
+          AND p."status" = 'FINALIZED'
+      `,
     ]);
 
     const roomMap = new Map(rooms.map((r) => [r.id, r.roomNumber]));
-    const mappedBillableDays = billableDays.map((bd) => ({
+    const mappedBillableDays = paginatedBillableDays.map((bd) => ({
       ...bd,
       roomNumber: roomMap.get(bd.subjectId) ?? bd.subjectId,
     }));
 
-    const usageCount = platformUsages.length;
+    const activeRevision = contract.revisions[0];
+    const unitPrice = activeRevision ? Number(activeRevision.roomDayUnitPrice) : 0;
+    const defaultCurrency = activeRevision?.currency ?? "VND";
+
     const roomUsageMap = new Map<
       string,
-      { roomNumber: string; usageCount: number; billableDaysCount: number }
+      { roomNumber: string; usageCount: number; billableDaysCount: number; billedAmount: number; currency: string }
     >();
 
     for (const room of rooms) {
@@ -708,6 +969,8 @@ export class PlatformBillingService {
         roomNumber: room.roomNumber,
         usageCount: 0,
         billableDaysCount: 0,
+        billedAmount: 0,
+        currency: defaultCurrency,
       });
     }
 
@@ -716,18 +979,30 @@ export class PlatformBillingService {
         roomNumber: roomMap.get(pu.subjectId) ?? pu.subjectId,
         usageCount: 0,
         billableDaysCount: 0,
+        billedAmount: 0,
+        currency: defaultCurrency,
       };
       entry.usageCount += 1;
       roomUsageMap.set(pu.subjectId, entry);
     }
 
-    for (const bd of billableDays) {
+    for (const bd of monthBillableDays) {
       const entry = roomUsageMap.get(bd.subjectId) ?? {
         roomNumber: roomMap.get(bd.subjectId) ?? bd.subjectId,
         usageCount: 0,
         billableDaysCount: 0,
+        billedAmount: 0,
+        currency: bd.currency || defaultCurrency,
       };
+
+      const bdCurrency = bd.currency || defaultCurrency;
+      if (entry.billableDaysCount > 0 && entry.currency !== bdCurrency) {
+        throw new BadRequestException(`Phát hiện nhiều loại tiền tệ khác nhau (${entry.currency}, ${bdCurrency}) trong cùng một phòng`);
+      }
+
+      entry.currency = bdCurrency;
       entry.billableDaysCount += 1;
+      entry.billedAmount += Number(bd.amount ?? 0);
       roomUsageMap.set(bd.subjectId, entry);
     }
 
@@ -735,10 +1010,41 @@ export class PlatformBillingService {
       (r) => r.usageCount > 0 || r.billableDaysCount > 0,
     );
 
-    const activeRevision = contract.revisions[0];
-    const unitPrice = activeRevision ? Number(activeRevision.roomDayUnitPrice) : 0;
-    const billableDaysCount = billableDays.length;
+    const billableDaysCount = totalBillableDaysCount;
+    const usageCount = platformUsages.length;
     const estimatedFee = billableDaysCount * unitPrice;
+
+    const projectedPeriods = paginatedPeriods.map((p) => attachPeriodProjection(p));
+
+    const reminderData = reminderRaw[0] ?? {
+      dueSoonCount: 0,
+      overdueCount: 0,
+      dueSoonOutstandingAmount: new Prisma.Decimal(0),
+      overdueOutstandingAmount: new Prisma.Decimal(0),
+      nearestDueAt: null,
+    };
+
+    const reminder = {
+      dueSoonCount: Number(reminderData.dueSoonCount ?? 0),
+      overdueCount: Number(reminderData.overdueCount ?? 0),
+      dueSoonOutstandingAmount: new Prisma.Decimal(reminderData.dueSoonOutstandingAmount ?? 0),
+      overdueOutstandingAmount: new Prisma.Decimal(reminderData.overdueOutstandingAmount ?? 0),
+      nearestDueAt: reminderData.nearestDueAt ? new Date(reminderData.nearestDueAt) : null,
+    };
+
+    const periodsPage = {
+      page: periodPage,
+      limit: periodLimit,
+      total: totalPeriodsCount,
+      items: projectedPeriods,
+    };
+
+    const billableDaysPage = {
+      page: billableDayPage,
+      limit: billableDayLimit,
+      total: totalBillableDaysCount,
+      items: mappedBillableDays,
+    };
 
     return {
       hasContract: true,
@@ -748,8 +1054,11 @@ export class PlatformBillingService {
       usageCount,
       estimatedFee,
       billableDays: mappedBillableDays,
+      periods: projectedPeriods,
+      periodsPage,
+      billableDaysPage,
+      reminder,
       roomUsageSummary,
-      periods,
       dailySummaries: summaries,
     };
   }

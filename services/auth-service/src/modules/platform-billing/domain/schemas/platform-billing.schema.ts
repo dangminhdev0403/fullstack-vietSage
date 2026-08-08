@@ -52,3 +52,11 @@ export const listContractsQuerySchema = z.object({
 export const dashboardSummaryQuerySchema = z.object({
   monthDate: z.string().trim().optional(),
 });
+
+export const ownerAnalyticsQuerySchema = z.object({
+  monthDate: z.string().trim().optional(),
+  periodPage: z.coerce.number().int().positive().default(1),
+  periodLimit: z.coerce.number().int().positive().max(50).default(10),
+  billableDayPage: z.coerce.number().int().positive().default(1),
+  billableDayLimit: z.coerce.number().int().positive().max(100).default(20),
+});

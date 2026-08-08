@@ -1,16 +1,17 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Swal from "sweetalert2";
 
 import { requestInternalApi } from "@/core/http/internal-api-client";
-import type { FolioListItem, Invoice } from "@/features/billing/types/billing-contract";
+import type { BillingPage, FolioListItem, Invoice } from "@/features/billing/types/billing-contract";
 import { formatDateTime, formatMoney } from "@/features/billing/utils/money";
 
 type BillingFolioTableClientProps = {
   hotelId: string;
-  folios: FolioListItem[];
+  foliosPage: BillingPage<FolioListItem>;
   apiBasePath?: string;
   invoiceBasePath?: string;
 };
@@ -32,11 +33,16 @@ function getFolioInvoiceId(folio: FolioListItem): string | null {
 
 export function BillingFolioTableClient({
   hotelId,
-  folios,
+  foliosPage,
   apiBasePath = `/api/owner/hotels/${encodeURIComponent(hotelId)}`,
   invoiceBasePath = `/owner/hotels/${encodeURIComponent(hotelId)}/billing/invoices`,
 }: BillingFolioTableClientProps) {
   const router = useRouter();
+  const folios = foliosPage.items;
+  const page = foliosPage.page;
+  const totalItems = foliosPage.total;
+  const totalPages = Math.max(1, Math.ceil(totalItems / foliosPage.limit));
+
   const [selectedFolio, setSelectedFolio] = useState<FolioListItem | null>(null);
   const [issuedInvoice, setIssuedInvoice] = useState<Invoice | null>(null);
   const [issueError, setIssueError] = useState<string | null>(null);
@@ -249,7 +255,41 @@ export function BillingFolioTableClient({
               ))}
             </tbody>
           </table>
-          {filteredFolios.length === 0 ? <div className="p-8 text-sm text-[var(--on-surface-variant)]">Không tìm thấy folio phù hợp.</div> : null}
+          {filteredFolios.length === 0 ? <div className="p-8 text-sm text-[var(--on-surface-variant)]">Không tìm thấy folio phù hợp trong trang này.</div> : null}
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-4 border-t border-[var(--outline-variant)] bg-slate-50/50 p-4 text-sm font-semibold text-slate-600 dark:bg-slate-900/50 dark:text-slate-400">
+          <div>
+            Trang <span className="font-bold text-slate-900 dark:text-white">{page}</span> / <span className="font-bold text-slate-900 dark:text-white">{totalPages}</span> ({totalItems} folio)
+          </div>
+          <div className="flex items-center gap-2">
+            {page > 1 ? (
+              <Link
+                href={`/owner/hotels/${encodeURIComponent(hotelId)}/billing?folioPage=${page - 1}`}
+                scroll={false}
+                className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200"
+              >
+                Trang trước
+              </Link>
+            ) : (
+              <span className="inline-flex items-center justify-center rounded-xl border border-slate-100 bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-400 cursor-not-allowed dark:border-slate-800/40 dark:bg-slate-800/40 dark:text-slate-600">
+                Trang trước
+              </span>
+            )}
+            {page < totalPages ? (
+              <Link
+                href={`/owner/hotels/${encodeURIComponent(hotelId)}/billing?folioPage=${page + 1}`}
+                scroll={false}
+                className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200"
+              >
+                Trang sau
+              </Link>
+            ) : (
+              <span className="inline-flex items-center justify-center rounded-xl border border-slate-100 bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-400 cursor-not-allowed dark:border-slate-800/40 dark:bg-slate-800/40 dark:text-slate-600">
+                Trang sau
+              </span>
+            )}
+          </div>
         </div>
       </section>
 

@@ -5,6 +5,20 @@ import Swal from "sweetalert2";
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 
+type Period = {
+  id: string;
+  contractId?: string;
+  periodStart: string;
+  periodEnd: string;
+  status: "DRAFT" | "FINALIZED" | "VOID";
+  total: number;
+  dueAt?: string;
+  settledAmount?: number;
+  outstandingAmount?: number;
+  paymentState?: "UNPAID" | "PARTIALLY_PAID" | "PAID";
+  isOverdue?: boolean;
+};
+
 type Contract = {
   id: string;
   hotelId: string;
@@ -13,14 +27,18 @@ type Contract = {
   billingStartedAt: string;
   hotel: { id: string; name: string; code: string };
   revisions: Array<{ id: string; roomDayUnitPrice: number; currency: string; starTierSnapshot: number }>;
-  periods: Array<{ id: string; periodStart: string; periodEnd: string; status: string; total: number }>;
+  periods: Period[];
 };
 
 type Summary = {
   activeContracts: number;
   finalizedPeriods: number;
-  totalFinalizedRevenue: number;
-  duePeriods: Array<Record<string, unknown>>;
+  finalizedAmount: number;
+  collectedAmount: number;
+  outstandingAmount: number;
+  unpaidPeriodCount: number;
+  overduePeriodCount: number;
+  duePeriods: Period[];
 };
 
 type HotelOption = {
@@ -52,12 +70,14 @@ export function AdminBillingClient() {
   });
 
   const [showSettlementModal, setShowSettlementModal] = useState(false);
-  const [selectedPeriodId, setSelectedPeriodId] = useState("");
+  const [selectedPeriod, setSelectedPeriod] = useState<Period | null>(null);
   const [settlementForm, setSettlementForm] = useState({
     amount: "",
     method: "BANK_TRANSFER",
     reference: "",
   });
+  const [settlementIdempotencyKey, setSettlementIdempotencyKey] = useState("");
+  const [settlementError, setSettlementError] = useState<string | null>(null);
 
   const refreshData = async () => {
     try {
@@ -101,6 +121,33 @@ export function AdminBillingClient() {
     };
   }, []);
 
+  const openSettlementModal = (period: Period) => {
+    if (typeof crypto === "undefined" || typeof crypto.randomUUID !== "function") {
+      setSettlementError("Môi trường trình duyệt không hỗ trợ crypto.randomUUID để khởi tạo mã idempotency an toàn.");
+      return;
+    }
+
+    const outstanding = period.outstandingAmount ?? period.total ?? 0;
+    const key = `settle_${period.id}_${crypto.randomUUID()}`;
+
+    setSelectedPeriod(period);
+    setSettlementForm({
+      amount: String(outstanding),
+      method: "BANK_TRANSFER",
+      reference: `REF_${period.id.substring(0, 8).toUpperCase()}`,
+    });
+    setSettlementIdempotencyKey(key);
+    setSettlementError(null);
+    setShowSettlementModal(true);
+  };
+
+  const closeSettlementModal = () => {
+    setShowSettlementModal(false);
+    setSelectedPeriod(null);
+    setSettlementIdempotencyKey("");
+    setSettlementError(null);
+  };
+
   const handleCreateContract = async (e: FormEvent) => {
     e.preventDefault();
     if (!createForm.hotelId) {
@@ -143,22 +190,42 @@ export function AdminBillingClient() {
 
   const handleRecordSettlement = async (e: FormEvent) => {
     e.preventDefault();
+    setSettlementError(null);
+
+    const numAmount = Number(settlementForm.amount);
+    const maxAmount = selectedPeriod?.outstandingAmount ?? selectedPeriod?.total ?? 0;
+
+    if (!Number.isFinite(numAmount) || numAmount <= 0) {
+      setSettlementError("Số tiền thanh toán phải là số hợp lệ lớn hơn 0");
+      return;
+    }
+
+    if (numAmount > maxAmount) {
+      setSettlementError(
+        `Số tiền thanh toán không được vượt quá số tiền còn lại phải thanh toán (${maxAmount.toLocaleString("vi-VN")} VND)`
+      );
+      return;
+    }
+
     try {
-      await requestInternalApiEnvelope(`/api/admin/platform-billing/periods/${selectedPeriodId}/settlement`, {
-        method: "POST",
-        body: {
-          amount: Number(settlementForm.amount),
-          method: settlementForm.method,
-          reference: settlementForm.reference,
-          idempotencyKey: `settle_${selectedPeriodId}_${Date.now()}`,
-        },
-      });
+      await requestInternalApiEnvelope(
+        `/api/admin/platform-billing/periods/${selectedPeriod?.id}/settlement`,
+        {
+          method: "POST",
+          body: {
+            amount: numAmount,
+            method: settlementForm.method,
+            reference: settlementForm.reference,
+            idempotencyKey: settlementIdempotencyKey,
+          },
+        }
+      );
       Swal.fire("Thành công", "Đã ghi nhận thanh toán hóa đơn", "success");
-      setShowSettlementModal(false);
+      closeSettlementModal();
       void refreshData();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Không thể ghi nhận thanh toán";
-      Swal.fire("Lỗi", msg, "error");
+      setSettlementError(msg);
     }
   };
 
@@ -190,7 +257,7 @@ export function AdminBillingClient() {
 
       {/* Summary KPI Cards */}
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Card 1 */}
+        {/* Card 1: Hợp đồng Active */}
         <div className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
           <div className="flex items-center justify-between">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -206,52 +273,54 @@ export function AdminBillingClient() {
           <p className="mt-1 text-xs text-slate-500">Đang được tính phí phòng/ngày</p>
         </div>
 
-        {/* Card 2 */}
+        {/* Card 2: Phí đã chốt */}
         <div className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
           <div className="flex items-center justify-between">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Doanh thu SaaS đã chốt
-            </p>
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
-              <VsIcon name="payments" className="text-xl" />
-            </span>
-          </div>
-          <p className="mt-3 text-3xl font-black tracking-tight text-emerald-600 dark:text-emerald-400">
-            {Number(summary?.totalFinalizedRevenue ?? 0).toLocaleString("vi-VN")} <span className="text-sm font-bold text-emerald-600/80">VND</span>
-          </p>
-          <p className="mt-1 text-xs text-slate-500">Tổng phí đã nghiệm thu</p>
-        </div>
-
-        {/* Card 3 */}
-        <div className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Kỳ hóa đơn đã chốt
+              Phí đã chốt
             </p>
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
               <VsIcon name="fact_check" className="text-xl" />
             </span>
           </div>
           <p className="mt-3 text-3xl font-black tracking-tight text-indigo-600 dark:text-indigo-400">
-            {summary?.finalizedPeriods ?? 0}
+            {Number(summary?.finalizedAmount ?? 0).toLocaleString("vi-VN")} <span className="text-sm font-bold text-indigo-600/80">VND</span>
           </p>
-          <p className="mt-1 text-xs text-slate-500">Kỳ thanh toán hoàn tất đối soát</p>
+          <p className="mt-1 text-xs text-slate-500">Tổng phí đã nghiệm thu kỳ hóa đơn</p>
         </div>
 
-        {/* Card 4 */}
+        {/* Card 3: Đã thu */}
         <div className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
           <div className="flex items-center justify-between">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Kỳ chưa thanh toán
+              Đã thu
+            </p>
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
+              <VsIcon name="payments" className="text-xl" />
+            </span>
+          </div>
+          <p className="mt-3 text-3xl font-black tracking-tight text-emerald-600 dark:text-emerald-400">
+            {Number(summary?.collectedAmount ?? 0).toLocaleString("vi-VN")} <span className="text-sm font-bold text-emerald-600/80">VND</span>
+          </p>
+          <p className="mt-1 text-xs text-slate-500">Đã ghi nhận thanh toán thực tế</p>
+        </div>
+
+        {/* Card 4: Công nợ còn lại */}
+        <div className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Công nợ còn lại
             </p>
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400">
               <VsIcon name="pending_actions" className="text-xl" />
             </span>
           </div>
           <p className="mt-3 text-3xl font-black tracking-tight text-amber-600 dark:text-amber-400">
-            {summary?.duePeriods?.length ?? 0}
+            {Number(summary?.outstandingAmount ?? 0).toLocaleString("vi-VN")} <span className="text-sm font-bold text-amber-600/80">VND</span>
           </p>
-          <p className="mt-1 text-xs text-slate-500">Cần theo dõi thu hồi nợ</p>
+          <p className="mt-1 text-xs text-slate-500 font-medium">
+            {summary?.overduePeriodCount ?? 0} Kỳ quá hạn cần thu hồi
+          </p>
         </div>
       </div>
 
@@ -359,55 +428,71 @@ export function AdminBillingClient() {
                           <tr>
                             <th className="px-5 py-3.5 font-bold">Từ ngày</th>
                             <th className="px-5 py-3.5 font-bold">Đến ngày</th>
-                            <th className="px-5 py-3.5 font-bold">Trạng thái</th>
-                            <th className="px-5 py-3.5 font-bold">Tổng tiền hóa đơn</th>
+                            <th className="px-5 py-3.5 font-bold">Trạng thái thanh toán</th>
+                            <th className="px-5 py-3.5 font-bold">Tổng tiền & Dư nợ</th>
                             <th className="px-5 py-3.5 font-bold text-right">Thao tác</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200/80 dark:divide-slate-800">
-                          {c.periods.map((p) => (
-                            <tr key={p.id} className="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                              <td className="px-5 py-4 font-mono font-semibold text-slate-900 dark:text-white">
-                                {new Date(p.periodStart).toLocaleDateString("vi-VN")}
-                              </td>
-                              <td className="px-5 py-4 font-mono font-semibold text-slate-900 dark:text-white">
-                                {new Date(p.periodEnd).toLocaleDateString("vi-VN")}
-                              </td>
-                              <td className="px-5 py-4">
-                                <span
-                                  className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${
-                                    p.status === "PAID"
-                                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-                                      : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
-                                  }`}
-                                >
-                                  {p.status === "PAID" ? "Đã thanh toán (PAID)" : "Chưa thanh toán (UNPAID)"}
-                                </span>
-                              </td>
-                              <td className="px-5 py-4 text-base font-extrabold text-slate-900 dark:text-white">
-                                {Number(p.total ?? 0).toLocaleString("vi-VN")} <span className="text-xs font-bold text-slate-500">VND</span>
-                              </td>
-                              <td className="px-5 py-4 text-right">
-                                {p.status !== "PAID" && (
-                                  <button
-                                    onClick={() => {
-                                      setSelectedPeriodId(p.id);
-                                      setSettlementForm({
-                                        amount: String(p.total ?? 0),
-                                        method: "BANK_TRANSFER",
-                                        reference: `REF_${p.id.substring(0, 8).toUpperCase()}`,
-                                      });
-                                      setShowSettlementModal(true);
-                                    }}
-                                    className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-700 shadow-sm transition-all hover:bg-emerald-100 hover:shadow dark:border-emerald-700/60 dark:bg-emerald-950/80 dark:text-emerald-300"
-                                  >
-                                    <VsIcon name="payments" className="text-base" />
-                                    Ghi nhận thanh toán
-                                  </button>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
+                          {c.periods.map((p) => {
+                            const isFullyPaid = p.paymentState === "PAID" || (p.outstandingAmount ?? 0) <= 0;
+                            return (
+                              <tr key={p.id} className="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                                <td className="px-5 py-4 font-mono font-semibold text-slate-900 dark:text-white">
+                                  {new Date(p.periodStart).toLocaleDateString("vi-VN")}
+                                </td>
+                                <td className="px-5 py-4 font-mono font-semibold text-slate-900 dark:text-white">
+                                  {new Date(p.periodEnd).toLocaleDateString("vi-VN")}
+                                </td>
+                                <td className="px-5 py-4">
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    <span
+                                      className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${
+                                        p.paymentState === "PAID"
+                                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                                          : p.paymentState === "PARTIALLY_PAID"
+                                          ? "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300"
+                                          : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                                      }`}
+                                    >
+                                      {p.paymentState === "PAID"
+                                        ? "Đã thanh toán (PAID)"
+                                        : p.paymentState === "PARTIALLY_PAID"
+                                        ? "Thanh toán một phần (PARTIALLY_PAID)"
+                                        : "Chưa thanh toán (UNPAID)"}
+                                    </span>
+                                    {p.isOverdue && (
+                                      <span className="inline-flex rounded-full bg-red-100 px-2 py-0.5 text-xs font-extrabold text-red-800 dark:bg-red-950 dark:text-red-300">
+                                        Quá hạn
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="px-5 py-4 font-semibold text-slate-900 dark:text-white">
+                                  <div>
+                                    <span className="text-base font-extrabold">{Number(p.total ?? 0).toLocaleString("vi-VN")}</span>{" "}
+                                    <span className="text-xs font-bold text-slate-500">VND</span>
+                                  </div>
+                                  {!isFullyPaid && p.outstandingAmount !== undefined && (
+                                    <div className="text-xs text-amber-600 dark:text-amber-400 font-medium mt-0.5">
+                                      Còn nợ: {Number(p.outstandingAmount).toLocaleString("vi-VN")} VND
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="px-5 py-4 text-right">
+                                  {!isFullyPaid && (
+                                    <button
+                                      onClick={() => openSettlementModal(p)}
+                                      className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-700 shadow-sm transition-all hover:bg-emerald-100 hover:shadow dark:border-emerald-700/60 dark:bg-emerald-950/80 dark:text-emerald-300"
+                                    >
+                                      <VsIcon name="payments" className="text-base" />
+                                      Ghi nhận thanh toán
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -581,7 +666,7 @@ export function AdminBillingClient() {
                 Ghi nhận Thanh toán Hóa đơn
               </h3>
               <button
-                onClick={() => setShowSettlementModal(false)}
+                onClick={closeSettlementModal}
                 className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
               >
                 <VsIcon name="close" className="text-xl" />
@@ -599,9 +684,15 @@ export function AdminBillingClient() {
                   required
                   min="0"
                   value={settlementForm.amount}
-                  onChange={(e) => setSettlementForm({ ...settlementForm, amount: e.target.value })}
+                  onChange={(e) => {
+                    setSettlementForm({ ...settlementForm, amount: e.target.value });
+                    if (settlementError) setSettlementError(null);
+                  }}
                   className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                 />
+                {settlementError && (
+                  <p className="mt-1.5 text-xs font-semibold text-red-600 dark:text-red-400">{settlementError}</p>
+                )}
               </div>
 
               <div>
@@ -637,7 +728,7 @@ export function AdminBillingClient() {
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-200/80 dark:border-slate-800">
                 <button
                   type="button"
-                  onClick={() => setShowSettlementModal(false)}
+                  onClick={closeSettlementModal}
                   className="rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
                 >
                   Hủy

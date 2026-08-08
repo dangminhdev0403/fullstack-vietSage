@@ -1,0 +1,30 @@
+{
+  "version": "1.0.0",
+  "d3_permission_catalog": {
+    "endpoint": "/api/v1/admin/permissions",
+    "method": "GET",
+    "required_permission": "identity.permissions.read",
+    "immutable": true,
+    "bounded_context": "identity",
+    "response_envelope": {
+      "status": 200,
+      "data_key": "permissions",
+      "item_schema": {
+        "key": "string",
+        "label": "string",
+        "description": "string",
+        "bounded_context": "string",
+        "risk": "LOW | MEDIUM | HIGH | CRITICAL"
+      }
+    }
+  },
+  "endpoints": [
+    {
+      "path": "/api/v1/admin/permissions",
+      "method": "GET",
+      "protected": true,
+      "permission": "identity.permissions.read",
+      "description": "D3 system permission catalog foundation endpoint"
+    }
+  ]
+}

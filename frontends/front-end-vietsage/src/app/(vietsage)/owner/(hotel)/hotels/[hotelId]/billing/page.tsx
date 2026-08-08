@@ -2,22 +2,27 @@ import { auth } from "@/auth";
 import { billingService } from "@/features/billing/service/billing-service-instance";
 import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 
-import { BillingFolioTableClient } from "./billing-folio-table-client";
-import { OwnerSaasBillingClient } from "./owner-saas-billing-client";
 import { BillingTabSwitcher } from "./billing-tab-switcher";
 
-type PageProps = { params: Promise<{ hotelId: string }> | { hotelId: string } };
+type PageProps = {
+  params: Promise<{ hotelId: string }> | { hotelId: string };
+  searchParams?: Promise<{ folioPage?: string; tab?: string }> | { folioPage?: string; tab?: string };
+};
 
 export const dynamic = "force-dynamic";
 
-export default async function OwnerBillingPage({ params }: PageProps) {
+export default async function OwnerBillingPage({ params, searchParams }: PageProps) {
   const { hotelId } = await Promise.resolve(params);
+  const resolvedSearchParams = searchParams ? await Promise.resolve(searchParams) : {};
+  const rawPage = parseInt(resolvedSearchParams.folioPage ?? "1", 10);
+  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
+
   const session = await auth();
   const callbackUrl = `/owner/hotels/${hotelId}/billing` as const;
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
 
-  const folios = await authorizedApi("list billing folios", (accessToken) =>
-    billingService.listFolios(hotelId, { query: { page: 1, limit: 50 }, accessToken }),
+  const foliosPage = await authorizedApi("list billing folios", (accessToken) =>
+    billingService.listFolios(hotelId, { query: { page, limit: 20 }, accessToken }),
   );
 
   return (
@@ -30,11 +35,7 @@ export default async function OwnerBillingPage({ params }: PageProps) {
         </p>
       </div>
 
-      <BillingTabSwitcher
-        hotelId={hotelId}
-        folioComponent={<BillingFolioTableClient hotelId={hotelId} folios={folios.items} />}
-        saasComponent={<OwnerSaasBillingClient hotelId={hotelId} />}
-      />
+      <BillingTabSwitcher hotelId={hotelId} foliosPage={foliosPage} />
     </div>
   );
 }

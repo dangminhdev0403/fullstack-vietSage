@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { PlatformBillingContractStatus } from "@prisma/client";
 import { PlatformBillingService } from "../application/platform-billing.service";
@@ -14,6 +14,7 @@ import {
   dashboardSummaryQuerySchema,
   finalizePeriodBodySchema,
   listContractsQuerySchema,
+  ownerAnalyticsQuerySchema,
   periodIdParamSchema,
   recordSettlementBodySchema,
   updateContractStatusBodySchema,
@@ -193,10 +194,22 @@ export class PlatformBillingController {
   @ApiDescript("Xem phân tích đối soát billing cho chủ khách sạn")
   @ApiOperation({ summary: "Get revenue protection analytics for hotel owner" })
   async getOwnerAnalytics(
+    @Req() request: RequestWithAuthenticatedUser,
     @Param("hotelId") hotelIdParam: string,
-    @Query("monthDate") monthDate?: string,
+    @Query() rawQuery: unknown,
   ) {
     const hotelId = parseWithZod(contractIdParamSchema, hotelIdParam);
-    return this.platformBillingService.getOwnerAnalytics(hotelId, monthDate);
+    const query = parseWithZod(ownerAnalyticsQuerySchema, rawQuery ?? {});
+    const actorUserId = request.user?.userId;
+    const actorRoleId = request.user?.roleId;
+
+    if (!actorUserId || !actorRoleId) {
+      throw new BadRequestException("Thiếu thông tin người thực hiện yêu cầu");
+    }
+
+    return this.platformBillingService.getOwnerAnalytics(hotelId, query, {
+      actorUserId,
+      actorRoleId,
+    });
   }
 }

@@ -1,4 +1,11 @@
-import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, Optional } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  Optional,
+} from "@nestjs/common";
 import {
   FolioItemSourceType,
   FolioItemType,
@@ -320,7 +327,6 @@ export class BillingService {
       return { success: true };
     });
   }
-
 
   async getFolioSummary(
     actorUserId: string,
@@ -1331,9 +1337,7 @@ export class BillingService {
     const chargeEnd = new Date(Math.min(Date.now(), folio.stay.plannedCheckOutAt.getTime()));
     const defaultPrice = new Prisma.Decimal(500000);
     const unitPrice =
-      folio.room.price && !folio.room.price.isZero()
-        ? folio.room.price
-        : defaultPrice;
+      folio.room.price && !folio.room.price.isZero() ? folio.room.price : defaultPrice;
     const nights = Math.max(
       1,
       Math.ceil(Math.max(0, chargeEnd.getTime() - chargeStart.getTime()) / 86400000),
