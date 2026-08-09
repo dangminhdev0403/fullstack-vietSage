@@ -9888,7 +9888,7 @@
     },
     "/hotels/{hotelId}/local-partners/categories": {
       "get": {
-        "operationId": "LocalPartnersController_getCategories",
+        "operationId": "LocalPartnersController_categories",
         "parameters": [
           {
             "name": "hotelId",
@@ -9909,30 +9909,14 @@
         ]
       }
     },
-    "/hotels/{hotelId}/local-partners/partners": {
+    "/hotels/{hotelId}/local-partners": {
       "get": {
-        "operationId": "LocalPartnersController_getPartners",
+        "operationId": "LocalPartnersController_list",
         "parameters": [
           {
             "name": "hotelId",
             "required": true,
             "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "categoryId",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "q",
-            "required": true,
-            "in": "query",
             "schema": {
               "type": "string"
             }
@@ -9948,7 +9932,7 @@
         ]
       },
       "post": {
-        "operationId": "LocalPartnersController_createPartner",
+        "operationId": "LocalPartnersController_create",
         "parameters": [
           {
             "name": "hotelId",
@@ -9969,98 +9953,9 @@
         ]
       }
     },
-    "/hotels/{hotelId}/local-partners/partners/{partnerId}": {
-      "get": {
-        "operationId": "LocalPartnersController_getPartner",
-        "parameters": [
-          {
-            "name": "hotelId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "partnerId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "local-partners"
-        ]
-      },
-      "put": {
-        "operationId": "LocalPartnersController_updatePartner",
-        "parameters": [
-          {
-            "name": "hotelId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "partnerId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "local-partners"
-        ]
-      },
-      "delete": {
-        "operationId": "LocalPartnersController_deletePartner",
-        "parameters": [
-          {
-            "name": "hotelId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "partnerId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "local-partners"
-        ]
-      }
-    },
-    "/hotels/{hotelId}/local-partners/partners/{partnerId}/status": {
+    "/hotels/{hotelId}/local-partners/{partnerId}": {
       "patch": {
-        "operationId": "LocalPartnersController_setPartnerStatus",
+        "operationId": "LocalPartnersController_update",
         "parameters": [
           {
             "name": "hotelId",
@@ -10089,94 +9984,9 @@
         ]
       }
     },
-    "/hotels/{hotelId}/local-partners/partners/{partnerId}/offers": {
-      "post": {
-        "operationId": "LocalPartnersController_createOffer",
-        "parameters": [
-          {
-            "name": "hotelId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "partnerId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "local-partners"
-        ]
-      }
-    },
-    "/hotels/{hotelId}/local-partners/offers/{offerId}": {
-      "put": {
-        "operationId": "LocalPartnersController_updateOffer",
-        "parameters": [
-          {
-            "name": "hotelId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "offerId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "local-partners"
-        ]
-      }
-    },
-    "/hotels/{hotelId}/local-partners/booking-requests": {
-      "get": {
-        "operationId": "LocalPartnersController_getBookingRequests",
-        "parameters": [
-          {
-            "name": "hotelId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "local-partners"
-        ]
-      }
-    },
-    "/hotels/{hotelId}/local-partners/booking-requests/{bookingRequestId}/status": {
+    "/hotels/{hotelId}/local-partners/{partnerId}/status": {
       "patch": {
-        "operationId": "LocalPartnersController_updateBookingRequestStatus",
+        "operationId": "LocalPartnersController_status",
         "parameters": [
           {
             "name": "hotelId",
@@ -10187,30 +9997,7 @@
             }
           },
           {
-            "name": "bookingRequestId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "local-partners"
-        ]
-      }
-    },
-    "/hotels/{hotelId}/local-partners/analytics": {
-      "get": {
-        "operationId": "LocalPartnersController_getAnalytics",
-        "parameters": [
-          {
-            "name": "hotelId",
+            "name": "partnerId",
             "required": true,
             "in": "path",
             "schema": {
@@ -10242,19 +10029,10 @@
         ]
       }
     },
-    "/guest/local-partners/hotels/{hotelId}/partners": {
+    "/guest/local-partners": {
       "get": {
         "operationId": "GuestLocalPartnersController_getPartners",
-        "parameters": [
-          {
-            "name": "hotelId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
+        "parameters": [],
         "responses": {
           "200": {
             "description": ""
@@ -10265,30 +10043,14 @@
         ]
       }
     },
-    "/guest/local-partners/hotels/{hotelId}/partners/{partnerId}": {
+    "/guest/local-partners/{partnerId}": {
       "get": {
-        "operationId": "GuestLocalPartnersController_getPartnerDetail",
+        "operationId": "GuestLocalPartnersController_getPartner",
         "parameters": [
-          {
-            "name": "hotelId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "partnerId",
             "required": true,
             "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "stayId",
-            "required": true,
-            "in": "query",
             "schema": {
               "type": "string"
             }
@@ -10296,115 +10058,6 @@
         ],
         "responses": {
           "200": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "guest-local-partners"
-        ]
-      }
-    },
-    "/guest/local-partners/hotels/{hotelId}/partners/{partnerId}/offers/{offerId}/claim": {
-      "post": {
-        "operationId": "GuestLocalPartnersController_claimOffer",
-        "parameters": [
-          {
-            "name": "hotelId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "partnerId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "offerId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "stayId",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "guest-local-partners"
-        ]
-      }
-    },
-    "/guest/local-partners/hotels/{hotelId}/booking-requests": {
-      "post": {
-        "operationId": "GuestLocalPartnersController_createBookingRequest",
-        "parameters": [
-          {
-            "name": "hotelId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "stayId",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "guest-local-partners"
-        ]
-      }
-    },
-    "/guest/local-partners/hotels/{hotelId}/interactions": {
-      "post": {
-        "operationId": "GuestLocalPartnersController_recordInteraction",
-        "parameters": [
-          {
-            "name": "hotelId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "stayId",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
             "description": ""
           }
         },

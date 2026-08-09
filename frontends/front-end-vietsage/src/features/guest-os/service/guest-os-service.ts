@@ -81,6 +81,25 @@ export class GuestOsService {
     return unwrapApiEnvelope<GuestServicesResult>(payload).data;
   }
 
+  async listNearbyPartners<T>(sessionToken: string, categoryId?: string): Promise<T> {
+    const payload = await this.httpClient.request<unknown>({
+      method: "GET",
+      path: this.path("/guest/local-partners"),
+      accessToken: sessionToken,
+      query: categoryId ? { categoryId } : undefined,
+    });
+    return unwrapApiEnvelope<T>(payload).data;
+  }
+
+  async listNearbyCategories<T>(sessionToken: string): Promise<T> {
+    const payload = await this.httpClient.request<unknown>({
+      method: "GET",
+      path: this.path("/guest/local-partners/categories"),
+      accessToken: sessionToken,
+    });
+    return unwrapApiEnvelope<T>(payload).data;
+  }
+
   async listServicesByCategory(sessionToken: string, categoryId: string, query: { page?: number; limit?: number } = {}, locale?: GuestLocaleCode): Promise<GuestCategoryServicesResult> {
     const payload = await this.httpClient.request<unknown>({
       method: "GET",

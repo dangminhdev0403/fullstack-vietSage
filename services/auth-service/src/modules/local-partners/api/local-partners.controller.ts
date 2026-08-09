@@ -1,186 +1,108 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Put,
-  Query,
-} from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { HotelAccessService } from "../../property/property-public";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
 import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
 import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
+import type { RequestWithRequiredUser } from "../../../shared/security/request-with-authenticated-user";
 import { LocalPartnersService } from "../application/local-partners.service";
 import {
   createLocalPartnerBodySchema,
-  createLocalPartnerOfferBodySchema,
   hotelIdParamSchema,
-  offerIdParamSchema,
+  listGuestPartnersQuerySchema,
+  localPartnerStatusSchema,
   partnerIdParamSchema,
-  updateBookingRequestStatusBodySchema,
   updateLocalPartnerBodySchema,
-  updateLocalPartnerOfferBodySchema,
-  bookingRequestIdParamSchema,
 } from "../domain/schemas/local-partners.schema";
 
 @ApiTags("local-partners")
-@Controller("hotels")
+@Controller("hotels/:hotelId/local-partners")
 export class LocalPartnersController {
-  constructor(private readonly localPartnersService: LocalPartnersService) {}
+  constructor(
+    private readonly service: LocalPartnersService,
+    private readonly hotelAccess: HotelAccessService,
+  ) {}
+
+  private async scope(request: RequestWithRequiredUser, hotelIdParam: string) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    await this.hotelAccess.assertHotelAccess(request.user.userId, request.user.roleId, hotelId);
+    return hotelId;
+  }
 
   @SuccessMessage("Lấy danh mục đối tác lân cận thành công")
   @RequirePermission("hotel.local-partners.view")
-  @ApiDescript("Lấy danh sách các danh mục đối tác lân cận")
-  @Get(":hotelId/local-partners/categories")
-  async getCategories(@Param("hotelId") hotelIdParam: string) {
-    parseWithZod(hotelIdParamSchema, hotelIdParam);
-    return this.localPartnersService.getCategories();
+  @ApiDescript("Lấy danh mục đối tác lân cận")
+  @Get("categories")
+  async categories(@Req() request: RequestWithRequiredUser, @Param("hotelId") hotelId: string) {
+    await this.scope(request, hotelId);
+    return this.service.getCategories();
   }
 
   @SuccessMessage("Lấy danh sách đối tác lân cận thành công")
   @RequirePermission("hotel.local-partners.view")
-  @ApiDescript("Lấy danh sách đối tác lân cận của khách sạn")
-  @Get(":hotelId/local-partners/partners")
-  async getPartners(
+  @ApiDescript("Lấy đối tác lân cận của khách sạn")
+  @Get()
+  async list(
+    @Req() request: RequestWithRequiredUser,
     @Param("hotelId") hotelIdParam: string,
-    @Query("categoryId") categoryId?: string,
-    @Query("q") q?: string,
+    @Query() query: unknown,
   ) {
-    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
-    return this.localPartnersService.getPartnersForHotel(hotelId, { categoryId, q });
+    const hotelId = await this.scope(request, hotelIdParam);
+    const filters = parseWithZod(listGuestPartnersQuerySchema, query ?? {});
+    return this.service.getPartnersForHotel(hotelId, {
+      categoryId: filters.categoryId,
+      isFeatured: filters.isFeatured === "true" ? true : undefined,
+    });
   }
 
-  @SuccessMessage("Lấy chi tiết đối tác lân cận thành công")
-  @RequirePermission("hotel.local-partners.view")
-  @ApiDescript("Xem chi tiết đối tác lân cận")
-  @Get(":hotelId/local-partners/partners/:partnerId")
-  async getPartner(
-    @Param("hotelId") hotelIdParam: string,
-    @Param("partnerId") partnerIdParam: string,
-  ) {
-    parseWithZod(hotelIdParamSchema, hotelIdParam);
-    const partnerId = parseWithZod(partnerIdParamSchema, partnerIdParam);
-    return this.localPartnersService.getPartnerById(partnerId);
-  }
-
-  @SuccessMessage("Tạo mới đối tác lân cận thành công")
+  @SuccessMessage("Tạo đối tác lân cận thành công")
   @RequirePermission("hotel.local-partners.manage")
-  @ApiDescript("Thêm mới đối tác lân cận cho khách sạn")
-  @Post(":hotelId/local-partners/partners")
-  async createPartner(@Param("hotelId") hotelIdParam: string, @Body() body: unknown) {
-    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
-    const payload = parseWithZod(createLocalPartnerBodySchema, body);
-    return this.localPartnersService.createPartner(hotelId, payload);
+  @ApiDescript("Tạo đối tác lân cận")
+  @Post()
+  async create(
+    @Req() request: RequestWithRequiredUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Body() body: unknown,
+  ) {
+    return this.service.createPartner(
+      await this.scope(request, hotelIdParam),
+      parseWithZod(createLocalPartnerBodySchema, body),
+    );
   }
 
   @SuccessMessage("Cập nhật đối tác lân cận thành công")
   @RequirePermission("hotel.local-partners.manage")
-  @ApiDescript("Cập nhật thông tin đối tác lân cận")
-  @Put(":hotelId/local-partners/partners/:partnerId")
-  async updatePartner(
+  @ApiDescript("Cập nhật đối tác lân cận")
+  @Patch(":partnerId")
+  async update(
+    @Req() request: RequestWithRequiredUser,
     @Param("hotelId") hotelIdParam: string,
     @Param("partnerId") partnerIdParam: string,
     @Body() body: unknown,
   ) {
-    parseWithZod(hotelIdParamSchema, hotelIdParam);
-    const partnerId = parseWithZod(partnerIdParamSchema, partnerIdParam);
-    const payload = parseWithZod(updateLocalPartnerBodySchema, body);
-    return this.localPartnersService.updatePartner(partnerId, payload);
+    return this.service.updatePartner(
+      await this.scope(request, hotelIdParam),
+      parseWithZod(partnerIdParamSchema, partnerIdParam),
+      parseWithZod(updateLocalPartnerBodySchema, body),
+    );
   }
 
   @SuccessMessage("Cập nhật trạng thái đối tác thành công")
   @RequirePermission("hotel.local-partners.manage")
-  @ApiDescript("Bật/tắt đối tác lân cận")
-  @Patch(":hotelId/local-partners/partners/:partnerId/status")
-  async setPartnerStatus(
+  @ApiDescript("Bật hoặc tắt đối tác lân cận")
+  @Patch(":partnerId/status")
+  async status(
+    @Req() request: RequestWithRequiredUser,
     @Param("hotelId") hotelIdParam: string,
     @Param("partnerId") partnerIdParam: string,
     @Body() body: unknown,
   ) {
-    parseWithZod(hotelIdParamSchema, hotelIdParam);
-    const partnerId = parseWithZod(partnerIdParamSchema, partnerIdParam);
-    const { status } = parseWithZod(updateLocalPartnerBodySchema, body);
-    if (!status) throw new Error("Cần cung cấp status");
-    return this.localPartnersService.setPartnerStatus(partnerId, status);
-  }
-
-  @SuccessMessage("Xóa đối tác lân cận thành công")
-  @RequirePermission("hotel.local-partners.manage")
-  @ApiDescript("Xóa đối tác lân cận khỏi hệ thống")
-  @Delete(":hotelId/local-partners/partners/:partnerId")
-  async deletePartner(
-    @Param("hotelId") hotelIdParam: string,
-    @Param("partnerId") partnerIdParam: string,
-  ) {
-    parseWithZod(hotelIdParamSchema, hotelIdParam);
-    const partnerId = parseWithZod(partnerIdParamSchema, partnerIdParam);
-    return this.localPartnersService.deletePartner(partnerId);
-  }
-
-  @SuccessMessage("Thêm ưu đãi thành công")
-  @RequirePermission("hotel.local-partners.manage")
-  @ApiDescript("Thêm chương trình ưu đãi cho đối tác")
-  @Post(":hotelId/local-partners/partners/:partnerId/offers")
-  async createOffer(
-    @Param("hotelId") hotelIdParam: string,
-    @Param("partnerId") partnerIdParam: string,
-    @Body() body: unknown,
-  ) {
-    parseWithZod(hotelIdParamSchema, hotelIdParam);
-    const partnerId = parseWithZod(partnerIdParamSchema, partnerIdParam);
-    const payload = parseWithZod(createLocalPartnerOfferBodySchema, body);
-    return this.localPartnersService.createOffer(partnerId, payload);
-  }
-
-  @SuccessMessage("Cập nhật ưu đãi thành công")
-  @RequirePermission("hotel.local-partners.manage")
-  @ApiDescript("Cập nhật thông tin ưu đãi đối tác")
-  @Put(":hotelId/local-partners/offers/:offerId")
-  async updateOffer(
-    @Param("hotelId") hotelIdParam: string,
-    @Param("offerId") offerIdParam: string,
-    @Body() body: unknown,
-  ) {
-    parseWithZod(hotelIdParamSchema, hotelIdParam);
-    const offerId = parseWithZod(offerIdParamSchema, offerIdParam);
-    const payload = parseWithZod(updateLocalPartnerOfferBodySchema, body);
-    return this.localPartnersService.updateOffer(offerId, payload);
-  }
-
-  @SuccessMessage("Lấy danh sách yêu cầu đặt dịch vụ thành công")
-  @RequirePermission("hotel.local-partners.view")
-  @ApiDescript("Lấy danh sách yêu cầu hỗ trợ đặt đối tác lân cận của khách")
-  @Get(":hotelId/local-partners/booking-requests")
-  async getBookingRequests(@Param("hotelId") hotelIdParam: string) {
-    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
-    return this.localPartnersService.getBookingRequests(hotelId);
-  }
-
-  @SuccessMessage("Cập nhật trạng thái yêu cầu thành công")
-  @RequirePermission("hotel.local-partners.manage")
-  @ApiDescript("Cập nhật trạng thái xử lý yêu cầu đặt dịch vụ ngoài")
-  @Patch(":hotelId/local-partners/booking-requests/:bookingRequestId/status")
-  async updateBookingRequestStatus(
-    @Param("hotelId") hotelIdParam: string,
-    @Param("bookingRequestId") requestIdParam: string,
-    @Body() body: unknown,
-  ) {
-    parseWithZod(hotelIdParamSchema, hotelIdParam);
-    const id = parseWithZod(bookingRequestIdParamSchema, requestIdParam);
-    const { status } = parseWithZod(updateBookingRequestStatusBodySchema, body);
-    return this.localPartnersService.updateBookingRequestStatus(id, status);
-  }
-
-  @SuccessMessage("Lấy thống kê đối tác lân cận thành công")
-  @RequirePermission("hotel.local-partners.view")
-  @ApiDescript("Lấy thống kê lượt tương tác và số lượng đối tác lân cận")
-  @Get(":hotelId/local-partners/analytics")
-  async getAnalytics(@Param("hotelId") hotelIdParam: string) {
-    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
-    return this.localPartnersService.getAnalytics(hotelId);
+    const status = parseWithZod(localPartnerStatusSchema, (body as { status?: unknown })?.status);
+    return this.service.setPartnerStatus(
+      await this.scope(request, hotelIdParam),
+      parseWithZod(partnerIdParamSchema, partnerIdParam),
+      status,
+    );
   }
 }

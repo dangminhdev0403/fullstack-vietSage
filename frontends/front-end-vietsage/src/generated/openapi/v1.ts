@@ -657,6 +657,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/hotels/{hotelId}/stays/{stayId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["HotelRoomsController_updateStay"];
+        trace?: never;
+    };
     "/hotels/{hotelId}/rooms/{roomId}/qr/rotate": {
         parameters: {
             query?: never;
@@ -970,7 +986,7 @@ export interface paths {
         };
         get: operations["FolioController_listFolioItems"];
         put?: never;
-        post?: never;
+        post: operations["FolioController_addFolioItem"];
         delete?: never;
         options?: never;
         head?: never;
@@ -987,6 +1003,22 @@ export interface paths {
         get: operations["FolioController_getFolioDetail"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/folios/{folioId}/items/{itemId}/void": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["FolioController_voidFolioItem"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1732,6 +1764,118 @@ export interface paths {
         };
         /** Get revenue protection analytics for hotel owner */
         get: operations["PlatformBillingController_getOwnerAnalytics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/local-partners/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["LocalPartnersController_categories"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/local-partners": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["LocalPartnersController_list"];
+        put?: never;
+        post: operations["LocalPartnersController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/local-partners/{partnerId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["LocalPartnersController_update"];
+        trace?: never;
+    };
+    "/hotels/{hotelId}/local-partners/{partnerId}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["LocalPartnersController_status"];
+        trace?: never;
+    };
+    "/guest/local-partners/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GuestLocalPartnersController_getCategories"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/guest/local-partners": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GuestLocalPartnersController_getPartners"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/guest/local-partners/{partnerId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GuestLocalPartnersController_getPartner"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4123,6 +4267,31 @@ export interface operations {
             };
         };
     };
+    HotelRoomsController_updateStay: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                stayId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Đã cập nhật lượt lưu trú */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     HotelRoomsController_rotateQr: {
         parameters: {
             query?: never;
@@ -5004,6 +5173,27 @@ export interface operations {
             };
         };
     };
+    FolioController_addFolioItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                folioId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Mục FolioItem đã tạo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     FolioController_getFolioDetail: {
         parameters: {
             query?: never;
@@ -5017,6 +5207,28 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Chi tiết folio */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FolioController_voidFolioItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                folioId: string;
+                itemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Kết quả hủy mục */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6223,12 +6435,160 @@ export interface operations {
     };
     PlatformBillingController_getOwnerAnalytics: {
         parameters: {
-            query: {
-                monthDate: string;
-            };
+            query?: never;
             header?: never;
             path: {
                 hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    LocalPartnersController_categories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    LocalPartnersController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    LocalPartnersController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    LocalPartnersController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                partnerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    LocalPartnersController_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                partnerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    GuestLocalPartnersController_getCategories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    GuestLocalPartnersController_getPartners: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    GuestLocalPartnersController_getPartner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                partnerId: string;
             };
             cookie?: never;
         };

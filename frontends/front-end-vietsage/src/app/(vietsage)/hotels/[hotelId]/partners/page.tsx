@@ -19,7 +19,8 @@ export default async function StaffLocalPartnersPage({ params }: PageProps) {
   }
 
   const context = await loadServerWorkspaceContext(callbackUrl, tokens.accessToken);
-  const canViewPartners = context.permissions.includes("hotel.local-partners.view") || context.permissions.includes("hotel.local-partners.manage");
+  const canManage = context.permissions.includes("hotel.local-partners.manage");
+  const canViewPartners = context.permissions.includes("hotel.local-partners.view") || canManage;
 
   if (!canUseHotelId(context, hotelId) || !canViewPartners) {
     notFound();
@@ -27,7 +28,7 @@ export default async function StaffLocalPartnersPage({ params }: PageProps) {
 
   return (
     <div className="space-y-6">
-      <StaffLocalPartnersClient hotelId={hotelId} accessToken={tokens.accessToken} />
+      <StaffLocalPartnersClient hotelId={hotelId} canManage={canManage} />
     </div>
   );
 }

@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
-import type { LocalPartner, LocalPartnerCategory } from "../types/local-partners-contract";
+import type { LocalPartner, LocalPartnerCategory, LocalPartnerInput } from "../types/local-partners-contract";
 
 interface PartnerFormModalProps {
   partner?: LocalPartner | null;
   categories: LocalPartnerCategory[];
-  onSave: (payload: any) => Promise<void>;
+  onSave: (payload: LocalPartnerInput) => Promise<void>;
   onClose: () => void;
 }
 
@@ -15,8 +15,6 @@ export function PartnerFormModal({ partner, categories, onSave, onClose }: Partn
   const [name, setName] = useState(partner?.name || "");
   const [description, setDescription] = useState(partner?.description || "");
   const [address, setAddress] = useState(partner?.address || "");
-  const [latitude, setLatitude] = useState<number | "">(partner?.latitude || "");
-  const [longitude, setLongitude] = useState<number | "">(partner?.longitude || "");
   const [distanceMeters, setDistanceMeters] = useState<number | "">(partner?.distanceMeters || "");
   const [phone, setPhone] = useState(partner?.phone || "");
   const [zaloUrl, setZaloUrl] = useState(partner?.zaloUrl || "");
@@ -25,11 +23,13 @@ export function PartnerFormModal({ partner, categories, onSave, onClose }: Partn
   const [operatingHours, setOperatingHours] = useState(partner?.operatingHours || "");
   const [isFeatured, setIsFeatured] = useState(partner?.isFeatured || false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string>();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !address || !categoryId) return;
 
+    setError(undefined);
     setIsSubmitting(true);
     try {
       await onSave({
@@ -37,8 +37,6 @@ export function PartnerFormModal({ partner, categories, onSave, onClose }: Partn
         name,
         description: description || undefined,
         address,
-        latitude: latitude === "" ? undefined : Number(latitude),
-        longitude: longitude === "" ? undefined : Number(longitude),
         distanceMeters: distanceMeters === "" ? undefined : Number(distanceMeters),
         phone: phone || undefined,
         zaloUrl: zaloUrl || undefined,
@@ -48,8 +46,8 @@ export function PartnerFormModal({ partner, categories, onSave, onClose }: Partn
         isFeatured,
       });
       onClose();
-    } catch (err) {
-      alert("Lỗi khi lưu thông tin đối tác");
+    } catch {
+      setError("Không thể lưu đối tác. Kiểm tra thông tin rồi thử lại.");
     } finally {
       setIsSubmitting(false);
     }
@@ -68,6 +66,7 @@ export function PartnerFormModal({ partner, categories, onSave, onClose }: Partn
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto text-xs">
+          {error ? <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-red-800">{error}</p> : null}
           <div>
             <label className="block text-slate-300 font-semibold mb-1">Danh mục đối tác *</label>
             <select
@@ -107,7 +106,7 @@ export function PartnerFormModal({ partner, categories, onSave, onClose }: Partn
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
+          <div>
             <div>
               <label className="block text-slate-300 font-semibold mb-1">Khoảng cách (m)</label>
               <input
@@ -115,28 +114,6 @@ export function PartnerFormModal({ partner, categories, onSave, onClose }: Partn
                 value={distanceMeters}
                 onChange={(e) => setDistanceMeters(e.target.value ? Number(e.target.value) : "")}
                 placeholder="Ví dụ: 300"
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
-              />
-            </div>
-            <div>
-              <label className="block text-slate-300 font-semibold mb-1">Vĩ độ (Latitude)</label>
-              <input
-                type="number"
-                step="any"
-                value={latitude}
-                onChange={(e) => setLatitude(e.target.value ? Number(e.target.value) : "")}
-                placeholder="21.0285"
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
-              />
-            </div>
-            <div>
-              <label className="block text-slate-300 font-semibold mb-1">Kinh độ (Longitude)</label>
-              <input
-                type="number"
-                step="any"
-                value={longitude}
-                onChange={(e) => setLongitude(e.target.value ? Number(e.target.value) : "")}
-                placeholder="105.8542"
                 className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
               />
             </div>

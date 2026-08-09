@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
+import type { LocalPartnerStatus } from "@prisma/client";
 import { LocalPartnersRepository } from "../infrastructure/local-partners.repository";
-import type { LocalPartnerBookingStatus, LocalPartnerStatus } from "@prisma/client";
 
 @Injectable()
 export class LocalPartnersService {
@@ -15,66 +15,36 @@ export class LocalPartnersService {
     return this.repository.findCategories();
   }
 
-  async getPartnersForHotel(
+  getPartnersForHotel(
     hotelId: string,
-    filters?: {
-      status?: LocalPartnerStatus;
-      categoryId?: string;
-      isFeatured?: boolean;
-      q?: string;
-    },
+    filters?: { status?: LocalPartnerStatus; categoryId?: string; isFeatured?: boolean },
   ) {
     return this.repository.findPartnersByHotelId(hotelId, filters);
   }
 
-  async getPartnerById(partnerId: string) {
-    const partner = await this.repository.findPartnerById(partnerId);
-    if (!partner) {
-      throw new NotFoundException("Không tìm thấy thông tin đối tác");
-    }
+  async getPartnerById(hotelId: string, partnerId: string) {
+    const partner = await this.repository.findPartnerInHotel(hotelId, partnerId);
+    if (!partner) throw new NotFoundException("Không tìm thấy thông tin đối tác");
     return partner;
   }
 
-  async createPartner(hotelId: string, payload: any) {
-    return this.repository.createPartner({
-      ...payload,
-      hotelId,
-    });
+  createPartner(
+    hotelId: string,
+    payload: Omit<Parameters<LocalPartnersRepository["createPartner"]>[0], "hotelId">,
+  ) {
+    return this.repository.createPartner({ ...payload, hotelId });
   }
 
-  async updatePartner(partnerId: string, payload: any) {
-    await this.getPartnerById(partnerId);
-    return this.repository.updatePartner(partnerId, payload);
+  async updatePartner(
+    hotelId: string,
+    partnerId: string,
+    payload: Parameters<LocalPartnersRepository["updatePartner"]>[2],
+  ) {
+    await this.getPartnerById(hotelId, partnerId);
+    return this.repository.updatePartner(hotelId, partnerId, payload);
   }
 
-  async setPartnerStatus(partnerId: string, status: LocalPartnerStatus) {
-    await this.getPartnerById(partnerId);
-    return this.repository.updatePartner(partnerId, { status });
-  }
-
-  async deletePartner(partnerId: string) {
-    await this.getPartnerById(partnerId);
-    return this.repository.deletePartner(partnerId);
-  }
-
-  async createOffer(partnerId: string, payload: any) {
-    await this.getPartnerById(partnerId);
-    return this.repository.createOffer(partnerId, payload);
-  }
-
-  async updateOffer(offerId: string, payload: any) {
-    return this.repository.updateOffer(offerId, payload);
-  }
-
-  async getBookingRequests(hotelId: string, status?: LocalPartnerBookingStatus) {
-    return this.repository.findBookingRequestsByHotelId(hotelId, status);
-  }
-
-  async updateBookingRequestStatus(id: string, status: LocalPartnerBookingStatus) {
-    return this.repository.updateBookingRequestStatus(id, status);
-  }
-
-  async getAnalytics(hotelId: string) {
-    return this.repository.getAnalyticsByHotelId(hotelId);
+  async setPartnerStatus(hotelId: string, partnerId: string, status: LocalPartnerStatus) {
+    return this.updatePartner(hotelId, partnerId, { status });
   }
 }

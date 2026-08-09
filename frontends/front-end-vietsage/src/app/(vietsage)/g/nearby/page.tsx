@@ -11,23 +11,22 @@ import { VsIcon } from "../../_components/vs-icon";
 export default function GuestNearbyPartnersPage() {
   const { locale } = useGuestI18n();
   const sessionToken = useGuestStore((state) => state.sessionToken);
-  const hotelId = useGuestStore((state) => state.hotelId);
-  const stayId = useGuestStore((state) => state.stayId);
+
   const room = useGuestStore((state) => state.room);
   const isHydrated = useGuestStoreHydrated();
 
   if (!isHydrated) return <div className="min-h-screen bg-slate-950" />;
-  if (!sessionToken || !hotelId) {
+  if (!sessionToken) {
     return <GuestAccessRequiredState icon={<VsIcon name="qr_code" className="text-2xl" />} />;
   }
 
   const roomLabel = room?.roomNumber ? `Phòng ${room.roomNumber}` : "Khách lưu trú";
 
   return (
-    <div className="vs-page-shell vs-guest-readable vs-safe-bottom min-h-screen bg-slate-950 text-slate-100">
+    <div className="vs-page-shell vs-guest-readable vs-safe-bottom min-h-screen bg-[#f8f4ea] text-[#18211d]">
       <VsTopBar showLeftControl={false} rightMode="icons" rightLabel={roomLabel} languageBadge={locale} />
-      <main className="relative min-h-screen pt-16 px-4 pb-20">
-        <GuestLocalPartners hotelId={hotelId} stayId={stayId || undefined} />
+      <main className="relative min-h-screen px-4 pb-24 pt-24">
+        <GuestLocalPartners sessionToken={sessionToken} />
       </main>
       <VsBottomNav active="services" />
     </div>

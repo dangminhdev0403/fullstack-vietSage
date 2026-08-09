@@ -10,6 +10,7 @@ import { GuestHomeHighlights } from "@/features/guest-os/components/home/guest-h
 import { GuestAccessRequiredState } from "@/features/guest-os/components/shared/guest-access-required-state";
 import { useGuestI18n } from "@/features/guest-os/i18n/use-guest-i18n";
 import { useGuestStore, useGuestStoreHydrated } from "@/features/guest-os/store/guest-store";
+import { GuestNearbyPreview } from "@/features/local-partners/components/guest-nearby-preview";
 
 function normalizeVietnameseText(value: string): string {
   return value.normalize("NFC");
@@ -45,6 +46,7 @@ export default function GuestHomePage() {
           dining={{ eyebrow: t("home.foodTitle"), title: t("home.foodHeadline"), description: t("home.foodDesc"), alt: t("home.foodAlt") }}
           care={{ eyebrow: t("home.careTitle"), title: t("home.careHeadline"), description: t("home.careDesc"), alt: t("home.careAlt") }}
         />
+        <GuestNearbyPreview sessionToken={sessionToken} />
         <GuestHomeCta roomLabel={roomLabel} title={t("home.readyTitle")} description={t("home.readyDesc")} actionLabel={t("home.sendRequest")} />
       </main>
       <VsBottomNav active="home" />
