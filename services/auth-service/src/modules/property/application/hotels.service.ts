@@ -160,6 +160,12 @@ export class HotelsService {
           : (dto.brandSettings as Prisma.InputJsonValue | undefined),
       status: dto.status,
       googleSheetId: dto.googleSheetUrl === null ? null : dto.googleSheetUrl,
+      googleMapsUrl: dto.googleMapsUrl,
+      latitude: dto.latitude,
+      longitude: dto.longitude,
+      locationAccuracyMeters: dto.locationAccuracyMeters,
+      locationSource: dto.locationSource,
+      locationVerifiedAt: dto.latitude === undefined ? undefined : dto.latitude === null ? null : new Date(),
     } satisfies Prisma.HotelUpdateInput;
 
     if (actor.isTenantOwner) {
@@ -212,6 +218,12 @@ export class HotelsService {
       status: row.status,
       brandSettings: row.brandSettings,
       googleSheetId: row.googleSheetId,
+      googleMapsUrl: row.googleMapsUrl,
+      latitude: row.latitude,
+      longitude: row.longitude,
+      locationAccuracyMeters: row.locationAccuracyMeters,
+      locationSource: row.locationSource,
+      locationVerifiedAt: row.locationVerifiedAt,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       tenant: row.tenant,

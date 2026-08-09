@@ -34,6 +34,11 @@ export type Hotel = {
   status?: string | null;
   brandSettings?: Record<string, unknown> | null;
   googleSheetId?: string | null;
+  googleMapsUrl?: string | null;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
+  locationAccuracyMeters?: number | null;
+  locationSource?: "DEVICE_GEOLOCATION" | "GOOGLE_MAPS_URL" | "MANUAL" | null;
   createdAt?: string | null;
   updatedAt?: string | null;
   tenant?: TenantSummary | null;
@@ -53,6 +58,11 @@ export type UpdateHotelInput = {
   brandSettings?: Record<string, unknown> | null;
   status?: "ACTIVE" | "DISABLED";
   googleSheetUrl?: string | null;
+  googleMapsUrl?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  locationAccuracyMeters?: number | null;
+  locationSource?: "DEVICE_GEOLOCATION" | "GOOGLE_MAPS_URL" | "MANUAL" | null;
 };
 
 export type HotelsPage = AdminPage<Hotel>;

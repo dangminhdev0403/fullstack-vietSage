@@ -9,6 +9,7 @@ import { HttpError } from "@/core/http/http-error";
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import type { Hotel, TenantOwner, TenantSummary } from "@/features/admin/types/admin-contract";
 import { useAdminGoogleSheetConfig } from "@/features/hotel-ops/queries/use-google-sheet-config";
+import { LocationFields, type LocationValue } from "@/features/marketplace/components/location-fields";
 
 import { VsIcon } from "../../_components/vs-icon";
 
@@ -24,7 +25,7 @@ type TenantOption = {
   code: string;
 };
 
-type HotelFormState = {
+type HotelFormState = LocationValue & {
   tenantId: string;
   name: string;
   timezone: string;
@@ -40,6 +41,10 @@ const emptyHotelForm: HotelFormState = {
   status: "ACTIVE",
   brandSettingsText: "{}",
   googleSheetUrl: "",
+  googleMapsUrl: "",
+  latitude: "",
+  longitude: "",
+  locationAccuracyMeters: "",
 };
 
 type FormMode = "create" | "edit";
@@ -121,6 +126,11 @@ function hotelToForm(hotel: Hotel): HotelFormState {
     googleSheetUrl: hotel.googleSheetId
       ? `https://docs.google.com/spreadsheets/d/${hotel.googleSheetId}/edit`
       : "",
+    googleMapsUrl: hotel.googleMapsUrl ?? "",
+    latitude: hotel.latitude == null ? "" : String(hotel.latitude),
+    longitude: hotel.longitude == null ? "" : String(hotel.longitude),
+    locationAccuracyMeters: hotel.locationAccuracyMeters == null ? "" : String(hotel.locationAccuracyMeters),
+    locationSource: hotel.locationSource ?? undefined,
   };
 }
 
@@ -366,6 +376,11 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }:
                 brandSettings,
                 status: form.status,
                 googleSheetUrl: form.googleSheetUrl.trim() || null,
+                googleMapsUrl: form.googleMapsUrl.trim() || null,
+                latitude: form.latitude ? Number(form.latitude) : null,
+                longitude: form.longitude ? Number(form.longitude) : null,
+                locationAccuracyMeters: form.locationAccuracyMeters ? Number(form.locationAccuracyMeters) : null,
+                locationSource: form.locationSource ?? null,
             });
 
       setHotels((current) => {
@@ -610,6 +625,8 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }:
                     : "Để trống để ngắt kết nối. Hệ thống kiểm tra quyền truy cập trước khi lưu."}
                 </span>
               </label>
+
+              {formMode === "edit" ? <div className="md:col-span-2"><LocationFields value={form} onChange={(location) => setForm((current) => ({ ...current, ...location }))} /></div> : null}
 
               <label className="space-y-2 text-sm font-bold text-slate-700 dark:text-slate-300 md:col-span-2">
                 Cấu hình thương hiệu (Brand Settings - JSON)
