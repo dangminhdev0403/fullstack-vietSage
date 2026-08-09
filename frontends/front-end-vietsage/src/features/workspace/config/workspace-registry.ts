@@ -224,7 +224,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
   {
     key: "owner.hotel.partners",
     personas: ["owner"],
-    href: "/hotels/{hotelId}/partners",
+    href: "/owner/hotels/{hotelId}/partners",
     label: "Đối tác địa phương",
     icon: "handshake",
     order: 115,
