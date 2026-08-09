@@ -13,6 +13,8 @@ const BUSINESS_PERMISSION_MENU_PATHS: Record<BusinessPermissionKey, string | nul
   "platform.billing.manage": "/admin/billing",
   "platform.marketplace.view": "/admin/marketplace",
   "platform.marketplace.manage": "/admin/marketplace",
+  "service.marketplace.view": "/service",
+  "service.marketplace.manage": "/service",
   "hotel.revenue-protection.view": "/owner/hotels/[hotelId]/billing",
   "hotel.dashboard.view": "/owner/dashboard",
   "hotel.rooms.view": "/owner/hotels/[hotelId]/rooms",
