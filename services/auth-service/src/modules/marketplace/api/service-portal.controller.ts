@@ -4,10 +4,12 @@ import { RequirePermission } from "../../../shared/decorators/require-permission
 import type { RequestWithRequiredUser } from "../../../shared/security/request-with-authenticated-user";
 import { ServicePortalService } from "../application/service-portal.service";
 import { marketplaceAvailabilitySchema, marketplaceServiceBodySchema, marketplaceServiceUpdateSchema, servicePortalIdSchema, serviceProfileBodySchema } from "../domain/service-portal.schema";
+import { MarketplaceOrderService } from "../application/marketplace-order.service";
+import { marketplaceOrderIdSchema, marketplaceTransitionSchema } from "../domain/marketplace-order.schema";
 
 @Controller("service-portal")
 export class ServicePortalController {
-  constructor(private readonly service: ServicePortalService) {}
+  constructor(private readonly service: ServicePortalService, private readonly orders: MarketplaceOrderService) {}
 
   @RequirePermission("service.marketplace.view") @Get("profile")
   profile(@Req() req: RequestWithRequiredUser) { return this.service.profile(req.user.userId); }
@@ -29,4 +31,7 @@ export class ServicePortalController {
 
   @RequirePermission("service.marketplace.manage") @Patch("services/:serviceId/availability")
   availability(@Req() req: RequestWithRequiredUser, @Param("serviceId") id: string, @Body() body: unknown) { return this.service.updateAvailability(req.user.userId, parseWithZod(servicePortalIdSchema, id), parseWithZod(marketplaceAvailabilitySchema, body)); }
+
+  @RequirePermission("service.marketplace.manage") @Post("orders/:orderId/transitions")
+  transition(@Req() req: RequestWithRequiredUser, @Param("orderId") id: string, @Body() body: unknown) { return this.orders.transitionServiceOrder(req.user.userId, parseWithZod(marketplaceOrderIdSchema, id), parseWithZod(marketplaceTransitionSchema, body)); }
 }
