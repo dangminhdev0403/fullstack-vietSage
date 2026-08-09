@@ -13,6 +13,7 @@ const DEFAULT_ROLES = [
   { code: "SUPER_ADMIN", name: "Quản trị viên cấp cao" },
   { code: "TENANT_OWNER", name: "Chủ đơn vị" },
   { code: "HOTEL_FRONTDESK", name: "Lễ tân khách sạn" },
+  { code: "SERVICE_STAFF", name: "Nhân viên Service Tenant" },
 ];
 
 const DEFAULT_CODES = ["TENANT", "HOTEL", "ROOM", "SERVICE", "AIRPORT", "RESERVATION"];
@@ -43,7 +44,18 @@ async function seedRoles() {
     throw new Error("Không tạo được vai trò SUPER_ADMIN.");
   }
 
-  return { superAdminRole };
+  return { superAdminRole, serviceStaffRole: roleByCode.get("SERVICE_STAFF") };
+}
+
+async function syncServicePermissions(serviceStaffRole) {
+  if (!serviceStaffRole) return;
+  const permissions = await prisma.permission.findMany({ where: { path: { in: ["service.marketplace.view", "service.marketplace.manage"] } }, select: { id: true } });
+  for (const permission of permissions) {
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: serviceStaffRole.id, permissionId: permission.id } },
+      update: {}, create: { roleId: serviceStaffRole.id, permissionId: permission.id },
+    });
+  }
 }
 
 async function syncExistingPermissionsToSuperAdmin(superAdminRole) {
@@ -143,9 +155,10 @@ async function seedSuperAdmin(superAdminRole) {
 
 async function main() {
   await seedCodes();
-  const { superAdminRole } = await seedRoles();
+  const { superAdminRole, serviceStaffRole } = await seedRoles();
   await seedSuperAdmin(superAdminRole);
   await syncExistingPermissionsToSuperAdmin(superAdminRole);
+  await syncServicePermissions(serviceStaffRole);
 }
 
 main()

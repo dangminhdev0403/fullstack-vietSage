@@ -5,7 +5,7 @@ import { createRequestRedirectUrl } from "./features/auth/utils/redirect-isolati
 import { LEGACY_LOGIN_PATH, LOGIN_PATH } from "./features/auth/utils/login-route";
 import { canAccessPathByRoles, getDefaultPathForRoles, sanitizeInternalCallbackUrl } from "./libs/rbac";
 
-const protectedPrefixes = ["/admin", "/owner", "/staff", "/hotels"] as const;
+const protectedPrefixes = ["/admin", "/owner", "/staff", "/hotels", "/service"] as const;
 const authRoutes = new Set([LOGIN_PATH, LEGACY_LOGIN_PATH, "/register"]);
 const nextAuthCookiePrefixes = [
   "next-auth.",

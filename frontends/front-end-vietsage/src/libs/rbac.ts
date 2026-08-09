@@ -17,6 +17,7 @@ const routePolicies: readonly RoutePolicy[] = [
   { prefix: "/owner", roles: ["tenant_owner"] },
   { prefix: "/staff", roles: ["staff", "admin"] },
   { prefix: "/hotels", roles: ["staff", "admin"] },
+  { prefix: "/service", roles: ["staff"] },
   { prefix: "/g", roles: ["guest", "staff", "admin"] },
 ];
 

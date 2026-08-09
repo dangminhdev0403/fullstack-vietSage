@@ -91,6 +91,14 @@ const WORKSPACE_DEFINITIONS: Record<WorkspacePersona, WorkspaceDefinition> = {
     profileLabel: "Tài chính",
     homePath: "/staff",
   },
+  service_partner: {
+    persona: "service_partner",
+    eyebrow: "Service Tenant",
+    title: "Cổng nhà cung cấp",
+    description: "Quản lý dịch vụ, khả năng phục vụ và đơn Marketplace.",
+    profileLabel: "Nhà cung cấp",
+    homePath: "/service",
+  },
 };
 
 const ROLE_ALIASES: Record<string, WorkspacePersona> = {
@@ -107,6 +115,7 @@ const ROLE_ALIASES: Record<string, WorkspacePersona> = {
   HOTEL_FNB: "front_desk",
   FINANCE: "finance",
   HOTEL_FINANCE: "front_desk",
+  SERVICE_STAFF: "service_partner",
 };
 
 const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
@@ -357,6 +366,15 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     order: 50,
     requiresHotel: true,
     anyCapabilities: ["hotel.billing.view", "hotel.billing.manage"],
+  },
+  {
+    key: "service.home",
+    personas: ["service_partner"],
+    href: "/service",
+    label: "Dịch vụ & đơn hàng",
+    icon: "storefront",
+    order: 10,
+    anyCapabilities: ["service.marketplace.view", "service.marketplace.manage"],
   },
 ];
 

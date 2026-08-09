@@ -1,0 +1,5 @@
+import type { MarketplaceCategory, MarketplaceOrder } from "@/features/marketplace/types/marketplace-contract";
+export type ServiceProfile = { displayName: string; description?: string | null; phone?: string | null; address?: string | null; googleMapsUrl?: string | null; latitude?: number | string | null; longitude?: number | string | null; locationAccuracyMeters?: number | null; locationSource?: "DEVICE_GEOLOCATION" | "GOOGLE_MAPS_URL" | "MANUAL" | null; locationVerifiedAt?: string | null; coverImageUrl?: string | null };
+export type ServiceItem = { id: string; categoryId: string; name: string; description?: string | null; unitPrice: string | number; mode: "DELIVERY_TO_HOTEL" | "CUSTOMER_AT_SERVICE"; capacityAvailable?: number | null; waitingMinutes: number; status: "DRAFT" | "ACTIVE" | "DISABLED"; category: MarketplaceCategory };
+export type { MarketplaceOrder };
+export type ServicePortalData = { profile: ServiceProfile; categories: MarketplaceCategory[]; services: ServiceItem[]; orders: MarketplaceOrder[] };

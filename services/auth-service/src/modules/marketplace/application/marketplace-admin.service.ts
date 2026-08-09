@@ -1,5 +1,6 @@
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
-import { Prisma, TenantType } from "@prisma/client";
+import { Prisma, TenantType, TenantUserStatus, UserRoleStatus, UserStatus, UserType } from "@prisma/client";
+import * as argon2 from "argon2";
 import { PrismaService } from "../../../prisma/prisma.service";
 import type { HotelServiceLinkBody, MarketplaceCategoryBody, ServiceTenantBody } from "../domain/marketplace-admin.schema";
 
@@ -40,8 +41,11 @@ export class MarketplaceAdminService {
   }
 
   async createServiceTenant(actorId: string, body: ServiceTenantBody) {
+    const passwordHash = await argon2.hash(body.owner.password);
     try {
       return await this.prisma.$transaction(async (tx) => {
+        const role = await tx.role.findFirst({ where: { code: "SERVICE_STAFF", status: "ACTIVE" } });
+        if (!role) throw new ConflictException("Vai trò SERVICE_STAFF chưa được cấu hình");
         const tenant = await tx.tenant.create({
           data: {
             code: body.code,
@@ -65,8 +69,13 @@ export class MarketplaceAdminService {
           },
           include: { serviceProfile: true },
         });
-        await this.audit(tx, actorId, tenant.id, "marketplace.service-tenant.create", "Tenant", tenant.id);
-        return tenant;
+        const owner = await tx.user.create({ data: { email: body.owner.email.toLowerCase(), fullName: body.owner.fullName, passwordHash, status: UserStatus.ACTIVE, userType: UserType.PARTNER } });
+        await Promise.all([
+          tx.tenantUser.create({ data: { tenantId: tenant.id, userId: owner.id, status: TenantUserStatus.ACTIVE, joinedAt: new Date() } }),
+          tx.userRole.create({ data: { userId: owner.id, roleId: role.id, status: UserRoleStatus.ACTIVE, assignedById: actorId } }),
+          this.audit(tx, actorId, tenant.id, "marketplace.service-tenant.create", "Tenant", tenant.id),
+        ]);
+        return { ...tenant, owner: { id: owner.id, email: owner.email, fullName: owner.fullName } };
       });
     } catch (error) {
       this.uniqueConflict(error, "Mã Service Tenant đã tồn tại");

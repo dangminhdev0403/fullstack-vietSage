@@ -29,6 +29,11 @@ export const serviceTenantBodySchema = z.object({
   phone: z.string().trim().max(40).nullish(),
   address: z.string().trim().max(255).nullish(),
   coverImageUrl: httpUrl.nullish(),
+  owner: z.object({
+    email: z.string().trim().email().max(320),
+    fullName: z.string().trim().min(2).max(120),
+    password: z.string().min(8).max(128),
+  }),
   ...location,
 }).superRefine((value, context) => {
   if ((value.latitude == null) !== (value.longitude == null)) {
