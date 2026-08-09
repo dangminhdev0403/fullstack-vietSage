@@ -32,6 +32,12 @@ export class ServicePortalController {
   @RequirePermission("service.marketplace.manage") @Patch("services/:serviceId/availability")
   availability(@Req() req: RequestWithRequiredUser, @Param("serviceId") id: string, @Body() body: unknown) { return this.service.updateAvailability(req.user.userId, parseWithZod(servicePortalIdSchema, id), parseWithZod(marketplaceAvailabilitySchema, body)); }
 
+  @RequirePermission("service.marketplace.view") @Get("orders")
+  orderList(@Req() req: RequestWithRequiredUser) { return this.orders.listServiceOrders(req.user.userId); }
+
+  @RequirePermission("service.marketplace.view") @Get("orders/:orderId")
+  order(@Req() req: RequestWithRequiredUser, @Param("orderId") id: string) { return this.orders.serviceOrder(req.user.userId, parseWithZod(marketplaceOrderIdSchema, id)); }
+
   @RequirePermission("service.marketplace.manage") @Post("orders/:orderId/transitions")
   transition(@Req() req: RequestWithRequiredUser, @Param("orderId") id: string, @Body() body: unknown) { return this.orders.transitionServiceOrder(req.user.userId, parseWithZod(marketplaceOrderIdSchema, id), parseWithZod(marketplaceTransitionSchema, body)); }
 }

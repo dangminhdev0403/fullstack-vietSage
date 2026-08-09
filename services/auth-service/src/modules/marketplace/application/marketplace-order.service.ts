@@ -71,6 +71,35 @@ export class MarketplaceOrderService {
     return order;
   }
 
+  async listServiceOrders(userId: string) {
+    return this.prisma.marketplaceOrder.findMany({ where: { serviceTenantId: await this.portal.tenantId(userId) }, orderBy: { createdAt: "desc" }, take: 100 });
+  }
+
+  async serviceOrder(userId: string, orderId: string) {
+    const order = await this.prisma.marketplaceOrder.findFirst({ where: { id: orderId, serviceTenantId: await this.portal.tenantId(userId) }, include: { events: { orderBy: { createdAt: "asc" } } } });
+    if (!order) throw new NotFoundException("Không tìm thấy đơn Marketplace");
+    return order;
+  }
+
+  listHotelOrders(hotelId: string) {
+    return this.prisma.marketplaceOrder.findMany({ where: { hotelId }, orderBy: { createdAt: "desc" }, take: 100 });
+  }
+
+  async hotelOrder(hotelId: string, orderId: string) {
+    const order = await this.prisma.marketplaceOrder.findFirst({ where: { id: orderId, hotelId }, include: { events: { orderBy: { createdAt: "asc" } } } });
+    if (!order) throw new NotFoundException("Không tìm thấy đơn Marketplace");
+    return order;
+  }
+
+  async hotelRevenue(hotelId: string, from?: Date, to?: Date, serviceTenantId?: string) {
+    const where = { hotelId, ...(serviceTenantId ? { serviceTenantId } : {}), ...(from || to ? { recognizedAt: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } } : {}) };
+    const [summary, entries] = await Promise.all([
+      this.prisma.marketplaceRevenueEntry.aggregate({ where, _sum: { grossAmount: true }, _count: true }),
+      this.prisma.marketplaceRevenueEntry.findMany({ where, orderBy: { recognizedAt: "desc" }, take: 100 }),
+    ]);
+    return { grossAmount: summary._sum.grossAmount ?? 0, orderCount: summary._count, entries };
+  }
+
   async transitionServiceOrder(userId: string, orderId: string, body: MarketplaceTransition) {
     const serviceTenantId = await this.portal.tenantId(userId);
     return this.prisma.$transaction(async (tx) => {
