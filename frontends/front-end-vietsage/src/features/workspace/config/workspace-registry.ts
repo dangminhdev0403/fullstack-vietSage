@@ -221,6 +221,16 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     requiresHotel: true,
     anyCapabilities: ["hotel.services.view", "hotel.services.manage"],
   },
+  {
+    key: "owner.hotel.partners",
+    personas: ["owner"],
+    href: "/hotels/{hotelId}/partners",
+    label: "Đối tác địa phương",
+    icon: "handshake",
+    order: 115,
+    requiresHotel: true,
+    anyCapabilities: ["hotel.local-partners.view", "hotel.local-partners.manage"],
+  },
 
   // Xử lý / Vận hành (Operations & Processing)
   {
@@ -292,6 +302,16 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     order: 25,
     requiresHotel: true,
     anyCapabilities: ["hotel.services.view", "hotel.services.manage"],
+  },
+  {
+    key: "staff.partners",
+    personas: STAFF_PERSONAS,
+    href: "/hotels/{hotelId}/partners",
+    label: "Đối tác địa phương",
+    icon: "handshake",
+    order: 28,
+    requiresHotel: true,
+    anyCapabilities: ["hotel.local-partners.view", "hotel.local-partners.manage"],
   },
   {
     key: "staff.rooms",

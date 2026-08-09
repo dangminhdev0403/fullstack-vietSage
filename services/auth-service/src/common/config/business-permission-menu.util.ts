@@ -30,6 +30,8 @@ const BUSINESS_PERMISSION_MENU_PATHS: Record<BusinessPermissionKey, string | nul
   "hotel.billing.manage": "/owner/hotels/[hotelId]/billing",
   "hotel.services.view": "/owner/hotels/[hotelId]/services",
   "hotel.services.manage": "/owner/hotels/[hotelId]/services",
+  "hotel.local-partners.view": "/hotels/[hotelId]/partners",
+  "hotel.local-partners.manage": "/hotels/[hotelId]/partners",
   "guest.experience.use": null,
   "system.health.view": null,
 };

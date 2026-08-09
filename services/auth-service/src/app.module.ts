@@ -1,4 +1,4 @@
-﻿import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
+import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
 import { ScheduleModule } from "@nestjs/schedule";
 import { RequestLoggingMiddleware } from "./common/middleware/request-logging.middleware";
@@ -20,6 +20,7 @@ import { NotificationsModule } from "./modules/notifications/notifications.modul
 import { AuthRateLimitGuard } from "./common/security/auth-rate-limit.guard";
 import { BiometricWorkstationsModule } from "./modules/biometric-workstations/biometric-workstations.module";
 import { PlatformBillingModule } from "./modules/platform-billing/platform-billing.module";
+import { LocalPartnersModule } from "./modules/local-partners/local-partners.module";
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { PlatformBillingModule } from "./modules/platform-billing/platform-billi
     RequestRealtimeModule,
     BiometricWorkstationsModule,
     PlatformBillingModule,
+    LocalPartnersModule,
   ],
   providers: [
     {

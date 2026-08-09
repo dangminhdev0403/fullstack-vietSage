@@ -1,194 +1,6 @@
 {
   "openapi": "3.0.0",
   "paths": {
-    "/admin/permissions": {
-      "get": {
-        "operationId": "AdminPermissionsController_listPermissions",
-        "summary": "Xem danh sách catalog quyền hệ thống (D3)",
-        "description": "Lấy danh sách catalog quyền hệ thống bất biến. Yêu cầu quyền identity.permissions.read.",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Bao phản hồi danh sách catalog quyền hệ thống",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "status": {
-                      "type": "number",
-                      "example": 200
-                    },
-                    "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true,
-                      "example": null
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Lấy danh sách catalog quyền hệ thống thành công"
-                    },
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "permissions": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "key": {
-                                "type": "string",
-                                "example": "identity.permissions.read"
-                              },
-                              "label": {
-                                "type": "string",
-                                "example": "Xem danh sách quyền hệ thống"
-                              },
-                              "description": {
-                                "type": "string",
-                                "example": "Cho phép truy vấn catalog quyền hệ thống D3"
-                              },
-                              "bounded_context": {
-                                "type": "string",
-                                "example": "identity"
-                              },
-                              "risk": {
-                                "type": "string",
-                                "enum": [
-                                  "LOW",
-                                  "MEDIUM",
-                                  "HIGH",
-                                  "CRITICAL"
-                                ],
-                                "example": "LOW"
-                              }
-                            },
-                            "required": [
-                              "key",
-                              "label",
-                              "description",
-                              "bounded_context",
-                              "risk"
-                            ]
-                          }
-                        }
-                      },
-                      "required": [
-                        "permissions"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "status",
-                    "error",
-                    "message",
-                    "data"
-                  ]
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "admin.permissions"
-        ]
-      }
-    },
-    "/api/v1/admin/permissions": {
-      "get": {
-        "operationId": "AdminPermissionsController_listPermissionsV1",
-        "summary": "Xem danh sách catalog quyền hệ thống (D3)",
-        "description": "Lấy danh sách catalog quyền hệ thống bất biến. Yêu cầu quyền identity.permissions.read.",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Bao phản hồi danh sách catalog quyền hệ thống",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "status": {
-                      "type": "number",
-                      "example": 200
-                    },
-                    "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true,
-                      "example": null
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Lấy danh sách catalog quyền hệ thống thành công"
-                    },
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "permissions": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "key": {
-                                "type": "string",
-                                "example": "identity.permissions.read"
-                              },
-                              "label": {
-                                "type": "string",
-                                "example": "Xem danh sách quyền hệ thống"
-                              },
-                              "description": {
-                                "type": "string",
-                                "example": "Cho phép truy vấn catalog quyền hệ thống D3"
-                              },
-                              "bounded_context": {
-                                "type": "string",
-                                "example": "identity"
-                              },
-                              "risk": {
-                                "type": "string",
-                                "enum": [
-                                  "LOW",
-                                  "MEDIUM",
-                                  "HIGH",
-                                  "CRITICAL"
-                                ],
-                                "example": "LOW"
-                              }
-                            },
-                            "required": [
-                              "key",
-                              "label",
-                              "description",
-                              "bounded_context",
-                              "risk"
-                            ]
-                          }
-                        }
-                      },
-                      "required": [
-                        "permissions"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "status",
-                    "error",
-                    "message",
-                    "data"
-                  ]
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "admin.permissions"
-        ]
-      }
-    },
     "/health": {
       "get": {
         "operationId": "HealthController_getHealth",
@@ -3635,14 +3447,10 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "confirm_critical": {
-                    "type": "boolean"
-                  },
                   "roleIds": {
                     "type": "array",
                     "minItems": 1,
                     "maxItems": 20,
-                    "uniqueItems": true,
                     "items": {
                       "type": "string",
                       "maxLength": 64
@@ -5854,6 +5662,47 @@
         ]
       }
     },
+    "/hotels/{hotelId}/stays/{stayId}": {
+      "patch": {
+        "operationId": "HotelRoomsController_updateStay",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "stayId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Đã cập nhật lượt lưu trú"
+          }
+        },
+        "tags": [
+          "hotel-rooms"
+        ]
+      }
+    },
     "/hotels/{hotelId}/rooms/{roomId}/qr/rotate": {
       "post": {
         "operationId": "HotelRoomsController_rotateQr",
@@ -7874,6 +7723,35 @@
         "tags": [
           "billing-folios"
         ]
+      },
+      "post": {
+        "operationId": "FolioController_addFolioItem",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "folioId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mục FolioItem đã tạo"
+          }
+        },
+        "tags": [
+          "billing-folios"
+        ]
       }
     },
     "/hotels/{hotelId}/folios/{folioId}": {
@@ -7900,6 +7778,45 @@
         "responses": {
           "200": {
             "description": "Chi tiết folio"
+          }
+        },
+        "tags": [
+          "billing-folios"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/folios/{folioId}/items/{itemId}/void": {
+      "post": {
+        "operationId": "FolioController_voidFolioItem",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "folioId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Kết quả hủy mục"
           }
         },
         "tags": [
@@ -9951,14 +9868,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "monthDate",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -9974,6 +9883,533 @@
         "summary": "Get revenue protection analytics for hotel owner",
         "tags": [
           "platform-billing"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/local-partners/categories": {
+      "get": {
+        "operationId": "LocalPartnersController_getCategories",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "local-partners"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/local-partners/partners": {
+      "get": {
+        "operationId": "LocalPartnersController_getPartners",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "categoryId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "local-partners"
+        ]
+      },
+      "post": {
+        "operationId": "LocalPartnersController_createPartner",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "local-partners"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/local-partners/partners/{partnerId}": {
+      "get": {
+        "operationId": "LocalPartnersController_getPartner",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "partnerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "local-partners"
+        ]
+      },
+      "put": {
+        "operationId": "LocalPartnersController_updatePartner",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "partnerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "local-partners"
+        ]
+      },
+      "delete": {
+        "operationId": "LocalPartnersController_deletePartner",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "partnerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "local-partners"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/local-partners/partners/{partnerId}/status": {
+      "patch": {
+        "operationId": "LocalPartnersController_setPartnerStatus",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "partnerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "local-partners"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/local-partners/partners/{partnerId}/offers": {
+      "post": {
+        "operationId": "LocalPartnersController_createOffer",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "partnerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "local-partners"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/local-partners/offers/{offerId}": {
+      "put": {
+        "operationId": "LocalPartnersController_updateOffer",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "offerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "local-partners"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/local-partners/booking-requests": {
+      "get": {
+        "operationId": "LocalPartnersController_getBookingRequests",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "local-partners"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/local-partners/booking-requests/{bookingRequestId}/status": {
+      "patch": {
+        "operationId": "LocalPartnersController_updateBookingRequestStatus",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "bookingRequestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "local-partners"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/local-partners/analytics": {
+      "get": {
+        "operationId": "LocalPartnersController_getAnalytics",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "local-partners"
+        ]
+      }
+    },
+    "/guest/local-partners/categories": {
+      "get": {
+        "operationId": "GuestLocalPartnersController_getCategories",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "guest-local-partners"
+        ]
+      }
+    },
+    "/guest/local-partners/hotels/{hotelId}/partners": {
+      "get": {
+        "operationId": "GuestLocalPartnersController_getPartners",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "guest-local-partners"
+        ]
+      }
+    },
+    "/guest/local-partners/hotels/{hotelId}/partners/{partnerId}": {
+      "get": {
+        "operationId": "GuestLocalPartnersController_getPartnerDetail",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "partnerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "stayId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "guest-local-partners"
+        ]
+      }
+    },
+    "/guest/local-partners/hotels/{hotelId}/partners/{partnerId}/offers/{offerId}/claim": {
+      "post": {
+        "operationId": "GuestLocalPartnersController_claimOffer",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "partnerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "offerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "stayId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "guest-local-partners"
+        ]
+      }
+    },
+    "/guest/local-partners/hotels/{hotelId}/booking-requests": {
+      "post": {
+        "operationId": "GuestLocalPartnersController_createBookingRequest",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "stayId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "guest-local-partners"
+        ]
+      }
+    },
+    "/guest/local-partners/hotels/{hotelId}/interactions": {
+      "post": {
+        "operationId": "GuestLocalPartnersController_recordInteraction",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "stayId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "guest-local-partners"
         ]
       }
     }

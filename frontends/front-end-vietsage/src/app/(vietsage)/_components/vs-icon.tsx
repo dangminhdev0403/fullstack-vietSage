@@ -498,6 +498,34 @@ function iconGlyph(name: string): ReactNode {
         </>
       );
 
+    case "handshake":
+      return (
+        <>
+          <path d="m11 17 2 2a2 2 0 0 0 2.8 0l2.8-2.8a2 2 0 0 0 0-2.8L14 11" />
+          <path d="m13 14 3-3a2 2 0 0 0 0-2.8L13.2 5.4a2 2 0 0 0-2.8 0L7 9" />
+          <path d="M7 14 2 9" />
+          <path d="m17 9 5 5" />
+        </>
+      );
+
+    case "card_giftcard":
+      return (
+        <>
+          <rect x="3" y="8" width="18" height="13" rx="2" />
+          <path d="M12 8v13" />
+          <path d="M19 12H5" />
+          <path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8S13 3 16.5 3a2.5 2.5 0 0 1 0 5" />
+        </>
+      );
+
+    case "explore":
+      return (
+        <>
+          <circle cx="12" cy="12" r="9" />
+          <polygon points="16.2 7.8 14.1 14.1 7.8 16.2 9.9 9.9 16.2 7.8" />
+        </>
+      );
+
     default:
       return (
         <>

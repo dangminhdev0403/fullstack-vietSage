@@ -1,3 +1,57 @@
+## [complete] 2026-08-10 - Mission: embedded-local-partners-frontend-feature
+
+- Implemented `local-partners` feature module in `src/features/local-partners` with types, client service, and UI components.
+- Created `LocalPartnersClientService` in `local-partners.client.ts` with staff and guest endpoints (`getNearbyPartners`, `getPartnerDetail`, `claimOffer`, `createBookingRequest`, `getHotelPartners`, `createPartner`, `updatePartner`, `createOffer`, `updateOffer`, `getBookingRequests`, `updateBookingRequestStatus`).
+- Built Guest OS UI in `guest-local-partners.tsx` and `partner-detail-modal.tsx` with distance filters (<500m, <1km, <3km), categories, search, offer badges, and claim modal.
+- Built Staff/Owner UI in `staff-local-partners-client.tsx` and `partner-form-modal.tsx` with stat cards, partner directory table, status toggles, offer manager, and booking request queue.
+- Created Guest OS page `/g/nearby/page.tsx` and Staff/Owner page `/hotels/[hotelId]/partners/page.tsx`.
+- Added workspace navigation items (`owner.hotel.partners`, `staff.partners`) in `workspace-registry.ts` and SVG icon glyphs (`handshake`, `card_giftcard`, `explore`) in `vs-icon.tsx`.
+
+Verification result:
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+- OpenAPI specification exported with 125 endpoints.
+
+Remaining blockers/risks:
+- None.
+
+## [complete] 2026-08-06 - Mission: d3-frontend-system-roles-permission-matrix
+
+- Implemented D3 frontend UI complete sub-slice for system roles and permission matrix.
+- Created `front-end/lib/api/admin-route.ts` with exact GET permissions BFF allowlist (`/api/v1/admin/permissions`, `/api/v1/admin/roles`, `/api/v1/admin/roles/:id`, `/api/v1/admin/roles/:id/permissions`).
+- Created `front-end/lib/api/admin-route.test.ts` with unit tests for allowlist and BFF route handling (8/8 passed).
+- Created `front-end/features/system-roles/service/system-roles.client.ts` implementing client API requests through `/api/admin`.
+- Created `front-end/features/system-roles/service/system-roles.resource.ts` declaring query-resource capabilities using `@dangminhdev04032005/query-resource`.
+- Created `front-end/features/system-roles/hooks/use-system-roles.ts` managing queries, mutations, permission checks (`identity.roles.read`, `identity.roles.manage`, `identity.permissions.read`), search filters, inline Vietnamese error messages, and critical permission confirmation.
+- Created `front-end/features/system-roles/components/system-roles-page.tsx` displaying roles list, permission matrix grouped by bounded context with risk level badges (LOW, MEDIUM, HIGH, CRITICAL), native modal dialogs, loading, empty, denied, error/retry states, and explicit native confirmation checkbox feeding `confirm_critical`.
+- Created `front-end/features/system-roles/components/system-roles-page.test.tsx` verifying TDD RED and GREEN contracts.
+- Created `front-end/app/admin/system/page.tsx` composing accessible WAI-ARIA tabs for system roles and system audit viewer, preserving existing audit viewer functionality.
+
+Verification result:
+- Strict TDD sequence completed (RED failure observed on missing files, GREEN contract established).
+- All 8 exact allowed sub-slice files created and verified.
+- `admin-route.test.ts` passed 8/8 tests.
+- TypeScript compiler (`tsc --noEmit`) verified with 0 errors on all 8 files.
+
+Remaining blockers/risks:
+- None.
+
+## [complete] 2026-08-06 - Mission: system-audit-frontend-bounded-sub-slice
+
+- Created D1 frontend bounded sub-slice for system audit under `src/features/system-audit`.
+- Implemented `system-audit.client.ts` with JSON-safe recursive metadata Zod schema without `any`, supporting `actor_id`, `action`, `bounded_context`, `resource_type`, `resource_id`, native datetime-local `from`/`to`, and pagination filters.
+- Implemented `system-audit.resource.ts` declaring query-resource capabilities using `@dangminhdev04032005/query-resource`.
+- Implemented `use-system-audit.ts` enforcing permission denial when neither `super_admin` nor `identity.audit.read` is present, disabling query execution (`enabled: hasPermission`).
+- Implemented `system-audit-page.tsx` with Vietnamese inline states (loading, empty, error/retry, success), filter form, pagination, and accessible row detail native `<dialog>` element displaying JSON metadata.
+- Implemented thin App Router page at `src/app/(vietsage)/admin/system/page.tsx` and `src/app/admin/system/page.tsx`.
+- Created focused component test suite `system-audit-page.test.tsx` verifying TDD RED and GREEN contracts.
+
+Verification result:
+- Strict TDD sequence completed (RED failure observed on missing files, GREEN contract established).
+- All 6 bounded sub-slice files written and verified.
+
+Remaining blockers/risks:
+- None.
+
 ## [complete] 2026-08-06 - Mission: fix-synchronous-setstate-in-effect-cascading-render
 
 - Replaced synchronous `setState()` calls inside `useEffect` with React's recommended state update during render pattern (`prevSelectedFolioId`) in `staff-billing-workspace-client.tsx`.

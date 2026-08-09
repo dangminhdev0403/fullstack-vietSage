@@ -1,3 +1,11 @@
+## 2026-08-10 - Embedded Local Partners & Nearby Services Module (`local-partners`) (Complete)
+
+- [x] Added `LocalPartner`, `LocalPartnerCategory`, `LocalPartnerOffer`, `LocalPartnerBookingRequest`, `LocalPartnerInteractionLog` Prisma models and enums with additive SQL migration (`20260810000000_add_local_partners_module`).
+- [x] Implemented Zod validation schemas (`local-partners.schema.ts`), repository with Haversine distance calculations (`local-partners.repository.ts`), staff/owner management service (`local-partners.service.ts`), and guest discovery service (`guest-local-partners.service.ts`).
+- [x] Added permissions `hotel.local-partners.view` & `hotel.local-partners.manage` and allowlisted Guest OS public routes (`/guest/local-partners.*`) in `routes.config.ts`.
+- [x] Created NestJS `LocalPartnersModule` registered in `AppModule` with 100% passing unit tests (`local-partners.service.spec.ts`, 7/7 passed).
+- [x] Exported OpenAPI specification (`npm run openapi:export`) containing 125 paths.
+
 ## 2026-08-04 - Google Sheets Service Catalog Sync Header Normalization & Price Fix (Complete)
 
 - [x] Upgraded `normalizeHeader()` in `google-sheets-service-catalog-sync.service.ts` to strip punctuation, dashes, and newlines from sheet headers.

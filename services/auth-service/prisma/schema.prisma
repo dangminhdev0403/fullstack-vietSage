@@ -550,6 +550,9 @@ model Hotel {
   platformUsages                PlatformUsage[]
   platformBillableDays          PlatformBillableDay[]
   platformBillingDailySummaries PlatformBillingDailySummary[]
+  localPartners                 LocalPartner[]
+  localPartnerBookingRequests   LocalPartnerBookingRequest[]
+  localPartnerInteractionLogs   LocalPartnerInteractionLog[]
 
   @@unique([tenantId, code])
   @@index([tenantId, status])
@@ -886,6 +889,8 @@ model GuestStay {
   payments            Payment[]
   messageThreads      GuestMessageThread[]
   occupants           GuestStayOccupant[]
+  localPartnerBookingRequests LocalPartnerBookingRequest[]
+  localPartnerInteractionLogs LocalPartnerInteractionLog[]
 
   @@index([hotelId, status])
   @@index([roomId, status])
@@ -1573,3 +1578,146 @@ model EmergencyNotification {
   @@index([incidentId, status])
   @@index([callEventId])
 }
+
+enum LocalPartnerStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum LocalPartnerOfferStatus {
+  ACTIVE
+  EXPIRED
+  DISABLED
+}
+
+enum LocalPartnerOfferDiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+  FREE_GIFT
+  SPECIAL_PRICE
+}
+
+enum LocalPartnerBookingStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum LocalPartnerInteractionType {
+  VIEW_DETAIL
+  CLICK_MAP
+  CLICK_CALL
+  CLICK_ZALO
+  CLAIM_OFFER
+  BOOKING_REQUEST
+}
+
+model LocalPartnerCategory {
+  id          String         @id @default(cuid())
+  code        String         @unique @db.VarChar(80)
+  nameVi      String         @db.VarChar(120)
+  nameEn      String         @db.VarChar(120)
+  icon        String         @db.VarChar(80)
+  sortOrder   Int            @default(0)
+  isActive    Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  partners    LocalPartner[]
+
+  @@index([sortOrder, isActive])
+}
+
+model LocalPartner {
+  id                 String                       @id @default(cuid())
+  hotelId            String
+  categoryId         String
+  name               String                       @db.VarChar(160)
+  description        String?                      @db.VarChar(1000)
+  address            String                       @db.VarChar(255)
+  latitude           Float?
+  longitude          Float?
+  distanceMeters     Int?
+  phone              String?                      @db.VarChar(40)
+  zaloUrl            String?                      @db.VarChar(255)
+  websiteUrl         String?                      @db.VarChar(255)
+  googleMapUrl       String?                      @db.VarChar(500)
+  coverImageUrl      String?                      @db.VarChar(500)
+  images             String[]
+  operatingHours     String?                      @db.VarChar(160)
+  status             LocalPartnerStatus           @default(ACTIVE)
+  isFeatured         Boolean                      @default(false)
+  sortOrder          Int                          @default(0)
+  createdAt          DateTime                     @default(now())
+  updatedAt          DateTime                     @updatedAt
+  hotel              Hotel                        @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  category           LocalPartnerCategory         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  offers             LocalPartnerOffer[]
+  bookingRequests    LocalPartnerBookingRequest[]
+  interactionLogs    LocalPartnerInteractionLog[]
+
+  @@index([hotelId, status, sortOrder])
+  @@index([categoryId, status])
+}
+
+model LocalPartnerOffer {
+  id              String                        @id @default(cuid())
+  partnerId       String
+  title           String                        @db.VarChar(160)
+  description     String?                       @db.VarChar(500)
+  discountCode    String?                       @db.VarChar(80)
+  discountType    LocalPartnerOfferDiscountType @default(PERCENTAGE)
+  discountValue   Float?
+  termsCondition  String?                       @db.VarChar(500)
+  validFrom       DateTime?
+  validTo         DateTime?
+  status          LocalPartnerOfferStatus       @default(ACTIVE)
+  createdAt       DateTime                      @default(now())
+  updatedAt       DateTime                      @updatedAt
+  partner         LocalPartner                  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  bookingRequests LocalPartnerBookingRequest[]
+
+  @@index([partnerId, status])
+}
+
+model LocalPartnerBookingRequest {
+  id             String                    @id @default(cuid())
+  hotelId        String
+  stayId         String?
+  partnerId      String
+  offerId        String?
+  guestName      String                    @db.VarChar(120)
+  roomNumber     String                    @db.VarChar(40)
+  guestPhone     String                    @db.VarChar(40)
+  serviceType    String                    @db.VarChar(120)
+  bookingTime    DateTime?
+  numberOfGuests Int?
+  notes          String?                   @db.VarChar(500)
+  status         LocalPartnerBookingStatus @default(PENDING)
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+  hotel          Hotel                     @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  stay           GuestStay?                @relation(fields: [stayId], references: [id], onDelete: SetNull)
+  partner        LocalPartner              @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  offer          LocalPartnerOffer?        @relation(fields: [offerId], references: [id], onDelete: SetNull)
+
+  @@index([hotelId, status, createdAt])
+  @@index([partnerId, status])
+  @@index([stayId])
+}
+
+model LocalPartnerInteractionLog {
+  id          String                      @id @default(cuid())
+  hotelId     String
+  stayId      String?
+  partnerId   String
+  actionType  LocalPartnerInteractionType
+  createdAt   DateTime                    @default(now())
+  hotel       Hotel                       @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  stay        GuestStay?                  @relation(fields: [stayId], references: [id], onDelete: SetNull)
+  partner     LocalPartner                @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@index([hotelId, partnerId, createdAt])
+  @@index([actionType, createdAt])
+}
+
