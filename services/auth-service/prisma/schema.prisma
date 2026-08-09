@@ -302,6 +302,17 @@ enum EmergencyNotificationType {
   REOPENED
 }
 
+enum TenantType {
+  HOTEL
+  SERVICE
+}
+
+enum MarketplaceLocationSource {
+  DEVICE_GEOLOCATION
+  GOOGLE_MAPS_URL
+  MANUAL
+}
+
 model User {
   id                    String                 @id @default(cuid())
   email                 String                 @unique @db.VarChar(320)
@@ -469,6 +480,7 @@ model Tenant {
   id                  String               @id @default(cuid())
   code                String               @unique @db.VarChar(80)
   name                String               @db.VarChar(160)
+  type                TenantType           @default(HOTEL)
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   tenantUsers         TenantUser[]
@@ -517,6 +529,12 @@ model Hotel {
   code                     String                        @db.VarChar(80)
   brandSettings            Json?
   googleSheetId            String?                       @unique @db.VarChar(200)
+  googleMapsUrl            String?                       @db.VarChar(500)
+  latitude                 Decimal?                      @db.Decimal(9, 6)
+  longitude                Decimal?                      @db.Decimal(9, 6)
+  locationAccuracyMeters   Float?                        @db.DoublePrecision
+  locationSource           MarketplaceLocationSource?
+  locationVerifiedAt       DateTime?
   timezone                 String                        @default("Asia/Ho_Chi_Minh") @db.VarChar(80)
   status                   HotelStatus                   @default(ACTIVE)
   createdAt                DateTime                      @default(now())
