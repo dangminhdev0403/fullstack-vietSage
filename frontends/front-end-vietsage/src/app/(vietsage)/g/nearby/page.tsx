@@ -5,7 +5,7 @@ import { VsTopBar } from "../../_components/vs-top-bar";
 import { GuestAccessRequiredState } from "@/features/guest-os/components/shared/guest-access-required-state";
 import { useGuestI18n } from "@/features/guest-os/i18n/use-guest-i18n";
 import { useGuestStore, useGuestStoreHydrated } from "@/features/guest-os/store/guest-store";
-import { GuestLocalPartners } from "@/features/local-partners/components/guest-local-partners";
+import { GuestMarketplace } from "@/features/marketplace/components/guest-marketplace";
 import { VsIcon } from "../../_components/vs-icon";
 
 export default function GuestNearbyPartnersPage() {
@@ -26,7 +26,7 @@ export default function GuestNearbyPartnersPage() {
     <div className="vs-page-shell vs-guest-readable vs-safe-bottom min-h-screen bg-[#f8f4ea] text-[#18211d]">
       <VsTopBar showLeftControl={false} rightMode="icons" rightLabel={roomLabel} languageBadge={locale} />
       <main className="relative min-h-screen px-4 pb-24 pt-24">
-        <GuestLocalPartners sessionToken={sessionToken} />
+        <GuestMarketplace sessionToken={sessionToken} />
       </main>
       <VsBottomNav active="services" />
     </div>

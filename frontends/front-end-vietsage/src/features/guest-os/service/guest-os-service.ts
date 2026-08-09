@@ -100,6 +100,21 @@ export class GuestOsService {
     return unwrapApiEnvelope<T>(payload).data;
   }
 
+  async listMarketplaceCategories<T>(sessionToken: string): Promise<T> {
+    const payload = await this.httpClient.request<unknown>({ method: "GET", path: this.path("/guest/marketplace/categories"), accessToken: sessionToken });
+    return unwrapApiEnvelope<T>(payload).data;
+  }
+
+  async listMarketplaceServices<T>(sessionToken: string, categoryId?: string): Promise<T> {
+    const payload = await this.httpClient.request<unknown>({ method: "GET", path: this.path("/guest/marketplace/services"), accessToken: sessionToken, query: categoryId ? { categoryId } : undefined });
+    return unwrapApiEnvelope<T>(payload).data;
+  }
+
+  async createMarketplaceOrder<T, B>(sessionToken: string, body: B): Promise<T> {
+    const payload = await this.httpClient.request<unknown, B>({ method: "POST", path: this.path("/guest/marketplace/orders"), accessToken: sessionToken, body });
+    return unwrapApiEnvelope<T>(payload).data;
+  }
+
   async listServicesByCategory(sessionToken: string, categoryId: string, query: { page?: number; limit?: number } = {}, locale?: GuestLocaleCode): Promise<GuestCategoryServicesResult> {
     const payload = await this.httpClient.request<unknown>({
       method: "GET",
