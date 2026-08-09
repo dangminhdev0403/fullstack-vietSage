@@ -313,6 +313,22 @@ enum MarketplaceLocationSource {
   MANUAL
 }
 
+enum MarketplaceServiceMode {
+  DELIVERY_TO_HOTEL
+  CUSTOMER_AT_SERVICE
+}
+
+enum MarketplaceRecordStatus {
+  DRAFT
+  ACTIVE
+  DISABLED
+}
+
+enum HotelServiceLinkStatus {
+  ACTIVE
+  DISABLED
+}
+
 model User {
   id                    String                 @id @default(cuid())
   email                 String                 @unique @db.VarChar(320)
@@ -489,6 +505,9 @@ model Tenant {
   emergencyLocations  EmergencyLocation[]
   emergencyCallEvents EmergencyCallEvent[]
   emergencyIncidents  EmergencyIncident[]
+  serviceProfile      ServiceTenantProfile?
+  marketplaceServices MarketplaceService[]      @relation("TenantMarketplaceServices")
+  hotelServiceLinks   HotelServiceLink[]        @relation("ServiceTenantHotelLinks")
 }
 
 model TenantUser {
@@ -571,6 +590,7 @@ model Hotel {
   localPartners                 LocalPartner[]
   localPartnerBookingRequests   LocalPartnerBookingRequest[]
   localPartnerInteractionLogs   LocalPartnerInteractionLog[]
+  serviceTenantLinks            HotelServiceLink[]            @relation("HotelServiceTenantLinks")
 
   @@unique([tenantId, code])
   @@index([tenantId, status])
@@ -1739,3 +1759,76 @@ model LocalPartnerInteractionLog {
   @@index([actionType, createdAt])
 }
 
+model ServiceTenantProfile {
+  tenantId             String                    @id
+  displayName          String                    @db.VarChar(160)
+  description          String?                   @db.VarChar(1000)
+  phone                String?                   @db.VarChar(40)
+  address              String?                   @db.VarChar(255)
+  googleMapsUrl        String?                   @db.VarChar(500)
+  latitude             Decimal?                  @db.Decimal(9, 6)
+  longitude            Decimal?                  @db.Decimal(9, 6)
+  locationAccuracyMeters Float?                    @db.DoublePrecision
+  locationSource     MarketplaceLocationSource?
+  locationVerifiedAt DateTime?
+  coverImageUrl        String?                   @db.VarChar(500)
+  status               MarketplaceRecordStatus   @default(DRAFT)
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+  tenant               Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model MarketplaceCategory {
+  id        String               @id @default(cuid())
+  code      String               @unique @db.VarChar(80)
+  nameVi    String               @db.VarChar(120)
+  nameEn    String               @db.VarChar(120)
+  icon      String?              @db.VarChar(80)
+  sortOrder Int                  @default(0)
+  isActive  Boolean              @default(true)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  services  MarketplaceService[]
+
+  @@index([isActive, sortOrder])
+}
+
+model MarketplaceService {
+  id                String                 @id @default(cuid())
+  serviceTenantId   String
+  categoryId        String
+  name              String                 @db.VarChar(160)
+  description       String?                @db.VarChar(1000)
+  unitPrice         Decimal                @db.Decimal(12, 2)
+  currency          String                 @default("VND") @db.Char(3)
+  imageUrls         String[]
+  mode              MarketplaceServiceMode
+  capacityAvailable Int?
+  waitingMinutes    Int                    @default(0)
+  status            MarketplaceRecordStatus @default(DRAFT)
+  version           Int                    @default(1)
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  serviceTenant     Tenant                 @relation("TenantMarketplaceServices", fields: [serviceTenantId], references: [id], onDelete: Cascade)
+  category          MarketplaceCategory    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@index([serviceTenantId, status])
+  @@index([categoryId, status])
+  @@index([status])
+}
+
+model HotelServiceLink {
+  id              String                 @id @default(cuid())
+  hotelId         String
+  serviceTenantId String
+  status          HotelServiceLinkStatus @default(ACTIVE)
+  sortOrder       Int                    @default(0)
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  hotel           Hotel                  @relation("HotelServiceTenantLinks", fields: [hotelId], references: [id], onDelete: Cascade)
+  serviceTenant   Tenant                 @relation("ServiceTenantHotelLinks", fields: [serviceTenantId], references: [id], onDelete: Cascade)
+
+  @@unique([hotelId, serviceTenantId])
+  @@index([hotelId, status, sortOrder])
+  @@index([serviceTenantId, status])
+}
