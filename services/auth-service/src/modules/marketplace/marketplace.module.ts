@@ -3,6 +3,8 @@ import { MarketplaceAdminController } from "./api/marketplace-admin.controller";
 import { MarketplaceAdminService } from "./application/marketplace-admin.service";
 import { ServicePortalController } from "./api/service-portal.controller";
 import { ServicePortalService } from "./application/service-portal.service";
+import { GuestMarketplaceController } from "./api/guest-marketplace.controller";
+import { GuestMarketplaceService } from "./application/guest-marketplace.service";
 
-@Module({ controllers: [MarketplaceAdminController, ServicePortalController], providers: [MarketplaceAdminService, ServicePortalService] })
+@Module({ controllers: [MarketplaceAdminController, ServicePortalController, GuestMarketplaceController], providers: [MarketplaceAdminService, ServicePortalService, GuestMarketplaceService] })
 export class MarketplaceModule {}

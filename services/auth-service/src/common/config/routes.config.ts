@@ -11,7 +11,7 @@ export const PUBLIC_PATTERNS = [
 
 // Regex should be exceptional. Prefer exact paths in PUBLIC_PATTERNS.
 export const PUBLIC_REGEX: RegExp[] = [
-  /^\/guest\/(?:qr\/scan|session\/(?:me|close)|services|service-categories\/[^/]+\/services|requests|requests\/[^/]+\/cancel|messages|messages\/read|messages\/unread-summary|local-partners(?:\/categories|\/[^/]+)?)$/,
+  /^\/guest\/(?:qr\/scan|session\/(?:me|close)|services|service-categories\/[^/]+\/services|requests|requests\/[^/]+\/cancel|messages|messages\/read|messages\/unread-summary|local-partners(?:\/categories|\/[^/]+)?|marketplace\/(?:categories|services(?:\/[^/]+)?))$/,
   /^\/emergency\/guest\/calls$/,
   /^\/payments\/webhook\/[^/]+$/,
 ];
