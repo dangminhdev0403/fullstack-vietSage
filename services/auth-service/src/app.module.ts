@@ -21,6 +21,7 @@ import { AuthRateLimitGuard } from "./common/security/auth-rate-limit.guard";
 import { BiometricWorkstationsModule } from "./modules/biometric-workstations/biometric-workstations.module";
 import { PlatformBillingModule } from "./modules/platform-billing/platform-billing.module";
 import { LocalPartnersModule } from "./modules/local-partners/local-partners.module";
+import { MarketplaceModule } from "./modules/marketplace/marketplace.module";
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { LocalPartnersModule } from "./modules/local-partners/local-partners.mod
     BiometricWorkstationsModule,
     PlatformBillingModule,
     LocalPartnersModule,
+    MarketplaceModule,
   ],
   providers: [
     {

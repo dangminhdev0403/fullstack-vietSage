@@ -8,6 +8,8 @@ export type BusinessPermissionKey =
   | "platform.hotels.manage"
   | "platform.billing.view"
   | "platform.billing.manage"
+  | "platform.marketplace.view"
+  | "platform.marketplace.manage"
   | "hotel.revenue-protection.view"
   | "hotel.dashboard.view"
   | "hotel.rooms.view"
@@ -73,6 +75,14 @@ export const BUSINESS_PERMISSIONS: readonly BusinessPermissionDefinition[] = [
   {
     key: "platform.billing.manage",
     moduleKey: "platform-billing",
+  },
+  {
+    key: "platform.marketplace.view",
+    moduleKey: "platform-marketplace",
+  },
+  {
+    key: "platform.marketplace.manage",
+    moduleKey: "platform-marketplace",
   },
   {
     key: "hotel.revenue-protection.view",
