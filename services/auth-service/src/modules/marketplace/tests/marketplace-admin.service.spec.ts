@@ -17,7 +17,9 @@ describe("Marketplace admin", () => {
     const userRoleCreate = jest.fn().mockResolvedValue({});
     const auditCreate = jest.fn().mockResolvedValue({});
     const tx = {
-      role: { findFirst: jest.fn().mockResolvedValue({ id: "service-role" }) },
+      role: { upsert: jest.fn().mockResolvedValue({ id: "service-role" }) },
+      permission: { findMany: jest.fn().mockResolvedValue([{ id: "view" }, { id: "manage" }]) },
+      rolePermission: { createMany: jest.fn().mockResolvedValue({ count: 2 }) },
       tenant: { create: tenantCreate }, user: { create: userCreate },
       tenantUser: { create: tenantUserCreate }, userRole: { create: userRoleCreate }, auditLog: { create: auditCreate },
     };

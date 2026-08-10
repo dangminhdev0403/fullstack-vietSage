@@ -44,8 +44,9 @@ export class MarketplaceAdminService {
     const passwordHash = await argon2.hash(body.owner.password);
     try {
       return await this.prisma.$transaction(async (tx) => {
-        const role = await tx.role.findFirst({ where: { code: "SERVICE_STAFF", status: "ACTIVE" } });
-        if (!role) throw new ConflictException("Vai trò SERVICE_STAFF chưa được cấu hình");
+        const role = await tx.role.upsert({ where: { code: "SERVICE_STAFF" }, update: { name: "Nhân viên Service Tenant", status: "ACTIVE" }, create: { code: "SERVICE_STAFF", name: "Nhân viên Service Tenant", status: "ACTIVE" } });
+        const servicePermissions = await tx.permission.findMany({ where: { path: { in: ["service.marketplace.view", "service.marketplace.manage"] } }, select: { id: true } });
+        if (servicePermissions.length !== 2) throw new ConflictException("Quyền Service Marketplace chưa được đồng bộ");
         const tenant = await tx.tenant.create({
           data: {
             code: body.code,
@@ -71,6 +72,7 @@ export class MarketplaceAdminService {
         });
         const owner = await tx.user.create({ data: { email: body.owner.email.toLowerCase(), fullName: body.owner.fullName, passwordHash, status: UserStatus.ACTIVE, userType: UserType.PARTNER } });
         await Promise.all([
+          tx.rolePermission.createMany({ data: servicePermissions.map((permission) => ({ roleId: role.id, permissionId: permission.id })), skipDuplicates: true }),
           tx.tenantUser.create({ data: { tenantId: tenant.id, userId: owner.id, status: TenantUserStatus.ACTIVE, joinedAt: new Date() } }),
           tx.userRole.create({ data: { userId: owner.id, roleId: role.id, status: UserRoleStatus.ACTIVE, assignedById: actorId } }),
           this.audit(tx, actorId, tenant.id, "marketplace.service-tenant.create", "Tenant", tenant.id),
