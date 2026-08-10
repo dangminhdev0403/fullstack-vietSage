@@ -8,6 +8,7 @@ import { GuestMarketplaceService } from "./application/guest-marketplace.service
 import { MarketplaceOrderService } from "./application/marketplace-order.service";
 import { HotelMarketplaceController } from "./api/hotel-marketplace.controller";
 import { PropertyModule } from "../property/property.module";
+import { GuestOperationsModule } from "../guest-operations/guest-operations.module";
 
-@Module({ imports: [PropertyModule], controllers: [MarketplaceAdminController, ServicePortalController, GuestMarketplaceController, HotelMarketplaceController], providers: [MarketplaceAdminService, ServicePortalService, GuestMarketplaceService, MarketplaceOrderService] })
+@Module({ imports: [PropertyModule, GuestOperationsModule], controllers: [MarketplaceAdminController, ServicePortalController, GuestMarketplaceController, HotelMarketplaceController], providers: [MarketplaceAdminService, ServicePortalService, GuestMarketplaceService, MarketplaceOrderService] })
 export class MarketplaceModule {}

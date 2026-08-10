@@ -10065,6 +10065,504 @@
           "guest-local-partners"
         ]
       }
+    },
+    "/admin/marketplace/categories": {
+      "get": {
+        "operationId": "MarketplaceAdminController_categories",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "MarketplaceAdmin"
+        ]
+      },
+      "post": {
+        "operationId": "MarketplaceAdminController_createCategory",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "MarketplaceAdmin"
+        ]
+      }
+    },
+    "/admin/marketplace/categories/{categoryId}": {
+      "patch": {
+        "operationId": "MarketplaceAdminController_updateCategory",
+        "parameters": [
+          {
+            "name": "categoryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "MarketplaceAdmin"
+        ]
+      }
+    },
+    "/admin/marketplace/service-tenants": {
+      "get": {
+        "operationId": "MarketplaceAdminController_serviceTenants",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "MarketplaceAdmin"
+        ]
+      },
+      "post": {
+        "operationId": "MarketplaceAdminController_createServiceTenant",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "MarketplaceAdmin"
+        ]
+      }
+    },
+    "/admin/marketplace/hotel-links": {
+      "get": {
+        "operationId": "MarketplaceAdminController_hotelLinks",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "MarketplaceAdmin"
+        ]
+      }
+    },
+    "/admin/marketplace/hotel-links/{hotelId}/{serviceTenantId}": {
+      "put": {
+        "operationId": "MarketplaceAdminController_setLink",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "serviceTenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "MarketplaceAdmin"
+        ]
+      },
+      "delete": {
+        "operationId": "MarketplaceAdminController_disableLink",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "serviceTenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "MarketplaceAdmin"
+        ]
+      }
+    },
+    "/service-portal/profile": {
+      "get": {
+        "operationId": "ServicePortalController_profile",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ServicePortal"
+        ]
+      },
+      "patch": {
+        "operationId": "ServicePortalController_updateProfile",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ServicePortal"
+        ]
+      }
+    },
+    "/service-portal/categories": {
+      "get": {
+        "operationId": "ServicePortalController_categories",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ServicePortal"
+        ]
+      }
+    },
+    "/service-portal/services": {
+      "get": {
+        "operationId": "ServicePortalController_services",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ServicePortal"
+        ]
+      },
+      "post": {
+        "operationId": "ServicePortalController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ServicePortal"
+        ]
+      }
+    },
+    "/service-portal/services/{serviceId}": {
+      "patch": {
+        "operationId": "ServicePortalController_update",
+        "parameters": [
+          {
+            "name": "serviceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ServicePortal"
+        ]
+      }
+    },
+    "/service-portal/services/{serviceId}/availability": {
+      "patch": {
+        "operationId": "ServicePortalController_availability",
+        "parameters": [
+          {
+            "name": "serviceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ServicePortal"
+        ]
+      }
+    },
+    "/service-portal/orders": {
+      "get": {
+        "operationId": "ServicePortalController_orderList",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ServicePortal"
+        ]
+      }
+    },
+    "/service-portal/orders/{orderId}": {
+      "get": {
+        "operationId": "ServicePortalController_order",
+        "parameters": [
+          {
+            "name": "orderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ServicePortal"
+        ]
+      }
+    },
+    "/service-portal/orders/{orderId}/transitions": {
+      "post": {
+        "operationId": "ServicePortalController_transition",
+        "parameters": [
+          {
+            "name": "orderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ServicePortal"
+        ]
+      }
+    },
+    "/guest/marketplace/categories": {
+      "get": {
+        "operationId": "GuestMarketplaceController_categories",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "GuestMarketplace"
+        ]
+      }
+    },
+    "/guest/marketplace/services": {
+      "get": {
+        "operationId": "GuestMarketplaceController_services",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "GuestMarketplace"
+        ]
+      }
+    },
+    "/guest/marketplace/services/{serviceId}": {
+      "get": {
+        "operationId": "GuestMarketplaceController_detail",
+        "parameters": [
+          {
+            "name": "serviceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "GuestMarketplace"
+        ]
+      }
+    },
+    "/guest/marketplace/orders": {
+      "post": {
+        "operationId": "GuestMarketplaceController_createOrder",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "GuestMarketplace"
+        ]
+      },
+      "get": {
+        "operationId": "GuestMarketplaceController_ordersList",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "GuestMarketplace"
+        ]
+      }
+    },
+    "/guest/marketplace/orders/{orderId}": {
+      "get": {
+        "operationId": "GuestMarketplaceController_order",
+        "parameters": [
+          {
+            "name": "orderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "GuestMarketplace"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/marketplace/orders": {
+      "get": {
+        "operationId": "HotelMarketplaceController_list",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "HotelMarketplace"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/marketplace/orders/{orderId}": {
+      "get": {
+        "operationId": "HotelMarketplaceController_order",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "orderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "HotelMarketplace"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/marketplace/revenue": {
+      "get": {
+        "operationId": "HotelMarketplaceController_revenue",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "HotelMarketplace"
+        ]
+      }
     }
   },
   "info": {

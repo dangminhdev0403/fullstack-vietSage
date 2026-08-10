@@ -6775,6 +6775,295 @@ paths:
         "200":
           description: ""
       tags: *a27
+  /admin/marketplace/categories:
+    get:
+      operationId: MarketplaceAdminController_categories
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: &a28
+        - MarketplaceAdmin
+    post:
+      operationId: MarketplaceAdminController_createCategory
+      parameters: []
+      responses:
+        "201":
+          description: ""
+      tags: *a28
+  /admin/marketplace/categories/{categoryId}:
+    patch:
+      operationId: MarketplaceAdminController_updateCategory
+      parameters:
+        - name: categoryId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a28
+  /admin/marketplace/service-tenants:
+    get:
+      operationId: MarketplaceAdminController_serviceTenants
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: *a28
+    post:
+      operationId: MarketplaceAdminController_createServiceTenant
+      parameters: []
+      responses:
+        "201":
+          description: ""
+      tags: *a28
+  /admin/marketplace/hotel-links:
+    get:
+      operationId: MarketplaceAdminController_hotelLinks
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: *a28
+  /admin/marketplace/hotel-links/{hotelId}/{serviceTenantId}:
+    put:
+      operationId: MarketplaceAdminController_setLink
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: serviceTenantId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a28
+    delete:
+      operationId: MarketplaceAdminController_disableLink
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: serviceTenantId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a28
+  /service-portal/profile:
+    get:
+      operationId: ServicePortalController_profile
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: &a29
+        - ServicePortal
+    patch:
+      operationId: ServicePortalController_updateProfile
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: *a29
+  /service-portal/categories:
+    get:
+      operationId: ServicePortalController_categories
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: *a29
+  /service-portal/services:
+    get:
+      operationId: ServicePortalController_services
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: *a29
+    post:
+      operationId: ServicePortalController_create
+      parameters: []
+      responses:
+        "201":
+          description: ""
+      tags: *a29
+  /service-portal/services/{serviceId}:
+    patch:
+      operationId: ServicePortalController_update
+      parameters:
+        - name: serviceId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a29
+  /service-portal/services/{serviceId}/availability:
+    patch:
+      operationId: ServicePortalController_availability
+      parameters:
+        - name: serviceId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a29
+  /service-portal/orders:
+    get:
+      operationId: ServicePortalController_orderList
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: *a29
+  /service-portal/orders/{orderId}:
+    get:
+      operationId: ServicePortalController_order
+      parameters:
+        - name: orderId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a29
+  /service-portal/orders/{orderId}/transitions:
+    post:
+      operationId: ServicePortalController_transition
+      parameters:
+        - name: orderId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a29
+  /guest/marketplace/categories:
+    get:
+      operationId: GuestMarketplaceController_categories
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: &a30
+        - GuestMarketplace
+  /guest/marketplace/services:
+    get:
+      operationId: GuestMarketplaceController_services
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: *a30
+  /guest/marketplace/services/{serviceId}:
+    get:
+      operationId: GuestMarketplaceController_detail
+      parameters:
+        - name: serviceId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a30
+  /guest/marketplace/orders:
+    post:
+      operationId: GuestMarketplaceController_createOrder
+      parameters: []
+      responses:
+        "201":
+          description: ""
+      tags: *a30
+    get:
+      operationId: GuestMarketplaceController_ordersList
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: *a30
+  /guest/marketplace/orders/{orderId}:
+    get:
+      operationId: GuestMarketplaceController_order
+      parameters:
+        - name: orderId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a30
+  /hotels/{hotelId}/marketplace/orders:
+    get:
+      operationId: HotelMarketplaceController_list
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: &a31
+        - HotelMarketplace
+  /hotels/{hotelId}/marketplace/orders/{orderId}:
+    get:
+      operationId: HotelMarketplaceController_order
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: orderId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a31
+  /hotels/{hotelId}/marketplace/revenue:
+    get:
+      operationId: HotelMarketplaceController_revenue
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a31
 info:
   title: VietSage Auth Service API
   description: HTTP API contract for auth, rbac, and hotel-users modules
