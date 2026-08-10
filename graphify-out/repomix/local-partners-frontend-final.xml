@@ -1,0 +1,376 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: frontends/front-end-vietsage/src/features/local-partners/**/*, frontends/front-end-vietsage/src/app/(vietsage)/g/home/page.tsx, frontends/front-end-vietsage/src/app/(vietsage)/g/nearby/page.tsx, frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/partners/page.tsx, frontends/front-end-vietsage/src/app/api/guest/local-partners/**/*.ts, frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/local-partners/**/*.ts
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    src/
+      app/
+        (vietsage)/
+          g/
+            home/
+              page.tsx
+            nearby/
+              page.tsx
+          hotels/
+            [hotelId]/
+              partners/
+                page.tsx
+        api/
+          guest/
+            local-partners/
+              categories/
+                route.ts
+              route.ts
+          hotel-ops/
+            hotels/
+              [hotelId]/
+                local-partners/
+                  [partnerId]/
+                    status/
+                      route.ts
+                    route.ts
+                  categories/
+                    route.ts
+                  route.ts
+      features/
+        local-partners/
+          components/
+            guest-local-partners.tsx
+            guest-nearby-preview.tsx
+            partner-detail-modal.tsx
+            partner-form-modal.tsx
+            staff-local-partners-client.tsx
+          queries/
+            use-guest-local-partners.ts
+            use-local-partners.ts
+          repositories/
+            local-partners-repository.ts
+          resources/
+            guest-local-partners-resource.ts
+            local-partners-resource.ts
+          service/
+            local-partners.client-instance.ts
+            local-partners.client.ts
+          types/
+            local-partners-contract.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/g/home/page.tsx">
+import { VsBottomNav } from "../../_components/vs-bottom-nav";
+import { VsIcon } from "../../_components/vs-icon";
+import { VsTopBar } from "../../_components/vs-top-bar";
+import { GuestHomeCta } from "@/features/guest-os/components/home/guest-home-cta";
+import { GuestHomeExperiences } from "@/features/guest-os/components/home/guest-home-experiences";
+import { GuestHomeHero } from "@/features/guest-os/components/home/guest-home-hero";
+import { GuestHomeHighlights } from "@/features/guest-os/components/home/guest-home-highlights";
+import { GuestAccessRequiredState } from "@/features/guest-os/components/shared/guest-access-required-state";
+import { useGuestI18n } from "@/features/guest-os/i18n/use-guest-i18n";
+import { useGuestStore, useGuestStoreHydrated } from "@/features/guest-os/store/guest-store";
+import { GuestNearbyPreview } from "@/features/local-partners/components/guest-nearby-preview";
+⋮----
+function normalizeVietnameseText(value: string): string
+⋮----
+<GuestHomeHero greeting=
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/api/guest/local-partners/categories/route.ts">
+import { HttpError } from "@/core/http/http-error";
+import { guestOsService } from "@/features/guest-os/service/guest-os-service-instance";
+import type { LocalPartnerCategory } from "@/features/local-partners/types/local-partners-contract";
+import { getBearerToken, guestHttpErrorResponse, guestSuccessResponse, guestUnknownErrorResponse, guestValidationErrorResponse } from "../../_utils";
+⋮----
+export async function GET(request: Request)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/api/guest/local-partners/route.ts">
+import { HttpError } from "@/core/http/http-error";
+import { guestOsService } from "@/features/guest-os/service/guest-os-service-instance";
+import type { LocalPartner } from "@/features/local-partners/types/local-partners-contract";
+import { getBearerToken, guestHttpErrorResponse, guestSuccessResponse, guestUnknownErrorResponse, guestValidationErrorResponse } from "../_utils";
+⋮----
+export async function GET(request: Request)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/local-partners/[partnerId]/status/route.ts">
+import { z } from "zod";
+import { executeHotelOpsBackendRequest, hotelOpsHttpErrorResponse, successResponse, unknownServerErrorResponse, validationErrorResponse } from "@/app/api/hotel-ops/_utils";
+import { HttpError } from "@/core/http/http-error";
+import { localPartnersServerClient } from "@/features/local-partners/service/local-partners.client-instance";
+⋮----
+type Params = { params: Promise<{ hotelId: string; partnerId: string }> };
+export async function PATCH(request: Request,
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/local-partners/[partnerId]/route.ts">
+import { executeHotelOpsBackendRequest, hotelOpsHttpErrorResponse, successResponse, unknownServerErrorResponse, validationErrorResponse } from "@/app/api/hotel-ops/_utils";
+import { HttpError } from "@/core/http/http-error";
+import { localPartnersServerClient } from "@/features/local-partners/service/local-partners.client-instance";
+import type { LocalPartnerInput } from "@/features/local-partners/types/local-partners-contract";
+⋮----
+type Params = { params: Promise<{ hotelId: string; partnerId: string }> };
+export async function PATCH(request: Request,
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/local-partners/categories/route.ts">
+import { executeHotelOpsBackendRequest, hotelOpsHttpErrorResponse, successResponse, unknownServerErrorResponse } from "@/app/api/hotel-ops/_utils";
+import { HttpError } from "@/core/http/http-error";
+import { localPartnersServerClient } from "@/features/local-partners/service/local-partners.client-instance";
+⋮----
+type Params = { params: Promise<{ hotelId: string }> };
+export async function GET(_request: Request,
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/api/hotel-ops/hotels/[hotelId]/local-partners/route.ts">
+import { z } from "zod";
+import { executeHotelOpsBackendRequest, hotelOpsHttpErrorResponse, successResponse, unknownServerErrorResponse, validationErrorResponse } from "@/app/api/hotel-ops/_utils";
+import { HttpError } from "@/core/http/http-error";
+import { localPartnersServerClient } from "@/features/local-partners/service/local-partners.client-instance";
+⋮----
+type Params = { params: Promise<{ hotelId: string }> };
+⋮----
+export async function GET(_request: Request,
+⋮----
+export async function POST(request: Request,
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-partners/components/guest-nearby-preview.tsx">
+import Link from "next/link";
+import { useGuestLocalPartners } from "../queries/use-guest-local-partners";
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-partners/queries/use-guest-local-partners.ts">
+import { useQuery } from "@tanstack/react-query";
+import { guestLocalPartnersResource } from "../resources/guest-local-partners-resource";
+⋮----
+export function useGuestLocalPartners(sessionToken: string, categoryId?: string)
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-partners/queries/use-local-partners.ts">
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { localPartnersResource } from "../resources/local-partners-resource";
+export function useLocalPartners(hotelId: string)
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-partners/repositories/local-partners-repository.ts">
+import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import type { LocalPartner, LocalPartnerCategory, LocalPartnerInput, LocalPartnerStatus } from "../types/local-partners-contract";
+⋮----
+const path = (hotelId: string, suffix = "") => `/api/hotel-ops/hotels/$
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-partners/resources/guest-local-partners-resource.ts">
+import { createResource, defineQuery } from "@dangminhdev04032005/query-resource";
+import { guestOsService } from "@/features/guest-os/service/guest-os-service-instance";
+import type { LocalPartner, LocalPartnerCategory } from "../types/local-partners-contract";
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-partners/resources/local-partners-resource.ts">
+import { createResource, defineMutation, defineQuery } from "@dangminhdev04032005/query-resource";
+import { localPartnersRepository } from "../repositories/local-partners-repository";
+import type { LocalPartnerInput, LocalPartnerStatus } from "../types/local-partners-contract";
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-partners/service/local-partners.client-instance.ts">
+import { getBackendApiBaseUrl } from "@/core/http/backend-api-config";
+import { HttpClient } from "@/core/http/http-client";
+import { LocalPartnersClientService } from "./local-partners.client";
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/g/nearby/page.tsx">
+import { VsBottomNav } from "../../_components/vs-bottom-nav";
+import { VsTopBar } from "../../_components/vs-top-bar";
+import { GuestAccessRequiredState } from "@/features/guest-os/components/shared/guest-access-required-state";
+import { useGuestI18n } from "@/features/guest-os/i18n/use-guest-i18n";
+import { useGuestStore, useGuestStoreHydrated } from "@/features/guest-os/store/guest-store";
+import { GuestLocalPartners } from "@/features/local-partners/components/guest-local-partners";
+import { VsIcon } from "../../_components/vs-icon";
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/partners/page.tsx">
+import { notFound } from "next/navigation";
+import { auth } from "@/auth";
+import { assertCanAccessHotelOps, canUseHotelId, requireHotelOpsServerTokens } from "@/features/hotel-ops/utils/hotel-route-auth";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
+import { StaffLocalPartnersClient } from "@/features/local-partners/components/staff-local-partners-client";
+⋮----
+type PageProps = { params: Promise<{ hotelId: string }> | { hotelId: string } };
+⋮----
+export default async function StaffLocalPartnersPage(
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-partners/components/guest-local-partners.tsx">
+import { useState } from "react";
+import { useGuestLocalPartners } from "../queries/use-guest-local-partners";
+import type { LocalPartner } from "../types/local-partners-contract";
+import { PartnerDetailModal } from "./partner-detail-modal";
+⋮----
+function distanceLabel(distance?: number | null)
+⋮----
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-partners/components/partner-detail-modal.tsx">
+import { useEffect, useRef } from "react";
+import type { LocalPartner } from "../types/local-partners-contract";
+⋮----
+function safeExternalUrl(value?: string | null): string | null
+⋮----
+const onKeyDown = (event: KeyboardEvent)
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-partners/components/partner-form-modal.tsx">
+import React, { useState } from "react";
+import type { LocalPartner, LocalPartnerCategory, LocalPartnerInput } from "../types/local-partners-contract";
+⋮----
+interface PartnerFormModalProps {
+  partner?: LocalPartner | null;
+  categories: LocalPartnerCategory[];
+  onSave: (payload: LocalPartnerInput) => Promise<void>;
+  onClose: () => void;
+}
+⋮----
+export function PartnerFormModal(
+⋮----
+const handleSubmit = async (e: React.FormEvent) =>
+⋮----
+onChange=
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-partners/components/staff-local-partners-client.tsx">
+import { useState } from "react";
+import { useLocalPartners } from "../queries/use-local-partners";
+import type { LocalPartner, LocalPartnerInput } from "../types/local-partners-contract";
+import { PartnerFormModal } from "./partner-form-modal";
+⋮----
+async function save(input: LocalPartnerInput)
+⋮----
+async function toggle(partner: LocalPartner)
+⋮----
+<header className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-sm font-semibold text-emerald-700">Danh bạ khách sạn</p><h1 id="partners-title" className="mt-1 text-2xl font-bold">Đối tác địa phương</h1><p className="mt-2 text-sm text-slate-600">Các địa điểm và dịch vụ được giới thiệu trong Guest OS.</p></div>
+⋮----
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-partners/service/local-partners.client.ts">
+import { unwrapApiEnvelope } from "@/core/http/api-envelope";
+import { HttpClient } from "@/core/http/http-client";
+import type { LocalPartner, LocalPartnerCategory, LocalPartnerInput, LocalPartnerStatus } from "../types/local-partners-contract";
+⋮----
+export class LocalPartnersClientService
+⋮----
+constructor(private readonly http: HttpClient)
+⋮----
+private hotelPath(hotelId: string, suffix = "")
+⋮----
+async guestCategories(sessionToken: string): Promise<LocalPartnerCategory[]>
+⋮----
+async guestPartners(sessionToken: string, categoryId?: string): Promise<LocalPartner[]>
+⋮----
+async list(hotelId: string, accessToken: string): Promise<LocalPartner[]>
+⋮----
+async categories(hotelId: string, accessToken: string): Promise<LocalPartnerCategory[]>
+⋮----
+async create(hotelId: string, input: LocalPartnerInput, accessToken: string): Promise<LocalPartner>
+⋮----
+async update(hotelId: string, partnerId: string, input: Partial<LocalPartnerInput>, accessToken: string): Promise<LocalPartner>
+⋮----
+async status(hotelId: string, partnerId: string, status: LocalPartnerStatus, accessToken: string): Promise<LocalPartner>
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-partners/types/local-partners-contract.ts">
+export type LocalPartnerStatus = "ACTIVE" | "DISABLED";
+⋮----
+export type LocalPartnerCategory = {
+  id: string;
+  code: string;
+  nameVi: string;
+  nameEn: string;
+  icon: string;
+  sortOrder: number;
+  isActive: boolean;
+};
+⋮----
+export type LocalPartner = {
+  id: string;
+  hotelId: string;
+  categoryId: string;
+  name: string;
+  description?: string | null;
+  address: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  distanceMeters?: number | null;
+  phone?: string | null;
+  zaloUrl?: string | null;
+  websiteUrl?: string | null;
+  googleMapUrl?: string | null;
+  coverImageUrl?: string | null;
+  operatingHours?: string | null;
+  status: LocalPartnerStatus;
+  isFeatured: boolean;
+  sortOrder: number;
+  category?: LocalPartnerCategory;
+};
+⋮----
+export type LocalPartnerInput = {
+  categoryId: string;
+  name: string;
+  address: string;
+  description?: string;
+  latitude?: number;
+  longitude?: number;
+  distanceMeters?: number;
+  phone?: string;
+  zaloUrl?: string;
+  websiteUrl?: string;
+  googleMapUrl?: string;
+  coverImageUrl?: string;
+  operatingHours?: string;
+  isFeatured?: boolean;
+};
+</file>
+
+</files>

@@ -312,7 +312,6 @@
   "310": "Billing & Revenue Protection — Production-Grade Antigravity Implementation Plan",
   "311": "platform-billing.service.ts",
   "312": "import.types.ts",
-  "313": "page.tsx",
   "314": "check-in-workspace-layout.test.ts",
   "315": "main",
   "316": "Room Messaging Reliability and Two-Sided Unread Badges Plan",
@@ -320,7 +319,6 @@
   "318": "ImportValidationIssue",
   "319": "qrcode.react",
   "320": "tenant-owners.controller.ts",
-  "321": "RbacService",
   "322": "route.ts",
   "323": "route.ts",
   "324": "TestPairBootstrapLoopbackOnly",
@@ -337,7 +335,6 @@
   "337": "security_push_store.py",
   "338": "Guest Request, Checkout Reconciliation, and Room Sync",
   "340": "ImportTemplateService",
-  "341": "sweetalert2",
   "342": "2. Invariants bắt buộc",
   "344": "5. Updated event/transaction flows",
   "345": "Phase 2 — Idempotent period finalization, debt, settlement, API",
@@ -345,7 +342,6 @@
   "348": "simplify-hotel-roles-migration.spec.ts",
   "350": "8. Performance plan",
   "352": "platform-billing-migration.spec.ts",
-  "353": ".getDashboard",
   "354": "[complete] 2026-07-14 - Guest Experience Redesign (Phases 0-3)",
   "360": "guest-device-identity.ts"
 }

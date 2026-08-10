@@ -1,0 +1,398 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: services/auth-service/src/modules/platform-billing/application/platform-billing.service.ts, services/auth-service/src/modules/platform-billing/tests/platform-billing-period.spec.ts, services/auth-service/src/modules/platform-billing/tests/platform-billing-onboarding.spec.ts, frontends/front-end-vietsage/src/app/(vietsage)/admin/billing/admin-billing-client.tsx, frontends/front-end-vietsage/src/app/(vietsage)/admin/billing/admin-billing-debt.test.ts, frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/billing/owner-saas-billing-client.tsx, frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/billing/owner-saas-debt.test.ts
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    src/
+      app/
+        (vietsage)/
+          admin/
+            billing/
+              admin-billing-client.tsx
+              admin-billing-debt.test.ts
+          owner/
+            (hotel)/
+              hotels/
+                [hotelId]/
+                  billing/
+                    owner-saas-billing-client.tsx
+                    owner-saas-debt.test.ts
+services/
+  auth-service/
+    src/
+      modules/
+        platform-billing/
+          application/
+            platform-billing.service.ts
+          tests/
+            platform-billing-onboarding.spec.ts
+            platform-billing-period.spec.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/admin/billing/admin-billing-debt.test.ts">
+import test from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/billing/owner-saas-debt.test.ts">
+import test from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/admin/billing/admin-billing-client.tsx">
+import { type FormEvent, useEffect, useState } from "react";
+import Swal from "sweetalert2";
+import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+⋮----
+type Period = {
+  id: string;
+  contractId?: string;
+  periodStart: string;
+  periodEnd: string;
+  status: "DRAFT" | "FINALIZED" | "VOID";
+  total: number;
+  dueAt?: string;
+  settledAmount?: number;
+  outstandingAmount?: number;
+  paymentState?: "UNPAID" | "PARTIALLY_PAID" | "PAID";
+  isOverdue?: boolean;
+};
+⋮----
+type Contract = {
+  id: string;
+  hotelId: string;
+  status: "ACTIVE" | "SUSPENDED" | "TERMINATED";
+  onboardedAt: string;
+  billingStartedAt: string;
+  hotel: { id: string; name: string; code: string };
+  revisions: Array<{ id: string; roomDayUnitPrice: number; currency: string; starTierSnapshot: number }>;
+  periods: Period[];
+};
+⋮----
+type Summary = {
+  activeContracts: number;
+  finalizedPeriods: number;
+  finalizedAmount: number;
+  collectedAmount: number;
+  outstandingAmount: number;
+  unpaidPeriodCount: number;
+  overduePeriodCount: number;
+  duePeriods: Period[];
+};
+⋮----
+type HotelOption = {
+  id: string;
+  name: string;
+  code?: string;
+};
+⋮----
+// Modal states
+⋮----
+const refreshData = async () =>
+⋮----
+async function loadData()
+⋮----
+const openSettlementModal = (period: Period) =>
+⋮----
+const closeSettlementModal = () =>
+⋮----
+const handleCreateContract = async (e: FormEvent) =>
+⋮----
+const handleFinalizePeriod = async (e: FormEvent) =>
+⋮----
+const handleRecordSettlement = async (e: FormEvent) =>
+⋮----
+{/* Header */}
+⋮----
+onClick=
+⋮----
+{/* Summary KPI Cards */}
+⋮----
+{/* Card 1: Hợp đồng Active */}
+⋮----
+{/* Card 2: Phí đã chốt */}
+⋮----
+{/* Card 3: Đã thu */}
+⋮----
+{/* Card 4: Công nợ còn lại */}
+⋮----
+{/* Navigation Tabs */}
+⋮----
+{/* Contracts Container */}
+⋮----
+{/* Contract Header Row */}
+⋮----
+setSelectedContractId(c.id);
+setShowFinalizeModal(true);
+⋮----
+{/* Periods Breakdown Table */}
+⋮----
+Còn nợ:
+⋮----
+onChange=
+⋮----
+{/* Finalize Period Modal */}
+⋮----
+{/* Record Settlement Modal */}
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/billing/owner-saas-billing-client.tsx">
+import { useCallback, useEffect, useState } from "react";
+import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+⋮----
+type OwnerAnalyticsData = {
+  hasContract: boolean;
+  contract?: {
+    id?: string;
+    hotelId?: string;
+    status?: string;
+    hotel?: { name?: string; code?: string };
+  };
+  unitPrice: number;
+  billableDaysCount: number;
+  usageCount: number;
+  estimatedFee: number;
+  billableDays: Array<{
+    id: string;
+    subjectId: string;
+    roomNumber?: string;
+    serviceDate: string;
+    unitPrice: number;
+    amount: number;
+  }>;
+  roomUsageSummary?: Array<{
+    roomNumber: string;
+    usageCount: number;
+    billableDaysCount: number;
+  }>;
+  periods: Array<{
+    id: string;
+    periodStart: string;
+    periodEnd: string;
+    status: string;
+    total: number;
+    dueAt: string;
+    settledAmount?: number;
+    outstandingAmount?: number;
+    paymentState?: "UNPAID" | "PARTIALLY_PAID" | "PAID";
+    isOverdue?: boolean;
+  }>;
+};
+⋮----
+async function init()
+⋮----
+function onFocusOrVisible()
+⋮----
+{/* Active Contract Hero Banner */}
+⋮----
+{/* KPI Stat Cards (4 Cards Grid) */}
+⋮----
+{/* Room Usage Summary Breakdown */}
+⋮----
+{/* Billable Days Table Breakdown */}
+⋮----
+{/* Finalized Periods & Payment Instructions */}
+⋮----
+Còn phải trả:
+⋮----
+{/* Payment Instruction Banner */}
+</file>
+
+<file path="services/auth-service/src/modules/platform-billing/application/platform-billing.service.ts">
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { Interval } from "@nestjs/schedule";
+import { PlatformBillingContractStatus, Prisma } from "@prisma/client";
+import { AppLogger } from "../../../common/logging/app-logger.service";
+import { PrismaService } from "../../../prisma/prisma.service";
+⋮----
+type Tx = Prisma.TransactionClient;
+⋮----
+type StayUsageInput = {
+  hotelId: string;
+  roomId: string;
+  stayId: string;
+  startedAt: Date;
+  endedAt?: Date | null;
+};
+⋮----
+export function assertReconciliationRange(
+  fromDate: string,
+  toDateExclusive: string,
+  maxDays = MAX_RECONCILIATION_DAYS,
+): void
+⋮----
+export type PeriodPaymentState = "UNPAID" | "PARTIALLY_PAID" | "PAID";
+⋮----
+export type PeriodProjection = {
+  settledAmount: Prisma.Decimal;
+  outstandingAmount: Prisma.Decimal;
+  paymentState: PeriodPaymentState;
+  isOverdue: boolean;
+};
+⋮----
+export function computePeriodProjection<
+  T extends {
+    total: Prisma.Decimal | number | string;
+    dueAt?: Date | string | null;
+    settlements?: Array<{ amount: Prisma.Decimal | number | string }>;
+  },
+>(period: T, now = new Date()): PeriodProjection
+⋮----
+export function attachPeriodProjection<
+  T extends {
+    total: Prisma.Decimal | number | string;
+    dueAt?: Date | string | null;
+    settlements?: Array<{ amount: Prisma.Decimal | number | string }>;
+  },
+>(period: T)
+⋮----
+export async function recordPlatformUsageAtCheckIn(tx: Tx, input: StayUsageInput): Promise<void>
+⋮----
+export async function closePlatformUsageAtCheckout(tx: Tx, input: StayUsageInput): Promise<void>
+⋮----
+export async function reconcilePlatformBillingRange(
+  tx: Tx,
+  contractId: string,
+  fromDate: string,
+  toDateExclusive: string,
+  watermark: Date,
+): Promise<void>
+⋮----
+export class PlatformBillingService {
+⋮----
+constructor(
+⋮----
+async reconcileCatchUp(): Promise<void>
+⋮----
+async finalizePeriod(
+    contractId: string,
+    periodStart: string,
+    periodEnd: string,
+    actorUserId?: string,
+)
+⋮----
+async recordSettlement(
+    periodId: string,
+    input: {
+      amount: number;
+      method?: string;
+      reference?: string;
+      idempotencyKey: string;
+      actorUserId?: string;
+    },
+)
+⋮----
+async createAdjustment(
+    contractId: string,
+    input: {
+      billableDayId?: string;
+      periodId?: string;
+      amount: number;
+      reasonCode: string;
+      note?: string;
+      idempotencyKey: string;
+      actorUserId?: string;
+    },
+)
+⋮----
+async listPeriods(contractId: string)
+⋮----
+async getPeriod(periodId: string)
+⋮----
+async getDashboardSummary()
+⋮----
+async createContract(
+    input: {
+      hotelId: string;
+      starTierSnapshot?: number;
+      roomDayUnitPrice: number;
+      currency?: string;
+      billingStartedAt: string;
+    },
+    actorUserId?: string,
+)
+⋮----
+async addContractRevision(
+    contractId: string,
+    input: {
+      effectiveFrom: string;
+      starTierSnapshot?: number;
+      roomDayUnitPrice: number;
+      currency?: string;
+    },
+    actorUserId?: string,
+)
+⋮----
+async updateContractStatus(contractId: string, status: PlatformBillingContractStatus)
+⋮----
+async listContracts(query?:
+⋮----
+async getOwnerAnalytics(hotelId: string, monthDate?: string)
+</file>
+
+<file path="services/auth-service/src/modules/platform-billing/tests/platform-billing-period.spec.ts">
+import { PlatformBillingService } from "../application/platform-billing.service";
+import { PrismaService } from "../../../prisma/prisma.service";
+import { AppLogger } from "../../../common/logging/app-logger.service";
+import { Prisma } from "@prisma/client";
+</file>
+
+<file path="services/auth-service/src/modules/platform-billing/tests/platform-billing-onboarding.spec.ts">
+import { PlatformBillingService } from "../application/platform-billing.service";
+import { PrismaService } from "../../../prisma/prisma.service";
+import { AppLogger } from "../../../common/logging/app-logger.service";
+import { Prisma } from "@prisma/client";
+</file>
+
+</files>

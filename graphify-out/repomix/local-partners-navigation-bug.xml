@@ -1,0 +1,180 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: frontends/front-end-vietsage/src/features/workspace/config/workspace-registry.ts, frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/partners/page.tsx, frontends/front-end-vietsage/src/proxy.ts
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    src/
+      app/
+        (vietsage)/
+          hotels/
+            [hotelId]/
+              partners/
+                page.tsx
+      features/
+        workspace/
+          config/
+            workspace-registry.ts
+      proxy.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/partners/page.tsx">
+import { notFound } from "next/navigation";
+import { auth } from "@/auth";
+import { assertCanAccessHotelOps, canUseHotelId, requireHotelOpsServerTokens } from "@/features/hotel-ops/utils/hotel-route-auth";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
+import { StaffLocalPartnersClient } from "@/features/local-partners/components/staff-local-partners-client";
+⋮----
+type PageProps = { params: Promise<{ hotelId: string }> | { hotelId: string } };
+⋮----
+export default async function StaffLocalPartnersPage(
+</file>
+
+<file path="frontends/front-end-vietsage/src/proxy.ts">
+import { type NextRequest, NextResponse } from "next/server";
+⋮----
+import { auth } from "./auth";
+import { createRequestRedirectUrl } from "./features/auth/utils/redirect-isolation-core";
+import { LEGACY_LOGIN_PATH, LOGIN_PATH } from "./features/auth/utils/login-route";
+import { canAccessPathByRoles, getDefaultPathForRoles, sanitizeInternalCallbackUrl } from "./libs/rbac";
+⋮----
+function matchesPrefix(pathname: string, prefix: string): boolean
+⋮----
+function isForcedReauth(request: NextRequest): boolean
+⋮----
+function isNextAuthCookie(cookieName: string): boolean
+⋮----
+function clearNextAuthCookies(request: NextRequest, response: NextResponse): NextResponse
+⋮----
+function buildLoginRedirect(request: NextRequest): NextResponse
+⋮----
+// Prevent callbackUrl nesting growth when a protected URL already carries callbackUrl
+⋮----
+function getStringTokenField(token: unknown, field: string): string | null
+⋮----
+function getNumberTokenField(token: unknown, field: string): number | null
+⋮----
+function buildRefreshSessionRedirect(request: NextRequest): NextResponse
+⋮----
+// Cross-workspace guard: if the user's role cannot access this protected prefix,
+// redirect to their correct dashboard instead of letting the layout return notFound().
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/workspace/config/workspace-registry.ts">
+import type { DashboardNavItem } from "../types/workspace-navigation";
+⋮----
+import type {
+  WorkspaceDefinition,
+  WorkspaceNavigationDefinition,
+  WorkspacePersona,
+  WorkspaceRegistry,
+  WorkspaceRegistryExtension,
+  WorkspaceWidgetDefinition,
+} from "../types/workspace-registry";
+⋮----
+// Cấu hình / Thiết lập (Configuration & Catalog Setup)
+⋮----
+// Xử lý / Vận hành (Operations & Processing)
+⋮----
+// Staff Navigation (Cấu hình trước, Xử lý sau)
+⋮----
+function normalizeRoleCode(roleCode: string): string
+⋮----
+function mergeByKey<T extends { key: string }>(
+  base: readonly T[],
+  additions: readonly T[],
+  replaceExisting: boolean,
+  kind: string,
+): T[]
+⋮----
+export function createWorkspaceRegistry(
+  extensions: readonly WorkspaceRegistryExtension[] = [],
+): WorkspaceRegistry
+⋮----
+function hasAnyCapability(
+  permissions: readonly string[],
+  required?: readonly string[],
+): boolean
+⋮----
+function resolvePath(
+  path: `/${string}`,
+  hotelId: string | null,
+): `/$
+⋮----
+export function resolveWorkspacePersona(
+  roleCode: string,
+  registry: WorkspaceRegistry = workspaceRegistry,
+): WorkspacePersona | null
+⋮----
+export function getWorkspaceDefinition(
+  persona: WorkspacePersona,
+  registry: WorkspaceRegistry = workspaceRegistry,
+): WorkspaceDefinition
+⋮----
+export function buildWorkspaceNavigation(input: {
+  persona: WorkspacePersona;
+  permissions: readonly string[];
+  hotelId?: string | null;
+  registry?: WorkspaceRegistry;
+}): DashboardNavItem[]
+⋮----
+export function buildWorkspaceNavigationForContext(input: {
+  activeRole: { code: string };
+  permissions: readonly string[];
+  hotelId?: string | null;
+  registry?: WorkspaceRegistry;
+}): DashboardNavItem[]
+⋮----
+export function getWorkspaceDashboardWidgets(input: {
+  persona: WorkspacePersona;
+  permissions: readonly string[];
+  hotelId?: string | null;
+  registry?: WorkspaceRegistry;
+}): WorkspaceWidgetDefinition[]
+</file>
+
+</files>

@@ -1,0 +1,1303 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: services/auth-service/src/modules/platform-billing/application/platform-billing.service.ts, services/auth-service/src/modules/platform-billing/api/platform-billing.controller.ts, services/auth-service/src/modules/platform-billing/domain/schemas/platform-billing.schema.ts, services/auth-service/src/modules/platform-billing/tests/platform-billing-period.spec.ts, services/auth-service/src/modules/platform-billing/tests/platform-billing-onboarding.spec.ts, services/auth-service/prisma/migrations/20260803030000_platform_billing_period_settlement/migration.sql, frontends/front-end-vietsage/src/app/(vietsage)/admin/billing/admin-billing-client.tsx, frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/billing/owner-saas-billing-client.tsx, frontends/front-end-vietsage/src/app/api/admin/platform-billing/[...path]/route.ts, frontends/front-end-vietsage/src/app/api/owner/platform-billing/analytics/[hotelId]/route.ts, services/auth-service/src/modules/billing/application/billing.service.ts, services/auth-service/src/modules/billing/api/folio.controller.ts, services/auth-service/src/modules/billing/tests/billing.service.checkout-safety.spec.ts, frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/billing/staff-billing-workspace-client.tsx, frontends/front-end-vietsage/src/features/billing/service/billing-service.ts, frontends/front-end-vietsage/src/features/billing/types/billing-contract.ts
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    src/
+      app/
+        (vietsage)/
+          admin/
+            billing/
+              admin-billing-client.tsx
+          hotels/
+            [hotelId]/
+              billing/
+                staff-billing-workspace-client.tsx
+          owner/
+            (hotel)/
+              hotels/
+                [hotelId]/
+                  billing/
+                    owner-saas-billing-client.tsx
+        api/
+          admin/
+            platform-billing/
+              [...path]/
+                route.ts
+          owner/
+            platform-billing/
+              analytics/
+                [hotelId]/
+                  route.ts
+      features/
+        billing/
+          service/
+            billing-service.ts
+          types/
+            billing-contract.ts
+services/
+  auth-service/
+    prisma/
+      migrations/
+        20260803030000_platform_billing_period_settlement/
+          migration.sql
+    src/
+      modules/
+        billing/
+          api/
+            folio.controller.ts
+          application/
+            billing.service.ts
+          tests/
+            billing.service.checkout-safety.spec.ts
+        platform-billing/
+          api/
+            platform-billing.controller.ts
+          application/
+            platform-billing.service.ts
+          domain/
+            schemas/
+              platform-billing.schema.ts
+          tests/
+            platform-billing-onboarding.spec.ts
+            platform-billing-period.spec.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="frontends/front-end-vietsage/src/app/api/admin/platform-billing/[...path]/route.ts">
+import { auth } from "@/auth";
+import { resolveConfiguredBackendApiBaseUrl } from "@/core/http/backend-api-config";
+import { readServerSessionTokens } from "@/libs/server-session-tokens";
+⋮----
+async function proxyToNest(request: Request, params:
+⋮----
+export async function GET(request: Request, context:
+⋮----
+export async function POST(request: Request, context:
+⋮----
+export async function PATCH(request: Request, context:
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/api/owner/platform-billing/analytics/[hotelId]/route.ts">
+import { auth } from "@/auth";
+import { resolveConfiguredBackendApiBaseUrl } from "@/core/http/backend-api-config";
+import { readServerSessionTokens } from "@/libs/server-session-tokens";
+⋮----
+export async function GET(
+  _request: Request,
+  context: { params: Promise<{ hotelId: string }> },
+)
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/billing/service/billing-service.ts">
+import { unwrapApiEnvelope } from "@/core/http/api-envelope";
+import { HttpClient, type HttpQuery } from "@/core/http/http-client";
+import type { BillingPage, FolioItem, FolioListItem, FolioSummary, Invoice, InvoiceDetail, Payment } from "@/features/billing/types/billing-contract";
+⋮----
+type AuthRequestOptions = {
+  accessToken?: string;
+  accessTokenExpiresAt?: number | null;
+};
+⋮----
+export type IssueInvoiceInput = { reconciliations: Array<{ requestId: string; action: "provided" | "cancelled"; cancelReason?: string }> };
+⋮----
+export type BillingServiceOptions = {
+  baseUrl: string;
+  timeoutMs?: number;
+};
+⋮----
+function hotelPath(hotelId: string, suffix: string): string
+⋮----
+export function createBillingService(options: BillingServiceOptions): BillingService
+⋮----
+export class BillingService {
+⋮----
+constructor(options: BillingServiceOptions)
+⋮----
+async listFolios(hotelId: string, options:
+⋮----
+async getFolioSummary(hotelId: string, folioId: string, options: AuthRequestOptions =
+⋮----
+async getFolioDetail(hotelId: string, folioId: string, options: AuthRequestOptions =
+⋮----
+async listFolioItems(hotelId: string, folioId: string, options:
+⋮----
+async addFolioItem(
+    hotelId: string,
+    folioId: string,
+    input: {
+      itemType: "MANUAL_CHARGE" | "DISCOUNT" | "ADJUSTMENT" | "SERVICE";
+      name: string;
+      description?: string;
+      amount: number;
+      quantity?: number;
+    },
+    options: AuthRequestOptions = {},
+): Promise<FolioItem>
+⋮----
+async voidFolioItem(
+    hotelId: string,
+    folioId: string,
+    itemId: string,
+    input?: { reason?: string },
+    options: AuthRequestOptions = {},
+): Promise<FolioItem>
+⋮----
+async issueInvoice(
+    hotelId: string,
+    folioId: string,
+    input: IssueInvoiceInput = { reconciliations: [] },
+    options: AuthRequestOptions = {},
+): Promise<Invoice>
+⋮----
+async getInvoice(hotelId: string, invoiceId: string, options: AuthRequestOptions =
+⋮----
+async getInvoiceDetail(hotelId: string, invoiceId: string, options: AuthRequestOptions =
+⋮----
+async createPaymentSession(hotelId: string, invoiceId: string, options: AuthRequestOptions =
+⋮----
+async confirmManualPayment(
+    hotelId: string,
+    invoiceId: string,
+    input: { method: "CASH" | "CARD" | "BANK_TRANSFER" | "MANUAL"; note?: string },
+    options: AuthRequestOptions = {},
+): Promise<
+⋮----
+async getPaymentStatus(hotelId: string, paymentId: string, options: AuthRequestOptions =
+</file>
+
+<file path="services/auth-service/prisma/migrations/20260803030000_platform_billing_period_settlement/migration.sql">
+ALTER TABLE "PlatformBillingPeriod"
+  ADD COLUMN IF NOT EXISTS "dueAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "chargeCount" INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS "subtotal" DECIMAL(12,2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS "adjustmentTotal" DECIMAL(12,2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS "total" DECIMAL(12,2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS "currency" VARCHAR(3) NOT NULL DEFAULT 'VND',
+  ADD COLUMN IF NOT EXISTS "finalizedAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "finalizedByUserId" TEXT,
+  ADD COLUMN IF NOT EXISTS "snapshotHash" VARCHAR(120);
+
+CREATE INDEX IF NOT EXISTS "PlatformBillingPeriod_dueAt_status_idx" ON "PlatformBillingPeriod"("dueAt", "status");
+
+CREATE TABLE IF NOT EXISTS "PlatformBillingAdjustment" (
+  "id" TEXT PRIMARY KEY,
+  "contractId" TEXT NOT NULL REFERENCES "PlatformBillingContract"("id") ON DELETE RESTRICT,
+  "billableDayId" TEXT REFERENCES "PlatformBillableDay"("id") ON DELETE SET NULL,
+  "periodId" TEXT REFERENCES "PlatformBillingPeriod"("id") ON DELETE SET NULL,
+  "amount" DECIMAL(12,2) NOT NULL,
+  "currency" VARCHAR(3) NOT NULL DEFAULT 'VND',
+  "reasonCode" VARCHAR(80) NOT NULL,
+  "note" VARCHAR(500),
+  "actorUserId" TEXT,
+  "reversesAdjustmentId" TEXT,
+  "idempotencyKey" VARCHAR(120) NOT NULL,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "PlatformBillingAdjustment_contractId_idempotencyKey_key" ON "PlatformBillingAdjustment"("contractId", "idempotencyKey");
+CREATE INDEX IF NOT EXISTS "PlatformBillingAdjustment_contractId_createdAt_idx" ON "PlatformBillingAdjustment"("contractId", "createdAt");
+CREATE INDEX IF NOT EXISTS "PlatformBillingAdjustment_periodId_createdAt_idx" ON "PlatformBillingAdjustment"("periodId", "createdAt");
+
+CREATE TABLE IF NOT EXISTS "PlatformBillingSettlement" (
+  "id" TEXT PRIMARY KEY,
+  "periodId" TEXT NOT NULL REFERENCES "PlatformBillingPeriod"("id") ON DELETE RESTRICT,
+  "amount" DECIMAL(12,2) NOT NULL,
+  "method" VARCHAR(40) NOT NULL DEFAULT 'BANK_TRANSFER',
+  "reference" VARCHAR(160),
+  "paidAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "idempotencyKey" VARCHAR(120) NOT NULL,
+  "actorUserId" TEXT,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "PlatformBillingSettlement_periodId_idempotencyKey_key" ON "PlatformBillingSettlement"("periodId", "idempotencyKey");
+CREATE INDEX IF NOT EXISTS "PlatformBillingSettlement_periodId_createdAt_idx" ON "PlatformBillingSettlement"("periodId", "createdAt");
+
+CREATE TABLE IF NOT EXISTS "PlatformBillingDailySummary" (
+  "id" TEXT PRIMARY KEY,
+  "serviceDate" DATE NOT NULL,
+  "hotelId" TEXT NOT NULL REFERENCES "Hotel"("id") ON DELETE RESTRICT,
+  "contractId" TEXT NOT NULL REFERENCES "PlatformBillingContract"("id") ON DELETE RESTRICT,
+  "billableRoomCount" INTEGER NOT NULL DEFAULT 0,
+  "grossAmount" DECIMAL(12,2) NOT NULL DEFAULT 0,
+  "adjustmentAmount" DECIMAL(12,2) NOT NULL DEFAULT 0,
+  "netAmount" DECIMAL(12,2) NOT NULL DEFAULT 0,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "PlatformBillingDailySummary_contractId_serviceDate_key" ON "PlatformBillingDailySummary"("contractId", "serviceDate");
+CREATE INDEX IF NOT EXISTS "PlatformBillingDailySummary_serviceDate_idx" ON "PlatformBillingDailySummary"("serviceDate");
+CREATE INDEX IF NOT EXISTS "PlatformBillingDailySummary_hotelId_serviceDate_idx" ON "PlatformBillingDailySummary"("hotelId", "serviceDate");
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'PlatformBillingAdjustment_immutable') THEN
+    CREATE TRIGGER "PlatformBillingAdjustment_immutable" BEFORE UPDATE OR DELETE ON "PlatformBillingAdjustment" FOR EACH ROW EXECUTE FUNCTION reject_platform_billing_immutable_mutation();
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'PlatformBillingSettlement_immutable') THEN
+    CREATE TRIGGER "PlatformBillingSettlement_immutable" BEFORE UPDATE OR DELETE ON "PlatformBillingSettlement" FOR EACH ROW EXECUTE FUNCTION reject_platform_billing_immutable_mutation();
+  END IF;
+END $$;
+</file>
+
+<file path="services/auth-service/src/modules/billing/api/folio.controller.ts">
+import { Body, Controller, Get, Param, Post, Query, Req } from "@nestjs/common";
+import { ApiBody, ApiOkResponse, ApiParam, ApiQuery, ApiTags } from "@nestjs/swagger";
+import { FolioStatus } from "@prisma/client";
+import type { Request } from "express";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
+import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
+import type { AuthenticatedUser } from "../../../shared/security";
+import { BillingService } from "../application/billing.service";
+import {
+  addFolioItemBodySchema,
+  billingIdParamSchema,
+  issueInvoiceBodySchema,
+  listFolioItemsQuerySchema,
+  listFoliosQuerySchema,
+  voidFolioItemBodySchema,
+} from "../domain/schemas/billing.schema";
+⋮----
+interface RequestWithUser extends Request {
+  user: AuthenticatedUser;
+}
+⋮----
+export class FolioController {
+⋮----
+constructor(private readonly billingService: BillingService)
+⋮----
+async listFolios(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Query() query: unknown,
+)
+⋮----
+async getActiveFolioByStay(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("stayId") stayIdParam: string,
+)
+⋮----
+async getFolioSummary(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("folioId") folioIdParam: string,
+)
+⋮----
+async issueInvoice(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("folioId") folioIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async listFolioItems(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("folioId") folioIdParam: string,
+    @Query() query: unknown,
+)
+⋮----
+async getFolioDetail(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("folioId") folioIdParam: string,
+)
+⋮----
+async addFolioItem(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("folioId") folioIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async voidFolioItem(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("folioId") folioIdParam: string,
+    @Param("itemId") itemIdParam: string,
+    @Body() body: unknown,
+)
+</file>
+
+<file path="services/auth-service/src/modules/platform-billing/domain/schemas/platform-billing.schema.ts">
+import { PlatformBillingContractStatus } from "@prisma/client";
+import { z } from "zod";
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/admin/billing/admin-billing-client.tsx">
+import { type FormEvent, useEffect, useState } from "react";
+import Swal from "sweetalert2";
+import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+⋮----
+type Contract = {
+  id: string;
+  hotelId: string;
+  status: "ACTIVE" | "SUSPENDED" | "TERMINATED";
+  onboardedAt: string;
+  billingStartedAt: string;
+  hotel: { id: string; name: string; code: string };
+  revisions: Array<{ id: string; roomDayUnitPrice: number; currency: string; starTierSnapshot: number }>;
+  periods: Array<{ id: string; periodStart: string; periodEnd: string; status: string; total: number }>;
+};
+⋮----
+type Summary = {
+  activeContracts: number;
+  finalizedPeriods: number;
+  totalFinalizedRevenue: number;
+  duePeriods: Array<Record<string, unknown>>;
+};
+⋮----
+type HotelOption = {
+  id: string;
+  name: string;
+  code?: string;
+};
+⋮----
+// Modal states
+⋮----
+const refreshData = async () =>
+⋮----
+async function loadData()
+⋮----
+const handleCreateContract = async (e: FormEvent) =>
+⋮----
+const handleFinalizePeriod = async (e: FormEvent) =>
+⋮----
+const handleRecordSettlement = async (e: FormEvent) =>
+⋮----
+{/* Header */}
+⋮----
+onClick=
+⋮----
+{/* Summary KPI Cards */}
+⋮----
+{/* Card 1 */}
+⋮----
+{/* Card 2 */}
+⋮----
+{/* Card 3 */}
+⋮----
+{/* Card 4 */}
+⋮----
+{/* Navigation Tabs */}
+⋮----
+{/* Contracts Container */}
+⋮----
+{/* Contract Header Row */}
+⋮----
+setSelectedContractId(c.id);
+setShowFinalizeModal(true);
+⋮----
+{/* Periods Breakdown Table */}
+⋮----
+setSelectedPeriodId(p.id);
+setSettlementForm({
+                                        amount: String(p.total ?? 0),
+                                        method: "BANK_TRANSFER",
+                                        reference: `REF_${p.id.substring(0, 8).toUpperCase()}`,
+                                      });
+setShowSettlementModal(true);
+⋮----
+onChange=
+⋮----
+{/* Finalize Period Modal */}
+⋮----
+{/* Record Settlement Modal */}
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/billing/owner-saas-billing-client.tsx">
+import { useCallback, useEffect, useState } from "react";
+import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+⋮----
+type OwnerAnalyticsData = {
+  hasContract: boolean;
+  contract?: {
+    id?: string;
+    hotelId?: string;
+    status?: string;
+    hotel?: { name?: string; code?: string };
+  };
+  unitPrice: number;
+  billableDaysCount: number;
+  usageCount: number;
+  estimatedFee: number;
+  billableDays: Array<{
+    id: string;
+    subjectId: string;
+    roomNumber?: string;
+    serviceDate: string;
+    unitPrice: number;
+    amount: number;
+  }>;
+  roomUsageSummary?: Array<{
+    roomNumber: string;
+    usageCount: number;
+    billableDaysCount: number;
+  }>;
+  periods: Array<{
+    id: string;
+    periodStart: string;
+    periodEnd: string;
+    status: string;
+    total: number;
+    dueAt: string;
+    settlements?: Array<{ amount: number }>;
+  }>;
+};
+⋮----
+async function init()
+⋮----
+function onFocusOrVisible()
+⋮----
+{/* Active Contract Hero Banner */}
+⋮----
+{/* KPI Stat Cards (4 Cards Grid) */}
+⋮----
+{/* Room Usage Summary Breakdown */}
+⋮----
+{/* Billable Days Table Breakdown */}
+⋮----
+{/* Finalized Periods & Payment Instructions */}
+⋮----
+{/* Payment Instruction Banner */}
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/billing/types/billing-contract.ts">
+export type BillingPage<TItem> = {
+  page: number;
+  limit: number;
+  total: number;
+  items: TItem[];
+};
+⋮----
+export type MoneyValue = string | number;
+⋮----
+export type FolioSummary = {
+  id?: string;
+  hotelId?: string;
+  stayId?: string;
+  folioNumber?: string;
+  status?: string;
+  currency?: string;
+  subtotal: MoneyValue;
+  tax: MoneyValue;
+  discount: MoneyValue;
+  total: MoneyValue;
+  itemCount: number;
+  serviceCount?: number;
+  roomChargeCount?: number;
+  isStale?: boolean;
+  requiresRecalculation?: boolean;
+  hasDuplicateOpenFolios?: boolean;
+  activeServiceRequests?: Array<{ id: string; name: string; roomNumber: string | null; status: string; quantity: number; unitPrice: MoneyValue }>;
+};
+⋮----
+export type FolioListItem = FolioSummary & {
+  id: string;
+  invoiceId?: string | null;
+  billId?: string | null;
+  invoice?: { id?: string | null; invoiceNumber?: string | null } | null;
+  subtotalAmount?: MoneyValue;
+  taxAmount?: MoneyValue;
+  discountAmount?: MoneyValue;
+  totalAmount?: MoneyValue;
+  openedAt?: string | null;
+  createdAt?: string | null;
+  room?: { id?: string; roomNumber?: string | null } | null;
+  stay?: { id?: string; guestNameSnapshot?: string | null; status?: string | null } | null;
+};
+⋮----
+export type FolioItem = {
+  id: string;
+  itemType: string;
+  nameSnapshot: string;
+  quantity: number;
+  unitPriceSnapshot: MoneyValue;
+  subtotalSnapshot: MoneyValue;
+  taxAmountSnapshot?: MoneyValue;
+  discountAmountSnapshot?: MoneyValue;
+  totalSnapshot: MoneyValue;
+  currency: string;
+  status?: string | null;
+  voidedAt?: string | null;
+  postedAt?: string | null;
+};
+⋮----
+export type Invoice = {
+  id: string;
+  hotelId: string;
+  folioId: string;
+  stayId: string;
+  invoiceNumber: string;
+  status: string;
+  currency: string;
+  subtotalAmount: MoneyValue;
+  taxAmount: MoneyValue;
+  discountAmount: MoneyValue;
+  totalAmount: MoneyValue;
+  paidAmount?: MoneyValue;
+  balanceAmount?: MoneyValue;
+  invoiceSnapshotJson?: unknown;
+  issuedAt?: string | null;
+  paidAt?: string | null;
+};
+⋮----
+export type InvoiceDetail = {
+  invoice: Invoice;
+  folio: {
+    id: string;
+    folioNumber: string;
+    status: string;
+  };
+  stay: {
+    id: string;
+    guestName: string | null;
+    roomNumber: string | null;
+    checkInAt: string | null;
+    checkOutAt: string | null;
+  };
+  items: Array<{
+    id: string;
+    type: string;
+    name: string;
+    description?: string | null;
+    quantity: number;
+    unitPrice: MoneyValue;
+    subtotal: MoneyValue;
+    taxAmount: MoneyValue;
+    discountAmount: MoneyValue;
+    total: MoneyValue;
+    postedAt: string | null;
+  }>;
+  payments: Array<{
+    id: string;
+    status: string;
+    method: string;
+    amount: MoneyValue;
+    paidAmount: MoneyValue;
+    confirmedAt: string | null;
+  }>;
+};
+⋮----
+export type Payment = {
+  id: string;
+  hotelId: string;
+  invoiceId: string;
+  folioId: string;
+  stayId: string;
+  paymentNumber: string;
+  status: string;
+  provider: string;
+  method: string;
+  currency: string;
+  amount: MoneyValue;
+  paidAmount?: MoneyValue;
+  providerSessionId?: string | null;
+  providerPaymentId?: string | null;
+  paymentUrl?: string | null;
+  confirmedAt?: string | null;
+};
+</file>
+
+<file path="services/auth-service/src/modules/platform-billing/api/platform-billing.controller.ts">
+import { Body, Controller, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { PlatformBillingContractStatus } from "@prisma/client";
+import { PlatformBillingService } from "../application/platform-billing.service";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
+import type { RequestWithAuthenticatedUser } from "../../../shared/security";
+import {
+  addRevisionBodySchema,
+  contractIdParamSchema,
+  createAdjustmentBodySchema,
+  createContractBodySchema,
+  dashboardSummaryQuerySchema,
+  finalizePeriodBodySchema,
+  listContractsQuerySchema,
+  periodIdParamSchema,
+  recordSettlementBodySchema,
+  updateContractStatusBodySchema,
+} from "../domain/schemas/platform-billing.schema";
+⋮----
+export class FinalizePeriodDto
+⋮----
+export class RecordSettlementDto
+⋮----
+export class CreateAdjustmentDto
+⋮----
+export class CreateContractDto
+⋮----
+export class AddRevisionDto
+⋮----
+export class UpdateContractStatusDto
+⋮----
+export class PlatformBillingController
+⋮----
+constructor(private readonly platformBillingService: PlatformBillingService)
+⋮----
+async getDashboardSummary(@Query() query: unknown)
+⋮----
+async listContracts(@Query() query: unknown)
+⋮----
+async createContract(@Req() request: RequestWithAuthenticatedUser, @Body() body: unknown)
+⋮----
+async listPeriods(@Param("contractId") contractIdParam: string)
+⋮----
+async getPeriod(@Param("periodId") periodIdParam: string)
+⋮----
+async addContractRevision(
+    @Req() request: RequestWithAuthenticatedUser,
+    @Param("contractId") contractIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async updateContractStatus(@Param("contractId") contractIdParam: string, @Body() body: unknown)
+⋮----
+async finalizePeriod(
+    @Req() request: RequestWithAuthenticatedUser,
+    @Param("contractId") contractIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async recordSettlement(
+    @Req() request: RequestWithAuthenticatedUser,
+    @Param("periodId") periodIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async createAdjustment(
+    @Req() request: RequestWithAuthenticatedUser,
+    @Param("contractId") contractIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async getOwnerAnalytics(
+    @Param("hotelId") hotelIdParam: string,
+    @Query("monthDate") monthDate?: string,
+)
+</file>
+
+<file path="services/auth-service/src/modules/platform-billing/application/platform-billing.service.ts">
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { Interval } from "@nestjs/schedule";
+import { PlatformBillingContractStatus, Prisma } from "@prisma/client";
+import { AppLogger } from "../../../common/logging/app-logger.service";
+import { PrismaService } from "../../../prisma/prisma.service";
+⋮----
+type Tx = Prisma.TransactionClient;
+⋮----
+type StayUsageInput = {
+  hotelId: string;
+  roomId: string;
+  stayId: string;
+  startedAt: Date;
+  endedAt?: Date | null;
+};
+⋮----
+export function assertReconciliationRange(
+  fromDate: string,
+  toDateExclusive: string,
+  maxDays = MAX_RECONCILIATION_DAYS,
+): void
+⋮----
+export async function recordPlatformUsageAtCheckIn(tx: Tx, input: StayUsageInput): Promise<void>
+⋮----
+export async function closePlatformUsageAtCheckout(tx: Tx, input: StayUsageInput): Promise<void>
+⋮----
+export async function reconcilePlatformBillingRange(
+  tx: Tx,
+  contractId: string,
+  fromDate: string,
+  toDateExclusive: string,
+  watermark: Date,
+): Promise<void>
+⋮----
+export class PlatformBillingService {
+⋮----
+constructor(
+⋮----
+async reconcileCatchUp(): Promise<void>
+⋮----
+async finalizePeriod(
+    contractId: string,
+    periodStart: string,
+    periodEnd: string,
+    actorUserId?: string,
+)
+⋮----
+async recordSettlement(
+    periodId: string,
+    input: {
+      amount: number;
+      method?: string;
+      reference?: string;
+      idempotencyKey: string;
+      actorUserId?: string;
+    },
+)
+⋮----
+async createAdjustment(
+    contractId: string,
+    input: {
+      billableDayId?: string;
+      periodId?: string;
+      amount: number;
+      reasonCode: string;
+      note?: string;
+      idempotencyKey: string;
+      actorUserId?: string;
+    },
+)
+⋮----
+async listPeriods(contractId: string)
+⋮----
+async getPeriod(periodId: string)
+⋮----
+async getDashboardSummary()
+⋮----
+async createContract(
+    input: {
+      hotelId: string;
+      starTierSnapshot?: number;
+      roomDayUnitPrice: number;
+      currency?: string;
+      billingStartedAt: string;
+    },
+    actorUserId?: string,
+)
+⋮----
+async addContractRevision(
+    contractId: string,
+    input: {
+      effectiveFrom: string;
+      starTierSnapshot?: number;
+      roomDayUnitPrice: number;
+      currency?: string;
+    },
+    actorUserId?: string,
+)
+⋮----
+async updateContractStatus(contractId: string, status: PlatformBillingContractStatus)
+⋮----
+async listContracts(query?:
+⋮----
+async getOwnerAnalytics(hotelId: string, monthDate?: string)
+</file>
+
+<file path="services/auth-service/src/modules/platform-billing/tests/platform-billing-period.spec.ts">
+import { PlatformBillingService } from "../application/platform-billing.service";
+import { PrismaService } from "../../../prisma/prisma.service";
+import { AppLogger } from "../../../common/logging/app-logger.service";
+</file>
+
+<file path="services/auth-service/src/modules/billing/tests/billing.service.checkout-safety.spec.ts">
+import {
+  FolioStatus,
+  GuestSessionStatus,
+  GuestStayStatus,
+  InvoiceStatus,
+  PaymentMethod,
+  PaymentProvider,
+  PaymentStatus,
+  Prisma,
+  RoomStatus,
+} from "@prisma/client";
+import { ConflictException } from "@nestjs/common";
+import { BillingService } from "../application/billing.service";
+⋮----
+function createService(
+  prisma: Record<string, unknown>,
+  repository: Record<string, unknown> = {},
+  eventPublisher?: Record<string, unknown>,
+)
+</file>
+
+<file path="services/auth-service/src/modules/platform-billing/tests/platform-billing-onboarding.spec.ts">
+import { PlatformBillingService } from "../application/platform-billing.service";
+import { PrismaService } from "../../../prisma/prisma.service";
+import { AppLogger } from "../../../common/logging/app-logger.service";
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/billing/staff-billing-workspace-client.tsx">
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import Swal from "sweetalert2";
+⋮----
+import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import type {
+  FolioItem,
+  FolioListItem,
+  FolioSummary,
+  Invoice,
+} from "@/features/billing/types/billing-contract";
+import { formatMoney } from "@/features/billing/utils/money";
+import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
+import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
+⋮----
+type Props = {
+  hotelId: string;
+  folios: FolioListItem[];
+  canManage: boolean;
+};
+⋮----
+type FolioItemsPage = {
+  items: FolioItem[];
+};
+⋮----
+type StatusFilter = "ALL" | "CHECKOUT_PENDING" | "OPEN" | "CLOSED";
+type ReconciliationChoice = {
+  action: "provided" | "cancelled" | "";
+  cancelReason: string;
+};
+⋮----
+function isFolioItemVoided(item: FolioItem): boolean
+⋮----
+function parseFormattedNumber(value: unknown): number
+⋮----
+function formatNumberInput(value: string | number): string
+⋮----
+function formatNumberOrPercentInput(value: string | number): string
+⋮----
+type ParsedAmountResult = {
+  amount: number;
+  isPercentage: boolean;
+  percentage: number;
+};
+⋮----
+function parseAmountOrPercentage(
+  input: string | number,
+  subtotal: number,
+): ParsedAmountResult
+⋮----
+function getStatusBadge(status: string | undefined)
+⋮----
+function formatDate(value: string | null | undefined): string
+⋮----
+function displayRoom(folio: FolioListItem | undefined): string
+⋮----
+function displayGuest(folio: FolioListItem | undefined): string
+⋮----
+function getFolioInvoiceId(folio: FolioListItem | undefined): string | null
+⋮----
+function getItemIcon(itemType: string): string
+⋮----
+export function StaffBillingWorkspaceClient({
+  hotelId,
+  folios,
+  canManage,
+}: Props)
+⋮----
+// Background refresh silent catch
+⋮----
+async function issueInvoiceAndCollect()
+⋮----
+{/* CỘT TÁI CHÍNH 1: HÀNG ĐỢI FOLIO / PHÒNG CHỜ THANH TOÁN */}
+⋮----
+{/* Search bar */}
+⋮----
+{/* Filter Pills */}
+⋮----
+{/* List items */}
+⋮----
+{formatMoney(
+                        toNumber(folio.total ?? folio.totalAmount),
+                        folio.currency ?? "VND",
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </button>
+            );
+⋮----
+{/* CỘT CENTRAL 2: CHI TIẾT FOLIO & DANH SÁCH CHI PHÍ */}
+⋮----
+{/* Header Chi Tiết */}
+⋮----
+{/* Custom Luxury VietSage "V" Crest Emblem Badge */}
+⋮----
+{/* Sharp Architectural Luxury "V" Path */}
+⋮----
+{/* Inner Facet Highlight for 3D Polished Gold Effect */}
+⋮----
+{/* Diamond Star Accent on Top */}
+⋮----
+{/* Bảng Dịch Vụ & Chi Phí (Fluent Fluid Layout - Proportional Column Widths) */}
+⋮----
+name=
+⋮----
+const res = await Swal.fire({
+                              icon: "warning",
+                              title: "Hủy khoản thu này?",
+                              text: `Xác nhận hủy mục "${item.nameSnapshot}" trên folio.`,
+                              input: "text",
+                              inputPlaceholder: "Lý do hủy (không bắt buộc)",
+                              showCancelButton: true,
+                              confirmButtonText: "Hủy khoản thu",
+                              cancelButtonText: "Quay lại",
+                              confirmButtonColor: "#dc2626",
+                            });
+⋮----
+await requestInternalApiEnvelope(
+                                `${apiBase}/folios/${encodeURIComponent(selectedFolioId)}/items/${encodeURIComponent(item.id)}/void`,
+                                {
+                                  method: "POST",
+                                  body: {
+                                    reason:
+                                      res.value || "Hủy theo yêu cầu thu ngân",
+                                  },
+                                },
+                              );
+const [summaryRes, itemsRes] = await Promise.all([
+                                requestInternalApiEnvelope<FolioSummary>(
+                                  `${apiBase}/folios/${encodeURIComponent(selectedFolioId)}/summary`,
+                                  { method: "GET" },
+                                ),
+                                requestInternalApiEnvelope<FolioItemsPage>(
+                                  `${apiBase}/folios/${encodeURIComponent(selectedFolioId)}/items?page=1&limit=100`,
+                                  { method: "GET" },
+                                ),
+                              ]);
+setSummary(summaryRes.data);
+setItems(itemsRes.data.items);
+await invalidateHotelRealtimeQueries(
+                                queryClient,
+                                hotelId,
+                              );
+router.refresh();
+void Swal.fire({
+                                icon: "success",
+                                title: "Đã hủy khoản mục thành công",
+                                toast: true,
+                                position: "top-end",
+                                timer: 2000,
+                                showConfirmButton: false,
+                              });
+⋮----
+{/* CỘT RIGHT 3: TỔNG TIỀN & XÁC NHẬN THU THỦ TỤC */}
+⋮----
+{/* Hướng dẫn nghiệp vụ điều chỉnh chi phí Folio (Chữ to, rõ ràng, layout chuẩn) */}
+⋮----
+{/* Tiền phòng */}
+⋮----
+{/* Dịch vụ & Tiện ích */}
+⋮----
+{/* Tạm tính (Tiền phòng + Dịch vụ) */}
+⋮----
+{/* Phụ thu (Tăng giá) */}
+⋮----
+{/* Input Diễn giải / Lý do phụ thu */}
+⋮----
+onChange=
+⋮----
+{/* Hiển thị quy đổi % phụ thu */}
+⋮----
+{/* Preset chips phụ thu (CHỈ 1 DÒNG DUY NHẤT) */}
+⋮----
+setSurchargeInput("5%");
+⋮----
+setSurchargeInput("10%");
+⋮----
+setSurchargeInput(formatNumberInput("50000"));
+setSurchargeNote("Phụ thu Check-in sớm");
+⋮----
+{/* Giảm giá */}
+⋮----
+{/* Input Diễn giải / Lý do giảm giá */}
+⋮----
+{/* Hiển thị quy đổi % giảm giá */}
+⋮----
+{/* Preset chips giảm giá (CHỈ 1 DÒNG DUY NHẤT) */}
+⋮----
+setDiscountInput("5%");
+setDiscountNote("Giảm giá 5% Khách VIP");
+⋮----
+{/* Hỗ trợ tính tiền thừa cho Lễ tân */}
+⋮----
+setCashGivenInput(formatNumberInput(e.target.value))
+⋮----
+{/* Preset chips tiền đưa (CHỈ 1 DÒNG DUY NHẤT) */}
+⋮----
+{/* Kết quả tiền thừa / thiếu */}
+⋮----
+{/* NÚT THAO TÁC CHÍNH Ở CUỐI CÙNG THẺ */}
+</file>
+
+<file path="services/auth-service/src/modules/billing/application/billing.service.ts">
+import {
+  BadRequestException,
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  Optional,
+} from "@nestjs/common";
+import {
+  FolioItemSourceType,
+  FolioItemType,
+  FolioStatus,
+  GuestRequestActorType,
+  GuestRequestBillingPostStatus,
+  GuestRequestStatus,
+  GuestSessionStatus,
+  GuestStayStatus,
+  InvoiceStatus,
+  PaymentMethod,
+  PaymentProvider,
+  PaymentStatus,
+  Prisma,
+  RoomStatus,
+} from "@prisma/client";
+import { PrismaService } from "../../../prisma/prisma.service";
+import { AppLogger } from "../../../common/logging/app-logger.service";
+import {
+  GUEST_REQUEST_EVENT_PUBLISHER,
+  NOOP_GUEST_REQUEST_EVENT_PUBLISHER,
+  type GuestRequestEventPublisher,
+} from "../../../shared/events";
+import { CodesService } from "../../codes/codes-public";
+import { HotelAccessService } from "../../property/property-public";
+import { closePlatformUsageAtCheckout } from "../../platform-billing/application/platform-billing.service";
+import { activeGuestRequestStatuses } from "../../guest-operations/guest-operations-public";
+import { BillingRepository } from "../infrastructure/repositories/billing.repository";
+⋮----
+function toPagination(page?: number, limit?: number)
+⋮----
+// Checkout/invoice generation must use FolioItem rows as financial source of truth;
+// Folio cached totals are a read model only and must not be trusted for snapshots.
+⋮----
+export class BillingService {
+⋮----
+constructor(
+    private readonly billingRepository: BillingRepository,
+    private readonly hotelAccessService: HotelAccessService,
+    private readonly prisma: PrismaService,
+    private readonly codesService: CodesService,
+    private readonly logger: AppLogger,
+    @Optional()
+    @Inject(GUEST_REQUEST_EVENT_PUBLISHER)
+    eventPublisher?: GuestRequestEventPublisher,
+)
+⋮----
+async listFolios(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    query: { status?: FolioStatus; page?: number; limit?: number },
+)
+⋮----
+async getFolioDetail(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    folioId: string,
+)
+⋮----
+async getActiveFolioByStay(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    stayId: string,
+)
+⋮----
+async listFolioItems(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    folioId: string,
+    query: { page?: number; limit?: number },
+)
+⋮----
+async addFolioItem(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    folioId: string,
+    input: {
+      itemType: FolioItemType;
+      name: string;
+      description?: string;
+      amount: number;
+      quantity?: number;
+    },
+)
+⋮----
+async voidFolioItem(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    folioId: string,
+    itemId: string,
+    reason?: string,
+)
+⋮----
+async getFolioSummary(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    folioId: string,
+)
+⋮----
+async getInvoiceDetail(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    invoiceId: string,
+)
+⋮----
+async validateFolioForCheckout(hotelId: string, folioId: string)
+⋮----
+private async buildFolioSummary(hotelId: string, folioId: string)
+⋮----
+// Silent catch for summary auto-ensure
+⋮----
+async issueInvoice(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    folioId: string,
+    options?: {
+      reconciliations?: Array<{
+        requestId: string;
+        action: "provided" | "cancelled";
+        cancelReason?: string;
+      }>;
+    },
+)
+⋮----
+async createPaymentSession(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    invoiceId: string,
+    input: {
+      provider: PaymentProvider;
+      providerSessionId?: string;
+      providerPaymentId?: string;
+      metadataReference?: string;
+    },
+)
+⋮----
+async getPaymentStatus(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    paymentId: string,
+)
+⋮----
+async confirmManualPayment(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    invoiceId: string,
+    input: {
+      method: PaymentMethod;
+      note?: string;
+    },
+)
+⋮----
+private async settleZeroBalanceCheckout(
+    actorUserId: string,
+    hotelId: string,
+    invoiceId: string,
+    method: PaymentMethod,
+    note?: string,
+)
+⋮----
+async processPaymentWebhook(provider: PaymentProvider, body: Record<string, unknown>)
+⋮----
+private isDuplicateWebhookEventError(error: unknown): boolean
+⋮----
+private async findWebhookPayment(
+    tx: Prisma.TransactionClient,
+    provider: PaymentProvider,
+    body: Record<string, unknown>,
+)
+⋮----
+private async ensureRoomChargeFolioItem(
+    tx: Prisma.TransactionClient,
+    folio: Prisma.FolioGetPayload<{
+      include: { room: true; stay: true; hotel: { select: { id: true; name: true } } };
+    }>,
+    actorUserId: string,
+)
+⋮----
+private computeTotalsFromFolioItems(
+    items: Array<{
+      subtotalSnapshot: Prisma.Decimal;
+      taxAmountSnapshot: Prisma.Decimal;
+      discountAmountSnapshot: Prisma.Decimal;
+      totalSnapshot: Prisma.Decimal;
+    }>,
+)
+⋮----
+private async reconcileStayServiceRequests(
+    tx: any,
+    hotelId: string,
+    folio: any,
+    actorUserId: string,
+    reconciliations?: Array<{
+      requestId: string;
+      action: "provided" | "cancelled";
+      cancelReason?: string;
+    }>,
+)
+⋮----
+private methodFromProvider(provider: PaymentProvider)
+⋮----
+private async ensureFolioExists(hotelId: string, folioId: string)
+⋮----
+private webhookText(value: unknown): string
+</file>
+
+</files>

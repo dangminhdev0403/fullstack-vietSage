@@ -1,3 +1,12 @@
+## 2026-08-10 - Marketplace Generated Codes (Complete)
+
+- [x] Removed client-supplied category and Service Tenant codes from Marketplace contracts.
+- [x] Reused `CodesService.generateEntityCode` transactionally for `MARKETPLACE_CATEGORY` and `SERVICE_TENANT`.
+- [x] Added named idempotent migration `20260810170000_seed_marketplace_code_sequences` for both `Code` rows.
+
+Verification result:
+- Marketplace admin tests passed (5/5); backend build and Prisma validation passed.
+
 ## 2026-08-10 - Embedded Local Partners & Nearby Services Module (`local-partners`) (Complete)
 
 - [x] Added `LocalPartner`, `LocalPartnerCategory`, `LocalPartnerOffer`, `LocalPartnerBookingRequest`, `LocalPartnerInteractionLog` Prisma models and enums with additive SQL migration (`20260810000000_add_local_partners_module`).

@@ -815,8 +815,8 @@
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/features/billing/types/billing-contract.ts": {
-    "mtime": 1785776160.9131644,
-    "ast_hash": "8b0caa278d686d2ec94bad87580d4d35",
+    "mtime": 1785988551.3303003,
+    "ast_hash": "d71aad6d1c0a4a13b095faa9af870294",
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/features/billing/utils/money.ts": {
@@ -1775,8 +1775,8 @@
     "semantic_hash": ""
   },
   "services/auth-service/src/modules/billing/application/billing.service.ts": {
-    "mtime": 1785988009.5153077,
-    "ast_hash": "ac79aca7f40c5b81ebbb0515f61606f7",
+    "mtime": 1785988626.4035141,
+    "ast_hash": "c30ad1749820b92dd93d10e413943bfb",
     "semantic_hash": ""
   },
   "services/auth-service/src/modules/billing/billing.module.ts": {
@@ -3140,8 +3140,8 @@
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/billing/invoices/[invoiceId]/page.tsx": {
-    "mtime": 1784891721.6668437,
-    "ast_hash": "42b281e67fb7174ccdd0d7c7fbec16ef",
+    "mtime": 1785988562.227054,
+    "ast_hash": "472bbb7eca8098cd63b3b577b83a104b",
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/billing/page.tsx": {
@@ -3230,8 +3230,8 @@
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/billing/invoices/[invoiceId]/page.tsx": {
-    "mtime": 1784891721.630376,
-    "ast_hash": "632d22642f5aa6ef91fb31a1e1340613",
+    "mtime": 1785988556.435107,
+    "ast_hash": "cb842ed63edd67645dc8d7a5f180cd2c",
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/billing/page.tsx": {
@@ -3240,8 +3240,8 @@
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/billing/staff-billing-workspace-client.tsx": {
-    "mtime": 1785986551.6402578,
-    "ast_hash": "e50d38cfa722172b9e46800b4e44f8b5",
+    "mtime": 1785988272.5628684,
+    "ast_hash": "075297ba8dbac142a68089cc88ce000a",
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/dashboard/page.tsx": {

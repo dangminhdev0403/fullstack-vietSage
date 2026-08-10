@@ -1,0 +1,2324 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: docs/README.md, docs/ARCHITECTURE.md, docs/RULES.md, docs/SERVICE_BOUNDARY.md, docs/API_SPEC.md, docs/EVENT_FLOW.md, docs/SECRETS.md, frontends/front-end-vietsage/docs/ARCHITECTURE.md, frontends/front-end-vietsage/docs/RULES.md, frontends/front-end-vietsage/docs/MODULE_GUIDE.md, frontends/front-end-vietsage/docs/CONTRACT_GUIDE.md, frontends/front-end-vietsage/docs/RUNTIME_UI_GUIDE.md, services/docs/ARCHITECTURE.md, services/docs/RULES.md, services/docs/MODULE_GUIDE.md, services/docs/CONTRACT_GUIDE.md, services/docs/EXTENSION_GUIDE.md, .agents/AGENTS.md
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+.agents/
+  AGENTS.md
+docs/
+  API_SPEC.md
+  ARCHITECTURE.md
+  EVENT_FLOW.md
+  README.md
+  RULES.md
+  SECRETS.md
+  SERVICE_BOUNDARY.md
+frontends/
+  front-end-vietsage/
+    docs/
+      ARCHITECTURE.md
+      CONTRACT_GUIDE.md
+      MODULE_GUIDE.md
+      RULES.md
+      RUNTIME_UI_GUIDE.md
+services/
+  docs/
+    ARCHITECTURE.md
+    CONTRACT_GUIDE.md
+    EXTENSION_GUIDE.md
+    MODULE_GUIDE.md
+    RULES.md
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="docs/ARCHITECTURE.md">
+# VietSage Architecture
+
+## 1. Architecture decision
+
+VietSage currently runs as a **modular monolith**:
+
+```txt
+frontends/front-end-vietsage/        # Next.js frontend
+services/auth-service/              # current deployed core API (NestJS)
+shared/api-contract/                # exported OpenAPI/shared contract package
+```
+
+Despite the historical folder name `auth-service`, the backend now owns more than authentication: identity/RBAC, tenant and hotel operations, Guest Operations, billing, emergency workflows, notifications, health, and shared backend infrastructure. Treat it as the **VietSage core API** until a dedicated rename phase is approved.
+
+This repo should **not** be refactored by rebuilding from scratch or prematurely splitting services. The target is a production-grade modular monolith with clear domain boundaries that can be extracted later when there is a real operational reason.
+
+## 2. Current runtime topology
+
+```txt
+Browser / mobile web
+  -> Next.js frontend
+  -> NestJS core API (services/auth-service)
+  -> PostgreSQL
+  -> External providers where enabled (Google Sheets, Telegram, payment providers)
+```
+
+No API gateway, message broker, distributed cache, or database-per-service split is part of the current architecture baseline.
+
+## 3. Bounded contexts
+
+| Context | Current module area | Owns | Notes |
+| --- | --- | --- | --- |
+| Identity & Access | `src/modules/identity`, shared guards/decorators | Authentication, sessions, users, roles, permissions, authorization checks | Consolidated boundary; legacy `auth`, `rbac`, `hotel-users` folders should not be reintroduced. |
+| Organization / Tenancy | `src/modules/organization`; HTTP routes still use `/tenant-owners` for compatibility | Tenant ownership, tenant membership, platform/tenant scopes | Depends on Identity for actor identity; legacy `tenant-owners` module folder should not be reintroduced. |
+| Property | `src/modules/property`; HTTP routes still use `/hotels` for compatibility | Hotels, rooms, QR, stays, service catalog, hotel access checks | Public access port is exported via `property-public.ts`; repositories are internal. |
+| Guest Operations | `src/modules/guest-operations`; HTTP routes still use `/guest` and `/hotels/:hotelId/requests*` for compatibility | Guest sessions, guest requests, request timeline/status, staff request workflow | Public guest session/service ports are exported via `guest-operations-public.ts`; staff workflow publishes request events through the shared event port. |
+| Billing | `src/modules/billing` (`api`, `application`, `domain`, `infrastructure`, `tests`) | Folios, folio items, invoices, payments, checkout rules | Uses property access, should not depend on property persistence internals. |
+| Emergency | `src/modules/emergency` (`api`, `application`, `domain`, `infrastructure`, `tests`); HTTP route still uses `/emergency/guest/calls` for compatibility | Emergency locations, incidents, call lifecycle, notifications | Consumes guest-session context through the Guest Operations public port; repository internals are private. |
+| Notifications | `src/modules/notifications`; webhook route uses `/integrations/telegram/webhook`; staff route config still uses `/hotels/:hotelId/notification-routes*` for compatibility | Notification routing, provider delivery callbacks, delivery tracking | Telegram is the first provider adapter; webhook secrets are validated by header, not URL path. |
+| Platform/Common | `common`, `shared`, `prisma`, `codes`, `health` | Infrastructure, validation, logging, OpenAPI, code generation, health | Cross-cutting; keep generic and small. |
+
+See `DOMAIN_MAP.md` for ownership details.
+
+## 4. Dependency direction
+
+Allowed direction:
+
+```txt
+Controller -> Application Service -> Repository/Adapter -> Database/Provider
+```
+
+Cross-context calls must go through a public service/port exported by the owning module. Repositories and Prisma query details are internal to their context.
+
+Rules:
+
+- Controllers stay thin and own HTTP parsing/response mapping only.
+- Services own workflow, authorization/resource checks, and transaction decisions.
+- Repositories own persistence details and are not exported across module boundaries.
+- Shared guards/decorators may depend on public Identity contracts, not deep auth implementation details.
+- External providers stay behind adapters/services.
+
+## 5. Contract source of truth
+
+OpenAPI export from the backend is the HTTP contract source of truth:
+
+```bash
+cd services/auth-service
+npm run openapi:export
+```
+
+`docs/API_SPEC.md` should describe contract policy and runtime notes. It should not become a hand-maintained endpoint catalog that drifts from generated OpenAPI.
+
+## 6. Event and async strategy
+
+V1 uses synchronous transactions and in-process publication where needed. Do not introduce Kafka, RabbitMQ, Redis streams, or an outbox worker without a specific workflow requirement.
+
+When events are needed, use a versioned envelope:
+
+```txt
+id, type, version, occurredAt, producer, correlationId, actor, payload
+```
+
+See `EVENT_FLOW.md` for the event and outbox-readiness policy.
+
+## 7. Service extraction policy
+
+A bounded context may be extracted only when at least one trigger is real and measured:
+
+- independent scaling or deployment cadence;
+- isolation/security requirement;
+- external integration reliability requirement;
+- clear data ownership and contract stability;
+- team ownership boundary;
+- operational need such as independent retries/queueing.
+
+Until then, keep contexts inside the core API. See `SERVICE_EVOLUTION.md`.
+
+## 8. Rename policy
+
+`services/auth-service` is a historical name. A future rename to `services/core-api` or `services/vietsage-api` is reasonable, but only after module boundaries and tests are stable. Rename must be a separate phase because it touches Docker, CI, scripts, docs, OpenAPI export, and frontend environment references.
+</file>
+
+<file path="docs/README.md">
+# VietSage Documentation Index
+
+This folder is the root documentation hub for cross-system VietSage documents.
+
+## Current architecture baseline
+
+VietSage is currently a **modular monolith**: one deployed NestJS core API under the historical path `services/auth-service`, one Next.js frontend, and a shared OpenAPI contract package. Do not treat `api-gateway`, `hotel-service`, database-per-service, queues, or microservices as current runtime unless a future extraction phase explicitly creates them.
+
+## Documentation Structure
+
+| Scope | Location | Purpose |
+| --- | --- | --- |
+| Root / cross-system | `docs/` | System architecture, bounded contexts, service evolution, API/event/secret/RBAC policies, deployment and validation. |
+| Backend standards | `services/docs/` | Backend modular-monolith standards, module guide, contract/data guide, extension workflow, rules/plans/migration notes. |
+| Current backend core API | `services/auth-service/` | NestJS runtime service currently acting as VietSage core API. |
+| Frontend app | `frontends/front-end-vietsage/docs/` | Frontend architecture standard, module guide, contract guide, runtime/UI guide, rules/plans/design/smoke/i18n notes. |
+| Shared API contract package | `shared/api-contract/docs/` | Generated/curated API catalog and contract changelog. |
+
+## Read Order For AI Agents
+
+1. Start with the nearest `ARCHITECTURE.md` for the scope being changed.
+2. For cross-domain work, read `DOMAIN_MAP.md` and `SERVICE_EVOLUTION.md`.
+3. Open only the guide matching the task: `MODULE_GUIDE.md`, `CONTRACT_GUIDE.md`, `RUNTIME_UI_GUIDE.md`, `EXTENSION_GUIDE.md`, or the relevant root doc.
+4. Open `RULES.md` before implementation or validation work.
+5. Open `PLANS.md` only when the task involves planning/progress tracking.
+
+Do not load every markdown file by default.
+
+## Root Docs
+
+| File | Purpose |
+| --- | --- |
+| `ARCHITECTURE.md` | Cross-system modular-monolith architecture overview. |
+| `DOMAIN_MAP.md` | Bounded context ownership map and allowed dependencies. |
+| `SERVICE_EVOLUTION.md` | Criteria and roadmap for future service extraction. |
+| `RULES.md` | Documentation governance and plan-mode rules. |
+| `API_SPEC.md` | API contract policy/runtime notes; generated OpenAPI remains source of truth. |
+| `SERVICE_BOUNDARY.md` | Service/module ownership and boundary notes. |
+| `EVENT_FLOW.md` | Event envelope, lifecycle flow, and outbox-readiness notes. |
+| `FRONTEND_SYNC_VALIDATION.md` | Frontend sync validation checklist. |
+| `P1_QA_MIGRATION_VERIFICATION_CHECKLIST.md` | QA/migration verification checklist. |
+| `RBAC_ARCHITECTURE.md` | Cross-system RBAC architecture and migration direction. |
+| `DEPLOYMENT.md` | VPS/deployment notes. |
+| `SECRETS.md` | Runtime secrets policy and file structure. |
+| `adr/` | Architecture decision records. |
+</file>
+
+<file path="docs/RULES.md">
+# VietSage Documentation Rules
+
+This file is the single place for documentation governance across frontend, backend, shared contracts, and root cross-system docs.
+
+## Scope
+
+Applies to markdown files under:
+
+- `docs/`
+- `services/docs/`
+- `frontends/front-end-vietsage/docs/`
+- `shared/api-contract/docs/`
+
+## Canonical Documentation Locations
+
+| Scope | Location | Examples |
+| --- | --- | --- |
+| Cross-system docs | `docs/` | `ARCHITECTURE.md`, `RULES.md`, `SERVICE_BOUNDARY.md`, `EVENT_FLOW.md`, `RBAC_ARCHITECTURE.md`, `DEPLOYMENT.md`, `SECRETS.md` |
+| Backend docs | `services/docs/` | `ARCHITECTURE.md`, `RULES.md`, `PLANS.md`, `MODULE_GUIDE.md`, `CONTRACT_GUIDE.md`, `EXTENSION_GUIDE.md` |
+| Frontend docs | `frontends/front-end-vietsage/docs/` | `ARCHITECTURE.md`, `RULES.md`, `PLANS.md`, `MODULE_GUIDE.md`, `CONTRACT_GUIDE.md`, `RUNTIME_UI_GUIDE.md`, `DESIGN.md` |
+| Shared API contract docs | `shared/api-contract/docs/` | `API_CATALOG.md`, `CONTRACT_CHANGES.md` |
+
+README files may remain at package/folder roots only when they are entry points for that package or directory. Detailed architecture, plans, rules, runbooks, and guides should live in the matching `docs/` folder.
+
+## Global Execution Rule: Delegation-Aware Approval
+
+This repository uses a two-layer approval model: direct user-facing planning remains guarded, while delegated specialist/Codex workers may execute inside an already-approved scope.
+
+### Direct user-facing sessions
+
+When the assistant is speaking directly with the user and no prior approval has been granted for the current scope, stay read-only until explicit approval.
+
+Do not edit, create, delete, move, rename, format, refactor, overwrite, install, migrate, auto-fix, update docs, update git state, or modify any file before approval.
+
+Allowed before approval only:
+
+- read
+- search
+- inspect
+- analyze
+- ask targeted clarification
+- produce implementation plan
+
+Collaborate with the user before editing:
+
+1. inspect code
+2. explain findings
+3. identify root cause
+4. list impacted files
+5. propose safest plan
+6. state risks/trade-offs
+7. wait for explicit approval
+
+For direct user-facing sessions, approval may be an exact command such as:
+
+- EXECUTE MODE
+- APPLY PLAN
+- CHO PHÉP SỬA
+- TIẾN HÀNH SỬA
+
+or an unambiguous user approval message that explicitly accepts execution for the proposed scope.
+
+### Delegated specialist / Codex worker sessions
+
+When a specialist/đệ, Kanban worker, or Codex process is launched by Hermes after the user has already approved the task, do not stop to request `PLAN MODE`, `EXECUTE MODE`, `CHO PHÉP SỬA`, or another confirmation from the user again.
+
+Treat the delegation prompt as approved execution context when it states that user/Hermes has approved the scoped task. Execute only that scoped task.
+
+The delegated worker must still:
+
+- preserve unrelated dirty worktree changes;
+- keep changes limited to the approved scope;
+- avoid destructive database, Prisma reset, Docker cleanup, deployment, credential, or git-history operations unless those are explicitly approved in the delegated prompt;
+- inspect the resulting diff;
+- run the smallest reliable validation command;
+- report files inspected, files changed, validation results, docs updated, and remaining risks/blockers.
+
+If a delegated Codex process still pauses at an approval guard, restart it with the approval context at the top of the prompt instead of waiting for an interactive approval inside the process.
+
+PLAN MODE output format for direct planning-only sessions:
+
+- Files inspected
+- Current issue
+- Root cause
+- Proposed plan
+- Files that would be changed later
+- What will not be changed
+- Risks/trade-offs
+- Verification steps
+- Rollback strategy
+- Approval required
+
+## Source of Truth Rules
+
+- Do not duplicate the same normative rule in multiple files.
+- If rules conflict, prioritize in this order:
+  1. `docs/RULES.md`
+  2. nearest scope-specific `RULES.md`
+  3. nearest scope-specific `ARCHITECTURE.md`
+  4. task-specific guide in the same `docs/` folder
+  5. `PLANS.md` or historical notes
+- Keep API contract and runtime behavior aligned; update docs when behavior changes.
+
+## Mandatory Update Rules
+
+After every completed implementation:
+
+- Update the corresponding `PLANS.md` only when the task affects tracked milestones/progress.
+- If endpoint behavior changes, update the relevant contract/API doc in the same task.
+- If ownership or module boundary changes, update the relevant `ARCHITECTURE.md` or guide.
+- If lifecycle/transaction/event behavior changes, update `docs/EVENT_FLOW.md` or the relevant backend guide.
+- Do not mark work complete when required docs are stale.
+
+## Writing Standard
+
+- Keep headings and naming consistent across docs.
+- Use concrete paths and commands that exist in the repository.
+- Prefer concise, testable statements over generic guidance.
+- Explicitly mark unknown items as `TBD` instead of guessing.
+- Keep core architecture files short; move details to topic-specific guide files in the same `docs/` folder.
+
+## Validation Reference
+
+- Frontend synchronization and validation flow is defined in `docs/FRONTEND_SYNC_VALIDATION.md`.
+- Any UI sync task should follow that checklist before completion.
+
+## Review Checklist
+
+Before finalizing a task, verify:
+
+1. Changed behavior is documented in the correct file.
+2. File paths and command examples are valid.
+3. Error shape examples match current backend behavior.
+4. Status documents include real commands and real outcomes.
+5. No broken references to missing markdown files.
+
+## Non-Goals
+
+- Do not introduce a separate `docs/CONTRIBUTING_DOCS.md`.
+- Do not keep parallel duplicated rule files for the same scope.
+- Do not claim validation commands passed unless they were actually run.
+</file>
+
+<file path="docs/SERVICE_BOUNDARY.md">
+# VietSage Service and Module Boundary
+
+## Current boundary model
+
+The current backend is one deployed NestJS core API located at `services/auth-service`. The folder name is historical; do not infer that the service owns only authentication.
+
+Inside this core API, boundaries are enforced at the **module/context** level first. Service extraction is a future option, not the present runtime.
+
+## Boundary layers
+
+| Boundary | Present implementation | Rule |
+| --- | --- | --- |
+| HTTP/API | Controllers in `services/auth-service/src/modules/**` | OpenAPI export is the contract truth. |
+| Application | Module services | Own workflow, authorization/resource checks, and transactions. |
+| Persistence | Repositories and Prisma service | Repositories are internal to their owning module. |
+| Public module API | Explicit module exports and `index.ts`/public interfaces where needed | Other contexts import only public services/ports. |
+| Event/notification | In-process services/adapters today | Add versioned event envelope before async extraction. |
+
+## Public boundary rules
+
+- A module must not export repositories just to let another module query its tables.
+- A module may export a public service/port that hides persistence details.
+- Cross-module imports from `repositories/`, `schemas/` implementation internals, or deep service helpers require refactor approval.
+- Controllers from one module must not call controllers from another module.
+- Shared guards/decorators should depend on shared security contracts and public Identity services only.
+
+## Current approved public ports/services
+
+| Owner context | Public export | Consumers | Reason |
+| --- | --- | --- | --- |
+| Property / Hotels | `HotelAccessService` | Billing and other resource-scoped modules | Validates actor access to hotel/tenant without exposing hotel repositories. |
+| Identity & Access | `AuthorizationService`, `AuthService`, `HotelUserDirectoryService`, route-permission helpers, `JwtAuthGuard` via `identity-public.ts` | Global guards/strategies/controllers and Property staff assignment workflows | Keeps consumers off Identity domain/infrastructure paths while allowing tenant-scoped staff validation. |
+| Codes | `CodesService` via `codes-public.ts` | Organization, Property, Billing | Generates entity codes without exposing the repository. |
+
+## Repository export policy
+
+Repositories must remain internal. If a consumer needs a query, add a public application query/port to the owner context instead of exporting the repository.
+
+For example:
+
+```txt
+BillingService -> HotelAccessService        # allowed
+BillingService -> HotelCoreRepository       # forbidden
+BillingService -> Prisma hotel query direct # avoid unless it owns that data
+```
+
+## Future service extraction
+
+Extraction requires stable ownership and operational need. See `SERVICE_EVOLUTION.md`.
+
+## Boundary verification
+
+Run the executable boundary check before merging a module/service refactor:
+
+```bash
+cd services/auth-service
+node scripts/check-service-boundaries.mjs
+```
+
+The check scans production source files and fails when one context imports another context's
+private path or when a Nest module exports a repository. Cross-context consumers must use
+`<context>-public.ts`; Nest composition may import `<context>.module.ts`.
+
+Frontend route pages should delegate multi-endpoint orchestration to a feature-owned loader or
+query. For example, the Staff workspace selects widgets and hotel scope, while Hotel Operations
+owns loading request and service dashboard data.
+
+Staff assignment ownership is split deliberately: Identity owns users, active roles, and tenant
+membership; Property owns `HotelStaffAssignment`. Property consumes only the public
+`HotelUserDirectoryService` to validate an assignable tenant staff user and never imports the
+Identity repository.
+</file>
+
+<file path="frontends/front-end-vietsage/docs/ARCHITECTURE.md">
+# VietSage Frontend Architecture
+
+## 1. Purpose
+
+This document defines the reusable frontend architecture standard for VietSage frontend apps.
+
+Keep this file short. It should explain only the core boundaries an AI agent or developer must know before changing the app. Detailed conventions live in topic-specific docs in this same `docs/` folder.
+
+## 2. Docs Index
+
+All frontend documentation must stay under `frontends/[frontend-app]/docs/`.
+
+| Need | Read |
+| --- | --- |
+| Core architecture and layer boundaries | `ARCHITECTURE.md` |
+| Feature/module structure and extension workflow | `MODULE_GUIDE.md` |
+| Backend API, generated contracts, route handlers, auth/session calls | `CONTRACT_GUIDE.md` |
+| Runtime boundaries, components, state, realtime, errors, i18n | `RUNTIME_UI_GUIDE.md` |
+| Development rules and execution contracts | `RULES.md` |
+| Active/archived implementation plans | `PLANS.md` |
+| UI brand, visual system, component style | `DESIGN.md` |
+| Smoke test commands and manual route checks | `FRONTEND_SMOKE_TESTS.md` |
+| Guest-facing i18n frontend instructions | `FRONTEND_GUEST_I18N_INSTRUCTIONS.md` |
+| Backend proposal for GuestOS i18n | `BACKEND_GUEST_I18N_PROPOSAL.md` |
+
+Rule: do not read all docs by default. Start with this file, then open only the doc matching the current task.
+
+## 3. Core Principles
+
+- Frontend apps own route composition, UI behavior, client interaction, display states, and API consumption.
+- Backend services own business rules, authorization enforcement, persistence, domain workflows, contracts, and external provider integration.
+- Pages compose product surfaces; features own domain-specific UI logic.
+- API calls must go through feature services, core HTTP utilities, or route handlers.
+- Runtime boundaries must be explicit: server, client, route handler, proxy, browser storage, and realtime.
+- Reusable UI components must not depend on domain services.
+- Architecture docs must avoid current-project snapshots that make the standard hard to reuse.
+
+## 4. Standard App Structure
+
+```txt
+frontends/
+└── [frontend-app]/
+    ├── src/
+    │   ├── app/
+    │   ├── components/
+    │   ├── core/
+    │   ├── features/
+    │   ├── generated/
+    │   ├── libs/
+    │   ├── providers/
+    │   ├── configs/
+    │   ├── types/
+    │   └── proxy.ts
+    ├── packages/
+    ├── docs/
+    ├── scripts/
+    └── package.json
+```
+
+Only create folders that the app actually needs.
+
+## 5. Layer Responsibilities
+
+| Layer | Responsibility |
+| --- | --- |
+| `app/` | App Router route composition, layouts, route handlers, loading/error boundaries, and product surfaces. |
+| `features/` | Domain-specific services, hooks, queries, state, types, utilities, and UI components. |
+| `core/` | Cross-cutting infrastructure such as HTTP, errors, query setup, i18n, storage, and realtime primitives. |
+| `components/` | Reusable UI primitives and shared presentation components. |
+| `generated/` | Generated API contract types or generated client artifacts. |
+| `providers/` | App-level React providers. |
+| `configs/` | Environment and application configuration. |
+| `libs/` | Small app-level utilities that do not belong to a feature or core infrastructure area. |
+| `packages/` | Transport- and product-neutral packages that can be built and consumed outside VietSage. |
+| `docs/` | Architecture, rules, guides, plans, design notes, smoke tests, and domain-specific instructions. |
+
+## 6. Runtime Boundary Summary
+
+Default to Server Components unless a component needs client-only behavior.
+
+Use Client Components for browser APIs, event handlers, local interactive state, Zustand, TanStack Query hooks, realtime subscriptions, effects, or client navigation hooks.
+
+Use Route Handlers for BFF/proxy endpoints, session-sensitive backend calls, cookie/session bridge behavior, and refresh-token rotation.
+
+See `RUNTIME_UI_GUIDE.md` for detailed runtime, component, state, realtime, error, and i18n conventions.
+
+## 7. Product Surface and Route Ownership
+
+Before adding routes, define the product surface.
+
+A product surface is a user-facing area with its own route ownership, access rules, shell, loading state, and error behavior.
+
+Common surface types:
+
+| Surface type | Typical responsibility |
+| --- | --- |
+| Public marketing | Landing pages, public content, contact pages. |
+| Authentication | Login, registration, session entry points. |
+| Admin | Privileged system administration workflows. |
+| Manager/Owner | Business management dashboards and operational management. |
+| Staff/Ops | Internal operational workflows. |
+| Guest/Public app | Guest-facing or unauthenticated flows. |
+| Internal API | Route handlers used as BFF/proxy/session bridges. |
+
+Rules:
+
+- Route groups should organize product surfaces, not unrelated implementation details.
+- Authenticated surfaces should define layout, loading, error, and access behavior.
+- Route pages should compose feature components rather than contain large business UI logic.
+
+## 8. Feature Module Summary
+
+Domain-specific frontend logic should live under `features/[feature-name]`.
+
+```txt
+features/[feature-name]/
+├── repositories/
+├── resources/
+├── queries/
+├── hooks/
+├── service/
+├── store/
+├── types/
+├── utils/
+├── components/
+├── i18n/
+└── schemas/
+```
+
+Create only the folders needed by the feature. See `MODULE_GUIDE.md` for detailed folder responsibilities and extension workflow.
+
+## 9. Data and API Flow Summary
+
+```txt
+Route / UI
+  ↓
+Feature Hook / Query Hook
+  ↓
+Resource
+  ↓
+Repository
+  ↓
+Core HTTP Utility or Route Handler
+  ↓
+Backend API
+```
+
+Rules:
+
+- Do not introduce raw backend `fetch` calls in pages, layouts, or reusable UI components.
+- Repositories own transport calls, DTO mapping, response transforms, and pagination normalization.
+- Resources own stable keys, TanStack Query options, mutations, local invalidation, and cache operations.
+- Feature hooks own permissions, feature flags, filter normalization, cross-resource coordination, and UI feedback.
+- Components consume feature hooks; they do not know endpoints, DTOs, query keys, or invalidation rules.
+- Backend-backed types should come from generated contracts or feature contract wrappers.
+- Route Handlers should own session-sensitive proxy calls.
+- Frontend must not duplicate backend business rules as the source of truth.
+
+See `CONTRACT_GUIDE.md` for detailed API, contract, and auth/session integration rules.
+
+## 10. Frontend and Backend Boundary
+
+Frontend owns:
+
+- UI rendering.
+- Route composition.
+- API consumption.
+- User interaction state.
+- Browser-specific behavior.
+- Loading, empty, and display states.
+
+Backend owns:
+
+- Business rules.
+- API and event contracts.
+- Authorization and authentication enforcement.
+- Data persistence and migrations.
+- Domain workflows.
+- External provider integration.
+
+The frontend may hide unavailable actions for UX, but backend authorization remains the source of truth.
+
+## 11. Rules Summary
+
+- Keep pages thin.
+- Keep domain UI logic in features.
+- Keep API calls out of UI components.
+- Keep reusable UI free of feature-service dependencies.
+- Keep generated API contracts as the source of truth for backend-backed types.
+- Keep server state out of client stores.
+- Keep backend business rules out of frontend.
+- Keep architecture docs generic and short.
+- Keep detailed docs in the same `docs/` folder, referenced by the Docs Index.
+</file>
+
+<file path="frontends/front-end-vietsage/docs/CONTRACT_GUIDE.md">
+# Frontend API Integration Guide
+
+## Purpose
+
+This guide describes how frontend code should consume backend APIs, generated contracts, route handlers, and auth/session-sensitive flows.
+
+## Standard API Flow
+
+```txt
+Route / UI
+  ↓
+Feature Hook or Query
+  ↓
+Feature Service
+  ↓
+Core HTTP Utility or Route Handler
+  ↓
+Backend API
+```
+
+## Contract Rules
+
+- Generated API artifacts should live under `src/generated/`.
+- Backend-backed feature types should use generated contracts or narrow wrappers around them.
+- Do not invent response shapes that are not backed by a backend contract.
+- Contract changes should be synchronized through the agreed API sync workflow before frontend assumptions change.
+
+## HTTP Rules
+
+- Do not introduce raw backend `fetch` calls in pages, layouts, or reusable UI components.
+- Use feature services for domain API calls.
+- Use core HTTP utilities for shared transport concerns.
+- Use route handlers for BFF/proxy behavior and session-sensitive calls.
+- Feature services should not contain UI display decisions.
+
+## Auth and Session Rules
+
+- Backend remains the authentication and authorization source of truth.
+- Frontend session state is a UX/session bridge, not the security authority.
+- Server-rendered management workspaces load `GET /auth/me` through the auth feature service and
+  treat `activeRole`, `permissions`, and `accessibleHotels` as one fail-closed context.
+- Do not merge capabilities from the compatibility `roles` list. Use only the session-bound
+  `activeRole` capability set returned by the backend.
+- Do not persist the full capability or hotel-scope payload in the Auth.js cookie. Resolve it in a
+  server-only boundary and require an explicit hotel ID from route or URL state.
+- Refresh tokens and cookie persistence must stay in server-safe boundaries.
+- Do not rotate refresh tokens in arbitrary Server Components.
+- Client components must not access backend refresh tokens directly.
+- Route protection must be consistent with backend authorization.
+
+## Error Contract Rules
+
+- Map API/backend errors before displaying them to users.
+- Do not show raw provider, database, or backend error objects directly.
+- Preserve stable backend error codes/titles where the UI needs deterministic handling.
+- UI copy for errors should be user-facing and localized when required.
+
+## Anti-patterns
+
+- Raw `fetch` scattered in components.
+- Route handlers that duplicate feature service logic without a session/proxy reason.
+- Frontend-only authorization as the only protection layer.
+- Handwritten API types that drift from generated backend contracts.
+</file>
+
+<file path="frontends/front-end-vietsage/docs/MODULE_GUIDE.md">
+# Frontend Feature Guide
+
+## Purpose
+
+This guide explains how to add and maintain frontend feature modules without bloating `ARCHITECTURE.md`.
+
+## Standard Feature Shape
+
+```txt
+features/[feature-name]/
+├── repositories/
+├── resources/
+├── queries/
+├── hooks/
+├── service/
+├── store/
+├── types/
+├── utils/
+├── components/
+├── i18n/
+└── schemas/
+```
+
+Create only the folders the feature needs.
+
+## Folder Responsibilities
+
+| Folder | Responsibility |
+| --- | --- |
+| `repositories/` | Transport calls, endpoint paths, DTO mapping, response transforms, and pagination normalization. |
+| `resources/` | Capability declarations, stable keys, query options, mutations, local invalidation, and cache operations built with `@dangminhdev04032005/query-resource`. |
+| `queries/` | Client query hooks that bind resource scope and expose TanStack Query results. |
+| `hooks/` | Permissions, feature flags, normalized filters, cross-resource orchestration, navigation, and UI feedback. |
+| `service/` | Existing server loaders or domain orchestration that is not client cache behavior. Do not use it as a second repository layer. |
+| `store/` | Client-only feature state. |
+| `types/` | Frontend-facing feature types and contract wrappers. |
+| `utils/` | Pure feature helpers. |
+| `components/` | Feature-specific reusable UI. |
+| `i18n/` | Feature-local translations. |
+| `schemas/` | Runtime validation when needed. |
+
+## Dependency Rules
+
+- Feature UI may use feature hooks or query hooks.
+- Feature hooks may use feature resources, queries, stores, and explicit cross-resource coordination.
+- Resources may use their feature repository and stable feature contract types. They must not import React components or UI state.
+- Repositories may use the runtime-appropriate core HTTP utility or internal route handler. They must not import resources or React.
+- `@dangminhdev04032005/query-resource` is the shared frontend infrastructure package. Do not add a local factory copy, nested package.json, pnpm workspace package, or feature-local `node_modules` for resource utilities.
+- Reuse the published package in another project; do not copy VietSage repositories or resources with it.
+- Keep response-affecting scope in `scopeKey` and response-affecting inputs in `inputKey`. Treat scope and input values as immutable after options are created.
+- Declare domain commands such as `approve`, `cancel`, `checkIn`, or `markRead` as named mutations. Do not recreate an untyped `extra` bucket.
+- Keep local invalidation in the resource definition. Coordinate invalidation across different resources explicitly in a feature hook so dependencies remain visible.
+- Server route pages should pass scope and presentation decisions to feature-owned loaders instead
+  of coordinating multiple endpoint calls directly.
+- Feature code must not import unrelated feature internals unless an explicit shared contract exists.
+- Reusable UI primitives must not import feature services.
+
+## Adding a Feature
+
+1. Define the product surface and route ownership.
+2. Define the backend/API contract.
+3. Create `src/features/[feature-name]` with only needed folders.
+4. Add a repository for transport, DTO mapping, transforms, and pagination.
+5. Declare only the resource capabilities the backend actually supports with `createResource`, `defineQuery`, `defineInfiniteQuery`, and `defineMutation` from `@dangminhdev04032005/query-resource`.
+6. Add query or feature hooks for scope, permissions, flags, filters, and UI-side orchestration.
+7. Add local hooks/store only for frontend interaction state.
+8. Add feature components for reusable domain UI.
+9. Add route pages that compose the feature.
+10. Add loading, error, and empty states where the user flow needs them.
+11. Add resource type/runtime tests for keys, cache behavior, invalidation, and rollback as applicable.
+12. Run the validation commands required by `RULES.md` or the task scope.
+
+## Extending a Workspace Dashboard
+
+Workspace composition lives in `src/features/workspace/config/workspace-registry.ts`. Add a
+registry extension when a role alias, navigation item, or dashboard widget must be introduced
+without adding persona checks to route pages.
+
+```ts
+const registry = createWorkspaceRegistry([
+  {
+    roleAliases: { HOTEL_AUDITOR: "finance" },
+    navigation: [auditNavigation],
+    widgets: [auditSummaryWidget],
+  },
+]);
+```
+
+- Use stable, namespaced keys such as `finance.audit-summary`.
+- Declare `personas`, `anyCapabilities`, and `requiresHotel` on each entry. Missing capability or
+  hotel scope filters the entry out.
+- Registry configuration changes presentation only. Backend endpoints must continue to enforce
+  authorization and resource scope.
+- Duplicate keys and role aliases are rejected. Set `replaceExisting: true` only for an intentional,
+  reviewed replacement.
+- Keep data loading conditional on the resolved widget set so hidden modules do not trigger API
+  requests.
+- Keep widget keys inside the Workspace boundary. Pass domain-neutral decisions such as
+  `includeRequests` or `includeServices` into a Hotel Operations loader.
+
+## Anti-patterns
+
+- Putting large business UI logic directly in `page.tsx`.
+- Calling backend APIs directly from reusable UI components.
+- Handwriting query keys and mutation invalidation repeatedly in feature hooks.
+- Putting transport, DTO envelopes, permissions, or UI notifications inside a resource definition.
+- Treating every endpoint group as full CRUD when it only exposes a subset of capabilities.
+- Duplicating backend authorization or workflow rules as frontend truth.
+- Creating every optional feature folder even when unused.
+- Sharing feature internals by deep imports instead of defining a stable interface.
+</file>
+
+<file path="services/docs/ARCHITECTURE.md">
+# VietSage Backend Architecture
+
+## 1. Purpose
+
+This document defines the reusable backend architecture standard for VietSage backend code. The current backend runtime is a modular monolith under `services/auth-service`; that folder name is historical and should be treated as the current core API.
+
+Keep this file short. Detailed conventions live in topic-specific docs in this same `docs/` folder.
+
+## 2. Docs Index
+
+| Need | Read |
+| --- | --- |
+| Core backend architecture and module boundaries | `ARCHITECTURE.md` |
+| Module structure, dependency direction, and module extension workflow | `MODULE_GUIDE.md` |
+| API contracts, authorization, data ownership, migrations, realtime/integrations | `CONTRACT_GUIDE.md` |
+| New service/service-extraction workflow | `EXTENSION_GUIDE.md` |
+| Development rules, security rules, validation gates, execution contract | `RULES.md` |
+| Active/archived backend milestones and progress tracking | `PLANS.md` |
+
+Rule: do not read all docs by default. Start with this file, then open only the doc matching the current task.
+
+## 3. Core Principles
+
+- Start with a modular monolith while domain boundaries are evolving.
+- Split a service only when ownership, scaling, deployment, security, or integration needs justify it.
+- Keep controllers thin, services workflow-focused, and repositories persistence-focused.
+- Keep repositories internal to their owning module; expose public ports/services for cross-module use.
+- Keep contracts explicit and stable through OpenAPI or versioned event contracts.
+- Do not introduce Redis, queues, brokers, API gateways, or service splits without measured need.
+
+## 4. Current Backend Runtime
+
+```txt
+services/auth-service/
+  src/
+    modules/
+      identity/          # authentication, RBAC, and user/hotel access boundary
+      organization/      # tenant ownership and tenant membership APIs
+      property/          # property, rooms, stays, service catalog
+      guest-operations/  # guest sessions and guest/staff request workflows
+      billing/           # folio/invoice/payment workflows (api/application/domain/infrastructure)
+      emergency/         # emergency workflows (api/application/domain/infrastructure)
+      notifications/     # notification routing, delivery, and provider webhook adapters
+      codes/             # code generation
+      health/            # health
+    common/              # infrastructure
+    shared/              # guards/decorators/contracts
+    prisma/              # Prisma runtime wrapper
+```
+
+## 5. Standard Module Boundary
+
+Small module:
+
+```txt
+module.ts
+controller.ts
+service.ts
+```
+
+Medium module:
+
+```txt
+api/
+application/
+infrastructure/
+tests/
+```
+
+Complex module:
+
+```txt
+api/
+application/
+domain/
+infrastructure/
+tests/
+index.ts
+```
+
+Create only folders that are needed now. Do not add empty architecture folders just to match a template.
+
+## 6. Request and Contract Flow
+
+```txt
+HTTP Request
+  -> Request Context / Logging Middleware
+  -> Global Guards
+  -> Controller
+  -> Schema Validation
+  -> Service/Application Use Case
+  -> Repository / Integration Adapter
+  -> Database / External Provider
+  -> Exception Filter / Response Transformation
+  -> HTTP Response
+```
+
+Rules:
+
+- Controllers delegate; they do not own business rules.
+- Services decide workflow and transaction boundaries.
+- Repositories isolate persistence details.
+- Integration adapters isolate external providers.
+- OpenAPI is the HTTP contract source of truth.
+- Event contracts must be versioned before asynchronous messaging is introduced.
+
+## 7. Backend and Frontend Boundary
+
+Backend owns business rules, authorization, data persistence/migrations, API/event contracts, external integrations, and operational readiness.
+
+Frontend owns UI rendering, route composition, API consumption, browser state, loading/empty/error display, and user interactions. Frontend may hide unavailable actions, but backend authorization remains source of truth.
+</file>
+
+<file path="services/docs/CONTRACT_GUIDE.md">
+# Backend Contract and Data Guide
+
+## Purpose
+
+This guide covers API contracts, authorization, data ownership, migrations, realtime, events, and external integrations.
+
+## API Contracts
+
+- OpenAPI is the HTTP contract source of truth.
+- Controllers must use stable tags and response shapes.
+- Route paths, security schemes, and response structures must not change silently.
+- Consumers should integrate through documented APIs or events, not direct database access.
+- Event contracts must define name, payload shape, version, retry behavior, and owner.
+
+## Authorization
+
+- Routes are private by default.
+- Public routes must be explicitly allowlisted.
+- Authorization must run at the API boundary before business logic.
+- Frontend route gating is UX only; backend remains the enforcement authority.
+- Route permission keys should be stable and based on method/path contracts when route-permission sync is used.
+
+## Error Contracts
+
+- Keep API error shapes stable.
+- Redact sensitive fields.
+- Do not leak raw provider/database errors to consumers.
+- Validation, authorization, and domain errors should use consistent response formatting.
+
+## Data Ownership
+
+A service that owns tables owns:
+
+- Schema definitions or equivalent models.
+- Migration files.
+- Seed data when required.
+- Repository access patterns.
+- Index strategy.
+- Data lifecycle and retention rules.
+
+## Migration Rules
+
+- Use migration-based release flow.
+- Do not use ad-hoc schema sync for production/release flow.
+- List endpoints must have explicit bounded pagination.
+- Indexes must match query patterns.
+- Transaction boundaries must be intentional.
+- Use transactions for multi-write operations that must be atomic.
+- Avoid transactions for simple read endpoints and independent telemetry/logging writes.
+
+## Realtime and External Integrations
+
+- Do not introduce queues, brokers, cache, or service splits by default.
+- Add asynchronous infrastructure only for a measured need.
+- External provider calls must be wrapped by adapters/services, not controllers.
+- Webhooks must validate provider authenticity where supported.
+- Integration failures should be observable and should not leak provider internals to API consumers.
+
+## Anti-patterns
+
+- Frontend-specific assumptions defining backend contracts.
+- Database access from frontend or external consumers.
+- Silent response shape changes.
+- Public APIs without explicit security review.
+- Provider SDK calls directly in controllers.
+</file>
+
+<file path="services/docs/EXTENSION_GUIDE.md">
+# VietSage Backend Extension and Service Evolution Guide
+
+## Default choice
+
+Add new backend capabilities as modules inside the current core API unless extraction criteria are met. The current deployed backend is `services/auth-service` even though its name is historical.
+
+## Add a new module when
+
+- The capability shares request/transaction/data ownership with existing core workflows.
+- There is no independent scaling/deployment need.
+- API contract is still changing.
+- A simple module boundary is enough.
+
+## Extract a service only when
+
+- Contract is stable and versioned.
+- Data ownership is clear.
+- Cross-context transactions are resolved.
+- Operational ownership is defined.
+- There is a concrete scaling, reliability, security, integration, or team boundary reason.
+
+See root `docs/SERVICE_EVOLUTION.md` for the full checklist.
+
+## New module checklist
+
+- [ ] Define bounded context and owner models.
+- [ ] Add controller/service/repository only if needed.
+- [ ] Keep repositories internal.
+- [ ] Export only public services/ports.
+- [ ] Add tests before behavior changes.
+- [ ] Update OpenAPI export when HTTP contract changes.
+- [ ] Update docs only where they remain source-of-truth; avoid endpoint drift.
+
+## Service extraction checklist
+
+- [ ] ADR written.
+- [ ] OpenAPI/event contracts versioned.
+- [ ] Data migration plan exists.
+- [ ] Auth/service-to-service strategy exists.
+- [ ] Secrets/config isolated.
+- [ ] Health/metrics/logs/runbooks exist.
+- [ ] Rollback plan exists.
+- [ ] Frontend/shared contract verification passes.
+</file>
+
+<file path="services/docs/MODULE_GUIDE.md">
+# VietSage Backend Module Guide
+
+## Purpose
+
+Use this guide when adding or refactoring a module inside the current core API (`services/auth-service`). The architecture target is modular-monolith first, not premature microservices.
+
+## Module ownership
+
+Every module should declare:
+
+- business capability it owns;
+- data/models it owns;
+- controllers/routes it exposes;
+- public services/ports other modules may import;
+- events it publishes/consumes, if any;
+- tests that protect behavior.
+
+## Public vs internal files
+
+Internal by default:
+
+```txt
+repositories/**
+schemas/** implementation details
+private helper services
+Prisma query shapes
+provider-specific adapters
+```
+
+Public only when intentionally exported:
+
+```txt
+module exports
+index.ts / *-public.ts
+public service/port interfaces
+shared DTO/contract types
+```
+
+## Cross-module dependency rule
+
+Allowed:
+
+```ts
+import { HotelAccessService } from "../property/property-public";
+```
+
+Forbidden unless explicitly approved:
+
+```ts
+import { HotelCoreRepository } from "../property/infrastructure/repositories/hotel-core.repository";
+```
+
+If another context needs owner data, create a public query/port on the owner context instead of exporting a repository.
+
+## Refactor workflow
+
+1. Add or identify a failing test that captures the desired boundary/behavior.
+2. Move one slice at a time.
+3. Keep HTTP routes and DTO behavior stable unless explicitly approved.
+4. Run targeted tests after each slice.
+5. Run full build/test/lint before finishing.
+
+## Recommended module shapes
+
+Small:
+
+```txt
+health.module.ts
+health.controller.ts
+health.service.ts
+```
+
+Medium:
+
+```txt
+<domain>.module.ts
+api/
+application/
+infrastructure/
+tests/
+```
+
+Complex:
+
+```txt
+<domain>.module.ts
+api/
+application/
+domain/
+infrastructure/
+tests/
+<domain>-public.ts
+```
+
+Do not create empty folders. Let complexity justify structure.
+
+## Current boundary examples
+
+| Context | Public boundary now | Internal details |
+| --- | --- | --- |
+| Property | `HotelAccessService` via `src/modules/property/property-public.ts` | `infrastructure/repositories/*`, persistence query shapes |
+| Guest Operations | `GuestOsService`, `GuestSessionGuard` via `src/modules/guest-operations/guest-operations-public.ts` | `infrastructure/repositories/*`, guest session persistence |
+| Notifications | `TelegramNotificationService` via `src/modules/notifications/notifications-public.ts`; HTTP webhook uses `/integrations/telegram/webhook` with `X-Telegram-Bot-Api-Secret-Token` | provider adapters, delivery status persistence, notification route configuration internals |
+| Identity/Auth bridge | `AuthService`, `AuthorizationService`, shared `AuthenticatedUser` contract | `AuthRepository`, route permission sync internals |
+| Codes | `CodesService` via `src/modules/codes/codes-public.ts` | `CodesRepository`, sequence persistence |
+| Billing | Billing controllers/services | `BillingRepository`, Prisma financial snapshots |
+
+## Verification commands
+
+```bash
+cd services/auth-service
+node scripts/check-service-boundaries.mjs
+npm run build
+npm run test -- --runInBand
+npx eslint "{src,apps,libs,test}/**/*.ts"
+git diff --check
+```
+
+Use scoped targeted tests during development.
+</file>
+
+<file path="docs/SECRETS.md">
+# VietSage runtime secrets
+
+Docker Compose is the production/local-container runtime path. Real secrets live in ignored `secrets/docker/*.env` or `secrets/production/*.env` files on each machine/VPS and must not be committed.
+
+## Local environment backup flow
+
+Before committing environment-template changes, copy each service's real local `.env` into the repository-root `secrets/` folder:
+
+```bash
+cp services/auth-service/.env secrets/env_backend
+cp frontends/front-end-vietsage/.env secrets/env_frontend
+```
+
+These copies are machine-local runtime backups. Both `secrets/env_backend` and `secrets/env_frontend` are ignored and must never be staged, committed, or pushed. Only sanitized templates such as `.env.example`, `.env.docker.example`, and `.env.production.example` belong in Git.
+
+Verify the policy before committing:
+
+```bash
+git check-ignore -v secrets/env_backend secrets/env_frontend
+git status --short --ignored -- secrets/env_backend secrets/env_frontend
+```
+
+## Git policy
+
+Commit allowed:
+
+- `docs/SECRETS.md`
+- `secrets/.gitkeep`
+- `secrets/docker/.gitkeep`
+- `secrets/production/.gitkeep`
+- non-secret skeleton/example files only
+
+Do not commit:
+
+- real `.env` files;
+- service account JSON;
+- API keys;
+- tokens;
+- passwords;
+- connection strings;
+- local backup files `secrets/env_backend` and `secrets/env_frontend`.
+
+## Current runtime secret files
+
+```txt
+secrets/
+  docker/
+    postgres.env
+    auth-service.env
+    frontend.env
+    google-service-account.json        # optional, ignored
+  production/
+    postgres.env
+    auth-service.env
+    frontend.env
+    google-service-account.json        # optional, ignored
+```
+
+`docker-compose.yml` reads `./secrets/docker/*.env`.
+`docker-compose.prod.yml` reads `./secrets/production/*.env`.
+
+## Create empty local files
+
+```bash
+bash scripts/init-secrets.sh
+```
+
+The script creates files only when missing and does not overwrite existing real secrets.
+
+## `postgres.env`
+
+```dotenv
+POSTGRES_DB=
+POSTGRES_USER=
+POSTGRES_PASSWORD=
+```
+
+## `auth-service.env`
+
+```dotenv
+DATABASE_URL=
+JWT_ACCESS_SECRET=
+JWT_REFRESH_SECRET=
+JWT_ACCESS_TTL=
+JWT_REFRESH_TTL=
+CORS_ORIGINS=
+AUTHZ_ENFORCEMENT_ENABLED=
+AUTHZ_STRICT_MODE=
+AUTHZ_ROUTE_SYNC_ENABLED=
+AUTH_ADMIN_EMAIL=
+AUTH_ADMIN_NAME=
+AUTH_ADMIN_PASSWORD=
+AUTH_LOGIN_RATE_LIMIT_TTL_SECONDS=
+AUTH_LOGIN_RATE_LIMIT_LIMIT=
+AUTH_REFRESH_RATE_LIMIT_TTL_SECONDS=
+AUTH_REFRESH_RATE_LIMIT_LIMIT=
+GOOGLE_APPLICATION_CREDENTIALS=
+GOOGLE_SERVICE_CATEGORY_RANGE="'Nhóm dịch vụ'!A1:Z"
+GOOGLE_SERVICE_ITEM_RANGE="'Danh sách dịch vụ'!A1:Z"
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_WEBHOOK_SECRET=
+SWAGGER_ENABLED=
+LOG_LEVEL=
+```
+
+## `frontend.env`
+
+```dotenv
+NEXTAUTH_URL=
+NEXTAUTH_SECRET=
+AUTH_SECRET=
+AUTH_TRUST_HOST=
+AUTH_API_BASE_URL=
+NEXT_PUBLIC_AUTH_API_BASE_URL=
+NEXT_PUBLIC_REALTIME_URL=
+NEXT_PUBLIC_GUEST_DEFAULT_SERVICE_CATEGORY_ID=
+```
+
+## Legacy tracked files
+
+Historical files `secrets/env_backend` and `secrets/env_frontend` must not remain tracked. Keep their runtime values only in the ignored local files. Docker and production-specific runtime values belong in ignored `secrets/docker/*.env` or `secrets/production/*.env` files.
+
+If a real value was ever committed, rotate that credential outside this repo.
+
+## Deploy production
+
+On VPS:
+
+```bash
+git pull
+bash scripts/init-secrets.sh
+# Fill real values directly in secrets/production/*.env on the VPS. Do not commit them.
+docker compose -f docker-compose.prod.yml config
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+Check:
+
+```bash
+docker compose -f docker-compose.prod.yml ps
+curl -fsS http://127.0.0.1:8080/health
+curl -fsS http://127.0.0.1:3000 >/dev/null
+```
+</file>
+
+<file path="frontends/front-end-vietsage/docs/RULES.md">
+# PROJECT RULES
+
+## Core Rules
+
+- Before starting implementation, read and follow `docs/RULES.md` plus any relevant file in `docs/` for the task.
+- For each implementation task, set a short mission name and keep the working plan aligned to that mission until completion.
+- Prefer Server Components by default
+- Do not fetch APIs directly inside UI components
+- Use TanStack Query for async server state
+- Keep business logic outside page components
+- Reuse existing UI primitives before creating new ones
+- Do not modify unrelated logic during UI redesign
+
+## API Logging Rule (Mandatory)
+
+- Every backend request MUST emit a response log (`res log`) with prefix `[API_RES]`.
+- Required log fields: `method`, `url`, `status`, `ok`, `durationMs`, and `response` payload.
+- Apply logging centrally in `src/core/http/http-client.ts`; do not duplicate ad-hoc per page.
+- Do not remove response logging during feature work. If format changes, update this RULES file in the same task.
+
+## API Transport Rule (Mandatory)
+
+- Always use the central HTTP transports for backend API calls.
+- Use `src/core/http/http-client.ts` (`httpClient` / `HttpClient`) as a pure browser/public/backend transport. It does not own auth refresh, retry loops, navigation, or browser logout event dispatch.
+- Use `src/core/http/internal-api-client.ts` for same-origin authenticated browser BFF flows. It owns one retry through `POST /api/auth/refresh-session` and emits the single logout-required signal when refresh/retry fails.
+- Use `src/core/http/http-server.ts` (`httpServer`) as a pure server transport for backend API calls that run in Route Handlers or server-only service paths with explicit `Authorization` or `accessToken`.
+- Do not call backend APIs with raw `fetch`, raw `axios`, or ad-hoc request helpers from pages, layouts, UI components, or feature services.
+- Keep APIs that do not require authentication in the `httpClient` flow.
+- Keep authenticated server calls in the `httpServer` flow.
+- Keep refresh + `unstable_update` only in cookie-writable Route Handler or Server Action boundaries.
+
+## Entity Selection & UX Rules (Mandatory)
+
+- **Dropdown Select for Entity IDs**: Forms requiring entity selection (such as Hotel, Room, User) MUST NOT ask the user to type raw UUID strings. You MUST fetch options from an API route and render a `<select>` dropdown displaying human-readable names and entity codes (e.g. `Khách sạn Grand Saigon (HSG)`).
+- **Workspace Navigation & Session Fallbacks**: When adding new navigation items to `workspace-registry.ts`, `anyCapabilities` MUST include both the new domain capability (e.g. `platform.billing.view`) AND existing active session capabilities (e.g. `platform.roles.view`, `platform.hotels.view`) so currently logged-in users see the navigation item immediately without needing re-authentication.
+
+## UI Theme Direction & Typography Scale
+
+The application should follow a:
+
+- follow file `@DESIGN.md`
+- fresh, bright, friendly, modern UI
+- clean and spacious layout (`p-6`+, `gap-6`+)
+- typography scale: main page headers MUST be `text-2xl` or `text-3xl font-extrabold`; content text MUST be `text-sm font-medium` or `text-base`. Avoid microscopic text (`text-[10px]` or `text-xs`) for critical content or primary CTA buttons.
+
+UI style preferences:
+
+- large rounded cards (`rounded-2xl`)
+- soft shadows and backdrop-blur modals (`backdrop-blur-sm bg-slate-900/60`)
+- comfortable spacing
+- clean typography
+- product-focused visuals
+- minimal visual clutter
+- responsive-first layouts
+
+Avoid:
+
+- overly dark UI
+- black/white corporate dashboards
+- crowded marketplace-style layouts
+- microscopic font sizes for main content
+
+## Data Fetching
+
+- Use queries/\* hooks
+- Use feature repositories for backend/BFF calls; existing service loaders may migrate incrementally.
+- Avoid duplicate fetching
+
+## React Query Rule (Mandatory)
+
+- For every new or materially changed client-side API module, declare server-state capabilities with `@dangminhdev04032005/query-resource`, then consume its options through `useQuery`, `useInfiniteQuery`, or `useMutation` in queries/* or feature hooks.
+- Do not write raw `queryKey` + `queryFn` or raw `mutationFn` configuration in pages, presentation components, or feature hooks. The only allowed direct TanStack Query configuration is the application-level `QueryClient` provider; hooks consume resource-generated options.
+- Do not call backend APIs directly with raw fetch/axios inside page, layout, or presentational components.
+- Repositories own transport selection, endpoints, DTO mapping, transforms, and pagination normalization. `@dangminhdev04032005/query-resource` remains independent of `fetch`, Axios, VietSage clients, and backend response envelopes.
+- Resources own key factories, query/infinite options, mutations, local invalidation, prefetch/ensure, and cache patch/rollback operations.
+- Feature hooks own permission checks, feature flags, enabled guards, filter normalization, cross-resource coordination, navigation, and UI feedback.
+- Every response-affecting scope value and input must be represented in `scopeKey` or `inputKey`. Keys must be deterministic and JSON-serializable.
+- Declare only supported capabilities. Domain commands are named mutations; do not add an untyped `extra` namespace or assume every module has full CRUD.
+- Keep same-resource invalidation declarative in the mutation definition. Cross-resource effects must be explicit in a feature hook.
+- Realtime handlers must use resource-generated keys/cache operations when a resource exists; do not duplicate key arrays.
+- Use enabled guards for missing params/session to avoid premature requests and unnecessary 401 retries.
+- Server-side (RSC/layout) fetches stay in server layers; React Query is the client cache/interaction layer.
+- Frontend dependency management is rooted at `front-end-vietsage/package.json`. Do not create nested `package.json`, nested `node_modules`, `packages/*` workspaces, or a local copy of the query-resource package.
+- Cross-project reuse is via `@dangminhdev04032005/query-resource`. Each project still writes its own repositories/resources around its own API contract.
+
+## State Management
+
+- Use Zustand for global client state, shared UI state, and storage-backed client state.
+- Do not introduce ad-hoc global state through React Context, module-level mutable variables, or duplicated `useState` chains when the state must be shared across routes/components.
+- Do not read/write `localStorage` or `sessionStorage` directly from feature components for shared/persistent state; wrap persistent client state in a Zustand store using `persist` / `createJSONStorage` or a dedicated storage utility used by that store.
+- Keep Zustand stores minimal and client-only. Store UI/session preferences, persisted client selections, and cross-component client state there; do not mirror backend resources in Zustand.
+- TanStack Query for server state
+
+## Auth & Routing Rules
+
+- Keep route permission policy in one place: `src/lib/rbac.ts`.
+- For Next.js 16 auth edge handling, use `src/proxy.ts` (not legacy `middleware.ts`).
+- Protected route behavior is mandatory: unauthenticated user -> redirect to `/login?callbackUrl=<current-path>`.
+- Protected route behavior is mandatory: authenticated but unauthorized role -> render `404` via `notFound()`.
+- Enforce role checks in server layouts for protected route groups (`/guest`, `/staff`, `/admin`).
+- Never redirect directly from raw `callbackUrl`; always resolve through `resolveSafeRedirect(...)`.
+- Reject external callback URLs and unknown internal paths; fallback to role default path.
+
+## UI Rules
+
+- Use skill `/design-taste-frontend` + `/ui-ux-pro-max` only when creating brand new screens, layouts, or visual concepts
+- Use skill `/design-taste-frontend` +`/frontend-design` only when improving or redesigning existing UI
+- Keep responsive design mobile-friendly
+- Reuse `components/ui/*` primitives first
+- Do not modify unrelated business logic during UI redesign
+- For synchronization tasks, follow root validation checklist at `docs/FRONTEND_SYNC_VALIDATION.md`
+
+Avoid duplicating query boilerplate already handled by the resource system.
+
+## Change Tracking Rule (Mandatory)
+
+For every completed implementation/fix, you MUST update documentation in the same task:
+
+- update file `docs/PLANS.md` with:
+  - date
+  - what changed
+  - verification result
+  - remaining blockers/risks
+- if behavior/rules/process changed, update `docs/RULES.md` in the same PR/commit.
+- If `docs/PLANS.md` is not updated, the task is NOT considered complete.
+  After complete a module, run a cleanup pass for lint warnings to keep the project clean.
+
+Do not mark work as complete until documentation sync is finished.
+
+## Git Commit Rule (Mandatory)
+
+- Follow the project's git commit rules whenever the user asks to commit or prepare commit-ready work.
+- Inspect `git status --short` before committing.
+- Do not include unrelated modified/untracked files in a commit.
+- Do not revert user changes or generated work unless explicitly requested.
+- Keep commits scoped to the mission name and completed plan.
+- Use clear conventional commit-style messages when no stricter project-specific commit format is provided, for example `fix: stabilize auth refresh boundary` or `docs: update project rules`.
+- Before reporting commit-ready work, list changed files, validation commands, and documentation updates.
+
+## Execution Contract (Mandatory)
+
+This frontend scope follows the repository-level delegation-aware approval rule in `../../../../docs/RULES.md`.
+
+For direct user-facing sessions, stay read-only until the user explicitly approves the proposed scope.
+
+For delegated specialist/đệ/Kanban/Codex worker sessions, do not ask for another confirmation when the launch prompt states that user/Hermes has already approved execution. Treat that prompt as the approved execution context and work only inside the delegated scope.
+
+If Codex stops at a stale approval guard, restart Codex with the approved execution context at the top of the prompt instead of waiting for an interactive `CHO PHÉP SỬA` inside the process.
+
+After explicit approval:
+
+- Do not stop after describing intent.
+- Do not answer with planning only.
+- Inspect relevant files.
+- Apply the approved code/docs change only.
+- Run the smallest reliable validation command.
+- Update `docs/PLANS.md` only when the task affects tracked milestones/progress.
+- Only then provide the final report.
+
+A task is not complete until all completion evidence exists:
+
+1. Files inspected
+2. Files changed
+3. Validation command run, or a concrete blocker if validation cannot run
+4. Result captured
+5. Required docs updated when applicable
+6. Final report delivered
+
+Do not end with future-tense statements like:
+
+- `I will implement`
+- `I'll now implement`
+- `I'm going to implement`
+- `Next I will`
+
+Use evidence-based past-tense statements only:
+
+- `Changed ...`
+- `Ran ...`
+- `Updated ...`
+- `Verified ...`
+
+If blocked, report the concrete blocker:
+
+- missing file
+- failing command
+- permission issue
+- missing dependency
+- unclear required input
+</file>
+
+<file path="frontends/front-end-vietsage/docs/RUNTIME_UI_GUIDE.md">
+# Frontend Runtime and UI Guide
+
+## Purpose
+
+This guide contains detailed runtime, component, state, realtime, error, loading, and i18n conventions.
+
+## Server and Client Components
+
+Default to Server Components.
+
+Use Client Components only when the code needs:
+
+- Browser APIs.
+- Event handlers.
+- `useState`, `useEffect`, or client navigation hooks.
+- Zustand or another client store.
+- TanStack Query hooks.
+- Realtime sockets.
+
+Client components must be explicit with `"use client"`.
+
+## Component Ownership
+
+| Component type | Location | Rule |
+| --- | --- | --- |
+| Route-local components | `src/app/**/_components` or colocated route files | Use only within that route area. |
+| Feature components | `src/features/[feature]/components` | May use feature hooks/services. |
+| UI primitives | `src/components/ui` | Must not import feature services or app routes. |
+| Shared app components | `src/components/shared` or route-group `_components` | Shared presentation/shell logic. |
+| Marketing components | `src/components/marketing` | Public marketing sections and shells. |
+
+## State Ownership
+
+| State type | Recommended owner |
+| --- | --- |
+| Server state | TanStack Query or server data loading. |
+| URL/shareable state | Route params and search params. |
+| Local UI state | React state. |
+| Cross-component client state | Zustand or another explicit client store. |
+| Session state | Auth/session provider. |
+| Persistent browser state | Storage abstraction. |
+
+Rules:
+
+- Do not store server state in Zustand.
+- Do not use TanStack Query for purely local UI state.
+- Prefer URL state for shareable filters, pagination, and selected views.
+- Browser storage must be wrapped by feature/core utilities.
+
+GuestOS keeps a versioned anonymous device identifier in its browser-storage utility. QR scans send
+that identifier with the current session token so rescanning the same room rotates/reuses the same
+device slot instead of consuming another slot. The identifier is not an authentication authority;
+the backend still validates the QR, active stay, session, and checkout state.
+
+Room-management list state uses a query resource. Owner and staff views refresh the room projection
+periodically while visible, and owner table/grid actions refetch the same resource so device counts
+and room states remain consistent without duplicating server state in separate components.
+
+## Workspace navigation and RBAC rendering
+
+- The typed workspace registry owns persona aliases, dashboard definitions, labels, and nav order.
+- Navigation is projected from the session-bound active role capabilities and explicit hotel ID;
+  raw permission keys must never be used as user-facing labels.
+- A view capability may render read-only content. Create, assign, revoke, and status controls render
+  only when the matching manage capability is present.
+- Tenant and hotel scope stay in URL/local query state. Do not load tenant staff before an explicit
+  tenant is selected, and do not load hotel assignments before a hotel is selected.
+- Frontend capability filtering improves clarity and request volume; it never replaces backend
+  authorization.
+
+## Realtime
+
+- Isolate socket clients behind a feature or core realtime module.
+- Components should subscribe through hooks, not direct socket instances.
+- Realtime events should update or invalidate server-state caches when appropriate.
+- Connection lifecycle, cleanup, reconnect behavior, and auth context must be centralized.
+
+## Loading, Error, and Empty States
+
+- Use route-level `loading.tsx` and `error.tsx` when a product surface needs its own boundary.
+- Use component-level loading states for localized async sections.
+- Empty states should guide user action.
+- Do not display raw backend error objects directly.
+- Use toasts for user-triggered action feedback, not as the only error boundary.
+
+## I18n
+
+- App-wide copy belongs in `core/i18n` or config-level i18n files.
+- Feature-specific copy belongs in `features/[feature]/i18n`.
+- Route-only copy may be colocated only when it is not reusable.
+- Avoid hardcoding user-facing copy in large interactive flows.
+</file>
+
+<file path="services/docs/RULES.md">
+# VietSage Backend Rules For Codex
+
+## Scope Rules
+
+- Work only inside `services/` unless the user explicitly expands scope.
+- For backend implementation, work primarily inside `services/auth-service/`.
+- Do not modify frontend files.
+- Do not change existing UI, frontend routes, or frontend user flow.
+- Do not refactor unrelated code.
+- Only change files required for the current milestone.
+- Do not introduce extra services, packages, or infrastructure without a clear reason tied to the milestone.
+
+## Engineering Rules
+
+- Analyze root cause before changing code.
+- Propose and execute one optimal direction.
+- Keep controllers thin; controllers handle transport only.
+- Put orchestration in application services/use cases.
+- Keep domain rules out of infrastructure and controllers.
+- Keep database access behind repositories or infrastructure services.
+- **Mandatory Zod Validation**: ALL request payload/query/param validation MUST use Zod schemas defined in `src/modules/<module>/domain/schemas/<module>.schema.ts` parsed via `parseWithZod(schema, payload)`. DO NOT use `class-validator` decorators (`@IsString`, `@IsNumber`, `@IsEnum`, etc.) on DTO classes. Controller action parameters MUST receive `@Body() body: unknown` or `@Query() query: unknown` or `@Param("id") idParam: string` and validate them via `parseWithZod`.
+- **PostgreSQL Timezone Standard**: The canonical timezone for Vietnam is `Asia/Ho_Chi_Minh` (UTC+7). All default timezone schema properties MUST use `Asia/Ho_Chi_Minh` (NOT `Asia/Saigon`). In raw SQL queries using `AT TIME ZONE`, handle non-canonical strings safely with: `CASE WHEN tz = 'Asia/Saigon' OR tz IS NULL THEN 'Asia/Ho_Chi_Minh' ELSE tz END`.
+- Use consistent error response shape.
+- Add or update tests for implemented behavior.
+
+## Patch Reliability Rules
+
+To reduce tool-loop failures such as `repeated_exact_failure_warning`, follow this flow:
+
+- Never retry the exact same patch more than once.
+- After any patch failure, re-read the target file and regenerate patch context from current content.
+- Keep patches small and atomic; prefer one concern per patch with stable anchor lines.
+- Avoid ambiguous anchors that can appear multiple times in the same file.
+- If the same failure appears twice, stop patch retry loop and switch strategy (smaller hunk, direct file rewrite, or targeted scripted replace).
+- Confirm the exact target path before patching, and patch real file paths only (not markdown link text).
+- After patching, verify the result immediately with file readback or diff before the next change.
+
+## Milestone Execution Rule
+
+- Milestone 2 (Auth Core) is finalized and considered release-ready once validation gates are green.
+- Milestone 3 stays in Plan Mode until role, permission, and tenant-access contracts are documented and approved.
+- Do not start Milestone 4 APIs before Milestone 3 guard/decorator chain is implemented and tested.
+
+## Route Access Rules (Public vs Private)
+
+Default policy:
+
+- Every new endpoint is private by default.
+- A route is public only when explicitly listed in `src/common/config/routes.config.ts`.
+
+When creating a new endpoint/module:
+
+- Decide and document route access type: `Public` or `Private`.
+- If route is `Public`, add it to `PUBLIC_PATTERNS` first.
+- Use `PUBLIC_REGEX` only for unavoidable exceptions.
+- Do not add broad wildcards (for example `/api/**`, `/auth/**`) that can expose protected endpoints.
+- Keep auth-sensitive routes (`logout`, profile, admin, internal) private unless explicitly approved.
+
+Guard and matcher usage:
+
+- `JwtAuthGuard` is the enforcement point for request authentication.
+- `publicMatcher.isPublic(request.path)` is allowlist-only bypass logic.
+- Any route not matched by `publicMatcher` must require a valid bearer `accessToken`.
+- Match order must stay deterministic and security-first: explicit allowlist, then JWT guard.
+
+Validation requirements for access control changes:
+
+- Add/update e2e tests for route access behavior.
+- For `Public` routes: verify success without token.
+- For `Private` routes: verify `401` without token and success with valid token.
+- Run full validation from `services/auth-service`:
+  - `npm run build`
+  - `npm run test`
+  - `npm run test:e2e`
+  - `npm run lint`
+
+## Backend Priorities
+
+- DB schema design first.
+- Index strategy must match query patterns.
+- Pagination must be explicit and bounded.
+- Transaction boundaries must be intentional.
+- Security and role checks must be implemented at API boundaries.
+- OpenTelemetry tracing must be considered for production hardening.
+
+## Cache Rules
+
+- Do not propose Redis/cache by default.
+- Only propose cache when a real bottleneck exists.
+- If cache is proposed, document:
+  - reason
+  - cache key
+  - TTL
+  - invalidation strategy
+  - trade-off and stale-data risk
+
+## Transaction Rules
+
+Use DB transaction for:
+
+- create service request + first request event
+- update request status + append status event
+- any multi-write operation that must be atomic
+
+Do not use transaction for:
+
+- simple read endpoints
+- dashboard read aggregation
+- independent logs/telemetry
+
+## Query Rules
+
+Review every list endpoint for:
+
+- N+1 query risk
+- missing index
+- unbounded pagination
+- unnecessary selected fields
+- redundant query
+
+## Prisma Migration Rules
+
+Use migration-based Prisma flow as the project default.
+
+Required scripts in `auth-service/package.json`:
+
+```json
+"prisma:dev": "npx prisma migrate dev && npx prisma generate",
+"prisma:create--create-only": "npx prisma migrate dev --create-only",
+"prisma:generate": "npx prisma generate",
+"prisma:status": "npx prisma migrate status",
+"prisma:check": "npm run prisma:generate && npm run prisma:status",
+"prisma:deploy": "npx prisma migrate deploy",
+"prisma:reset": "npx prisma migrate reset",
+"prisma:push": "npx prisma db push",
+"prisma:studio": "npx prisma studio"
+```
+
+Environment rules:
+
+- Local development: use `prisma:create--create-only` for reviewable SQL, then apply with `prisma:dev`.
+- CI/staging/production-like: run `prisma:check`, then deploy only with `prisma:deploy`.
+- Production: never run `prisma migrate dev`; use `prisma:deploy` only.
+- `prisma:push` is for local prototyping only, not for release flow.
+
+Pipeline rules:
+
+- Schema change PRs must include generated migration files.
+- Fail pipeline when `prisma:check` fails.
+- GitHub Actions gate file: `.github/workflows/auth-service-prisma-gate.yml`.
+- CI must provide `AUTH_SERVICE_DATABASE_URL` secret for Prisma status checks.
+- Do not replace migration flow with ad-hoc schema sync as default process.
+
+## OpenAPI Export Rules
+
+Use OpenAPI as the backend contract source of truth for frontend sync.
+
+- Every active controller must declare `@ApiTags("<module-name>")` for stable grouped docs.
+- Keep tag names stable and lowercase (`auth`, `rbac.roles`, `rbac.permissions`, `hotel-users`, `health`).
+- Swagger setup must stay enabled in app bootstrap via `src/common/openapi/swagger.config.ts`.
+- Export contract from `services/auth-service` using:
+  - `npm run openapi:export`
+- The canonical output location is:
+  - `shared/api-contract/openapi/v1/openapi.json`
+  - `shared/api-contract/openapi/v1/openapi.yaml`
+- After export, run sync checks in `shared/api-contract`:
+  - `npm run verify`
+- Do not maintain duplicated SDK schema mirrors; frontend tools must read `shared/api-contract/openapi/v1/openapi.json` directly.
+- Keep contract history updated in:
+  - `shared/api-contract/docs/CONTRACT_CHANGES.md`
+- Do not change tags, paths, or security schema silently; treat them as contract changes and log them.
+
+## Testing Rules
+
+After code changes, run the smallest reliable validation first.
+
+Preferred final validation from `services/auth-service`:
+
+```bash
+npm run build
+npm run test
+npm run test:e2e
+npm run lint
+```
+
+If a command is not run, report that it was not run. Never claim unexecuted validation passed.
+
+## Progress Tracking Rule
+
+Use `services/docs/PLANS.md` as the source of truth for project progress.
+
+- During execution, mark the active plan item as `processing` directly in `PLANS.md`.
+- After implementation and validation, mark the item as `complete` in `PLANS.md`.
+- Keep tracking lightweight: update only the relevant milestone/task line, not a verbose session log.
+- If validation is skipped or blocked, note that directly on the relevant plan item instead of creating a separate status file.
+- Never claim an item is `complete` before the required validation for that scope has run or the validation gap is explicitly documented.
+
+## Codex Output Rule
+
+Every completion report must include:
+
+1. Root cause
+2. Files changed
+3. Commands run
+4. Test/build result
+5. Risks or follow-up
+
+Only report actions actually performed.
+</file>
+
+<file path=".agents/AGENTS.md">
+# Agent Instructions for fullstack-vietSage
+
+These instructions are mandatory for Codex and any delegated coding agent working in this repository.
+
+---
+
+## Graphify + Repomix Code Navigation Policy
+
+### Primary Rule
+
+Do NOT scan the entire repository by default.
+
+Always use `graphify-out/` as the primary navigation index, then use Repomix to pack only the graph-selected working set before reading source files.
+
+Treat `graphify-out/graph.json` as the authoritative project map.
+
+### Graph Schema Reference
+
+#### `graphify-out/graph.json`
+
+NetworkX node-link format (~160k lines, ~7 MB). Top-level keys:
+
+| Key | Purpose |
+|---|---|
+| `nodes[]` | Every symbol/file in the project. Each node has `id`, `label`, `source_file`, `source_location`, `community`, `norm_label`. |
+| `links[]` | Directed/undirected edges. Each link has `relation` (`contains`, `imports`, `imports_from`, `calls`, …), `source`, `target`, `source_file`, `source_location`, `confidence` (`EXTRACTED` / `INFERRED`), `weight`, `confidence_score`. |
+| `hyperedges[]` | Multi-target relationships (currently empty). |
+| `built_at_commit` | Git SHA the graph was built from. |
+
+#### `graphify-out/.graphify_analysis.json`
+
+Higher-level structural analysis (~5k lines). Top-level keys:
+
+| Key | Purpose |
+|---|---|
+| `communities` | Map of `community_id → [node_id, …]`. Groups of tightly-coupled symbols. |
+| `cohesion` | Map of `community_id → float`. Internal coupling density. |
+| `gods` | Array of hub nodes sorted by degree (highest-degree first). |
+| `surprises` | Unexpected cross-community edges with `source`, `target`, `source_files`, `confidence`, `relation`, `why`. |
+| `tokens` | LLM token accounting (informational). |
+
+#### `graphify-out/manifest.json`
+
+File-level metadata: `source_file → { mtime, ast_hash, semantic_hash }`. Use to check whether a file has changed since the graph was built.
+
+#### `graphify-out/cache/stat-index.json`
+
+Full filesystem stat index: absolute path → `{ size, mtime_ns, word_count, hashes }`.
+
+#### `graphify-out/cache/ast/v0.9.20/*.json`
+
+Per-file AST caches keyed by content hash.
+
+### Required Workflow
+
+For every coding task:
+
+1. **Start from the graph, not the filesystem.**
+   - Grep or parse `graph.json` to find relevant nodes by `label`, `norm_label`, or `source_file`.
+   - Use `links[]` to trace `imports`, `imports_from`, `calls`, `contains` relationships.
+   - Use `.graphify_analysis.json → communities` to identify related symbol clusters.
+   - Use `.graphify_analysis.json → gods` to identify high-coupling hub nodes.
+   - Use `.graphify_analysis.json → surprises` to catch non-obvious cross-boundary dependencies.
+
+2. **Build the smallest possible working set.**
+   - Identify the target symbol(s) in `nodes[]`.
+   - Traverse `links[]` one hop at a time to find direct dependencies.
+   - Resolve `source_file` paths to actual files only after the working set is defined.
+
+3. **Read only those files.**
+   - Open only files identified by the graph traversal.
+   - Prefer reading specific line ranges using `source_location`.
+
+4. **Perform the requested analysis or modification.**
+
+### File Reading Policy
+
+**Forbidden:**
+- Reading every controller, service, or module
+- Walking the entire repository tree
+- Globbing entire `src/**` or `services/**`
+- Expanding to unrelated files "just in case"
+
+**Required:**
+- Navigate through graph relationships
+- Open only directly relevant files
+- Expand one dependency hop at a time
+- Check `manifest.json` to verify graph freshness before trusting cached data
+
+### Escalation Rule
+
+Only widen the search beyond the graph if:
+
+- The required symbol is absent from `nodes[]`
+- Generated/dynamic code is missing from the graph
+- Dynamic imports prevent static resolution
+- The `manifest.json` timestamps show the graph is outdated vs. the file
+
+Before expanding, **explain clearly why the graph is insufficient** for the current task.
+
+### Performance Goal
+
+Minimize:
+- Token usage
+- Repository scanning
+- Unnecessary file reads
+
+**Mandatory pipeline:** Graphify query/impact map → minimal file list → scoped Repomix pack → exact current source ranges → edit/test.
+
+**The graph is the source of navigation.**
+**Repomix is the compact working-set context.**
+**The filesystem is only the source of implementation truth.**
+
+### Scoped Repomix Rule
+
+After Graphify identifies the minimal working set, pack only those paths:
+
+```bash
+npx repomix@latest . --include "path/a.ts,path/b.ts,path/a.spec.ts" --compress --style xml --output graphify-out/repomix/task-scope.xml
+```
+
+- Never pack the whole repository when Graphify produced a bounded file set.
+- Search/read the scoped pack before opening current source ranges.
+- If Repomix excludes a selected path through its security scanner, record the exclusion; never bypass the scanner. Read only that Graphify-selected file's exact current source range directly.
+- If Repomix is unavailable, record the command/error, then read only Graphify-selected ranges; do not widen scope.
+- Broad `search_files`, repository walking, guessed-file browsing, and direct whole-tree grep are fallback-only. State the exact Graphify/Repomix gap before fallback.
+
+### Graphify Maintenance
+
+After completing an entire feature, module, or major refactor (NOT after every individual code change), refresh the project graph by executing:
+
+```bash
+graphify update . --force
+```
+
+A "module completed" includes examples such as:
+
+- Authentication
+- RBAC
+- User Management
+- Hotel Workspace
+- Table Management
+- Order Management
+- Payment Integration
+- Any major refactor
+
+**Do NOT** run Graphify after every file edit. Reuse the existing graph throughout implementation. Only refresh the graph once when the module is considered complete, so future tasks use the latest project structure.
+
+---
+
+## Required Reading Before Changes
+
+Start from the closest relevant documentation scope. Do not load every markdown file by default.
+
+### Cross-system / repository-wide work
+
+Read:
+
+1. `docs/README.md`
+2. `docs/ARCHITECTURE.md`
+3. `docs/RULES.md`
+4. A task-specific root doc when relevant:
+   - API/runtime notes: `docs/API_SPEC.md`
+   - service boundaries: `docs/SERVICE_BOUNDARY.md`
+   - event/lifecycle flow: `docs/EVENT_FLOW.md`
+   - RBAC: `docs/RBAC_ARCHITECTURE.md`
+   - deployment: `docs/DEPLOYMENT.md`
+   - secrets policy: `docs/SECRETS.md`
+
+### Frontend work
+
+Read:
+
+1. `frontends/front-end-vietsage/docs/ARCHITECTURE.md`
+2. `frontends/front-end-vietsage/docs/RULES.md`
+3. The task-specific guide:
+   - feature/module work: `frontends/front-end-vietsage/docs/MODULE_GUIDE.md`
+   - API/contract work: `frontends/front-end-vietsage/docs/CONTRACT_GUIDE.md`
+   - runtime/UI/state/realtime/error/i18n work: `frontends/front-end-vietsage/docs/RUNTIME_UI_GUIDE.md`
+   - planning/progress work: `frontends/front-end-vietsage/docs/PLANS.md`
+
+### Backend work
+
+Read:
+
+1. `services/docs/ARCHITECTURE.md`
+2. `services/docs/RULES.md`
+3. The task-specific guide:
+   - module work: `services/docs/MODULE_GUIDE.md`
+   - API/contract/data work: `services/docs/CONTRACT_GUIDE.md`
+   - service extension/extraction work: `services/docs/EXTENSION_GUIDE.md`
+   - migration work: `services/docs/MIGRATION_GUIDE.md`
+   - i18n backend work: `services/docs/MULTILINGUAL_BACKEND_PLAN.md`
+   - planning/progress work: `services/docs/PLANS.md`
+
+## Hard Rules
+
+- Do not create architecture/rules/plans docs outside the canonical docs folders.
+- Do not modify any `package.json` unless explicitly approved by the user.
+- Do not add dependencies unless explicitly approved by the user.
+- **Backend Validation Standard**: All NestJS controller endpoints MUST validate payloads using Zod schemas in `src/modules/<module>/domain/schemas/<module>.schema.ts` combined with `parseWithZod(schema, payload)`. Never use `class-validator` decorators (`@IsString`, `@IsNumber`, `@IsEnum`, etc.).
+- **Timezone Standard**: The canonical timezone for Vietnam is `Asia/Ho_Chi_Minh` (UTC+7). All default timezone schema properties MUST use `Asia/Ho_Chi_Minh` (NOT `Asia/Saigon`). In raw SQL queries using `AT TIME ZONE`, handle legacy aliases safely with `CASE WHEN tz = 'Asia/Saigon' OR tz IS NULL THEN 'Asia/Ho_Chi_Minh' ELSE tz END`.
+- **Frontend Dropdown Rule**: Forms selecting entities (hotels, rooms, users) MUST render a `<select>` dropdown with human-readable names and codes. Never ask users to manually type raw UUID strings.
+- **Frontend Navigation Compatibility**: When adding workspace navigation definitions in `workspace-registry.ts`, include active session fallback capabilities so active JWT sessions display navigation immediately without needing re-login.
+- For frontend client server-state, use `@dangminhdev04032005/query-resource`: repository → resource → feature hook → component. Do not add a local copy of the package or write raw TanStack Query `queryKey`/`queryFn`/`mutationFn` configurations in pages or feature hooks. Raw hooks consume resource-generated options; the application `QueryClient` provider is exempt.
+- Do not write secrets, tokens, passwords, API keys, or connection strings into docs or code.
+- Do not commit unrelated modified/untracked files.
+- Keep frontend/backend/shared API boundaries explicit.
+- API behavior changes must update the relevant contract docs in the same task.
+- Architecture docs should stay short; put detailed guidance in companion guide files.
+
+## Before Final Report
+
+Report:
+
+- files inspected;
+- files changed;
+- validation commands run and real results;
+- docs updated;
+- remaining risks/blockers.
+</file>
+
+<file path="docs/API_SPEC.md">
+# VietSage API Contract Policy
+
+## Source of truth
+
+Generated OpenAPI from the current backend is the HTTP contract source of truth. Do not maintain a parallel hand-written endpoint catalog in this file.
+
+```bash
+cd services/auth-service
+npm run openapi:export
+```
+
+The exported contract should be consumed or verified through `shared/api-contract`.
+
+## Current runtime
+
+The current backend runtime is the NestJS core API under `services/auth-service`. The historical name does not mean only authentication endpoints are present.
+
+## Contract rules
+
+- API changes must be reflected by controller/schema/OpenAPI changes, then exported.
+- Frontend should consume the generated contract or stable documented DTOs, not guessed shapes.
+- Breaking response/request changes require explicit approval and a migration note.
+- Public routes must be explicit; private routes remain guarded by default.
+- Pagination must be bounded.
+- GuestOS request-list `search` matches the service's canonical name, any localized service-item name, request title, and request description; matching is case-insensitive.
+- GuestOS request responses resolve service names from the request locale and fall back to the canonical catalog name when no translation exists.
+- Errors must keep the project-standard normalized shape.
+- Secrets, tokens, passwords, provider keys, and connection strings must never appear in examples.
+- Hotel staff administration is tenant-scoped and requires `hotel.staff.view` or
+  `hotel.staff.manage`; hotel assignment mutations additionally perform Property resource access
+  checks using the session-bound active role ID.
+- Role assignment and hotel assignment are separate contracts. Clients must not infer hotel access
+  from a role or infer a role from a hotel assignment.
+- Google Sheets service-catalog configuration belongs to a hotel, not the process environment.
+  Only `SUPER_ADMIN` may set or clear `googleSheetUrl` through `PATCH /hotels/{hotelId}`; tenant
+  users may trigger synchronization but cannot change the configured source. The backend
+  accepts the URL optionally during Admin hotel creation or later update, normalizes it into
+  `googleSheetId`, refuses synchronization for hotels without a configured sheet, and never falls
+  back to a shared workbook.
+
+## Verification
+
+When HTTP behavior changes:
+
+```bash
+cd services/auth-service
+npm run build
+npm run test
+npm run test:e2e
+npm run openapi:export
+cd ../../shared/api-contract
+npm run verify
+```
+
+If no HTTP behavior changes, this file can remain policy-only and OpenAPI export is optional.
+</file>
+
+<file path="docs/EVENT_FLOW.md">
+# VietSage Event Flow
+
+## Purpose
+
+Keep guest/service workflows auditable while staying ready for async/event-driven processing later. V1 remains synchronous and database-backed; do not introduce a broker without a concrete need.
+
+## Current approach
+
+Use synchronous database writes with event/history tables and in-process publication where needed. Guest request realtime fan-out now goes through the shared `GuestRequestEventPublisher` port; domain modules must not call the Socket.IO emitter directly.
+
+Request realtime transport authenticates at the Socket.IO handshake. Owner browsers obtain a short-lived, hotel-scoped ticket through the same-origin BFF; the backend uses the dedicated `request-realtime` audience and derives the room only from signed claims. Guest sockets use the current guest session token and derive their room from the authenticated session. Backend and frontend feature flags default false as the rollback path, producing no browser ticket or socket activity.
+
+Polling, an outbox dispatcher, durable retry/backoff delivery, urgent SLA escalation, and a broker remain Batch D and are not implemented here.
+
+Financial correctness note: Platform Billing ledger generation (`PlatformBillableDay`) is derived deterministically from persisted operational database state (`GuestStay` -> `PlatformUsage`), not from ephemeral event handlers or bus messages. Domain events (e.g. `PLATFORM_BILLING_RECONCILIATION_FAILED`) serve exclusively as audit signals.
+
+```txt
+HTTP request
+  -> Controller validates request shape
+  -> Application service validates authorization/resource access
+  -> Transaction writes state change + event/history row where required
+  -> Commit
+  -> GuestRequestEventPublisher publishes in-process realtime/provider notifications when needed
+  -> Return HTTP response
+```
+
+## Guest request lifecycle compatibility
+
+The public GuestOS lifecycle is exactly `CREATED -> ACKNOWLEDGED -> IN_PROGRESS -> COMPLETED`.
+Guests may cancel only from `CREATED`; staff may cancel from `CREATED` or `ACKNOWLEDGED`, and
+may mark a request `FAILED` only from `IN_PROGRESS`.
+
+During the compatibility release, persisted legacy values are normalized at application
+boundaries: `NEW -> CREATED`, `CONFIRMED|ACCEPTED -> ACKNOWLEDGED`,
+`PENDING|ON_THE_WAY -> IN_PROGRESS`, and `REJECTED -> FAILED`. Staff default queues include
+canonical and equivalent legacy active rows, while HTTP and realtime payloads expose only the
+six canonical statuses. Migration `0031_guest_request_canonical_status_compatibility` rewrites
+request and timeline status columns and changes the request default to `CREATED` without removing
+legacy enum values. New request, initial timeline, and domain event writes remain one transaction.
+
+## Standard event envelope
+
+Any cross-context or future async event should use a versioned envelope:
+
+```ts
+interface DomainEventEnvelope<TPayload> {
+  id: string;
+  type: string;
+  version: number;
+  occurredAt: string;
+  producer: string;
+  correlationId?: string;
+  actor?: {
+    type: "guest" | "staff" | "system";
+    id?: string;
+  };
+  payload: TPayload;
+}
+```
+
+Rules:
+
+- Event type is stable, e.g. `guest_request.created`.
+- Payload is explicit and versioned.
+- Do not expose Prisma model objects as event payloads.
+- Use correlation/request id when available.
+- Consumers must be idempotent before async delivery is introduced.
+
+## Request Created Flow
+
+```txt
+Guest submits request
+  -> Guest API validates active stay/session
+  -> Guest Operations service starts transaction
+  -> Insert guest request row
+  -> Insert guest request event row with REQUEST_CREATED
+  -> Commit transaction
+  -> Publish in-process notification intent if needed
+  -> Return request summary
+```
+
+Transaction boundary:
+
+- `guest_requests` insert and first `guest_request_events` insert must commit together.
+
+## Request Status Updated Flow
+
+```txt
+Staff updates request status
+  -> Staff API validates role and hotel access
+  -> Application service validates allowed transition
+  -> Start transaction
+  -> Update guest_requests.status
+  -> Insert guest_request_events row with STATUS_CHANGED
+  -> Commit transaction
+  -> Publish in-process realtime/provider notification if needed
+  -> Return updated request summary
+```
+
+Transaction boundary:
+
+- Status update and event append must commit together.
+
+## Guest Tracking Flow
+
+```txt
+Guest opens tracking screen
+  -> API validates guest owns active stay/request
+  -> Read request
+  -> Read request events ordered by created_at ASC
+  -> Return current status + timeline
+```
+
+Guest-facing tracking reads only staff events marked `visibility = GUEST`. Internal staff notes,
+assignment comments, and operational handoff events use `visibility = INTERNAL` and remain in the
+staff audit trail without being returned to GuestOS or pushed through guest realtime.
+
+## Staff Queue Flow
+
+```txt
+Staff opens dashboard/requests
+  -> API validates staff permission and hotel access
+  -> Query guest_requests by status/priority/created_at
+  -> Select room/stay/category summary only
+  -> Return paginated result
+```
+
+Staff queue search accepts a scoped `q` filter over request text, room, stay guest, guest phone,
+reservation code, service item, and category. Assignment targets must belong to the same hotel via
+an active hotel staff assignment.
+
+## Checkout Completion Flow
+
+```txt
+Staff issues invoice
+  -> Backend recalculates folio and marks the stay checkout-pending
+  -> Staff records successful payment or zero-balance settlement
+  -> Backend closes invoice and folio
+  -> Backend checks out stay and revokes GuestOS access
+  -> Backend preserves the room QR status
+  -> Backend moves the room to processing
+```
+
+GuestOS access follows the actual stay lifecycle, not the scheduled checkout timestamp:
+
+- A session is usable only while `GuestStay.status = ACTIVE` and `checkedOutAt IS NULL`.
+- Passing `plannedCheckOutAt` does not close an unpaid or operationally delayed stay.
+- An active room QR has no scheduled expiry and checkout does not change its status. Only explicit
+  QR activation, deactivation, or rotation controls its lifecycle.
+- A new QR scan receives a bounded 24-hour session and may renew access while the stay remains
+  active.
+- Actual checkout closes active/idle guest sessions in the checkout transaction.
+- Device limits and room summaries both count distinct, unexpired `ACTIVE` and `IDLE` device
+  identities so enforcement and staff/owner UI cannot disagree.
+
+## Future async events
+
+Potential future events:
+
+- `guest_request.created`
+- `guest_request.status_changed`
+- `guest_stay.checked_in`
+- `guest_stay.checked_out`
+- `payment.succeeded`
+- `emergency_incident.created`
+- `notification.delivery_failed`
+
+## Guest stay message flow
+
+Guest-to-front-desk messages are a short-lived, stay-scoped conversation rather than a guest
+profile inbox. Conversation existence is decided only by the related `GuestStay`: `status = ACTIVE`
+and `checkedOutAt IS NULL`. `Room.status` must never decide whether a conversation is visible;
+Room is joined only for room number, floor, and type metadata.
+
+```txt
+Guest or front desk sends message
+  -> API validates active guest session or hotel staff access
+  -> Transaction rechecks active GuestStay for the exact stay/hotel/room
+  -> Upsert the stay's message thread
+  -> Append immutable message row
+  -> Update thread last-message timestamp
+  -> Commit transaction
+  -> Publish guest_message.created to hotel staff and the exact guest-stay socket room
+  -> UI upserts the waiting list and matching open thread
+```
+
+The staff inbox uses a stable `(lastMessageAt, id)` cursor ordered newest first. Realtime is the
+primary refresh path; bounded 30-second polling is recovery only. Read receipts update
+`GuestMessage.readAt` without changing thread order.
+
+```txt
+Checkout transaction commits GuestStay as checked out
+  -> Guest sessions are closed; the room QR status is preserved
+  -> After commit, publish conversation.closed for hotelId + stayId + roomId
+  -> Staff removes that stay from the waiting list
+  -> If staff or guest is viewing it, UI disables sending and shows the ended-session state
+```
+
+Direct checkout, zero-balance settlement, and successful payment-webhook checkout must all publish
+`conversation.closed` only after their transaction commits. Socket delivery is a UX optimization;
+every list/get/send/reply/read API independently enforces the active-stay predicate. Threads carry
+`expiresAt = planned checkout + 14 days` for operational cleanup, but checked-out history is not
+returned to staff or a later guest in the same room.
+
+Do not add Kafka/RabbitMQ/Redis streams in V1. Add a broker or outbox worker only after delivery retries, cross-service isolation, or throughput needs are documented.
+
+## Outbox readiness
+
+Before adding an outbox worker:
+
+- define event envelope and versioning;
+- define retry/backoff/dead-letter behavior;
+- define idempotency key per consumer;
+- decide retention and replay policy;
+- add observability around publish attempts and lag;
+- verify transaction boundary with state change.
+
+## Observability
+
+Each request-changing operation should record:
+
+- request/correlation id;
+- actor id and actor type;
+- hotel/tenant/resource id when applicable;
+- previous and next status;
+- timestamp;
+- provider delivery result if any.
+</file>
+
+</files>

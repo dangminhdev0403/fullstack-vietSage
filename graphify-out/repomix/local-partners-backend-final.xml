@@ -1,0 +1,328 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: services/auth-service/src/modules/local-partners/**/*.ts, services/auth-service/src/common/config/routes.config.ts
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+services/
+  auth-service/
+    src/
+      common/
+        config/
+          routes.config.ts
+      modules/
+        local-partners/
+          api/
+            guest-local-partners.controller.ts
+            local-partners.controller.ts
+          application/
+            guest-local-partners.service.ts
+            local-partners.service.ts
+          domain/
+            schemas/
+              local-partners.schema.ts
+          infrastructure/
+            local-partners.repository.ts
+          tests/
+            local-partners.service.spec.ts
+          local-partners-public.ts
+          local-partners.module.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="services/auth-service/src/modules/local-partners/api/guest-local-partners.controller.ts">
+import { Controller, Get, Param, Query, Req, UseGuards } from "@nestjs/common";
+import { ApiTags } from "@nestjs/swagger";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { GuestSessionGuard, type RequestWithGuestSession } from "../../guest-operations/guest-operations-public";
+import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
+import { GuestLocalPartnersService } from "../application/guest-local-partners.service";
+import { listGuestPartnersQuerySchema, partnerIdParamSchema } from "../domain/schemas/local-partners.schema";
+⋮----
+export class GuestLocalPartnersController
+⋮----
+constructor(private readonly service: GuestLocalPartnersService)
+⋮----
+getCategories()
+⋮----
+getPartners(@Req() request: RequestWithGuestSession, @Query() query: unknown)
+⋮----
+getPartner(
+    @Req() request: RequestWithGuestSession,
+    @Param("partnerId") partnerIdParam: string,
+)
+</file>
+
+<file path="services/auth-service/src/modules/local-partners/api/local-partners.controller.ts">
+import { Body, Controller, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import { ApiTags } from "@nestjs/swagger";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { HotelAccessService } from "../../property/property-public";
+import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
+import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
+import type { RequestWithRequiredUser } from "../../../shared/security/request-with-authenticated-user";
+import { LocalPartnersService } from "../application/local-partners.service";
+import {
+  createLocalPartnerBodySchema,
+  hotelIdParamSchema,
+  listGuestPartnersQuerySchema,
+  localPartnerStatusSchema,
+  partnerIdParamSchema,
+  updateLocalPartnerBodySchema,
+} from "../domain/schemas/local-partners.schema";
+⋮----
+export class LocalPartnersController
+⋮----
+constructor(
+⋮----
+private async scope(request: RequestWithRequiredUser, hotelIdParam: string)
+⋮----
+async categories(@Req() request: RequestWithRequiredUser, @Param("hotelId") hotelId: string)
+⋮----
+async list(
+    @Req() request: RequestWithRequiredUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Query() query: unknown,
+)
+⋮----
+async create(
+    @Req() request: RequestWithRequiredUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async update(
+    @Req() request: RequestWithRequiredUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("partnerId") partnerIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async status(
+    @Req() request: RequestWithRequiredUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("partnerId") partnerIdParam: string,
+    @Body() body: unknown,
+)
+</file>
+
+<file path="services/auth-service/src/modules/local-partners/application/guest-local-partners.service.ts">
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { LocalPartnersRepository } from "../infrastructure/local-partners.repository";
+import type { LocalPartnerInteractionType } from "@prisma/client";
+⋮----
+export class GuestLocalPartnersService
+⋮----
+constructor(private readonly repository: LocalPartnersRepository)
+⋮----
+async getCategories()
+⋮----
+async getGuestPartners(
+    hotelId: string,
+    query?: {
+      categoryId?: string;
+      maxDistanceMeters?: number;
+      q?: string;
+      isFeatured?: string;
+    },
+)
+⋮----
+async getGuestPartnerDetail(hotelId: string, partnerId: string, stayId?: string)
+⋮----
+// Record VIEW_DETAIL interaction asynchronously
+⋮----
+async claimOffer(hotelId: string, partnerId: string, offerId: string, stayId?: string)
+⋮----
+async createBookingRequest(hotelId: string, payload: any, stayId?: string)
+⋮----
+async recordInteraction(
+    hotelId: string,
+    partnerId: string,
+    actionType: LocalPartnerInteractionType,
+    stayId?: string,
+)
+</file>
+
+<file path="services/auth-service/src/modules/local-partners/application/local-partners.service.ts">
+import { Injectable, NotFoundException } from "@nestjs/common";
+import type { LocalPartnerStatus } from "@prisma/client";
+import { LocalPartnersRepository } from "../infrastructure/local-partners.repository";
+⋮----
+export class LocalPartnersService
+⋮----
+constructor(private readonly repository: LocalPartnersRepository)
+⋮----
+async onModuleInit()
+⋮----
+async getCategories()
+⋮----
+getPartnersForHotel(
+    hotelId: string,
+    filters?: { status?: LocalPartnerStatus; categoryId?: string; isFeatured?: boolean },
+)
+⋮----
+async getPartnerById(hotelId: string, partnerId: string)
+⋮----
+createPartner(hotelId: string, payload: Parameters<LocalPartnersRepository["createPartner"]>[0])
+⋮----
+async updatePartner(
+    hotelId: string,
+    partnerId: string,
+    payload: Parameters<LocalPartnersRepository["updatePartner"]>[2],
+)
+⋮----
+async setPartnerStatus(hotelId: string, partnerId: string, status: LocalPartnerStatus)
+</file>
+
+<file path="services/auth-service/src/modules/local-partners/domain/schemas/local-partners.schema.ts">
+import { z } from "zod";
+⋮----
+function requireCoordinatePair(value:
+</file>
+
+<file path="services/auth-service/src/modules/local-partners/infrastructure/local-partners.repository.ts">
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "../../../prisma/prisma.service";
+import type {
+  LocalPartnerStatus,
+  LocalPartnerOfferStatus,
+  LocalPartnerBookingStatus,
+  LocalPartnerInteractionType,
+} from "@prisma/client";
+⋮----
+export function calculateHaversineDistanceMeters(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+): number
+⋮----
+const R = 6371000; // Earth radius in meters
+⋮----
+export class LocalPartnersRepository
+⋮----
+constructor(private readonly prisma: PrismaService)
+⋮----
+async findCategories()
+⋮----
+async ensureDefaultCategories()
+⋮----
+async findPartnersByHotelId(
+    hotelId: string,
+    filters?: {
+      status?: LocalPartnerStatus;
+      categoryId?: string;
+      isFeatured?: boolean;
+      q?: string;
+    },
+)
+⋮----
+async findPartnerById(partnerId: string)
+⋮----
+async findPartnerInHotel(hotelId: string, partnerId: string)
+⋮----
+async createPartner(data: any)
+⋮----
+async updatePartner(hotelId: string, partnerId: string, data: any)
+⋮----
+async deletePartner(partnerId: string)
+⋮----
+async createOffer(partnerId: string, data: any)
+⋮----
+async updateOffer(offerId: string, data: any)
+⋮----
+async createBookingRequest(data: any)
+⋮----
+async findBookingRequestsByHotelId(hotelId: string, status?: LocalPartnerBookingStatus)
+⋮----
+async updateBookingRequestStatus(id: string, status: LocalPartnerBookingStatus)
+⋮----
+async createInteractionLog(data: {
+    hotelId: string;
+    stayId?: string;
+    partnerId: string;
+    actionType: LocalPartnerInteractionType;
+})
+⋮----
+async getAnalyticsByHotelId(hotelId: string)
+</file>
+
+<file path="services/auth-service/src/modules/local-partners/tests/local-partners.service.spec.ts">
+import { Test } from "@nestjs/testing";
+import { LocalPartnersService } from "../application/local-partners.service";
+import { GuestLocalPartnersService } from "../application/guest-local-partners.service";
+import { LocalPartnersRepository, calculateHaversineDistanceMeters } from "../infrastructure/local-partners.repository";
+⋮----
+// Hanoi Opera House -> Hoan Kiem Lake (~1km)
+</file>
+
+<file path="services/auth-service/src/modules/local-partners/local-partners-public.ts">
+
+</file>
+
+<file path="services/auth-service/src/modules/local-partners/local-partners.module.ts">
+import { Module } from "@nestjs/common";
+import { PrismaModule } from "../../prisma/prisma.module";
+import { GuestOperationsModule } from "../guest-operations/guest-operations.module";
+import { PropertyModule } from "../property/property.module";
+import { LocalPartnersController } from "./api/local-partners.controller";
+import { GuestLocalPartnersController } from "./api/guest-local-partners.controller";
+import { LocalPartnersService } from "./application/local-partners.service";
+import { GuestLocalPartnersService } from "./application/guest-local-partners.service";
+import { LocalPartnersRepository } from "./infrastructure/local-partners.repository";
+⋮----
+export class LocalPartnersModule
+</file>
+
+<file path="services/auth-service/src/common/config/routes.config.ts">
+import { PublicRouteMatcher } from "./public-route.matcher";
+⋮----
+// Keep this list minimal. Every route not listed here requires a valid access token.
+⋮----
+// Regex should be exceptional. Prefer exact paths in PUBLIC_PATTERNS.
+</file>
+
+</files>

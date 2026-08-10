@@ -1,0 +1,411 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/billing/owner-saas-billing-client.tsx, frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/billing/owner-saas-pagination.test.ts, frontends/front-end-vietsage/src/components/ui/data-table.tsx, frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/services/owner-service-catalog-client.tsx
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    src/
+      app/
+        (vietsage)/
+          owner/
+            (hotel)/
+              hotels/
+                [hotelId]/
+                  billing/
+                    owner-saas-billing-client.tsx
+                    owner-saas-pagination.test.ts
+                  services/
+                    owner-service-catalog-client.tsx
+      components/
+        ui/
+          data-table.tsx
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/billing/owner-saas-pagination.test.ts">
+import test from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+⋮----
+// Prohibited mixed English business labels in visible JSX rendering
+⋮----
+// Required Vietnamese labels and helpers
+</file>
+
+<file path="frontends/front-end-vietsage/src/components/ui/data-table.tsx">
+import type { ReactNode } from "react";
+⋮----
+type DataTableColumn<TItem> = {
+  key: string;
+  header: ReactNode;
+  cell: (item: TItem) => ReactNode;
+  className?: string;
+  headerClassName?: string;
+  sortable?: boolean;
+};
+⋮----
+type DataTableSortDirection = "asc" | "desc";
+⋮----
+type DataTableSort = {
+  key: string;
+  direction: DataTableSortDirection;
+  getSortHref?: (key: string, direction: DataTableSortDirection) => string;
+  onSortChange?: (key: string, direction: DataTableSortDirection) => void;
+};
+⋮----
+type DataTablePagination = {
+  page: number;
+  pageSize: number;
+  totalItems?: number;
+  pageSizeOptions?: number[];
+  serverSide?: boolean;
+  getPageHref?: (page: number) => string;
+  getPageSizeHref?: (pageSize: number) => string;
+  onPageChange?: (page: number) => void;
+  onPageSizeChange?: (pageSize: number) => void;
+};
+⋮----
+type DataTableProps<TItem> = {
+  columns: DataTableColumn<TItem>[];
+  data: TItem[];
+  getRowKey: (item: TItem) => string;
+  emptyMessage: string;
+  minWidth?: string;
+  rowClassName?: (item: TItem) => string;
+  onRowClick?: (item: TItem) => void;
+  header?: ReactNode;
+  footer?: ReactNode;
+  pagination?: DataTablePagination;
+  sort?: DataTableSort;
+};
+⋮----
+function joinClasses(
+  ...classes: Array<string | false | null | undefined>
+): string
+⋮----
+function pageBounds(
+  totalItems: number,
+  page: number,
+  pageSize: number,
+):
+⋮----
+function SortIndicator({
+  direction,
+}: {
+  direction?: DataTableSortDirection;
+})
+⋮----
+function PaginationAction({
+  children,
+  disabled,
+  href,
+  onClick,
+}: {
+  children: ReactNode;
+  disabled: boolean;
+  href?: string;
+onClick?: ()
+⋮----
+<span className=
+⋮----
+aria-sort=
+⋮----
+<a href=
+⋮----
+key=
+⋮----
+onClick=
+⋮----
+className=
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/billing/owner-saas-billing-client.tsx">
+import { useCallback, useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+⋮----
+type PeriodItem = {
+  id: string;
+  periodStart: string;
+  periodEnd: string;
+  status: string;
+  total: number;
+  dueAt: string;
+  settledAmount?: number;
+  outstandingAmount?: number;
+  paymentState?: "UNPAID" | "PARTIALLY_PAID" | "PAID";
+  isOverdue?: boolean;
+};
+⋮----
+type BillableDayItem = {
+  id: string;
+  subjectId: string;
+  roomNumber?: string;
+  serviceDate: string;
+  unitPrice: number;
+  amount: number;
+};
+⋮----
+type PaginatedResult<T> = {
+  page: number;
+  limit: number;
+  total: number;
+  items: T[];
+};
+⋮----
+type OwnerAnalyticsData = {
+  hasContract: boolean;
+  contract?: {
+    id?: string;
+    hotelId?: string;
+    status?: string;
+    hotel?: { name?: string; code?: string };
+  };
+  unitPrice: number;
+  billableDaysCount: number;
+  usageCount: number;
+  estimatedFee: number;
+  billableDays?: BillableDayItem[];
+  periods?: PeriodItem[];
+  billableDaysPage?: PaginatedResult<BillableDayItem>;
+  periodsPage?: PaginatedResult<PeriodItem>;
+  reminder?: {
+    dueSoonCount: number;
+    overdueCount: number;
+    dueSoonOutstandingAmount: number;
+    overdueOutstandingAmount: number;
+    nearestDueAt: string | null;
+  };
+  roomUsageSummary?: Array<{
+    roomNumber: string;
+    usageCount: number;
+    billableDaysCount: number;
+    billedAmount?: number;
+    currency?: string;
+  }>;
+};
+⋮----
+const updateQueryParams = (key: string, value: number) =>
+⋮----
+async function init()
+⋮----
+function onFocusOrVisible()
+⋮----
+{/* Due Reminder Banner (Backend Owned Only) */}
+⋮----
+<span className="ml-1">Hạn chót gần nhất:
+⋮----
+<span className="ml-1">Hạn thanh toán:
+⋮----
+{/* Active Contract Hero Banner */}
+⋮----
+{/* KPI Stat Cards (4 Cards Grid) */}
+⋮----
+{/* Room Usage Summary Breakdown */}
+⋮----
+{/* Table breakdown */}
+⋮----
+onClick=
+⋮----
+{/* Finalized Periods & Payment Instructions */}
+⋮----
+Còn phải trả:
+⋮----
+{/* Payment Instruction Banner */}
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/services/owner-service-catalog-client.tsx">
+import { type FormEvent, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import Swal from "sweetalert2";
+⋮----
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
+import { HttpError } from "@/core/http/http-error";
+import {
+  requestInternalApi,
+  requestInternalApiEnvelope,
+} from "@/core/http/internal-api-client";
+import type {
+  HotelServiceCategory,
+  HotelServiceItem,
+  HotelServiceStatus,
+} from "@/features/hotel-ops/types/hotel-ops-contract";
+import { hotelServiceStatuses } from "@/features/hotel-ops/types/hotel-ops-contract";
+import { useOwnerGoogleSheetSync } from "@/features/hotel-ops/queries/use-google-sheet-config";
+import {
+  getServiceCatalogErrorMessage,
+  getServiceCatalogSyncNotice,
+} from "@/features/hotel-ops/utils/service-catalog-error";
+import {
+  serviceStatusLabelMap,
+  serviceStatusTone,
+} from "@/features/hotel-ops/utils/hotel-ops-display";
+⋮----
+type Props = {
+  hotelId: string;
+  initialCategories: HotelServiceCategory[];
+  initialItems: HotelServiceItem[];
+  hasGoogleSheetConfig: boolean;
+};
+⋮----
+type PriceUpdateMode = "CATEGORY_ONLY" | "OVERRIDE_ALL_ITEMS";
+type SortDirection = "asc" | "desc";
+type CategorySortKey = "name" | "price" | "sortOrder" | "status";
+type ItemSortKey = "name" | "category" | "price" | "status";
+type SortState<TKey extends string> = {
+  key: TKey;
+  direction: SortDirection;
+};
+type PageSize = 10 | 25 | 50;
+type CatalogPage<TItem> = { items: TItem[] };
+⋮----
+type BaseLocale = "vi";
+type TranslationLocale = "en" | "zh" | "ko" | "ru" | "hi";
+type CatalogLocale = BaseLocale | TranslationLocale;
+type TranslationFormValue = { name: string; description: string };
+type TranslationFormState = Record<TranslationLocale, TranslationFormValue>;
+⋮----
+type CategoryFormState = {
+  id?: string;
+  name: string;
+  description: string;
+  id_group: string;
+  defaultPrice: string;
+  originalDefaultPrice: string;
+  currency: string;
+  priceUpdateMode: PriceUpdateMode;
+  sortOrder: string;
+  status: HotelServiceStatus;
+  activeLocale: CatalogLocale;
+  translations: TranslationFormState;
+};
+⋮----
+type ItemFormState = {
+  id?: string;
+  categoryId: string;
+  name: string;
+  description: string;
+  priceOverride: string;
+  quantityEnabled: boolean;
+  minQuantity: string;
+  maxQuantity: string;
+  sortOrder: string;
+  status: HotelServiceStatus;
+  activeLocale: CatalogLocale;
+  translations: TranslationFormState;
+};
+⋮----
+function emptyTranslations(): TranslationFormState
+⋮----
+function emptyItemForm(categoryId = ""): ItemFormState
+⋮----
+function toNumber(value: string): number | undefined
+⋮----
+function toPositiveInteger(value: string): number | undefined
+⋮----
+function toRawPriceDigits(value: string): string
+⋮----
+function formatPriceInput(value: string): string
+⋮----
+function toPriceString(value: string | number | null | undefined): string
+⋮----
+function formatVnd(
+  value: string | number | null | undefined,
+  currency = "VND",
+): string
+⋮----
+function formatQuantityRule(
+  item: Pick<
+    HotelServiceItem,
+    "quantityEnabled" | "minQuantity" | "maxQuantity"
+  >,
+): string
+⋮----
+function toComparablePrice(value: string | number | null | undefined): number
+⋮----
+function toggleSort<TKey extends string>(
+  current: SortState<TKey>,
+  key: TKey,
+): SortState<TKey>
+⋮----
+function sortIndicator<TKey extends string>(
+  sort: SortState<TKey>,
+  key: TKey,
+): string
+⋮----
+function sortableHeaderClass(isActive: boolean): string
+⋮----
+function getPageCount(totalItems: number, pageSize: PageSize): number
+⋮----
+function getPageBounds(
+  totalItems: number,
+  page: number,
+  pageSize: PageSize,
+):
+⋮----
+function getPageItems<TItem>(
+  items: TItem[],
+  page: number,
+  pageSize: PageSize,
+): TItem[]
+⋮----
+<button
+⋮----
+const category = getItemCategory(item, categoryById);
+⋮----
+setCategoryPageSize(nextPageSize);
+setCategoryPage(1);
+⋮----
+setItemPageSize(nextPageSize);
+setItemPage(1);
+⋮----
+value={formatPriceInput(categoryForm.defaultPrice)}
+onChange=
+</file>
+
+</files>

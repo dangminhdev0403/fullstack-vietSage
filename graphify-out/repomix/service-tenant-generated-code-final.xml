@@ -1,0 +1,246 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: services/auth-service/src/modules/codes/codes.service.ts, services/auth-service/src/modules/codes/codes.repository.ts, services/auth-service/src/modules/marketplace/application/marketplace-admin.service.ts, services/auth-service/src/modules/marketplace/domain/marketplace-admin.schema.ts, services/auth-service/src/modules/marketplace/tests/marketplace-admin.service.spec.ts, services/auth-service/prisma/migrations/20260810170000_seed_marketplace_code_sequences/migration.sql, frontends/front-end-vietsage/src/features/marketplace-admin/marketplace-admin-client.tsx, frontends/front-end-vietsage/src/features/marketplace-admin/types.ts, frontends/front-end-vietsage/src/app/api/admin/marketplace/route.ts
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    src/
+      app/
+        api/
+          admin/
+            marketplace/
+              route.ts
+      features/
+        marketplace-admin/
+          marketplace-admin-client.tsx
+          types.ts
+services/
+  auth-service/
+    prisma/
+      migrations/
+        20260810170000_seed_marketplace_code_sequences/
+          migration.sql
+    src/
+      modules/
+        codes/
+          codes.repository.ts
+          codes.service.ts
+        marketplace/
+          application/
+            marketplace-admin.service.ts
+          domain/
+            marketplace-admin.schema.ts
+          tests/
+            marketplace-admin.service.spec.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="services/auth-service/prisma/migrations/20260810170000_seed_marketplace_code_sequences/migration.sql">
+INSERT INTO "Code" ("id", "name", "sequenceNext", "isActive", "createdAt", "updatedAt")
+VALUES
+  ('code_marketplace_category', 'MARKETPLACE_CATEGORY', 1, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+  ('code_service_tenant', 'SERVICE_TENANT', 1, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+ON CONFLICT ("name") DO NOTHING;
+</file>
+
+<file path="services/auth-service/src/modules/codes/codes.repository.ts">
+import { Injectable } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+⋮----
+type PrismaClientLike = PrismaService | Prisma.TransactionClient;
+type CodeSequenceSnapshot = {
+  id: string;
+  name: string;
+  sequenceNext: number;
+};
+⋮----
+export class CodesRepository {
+⋮----
+constructor(private readonly prisma: PrismaService)
+⋮----
+async generateEntityCode(name: string, tx?: Prisma.TransactionClient)
+⋮----
+async reserveCodeSequence(name: string, client: PrismaClientLike)
+</file>
+
+<file path="services/auth-service/src/modules/codes/codes.service.ts">
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import { CodesRepository } from "./codes.repository";
+⋮----
+export class CodesService {
+⋮----
+constructor(private readonly codesRepository: CodesRepository)
+⋮----
+async generateEntityCode(name: string, tx?: Prisma.TransactionClient): Promise<string>
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/api/admin/marketplace/route.ts">
+import { z } from "zod";
+import { executeHotelOpsBackendRequest } from "@/app/api/hotel-ops/_utils";
+import { HttpError } from "@/core/http/http-error";
+import { adminService } from "@/features/admin/service/admin-service-instance";
+import { marketplaceAdminClient } from "@/features/marketplace-admin/client";
+import type { MarketplaceAdminAction } from "@/features/marketplace-admin/types";
+import { httpErrorResponse, successResponse, unknownServerErrorResponse, validationErrorResponse } from "../_utils";
+⋮----
+export async function GET()
+⋮----
+export async function POST(request: Request)
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/marketplace-admin/types.ts">
+import type { Hotel } from "@/features/admin/types/admin-contract";
+import type { MarketplaceCategory } from "@/features/marketplace/types/marketplace-contract";
+⋮----
+export type ServiceTenant = {
+  id: string;
+  code: string;
+  name: string;
+  serviceProfile: { displayName: string; status: string } | null;
+};
+export type HotelLink = {
+  id: string;
+  hotelId: string;
+  serviceTenantId: string;
+  status: "ACTIVE" | "DISABLED";
+  sortOrder: number;
+  serviceTenant: ServiceTenant;
+};
+export type MarketplaceAdminData = {
+  categories: MarketplaceCategory[];
+  tenants: ServiceTenant[];
+  hotels: Hotel[];
+  links: HotelLink[];
+};
+export type MarketplaceAdminAction =
+  | { action: "category"; input: { nameVi: string; nameEn: string; sortOrder: number; isActive: boolean } }
+  | { action: "tenant"; input: { name: string; displayName: string; owner: { email: string; fullName: string; password: string } } }
+  | { action: "link"; hotelId: string; serviceTenantId: string };
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/marketplace-admin/marketplace-admin-client.tsx">
+import { type FormEvent, useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { marketplaceAdminResource } from "./resource";
+⋮----
+const submitCategory = (event: FormEvent<HTMLFormElement>) =>
+⋮----
+const submitTenant = (event: FormEvent<HTMLFormElement>) =>
+⋮----
+const submitLink = () =>
+⋮----
+{/* Toast Feedback */}
+⋮----
+{/* Category Form */}
+⋮----
+{/* Service Tenant Form */}
+⋮----
+{/* Existing Links Cards / List */}
+⋮----
+{/* Directory Records Section */}
+⋮----
+{/* Categories Directory */}
+⋮----
+{/* Tenants Directory */}
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/domain/marketplace-admin.schema.ts">
+import { z } from "zod";
+⋮----
+export type MarketplaceCategoryBody = z.infer<typeof marketplaceCategoryBodySchema>;
+export type ServiceTenantBody = z.infer<typeof serviceTenantBodySchema>;
+export type HotelServiceLinkBody = z.infer<typeof hotelServiceLinkBodySchema>;
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/application/marketplace-admin.service.ts">
+import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { Prisma, TenantType, TenantUserStatus, UserRoleStatus, UserStatus, UserType } from "@prisma/client";
+⋮----
+import { PrismaService } from "../../../prisma/prisma.service";
+import { CodesService } from "../../codes/codes.service";
+import type { HotelServiceLinkBody, MarketplaceCategoryBody, ServiceTenantBody } from "../domain/marketplace-admin.schema";
+⋮----
+export class MarketplaceAdminService
+⋮----
+constructor(private readonly prisma: PrismaService, private readonly codes: CodesService)
+⋮----
+listCategories()
+⋮----
+async createCategory(_actorId: string, body: MarketplaceCategoryBody)
+⋮----
+async updateCategory(_actorId: string, categoryId: string, body: Partial<MarketplaceCategoryBody>)
+⋮----
+listServiceTenants()
+⋮----
+async createServiceTenant(actorId: string, body: ServiceTenantBody)
+⋮----
+listHotelLinks(hotelId: string)
+⋮----
+async setHotelLink(actorId: string, hotelId: string, serviceTenantId: string, body: HotelServiceLinkBody)
+⋮----
+disableHotelLink(actorId: string, hotelId: string, serviceTenantId: string)
+⋮----
+private async category(id: string)
+⋮----
+private async hotel(id: string)
+⋮----
+private async serviceTenant(id: string)
+⋮----
+private audit(tx: Prisma.TransactionClient, actorId: string, tenantId: string, action: string, entityType: string, entityId: string)
+⋮----
+private uniqueConflict(error: unknown, message: string)
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/tests/marketplace-admin.service.spec.ts">
+import { NotFoundException } from "@nestjs/common";
+import { TenantType } from "@prisma/client";
+import { MarketplaceAdminService } from "../application/marketplace-admin.service";
+import { marketplaceCategoryBodySchema, serviceTenantBodySchema } from "../domain/marketplace-admin.schema";
+</file>
+
+</files>
