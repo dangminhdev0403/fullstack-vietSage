@@ -22,6 +22,6 @@ export type MarketplaceAdminData = {
   links: HotelLink[];
 };
 export type MarketplaceAdminAction =
-  | { action: "category"; input: { code: string; nameVi: string; nameEn: string; sortOrder: number; isActive: boolean } }
-  | { action: "tenant"; input: { code: string; name: string; displayName: string; owner: { email: string; fullName: string; password: string } } }
+  | { action: "category"; input: { nameVi: string; nameEn: string; sortOrder: number; isActive: boolean } }
+  | { action: "tenant"; input: { name: string; displayName: string; owner: { email: string; fullName: string; password: string } } }
   | { action: "link"; hotelId: string; serviceTenantId: string };

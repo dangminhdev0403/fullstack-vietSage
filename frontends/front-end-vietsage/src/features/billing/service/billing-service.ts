@@ -204,4 +204,35 @@ export class BillingService {
 
     return unwrapApiEnvelope<Payment>(payload).data;
   }
+
+  async getPlatformBillingAnalytics(
+    hotelId: string,
+    options: AuthRequestOptions = {},
+  ): Promise<{
+    reminder?: {
+      dueSoonCount: number;
+      overdueCount: number;
+      dueSoonOutstandingAmount: number;
+      overdueOutstandingAmount: number;
+      nearestDueAt: string | null;
+    } | null;
+  }> {
+    const payload = await this.httpClient.request<unknown>({
+      method: "GET",
+      path: `/platform-billing/owner/analytics/${encodeURIComponent(hotelId)}`,
+      query: { periodLimit: 1, billableDayLimit: 1 },
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+
+    return unwrapApiEnvelope<{
+      reminder?: {
+        dueSoonCount: number;
+        overdueCount: number;
+        dueSoonOutstandingAmount: number;
+        overdueOutstandingAmount: number;
+        nearestDueAt: string | null;
+      } | null;
+    }>(payload).data;
+  }
 }

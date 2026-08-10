@@ -13,7 +13,6 @@ const location = {
 
 export const marketplaceIdSchema = id;
 export const marketplaceCategoryBodySchema = z.object({
-  code: z.string().trim().min(2).max(80).regex(/^[A-Z0-9_]+$/),
   nameVi: z.string().trim().min(1).max(120),
   nameEn: z.string().trim().min(1).max(120),
   icon: z.string().trim().max(80).nullish(),
@@ -22,7 +21,6 @@ export const marketplaceCategoryBodySchema = z.object({
 });
 export const marketplaceCategoryUpdateSchema = marketplaceCategoryBodySchema.partial().refine((v) => Object.keys(v).length > 0);
 export const serviceTenantBodySchema = z.object({
-  code: z.string().trim().min(2).max(80).regex(/^[A-Z0-9_-]+$/),
   name: z.string().trim().min(1).max(160),
   displayName: z.string().trim().min(1).max(160),
   description: z.string().trim().max(1000).nullish(),

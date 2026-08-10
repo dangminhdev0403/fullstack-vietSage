@@ -2,11 +2,12 @@ import { ConflictException, Injectable, NotFoundException } from "@nestjs/common
 import { Prisma, TenantType, TenantUserStatus, UserRoleStatus, UserStatus, UserType } from "@prisma/client";
 import * as argon2 from "argon2";
 import { PrismaService } from "../../../prisma/prisma.service";
+import { CodesService } from "../../codes/codes.service";
 import type { HotelServiceLinkBody, MarketplaceCategoryBody, ServiceTenantBody } from "../domain/marketplace-admin.schema";
 
 @Injectable()
 export class MarketplaceAdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly codes: CodesService) {}
 
   listCategories() {
     return this.prisma.marketplaceCategory.findMany({ orderBy: [{ sortOrder: "asc" }, { code: "asc" }] });
@@ -14,7 +15,10 @@ export class MarketplaceAdminService {
 
   async createCategory(_actorId: string, body: MarketplaceCategoryBody) {
     try {
-      return await this.prisma.marketplaceCategory.create({ data: body });
+      return await this.prisma.$transaction(async (tx) => {
+        const code = await this.codes.generateEntityCode("MARKETPLACE_CATEGORY", tx);
+        return tx.marketplaceCategory.create({ data: { ...body, code } });
+      });
     } catch (error) {
       this.uniqueConflict(error, "Mã danh mục đã tồn tại");
       throw error;
@@ -44,12 +48,13 @@ export class MarketplaceAdminService {
     const passwordHash = await argon2.hash(body.owner.password);
     try {
       return await this.prisma.$transaction(async (tx) => {
+        const code = await this.codes.generateEntityCode("SERVICE_TENANT", tx);
         const role = await tx.role.upsert({ where: { code: "SERVICE_STAFF" }, update: { name: "Nhân viên Service Tenant", status: "ACTIVE" }, create: { code: "SERVICE_STAFF", name: "Nhân viên Service Tenant", status: "ACTIVE" } });
         const servicePermissions = await tx.permission.findMany({ where: { path: { in: ["service.marketplace.view", "service.marketplace.manage"] } }, select: { id: true } });
         if (servicePermissions.length !== 2) throw new ConflictException("Quyền Service Marketplace chưa được đồng bộ");
         const tenant = await tx.tenant.create({
           data: {
-            code: body.code,
+            code,
             name: body.name,
             type: TenantType.SERVICE,
             serviceProfile: {

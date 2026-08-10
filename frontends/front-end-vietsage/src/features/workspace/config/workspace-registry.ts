@@ -99,6 +99,15 @@ const WORKSPACE_DEFINITIONS: Record<WorkspacePersona, WorkspaceDefinition> = {
     profileLabel: "Nhà cung cấp",
     homePath: "/service",
   },
+  principal: {
+    persona: "principal",
+    eyebrow: "Ban Giám Hiệu",
+    title: "Điều hành trường học",
+    description:
+      "Theo dõi và quản lý các hoạt động trong phạm vi trường học được phân công.",
+    profileLabel: "Hiệu trưởng",
+    homePath: "/staff",
+  },
 };
 
 const ROLE_ALIASES: Record<string, WorkspacePersona> = {
@@ -106,6 +115,12 @@ const ROLE_ALIASES: Record<string, WorkspacePersona> = {
   ADMIN: "platform_admin",
   TENANT_OWNER: "owner",
   HOTEL_OWNER: "owner",
+  PRINCIPAL: "principal",
+  SCHOOL_PRINCIPAL: "principal",
+  HIEU_TRUONG: "principal",
+  SCHOOL_ADMIN: "principal",
+  PRINCIPAL_ADMIN: "principal",
+  HIEU_TRUONG_ADMIN: "principal",
   HOTEL_MANAGER: "front_desk",
   HOTEL_FRONTDESK: "front_desk",
   HOUSEKEEPING: "housekeeping",
@@ -568,7 +583,13 @@ export function resolveWorkspacePersona(
   roleCode: string,
   registry: WorkspaceRegistry = workspaceRegistry,
 ): WorkspacePersona | null {
-  return registry.roleAliases[normalizeRoleCode(roleCode)] ?? null;
+  const normalized = normalizeRoleCode(roleCode);
+  const alias = registry.roleAliases[normalized];
+  if (alias) return alias;
+  if (normalized.includes("PRINCIPAL") || normalized.includes("HIEU_TRUONG")) {
+    return "principal";
+  }
+  return null;
 }
 
 export function getWorkspaceDefinition(

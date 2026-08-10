@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Marketplace category and Service Tenant create requests no longer accept `code`; the backend generates immutable system codes through the shared `Code` sequence service.
+
 - Added D3 permission catalog foundation contract:
   - `GET /api/v1/admin/permissions` (Protected, requiring permission `identity.permissions.read`).
   - Response success envelope payload `data.permissions` returns immutable catalog items with `key`, `label`, `description`, `bounded_context`, and `risk`.

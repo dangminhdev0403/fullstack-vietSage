@@ -28,6 +28,10 @@ const frontDeskContext: WorkspaceContext = {
 test("maps established role templates to workspace personas", () => {
   assert.equal(resolveWorkspacePersona("SUPER_ADMIN"), "platform_admin");
   assert.equal(resolveWorkspacePersona("HOTEL_OWNER"), "owner");
+  assert.equal(resolveWorkspacePersona("PRINCIPAL"), "principal");
+  assert.equal(resolveWorkspacePersona("SCHOOL_PRINCIPAL"), "principal");
+  assert.equal(resolveWorkspacePersona("HIEU_TRUONG"), "principal");
+  assert.equal(resolveWorkspacePersona("SCHOOL_ADMIN"), "principal");
   assert.equal(resolveWorkspacePersona("HOTEL_MANAGER"), "front_desk");
   assert.equal(resolveWorkspacePersona("HOTEL_HOUSEKEEPING"), "front_desk");
   assert.equal(resolveWorkspacePersona("HOTEL_MAINTENANCE"), "front_desk");

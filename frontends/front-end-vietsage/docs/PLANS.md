@@ -1,3 +1,15 @@
+## [complete] 2026-08-10 - Mission: generate-marketplace-system-codes
+
+- Removed manual System Code inputs and payload properties for Marketplace categories and Service Tenants.
+- Added show/hide password toggle button (Eye / Eye-off icons) for initial password field in Service Tenant form.
+- Codes remain visible in directory records after backend generation.
+
+Verification result:
+- Scoped ESLint and TypeScript checks passed with 0 errors.
+
+Remaining blockers/risks:
+- None.
+
 ## [complete] 2026-08-11 - Mission: redesign-marketplace-admin-ui-and-placeholders
 
 - Redesigned `MarketplaceAdminClient` (`src/features/marketplace-admin/marketplace-admin-client.tsx`) to resolve confusing placeholder values and unappealing layout.

@@ -16,6 +16,7 @@ export function MarketplaceAdminClient() {
 
   const [hotelId, setHotelId] = useState("");
   const [tenantId, setTenantId] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const submitCategory = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -25,7 +26,6 @@ export function MarketplaceAdminClient() {
       {
         action: "category",
         input: {
-          code: String(form.get("code")).trim().toUpperCase(),
           nameVi: String(form.get("nameVi")).trim(),
           nameEn: String(form.get("nameEn")).trim(),
           sortOrder: 0,
@@ -46,7 +46,6 @@ export function MarketplaceAdminClient() {
       {
         action: "tenant",
         input: {
-          code: String(form.get("code")).trim().toUpperCase(),
           name: String(form.get("name")).trim(),
           displayName: String(form.get("displayName")).trim(),
           owner: {
@@ -139,20 +138,6 @@ export function MarketplaceAdminClient() {
           </div>
 
           <div className="space-y-4">
-            <div>
-              <label htmlFor="cat-code" className={labelClass}>
-                Mã danh mục (System Code)
-              </label>
-              <input
-                id="cat-code"
-                required
-                name="code"
-                placeholder="Ví dụ: RESTAURANT, SPA, LAUNDRY"
-                className={inputClass}
-              />
-              <p className="mt-1 text-[11px] text-slate-500">Mã định danh viết hoa không dấu, không khoảng trắng</p>
-            </div>
-
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label htmlFor="cat-name-vi" className={labelClass}>
@@ -206,19 +191,6 @@ export function MarketplaceAdminClient() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label htmlFor="tenant-code" className={labelClass}>
-                Mã Tenant (System Code)
-              </label>
-              <input
-                id="tenant-code"
-                required
-                name="code"
-                placeholder="Ví dụ: SPA_AN_NHIEN"
-                className={inputClass}
-              />
-            </div>
-
             <div>
               <label htmlFor="tenant-name" className={labelClass}>
                 Tên pháp lý / Công ty
@@ -276,15 +248,34 @@ export function MarketplaceAdminClient() {
               <label htmlFor="owner-password" className={labelClass}>
                 Mật khẩu ban đầu (Min 8 ký tự)
               </label>
-              <input
-                id="owner-password"
-                required
-                minLength={8}
-                type="password"
-                name="password"
-                placeholder="Tối thiểu 8 ký tự..."
-                className={inputClass}
-              />
+              <div className="relative flex items-center">
+                <input
+                  id="owner-password"
+                  required
+                  minLength={8}
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  placeholder="Tối thiểu 8 ký tự..."
+                  className={`${inputClass} pr-10`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 text-slate-400 hover:text-slate-600 focus:outline-none"
+                  aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                >
+                  {showPassword ? (
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858-5.908a10.03 10.03 0 013.122-.463c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21M3 3l18 18" />
+                    </svg>
+                  ) : (
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
 

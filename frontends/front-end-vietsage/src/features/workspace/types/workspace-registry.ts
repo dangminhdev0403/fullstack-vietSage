@@ -9,7 +9,8 @@ export type WorkspacePersona =
   | "maintenance"
   | "food_beverage"
   | "finance"
-  | "service_partner";
+  | "service_partner"
+  | "principal";
 
 export type WorkspaceDefinition = {
   persona: WorkspacePersona;

@@ -6,7 +6,29 @@ function normalizeRole(raw: string): string {
   return raw.trim().toLowerCase();
 }
 
+function isPrincipalRole(source: string): boolean {
+  return (
+    source === "principal" ||
+    source === "school_principal" ||
+    source === "hieu_truong" ||
+    source === "hieu_truong_admin" ||
+    source === "school_admin" ||
+    source === "principal_admin" ||
+    source.includes("principal") ||
+    source.includes("hieu_truong")
+  );
+}
+
 function isRoleMatch(source: string, expected: UserRole): boolean {
+  if (isPrincipalRole(source)) {
+    if (expected === "admin") {
+      return false;
+    }
+    if (expected === "tenant_owner" || expected === "staff") {
+      return true;
+    }
+  }
+
   if (expected === "admin") {
     return source === "admin" || source === "super_admin" || source.endsWith("_admin") || source.endsWith(":admin");
   }

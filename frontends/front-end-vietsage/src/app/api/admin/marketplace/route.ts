@@ -6,8 +6,8 @@ import { marketplaceAdminClient } from "@/features/marketplace-admin/client";
 import type { MarketplaceAdminAction } from "@/features/marketplace-admin/types";
 import { httpErrorResponse, successResponse, unknownServerErrorResponse, validationErrorResponse } from "../_utils";
 
-const category = z.object({ action: z.literal("category"), input: z.object({ code: z.string().trim().min(2).max(80), nameVi: z.string().trim().min(2).max(120), nameEn: z.string().trim().min(2).max(120), sortOrder: z.number().int(), isActive: z.boolean() }) });
-const tenant = z.object({ action: z.literal("tenant"), input: z.object({ code: z.string().trim().min(2).max(80), name: z.string().trim().min(2).max(160), displayName: z.string().trim().min(2).max(160), owner: z.object({ email: z.string().email(), fullName: z.string().trim().min(2).max(120), password: z.string().min(8).max(128) }) }) });
+const category = z.object({ action: z.literal("category"), input: z.object({ nameVi: z.string().trim().min(2).max(120), nameEn: z.string().trim().min(2).max(120), sortOrder: z.number().int(), isActive: z.boolean() }) });
+const tenant = z.object({ action: z.literal("tenant"), input: z.object({ name: z.string().trim().min(2).max(160), displayName: z.string().trim().min(2).max(160), owner: z.object({ email: z.string().email(), fullName: z.string().trim().min(2).max(120), password: z.string().min(8).max(128) }) }) });
 const link = z.object({ action: z.literal("link"), hotelId: z.string().min(1), serviceTenantId: z.string().min(1) });
 const actionSchema = z.discriminatedUnion("action", [category, tenant, link]);
 
