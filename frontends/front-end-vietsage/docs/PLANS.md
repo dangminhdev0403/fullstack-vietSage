@@ -1,3 +1,50 @@
+## [complete] 2026-08-11 - Mission: redesign-marketplace-admin-ui-and-placeholders
+
+- Redesigned `MarketplaceAdminClient` (`src/features/marketplace-admin/marketplace-admin-client.tsx`) to resolve confusing placeholder values and unappealing layout.
+- Added explicit uppercase `<label>` elements and helpful sub-texts for all input fields across Category, Service Tenant, and Hotel-Tenant linking forms.
+- Replaced confusing raw placeholders (e.g. `RESTAURANT`, `Nhà hàng`, `SPA_AN_NHIEN`) with explicit instructional examples (`Ví dụ: RESTAURANT, SPA, LAUNDRY`, `Ví dụ: Nhà hàng & Ẩm thực`, `Ví dụ: Công ty TNHH An Nhiên`).
+- Transformed form sections and entity lists into modern Heritage Luxe cards (`rounded-2xl border border-slate-200/80 shadow-xs bg-white`) with clean header icons, badge counters, status indicators (`ACTIVE`/`DISABLED`), and structured record cards.
+- Added dismissible toast feedback banners with status icons for success and error mutation states.
+
+Verification result:
+- Scoped ESLint check (`npx eslint src/features/marketplace-admin/marketplace-admin-client.tsx`) passed with **0 errors**.
+- TypeScript check (`npx tsc --noEmit`) passed cleanly with **0 errors**.
+
+Remaining blockers/risks:
+- None.
+
+## [complete] 2026-08-10 - Mission: fix-principal-account-ui-and-scoping
+
+- Fixed Principal account role mapping in `isRoleMatch` (`src/features/auth/utils/auth-role.ts`) to exclude Principal roles (`PRINCIPAL`, `SCHOOL_PRINCIPAL`, `HIEU_TRUONG`, `SCHOOL_ADMIN`, `PRINCIPAL_ADMIN`, `HIEU_TRUONG_ADMIN`, `Hiệu trưởng`) from matching platform `admin`.
+- Added `principal` workspace persona definition to `WORKSPACE_DEFINITIONS` in `src/features/workspace/config/workspace-registry.ts` with `profileLabel: "Hiệu trưởng"`, `eyebrow: "Ban Giám Hiệu"`, `title: "Điều hành trường học"`, and mapped Principal role aliases in `ROLE_ALIASES`.
+- Expanded `WorkspacePersona` type in `src/features/workspace/types/workspace-registry.ts` with `"principal"`.
+- Updated `resolveWorkspacePersona` in `src/features/workspace/config/workspace-registry.ts` to return `"principal"` for role codes matching Principal accounts, displaying role as **“Hiệu trưởng”** and removing **“Quản trị viên”** and **“SUPER ADMIN”** labels.
+- Restricted Principal accounts to school/hotel scope in `src/features/workspace/utils/workspace-context.ts`, keeping platform-wide admin capabilities isolated to `platform_admin`.
+- Added unit test coverage in `auth-role.test.ts` and `workspace-context.test.ts`.
+
+Verification result:
+- Unit tests (`node --experimental-strip-types --test src/features/auth/utils/auth-role.test.ts src/features/workspace/utils/workspace-context.test.ts`): **7/7 passed**.
+- TypeScript compiler (`npx tsc --noEmit`): **0 errors**.
+
+Remaining blockers/risks:
+- None.
+
+## [complete] 2026-08-10 - Mission: upgrade-local-partners-form-modal-ui
+
+- Redesigned `PartnerFormModal` (`src/features/local-partners/components/partner-form-modal.tsx`) to comply with **Heritage Luxe** design standards (`DESIGN.md` & `RULES.md`).
+- Transformed modal UI from dark theme (`bg-slate-900`/`bg-slate-950`) to a modern light Heritage Luxe aesthetic (`bg-white rounded-3xl border border-slate-200/80 shadow-2xl backdrop-blur-md`).
+- Corrected typography scale: upgraded labels and input text from `text-xs` (12px) to standard `text-sm` (14px) and titles to `text-2xl font-bold`.
+- Grouped form fields into 3 visual sections with icon accents and card backgrounds: Basic Info, Contact & Hours, Media & Details.
+- Upgraded the basic checkbox to a styled **Featured Toggle Switch Card** with golden star badge.
+- Added live thumbnail preview for cover image URLs, keyboard `ESC` listener, and backdrop click-to-close handler.
+- Refined `StaffLocalPartnersClient` (`src/features/local-partners/components/staff-local-partners-client.tsx`) headers, badges, and card action buttons.
+
+Verification result:
+- Scoped ESLint check (`npx eslint src/features/local-partners/components/partner-form-modal.tsx src/features/local-partners/components/staff-local-partners-client.tsx`) passed with **0 errors**.
+
+Remaining blockers/risks:
+- None.
+
 ## [complete] 2026-08-10 - Mission: embedded-local-partners-frontend-feature
 
 - Implemented `local-partners` feature module in `src/features/local-partners` with types, client service, and UI components.
