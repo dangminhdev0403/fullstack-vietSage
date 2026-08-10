@@ -172,6 +172,15 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
       "platform.hotels.view",
     ],
   },
+  {
+    key: "admin.marketplace",
+    personas: ["platform_admin"],
+    href: "/admin/marketplace",
+    label: "Marketplace",
+    icon: "storefront",
+    order: 60,
+    anyCapabilities: ["platform.marketplace.view", "platform.marketplace.manage"],
+  },
 
   {
     key: "owner.home",
