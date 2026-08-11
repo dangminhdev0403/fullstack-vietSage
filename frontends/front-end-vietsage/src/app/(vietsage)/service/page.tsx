@@ -1,3 +1,7 @@
-import { ServicePortalClient } from "@/features/service-portal/service-portal-client";
+import { redirect } from "next/navigation";
+
 export const dynamic = "force-dynamic";
-export default function ServicePortalPage() { return <ServicePortalClient />; }
+
+export default function ServiceRootPage() {
+  redirect("/service/dashboard");
+}

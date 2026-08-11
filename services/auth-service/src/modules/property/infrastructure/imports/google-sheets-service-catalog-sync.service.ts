@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { google } from "googleapis";
 import { AppLogger } from "../../../../common/logging/app-logger.service";
@@ -249,29 +254,39 @@ export class GoogleSheetsServiceCatalogSyncService {
     }
   }
 
-  private toGoogleSheetsError(error: unknown): BadRequestException {
+  private toGoogleSheetsError(error: unknown): Error {
+    if (
+      error instanceof ForbiddenException ||
+      error instanceof NotFoundException ||
+      error instanceof BadRequestException
+    ) {
+      return error;
+    }
+
     const status =
       error && typeof error === "object" && "code" in error
         ? Number((error as { code?: unknown }).code)
-        : undefined;
+        : error && typeof error === "object" && "status" in error
+          ? Number((error as { status?: unknown }).status)
+          : undefined;
 
     if (status === 403) {
-      return new BadRequestException(
-        "Google Sheets từ chối truy cập. Hãy chia sẻ file cho email service account với quyền Người xem.",
+      return new ForbiddenException(
+        "Google Sheets từ chối truy cập (403). Hãy chia sẻ file cho email service account với quyền Người xem.",
       );
     }
     if (status === 404) {
-      return new BadRequestException(
-        "Không tìm thấy Google Sheets. Hãy kiểm tra URL và quyền chia sẻ.",
+      return new NotFoundException(
+        "Không tìm thấy Google Sheets (404). Hãy kiểm tra URL và quyền chia sẻ.",
       );
     }
     if (status === 400) {
       return new BadRequestException(
-        "Không đọc được vùng dữ liệu Google Sheets. Hãy kiểm tra tên sheet và cấu hình range.",
+        "Không đọc được vùng dữ liệu Google Sheets (400). Hãy kiểm tra tên sheet và cấu hình range.",
       );
     }
     return new BadRequestException(
-      "Không thể kết nối Google Sheets. Vui lòng kiểm tra cấu hình và thử lại.",
+      `Không thể kết nối Google Sheets${status ? ` (${status})` : ""}. Vui lòng kiểm tra cấu hình và thử lại.`,
     );
   }
 

@@ -4,7 +4,7 @@ import { HttpClient } from "@/core/http/http-client";
 import type { MarketplaceCategory } from "@/features/marketplace/types/marketplace-contract";
 const http = new HttpClient({ baseUrl: getBackendApiBaseUrl() });
 const call = async <T, B = unknown>(token: string, method: "GET" | "POST" | "PUT", path: string, body?: B) => unwrapApiEnvelope<T>(await http.request<unknown, B>({ method, path, accessToken: token, body })).data;
-export type ServiceTenant = { id: string; code: string; name: string; serviceProfile: { displayName: string; status: string } | null };
+export type ServiceTenant = { id: string; code: string; name: string; ownerEmail?: string | null; serviceProfile: { displayName: string; status: string } | null };
 export type HotelLink = { id: string; hotelId: string; serviceTenantId: string; status: string; sortOrder: number; serviceTenant: ServiceTenant };
 export const marketplaceAdminClient = {
   categories: (token: string) => call<MarketplaceCategory[]>(token, "GET", "/admin/marketplace/categories"),

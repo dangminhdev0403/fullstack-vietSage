@@ -61,4 +61,3 @@ export const NOOP_GUEST_REQUEST_EVENT_PUBLISHER: GuestRequestEventPublisher = {
   publishConversationClosed: () => undefined,
   publishStayOverdueCheckout: () => undefined,
 };
-

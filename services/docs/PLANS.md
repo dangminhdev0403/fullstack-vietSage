@@ -1,3 +1,9 @@
+## 2026-08-11 - Google Sheets Catalog Sync HTTP Exception Mapping (Complete)
+
+- [x] Updated `GoogleSheetsServiceCatalogSyncService` (`google-sheets-service-catalog-sync.service.ts`) to throw `NotFoundException` (404) for missing sheets and `ForbiddenException` (403) for permission issues instead of mapping all errors to `BadRequestException` (400).
+- [x] Added unit tests in `google-sheets-service-catalog-sync.service.spec.ts` verifying 404 and 403 exception mapping (9/9 tests passed).
+- [x] Updated frontend error handlers (`service-catalog-error.ts` and `marketplace-admin-client.tsx`) to extract and render exact HTTP status codes (`[HTTP 404]`, `[HTTP 403]`, etc.) and server error messages.
+
 ## 2026-08-10 - Marketplace Generated Codes (Complete)
 
 - [x] Removed client-supplied category and Service Tenant codes from Marketplace contracts.

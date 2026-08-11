@@ -5,16 +5,33 @@ import { MarketplaceOrderService } from "../application/marketplace-order.servic
 
 describe("Marketplace orders", () => {
   it("enforces mode-specific state transitions", () => {
-    expect(canTransitionMarketplaceOrder("PREPARING", "DELIVERING", "DELIVERY_TO_HOTEL")).toBe(true);
-    expect(canTransitionMarketplaceOrder("PREPARING", "DELIVERING", "CUSTOMER_AT_SERVICE")).toBe(false);
+    expect(canTransitionMarketplaceOrder("PREPARING", "DELIVERING", "DELIVERY_TO_HOTEL")).toBe(
+      true,
+    );
+    expect(canTransitionMarketplaceOrder("PREPARING", "DELIVERING", "CUSTOMER_AT_SERVICE")).toBe(
+      false,
+    );
     expect(canTransitionMarketplaceOrder("PREPARING", "READY", "CUSTOMER_AT_SERVICE")).toBe(true);
-    expect(canTransitionMarketplaceOrder("COMPLETED", "CANCELLED", "DELIVERY_TO_HOTEL")).toBe(false);
+    expect(canTransitionMarketplaceOrder("COMPLETED", "CANCELLED", "DELIVERY_TO_HOTEL")).toBe(
+      false,
+    );
   });
 
   it("fails atomically when finite capacity cannot be reserved", async () => {
     const tx = {
       marketplaceService: {
-        findFirst: jest.fn().mockResolvedValue({ id: "item", serviceTenantId: "service", capacityAvailable: 0, unitPrice: new Prisma.Decimal(10), currency: "VND", name: "Spa", mode: "CUSTOMER_AT_SERVICE", waitingMinutes: 5 }),
+        findFirst: jest
+          .fn()
+          .mockResolvedValue({
+            id: "item",
+            serviceTenantId: "service",
+            capacityAvailable: 0,
+            unitPrice: new Prisma.Decimal(10),
+            currency: "VND",
+            name: "Spa",
+            mode: "CUSTOMER_AT_SERVICE",
+            waitingMinutes: 5,
+          }),
         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
     };
@@ -24,7 +41,16 @@ describe("Marketplace orders", () => {
     };
     const service = new MarketplaceOrderService(prisma as never, {} as never);
 
-    await expect(service.createGuestOrder({ hotelId: "hotel", stayId: "stay" }, { serviceId: "item", quantity: 1, idempotencyKey: "12345678" })).rejects.toBeInstanceOf(ConflictException);
-    expect(tx.marketplaceService.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ capacityAvailable: { gte: 1 } }) }));
+    await expect(
+      service.createGuestOrder(
+        { hotelId: "hotel", stayId: "stay" },
+        { serviceId: "item", quantity: 1, idempotencyKey: "12345678" },
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(tx.marketplaceService.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ capacityAvailable: { gte: 1 } }),
+      }),
+    );
   });
 });

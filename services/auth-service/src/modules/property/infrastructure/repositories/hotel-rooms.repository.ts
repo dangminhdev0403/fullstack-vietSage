@@ -746,7 +746,8 @@ export class HotelRoomsRepository {
       if (!existingStay) return null;
 
       const updatedDisplayName = input.guestDisplayName?.trim() || existingStay.guestDisplayName;
-      const updatedPhone = input.guestPhone !== undefined ? input.guestPhone : existingStay.guestPhone;
+      const updatedPhone =
+        input.guestPhone !== undefined ? input.guestPhone : existingStay.guestPhone;
 
       if (input.occupants !== undefined) {
         await tx.guestStayOccupant.deleteMany({
@@ -774,7 +775,8 @@ export class HotelRoomsRepository {
                   !(
                     occ.fullName.trim() === updatedDisplayName &&
                     (!occ.identityNumber?.trim() ||
-                      occ.identityNumber?.trim() === (existingStay.guestIdentityNumber?.trim() ?? ""))
+                      occ.identityNumber?.trim() ===
+                        (existingStay.guestIdentityNumber?.trim() ?? ""))
                   ),
               )
               .map((occ) => ({

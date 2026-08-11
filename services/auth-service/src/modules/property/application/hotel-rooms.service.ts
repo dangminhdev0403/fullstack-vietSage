@@ -297,11 +297,7 @@ export class HotelRoomsService {
     stayId: string,
     dto: UpdateStayBodyInput,
   ) {
-    await this.hotelAccessService.assertHotelAccess(
-      actorUserId,
-      activeRoleId,
-      hotelId,
-    );
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
     const stay = await this.hotelRoomsRepository.findStayInHotel(hotelId, stayId);
     if (!stay) {
       throw new NotFoundException("Không tìm thấy lượt lưu trú");
@@ -575,10 +571,9 @@ export class HotelRoomsService {
       new Date(row.plannedCheckOutAt).getTime() < now.getTime();
     const overdueHours = isOverdueCheckOut
       ? Number(
-          (
-            (now.getTime() - new Date(row.plannedCheckOutAt).getTime()) /
-            (1000 * 60 * 60)
-          ).toFixed(1),
+          ((now.getTime() - new Date(row.plannedCheckOutAt).getTime()) / (1000 * 60 * 60)).toFixed(
+            1,
+          ),
         )
       : 0;
 

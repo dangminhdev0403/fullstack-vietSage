@@ -275,4 +275,18 @@ describe("GoogleSheetsServiceCatalogSyncService", () => {
       quantity_enabled: "TRUE",
     });
   });
+
+  it("maps Google API 404 error to NotFoundException and 403 to ForbiddenException", () => {
+    const service = createService() as unknown as {
+      toGoogleSheetsError: (error: unknown) => Error;
+    };
+
+    const err404 = service.toGoogleSheetsError({ code: 404 });
+    expect(err404.name).toBe("NotFoundException");
+    expect(err404.message).toContain("404");
+
+    const err403 = service.toGoogleSheetsError({ code: 403 });
+    expect(err403.name).toBe("ForbiddenException");
+    expect(err403.message).toContain("403");
+  });
 });

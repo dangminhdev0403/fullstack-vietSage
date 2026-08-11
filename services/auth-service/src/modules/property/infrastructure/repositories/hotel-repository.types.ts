@@ -20,11 +20,7 @@ export const roomListInclude = {
   guestStays: {
     where: {
       status: {
-        in: [
-          GuestStayStatus.ACTIVE,
-          GuestStayStatus.CHECKED_IN,
-          GuestStayStatus.CHECKOUT_PENDING,
-        ],
+        in: [GuestStayStatus.ACTIVE, GuestStayStatus.CHECKED_IN, GuestStayStatus.CHECKOUT_PENDING],
       },
     },
     include: {

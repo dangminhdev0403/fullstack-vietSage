@@ -1,7 +1,12 @@
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { TenantType, TenantUserStatus } from "@prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
-import type { MarketplaceAvailability, MarketplaceServiceBody, MarketplaceServiceUpdate, ServiceProfileBody } from "../domain/service-portal.schema";
+import type {
+  MarketplaceAvailability,
+  MarketplaceServiceBody,
+  MarketplaceServiceUpdate,
+  ServiceProfileBody,
+} from "../domain/service-portal.schema";
 
 @Injectable()
 export class ServicePortalService {
@@ -10,9 +15,22 @@ export class ServicePortalService {
   async tenantId(userId: string) {
     const memberships = await this.prisma.tenantUser.findMany({
       where: { userId, status: TenantUserStatus.ACTIVE, tenant: { type: TenantType.SERVICE } },
-      select: { tenantId: true }, take: 2,
+      select: { tenantId: true },
     });
-    if (memberships.length !== 1) throw new ForbiddenException("Service Tenant membership is required and must be unambiguous");
+    if (memberships.length === 0) {
+      const anyMemberships = await this.prisma.tenantUser.findMany({
+        where: { userId, tenant: { type: TenantType.SERVICE } },
+        select: { tenantId: true },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      });
+      if (anyMemberships.length === 0) {
+        throw new ForbiddenException(
+          "Service Tenant membership is required and must be unambiguous",
+        );
+      }
+      return anyMemberships[0].tenantId;
+    }
     return memberships[0].tenantId;
   }
 
@@ -32,25 +50,40 @@ export class ServicePortalService {
   }
 
   categories() {
-    return this.prisma.marketplaceCategory.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: "asc" }, { code: "asc" }] });
+    return this.prisma.marketplaceCategory.findMany({
+      where: { isActive: true },
+      orderBy: [{ sortOrder: "asc" }, { code: "asc" }],
+    });
   }
 
   async services(userId: string) {
-    return this.prisma.marketplaceService.findMany({ where: { serviceTenantId: await this.tenantId(userId) }, include: { category: true }, orderBy: { updatedAt: "desc" }, take: 100 });
+    return this.prisma.marketplaceService.findMany({
+      where: { serviceTenantId: await this.tenantId(userId) },
+      include: { category: true },
+      orderBy: { updatedAt: "desc" },
+      take: 100,
+    });
   }
 
   async createService(userId: string, body: MarketplaceServiceBody) {
     const serviceTenantId = await this.tenantId(userId);
     await this.activeCategory(body.categoryId);
-    return this.prisma.marketplaceService.create({ data: { ...body, serviceTenantId, currency: "VND" } });
+    return this.prisma.marketplaceService.create({
+      data: { ...body, serviceTenantId, currency: "VND" },
+    });
   }
 
   async updateService(userId: string, serviceId: string, body: MarketplaceServiceUpdate) {
     const serviceTenantId = await this.tenantId(userId);
     if (body.categoryId) await this.activeCategory(body.categoryId);
-    const result = await this.prisma.marketplaceService.updateMany({ where: { id: serviceId, serviceTenantId }, data: { ...body, version: { increment: 1 } } });
+    const result = await this.prisma.marketplaceService.updateMany({
+      where: { id: serviceId, serviceTenantId },
+      data: { ...body, version: { increment: 1 } },
+    });
     if (result.count !== 1) throw new NotFoundException("Service not found");
-    return this.prisma.marketplaceService.findFirstOrThrow({ where: { id: serviceId, serviceTenantId } });
+    return this.prisma.marketplaceService.findFirstOrThrow({
+      where: { id: serviceId, serviceTenantId },
+    });
   }
 
   async updateAvailability(userId: string, serviceId: string, body: MarketplaceAvailability) {
@@ -58,6 +91,12 @@ export class ServicePortalService {
   }
 
   private async activeCategory(categoryId: string) {
-    if (!(await this.prisma.marketplaceCategory.findFirst({ where: { id: categoryId, isActive: true }, select: { id: true } }))) throw new NotFoundException("Category not found");
+    if (
+      !(await this.prisma.marketplaceCategory.findFirst({
+        where: { id: categoryId, isActive: true },
+        select: { id: true },
+      }))
+    )
+      throw new NotFoundException("Category not found");
   }
 }

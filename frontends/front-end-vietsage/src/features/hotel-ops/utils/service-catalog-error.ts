@@ -11,9 +11,32 @@ function nestedDetail(value: unknown): string | undefined {
 
 export function getServiceCatalogErrorMessage(error: unknown): string {
   if (isRecord(error)) {
+    const status = typeof error.status === "number" ? error.status : undefined;
     const detail = nestedDetail(error.data);
-    if (detail) return detail;
+    if (detail) return status ? `[Lỗi ${status}] ${detail}` : detail;
+
+    if (isRecord(error.data)) {
+      if (typeof error.data.message === "string" && error.data.message.trim()) {
+        return status ? `[Lỗi ${status}] ${error.data.message}` : error.data.message;
+      }
+      if (Array.isArray(error.data.message) && error.data.message.length > 0) {
+        return status ? `[Lỗi ${status}] ${error.data.message.join(", ")}` : error.data.message.join(", ");
+      }
+    }
+
+    if (
+      typeof error.message === "string" &&
+      error.message.trim() &&
+      error.message !== "BAD_REQUEST"
+    ) {
+      return status ? `[Lỗi ${status}] ${error.message}` : error.message;
+    }
+
+    if (status === 404) return "[Lỗi 404] Không tìm thấy Google Sheets hoặc tài nguyên (404 Not Found).";
+    if (status === 403) return "[Lỗi 403] Google Sheets từ chối truy cập hoặc không có quyền (403 Forbidden).";
+    if (status) return `[Lỗi ${status}] Yêu cầu đồng bộ thất bại với mã ${status}.`;
   }
+
   if (
     error instanceof Error &&
     error.message &&
@@ -24,15 +47,9 @@ export function getServiceCatalogErrorMessage(error: unknown): string {
     ) {
       return "Không thể kết nối đến máy chủ. Vui lòng kiểm tra mạng rồi thử lại.";
     }
-    if (
-      /[À-ỹ]/.test(error.message) ||
-      /\b(không|vui lòng|hãy|chưa|dòng|dịch vụ|khách sạn)\b/i.test(
-        error.message,
-      )
-    ) {
-      return error.message;
-    }
+    return error.message;
   }
+
   return "Vui lòng kiểm tra dữ liệu trong hai tab đầu của Google Sheets rồi thử lại.";
 }
 

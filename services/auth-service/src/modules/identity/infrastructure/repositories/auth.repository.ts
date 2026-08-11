@@ -490,13 +490,18 @@ export class AuthRepository {
             status: UserRoleStatus.ACTIVE,
             role: {
               status: RoleStatus.ACTIVE,
-              rolePermissions: {
-                some: {
-                  permission: {
-                    path: permissionKey,
+              OR: [
+                { code: "SUPER_ADMIN" },
+                {
+                  rolePermissions: {
+                    some: {
+                      permission: {
+                        path: permissionKey,
+                      },
+                    },
                   },
                 },
-              },
+              ],
             },
           },
         },

@@ -1,11 +1,17 @@
 import { Controller, Get, Param, Query, Req, UseGuards } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
-import { GuestSessionGuard, type RequestWithGuestSession } from "../../guest-operations/guest-operations-public";
+import {
+  GuestSessionGuard,
+  type RequestWithGuestSession,
+} from "../../guest-operations/guest-operations-public";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
 import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
 import { GuestLocalPartnersService } from "../application/guest-local-partners.service";
-import { listGuestPartnersQuerySchema, partnerIdParamSchema } from "../domain/schemas/local-partners.schema";
+import {
+  listGuestPartnersQuerySchema,
+  partnerIdParamSchema,
+} from "../domain/schemas/local-partners.schema";
 
 @ApiTags("guest-local-partners")
 @UseGuards(GuestSessionGuard)
@@ -33,10 +39,7 @@ export class GuestLocalPartnersController {
   @SuccessMessage("Lấy chi tiết đối tác lân cận thành công")
   @ApiDescript("Guest OS - Chi tiết đối tác lân cận")
   @Get(":partnerId")
-  getPartner(
-    @Req() request: RequestWithGuestSession,
-    @Param("partnerId") partnerIdParam: string,
-  ) {
+  getPartner(@Req() request: RequestWithGuestSession, @Param("partnerId") partnerIdParam: string) {
     return this.service.getGuestPartnerDetail(
       request.guestSession.hotelId,
       parseWithZod(partnerIdParamSchema, partnerIdParam),

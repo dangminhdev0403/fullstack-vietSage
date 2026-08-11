@@ -1,6 +1,9 @@
 import { z } from "zod";
 
-const httpUrl = z.string().url().refine((value) => ["http:", "https:"].includes(new URL(value).protocol));
+const httpUrl = z
+  .string()
+  .url()
+  .refine((value) => ["http:", "https:"].includes(new URL(value).protocol));
 const profileFields = {
   displayName: z.string().trim().min(1).max(160),
   description: z.string().trim().max(1000).nullish(),
@@ -13,9 +16,16 @@ const profileFields = {
   locationSource: z.enum(["DEVICE_GEOLOCATION", "GOOGLE_MAPS_URL", "MANUAL"]).nullish(),
   coverImageUrl: httpUrl.nullish(),
 };
-export const serviceProfileBodySchema = z.object(profileFields).partial().superRefine((value, context) => {
-  if ((value.latitude == null) !== (value.longitude == null)) context.addIssue({ code: "custom", message: "latitude and longitude must be provided together" });
-});
+export const serviceProfileBodySchema = z
+  .object(profileFields)
+  .partial()
+  .superRefine((value, context) => {
+    if ((value.latitude == null) !== (value.longitude == null))
+      context.addIssue({
+        code: "custom",
+        message: "latitude and longitude must be provided together",
+      });
+  });
 const serviceFields = {
   categoryId: z.string().trim().min(1).max(80),
   name: z.string().trim().min(1).max(160),
@@ -28,8 +38,14 @@ const serviceFields = {
   status: z.enum(["DRAFT", "ACTIVE", "DISABLED"]).default("DRAFT"),
 };
 export const marketplaceServiceBodySchema = z.object(serviceFields);
-export const marketplaceServiceUpdateSchema = z.object(serviceFields).partial().refine((value) => Object.keys(value).length > 0);
-export const marketplaceAvailabilitySchema = z.object({ capacityAvailable: z.number().int().nonnegative().nullish(), waitingMinutes: z.number().int().nonnegative() });
+export const marketplaceServiceUpdateSchema = z
+  .object(serviceFields)
+  .partial()
+  .refine((value) => Object.keys(value).length > 0);
+export const marketplaceAvailabilitySchema = z.object({
+  capacityAvailable: z.number().int().nonnegative().nullish(),
+  waitingMinutes: z.number().int().nonnegative(),
+});
 export const servicePortalIdSchema = z.string().trim().min(1).max(80);
 export type ServiceProfileBody = z.infer<typeof serviceProfileBodySchema>;
 export type MarketplaceServiceBody = z.infer<typeof marketplaceServiceBodySchema>;

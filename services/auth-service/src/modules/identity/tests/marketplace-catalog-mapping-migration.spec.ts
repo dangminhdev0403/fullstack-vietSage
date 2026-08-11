@@ -20,13 +20,13 @@ describe("marketplace catalog mapping migration contract", () => {
 
     it("safely creates Marketplace enums", () => {
       expect(migration).toContain(
-        'CREATE TYPE "MarketplaceServiceMode" AS ENUM (\'DELIVERY_TO_HOTEL\', \'CUSTOMER_AT_SERVICE\')',
+        "CREATE TYPE \"MarketplaceServiceMode\" AS ENUM ('DELIVERY_TO_HOTEL', 'CUSTOMER_AT_SERVICE')",
       );
       expect(migration).toContain(
-        'CREATE TYPE "MarketplaceRecordStatus" AS ENUM (\'DRAFT\', \'ACTIVE\', \'DISABLED\')',
+        "CREATE TYPE \"MarketplaceRecordStatus\" AS ENUM ('DRAFT', 'ACTIVE', 'DISABLED')",
       );
       expect(migration).toContain(
-        'CREATE TYPE "HotelServiceLinkStatus" AS ENUM (\'ACTIVE\', \'DISABLED\')',
+        "CREATE TYPE \"HotelServiceLinkStatus\" AS ENUM ('ACTIVE', 'DISABLED')",
       );
     });
 
@@ -83,12 +83,16 @@ describe("marketplace catalog mapping migration contract", () => {
     });
 
     it("adds CHECK constraints for ServiceTenantProfile coordinates and MarketplaceService validation", () => {
-      expect(migration).toContain('CONSTRAINT "chk_service_tenant_profile_coordinates_completeness"');
+      expect(migration).toContain(
+        'CONSTRAINT "chk_service_tenant_profile_coordinates_completeness"',
+      );
       expect(migration).toContain('CONSTRAINT "chk_service_tenant_profile_coordinates_range"');
       expect(migration).toContain('CONSTRAINT "chk_service_tenant_profile_accuracy_non_negative"');
       expect(migration).toContain('CONSTRAINT "chk_marketplace_service_unit_price_non_negative"');
       expect(migration).toContain('CONSTRAINT "chk_marketplace_service_capacity_non_negative"');
-      expect(migration).toContain('CONSTRAINT "chk_marketplace_service_waiting_minutes_non_negative"');
+      expect(migration).toContain(
+        'CONSTRAINT "chk_marketplace_service_waiting_minutes_non_negative"',
+      );
       expect(migration).toContain('CONSTRAINT "chk_marketplace_service_version_min"');
 
       // Completeness & range check details
@@ -96,7 +100,9 @@ describe("marketplace catalog mapping migration contract", () => {
       expect(migration).toContain('"latitude" IS NOT NULL AND "longitude" IS NOT NULL');
       expect(migration).toContain('"latitude" >= -90 AND "latitude" <= 90');
       expect(migration).toContain('"longitude" >= -180 AND "longitude" <= 180');
-      expect(migration).toContain('"locationAccuracyMeters" IS NULL OR "locationAccuracyMeters" >= 0');
+      expect(migration).toContain(
+        '"locationAccuracyMeters" IS NULL OR "locationAccuracyMeters" >= 0',
+      );
 
       // Service checks
       expect(migration).toContain('"unitPrice" >= 0');

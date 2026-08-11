@@ -50,7 +50,9 @@ describe("PlatformBillingService Onboarding & Analytics", () => {
       platformBillingPeriod: {
         count: jest.fn().mockResolvedValue(0),
         findMany: jest.fn().mockResolvedValue([]),
-        aggregate: jest.fn().mockResolvedValue({ _sum: { total: new Prisma.Decimal(1000000) }, _count: { id: 2 } }),
+        aggregate: jest
+          .fn()
+          .mockResolvedValue({ _sum: { total: new Prisma.Decimal(1000000) }, _count: { id: 2 } }),
       },
       platformBillingSettlement: {
         aggregate: jest.fn().mockResolvedValue({ _sum: { amount: new Prisma.Decimal(400000) } }),
@@ -192,8 +194,16 @@ describe("PlatformBillingService Onboarding & Analytics", () => {
       unpaidPeriodCount: 2,
       overduePeriodCount: 1,
       duePeriods: expect.arrayContaining([
-        expect.objectContaining({ id: "p-partial-overdue", isOverdue: true, paymentState: "PARTIALLY_PAID" }),
-        expect.objectContaining({ id: "p-unpaid-future", isOverdue: false, paymentState: "UNPAID" }),
+        expect.objectContaining({
+          id: "p-partial-overdue",
+          isOverdue: true,
+          paymentState: "PARTIALLY_PAID",
+        }),
+        expect.objectContaining({
+          id: "p-unpaid-future",
+          isOverdue: false,
+          paymentState: "UNPAID",
+        }),
       ]),
     });
     expect((summary as any).totalFinalizedRevenue).toBeUndefined();
@@ -259,9 +269,7 @@ describe("PlatformBillingService Onboarding & Analytics", () => {
 
     mockPrisma.platformBillingPeriod.findMany.mockResolvedValueOnce([]);
     mockPrisma.platformBillingDailySummary.findMany.mockResolvedValueOnce([]);
-    mockPrisma.room.findMany.mockResolvedValueOnce([
-      { id: "room-101", roomNumber: "101" },
-    ]);
+    mockPrisma.room.findMany.mockResolvedValueOnce([{ id: "room-101", roomNumber: "101" }]);
     mockPrisma.platformUsage.findMany.mockResolvedValueOnce([
       { id: "pu-1", subjectId: "room-101", startedAt: new Date("2026-02-05") },
     ]);
@@ -325,9 +333,7 @@ describe("PlatformBillingService Onboarding & Analytics", () => {
     });
 
     mockPrisma.platformBillingDailySummary.findMany.mockResolvedValueOnce([]);
-    mockPrisma.room.findMany.mockResolvedValueOnce([
-      { id: "room-101", roomNumber: "101" },
-    ]);
+    mockPrisma.room.findMany.mockResolvedValueOnce([{ id: "room-101", roomNumber: "101" }]);
     mockPrisma.platformUsage.findMany.mockResolvedValueOnce([]);
 
     mockPrisma.$queryRaw.mockResolvedValueOnce([

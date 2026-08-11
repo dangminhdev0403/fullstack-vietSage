@@ -7,7 +7,15 @@ describe("Service portal scope", () => {
     const prisma = { tenantUser: { findMany: jest.fn().mockResolvedValue([]) } };
     const service = new ServicePortalService(prisma as never);
     await expect(service.tenantId("user-1")).rejects.toBeInstanceOf(ForbiddenException);
-    expect(prisma.tenantUser.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { userId: "user-1", status: TenantUserStatus.ACTIVE, tenant: { type: TenantType.SERVICE } } }));
+    expect(prisma.tenantUser.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          userId: "user-1",
+          status: TenantUserStatus.ACTIVE,
+          tenant: { type: TenantType.SERVICE },
+        },
+      }),
+    );
   });
 
   it("scopes mutations by service tenant in the update query", async () => {
@@ -16,7 +24,11 @@ describe("Service portal scope", () => {
       marketplaceService: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
     };
     const service = new ServicePortalService(prisma as never);
-    await expect(service.updateService("user-1", "service-b-item", { name: "blocked" })).rejects.toBeInstanceOf(NotFoundException);
-    expect(prisma.marketplaceService.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "service-b-item", serviceTenantId: "service-a" } }));
+    await expect(
+      service.updateService("user-1", "service-b-item", { name: "blocked" }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.marketplaceService.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "service-b-item", serviceTenantId: "service-a" } }),
+    );
   });
 });

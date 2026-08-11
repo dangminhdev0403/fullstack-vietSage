@@ -9,6 +9,52 @@ const inputClass =
 
 const labelClass = "block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5";
 
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (!error) return fallback;
+
+  if (typeof error === "object" && error !== null) {
+    const errObj = error as Record<string, unknown>;
+    const status = typeof errObj.status === "number" ? errObj.status : undefined;
+    const data = errObj.data as Record<string, unknown> | null;
+
+    let serverMessage: string | undefined;
+    if (data && typeof data === "object") {
+      if (typeof data.message === "string" && data.message.trim()) {
+        serverMessage = data.message;
+      } else if (Array.isArray(data.message) && data.message.length > 0) {
+        serverMessage = data.message.join(", ");
+      } else if (data.data && typeof data.data === "object") {
+        const innerData = data.data as Record<string, unknown>;
+        if (typeof innerData.message === "string" && innerData.message.trim()) {
+          serverMessage = innerData.message;
+        } else if (typeof innerData.detail === "string" && innerData.detail.trim()) {
+          serverMessage = innerData.detail;
+        }
+      }
+    }
+
+    if (serverMessage) {
+      return status ? `[HTTP ${status}] ${serverMessage}` : serverMessage;
+    }
+
+    if (status === 404) return "[HTTP 404] Không tìm thấy tài nguyên (404 Not Found).";
+    if (status === 403) return "[HTTP 403] Bạn không có quyền thực hiện thao tác này (403 Forbidden).";
+    if (status === 401) return "[HTTP 401] Chưa đăng nhập hoặc phiên làm việc hết hạn.";
+    if (status === 400) return "[HTTP 400] Yêu cầu không hợp lệ hoặc thông tin nhập chưa đúng.";
+    if (status) return `[HTTP ${status}] Thao tác thất bại với mã HTTP ${status}.`;
+
+    if (typeof errObj.message === "string" && errObj.message.trim()) {
+      return errObj.message;
+    }
+  }
+
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
 export function MarketplaceAdminClient() {
   const resource = marketplaceAdminResource.bind({});
   const data = useQuery(resource.queries.data.options(undefined as never));
@@ -34,7 +80,7 @@ export function MarketplaceAdminClient() {
       },
       {
         onSuccess: () => formElement.reset(),
-      }
+      },
     );
   };
 
@@ -57,11 +103,12 @@ export function MarketplaceAdminClient() {
       },
       {
         onSuccess: () => formElement.reset(),
-      }
+      },
     );
   };
 
-  const submitLink = () => {
+  const submitLink = (event?: FormEvent<HTMLFormElement>) => {
+    if (event) event.preventDefault();
     if (!hotelId || !tenantId) return;
     mutation.mutate(
       { action: "link", hotelId, serviceTenantId: tenantId },
@@ -70,13 +117,13 @@ export function MarketplaceAdminClient() {
           setHotelId("");
           setTenantId("");
         },
-      }
+      },
     );
   };
 
   if (data.isPending) {
     return (
-      <div className="flex items-center justify-center p-12 text-slate-500 font-medium">
+      <div className="flex min-h-[300px] items-center justify-center rounded-2xl border border-slate-200 bg-white p-12 text-sm font-semibold text-slate-600 shadow-xs">
         <svg className="mr-3 h-5 w-5 animate-spin text-emerald-600" viewBox="0 0 24 24" fill="none">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
@@ -95,7 +142,9 @@ export function MarketplaceAdminClient() {
           </svg>
           <div>
             <h3 className="font-bold text-rose-900">Không thể tải dữ liệu</h3>
-            <p className="text-sm mt-0.5 text-rose-700">Không thể lấy thông tin Marketplace. Vui lòng kiểm tra quyền truy cập hoặc làm mới trang.</p>
+            <p className="text-sm mt-0.5 text-rose-700">
+              {getErrorMessage(data.error, "Không thể lấy thông tin Marketplace. Vui lòng kiểm tra quyền truy cập hoặc làm mới trang.")}
+            </p>
           </div>
         </div>
       </div>
@@ -110,7 +159,9 @@ export function MarketplaceAdminClient() {
           <svg className="h-5 w-5 shrink-0 text-rose-600 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <div className="text-sm font-medium">Không thể thực hiện thao tác. Vui lòng kiểm tra lại thông tin nhập hoặc quyền hạn.</div>
+          <div className="text-sm font-medium">
+            {getErrorMessage(mutation.error, "Không thể thực hiện thao tác. Vui lòng kiểm tra lại thông tin nhập hoặc quyền hạn.")}
+          </div>
         </div>
       ) : mutation.isSuccess ? (
         <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800 flex items-start gap-3 shadow-xs">
@@ -185,7 +236,7 @@ export function MarketplaceAdminClient() {
               </svg>
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-900">Tạo Service Tenant (Nhà Cung Cấp)</h2>
+              <h2 className="text-lg font-bold text-slate-900">Đối tác dịch vụ bên ngoài</h2>
               <p className="text-xs text-slate-500">Khởi tạo đối tác cung cấp dịch vụ và tài khoản quản trị</p>
             </div>
           </div>
@@ -284,7 +335,7 @@ export function MarketplaceAdminClient() {
             disabled={mutation.isPending}
             className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 text-sm font-semibold text-white transition-colors hover:bg-emerald-800 disabled:opacity-50"
           >
-            {mutation.isPending ? "Đang xử lý..." : "+ Tạo Service Tenant"}
+            {mutation.isPending ? "Đang xử lý..." : "+ Tạo đối tác dịch vụ bên ngoài"}
           </button>
         </form>
       </section>
@@ -299,8 +350,8 @@ export function MarketplaceAdminClient() {
               </svg>
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-900">Liên Kết Khách Sạn ↔ Service Tenant</h2>
-              <p className="text-xs text-slate-500">Ủy quyền nhà cung cấp dịch vụ được phép phục vụ khách tại khách sạn</p>
+              <h2 className="text-lg font-bold text-slate-900">Liên Kết Khách Sạn ↔ Đối Tác Dịch Vụ</h2>
+              <p className="text-xs text-slate-500">Ủy quyền đối tác dịch vụ được phép phục vụ khách tại khách sạn</p>
             </div>
           </div>
           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
@@ -331,19 +382,19 @@ export function MarketplaceAdminClient() {
 
           <div>
             <label htmlFor="select-tenant" className={labelClass}>
-              Chọn Service Tenant
+              Chọn Đối Tác Dịch Vụ
             </label>
             <select
               id="select-tenant"
-              aria-label="Service Tenant"
+              aria-label="Đối tác dịch vụ"
               className={inputClass}
               value={tenantId}
               onChange={(e) => setTenantId(e.target.value)}
             >
-              <option value="">-- Chọn nhà cung cấp dịch vụ --</option>
+              <option value="">-- Chọn đối tác dịch vụ --</option>
               {data.data.tenants.map((tenant) => (
                 <option key={tenant.id} value={tenant.id}>
-                  {tenant.serviceProfile?.displayName ?? tenant.name} ({tenant.code})
+                  {tenant.serviceProfile?.displayName ?? tenant.name} ({tenant.code}){tenant.ownerEmail ? ` - ${tenant.ownerEmail}` : ""}
                 </option>
               ))}
             </select>
@@ -353,7 +404,7 @@ export function MarketplaceAdminClient() {
             <button
               type="button"
               disabled={!hotelId || !tenantId || mutation.isPending}
-              onClick={submitLink}
+              onClick={() => submitLink()}
               className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-6 text-sm font-semibold text-white transition-colors hover:bg-emerald-800 disabled:opacity-40 md:w-auto"
             >
               🔗 Kích hoạt liên kết
@@ -388,7 +439,7 @@ export function MarketplaceAdminClient() {
           </div>
         ) : (
           <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-xs font-medium text-slate-400">
-            Chưa có liên kết nào giữa khách sạn và nhà cung cấp dịch vụ.
+            Chưa có liên kết nào giữa khách sạn và đối tác dịch vụ.
           </div>
         )}
       </section>
@@ -407,14 +458,14 @@ export function MarketplaceAdminClient() {
           </div>
 
           {data.data.categories.length > 0 ? (
-            <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
+            <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
               {data.data.categories.map((item) => (
-                <div key={item.id} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/50 p-3">
+                <div key={item.id} className="flex items-center justify-between rounded-xl border border-slate-200/80 bg-slate-50/70 p-3.5 shadow-2xs">
                   <div>
-                    <div className="font-bold text-slate-900 text-sm">{item.nameVi}</div>
-                    <div className="text-xs text-slate-500 font-medium">{item.nameEn}</div>
+                    <div className="font-bold text-slate-900 text-base">{item.nameVi}</div>
+                    <div className="text-sm text-slate-500 font-medium">{item.nameEn}</div>
                   </div>
-                  <span className="rounded-lg bg-white border border-slate-200 px-2.5 py-1 text-xs font-mono font-semibold text-slate-700 shadow-2xs">
+                  <span className="rounded-lg bg-white border border-slate-200 px-3 py-1.5 text-xs font-mono font-bold text-slate-700 shadow-2xs">
                     {item.code}
                   </span>
                 </div>
@@ -429,7 +480,7 @@ export function MarketplaceAdminClient() {
         <div className="space-y-4 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <h2 className="font-bold text-slate-900 flex items-center gap-2">
-              Danh sách Service Tenant
+              Danh sách đối tác dịch vụ
               <span className="rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 text-xs font-bold">
                 {data.data.tenants.length}
               </span>
@@ -437,23 +488,29 @@ export function MarketplaceAdminClient() {
           </div>
 
           {data.data.tenants.length > 0 ? (
-            <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
+            <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
               {data.data.tenants.map((item) => (
-                <div key={item.id} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/50 p-3">
-                  <div>
-                    <div className="font-bold text-slate-900 text-sm">
+                <div key={item.id} className="flex items-center justify-between rounded-xl border border-slate-200/80 bg-slate-50/70 p-3.5 shadow-2xs hover:border-emerald-200 hover:bg-white transition-all">
+                  <div className="space-y-1">
+                    <div className="font-bold text-slate-900 text-base">
                       {item.serviceProfile?.displayName ?? item.name}
                     </div>
-                    <div className="text-xs text-slate-500 font-medium">{item.name}</div>
+                    <div className="text-sm font-medium text-slate-600">{item.name}</div>
+                    <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-semibold pt-0.5">
+                      <svg className="h-3.5 w-3.5 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                      <span className="font-mono">{item.ownerEmail ?? "Chưa có email tài khoản"}</span>
+                    </div>
                   </div>
-                  <span className="rounded-lg bg-white border border-slate-200 px-2.5 py-1 text-xs font-mono font-semibold text-slate-700 shadow-2xs">
+                  <span className="rounded-lg bg-white border border-slate-200 px-3 py-1.5 text-xs font-mono font-bold text-slate-700 shadow-2xs">
                     {item.code}
                   </span>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-xs text-slate-400 italic">Chưa có Service Tenant nào được tạo.</p>
+            <p className="text-xs text-slate-400 italic">Chưa có đối tác dịch vụ nào được tạo.</p>
           )}
         </div>
       </section>

@@ -14,12 +14,20 @@ export type UseHotelMessageUnreadOptions = {
   enabled?: boolean;
 };
 
+function useOptionalQueryClient() {
+  try {
+    return useQueryClient();
+  } catch {
+    return null;
+  }
+}
+
 export function useHotelMessageUnread(
   hotelId: string | null,
   options?: UseHotelMessageUnreadOptions,
 ) {
-  const queryClient = useQueryClient();
-  const isEnabled = Boolean(hotelId && options?.enabled !== false);
+  const queryClient = useOptionalQueryClient();
+  const isEnabled = Boolean(hotelId && options?.enabled !== false && queryClient);
 
   const unreadSummaryOptions = useMemo(
     () =>
@@ -39,10 +47,12 @@ export function useHotelMessageUnread(
   const deduperRef = useRef(createEventDeduper(200));
 
   useEffect(() => {
-    if (!isEnabled || !hotelId) return;
+    if (!isEnabled || !hotelId || !queryClient) return;
 
     const reconcile = () => {
-      void queryClient.invalidateQueries({ queryKey: unreadSummaryOptions.queryKey });
+      if (queryClient) {
+        void queryClient.invalidateQueries({ queryKey: unreadSummaryOptions.queryKey });
+      }
     };
 
     const unsubscribe = ownerRequestRealtimeManager.subscribe(hotelId, {

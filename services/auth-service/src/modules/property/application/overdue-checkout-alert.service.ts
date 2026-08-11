@@ -38,10 +38,9 @@ export class OverdueCheckoutAlertService {
     try {
       const alerts = await this.checkOverdueStays();
       if (alerts.length > 0) {
-        this.logger?.info(
-          `Overdue checkout cron published alerts for ${alerts.length} stay(s)`,
-          { count: alerts.length },
-        );
+        this.logger?.info(`Overdue checkout cron published alerts for ${alerts.length} stay(s)`, {
+          count: alerts.length,
+        });
       }
     } catch (error) {
       this.logger?.error("Failed to run overdue checkout cron job", {

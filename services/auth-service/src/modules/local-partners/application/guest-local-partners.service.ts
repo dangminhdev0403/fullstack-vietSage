@@ -22,7 +22,8 @@ export class GuestLocalPartnersService {
     return query.maxDistanceMeters === undefined
       ? partners
       : partners.filter(
-          (partner) => partner.distanceMeters != null && partner.distanceMeters <= query.maxDistanceMeters!,
+          (partner) =>
+            partner.distanceMeters != null && partner.distanceMeters <= query.maxDistanceMeters!,
         );
   }
 

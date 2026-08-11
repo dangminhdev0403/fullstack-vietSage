@@ -26,9 +26,7 @@ describe("Guest Request Full Lifecycle TDD (CREATED -> ACKNOWLEDGED -> IN_PROGRE
       expect(normalizeGuestRequestStatus(GuestRequestStatus.CREATED)).toBe(
         GuestRequestStatus.CREATED,
       );
-      expect(normalizeGuestRequestStatus(GuestRequestStatus.NEW)).toBe(
-        GuestRequestStatus.CREATED,
-      );
+      expect(normalizeGuestRequestStatus(GuestRequestStatus.NEW)).toBe(GuestRequestStatus.CREATED);
 
       expect(normalizeGuestRequestStatus(GuestRequestStatus.ACKNOWLEDGED)).toBe(
         GuestRequestStatus.ACKNOWLEDGED,

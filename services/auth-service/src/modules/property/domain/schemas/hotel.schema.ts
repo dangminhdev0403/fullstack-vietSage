@@ -78,7 +78,12 @@ export const updateHotelBodySchema = z
     brandSettings: jsonRecordSchema.nullable().optional(),
     googleSheetUrl: googleSheetUrlSchema.nullable().optional(),
     status: z.nativeEnum(HotelStatus).optional(),
-    googleMapsUrl: z.string().url().refine((value) => ["http:", "https:"].includes(new URL(value).protocol)).nullable().optional(),
+    googleMapsUrl: z
+      .string()
+      .url()
+      .refine((value) => ["http:", "https:"].includes(new URL(value).protocol))
+      .nullable()
+      .optional(),
     latitude: z.number().min(-90).max(90).nullable().optional(),
     longitude: z.number().min(-180).max(180).nullable().optional(),
     locationAccuracyMeters: z.number().nonnegative().nullable().optional(),
@@ -86,7 +91,8 @@ export const updateHotelBodySchema = z
   })
   .strict()
   .superRefine((value, context) => {
-    if ((value.latitude == null) !== (value.longitude == null)) context.addIssue({ code: "custom", message: "latitude và longitude phải đi cùng nhau" });
+    if ((value.latitude == null) !== (value.longitude == null))
+      context.addIssue({ code: "custom", message: "latitude và longitude phải đi cùng nhau" });
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: "Cần ít nhất một trường khách sạn",

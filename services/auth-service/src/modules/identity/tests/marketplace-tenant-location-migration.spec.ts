@@ -19,9 +19,9 @@ describe("marketplace tenant location migration contract", () => {
     });
 
     it("safely creates TenantType and MarketplaceLocationSource enums", () => {
-      expect(migration).toContain('CREATE TYPE "TenantType" AS ENUM (\'HOTEL\', \'SERVICE\')');
+      expect(migration).toContain("CREATE TYPE \"TenantType\" AS ENUM ('HOTEL', 'SERVICE')");
       expect(migration).toContain(
-        'CREATE TYPE "MarketplaceLocationSource" AS ENUM (\'DEVICE_GEOLOCATION\', \'GOOGLE_MAPS_URL\', \'MANUAL\')',
+        "CREATE TYPE \"MarketplaceLocationSource\" AS ENUM ('DEVICE_GEOLOCATION', 'GOOGLE_MAPS_URL', 'MANUAL')",
       );
     });
 

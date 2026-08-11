@@ -10,8 +10,14 @@ const transitions: Record<MarketplaceOrderStatus, readonly MarketplaceOrderStatu
   CANCELLED: [],
 };
 
-export function canTransitionMarketplaceOrder(from: MarketplaceOrderStatus, to: MarketplaceOrderStatus, mode: MarketplaceServiceMode) {
-  return transitions[from].includes(to)
-    && (to !== "DELIVERING" || mode === "DELIVERY_TO_HOTEL")
-    && (to !== "READY" || mode === "CUSTOMER_AT_SERVICE");
+export function canTransitionMarketplaceOrder(
+  from: MarketplaceOrderStatus,
+  to: MarketplaceOrderStatus,
+  mode: MarketplaceServiceMode,
+) {
+  return (
+    transitions[from].includes(to) &&
+    (to !== "DELIVERING" || mode === "DELIVERY_TO_HOTEL") &&
+    (to !== "READY" || mode === "CUSTOMER_AT_SERVICE")
+  );
 }

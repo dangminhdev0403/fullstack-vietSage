@@ -149,8 +149,18 @@ describe("guest stay CCCD identity", () => {
       guestNationality: "Việt Nam",
       guestResidencePlace: "Lào Cai",
       occupants: [
-        { fullName: "Tran Thi B", identityNumber: "034205005952", nationality: "Việt Nam", residencePlace: "Hà Nội" },
-        { fullName: "Le Van C", identityNumber: "034205005953", nationality: "Việt Nam", residencePlace: "Đà Nẵng" },
+        {
+          fullName: "Tran Thi B",
+          identityNumber: "034205005952",
+          nationality: "Việt Nam",
+          residencePlace: "Hà Nội",
+        },
+        {
+          fullName: "Le Van C",
+          identityNumber: "034205005953",
+          nationality: "Việt Nam",
+          residencePlace: "Đà Nẵng",
+        },
       ],
       plannedCheckInAt: new Date(stayInput.plannedCheckInAt),
       plannedCheckOutAt: new Date(stayInput.plannedCheckOutAt),
@@ -161,9 +171,24 @@ describe("guest stay CCCD identity", () => {
     });
 
     expect(tx.guestStay.create.mock.calls[0][0].data.occupants.create).toEqual([
-      expect.objectContaining({ fullName: "Nguyen Van A", isPrimary: true, nationality: "Việt Nam", residencePlace: "Lào Cai" }),
-      expect.objectContaining({ fullName: "Tran Thi B", isPrimary: false, nationality: "Việt Nam", residencePlace: "Hà Nội" }),
-      expect.objectContaining({ fullName: "Le Van C", isPrimary: false, nationality: "Việt Nam", residencePlace: "Đà Nẵng" }),
+      expect.objectContaining({
+        fullName: "Nguyen Van A",
+        isPrimary: true,
+        nationality: "Việt Nam",
+        residencePlace: "Lào Cai",
+      }),
+      expect.objectContaining({
+        fullName: "Tran Thi B",
+        isPrimary: false,
+        nationality: "Việt Nam",
+        residencePlace: "Hà Nội",
+      }),
+      expect.objectContaining({
+        fullName: "Le Van C",
+        isPrimary: false,
+        nationality: "Việt Nam",
+        residencePlace: "Đà Nẵng",
+      }),
     ]);
   });
 });

@@ -4,7 +4,15 @@ import { updateHotelBodySchema } from "../../property/domain/schemas/hotel.schem
 
 describe("hotel marketplace location", () => {
   it("requires a coordinate pair", () => {
-    expect(() => parseWithZod(updateHotelBodySchema, { latitude: 10 })).toThrow(BadRequestException);
-    expect(parseWithZod(updateHotelBodySchema, { latitude: 10, longitude: 106, locationSource: "DEVICE_GEOLOCATION" })).toEqual({ latitude: 10, longitude: 106, locationSource: "DEVICE_GEOLOCATION" });
+    expect(() => parseWithZod(updateHotelBodySchema, { latitude: 10 })).toThrow(
+      BadRequestException,
+    );
+    expect(
+      parseWithZod(updateHotelBodySchema, {
+        latitude: 10,
+        longitude: 106,
+        locationSource: "DEVICE_GEOLOCATION",
+      }),
+    ).toEqual({ latitude: 10, longitude: 106, locationSource: "DEVICE_GEOLOCATION" });
   });
 });

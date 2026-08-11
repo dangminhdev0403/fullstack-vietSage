@@ -10,7 +10,18 @@ export class GuestMarketplaceService {
 
   categories(hotelId: string) {
     return this.prisma.marketplaceCategory.findMany({
-      where: { isActive: true, services: { some: { status: MarketplaceRecordStatus.ACTIVE, serviceTenant: { serviceProfile: { status: MarketplaceRecordStatus.ACTIVE }, hotelServiceLinks: { some: { hotelId, status: "ACTIVE" } } } } } },
+      where: {
+        isActive: true,
+        services: {
+          some: {
+            status: MarketplaceRecordStatus.ACTIVE,
+            serviceTenant: {
+              serviceProfile: { status: MarketplaceRecordStatus.ACTIVE },
+              hotelServiceLinks: { some: { hotelId, status: "ACTIVE" } },
+            },
+          },
+        },
+      },
       orderBy: [{ sortOrder: "asc" }, { code: "asc" }],
     });
   }
@@ -36,18 +47,36 @@ export class GuestMarketplaceService {
           select: {
             id: true,
             serviceProfile: true,
-            hotelServiceLinks: { where: { hotelId, status: "ACTIVE" }, select: { sortOrder: true }, take: 1 },
+            hotelServiceLinks: {
+              where: { hotelId, status: "ACTIVE" },
+              select: { sortOrder: true },
+              take: 1,
+            },
           },
         },
       },
       take: 100,
     });
-    const sorted = rows.map((row) => ({ ...row, distanceMeters: this.distance(hotel, row.serviceTenant.serviceProfile) }))
-      .sort((left, right) => (left.serviceTenant.hotelServiceLinks[0]?.sortOrder ?? 0) - (right.serviceTenant.hotelServiceLinks[0]?.sortOrder ?? 0)
-        || (left.distanceMeters ?? Number.MAX_SAFE_INTEGER) - (right.distanceMeters ?? Number.MAX_SAFE_INTEGER)
-        || left.id.localeCompare(right.id));
+    const sorted = rows
+      .map((row) => ({
+        ...row,
+        distanceMeters: this.distance(hotel, row.serviceTenant.serviceProfile),
+      }))
+      .sort(
+        (left, right) =>
+          (left.serviceTenant.hotelServiceLinks[0]?.sortOrder ?? 0) -
+            (right.serviceTenant.hotelServiceLinks[0]?.sortOrder ?? 0) ||
+          (left.distanceMeters ?? Number.MAX_SAFE_INTEGER) -
+            (right.distanceMeters ?? Number.MAX_SAFE_INTEGER) ||
+          left.id.localeCompare(right.id),
+      );
     const start = (query.page - 1) * query.limit;
-    return { page: query.page, limit: query.limit, total: sorted.length, items: sorted.slice(start, start + query.limit) };
+    return {
+      page: query.page,
+      limit: query.limit,
+      total: sorted.length,
+      items: sorted.slice(start, start + query.limit),
+    };
   }
 
   async detail(hotelId: string, serviceId: string) {
@@ -58,11 +87,28 @@ export class GuestMarketplaceService {
   }
 
   private hotelLocation(hotelId: string) {
-    return this.prisma.hotel.findUniqueOrThrow({ where: { id: hotelId }, select: { latitude: true, longitude: true } });
+    return this.prisma.hotel.findUniqueOrThrow({
+      where: { id: hotelId },
+      select: { latitude: true, longitude: true },
+    });
   }
 
-  private distance(hotel: { latitude: unknown; longitude: unknown }, profile: { latitude: unknown; longitude: unknown } | null) {
-    if (hotel.latitude == null || hotel.longitude == null || profile?.latitude == null || profile.longitude == null) return null;
-    return calculateHaversineDistanceMeters(Number(hotel.latitude), Number(hotel.longitude), Number(profile.latitude), Number(profile.longitude));
+  private distance(
+    hotel: { latitude: unknown; longitude: unknown },
+    profile: { latitude: unknown; longitude: unknown } | null,
+  ) {
+    if (
+      hotel.latitude == null ||
+      hotel.longitude == null ||
+      profile?.latitude == null ||
+      profile.longitude == null
+    )
+      return null;
+    return calculateHaversineDistanceMeters(
+      Number(hotel.latitude),
+      Number(hotel.longitude),
+      Number(profile.latitude),
+      Number(profile.longitude),
+    );
   }
 }

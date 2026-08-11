@@ -165,7 +165,8 @@ export class HotelsService {
       longitude: dto.longitude,
       locationAccuracyMeters: dto.locationAccuracyMeters,
       locationSource: dto.locationSource,
-      locationVerifiedAt: dto.latitude === undefined ? undefined : dto.latitude === null ? null : new Date(),
+      locationVerifiedAt:
+        dto.latitude === undefined ? undefined : dto.latitude === null ? null : new Date(),
     } satisfies Prisma.HotelUpdateInput;
 
     if (actor.isTenantOwner) {

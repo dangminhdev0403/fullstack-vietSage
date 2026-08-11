@@ -73,9 +73,7 @@ export function computePeriodProjection<
   }
 
   const isOverdue =
-    paymentState !== "PAID" &&
-    period?.dueAt != null &&
-    now > new Date(period.dueAt);
+    paymentState !== "PAID" && period?.dueAt != null && now > new Date(period.dueAt);
 
   return {
     settledAmount: settledDec,
@@ -479,7 +477,9 @@ export class PlatformBillingService {
         const settlementAmount = new Prisma.Decimal(input.amount);
 
         if (settlementAmount.greaterThan(currentProjection.outstandingAmount)) {
-          throw new BadRequestException("Số tiền thanh toán vượt quá số tiền còn lại phải thanh toán");
+          throw new BadRequestException(
+            "Số tiền thanh toán vượt quá số tiền còn lại phải thanh toán",
+          );
         }
 
         const settlement = await tx.platformBillingSettlement.create({
@@ -614,24 +614,27 @@ export class PlatformBillingService {
       rawFinalizedAmount instanceof Prisma.Decimal
         ? rawFinalizedAmount
         : typeof rawFinalizedAmount === "number" || typeof rawFinalizedAmount === "string"
-        ? new Prisma.Decimal(rawFinalizedAmount)
-        : new Prisma.Decimal(0);
+          ? new Prisma.Decimal(rawFinalizedAmount)
+          : new Prisma.Decimal(0);
 
     const rawCollectedAmount = kpi?.collectedAmount;
     const collectedAmount =
       rawCollectedAmount instanceof Prisma.Decimal
         ? rawCollectedAmount
         : typeof rawCollectedAmount === "number" || typeof rawCollectedAmount === "string"
-        ? new Prisma.Decimal(rawCollectedAmount)
-        : new Prisma.Decimal(0);
+          ? new Prisma.Decimal(rawCollectedAmount)
+          : new Prisma.Decimal(0);
 
     const rawOutstandingAmount = kpi?.outstandingAmount;
     const outstandingAmount =
       rawOutstandingAmount instanceof Prisma.Decimal
         ? rawOutstandingAmount
         : typeof rawOutstandingAmount === "number" || typeof rawOutstandingAmount === "string"
-        ? new Prisma.Decimal(rawOutstandingAmount)
-        : Prisma.Decimal.max(new Prisma.Decimal(0), Prisma.Decimal.sub(finalizedAmount, collectedAmount));
+          ? new Prisma.Decimal(rawOutstandingAmount)
+          : Prisma.Decimal.max(
+              new Prisma.Decimal(0),
+              Prisma.Decimal.sub(finalizedAmount, collectedAmount),
+            );
 
     const unpaidPeriodCount = Number(kpi?.unpaidPeriodCount ?? 0);
     const overduePeriodCount = Number(kpi?.overduePeriodCount ?? 0);
@@ -789,13 +792,15 @@ export class PlatformBillingService {
 
   async getOwnerAnalytics(
     hotelId: string,
-    queryParam: {
-      monthDate?: string;
-      periodPage?: number;
-      periodLimit?: number;
-      billableDayPage?: number;
-      billableDayLimit?: number;
-    } | undefined,
+    queryParam:
+      | {
+          monthDate?: string;
+          periodPage?: number;
+          periodLimit?: number;
+          billableDayPage?: number;
+          billableDayLimit?: number;
+        }
+      | undefined,
     actorContext: {
       actorUserId: string;
       actorRoleId: string;
@@ -961,7 +966,13 @@ export class PlatformBillingService {
 
     const roomUsageMap = new Map<
       string,
-      { roomNumber: string; usageCount: number; billableDaysCount: number; billedAmount: number; currency: string }
+      {
+        roomNumber: string;
+        usageCount: number;
+        billableDaysCount: number;
+        billedAmount: number;
+        currency: string;
+      }
     >();
 
     for (const room of rooms) {
@@ -997,7 +1008,9 @@ export class PlatformBillingService {
 
       const bdCurrency = bd.currency || defaultCurrency;
       if (entry.billableDaysCount > 0 && entry.currency !== bdCurrency) {
-        throw new BadRequestException(`Phát hiện nhiều loại tiền tệ khác nhau (${entry.currency}, ${bdCurrency}) trong cùng một phòng`);
+        throw new BadRequestException(
+          `Phát hiện nhiều loại tiền tệ khác nhau (${entry.currency}, ${bdCurrency}) trong cùng một phòng`,
+        );
       }
 
       entry.currency = bdCurrency;

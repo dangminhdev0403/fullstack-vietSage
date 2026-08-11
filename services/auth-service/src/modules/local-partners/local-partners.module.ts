@@ -11,11 +11,7 @@ import { LocalPartnersRepository } from "./infrastructure/local-partners.reposit
 @Module({
   imports: [PrismaModule, GuestOperationsModule, PropertyModule],
   controllers: [LocalPartnersController, GuestLocalPartnersController],
-  providers: [
-    LocalPartnersRepository,
-    LocalPartnersService,
-    GuestLocalPartnersService,
-  ],
+  providers: [LocalPartnersRepository, LocalPartnersService, GuestLocalPartnersService],
   exports: [LocalPartnersService, GuestLocalPartnersService],
 })
 export class LocalPartnersModule {}

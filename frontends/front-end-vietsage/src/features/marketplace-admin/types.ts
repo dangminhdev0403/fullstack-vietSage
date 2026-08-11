@@ -5,6 +5,7 @@ export type ServiceTenant = {
   id: string;
   code: string;
   name: string;
+  ownerEmail?: string | null;
   serviceProfile: { displayName: string; status: string } | null;
 };
 export type HotelLink = {
