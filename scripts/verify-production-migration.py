@@ -27,10 +27,7 @@ def service_block(compose: str, service: str) -> str:
     return match.group("body")
 
 
-def main() -> int:
-    compose = COMPOSE_PATH.read_text(encoding="utf-8")
-    failures: list[str] = []
-
+def _check_migrate_service(compose: str, failures: list[str]) -> None:
     try:
         migrate = service_block(compose, "migrate")
     except AssertionError as error:
@@ -40,7 +37,7 @@ def main() -> int:
     if migrate:
         for required in (
             'image: "${AUTH_SERVICE_IMAGE:-vietsage-auth-service:prod}"',
-            "restart: \"no\"",
+            'restart: "no"',
             "condition: service_healthy",
             "- backend",
         ):
@@ -52,6 +49,8 @@ def main() -> int:
         if re.search(r"(?m)^    ports:\n", migrate):
             failures.append("migrate service must not publish ports")
 
+
+def _check_auth_service(compose: str, failures: list[str]) -> None:
     try:
         auth = service_block(compose, "auth-service")
     except AssertionError as error:
@@ -66,6 +65,8 @@ def main() -> int:
         if not migrate_dependency or "condition: service_completed_successfully" not in migrate_dependency.group("body"):
             failures.append("auth-service must wait for migrate to complete successfully")
 
+
+def _check_dockerfile_and_migrations(compose: str, failures: list[str]) -> None:
     dockerfile = DOCKERFILE_PATH.read_text(encoding="utf-8")
     if not re.search(
         r"(?m)^COPY --from=builder --chown=node:node /app/prisma\.config\.ts ./prisma\.config\.ts$",
@@ -91,6 +92,15 @@ def main() -> int:
         if forbidden in lowered:
             failures.append(f"production Compose contains forbidden migration command: {forbidden}")
 
+
+def main() -> int:
+    compose = COMPOSE_PATH.read_text(encoding="utf-8")
+    failures: list[str] = []
+
+    _check_migrate_service(compose, failures)
+    _check_auth_service(compose, failures)
+    _check_dockerfile_and_migrations(compose, failures)
+
     if failures:
         print("Production migration verification FAILED:")
         for failure in failures:
@@ -103,3 +113,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+

@@ -65,12 +65,23 @@ function assertInternalApiPath(path: string): void {
 
 function readInternalApiErrorMessage(payload: unknown, status: number): string {
   if (payload && typeof payload === "object" && !Array.isArray(payload)) {
-    const data = (payload as { data?: unknown }).data;
-    if (data && typeof data === "object" && !Array.isArray(data)) {
-      const detail = (data as { detail?: unknown }).detail;
+    const p = payload as Record<string, unknown>;
+    if (p.data && typeof p.data === "object" && !Array.isArray(p.data)) {
+      const detail = (p.data as { detail?: unknown }).detail;
       if (typeof detail === "string" && detail.trim()) return detail.trim();
+      const msg = (p.data as { message?: unknown }).message;
+      if (typeof msg === "string" && msg.trim() && !/^[A-Z0-9_ -]+$/.test(msg.trim())) return msg.trim();
+    }
+    if (typeof p.detail === "string" && p.detail.trim()) return p.detail.trim();
+    if (typeof p.message === "string" && p.message.trim() && !/^[A-Z0-9_ -]+$/.test(p.message.trim())) {
+      return p.message.trim();
     }
   }
+  if (status === 409) return "Thông tin đối tác hoặc danh mục đã tồn tại trên hệ thống (Lỗi trùng lặp).";
+  if (status === 400) return "Thông tin nhập chưa đúng hoặc không hợp lệ.";
+  if (status === 403) return "Bạn không có quyền thực hiện thao tác này.";
+  if (status === 404) return "Không tìm thấy tài nguyên yêu cầu.";
+  if (status === 401) return "Chưa đăng nhập hoặc phiên làm việc đã hết hạn.";
   return `Yêu cầu thất bại (${status}). Vui lòng thử lại.`;
 }
 

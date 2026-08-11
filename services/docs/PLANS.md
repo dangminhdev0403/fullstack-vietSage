@@ -1,3 +1,29 @@
+## 2026-08-11 - Seed Test Data + Owner Marketplace Discovery & Linking (Complete)
+
+- [x] Created idempotent `prisma/seed-marketplace-test-data.js` script to seed 3 Marketplace categories, 3 Service Tenants (near ≈2km, medium ≈15km, far ≈40km), and 3 owner users with `SERVICE_STAFF` role.
+- [x] Removed obsolete Hotel-Service linking endpoints (`GET hotel-links`, `PUT hotel-links`, `DELETE hotel-links`) from Super Admin (`marketplace-admin.controller.ts`), transferring link management entirely to Hotel Owner scope.
+- [x] Cleaned up unused frontend SDK methods (`links`, `link`) in `features/marketplace-admin/client.ts`.
+- [x] Executed seed script idempotently and verified 7/7 passing Marketplace admin unit tests (`src/modules/marketplace/tests/marketplace-admin.service.spec.ts`).
+
+## 2026-08-11 - Marketplace Guest Orders and Stay Folio Debt (Complete)
+
+- [x] Guest lists/orders linked provider services and tracks own orders.
+- [x] Owner/staff view provider catalogs and hotel Marketplace orders.
+- [x] `COMPLETED` posts one idempotent `SYSTEM` service item to the active stay folio; missing/open-currency mismatch rolls back completion.
+- [x] Added rerunnable raw SQL demo seed (`prisma/seed-marketplace-demo.sql`); local Docker verified 3 providers, 3 services, 3 links.
+
+## 2026-08-11 - Owner Nearby Service Provider Linking (Complete)
+
+- [x] Moved hotel-provider linking from platform administration to hotel Owner scope.
+- [x] Added hotel-scoped provider discovery: mapped active providers only, 30 km maximum, nearest-first.
+- [x] Reused `HotelServiceLink`; no migration or duplicate LocalPartner persistence.
+- [x] Focused Marketplace tests passed (7/7); backend build and OpenAPI verification passed.
+
+## 2026-08-11 - Canonical Hotel Timezone Default (Complete)
+
+- [x] New hotels default to `Asia/Ho_Chi_Minh` when timezone is omitted.
+- [x] Backend build passed.
+
 ## 2026-08-11 - Google Sheets Catalog Sync HTTP Exception Mapping (Complete)
 
 - [x] Updated `GoogleSheetsServiceCatalogSyncService` (`google-sheets-service-catalog-sync.service.ts`) to throw `NotFoundException` (404) for missing sheets and `ForbiddenException` (403) for permission issues instead of mapping all errors to `BadRequestException` (400).

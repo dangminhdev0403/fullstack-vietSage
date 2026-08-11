@@ -10141,63 +10141,12 @@
         ]
       }
     },
-    "/admin/marketplace/hotel-links": {
-      "get": {
-        "operationId": "MarketplaceAdminController_hotelLinks",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "MarketplaceAdmin"
-        ]
-      }
-    },
-    "/admin/marketplace/hotel-links/{hotelId}/{serviceTenantId}": {
-      "put": {
-        "operationId": "MarketplaceAdminController_setLink",
+    "/admin/marketplace/service-tenants/{tenantId}": {
+      "patch": {
+        "operationId": "MarketplaceAdminController_updateServiceTenant",
         "parameters": [
           {
-            "name": "hotelId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "serviceTenantId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "MarketplaceAdmin"
-        ]
-      },
-      "delete": {
-        "operationId": "MarketplaceAdminController_disableLink",
-        "parameters": [
-          {
-            "name": "hotelId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "serviceTenantId",
+            "name": "tenantId",
             "required": true,
             "in": "path",
             "schema": {
@@ -10484,6 +10433,89 @@
         },
         "tags": [
           "GuestMarketplace"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/marketplace/providers": {
+      "get": {
+        "operationId": "HotelMarketplaceController_providers",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "HotelMarketplace"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/marketplace/providers/{serviceTenantId}": {
+      "put": {
+        "operationId": "HotelMarketplaceController_linkProvider",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "serviceTenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "HotelMarketplace"
+        ]
+      },
+      "delete": {
+        "operationId": "HotelMarketplaceController_unlinkProvider",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "serviceTenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "HotelMarketplace"
         ]
       }
     },

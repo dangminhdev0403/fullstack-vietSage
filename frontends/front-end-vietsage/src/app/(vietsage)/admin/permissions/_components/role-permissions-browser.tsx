@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import Swal from "sweetalert2";
+import { SwalVietSage } from "@/libs/swal";
 
 import { HttpError } from "@/core/http/http-error";
 import {
@@ -738,12 +739,11 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
       return;
     }
 
-    const resetConfirmation = await Swal.fire({
+    const resetConfirmation = await SwalVietSage.fire({
       icon: "warning",
       title: "Đặt lại tất cả thay đổi?",
       text: "Hành động này sẽ khôi phục dữ liệu về ban đầu.",
       showCancelButton: true,
-      reverseButtons: true,
       confirmButtonText: "Đồng ý",
       cancelButtonText: "Huỷ",
     });
@@ -757,13 +757,12 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
     }));
     closeLoadingBox();
 
-    await Swal.fire({
+    await SwalVietSage.fire({
       icon: "success",
       title: "Đã đặt lại thay đổi",
       text: "Dữ liệu về ban đầu sẽ khôi phục.",
-      confirmButtonText: "Đồng ý",
-      timer: 2200,
-      timerProgressBar: true,
+      confirmButtonText: "OK",
+      showConfirmButton: true,
     });
   }
 
@@ -772,23 +771,21 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
     if (!selectedRoleId || !selectedRoleHasCache || selectedRoleSaving) return;
 
     if (!selectedRoleHasUnsavedChanges) {
-      await Swal.fire({
+      await SwalVietSage.fire({
         icon: "info",
         title: "Không có quyền nào thay đổi để lưu",
         text: "Không có thay đổi nào cho vai trò này.",
-        confirmButtonText: "Đồng ý",
-        timer: 2200,
-        timerProgressBar: true,
+        confirmButtonText: "OK",
+        showConfirmButton: true,
       });
       return;
     }
 
-    const saveConfirmation = await Swal.fire({
+    const saveConfirmation = await SwalVietSage.fire({
       icon: "question",
       title: "Lưu thay đổi quyền?",
       text: "Hành động này sẽ thay thế dữ liệu hiện tại.",
       showCancelButton: true,
-      reverseButtons: true,
       confirmButtonText: "Đồng ý lưu",
       cancelButtonText: "Huỷ",
     });
@@ -823,13 +820,12 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
 
       closeLoadingBox();
 
-      await Swal.fire({
+      await SwalVietSage.fire({
         icon: "success",
         title: "Đã lưu thay đổi",
         text: `${selectedRoleName} có ${confirmedIds.length} Quyền đang hoạt động.`,
-        confirmButtonText: "Đồng ý",
-        timer: 2200,
-        timerProgressBar: true,
+        confirmButtonText: "OK",
+        showConfirmButton: true,
       });
     } catch (error) {
       closeLoadingBox();
@@ -839,13 +835,12 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
           : "Không lưu được thay đổi do lỗi không xác định.";
       setErrorByRoleId((prev) => ({ ...prev, [selectedRoleId]: message }));
 
-      await Swal.fire({
+      await SwalVietSage.fire({
         icon: "error",
         title: "Lưu thất bại",
         text: message,
-        confirmButtonText: "Đồng ý",
-        timer: 3200,
-        timerProgressBar: true,
+        confirmButtonText: "OK",
+        showConfirmButton: true,
       });
     } finally {
       closeLoadingBox();
@@ -1103,7 +1098,7 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
                   <div className="flex items-center gap-2">
                     <VsIcon
                       name={moduleIcon(selectedModuleKey ?? "")}
-                      className="text-[18px] text-[var(--secondary)]"
+                      className="text-[18px] text-secondary"
                     />
                     <h2 className="text-sm font-semibold text-[var(--primary)]">
                       {moduleLabel(

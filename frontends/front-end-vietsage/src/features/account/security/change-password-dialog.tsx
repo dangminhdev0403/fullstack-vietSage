@@ -99,17 +99,12 @@ export function ChangePasswordDialog() {
       </button>
       {open
         ? createPortal(
-          <div
-            className="fixed inset-0 z-[100] grid place-items-center overflow-y-auto bg-black/45 p-4 sm:p-6"
+          <div className="fixed inset-0 z-[100] grid place-items-center overflow-y-auto bg-black/45 p-4 sm:p-6">
+          <form
+            onSubmit={submit}
             role="dialog"
             aria-modal="true"
             aria-labelledby="change-password-title"
-            onMouseDown={(event) => {
-              if (event.target === event.currentTarget) close();
-            }}
-          >
-          <form
-            onSubmit={submit}
             className="my-auto max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-5 text-left shadow-2xl sm:max-h-[calc(100dvh-3rem)] sm:p-6"
           >
             <div className="flex items-start justify-between gap-4">

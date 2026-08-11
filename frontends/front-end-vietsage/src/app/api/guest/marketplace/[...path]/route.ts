@@ -14,7 +14,9 @@ export async function GET(request: Request, context: Context) {
   try {
     const data = key === "categories"
       ? await guestOsService.listMarketplaceCategories<MarketplaceCategory[]>(token)
-      : await guestOsService.listMarketplaceServices<MarketplaceServicesPage>(token, new URL(request.url).searchParams.get("categoryId") || undefined);
+      : key === "orders"
+        ? await guestOsService.listMarketplaceOrders<MarketplaceOrder[]>(token)
+        : await guestOsService.listMarketplaceServices<MarketplaceServicesPage>(token, new URL(request.url).searchParams.get("categoryId") || undefined);
     return guestSuccessResponse({ status: 200, error: null, message: "OK", data });
   } catch (error) {
     return error instanceof HttpError ? guestHttpErrorResponse(error) : guestUnknownErrorResponse();

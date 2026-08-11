@@ -12,4 +12,5 @@ export const guestMarketplaceRepository = {
   categories: (token: string) => request<MarketplaceCategory[]>(token, "/api/guest/marketplace/categories"),
   services: (token: string, categoryId?: string) => request<MarketplaceServicesPage>(token, `/api/guest/marketplace/services${categoryId ? `?categoryId=${encodeURIComponent(categoryId)}` : ""}`),
   order: (token: string, input: CreateMarketplaceOrderInput) => request<MarketplaceOrder>(token, "/api/guest/marketplace/orders", { method: "POST", body: JSON.stringify(input) }),
+  orders: (token: string) => request<MarketplaceOrder[]>(token, "/api/guest/marketplace/orders"),
 };

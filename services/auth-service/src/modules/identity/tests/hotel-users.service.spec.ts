@@ -248,7 +248,7 @@ describe("HotelUsersService", () => {
       );
 
       expect(result.userId).toBe("frontdesk-1");
-      expect(result.temporaryPassword.length).toBe(16);
+      expect(result.temporaryPassword).toHaveLength(16);
       expect(result.resetAt).toBeDefined();
       expect(hotelUsersRepository.updateUserPasswordHashAndRevokeSessions).toHaveBeenCalledWith(
         "frontdesk-1",

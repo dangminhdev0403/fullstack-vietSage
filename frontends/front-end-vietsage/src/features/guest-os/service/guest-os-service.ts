@@ -110,6 +110,11 @@ export class GuestOsService {
     return unwrapApiEnvelope<T>(payload).data;
   }
 
+  async listMarketplaceOrders<T>(sessionToken: string): Promise<T> {
+    const payload = await this.httpClient.request<unknown>({ method: "GET", path: this.path("/guest/marketplace/orders"), accessToken: sessionToken });
+    return unwrapApiEnvelope<T>(payload).data;
+  }
+
   async createMarketplaceOrder<T, B>(sessionToken: string, body: B): Promise<T> {
     const payload = await this.httpClient.request<unknown, B>({ method: "POST", path: this.path("/guest/marketplace/orders"), accessToken: sessionToken, body });
     return unwrapApiEnvelope<T>(payload).data;

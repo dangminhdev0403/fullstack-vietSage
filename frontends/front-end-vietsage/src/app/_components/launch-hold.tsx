@@ -9,10 +9,10 @@ export function LaunchHold() {
       />
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -bottom-40 -right-24 size-[28rem] rounded-full bg-[#eee3ca]/70 blur-3xl"
+        className="pointer-events-none absolute -bottom-40 -right-24 size-112 rounded-full bg-[#eee3ca]/70 blur-3xl"
       />
 
-      <section className="launch-border relative w-full max-w-3xl overflow-hidden rounded-[2rem] bg-white/90 px-6 py-12 text-center shadow-[0_24px_70px_rgba(20,61,43,0.12)] backdrop-blur-sm sm:px-12 sm:py-14">
+      <section className="launch-border relative w-full max-w-3xl overflow-hidden rounded-4xl bg-white/90 px-6 py-12 text-center shadow-[0_24px_70px_rgba(20,61,43,0.12)] backdrop-blur-sm sm:px-12 sm:py-14">
         <div className="relative z-10 mx-auto flex max-w-2xl flex-col items-center">
           <VietSageBrand
             variant="mark"
@@ -27,8 +27,11 @@ export function LaunchHold() {
             wordmarkClassName="h-7 w-auto sm:h-8"
           />
           <p className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#edf3ee] px-4 py-2 text-xs font-semibold text-[#365846]">
-            <span className="size-1.5 rounded-full bg-[#bc8b31]" aria-hidden="true" />
-            A thoughtful new experience is in development
+            <span
+              className="size-1.5 rounded-full bg-[#bc8b31]"
+              aria-hidden="true"
+            />
+            <span>A thoughtful new experience is in development</span>
           </p>
 
           <h1 className="mt-8 whitespace-normal text-[clamp(2rem,5vw,3.65rem)] font-black leading-[1.02] tracking-[-0.055em] text-[#123d2a] md:whitespace-nowrap">
@@ -43,7 +46,7 @@ export function LaunchHold() {
             >
               Congnghesovn247@gmail.com
             </a>
-            .
+            {"."}
           </p>
         </div>
       </section>

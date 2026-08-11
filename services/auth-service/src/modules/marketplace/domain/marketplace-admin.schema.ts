@@ -26,7 +26,6 @@ export const marketplaceCategoryUpdateSchema = marketplaceCategoryBodySchema
   .refine((v) => Object.keys(v).length > 0);
 export const serviceTenantBodySchema = z
   .object({
-    name: z.string().trim().min(1).max(160),
     displayName: z.string().trim().min(1).max(160),
     description: z.string().trim().max(1000).nullish(),
     phone: z.string().trim().max(40).nullish(),
@@ -53,6 +52,21 @@ export const hotelServiceLinkBodySchema = z.object({
 });
 export const hotelLinksQuerySchema = z.object({ hotelId: id });
 
+export const serviceTenantUpdateSchema = z
+  .object({
+    displayName: z.string().trim().min(1).max(160).optional(),
+    status: z.string().trim().min(1).max(40).optional(),
+    owner: z
+      .object({
+        email: z.string().trim().email().max(320).optional(),
+        fullName: z.string().trim().min(2).max(120).optional(),
+        password: z.string().min(8).max(128).optional(),
+      })
+      .optional(),
+  })
+  .refine((v) => Object.keys(v).length > 0);
+
 export type MarketplaceCategoryBody = z.infer<typeof marketplaceCategoryBodySchema>;
 export type ServiceTenantBody = z.infer<typeof serviceTenantBodySchema>;
+export type ServiceTenantUpdateBody = z.infer<typeof serviceTenantUpdateSchema>;
 export type HotelServiceLinkBody = z.infer<typeof hotelServiceLinkBodySchema>;

@@ -7,12 +7,42 @@ import {
 } from "../domain/marketplace-admin.schema";
 
 const body = {
-  name: "Spa",
   displayName: "Spa",
   owner: { email: "spa@example.com", fullName: "Spa Owner", password: "Password123!" },
 };
 
+
 describe("Marketplace admin", () => {
+  it("lists only nearby mapped providers from nearest to farthest", async () => {
+    const prisma = {
+      hotel: { findUniqueOrThrow: jest.fn().mockResolvedValue({ latitude: 0, longitude: 0 }) },
+      tenant: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: "far", serviceProfile: { latitude: 1, longitude: 1 }, hotelServiceLinks: [] },
+          { id: "near", serviceProfile: { latitude: 0.01, longitude: 0.01 }, hotelServiceLinks: [{ status: "ACTIVE" }] },
+          { id: "unknown", serviceProfile: { latitude: null, longitude: null }, hotelServiceLinks: [] },
+        ]),
+      },
+    };
+    const service = new MarketplaceAdminService(prisma as never, {} as never);
+
+    const result = await service.listNearbyServiceTenants("hotel-1");
+
+    expect(result.map((provider) => provider.id)).toEqual(["near"]);
+    expect(result[0]).toEqual(expect.objectContaining({ linked: true, distanceMeters: 1573 }));
+  });
+
+  it("rejects linking a provider outside the nearby result", async () => {
+    const service = new MarketplaceAdminService({} as never, {} as never);
+    jest.spyOn(service, "listNearbyServiceTenants").mockResolvedValue([]);
+    await expect(
+      service.setNearbyHotelLink("actor-1", "hotel-1", "far-provider", {
+        status: "ACTIVE",
+        sortOrder: 0,
+      }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
   it("generates category codes instead of accepting System Code", async () => {
     const categoryCreate = jest.fn().mockResolvedValue({ id: "category-1" });
     const tx = { marketplaceCategory: { create: categoryCreate } };

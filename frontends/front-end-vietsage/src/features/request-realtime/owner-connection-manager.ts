@@ -36,6 +36,16 @@ function isTerminalRealtimeError(value: unknown): boolean {
   );
 }
 
+function notifySubscribers(
+  subscribers: Set<OwnerRealtimeHandlers>,
+  name: keyof OwnerRealtimeHandlers,
+  payload?: unknown,
+) {
+  subscribers.forEach((subscriber) => {
+    (subscriber[name] as ((value?: unknown) => void) | undefined)?.(payload);
+  });
+}
+
 export function createOwnerConnectionManager(deps: {
   enabled: boolean;
   getTicket(hotelId: string): Promise<{ ticket: string; expiresAt: string }>;
@@ -73,14 +83,10 @@ export function createOwnerConnectionManager(deps: {
             typeof event === "object" && event !== null && "request" in event
               ? event.request
               : event;
-          entry.subscribers.forEach((subscriber) => {
-            (subscriber[name] as ((value?: unknown) => void) | undefined)?.(request);
-          });
+          notifySubscribers(entry.subscribers, name, request);
         };
         const fanoutRaw = (name: keyof OwnerRealtimeHandlers) => (event?: unknown) => {
-          entry.subscribers.forEach((subscriber) => {
-            (subscriber[name] as ((value?: unknown) => void) | undefined)?.(event);
-          });
+          notifySubscribers(entry.subscribers, name, event);
         };
 
         socket.on("connect", () => {

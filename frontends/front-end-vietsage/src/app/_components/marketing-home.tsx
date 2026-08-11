@@ -1,6 +1,6 @@
 import {
   CardGrid,
-  CTA,
+  CTA as Cta,
   Hero,
   MarketingShell,
   SectionHeader,
@@ -209,7 +209,7 @@ export function MarketingHome() {
           </div>
         </div>
       </section>
-      <CTA />
+      <Cta />
     </MarketingShell>
   );
 }

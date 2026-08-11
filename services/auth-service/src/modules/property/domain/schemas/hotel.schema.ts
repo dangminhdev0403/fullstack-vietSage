@@ -23,7 +23,7 @@ export function parseGoogleSheetId(value: string): string {
       throw new Error("URL phải thuộc https://docs.google.com/spreadsheets/");
     }
 
-    const match = url.pathname.match(/^\/spreadsheets\/d\/([^/]+)/);
+    const match = /^\/spreadsheets\/d\/([^/]+)/.exec(url.pathname);
     if (!match?.[1]) {
       throw new Error("Không tìm thấy spreadsheet ID trong URL Google Sheets");
     }
@@ -45,7 +45,7 @@ const googleSheetUrlSchema = z
       return parseGoogleSheetId(value);
     } catch (error) {
       context.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         message: error instanceof Error ? error.message : "Google Sheets không hợp lệ",
       });
       return z.NEVER;

@@ -56,8 +56,8 @@ function directoryPath(
   if (input?.page) params.set("page", String(input.page));
   if (input?.limit) params.set("limit", String(input.limit));
   const query = params.toString();
-
-  return `/api/${scope.surface}/staff${query ? `?${query}` : ""}`;
+  const queryString = query ? `?${query}` : "";
+  return `/api/${scope.surface}/staff${queryString}`;
 }
 
 function userRolesPath(

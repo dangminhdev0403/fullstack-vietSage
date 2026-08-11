@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { assertCanAccessHotelOps, canUseHotelId, requireHotelOpsServerTokens } from "@/features/hotel-ops/utils/hotel-route-auth";
 import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
-import { StaffLocalPartnersClient } from "@/features/local-partners/components/staff-local-partners-client";
+import { OwnerNearbyProvidersClient } from "@/features/local-partners/components/staff-local-partners-client";
 
 type PageProps = { params: Promise<{ hotelId: string }> | { hotelId: string } };
 export const dynamic = "force-dynamic";
@@ -19,8 +19,7 @@ export default async function StaffLocalPartnersPage({ params }: PageProps) {
   }
 
   const context = await loadServerWorkspaceContext(callbackUrl, tokens.accessToken);
-  const canManage = context.permissions.includes("hotel.local-partners.manage");
-  const canViewPartners = context.permissions.includes("hotel.local-partners.view") || canManage;
+  const canViewPartners = context.permissions.includes("hotel.local-partners.view") || context.permissions.includes("hotel.local-partners.manage");
 
   if (!canUseHotelId(context, hotelId) || !canViewPartners) {
     notFound();
@@ -28,7 +27,7 @@ export default async function StaffLocalPartnersPage({ params }: PageProps) {
 
   return (
     <div className="space-y-6">
-      <StaffLocalPartnersClient hotelId={hotelId} canManage={canManage} />
+      <OwnerNearbyProvidersClient hotelId={hotelId} canManage={false} />
     </div>
   );
 }

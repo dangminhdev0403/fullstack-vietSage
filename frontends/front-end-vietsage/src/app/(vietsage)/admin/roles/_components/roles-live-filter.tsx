@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import Swal from "sweetalert2";
+import { SwalVietSage } from "@/libs/swal";
 import { z } from "zod";
 
 import { HttpError } from "@/core/http/http-error";
@@ -220,7 +220,7 @@ function toApiErrorMessage(payload: unknown): string {
 }
 
 function redirectToLogin(): never {
-  Swal.close();
+  SwalVietSage.close();
 
   const callbackUrl =
     typeof window !== "undefined"
@@ -269,7 +269,7 @@ function handleUnauthorizedResponse(): never {
     redirectToLogin();
   }
 
-  Swal.close();
+  SwalVietSage.close();
   throw new UnauthorizedApiError();
 }
 
@@ -305,37 +305,35 @@ async function confirmRoleAction({
   confirmButtonText: string;
   icon: "question" | "warning";
 }): Promise<boolean> {
-  const result = await Swal.fire({
+  const result = await SwalVietSage.fire({
     title,
     text,
     icon,
     showCancelButton: true,
     confirmButtonText,
     cancelButtonText: "Hủy",
-    confirmButtonColor: "#00003c",
-    cancelButtonColor: "#767684",
-    reverseButtons: true,
   });
 
   return result.isConfirmed;
 }
 
 async function showRoleWarning(message: string): Promise<void> {
-  await Swal.fire({
+  await SwalVietSage.fire({
     title: "Kiểm tra thông tin",
     text: message,
     icon: "warning",
+    showConfirmButton: true,
     confirmButtonText: "Đã hiểu",
-    confirmButtonColor: "#00003c",
   });
 }
 
 async function showRoleSuccess(message: string): Promise<void> {
-  await Swal.fire({
+  await SwalVietSage.fire({
     title: message,
     icon: "success",
     timer: 1400,
-    showConfirmButton: false,
+    showConfirmButton: true,
+    confirmButtonText: "OK",
   });
 }
 
@@ -348,12 +346,12 @@ async function showRoleError(error: unknown): Promise<void> {
     return;
   }
 
-  await Swal.fire({
+  await SwalVietSage.fire({
     title: "Thao tác thất bại",
     text: error instanceof Error ? error.message : "Vui lòng thử lại.",
     icon: "error",
+    showConfirmButton: true,
     confirmButtonText: "Đóng",
-    confirmButtonColor: "#00003c",
   });
 }
 

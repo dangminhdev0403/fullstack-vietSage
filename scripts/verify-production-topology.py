@@ -22,10 +22,7 @@ def service_block(compose: str, service: str) -> str:
     return match.group("body")
 
 
-def main() -> int:
-    compose = COMPOSE_PATH.read_text(encoding="utf-8")
-    failures: list[str] = []
-
+def _check_frontend_build(compose: str, failures: list[str]) -> None:
     frontend = service_block(compose, "frontend")
     context_match = re.search(r"(?m)^      context: (.+)$", frontend)
     if not context_match:
@@ -46,11 +43,13 @@ def main() -> int:
     ):
         failures.append("production Compose must source frontend build auth from the process environment")
 
+
+def _check_app_services(compose: str, failures: list[str]) -> None:
     for service in APP_SERVICES:
         block = service_block(compose, service)
         if re.search(r"(?m)^    ports:\n", block):
             failures.append(f"{service} must not publish host ports in production")
-        volume_entries = re.findall(r'(?m)^      - ["\']?([^"\'\n:]+)', block)
+        volume_entries = re.findall(r'(?m)^ {6}- ["\']?([^"\'\n:]+)', block)
         for mount_source in volume_entries:
             if mount_source.startswith(("./src", "./frontends", "./services")):
                 failures.append(f"{service} must not mount source volumes in production")
@@ -63,6 +62,8 @@ def main() -> int:
         if "healthcheck:" not in block:
             failures.append(f"{service} is missing a healthcheck")
 
+
+def _check_auth_postgres_networks(compose: str, failures: list[str]) -> None:
     auth = service_block(compose, "auth-service")
     credential_mount = (
         '"./secrets/production/google-service-account.json:'
@@ -82,6 +83,15 @@ def main() -> int:
             if "networks:" not in service_block(compose, service):
                 failures.append(f"{service} must attach to explicit production networks")
 
+
+def main() -> int:
+    compose = COMPOSE_PATH.read_text(encoding="utf-8")
+    failures: list[str] = []
+
+    _check_frontend_build(compose, failures)
+    _check_app_services(compose, failures)
+    _check_auth_postgres_networks(compose, failures)
+
     if failures:
         print("Production topology verification FAILED:")
         for failure in failures:
@@ -94,3 +104,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+

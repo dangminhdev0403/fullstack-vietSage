@@ -1,5 +1,6 @@
-import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import {
+  MarketplaceRecordStatus,
   Prisma,
   TenantType,
   TenantUserStatus,
@@ -8,6 +9,7 @@ import {
   UserType,
 } from "@prisma/client";
 import * as argon2 from "argon2";
+import { calculateHaversineDistanceMeters } from "../../../common/geo-distance";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { CodesService } from "../../codes/codes.service";
 import type {
@@ -30,6 +32,17 @@ export class MarketplaceAdminService {
   }
 
   async createCategory(_actorId: string, body: MarketplaceCategoryBody) {
+    const existing = await this.prisma.marketplaceCategory.findFirst({
+      where: {
+        OR: [
+          { nameVi: { equals: body.nameVi, mode: "insensitive" } },
+          { nameEn: { equals: body.nameEn, mode: "insensitive" } },
+        ],
+      },
+    });
+    if (existing) {
+      throw new ConflictException("Tên danh mục (tiếng Việt hoặc tiếng Anh) đã tồn tại");
+    }
     try {
       return await this.prisma.$transaction(async (tx) => {
         const code = await this.codes.generateEntityCode("MARKETPLACE_CATEGORY", tx);
@@ -47,6 +60,20 @@ export class MarketplaceAdminService {
     body: Partial<MarketplaceCategoryBody>,
   ) {
     await this.category(categoryId);
+    if (body.nameVi || body.nameEn) {
+      const existing = await this.prisma.marketplaceCategory.findFirst({
+        where: {
+          id: { not: categoryId },
+          OR: [
+            ...(body.nameVi ? [{ nameVi: { equals: body.nameVi, mode: "insensitive" as const } }] : []),
+            ...(body.nameEn ? [{ nameEn: { equals: body.nameEn, mode: "insensitive" as const } }] : []),
+          ],
+        },
+      });
+      if (existing) {
+        throw new ConflictException("Tên danh mục (tiếng Việt hoặc tiếng Anh) đã trùng với danh mục khác");
+      }
+    }
     try {
       return await this.prisma.marketplaceCategory.update({
         where: { id: categoryId },
@@ -81,13 +108,78 @@ export class MarketplaceAdminService {
       take: 100,
     });
 
-    return tenants.map((tenant) => ({
-      ...tenant,
-      ownerEmail: tenant.tenantUsers.find((tu) => Boolean(tu.user?.email))?.user?.email ?? null,
-    }));
+    return tenants.map((tenant) => {
+      const ownerUser =
+        tenant.tenantUsers.find((tu) => tu.user?.userType === UserType.PARTNER)?.user ??
+        tenant.tenantUsers.find((tu) => Boolean(tu.user?.email))?.user;
+      return {
+        ...tenant,
+        ownerEmail: ownerUser?.email ?? null,
+        ownerFullName: ownerUser?.fullName ?? null,
+      };
+    });
+  }
+
+  async listNearbyServiceTenants(hotelId: string) {
+    const hotel = await this.prisma.hotel.findUniqueOrThrow({
+      where: { id: hotelId },
+      select: { latitude: true, longitude: true },
+    });
+    if (hotel.latitude == null || hotel.longitude == null) return [];
+
+    const providers = await this.prisma.tenant.findMany({
+      where: {
+        type: TenantType.SERVICE,
+        serviceProfile: { status: "ACTIVE", latitude: { not: null }, longitude: { not: null } },
+      },
+      include: {
+        serviceProfile: true,
+        marketplaceServices: {
+          where: { status: "ACTIVE", category: { isActive: true } },
+          orderBy: { name: "asc" },
+          take: 100,
+        },
+        hotelServiceLinks: { where: { hotelId }, take: 1 },
+      },
+      take: 100,
+    });
+
+    // ponytail: bounded in-memory geo filter; use PostGIS after >100 active providers is measured.
+    return providers
+      .filter(
+        (provider) =>
+          provider.serviceProfile?.latitude != null &&
+          provider.serviceProfile.longitude != null,
+      )
+      .map((provider) => ({
+        ...provider,
+        distanceMeters: calculateHaversineDistanceMeters(
+          Number(hotel.latitude),
+          Number(hotel.longitude),
+          Number(provider.serviceProfile!.latitude),
+          Number(provider.serviceProfile!.longitude),
+        ),
+        linked: provider.hotelServiceLinks[0]?.status === "ACTIVE",
+      }))
+      .filter((provider) => provider.distanceMeters <= 30_000)
+      .sort((left, right) => left.distanceMeters - right.distanceMeters);
   }
 
   async createServiceTenant(actorId: string, body: ServiceTenantBody) {
+    const existingUser = await this.prisma.user.findFirst({
+      where: { email: body.owner.email.toLowerCase() },
+      select: { id: true },
+    });
+    if (existingUser) {
+      throw new ConflictException("Email tài khoản quản trị đã tồn tại trên hệ thống");
+    }
+    const existingTenant = await this.prisma.tenant.findFirst({
+      where: { type: TenantType.SERVICE, name: { equals: body.displayName, mode: "insensitive" } },
+      select: { id: true },
+    });
+    if (existingTenant) {
+      throw new ConflictException("Tên thương hiệu đối tác dịch vụ đã tồn tại");
+    }
     const passwordHash = await argon2.hash(body.owner.password);
     try {
       return await this.prisma.$transaction(async (tx) => {
@@ -106,7 +198,7 @@ export class MarketplaceAdminService {
         const tenant = await tx.tenant.create({
           data: {
             code,
-            name: body.name,
+            name: body.displayName,
             type: TenantType.SERVICE,
             serviceProfile: {
               create: {
@@ -121,8 +213,10 @@ export class MarketplaceAdminService {
                 locationAccuracyMeters: body.locationAccuracyMeters,
                 locationSource: body.locationSource,
                 locationVerifiedAt: body.latitude == null ? null : new Date(),
+                status: "ACTIVE",
               },
             },
+
           },
           include: { serviceProfile: true },
         });
@@ -180,6 +274,187 @@ export class MarketplaceAdminService {
     }
   }
 
+  async updateServiceTenant(
+    actorId: string,
+    tenantId: string,
+    body: {
+      displayName?: string;
+      status?: string;
+      owner?: { email?: string; fullName?: string; password?: string };
+    },
+  ) {
+    await this.serviceTenant(tenantId);
+    return this.prisma.$transaction(async (tx) => {
+      const existingTenant = await tx.tenant.findUnique({
+        where: { id: tenantId },
+        select: { name: true },
+      });
+
+      const tenant = await tx.tenant.update({
+        where: { id: tenantId },
+        data: {
+          ...(body.displayName ? { name: body.displayName } : {}),
+          ...(body.displayName || body.status
+            ? {
+                serviceProfile: {
+                  upsert: {
+                    create: {
+                      displayName: body.displayName ?? existingTenant?.name ?? "Service Partner",
+                      status: (body.status as MarketplaceRecordStatus) ?? "ACTIVE",
+                    },
+                    update: {
+                      ...(body.displayName ? { displayName: body.displayName } : {}),
+                      ...(body.status ? { status: body.status as MarketplaceRecordStatus } : {}),
+                    },
+                  },
+                },
+              }
+            : {}),
+        },
+        include: {
+          serviceProfile: true,
+          tenantUsers: {
+            take: 10,
+            orderBy: { createdAt: "asc" },
+            include: { user: true },
+          },
+        },
+      });
+
+      if (body.owner) {
+        const ownerUser = tenant.tenantUsers.find((tu) => Boolean(tu.user?.email))?.user;
+        if (ownerUser) {
+          const userUpdateData: Prisma.UserUpdateInput = {};
+          if (body.owner.email && body.owner.email.toLowerCase() !== ownerUser.email.toLowerCase()) {
+            const emailOccupied = await tx.user.findFirst({
+              where: { id: { not: ownerUser.id }, email: body.owner.email.toLowerCase() },
+              select: { id: true },
+            });
+            if (emailOccupied) {
+              throw new ConflictException("Email mới đã được đăng ký bởi người dùng khác");
+            }
+            userUpdateData.email = body.owner.email.toLowerCase();
+          }
+          if (body.owner.fullName) {
+            userUpdateData.fullName = body.owner.fullName;
+          }
+          if (body.owner.password && body.owner.password.trim().length >= 8) {
+            userUpdateData.passwordHash = await argon2.hash(body.owner.password);
+            await tx.authSession.updateMany({
+              where: { userId: ownerUser.id, status: "ACTIVE" },
+              data: {
+                status: "REVOKED",
+                revokeReason: "SECURITY_EVENT",
+                revokedAt: new Date(),
+              },
+            });
+            await tx.refreshToken.deleteMany({
+              where: { userId: ownerUser.id },
+            });
+          }
+          if (Object.keys(userUpdateData).length > 0) {
+            await tx.user.update({
+              where: { id: ownerUser.id },
+              data: userUpdateData,
+            });
+          }
+        } else if (body.owner.email || body.owner.fullName) {
+          const email = (body.owner.email ?? "").toLowerCase().trim();
+          const fullName = (body.owner.fullName ?? "").trim();
+          if (!email || !fullName) {
+            throw new BadRequestException(
+              "Cần nhập đầy đủ Email và Họ tên để tạo tài khoản owner cho đối tác",
+            );
+          }
+
+          let user = await tx.user.findFirst({
+            where: { email },
+          });
+
+          if (user) {
+            user = await tx.user.update({
+              where: { id: user.id },
+              data: {
+                fullName,
+                ...(body.owner.password && body.owner.password.trim().length >= 8
+                  ? { passwordHash: await argon2.hash(body.owner.password) }
+                  : {}),
+              },
+            });
+          } else {
+            const password =
+              body.owner.password && body.owner.password.trim().length >= 8
+                ? body.owner.password
+                : "VietSage@2026";
+            const passwordHash = await argon2.hash(password);
+            user = await tx.user.create({
+              data: {
+                email,
+                fullName,
+                passwordHash,
+                status: UserStatus.ACTIVE,
+                userType: UserType.PARTNER,
+              },
+            });
+          }
+
+          await tx.tenantUser.create({
+            data: {
+              tenantId,
+              userId: user.id,
+              status: TenantUserStatus.ACTIVE,
+              joinedAt: new Date(),
+            },
+          });
+
+          const role = await tx.role.findFirst({
+            where: { code: "SERVICE_STAFF" },
+          });
+          if (role) {
+            await tx.userRole.create({
+              data: {
+                userId: user.id,
+                roleId: role.id,
+                status: UserRoleStatus.ACTIVE,
+                assignedById: actorId,
+              },
+            });
+          }
+        } else if (body.owner.password) {
+          throw new BadRequestException("Đối tác chưa có tài khoản owner để đặt lại mật khẩu.");
+        }
+      }
+
+      await this.audit(
+        tx,
+        actorId,
+        tenantId,
+        "marketplace.service-tenant.update",
+        "Tenant",
+        tenantId,
+      );
+
+      const updatedTenant = await tx.tenant.findUnique({
+        where: { id: tenantId },
+        include: {
+          serviceProfile: true,
+          tenantUsers: {
+            take: 10,
+            orderBy: { createdAt: "asc" },
+            include: { user: { select: { id: true, email: true, fullName: true } } },
+          },
+        },
+      });
+
+      const firstUser = updatedTenant?.tenantUsers.find((tu) => Boolean(tu.user?.email))?.user;
+      return {
+        ...updatedTenant,
+        ownerEmail: firstUser?.email ?? null,
+        ownerFullName: firstUser?.fullName ?? null,
+      };
+    });
+  }
+
   async listHotelLinks(hotelId: string) {
     const links = await this.prisma.hotelServiceLink.findMany({
       where: { hotelId },
@@ -214,6 +489,18 @@ export class MarketplaceAdminService {
         ownerEmail: link.serviceTenant.tenantUsers[0]?.user?.email ?? null,
       },
     }));
+  }
+
+  async setNearbyHotelLink(
+    actorId: string,
+    hotelId: string,
+    serviceTenantId: string,
+    body: HotelServiceLinkBody,
+  ) {
+    if (!(await this.listNearbyServiceTenants(hotelId)).some((provider) => provider.id === serviceTenantId)) {
+      throw new NotFoundException("Đối tác ngoài phạm vi liên kết");
+    }
+    return this.setHotelLink(actorId, hotelId, serviceTenantId, body);
   }
 
   async setHotelLink(

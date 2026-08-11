@@ -24,6 +24,99 @@ type VsTopBarProps = {
 
 const profileImage = "/brand/vietsage-logo.jpg";
 
+function TopBarLeftControl({
+  showLeftControl,
+  shouldUseButton,
+  icon,
+}: {
+  showLeftControl: boolean;
+  shouldUseButton: boolean;
+  icon: string;
+}) {
+  if (!showLeftControl) return null;
+  if (shouldUseButton) {
+    return (
+      <button
+        type="button"
+        aria-label={icon === "arrow_back" ? "Quay lai" : "Mo menu"}
+        className="flex size-11 items-center justify-center rounded-full text-[#24473d] transition-colors hover:bg-[#24473d]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b18b26]"
+      >
+        <VsIcon name={icon} className="text-[24px]" />
+      </button>
+    );
+  }
+  return <VsIcon name={icon} className="text-[24px] text-[#24473d]" />;
+}
+
+function TopBarRightControls({
+  rightMode,
+  rightLabel,
+  subtitle,
+  showRightInfo,
+  languageBadge,
+}: {
+  rightMode: "profile" | "icons" | "none";
+  rightLabel: string;
+  subtitle?: string;
+  showRightInfo: boolean;
+  languageBadge: string;
+}) {
+  if (rightMode === "none") return null;
+
+  if (rightMode === "icons") {
+    return (
+      <div className="flex items-center gap-2 text-[#5f6b63]">
+        <Link
+          href="/g/language"
+          aria-label="Change language"
+          className="flex size-11 items-center justify-center rounded-full bg-[#e8e5dc] text-[11px] font-black uppercase tracking-[0.08em] text-[#24473d] shadow-[inset_0_0_0_1px_rgba(36,71,61,0.04)] transition-colors hover:bg-[#ded9cc] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b18b26]"
+        >
+          {languageBadge}
+        </Link>
+        <div className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#24473d]/15 bg-white p-0.5 shadow-sm">
+          <Image
+            src={profileImage}
+            alt="Logo VietSage"
+            width={44}
+            height={44}
+            className="h-full w-full object-cover rounded-full"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-w-0 items-center gap-4">
+      {showRightInfo ? (
+        <div className="hidden min-w-0 max-w-[13rem] flex-col justify-center text-right leading-tight md:flex">
+          <span className="truncate text-sm font-bold text-[#17201b]">
+            {rightLabel}
+          </span>
+          {subtitle ? (
+            <span className="mt-0.5 truncate text-xs font-medium text-[#5f6b63]">
+              {subtitle}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
+      <ChangePasswordDialog />
+      <VsLogoutButton className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-full border border-[#24473d]/15 bg-white/50 px-3 py-2 text-xs font-bold tracking-[0.04em] text-[#24473d] transition-colors hover:bg-[#f8f1e6] disabled:cursor-not-allowed disabled:opacity-60" />
+
+      <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#24473d]/15 bg-white p-0.5 shadow-[0_10px_24px_rgba(31,61,53,0.12)]">
+        <Image
+          src={profileImage}
+          alt={`Logo VietSage (${rightLabel})`}
+          width={40}
+          height={40}
+          className="h-full w-full object-cover rounded-full"
+        />
+      </div>
+    </div>
+  );
+}
+
 export function VsTopBar({
   title = "VietSage",
   leftLabel = "menu",
@@ -55,19 +148,11 @@ export function VsTopBar({
   return (
     <header className="fixed top-0 z-50 flex h-16 w-full items-center justify-between border-b border-[#24473d]/10 bg-[#fff8e8]/78 px-4 shadow-[0_16px_45px_rgba(31,61,53,0.08)] backdrop-blur-xl md:px-10">
       <div className="flex items-center gap-3 md:gap-4">
-        {showLeftControl ? (
-          shouldUseButton ? (
-            <button
-              type="button"
-              aria-label={icon === "arrow_back" ? "Quay lai" : "Mo menu"}
-              className="flex size-11 items-center justify-center rounded-full text-[#24473d] transition-colors hover:bg-[#24473d]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b18b26]"
-            >
-              <VsIcon name={icon} className="text-[24px]" />
-            </button>
-          ) : (
-            <VsIcon name={icon} className="text-[24px] text-[#24473d]" />
-          )
-        ) : null}
+        <TopBarLeftControl
+          showLeftControl={showLeftControl}
+          shouldUseButton={shouldUseButton}
+          icon={icon}
+        />
 
         {shouldRenderBrandLockup ? (
           <VietSageBrand
@@ -87,54 +172,13 @@ export function VsTopBar({
         )}
       </div>
 
-      {rightMode === "none" ? null : rightMode === "icons" ? (
-        <div className="flex items-center gap-2 text-[#5f6b63]">
-          <Link
-            href="/g/language"
-            aria-label="Change language"
-            className="flex size-11 items-center justify-center rounded-full bg-[#e8e5dc] text-[11px] font-black uppercase tracking-[0.08em] text-[#24473d] shadow-[inset_0_0_0_1px_rgba(36,71,61,0.04)] transition-colors hover:bg-[#ded9cc] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b18b26]"
-          >
-            {languageBadge}
-          </Link>
-          <div className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#24473d]/15 bg-white p-0.5 shadow-sm">
-            <Image
-              src={profileImage}
-              alt="Logo VietSage"
-              width={44}
-              height={44}
-              className="h-full w-full object-cover rounded-full"
-            />
-          </div>
-        </div>
-      ) : (
-        <div className="flex min-w-0 items-center gap-4">
-          {showRightInfo ? (
-            <div className="hidden min-w-0 max-w-[13rem] flex-col justify-center text-right leading-tight md:flex">
-              <span className="truncate text-sm font-bold text-[#17201b]">
-                {rightLabel}
-              </span>
-              {subtitle ? (
-                <span className="mt-0.5 truncate text-xs font-medium text-[#5f6b63]">
-                  {subtitle}
-                </span>
-              ) : null}
-            </div>
-          ) : null}
-
-          <ChangePasswordDialog />
-          <VsLogoutButton className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-full border border-[#24473d]/15 bg-white/50 px-3 py-2 text-xs font-bold tracking-[0.04em] text-[#24473d] transition-colors hover:bg-[#f8f1e6] disabled:cursor-not-allowed disabled:opacity-60" />
-
-          <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#24473d]/15 bg-white p-0.5 shadow-[0_10px_24px_rgba(31,61,53,0.12)]">
-            <Image
-              src={profileImage}
-              alt={`Logo VietSage (${rightLabel})`}
-              width={40}
-              height={40}
-              className="h-full w-full object-cover rounded-full"
-            />
-          </div>
-        </div>
-      )}
+      <TopBarRightControls
+        rightMode={rightMode}
+        rightLabel={rightLabel}
+        subtitle={subtitle}
+        showRightInfo={showRightInfo}
+        languageBadge={languageBadge}
+      />
     </header>
   );
 }

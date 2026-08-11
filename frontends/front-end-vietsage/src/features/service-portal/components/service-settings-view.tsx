@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import Swal from "sweetalert2";
+import { SwalVietSage } from "@/libs/swal";
 import { LocationFields, type LocationValue } from "@/features/marketplace/components/location-fields";
 import { useServicePortal } from "../use-service-portal";
 import type { ServicePortalData } from "../types";
@@ -42,40 +42,53 @@ export function ServiceSettingsView({ data }: Readonly<{ data: ServicePortalData
     }
 
     setIsLocating(true);
+
+    const handleSuccess = (coords: GeolocationCoordinates) => {
+      setIsLocating(false);
+      toast.success("Đã quét vị trí GPS thành công!");
+      setLocation((prev) => ({
+        ...prev,
+        latitude: String(coords.latitude),
+        longitude: String(coords.longitude),
+        locationAccuracyMeters: String(Math.round(coords.accuracy)),
+        locationSource: "DEVICE_GEOLOCATION",
+      }));
+    };
+
     navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        setIsLocating(false);
-        toast.success("Đã quét vị trí GPS thành công!");
-        setLocation({
-          ...location,
-          latitude: String(coords.latitude),
-          longitude: String(coords.longitude),
-          locationAccuracyMeters: String(Math.round(coords.accuracy)),
-          locationSource: "DEVICE_GEOLOCATION",
-        });
-      },
+      ({ coords }) => handleSuccess(coords),
       (reason) => {
+        if (reason.code !== 1) {
+          // Fallback to network/IP positioning if high accuracy GPS times out
+          navigator.geolocation.getCurrentPosition(
+            ({ coords }) => handleSuccess(coords),
+            (fallbackReason) => {
+              setIsLocating(false);
+              const errMsg =
+                fallbackReason.code === 1
+                  ? "Bạn chưa cấp quyền truy cập vị trí."
+                  : "Không thể định vị vị trí hiện tại.";
+              toast.error(errMsg);
+            },
+            { enableHighAccuracy: false, timeout: 15_000, maximumAge: 300_000 },
+          );
+          return;
+        }
         setIsLocating(false);
-        const errMsg =
-          reason.code === 1
-            ? "Bạn chưa cấp quyền truy cập vị trí."
-            : "Không thể định vị vị trí hiện tại.";
-        toast.error(errMsg);
+        toast.error("Bạn chưa cấp quyền truy cập vị trí.");
       },
-      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 0 },
+      { enableHighAccuracy: true, timeout: 8_000, maximumAge: 30_000 },
     );
   };
 
   const saveLocation = async () => {
-    const res = await Swal.fire({
+    const res = await SwalVietSage.fire({
       icon: "question",
       title: "Lưu cấu hình vị trí?",
       text: "Tọa độ GPS mới sẽ được cập nhật trên nền tảng để các khách sạn đối tác tìm kiếm.",
       showCancelButton: true,
       confirmButtonText: "Xác nhận lưu",
       cancelButtonText: "Hủy",
-      confirmButtonColor: "#17201b",
-      cancelButtonColor: "#65726a",
     });
 
     if (!res.isConfirmed) return;
@@ -100,15 +113,13 @@ export function ServiceSettingsView({ data }: Readonly<{ data: ServicePortalData
   };
 
   const saveBrandProfile = async () => {
-    const res = await Swal.fire({
+    const res = await SwalVietSage.fire({
       icon: "question",
       title: "Cập nhật hồ sơ thương hiệu?",
       text: "Thông tin thương hiệu mới sẽ được lưu và hiển thị tới các đối tác.",
       showCancelButton: true,
       confirmButtonText: "Xác nhận lưu",
       cancelButtonText: "Hủy",
-      confirmButtonColor: "#17201b",
-      cancelButtonColor: "#65726a",
     });
 
     if (!res.isConfirmed) return;

@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { resolveSessionCookiePolicy } from "./auth-cookie-policy";
+import { resolveAuthSecret } from "./auth-secret";
 import { loginUrl } from "@/features/auth/utils/login-route";
 
 export type ServerSessionTokens = {
@@ -15,12 +16,14 @@ export type ServerSessionTokens = {
 };
 
 function authSecret(): string {
-  const secret = process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET;
-  if (!secret) {
-    throw new Error("NEXTAUTH_SECRET or AUTH_SECRET is required to read server session tokens");
+  const secret = resolveAuthSecret();
+  if (secret) {
+    return secret;
   }
-
-  return secret;
+  if (process.env.NODE_ENV !== "production") {
+    return "vietsage-dev-session-secret-key-32-chars-long";
+  }
+  throw new Error("NEXTAUTH_SECRET or AUTH_SECRET is required to read server session tokens");
 }
 
 function toSessionTokens(token: JWT | null): ServerSessionTokens {

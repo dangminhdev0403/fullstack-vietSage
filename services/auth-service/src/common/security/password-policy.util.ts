@@ -48,10 +48,10 @@ export function validatePasswordPolicy(password: string): { valid: boolean; mess
   if (!/[a-z]/.test(password)) {
     return { valid: false, message: "Password must contain at least one lowercase letter" };
   }
-  if (!/[0-9]/.test(password)) {
+  if (!/\d/.test(password)) {
     return { valid: false, message: "Password must contain at least one digit" };
   }
-  if (!/[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(password)) {
+  if (!/[!@#$%^&*()_+\-=[\]{}|;:,.<>?]/.test(password)) {
     return { valid: false, message: "Password must contain at least one special character" };
   }
 

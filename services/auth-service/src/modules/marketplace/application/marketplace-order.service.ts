@@ -1,6 +1,9 @@
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import {
   CapacityReservationStatus,
+  FolioItemSourceType,
+  FolioItemType,
+  FolioStatus,
   MarketplaceOrderActorType,
   MarketplaceOrderStatus,
   MarketplaceRecordStatus,
@@ -143,6 +146,10 @@ export class MarketplaceOrderService {
   listHotelOrders(hotelId: string) {
     return this.prisma.marketplaceOrder.findMany({
       where: { hotelId },
+      include: {
+        stay: { select: { guestDisplayName: true, room: { select: { roomNumber: true } } } },
+        serviceTenant: { select: { serviceProfile: { select: { displayName: true } } } },
+      },
       orderBy: { createdAt: "desc" },
       take: 100,
     });
@@ -210,7 +217,7 @@ export class MarketplaceOrderService {
           where: { id: order.serviceId },
           data: { capacityAvailable: { increment: order.quantity }, version: { increment: 1 } },
         });
-      if (body.toStatus === "COMPLETED")
+      if (body.toStatus === "COMPLETED") {
         await tx.marketplaceRevenueEntry.create({
           data: {
             orderId: order.id,
@@ -221,6 +228,8 @@ export class MarketplaceOrderService {
             recognizedAt: new Date(),
           },
         });
+        await this.postToStayFolio(tx, order);
+      }
       await tx.marketplaceOrderEvent.create({
         data: {
           orderId: order.id,
@@ -236,5 +245,55 @@ export class MarketplaceOrderService {
         include: { events: { orderBy: { createdAt: "asc" } }, revenue: true },
       });
     });
+  }
+
+  private async postToStayFolio(
+    tx: Prisma.TransactionClient,
+    order: {
+      id: string; hotelId: string; stayId: string; quantity: number;
+      unitPriceSnapshot: Prisma.Decimal; totalAmount: Prisma.Decimal; currency: string;
+      serviceNameSnapshot: string; serviceTenantId: string;
+    },
+  ) {
+    const folio = await tx.folio.findFirst({
+      where: { hotelId: order.hotelId, stayId: order.stayId, status: FolioStatus.OPEN },
+      orderBy: { openedAt: "desc" },
+    });
+    if (!folio) throw new ConflictException("Không có folio mở cho khách lưu trú");
+    if (folio.currency !== order.currency) throw new ConflictException("Đơn vị tiền tệ không khớp folio");
+    const existing = await tx.folioItem.findFirst({
+      where: { folioId: folio.id, sourceType: FolioItemSourceType.SYSTEM, sourceId: order.id },
+    });
+    if (!existing) await tx.folioItem.create({ data: {
+      hotelId: order.hotelId,
+      folioId: folio.id,
+      stayId: order.stayId,
+      roomId: folio.roomId,
+      itemType: FolioItemType.SERVICE,
+      sourceType: FolioItemSourceType.SYSTEM,
+      sourceId: order.id,
+      nameSnapshot: order.serviceNameSnapshot,
+      quantity: order.quantity,
+      unitPriceSnapshot: order.unitPriceSnapshot,
+      subtotalSnapshot: order.totalAmount,
+      totalSnapshot: order.totalAmount,
+      currency: order.currency,
+      serviceCompletedAt: new Date(),
+      billingSourceSnapshot: { marketplaceOrderId: order.id, serviceTenantId: order.serviceTenantId },
+    } });
+    const items = await tx.folioItem.findMany({ where: { folioId: folio.id, voidedAt: null } });
+    const zero = new Prisma.Decimal(0);
+    const totals = items.reduce((sum, item) => ({
+      subtotal: sum.subtotal.add(item.subtotalSnapshot),
+      tax: sum.tax.add(item.taxAmountSnapshot),
+      discount: sum.discount.add(item.discountAmountSnapshot),
+      total: sum.total.add(item.totalSnapshot),
+    }), { subtotal: zero, tax: zero, discount: zero, total: zero });
+    await tx.folio.update({ where: { id: folio.id }, data: {
+      subtotalAmount: totals.subtotal,
+      taxAmount: totals.tax,
+      discountAmount: totals.discount,
+      totalAmount: totals.total,
+    } });
   }
 }

@@ -2,7 +2,7 @@
 
 import { signOut } from "next-auth/react";
 import { useState } from "react";
-import Swal from "sweetalert2";
+import { SwalVietSage } from "@/libs/swal";
 
 type VsLogoutButtonProps = {
   className?: string;
@@ -16,16 +16,13 @@ export function VsLogoutButton({ className }: VsLogoutButtonProps) {
       return;
     }
 
-    const confirmed = await Swal.fire({
+    const confirmed = await SwalVietSage.fire({
       icon: "question",
       title: "Đăng xuất?",
       text: "Bạn sẽ cần đăng nhập lại để tiếp tục sử dụng hệ thống.",
       showCancelButton: true,
-      reverseButtons: true,
       confirmButtonText: "Đồng ý đăng xuất",
       cancelButtonText: "Hủy",
-      confirmButtonColor: "#00003c",
-      cancelButtonColor: "#767684",
     });
 
     if (!confirmed.isConfirmed) {
@@ -34,14 +31,14 @@ export function VsLogoutButton({ className }: VsLogoutButtonProps) {
 
     setIsSubmitting(true);
 
-    void Swal.fire({
+    void SwalVietSage.fire({
       title: "Đang đăng xuất",
       text: "Vui lòng chờ trong giây lát.",
       allowOutsideClick: false,
       allowEscapeKey: false,
       showConfirmButton: false,
       didOpen: () => {
-        Swal.showLoading();
+        SwalVietSage.showLoading();
       },
     });
 
@@ -49,13 +46,12 @@ export function VsLogoutButton({ className }: VsLogoutButtonProps) {
       await signOut({ redirect: false });
       window.location.replace("/dangnhap");
     } catch {
-      Swal.close();
-      await Swal.fire({
+      SwalVietSage.close();
+      await SwalVietSage.fire({
         icon: "error",
         title: "Không thể đăng xuất",
         text: "Vui lòng thử lại.",
         confirmButtonText: "Đóng",
-        confirmButtonColor: "#00003c",
       });
     } finally {
       setIsSubmitting(false);

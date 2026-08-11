@@ -202,7 +202,7 @@ describe("TenantOwnersService", () => {
       const result = await service.resetTenantOwnerPassword("admin-1", "user-1");
 
       expect(result.userId).toBe("user-1");
-      expect(result.temporaryPassword.length).toBe(16);
+      expect(result.temporaryPassword).toHaveLength(16);
       expect(result.resetAt).toBeDefined();
       expect(tenantOwnersRepository.updatePasswordHashAndRevokeSessions).toHaveBeenCalledWith(
         "user-1",

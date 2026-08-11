@@ -23,6 +23,11 @@ const ownerUpdateHotelSchema = z
     timezone: z.string().trim().min(1).optional(),
     brandSettings: jsonRecordSchema.nullable().optional(),
     status: z.enum(["ACTIVE", "DISABLED"]).optional(),
+    googleMapsUrl: z.string().trim().nullable().optional(),
+    latitude: z.number().nullable().optional(),
+    longitude: z.number().nullable().optional(),
+    locationAccuracyMeters: z.number().nullable().optional(),
+    locationSource: z.enum(["DEVICE_GEOLOCATION", "GOOGLE_MAPS_URL", "MANUAL"]).nullable().optional(),
   })
   .strict()
   .refine((value) => Object.keys(value).length > 0, {
@@ -78,6 +83,11 @@ export async function PATCH(request: Request, context: HotelParams) {
         ...(parsed.data.timezone?.trim() ? { timezone: parsed.data.timezone.trim() } : {}),
         ...("brandSettings" in parsed.data ? { brandSettings: parsed.data.brandSettings } : {}),
         ...(parsed.data.status ? { status: parsed.data.status } : {}),
+        ...("googleMapsUrl" in parsed.data ? { googleMapsUrl: parsed.data.googleMapsUrl } : {}),
+        ...("latitude" in parsed.data ? { latitude: parsed.data.latitude } : {}),
+        ...("longitude" in parsed.data ? { longitude: parsed.data.longitude } : {}),
+        ...("locationAccuracyMeters" in parsed.data ? { locationAccuracyMeters: parsed.data.locationAccuracyMeters } : {}),
+        ...("locationSource" in parsed.data ? { locationSource: parsed.data.locationSource } : {}),
       },
       accessToken,
     ));

@@ -179,7 +179,7 @@ export class AuthService {
 
   async changePassword(userId: string, dto: ChangePasswordBodyInput): Promise<{ changed: true }> {
     const user = await this.authRepository.findUserById(userId);
-    if (!user || user.status !== UserStatus.ACTIVE) {
+    if (user?.status !== UserStatus.ACTIVE) {
       throw new BadRequestException({
         code: "AUTH_USER_INVALID",
         message: "Tài khoản không hợp lệ hoặc đã bị khóa",

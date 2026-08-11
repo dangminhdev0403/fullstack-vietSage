@@ -1,4 +1,3 @@
-import type { Hotel } from "@/features/admin/types/admin-contract";
 import type { MarketplaceCategory } from "@/features/marketplace/types/marketplace-contract";
 
 export type ServiceTenant = {
@@ -6,23 +5,15 @@ export type ServiceTenant = {
   code: string;
   name: string;
   ownerEmail?: string | null;
+  ownerFullName?: string | null;
   serviceProfile: { displayName: string; status: string } | null;
-};
-export type HotelLink = {
-  id: string;
-  hotelId: string;
-  serviceTenantId: string;
-  status: "ACTIVE" | "DISABLED";
-  sortOrder: number;
-  serviceTenant: ServiceTenant;
 };
 export type MarketplaceAdminData = {
   categories: MarketplaceCategory[];
   tenants: ServiceTenant[];
-  hotels: Hotel[];
-  links: HotelLink[];
 };
 export type MarketplaceAdminAction =
   | { action: "category"; input: { nameVi: string; nameEn: string; sortOrder: number; isActive: boolean } }
-  | { action: "tenant"; input: { name: string; displayName: string; owner: { email: string; fullName: string; password: string } } }
-  | { action: "link"; hotelId: string; serviceTenantId: string };
+  | { action: "tenant"; input: { displayName: string; owner: { email: string; fullName: string; password: string } } }
+  | { action: "updateCategory"; id: string; input: { nameVi?: string; nameEn?: string; isActive?: boolean } }
+  | { action: "updateTenant"; id: string; input: { displayName?: string; status?: string; owner?: { email?: string; fullName?: string; password?: string } } };

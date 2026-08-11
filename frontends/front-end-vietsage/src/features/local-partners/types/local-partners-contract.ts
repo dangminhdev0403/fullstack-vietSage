@@ -46,3 +46,20 @@ export type LocalPartnerInput = {
   operatingHours?: string;
   isFeatured?: boolean;
 };
+
+export type NearbyServiceProvider = {
+  id: string;
+  code: string;
+  name: string;
+  distanceMeters: number;
+  linked: boolean;
+  serviceProfile: { displayName: string; address?: string | null; phone?: string | null } | null;
+  marketplaceServices: Array<{ id: string; name: string; unitPrice: string | number; currency: string; mode: string }>;
+};
+
+export type HotelMarketplaceOrder = {
+  id: string; orderNumber: string; serviceNameSnapshot: string; status: string;
+  quantity: number; totalAmount: string | number; currency: string;
+  stay: { guestDisplayName: string; room: { roomNumber: string } };
+  serviceTenant: { serviceProfile: { displayName: string } | null };
+};

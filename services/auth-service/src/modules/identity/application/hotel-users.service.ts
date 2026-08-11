@@ -182,8 +182,9 @@ export class HotelUsersService {
     try {
       await this.hotelUsersRepository.updateUserProfile(userId, data);
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002")
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
         throw new ConflictException("Email already exists");
+      }
       throw error;
     }
     return this.getTenantScopedHotelUserOrThrow(tenantId, userId);
@@ -328,14 +329,14 @@ export class HotelUsersService {
       throw new ForbiddenException("Tài khoản mục tiêu không phải nhân viên khách sạn");
     }
 
-    const targetRoles = targetScoped.user.userRoles.map((entry) => entry.role.code);
+    const targetRoles = new Set(targetScoped.user.userRoles.map((entry) => entry.role.code));
 
     if (
-      targetRoles.includes("SUPER_ADMIN") ||
-      targetRoles.includes("TENANT_OWNER") ||
-      targetRoles.includes("HOTEL_OWNER") ||
-      targetRoles.includes("HOTEL_MANAGER") ||
-      !targetRoles.includes("HOTEL_FRONTDESK")
+      targetRoles.has("SUPER_ADMIN") ||
+      targetRoles.has("TENANT_OWNER") ||
+      targetRoles.has("HOTEL_OWNER") ||
+      targetRoles.has("HOTEL_MANAGER") ||
+      !targetRoles.has("HOTEL_FRONTDESK")
     ) {
       throw new ForbiddenException(
         "Chỉ được cấp lại mật khẩu cho nhân viên có vai trò HOTEL_FRONTDESK",

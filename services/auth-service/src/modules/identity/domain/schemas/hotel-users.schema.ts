@@ -46,7 +46,7 @@ export const updateHotelUserStatusBodySchema = z
 export const updateHotelUserBodySchema = z
   .object({
     fullName: z.string().trim().min(2).max(120).optional(),
-    email: z.string().trim().email().max(320).optional(),
+    email: z.string().trim().email({ message: "Email không hợp lệ" }).max(320).optional(),
   })
   .strict()
   .refine(

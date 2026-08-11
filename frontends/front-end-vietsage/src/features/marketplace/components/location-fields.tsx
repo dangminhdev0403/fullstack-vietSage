@@ -80,28 +80,44 @@ export function LocationFields({
     setError(undefined);
     setIsLocatingInternal(true);
 
+    const handleSuccess = (coords: GeolocationCoordinates) => {
+      setIsLocatingInternal(false);
+      toast.success("Đã quét vị trí GPS thành công!");
+      onChange({
+        ...value,
+        latitude: String(coords.latitude),
+        longitude: String(coords.longitude),
+        locationAccuracyMeters: String(Math.round(coords.accuracy)),
+        locationSource: "DEVICE_GEOLOCATION",
+      });
+    };
+
     navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        setIsLocatingInternal(false);
-        toast.success("Đã quét vị trí GPS thành công!");
-        onChange({
-          ...value,
-          latitude: String(coords.latitude),
-          longitude: String(coords.longitude),
-          locationAccuracyMeters: String(Math.round(coords.accuracy)),
-          locationSource: "DEVICE_GEOLOCATION",
-        });
-      },
+      ({ coords }) => handleSuccess(coords),
       (reason) => {
+        if (reason.code !== 1) {
+          // Fallback to network/IP positioning if high accuracy GPS times out
+          navigator.geolocation.getCurrentPosition(
+            ({ coords }) => handleSuccess(coords),
+            (fallbackReason) => {
+              setIsLocatingInternal(false);
+              const errMsg =
+                fallbackReason.code === 1
+                  ? "Bạn chưa cấp quyền truy cập vị trí."
+                  : "Không thể định vị vị trí hiện tại.";
+              setError(errMsg);
+              toast.error(errMsg);
+            },
+            { enableHighAccuracy: false, timeout: 15_000, maximumAge: 300_000 },
+          );
+          return;
+        }
         setIsLocatingInternal(false);
-        const errMsg =
-          reason.code === 1
-            ? "Bạn chưa cấp quyền truy cập vị trí."
-            : "Không thể định vị vị trí hiện tại.";
+        const errMsg = "Bạn chưa cấp quyền truy cập vị trí.";
         setError(errMsg);
         toast.error(errMsg);
       },
-      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 0 },
+      { enableHighAccuracy: true, timeout: 8_000, maximumAge: 30_000 },
     );
   };
 
@@ -220,7 +236,7 @@ export function LocationFields({
               {latNum.toFixed(6)}, {lngNum.toFixed(6)}
             </span>
           </div>
-          <div className="relative overflow-hidden rounded-xl border border-[#e5ddcd] shadow-xs bg-[#f9f6f0] h-64 w-full">
+          <div className="relative overflow-hidden rounded-2xl border border-[#e5ddcd] shadow-xs bg-[#f9f6f0] aspect-square w-full max-h-[450px] mx-auto">
             <iframe
               title="Xem trước bản đồ Google Maps"
               src={mapEmbedUrl}

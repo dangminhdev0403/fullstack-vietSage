@@ -7,8 +7,9 @@ export const guestMarketplaceResource = createResource<{ sessionToken: string }>
   queries: {
     categories: defineQuery({ inputKey: () => [], queryFn: ({ scope }) => guestMarketplaceRepository.categories(scope.sessionToken) }),
     services: defineQuery({ inputKey: (input: { categoryId?: string }) => [input.categoryId ?? null], queryFn: ({ scope, input }) => guestMarketplaceRepository.services(scope.sessionToken, input.categoryId) }),
+    orders: defineQuery({ inputKey: () => [], queryFn: ({ scope }) => guestMarketplaceRepository.orders(scope.sessionToken) }),
   },
   mutations: {
-    order: defineMutation({ mutationFn: ({ scope, variables }: { scope: { sessionToken: string }; variables: CreateMarketplaceOrderInput }) => guestMarketplaceRepository.order(scope.sessionToken, variables) }),
+    order: defineMutation({ mutationFn: ({ scope, variables }: { scope: { sessionToken: string }; variables: CreateMarketplaceOrderInput }) => guestMarketplaceRepository.order(scope.sessionToken, variables), invalidates: [{ type: "query", operation: "orders" }] }),
   },
 });

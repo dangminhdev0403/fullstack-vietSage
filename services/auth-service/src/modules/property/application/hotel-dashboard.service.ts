@@ -96,8 +96,14 @@ function buildDashboardHealth(input: {
         input.failedPayments * 10,
     ),
   );
-  const status =
-    score >= 90 ? "excellent" : score >= 75 ? "good" : score >= 50 ? "warning" : "critical";
+  function resolveHealthStatus(s: number): "excellent" | "good" | "warning" | "critical" {
+    if (s >= 90) return "excellent";
+    if (s >= 75) return "good";
+    if (s >= 50) return "warning";
+    return "critical";
+  }
+
+  const status = resolveHealthStatus(score);
   const titles = {
     excellent: "Xuất sắc",
     good: "Tốt",

@@ -2,7 +2,7 @@
 
 import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import Swal from "sweetalert2";
+import { SwalVietSage } from "@/libs/swal";
 
 import { HttpError } from "@/core/http/http-error";
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
@@ -15,74 +15,51 @@ type OwnerHotelDetailClientProps = {
 
 type FormState = {
   name: string;
-  timezone: string;
   status: "ACTIVE" | "DISABLED";
-  brandSettingsText: string;
 };
 
-function toApiErrorMessage(payload: unknown): string {
-  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
-    const data = "data" in payload ? payload.data : null;
-    if (data && typeof data === "object" && !Array.isArray(data) && "detail" in data && typeof data.detail === "string") {
-      return data.detail;
-    }
-
-    const message = "message" in payload ? payload.message : null;
-    if (typeof message === "string" && message.trim()) return message;
+function toApiErrorMessage(data: unknown): string {
+  if (typeof data === "string" && data.trim()) return data;
+  if (data && typeof data === "object") {
+    const errObj = data as Record<string, unknown>;
+    if (typeof errObj.detail === "string") return errObj.detail;
+    if (typeof errObj.message === "string") return errObj.message;
   }
-
-  return "Không thể xử lý yêu cầu.";
+  return "Đã xảy ra lỗi không xác định.";
 }
 
-function hotelToForm(hotel: Hotel): FormState {
-  return {
-    name: hotel.name,
-    timezone: hotel.timezone ?? "Asia/Ho_Chi_Minh",
-    status: hotel.status === "DISABLED" ? "DISABLED" : "ACTIVE",
-    brandSettingsText: JSON.stringify(hotel.brandSettings ?? {}, null, 2),
-  };
-}
-
-function locationFromHotel(hotel: Hotel): LocationValue {
+function locationFromHotel(hotel: Readonly<Hotel>): LocationValue {
   return {
     googleMapsUrl: hotel.googleMapsUrl ?? "",
-    latitude: hotel.latitude == null ? "" : String(hotel.latitude),
-    longitude: hotel.longitude == null ? "" : String(hotel.longitude),
-    locationAccuracyMeters: hotel.locationAccuracyMeters == null ? "" : String(hotel.locationAccuracyMeters),
+    latitude: hotel.latitude !== null && hotel.latitude !== undefined ? String(hotel.latitude) : "",
+    longitude: hotel.longitude !== null && hotel.longitude !== undefined ? String(hotel.longitude) : "",
+    locationAccuracyMeters:
+      hotel.locationAccuracyMeters !== null && hotel.locationAccuracyMeters !== undefined
+        ? String(hotel.locationAccuracyMeters)
+        : "",
     locationSource: hotel.locationSource ?? undefined,
   };
 }
 
-function containsTenantId(value: unknown): boolean {
-  if (!value || typeof value !== "object") return false;
-  if (Array.isArray(value)) return value.some(containsTenantId);
+const inputClass =
+  "h-12 w-full rounded-xl border border-[#dcd3c1] bg-[#f9f6f0] px-4 text-base font-semibold text-[#17201b] placeholder:text-[#8a958e] focus:bg-white focus:border-[#8c6d29] focus:outline-none focus:ring-4 focus:ring-[#8c6d29]/10 transition-all";
 
-  return Object.entries(value).some(([key, nestedValue]) => key === "tenantId" || containsTenantId(nestedValue));
-}
-
-function parseBrandSettings(value: string): Record<string, unknown> | null {
-  const trimmed = value.trim();
-  if (!trimmed || trimmed === "null") return null;
-  const parsed = JSON.parse(trimmed) as unknown;
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    throw new Error("Brand settings phải là JSON object hoặc null.");
-  }
-
-  if (containsTenantId(parsed)) {
-    throw new Error("Không được gửi tenantId từ giao diện chủ khách sạn.");
-  }
-
-  return parsed as Record<string, unknown>;
-}
+const labelClass = "block text-xs sm:text-sm font-semibold text-[#3d4942] mb-1.5";
 
 export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
   const router = useRouter();
-  const [form, setForm] = useState<FormState>(() => hotelToForm(hotel));
+  const [form, setForm] = useState<FormState>({
+    name: hotel.name,
+    status: hotel.status === "DISABLED" ? "DISABLED" : "ACTIVE",
+  });
   const [location, setLocation] = useState<LocationValue>(() => locationFromHotel(hotel));
   const [isSaving, setIsSaving] = useState(false);
 
   function handleReset() {
-    setForm(hotelToForm(hotel));
+    setForm({
+      name: hotel.name,
+      status: hotel.status === "DISABLED" ? "DISABLED" : "ACTIVE",
+    });
     setLocation(locationFromHotel(hotel));
   }
 
@@ -90,48 +67,42 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
     event.preventDefault();
 
     if (!form.name.trim()) {
-      await Swal.fire({ icon: "warning", title: "Kiểm tra thông tin", text: "Tên khách sạn là bắt buộc.", confirmButtonColor: "#17201b" });
+      await SwalVietSage.fire({
+        icon: "warning",
+        title: "Kiểm tra thông tin",
+        text: "Tên khách sạn là bắt buộc.",
+        showConfirmButton: true,
+        confirmButtonText: "OK",
+      });
       return;
     }
 
-    let brandSettings: Record<string, unknown> | null;
-    try {
-      brandSettings = parseBrandSettings(form.brandSettingsText);
-    } catch (error) {
-      await Swal.fire({ icon: "warning", title: "Kiểm tra brand settings", text: error instanceof Error ? error.message : "JSON không hợp lệ.", confirmButtonColor: "#17201b" });
-      return;
-    }
-
-    const confirmed = await Swal.fire({
+    const confirmed = await SwalVietSage.fire({
       icon: "question",
       title: "Lưu thay đổi khách sạn?",
       text: `Cập nhật thông tin & vị trí của ${form.name.trim()}.`,
       showCancelButton: true,
       confirmButtonText: "Đồng ý lưu",
       cancelButtonText: "Hủy",
-      confirmButtonColor: "#17201b",
-      cancelButtonColor: "#65726a",
     });
 
     if (!confirmed.isConfirmed) return;
 
     try {
       setIsSaving(true);
-      void Swal.fire({
+      void SwalVietSage.fire({
         title: "Đang lưu khách sạn",
         text: "Vui lòng chờ trong giây lát.",
         allowOutsideClick: false,
         allowEscapeKey: false,
         showConfirmButton: false,
-        didOpen: () => Swal.showLoading(),
+        didOpen: () => SwalVietSage.showLoading(),
       });
 
       await requestInternalApiEnvelope<Hotel>(`/api/owner/hotels/${encodeURIComponent(hotel.id)}`, {
         method: "PATCH",
         body: {
           name: form.name.trim(),
-          timezone: form.timezone.trim() || "Asia/Ho_Chi_Minh",
-          brandSettings,
           status: form.status,
           googleMapsUrl: location.googleMapsUrl.trim() || null,
           latitude: location.latitude ? Number(location.latitude) : null,
@@ -141,14 +112,21 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
         },
       });
 
-      await Swal.fire({ icon: "success", title: "Đã lưu thông tin & vị trí khách sạn", timer: 1400, showConfirmButton: false });
+      await SwalVietSage.fire({
+        icon: "success",
+        title: "Đã lưu thông tin & vị trí khách sạn",
+        timer: 1400,
+        showConfirmButton: true,
+        confirmButtonText: "OK",
+      });
       router.refresh();
     } catch (error) {
-      await Swal.fire({
+      await SwalVietSage.fire({
         icon: "error",
         title: "Không thể lưu khách sạn",
         text: error instanceof HttpError ? toApiErrorMessage(error.data) : error instanceof Error ? error.message : "Vui lòng thử lại.",
-        confirmButtonColor: "#17201b",
+        showConfirmButton: true,
+        confirmButtonText: "OK",
       });
     } finally {
       setIsSaving(false);
@@ -157,56 +135,78 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
 
   return (
     <form onSubmit={submitHotel} className="space-y-6">
-      {/* Top Header Card: Operational Settings */}
-      <div className="rounded-2xl border border-[var(--outline-variant)] bg-white p-6 shadow-xs">
-        <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-[var(--primary)]">Cấu hình vận hành khách sạn</h2>
-            <p className="mt-1 text-sm text-[var(--on-surface-variant)]">Quản lý thông tin chung và múi giờ vận hành.</p>
+      {/* Top Banner & Header */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#17201b] via-[#24352b] to-[#121914] p-6 text-[#f8f1e6] shadow-md">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[#e8b363] text-2xl font-black text-[#17201b] shadow-md border-2 border-white/20">
+              🏨
+            </div>
+            <div className="space-y-1">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-[#e8b363]/20 px-3 py-0.5 text-xs font-bold text-[#f5c77e] border border-[#e8b363]/30">
+                <span className="h-2 w-2 rounded-full bg-[#e8b363] animate-pulse" />
+                Hồ sơ vận hành chính thức
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-[#fff8e8]">{hotel.name}</h1>
+            </div>
           </div>
+
           <button
             type="button"
             onClick={handleReset}
-            className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-[var(--outline-variant)] px-4 py-2 text-sm font-semibold text-[var(--primary)] transition-colors hover:bg-[var(--surface-container-low)]"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-white/10 px-4 text-xs sm:text-sm font-bold text-[#f8f1e6] backdrop-blur-sm border border-white/20 transition-all hover:bg-white/20"
           >
-            Hoàn tác
+            <span>🔄</span>
+            <span>Hoàn tác thay đổi</span>
           </button>
         </div>
+      </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <label className="space-y-2 text-xs sm:text-sm font-semibold text-[var(--on-surface)]">
-            Tên khách sạn
-            <input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} className="w-full rounded-xl border border-[var(--outline-variant)] px-3.5 py-2.5 text-sm font-medium outline-none transition-colors focus:border-[var(--primary)]" />
-          </label>
-          <label className="space-y-2 text-xs sm:text-sm font-semibold text-[var(--on-surface)]">
-            Múi giờ
-            <input value={form.timezone} onChange={(event) => setForm((current) => ({ ...current, timezone: event.target.value }))} className="w-full rounded-xl border border-[var(--outline-variant)] px-3.5 py-2.5 text-sm font-medium outline-none transition-colors focus:border-[var(--primary)]" />
-          </label>
-          <label className="space-y-2 text-xs sm:text-sm font-semibold text-[var(--on-surface)]">
-            Trạng thái
-            <select value={form.status} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as FormState["status"] }))} className="w-full cursor-pointer rounded-xl border border-[var(--outline-variant)] px-3.5 py-2.5 text-sm font-medium outline-none transition-colors focus:border-[var(--primary)]">
-              <option value="ACTIVE">Đang vận hành</option>
-              <option value="DISABLED">Đã vô hiệu</option>
+      {/* Main Operational Settings Card */}
+      <div className="rounded-2xl border border-[#e5ddcd] bg-[#fffcf7] p-7 shadow-[0_4px_20px_rgba(23,32,27,0.04)] space-y-6">
+        <div className="border-b border-[#eae3d5] pb-4">
+          <h2 className="text-xl font-extrabold text-[#17201b]">Cấu hình vận hành khách sạn</h2>
+          <p className="mt-1 text-sm font-medium text-[#5a6760]">
+            Cập nhật tên khách sạn và trạng thái hoạt động trên hệ thống.
+          </p>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2">
+          <div>
+            <label htmlFor="hotel-name" className={labelClass}>Tên khách sạn</label>
+            <input
+              id="hotel-name"
+              value={form.name}
+              onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+              placeholder="Ví dụ: Khách sạn Grand Saigon"
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="hotel-status" className={labelClass}>Trạng thái hoạt động</label>
+            <select
+              id="hotel-status"
+              value={form.status}
+              onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as FormState["status"] }))}
+              className={`${inputClass} cursor-pointer`}
+            >
+              <option value="ACTIVE">Đang vận hành (ACTIVE)</option>
+              <option value="DISABLED">Tạm ngưng (DISABLED)</option>
             </select>
-          </label>
-          <label className="space-y-2 text-xs sm:text-sm font-semibold text-[var(--on-surface)] md:col-span-2">
-            Brand settings
-            <textarea value={form.brandSettingsText} onChange={(event) => setForm((current) => ({ ...current, brandSettingsText: event.target.value }))} rows={4} className="w-full rounded-xl border border-[var(--outline-variant)] px-3.5 py-2.5 font-mono text-xs outline-none transition-colors focus:border-[var(--primary)]" />
-          </label>
+          </div>
         </div>
       </div>
 
       {/* Location Settings Card */}
-      <div className="rounded-2xl border border-[var(--outline-variant)] bg-white p-6 shadow-xs space-y-4">
-        <div className="flex items-center justify-between border-b border-[var(--outline-variant)] pb-3">
-          <div>
-            <h2 className="text-xl font-bold text-[var(--primary)] flex items-center gap-2">
-              <span>📍</span> Vị trí khách sạn trên nền tảng
-            </h2>
-            <p className="mt-1 text-sm text-[var(--on-surface-variant)]">
-              Cập nhật tọa độ GPS và liên kết Google Maps để đối tác & khách đặt phòng dễ dàng tìm thấy.
-            </p>
-          </div>
+      <div className="rounded-2xl border border-[#e5ddcd] bg-[#fffcf7] p-7 shadow-[0_4px_20px_rgba(23,32,27,0.04)] space-y-6">
+        <div className="border-b border-[#eae3d5] pb-4">
+          <h2 className="text-xl font-extrabold text-[#17201b] flex items-center gap-2">
+            <span>📍</span> Vị trí khách sạn trên nền tảng
+          </h2>
+          <p className="mt-1 text-sm font-medium text-[#5a6760]">
+            Cập nhật tọa độ GPS và liên kết Google Maps để đối tác & khách đặt phòng dễ dàng tìm thấy.
+          </p>
         </div>
 
         <LocationFields value={location} onChange={setLocation} />
@@ -217,11 +217,19 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
         <button
           type="submit"
           disabled={isSaving}
-          className="cursor-pointer rounded-xl bg-[#17201b] px-6 py-3 text-base font-bold text-white shadow-md transition-all hover:bg-[#27352d] disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex h-13 min-w-[240px] items-center justify-center gap-2.5 rounded-xl bg-[#17201b] px-8 text-base font-bold text-[#f8f1e6] shadow-md transition-all hover:bg-[#27352d] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {isSaving ? "Đang lưu..." : "💾 Lưu thay đổi khách sạn"}
+          {isSaving ? (
+            <>
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              <span>Đang lưu...</span>
+            </>
+          ) : (
+            "💾 Lưu thay đổi khách sạn"
+          )}
         </button>
       </div>
     </form>
   );
 }
+

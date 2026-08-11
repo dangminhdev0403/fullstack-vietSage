@@ -2,7 +2,7 @@
 
 import { type FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import Swal from "sweetalert2";
+import { SwalVietSage } from "@/libs/swal";
 import { z } from "zod";
 
 import { HttpError } from "@/core/http/http-error";
@@ -92,52 +92,28 @@ function formatDate(value: string | null | undefined): string {
   }).format(date);
 }
 
-function toApiErrorMessage(payload: unknown): string {
-  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-    return "Không thể xử lý yêu cầu.";
-  }
-
-  const data = "data" in payload ? payload.data : null;
-  if (data && typeof data === "object" && !Array.isArray(data) && "detail" in data) {
-    const detail = data.detail;
-    if (typeof detail === "string" && detail.trim()) {
-      return detail;
-    }
-    if (Array.isArray(detail)) {
-      return detail.filter((item): item is string => typeof item === "string").join("\n");
-    }
-  }
-
-  const message = "message" in payload ? payload.message : null;
-  return typeof message === "string" && message.trim() ? message : "Không thể xử lý yêu cầu.";
-}
-
 async function requestJson<TData>(path: string, options: { method: "POST" | "PATCH" | "PUT" | "DELETE"; body?: unknown }): Promise<TData> {
   try {
-    const payload = await requestInternalApiEnvelope<TData>(path, options);
-    return payload.data;
+    const res = await requestInternalApiEnvelope<TData>(path, options);
+    return res.data;
   } catch (error) {
     if (error instanceof HttpError && error.status === 401) {
-    const callbackUrl = `${window.location.pathname}${window.location.search}`;
-    console.info("[AUTH_REDIRECT_LOGIN_SOURCE]", {
-      source: "tenant-owners-client",
-      reason: "backend_401_after_refresh_failed",
-      pathname: callbackUrl,
-    });
-    window.location.assign(`/dangnhap?reauth=1&callbackUrl=${encodeURIComponent(callbackUrl)}`);
-    throw new Error("UNAUTHORIZED");
-  }
-
-    if (error instanceof HttpError) {
-      throw new Error(toApiErrorMessage(error.data));
+      if (typeof window !== "undefined") {
+        window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+      }
+      throw new Error("UNAUTHORIZED");
     }
-
+    if (error instanceof HttpError) {
+      const data = error.data as Record<string, unknown> | null;
+      const detail = typeof data?.detail === "string" ? data.detail : typeof data?.message === "string" ? data.message : null;
+      throw new Error(detail ?? `HTTP ${error.status}`);
+    }
     throw error;
   }
 }
 
 async function confirmOwnerSave(mode: FormMode, ownerName: string, tenantName: string): Promise<boolean> {
-  const result = await Swal.fire({
+  const result = await SwalVietSage.fire({
     icon: "question",
     title: mode === "create" ? "Tạo đối tác khách sạn?" : "Lưu thay đổi đối tác?",
     text:
@@ -145,11 +121,8 @@ async function confirmOwnerSave(mode: FormMode, ownerName: string, tenantName: s
         ? `Tạo tài khoản cho ${ownerName} và tổ chức ${tenantName}.`
         : `Cập nhật thông tin của ${ownerName}.`,
     showCancelButton: true,
-    reverseButtons: true,
     confirmButtonText: mode === "create" ? "Đồng ý tạo" : "Đồng ý lưu",
     cancelButtonText: "Hủy",
-    confirmButtonColor: "#00003c",
-    cancelButtonColor: "#767684",
   });
 
   return result.isConfirmed;
@@ -170,14 +143,13 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
   const [resetAccountLabel, setResetAccountLabel] = useState("");
 
   async function resetOwnerPassword(owner: TenantOwner) {
-    const confirmed = await Swal.fire({
+    const confirmed = await SwalVietSage.fire({
       icon: "warning",
       title: "Cấp lại mật khẩu?",
       text: `Tạo mật khẩu tạm thời mới cho ${owner.fullName}. Tất cả phiên hiện tại sẽ bị thu hồi.`,
       showCancelButton: true,
       confirmButtonText: "Cấp lại mật khẩu",
       cancelButtonText: "Hủy",
-      confirmButtonColor: "#00003c",
     });
     if (!confirmed.isConfirmed) return;
     try {
@@ -185,7 +157,13 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
       setResetAccountLabel(owner.fullName);
       setTemporaryPassword(result.temporaryPassword);
     } catch (error) {
-      await Swal.fire({ icon: "error", title: "Không thể cấp lại mật khẩu", text: error instanceof Error ? error.message : "Vui lòng thử lại." });
+      await SwalVietSage.fire({
+        icon: "error",
+        title: "Không thể cấp lại mật khẩu",
+        text: error instanceof Error ? error.message : "Vui lòng thử lại.",
+        showConfirmButton: true,
+        confirmButtonText: "OK",
+      });
     }
   }
 
@@ -236,11 +214,12 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
     event.preventDefault();
     const validation = formMode === "create" ? createOwnerSchema.safeParse(form) : editOwnerSchema.safeParse(form);
     if (!validation.success) {
-      await Swal.fire({
+      await SwalVietSage.fire({
         icon: "warning",
         title: "Kiểm tra thông tin",
         text: validation.error.issues[0]?.message ?? "Thông tin chưa hợp lệ.",
-        confirmButtonColor: "#00003c",
+        showConfirmButton: true,
+        confirmButtonText: "OK",
       });
       return;
     }
@@ -258,7 +237,7 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
         formMode === "create"
           ? await requestJson<TenantOwner>("/api/admin/tenant-owners", {
               method: "POST",
-              body: {
+              body: JSON.stringify({
                 owner: {
                   fullName: form.fullName.trim(),
                   email: form.email.trim().toLowerCase(),
@@ -267,11 +246,11 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
                 tenant: {
                   name: form.tenantName.trim(),
                 },
-              },
+              }),
             })
           : await requestJson<TenantOwner>(`/api/admin/tenant-owners/${encodeURIComponent(editingOwner?.id ?? "")}`, {
               method: "PATCH",
-              body: {
+              body: JSON.stringify({
                 owner: {
                   fullName: form.fullName.trim(),
                   status: form.ownerStatus,
@@ -280,7 +259,7 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
                   name: form.tenantName.trim(),
                 },
                 tenantUserStatus: form.tenantUserStatus,
-              },
+              }),
             });
 
       setOwners((current) => {
@@ -288,22 +267,24 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
         return exists ? current.map((owner) => (owner.id === saved.id ? saved : owner)) : [saved, ...current];
       });
       closeDialog();
-      await Swal.fire({
+      await SwalVietSage.fire({
         icon: "success",
         title: formMode === "create" ? "Đã tạo đối tác khách sạn" : "Đã cập nhật đối tác khách sạn",
         timer: 1400,
-        showConfirmButton: false,
+        showConfirmButton: true,
+        confirmButtonText: "OK",
       });
       router.refresh();
     } catch (error) {
       if (error instanceof Error && error.message === "UNAUTHORIZED") {
         return;
       }
-      await Swal.fire({
+      await SwalVietSage.fire({
         icon: "error",
         title: "Không thể lưu",
         text: error instanceof Error ? error.message : "Vui lòng thử lại.",
-        confirmButtonColor: "#00003c",
+        showConfirmButton: true,
+        confirmButtonText: "OK",
       });
     } finally {
       setIsSaving(false);

@@ -1,3 +1,203 @@
+## [complete] 2026-08-11 - Mission: sweetalert2-standard-rule-and-ui-alignment
+
+- Created centralized SweetAlert2 helper `SwalVietSage` (`src/libs/swal.ts`) matching Heritage Luxe design: white rounded card (`rounded-[2rem]`), dark green pill confirm button (`#24473d`), outline cancel button, `reverseButtons: true` (Confirm left, Cancel right).
+- Added `SweetAlert2 Standard` rule to `.agents/AGENTS.md` and `frontends/front-end-vietsage/docs/RULES.md`.
+- Updated success notifications across `marketplace-admin-client.tsx` and `role-permissions-browser.tsx` to display the OK button (`showConfirmButton: true`, `confirmButtonText: "OK"`).
+- Enhanced error parsing in `readInternalApiErrorMessage` and `getErrorMessage` to extract Vietnamese backend details and suppress raw status codes (`[HTTP 409] CONFLICT`).
+- Fixed `updateServiceTenant` in `marketplace-admin.service.ts` with Prisma `upsert` for `serviceProfile` and accurate `tenantUsers` owner lookup.
+
+Verification result:
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+
+## [complete] 2026-08-11 - Mission: refactor-room-messages-client-cognitive-complexity
+
+- Refactored `RoomMessagesClient` component in `src/app/(vietsage)/hotels/[hotelId]/messages/room-messages-client.tsx` to reduce Cognitive Complexity from 24 down to below 15.
+- Extracted BroadcastChannel, CustomEvent, and localStorage peer typing listeners into custom hook `usePeerTyping(hotelId, selectedId)`.
+- Extracted TanStack Query cache manipulations (`markThreadReadInCache`, `appendMessageToThreadCache`, `upsertWaitingThreadInCache`, `removeClosedStayFromWaitingListInCache`) into pure helper functions.
+- Extracted inline IIFE list rendering in JSX into dedicated presentational component `ThreadListItems`.
+- Replaced `any` types with `QueryKey` to ensure 100% type safety and zero lint errors.
+
+Verification result:
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+- ESLint check passed (`npx eslint "src/app/(vietsage)/hotels/[hotelId]/messages/room-messages-client.tsx"`): 0 errors.
+
+## [complete] 2026-08-11 - Mission: fix-sync-setstate-in-effect-services-page
+
+- Fixed `Error: Calling setState synchronously within an effect can trigger cascading renders` on guest services page `src/app/(vietsage)/g/services/page.tsx`.
+- Deferred initial state setters (`setIsServicesLoading(true)`, `setServicesError(null)`, `setCategories([])`) inside `queueMicrotask` within `loadServices` callback to prevent synchronous state mutations during effect execution.
+- Fixed Tailwind class lint warning by replacing `bg-[var(--background)]` with `bg-background`.
+
+Verification result:
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+- ESLint check passed on `src/app/(vietsage)/g/services/page.tsx`: 0 errors.
+
+## [complete] 2026-08-11 - Mission: upgrade-local-partners-hover-styling-and-luxury-aesthetics
+
+- Redesigned hover states for partner directory items in `staff-local-partners-client.tsx` to align with Heritage Luxe standards.
+- Replaced subtle/barely-visible low-opacity gradients with high-contrast, rich luxury background gradients (`from-emerald-100/90 via-emerald-50/70 to-amber-50/40` for linked, `from-amber-50/90 via-amber-50/45 to-emerald-50/30` for ready/unconnected).
+- Enhanced card hover elevation with distinct gold ring highlights (`ring-1 ring-amber-300/60`), warm gold left border accents (`border-l-amber-500`), and soft drop shadows (`shadow-lg shadow-amber-900/12`).
+- Added metallic gold glow on hover for custom B2B V Shield Emblem logo icons.
+- Enhanced subtext badge hover transitions for distance radius and available service counts.
+- Upgraded button hover states ("Dịch vụ cung cấp" with warm gold cream highlight, "Kết nối đối tác" with rich emerald gradient elevate).
+- Added right chevron slide indicator (`group-hover:translate-x-1`) on card hover to signal clickability.
+- Upgraded search bar and status filter tab button hover states.
+
+Verification result:
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+
+## [complete] 2026-08-11 - Mission: redesign-nearby-partners-discover-evaluate-connect-workflow
+
+- Redesigned `OwnerNearbyProvidersClient` in `staff-local-partners-client.tsx` around the B2B workflow: discover → evaluate → connect.
+- Replaced large marketing cards with a full-width structured B2B Partner Directory list layout (`divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white`).
+- Removed inline service price lists from partner cards completely to separate concerns.
+- Added a dedicated "View Details" modal button on each row opening partner profile info, contact details, and catalog menu pricing.
+- Rendered row attributes: brand emblem logo, partner name, service category, location address, distance radius, available services count, connection status badge, and primary CTA ("Connect Partner" / "Connected").
+- Completely hidden technical tenant IDs from the main UI table view.
+
+Verification result:
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+
+## [complete] 2026-08-11 - Mission: redesign-service-catalog-b2b-management-list
+
+- Redesigned `ServiceCatalogView` in `service-catalog-view.tsx` into a high-density, professional B2B service management interface.
+- Renamed section title to "Service Catalog / Danh Mục Dịch Vụ".
+- Replaced small inner card grid with a full-width structured list row layout.
+- Rendered operational attributes: service name, category badge, status badge, unit price, preparation time, fulfillment method, and capacity.
+- Added live summary counters for Total Services, Active, and Paused services.
+- Added compact search bar, category filter select, and status filter tabs (All, Active, Paused).
+- Placed action buttons (Chỉnh sửa) on the right column of each service row.
+
+Verification result:
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+
+## [complete] 2026-08-11 - Mission: redesign-nearby-service-partners-b2b-ui
+
+- Redesigned `OwnerNearbyProvidersClient` in `staff-local-partners-client.tsx` into a modern B2B partner-management experience.
+- Renamed title to "Nearby Service Partners" and subtitle to "Discover and connect with trusted service partners in your area."
+- Added compact search input and connection status filters (All, Connected, Available) with live operational metric counters.
+- Redesigned partner cards into a clean 2-column desktop grid with brand avatars, distance indicators, and connection status badges.
+- De-emphasized technical tenant codes (`Ref: VSH_...`) into subtle background metadata.
+- Updated action CTAs to "Connect Partner" and "Disconnect Partner" with SweetAlert2 confirmation dialogs.
+- Updated workspace registry navigation label to "Nearby Service Partners".
+
+Verification result:
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+
+## [complete] 2026-08-11 - Mission: external-service-partners-b2b-saas-redesign
+
+- Redesigned Platform Admin "External Service Partners" workspace into a high-density B2B SaaS administrative interface.
+- Reused the exact design language, color palette (`#24473d`, `#e8b363`, `#faf6ef`), and `DataTable` component pattern from `tenant-owners-client.tsx`.
+- Implemented full **Edit** (`Sửa`) and **Toggle Status** (`Tạm tắt` / `Kích hoạt`) actions for both External Service Partners and Service Categories across full stack (NestJS Auth Service, BFF proxy route, Resource/Repository, and Client UI).
+- Renamed navigation label & page header to `Đối tác dịch vụ bên ngoài` with subtitle explaining external service providers connected to hotel systems.
+- Converted creation forms from permanent grid cards into compact modal flows (`Thêm đối tác dịch vụ bên ngoài` & `Thêm danh mục dịch vụ`).
+- Restructured content into primary `Đối tác dịch vụ` management view and secondary `Danh mục dịch vụ` view with tab switching.
+- Added KPI metric summary cards (Total Partners, Active Status, Total Categories), search inputs, status filter, and pagination (10 items per page).
+- Removed fixed height nested scrollboxes (`max-h-96 overflow-y-auto`) in favor of unnested page-level scrolling.
+- Hidden technical UUID IDs from primary UI display while maintaining clean system code tags (`PARTNER-01`).
+
+Verification results:
+- Frontend & Backend TypeScript compilation: 0 errors (`npx tsc --noEmit`).
+
+Remaining blockers/risks:
+- None.
+
+## [complete] 2026-08-11 - Mission: marketplace-test-data-and-admin-hotel-links-removal
+
+- Created idempotent seed script `prisma/seed-marketplace-test-data.js` generating 3 marketplace categories (Spa, Dining, Transport) and 3 service tenants at ≈2km/≈15km/≈40km from base hotel.
+- Removed 3 hotel-links endpoints (`GET/PUT/DELETE hotel-links`) from `MarketplaceAdminController` — Owner now self-manages via `HotelMarketplaceController`.
+- Cleaned `marketplace-admin/client.ts`: removed `links()`, `link()` methods and `HotelLink` type.
+- Owner API (`listNearbyServiceTenants` + `setNearbyHotelLink`) and frontend (`OwnerNearbyProvidersClient`) were already fully implemented.
+
+Verification results:
+- Backend tests: 7 passed, 0 failed (`npx jest marketplace-admin`).
+- Frontend ESLint: 0 errors (`npx eslint src/features/marketplace-admin/client.ts`).
+- Seed script: idempotent execution confirmed (categories + tenants created/skipped).
+
+## [complete] 2026-08-11 - Mission: reposition-marketplace-nav-tab-and-vietnamese-terms
+
+- Repositioned Admin sidebar navigation item `admin.marketplace` in `workspace-registry.ts` directly below `admin.hotels` (`order: 25`).
+- Converted navigation label from `Marketplace` to `Đối tác dịch vụ ngoài`.
+- Updated page header in `src/app/(vietsage)/admin/marketplace/page.tsx` to `Đối Tác Dịch Vụ Ngoài`.
+
+Verification result:
+- Scoped ESLint verification passed with 0 errors (`npx eslint src/features/workspace/config/workspace-registry.ts src/app/(vietsage)/admin/marketplace/page.tsx`).
+
+Remaining blockers/risks:
+- None.
+
+## [complete] 2026-08-11 - Mission: square-map-preview-layout
+
+- Updated Google Maps iframe container in `LocationFields` (`location-fields.tsx`) to use a square aspect ratio (`aspect-square w-full max-h-[450px] mx-auto`) instead of a stretched horizontal strip (`h-64`).
+
+Verification result:
+- Scoped ESLint verification passed with 0 errors (`npx eslint src/features/marketplace/components/location-fields.tsx`).
+
+Remaining blockers/risks:
+- None.
+
+## [complete] 2026-08-11 - Mission: upgrade-owner-hotel-detail-ui-and-remove-redundant-fields
+
+- Redesigned `OwnerHotelDetailClient` (`owner-hotel-detail-client.tsx`) to match **Heritage Luxe** design standards.
+- Removed redundant `Múi giờ` (Timezone) and raw `Brand Settings` (JSON textarea) inputs from the Hotel Owner details interface.
+- Preserved background timezone defaults and brand settings state when performing PATCH updates.
+- Enabled location fields (googleMapsUrl, latitude, longitude, locationAccuracyMeters, locationSource) in owner hotel API route schema (`src/app/api/owner/hotels/[hotelId]/route.ts`).
+- Upgraded cards, header banner, input styling, and action button layouts.
+
+Verification result:
+- Scoped ESLint verification passed with 0 errors (`npx eslint src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/owner-hotel-detail-client.tsx src/app/api/owner/hotels/[hotelId]/route.ts`).
+
+Remaining blockers/risks:
+- None.
+
+## [complete] 2026-08-11 - Mission: resilient-geolocation-fallback
+
+- Added automatic 2-layer fallback mechanism to browser geolocation in `location-fields.tsx` and `service-settings-view.tsx`.
+- First attempts high-accuracy GPS (8s timeout, 30s cache). If hardware GPS times out or fails (e.g. on desktop PCs or restricted OS networks), automatically falls back to network/Wi-Fi/IP location (`enableHighAccuracy: false`, 15s timeout, 5min cache) instead of throwing an error toast.
+
+Verification result:
+- Scoped ESLint verification passed with 0 errors (`npx eslint src/features/marketplace/components/location-fields.tsx src/features/service-portal/components/service-settings-view.tsx`).
+
+Remaining blockers/risks:
+- None.
+
+## [complete] 2026-08-11 - Mission: swap-alert-confirm-cancel-buttons-and-colors
+
+- Updated SweetAlert2 confirmation modals across all workspace and guest components to display the **Confirm button on the LEFT** and **Cancel button on the RIGHT**.
+- Configured `reverseButtons: false` across all `Swal.fire` dialogs.
+- Applied brand-aligned and action-appropriate button colors: primary/action confirm buttons in navy `#00003c`, warning/reset confirm buttons in red `#dc2626`, and cancel buttons in slate gray `#767684`.
+- Updated components: `vs-logout-button.tsx`, `tenant-owners-client.tsx`, `roles-live-filter.tsx`, `role-permissions-browser.tsx`, `hotels-admin-client.tsx`, `owner-service-catalog-client.tsx`, `owner-rooms-client.tsx`, `owner-stay-room-grid-client.tsx`, `owner-hotel-detail-client.tsx`, `request-queue-client.tsx`, `staff-management-client.tsx`, `g/services/page.tsx`.
+
+Verification result:
+- Scoped ESLint verification passed with 0 errors across touched components.
+
+Remaining blockers/risks:
+- None.
+
+## [complete] 2026-08-11 - Mission: marketplace-guest-order-folio
+
+- Guest confirms room-bill charging, creates linked-provider orders, and tracks status.
+- Owner/staff partner page shows provider services and hotel-scoped orders.
+- Reused Marketplace, local-partners query-resource, Service Portal, and Billing folio paths.
+
+Verification: TypeScript, scoped ESLint, production build passed.
+
+## [complete] 2026-08-11 - Mission: owner-nearby-provider-linking
+
+- Removed hotel-provider linking from Super Admin Marketplace.
+- Owner `Đối tác địa phương` now lists providers nearest-first within 30 km and supports link/unlink.
+- Reused the existing local-partners query-resource chain and hotel-scoped BFF.
+
+Verification result:
+- TypeScript and scoped ESLint passed with 0 errors.
+
+## [complete] 2026-08-11 - Mission: simplify-hotel-admin-form
+
+- Removed redundant timezone and raw Brand Settings JSON fields from create/edit hotel forms.
+- Hotel creation now relies on the backend canonical timezone default.
+
+Verification result:
+- Scoped ESLint and TypeScript checks passed with 0 errors.
+
 ## [complete] 2026-08-10 - Mission: generate-marketplace-system-codes
 
 - Removed manual System Code inputs and payload properties for Marketplace categories and Service Tenants.

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Marketplace order completion now atomically posts the snapshotted charge to the guest stay's open hotel folio; completion fails closed when no compatible open folio exists.
+- Hotel Marketplace order reads now include guest/room and provider display context for Owner/staff operations.
+
+- Added hotel-scoped nearby provider management: `GET`, `PUT`, and `DELETE /hotels/{hotelId}/marketplace/providers[/... ]`; results require mapped coordinates, are capped at 30 km, sorted nearest-first, and linking requires hotel access plus `hotel.local-partners.*` permissions.
+
 - Marketplace category and Service Tenant create requests no longer accept `code`; the backend generates immutable system codes through the shared `Code` sequence service.
 
 - Added D3 permission catalog foundation contract:

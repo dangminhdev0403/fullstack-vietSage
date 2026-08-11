@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { AuthServiceError } from "@/features/auth/service/auth-service";
+import { LOGIN_PATH } from "@/features/auth/utils/login-route";
 import { createRequestRedirectUrl } from "@/features/auth/utils/redirect-isolation-core";
 import { refreshAndSaveSessionTokens } from "@/libs/auth-session-refresh";
 import { sanitizeInternalCallbackUrl } from "@/libs/rbac";
@@ -49,7 +50,7 @@ function getCallbackUrl(request: NextRequest): string {
 }
 
 function buildLoginRedirect(request: NextRequest, callbackUrl: string): NextResponse {
-  const loginUrl = createRequestRedirectUrl("/dangnhap", request);
+  const loginUrl = createRequestRedirectUrl(LOGIN_PATH, request);
 
   loginUrl.searchParams.set("reauth", "1");
   loginUrl.searchParams.set("callbackUrl", sanitizeInternalCallbackUrl(callbackUrl));

@@ -59,7 +59,7 @@ export class HotelsService {
       tenant: { connect: { id: tenantId } },
       name: dto.name.trim(),
       code: hotelCode,
-      timezone: dto.timezone?.trim() || "Asia/Saigon",
+      timezone: dto.timezone?.trim() || "Asia/Ho_Chi_Minh",
       brandSettings: dto.brandSettings as Prisma.InputJsonValue | undefined,
       googleSheetId: dto.googleSheetUrl,
       status: HotelStatus.ACTIVE,

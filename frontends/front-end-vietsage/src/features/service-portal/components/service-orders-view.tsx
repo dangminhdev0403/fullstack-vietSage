@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import Swal from "sweetalert2";
+import { SwalVietSage } from "@/libs/swal";
 import { useServicePortal } from "../use-service-portal";
 import type { MarketplaceOrder, ServicePortalData } from "../types";
 
@@ -14,7 +14,9 @@ function getNextStatus(order: MarketplaceOrder): { label: string; status: string
       ? { label: "Giao hàng tới ks", status: "DELIVERING" }
       : { label: "Sẵn sàng phục vụ", status: "READY" };
   }
-  if (order.status === "READY" || order.status === "DELIVERING") return { label: "Đánh dấu hoàn tất", status: "COMPLETED" };
+  if (order.status === "DELIVERING" || order.status === "READY") {
+    return { label: "Hoàn tất đơn", status: "COMPLETED" };
+  }
   return null;
 }
 
@@ -35,15 +37,13 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
     const next = getNextStatus(order);
     if (!next) return;
 
-    const res = await Swal.fire({
+    const res = await SwalVietSage.fire({
       icon: "question",
       title: `Chuyển trạng thái đơn ${order.orderNumber}?`,
       text: `Bạn có muốn chuyển đơn hàng sang trạng thái "${next.label}" không?`,
       showCancelButton: true,
       confirmButtonText: "Xác nhận chuyển",
       cancelButtonText: "Hủy",
-      confirmButtonColor: "#17201b",
-      cancelButtonColor: "#65726a",
     });
 
     if (!res.isConfirmed) return;

@@ -46,9 +46,9 @@ export const passwordPolicyZodSchema = z
   .max(128, "Mật khẩu không được vượt quá 128 ký tự")
   .refine((val) => /[A-Z]/.test(val), "Mật khẩu phải chứa ít nhất 1 chữ hoa")
   .refine((val) => /[a-z]/.test(val), "Mật khẩu phải chứa ít nhất 1 chữ thường")
-  .refine((val) => /[0-9]/.test(val), "Mật khẩu phải chứa ít nhất 1 chữ số")
+  .refine((val) => /\d/.test(val), "Mật khẩu phải chứa ít nhất 1 chữ số")
   .refine(
-    (val) => /[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(val),
+    (val) => /[!@#$%^&*()_+\-=[\]{}|;:,.<>?]/.test(val),
     "Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt",
   );
 

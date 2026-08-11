@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Req } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Req } from "@nestjs/common";
 import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
 import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
@@ -6,12 +6,11 @@ import type { RequestWithRequiredUser } from "../../../shared/security/request-w
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { MarketplaceAdminService } from "../application/marketplace-admin.service";
 import {
-  hotelLinksQuerySchema,
-  hotelServiceLinkBodySchema,
   marketplaceCategoryBodySchema,
   marketplaceCategoryUpdateSchema,
   marketplaceIdSchema,
   serviceTenantBodySchema,
+  serviceTenantUpdateSchema,
 } from "../domain/marketplace-admin.schema";
 
 @Controller("admin/marketplace")
@@ -72,45 +71,19 @@ export class MarketplaceAdminController {
     );
   }
 
-  @RequirePermission("platform.marketplace.view")
-  @SuccessMessage("Lấy liên kết Hotel-Service thành công")
-  @ApiDescript("Xem liên kết Hotel Service")
-  @Get("hotel-links")
-  hotelLinks(@Query() query: unknown) {
-    return this.service.listHotelLinks(parseWithZod(hotelLinksQuerySchema, query).hotelId);
-  }
-
   @RequirePermission("platform.marketplace.manage")
-  @SuccessMessage("Cập nhật liên kết Hotel-Service thành công")
-  @ApiDescript("Cập nhật liên kết Hotel Service")
-  @Put("hotel-links/:hotelId/:serviceTenantId")
-  setLink(
+  @SuccessMessage("Cập nhật Service Tenant thành công")
+  @ApiDescript("Cập nhật Service Tenant Marketplace")
+  @Patch("service-tenants/:tenantId")
+  updateServiceTenant(
     @Req() req: RequestWithRequiredUser,
-    @Param("hotelId") hotelId: string,
-    @Param("serviceTenantId") serviceTenantId: string,
+    @Param("tenantId") id: string,
     @Body() body: unknown,
   ) {
-    return this.service.setHotelLink(
+    return this.service.updateServiceTenant(
       req.user.userId,
-      parseWithZod(marketplaceIdSchema, hotelId),
-      parseWithZod(marketplaceIdSchema, serviceTenantId),
-      parseWithZod(hotelServiceLinkBodySchema, body),
-    );
-  }
-
-  @RequirePermission("platform.marketplace.manage")
-  @SuccessMessage("Tắt liên kết Hotel-Service thành công")
-  @ApiDescript("Tắt liên kết Hotel Service")
-  @Delete("hotel-links/:hotelId/:serviceTenantId")
-  disableLink(
-    @Req() req: RequestWithRequiredUser,
-    @Param("hotelId") hotelId: string,
-    @Param("serviceTenantId") serviceTenantId: string,
-  ) {
-    return this.service.disableHotelLink(
-      req.user.userId,
-      parseWithZod(marketplaceIdSchema, hotelId),
-      parseWithZod(marketplaceIdSchema, serviceTenantId),
+      parseWithZod(marketplaceIdSchema, id),
+      parseWithZod(serviceTenantUpdateSchema, body),
     );
   }
 }

@@ -1,13 +1,27 @@
 "use client";
 
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
+
+import { DataTable } from "@/components/ui/data-table";
+import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+import { OneTimePasswordDialog } from "@/features/account/security/one-time-password-dialog";
+import { SwalVietSage } from "@/libs/swal";
 import { marketplaceAdminResource } from "./resource";
+import type { ServiceTenant } from "./types";
+import type { MarketplaceCategory } from "@/features/marketplace/types/marketplace-contract";
+
+function generateTemporaryPassword(): string {
+  const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#";
+  return Array.from({ length: 14 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+}
 
 const inputClass =
-  "h-11 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all";
+  "w-full rounded-xl border border-[#e2d7c5] bg-[#faf6ef] px-4 py-3.5 text-base font-semibold text-[#17201b] outline-none transition-all focus:border-[#24473d] focus:bg-white focus:ring-2 focus:ring-[#24473d]/20";
 
-const labelClass = "block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5";
+const labelClass = "block text-sm font-bold uppercase tracking-wider text-[#69726b] mb-1.5";
+
+const DEFAULT_PAGE_SIZE = 10;
 
 function getErrorMessage(error: unknown, fallback: string): string {
   if (!error) return fallback;
@@ -18,38 +32,46 @@ function getErrorMessage(error: unknown, fallback: string): string {
     const data = errObj.data as Record<string, unknown> | null;
 
     let serverMessage: string | undefined;
+    const isRawCode = (str: string) => /^[A-Z0-9_ -]+$/.test(str.trim()) && str.trim().length <= 30;
+
     if (data && typeof data === "object") {
-      if (typeof data.message === "string" && data.message.trim()) {
-        serverMessage = data.message;
-      } else if (Array.isArray(data.message) && data.message.length > 0) {
-        serverMessage = data.message.join(", ");
-      } else if (data.data && typeof data.data === "object") {
+      if (data.data && typeof data.data === "object") {
         const innerData = data.data as Record<string, unknown>;
-        if (typeof innerData.message === "string" && innerData.message.trim()) {
-          serverMessage = innerData.message;
-        } else if (typeof innerData.detail === "string" && innerData.detail.trim()) {
-          serverMessage = innerData.detail;
+        if (typeof innerData.detail === "string" && innerData.detail.trim()) {
+          serverMessage = innerData.detail.trim();
+        } else if (typeof innerData.message === "string" && innerData.message.trim() && !isRawCode(innerData.message)) {
+          serverMessage = innerData.message.trim();
         }
+      }
+      if (!serverMessage && typeof data.detail === "string" && data.detail.trim()) {
+        serverMessage = data.detail.trim();
+      }
+      if (!serverMessage && typeof data.message === "string" && data.message.trim() && !isRawCode(data.message)) {
+        serverMessage = data.message.trim();
+      } else if (!serverMessage && Array.isArray(data.message) && data.message.length > 0) {
+        serverMessage = data.message.join(", ");
       }
     }
 
+    if (!serverMessage && typeof errObj.message === "string" && errObj.message.trim() && !isRawCode(errObj.message)) {
+      serverMessage = errObj.message.trim();
+    }
+
     if (serverMessage) {
-      return status ? `[HTTP ${status}] ${serverMessage}` : serverMessage;
+      return serverMessage;
     }
 
-    if (status === 404) return "[HTTP 404] Không tìm thấy tài nguyên (404 Not Found).";
-    if (status === 403) return "[HTTP 403] Bạn không có quyền thực hiện thao tác này (403 Forbidden).";
-    if (status === 401) return "[HTTP 401] Chưa đăng nhập hoặc phiên làm việc hết hạn.";
-    if (status === 400) return "[HTTP 400] Yêu cầu không hợp lệ hoặc thông tin nhập chưa đúng.";
-    if (status) return `[HTTP ${status}] Thao tác thất bại với mã HTTP ${status}.`;
-
-    if (typeof errObj.message === "string" && errObj.message.trim()) {
-      return errObj.message;
-    }
+    if (status === 409) return "Thông tin đối tác hoặc danh mục đã tồn tại trên hệ thống (Lỗi trùng lặp).";
+    if (status === 404) return "Không tìm thấy tài nguyên yêu cầu (404 Not Found).";
+    if (status === 403) return "Bạn không có quyền thực hiện thao tác này (403 Forbidden).";
+    if (status === 401) return "Chưa đăng nhập hoặc phiên làm việc hết hạn.";
+    if (status === 400) return "Yêu cầu không hợp lệ hoặc thông tin nhập chưa đúng.";
+    if (status) return `Thao tác thất bại (Mã lỗi ${status}). Vui lòng kiểm tra lại.`;
   }
 
   if (error instanceof Error && error.message.trim()) {
-    return error.message;
+    const msg = error.message.trim();
+    if (!/^[A-Z0-9_ -]+$/.test(msg)) return msg;
   }
 
   return fallback;
@@ -57,92 +79,540 @@ function getErrorMessage(error: unknown, fallback: string): string {
 
 export function MarketplaceAdminClient() {
   const resource = marketplaceAdminResource.bind({});
-  const data = useQuery(resource.queries.data.options(undefined as never));
-  const mutation = useMutation(resource.mutations.mutate.options());
+  const data = useQuery({
+    ...resource.queries.data.options(undefined as never),
+    refetchInterval: 10000,
+    refetchOnWindowFocus: true,
+  });
 
-  const [hotelId, setHotelId] = useState("");
-  const [tenantId, setTenantId] = useState("");
+  const mutation = useMutation({
+    ...resource.mutations.mutate.options(),
+    onSuccess: () => {
+      data.refetch();
+    },
+  });
+
+  // Workspace View & Dialog state
+  const [activeTab, setActiveTab] = useState<"partners" | "categories">("partners");
+  const [isTenantModalOpen, setIsTenantModalOpen] = useState(false);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [editingTenant, setEditingTenant] = useState<ServiceTenant | null>(null);
+  const [editingCategory, setEditingCategory] = useState<MarketplaceCategory | null>(null);
+  const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
+  const [resetAccountLabel, setResetAccountLabel] = useState("");
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [formValidationError, setFormValidationError] = useState<string | null>(null);
+
+  // Search & Pagination State
+  const [tenantSearch, setTenantSearch] = useState("");
+  const [tenantStatusFilter, setTenantStatusFilter] = useState("all");
+  const [tenantPage, setTenantPage] = useState(1);
+  const [tenantPageSize, setTenantPageSize] = useState(DEFAULT_PAGE_SIZE);
+
+  const [categorySearch, setCategorySearch] = useState("");
+  const [categoryPage, setCategoryPage] = useState(1);
+  const [categoryPageSize, setCategoryPageSize] = useState(DEFAULT_PAGE_SIZE);
+
+  const [selectedPartnerDetails, setSelectedPartnerDetails] = useState<ServiceTenant | null>(null);
 
   const submitCategory = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setFormValidationError(null);
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
-    mutation.mutate(
-      {
-        action: "category",
-        input: {
-          nameVi: String(form.get("nameVi")).trim(),
-          nameEn: String(form.get("nameEn")).trim(),
-          sortOrder: 0,
-          isActive: true,
-        },
-      },
-      {
-        onSuccess: () => formElement.reset(),
-      },
-    );
+    const nameVi = String(form.get("nameVi")).trim();
+    const nameEn = String(form.get("nameEn")).trim();
+
+    if (!nameVi || !nameEn) {
+      setFormValidationError("Vui lòng nhập đầy đủ tên tiếng Việt và tiếng Anh.");
+      return;
+    }
+
+    const catList = data.data?.categories ?? [];
+    if (catList.some((c) => c.nameVi.toLowerCase() === nameVi.toLowerCase())) {
+      setFormValidationError(`Tên danh mục tiếng Việt "${nameVi}" đã tồn tại trên hệ thống.`);
+      return;
+    }
+    if (catList.some((c) => c.nameEn.toLowerCase() === nameEn.toLowerCase())) {
+      setFormValidationError(`Tên danh mục tiếng Anh "${nameEn}" đã tồn tại trên hệ thống.`);
+      return;
+    }
+
+    SwalVietSage.fire({
+      title: "Xác nhận tạo danh mục",
+      text: `Bạn có chắc chắn muốn tạo danh mục dịch vụ mới "${nameVi}" (${nameEn}) không?`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Tạo danh mục",
+      cancelButtonText: "Hủy bỏ",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        mutation.mutate(
+          {
+            action: "category",
+            input: {
+              nameVi,
+              nameEn,
+              sortOrder: 0,
+              isActive: true,
+            },
+          },
+          {
+            onSuccess: () => {
+              formElement.reset();
+              setIsCategoryModalOpen(false);
+              setFormValidationError(null);
+              SwalVietSage.fire({
+                title: "Thành công!",
+                text: `Đã tạo danh mục dịch vụ "${nameVi}" thành công.`,
+                icon: "success",
+                showConfirmButton: true,
+                confirmButtonText: "OK",
+              });
+              data.refetch();
+            },
+            onError: (err) => {
+              SwalVietSage.fire({
+                title: "Thất bại!",
+                text: getErrorMessage(err, "Không thể tạo danh mục dịch vụ."),
+                icon: "error",
+              });
+            },
+          },
+        );
+      }
+    });
+  };
+
+  const submitUpdateCategory = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!editingCategory) return;
+    setFormValidationError(null);
+    const form = new FormData(event.currentTarget);
+    const nameVi = String(form.get("nameVi")).trim();
+    const nameEn = String(form.get("nameEn")).trim();
+
+    if (!nameVi || !nameEn) {
+      setFormValidationError("Vui lòng nhập đầy đủ tên tiếng Việt và tiếng Anh.");
+      return;
+    }
+
+    const catList = data.data?.categories ?? [];
+    if (catList.some((c) => c.id !== editingCategory.id && c.nameVi.toLowerCase() === nameVi.toLowerCase())) {
+      setFormValidationError(`Tên danh mục tiếng Việt "${nameVi}" trùng với danh mục khác.`);
+      return;
+    }
+    if (catList.some((c) => c.id !== editingCategory.id && c.nameEn.toLowerCase() === nameEn.toLowerCase())) {
+      setFormValidationError(`Tên danh mục tiếng Anh "${nameEn}" trùng với danh mục khác.`);
+      return;
+    }
+
+    SwalVietSage.fire({
+      title: "Xác nhận cập nhật danh mục",
+      text: `Bạn có chắc chắn muốn lưu các thay đổi cho danh mục "${nameVi}" không?`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Lưu thay đổi",
+      cancelButtonText: "Hủy bỏ",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        mutation.mutate(
+          {
+            action: "updateCategory",
+            id: editingCategory.id,
+            input: { nameVi, nameEn },
+          },
+          {
+            onSuccess: () => {
+              setEditingCategory(null);
+              setFormValidationError(null);
+              SwalVietSage.fire({
+                title: "Thành công!",
+                text: `Đã cập nhật danh mục "${nameVi}" thành công.`,
+                icon: "success",
+                showConfirmButton: true,
+                confirmButtonText: "OK",
+              });
+              data.refetch();
+            },
+            onError: (err) => {
+              SwalVietSage.fire({
+                title: "Thất bại!",
+                text: getErrorMessage(err, "Không thể cập nhật danh mục dịch vụ."),
+                icon: "error",
+              });
+            },
+          },
+        );
+      }
+    });
   };
 
   const submitTenant = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setFormValidationError(null);
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
-    mutation.mutate(
-      {
-        action: "tenant",
-        input: {
-          name: String(form.get("name")).trim(),
-          displayName: String(form.get("displayName")).trim(),
-          owner: {
-            email: String(form.get("email")).trim(),
-            fullName: String(form.get("fullName")).trim(),
-            password: String(form.get("password")),
+    const displayName = String(form.get("displayName")).trim();
+    const fullName = String(form.get("fullName")).trim();
+    const email = String(form.get("email")).trim();
+    const password = String(form.get("password"));
+
+    if (!displayName || !fullName || !email || !password) {
+      setFormValidationError("Vui lòng điền đầy đủ các thông tin bắt buộc.");
+      return;
+    }
+
+    if (password.length < 8) {
+      setFormValidationError("Mật khẩu phải chứa ít nhất 8 ký tự.");
+      return;
+    }
+
+    const tenantsList = data.data?.tenants ?? [];
+    if (tenantsList.some((t) => (t.serviceProfile?.displayName ?? t.name).toLowerCase() === displayName.toLowerCase())) {
+      setFormValidationError(`Tên thương hiệu đối tác "${displayName}" đã tồn tại trên hệ thống.`);
+      return;
+    }
+    if (tenantsList.some((t) => t.ownerEmail?.toLowerCase() === email.toLowerCase())) {
+      setFormValidationError(`Email tài khoản quản trị "${email}" đã được đăng ký cho đối tác khác.`);
+      return;
+    }
+
+    SwalVietSage.fire({
+      title: "Xác nhận tạo đối tác",
+      text: `Bạn có chắc chắn muốn khởi tạo đối tác "${displayName}" với tài khoản owner "${email}" không?`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Tạo đối tác",
+      cancelButtonText: "Hủy bỏ",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        mutation.mutate(
+          {
+            action: "tenant",
+            input: {
+              displayName,
+              owner: { email, fullName, password },
+            },
           },
-        },
-      },
-      {
-        onSuccess: () => formElement.reset(),
-      },
-    );
+          {
+            onSuccess: () => {
+              formElement.reset();
+              setIsTenantModalOpen(false);
+              setFormValidationError(null);
+              SwalVietSage.fire({
+                title: "Thành công!",
+                text: `Đã khởi tạo đối tác dịch vụ "${displayName}" thành công.`,
+                icon: "success",
+                showConfirmButton: true,
+                confirmButtonText: "OK",
+              });
+              data.refetch();
+            },
+            onError: (err) => {
+              SwalVietSage.fire({
+                title: "Thất bại!",
+                text: getErrorMessage(err, "Không thể tạo đối tác dịch vụ."),
+                icon: "error",
+              });
+            },
+          },
+        );
+      }
+    });
   };
 
-  const submitLink = (event?: FormEvent<HTMLFormElement>) => {
-    if (event) event.preventDefault();
-    if (!hotelId || !tenantId) return;
-    mutation.mutate(
-      { action: "link", hotelId, serviceTenantId: tenantId },
-      {
-        onSuccess: () => {
-          setHotelId("");
-          setTenantId("");
-        },
-      },
-    );
+  const submitUpdateTenant = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!editingTenant) return;
+    setFormValidationError(null);
+    const form = new FormData(event.currentTarget);
+
+    const displayName = String(form.get("displayName")).trim();
+    const fullName = String(form.get("fullName")).trim();
+    const email = String(form.get("email")).trim();
+
+    if (!displayName) {
+      setFormValidationError("Vui lòng nhập tên thương hiệu hiển thị.");
+      return;
+    }
+
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setFormValidationError("Email tài khoản owner không đúng định dạng.");
+      return;
+    }
+
+    if (fullName && fullName.length < 2) {
+      setFormValidationError("Họ tên người quản lý phải từ 2 ký tự trở lên.");
+      return;
+    }
+
+    const tenantsList = data.data?.tenants ?? [];
+    if (displayName && tenantsList.some((t) => t.id !== editingTenant.id && (t.serviceProfile?.displayName ?? t.name).toLowerCase() === displayName.toLowerCase())) {
+      setFormValidationError(`Tên thương hiệu đối tác "${displayName}" trùng với đối tác khác.`);
+      return;
+    }
+    if (email && tenantsList.some((t) => t.id !== editingTenant.id && t.ownerEmail?.toLowerCase() === email.toLowerCase())) {
+      setFormValidationError(`Email "${email}" trùng với tài khoản owner khác.`);
+      return;
+    }
+
+    const currentDisplayName = editingTenant.serviceProfile?.displayName ?? editingTenant.name;
+    const currentFullName = editingTenant.ownerFullName ?? "";
+    const currentEmail = editingTenant.ownerEmail ?? "";
+
+    if (displayName === currentDisplayName && fullName === currentFullName && email === currentEmail) {
+      setEditingTenant(null);
+      setFormValidationError(null);
+      return;
+    }
+
+    const ownerData: { email?: string; fullName?: string } = {};
+    if (fullName) ownerData.fullName = fullName;
+    if (email) ownerData.email = email;
+
+    SwalVietSage.fire({
+      title: "Xác nhận cập nhật đối tác",
+      text: `Bạn có chắc chắn muốn lưu thông tin cập nhật cho đối tác "${editingTenant.code}" không?`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Lưu thay đổi",
+      cancelButtonText: "Hủy bỏ",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        mutation.mutate(
+          {
+            action: "updateTenant",
+            id: editingTenant.id,
+            input: {
+              displayName,
+              ...(Object.keys(ownerData).length > 0 ? { owner: ownerData } : {}),
+            },
+          },
+          {
+            onSuccess: () => {
+              setEditingTenant(null);
+              setFormValidationError(null);
+              SwalVietSage.fire({
+                title: "Thành công!",
+                text: `Đã cập nhật thông tin đối tác "${editingTenant.code}" thành công.`,
+                icon: "success",
+                showConfirmButton: true,
+                confirmButtonText: "OK",
+              });
+              data.refetch();
+            },
+            onError: (err) => {
+              SwalVietSage.fire({
+                title: "Thất bại!",
+                text: getErrorMessage(err, "Không thể cập nhật thông tin đối tác."),
+                icon: "error",
+              });
+            },
+          },
+        );
+      }
+    });
   };
+
+  const handleResetTenantPassword = () => {
+    if (!editingTenant) return;
+    const ownerEmail = editingTenant.ownerEmail?.trim() ?? "";
+    const ownerFullName = editingTenant.ownerFullName?.trim() ?? "";
+
+    SwalVietSage.fire({
+      title: "Xác nhận đặt lại mật khẩu",
+      text: `Hệ thống sẽ sinh ngẫu nhiên mật khẩu mới (14 ký tự) cho đối tác "${editingTenant.name}". Bạn có chắc chắn muốn tiếp tục?`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Đặt lại mật khẩu",
+      cancelButtonText: "Hủy bỏ",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        const newPassword = generateTemporaryPassword();
+        setIsResettingPassword(true);
+        mutation.mutate(
+          {
+            action: "updateTenant",
+            id: editingTenant.id,
+            input: {
+              owner: {
+                password: newPassword,
+                ...(ownerEmail ? { email: ownerEmail } : {}),
+                ...(ownerFullName ? { fullName: ownerFullName } : {}),
+              },
+            },
+          },
+          {
+            onSuccess: () => {
+              setIsResettingPassword(false);
+              setResetAccountLabel(editingTenant.serviceProfile?.displayName ?? editingTenant.name);
+              setGeneratedPassword(newPassword);
+              setEditingTenant(null);
+              SwalVietSage.fire({
+                title: "Thành công!",
+                text: `Mật khẩu mới cho đối tác "${editingTenant.name}" đã được tạo.`,
+                icon: "success",
+                showConfirmButton: true,
+                confirmButtonText: "OK",
+              });
+              data.refetch();
+            },
+            onError: (err) => {
+              setIsResettingPassword(false);
+              SwalVietSage.fire({
+                title: "Thất bại!",
+                text: getErrorMessage(err, "Không thể đặt lại mật khẩu."),
+                icon: "error",
+              });
+            },
+          },
+        );
+      }
+    });
+  };
+
+  const toggleTenantStatus = (item: ServiceTenant) => {
+    const currentStatus = (item.serviceProfile?.status ?? "active").toLowerCase();
+    const isStatusActive = currentStatus === "active" || currentStatus === "published";
+    const nextStatus = isStatusActive ? "DISABLED" : "ACTIVE";
+    const tenantName = item.serviceProfile?.displayName ?? item.name;
+
+    SwalVietSage.fire({
+      title: isStatusActive ? "Xác nhận tạm tắt đối tác" : "Xác nhận kích hoạt đối tác",
+      text: `Bạn có chắc chắn muốn ${isStatusActive ? "tạm tắt hoạt động" : "kích hoạt lại"} đối tác "${tenantName}" không?`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: isStatusActive ? "Tạm tắt" : "Kích hoạt",
+      cancelButtonText: "Hủy bỏ",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        mutation.mutate(
+          {
+            action: "updateTenant",
+            id: item.id,
+            input: { status: nextStatus },
+          },
+          {
+            onSuccess: () => {
+              SwalVietSage.fire({
+                title: "Thành công!",
+                text: `Đã ${isStatusActive ? "tạm tắt" : "kích hoạt"} đối tác "${tenantName}" thành công.`,
+                icon: "success",
+                showConfirmButton: true,
+                confirmButtonText: "OK",
+              });
+              data.refetch();
+            },
+            onError: (err) => {
+              SwalVietSage.fire({
+                title: "Thất bại!",
+                text: getErrorMessage(err, "Không thể thay đổi trạng thái đối tác."),
+                icon: "error",
+              });
+            },
+          },
+        );
+      }
+    });
+  };
+
+  const toggleCategoryStatus = (item: MarketplaceCategory) => {
+    SwalVietSage.fire({
+      title: item.isActive ? "Xác nhận tạm tắt danh mục" : "Xác nhận kích hoạt danh mục",
+      text: `Bạn có chắc chắn muốn ${item.isActive ? "tạm tắt" : "kích hoạt"} danh mục "${item.nameVi}" không?`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: item.isActive ? "Tạm tắt" : "Kích hoạt",
+      cancelButtonText: "Hủy bỏ",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        mutation.mutate(
+          {
+            action: "updateCategory",
+            id: item.id,
+            input: { isActive: !item.isActive },
+          },
+          {
+            onSuccess: () => {
+              SwalVietSage.fire({
+                title: "Thành công!",
+                text: `Đã ${item.isActive ? "tạm tắt" : "kích hoạt"} danh mục "${item.nameVi}" thành công.`,
+                icon: "success",
+                showConfirmButton: true,
+                confirmButtonText: "OK",
+              });
+              data.refetch();
+            },
+            onError: (err) => {
+              SwalVietSage.fire({
+                title: "Thất bại!",
+                text: getErrorMessage(err, "Không thể thay đổi trạng thái danh mục."),
+                icon: "error",
+              });
+            },
+          },
+        );
+      }
+    });
+  };
+
+  // Filtered tenants
+  const filteredTenants = useMemo(() => {
+    const tenantsList = data.data?.tenants;
+    if (!tenantsList) return [];
+    return tenantsList.filter((item) => {
+      const q = tenantSearch.toLowerCase().trim();
+      const displayName = (item.serviceProfile?.displayName ?? "").toLowerCase();
+      const name = item.name.toLowerCase();
+      const email = (item.ownerEmail ?? "").toLowerCase();
+      const code = item.code.toLowerCase();
+
+      const matchesSearch = !q || displayName.includes(q) || name.includes(q) || email.includes(q) || code.includes(q);
+
+      const status = (item.serviceProfile?.status ?? "active").toLowerCase();
+      const matchesStatus =
+        tenantStatusFilter === "all" ||
+        (tenantStatusFilter === "active" && (status === "active" || status === "published")) ||
+        (tenantStatusFilter === "pending" && status !== "active" && status !== "published");
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [data.data, tenantSearch, tenantStatusFilter]);
+
+  // Filtered categories
+  const filteredCategories = useMemo(() => {
+    const catList = data.data?.categories;
+    if (!catList) return [];
+    return catList.filter((item) => {
+      const q = categorySearch.toLowerCase().trim();
+      const vi = item.nameVi.toLowerCase();
+      const en = item.nameEn.toLowerCase();
+      const code = item.code.toLowerCase();
+      return !q || vi.includes(q) || en.includes(q) || code.includes(q);
+    });
+  }, [data.data, categorySearch]);
 
   if (data.isPending) {
     return (
-      <div className="flex min-h-[300px] items-center justify-center rounded-2xl border border-slate-200 bg-white p-12 text-sm font-semibold text-slate-600 shadow-xs">
-        <svg className="mr-3 h-5 w-5 animate-spin text-emerald-600" viewBox="0 0 24 24" fill="none">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-        </svg>
-        Đang tải cấu hình Marketplace...
+      <div className="flex min-h-90 flex-col items-center justify-center rounded-[1.6rem] border border-[#e8dfd1] bg-white/90 p-12 text-[#69726b] shadow-xs backdrop-blur-md">
+        <VsIcon name="progress_activity" className="h-9 w-9 animate-spin text-[#24473d] mb-3 text-4xl" />
+        <p className="text-base font-bold text-[#17201b]">Đang tải cấu hình đối tác dịch vụ...</p>
       </div>
     );
   }
 
   if (data.isError || !data.data) {
     return (
-      <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-rose-800">
+      <div role="alert" className="rounded-[1.4rem] border border-rose-200 bg-rose-50/90 p-6 text-rose-800 shadow-xs backdrop-blur-md">
         <div className="flex items-center gap-3">
-          <svg className="h-6 w-6 shrink-0 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-rose-100 text-rose-600">
+            <VsIcon name="info" className="text-2xl" />
+          </div>
           <div>
-            <h3 className="font-bold text-rose-900">Không thể tải dữ liệu</h3>
-            <p className="text-sm mt-0.5 text-rose-700">
+            <h3 className="text-lg font-bold text-rose-900">Không thể kết nối hệ thống Marketplace</h3>
+            <p className="text-base mt-1 text-rose-700">
               {getErrorMessage(data.error, "Không thể lấy thông tin Marketplace. Vui lòng kiểm tra quyền truy cập hoặc làm mới trang.")}
             </p>
           </div>
@@ -151,51 +621,657 @@ export function MarketplaceAdminClient() {
     );
   }
 
+  const { categories, tenants } = data.data;
+  const activeTenantsCount = tenants.filter(
+    (t) => (t.serviceProfile?.status ?? "active").toLowerCase() === "active" || (t.serviceProfile?.status ?? "").toLowerCase() === "published",
+  ).length;
+
   return (
-    <div className="space-y-8">
-      {/* Toast Feedback */}
-      {mutation.isError ? (
-        <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-800 flex items-start gap-3 shadow-xs">
-          <svg className="h-5 w-5 shrink-0 text-rose-600 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <div className="text-sm font-medium">
-            {getErrorMessage(mutation.error, "Không thể thực hiện thao tác. Vui lòng kiểm tra lại thông tin nhập hoặc quyền hạn.")}
-          </div>
-        </div>
-      ) : mutation.isSuccess ? (
-        <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800 flex items-start gap-3 shadow-xs">
-          <svg className="h-5 w-5 shrink-0 text-emerald-600 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <div className="text-sm font-medium">Thao tác đã hoàn tất thành công!</div>
-        </div>
-      ) : null}
-
-      {/* Forms Section */}
-      <section className="grid gap-6 xl:grid-cols-2">
-        {/* Category Form */}
-        <form onSubmit={submitCategory} className="space-y-5 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs">
-          <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-              </svg>
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-slate-900">Thêm Danh Mục Dịch Vụ</h2>
-              <p className="text-xs text-slate-500">Tạo phân loại dịch vụ mới trên hệ thống Marketplace</p>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
+    <div className="space-y-6">
+      {/* Metric Summary Cards Bar */}
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {[
+          { label: "Tổng đối tác dịch vụ", value: tenants.length, icon: "domain" },
+          { label: "Đang hoạt động", value: `${activeTenantsCount} / ${tenants.length}`, icon: "verified_user" },
+          { label: "Danh mục dịch vụ", value: categories.length, icon: "storefront" },
+        ].map((metric) => (
+          <article key={metric.label} className="rounded-[1.4rem] border border-[#e8dfd1] bg-white/90 p-6 shadow-[0_16px_40px_rgba(23,32,27,0.05)] backdrop-blur-md">
+            <div className="flex items-center justify-between gap-4">
               <div>
-                <label htmlFor="cat-name-vi" className={labelClass}>
+                <p className="text-sm font-bold uppercase tracking-wider text-[#69726b]">{metric.label}</p>
+                <p className="mt-2 text-4xl font-extrabold text-[#24473d]">{metric.value}</p>
+              </div>
+              <span className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[#faf6ef] border border-[#e8dfd1] text-[#24473d]">
+                <VsIcon name={metric.icon} className="text-3xl" />
+              </span>
+            </div>
+          </article>
+        ))}
+      </section>
+
+      {/* Top Search Header & Primary Action Buttons Bar */}
+      <section className="rounded-[1.4rem] border border-[#e8dfd1] bg-white/90 p-6 shadow-[0_16px_40px_rgba(23,32,27,0.05)] backdrop-blur-md">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          {/* Tab Switcher & Search Bar */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1">
+            {/* View Tab Switcher */}
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-[#e8dfd1] bg-[#faf6ef] p-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => setActiveTab("partners")}
+                className={`inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-extrabold transition-all ${
+                  activeTab === "partners"
+                    ? "bg-[#24473d] text-[#fff8e8] shadow-xs"
+                    : "text-[#69726b] hover:text-[#17201b]"
+                }`}
+              >
+                <span>Đối tác dịch vụ</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab("categories")}
+                className={`inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-extrabold transition-all ${
+                  activeTab === "categories"
+                    ? "bg-[#24473d] text-[#fff8e8] shadow-xs"
+                    : "text-[#69726b] hover:text-[#17201b]"
+                }`}
+              >
+                <span>Danh mục dịch vụ</span>
+              </button>
+            </div>
+
+            {/* Search Input */}
+            <div className="relative flex-1">
+              <VsIcon name="search" className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#8b948d] text-xl" />
+              <input
+                type="search"
+                value={activeTab === "partners" ? tenantSearch : categorySearch}
+                onChange={(event) => {
+                  if (activeTab === "partners") {
+                    setTenantSearch(event.target.value);
+                    setTenantPage(1);
+                  } else {
+                    setCategorySearch(event.target.value);
+                    setCategoryPage(1);
+                  }
+                }}
+                placeholder={activeTab === "partners" ? "Tìm theo tên, email, mã đối tác..." : "Tìm theo tên tiếng Việt, tiếng Anh, mã..."}
+                className="w-full rounded-xl border border-[#e2d7c5] bg-[#faf6ef] pl-12 pr-4 py-3.5 text-base font-semibold text-[#17201b] outline-none transition-all focus:border-[#24473d] focus:bg-white focus:ring-2 focus:ring-[#24473d]/20"
+              />
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-3">
+            {activeTab === "partners" && (
+              <select
+                aria-label="Lọc trạng thái đối tác"
+                value={tenantStatusFilter}
+                onChange={(e) => {
+                  setTenantStatusFilter(e.target.value);
+                  setTenantPage(1);
+                }}
+                className="h-12 rounded-full border border-[#e2d7c5] bg-[#faf6ef] px-5 text-sm font-extrabold text-[#17201b] outline-none focus:border-[#24473d]"
+              >
+                <option value="all">Tất cả trạng thái</option>
+                <option value="active">Đang hoạt động</option>
+                <option value="pending">Khởi tạo / Tạm ngưng</option>
+              </select>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                setFormValidationError(null);
+                setIsCategoryModalOpen(true);
+              }}
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-[#dcd1bf] bg-[#fffcf7] px-5 py-3 text-sm font-bold text-[#24473d] shadow-2xs transition-all hover:border-[#24473d] hover:bg-[#f5efe4]"
+            >
+              <VsIcon name="add_circle" className="text-lg text-[#24473d]" />
+              Thêm danh mục
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setFormValidationError(null);
+                setIsTenantModalOpen(true);
+              }}
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-[#24473d] px-6 py-3 text-sm font-bold text-[#fff8e8] shadow-md shadow-[#24473d]/20 transition-all hover:bg-[#1a352d] active:scale-98"
+            >
+              <VsIcon name="storefront" className="text-lg text-[#e8b363]" />
+              Tạo đối tác dịch vụ
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* Primary Management Area: Service Partners Table */}
+      {activeTab === "partners" && (
+        <section className="hidden md:block">
+          <DataTable
+            columns={[
+              {
+                key: "owner",
+                header: <span className="text-xs font-black uppercase tracking-wider text-[#24473d]">ĐỐI TÁC DỊCH VỤ</span>,
+                cell: (item: ServiceTenant) => {
+                  const displayName = item.serviceProfile?.displayName ?? item.name;
+                  return (
+                    <div className="flex items-center gap-3">
+                      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#24473d] text-base font-extrabold text-[#e8b363] shadow-xs ring-2 ring-[#e8b363]/30">
+                        {displayName.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-base font-extrabold text-[#17201b]">{displayName}</p>
+                        <p className="text-sm font-medium text-[#69726b]">{item.name}</p>
+                      </div>
+                    </div>
+                  );
+                },
+              },
+              {
+                key: "ownerEmail",
+                header: <span className="text-xs font-black uppercase tracking-wider text-[#24473d]">TÀI KHOẢN QUẢN TRỊ</span>,
+                cell: (item: ServiceTenant) => (
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#e8dfd1] bg-[#fbf8f2] text-[#24473d]">
+                      <VsIcon name="person" className="text-lg" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-sans text-sm font-extrabold text-[#17201b]">
+                        {item.ownerEmail ?? "Chưa thiết lập"}
+                      </span>
+                      {item.ownerFullName && (
+                        <span className="text-xs font-semibold text-[#69726b]">
+                          {item.ownerFullName}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ),
+              },
+              {
+                key: "code",
+                header: <span className="text-xs font-black uppercase tracking-wider text-[#24473d]">MÃ MẠNG LƯỚI</span>,
+                cell: (item: ServiceTenant) => (
+                  <span className="inline-flex items-center gap-2 rounded-xl border border-[#eddab9] bg-[#fcf6ea] px-3.5 py-1.5 text-sm font-extrabold text-[#8c5e1a]">
+                    <VsIcon name="badge" className="text-[#c89b4f] text-base" />
+                    {item.code}
+                  </span>
+                ),
+              },
+              {
+                key: "status",
+                header: <span className="text-xs font-black uppercase tracking-wider text-[#24473d]">TRẠNG THÁI</span>,
+                cell: (item: ServiceTenant) => {
+                  const isStatusActive = (item.serviceProfile?.status ?? "active").toLowerCase() === "active" || (item.serviceProfile?.status ?? "").toLowerCase() === "published";
+                  return isStatusActive ? (
+                    <span className="inline-flex items-center gap-2 rounded-full border border-[#cbe5d8] bg-[#ecf7f1] px-4 py-1.5 text-sm font-extrabold text-[#1a5d3f]">
+                      <span className="h-2.5 w-2.5 rounded-full bg-[#1a5d3f] animate-pulse"></span>
+                      Hoạt động
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-2 rounded-full border border-[#e2dad0] bg-[#f5efe8] px-4 py-1.5 text-sm font-extrabold text-[#6b6660]">
+                      <span className="h-2.5 w-2.5 rounded-full bg-[#8c857d]"></span>
+                      Khởi tạo / Tạm tắt
+                    </span>
+                  );
+                },
+              },
+              {
+                key: "actions",
+                header: <div className="text-right text-xs font-black uppercase tracking-wider text-[#24473d]">THAO TÁC</div>,
+                cell: (item: ServiceTenant) => {
+                  const isStatusActive = (item.serviceProfile?.status ?? "active").toLowerCase() === "active" || (item.serviceProfile?.status ?? "").toLowerCase() === "published";
+                  return (
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFormValidationError(null);
+                          setEditingTenant(item);
+                        }}
+                        className="inline-flex min-h-[38px] items-center gap-1.5 rounded-full border border-[#dcd1bf] bg-[#fffcf7] px-4 py-1.5 text-sm font-bold text-[#24473d] shadow-2xs transition-all hover:border-[#24473d] hover:bg-[#f5efe4]"
+                      >
+                        <VsIcon name="edit" className="text-base" />
+                        Sửa
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleTenantStatus(item);
+                        }}
+                        disabled={mutation.isPending}
+                        className={`inline-flex min-h-[38px] items-center gap-1.5 rounded-full border px-4 py-1.5 text-sm font-bold shadow-2xs transition-all ${
+                          isStatusActive
+                            ? "border-amber-300 bg-amber-50/60 text-amber-800 hover:border-amber-400 hover:bg-amber-100"
+                            : "border-emerald-300 bg-emerald-50/60 text-emerald-800 hover:border-emerald-400 hover:bg-emerald-100"
+                        }`}
+                      >
+                        <VsIcon name={isStatusActive ? "visibility_off" : "visibility"} className="text-base" />
+                        {isStatusActive ? "Tạm tắt" : "Kích hoạt"}
+                      </button>
+                    </div>
+                  );
+                },
+              },
+            ]}
+            data={filteredTenants}
+            getRowKey={(item) => item.id}
+            onRowClick={(item) => {
+              setFormValidationError(null);
+              setEditingTenant(item);
+            }}
+            emptyMessage="Không tìm thấy đối tác dịch vụ nào phù hợp"
+            pagination={{
+              page: tenantPage,
+              pageSize: tenantPageSize,
+              totalItems: filteredTenants.length,
+              onPageChange: (p) => setTenantPage(p),
+              onPageSizeChange: (s) => {
+                setTenantPageSize(s);
+                setTenantPage(1);
+              },
+            }}
+          />
+        </section>
+      )}
+
+      {/* Secondary Management Area: Service Categories Table */}
+      {activeTab === "categories" && (
+        <section className="hidden md:block">
+          <DataTable
+            columns={[
+              {
+                key: "nameVi",
+                header: <span className="text-xs font-black uppercase tracking-wider text-[#24473d]">TÊN TIẾNG VIỆT</span>,
+                cell: (item: MarketplaceCategory) => (
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#24473d] text-base font-bold text-[#e8b363]">
+                      <VsIcon name="storefront" className="text-lg" />
+                    </div>
+                    <p className="text-base font-extrabold text-[#17201b]">{item.nameVi}</p>
+                  </div>
+                ),
+              },
+              {
+                key: "nameEn",
+                header: <span className="text-xs font-black uppercase tracking-wider text-[#24473d]">TÊN TIẾNG ANH (ENGLISH NAME)</span>,
+                cell: (item: MarketplaceCategory) => (
+                  <span className="text-base font-semibold text-[#525b54]">{item.nameEn}</span>
+                ),
+              },
+              {
+                key: "code",
+                header: <span className="text-xs font-black uppercase tracking-wider text-[#24473d]">MÃ DANH MỤC</span>,
+                cell: (item: MarketplaceCategory) => (
+                  <span className="inline-flex items-center gap-2 rounded-xl border border-[#e8dfd1] bg-[#fbf8f2] px-3.5 py-1.5 font-sans text-sm font-bold text-[#17201b]">
+                    {item.code}
+                  </span>
+                ),
+              },
+              {
+                key: "status",
+                header: <span className="text-xs font-black uppercase tracking-wider text-[#24473d]">TRẠNG THÁI</span>,
+                cell: (item: MarketplaceCategory) =>
+                  item.isActive ? (
+                    <span className="inline-flex items-center gap-2 rounded-full border border-[#cbe5d8] bg-[#ecf7f1] px-4 py-1.5 text-sm font-extrabold text-[#1a5d3f]">
+                      <span className="h-2.5 w-2.5 rounded-full bg-[#1a5d3f]"></span>
+                      Hoạt động
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-2 rounded-full border border-[#e2dad0] bg-[#f5efe8] px-4 py-1.5 text-sm font-extrabold text-[#6b6660]">
+                      <span className="h-2.5 w-2.5 rounded-full bg-[#8c857d]"></span>
+                      Tạm tắt
+                    </span>
+                  ),
+              },
+              {
+                key: "actions",
+                header: <div className="text-right text-xs font-black uppercase tracking-wider text-[#24473d]">THAO TÁC</div>,
+                cell: (item: MarketplaceCategory) => (
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setFormValidationError(null);
+                        setEditingCategory(item);
+                      }}
+                      className="inline-flex min-h-[38px] items-center gap-1.5 rounded-full border border-[#dcd1bf] bg-[#fffcf7] px-4 py-1.5 text-sm font-bold text-[#24473d] shadow-2xs transition-all hover:border-[#24473d] hover:bg-[#f5efe4]"
+                    >
+                      <VsIcon name="edit" className="text-base" />
+                      Sửa
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleCategoryStatus(item);
+                      }}
+                      disabled={mutation.isPending}
+                      className={`inline-flex min-h-[38px] items-center gap-1.5 rounded-full border px-4 py-1.5 text-sm font-bold shadow-2xs transition-all ${
+                        item.isActive
+                          ? "border-amber-300 bg-amber-50/60 text-amber-800 hover:border-amber-400 hover:bg-amber-100"
+                          : "border-emerald-300 bg-emerald-50/60 text-emerald-800 hover:border-emerald-400 hover:bg-emerald-100"
+                      }`}
+                    >
+                      <VsIcon name={item.isActive ? "visibility_off" : "visibility"} className="text-base" />
+                      {item.isActive ? "Tạm tắt" : "Kích hoạt"}
+                    </button>
+                  </div>
+                ),
+              },
+            ]}
+            data={filteredCategories}
+            getRowKey={(item) => item.id}
+            onRowClick={(item) => {
+              setFormValidationError(null);
+              setEditingCategory(item);
+            }}
+            emptyMessage="Chưa có danh mục dịch vụ nào được tạo"
+            pagination={{
+              page: categoryPage,
+              pageSize: categoryPageSize,
+              totalItems: filteredCategories.length,
+              onPageChange: (p) => setCategoryPage(p),
+              onPageSizeChange: (s) => {
+                setCategoryPageSize(s);
+                setCategoryPage(1);
+              },
+            }}
+          />
+        </section>
+      )}
+
+      {/* Modal 1: Create External Service Partner */}
+      {isTenantModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#17201b]/60 p-4 backdrop-blur-md animate-in fade-in duration-150">
+          <div className="w-full max-w-lg rounded-[1.6rem] border border-[#e8dfd1] bg-[#fffcf8] p-7 shadow-[0_24px_50px_rgba(23,32,27,0.15)] space-y-6">
+            <div className="flex items-center justify-between border-b border-[#e8dfd1] pb-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#24473d] text-[#e8b363]">
+                  <VsIcon name="storefront" className="text-3xl" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-extrabold text-[#24473d]">Thêm đối tác dịch vụ bên ngoài</h2>
+                  <p className="text-sm font-medium text-[#69726b]">Khởi tạo đối tác cung cấp dịch vụ và tài khoản quản trị</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setFormValidationError(null);
+                  setIsTenantModalOpen(false);
+                }}
+                className="rounded-full p-2 text-[#69726b] hover:bg-[#f4efe6] hover:text-[#17201b] transition-colors"
+                aria-label="Đóng cửa sổ"
+              >
+                <VsIcon name="close" className="text-2xl" />
+              </button>
+            </div>
+
+            {formValidationError && (
+              <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-800 flex items-center gap-3 shadow-xs">
+                <VsIcon name="error" className="text-xl text-rose-600 shrink-0" />
+                <span>{formValidationError}</span>
+              </div>
+            )}
+
+            <form onSubmit={submitTenant} className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <label htmlFor="modal-tenant-display-name" className={labelClass}>
+                    Tên thương hiệu hiển thị
+                  </label>
+                  <input
+                    id="modal-tenant-display-name"
+                    required
+                    name="displayName"
+                    placeholder="Ví dụ: An Nhiên Spa & Wellness"
+                    className={inputClass}
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label htmlFor="modal-owner-fullname" className={labelClass}>
+                    Họ tên người quản lý
+                  </label>
+                  <input
+                    id="modal-owner-fullname"
+                    required
+                    name="fullName"
+                    placeholder="Ví dụ: Nguyễn Văn Ánh"
+                    className={inputClass}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="modal-owner-email" className={labelClass}>
+                    Email tài khoản Owner
+                  </label>
+                  <input
+                    id="modal-owner-email"
+                    required
+                    type="email"
+                    name="email"
+                    placeholder="owner@annhien.vn"
+                    className={inputClass}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="modal-owner-password" className={labelClass}>
+                    Mật khẩu 
+                  </label>
+                  <div className="relative flex items-center">
+                    <input
+                      id="modal-owner-password"
+                      required
+                      minLength={8}
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      placeholder="Mật khẩu..."
+                      className={`${inputClass} pr-12`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3.5 text-[#8b948d] hover:text-[#17201b]"
+                      aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                    >
+                      <VsIcon name={showPassword ? "visibility_off" : "visibility"} className="text-xl" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-5 border-t border-[#e8dfd1]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormValidationError(null);
+                    setIsTenantModalOpen(false);
+                  }}
+                  className="h-12 rounded-full border border-[#dcd1bf] bg-white px-6 text-sm font-bold text-[#24473d] hover:bg-[#f5efe4] transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={mutation.isPending}
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#24473d] px-7 text-sm font-bold text-[#fff8e8] hover:bg-[#1a352d] disabled:opacity-50 transition-colors shadow-md shadow-[#24473d]/20"
+                >
+                  {mutation.isPending ? "Đang xử lý..." : "Tạo đối tác"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 2: Edit External Service Partner */}
+      {editingTenant && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#17201b]/60 p-4 backdrop-blur-md animate-in fade-in duration-150">
+          <div className="w-full max-w-lg rounded-[1.6rem] border border-[#e8dfd1] bg-[#fffcf8] p-7 shadow-[0_24px_50px_rgba(23,32,27,0.15)] space-y-6">
+            <div className="flex items-center justify-between border-b border-[#e8dfd1] pb-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#24473d] text-[#e8b363]">
+                  <VsIcon name="edit" className="text-3xl" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-extrabold text-[#24473d]">Cập nhật đối tác dịch vụ</h2>
+                  <p className="text-sm font-bold text-[#69726b]">{editingTenant.code}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setFormValidationError(null);
+                  setEditingTenant(null);
+                }}
+                className="rounded-full p-2 text-[#69726b] hover:bg-[#f4efe6] hover:text-[#17201b] transition-colors"
+                aria-label="Đóng cửa sổ"
+              >
+                <VsIcon name="close" className="text-2xl" />
+              </button>
+            </div>
+
+            {formValidationError && (
+              <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-800 flex items-center gap-3 shadow-xs">
+                <VsIcon name="error" className="text-xl text-rose-600 shrink-0" />
+                <span>{formValidationError}</span>
+              </div>
+            )}
+
+            <form onSubmit={submitUpdateTenant} className="space-y-4">
+              <div>
+                <label htmlFor="edit-tenant-display-name" className={labelClass}>
+                  Tên thương hiệu hiển thị
+                </label>
+                <input
+                  id="edit-tenant-display-name"
+                  required
+                  name="displayName"
+                  defaultValue={editingTenant.serviceProfile?.displayName ?? editingTenant.name}
+                  className={inputClass}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="edit-owner-fullname" className={labelClass}>
+                  Họ tên người quản lý
+                </label>
+                <input
+                  id="edit-owner-fullname"
+                  required
+                  name="fullName"
+                  defaultValue={editingTenant.ownerFullName ?? ""}
+                  placeholder="Ví dụ: Nguyễn Văn Ánh"
+                  className={inputClass}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="edit-owner-email" className={labelClass}>
+                  Email tài khoản Owner
+                </label>
+                <input
+                  id="edit-owner-email"
+                  required
+                  type="email"
+                  name="email"
+                  defaultValue={editingTenant.ownerEmail ?? ""}
+                  placeholder="owner@annhien.vn"
+                  className={inputClass}
+                />
+              </div>
+
+              <div className="pt-3 border-t border-[#e8dfd1]/60">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold tracking-wider text-[#69726b] uppercase">Đặt lại mật khẩu</span>
+                  <span className="text-xs font-semibold text-[#8b948d]">Không bắt buộc</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleResetTenantPassword}
+                  disabled={isResettingPassword || mutation.isPending}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-50/60 px-5 py-3 text-sm font-bold text-amber-900 transition-all hover:border-amber-400 hover:bg-amber-100 disabled:opacity-50"
+                >
+                  <VsIcon name="lock_reset" className="text-lg" />
+                  {isResettingPassword ? "Đang tạo mật khẩu..." : "Tạo mật khẩu ngẫu nhiên"}
+                </button>
+                <p className="mt-1.5 text-xs text-[#8b948d]">Hệ thống sẽ tự tạo mật khẩu mạnh 14 ký tự, hiển thị để admin sao chép gửi cho đối tác.</p>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-5 border-t border-[#e8dfd1]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormValidationError(null);
+                    setEditingTenant(null);
+                  }}
+                  className="h-12 rounded-full border border-[#dcd1bf] bg-white px-6 text-sm font-bold text-[#24473d] hover:bg-[#f5efe4] transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={mutation.isPending}
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#24473d] px-7 text-sm font-bold text-[#fff8e8] hover:bg-[#1a352d] disabled:opacity-50 transition-colors shadow-md shadow-[#24473d]/20"
+                >
+                  {mutation.isPending ? "Đang xử lý..." : "Lưu thay đổi"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 3: Create Service Category */}
+      {isCategoryModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#17201b]/60 p-4 backdrop-blur-md animate-in fade-in duration-150">
+          <div className="w-full max-w-md rounded-[1.6rem] border border-[#e8dfd1] bg-[#fffcf8] p-7 shadow-[0_24px_50px_rgba(23,32,27,0.15)] space-y-6">
+            <div className="flex items-center justify-between border-b border-[#e8dfd1] pb-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#24473d] text-[#e8b363]">
+                  <VsIcon name="add_circle" className="text-3xl" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-extrabold text-[#24473d]">Thêm danh mục dịch vụ</h2>
+                  <p className="text-sm font-medium text-[#69726b]">Tạo phân loại dịch vụ mới trên hệ thống Marketplace</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setFormValidationError(null);
+                  setIsCategoryModalOpen(false);
+                }}
+                className="rounded-full p-2 text-[#69726b] hover:bg-[#f4efe6] hover:text-[#17201b] transition-colors"
+                aria-label="Đóng cửa sổ"
+              >
+                <VsIcon name="close" className="text-2xl" />
+              </button>
+            </div>
+
+            {formValidationError && (
+              <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-800 flex items-center gap-3 shadow-xs">
+                <VsIcon name="error" className="text-xl text-rose-600 shrink-0" />
+                <span>{formValidationError}</span>
+              </div>
+            )}
+
+            <form onSubmit={submitCategory} className="space-y-4">
+              <div>
+                <label htmlFor="modal-cat-name-vi" className={labelClass}>
                   Tên tiếng Việt
                 </label>
                 <input
-                  id="cat-name-vi"
+                  id="modal-cat-name-vi"
                   required
                   name="nameVi"
                   placeholder="Ví dụ: Nhà hàng & Ẩm thực"
@@ -204,317 +1280,190 @@ export function MarketplaceAdminClient() {
               </div>
 
               <div>
-                <label htmlFor="cat-name-en" className={labelClass}>
+                <label htmlFor="modal-cat-name-en" className={labelClass}>
                   Tên tiếng Anh (English Name)
                 </label>
                 <input
-                  id="cat-name-en"
+                  id="modal-cat-name-en"
                   required
                   name="nameEn"
                   placeholder="Ví dụ: Restaurant & Dining"
                   className={inputClass}
                 />
               </div>
-            </div>
-          </div>
 
-          <button
-            type="submit"
-            disabled={mutation.isPending}
-            className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 text-sm font-semibold text-white transition-colors hover:bg-emerald-800 disabled:opacity-50"
-          >
-            {mutation.isPending ? "Đang xử lý..." : "+ Tạo danh mục mới"}
-          </button>
-        </form>
-
-        {/* Service Tenant Form */}
-        <form onSubmit={submitTenant} className="space-y-5 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs">
-          <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5m3 0h10M9 7h1m-1 4h1m4-4h1m-1 4h1" />
-              </svg>
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-slate-900">Đối tác dịch vụ bên ngoài</h2>
-              <p className="text-xs text-slate-500">Khởi tạo đối tác cung cấp dịch vụ và tài khoản quản trị</p>
-            </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label htmlFor="tenant-name" className={labelClass}>
-                Tên pháp lý / Công ty
-              </label>
-              <input
-                id="tenant-name"
-                required
-                name="name"
-                placeholder="Ví dụ: Công ty TNHH An Nhiên"
-                className={inputClass}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="tenant-display-name" className={labelClass}>
-                Tên thương hiệu hiển thị
-              </label>
-              <input
-                id="tenant-display-name"
-                required
-                name="displayName"
-                placeholder="Ví dụ: An Nhiên Spa & Wellness"
-                className={inputClass}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="owner-fullname" className={labelClass}>
-                Họ tên người quản lý
-              </label>
-              <input
-                id="owner-fullname"
-                required
-                name="fullName"
-                placeholder="Ví dụ: Nguyễn Văn Ánh"
-                className={inputClass}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="owner-email" className={labelClass}>
-                Email tài khoản Owner
-              </label>
-              <input
-                id="owner-email"
-                required
-                type="email"
-                name="email"
-                placeholder="Ví dụ: owner@annhien.vn"
-                className={inputClass}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="owner-password" className={labelClass}>
-                Mật khẩu ban đầu (Min 8 ký tự)
-              </label>
-              <div className="relative flex items-center">
-                <input
-                  id="owner-password"
-                  required
-                  minLength={8}
-                  type={showPassword ? "text" : "password"}
-                  name="password"
-                  placeholder="Tối thiểu 8 ký tự..."
-                  className={`${inputClass} pr-10`}
-                />
+              <div className="flex items-center justify-end gap-3 pt-5 border-t border-[#e8dfd1]">
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 text-slate-400 hover:text-slate-600 focus:outline-none"
-                  aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                  onClick={() => {
+                    setFormValidationError(null);
+                    setIsCategoryModalOpen(false);
+                  }}
+                  className="h-12 rounded-full border border-[#dcd1bf] bg-white px-6 text-sm font-bold text-[#24473d] hover:bg-[#f5efe4] transition-colors"
                 >
-                  {showPassword ? (
-                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858-5.908a10.03 10.03 0 013.122-.463c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21M3 3l18 18" />
-                    </svg>
-                  ) : (
-                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  )}
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={mutation.isPending}
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#24473d] px-7 text-sm font-bold text-[#fff8e8] hover:bg-[#1a352d] disabled:opacity-50 transition-colors shadow-md shadow-[#24473d]/20"
+                >
+                  {mutation.isPending ? "Đang xử lý..." : "Tạo danh mục"}
                 </button>
               </div>
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={mutation.isPending}
-            className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 text-sm font-semibold text-white transition-colors hover:bg-emerald-800 disabled:opacity-50"
-          >
-            {mutation.isPending ? "Đang xử lý..." : "+ Tạo đối tác dịch vụ bên ngoài"}
-          </button>
-        </form>
-      </section>
-
-      {/* Hotel ↔ Service Tenant Linking */}
-      <section className="space-y-5 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-              </svg>
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-slate-900">Liên Kết Khách Sạn ↔ Đối Tác Dịch Vụ</h2>
-              <p className="text-xs text-slate-500">Ủy quyền đối tác dịch vụ được phép phục vụ khách tại khách sạn</p>
-            </div>
-          </div>
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-            {data.data.links.length} Liên kết đã kích hoạt
-          </span>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-[1fr_1fr_auto]">
-          <div>
-            <label htmlFor="select-hotel" className={labelClass}>
-              Chọn Khách Sạn
-            </label>
-            <select
-              id="select-hotel"
-              aria-label="Khách sạn"
-              className={inputClass}
-              value={hotelId}
-              onChange={(e) => setHotelId(e.target.value)}
-            >
-              <option value="">-- Chọn khách sạn tiếp nhận --</option>
-              {data.data.hotels.map((hotel) => (
-                <option key={hotel.id} value={hotel.id}>
-                  {hotel.name} ({hotel.code ?? "HOTEL"})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="select-tenant" className={labelClass}>
-              Chọn Đối Tác Dịch Vụ
-            </label>
-            <select
-              id="select-tenant"
-              aria-label="Đối tác dịch vụ"
-              className={inputClass}
-              value={tenantId}
-              onChange={(e) => setTenantId(e.target.value)}
-            >
-              <option value="">-- Chọn đối tác dịch vụ --</option>
-              {data.data.tenants.map((tenant) => (
-                <option key={tenant.id} value={tenant.id}>
-                  {tenant.serviceProfile?.displayName ?? tenant.name} ({tenant.code}){tenant.ownerEmail ? ` - ${tenant.ownerEmail}` : ""}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex items-end">
-            <button
-              type="button"
-              disabled={!hotelId || !tenantId || mutation.isPending}
-              onClick={() => submitLink()}
-              className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-6 text-sm font-semibold text-white transition-colors hover:bg-emerald-800 disabled:opacity-40 md:w-auto"
-            >
-              🔗 Kích hoạt liên kết
-            </button>
+            </form>
           </div>
         </div>
+      )}
 
-        {/* Existing Links Cards / List */}
-        {data.data.links.length > 0 ? (
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {data.data.links.map((link) => {
-              const hotel = data.data.hotels.find((h) => h.id === link.hotelId);
-              const tenantName = link.serviceTenant.serviceProfile?.displayName ?? link.serviceTenant.name;
-              return (
-                <div key={link.id} className="flex items-center justify-between rounded-xl border border-slate-200/80 bg-slate-50/70 p-3.5 text-xs">
-                  <div className="space-y-1">
-                    <div className="font-bold text-slate-900 text-sm">{hotel?.name ?? "Khách sạn"}</div>
-                    <div className="text-slate-600 flex items-center gap-1.5 font-medium">
-                      <span>➔</span> {tenantName}
-                    </div>
-                  </div>
-                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${
-                    link.status === "ACTIVE"
-                      ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
-                      : "bg-slate-200 text-slate-700 border border-slate-300"
-                  }`}>
-                    {link.status}
+      {/* Modal 4: Edit Service Category */}
+      {editingCategory && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#17201b]/60 p-4 backdrop-blur-md animate-in fade-in duration-150">
+          <div className="w-full max-w-md rounded-[1.6rem] border border-[#e8dfd1] bg-[#fffcf8] p-7 shadow-[0_24px_50px_rgba(23,32,27,0.15)] space-y-6">
+            <div className="flex items-center justify-between border-b border-[#e8dfd1] pb-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#24473d] text-[#e8b363]">
+                  <VsIcon name="edit" className="text-3xl" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-extrabold text-[#24473d]">Cập nhật danh mục dịch vụ</h2>
+                  <p className="text-sm font-bold text-[#69726b]">{editingCategory.code}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setFormValidationError(null);
+                  setEditingCategory(null);
+                }}
+                className="rounded-full p-2 text-[#69726b] hover:bg-[#f4efe6] hover:text-[#17201b] transition-colors"
+                aria-label="Đóng cửa sổ"
+              >
+                <VsIcon name="close" className="text-2xl" />
+              </button>
+            </div>
+
+            {formValidationError && (
+              <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-800 flex items-center gap-3 shadow-xs">
+                <VsIcon name="error" className="text-xl text-rose-600 shrink-0" />
+                <span>{formValidationError}</span>
+              </div>
+            )}
+
+            <form onSubmit={submitUpdateCategory} className="space-y-4">
+              <div>
+                <label htmlFor="edit-cat-name-vi" className={labelClass}>
+                  Tên tiếng Việt
+                </label>
+                <input
+                  id="edit-cat-name-vi"
+                  required
+                  name="nameVi"
+                  defaultValue={editingCategory.nameVi}
+                  className={inputClass}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="edit-cat-name-en" className={labelClass}>
+                  Tên tiếng Anh (English Name)
+                </label>
+                <input
+                  id="edit-cat-name-en"
+                  required
+                  name="nameEn"
+                  defaultValue={editingCategory.nameEn}
+                  className={inputClass}
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-5 border-t border-[#e8dfd1]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormValidationError(null);
+                    setEditingCategory(null);
+                  }}
+                  className="h-12 rounded-full border border-[#dcd1bf] bg-white px-6 text-sm font-bold text-[#24473d] hover:bg-[#f5efe4] transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={mutation.isPending}
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#24473d] px-7 text-sm font-bold text-[#fff8e8] hover:bg-[#1a352d] disabled:opacity-50 transition-colors shadow-md shadow-[#24473d]/20"
+                >
+                  {mutation.isPending ? "Đang xử lý..." : "Lưu thay đổi"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 5: View Partner Details */}
+      {selectedPartnerDetails && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#17201b]/60 p-4 backdrop-blur-md animate-in fade-in duration-150">
+          <div className="w-full max-w-md rounded-[1.6rem] border border-[#e8dfd1] bg-[#fffcf8] p-7 shadow-[0_24px_50px_rgba(23,32,27,0.15)] space-y-6">
+            <div className="flex items-center justify-between border-b border-[#e8dfd1] pb-4">
+              <div className="flex items-center gap-3">
+                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#24473d] text-[#e8b363] text-lg font-extrabold ring-2 ring-[#e8b363]/30">
+                  {(selectedPartnerDetails.serviceProfile?.displayName ?? selectedPartnerDetails.name).substring(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <h2 className="text-lg font-extrabold text-[#24473d]">
+                    {selectedPartnerDetails.serviceProfile?.displayName ?? selectedPartnerDetails.name}
+                  </h2>
+                  <p className="text-sm font-medium text-[#69726b]">{selectedPartnerDetails.name}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedPartnerDetails(null)}
+                className="rounded-full p-2 text-[#69726b] hover:bg-[#f4efe6] hover:text-[#17201b] transition-colors"
+                aria-label="Đóng chi tiết"
+              >
+                <VsIcon name="close" className="text-2xl" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-base">
+              <div className="rounded-2xl border border-[#e8dfd1] bg-[#faf6ef] p-5 space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-[#69726b] uppercase tracking-wider">Mã mạng lưới:</span>
+                  <span className="font-mono text-sm font-extrabold text-[#24473d]">{selectedPartnerDetails.code}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-[#69726b] uppercase tracking-wider">Tài khoản Owner:</span>
+                  <span className="font-mono text-sm font-bold text-[#17201b]">{selectedPartnerDetails.ownerEmail ?? "Chưa có"}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-[#69726b] uppercase tracking-wider">Trạng thái:</span>
+                  <span className="text-sm font-extrabold text-[#1a5d3f] capitalize">
+                    {selectedPartnerDetails.serviceProfile?.status ?? "Active"}
                   </span>
                 </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-xs font-medium text-slate-400">
-            Chưa có liên kết nào giữa khách sạn và đối tác dịch vụ.
-          </div>
-        )}
-      </section>
-
-      {/* Directory Records Section */}
-      <section className="grid gap-6 md:grid-cols-2">
-        {/* Categories Directory */}
-        <div className="space-y-4 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h2 className="font-bold text-slate-900 flex items-center gap-2">
-              Danh mục dịch vụ
-              <span className="rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 text-xs font-bold">
-                {data.data.categories.length}
-              </span>
-            </h2>
-          </div>
-
-          {data.data.categories.length > 0 ? (
-            <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
-              {data.data.categories.map((item) => (
-                <div key={item.id} className="flex items-center justify-between rounded-xl border border-slate-200/80 bg-slate-50/70 p-3.5 shadow-2xs">
-                  <div>
-                    <div className="font-bold text-slate-900 text-base">{item.nameVi}</div>
-                    <div className="text-sm text-slate-500 font-medium">{item.nameEn}</div>
-                  </div>
-                  <span className="rounded-lg bg-white border border-slate-200 px-3 py-1.5 text-xs font-mono font-bold text-slate-700 shadow-2xs">
-                    {item.code}
-                  </span>
-                </div>
-              ))}
+              </div>
             </div>
-          ) : (
-            <p className="text-xs text-slate-400 italic">Chưa có danh mục dịch vụ nào được tạo.</p>
-          )}
-        </div>
 
-        {/* Tenants Directory */}
-        <div className="space-y-4 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h2 className="font-bold text-slate-900 flex items-center gap-2">
-              Danh sách đối tác dịch vụ
-              <span className="rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 text-xs font-bold">
-                {data.data.tenants.length}
-              </span>
-            </h2>
-          </div>
-
-          {data.data.tenants.length > 0 ? (
-            <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
-              {data.data.tenants.map((item) => (
-                <div key={item.id} className="flex items-center justify-between rounded-xl border border-slate-200/80 bg-slate-50/70 p-3.5 shadow-2xs hover:border-emerald-200 hover:bg-white transition-all">
-                  <div className="space-y-1">
-                    <div className="font-bold text-slate-900 text-base">
-                      {item.serviceProfile?.displayName ?? item.name}
-                    </div>
-                    <div className="text-sm font-medium text-slate-600">{item.name}</div>
-                    <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-semibold pt-0.5">
-                      <svg className="h-3.5 w-3.5 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                      </svg>
-                      <span className="font-mono">{item.ownerEmail ?? "Chưa có email tài khoản"}</span>
-                    </div>
-                  </div>
-                  <span className="rounded-lg bg-white border border-slate-200 px-3 py-1.5 text-xs font-mono font-bold text-slate-700 shadow-2xs">
-                    {item.code}
-                  </span>
-                </div>
-              ))}
+            <div className="flex items-center justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setSelectedPartnerDetails(null)}
+                className="h-12 rounded-full bg-[#24473d] px-7 text-sm font-bold text-[#fff8e8] hover:bg-[#1a352d] transition-colors"
+              >
+                Đóng
+              </button>
             </div>
-          ) : (
-            <p className="text-xs text-slate-400 italic">Chưa có đối tác dịch vụ nào được tạo.</p>
-          )}
+          </div>
         </div>
-      </section>
+      )}
+
+      <OneTimePasswordDialog
+        temporaryPassword={generatedPassword}
+        accountLabel={resetAccountLabel}
+        onClose={() => { setGeneratedPassword(null); setResetAccountLabel(""); }}
+      />
     </div>
   );
 }
-

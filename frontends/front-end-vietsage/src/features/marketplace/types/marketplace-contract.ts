@@ -1,4 +1,4 @@
-export type MarketplaceCategory = { id: string; code: string; nameVi: string; nameEn: string; icon?: string | null };
+export type MarketplaceCategory = { id: string; code: string; nameVi: string; nameEn: string; icon?: string | null; isActive?: boolean };
 export type MarketplaceServiceItem = {
   id: string;
   name: string;

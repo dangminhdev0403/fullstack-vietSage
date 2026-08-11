@@ -1,7 +1,7 @@
 "use client";
 
 import { type FormEvent, useMemo, useState } from "react";
-import Swal from "sweetalert2";
+import { SwalVietSage } from "@/libs/swal";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { DataTable } from "@/components/ui/data-table";
 import { OneTimePasswordDialog } from "@/features/account/security/one-time-password-dialog";
@@ -89,7 +89,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
   const [resetAccountLabel, setResetAccountLabel] = useState("");
 
   async function resetFrontdesk(user: { id: string; fullName: string }) {
-    const confirmed = await Swal.fire({ icon: "warning", title: "Cấp lại mật khẩu?", text: `Tạo mật khẩu tạm thời mới cho ${user.fullName}. Tất cả phiên hiện tại sẽ bị thu hồi.`, showCancelButton: true, confirmButtonText: "Cấp lại mật khẩu", cancelButtonText: "Hủy", confirmButtonColor: "#00003c" });
+    const confirmed = await SwalVietSage.fire({ icon: "warning", title: "Cấp lại mật khẩu?", text: `Tạo mật khẩu tạm thời mới cho ${user.fullName}. Tất cả phiên hiện tại sẽ bị thu hồi.`, showCancelButton: true, confirmButtonText: "Cấp lại mật khẩu", cancelButtonText: "Hủy" });
     if (!confirmed.isConfirmed) return;
     try {
       const result = await mutations.resetFrontdeskPassword.mutateAsync({ userId: user.id });
@@ -97,7 +97,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
       setTemporaryPassword(result.temporaryPassword);
     } catch (error) {
       const { message } = extractApiErrorMessage(error);
-      await Swal.fire({ icon: "error", title: "Không thể cấp lại mật khẩu", text: message });
+      await SwalVietSage.fire({ icon: "error", title: "Không thể cấp lại mật khẩu", text: message, showConfirmButton: true, confirmButtonText: "OK" });
     }
   }
 
@@ -105,7 +105,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
     const userRoleCodes = user.roles?.map((role) => role.code) ?? [];
     const canReset = (scope.surface === "owner" || scope.surface === "admin") && canResetFrontdeskPassword(userRoleCodes);
 
-    const result = await Swal.fire({
+    const result = await SwalVietSage.fire({
       title: "Sửa thông tin nhân viên",
       html: `<input id="staff-name" class="swal2-input" value="${user.fullName.replace(/"/g, "&quot;")}" placeholder="Họ tên"><input id="staff-email" class="swal2-input" value="${user.email.replace(/"/g, "&quot;")}" placeholder="Email">`,
       showCancelButton: true,
@@ -113,8 +113,6 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
       confirmButtonText: "Lưu",
       denyButtonText: "🔑 Cấp lại mật khẩu",
       cancelButtonText: "Hủy",
-      confirmButtonColor: "#00003c",
-      denyButtonColor: "#b45309",
       preConfirm: () => ({
         fullName: (document.getElementById("staff-name") as HTMLInputElement)?.value.trim(),
         email: (document.getElementById("staff-email") as HTMLInputElement)?.value.trim().toLowerCase(),
@@ -132,7 +130,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
 
   async function toggleStaff(user: { id: string; fullName: string; userStatus?: string; tenantStatus?: string }) {
     const locked = user.userStatus === "DISABLED" || user.tenantStatus === "DISABLED";
-    const result = await Swal.fire({ icon: locked ? "question" : "warning", title: locked ? "Mở khóa nhân viên?" : "Khóa nhân viên?", text: locked ? `Cho phép ${user.fullName} đăng nhập lại.` : `Nhân viên ${user.fullName} sẽ không thể đăng nhập.`, showCancelButton: true, confirmButtonText: locked ? "Mở khóa" : "Khóa", cancelButtonText: "Hủy", confirmButtonColor: "#00003c" });
+    const result = await SwalVietSage.fire({ icon: locked ? "question" : "warning", title: locked ? "Mở khóa nhân viên?" : "Khóa nhân viên?", text: locked ? `Cho phép ${user.fullName} đăng nhập lại.` : `Nhân viên ${user.fullName} sẽ không thể đăng nhập.`, showCancelButton: true, confirmButtonText: locked ? "Mở khóa" : "Khóa", cancelButtonText: "Hủy" });
     if (!result.isConfirmed) return;
     await runMutation(`status-${user.id}`, () => mutations.updateUser.mutateAsync({ userId: user.id, status: locked ? "ACTIVE" : "DISABLED" }), locked ? "Đã mở khóa nhân viên" : "Đã khóa nhân viên");
   }
@@ -175,7 +173,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
       setFormGeneralError(null);
       setShowPassword(false);
       setFormOpen(false);
-      await Swal.fire({ icon: "success", title: "Đã tạo và phân công nhân viên", timer: 1200, showConfirmButton: false });
+      await SwalVietSage.fire({ icon: "success", title: "Đã tạo và phân công nhân viên", timer: 1500, showConfirmButton: true, confirmButtonText: "OK" });
     } catch (error) {
       const { message, field } = extractApiErrorMessage(error);
       if (field) {
@@ -190,10 +188,10 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
     setActiveActionKey(actionKey);
     try {
       await action();
-      await Swal.fire({ icon: "success", title: successTitle, timer: 1000, showConfirmButton: false });
+      await SwalVietSage.fire({ icon: "success", title: successTitle, timer: 1500, showConfirmButton: true, confirmButtonText: "OK" });
     } catch (error) {
       const { message } = extractApiErrorMessage(error);
-      await Swal.fire({ icon: "error", title: "Không thể cập nhật", text: message });
+      await SwalVietSage.fire({ icon: "error", title: "Không thể cập nhật", text: message, showConfirmButton: true, confirmButtonText: "OK" });
     } finally {
       setActiveActionKey(null);
     }

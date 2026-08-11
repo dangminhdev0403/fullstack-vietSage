@@ -28,18 +28,14 @@ type TenantOption = {
 type HotelFormState = LocationValue & {
   tenantId: string;
   name: string;
-  timezone: string;
   status: "ACTIVE" | "DISABLED";
-  brandSettingsText: string;
   googleSheetUrl: string;
 };
 
 const emptyHotelForm: HotelFormState = {
   tenantId: "",
   name: "",
-  timezone: "Asia/Ho_Chi_Minh",
   status: "ACTIVE",
-  brandSettingsText: "{}",
   googleSheetUrl: "",
   googleMapsUrl: "",
   latitude: "",
@@ -52,12 +48,10 @@ type FormMode = "create" | "edit";
 const createHotelFormSchema = z.object({
   tenantId: z.string().trim().min(1, "Vui lòng chọn tổ chức."),
   name: z.string().trim().min(1, "Tên khách sạn là bắt buộc."),
-  timezone: z.string().trim().min(1, "Múi giờ là bắt buộc."),
 });
 
 const updateHotelFormSchema = z.object({
   name: z.string().trim().min(1, "Tên khách sạn là bắt buộc."),
-  timezone: z.string().trim().min(1, "Múi giờ là bắt buộc."),
   status: z.enum(["ACTIVE", "DISABLED"]),
 });
 
@@ -120,9 +114,7 @@ function hotelToForm(hotel: Hotel): HotelFormState {
   return {
     tenantId: hotel.tenantId,
     name: hotel.name,
-    timezone: hotel.timezone === "Asia/Saigon" || !hotel.timezone ? "Asia/Ho_Chi_Minh" : hotel.timezone,
     status: hotel.status === "DISABLED" ? "DISABLED" : "ACTIVE",
-    brandSettingsText: JSON.stringify(hotel.brandSettings ?? {}, null, 2),
     googleSheetUrl: hotel.googleSheetId
       ? `https://docs.google.com/spreadsheets/d/${hotel.googleSheetId}/edit`
       : "",
@@ -132,20 +124,6 @@ function hotelToForm(hotel: Hotel): HotelFormState {
     locationAccuracyMeters: hotel.locationAccuracyMeters == null ? "" : String(hotel.locationAccuracyMeters),
     locationSource: hotel.locationSource ?? undefined,
   };
-}
-
-function parseBrandSettings(value: string): Record<string, unknown> | null {
-  const trimmed = value.trim();
-  if (!trimmed || trimmed === "null") {
-    return null;
-  }
-
-  const parsed = JSON.parse(trimmed) as unknown;
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    throw new Error("Brand settings must be a JSON object or null.");
-  }
-
-  return parsed as Record<string, unknown>;
 }
 
 function toApiErrorMessage(payload: unknown): string {
@@ -201,7 +179,7 @@ async function confirmHotelSave(mode: FormMode, hotelName: string, tenantName: s
         ? `Tạo khách sạn ${hotelName} cho ${tenantName}.`
         : `Cập nhật thông tin khách sạn ${hotelName}.`,
     showCancelButton: true,
-    reverseButtons: true,
+    reverseButtons: false,
     confirmButtonText: mode === "create" ? "Đồng ý tạo" : "Đồng ý lưu",
     cancelButtonText: "Hủy",
     confirmButtonColor: "#00003c",
@@ -331,19 +309,6 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }:
       return;
     }
 
-    let brandSettings: Record<string, unknown> | null;
-    try {
-      brandSettings = parseBrandSettings(form.brandSettingsText);
-    } catch (error) {
-      await Swal.fire({
-        icon: "warning",
-        title: "Kiểm tra brand settings",
-        text: error instanceof Error ? error.message : "Brand settings không hợp lệ.",
-        confirmButtonColor: "#00003c",
-      });
-      return;
-    }
-
     const hotelName = form.name.trim();
     const confirmed = await confirmHotelSave(
       formMode,
@@ -363,8 +328,6 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }:
               body: {
                 tenantId: form.tenantId,
                 name: form.name.trim(),
-                timezone: form.timezone.trim() || "Asia/Saigon",
-                brandSettings: brandSettings ?? {},
                 ...(form.googleSheetUrl.trim()
                   ? { googleSheetUrl: form.googleSheetUrl.trim() }
                   : {}),
@@ -372,8 +335,6 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }:
             })
           : await updateGoogleSheetConfig.mutateAsync({
                 name: form.name.trim(),
-                timezone: form.timezone.trim() || "Asia/Saigon",
-                brandSettings,
                 status: form.status,
                 googleSheetUrl: form.googleSheetUrl.trim() || null,
                 googleMapsUrl: form.googleMapsUrl.trim() || null,
@@ -586,15 +547,6 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }:
                 />
               </label>
 
-              <label className="space-y-2 text-sm font-bold text-slate-700 dark:text-slate-300">
-                Múi giờ
-                <input
-                  value={form.timezone}
-                  onChange={(event) => setForm((current) => ({ ...current, timezone: event.target.value }))}
-                  placeholder="Asia/Ho_Chi_Minh"
-                  className="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-900 outline-none transition-all focus:border-emerald-600 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                />
-              </label>
 
               {formMode === "edit" ? (
                 <label className="space-y-2 text-sm font-bold text-slate-700 dark:text-slate-300">
@@ -628,15 +580,7 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }:
 
               {formMode === "edit" ? <div className="md:col-span-2"><LocationFields value={form} onChange={(location) => setForm((current) => ({ ...current, ...location }))} /></div> : null}
 
-              <label className="space-y-2 text-sm font-bold text-slate-700 dark:text-slate-300 md:col-span-2">
-                Cấu hình thương hiệu (Brand Settings - JSON)
-                <textarea
-                  value={form.brandSettingsText}
-                  onChange={(event) => setForm((current) => ({ ...current, brandSettingsText: event.target.value }))}
-                  rows={3}
-                  className="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-4 py-3 font-mono text-xs font-medium text-slate-900 outline-none transition-all focus:border-emerald-600 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                />
-              </label>
+
             </div>
 
             <div className="mt-8 flex items-center justify-end gap-3 border-t border-slate-100 pt-5 dark:border-slate-800">

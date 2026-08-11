@@ -25,10 +25,7 @@ def service_block(compose: str, service: str) -> str:
     return match.group("body")
 
 
-def main() -> int:
-    compose = COMPOSE.read_text(encoding="utf-8")
-    failures: list[str] = []
-
+def _check_compose_services(compose: str, failures: list[str]) -> None:
     try:
         nginx = service_block(compose, "nginx")
     except AssertionError as error:
@@ -53,7 +50,7 @@ def main() -> int:
         "certbot/certbot:",
         "certbot_webroot:/var/www/certbot",
         "letsencrypt:/etc/letsencrypt",
-        "restart: \"no\"",
+        'restart: "no"',
     ):
         if required not in certbot:
             failures.append(f"certbot service is missing: {required}")
@@ -62,6 +59,8 @@ def main() -> int:
         if volume not in compose:
             failures.append(f"production Compose is missing volume: {volume}")
 
+
+def _check_nginx_configs(failures: list[str]) -> None:
     if not BOOTSTRAP_CONFIG.is_file():
         failures.append("missing HTTP bootstrap Nginx config")
     else:
@@ -88,9 +87,11 @@ def main() -> int:
         for required in required_tls:
             if required not in tls:
                 failures.append(f"HTTPS Nginx config is missing: {required}")
-        if re.search(r"ssl_protocols[^;]*(TLSv1(?:\.0|\.1)?)(?:\s|;)", tls):
+        if re.search(r"ssl_protocols[^;]*(TLSv1(?:\.0|\.1)?)([\s;])", tls):
             failures.append("HTTPS config enables obsolete TLS protocol")
 
+
+def _check_cert_scripts(failures: list[str]) -> None:
     for script, label in ((BOOTSTRAP_SCRIPT, "bootstrap"), (RENEW_SCRIPT, "renewal")):
         if not script.is_file():
             failures.append(f"missing certificate {label} script: {script.relative_to(ROOT)}")
@@ -107,6 +108,15 @@ def main() -> int:
             if required not in text:
                 failures.append(f"renewal script is missing: {required}")
 
+
+def main() -> int:
+    compose = COMPOSE.read_text(encoding="utf-8")
+    failures: list[str] = []
+
+    _check_compose_services(compose, failures)
+    _check_nginx_configs(failures)
+    _check_cert_scripts(failures)
+
     if failures:
         print("Production TLS verification FAILED:")
         for failure in failures:
@@ -119,3 +129,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+

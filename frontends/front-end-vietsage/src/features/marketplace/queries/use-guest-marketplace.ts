@@ -8,6 +8,7 @@ export function useGuestMarketplace(sessionToken: string, categoryId?: string) {
   return {
     categories: useQuery({ ...resource.queries.categories.options(undefined as never), enabled }),
     services: useQuery({ ...resource.queries.services.options({ categoryId }), enabled }),
+    orders: useQuery({ ...resource.queries.orders.options(undefined as never), enabled }),
     order: useMutation(resource.mutations.order.options()),
   };
 }

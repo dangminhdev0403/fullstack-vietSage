@@ -56,7 +56,7 @@ function validateEnv(env: NodeJS.ProcessEnv): EnvConfig {
   const parsed = ConfigSchema.safeParse(env);
 
   if (!parsed.success) {
-    Logger.error("Invalid environment variables", parsed.error.format());
+    Logger.error("Invalid environment variables", parsed.error.flatten());
     throw new Error("Invalid environment variables");
   }
 
@@ -184,7 +184,7 @@ function parseOptionalDateEnv(rawValue: string | undefined, envName: string): Da
 
   const parsed = new Date(normalized);
   if (Number.isNaN(parsed.getTime())) {
-    throw new Error(`Invalid ${envName} environment variable. Expected an ISO date.`);
+    throw new TypeError(`Invalid ${envName} environment variable. Expected an ISO date.`);
   }
 
   return parsed;

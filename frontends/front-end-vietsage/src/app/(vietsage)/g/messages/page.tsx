@@ -177,17 +177,20 @@ export default function GuestMessagesPage() {
         const readIds = new Set(unreadStaffMessageKey.split(","));
         queryClient.setQueryData<InfiniteData<GuestMessagesResult>>(
           historyOptions.queryKey,
-          (current) => current
-            ? {
-                ...current,
-                pages: current.pages.map((page) => ({
-                  ...page,
-                  items: page.items.map((message) => readIds.has(message.id)
+          (current) => {
+            if (!current) return current;
+            return {
+              ...current,
+              pages: current.pages.map((page) => ({
+                ...page,
+                items: page.items.map((message) =>
+                  readIds.has(message.id)
                     ? { ...message, readAt: new Date().toISOString() }
-                    : message),
-                })),
-              }
-            : current,
+                    : message,
+                ),
+              })),
+            };
+          },
         );
         void queryClient.invalidateQueries({
           queryKey: guestMessages.queries.unreadSummary.options(undefined as never).queryKey,
