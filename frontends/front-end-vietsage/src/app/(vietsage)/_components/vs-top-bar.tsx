@@ -163,9 +163,11 @@ export function VsTopBar({
           />
         ) : (
           <p
-            className={`vs-display tracking-tight text-[24px] text-[#17201b] ${
-              titleClassName ?? "md:text-[48px] md:leading-[1.2]"
-            }`}
+            className={`${
+              title.trim().toLowerCase() === "vietsage"
+                ? "vs-luxury-brand-title text-[32px] md:text-[40px] font-bold"
+                : "vs-display tracking-tight text-[24px] text-[#17201b]"
+            } ${titleClassName ?? ""}`}
           >
             {title}
           </p>

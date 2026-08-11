@@ -580,6 +580,39 @@ button:disabled,
   font-variant-numeric: tabular-nums;
 }
 
+@keyframes vs-shimmer-slide {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.vs-luxury-brand-title {
+  font-family: var(--font-serif, "Playfair Display", "Times New Roman", Georgia, serif);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: linear-gradient(
+    110deg,
+    #17201b 0%,
+    #17201b 36%,
+    #d4af37 46%,
+    #ffffff 50%,
+    #d4af37 54%,
+    #17201b 64%,
+    #17201b 100%
+  );
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: vs-shimmer-slide 4.2s infinite linear;
+  display: inline-block;
+  position: relative;
+  filter: drop-shadow(0 2px 6px rgba(23, 32, 27, 0.06));
+}
+
 @keyframes vs-owner-rise {
   from {
     opacity: 0;
