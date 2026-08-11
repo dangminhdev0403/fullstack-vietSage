@@ -4022,6 +4022,40 @@ paths:
           description: Đã đồng bộ Google Sheets
       tags: &a9
         - hotel-services
+  /hotels/{hotelId}/service-catalog/import/preview:
+    post:
+      operationId: HotelServicesController_previewServiceCatalogImport
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a9
+  /hotels/{hotelId}/service-catalog/import/commit:
+    post:
+      operationId: HotelServicesController_commitServiceCatalogImport
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a9
+  /hotels/{hotelId}/service-catalog/import/template:
+    get:
+      operationId: HotelServicesController_serviceCatalogImportTemplate
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: *a9
   /hotels/{hotelId}/service-categories:
     get:
       operationId: HotelServicesController_listServiceCategories
@@ -6791,9 +6825,45 @@ paths:
         "201":
           description: ""
       tags: *a28
+  /admin/marketplace/categories/import/template:
+    get:
+      operationId: MarketplaceAdminController_categoryImportTemplate
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: *a28
+  /admin/marketplace/categories/import/preview:
+    post:
+      operationId: MarketplaceAdminController_previewCategoryImport
+      parameters: []
+      responses:
+        "201":
+          description: ""
+      tags: *a28
+  /admin/marketplace/categories/import/commit:
+    post:
+      operationId: MarketplaceAdminController_commitCategoryImport
+      parameters: []
+      responses:
+        "201":
+          description: ""
+      tags: *a28
   /admin/marketplace/categories/{categoryId}:
     patch:
       operationId: MarketplaceAdminController_updateCategory
+      parameters:
+        - name: categoryId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a28
+    delete:
+      operationId: MarketplaceAdminController_deleteCategory
       parameters:
         - name: categoryId
           required: true

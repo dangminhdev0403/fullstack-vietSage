@@ -16,3 +16,13 @@ export function useOwnerGoogleSheetSync(hotelId: string) {
   const resource = ownerGoogleSheetSyncResource.bind({ hotelId });
   return useMutation(resource.mutations.sync.options());
 }
+
+export function useOwnerServiceCatalogPreview(hotelId: string) {
+  const resource = ownerGoogleSheetSyncResource.bind({ hotelId });
+  return useMutation(resource.mutations.preview.options());
+}
+
+export function useOwnerServiceCatalogCommit(hotelId: string) {
+  const resource = ownerGoogleSheetSyncResource.bind({ hotelId });
+  return useMutation(resource.mutations.commit.options());
+}

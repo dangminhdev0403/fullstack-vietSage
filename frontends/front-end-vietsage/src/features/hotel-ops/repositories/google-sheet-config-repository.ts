@@ -17,10 +17,33 @@ export const googleSheetConfigRepository = {
     return payload.data;
   },
 
-  async sync(hotelId: string): Promise<ServiceCatalogSyncResult> {
+  async sync(hotelId: string, body?: { spreadsheetUrl?: string; mode?: string }): Promise<ServiceCatalogSyncResult> {
     const payload = await requestInternalApiEnvelope<ServiceCatalogSyncResult>(
       `/api/owner/hotels/${encodeURIComponent(hotelId)}/service-catalog/sync`,
-      { method: "POST" },
+      { method: "POST", body },
+    );
+    return payload.data;
+  },
+
+  async preview(hotelId: string, body: { spreadsheetUrl: string; mode?: string }) {
+    const payload = await requestInternalApiEnvelope<{
+      workbookHash: string;
+      summary: { create: number; update: number; disable: number; unchanged: number; errors: number; warnings: number };
+      validation: Array<{ severity: string; message: string }>;
+      diff: Array<{ entityType: string; action: string; label: string }>;
+    }>(
+      `/api/owner/hotels/${encodeURIComponent(hotelId)}/service-catalog/import/preview`,
+      { method: "POST", body },
+    );
+    return payload.data;
+  },
+
+  async commit(hotelId: string, body: { spreadsheetUrl: string; expectedHash: string; mode?: string }) {
+    const payload = await requestInternalApiEnvelope<{
+      summary: { create: number; update: number; disable: number; unchanged: number; errors: number; warnings: number };
+    }>(
+      `/api/owner/hotels/${encodeURIComponent(hotelId)}/service-catalog/import/commit`,
+      { method: "POST", body },
     );
     return payload.data;
   },

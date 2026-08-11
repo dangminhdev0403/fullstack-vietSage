@@ -142,9 +142,26 @@ export const updateServiceItemBodySchema = z
     },
   );
 
+export const serviceCatalogImportPreviewSchema = z
+  .object({
+    spreadsheetUrl: z.string().trim().optional(),
+    mode: z.enum(["replace", "upsert"]).optional().default("replace"),
+  })
+  .passthrough();
+
+export const serviceCatalogImportCommitSchema = z
+  .object({
+    spreadsheetUrl: z.string().trim().optional(),
+    expectedHash: z.string().trim().min(1),
+    mode: z.enum(["replace", "upsert"]).optional().default("replace"),
+  })
+  .passthrough();
+
 export type ListServiceCategoriesQueryInput = z.infer<typeof listServiceCategoriesQuerySchema>;
 export type CreateServiceCategoryBodyInput = z.infer<typeof createServiceCategoryBodySchema>;
 export type UpdateServiceCategoryBodyInput = z.infer<typeof updateServiceCategoryBodySchema>;
 export type ListServiceItemsQueryInput = z.infer<typeof listServiceItemsQuerySchema>;
 export type CreateServiceItemBodyInput = z.infer<typeof createServiceItemBodySchema>;
 export type UpdateServiceItemBodyInput = z.infer<typeof updateServiceItemBodySchema>;
+export type ServiceCatalogImportPreviewInput = z.infer<typeof serviceCatalogImportPreviewSchema>;
+export type ServiceCatalogImportCommitInput = z.infer<typeof serviceCatalogImportCommitSchema>;

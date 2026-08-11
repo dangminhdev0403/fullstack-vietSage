@@ -23,6 +23,11 @@ const updateHotelSchema = z
     brandSettings: jsonRecordSchema.nullable().optional(),
     googleSheetUrl: z.string().trim().max(500).nullable().optional(),
     status: z.enum(["ACTIVE", "DISABLED"]).optional(),
+    googleMapsUrl: z.string().trim().url().nullable().optional(),
+    latitude: z.number().min(-90).max(90).nullable().optional(),
+    longitude: z.number().min(-180).max(180).nullable().optional(),
+    locationAccuracyMeters: z.number().nonnegative().nullable().optional(),
+    locationSource: z.enum(["DEVICE_GEOLOCATION", "GOOGLE_MAPS_URL", "MANUAL"]).nullable().optional(),
   })
   .strict()
   .refine((value) => Object.keys(value).length > 0, {
@@ -72,6 +77,11 @@ export async function PATCH(request: Request, context: HotelParams) {
       ...("brandSettings" in parsed.data ? { brandSettings: parsed.data.brandSettings } : {}),
       ...("googleSheetUrl" in parsed.data ? { googleSheetUrl: parsed.data.googleSheetUrl } : {}),
       ...(parsed.data.status ? { status: parsed.data.status } : {}),
+      ...("googleMapsUrl" in parsed.data ? { googleMapsUrl: parsed.data.googleMapsUrl } : {}),
+      ...("latitude" in parsed.data ? { latitude: parsed.data.latitude } : {}),
+      ...("longitude" in parsed.data ? { longitude: parsed.data.longitude } : {}),
+      ...("locationAccuracyMeters" in parsed.data ? { locationAccuracyMeters: parsed.data.locationAccuracyMeters } : {}),
+      ...("locationSource" in parsed.data ? { locationSource: parsed.data.locationSource } : {}),
     });
     return successResponse(data, 200, "Hotel updated successfully");
   } catch (error) {

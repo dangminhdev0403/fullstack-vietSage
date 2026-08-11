@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import { Body, Controller, Get, Header, Param, Patch, Post, Query, Req } from "@nestjs/common";
 import { ApiBody, ApiCreatedResponse, ApiOkResponse, ApiParam, ApiTags } from "@nestjs/swagger";
 import type { Request } from "express";
 import {
@@ -14,11 +14,15 @@ import { SuccessMessage } from "../../../shared/decorators/success-message.decor
 import type { AuthenticatedUser } from "../../../shared/security";
 import { HotelServicesService } from "../application/hotel-services.service";
 import { GoogleSheetsServiceCatalogSyncService } from "../infrastructure/imports/google-sheets-service-catalog-sync.service";
+import { ImportTemplateService } from "../../../common/import/import-template.service";
+import { ServiceCatalogImportAdapter } from "../infrastructure/imports/service-catalog-import.adapter";
 import {
   createServiceCategoryBodySchema,
   createServiceItemBodySchema,
   listServiceCategoriesQuerySchema,
   listServiceItemsQuerySchema,
+  serviceCatalogImportCommitSchema,
+  serviceCatalogImportPreviewSchema,
   updateServiceCategoryBodySchema,
   updateServiceItemBodySchema,
 } from "../domain/schemas/service-catalog.schema";
@@ -38,6 +42,8 @@ export class HotelServicesController {
   constructor(
     private readonly hotelServicesService: HotelServicesService,
     private readonly googleSheetsSyncService: GoogleSheetsServiceCatalogSyncService,
+    private readonly templateService: ImportTemplateService,
+    private readonly catalogAdapter: ServiceCatalogImportAdapter,
   ) {}
 
   @SuccessMessage("Đồng bộ Google Sheets thành công")
@@ -48,13 +54,67 @@ export class HotelServicesController {
   async syncServiceCatalogFromGoogleSheets(
     @Req() request: RequestWithUser,
     @Param("hotelId") hotelIdParam: string,
+    @Body() body?: unknown,
   ) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    const parsedBody = body ? (body as { spreadsheetUrl?: string; mode?: "replace" | "upsert" }) : {};
     return this.googleSheetsSyncService.syncHotel(
       hotelId,
       request.user.userId,
       request.user.roleId,
+      parsedBody.spreadsheetUrl,
+      parsedBody.mode ?? "replace",
     );
+  }
+
+  @SuccessMessage("Xem trước dữ liệu Google Sheets dịch vụ thành công")
+  @ApiDescript("Xem trước dữ liệu dịch vụ Google Sheets")
+  @ApiParam({ name: "hotelId", type: String })
+  @Post(":hotelId/service-catalog/import/preview")
+  async previewServiceCatalogImport(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Body() body: unknown,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    const parsed = parseWithZod(serviceCatalogImportPreviewSchema, body);
+    return this.googleSheetsSyncService.preview(
+      hotelId,
+      parsed.spreadsheetUrl,
+      parsed.mode,
+      request.user.userId,
+      request.user.roleId,
+    );
+  }
+
+  @SuccessMessage("Nhập dữ liệu dịch vụ từ Google Sheets thành công")
+  @ApiDescript("Xác nhận nhập dữ liệu dịch vụ từ Google Sheets")
+  @ApiParam({ name: "hotelId", type: String })
+  @Post(":hotelId/service-catalog/import/commit")
+  async commitServiceCatalogImport(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Body() body: unknown,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    const parsed = parseWithZod(serviceCatalogImportCommitSchema, body);
+    return this.googleSheetsSyncService.commit(
+      hotelId,
+      parsed.spreadsheetUrl,
+      parsed.expectedHash,
+      parsed.mode,
+      request.user.userId,
+      request.user.roleId,
+    );
+  }
+
+  @Header("Content-Type", "text/csv; charset=utf-8")
+  @Header("Content-Disposition", 'attachment; filename="hotel_services_catalog_template.csv"')
+  @ApiDescript("Tải file mẫu CSV catalog dịch vụ")
+  @Get(":hotelId/service-catalog/import/template")
+  serviceCatalogImportTemplate() {
+    const csvs = this.templateService.toCsvSheets(this.catalogAdapter.getSchema());
+    return "\uFEFF" + (csvs.categories ?? "") + "\n\n" + (csvs.items ?? "");
   }
 
   @SuccessMessage("Lấy danh mục dịch vụ thành công")

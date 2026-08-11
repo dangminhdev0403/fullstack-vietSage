@@ -522,16 +522,24 @@ export class ServiceCatalogImportAdapter
         (entry) => entry.entityType === "serviceCategory" && entry.action === "disable",
       );
       if (disabledItems.length) {
-        await input.tx.hotelServiceItem.updateMany({
+        await input.tx.hotelServiceItem.deleteMany({
           where: { hotelId, importKey: { in: disabledItems.map((entry) => entry.key) } },
-          data: { status: ServiceCatalogStatus.DISABLED },
         });
       }
       if (disabledCategories.length) {
-        await input.tx.hotelServiceCategory.updateMany({
+        const categoriesToDelete = await input.tx.hotelServiceCategory.findMany({
           where: { hotelId, importKey: { in: disabledCategories.map((entry) => entry.key) } },
-          data: { status: ServiceCatalogStatus.DISABLED },
+          select: { id: true },
         });
+        const categoryIds = categoriesToDelete.map((c) => c.id);
+        if (categoryIds.length > 0) {
+          await input.tx.hotelServiceItem.deleteMany({
+            where: { categoryId: { in: categoryIds } },
+          });
+          await input.tx.hotelServiceCategory.deleteMany({
+            where: { id: { in: categoryIds } },
+          });
+        }
       }
     }
 

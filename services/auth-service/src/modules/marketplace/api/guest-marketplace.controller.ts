@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from "@nestjs/common";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { I18nService } from "../../../common/i18n/i18n.service";
 import {
   GuestSessionGuard,
   type RequestWithGuestSession,
@@ -18,27 +19,34 @@ import {
 @UseGuards(GuestSessionGuard)
 @Controller("guest/marketplace")
 export class GuestMarketplaceController {
+  private readonly i18n = new I18nService();
+
   constructor(
     private readonly service: GuestMarketplaceService,
     private readonly orders: MarketplaceOrderService,
   ) {}
 
   @Get("categories") categories(@Req() req: RequestWithGuestSession) {
-    return this.service.categories(req.guestSession.hotelId);
+    const locale = this.i18n.resolveLocale(req);
+    return this.service.categories(req.guestSession.hotelId, locale);
   }
   @Get("services") services(@Req() req: RequestWithGuestSession, @Query() query: unknown) {
+    const locale = this.i18n.resolveLocale(req);
     return this.service.services(
       req.guestSession.hotelId,
       parseWithZod(guestMarketplaceQuerySchema, query ?? {}),
+      locale,
     );
   }
   @Get("services/:serviceId") detail(
     @Req() req: RequestWithGuestSession,
     @Param("serviceId") id: string,
   ) {
+    const locale = this.i18n.resolveLocale(req);
     return this.service.detail(
       req.guestSession.hotelId,
       parseWithZod(guestMarketplaceIdSchema, id),
+      locale,
     );
   }
   @Post("orders") createOrder(@Req() req: RequestWithGuestSession, @Body() body: unknown) {

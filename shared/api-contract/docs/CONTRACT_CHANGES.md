@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Added Super Admin Google Sheets import & localization for Marketplace Categories:
+  - `GET /admin/marketplace/categories/import/template`: returns UTF-8 CSV template for sheet-based category management with base Vietnamese (`name_vi`) and non-Vietnamese translations (`name_en`, `name_zh`, `name_ko`, `name_ru`, `name_hi`).
+  - `POST /admin/marketplace/categories/import/preview`: parses Google Sheets URL, validates schema/duplicates, and returns bounded preview with deterministic `workbookHash`, summary counts (`creates`, `updates`, `unchanged`, `errors`), validation issues, and field diffs.
+  - `POST /admin/marketplace/categories/import/commit`: requires exact `expectedHash` matching the preview, re-validates server-side, and commits atomic upsert transactions preserving existing unmentioned rows/translations.
+  - `MarketplaceCategory` entities store stable `importKey` column and cascade `MarketplaceCategoryTranslation` localized names. Deprecated `nameEn` and unused `icon` columns are removed from DB and DTOs.
+  - Guest Marketplace readers support localized category responses matching requested client language (`vi`, `en`, `zh`, `ko`, `ru`, `hi`) with fallback to Vietnamese base name (`nameVi`).
+
 - Marketplace order completion now atomically posts the snapshotted charge to the guest stay's open hotel folio; completion fails closed when no compatible open folio exists.
 - Hotel Marketplace order reads now include guest/room and provider display context for Owner/staff operations.
 

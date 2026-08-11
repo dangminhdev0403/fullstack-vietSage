@@ -153,7 +153,7 @@ export function ServiceCatalogView({ data }: Readonly<{ data: ServicePortalData 
                 <option value="">-- Chọn danh mục --</option>
                 {data.categories.map((item) => (
                   <option key={item.id} value={item.id}>
-                    {item.nameVi} ({item.nameEn})
+                    {item.nameVi}{item.translations?.find((t) => t.locale === "en")?.name ? ` (${item.translations.find((t) => t.locale === "en")!.name})` : ""}
                   </option>
                 ))}
               </select>

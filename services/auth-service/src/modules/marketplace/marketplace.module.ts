@@ -9,9 +9,12 @@ import { MarketplaceOrderService } from "./application/marketplace-order.service
 import { HotelMarketplaceController } from "./api/hotel-marketplace.controller";
 import { PropertyModule } from "../property/property.module";
 import { GuestOperationsModule } from "../guest-operations/guest-operations.module";
+import { ImportModule } from "../../common/import/import.module";
+import { MarketplaceCategoryImportAdapter } from "./infrastructure/imports/marketplace-category-import.adapter";
+import { MarketplaceCategorySheetService } from "./application/marketplace-category-sheet.service";
 
 @Module({
-  imports: [PropertyModule, GuestOperationsModule],
+  imports: [PropertyModule, GuestOperationsModule, ImportModule],
   controllers: [
     MarketplaceAdminController,
     ServicePortalController,
@@ -23,6 +26,8 @@ import { GuestOperationsModule } from "../guest-operations/guest-operations.modu
     ServicePortalService,
     GuestMarketplaceService,
     MarketplaceOrderService,
+    MarketplaceCategoryImportAdapter,
+    MarketplaceCategorySheetService,
   ],
 })
 export class MarketplaceModule {}

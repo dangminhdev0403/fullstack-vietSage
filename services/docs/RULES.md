@@ -20,6 +20,10 @@
 - Keep database access behind repositories or infrastructure services.
 - **Mandatory Zod Validation**: ALL request payload/query/param validation MUST use Zod schemas defined in `src/modules/<module>/domain/schemas/<module>.schema.ts` parsed via `parseWithZod(schema, payload)`. DO NOT use `class-validator` decorators (`@IsString`, `@IsNumber`, `@IsEnum`, etc.) on DTO classes. Controller action parameters MUST receive `@Body() body: unknown` or `@Query() query: unknown` or `@Param("id") idParam: string` and validate them via `parseWithZod`.
 - **PostgreSQL Timezone Standard**: The canonical timezone for Vietnam is `Asia/Ho_Chi_Minh` (UTC+7). All default timezone schema properties MUST use `Asia/Ho_Chi_Minh` (NOT `Asia/Saigon`). In raw SQL queries using `AT TIME ZONE`, handle non-canonical strings safely with: `CASE WHEN tz = 'Asia/Saigon' OR tz IS NULL THEN 'Asia/Ho_Chi_Minh' ELSE tz END`.
+- **Excel & Google Sheets Synchronization Standard**:
+  - **Replace-Mode Hard Sync**: In `replace` synchronization mode, items existing in the database but absent from the sheet MUST be hard-deleted. Before deleting parent rows (e.g., `MarketplaceCategory`), clean up or delete dependent child records (e.g., `MarketplaceService`) to prevent foreign key restriction (`onDelete: Restrict`) errors.
+  - **Header Normalization & Parenthesized Aliases**: Import adapters MUST support normalized lowercase matching and parenthesized column header aliases (e.g., `"tên danh mục (tiếng việt)"`, `"tên (tiếng anh)"`, `"tên (tiếng trung)"`, `"tên (tiếng hàn)"`, `"tên (tiếng nga)"`, `"tên (tiếng ấn độ)"`).
+  - **Summary Metric Key Fallbacks**: Preview summary API payloads MUST align key names (`creates`/`create`, `updates`/`update`) with safe fallbacks (`creates ?? create ?? 0`) to prevent undefined metrics.
 - Use consistent error response shape.
 - Add or update tests for implemented behavior.
 

@@ -1,9 +1,11 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import crypto from "node:crypto";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { google } from "googleapis";
 import { AppLogger } from "../../../../common/logging/app-logger.service";
@@ -40,17 +42,142 @@ export class GoogleSheetsServiceCatalogSyncService {
     private readonly hotelAccessService: HotelAccessService,
   ) {}
 
+  extractSpreadsheetId(urlOrId: string): string {
+    if (!urlOrId?.trim()) {
+      throw new BadRequestException("URL Google Sheets không được để trống");
+    }
+    const match = urlOrId.trim().match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+    if (match?.[1]) return match[1];
+    if (/^[a-zA-Z0-9_-]{20,100}$/.test(urlOrId.trim())) return urlOrId.trim();
+    throw new BadRequestException(
+      "URL Google Sheets không hợp lệ. Vui lòng kiểm tra lại URL có định dạng https://docs.google.com/spreadsheets/d/...",
+    );
+  }
+
+  computeWorkbookHash(workbook: ParsedImportWorkbook): string {
+    const dataString = JSON.stringify(workbook.sheets);
+    return crypto.createHash("sha256").update(dataString).digest("hex");
+  }
+
+  async preview(
+    hotelId: string,
+    spreadsheetUrl: string | undefined,
+    mode: "replace" | "upsert",
+    actorUserId: string,
+    activeRoleId?: string,
+  ) {
+    const hotel = await this.hotelAccessService.assertHotelAccess(
+      actorUserId,
+      activeRoleId ?? "",
+      hotelId,
+    );
+    const spreadsheetId = spreadsheetUrl?.trim()
+      ? this.extractSpreadsheetId(spreadsheetUrl)
+      : hotel.googleSheetId;
+    if (!spreadsheetId) {
+      throw new BadRequestException(
+        "Khách sạn chưa cấu hình Google Sheets. Vui lòng nhập URL Google Sheets.",
+      );
+    }
+    const workbook = await this.readWorkbook(spreadsheetId);
+    const workbookHash = this.computeWorkbookHash(workbook);
+
+    const { preview, skippedIssues } = await this.previewValidRows({
+      type: "service-catalog",
+      mode,
+      context: { hotelId, actorUserId, activeRoleId, tenantId: hotel.tenantId },
+      workbook,
+    });
+
+    return {
+      workbookHash,
+      summary: preview.summary,
+      validation: preview.validation,
+      diff: preview.diff,
+      skippedIssues,
+    };
+  }
+
+  async commit(
+    hotelId: string,
+    spreadsheetUrl: string | undefined,
+    expectedHash: string,
+    mode: "replace" | "upsert",
+    actorUserId: string,
+    activeRoleId?: string,
+  ) {
+    const hotel = await this.hotelAccessService.assertHotelAccess(
+      actorUserId,
+      activeRoleId ?? "",
+      hotelId,
+    );
+    const spreadsheetId = spreadsheetUrl?.trim()
+      ? this.extractSpreadsheetId(spreadsheetUrl)
+      : hotel.googleSheetId;
+    if (!spreadsheetId) {
+      throw new BadRequestException(
+        "Khách sạn chưa cấu hình Google Sheets. Vui lòng nhập URL Google Sheets.",
+      );
+    }
+    const workbook = await this.readWorkbook(spreadsheetId);
+    const currentHash = this.computeWorkbookHash(workbook);
+
+    if (currentHash !== expectedHash) {
+      throw new ConflictException(
+        "Dữ liệu trên Google Sheets đã bị thay đổi kể từ lần xem trước. Vui lòng xem trước lại.",
+      );
+    }
+
+    const { preview } = await this.previewValidRows({
+      type: "service-catalog",
+      mode,
+      context: { hotelId, actorUserId, activeRoleId, tenantId: hotel.tenantId },
+      workbook,
+    });
+
+    const hasErrors =
+      preview.summary.errors > 0 ||
+      preview.validation.some((issue) => issue.severity === "error");
+
+    if (hasErrors) {
+      throw new BadRequestException("Vẫn còn lỗi dữ liệu, không thể áp dụng đồng bộ.");
+    }
+
+    const commitResult = await this.importService.commit(preview);
+
+    // Save googleSheetId on hotel model if changed
+    if (hotel.googleSheetId !== spreadsheetId) {
+      await this.prisma.hotel.update({
+        where: { id: hotelId },
+        data: { googleSheetId: spreadsheetId },
+      });
+    }
+
+    return { summary: commitResult.summary };
+  }
+
   async syncHotel(
     hotelId: string,
     actorUserId: string,
-    activeRoleId: string,
+    activeRoleId?: string,
+    spreadsheetUrl?: string,
+    mode: "replace" | "upsert" = "replace",
   ): Promise<SyncSummary> {
     const hotel = await this.hotelAccessService.assertHotelAccess(
       actorUserId,
-      activeRoleId,
+      activeRoleId ?? "",
       hotelId,
     );
-    return this.runSync(hotelId, hotel.googleSheetId, actorUserId, activeRoleId);
+    const sheetId = spreadsheetUrl
+      ? this.extractSpreadsheetId(spreadsheetUrl)
+      : hotel.googleSheetId;
+    if (spreadsheetUrl && hotel.googleSheetId !== sheetId) {
+      await this.prisma.hotel.update({
+        where: { id: hotelId },
+        data: { googleSheetId: sheetId },
+      });
+    }
+    return this.runSync(hotelId, sheetId, actorUserId, activeRoleId, true, mode);
   }
 
   async validateSpreadsheet(spreadsheetId: string): Promise<void> {
@@ -110,6 +237,7 @@ export class GoogleSheetsServiceCatalogSyncService {
     actorUserId: string,
     activeRoleId?: string,
     enforceConcurrency = true,
+    mode: "replace" | "upsert" = "replace",
   ): Promise<SyncSummary> {
     if (enforceConcurrency && this.isSyncing) {
       throw new BadRequestException("Google Sheets synchronization is already running");
@@ -142,7 +270,7 @@ export class GoogleSheetsServiceCatalogSyncService {
 
       const previewInput = {
         type: "service-catalog",
-        mode: "replace" as const,
+        mode,
         context: {
           hotelId,
           actorUserId,

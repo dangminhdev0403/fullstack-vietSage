@@ -16,7 +16,11 @@ import type {
   HotelServiceStatus,
 } from "@/features/hotel-ops/types/hotel-ops-contract";
 import { hotelServiceStatuses } from "@/features/hotel-ops/types/hotel-ops-contract";
-import { useOwnerGoogleSheetSync } from "@/features/hotel-ops/queries/use-google-sheet-config";
+import {
+  useOwnerGoogleSheetSync,
+  useOwnerServiceCatalogPreview,
+  useOwnerServiceCatalogCommit,
+} from "@/features/hotel-ops/queries/use-google-sheet-config";
 import {
   getServiceCatalogErrorMessage,
   getServiceCatalogSyncNotice,
@@ -25,6 +29,9 @@ import {
   serviceStatusLabelMap,
   serviceStatusTone,
 } from "@/features/hotel-ops/utils/hotel-ops-display";
+import { showConfirmDialog, showErrorAlert, showSuccessAlert } from "@/libs/swal";
+import { googleSheetConfigRepository } from "@/features/hotel-ops/repositories/google-sheet-config-repository";
+import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 
 type Props = {
   hotelId: string;
@@ -481,6 +488,48 @@ function closeLoading() {
   Swal.close();
 }
 
+type ServiceCatalogPreview = {
+  workbookHash: string;
+  summary: {
+    create: number;
+    update: number;
+    disable: number;
+    unchanged: number;
+    errors: number;
+    warnings: number;
+  };
+  validation: Array<{ severity: string; message: string }>;
+  diff: Array<{ entityType: string; action: string; label: string }>;
+};
+
+function getPreviewErrorMessage(error: unknown): string {
+  if (!error) return "Không thể xem trước dữ liệu từ Google Sheets.";
+  if (typeof error === "object" && error !== null) {
+    const errObj = error as Record<string, unknown>;
+    const status = typeof errObj.status === "number" ? errObj.status : undefined;
+    const data = errObj.data as Record<string, unknown> | null;
+    let serverMessage: string | undefined;
+    if (data && typeof data === "object") {
+      if (data.data && typeof data.data === "object") {
+        const innerData = data.data as Record<string, unknown>;
+        if (typeof innerData.detail === "string" && innerData.detail.trim()) serverMessage = innerData.detail.trim();
+        else if (typeof innerData.message === "string" && innerData.message.trim()) serverMessage = innerData.message.trim();
+      }
+      if (!serverMessage && typeof data.detail === "string" && data.detail.trim()) serverMessage = data.detail.trim();
+      if (!serverMessage && typeof data.message === "string" && data.message.trim()) serverMessage = data.message.trim();
+      else if (!serverMessage && Array.isArray(data.message) && data.message.length > 0) serverMessage = data.message.join(", ");
+    }
+    if (!serverMessage && typeof errObj.message === "string" && errObj.message.trim()) serverMessage = errObj.message.trim();
+    if (serverMessage) return serverMessage;
+    if (status === 404) return "Không tìm thấy Google Sheets hoặc tài nguyên (404 Not Found).";
+    if (status === 403) return "Google Sheets từ chối truy cập hoặc không có quyền (403 Forbidden).";
+    if (status === 400) return "Yêu cầu không hợp lệ hoặc thông tin nhập chưa đúng.";
+    if (status) return `Thao tác thất bại (Mã lỗi ${status}). Vui lòng kiểm tra lại.`;
+  }
+  if (error instanceof Error && error.message.trim()) return error.message.trim();
+  return "Không thể xem trước dữ liệu từ Google Sheets.";
+}
+
 export function OwnerServiceCatalogClient({
   hotelId,
   initialCategories,
@@ -489,6 +538,8 @@ export function OwnerServiceCatalogClient({
 }: Props) {
   const router = useRouter();
   const syncGoogleSheet = useOwnerGoogleSheetSync(hotelId);
+  const previewMutation = useOwnerServiceCatalogPreview(hotelId);
+  const commitMutation = useOwnerServiceCatalogCommit(hotelId);
   const [tab, setTab] = useState<"categories" | "items">("categories");
   const [categories, setCategories] = useState(initialCategories);
   const [items, setItems] = useState(initialItems);
@@ -512,6 +563,30 @@ export function OwnerServiceCatalogClient({
   const [itemPage, setItemPage] = useState(1);
   const [categoryPageSize, setCategoryPageSize] = useState<PageSize>(10);
   const [itemPageSize, setItemPageSize] = useState<PageSize>(10);
+
+  // Google Sheets preview/commit state
+  const storageKey = `vietsage_owner_service_sheet_url_${hotelId}`;
+  const [spreadsheetUrl, setSpreadsheetUrl] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem(storageKey) || "";
+    }
+    return "";
+  });
+  const [sheetPreview, setSheetPreview] = useState<ServiceCatalogPreview | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+
+  const handleSpreadsheetUrlChange = (url: string) => {
+    setSpreadsheetUrl(url);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(storageKey, url.trim());
+    }
+  };
+
+  const handleDownloadTemplate = () => {
+    window.open(`/api/owner/hotels/${encodeURIComponent(hotelId)}/service-catalog/import/template`, "_blank");
+  };
+
+
 
   const categoryById = useMemo(
     () => new Map(categories.map((category) => [category.id, category])),
@@ -1059,6 +1134,91 @@ export function OwnerServiceCatalogClient({
     details?: string[];
   } | null>(null);
 
+  const handlePreviewSheet = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const url = hasGoogleSheetConfig ? "__admin_configured__" : spreadsheetUrl.trim();
+    if (!hasGoogleSheetConfig && !spreadsheetUrl.trim()) return;
+    setPreviewError(null);
+    setSyncNotice(null);
+    previewMutation.mutate(
+      { spreadsheetUrl: hasGoogleSheetConfig ? "" : spreadsheetUrl.trim() },
+      {
+        onSuccess: (resData) => {
+          setSheetPreview(resData);
+        },
+        onError: (err) => {
+          setSheetPreview(null);
+          setPreviewError(getPreviewErrorMessage(err));
+        },
+      },
+    );
+  };
+
+  const handlePreviewWithConfig = () => {
+    setPreviewError(null);
+    setSyncNotice(null);
+    previewMutation.mutate(
+      { spreadsheetUrl: "" },
+      {
+        onSuccess: (resData) => {
+          setSheetPreview(resData);
+        },
+        onError: (err) => {
+          setSheetPreview(null);
+          setPreviewError(getPreviewErrorMessage(err));
+        },
+      },
+    );
+  };
+
+  const handleCommitSheet = () => {
+    if (!sheetPreview) return;
+    if (sheetPreview.summary.errors > 0) return;
+
+    const creates = sheetPreview.summary.create ?? 0;
+    const updates = sheetPreview.summary.update ?? 0;
+    const disables = sheetPreview.summary.disable ?? 0;
+
+    showConfirmDialog({
+      title: "Xác nhận áp dụng thay đổi",
+      text: `Bạn có chắc chắn muốn áp dụng (${creates} tạo mới, ${updates} cập nhật, ${disables} vô hiệu hóa) từ Google Sheets không?`,
+      confirmText: "Áp dụng thay đổi",
+      cancelText: "Hủy bỏ",
+      icon: "question",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        setIsImporting(true);
+        commitMutation.mutate(
+          { spreadsheetUrl: hasGoogleSheetConfig ? "" : spreadsheetUrl.trim(), expectedHash: sheetPreview.workbookHash },
+          {
+            onSuccess: (res) => {
+              setSheetPreview(null);
+              const summaryRec = res.summary as Record<string, number> | undefined;
+              const resCreates = summaryRec?.create ?? 0;
+              const resUpdates = summaryRec?.update ?? 0;
+              const resDisables = summaryRec?.disable ?? 0;
+
+              showSuccessAlert(
+                "Thành công!",
+                `Đã nhập dịch vụ từ Google Sheets thành công (${resCreates} tạo mới, ${resUpdates} cập nhật, ${resDisables} vô hiệu hóa).`,
+              );
+              refreshServiceCatalog();
+              router.refresh();
+              setIsImporting(false);
+            },
+            onError: (err) => {
+              showErrorAlert(
+                "Thất bại!",
+                getPreviewErrorMessage(err),
+              );
+              setIsImporting(false);
+            },
+          },
+        );
+      }
+    });
+  };
+
   async function syncGoogleSheets() {
     setSyncError(null);
     setSyncNotice(null);
@@ -1267,71 +1427,222 @@ export function OwnerServiceCatalogClient({
         </div>
       </section>
 
-      <section className="rounded-xl border border-dashed border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-4">
-        <div className="flex flex-col gap-4">
+      <section className="rounded-2xl border border-[var(--outline-variant)] bg-white/90 p-6 shadow-[0_16px_40px_rgba(0,0,60,0.05)] backdrop-blur-md space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-base font-semibold text-[var(--primary)]">
-              Đồng bộ dịch vụ bằng Google Sheets
+            <h2 className="text-lg font-extrabold text-[var(--primary)] flex items-center gap-2">
+              <VsIcon name="table_chart" className="text-xl text-[var(--primary)]" />
+              Đồng bộ dịch vụ qua Google Sheets
             </h2>
-            <p className="mt-1 text-sm text-[var(--on-surface-variant)]">
-              Google Sheets được quản trị viên nền tảng cấu hình riêng cho khách
-              sạn này.
+            <p className="text-xs font-semibold text-[var(--on-surface-variant)] mt-0.5">
+              {hasGoogleSheetConfig
+                ? "Google Sheets đã được cấu hình bởi quản trị viên. Nhấn Xem trước để kiểm tra thay đổi trước khi áp dụng."
+                : "Nhập URL Google Sheets để xem trước và đồng bộ dịch vụ."}
             </p>
           </div>
-          <div className="flex flex-col items-start gap-2">
+          <button
+            type="button"
+            onClick={handleDownloadTemplate}
+            className="inline-flex items-center justify-center gap-2 rounded-full border border-[var(--outline-variant)] bg-[var(--surface-container-low)] px-4 py-2.5 text-xs font-bold text-[var(--primary)] hover:bg-[var(--surface-container)] transition-colors shrink-0"
+          >
+            <VsIcon name="download" className="text-base" />
+            Tải file mẫu CSV
+          </button>
+        </div>
+
+        {/* URL input — shown only when admin has NOT configured a sheet */}
+        {!hasGoogleSheetConfig ? (
+          <form onSubmit={handlePreviewSheet} className="flex flex-col sm:flex-row gap-3">
+            <input
+              type="url"
+              value={spreadsheetUrl}
+              onChange={(e) => handleSpreadsheetUrlChange(e.target.value)}
+              placeholder="Dán URL Google Sheets (https://docs.google.com/spreadsheets/d/...)"
+              className="flex-1 rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] px-4 py-3 text-sm font-semibold text-[var(--on-surface)] outline-none focus:border-[var(--primary)] focus:bg-white transition-all"
+            />
+            <button
+              type="submit"
+              disabled={previewMutation.isPending || !spreadsheetUrl.trim()}
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-[var(--primary)] px-6 py-3 text-sm font-bold text-[var(--on-primary)] shadow-xs hover:opacity-90 disabled:opacity-50 transition-all shrink-0"
+            >
+              <VsIcon name={previewMutation.isPending ? "progress_activity" : "preview"} className={`text-lg ${previewMutation.isPending ? "animate-spin" : ""}`} />
+              {previewMutation.isPending ? "Đang xử lý..." : "Xem trước"}
+            </button>
+          </form>
+        ) : (
+          <div className="flex flex-col sm:flex-row items-start gap-3">
             <button
               type="button"
-              onClick={syncGoogleSheets}
-              disabled={isImporting || !hasGoogleSheetConfig}
-              className="cursor-pointer rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-[var(--on-primary)] transition-colors hover:bg-[color:rgba(0,0,60,0.88)] disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={handlePreviewWithConfig}
+              disabled={previewMutation.isPending}
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-[var(--primary)] px-6 py-3 text-sm font-bold text-[var(--on-primary)] shadow-xs hover:opacity-90 disabled:opacity-50 transition-all"
             >
-              {isImporting ? "Đang đồng bộ..." : "Đồng bộ Google Sheets"}
+              <VsIcon name={previewMutation.isPending ? "progress_activity" : "preview"} className={`text-lg ${previewMutation.isPending ? "animate-spin" : ""}`} />
+              {previewMutation.isPending ? "Đang xử lý..." : "Xem trước thay đổi"}
             </button>
-            {!hasGoogleSheetConfig ? (
-              <p className="text-xs text-[var(--on-surface-variant)]">
-                Chưa có Google Sheets. Vui lòng liên hệ quản trị viên nền tảng.
-              </p>
-            ) : null}
-            {syncNotice ? (
-              <div
-                role="alert"
-                aria-live="assertive"
-                className={`w-full rounded-xl border p-4 text-sm ${
-                  syncNotice.type === "error"
-                    ? "border-red-300 bg-red-50 text-red-900"
-                    : syncNotice.type === "warning"
-                    ? "border-amber-300 bg-amber-50 text-amber-900"
-                    : "border-emerald-300 bg-emerald-50 text-emerald-900"
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-bold text-base">{syncNotice.title}</p>
-                    <p className="mt-1 leading-relaxed whitespace-pre-wrap font-medium">{syncNotice.text}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setSyncNotice(null)}
-                    className="rounded-lg p-1 text-slate-400 hover:bg-black/5 hover:text-slate-700"
-                    title="Ẩn thông báo"
-                  >
-                    ✕
-                  </button>
+          </div>
+        )}
+
+        {/* Preview error */}
+        {previewError && (
+          <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-800 flex items-center gap-3">
+            <VsIcon name="error" className="text-xl text-rose-600 shrink-0" />
+            <span>{previewError}</span>
+          </div>
+        )}
+
+        {/* No config warning */}
+        {!hasGoogleSheetConfig && !spreadsheetUrl.trim() && !sheetPreview && !previewError && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800 flex items-center gap-3">
+            <VsIcon name="warning" className="text-lg text-amber-600 shrink-0" />
+            <span>Chưa có Google Sheets được cấu hình. Vui lòng nhập URL hoặc liên hệ quản trị viên nền tảng.</span>
+          </div>
+        )}
+
+        {/* Preview results */}
+        {sheetPreview && (
+          <div className="space-y-4 pt-4 border-t border-[var(--outline-variant)]/80">
+            {/* Summary Metrics */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-emerald-900">
+                <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">Tạo mới</p>
+                <p className="text-2xl font-extrabold">{sheetPreview.summary.create ?? 0}</p>
+              </div>
+              <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-amber-900">
+                <p className="text-xs font-bold uppercase tracking-wider text-amber-700">Cập nhật</p>
+                <p className="text-2xl font-extrabold">{sheetPreview.summary.update ?? 0}</p>
+              </div>
+              <div className="rounded-xl border border-rose-200 bg-rose-50/70 p-3 text-rose-900">
+                <p className="text-xs font-bold uppercase tracking-wider text-rose-700">Vô hiệu hóa</p>
+                <p className="text-2xl font-extrabold">{sheetPreview.summary.disable ?? 0}</p>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-slate-900">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Không đổi</p>
+                <p className="text-2xl font-extrabold">{sheetPreview.summary.unchanged ?? 0}</p>
+              </div>
+              <div className={`rounded-xl border p-3 ${sheetPreview.summary.errors > 0 ? "border-rose-300 bg-rose-50 text-rose-900" : "border-slate-200 bg-slate-50 text-slate-900"}`}>
+                <p className={`text-xs font-bold uppercase tracking-wider ${sheetPreview.summary.errors > 0 ? "text-rose-700" : "text-slate-600"}`}>Lỗi</p>
+                <p className="text-2xl font-extrabold">{sheetPreview.summary.errors ?? 0}</p>
+              </div>
+              <div className="rounded-xl border border-sky-200 bg-sky-50/70 p-3 text-sky-900">
+                <p className="text-xs font-bold uppercase tracking-wider text-sky-700">Cảnh báo</p>
+                <p className="text-2xl font-extrabold">{sheetPreview.summary.warnings ?? 0}</p>
+              </div>
+            </div>
+
+            {/* Validation Errors */}
+            {sheetPreview.validation.length > 0 && (
+              <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50/60 p-4 space-y-2">
+                <p className="text-sm font-extrabold text-rose-900 flex items-center gap-2">
+                  <VsIcon name="warning" className="text-lg text-rose-600" />
+                  Lỗi / cảnh báo cần xử lý ({sheetPreview.validation.length} mục):
+                </p>
+                <div className="max-h-48 overflow-y-auto space-y-1.5 pr-2">
+                  {sheetPreview.validation.map((v, idx) => (
+                    <div key={idx} className="text-xs font-semibold text-rose-800 bg-white/80 p-2.5 rounded-lg border border-rose-200/80 flex items-start gap-2">
+                      <span className={`font-mono font-bold px-1.5 py-0.5 rounded shrink-0 ${v.severity === "error" ? "bg-rose-100" : "bg-amber-100 text-amber-800"}`}>
+                        {v.severity === "error" ? "Lỗi" : "Cảnh báo"}
+                      </span>
+                      <span>{v.message}</span>
+                    </div>
+                  ))}
                 </div>
-                {syncNotice.details && syncNotice.details.length > 0 ? (
-                  <div className="mt-3 border-t border-current/20 pt-3">
-                    <p className="font-bold text-xs uppercase tracking-wider mb-1.5 opacity-80">Chi tiết cảnh báo / dòng bỏ qua:</p>
-                    <ul className="list-disc pl-5 space-y-1 text-xs font-mono">
-                      {syncNotice.details.map((detail, idx) => (
-                        <li key={idx} className="whitespace-pre-wrap">{detail}</li>
+              </div>
+            )}
+
+            {/* Diff Table */}
+            {sheetPreview.diff.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-extrabold text-[var(--primary)]">Xem trước thay đổi ({sheetPreview.diff.length} mục):</p>
+                <div className="max-h-60 overflow-y-auto rounded-xl border border-[var(--outline-variant)] bg-white">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-[var(--surface-container-low)] border-b border-[var(--outline-variant)] text-[var(--on-surface-variant)] font-bold uppercase">
+                        <th className="p-3">Hành động</th>
+                        <th className="p-3">Loại</th>
+                        <th className="p-3">Tên</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--outline-variant)]/60">
+                      {sheetPreview.diff.map((d, i) => (
+                        <tr key={i} className="hover:bg-[var(--surface-container-low)]/50">
+                          <td className="p-3 font-extrabold">
+                            {d.action === "create" && <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Tạo mới</span>}
+                            {d.action === "update" && <span className="text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">Cập nhật</span>}
+                            {d.action === "disable" && <span className="text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">Vô hiệu hóa</span>}
+                            {d.action === "unchanged" && <span className="text-slate-600 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">Không đổi</span>}
+                          </td>
+                          <td className="p-3 font-bold text-[var(--on-surface-variant)]">{d.entityType === "category" ? "Nhóm" : d.entityType === "item" ? "Dịch vụ" : d.entityType}</td>
+                          <td className="p-3 font-bold text-[var(--on-surface)]">{d.label || "—"}</td>
+                        </tr>
                       ))}
-                    </ul>
-                  </div>
-                ) : null}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Commit Action */}
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setSheetPreview(null)}
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-[var(--outline-variant)] bg-white px-5 py-3 text-sm font-bold text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-low)] transition-all"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                onClick={handleCommitSheet}
+                disabled={commitMutation.isPending || isImporting || sheetPreview.summary.errors > 0}
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-[var(--primary)] px-7 py-3 text-sm font-bold text-[var(--on-primary)] shadow-md hover:opacity-90 disabled:opacity-50 transition-all"
+              >
+                <VsIcon name={commitMutation.isPending || isImporting ? "progress_activity" : "check_circle"} className={`text-lg ${commitMutation.isPending || isImporting ? "animate-spin" : ""}`} />
+                {commitMutation.isPending || isImporting ? "Đang áp dụng..." : "Áp dụng thay đổi"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Sync notice (from legacy sync or errors) */}
+        {syncNotice && (
+          <div
+            role="alert"
+            aria-live="assertive"
+            className={`w-full rounded-xl border p-4 text-sm ${
+              syncNotice.type === "error"
+                ? "border-red-300 bg-red-50 text-red-900"
+                : syncNotice.type === "warning"
+                ? "border-amber-300 bg-amber-50 text-amber-900"
+                : "border-emerald-300 bg-emerald-50 text-emerald-900"
+            }`}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-bold text-base">{syncNotice.title}</p>
+                <p className="mt-1 leading-relaxed whitespace-pre-wrap font-medium">{syncNotice.text}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSyncNotice(null)}
+                className="rounded-lg p-1 text-slate-400 hover:bg-black/5 hover:text-slate-700"
+                title="Ẩn thông báo"
+              >
+                ✕
+              </button>
+            </div>
+            {syncNotice.details && syncNotice.details.length > 0 ? (
+              <div className="mt-3 border-t border-current/20 pt-3">
+                <p className="font-bold text-xs uppercase tracking-wider mb-1.5 opacity-80">Chi tiết cảnh báo / dòng bỏ qua:</p>
+                <ul className="list-disc pl-5 space-y-1 text-xs font-mono">
+                  {syncNotice.details.map((detail, idx) => (
+                    <li key={idx} className="whitespace-pre-wrap">{detail}</li>
+                  ))}
+                </ul>
               </div>
             ) : null}
           </div>
-        </div>
+        )}
       </section>
 
       {tab === "categories" ? (

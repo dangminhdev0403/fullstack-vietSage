@@ -38,5 +38,25 @@ export const ownerGoogleSheetSyncResource =
         mutationFn: ({ scope }: { scope: HotelScope; variables: void }) =>
           googleSheetConfigRepository.sync(scope.hotelId),
       }),
+      preview: defineMutation({
+        mutationFn: ({
+          scope,
+          variables,
+        }: {
+          scope: HotelScope;
+          variables: { spreadsheetUrl: string; mode?: string };
+        }) =>
+          googleSheetConfigRepository.preview(scope.hotelId, variables),
+      }),
+      commit: defineMutation({
+        mutationFn: ({
+          scope,
+          variables,
+        }: {
+          scope: HotelScope;
+          variables: { spreadsheetUrl: string; expectedHash: string; mode?: string };
+        }) =>
+          googleSheetConfigRepository.commit(scope.hotelId, variables),
+      }),
     },
   });

@@ -336,12 +336,12 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }:
           : await updateGoogleSheetConfig.mutateAsync({
                 name: form.name.trim(),
                 status: form.status,
-                googleSheetUrl: form.googleSheetUrl.trim() || null,
-                googleMapsUrl: form.googleMapsUrl.trim() || null,
-                latitude: form.latitude ? Number(form.latitude) : null,
-                longitude: form.longitude ? Number(form.longitude) : null,
-                locationAccuracyMeters: form.locationAccuracyMeters ? Number(form.locationAccuracyMeters) : null,
-                locationSource: form.locationSource ?? null,
+                ...(form.googleSheetUrl.trim() ? { googleSheetUrl: form.googleSheetUrl.trim() } : {}),
+                ...(form.googleMapsUrl.trim() ? { googleMapsUrl: form.googleMapsUrl.trim() } : {}),
+                ...(form.latitude ? { latitude: Number(form.latitude) } : {}),
+                ...(form.longitude ? { longitude: Number(form.longitude) } : {}),
+                ...(form.locationAccuracyMeters ? { locationAccuracyMeters: Number(form.locationAccuracyMeters) } : {}),
+                ...(form.locationSource ? { locationSource: form.locationSource } : {}),
             });
 
       setHotels((current) => {
@@ -504,7 +504,7 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }:
 
       {isDialogOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-          <form onSubmit={submitHotel} className="w-full max-w-2xl overflow-hidden rounded-3xl border border-slate-200 bg-white p-8 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+          <form onSubmit={submitHotel} className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl border border-slate-200 bg-white p-8 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
             <div className="mb-6 flex items-start justify-between gap-4 border-b border-slate-100 pb-5 dark:border-slate-800">
               <div>
                 <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">

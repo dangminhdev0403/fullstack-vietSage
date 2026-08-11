@@ -1,4 +1,5 @@
-export type MarketplaceCategory = { id: string; code: string; nameVi: string; nameEn: string; icon?: string | null; isActive?: boolean };
+export type MarketplaceCategoryTranslation = { locale: string; name: string };
+export type MarketplaceCategory = { id: string; code: string; nameVi: string; name?: string; isActive?: boolean; translations?: MarketplaceCategoryTranslation[] };
 export type MarketplaceServiceItem = {
   id: string;
   name: string;

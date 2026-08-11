@@ -8,7 +8,7 @@ import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { OneTimePasswordDialog } from "@/features/account/security/one-time-password-dialog";
 import { SwalVietSage } from "@/libs/swal";
 import { marketplaceAdminResource } from "./resource";
-import type { ServiceTenant } from "./types";
+import type { MarketplaceCategorySheetPreview, ServiceTenant } from "./types";
 import type { MarketplaceCategory } from "@/features/marketplace/types/marketplace-contract";
 
 function generateTemporaryPassword(): string {
@@ -92,17 +92,94 @@ export function MarketplaceAdminClient() {
     },
   });
 
+  const previewMutation = useMutation({
+    ...resource.mutations.previewImport.options(),
+  });
+
+  const commitMutation = useMutation({
+    ...resource.mutations.commitImport.options(),
+  });
+
+  const deleteCategoryMutation = useMutation({
+    mutationFn: (id: string) =>
+      fetch("/api/admin/marketplace", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "deleteCategory", id }),
+      }).then((r) => r.json()),
+    onSuccess: (res) => {
+      if (res.status === "success") {
+        SwalVietSage.fire({
+          title: "Đã xóa!",
+          text: "Danh mục đã được xóa hẳn thành công.",
+          icon: "success",
+          confirmButtonText: "OK",
+        });
+        data.refetch();
+      } else {
+        SwalVietSage.fire({
+          title: "Thất bại!",
+          text: res.message || "Không thể xóa danh mục.",
+          icon: "error",
+        });
+      }
+    },
+    onError: (err) => {
+      SwalVietSage.fire({
+        title: "Thất bại!",
+        text: getErrorMessage(err, "Không thể xóa danh mục."),
+        icon: "error",
+      });
+    },
+  });
+
+  const handleDeleteCategory = (cat: MarketplaceCategory) => {
+    SwalVietSage.fire({
+      title: "Xác nhận xóa hẳn danh mục",
+      text: `Bạn có chắc chắn muốn xóa hẳn danh mục "${cat.nameVi}" (${cat.code}) không? Tất cả dịch vụ thuộc danh mục này sẽ bị xóa khỏi hệ thống. Hành động này không thể hoàn tác!`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Xóa vĩnh viễn",
+      cancelButtonText: "Hủy bỏ",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        deleteCategoryMutation.mutate(cat.id);
+      }
+    });
+  };
+
   // Workspace View & Dialog state
   const [activeTab, setActiveTab] = useState<"partners" | "categories">("partners");
   const [isTenantModalOpen, setIsTenantModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [editingTenant, setEditingTenant] = useState<ServiceTenant | null>(null);
   const [editingCategory, setEditingCategory] = useState<MarketplaceCategory | null>(null);
+  const [selectedCategoryDetail, setSelectedCategoryDetail] = useState<{
+    category: MarketplaceCategory;
+    activeLang: "en" | "zh" | "ko" | "ru" | "hi";
+  } | null>(null);
   const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
   const [resetAccountLabel, setResetAccountLabel] = useState("");
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [formValidationError, setFormValidationError] = useState<string | null>(null);
+
+  // Google Sheets Import state
+  const [spreadsheetUrl, setSpreadsheetUrl] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("vietsage_marketplace_category_sheet_url") || "";
+    }
+    return "";
+  });
+  const [sheetPreview, setSheetPreview] = useState<MarketplaceCategorySheetPreview | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+
+  const handleSpreadsheetUrlChange = (url: string) => {
+    setSpreadsheetUrl(url);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("vietsage_marketplace_category_sheet_url", url.trim());
+    }
+  };
 
   // Search & Pagination State
   const [tenantSearch, setTenantSearch] = useState("");
@@ -114,6 +191,78 @@ export function MarketplaceAdminClient() {
   const [categoryPage, setCategoryPage] = useState(1);
   const [categoryPageSize, setCategoryPageSize] = useState(DEFAULT_PAGE_SIZE);
 
+  const handleDownloadTemplate = () => {
+    window.open("/api/admin/marketplace/categories/import/template", "_blank");
+  };
+
+  const handlePreviewSheet = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!spreadsheetUrl.trim()) return;
+    setPreviewError(null);
+    previewMutation.mutate(
+      { spreadsheetUrl: spreadsheetUrl.trim() },
+      {
+        onSuccess: (resData) => {
+          setSheetPreview(resData);
+        },
+        onError: (err) => {
+          setSheetPreview(null);
+          setPreviewError(getErrorMessage(err, "Không thể xem trước dữ liệu từ Google Sheets"));
+        },
+      },
+    );
+  };
+
+  const handleCommitSheet = () => {
+    if (!sheetPreview || !spreadsheetUrl.trim()) return;
+    if (sheetPreview.summary.errors > 0) return;
+
+    const creates = sheetPreview.summary.creates ?? (sheetPreview.summary as Record<string, number>).create ?? 0;
+    const updates = sheetPreview.summary.updates ?? (sheetPreview.summary as Record<string, number>).update ?? 0;
+    const disables = sheetPreview.summary.disables ?? sheetPreview.summary.disable ?? (sheetPreview.summary as Record<string, number>).disable ?? 0;
+
+    SwalVietSage.fire({
+      title: "Xác nhận áp dụng thay đổi",
+      text: `Bạn có chắc chắn muốn áp dụng (${creates} tạo mới, ${updates} cập nhật, ${disables} gỡ bỏ/tắt) từ Google Sheets không?`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Áp dụng thay đổi",
+      cancelButtonText: "Hủy bỏ",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        commitMutation.mutate(
+          { spreadsheetUrl: spreadsheetUrl.trim(), expectedHash: sheetPreview.workbookHash },
+          {
+            onSuccess: (res) => {
+              setSheetPreview(null);
+              const summaryRec = res.summary as Record<string, number> | undefined;
+              const resCreates = summaryRec?.creates ?? summaryRec?.create ?? 0;
+              const resUpdates = summaryRec?.updates ?? summaryRec?.update ?? 0;
+              const resDisables = summaryRec?.disables ?? summaryRec?.disable ?? 0;
+
+              SwalVietSage.fire({
+                title: "Thành công!",
+                text: `Đã nhập danh mục từ Google Sheets thành công (${resCreates} tạo mới, ${resUpdates} cập nhật, ${resDisables} gỡ bỏ/tắt).`,
+                icon: "success",
+                showConfirmButton: true,
+                confirmButtonText: "OK",
+              });
+              data.refetch();
+            },
+            onError: (err) => {
+              SwalVietSage.fire({
+                title: "Thất bại!",
+                text: getErrorMessage(err, "Không thể áp dụng thay đổi từ Google Sheets."),
+                icon: "error",
+              });
+            },
+          },
+        );
+      }
+    });
+  };
+
+
   const [selectedPartnerDetails, setSelectedPartnerDetails] = useState<ServiceTenant | null>(null);
 
   const submitCategory = (event: FormEvent<HTMLFormElement>) => {
@@ -121,11 +270,15 @@ export function MarketplaceAdminClient() {
     setFormValidationError(null);
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
-    const nameVi = String(form.get("nameVi")).trim();
-    const nameEn = String(form.get("nameEn")).trim();
+    const nameVi = String(form.get("nameVi") ?? "").trim();
+    const nameEn = String(form.get("nameEn") ?? "").trim();
+    const nameZh = String(form.get("nameZh") ?? "").trim();
+    const nameKo = String(form.get("nameKo") ?? "").trim();
+    const nameRu = String(form.get("nameRu") ?? "").trim();
+    const nameHi = String(form.get("nameHi") ?? "").trim();
 
-    if (!nameVi || !nameEn) {
-      setFormValidationError("Vui lòng nhập đầy đủ tên tiếng Việt và tiếng Anh.");
+    if (!nameVi) {
+      setFormValidationError("Vui lòng nhập tên tiếng Việt.");
       return;
     }
 
@@ -134,14 +287,17 @@ export function MarketplaceAdminClient() {
       setFormValidationError(`Tên danh mục tiếng Việt "${nameVi}" đã tồn tại trên hệ thống.`);
       return;
     }
-    if (catList.some((c) => c.nameEn.toLowerCase() === nameEn.toLowerCase())) {
-      setFormValidationError(`Tên danh mục tiếng Anh "${nameEn}" đã tồn tại trên hệ thống.`);
-      return;
-    }
+
+    const translations: Record<string, string> = {};
+    if (nameEn) translations.en = nameEn;
+    if (nameZh) translations.zh = nameZh;
+    if (nameKo) translations.ko = nameKo;
+    if (nameRu) translations.ru = nameRu;
+    if (nameHi) translations.hi = nameHi;
 
     SwalVietSage.fire({
       title: "Xác nhận tạo danh mục",
-      text: `Bạn có chắc chắn muốn tạo danh mục dịch vụ mới "${nameVi}" (${nameEn}) không?`,
+      text: `Bạn có chắc chắn muốn tạo danh mục dịch vụ mới "${nameVi}"${nameEn ? ` (${nameEn})` : ""} không?`,
       icon: "question",
       showCancelButton: true,
       confirmButtonText: "Tạo danh mục",
@@ -153,9 +309,9 @@ export function MarketplaceAdminClient() {
             action: "category",
             input: {
               nameVi,
-              nameEn,
               sortOrder: 0,
               isActive: true,
+              ...(Object.keys(translations).length > 0 ? { translations } : {}),
             },
           },
           {
@@ -190,11 +346,15 @@ export function MarketplaceAdminClient() {
     if (!editingCategory) return;
     setFormValidationError(null);
     const form = new FormData(event.currentTarget);
-    const nameVi = String(form.get("nameVi")).trim();
-    const nameEn = String(form.get("nameEn")).trim();
+    const nameVi = String(form.get("nameVi") ?? "").trim();
+    const nameEn = String(form.get("nameEn") ?? "").trim();
+    const nameZh = String(form.get("nameZh") ?? "").trim();
+    const nameKo = String(form.get("nameKo") ?? "").trim();
+    const nameRu = String(form.get("nameRu") ?? "").trim();
+    const nameHi = String(form.get("nameHi") ?? "").trim();
 
-    if (!nameVi || !nameEn) {
-      setFormValidationError("Vui lòng nhập đầy đủ tên tiếng Việt và tiếng Anh.");
+    if (!nameVi) {
+      setFormValidationError("Vui lòng nhập tên tiếng Việt.");
       return;
     }
 
@@ -203,10 +363,13 @@ export function MarketplaceAdminClient() {
       setFormValidationError(`Tên danh mục tiếng Việt "${nameVi}" trùng với danh mục khác.`);
       return;
     }
-    if (catList.some((c) => c.id !== editingCategory.id && c.nameEn.toLowerCase() === nameEn.toLowerCase())) {
-      setFormValidationError(`Tên danh mục tiếng Anh "${nameEn}" trùng với danh mục khác.`);
-      return;
-    }
+
+    const translations: Record<string, string> = {};
+    if (nameEn) translations.en = nameEn;
+    if (nameZh) translations.zh = nameZh;
+    if (nameKo) translations.ko = nameKo;
+    if (nameRu) translations.ru = nameRu;
+    if (nameHi) translations.hi = nameHi;
 
     SwalVietSage.fire({
       title: "Xác nhận cập nhật danh mục",
@@ -221,7 +384,7 @@ export function MarketplaceAdminClient() {
           {
             action: "updateCategory",
             id: editingCategory.id,
-            input: { nameVi, nameEn },
+            input: { nameVi, ...(Object.keys(translations).length > 0 ? { translations } : {}) },
           },
           {
             onSuccess: () => {
@@ -588,7 +751,7 @@ export function MarketplaceAdminClient() {
     return catList.filter((item) => {
       const q = categorySearch.toLowerCase().trim();
       const vi = item.nameVi.toLowerCase();
-      const en = item.nameEn.toLowerCase();
+      const en = (item.translations?.find((t) => t.locale === "en")?.name ?? "").toLowerCase();
       const code = item.code.toLowerCase();
       return !q || vi.includes(q) || en.includes(q) || code.includes(q);
     });
@@ -880,9 +1043,164 @@ export function MarketplaceAdminClient() {
         </section>
       )}
 
-      {/* Secondary Management Area: Service Categories Table */}
+      {/* Secondary Management Area: Service Categories Table & Google Sheets Sync */}
       {activeTab === "categories" && (
-        <section className="hidden md:block">
+        <section className="space-y-6">
+          {/* Primary Google Sheets Batch Import Card */}
+          <div className="rounded-[1.4rem] border border-[#e8dfd1] bg-white/90 p-6 shadow-[0_16px_40px_rgba(23,32,27,0.05)] backdrop-blur-md space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-extrabold text-[#24473d] flex items-center gap-2">
+                  <VsIcon name="table_chart" className="text-xl text-[#24473d]" />
+                  Quản lý danh mục qua Google Sheets
+                </h3>
+                <p className="text-xs font-semibold text-[#69726b] mt-0.5">
+                  Nhập URL Google Sheets (tab &quot;categories&quot;) để xem trước, đồng bộ danh mục &amp; đa ngôn ngữ tự động.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleDownloadTemplate}
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-[#dcd1bf] bg-[#fffcf7] px-4 py-2.5 text-xs font-bold text-[#24473d] hover:bg-[#f5efe4] transition-colors shrink-0"
+              >
+                <VsIcon name="download" className="text-base" />
+                Tải file mẫu CSV
+              </button>
+            </div>
+
+            <form onSubmit={handlePreviewSheet} className="flex flex-col sm:flex-row gap-3">
+              <input
+                type="url"
+                value={spreadsheetUrl}
+                onChange={(e) => handleSpreadsheetUrlChange(e.target.value)}
+                placeholder="Dán URL Google Sheets (https://docs.google.com/spreadsheets/d/...)"
+                className="flex-1 rounded-xl border border-[#e2d7c5] bg-[#faf6ef] px-4 py-3 text-sm font-semibold text-[#17201b] outline-none focus:border-[#24473d] focus:bg-white"
+              />
+              <button
+                type="submit"
+                disabled={previewMutation.isPending || !spreadsheetUrl.trim()}
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-[#24473d] px-6 py-3 text-sm font-bold text-[#fff8e8] shadow-xs hover:bg-[#1a352d] disabled:opacity-50 transition-all shrink-0"
+              >
+                <VsIcon name={previewMutation.isPending ? "progress_activity" : "preview"} className={`text-lg ${previewMutation.isPending ? "animate-spin" : ""}`} />
+                {previewMutation.isPending ? "Đang xử lý..." : "Xem trước"}
+              </button>
+            </form>
+
+            {previewError && (
+              <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-800 flex items-center gap-3">
+                <VsIcon name="error" className="text-xl text-rose-600 shrink-0" />
+                <span>{previewError}</span>
+              </div>
+            )}
+
+            {sheetPreview && (
+              <div className="space-y-4 pt-4 border-t border-[#e8dfd1]/80">
+                {/* Summary Metrics */}
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-emerald-900">
+                    <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">Tạo mới</p>
+                    <p className="text-2xl font-extrabold">{sheetPreview.summary.creates ?? sheetPreview.summary.create ?? 0}</p>
+                  </div>
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-amber-900">
+                    <p className="text-xs font-bold uppercase tracking-wider text-amber-700">Cập nhật</p>
+                    <p className="text-2xl font-extrabold">{sheetPreview.summary.updates ?? sheetPreview.summary.update ?? 0}</p>
+                  </div>
+                  <div className="rounded-xl border border-rose-200 bg-rose-50/70 p-3 text-rose-900">
+                    <p className="text-xs font-bold uppercase tracking-wider text-rose-700">Gỡ bỏ / Tắt</p>
+                    <p className="text-2xl font-extrabold">{sheetPreview.summary.disables ?? sheetPreview.summary.disable ?? 0}</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-slate-900">
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Không đổi</p>
+                    <p className="text-2xl font-extrabold">{sheetPreview.summary.unchanged}</p>
+                  </div>
+                  <div className={`rounded-xl border p-3 ${sheetPreview.summary.errors > 0 ? "border-rose-300 bg-rose-50 text-rose-900" : "border-slate-200 bg-slate-50 text-slate-900"}`}>
+                    <p className={`text-xs font-bold uppercase tracking-wider ${sheetPreview.summary.errors > 0 ? "text-rose-700" : "text-slate-600"}`}>Lỗi</p>
+                    <p className="text-2xl font-extrabold">{sheetPreview.summary.errors}</p>
+                  </div>
+                </div>
+
+                {/* Validation Errors Table */}
+                {sheetPreview.validation.length > 0 && (
+                  <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50/60 p-4 space-y-2">
+                    <p className="text-sm font-extrabold text-rose-900 flex items-center gap-2">
+                      <VsIcon name="warning" className="text-lg text-rose-600" />
+                      Lỗi cần xử lý trong Google Sheets ({sheetPreview.validation.length} dòng):
+                    </p>
+                    <div className="max-h-48 overflow-y-auto space-y-1.5 pr-2">
+                      {sheetPreview.validation.map((v, idx) => (
+                        <div key={idx} className="text-xs font-semibold text-rose-800 bg-white/80 p-2.5 rounded-lg border border-rose-200/80 flex items-start gap-2">
+                          <span className="font-mono font-bold bg-rose-100 px-1.5 py-0.5 rounded shrink-0">Hàng {v.row}, Cột {v.col}</span>
+                          <span>{v.message} {v.value ? `(Giá trị: "${v.value}")` : ""}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Diff Table */}
+                {sheetPreview.diff.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-extrabold text-[#24473d]">Xem trước thay đổi ({sheetPreview.diff.length} danh mục):</p>
+                    <div className="max-h-60 overflow-y-auto rounded-xl border border-[#e8dfd1] bg-white">
+                      <table className="w-full text-left border-collapse text-xs">
+                        <thead>
+                          <tr className="bg-[#faf6ef] border-b border-[#e8dfd1] text-[#69726b] font-bold uppercase">
+                            <th className="p-3">Hành động</th>
+                            <th className="p-3">Key</th>
+                            <th className="p-3">Tên tiếng Việt</th>
+                            <th className="p-3">Chi tiết thay đổi</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#e8dfd1]/60">
+                          {sheetPreview.diff.map((d, i) => (
+                            <tr key={i} className="hover:bg-[#faf6ef]/50">
+                              <td className="p-3 font-extrabold">
+                                {d.action === "create" && <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Tạo mới</span>}
+                                {d.action === "update" && <span className="text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">Cập nhật</span>}
+                                {d.action === "disable" && <span className="text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">Gỡ bỏ / Tắt</span>}
+                                {d.action === "unchanged" && <span className="text-slate-600 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">Không đổi</span>}
+                              </td>
+                              <td className="p-3 font-mono font-bold text-[#17201b]">{d.key || "—"}</td>
+                              <td className="p-3 font-bold text-[#17201b]">
+                                {String((d.payload as Record<string, unknown> | undefined)?.nameVi ?? d.label ?? "—")}
+                              </td>
+                              <td className="p-3 text-[#525b54]">
+                                {d.changes ? (
+                                  <div className="space-y-0.5">
+                                    {Object.entries(d.changes).map(([field, change]) => (
+                                      <div key={field} className="font-mono">
+                                        <span className="font-bold">{field}:</span> {change.from} &rarr; <span className="font-bold text-amber-800">{change.to}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  "—"
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Commit Action */}
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={handleCommitSheet}
+                    disabled={commitMutation.isPending || sheetPreview.summary.errors > 0}
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-[#24473d] px-7 py-3 text-sm font-bold text-[#fff8e8] shadow-md shadow-[#24473d]/20 hover:bg-[#1a352d] disabled:opacity-50 transition-all"
+                  >
+                    <VsIcon name={commitMutation.isPending ? "progress_activity" : "check_circle"} className={`text-lg ${commitMutation.isPending ? "animate-spin" : ""}`} />
+                    {commitMutation.isPending ? "Đang áp dụng..." : "Áp dụng thay đổi"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           <DataTable
             columns={[
               {
@@ -897,13 +1215,7 @@ export function MarketplaceAdminClient() {
                   </div>
                 ),
               },
-              {
-                key: "nameEn",
-                header: <span className="text-xs font-black uppercase tracking-wider text-[#24473d]">TÊN TIẾNG ANH (ENGLISH NAME)</span>,
-                cell: (item: MarketplaceCategory) => (
-                  <span className="text-base font-semibold text-[#525b54]">{item.nameEn}</span>
-                ),
-              },
+
               {
                 key: "code",
                 header: <span className="text-xs font-black uppercase tracking-wider text-[#24473d]">MÃ DANH MỤC</span>,
@@ -962,6 +1274,18 @@ export function MarketplaceAdminClient() {
                       <VsIcon name={item.isActive ? "visibility_off" : "visibility"} className="text-base" />
                       {item.isActive ? "Tạm tắt" : "Kích hoạt"}
                     </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteCategory(item);
+                      }}
+                      disabled={deleteCategoryMutation.isPending}
+                      className="inline-flex min-h-[38px] items-center gap-1.5 rounded-full border border-rose-300 bg-rose-50/60 px-4 py-1.5 text-sm font-bold text-rose-800 shadow-2xs transition-all hover:border-rose-400 hover:bg-rose-100 disabled:opacity-50"
+                    >
+                      <VsIcon name="delete" className="text-base text-rose-600" />
+                      Xóa
+                    </button>
                   </div>
                 ),
               },
@@ -969,8 +1293,7 @@ export function MarketplaceAdminClient() {
             data={filteredCategories}
             getRowKey={(item) => item.id}
             onRowClick={(item) => {
-              setFormValidationError(null);
-              setEditingCategory(item);
+              setSelectedCategoryDetail({ category: item, activeLang: "en" });
             }}
             emptyMessage="Chưa có danh mục dịch vụ nào được tạo"
             pagination={{
@@ -1241,7 +1564,7 @@ export function MarketplaceAdminClient() {
                   <VsIcon name="add_circle" className="text-3xl" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-extrabold text-[#24473d]">Thêm danh mục dịch vụ</h2>
+                  <h2 className="text-2xl font-extrabold text-[#24473d]">Thêm danh mục</h2>
                   <p className="text-sm font-medium text-[#69726b]">Tạo phân loại dịch vụ mới trên hệ thống Marketplace</p>
                 </div>
               </div>
@@ -1279,17 +1602,65 @@ export function MarketplaceAdminClient() {
                 />
               </div>
 
-              <div>
-                <label htmlFor="modal-cat-name-en" className={labelClass}>
-                  Tên tiếng Anh (English Name)
-                </label>
-                <input
-                  id="modal-cat-name-en"
-                  required
-                  name="nameEn"
-                  placeholder="Ví dụ: Restaurant & Dining"
-                  className={inputClass}
-                />
+              <div className="space-y-3 pt-2">
+                <p className="text-xs font-black uppercase tracking-wider text-[#24473d]">Tên đa ngôn ngữ khác (Tùy chọn)</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="modal-cat-name-en" className={labelClass}>
+                      🇬🇧 Tiếng Anh
+                    </label>
+                    <input
+                      id="modal-cat-name-en"
+                      name="nameEn"
+                      placeholder="Ví dụ: Restaurant & Dining"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="modal-cat-name-zh" className={labelClass}>
+                      🇨🇳 Tiếng Trung
+                    </label>
+                    <input
+                      id="modal-cat-name-zh"
+                      name="nameZh"
+                      placeholder="Ví dụ: 餐厅与美食"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="modal-cat-name-ko" className={labelClass}>
+                      🇰🇷 Tiếng Hàn
+                    </label>
+                    <input
+                      id="modal-cat-name-ko"
+                      name="nameKo"
+                      placeholder="Ví dụ: 레스토랑 및 요리"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="modal-cat-name-ru" className={labelClass}>
+                      🇷🇺 Tiếng Nga
+                    </label>
+                    <input
+                      id="modal-cat-name-ru"
+                      name="nameRu"
+                      placeholder="Ví dụ: Рестораны и кухня"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label htmlFor="modal-cat-name-hi" className={labelClass}>
+                      🇮🇳 Tiếng Ấn Độ
+                    </label>
+                    <input
+                      id="modal-cat-name-hi"
+                      name="nameHi"
+                      placeholder="Ví dụ: रेस्तरां और व्यंजन"
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-5 border-t border-[#e8dfd1]">
@@ -1319,14 +1690,14 @@ export function MarketplaceAdminClient() {
       {/* Modal 4: Edit Service Category */}
       {editingCategory && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#17201b]/60 p-4 backdrop-blur-md animate-in fade-in duration-150">
-          <div className="w-full max-w-md rounded-[1.6rem] border border-[#e8dfd1] bg-[#fffcf8] p-7 shadow-[0_24px_50px_rgba(23,32,27,0.15)] space-y-6">
+          <div className="w-full max-w-lg rounded-[1.6rem] border border-[#e8dfd1] bg-[#fffcf8] p-7 shadow-[0_24px_50px_rgba(23,32,27,0.15)] space-y-6">
             <div className="flex items-center justify-between border-b border-[#e8dfd1] pb-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#24473d] text-[#e8b363]">
                   <VsIcon name="edit" className="text-3xl" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-extrabold text-[#24473d]">Cập nhật danh mục dịch vụ</h2>
+                  <h2 className="text-2xl font-extrabold text-[#24473d]">Cập nhật danh mục</h2>
                   <p className="text-sm font-bold text-[#69726b]">{editingCategory.code}</p>
                 </div>
               </div>
@@ -1364,17 +1735,65 @@ export function MarketplaceAdminClient() {
                 />
               </div>
 
-              <div>
-                <label htmlFor="edit-cat-name-en" className={labelClass}>
-                  Tên tiếng Anh (English Name)
-                </label>
-                <input
-                  id="edit-cat-name-en"
-                  required
-                  name="nameEn"
-                  defaultValue={editingCategory.nameEn}
-                  className={inputClass}
-                />
+              <div className="space-y-3 pt-2">
+                <p className="text-xs font-black uppercase tracking-wider text-[#24473d]">Tên đa ngôn ngữ khác (Tùy chọn)</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="edit-cat-name-en" className={labelClass}>
+                      🇬🇧 Tiếng Anh
+                    </label>
+                    <input
+                      id="edit-cat-name-en"
+                      name="nameEn"
+                      defaultValue={editingCategory.translations?.find((t) => t.locale === "en")?.name ?? ""}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="edit-cat-name-zh" className={labelClass}>
+                      🇨🇳 Tiếng Trung
+                    </label>
+                    <input
+                      id="edit-cat-name-zh"
+                      name="nameZh"
+                      defaultValue={editingCategory.translations?.find((t) => t.locale === "zh")?.name ?? ""}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="edit-cat-name-ko" className={labelClass}>
+                      🇰🇷 Tiếng Hàn
+                    </label>
+                    <input
+                      id="edit-cat-name-ko"
+                      name="nameKo"
+                      defaultValue={editingCategory.translations?.find((t) => t.locale === "ko")?.name ?? ""}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="edit-cat-name-ru" className={labelClass}>
+                      🇷🇺 Tiếng Nga
+                    </label>
+                    <input
+                      id="edit-cat-name-ru"
+                      name="nameRu"
+                      defaultValue={editingCategory.translations?.find((t) => t.locale === "ru")?.name ?? ""}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label htmlFor="edit-cat-name-hi" className={labelClass}>
+                      🇮🇳 Tiếng Ấn Độ
+                    </label>
+                    <input
+                      id="edit-cat-name-hi"
+                      name="nameHi"
+                      defaultValue={editingCategory.translations?.find((t) => t.locale === "hi")?.name ?? ""}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-5 border-t border-[#e8dfd1]">
@@ -1401,7 +1820,113 @@ export function MarketplaceAdminClient() {
         </div>
       )}
 
-      {/* Modal 5: View Partner Details */}
+      {/* Modal 5: Category Details View Modal with Language Switcher Buttons */}
+      {selectedCategoryDetail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#17201b]/60 p-4 backdrop-blur-md animate-in fade-in duration-150">
+          <div className="w-full max-w-lg rounded-[1.6rem] border border-[#e8dfd1] bg-[#fffcf8] p-7 shadow-[0_24px_50px_rgba(23,32,27,0.15)] space-y-6">
+            <div className="flex items-center justify-between border-b border-[#e8dfd1] pb-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#24473d] text-[#e8b363]">
+                  <VsIcon name="storefront" className="text-3xl" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-extrabold text-[#24473d]">{selectedCategoryDetail.category.nameVi}</h2>
+                  <p className="text-sm font-bold text-[#8c5e1a]">{selectedCategoryDetail.category.code}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedCategoryDetail(null)}
+                className="rounded-full p-2 text-[#69726b] hover:bg-[#f4efe6] hover:text-[#17201b] transition-colors"
+                aria-label="Đóng cửa sổ"
+              >
+                <VsIcon name="close" className="text-2xl" />
+              </button>
+            </div>
+
+            {/* Language Switcher Button Bar */}
+            <div className="space-y-3">
+              <p className="text-xs font-black uppercase tracking-wider text-[#24473d]">CHỌN NGÔN NGỮ HIỂN THỊ (LANGUAGE CODES)</p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { code: "en", flag: "🇬🇧", label: "EN — English" },
+                  { code: "zh", flag: "🇨🇳", label: "ZH — Chinese" },
+                  { code: "ko", flag: "🇰🇷", label: "KO — Korean" },
+                  { code: "ru", flag: "🇷🇺", label: "RU — Russian" },
+                  { code: "hi", flag: "🇮🇳", label: "HI — Hindi" },
+                ].map((l) => {
+                  const isActive = selectedCategoryDetail.activeLang === l.code;
+                  const langName = selectedCategoryDetail.category.translations?.find((t) => t.locale === l.code)?.name;
+                  const hasVal = Boolean(langName);
+
+                  return (
+                    <button
+                      key={l.code}
+                      type="button"
+                      onClick={() =>
+                        setSelectedCategoryDetail({
+                          ...selectedCategoryDetail,
+                          activeLang: l.code as "en" | "zh" | "ko" | "ru" | "hi",
+                        })
+                      }
+                      className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-extrabold transition-all shadow-xs ${
+                        isActive
+                          ? "bg-[#24473d] text-[#e8b363] border-2 border-[#e8b363] scale-105 shadow-md"
+                          : hasVal
+                            ? "bg-[#fffdf5] text-[#8c5e1a] border border-[#d4af37]/60 hover:bg-[#fcf6ea]"
+                            : "bg-slate-100 text-slate-400 border border-slate-200 opacity-60 hover:opacity-100"
+                      }`}
+                    >
+                      <span>{l.flag}</span>
+                      <span>{l.code.toUpperCase()}</span>
+                      {hasVal && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Dynamic Content Display Box */}
+            <div className="rounded-2xl border border-[#eddab9] bg-[#fcf6ea]/70 p-5 space-y-2">
+              <div className="flex items-center justify-between text-xs font-extrabold text-[#8c5e1a]">
+                <span>NỘI DUNG TÊN DANH MỤC (DỊCH THUẬT)</span>
+                <span className="uppercase font-mono bg-[#8c5e1a]/10 px-2 py-0.5 rounded">
+                  NGÔN NGỮ: {selectedCategoryDetail.activeLang.toUpperCase()}
+                </span>
+              </div>
+              <p className="text-xl font-black text-[#17201b]">
+                {selectedCategoryDetail.category.translations?.find((t) => t.locale === selectedCategoryDetail.activeLang)?.name || (
+                  <em className="text-base font-medium text-[#8c857d] not-italic">Chưa có dịch thuật cho ngôn ngữ này</em>
+                )}
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between pt-4 border-t border-[#e8dfd1]">
+              <button
+                type="button"
+                onClick={() => setSelectedCategoryDetail(null)}
+                className="h-11 rounded-full border border-[#dcd1bf] bg-white px-6 text-sm font-bold text-[#24473d] hover:bg-[#f5efe4] transition-colors"
+              >
+                Đóng
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const cat = selectedCategoryDetail.category;
+                  setSelectedCategoryDetail(null);
+                  setEditingCategory(cat);
+                }}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#24473d] px-6 text-sm font-bold text-[#fff8e8] hover:bg-[#1a352d] transition-colors shadow-md shadow-[#24473d]/20"
+              >
+                <VsIcon name="edit" className="text-base" />
+                Chỉnh sửa danh mục này
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 6: View Partner Details */}
       {selectedPartnerDetails && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#17201b]/60 p-4 backdrop-blur-md animate-in fade-in duration-150">
           <div className="w-full max-w-md rounded-[1.6rem] border border-[#e8dfd1] bg-[#fffcf8] p-7 shadow-[0_24px_50px_rgba(23,32,27,0.15)] space-y-6">

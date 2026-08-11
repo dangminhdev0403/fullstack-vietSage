@@ -8,12 +8,36 @@ export type ServiceTenant = {
   ownerFullName?: string | null;
   serviceProfile: { displayName: string; status: string } | null;
 };
+export type MarketplaceCategorySheetPreview = {
+  workbookHash: string;
+  summary: { creates?: number; create?: number; updates?: number; update?: number; disables?: number; disable?: number; unchanged: number; errors: number };
+  validation: Array<{
+    sheet: string;
+    row: number;
+    col: string;
+    value: string;
+    message: string;
+    severity: "error" | "warning";
+  }>;
+  diff: Array<{
+    key: string;
+    action: "create" | "update" | "disable" | "unchanged";
+    changes?: Array<{ field: string; from?: unknown; to?: unknown }> | Record<string, { from: string; to: string }>;
+    payload?: Record<string, unknown>;
+    label?: string;
+  }>;
+};
+
 export type MarketplaceAdminData = {
   categories: MarketplaceCategory[];
   tenants: ServiceTenant[];
 };
+
 export type MarketplaceAdminAction =
-  | { action: "category"; input: { nameVi: string; nameEn: string; sortOrder: number; isActive: boolean } }
+  | { action: "category"; input: { nameVi: string; sortOrder: number; isActive: boolean; translations?: Record<string, string> } }
   | { action: "tenant"; input: { displayName: string; owner: { email: string; fullName: string; password: string } } }
-  | { action: "updateCategory"; id: string; input: { nameVi?: string; nameEn?: string; isActive?: boolean } }
-  | { action: "updateTenant"; id: string; input: { displayName?: string; status?: string; owner?: { email?: string; fullName?: string; password?: string } } };
+  | { action: "updateCategory"; id: string; input: { nameVi?: string; isActive?: boolean; translations?: Record<string, string> } }
+  | { action: "deleteCategory"; id: string }
+  | { action: "updateTenant"; id: string; input: { displayName?: string; status?: string; owner?: { email?: string; fullName?: string; password?: string } } }
+  | { action: "previewImport"; spreadsheetUrl: string }
+  | { action: "commitImport"; spreadsheetUrl: string; expectedHash: string };

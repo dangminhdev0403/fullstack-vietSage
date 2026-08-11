@@ -1,10 +1,17 @@
-import { Body, Controller, Get, Param, Patch, Post, Req } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Header, Param, Patch, Post, Req } from "@nestjs/common";
 import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
 import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
 import type { RequestWithRequiredUser } from "../../../shared/security/request-with-authenticated-user";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { ImportTemplateService } from "../../../common/import/import-template.service";
 import { MarketplaceAdminService } from "../application/marketplace-admin.service";
+import { MarketplaceCategorySheetService } from "../application/marketplace-category-sheet.service";
+import { MarketplaceCategoryImportAdapter } from "../infrastructure/imports/marketplace-category-import.adapter";
+import {
+  categorySheetCommitInputSchema,
+  categorySheetInputSchema,
+} from "../domain/marketplace-category-import.schema";
 import {
   marketplaceCategoryBodySchema,
   marketplaceCategoryUpdateSchema,
@@ -15,7 +22,12 @@ import {
 
 @Controller("admin/marketplace")
 export class MarketplaceAdminController {
-  constructor(private readonly service: MarketplaceAdminService) {}
+  constructor(
+    private readonly service: MarketplaceAdminService,
+    private readonly sheetService: MarketplaceCategorySheetService,
+    private readonly templateService: ImportTemplateService,
+    private readonly categoryAdapter: MarketplaceCategoryImportAdapter,
+  ) {}
 
   @RequirePermission("platform.marketplace.view")
   @SuccessMessage("Lấy danh mục Marketplace thành công")
@@ -23,6 +35,34 @@ export class MarketplaceAdminController {
   @Get("categories")
   categories() {
     return this.service.listCategories();
+  }
+
+  @RequirePermission("platform.marketplace.manage")
+  @Header("Content-Type", "text/csv; charset=utf-8")
+  @Header("Content-Disposition", 'attachment; filename="marketplace_categories_template.csv"')
+  @ApiDescript("Tải file mẫu CSV danh mục Marketplace")
+  @Get("categories/import/template")
+  categoryImportTemplate() {
+    const csvs = this.templateService.toCsvSheets(this.categoryAdapter.getSchema());
+    return "\uFEFF" + (csvs.categories ?? "");
+  }
+
+  @RequirePermission("platform.marketplace.manage")
+  @SuccessMessage("Xem trước dữ liệu danh mục Google Sheets thành công")
+  @ApiDescript("Xem trước dữ liệu danh mục Google Sheets Marketplace")
+  @Post("categories/import/preview")
+  previewCategoryImport(@Req() req: RequestWithRequiredUser, @Body() body: unknown) {
+    const parsed = parseWithZod(categorySheetInputSchema, body);
+    return this.sheetService.preview(parsed.spreadsheetUrl, req.user.userId);
+  }
+
+  @RequirePermission("platform.marketplace.manage")
+  @SuccessMessage("Nhập danh mục từ Google Sheets thành công")
+  @ApiDescript("Nhập danh mục từ Google Sheets Marketplace")
+  @Post("categories/import/commit")
+  commitCategoryImport(@Req() req: RequestWithRequiredUser, @Body() body: unknown) {
+    const parsed = parseWithZod(categorySheetCommitInputSchema, body);
+    return this.sheetService.commit(parsed.spreadsheetUrl, parsed.expectedHash, req.user.userId);
   }
 
   @RequirePermission("platform.marketplace.manage")
@@ -50,6 +90,14 @@ export class MarketplaceAdminController {
       parseWithZod(marketplaceIdSchema, id),
       parseWithZod(marketplaceCategoryUpdateSchema, body),
     );
+  }
+
+  @RequirePermission("platform.marketplace.manage")
+  @SuccessMessage("Xóa danh mục Marketplace thành công")
+  @ApiDescript("Xóa hẳn (Hard delete) danh mục Marketplace")
+  @Delete("categories/:categoryId")
+  deleteCategory(@Req() req: RequestWithRequiredUser, @Param("categoryId") id: string) {
+    return this.service.deleteCategory(req.user.userId, parseWithZod(marketplaceIdSchema, id));
   }
 
   @RequirePermission("platform.marketplace.view")

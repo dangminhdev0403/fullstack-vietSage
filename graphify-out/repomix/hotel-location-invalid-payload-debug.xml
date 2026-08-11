@@ -1,0 +1,462 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: services/auth-service/src/modules/property/domain/schemas/hotel.schema.ts, services/auth-service/src/modules/property/api/hotels.controller.ts, services/auth-service/src/modules/property/application/hotels.service.ts, frontends/front-end-vietsage/src/features/admin/service/admin-service.ts, frontends/front-end-vietsage/src/features/admin/types/admin-contract.ts, frontends/front-end-vietsage/src/app/api/admin/hotels/[hotelId]/route.ts, frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/owner-hotel-detail-client.tsx, frontends/front-end-vietsage/src/app/(vietsage)/admin/hotels/hotels-admin-client.tsx
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    src/
+      app/
+        (vietsage)/
+          admin/
+            hotels/
+              hotels-admin-client.tsx
+          owner/
+            (hotel)/
+              hotels/
+                [hotelId]/
+                  owner-hotel-detail-client.tsx
+        api/
+          admin/
+            hotels/
+              [hotelId]/
+                route.ts
+      features/
+        admin/
+          service/
+            admin-service.ts
+          types/
+            admin-contract.ts
+services/
+  auth-service/
+    src/
+      modules/
+        property/
+          api/
+            hotels.controller.ts
+          application/
+            hotels.service.ts
+          domain/
+            schemas/
+              hotel.schema.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="frontends/front-end-vietsage/src/features/admin/service/admin-service.ts">
+import { unwrapApiEnvelope } from "@/core/http/api-envelope";
+import { HttpClient, type HttpQuery, type HttpMethod } from "@/core/http/http-client";
+import { httpServer } from "@/core/http/http-server";
+import type {
+  CreateHotelInput,
+  Hotel,
+  HotelListQuery,
+  HotelsPage,
+  TenantOption,
+  TenantOwner,
+  TenantOwnerCreateInput,
+  TenantOwnerListQuery,
+  TenantOwnerPage,
+  TenantOwnerUpdateInput,
+  UpdateHotelInput,
+} from "@/features/admin/types/admin-contract";
+import { readServerSessionTokens } from "@/libs/server-session-tokens";
+⋮----
+export type AdminServiceOptions = {
+  baseUrl: string;
+  timeoutMs?: number;
+};
+⋮----
+type TemporaryPasswordResult = {
+  userId: string;
+  temporaryPassword: string;
+  resetAt: string;
+};
+⋮----
+export class AdminService {
+⋮----
+constructor(options: AdminServiceOptions)
+⋮----
+private async authenticatedRequest<TResponse, TBody = unknown>(options: {
+    method: HttpMethod;
+    path: string;
+    body?: TBody;
+    query?: HttpQuery;
+    accessToken?: string;
+}): Promise<TResponse>
+⋮----
+async listTenantOwners(options:
+⋮----
+async listTenantOptions(accessToken?: string): Promise<TenantOption[]>
+⋮----
+async getTenantOwner(tenantOwnerId: string, accessToken?: string): Promise<TenantOwner>
+⋮----
+async createTenantOwner(body: TenantOwnerCreateInput, accessToken?: string): Promise<TenantOwner>
+⋮----
+async updateTenantOwner(tenantOwnerId: string, body: TenantOwnerUpdateInput, accessToken?: string): Promise<TenantOwner>
+⋮----
+async resetTenantOwnerPassword(
+    tenantOwnerId: string,
+    accessToken?: string,
+): Promise<TemporaryPasswordResult>
+⋮----
+async listHotels(options:
+⋮----
+async createHotel(body: CreateHotelInput, accessToken?: string): Promise<Hotel>
+⋮----
+async getHotel(hotelId: string, accessToken?: string): Promise<Hotel>
+⋮----
+async updateHotel(hotelId: string, body: UpdateHotelInput, accessToken?: string): Promise<Hotel>
+⋮----
+export function createAdminService(options: AdminServiceOptions): AdminService
+</file>
+
+<file path="services/auth-service/src/modules/property/api/hotels.controller.ts">
+import { Body, Controller, Get, Headers, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import {
+  ApiBody,
+  ApiCreatedResponse,
+  ApiHeader,
+  ApiOkResponse,
+  ApiParam,
+  ApiQuery,
+  ApiTags,
+} from "@nestjs/swagger";
+import type { Request } from "express";
+import {
+  createHotelBodySchema as createHotelBodyOpenApiSchema,
+  hotelDataSchema,
+  listHotelsDataSchema,
+  successEnvelopeSchema,
+  updateHotelBodySchema as updateHotelBodyOpenApiSchema,
+} from "../../../common/openapi/contract-schemas";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
+import type { AuthenticatedUser } from "../../../shared/security";
+import { HotelsService } from "../application/hotels.service";
+import {
+  createHotelBodySchema,
+  listHotelsQuerySchema,
+  updateHotelBodySchema,
+} from "../domain/schemas/hotel.schema";
+import { hotelIdParamSchema } from "../domain/schemas/shared.schema";
+⋮----
+interface RequestWithUser extends Request {
+  user: AuthenticatedUser;
+}
+⋮----
+export class HotelsController {
+⋮----
+constructor(private readonly hotelsService: HotelsService)
+⋮----
+async createHotel(@Req() request: RequestWithUser, @Body() body: unknown)
+⋮----
+async listHotels(
+    @Req() request: RequestWithUser,
+    @Headers("x-tenant-id") tenantIdHeader: string | undefined,
+    @Query() query: unknown,
+)
+⋮----
+async getHotel(@Req() request: RequestWithUser, @Param("hotelId") hotelIdParam: string)
+⋮----
+async updateHotel(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Body() body: unknown,
+)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/api/admin/hotels/[hotelId]/route.ts">
+import { z } from "zod";
+⋮----
+import { HttpError } from "@/core/http/http-error";
+import { adminService } from "@/features/admin/service/admin-service-instance";
+⋮----
+import {
+  httpErrorResponse,
+  successResponse,
+  unknownServerErrorResponse,
+  validationErrorResponse,
+} from "../../_utils";
+⋮----
+type HotelParams = {
+  params: Promise<{ hotelId: string }>;
+};
+⋮----
+export async function GET(_request: Request, context: HotelParams)
+⋮----
+export async function PATCH(request: Request, context: HotelParams)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/owner-hotel-detail-client.tsx">
+import { type FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
+import { SwalVietSage } from "@/libs/swal";
+⋮----
+import { HttpError } from "@/core/http/http-error";
+import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import type { Hotel } from "@/features/admin/types/admin-contract";
+import { LocationFields, type LocationValue } from "@/features/marketplace/components/location-fields";
+⋮----
+type OwnerHotelDetailClientProps = {
+  hotel: Readonly<Hotel>;
+};
+⋮----
+type FormState = {
+  name: string;
+  status: "ACTIVE" | "DISABLED";
+};
+⋮----
+function toApiErrorMessage(data: unknown): string
+⋮----
+function locationFromHotel(hotel: Readonly<Hotel>): LocationValue
+⋮----
+function handleReset()
+⋮----
+async function submitHotel(event: FormEvent<HTMLFormElement>)
+⋮----
+{/* Top Banner & Header */}
+⋮----
+{/* Main Operational Settings Card */}
+⋮----
+{/* Location Settings Card */}
+⋮----
+{/* Submit Action Bar */}
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/admin/types/admin-contract.ts">
+import type { operations } from "@/generated/openapi/v1";
+⋮----
+export type AdminPage<TItem> = {
+  page: number;
+  limit: number;
+  total: number;
+  items: TItem[];
+};
+⋮----
+export type TenantOwnerListQuery = NonNullable<
+  operations["TenantOwnersController_listTenantOwners"]["parameters"]["query"]
+>;
+export type TenantOwnerPage = operations["TenantOwnersController_listTenantOwners"]["responses"][200]["content"]["application/json"]["data"];
+export type TenantOwner = TenantOwnerPage["items"][number];
+export type TenantOwnerCreateInput = operations["TenantOwnersController_createTenantOwner"]["requestBody"]["content"]["application/json"];
+export type TenantOwnerUpdateInput = operations["TenantOwnersController_updateTenantOwner"]["requestBody"]["content"]["application/json"];
+⋮----
+export type TenantSummary = TenantOwner["tenant"];
+export type TenantOption = { id: string; code: string; name: string };
+⋮----
+export type HotelListQuery = {
+  q?: string;
+  limit?: number;
+  page?: number;
+  tenantId?: string;
+};
+⋮----
+export type Hotel = {
+  id: string;
+  tenantId: string;
+  code?: string | null;
+  name: string;
+  timezone?: string | null;
+  status?: string | null;
+  brandSettings?: Record<string, unknown> | null;
+  googleSheetId?: string | null;
+  googleMapsUrl?: string | null;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
+  locationAccuracyMeters?: number | null;
+  locationSource?: "DEVICE_GEOLOCATION" | "GOOGLE_MAPS_URL" | "MANUAL" | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  tenant?: TenantSummary | null;
+};
+⋮----
+export type CreateHotelInput = {
+  tenantId?: string;
+  name: string;
+  timezone?: string;
+  brandSettings?: Record<string, unknown>;
+  googleSheetUrl?: string;
+};
+⋮----
+export type UpdateHotelInput = {
+  name?: string;
+  timezone?: string;
+  brandSettings?: Record<string, unknown> | null;
+  status?: "ACTIVE" | "DISABLED";
+  googleSheetUrl?: string | null;
+  googleMapsUrl?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  locationAccuracyMeters?: number | null;
+  locationSource?: "DEVICE_GEOLOCATION" | "GOOGLE_MAPS_URL" | "MANUAL" | null;
+};
+⋮----
+export type HotelsPage = AdminPage<Hotel>;
+</file>
+
+<file path="services/auth-service/src/modules/property/domain/schemas/hotel.schema.ts">
+import { HotelStatus, MarketplaceLocationSource } from "@prisma/client";
+import { z } from "zod";
+import { jsonRecordSchema } from "./shared.schema";
+⋮----
+export function parseGoogleSheetId(value: string): string
+⋮----
+export type CreateHotelBodyInput = z.infer<typeof createHotelBodySchema>;
+export type ListHotelsQueryInput = z.infer<typeof listHotelsQuerySchema>;
+export type UpdateHotelBodyInput = z.infer<typeof updateHotelBodySchema>;
+</file>
+
+<file path="services/auth-service/src/modules/property/application/hotels.service.ts">
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { HotelStatus, Prisma } from "@prisma/client";
+import { AppLogger } from "../../../common/logging/app-logger.service";
+import { CodesService } from "../../codes/codes-public";
+import { HotelAccessService } from "./hotel-access.service";
+import { HotelCoreRepository } from "../infrastructure/repositories/hotel-core.repository";
+import type { HotelDetailRow } from "../infrastructure/repositories/hotel-repository.types";
+import type {
+  CreateHotelBodyInput,
+  ListHotelsQueryInput,
+  UpdateHotelBodyInput,
+} from "../domain/schemas/hotel.schema";
+import { GoogleSheetsServiceCatalogSyncService } from "../infrastructure/imports/google-sheets-service-catalog-sync.service";
+⋮----
+export class HotelsService {
+⋮----
+constructor(
+async createHotel(actorUserId: string, activeRoleId: string, dto: CreateHotelBodyInput)
+⋮----
+async listHotels(actorUserId: string, activeRoleId: string, query: ListHotelsQueryInput)
+⋮----
+async getHotel(actorUserId: string, activeRoleId: string, hotelId: string)
+⋮----
+async updateHotel(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    dto: UpdateHotelBodyInput,
+)
+⋮----
+private logBusinessEvent(
+    message: string,
+    event: string,
+    operation: string,
+    metadata: Record<string, unknown>,
+): void
+⋮----
+private toHotelData(row: HotelDetailRow)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/admin/hotels/hotels-admin-client.tsx">
+import { type FormEvent, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import Swal from "sweetalert2";
+import { z } from "zod";
+⋮----
+import { HttpError } from "@/core/http/http-error";
+import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import type { Hotel, TenantOwner, TenantSummary } from "@/features/admin/types/admin-contract";
+import { useAdminGoogleSheetConfig } from "@/features/hotel-ops/queries/use-google-sheet-config";
+import { LocationFields, type LocationValue } from "@/features/marketplace/components/location-fields";
+⋮----
+import { VsIcon } from "../../_components/vs-icon";
+⋮----
+type HotelsAdminClientProps = {
+  initialHotels: Hotel[];
+  initialTenantOwners: TenantOwner[];
+  total: number;
+};
+⋮----
+type TenantOption = {
+  id: string;
+  name: string;
+  code: string;
+};
+⋮----
+type HotelFormState = LocationValue & {
+  tenantId: string;
+  name: string;
+  status: "ACTIVE" | "DISABLED";
+  googleSheetUrl: string;
+};
+⋮----
+type FormMode = "create" | "edit";
+⋮----
+function isValidTenant(tenant: TenantSummary | null | undefined): tenant is TenantSummary
+⋮----
+function formatTenantDisplayName(name: string, code: string): string
+⋮----
+function buildTenantOptions(tenantOwners: readonly TenantOwner[]): TenantOption[]
+⋮----
+function formatDate(value: string | null | undefined): string
+⋮----
+function tenantLabel(tenantId: string, tenantOptions: readonly TenantOption[]): string
+⋮----
+function hotelToForm(hotel: Hotel): HotelFormState
+⋮----
+function toApiErrorMessage(payload: unknown): string
+⋮----
+async function requestJson<TData>(path: string, options:
+⋮----
+async function confirmHotelSave(mode: FormMode, hotelName: string, tenantName: string): Promise<boolean>
+⋮----
+function openCreateDialog()
+⋮----
+async function openEditDialog(hotel: Hotel)
+⋮----
+function closeDialog()
+⋮----
+async function submitHotel(event: FormEvent<HTMLFormElement>)
+⋮----
+<td className="px-6 py-4.5 align-middle text-xs font-medium text-[#69726b]">
+</file>
+
+</files>

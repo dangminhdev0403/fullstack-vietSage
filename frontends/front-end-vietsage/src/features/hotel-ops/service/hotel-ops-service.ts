@@ -339,16 +339,50 @@ export class HotelOpsService {
 
   async syncServiceCatalogFromGoogleSheets(
     hotelId: string,
+    body?: unknown,
     options: AuthRequestOptions = {},
   ) {
     const payload = await this.httpClient.request<unknown>({
       method: "POST",
       path: hotelPath(hotelId, "/service-catalog/sync"),
+      body,
       accessToken: options.accessToken,
       accessTokenExpiresAt: options.accessTokenExpiresAt,
     });
 
     return parseServiceCatalogSyncResponse(payload);
+  }
+
+  async previewServiceCatalogImport(
+    hotelId: string,
+    body: { spreadsheetUrl: string; mode?: string },
+    options: AuthRequestOptions = {},
+  ) {
+    const payload = await this.httpClient.request<unknown>({
+      method: "POST",
+      path: hotelPath(hotelId, "/service-catalog/import/preview"),
+      body,
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+
+    return unwrapApiEnvelope(payload).data;
+  }
+
+  async commitServiceCatalogImport(
+    hotelId: string,
+    body: { spreadsheetUrl: string; expectedHash: string; mode?: string },
+    options: AuthRequestOptions = {},
+  ) {
+    const payload = await this.httpClient.request<unknown>({
+      method: "POST",
+      path: hotelPath(hotelId, "/service-catalog/import/commit"),
+      body,
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+
+    return unwrapApiEnvelope(payload).data;
   }
 
   async getHotel(

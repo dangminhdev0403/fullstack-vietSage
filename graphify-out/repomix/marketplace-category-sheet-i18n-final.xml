@@ -1,0 +1,954 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: services/auth-service/src/modules/marketplace/**/*, frontends/front-end-vietsage/src/features/marketplace-admin/**/*, frontends/front-end-vietsage/src/app/api/admin/marketplace/**/*
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    src/
+      app/
+        api/
+          admin/
+            marketplace/
+              categories/
+                import/
+                  template/
+                    route.ts
+              route.ts
+      features/
+        marketplace-admin/
+          client.ts
+          marketplace-admin-client.tsx
+          repository.ts
+          resource.ts
+          types.ts
+services/
+  auth-service/
+    src/
+      modules/
+        marketplace/
+          api/
+            guest-marketplace.controller.ts
+            hotel-marketplace.controller.ts
+            marketplace-admin.controller.ts
+            service-portal.controller.ts
+          application/
+            guest-marketplace.service.ts
+            marketplace-admin.service.ts
+            marketplace-category-sheet.service.ts
+            marketplace-order.service.ts
+            service-portal.service.ts
+          domain/
+            guest-marketplace.schema.ts
+            marketplace-admin.schema.ts
+            marketplace-category-import.schema.ts
+            marketplace-order-transitions.ts
+            marketplace-order.schema.ts
+            service-portal.schema.ts
+          infrastructure/
+            imports/
+              marketplace-category-import.adapter.ts
+          tests/
+            guest-marketplace.service.spec.ts
+            hotel-location.schema.spec.ts
+            marketplace-admin.service.spec.ts
+            marketplace-category-import-migration.spec.ts
+            marketplace-category-import.adapter.spec.ts
+            marketplace-category-sheet.service.spec.ts
+            marketplace-order.service.spec.ts
+            marketplace-orders-migration.spec.ts
+            service-portal.service.spec.ts
+          marketplace.module.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="frontends/front-end-vietsage/src/app/api/admin/marketplace/categories/import/template/route.ts">
+import { executeHotelOpsBackendRequest } from "@/app/api/hotel-ops/_utils";
+import { HttpError } from "@/core/http/http-error";
+import { marketplaceAdminClient } from "@/features/marketplace-admin/client";
+import { httpErrorResponse, unknownServerErrorResponse } from "../../../../_utils";
+⋮----
+export async function GET()
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/application/marketplace-category-sheet.service.ts">
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import crypto from "node:crypto";
+import { google } from "googleapis";
+import { ImportService } from "../../../common/import/import.service";
+import { ParsedImportRow, ParsedImportWorkbook } from "../../../common/import/import.types";
+⋮----
+export class MarketplaceCategorySheetService
+⋮----
+constructor(private readonly importService: ImportService)
+⋮----
+extractSpreadsheetId(url: string): string
+⋮----
+computeWorkbookHash(workbook: ParsedImportWorkbook): string
+⋮----
+async preview(spreadsheetUrl: string, actorUserId: string)
+⋮----
+async commit(spreadsheetUrl: string, expectedHash: string, actorUserId: string)
+⋮----
+private async readWorkbook(spreadsheetId: string): Promise<ParsedImportWorkbook>
+⋮----
+private toGoogleSheetsError(error: unknown): Error
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/domain/marketplace-category-import.schema.ts">
+import { z } from "zod";
+⋮----
+export type CategorySheetInput = z.infer<typeof categorySheetInputSchema>;
+export type CategorySheetCommitInput = z.infer<typeof categorySheetCommitInputSchema>;
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/infrastructure/imports/marketplace-category-import.adapter.ts">
+import { Injectable, OnModuleInit, UnauthorizedException } from "@nestjs/common";
+import {
+  ImportAdapter,
+  ImportCommitInput,
+  ImportCommitResult,
+  ImportContext,
+  ImportDiffEntry,
+  ImportFieldChange,
+  ImportMode,
+  ImportValidationIssue,
+  ImportWorkbookSchema,
+  ParsedImportWorkbook,
+} from "../../../../common/import/import.types";
+import { ImportRegistry } from "../../../../common/import/import.registry";
+import { PrismaService } from "../../../../prisma/prisma.service";
+import { CodesService } from "../../../codes/codes.service";
+⋮----
+export type MarketplaceCategoryImportRow = {
+  rowNumber: number;
+  importKey: string;
+  nameVi: string;
+  sortOrder: number;
+  isActive: boolean;
+  translations: Record<string, string>;
+};
+⋮----
+export type MarketplaceCategoryImportPayload = {
+  categories: MarketplaceCategoryImportRow[];
+};
+⋮----
+export type ExistingCategoryRecord = {
+  id: string;
+  code: string;
+  importKey: string;
+  nameVi: string;
+  sortOrder: number;
+  isActive: boolean;
+  translations: Array<{
+    id: string;
+    categoryId: string;
+    locale: string;
+    name: string;
+  }>;
+};
+⋮----
+export type MarketplaceCategoryImportState = {
+  existingByKey: Map<string, ExistingCategoryRecord>;
+};
+⋮----
+export class MarketplaceCategoryImportAdapter
+implements
+⋮----
+constructor(
+⋮----
+onModuleInit(): void
+⋮----
+getSchema(): ImportWorkbookSchema
+⋮----
+authorize(context: ImportContext): void
+⋮----
+parse(
+    workbook: ParsedImportWorkbook,
+    _context: ImportContext,
+): MarketplaceCategoryImportPayload
+⋮----
+const getVal = (aliases: string[]): string =>
+⋮----
+validate(
+    payload: MarketplaceCategoryImportPayload,
+    _context: ImportContext,
+): ImportValidationIssue[]
+⋮----
+async loadCurrentState(_context: ImportContext): Promise<MarketplaceCategoryImportState>
+⋮----
+diff(
+    payload: MarketplaceCategoryImportPayload,
+    state: MarketplaceCategoryImportState,
+    _context: ImportContext,
+    mode: ImportMode,
+): ImportDiffEntry[]
+⋮----
+async commit(
+    input: ImportCommitInput<MarketplaceCategoryImportPayload, MarketplaceCategoryImportState>,
+): Promise<ImportCommitResult>
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/tests/marketplace-category-import-migration.spec.ts">
+import fs from "node:fs";
+import path from "node:path";
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/tests/marketplace-category-import.adapter.spec.ts">
+import { MarketplaceCategoryImportAdapter } from "../infrastructure/imports/marketplace-category-import.adapter";
+import { ParsedImportWorkbook } from "../../../common/import/import.types";
+⋮----
+translations: { en: "Spa & Massage" }, // en unchanged
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/tests/marketplace-category-sheet.service.spec.ts">
+import { ConflictException, BadRequestException } from "@nestjs/common";
+import { MarketplaceCategorySheetService } from "../application/marketplace-category-sheet.service";
+⋮----
+// Valid commit
+⋮----
+// Mismatched hash
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/marketplace-admin/repository.ts">
+import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import type { MarketplaceAdminAction, MarketplaceAdminData, MarketplaceCategorySheetPreview } from "./types";
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/marketplace-admin/resource.ts">
+import { createResource, defineMutation, defineQuery } from "@dangminhdev04032005/query-resource";
+import { marketplaceAdminRepository } from "./repository";
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/domain/guest-marketplace.schema.ts">
+import { z } from "zod";
+⋮----
+export type GuestMarketplaceQuery = z.infer<typeof guestMarketplaceQuerySchema>;
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/application/guest-marketplace.service.ts">
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { MarketplaceRecordStatus } from "@prisma/client";
+import { calculateHaversineDistanceMeters } from "../../../common/geo-distance";
+import { PrismaService } from "../../../prisma/prisma.service";
+import type { SupportedLocale } from "../../../common/i18n/i18n.types";
+import type { GuestMarketplaceQuery } from "../domain/guest-marketplace.schema";
+⋮----
+export class GuestMarketplaceService
+⋮----
+constructor(private readonly prisma: PrismaService)
+⋮----
+async categories(hotelId: string, locale: SupportedLocale)
+⋮----
+async services(hotelId: string, query: GuestMarketplaceQuery, locale: SupportedLocale)
+⋮----
+// ponytail: bounded in-memory geo sort; move to PostGIS only after >100 mapped active items/hotel is measured.
+⋮----
+async detail(hotelId: string, serviceId: string, locale: SupportedLocale)
+⋮----
+/**
+   * Resolve localized category name.
+   * Fallback: requested locale translation → nameVi → importKey → code.
+   */
+private localizeCategory<
+    T extends {
+      nameVi: string;
+      importKey?: string | null;
+      code: string;
+      translations?: { locale: string; name: string }[];
+    },
+>(category: T, locale: SupportedLocale): T &
+⋮----
+/** Convert SupportedLocale to short DB locale (vi-VN → vi, en → en, etc.) */
+private toShortLocale(locale: SupportedLocale): string
+⋮----
+private hotelLocation(hotelId: string)
+⋮----
+private distance(
+    hotel: { latitude: unknown; longitude: unknown },
+    profile: { latitude: unknown; longitude: unknown } | null,
+)
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/application/service-portal.service.ts">
+import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { TenantType, TenantUserStatus } from "@prisma/client";
+import { PrismaService } from "../../../prisma/prisma.service";
+import type {
+  MarketplaceAvailability,
+  MarketplaceServiceBody,
+  MarketplaceServiceUpdate,
+  ServiceProfileBody,
+} from "../domain/service-portal.schema";
+⋮----
+export class ServicePortalService
+⋮----
+constructor(private readonly prisma: PrismaService)
+⋮----
+async tenantId(userId: string)
+⋮----
+async profile(userId: string)
+⋮----
+async updateProfile(userId: string, body: ServiceProfileBody)
+⋮----
+categories()
+⋮----
+async services(userId: string)
+⋮----
+async createService(userId: string, body: MarketplaceServiceBody)
+⋮----
+async updateService(userId: string, serviceId: string, body: MarketplaceServiceUpdate)
+⋮----
+async updateAvailability(userId: string, serviceId: string, body: MarketplaceAvailability)
+⋮----
+private async activeCategory(categoryId: string)
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/domain/marketplace-order-transitions.ts">
+import type { MarketplaceOrderStatus, MarketplaceServiceMode } from "@prisma/client";
+⋮----
+export function canTransitionMarketplaceOrder(
+  from: MarketplaceOrderStatus,
+  to: MarketplaceOrderStatus,
+  mode: MarketplaceServiceMode,
+)
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/domain/service-portal.schema.ts">
+import { z } from "zod";
+⋮----
+export type ServiceProfileBody = z.infer<typeof serviceProfileBodySchema>;
+export type MarketplaceServiceBody = z.infer<typeof marketplaceServiceBodySchema>;
+export type MarketplaceServiceUpdate = z.infer<typeof marketplaceServiceUpdateSchema>;
+export type MarketplaceAvailability = z.infer<typeof marketplaceAvailabilitySchema>;
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/tests/guest-marketplace.service.spec.ts">
+import { GuestMarketplaceService } from "../application/guest-marketplace.service";
+⋮----
+// vi-VN maps to short "vi" but no translation row for vi; fallback to nameVi
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/tests/hotel-location.schema.spec.ts">
+import { BadRequestException } from "@nestjs/common";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { updateHotelBodySchema } from "../../property/domain/schemas/hotel.schema";
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/tests/marketplace-orders-migration.spec.ts">
+import fs from "node:fs";
+import path from "node:path";
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/tests/service-portal.service.spec.ts">
+import { ForbiddenException, NotFoundException } from "@nestjs/common";
+import { TenantType, TenantUserStatus } from "@prisma/client";
+import { ServicePortalService } from "../application/service-portal.service";
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/api/admin/marketplace/route.ts">
+import { z } from "zod";
+import { executeHotelOpsBackendRequest } from "@/app/api/hotel-ops/_utils";
+import { HttpError } from "@/core/http/http-error";
+⋮----
+import { marketplaceAdminClient } from "@/features/marketplace-admin/client";
+import type { MarketplaceAdminAction } from "@/features/marketplace-admin/types";
+import { httpErrorResponse, successResponse, unknownServerErrorResponse, validationErrorResponse } from "../_utils";
+⋮----
+export async function GET()
+⋮----
+export async function POST(request: Request)
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/marketplace-admin/client.ts">
+import { unwrapApiEnvelope } from "@/core/http/api-envelope";
+import { getBackendApiBaseUrl } from "@/core/http/backend-api-config";
+import { HttpClient } from "@/core/http/http-client";
+import type { MarketplaceCategory } from "@/features/marketplace/types/marketplace-contract";
+⋮----
+const call = async <T, B = unknown>(token: string, method: "GET" | "POST" | "PUT" | "PATCH", path: string, body?: B) => unwrapApiEnvelope<T>(await http.request<unknown, B>(
+export type ServiceTenant = { id: string; code: string; name: string; ownerEmail?: string | null; serviceProfile: { displayName: string; status: string } | null };
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/api/guest-marketplace.controller.ts">
+import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from "@nestjs/common";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { I18nService } from "../../../common/i18n/i18n.service";
+import {
+  GuestSessionGuard,
+  type RequestWithGuestSession,
+} from "../../guest-operations/guest-operations-public";
+import { GuestMarketplaceService } from "../application/guest-marketplace.service";
+import {
+  guestMarketplaceIdSchema,
+  guestMarketplaceQuerySchema,
+} from "../domain/guest-marketplace.schema";
+import { MarketplaceOrderService } from "../application/marketplace-order.service";
+import {
+  createMarketplaceOrderSchema,
+  marketplaceOrderIdSchema,
+} from "../domain/marketplace-order.schema";
+⋮----
+export class GuestMarketplaceController
+⋮----
+constructor(
+⋮----
+@Get("categories") categories(@Req() req: RequestWithGuestSession)
+@Get("services") services(@Req() req: RequestWithGuestSession, @Query() query: unknown)
+@Get("services/:serviceId") detail(
+    @Req() req: RequestWithGuestSession,
+    @Param("serviceId") id: string,
+)
+@Post("orders") createOrder(@Req() req: RequestWithGuestSession, @Body() body: unknown)
+@Get("orders") ordersList(@Req() req: RequestWithGuestSession)
+@Get("orders/:orderId") order(@Req() req: RequestWithGuestSession, @Param("orderId") id: string)
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/domain/marketplace-order.schema.ts">
+import { z } from "zod";
+⋮----
+export type CreateMarketplaceOrder = z.infer<typeof createMarketplaceOrderSchema>;
+export type MarketplaceTransition = z.infer<typeof marketplaceTransitionSchema>;
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/tests/marketplace-order.service.spec.ts">
+import { ConflictException } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import { canTransitionMarketplaceOrder } from "../domain/marketplace-order-transitions";
+import { MarketplaceOrderService } from "../application/marketplace-order.service";
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/marketplace-admin/types.ts">
+import type { MarketplaceCategory } from "@/features/marketplace/types/marketplace-contract";
+⋮----
+export type ServiceTenant = {
+  id: string;
+  code: string;
+  name: string;
+  ownerEmail?: string | null;
+  ownerFullName?: string | null;
+  serviceProfile: { displayName: string; status: string } | null;
+};
+export type MarketplaceCategorySheetPreview = {
+  workbookHash: string;
+  summary: { creates: number; updates: number; unchanged: number; errors: number };
+  validation: Array<{
+    sheet: string;
+    row: number;
+    col: string;
+    value: string;
+    message: string;
+    severity: "error" | "warning";
+  }>;
+  diff: Array<{
+    key: string;
+    action: "create" | "update" | "unchanged";
+    changes?: Record<string, { from: string; to: string }>;
+    payload: Record<string, unknown>;
+  }>;
+};
+⋮----
+export type MarketplaceAdminData = {
+  categories: MarketplaceCategory[];
+  tenants: ServiceTenant[];
+};
+⋮----
+export type MarketplaceAdminAction =
+  | { action: "category"; input: { nameVi: string; sortOrder: number; isActive: boolean; translations?: Record<string, string> } }
+  | { action: "tenant"; input: { displayName: string; owner: { email: string; fullName: string; password: string } } }
+  | { action: "updateCategory"; id: string; input: { nameVi?: string; isActive?: boolean; translations?: Record<string, string> } }
+  | { action: "updateTenant"; id: string; input: { displayName?: string; status?: string; owner?: { email?: string; fullName?: string; password?: string } } }
+  | { action: "previewImport"; spreadsheetUrl: string }
+  | { action: "commitImport"; spreadsheetUrl: string; expectedHash: string };
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/api/hotel-marketplace.controller.ts">
+import { Body, Controller, Delete, Get, Param, Put, Query, Req } from "@nestjs/common";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
+import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import type { RequestWithRequiredUser } from "../../../shared/security/request-with-authenticated-user";
+import { HotelAccessService } from "../../property/property-public";
+import { MarketplaceOrderService } from "../application/marketplace-order.service";
+import { MarketplaceAdminService } from "../application/marketplace-admin.service";
+import { hotelServiceLinkBodySchema } from "../domain/marketplace-admin.schema";
+import {
+  marketplaceOrderIdSchema,
+  marketplaceRevenueQuerySchema,
+} from "../domain/marketplace-order.schema";
+⋮----
+export class HotelMarketplaceController
+⋮----
+constructor(
+⋮----
+private async hotel(req: RequestWithRequiredUser, hotelId: string)
+⋮----
+async providers(@Req() req: RequestWithRequiredUser, @Param("hotelId") id: string)
+⋮----
+async linkProvider(
+    @Req() req: RequestWithRequiredUser,
+    @Param("hotelId") id: string,
+    @Param("serviceTenantId") serviceTenantId: string,
+    @Body() body: unknown,
+)
+⋮----
+async unlinkProvider(
+    @Req() req: RequestWithRequiredUser,
+    @Param("hotelId") id: string,
+    @Param("serviceTenantId") serviceTenantId: string,
+)
+⋮----
+async list(@Req() req: RequestWithRequiredUser, @Param("hotelId") id: string)
+⋮----
+async order(
+    @Req() req: RequestWithRequiredUser,
+    @Param("hotelId") id: string,
+    @Param("orderId") orderId: string,
+)
+⋮----
+async revenue(
+    @Req() req: RequestWithRequiredUser,
+    @Param("hotelId") id: string,
+    @Query() query: unknown,
+)
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/api/marketplace-admin.controller.ts">
+import { Body, Controller, Get, Header, Param, Patch, Post, Req } from "@nestjs/common";
+import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
+import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
+import type { RequestWithRequiredUser } from "../../../shared/security/request-with-authenticated-user";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { ImportTemplateService } from "../../../common/import/import-template.service";
+import { MarketplaceAdminService } from "../application/marketplace-admin.service";
+import { MarketplaceCategorySheetService } from "../application/marketplace-category-sheet.service";
+import { MarketplaceCategoryImportAdapter } from "../infrastructure/imports/marketplace-category-import.adapter";
+import {
+  categorySheetCommitInputSchema,
+  categorySheetInputSchema,
+} from "../domain/marketplace-category-import.schema";
+import {
+  marketplaceCategoryBodySchema,
+  marketplaceCategoryUpdateSchema,
+  marketplaceIdSchema,
+  serviceTenantBodySchema,
+  serviceTenantUpdateSchema,
+} from "../domain/marketplace-admin.schema";
+⋮----
+export class MarketplaceAdminController
+⋮----
+constructor(
+⋮----
+categories()
+⋮----
+categoryImportTemplate()
+⋮----
+previewCategoryImport(@Req() req: RequestWithRequiredUser, @Body() body: unknown)
+⋮----
+commitCategoryImport(@Req() req: RequestWithRequiredUser, @Body() body: unknown)
+⋮----
+createCategory(@Req() req: RequestWithRequiredUser, @Body() body: unknown)
+⋮----
+updateCategory(
+    @Req() req: RequestWithRequiredUser,
+    @Param("categoryId") id: string,
+    @Body() body: unknown,
+)
+⋮----
+serviceTenants()
+⋮----
+createServiceTenant(@Req() req: RequestWithRequiredUser, @Body() body: unknown)
+⋮----
+updateServiceTenant(
+    @Req() req: RequestWithRequiredUser,
+    @Param("tenantId") id: string,
+    @Body() body: unknown,
+)
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/application/marketplace-order.service.ts">
+import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  CapacityReservationStatus,
+  FolioItemSourceType,
+  FolioItemType,
+  FolioStatus,
+  MarketplaceOrderActorType,
+  MarketplaceOrderStatus,
+  MarketplaceRecordStatus,
+  Prisma,
+} from "@prisma/client";
+import { randomUUID } from "node:crypto";
+import { PrismaService } from "../../../prisma/prisma.service";
+import { canTransitionMarketplaceOrder } from "../domain/marketplace-order-transitions";
+import type {
+  CreateMarketplaceOrder,
+  MarketplaceTransition,
+} from "../domain/marketplace-order.schema";
+import { ServicePortalService } from "./service-portal.service";
+⋮----
+export class MarketplaceOrderService
+⋮----
+constructor(
+⋮----
+async createGuestOrder(scope:
+⋮----
+listGuestOrders(stayId: string)
+⋮----
+async guestOrder(stayId: string, orderId: string)
+⋮----
+async listServiceOrders(userId: string)
+⋮----
+async serviceOrder(userId: string, orderId: string)
+⋮----
+listHotelOrders(hotelId: string)
+⋮----
+async hotelOrder(hotelId: string, orderId: string)
+⋮----
+async hotelRevenue(hotelId: string, from?: Date, to?: Date, serviceTenantId?: string)
+⋮----
+async transitionServiceOrder(userId: string, orderId: string, body: MarketplaceTransition)
+⋮----
+private async postToStayFolio(
+    tx: Prisma.TransactionClient,
+    order: {
+      id: string; hotelId: string; stayId: string; quantity: number;
+      unitPriceSnapshot: Prisma.Decimal; totalAmount: Prisma.Decimal; currency: string;
+      serviceNameSnapshot: string; serviceTenantId: string;
+    },
+)
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/marketplace-admin/marketplace-admin-client.tsx">
+import { type FormEvent, useMemo, useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+⋮----
+import { DataTable } from "@/components/ui/data-table";
+import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+import { OneTimePasswordDialog } from "@/features/account/security/one-time-password-dialog";
+import { SwalVietSage } from "@/libs/swal";
+import { marketplaceAdminResource } from "./resource";
+import type { MarketplaceCategorySheetPreview, ServiceTenant } from "./types";
+import type { MarketplaceCategory } from "@/features/marketplace/types/marketplace-contract";
+⋮----
+function generateTemporaryPassword(): string
+⋮----
+function getErrorMessage(error: unknown, fallback: string): string
+⋮----
+const isRawCode = (str: string)
+⋮----
+// Workspace View & Dialog state
+⋮----
+// Google Sheets Import state
+⋮----
+// Search & Pagination State
+⋮----
+const handleDownloadTemplate = () =>
+⋮----
+const handlePreviewSheet = (e: FormEvent<HTMLFormElement>) =>
+⋮----
+const handleCommitSheet = () =>
+⋮----
+const submitCategory = (event: FormEvent<HTMLFormElement>) =>
+⋮----
+const submitUpdateCategory = (event: FormEvent<HTMLFormElement>) =>
+⋮----
+const submitTenant = (event: FormEvent<HTMLFormElement>) =>
+⋮----
+const submitUpdateTenant = (event: FormEvent<HTMLFormElement>) =>
+⋮----
+const handleResetTenantPassword = () =>
+⋮----
+const toggleTenantStatus = (item: ServiceTenant) =>
+⋮----
+const toggleCategoryStatus = (item: MarketplaceCategory) =>
+⋮----
+// Filtered tenants
+⋮----
+// Filtered categories
+⋮----
+{/* Metric Summary Cards Bar */}
+⋮----
+{/* Top Search Header & Primary Action Buttons Bar */}
+⋮----
+{/* Tab Switcher & Search Bar */}
+⋮----
+{/* View Tab Switcher */}
+⋮----
+{/* Search Input */}
+⋮----
+{/* Action Buttons */}
+⋮----
+{/* Primary Management Area: Service Partners Table */}
+⋮----
+e.stopPropagation();
+setFormValidationError(null);
+setEditingTenant(item);
+⋮----
+{/* Secondary Management Area: Service Categories Table & Google Sheets Sync */}
+⋮----
+{/* Primary Google Sheets Batch Import Card */}
+⋮----
+onChange=
+⋮----
+{/* Summary Metrics */}
+⋮----
+{/* Validation Errors Table */}
+⋮----
+{/* Diff Table */}
+⋮----
+{/* Commit Action */}
+⋮----
+setEditingCategory(item);
+⋮----
+setIsTenantModalOpen(false);
+⋮----
+{/* Modal 2: Edit External Service Partner */}
+⋮----
+setEditingTenant(null);
+⋮----
+{/* Modal 3: Create Service Category */}
+⋮----
+setIsCategoryModalOpen(false);
+⋮----
+{/* Modal 4: Edit Service Category */}
+⋮----
+setEditingCategory(null);
+⋮----
+{/* Modal 5: View Partner Details */}
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/api/service-portal.controller.ts">
+import { Body, Controller, Get, Param, Patch, Post, Req } from "@nestjs/common";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
+import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import type { RequestWithRequiredUser } from "../../../shared/security/request-with-authenticated-user";
+import { ServicePortalService } from "../application/service-portal.service";
+import {
+  marketplaceAvailabilitySchema,
+  marketplaceServiceBodySchema,
+  marketplaceServiceUpdateSchema,
+  servicePortalIdSchema,
+  serviceProfileBodySchema,
+} from "../domain/service-portal.schema";
+import { MarketplaceOrderService } from "../application/marketplace-order.service";
+import {
+  marketplaceOrderIdSchema,
+  marketplaceTransitionSchema,
+} from "../domain/marketplace-order.schema";
+⋮----
+export class ServicePortalController
+⋮----
+constructor(
+⋮----
+profile(@Req() req: RequestWithRequiredUser)
+⋮----
+updateProfile(@Req() req: RequestWithRequiredUser, @Body() body: unknown)
+⋮----
+categories()
+⋮----
+services(@Req() req: RequestWithRequiredUser)
+⋮----
+create(@Req() req: RequestWithRequiredUser, @Body() body: unknown)
+⋮----
+update(
+    @Req() req: RequestWithRequiredUser,
+    @Param("serviceId") id: string,
+    @Body() body: unknown,
+)
+⋮----
+availability(
+    @Req() req: RequestWithRequiredUser,
+    @Param("serviceId") id: string,
+    @Body() body: unknown,
+)
+⋮----
+orderList(@Req() req: RequestWithRequiredUser)
+⋮----
+order(@Req() req: RequestWithRequiredUser, @Param("orderId") id: string)
+⋮----
+transition(
+    @Req() req: RequestWithRequiredUser,
+    @Param("orderId") id: string,
+    @Body() body: unknown,
+)
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/domain/marketplace-admin.schema.ts">
+import { z } from "zod";
+⋮----
+export type MarketplaceCategoryBody = z.infer<typeof marketplaceCategoryBodySchema>;
+export type ServiceTenantBody = z.infer<typeof serviceTenantBodySchema>;
+export type ServiceTenantUpdateBody = z.infer<typeof serviceTenantUpdateSchema>;
+export type HotelServiceLinkBody = z.infer<typeof hotelServiceLinkBodySchema>;
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/application/marketplace-admin.service.ts">
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  MarketplaceRecordStatus,
+  Prisma,
+  TenantType,
+  TenantUserStatus,
+  UserRoleStatus,
+  UserStatus,
+  UserType,
+} from "@prisma/client";
+⋮----
+import { calculateHaversineDistanceMeters } from "../../../common/geo-distance";
+import { PrismaService } from "../../../prisma/prisma.service";
+import { CodesService } from "../../codes/codes.service";
+import type {
+  HotelServiceLinkBody,
+  MarketplaceCategoryBody,
+  ServiceTenantBody,
+} from "../domain/marketplace-admin.schema";
+⋮----
+export class MarketplaceAdminService
+⋮----
+constructor(
+⋮----
+listCategories()
+⋮----
+async createCategory(_actorId: string, body: MarketplaceCategoryBody)
+⋮----
+async updateCategory(
+    _actorId: string,
+    categoryId: string,
+    body: Partial<MarketplaceCategoryBody>,
+)
+⋮----
+async listServiceTenants()
+⋮----
+async listNearbyServiceTenants(hotelId: string)
+⋮----
+// ponytail: bounded in-memory geo filter; use PostGIS after >100 active providers is measured.
+⋮----
+async createServiceTenant(actorId: string, body: ServiceTenantBody)
+⋮----
+async updateServiceTenant(
+    actorId: string,
+    tenantId: string,
+    body: {
+      displayName?: string;
+      status?: string;
+      owner?: { email?: string; fullName?: string; password?: string };
+    },
+)
+⋮----
+async listHotelLinks(hotelId: string)
+⋮----
+async setNearbyHotelLink(
+    actorId: string,
+    hotelId: string,
+    serviceTenantId: string,
+    body: HotelServiceLinkBody,
+)
+⋮----
+async setHotelLink(
+    actorId: string,
+    hotelId: string,
+    serviceTenantId: string,
+    body: HotelServiceLinkBody,
+)
+⋮----
+disableHotelLink(actorId: string, hotelId: string, serviceTenantId: string)
+⋮----
+private async category(id: string)
+⋮----
+private async hotel(id: string)
+⋮----
+private async serviceTenant(id: string)
+⋮----
+private audit(
+    tx: Prisma.TransactionClient,
+    actorId: string,
+    tenantId: string,
+    action: string,
+    entityType: string,
+    entityId: string,
+)
+⋮----
+private uniqueConflict(error: unknown, message: string)
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/tests/marketplace-admin.service.spec.ts">
+import { NotFoundException } from "@nestjs/common";
+import { TenantType } from "@prisma/client";
+import { MarketplaceAdminService } from "../application/marketplace-admin.service";
+import {
+  marketplaceCategoryBodySchema,
+  serviceTenantBodySchema,
+} from "../domain/marketplace-admin.schema";
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/marketplace.module.ts">
+import { Module } from "@nestjs/common";
+import { MarketplaceAdminController } from "./api/marketplace-admin.controller";
+import { MarketplaceAdminService } from "./application/marketplace-admin.service";
+import { ServicePortalController } from "./api/service-portal.controller";
+import { ServicePortalService } from "./application/service-portal.service";
+import { GuestMarketplaceController } from "./api/guest-marketplace.controller";
+import { GuestMarketplaceService } from "./application/guest-marketplace.service";
+import { MarketplaceOrderService } from "./application/marketplace-order.service";
+import { HotelMarketplaceController } from "./api/hotel-marketplace.controller";
+import { PropertyModule } from "../property/property.module";
+import { GuestOperationsModule } from "../guest-operations/guest-operations.module";
+import { ImportModule } from "../../common/import/import.module";
+import { MarketplaceCategoryImportAdapter } from "./infrastructure/imports/marketplace-category-import.adapter";
+import { MarketplaceCategorySheetService } from "./application/marketplace-category-sheet.service";
+⋮----
+export class MarketplaceModule
+</file>
+
+</files>

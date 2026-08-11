@@ -16,10 +16,9 @@ const location = {
 export const marketplaceIdSchema = id;
 export const marketplaceCategoryBodySchema = z.object({
   nameVi: z.string().trim().min(1).max(120),
-  nameEn: z.string().trim().min(1).max(120),
-  icon: z.string().trim().max(80).nullish(),
   sortOrder: z.number().int().min(0).default(0),
   isActive: z.boolean().default(true),
+  translations: z.record(z.string(), z.string().trim().min(1).max(120)).optional(),
 });
 export const marketplaceCategoryUpdateSchema = marketplaceCategoryBodySchema
   .partial()

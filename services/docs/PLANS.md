@@ -1,3 +1,12 @@
+## 2026-08-12 - Super Admin Marketplace Category Sheet + I18n (Complete)
+
+- [x] Added `importKey` (unique stable key) and `MarketplaceCategoryTranslation` localized name table to Prisma schema with migration `20260812000000_marketplace_category_import_i18n`. Backfilled existing `nameEn` rows into translation table and removed deprecated `nameEn` and `icon` columns.
+- [x] Created `MarketplaceCategoryImportAdapter` (`marketplace-category-import.adapter.ts`) implementing generic `ImportAdapter` for sheet parsing, Zod validation, key-matching diffs, and atomic transactions.
+- [x] Implemented `MarketplaceCategorySheetService` (`marketplace-category-sheet.service.ts`) for Google Sheets URL ID extraction, deterministic SHA-256 `workbookHash` preview, and hash-verified write commits.
+- [x] Exposed private permission-gated admin endpoints: `GET /admin/marketplace/categories/import/template`, `POST /admin/marketplace/categories/import/preview`, `POST /admin/marketplace/categories/import/commit`.
+- [x] Updated Guest Marketplace category reader to support localized category names based on request locale (`vi`, `en`, `zh`, `ko`, `ru`, `hi`) with fallback to base `nameVi`.
+- [x] Focused tests passed (21/21 in 4 suites); Prisma schema validated; NestJS backend build passed; OpenAPI spec exported (142 paths).
+
 ## 2026-08-11 - Seed Test Data + Owner Marketplace Discovery & Linking (Complete)
 
 - [x] Created idempotent `prisma/seed-marketplace-test-data.js` script to seed 3 Marketplace categories, 3 Service Tenants (near ≈2km, medium ≈15km, far ≈40km), and 3 owner users with `SERVICE_STAFF` role.

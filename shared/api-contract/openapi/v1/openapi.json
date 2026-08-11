@@ -5839,6 +5839,66 @@
         ]
       }
     },
+    "/hotels/{hotelId}/service-catalog/import/preview": {
+      "post": {
+        "operationId": "HotelServicesController_previewServiceCatalogImport",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "hotel-services"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/service-catalog/import/commit": {
+      "post": {
+        "operationId": "HotelServicesController_commitServiceCatalogImport",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "hotel-services"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/service-catalog/import/template": {
+      "get": {
+        "operationId": "HotelServicesController_serviceCatalogImportTemplate",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "hotel-services"
+        ]
+      }
+    },
     "/hotels/{hotelId}/service-categories": {
       "get": {
         "operationId": "HotelServicesController_listServiceCategories",
@@ -10092,9 +10152,72 @@
         ]
       }
     },
+    "/admin/marketplace/categories/import/template": {
+      "get": {
+        "operationId": "MarketplaceAdminController_categoryImportTemplate",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "MarketplaceAdmin"
+        ]
+      }
+    },
+    "/admin/marketplace/categories/import/preview": {
+      "post": {
+        "operationId": "MarketplaceAdminController_previewCategoryImport",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "MarketplaceAdmin"
+        ]
+      }
+    },
+    "/admin/marketplace/categories/import/commit": {
+      "post": {
+        "operationId": "MarketplaceAdminController_commitCategoryImport",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "MarketplaceAdmin"
+        ]
+      }
+    },
     "/admin/marketplace/categories/{categoryId}": {
       "patch": {
         "operationId": "MarketplaceAdminController_updateCategory",
+        "parameters": [
+          {
+            "name": "categoryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "MarketplaceAdmin"
+        ]
+      },
+      "delete": {
+        "operationId": "MarketplaceAdminController_deleteCategory",
         "parameters": [
           {
             "name": "categoryId",

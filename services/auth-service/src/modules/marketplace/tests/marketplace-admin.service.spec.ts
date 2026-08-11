@@ -45,12 +45,15 @@ describe("Marketplace admin", () => {
 
   it("generates category codes instead of accepting System Code", async () => {
     const categoryCreate = jest.fn().mockResolvedValue({ id: "category-1" });
-    const tx = { marketplaceCategory: { create: categoryCreate } };
+    const tx = { marketplaceCategory: { findFirst: jest.fn().mockResolvedValue(null), create: categoryCreate } };
     const codes = {
       generateEntityCode: jest.fn().mockResolvedValue("VSH_MARKETPLACE_CATEGORY_0001"),
     };
     const service = new MarketplaceAdminService(
-      { $transaction: (fn: (value: unknown) => unknown) => fn(tx) } as never,
+      {
+        marketplaceCategory: { findFirst: jest.fn().mockResolvedValue(null) },
+        $transaction: (fn: (value: unknown) => unknown) => fn(tx),
+      } as never,
       codes as never,
     );
     const input = marketplaceCategoryBodySchema.parse({
@@ -67,6 +70,7 @@ describe("Marketplace admin", () => {
     expect(codes.generateEntityCode).toHaveBeenCalledWith("MARKETPLACE_CATEGORY", tx);
     expect(categoryCreate).toHaveBeenCalledWith({
       data: { ...input, code: "VSH_MARKETPLACE_CATEGORY_0001" },
+      include: { translations: { select: { locale: true, name: true } } },
     });
   });
 
@@ -90,15 +94,19 @@ describe("Marketplace admin", () => {
       role: { upsert: jest.fn().mockResolvedValue({ id: "service-role" }) },
       permission: { findMany: jest.fn().mockResolvedValue([{ id: "view" }, { id: "manage" }]) },
       rolePermission: { createMany: jest.fn().mockResolvedValue({ count: 2 }) },
-      tenant: { create: tenantCreate },
-      user: { create: userCreate },
+      tenant: { findFirst: jest.fn().mockResolvedValue(null), create: tenantCreate },
+      user: { findFirst: jest.fn().mockResolvedValue(null), create: userCreate },
       tenantUser: { create: tenantUserCreate },
       userRole: { create: userRoleCreate },
       auditLog: { create: auditCreate },
     };
     const codes = { generateEntityCode: jest.fn().mockResolvedValue("VSH_SERVICE_TENANT_0001") };
     const service = new MarketplaceAdminService(
-      { $transaction: (fn: (value: unknown) => unknown) => fn(tx) } as never,
+      {
+        user: { findFirst: jest.fn().mockResolvedValue(null) },
+        tenant: { findFirst: jest.fn().mockResolvedValue(null) },
+        $transaction: (fn: (value: unknown) => unknown) => fn(tx),
+      } as never,
       codes as never,
     );
 

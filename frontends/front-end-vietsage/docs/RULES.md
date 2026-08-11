@@ -34,6 +34,9 @@
 - **Dropdown Select for Entity IDs**: Forms requiring entity selection (such as Hotel, Room, User) MUST NOT ask the user to type raw UUID strings. You MUST fetch options from an API route and render a `<select>` dropdown displaying human-readable names and entity codes (e.g. `Khách sạn Grand Saigon (HSG)`).
 - **Workspace Navigation & Session Fallbacks**: When adding new navigation items to `workspace-registry.ts`, `anyCapabilities` MUST include both the new domain capability (e.g. `platform.billing.view`) AND existing active session capabilities (e.g. `platform.roles.view`, `platform.hotels.view`) so currently logged-in users see the navigation item immediately without needing re-authentication.
 - **SweetAlert2 Standard**: All confirm dialogs and alert notifications MUST use `SwalVietSage` (`src/libs/swal.ts`). Confirm dialogs must render with `reverseButtons: false` (Confirm button on left, Cancel button on right). Success alerts must show the OK button (`showConfirmButton: true`, `confirmButtonText: "OK"`). Error alerts must extract human-readable error details from backend response payloads, suppressing raw status codes.
+- **Excel & Google Sheets Synchronization Standard**:
+  - **Spreadsheet URL Auto-Persistence**: Frontends MUST auto-save entered Google Sheets / Excel URLs into `localStorage` (e.g. `vietsage_marketplace_category_sheet_url`) and auto-restore input state on load to eliminate repeated copying & pasting.
+  - **Summary Metric Key Fallbacks**: Preview summary metric cards MUST handle backend key variations (`creates`/`create`, `updates`/`update`) with safe fallbacks (`creates ?? create ?? 0`) to prevent undefined or blank preview counts.
 
 ## UI Theme Direction & Typography Scale
 

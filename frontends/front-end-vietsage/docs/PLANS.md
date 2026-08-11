@@ -1,3 +1,21 @@
+## [complete] 2026-08-12 - Mission: admin-hotel-location-payload
+
+- Fixed Admin hotel BFF PATCH validation/forwarding for Google Maps URL, coordinates, accuracy, and location source.
+- Root cause: strict BFF schema rejected fields already supported by frontend types and backend schema.
+- Verification: TypeScript, scoped ESLint, production build, `git diff --check` passed.
+
+## [complete] 2026-08-12 - Mission: super-admin-marketplace-category-sheet-i18n
+
+- Added Google Sheets URL input, "Xem trước", "Tải file mẫu CSV", preview summary counts, validation error table, field diff preview table, and "Áp dụng thay đổi" button to Super Admin Categories workspace in `marketplace-admin-client.tsx`.
+- Extended `marketplaceAdminRepository` and `marketplaceAdminResource` with `previewImport` and `commitImport` mutations.
+- Updated BFF API route `src/app/api/admin/marketplace/route.ts` to handle `previewImport` and `commitImport` actions via `marketplaceAdminClient`.
+- Created template download route handler `src/app/api/admin/marketplace/categories/import/template/route.ts` delivering UTF-8 CSV with BOM for Excel/Google Sheets compatibility.
+- Verified WAI-ARIA inline error alerts (`role="alert"`), `SwalVietSage` confirmation for commit, disabled commit on validation errors, and invalidation of `data` on success.
+
+Verification result:
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+- Next.js production build passed (`npm run build`): 0 errors.
+
 ## [complete] 2026-08-11 - Mission: sweetalert2-standard-rule-and-ui-alignment
 
 - Created centralized SweetAlert2 helper `SwalVietSage` (`src/libs/swal.ts`) matching Heritage Luxe design: white rounded card (`rounded-[2rem]`), dark green pill confirm button (`#24473d`), outline cancel button, `reverseButtons: true` (Confirm left, Cancel right).

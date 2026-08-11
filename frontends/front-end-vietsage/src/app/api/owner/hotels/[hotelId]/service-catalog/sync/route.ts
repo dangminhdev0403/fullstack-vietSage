@@ -13,13 +13,21 @@ type Params = {
   params: Promise<{ hotelId: string }>;
 };
 
-export async function POST(_request: Request, context: Params) {
+export async function POST(request: Request, context: Params) {
   const { hotelId } = await context.params;
   if (!hotelId) return validationErrorResponse("hotelId is required");
 
+  let body: { spreadsheetUrl?: string; mode?: string } | undefined;
+  try {
+    const text = await request.text();
+    if (text) body = JSON.parse(text);
+  } catch {
+    // optional body
+  }
+
   try {
     const result = await executeOwnerBackendRequest("sync owner service catalog from Google Sheets", (accessToken) =>
-      hotelOpsService.syncServiceCatalogFromGoogleSheets(hotelId, { accessToken }),
+      hotelOpsService.syncServiceCatalogFromGoogleSheets(hotelId, body, { accessToken }),
     );
 
     if (result instanceof Response) return result;

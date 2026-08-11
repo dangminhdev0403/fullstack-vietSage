@@ -27,26 +27,39 @@ export class MarketplaceAdminService {
 
   listCategories() {
     return this.prisma.marketplaceCategory.findMany({
+      include: { translations: { select: { locale: true, name: true } } },
       orderBy: [{ sortOrder: "asc" }, { code: "asc" }],
     });
   }
 
   async createCategory(_actorId: string, body: MarketplaceCategoryBody) {
     const existing = await this.prisma.marketplaceCategory.findFirst({
-      where: {
-        OR: [
-          { nameVi: { equals: body.nameVi, mode: "insensitive" } },
-          { nameEn: { equals: body.nameEn, mode: "insensitive" } },
-        ],
-      },
+      where: { nameVi: { equals: body.nameVi, mode: "insensitive" } },
     });
     if (existing) {
-      throw new ConflictException("Tên danh mục (tiếng Việt hoặc tiếng Anh) đã tồn tại");
+      throw new ConflictException("Tên danh mục đã tồn tại");
     }
+    const { translations, ...categoryData } = body;
     try {
       return await this.prisma.$transaction(async (tx) => {
         const code = await this.codes.generateEntityCode("MARKETPLACE_CATEGORY", tx);
-        return tx.marketplaceCategory.create({ data: { ...body, code } });
+        const category = await tx.marketplaceCategory.create({
+          data: {
+            ...categoryData,
+            code,
+            ...(translations && Object.keys(translations).length > 0
+              ? {
+                  translations: {
+                    createMany: {
+                      data: Object.entries(translations).map(([locale, name]) => ({ locale, name })),
+                    },
+                  },
+                }
+              : {}),
+          },
+          include: { translations: { select: { locale: true, name: true } } },
+        });
+        return category;
       });
     } catch (error) {
       this.uniqueConflict(error, "Mã danh mục đã tồn tại");
@@ -60,29 +73,57 @@ export class MarketplaceAdminService {
     body: Partial<MarketplaceCategoryBody>,
   ) {
     await this.category(categoryId);
-    if (body.nameVi || body.nameEn) {
+    if (body.nameVi) {
       const existing = await this.prisma.marketplaceCategory.findFirst({
         where: {
           id: { not: categoryId },
-          OR: [
-            ...(body.nameVi ? [{ nameVi: { equals: body.nameVi, mode: "insensitive" as const } }] : []),
-            ...(body.nameEn ? [{ nameEn: { equals: body.nameEn, mode: "insensitive" as const } }] : []),
-          ],
+          nameVi: { equals: body.nameVi, mode: "insensitive" },
         },
       });
       if (existing) {
-        throw new ConflictException("Tên danh mục (tiếng Việt hoặc tiếng Anh) đã trùng với danh mục khác");
+        throw new ConflictException("Tên danh mục đã trùng với danh mục khác");
       }
     }
+    const { translations, ...categoryData } = body;
     try {
-      return await this.prisma.marketplaceCategory.update({
-        where: { id: categoryId },
-        data: body,
+      return await this.prisma.$transaction(async (tx) => {
+        if (translations) {
+          for (const [locale, name] of Object.entries(translations)) {
+            await tx.marketplaceCategoryTranslation.upsert({
+              where: { categoryId_locale: { categoryId, locale } },
+              create: { categoryId, locale, name },
+              update: { name },
+            });
+          }
+        }
+        return tx.marketplaceCategory.update({
+          where: { id: categoryId },
+          data: categoryData,
+          include: { translations: { select: { locale: true, name: true } } },
+        });
       });
     } catch (error) {
       this.uniqueConflict(error, "Mã danh mục đã tồn tại");
       throw error;
     }
+  }
+
+  async deleteCategory(_actorId: string, categoryId: string) {
+    const existing = await this.prisma.marketplaceCategory.findUnique({
+      where: { id: categoryId },
+    });
+    if (!existing) {
+      throw new NotFoundException("Không tìm thấy danh mục");
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.marketplaceService.deleteMany({
+        where: { categoryId },
+      });
+      return tx.marketplaceCategory.delete({
+        where: { id: categoryId },
+      });
+    });
   }
 
   async listServiceTenants() {
@@ -99,6 +140,7 @@ export class MarketplaceAdminService {
                 id: true,
                 email: true,
                 fullName: true,
+                userType: true,
               },
             },
           },

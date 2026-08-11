@@ -41,6 +41,7 @@ const googleSheetUrlSchema = z
   .trim()
   .max(500)
   .transform((value, context) => {
+    if (!value) return "";
     try {
       return parseGoogleSheetId(value);
     } catch (error) {
