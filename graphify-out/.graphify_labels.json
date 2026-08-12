@@ -397,6 +397,5 @@
   "395": "hotel-staff-assignments.controller.ts",
   "396": "admin-resource.ts",
   "397": "service-catalog-error.ts",
-  "398": "service-catalog-sync-response.ts",
-  "399": "staff-dashboard-loader.ts"
+  "398": "service-catalog-sync-response.ts"
 }

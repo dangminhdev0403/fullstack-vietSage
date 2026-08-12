@@ -1,7 +1,6 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useSyncExternalStore } from "react";
 import { m } from "motion/react";
 
 import {
@@ -17,10 +16,6 @@ type GuestRevealProps = {
   duration?: GuestMotionDuration;
 };
 
-const subscribeToHydration = () => () => undefined;
-const getClientSnapshot = () => true;
-const getServerSnapshot = () => false;
-
 export function GuestReveal({
   children,
   className,
@@ -28,23 +23,12 @@ export function GuestReveal({
   distance = guestMotionTokens.distance.standard,
   duration = "standard",
 }: GuestRevealProps) {
-  const motionReady = useSyncExternalStore(
-    subscribeToHydration,
-    getClientSnapshot,
-    getServerSnapshot,
-  );
-
   return (
     <m.div
       className={className}
-      initial={false}
-      animate={motionReady ? "hidden" : "visible"}
-      whileInView="visible"
-      viewport={{ once: true, amount: 0.2 }}
-      variants={{
-        hidden: { opacity: 0, y: distance },
-        visible: { opacity: 1, y: 0 },
-      }}
+      initial={{ opacity: 0, y: distance }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.05 }}
       transition={{
         delay: Math.max(0, Math.min(delay, 0.3)),
         duration: guestMotionTokens.duration[duration],
@@ -54,3 +38,4 @@ export function GuestReveal({
     </m.div>
   );
 }
+

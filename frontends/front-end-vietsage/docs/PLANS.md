@@ -1,3 +1,26 @@
+## [complete] 2026-08-12 - Mission: fix-guest-reveal-framer-motion-blank-render-bug
+
+- Fixed root cause of blank/invisible service lists when switching tabs or loading data on Guest OS Services page ([page.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/app/(vietsage)/g/services/page.tsx)):
+  1. Fixed Framer Motion bug in [guest-reveal.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/guest-os/components/motion/guest-reveal.tsx): Removed `animate={motionReady ? "hidden" : "visible"}` which forced elements to `opacity: 0` on React re-renders. Replaced with robust `initial={{ opacity: 0, y: distance }}` and `whileInView={{ opacity: 1, y: 0 }}`.
+  2. Updated viewport threshold to `amount: 0.05` in both `guest-reveal.tsx` and [guest-stagger.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/guest-os/components/motion/guest-stagger.tsx) to ensure loading skeletons and dynamic service items fade in reliably on mobile screens.
+  3. Added `key={activeTab}` to `<GuestReveal key={activeTab}>` in `page.tsx` so tab switches between Hotel Services and External Services trigger a clean reveal animation for the active tab content.
+
+Verification result:
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+
+## [complete] 2026-08-12 - Mission: redesign-service-tenant-order-console-high-density-b2b-list
+
+- Redesigned Service Tenant Order Console ([service-orders-view.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/service-portal/components/service-orders-view.tsx)) from card grid into a high-density, compact B2B horizontal order list:
+  1. Left Column: Order Number, source badge (`Dịch vụ bên ngoài`), Service Name, created timestamp.
+  2. Middle Column: Quantity & unit, total amount, delivery/service mode, and guest note toggle.
+  3. Right Column: Compact status badge, primary transition CTA button, expand details toggle button (`▼` / `▲`).
+  4. Expandable Details Panel: Moved full guest note, full order ID, compact 4-step progress line, and secondary cancellation action into collapsible drawer.
+  5. Kept status filter tabs at the top (`Tất cả`, `Chờ xác nhận`, `Đang xử lý`, `Sẵn sàng / Đang giao`, `Hoàn tất`, `Đã hủy`).
+  6. Preserved VietSage colors (`#17201b`, `#fffcf7`, `#e5ddcd`, `#5a6760`), typography, and mobile responsive grid stacking.
+
+Verification result:
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+
 ## [complete] 2026-08-12 - Mission: fix-guestos-external-service-order-flow-end-to-end
 
 - Standardized & fixed GuestOS External Service Order flow end-to-end with single canonical order lifecycle, multi-party socket notifications, and UI upgrades:

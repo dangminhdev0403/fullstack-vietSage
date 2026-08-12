@@ -503,7 +503,7 @@ function GuestServicesContent() {
         </GuestReveal>
 
         {/* Active Tab Service List (Never renders both vertically) */}
-        <GuestReveal>
+        <GuestReveal key={activeTab}>
           <div id="guest-services-tabpanel" role="tabpanel">
             {activeTab === "hotel" ? (
               <section aria-labelledby="guest-hotel-services-title">
