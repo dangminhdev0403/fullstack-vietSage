@@ -27,7 +27,6 @@ export const serviceProfileBodySchema = z
       });
   });
 const serviceFields = {
-  categoryId: z.string().trim().min(1).max(80),
   name: z.string().trim().min(1).max(160),
   description: z.string().trim().max(1000).nullish(),
   unitPrice: z.number().nonnegative(),
@@ -37,15 +36,18 @@ const serviceFields = {
   waitingMinutes: z.number().int().nonnegative().default(0),
   status: z.enum(["DRAFT", "ACTIVE", "DISABLED"]).default("DRAFT"),
 };
-export const marketplaceServiceBodySchema = z.object(serviceFields);
+export const marketplaceServiceBodySchema = z.object(serviceFields).strict();
 export const marketplaceServiceUpdateSchema = z
   .object(serviceFields)
   .partial()
+  .strict()
   .refine((value) => Object.keys(value).length > 0);
-export const marketplaceAvailabilitySchema = z.object({
-  capacityAvailable: z.number().int().nonnegative().nullish(),
-  waitingMinutes: z.number().int().nonnegative(),
-});
+export const marketplaceAvailabilitySchema = z
+  .object({
+    capacityAvailable: z.number().int().nonnegative().nullish(),
+    waitingMinutes: z.number().int().nonnegative(),
+  })
+  .strict();
 export const servicePortalIdSchema = z.string().trim().min(1).max(80);
 export type ServiceProfileBody = z.infer<typeof serviceProfileBodySchema>;
 export type MarketplaceServiceBody = z.infer<typeof marketplaceServiceBodySchema>;

@@ -57,7 +57,9 @@ export class HotelServicesController {
     @Body() body?: unknown,
   ) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
-    const parsedBody = body ? (body as { spreadsheetUrl?: string; mode?: "replace" | "upsert" }) : {};
+    const parsedBody = body
+      ? (body as { spreadsheetUrl?: string; mode?: "replace" | "upsert" })
+      : {};
     return this.googleSheetsSyncService.syncHotel(
       hotelId,
       request.user.userId,

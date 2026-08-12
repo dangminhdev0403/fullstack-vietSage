@@ -29,9 +29,20 @@ export class CodesRepository {
       FOR UPDATE
     `);
 
-    const code = rows[0] ?? null;
+    let code = rows[0] ?? null;
     if (!code) {
-      return null;
+      code = await client.code.create({
+        data: {
+          name,
+          sequenceNext: 1,
+          isActive: true,
+        },
+        select: {
+          id: true,
+          name: true,
+          sequenceNext: true,
+        },
+      });
     }
 
     await client.code.update({

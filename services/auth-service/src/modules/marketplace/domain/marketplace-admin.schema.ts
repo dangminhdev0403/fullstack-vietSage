@@ -26,10 +26,12 @@ export const marketplaceCategoryUpdateSchema = marketplaceCategoryBodySchema
 export const serviceTenantBodySchema = z
   .object({
     displayName: z.string().trim().min(1).max(160),
+    categoryId: z.string().trim().min(1).max(80),
     description: z.string().trim().max(1000).nullish(),
     phone: z.string().trim().max(40).nullish(),
     address: z.string().trim().max(255).nullish(),
     coverImageUrl: httpUrl.nullish(),
+    googleSheetsUrl: z.string().trim().max(500).nullish(),
     owner: z.object({
       email: z.string().trim().email().max(320),
       fullName: z.string().trim().min(2).max(120),
@@ -54,7 +56,9 @@ export const hotelLinksQuerySchema = z.object({ hotelId: id });
 export const serviceTenantUpdateSchema = z
   .object({
     displayName: z.string().trim().min(1).max(160).optional(),
+    categoryId: z.string().trim().min(1).max(80).optional(),
     status: z.string().trim().min(1).max(40).optional(),
+    googleSheetsUrl: z.string().trim().max(500).nullish(),
     owner: z
       .object({
         email: z.string().trim().email().max(320).optional(),

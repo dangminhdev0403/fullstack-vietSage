@@ -136,7 +136,7 @@ export function MarketplaceAdminClient() {
   const handleDeleteCategory = (cat: MarketplaceCategory) => {
     SwalVietSage.fire({
       title: "Xác nhận xóa hẳn danh mục",
-      text: `Bạn có chắc chắn muốn xóa hẳn danh mục "${cat.nameVi}" (${cat.code}) không? Tất cả dịch vụ thuộc danh mục này sẽ bị xóa khỏi hệ thống. Hành động này không thể hoàn tác!`,
+      text: `Bạn có chắc chắn muốn xóa hẳn danh mục "${cat.nameVi}" (${cat.code}) không? Danh mục chỉ được xóa khi chưa có đối tác hoặc dịch vụ sử dụng. Nếu đang được sử dụng, hãy tạm tắt hoặc chuyển đối tác sang danh mục khác.`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonText: "Xóa vĩnh viễn",
@@ -181,6 +181,11 @@ export function MarketplaceAdminClient() {
     }
   };
 
+  const [partnerSpreadsheetUrl, setPartnerSpreadsheetUrl] = useState("");
+  const handlePartnerSpreadsheetUrlChange = (url: string) => {
+    setPartnerSpreadsheetUrl(url);
+  };
+
   // Search & Pagination State
   const [tenantSearch, setTenantSearch] = useState("");
   const [tenantStatusFilter, setTenantStatusFilter] = useState("all");
@@ -191,9 +196,7 @@ export function MarketplaceAdminClient() {
   const [categoryPage, setCategoryPage] = useState(1);
   const [categoryPageSize, setCategoryPageSize] = useState(DEFAULT_PAGE_SIZE);
 
-  const handleDownloadTemplate = () => {
-    window.open("/api/admin/marketplace/categories/import/template", "_blank");
-  };
+
 
   const handlePreviewSheet = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -359,7 +362,8 @@ export function MarketplaceAdminClient() {
     }
 
     const catList = data.data?.categories ?? [];
-    if (catList.some((c) => c.id !== editingCategory.id && c.nameVi.toLowerCase() === nameVi.toLowerCase())) {
+    const isNameViChanged = nameVi.toLowerCase() !== editingCategory.nameVi.toLowerCase();
+    if (isNameViChanged && catList.some((c) => c.id !== editingCategory.id && c.nameVi.toLowerCase() === nameVi.toLowerCase())) {
       setFormValidationError(`Tên danh mục tiếng Việt "${nameVi}" trùng với danh mục khác.`);
       return;
     }
@@ -421,8 +425,9 @@ export function MarketplaceAdminClient() {
     const fullName = String(form.get("fullName")).trim();
     const email = String(form.get("email")).trim();
     const password = String(form.get("password"));
+    const categoryId = String(form.get("categoryId") ?? "").trim();
 
-    if (!displayName || !fullName || !email || !password) {
+    if (!displayName || !fullName || !email || !password || !categoryId) {
       setFormValidationError("Vui lòng điền đầy đủ các thông tin bắt buộc.");
       return;
     }
@@ -451,11 +456,16 @@ export function MarketplaceAdminClient() {
       cancelButtonText: "Hủy bỏ",
     }).then((result) => {
       if (result.isConfirmed) {
+        const form = new FormData(formElement);
+        const spreadsheetUrl = String(form.get("spreadsheetUrl") ?? "").trim();
+
         mutation.mutate(
           {
             action: "tenant",
             input: {
               displayName,
+              categoryId,
+              googleSheetsUrl: spreadsheetUrl || undefined,
               owner: { email, fullName, password },
             },
           },
@@ -495,8 +505,9 @@ export function MarketplaceAdminClient() {
     const displayName = String(form.get("displayName")).trim();
     const fullName = String(form.get("fullName")).trim();
     const email = String(form.get("email")).trim();
+    const categoryId = String(form.get("categoryId") ?? "").trim();
 
-    if (!displayName) {
+    if (!displayName || !categoryId) {
       setFormValidationError("Vui lòng nhập tên thương hiệu hiển thị.");
       return;
     }
@@ -511,46 +522,73 @@ export function MarketplaceAdminClient() {
       return;
     }
 
+    const currentDisplayName = editingTenant.serviceProfile?.displayName ?? editingTenant.name;
+    const currentFullName = editingTenant.ownerFullName ?? "";
+    const currentEmail = editingTenant.ownerEmail ?? "";
+    const currentCategoryId = editingTenant.serviceProfile?.categoryId ?? "";
+
     const tenantsList = data.data?.tenants ?? [];
-    if (displayName && tenantsList.some((t) => t.id !== editingTenant.id && (t.serviceProfile?.displayName ?? t.name).toLowerCase() === displayName.toLowerCase())) {
+    const isDisplayNameChanged = displayName.toLowerCase() !== currentDisplayName.toLowerCase();
+    if (
+      displayName &&
+      isDisplayNameChanged &&
+      tenantsList.some(
+        (t) =>
+          t.id !== editingTenant.id &&
+          t.code !== editingTenant.code &&
+          (t.serviceProfile?.displayName ?? t.name).toLowerCase() === displayName.toLowerCase(),
+      )
+    ) {
       setFormValidationError(`Tên thương hiệu đối tác "${displayName}" trùng với đối tác khác.`);
       return;
     }
-    if (email && tenantsList.some((t) => t.id !== editingTenant.id && t.ownerEmail?.toLowerCase() === email.toLowerCase())) {
+
+    const isEmailChanged = email.toLowerCase() !== currentEmail.toLowerCase();
+    if (
+      email &&
+      isEmailChanged &&
+      tenantsList.some(
+        (t) =>
+          t.id !== editingTenant.id &&
+          t.code !== editingTenant.code &&
+          t.ownerEmail?.toLowerCase() === email.toLowerCase(),
+      )
+    ) {
       setFormValidationError(`Email "${email}" trùng với tài khoản owner khác.`);
       return;
     }
 
-    const currentDisplayName = editingTenant.serviceProfile?.displayName ?? editingTenant.name;
-    const currentFullName = editingTenant.ownerFullName ?? "";
-    const currentEmail = editingTenant.ownerEmail ?? "";
-
-    if (displayName === currentDisplayName && fullName === currentFullName && email === currentEmail) {
-      setEditingTenant(null);
-      setFormValidationError(null);
-      return;
-    }
+    const spreadsheetUrl = String(form.get("spreadsheetUrl") ?? "").trim();
+    const currentSpreadsheetUrl = (editingTenant.serviceProfile?.googleSheetsUrl ?? "").trim();
+    const isSpreadsheetUrlChanged = spreadsheetUrl !== currentSpreadsheetUrl;
 
     const ownerData: { email?: string; fullName?: string } = {};
-    if (fullName) ownerData.fullName = fullName;
-    if (email) ownerData.email = email;
+    if (fullName && fullName !== currentFullName) ownerData.fullName = fullName;
+    if (email && email !== currentEmail) ownerData.email = email;
+
+    const isOwnerDataChanged = Object.keys(ownerData).length > 0;
+    const isProfileDataChanged = displayName !== currentDisplayName || categoryId !== currentCategoryId;
 
     SwalVietSage.fire({
       title: "Xác nhận cập nhật đối tác",
-      text: `Bạn có chắc chắn muốn lưu thông tin cập nhật cho đối tác "${editingTenant.code}" không?`,
+      text: `Bạn có chắc chắn muốn lưu các thay đổi cho đối tác "${editingTenant.code}" (${displayName}) không?`,
       icon: "question",
       showCancelButton: true,
       confirmButtonText: "Lưu thay đổi",
       cancelButtonText: "Hủy bỏ",
     }).then((result) => {
-      if (result.isConfirmed) {
+      if (!result.isConfirmed) return;
+
+      if (isProfileDataChanged || isOwnerDataChanged || isSpreadsheetUrlChanged) {
         mutation.mutate(
           {
             action: "updateTenant",
             id: editingTenant.id,
             input: {
               displayName,
-              ...(Object.keys(ownerData).length > 0 ? { owner: ownerData } : {}),
+              categoryId,
+              googleSheetsUrl: spreadsheetUrl || undefined,
+              ...(isOwnerDataChanged ? { owner: ownerData } : {}),
             },
           },
           {
@@ -575,6 +613,17 @@ export function MarketplaceAdminClient() {
             },
           },
         );
+      } else {
+        setEditingTenant(null);
+        setFormValidationError(null);
+        SwalVietSage.fire({
+          title: "Thành công!",
+          text: `Đã lưu cập nhật đối tác "${editingTenant.code}" thành công.`,
+          icon: "success",
+          showConfirmButton: true,
+          confirmButtonText: "OK",
+        });
+        data.refetch();
       }
     });
   };
@@ -910,9 +959,46 @@ export function MarketplaceAdminClient() {
         </div>
       </section>
 
-      {/* Primary Management Area: Service Partners Table */}
+      {/* Primary Management Area: Service Partners Table & Google Sheets Sync */}
       {activeTab === "partners" && (
-        <section className="hidden md:block">
+        <section className="space-y-6">
+          {/* Primary Google Sheets Sync Card for Service Partners */}
+          <div className="rounded-[1.4rem] border border-[#e8dfd1] bg-white/90 p-6 shadow-[0_16px_40px_rgba(23,32,27,0.05)] backdrop-blur-md space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-extrabold text-[#24473d] flex items-center gap-2">
+                  <VsIcon name="table_chart" className="text-xl text-[#24473d]" />
+                  Quản lý &amp; Đồng bộ dịch vụ đối tác qua Google Sheets / Excel Online
+                </h3>
+                <p className="text-xs font-semibold text-[#69726b] mt-0.5">
+                  Super Admin dán URL Google Sheets / Excel Online của đối tác để xem trước &amp; đồng bộ thực đơn/dịch vụ lên hệ thống.
+                </p>
+              </div>
+            </div>
+
+            <form
+              onSubmit={handlePreviewSheet}
+              className="flex flex-col sm:flex-row gap-3"
+            >
+              <input
+                type="url"
+                value={partnerSpreadsheetUrl}
+                onChange={(e) => handlePartnerSpreadsheetUrlChange(e.target.value)}
+                placeholder="Dán URL Google Sheets / Excel Online đối tác (https://docs.google.com/spreadsheets/d/...)"
+                className="flex-1 rounded-xl border border-[#e2d7c5] bg-[#faf6ef] px-4 py-3 text-sm font-semibold text-[#17201b] outline-none focus:border-[#24473d] focus:bg-white"
+              />
+              <button
+                type="submit"
+                disabled={previewMutation.isPending || !partnerSpreadsheetUrl.trim()}
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-[#24473d] px-6 py-3 text-sm font-bold text-[#fff8e8] shadow-xs hover:bg-[#1a352d] disabled:opacity-50 transition-all shrink-0"
+              >
+                <VsIcon name={previewMutation.isPending ? "progress_activity" : "preview"} className={`text-lg ${previewMutation.isPending ? "animate-spin" : ""}`} />
+                {previewMutation.isPending ? "Đang xử lý..." : "Xem trước"}
+              </button>
+            </form>
+          </div>
+
+          <div className="hidden md:block">
           <DataTable
             columns={[
               {
@@ -952,6 +1038,15 @@ export function MarketplaceAdminClient() {
                       )}
                     </div>
                   </div>
+                ),
+              },
+              {
+                key: "category",
+                header: <span className="text-xs font-black uppercase tracking-wider text-[#24473d]">DANH MỤC</span>,
+                cell: (item: ServiceTenant) => (
+                  <span className="inline-flex rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-bold text-emerald-800">
+                    {item.serviceProfile?.category?.nameVi ?? "Chưa gán"}
+                  </span>
                 ),
               },
               {
@@ -1040,7 +1135,8 @@ export function MarketplaceAdminClient() {
               },
             }}
           />
-        </section>
+        </div>
+      </section>
       )}
 
       {/* Secondary Management Area: Service Categories Table & Google Sheets Sync */}
@@ -1052,20 +1148,12 @@ export function MarketplaceAdminClient() {
               <div>
                 <h3 className="text-lg font-extrabold text-[#24473d] flex items-center gap-2">
                   <VsIcon name="table_chart" className="text-xl text-[#24473d]" />
-                  Quản lý danh mục qua Google Sheets
+                  Quản lý &amp; Đồng bộ qua Google Sheets / Excel Online
                 </h3>
                 <p className="text-xs font-semibold text-[#69726b] mt-0.5">
                   Nhập URL Google Sheets (tab &quot;categories&quot;) để xem trước, đồng bộ danh mục &amp; đa ngôn ngữ tự động.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={handleDownloadTemplate}
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-[#dcd1bf] bg-[#fffcf7] px-4 py-2.5 text-xs font-bold text-[#24473d] hover:bg-[#f5efe4] transition-colors shrink-0"
-              >
-                <VsIcon name="download" className="text-base" />
-                Tải file mẫu CSV
-              </button>
             </div>
 
             <form onSubmit={handlePreviewSheet} className="flex flex-col sm:flex-row gap-3">
@@ -1360,6 +1448,14 @@ export function MarketplaceAdminClient() {
                 </div>
 
                 <div className="sm:col-span-2">
+                  <label htmlFor="modal-tenant-category" className={labelClass}>Danh mục dịch vụ</label>
+                  <select id="modal-tenant-category" required name="categoryId" className={inputClass}>
+                    <option value="">-- Chọn danh mục --</option>
+                    {categories.filter((c) => c.isActive).map((category) => <option key={category.id} value={category.id}>{category.nameVi}</option>)}
+                  </select>
+                </div>
+
+                <div className="sm:col-span-2">
                   <label htmlFor="modal-owner-fullname" className={labelClass}>
                     Họ tên người quản lý
                   </label>
@@ -1384,6 +1480,22 @@ export function MarketplaceAdminClient() {
                     placeholder="owner@annhien.vn"
                     className={inputClass}
                   />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label htmlFor="modal-tenant-sheet-url" className={labelClass}>
+                    URL Google Sheets / Excel Online (Cấu hình đồng bộ dịch vụ đối tác)
+                  </label>
+                  <input
+                    id="modal-tenant-sheet-url"
+                    type="url"
+                    name="spreadsheetUrl"
+                    placeholder="https://docs.google.com/spreadsheets/d/..."
+                    className={inputClass}
+                  />
+                  <p className="mt-1 text-xs text-[#69726b]">
+                    Super Admin dán link Google Sheets / Excel Online cấp cho đối tác này để hệ thống tự động đồng bộ dịch vụ.
+                  </p>
                 </div>
 
                 <div>
@@ -1485,6 +1597,14 @@ export function MarketplaceAdminClient() {
               </div>
 
               <div>
+                <label htmlFor="edit-tenant-category" className={labelClass}>Danh mục dịch vụ</label>
+                <select id="edit-tenant-category" required name="categoryId" defaultValue={editingTenant.serviceProfile?.categoryId ?? ""} className={inputClass}>
+                  <option value="">-- Chọn danh mục --</option>
+                  {categories.filter((c) => c.isActive || c.id === editingTenant.serviceProfile?.categoryId).map((category) => <option key={category.id} value={category.id}>{category.nameVi}{!category.isActive ? " (Tạm tắt)" : ""}</option>)}
+                </select>
+              </div>
+
+              <div>
                 <label htmlFor="edit-owner-fullname" className={labelClass}>
                   Họ tên người quản lý
                 </label>
@@ -1511,6 +1631,39 @@ export function MarketplaceAdminClient() {
                   placeholder="owner@annhien.vn"
                   className={inputClass}
                 />
+              </div>
+
+              <div>
+                <label htmlFor="edit-tenant-sheet-url" className={labelClass}>
+                  URL Google Sheets / Excel Online (Cấu hình đồng bộ dịch vụ đối tác)
+                </label>
+                <input
+                  id="edit-tenant-sheet-url"
+                  type="url"
+                  name="spreadsheetUrl"
+                  defaultValue={
+                    editingTenant.serviceProfile?.googleSheetsUrl ||
+                    (typeof window !== "undefined"
+                      ? localStorage.getItem(`vietsage_partner_${editingTenant.id}_sheet_url`) ||
+                        localStorage.getItem(`vietsage_partner_${editingTenant.code}_sheet_url`) ||
+                        ""
+                      : "")
+                  }
+                  onChange={(e) => {
+                    if (typeof window !== "undefined") {
+                      const url = e.target.value.trim();
+                      localStorage.setItem(`vietsage_partner_${editingTenant.id}_sheet_url`, url);
+                      localStorage.setItem(`vietsage_partner_${editingTenant.code}_sheet_url`, url);
+                      localStorage.setItem("vietsage_partner_service_items_sheet_url", url);
+                      localStorage.setItem("vietsage_marketplace_partner_sheet_url", url);
+                    }
+                  }}
+                  placeholder="https://docs.google.com/spreadsheets/d/..."
+                  className={inputClass}
+                />
+                <p className="mt-1 text-xs text-[#69726b]">
+                  Super Admin dán link Google Sheets / Excel Online cấp cho đối tác này để hệ thống xem trước &amp; tự động đồng bộ dịch vụ.
+                </p>
               </div>
 
               <div className="pt-3 border-t border-[#e8dfd1]/60">

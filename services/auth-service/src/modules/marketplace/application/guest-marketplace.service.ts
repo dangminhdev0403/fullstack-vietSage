@@ -13,11 +13,12 @@ export class GuestMarketplaceService {
     const rows = await this.prisma.marketplaceCategory.findMany({
       where: {
         isActive: true,
-        services: {
+        serviceTenants: {
           some: {
             status: MarketplaceRecordStatus.ACTIVE,
-            serviceTenant: {
-              serviceProfile: { status: MarketplaceRecordStatus.ACTIVE },
+            categoryId: { not: null },
+            tenant: {
+              type: "SERVICE",
               hotelServiceLinks: { some: { hotelId, status: "ACTIVE" } },
             },
           },
@@ -35,23 +36,26 @@ export class GuestMarketplaceService {
     const rows = await this.prisma.marketplaceService.findMany({
       where: {
         status: MarketplaceRecordStatus.ACTIVE,
-        category: { isActive: true },
-        ...(query.categoryId ? { categoryId: query.categoryId } : {}),
         ...(query.serviceTenantId ? { serviceTenantId: query.serviceTenantId } : {}),
         serviceTenant: {
           type: "SERVICE",
-          serviceProfile: { status: MarketplaceRecordStatus.ACTIVE },
+          serviceProfile: {
+            status: MarketplaceRecordStatus.ACTIVE,
+            categoryId: query.categoryId ?? { not: null },
+            category: { isActive: true },
+          },
           hotelServiceLinks: { some: { hotelId, status: "ACTIVE" } },
         },
       },
       include: {
-        category: {
-          include: { translations: { select: { locale: true, name: true } } },
-        },
         serviceTenant: {
           select: {
             id: true,
-            serviceProfile: true,
+            serviceProfile: {
+              include: {
+                category: { include: { translations: { select: { locale: true, name: true } } } },
+              },
+            },
             hotelServiceLinks: {
               where: { hotelId, status: "ACTIVE" },
               select: { sortOrder: true },
@@ -65,7 +69,7 @@ export class GuestMarketplaceService {
     const sorted = rows
       .map((row) => ({
         ...row,
-        category: this.localizeCategory(row.category, locale),
+        category: this.localizeCategory(row.serviceTenant.serviceProfile!.category!, locale),
         distanceMeters: this.distance(hotel, row.serviceTenant.serviceProfile),
       }))
       .sort(

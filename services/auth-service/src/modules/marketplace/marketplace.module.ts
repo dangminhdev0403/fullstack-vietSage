@@ -12,6 +12,8 @@ import { GuestOperationsModule } from "../guest-operations/guest-operations.modu
 import { ImportModule } from "../../common/import/import.module";
 import { MarketplaceCategoryImportAdapter } from "./infrastructure/imports/marketplace-category-import.adapter";
 import { MarketplaceCategorySheetService } from "./application/marketplace-category-sheet.service";
+import { MarketplaceServiceItemImportAdapter } from "./infrastructure/imports/marketplace-service-item-import.adapter";
+import { ServiceItemImportService } from "./application/service-item-import.service";
 
 @Module({
   imports: [PropertyModule, GuestOperationsModule, ImportModule],
@@ -28,6 +30,8 @@ import { MarketplaceCategorySheetService } from "./application/marketplace-categ
     MarketplaceOrderService,
     MarketplaceCategoryImportAdapter,
     MarketplaceCategorySheetService,
+    MarketplaceServiceItemImportAdapter,
+    ServiceItemImportService,
   ],
 })
 export class MarketplaceModule {}

@@ -1,72 +1,125 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
+import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { SwalVietSage } from "@/libs/swal";
 import { useServicePortal } from "../use-service-portal";
 import type { ServiceItem, ServicePortalData } from "../types";
+import type { MarketplaceCategorySheetPreview } from "@/features/marketplace-admin/types";
 
-const inputClass =
-  "h-10 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-emerald-600 focus:outline-none focus:ring-4 focus:ring-emerald-600/10 transition-all";
-
-const labelClass = "block text-xs font-bold text-slate-700 mb-1.5";
+const escapeHtml = (value: string) =>
+  value.replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[character]!);
 
 export function ServiceCatalogView({ data }: Readonly<{ data: ServicePortalData }>) {
-  const { create } = useServicePortal();
+  const { update, importPreview, importCommit, data: queryData } = useServicePortal();
   const [searchTerm, setSearchTerm] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "ACTIVE" | "DISABLED" | "DRAFT">("all");
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
-  const createService = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const formElement = event.currentTarget;
-    const form = new FormData(formElement);
-    const serviceName = String(form.get("name"));
+  const [sheetPreview, setSheetPreview] = useState<MarketplaceCategorySheetPreview | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [isCommitting, setIsCommitting] = useState(false);
+  const [cachedCsvData, setCachedCsvData] = useState<string | null>(null);
 
-    const confirmRes = await SwalVietSage.fire({
-      icon: "question",
-      title: "Tạo dịch vụ mới?",
-      text: `Bạn có chắc chắn muốn thêm dịch vụ "${serviceName}" vào danh mục cung cấp không?`,
-      showCancelButton: true,
-      confirmButtonText: "Xác nhận tạo",
-      cancelButtonText: "Hủy bỏ",
-    });
-
-    if (!confirmRes.isConfirmed) return;
-
-    create.mutate(
-      {
-        categoryId: String(form.get("categoryId")),
-        name: serviceName,
-        unitPrice: Number(form.get("unitPrice")),
-        imageUrls: [],
-        mode: String(form.get("mode")),
-        capacityAvailable: form.get("capacity") ? Number(form.get("capacity")) : null,
-        waitingMinutes: Number(form.get("waitingMinutes")),
-        status: "ACTIVE",
-      },
-      {
-        onSuccess: () => {
-          toast.success("Tạo dịch vụ mới thành công!");
-          formElement.reset();
-        },
-        onError: () => {
-          toast.error("Không thể tạo dịch vụ mới. Vui lòng kiểm tra lại.");
-        },
-      },
-    );
+  const fetchGoogleSheetCsv = async (): Promise<string> => {
+    const response = await fetch("/api/service-portal?file=sheet", { cache: "no-store" });
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => null)) as {
+        message?: string;
+        data?: { detail?: string };
+      } | null;
+      const detailMsg =
+        payload?.data?.detail && payload.data.detail !== "VALIDATION_ERROR"
+          ? payload.data.detail
+          : payload?.message && payload.message !== "VALIDATION_ERROR"
+          ? payload.message
+          : "Không thể truy cập Google Sheets / Excel Online đã lưu. Vui lòng liên hệ Super Admin.";
+      throw new Error(detailMsg);
+    }
+    const text = await response.text();
+    if (!text || text.includes("<!DOCTYPE html") || text.includes("<html")) {
+      throw new Error("Bảng tính Google Sheets / Excel Online chưa được mở quyền truy cập công khai. Vui lòng chọn 'Chia sẻ' -> 'Bất kỳ ai có liên kết'.");
+    }
+    return text;
   };
 
-  const handleEditNotice = (item: ServiceItem) => {
-    void SwalVietSage.fire({
-      icon: "info",
-      title: `Chỉnh sửa: ${item.name}`,
-      html: `Dịch vụ <b>${item.name}</b> hiện đang có giá <b>${Number(item.unitPrice).toLocaleString("vi-VN")} VND</b>.<br/><br/>Tính năng chỉnh sửa chi tiết đang được đồng bộ trực tiếp với hệ thống quản lý.`,
-      showConfirmButton: true,
-      confirmButtonText: "OK",
+  const findStoredSheetUrl = (): string =>
+    (queryData.data?.profile?.googleSheetsUrl ?? data.profile.googleSheetsUrl ?? "").trim();
+
+  const handlePreviewSheet = async () => {
+    const sheetUrl = findStoredSheetUrl();
+    if (!sheetUrl.trim()) {
+      setPreviewError("Super Admin chưa gán link Google Sheets / Excel Online cho đối tác. Vui lòng liên hệ Super Admin.");
+      return;
+    }
+
+    setIsPreviewing(true);
+    setPreviewError(null);
+    try {
+      const csvData = await fetchGoogleSheetCsv();
+      setCachedCsvData(csvData);
+      const res = await importPreview.mutateAsync({ csv: csvData, fileName: "google-sheet.csv" });
+      setSheetPreview(res as unknown as MarketplaceCategorySheetPreview);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Đã xảy ra lỗi khi đọc bảng tính. Vui lòng kiểm tra lại đường link.";
+      setPreviewError(errorMessage);
+      setSheetPreview(null);
+    } finally {
+      setIsPreviewing(false);
+    }
+  };
+
+  const handleCommitSheet = async () => {
+    if (!sheetPreview || !cachedCsvData) return;
+
+    setIsCommitting(true);
+    try {
+      await importCommit.mutateAsync({
+        csv: cachedCsvData,
+        fileName: "google-sheet.csv",
+        previewToken: (sheetPreview as unknown as { previewToken: string }).previewToken,
+      });
+
+      await queryData.refetch();
+      setSheetPreview(null);
+      setCachedCsvData(null);
+
+      await SwalVietSage.fire({
+        icon: "success",
+        title: "Đồng bộ thành công!",
+        text: "Đã tự động áp dụng các thay đổi từ Google Sheets / Excel Online vào danh mục dịch vụ.",
+      });
+      toast.success("Đã đồng bộ thực đơn dịch vụ thành công!");
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Không thể áp dụng thay đổi. Vui lòng thử lại.";
+      await SwalVietSage.fire({
+        icon: "error",
+        title: "Đồng bộ thất bại",
+        text: errorMessage,
+      });
+    } finally {
+      setIsCommitting(false);
+    }
+  };
+
+  const handleEditNotice = async (item: ServiceItem) => {
+    const result = await SwalVietSage.fire({
+      title: `Cập nhật: ${item.name}`,
+      html: `<input id="swal-name" class="swal2-input" value="${escapeHtml(item.name)}"><input id="swal-price" class="swal2-input" type="number" min="0" value="${Number(item.unitPrice)}"><input id="swal-waiting" class="swal2-input" type="number" min="0" value="${item.waitingMinutes}">`,
+      showCancelButton: true, confirmButtonText: "Lưu", cancelButtonText: "Hủy",
+      preConfirm: () => ({ name: (document.getElementById("swal-name") as HTMLInputElement).value.trim(), unitPrice: Number((document.getElementById("swal-price") as HTMLInputElement).value), waitingMinutes: Number((document.getElementById("swal-waiting") as HTMLInputElement).value) }),
     });
+    if (!result.isConfirmed) return;
+    update.mutate({ serviceId: item.id, data: result.value }, { onSuccess: () => toast.success("Cập nhật dịch vụ thành công"), onError: () => toast.error("Không thể cập nhật dịch vụ") });
   };
 
   const filteredServices = data.services.filter((item) => {
@@ -78,7 +131,6 @@ export function ServiceCatalogView({ data }: Readonly<{ data: ServicePortalData 
       catName.includes(searchTerm.toLowerCase());
 
     if (!matchesSearch) return false;
-    if (categoryFilter !== "all" && item.categoryId !== categoryFilter) return false;
     if (statusFilter !== "all" && item.status !== statusFilter) return false;
     return true;
   });
@@ -87,10 +139,11 @@ export function ServiceCatalogView({ data }: Readonly<{ data: ServicePortalData 
   const safePage = Math.min(page, pageCount);
   const visibleServices = filteredServices.slice((safePage - 1) * pageSize, safePage * pageSize);
 
-
   const totalCount = data.services.length;
   const activeCount = data.services.filter((s) => s.status === "ACTIVE").length;
   const inactiveCount = totalCount - activeCount;
+
+  const currentSheetUrl = findStoredSheetUrl();
 
   return (
     <div className="space-y-5">
@@ -125,121 +178,173 @@ export function ServiceCatalogView({ data }: Readonly<{ data: ServicePortalData 
               <span className="text-lg font-black text-emerald-800">{activeCount}</span>
             </div>
             <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-2 text-center shadow-2xs">
-              <span className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider">Tạm dừng</span>
+              <span className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider">Tạm ẩn</span>
               <span className="text-lg font-black text-slate-700">{inactiveCount}</span>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Main Grid Section */}
-      <section className="grid gap-6 lg:grid-cols-[360px_1fr]">
-        {/* Left Sidebar: Create New Service Form */}
-        <form onSubmit={createService} className="space-y-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs h-fit">
-          <div className="border-b border-slate-100 pb-3">
-            <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-              <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-100 text-xs font-black text-emerald-800">+</span>
-              Thêm dịch vụ mới
+      {/* Online Sheet Sync Panel (Prominent, High Readability Design) */}
+      <section className="rounded-2xl border border-slate-200/80 bg-white p-6 md:p-7 shadow-sm space-y-5">
+        {/* Card Header */}
+        <div className="flex items-start gap-3.5">
+          <div className="p-3 rounded-2xl bg-emerald-50 text-emerald-700 shrink-0 mt-0.5 shadow-2xs">
+            <VsIcon name="info" className="text-xl text-emerald-700" />
+          </div>
+          <div className="space-y-1">
+            <h2 className="text-lg md:text-xl font-black text-slate-900 flex items-center gap-2">
+              Quản lý & Đồng bộ qua Google Sheets / Excel Online
             </h2>
-            <p className="mt-0.5 text-xs font-medium text-slate-500">Khởi tạo sản phẩm / dịch vụ vào menu</p>
+            <p className="text-sm text-slate-600 font-medium leading-relaxed">
+              Nhập URL Google Sheets (tab &quot;service-items&quot; / &quot;services&quot;) để kiểm tra dữ liệu, đối soát thay đổi & đồng bộ thực đơn/dịch vụ lên hệ thống.
+            </p>
           </div>
+        </div>
 
-          <div className="space-y-3.5">
-            <div>
-              <label htmlFor="cat-id" className={labelClass}>
-                Danh mục dịch vụ
-              </label>
-              <select id="cat-id" required name="categoryId" className={inputClass}>
-                <option value="">-- Chọn danh mục --</option>
-                {data.categories.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.nameVi}{item.translations?.find((t) => t.locale === "en")?.name ? ` (${item.translations.find((t) => t.locale === "en")!.name})` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="service-name" className={labelClass}>
-                Tên dịch vụ
-              </label>
-              <input
-                id="service-name"
-                required
-                name="name"
-                placeholder="Ví dụ: Massage body thảo dược (60p)"
-                className={inputClass}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="service-price" className={labelClass}>
-                Giá dịch vụ (VND)
-              </label>
-              <input
-                id="service-price"
-                required
-                min={0}
-                type="number"
-                name="unitPrice"
-                placeholder="Ví dụ: 350000"
-                className={inputClass}
-              />
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-              <div>
-                <label htmlFor="service-waiting" className={labelClass}>
-                  Thời gian chuẩn bị (Phút)
-                </label>
-                <input
-                  id="service-waiting"
-                  required
-                  min={0}
-                  type="number"
-                  name="waitingMinutes"
-                  placeholder="Ví dụ: 15"
-                  className={inputClass}
-                />
-              </div>
-
-              <div>
-                <label htmlFor="service-capacity" className={labelClass}>
-                  Sức chứa / Lượt phục vụ
-                </label>
-                <input
-                  id="service-capacity"
-                  min={0}
-                  type="number"
-                  name="capacity"
-                  placeholder="Trống = Không giới hạn"
-                  className={inputClass}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="service-mode" className={labelClass}>
-                Hình thức phục vụ
-              </label>
-              <select id="service-mode" name="mode" className={inputClass}>
-                <option value="CUSTOMER_AT_SERVICE">Khách đến địa điểm dịch vụ</option>
-                <option value="DELIVERY_TO_HOTEL">Giao tận nơi đến khách sạn</option>
-              </select>
-            </div>
+        {/* Input & Kiểm tra dữ liệu Action Row */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="relative flex-1">
+            <input
+              type="text"
+              readOnly
+              value={currentSheetUrl}
+              placeholder="Super Admin chưa gán link Google Sheets / Excel Online cho đối tác..."
+              className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50/80 px-4.5 py-3 text-sm font-mono text-slate-900 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20"
+            />
           </div>
-
           <button
-            type="submit"
-            disabled={create.isPending}
-            className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 text-sm font-bold text-white transition-all hover:bg-emerald-800 disabled:opacity-50 shadow-xs"
+            type="button"
+            onClick={handlePreviewSheet}
+            disabled={isPreviewing || !currentSheetUrl}
+            className="h-12 inline-flex items-center justify-center gap-2.5 rounded-xl bg-[#1e3a34] hover:bg-[#172e29] text-white px-7 text-sm font-extrabold transition-all disabled:opacity-50 shrink-0 shadow-xs cursor-pointer"
           >
-            {create.isPending ? "Đang khởi tạo..." : "+ Tạo dịch vụ mới"}
+            <VsIcon name="info" className="text-base" />
+            {isPreviewing ? "Đang kiểm tra..." : "Kiểm tra dữ liệu"}
           </button>
-        </form>
+        </div>
 
-        {/* Right Dominant Area: Service Catalog List */}
-        <div className="space-y-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+        {/* Preview Error Banner */}
+        {previewError && (
+          <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50/90 p-4 text-sm text-rose-900 font-semibold flex items-center gap-3">
+            <VsIcon name="warning" className="text-lg text-rose-600 shrink-0" />
+            <span>{previewError}</span>
+          </div>
+        )}
+
+        {/* Preview Breakdown Section */}
+        {sheetPreview && (
+          <div className="space-y-5 pt-5 border-t border-slate-100">
+            {/* 5 Summary Metric Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5">
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 text-emerald-900 shadow-2xs">
+                <p className="text-xs font-extrabold uppercase tracking-wider text-emerald-700">TẠO MỚI</p>
+                <p className="mt-1 text-3xl font-black">{sheetPreview.summary.creates ?? sheetPreview.summary.create ?? 0}</p>
+              </div>
+              <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-amber-900 shadow-2xs">
+                <p className="text-xs font-extrabold uppercase tracking-wider text-amber-700">CẬP NHẬT</p>
+                <p className="mt-1 text-3xl font-black">{sheetPreview.summary.updates ?? sheetPreview.summary.update ?? 0}</p>
+              </div>
+              <div className="rounded-xl border border-rose-200 bg-rose-50/80 p-4 text-rose-900 shadow-2xs">
+                <p className="text-xs font-extrabold uppercase tracking-wider text-rose-700">GỠ BỎ / TẮT</p>
+                <p className="mt-1 text-3xl font-black">{sheetPreview.summary.disables ?? sheetPreview.summary.disable ?? 0}</p>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50/90 p-4 text-slate-900 shadow-2xs">
+                <p className="text-xs font-extrabold uppercase tracking-wider text-slate-600">KHÔNG ĐỔI</p>
+                <p className="mt-1 text-3xl font-black">{sheetPreview.summary.unchanged}</p>
+              </div>
+              <div className={`rounded-xl border p-4 shadow-2xs ${sheetPreview.summary.errors > 0 ? "border-rose-300 bg-rose-50 text-rose-900" : "border-slate-200 bg-slate-50 text-slate-900"}`}>
+                <p className={`text-xs font-extrabold uppercase tracking-wider ${sheetPreview.summary.errors > 0 ? "text-rose-700" : "text-slate-600"}`}>LỖI</p>
+                <p className="mt-1 text-3xl font-black">{sheetPreview.summary.errors}</p>
+              </div>
+            </div>
+
+            {/* Validation Errors Box */}
+            {sheetPreview.validation.length > 0 && (
+              <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50/70 p-5 space-y-3 shadow-2xs">
+                <p className="text-base font-extrabold text-rose-900 flex items-center gap-2.5">
+                  <VsIcon name="warning" className="text-xl text-rose-600" />
+                  Lỗi cần xử lý trong Google Sheets ({sheetPreview.validation.length} dòng):
+                </p>
+                <div className="max-h-60 overflow-y-auto space-y-2 pr-2">
+                  {sheetPreview.validation.map((v, idx) => (
+                    <div key={idx} className="text-sm font-semibold text-rose-900 bg-white p-3 rounded-xl border border-rose-200 flex items-start gap-2.5 shadow-2xs">
+                      <span className="font-mono font-bold bg-rose-100 text-rose-800 px-2 py-0.5 rounded-md text-xs shrink-0">
+                        {v.row ? `Hàng ${v.row}` : "Bảng tính"}{v.col ? `, Cột ${v.col}` : ""}
+                      </span>
+                      <span className="leading-snug">{v.message} {v.value ? `(Giá trị: "${v.value}")` : ""}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Diff Preview Table */}
+            {sheetPreview.diff.length > 0 && (
+              <div className="space-y-2.5">
+                <p className="text-base font-black text-slate-900">Chi tiết thay đổi dữ liệu ({sheetPreview.diff.length} dịch vụ):</p>
+                <div className="max-h-80 overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xs">
+                  <table className="w-full text-left border-collapse text-sm">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 font-extrabold uppercase text-xs">
+                        <th className="p-3.5">HÀNH ĐỘNG</th>
+                        <th className="p-3.5">KEY</th>
+                        <th className="p-3.5">TÊN TIẾNG VIỆT</th>
+                        <th className="p-3.5">CHI TIẾT THAY ĐỔI</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-medium">
+                      {sheetPreview.diff.map((d, i) => (
+                        <tr key={i} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="p-3.5 font-extrabold whitespace-nowrap">
+                            {d.action === "create" && <span className="text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 text-xs">Tạo mới</span>}
+                            {d.action === "update" && <span className="text-amber-800 bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200 text-xs">Cập nhật</span>}
+                            {d.action === "disable" && <span className="text-rose-800 bg-rose-50 px-2.5 py-1 rounded-md border border-rose-200 text-xs">Gỡ bỏ / Tắt</span>}
+                            {d.action === "unchanged" && <span className="text-slate-700 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200 text-xs">Không đổi</span>}
+                          </td>
+                          <td className="p-3.5 font-mono font-bold text-slate-900">{d.key || "—"}</td>
+                          <td className="p-3.5 font-bold text-slate-900">
+                            {String((d.payload as Record<string, unknown> | undefined)?.nameVi ?? d.label ?? "—")}
+                          </td>
+                          <td className="p-3.5 text-slate-700">
+                            {d.changes ? (
+                              <div className="space-y-1">
+                                {Object.entries(d.changes).map(([field, change]) => (
+                                  <div key={field} className="font-mono text-xs">
+                                    <span className="font-bold text-slate-900">{field}:</span> {String((change as { from?: unknown })?.from ?? "")} &rarr; <span className="font-bold text-amber-800">{String((change as { to?: unknown })?.to ?? "")}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              "—"
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Bottom Commit Action Button */}
+            <div className="flex justify-end pt-3">
+              <button
+                type="button"
+                onClick={handleCommitSheet}
+                disabled={isCommitting || sheetPreview.summary.errors > 0}
+                className="h-12 inline-flex items-center gap-2.5 rounded-full bg-[#1e3a34] hover:bg-[#172e29] text-white px-8 text-sm font-extrabold shadow-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                <VsIcon name="info" className="text-base" />
+                {isCommitting ? "Đang áp dụng..." : "Áp dụng thay đổi"}
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Main Section */}
+      <section className="space-y-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
           {/* Header & Filter Toolbar */}
           <div className="space-y-3.5 border-b border-slate-100 pb-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -262,7 +367,7 @@ export function ServiceCatalogView({ data }: Readonly<{ data: ServicePortalData 
                   type="text"
                   value={searchTerm}
                   onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
-                  placeholder="Tìm kiếm dịch vụ, danh mục..."
+                  placeholder="Tìm kiếm dịch vụ..."
                   className="h-9.5 w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-8 text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-emerald-600 focus:outline-none focus:ring-4 focus:ring-emerald-600/10 transition-all"
                 />
                 {searchTerm ? (
@@ -275,20 +380,6 @@ export function ServiceCatalogView({ data }: Readonly<{ data: ServicePortalData 
                   </button>
                 ) : null}
               </div>
-
-              {/* Category Filter Select */}
-              <select
-                value={categoryFilter}
-                onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
-                className="h-9.5 rounded-xl border border-slate-200 bg-slate-50/50 px-3 text-xs font-bold text-slate-700 focus:bg-white focus:border-emerald-600 focus:outline-none transition-all"
-              >
-                <option value="all">Tất cả danh mục</option>
-                {data.categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.nameVi}
-                  </option>
-                ))}
-              </select>
 
               {/* Status Filter Pills */}
               <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50/80 p-1 shrink-0">
@@ -317,7 +408,7 @@ export function ServiceCatalogView({ data }: Readonly<{ data: ServicePortalData 
                     statusFilter === "DISABLED" ? "bg-white text-slate-900 shadow-2xs border border-slate-200/60" : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
-                  Tạm dừng
+                  Tạm ẩn
                 </button>
               </div>
             </div>
@@ -353,7 +444,7 @@ export function ServiceCatalogView({ data }: Readonly<{ data: ServicePortalData 
                       ) : item.status === "DISABLED" ? (
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 border border-slate-200 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600">
                           <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-                          Tạm dừng
+                          Tạm ẩn
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-[11px] font-semibold text-blue-700">
@@ -388,7 +479,7 @@ export function ServiceCatalogView({ data }: Readonly<{ data: ServicePortalData 
                             <svg className="h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
                             </svg>
-                            Giao tới khách sạn
+                            Giao tận nơi
                           </>
                         ) : (
                           <>
@@ -415,6 +506,9 @@ export function ServiceCatalogView({ data }: Readonly<{ data: ServicePortalData 
 
                   {/* Right Column: Primary Actions */}
                   <div className="flex items-center gap-2 self-start md:self-auto shrink-0">
+                    <button type="button" onClick={() => update.mutate({ serviceId: item.id, data: { status: item.status === "ACTIVE" ? "DISABLED" : "ACTIVE" } }, { onSuccess: () => toast.success(item.status === "ACTIVE" ? "Đã tạm ẩn dịch vụ" : "Đã kích hoạt dịch vụ"), onError: () => toast.error("Không thể thay đổi trạng thái dịch vụ") })} className={`rounded-xl border px-3 py-1.5 text-xs font-bold shadow-2xs transition-all ${item.status === "ACTIVE" ? "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100" : "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"}`}>
+                      {item.status === "ACTIVE" ? "Tạm ẩn" : "Kích hoạt"}
+                    </button>
                     <button
                       type="button"
                       onClick={() => handleEditNotice(item)}
@@ -443,7 +537,6 @@ export function ServiceCatalogView({ data }: Readonly<{ data: ServicePortalData 
               </div>
             </nav>
           ) : null}
-        </div>
       </section>
     </div>
   );

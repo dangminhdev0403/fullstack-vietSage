@@ -1,19 +1,30 @@
 import { unwrapApiEnvelope } from "@/core/http/api-envelope";
 import { getBackendApiBaseUrl } from "@/core/http/backend-api-config";
 import { HttpClient } from "@/core/http/http-client";
-import type { ServiceItem, ServicePortalData, ServiceProfile } from "./types";
-import type { MarketplaceCategory, MarketplaceOrder } from "@/features/marketplace/types/marketplace-contract";
-
+import type { ServiceItem, ServiceItemImportPreview, ServicePortalData, ServiceProfile } from "./types";
+import type { MarketplaceOrder } from "@/features/marketplace/types/marketplace-contract";
 const http = new HttpClient({ baseUrl: getBackendApiBaseUrl() });
 const req = async <T, B = unknown>(token: string, method: "GET" | "POST" | "PATCH", path: string, body?: B) => unwrapApiEnvelope<T>(await http.request<unknown, B>({ method, path, accessToken: token, body })).data;
+const csvReq = async (token: string, path: string) => {
+  const response = await fetch(`${getBackendApiBaseUrl()}${path}`, { headers: { Authorization: `Bearer ${token}`, Accept: "text/csv" } });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.text();
+};
 export const servicePortalClient = {
   data: async (token: string): Promise<ServicePortalData> => {
-    const [profile, categories, services, orders] = await Promise.all([
-      req<ServiceProfile>(token, "GET", "/service-portal/profile"), req<MarketplaceCategory[]>(token, "GET", "/service-portal/categories"), req<ServiceItem[]>(token, "GET", "/service-portal/services"), req<MarketplaceOrder[]>(token, "GET", "/service-portal/orders"),
+    const [profile, services, orders] = await Promise.all([
+      req<ServiceProfile>(token, "GET", "/service-portal/profile"),
+      req<ServiceItem[]>(token, "GET", "/service-portal/services"),
+      req<MarketplaceOrder[]>(token, "GET", "/service-portal/orders"),
     ]);
-    return { profile, categories, services, orders };
+    return { profile, services, orders };
   },
   profile: (token: string, body: Partial<ServiceProfile>) => req<ServiceProfile, Partial<ServiceProfile>>(token, "PATCH", "/service-portal/profile", body),
   create: (token: string, body: unknown) => req<ServiceItem, unknown>(token, "POST", "/service-portal/services", body),
+  update: (token: string, serviceId: string, body: unknown) => req<ServiceItem, unknown>(token, "PATCH", `/service-portal/services/${encodeURIComponent(serviceId)}`, body),
   transition: (token: string, orderId: string, toStatus: string) => req<MarketplaceOrder, { toStatus: string }>(token, "POST", `/service-portal/orders/${encodeURIComponent(orderId)}/transitions`, { toStatus }),
+  importPreview: (token: string, csv: string, fileName: string) => req<ServiceItemImportPreview, { csv: string; fileName: string }>(token, "POST", "/service-portal/services/import/preview", { csv, fileName }),
+  importCommit: (token: string, csv: string, fileName: string, previewToken: string) => req(token, "POST", "/service-portal/services/import/commit", { csv, fileName, previewToken }),
+  template: (token: string) => csvReq(token, "/service-portal/services/import/template"),
+  export: (token: string) => csvReq(token, "/service-portal/services/export"),
 };

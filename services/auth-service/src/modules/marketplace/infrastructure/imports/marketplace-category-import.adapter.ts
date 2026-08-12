@@ -163,10 +163,7 @@ export class MarketplaceCategoryImportAdapter
     }
   }
 
-  parse(
-    workbook: ParsedImportWorkbook,
-    _context: ImportContext,
-  ): MarketplaceCategoryImportPayload {
+  parse(workbook: ParsedImportWorkbook, _context: ImportContext): MarketplaceCategoryImportPayload {
     const sheet = workbook.sheets.find(
       (s) => s.name.toLowerCase() === "categories" || s.name === workbook.sheets[0]?.name,
     );
@@ -206,10 +203,26 @@ export class MarketplaceCategoryImportAdapter
 
       const LOCALE_ALIASES: Record<string, string[]> = {
         en: ["name_en", "tên tiếng anh", "tên (tiếng anh)", "name en", "english", "english name"],
-        zh: ["name_zh", "tên tiếng trung", "tên (tiếng trung)", "name zh", "chinese", "chinese name"],
+        zh: [
+          "name_zh",
+          "tên tiếng trung",
+          "tên (tiếng trung)",
+          "name zh",
+          "chinese",
+          "chinese name",
+        ],
         ko: ["name_ko", "tên tiếng hàn", "tên (tiếng hàn)", "name ko", "korean", "korean name"],
         ru: ["name_ru", "tên tiếng nga", "tên (tiếng nga)", "name ru", "russian", "russian name"],
-        hi: ["name_hi", "tên tiếng ấn", "tên tiếng ấn độ", "tên (tiếng ấn độ)", "tên (tiếng ấn)", "name hi", "hindi", "hindi name"],
+        hi: [
+          "name_hi",
+          "tên tiếng ấn",
+          "tên tiếng ấn độ",
+          "tên (tiếng ấn độ)",
+          "tên (tiếng ấn)",
+          "name hi",
+          "hindi",
+          "hindi name",
+        ],
       };
 
       const translations: Record<string, string> = {};
@@ -474,10 +487,7 @@ export class MarketplaceCategoryImportAdapter
       if (d.action === "disable") {
         const existing = await tx.marketplaceCategory.findFirst({
           where: {
-            OR: [
-              { importKey: d.key },
-              { code: d.key },
-            ],
+            OR: [{ importKey: d.key }, { code: d.key }],
           },
         });
         if (existing) {

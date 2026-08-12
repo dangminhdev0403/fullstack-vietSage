@@ -109,19 +109,14 @@ describe("GuestMarketplaceService – locale", () => {
     mockPrisma.marketplaceService.findMany.mockResolvedValue([
       {
         id: "svc-1",
-        category: baseCategory,
         serviceTenant: {
           id: "tenant-1",
-          serviceProfile: { latitude: 10.763, longitude: 106.661 },
+          serviceProfile: { latitude: 10.763, longitude: 106.661, category: baseCategory },
           hotelServiceLinks: [{ sortOrder: 0 }],
         },
       },
     ]);
-    const result = await service.services(
-      "hotel-1",
-      { page: 1, limit: 20 },
-      "en",
-    );
+    const result = await service.services("hotel-1", { page: 1, limit: 20 }, "en");
     expect(result.items[0].category.name).toBe("Food & Beverage");
   });
 });

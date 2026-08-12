@@ -1793,6 +1793,7 @@ model ServiceTenantProfile {
   phone                String?                   @db.VarChar(40)
   address              String?                   @db.VarChar(255)
   googleMapsUrl        String?                   @db.VarChar(500)
+  googleSheetsUrl      String?                   @db.VarChar(500)
   latitude             Decimal?                  @db.Decimal(9, 6)
   longitude            Decimal?                  @db.Decimal(9, 6)
   locationAccuracyMeters Float?                    @db.DoublePrecision
@@ -1802,7 +1803,11 @@ model ServiceTenantProfile {
   status               MarketplaceRecordStatus   @default(DRAFT)
   createdAt            DateTime                  @default(now())
   updatedAt            DateTime                  @updatedAt
+  categoryId           String?
   tenant               Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category             MarketplaceCategory?     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@index([categoryId, status])
 }
 
 model MarketplaceCategory {
@@ -1816,6 +1821,7 @@ model MarketplaceCategory {
   updatedAt    DateTime                         @updatedAt
   translations MarketplaceCategoryTranslation[]
   services     MarketplaceService[]
+  serviceTenants ServiceTenantProfile[]
 
   @@index([isActive, sortOrder])
 }
@@ -1836,6 +1842,7 @@ model MarketplaceCategoryTranslation {
 model MarketplaceService {
   id                String                 @id @default(cuid())
   serviceTenantId   String
+  importKey         String?              @db.VarChar(120)
   categoryId        String
   name              String                 @db.VarChar(160)
   description       String?                @db.VarChar(1000)
@@ -1852,10 +1859,26 @@ model MarketplaceService {
   serviceTenant     Tenant                 @relation("TenantMarketplaceServices", fields: [serviceTenantId], references: [id], onDelete: Cascade)
   category          MarketplaceCategory    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   orders            MarketplaceOrder[]
+  translations      MarketplaceServiceTranslation[]
 
-  @@index([serviceTenantId, status])
+  @@unique([serviceTenantId, importKey])
+  @@index([serviceTenantId, status, updatedAt])
   @@index([categoryId, status])
   @@index([status])
+}
+
+model MarketplaceServiceTranslation {
+  id          String             @id @default(cuid())
+  serviceId   String
+  locale      String             @db.VarChar(10)
+  name        String             @db.VarChar(160)
+  description String?            @db.VarChar(1000)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  service     MarketplaceService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceId, locale])
+  @@index([locale])
 }
 
 model HotelServiceLink {

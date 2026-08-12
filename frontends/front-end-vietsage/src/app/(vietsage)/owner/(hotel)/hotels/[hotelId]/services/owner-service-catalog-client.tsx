@@ -1432,22 +1432,14 @@ export function OwnerServiceCatalogClient({
           <div>
             <h2 className="text-lg font-extrabold text-[var(--primary)] flex items-center gap-2">
               <VsIcon name="table_chart" className="text-xl text-[var(--primary)]" />
-              Đồng bộ dịch vụ qua Google Sheets
+              Đồng bộ dịch vụ qua Google Sheets / Excel Online
             </h2>
             <p className="text-xs font-semibold text-[var(--on-surface-variant)] mt-0.5">
               {hasGoogleSheetConfig
                 ? "Google Sheets đã được cấu hình bởi quản trị viên. Nhấn Xem trước để kiểm tra thay đổi trước khi áp dụng."
-                : "Nhập URL Google Sheets để xem trước và đồng bộ dịch vụ."}
+                : "Nhập URL Google Sheets / Excel Online để xem trước và đồng bộ dịch vụ."}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={handleDownloadTemplate}
-            className="inline-flex items-center justify-center gap-2 rounded-full border border-[var(--outline-variant)] bg-[var(--surface-container-low)] px-4 py-2.5 text-xs font-bold text-[var(--primary)] hover:bg-[var(--surface-container)] transition-colors shrink-0"
-          >
-            <VsIcon name="download" className="text-base" />
-            Tải file mẫu CSV
-          </button>
         </div>
 
         {/* URL input — shown only when admin has NOT configured a sheet */}

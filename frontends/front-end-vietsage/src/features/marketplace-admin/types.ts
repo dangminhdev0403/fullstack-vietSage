@@ -6,7 +6,7 @@ export type ServiceTenant = {
   name: string;
   ownerEmail?: string | null;
   ownerFullName?: string | null;
-  serviceProfile: { displayName: string; status: string } | null;
+  serviceProfile: { displayName: string; status: string; categoryId?: string | null; googleSheetsUrl?: string | null; category?: MarketplaceCategory | null } | null;
 };
 export type MarketplaceCategorySheetPreview = {
   workbookHash: string;
@@ -35,9 +35,9 @@ export type MarketplaceAdminData = {
 
 export type MarketplaceAdminAction =
   | { action: "category"; input: { nameVi: string; sortOrder: number; isActive: boolean; translations?: Record<string, string> } }
-  | { action: "tenant"; input: { displayName: string; owner: { email: string; fullName: string; password: string } } }
+  | { action: "tenant"; input: { displayName: string; categoryId: string; googleSheetsUrl?: string | null; owner: { email: string; fullName: string; password: string } } }
   | { action: "updateCategory"; id: string; input: { nameVi?: string; isActive?: boolean; translations?: Record<string, string> } }
   | { action: "deleteCategory"; id: string }
-  | { action: "updateTenant"; id: string; input: { displayName?: string; status?: string; owner?: { email?: string; fullName?: string; password?: string } } }
+  | { action: "updateTenant"; id: string; input: { displayName?: string; categoryId?: string; status?: string; googleSheetsUrl?: string | null; owner?: { email?: string; fullName?: string; password?: string } } }
   | { action: "previewImport"; spreadsheetUrl: string }
   | { action: "commitImport"; spreadsheetUrl: string; expectedHash: string };

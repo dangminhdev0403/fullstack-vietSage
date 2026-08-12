@@ -1,4 +1,16 @@
-import { Body, Controller, Get, Param, Patch, Post, Req } from "@nestjs/common";
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Header,
+  Param,
+  Patch,
+  Post,
+  Req,
+  Res,
+} from "@nestjs/common";
+import type { Response } from "express";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
@@ -12,6 +24,7 @@ import {
   serviceProfileBodySchema,
 } from "../domain/service-portal.schema";
 import { MarketplaceOrderService } from "../application/marketplace-order.service";
+import { ServiceItemImportService } from "../application/service-item-import.service";
 import {
   marketplaceOrderIdSchema,
   marketplaceTransitionSchema,
@@ -22,6 +35,7 @@ export class ServicePortalController {
   constructor(
     private readonly service: ServicePortalService,
     private readonly orders: MarketplaceOrderService,
+    private readonly imports: ServiceItemImportService,
   ) {}
 
   @ApiDescript("Xem hồ sơ Service Tenant")
@@ -39,13 +53,6 @@ export class ServicePortalController {
       req.user.userId,
       parseWithZod(serviceProfileBodySchema, body),
     );
-  }
-
-  @ApiDescript("Xem danh mục Service Marketplace")
-  @RequirePermission("service.marketplace.view")
-  @Get("categories")
-  categories() {
-    return this.service.categories();
   }
 
   @ApiDescript("Xem dịch vụ Service Tenant")
@@ -92,6 +99,52 @@ export class ServicePortalController {
       req.user.userId,
       parseWithZod(servicePortalIdSchema, id),
       parseWithZod(marketplaceAvailabilitySchema, body),
+    );
+  }
+
+  @ApiDescript("Tải mẫu CSV dịch vụ")
+  @RequirePermission("service.marketplace.view")
+  @Header("Content-Type", "text/csv; charset=utf-8")
+  @Header("Content-Disposition", 'attachment; filename="service_items_template.csv"')
+  @Get("services/import/template")
+  template(@Res() response: Response) {
+    response.type("text/csv; charset=utf-8").send(this.imports.template());
+  }
+
+  @ApiDescript("Xuất danh sách dịch vụ CSV")
+  @RequirePermission("service.marketplace.view")
+  @Header("Content-Type", "text/csv; charset=utf-8")
+  @Header("Content-Disposition", 'attachment; filename="service_items.csv"')
+  async export(@Req() req: RequestWithRequiredUser, @Res() response: Response) {
+    response.type("text/csv; charset=utf-8").send(await this.imports.export(req.user.userId));
+  }
+
+  @ApiDescript("Xem trước nhập dịch vụ CSV")
+  @RequirePermission("service.marketplace.manage")
+  @Post("services/import/preview")
+  previewImport(@Req() req: RequestWithRequiredUser, @Body() body: unknown) {
+    const input = body as { csv?: unknown; fileName?: unknown };
+    if (typeof input.csv !== "string" || !input.csv.trim())
+      throw new BadRequestException("CSV content is required");
+    return this.imports.preview(
+      req.user.userId,
+      input.csv,
+      typeof input.fileName === "string" ? input.fileName : "service-items.csv",
+    );
+  }
+
+  @ApiDescript("Xác nhận nhập dịch vụ CSV")
+  @RequirePermission("service.marketplace.manage")
+  @Post("services/import/commit")
+  commitImport(@Req() req: RequestWithRequiredUser, @Body() body: unknown) {
+    const input = body as { csv?: unknown; fileName?: unknown; previewToken?: unknown };
+    if (typeof input.csv !== "string" || typeof input.previewToken !== "string")
+      throw new BadRequestException("CSV content and previewToken are required");
+    return this.imports.commit(
+      req.user.userId,
+      input.csv,
+      input.previewToken,
+      typeof input.fileName === "string" ? input.fileName : "service-items.csv",
     );
   }
 

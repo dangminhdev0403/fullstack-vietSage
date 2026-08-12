@@ -8,19 +8,92 @@ import {
 
 const body = {
   displayName: "Spa",
+  categoryId: "category-1",
   owner: { email: "spa@example.com", fullName: "Spa Owner", password: "Password123!" },
 };
 
-
 describe("Marketplace admin", () => {
+  it("updates the PARTNER owner instead of the first tenant member", async () => {
+    const userUpdate = jest.fn();
+    const tenantUsers = [
+      { user: { id: "staff-1", email: "staff@example.com", fullName: "Staff", userType: "STAFF" } },
+      { user: { id: "owner-1", email: "owner@example.com", fullName: "Owner", userType: "PARTNER" } },
+    ];
+    const tx = {
+      tenant: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValueOnce({ name: "Spa" })
+          .mockResolvedValueOnce({ tenantUsers, serviceProfile: {} }),
+        update: jest.fn().mockResolvedValue({ tenantUsers, serviceProfile: {} }),
+      },
+      user: { findFirst: jest.fn(), update: userUpdate },
+      auditLog: { create: jest.fn() },
+    };
+    const service = new MarketplaceAdminService(
+      {
+        tenant: { findFirst: jest.fn().mockResolvedValue({ id: "tenant-1" }) },
+        $transaction: (fn: (value: unknown) => unknown) => fn(tx),
+      } as never,
+      {} as never,
+    );
+
+    await service.updateServiceTenant("admin-1", "tenant-1", {
+      owner: { email: "owner@example.com", fullName: "Owner Updated" },
+    });
+
+    expect(userUpdate).toHaveBeenCalledWith({
+      where: { id: "owner-1" },
+      data: { fullName: "Owner Updated" },
+    });
+  });
+
+  it("reassigns the tenant profile and legacy service rows atomically", async () => {
+    const marketplaceServiceUpdateMany = jest.fn().mockResolvedValue({ count: 2 });
+    const tx = {
+      tenant: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValueOnce({ name: "Spa" })
+          .mockResolvedValueOnce({ tenantUsers: [], serviceProfile: {} }),
+        update: jest.fn().mockResolvedValue({ tenantUsers: [], serviceProfile: {} }),
+      },
+      marketplaceService: { updateMany: marketplaceServiceUpdateMany },
+      auditLog: { create: jest.fn() },
+    };
+    const service = new MarketplaceAdminService(
+      {
+        tenant: { findFirst: jest.fn().mockResolvedValue({ id: "tenant-1" }) },
+        marketplaceCategory: { findFirst: jest.fn().mockResolvedValue({ id: "category-2" }) },
+        $transaction: (fn: (value: unknown) => unknown) => fn(tx),
+      } as never,
+      {} as never,
+    );
+
+    await service.updateServiceTenant("admin-1", "tenant-1", { categoryId: "category-2" });
+
+    expect(marketplaceServiceUpdateMany).toHaveBeenCalledWith({
+      where: { serviceTenantId: "tenant-1" },
+      data: { categoryId: "category-2" },
+    });
+  });
+
   it("lists only nearby mapped providers from nearest to farthest", async () => {
     const prisma = {
       hotel: { findUniqueOrThrow: jest.fn().mockResolvedValue({ latitude: 0, longitude: 0 }) },
       tenant: {
         findMany: jest.fn().mockResolvedValue([
           { id: "far", serviceProfile: { latitude: 1, longitude: 1 }, hotelServiceLinks: [] },
-          { id: "near", serviceProfile: { latitude: 0.01, longitude: 0.01 }, hotelServiceLinks: [{ status: "ACTIVE" }] },
-          { id: "unknown", serviceProfile: { latitude: null, longitude: null }, hotelServiceLinks: [] },
+          {
+            id: "near",
+            serviceProfile: { latitude: 0.01, longitude: 0.01 },
+            hotelServiceLinks: [{ status: "ACTIVE" }],
+          },
+          {
+            id: "unknown",
+            serviceProfile: { latitude: null, longitude: null },
+            hotelServiceLinks: [],
+          },
         ]),
       },
     };
@@ -45,7 +118,9 @@ describe("Marketplace admin", () => {
 
   it("generates category codes instead of accepting System Code", async () => {
     const categoryCreate = jest.fn().mockResolvedValue({ id: "category-1" });
-    const tx = { marketplaceCategory: { findFirst: jest.fn().mockResolvedValue(null), create: categoryCreate } };
+    const tx = {
+      marketplaceCategory: { findFirst: jest.fn().mockResolvedValue(null), create: categoryCreate },
+    };
     const codes = {
       generateEntityCode: jest.fn().mockResolvedValue("VSH_MARKETPLACE_CATEGORY_0001"),
     };
@@ -105,6 +180,7 @@ describe("Marketplace admin", () => {
       {
         user: { findFirst: jest.fn().mockResolvedValue(null) },
         tenant: { findFirst: jest.fn().mockResolvedValue(null) },
+        marketplaceCategory: { findFirst: jest.fn().mockResolvedValue({ id: "category-1" }) },
         $transaction: (fn: (value: unknown) => unknown) => fn(tx),
       } as never,
       codes as never,

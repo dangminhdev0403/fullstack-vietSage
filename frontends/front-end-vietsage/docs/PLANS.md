@@ -1,3 +1,194 @@
+## [complete] 2026-08-12 - Mission: remove-redundant-toolbar-button-and-update-sync-terminology
+
+- Updated [service-catalog-view.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/service-portal/components/service-catalog-view.tsx):
+  1. Removed the redundant green `[🔄] Đồng bộ dịch vụ` button from the service catalog filter/search toolbar.
+  2. Changed `"Xem trước"` terminology to **`"Kiểm tra dữ liệu"`** (loading: `"Đang kiểm tra..."`).
+  3. Changed `"Xem trước thay đổi"` table header to **`"Chi tiết thay đổi dữ liệu"`**.
+  4. Refined header description to enterprise-grade wording (`kiểm tra dữ liệu, đối soát thay đổi & đồng bộ thực đơn/dịch vụ lên hệ thống`).
+
+Verification result:
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+
+## [complete] 2026-08-12 - Mission: fix-all-ts-errors-in-marketplace-service-item-import-adapter
+
+- Updated [marketplace-service-item-import.adapter.ts](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/services/auth-service/src/modules/marketplace/infrastructure/imports/marketplace-service-item-import.adapter.ts):
+  1. Replaced unsafe non-null assertions (`item.importKey!`) in `diff`, `commit`, and `validateState` with type-guard filters (`filter((item): item is StateItem & { importKey: string } => Boolean(item.importKey))`).
+  2. Fixed string conversion in `changes` and `text` helper functions to avoid object stringification warnings.
+- Fixed [codes.repository.ts](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/services/auth-service/src/modules/codes/codes.repository.ts): removed non-existent `prefix` property from `client.code.create` payload.
+
+Verification result:
+- TypeScript check on target adapter passed (`npx tsc --noEmit`): 0 errors in target adapter file.
+
+## [complete] 2026-08-12 - Mission: enlarge-online-sheet-sync-panel-ui-scale
+
+- Updated [service-catalog-view.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/service-portal/components/service-catalog-view.tsx): increased font sizes, padding, icon scale, input/button heights, metric numbers (`text-3xl font-black`), validation error text (`text-sm font-semibold`), and diff preview table dimensions (`max-h-80`, `text-sm font-bold`) across the entire Google Sheets / Excel Online Sync Panel for maximum readability.
+
+Verification result:
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+
+## [complete] 2026-08-12 - Mission: create-missing-marketplace-service-translation-table-in-postgres
+
+- Executed `npx prisma db push` on `services/auth-service`: created physical table `public.MarketplaceServiceTranslation` in PostgreSQL `vietsage_auth` database. Previously, the table model existed in `schema.prisma` but had not been pushed to the database schema, causing Prisma `upsert` queries to fail with `The table public.MarketplaceServiceTranslation does not exist in the current database`.
+- Added defensive safeguards in [marketplace-service-item-import.adapter.ts](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/services/auth-service/src/modules/marketplace/infrastructure/imports/marketplace-service-item-import.adapter.ts) to filter out empty translation payload entries.
+
+Verification result:
+- Database schema sync passed (`npx prisma db push`): `Your database is now in sync with your Prisma schema`.
+
+## [complete] 2026-08-12 - Mission: implement-preferred-inline-google-sheets-sync-panel-design
+
+- Implemented preferred inline Google Sheets / Excel Online synchronization panel design in [service-catalog-view.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/service-portal/components/service-catalog-view.tsx).
+- Features:
+  1. Card header with title `Quản lý & Đồng bộ qua Google Sheets / Excel Online` and description.
+  2. Spreadsheet URL input box (auto-filled from CSDL profile `googleSheetsUrl`) with inline `Xem trước` action button.
+  3. 5 summary metric cards (`TẠO MỚI`, `CẬP NHẬT`, `GỠ BỎ / TẮT`, `KHÔNG ĐỔI`, `LỖI`).
+  4. Scrollable validation error breakdown box (`Lỗi cần xử lý trong Google Sheets (X dòng)`).
+  5. Diff changes preview table (`Xem trước thay đổi (X dịch vụ)`).
+  6. Bottom-right `Áp dụng thay đổi` commit button for instant database updates.
+
+Verification result:
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+
+## [complete] 2026-08-12 - Mission: fix-import-commit-500-prisma-client-known-request-error
+
+- Fixed [codes.repository.ts](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/services/auth-service/src/modules/codes/codes.repository.ts): updated `reserveCodeSequence` to auto-create the `Code` sequence entry with `sequenceNext: 1` if it does not exist yet for a new entity type (e.g., `MARKETPLACE_SERVICE`), preventing `NotFoundException` during bulk imports.
+- Fixed [service-item-import.service.ts](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/services/auth-service/src/modules/marketplace/application/service-item-import.service.ts): removed explicit `{ isolationLevel: "Serializable" }` option from Prisma transaction during import commit to prevent PostgreSQL `40001` serialization conflict errors during concurrent row insertions.
+
+Verification result:
+- Backend TypeScript check passed (`npx tsc --noEmit --skipLibCheck`): 0 errors in marketplace/codes domain.
+
+## [complete] 2026-08-12 - Mission: fix-nextjs-route-zod-schema-for-google-sheets-url
+
+- Fixed root cause in [route.ts](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/app/api/admin/marketplace/route.ts): added `googleSheetsUrl: z.string().trim().max(500).optional()` to NextJS API `tenant` and `updateTenant` Zod validation schemas. Previously, Zod was stripping `googleSheetsUrl` out of the request body before forwarding to NestJS backend, causing PostgreSQL `ServiceTenantProfile.googleSheetsUrl` column to remain NULL.
+
+Verification result:
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+
+## [complete] 2026-08-12 - Mission: completely-eliminate-localstorage-for-partner-sheet-urls
+
+- Completely removed all client-side `localStorage` caching and setting logic for partner spreadsheet URLs in [marketplace-admin-client.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/marketplace-admin/marketplace-admin-client.tsx).
+- All partner sheet URLs are now stored 100% directly in the PostgreSQL database (`ServiceTenantProfile.googleSheetsUrl`), eliminating cross-partner URL overwrites and ensuring unique per-tenant data persistence across browsers and sessions.
+
+Verification result:
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+
+## [complete] 2026-08-12 - Mission: fix-database-persistence-for-google-sheets-url
+
+- Fixed [marketplace-admin-client.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/marketplace-admin/marketplace-admin-client.tsx): updated Update Partner form input `defaultValue` and `currentSpreadsheetUrl` calculation to prioritize `editingTenant.serviceProfile.googleSheetsUrl` read directly from the database API payload.
+- Fixed [marketplace-admin.service.ts](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/services/auth-service/src/modules/marketplace/application/marketplace-admin.service.ts): updated `updateServiceTenant` to check `body.googleSheetsUrl !== undefined` explicitly, ensuring Prisma `upsert.create` and `upsert.update` write `googleSheetsUrl` directly to the `ServiceTenantProfile` table in PostgreSQL.
+
+Verification result:
+- Backend TypeScript check passed (`npx tsc --noEmit --skipLibCheck`): 0 errors.
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+
+## [complete] 2026-08-12 - Mission: suppress-raw-validation-error-string-in-sweetalert
+
+- Updated `fetchGoogleSheetCsv` in [service-catalog-view.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/service-portal/components/service-catalog-view.tsx) to parse `payload.data.detail` from backend response payloads, suppressing raw `"VALIDATION_ERROR"` status codes per SweetAlert2 standards and presenting human-readable messages to the user.
+
+Verification result:
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+
+## [complete] 2026-08-12 - Mission: apply-online-excel-and-google-sheets-sync-standard-to-service-catalog
+
+- Standardized online Excel and Google Sheets CSV URL resolution in [route.ts](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/app/api/service-portal/route.ts): supports Google Sheets export URLs (with optional `gid` sheet tab parameters) AND Excel Online / OneDrive / SharePoint URLs (with automatic `download=1` export parameter formatting).
+- Enhanced [service-catalog-view.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/service-portal/components/service-catalog-view.tsx): added safe summary metric count fallbacks (`creates ?? create ?? 0`, `updates ?? update ?? 0`, `disables ?? disable ?? 0`), error list breakdown modals, and pre-commit `SwalVietSage.fire` confirmation dialogs showing exact count previews before database transaction commits.
+
+Verification result:
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+
+## [complete] 2026-08-12 - Mission: database-persisted-google-sheets-url-for-partners
+
+- Added `googleSheetsUrl` optional `@db.VarChar(500)` field to PostgreSQL `ServiceTenantProfile` model in [schema.prisma](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/services/auth-service/prisma/schema.prisma).
+- Updated NestJS Zod validation schemas ([marketplace-admin.schema.ts](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/services/auth-service/src/modules/marketplace/domain/marketplace-admin.schema.ts)) and admin application service ([marketplace-admin.service.ts](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/services/auth-service/src/modules/marketplace/application/marketplace-admin.service.ts)) to persist `googleSheetsUrl` directly to the database during partner creation and updates.
+- Updated `/admin/marketplace` frontend ([marketplace-admin-client.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/marketplace-admin/marketplace-admin-client.tsx)) to pass `googleSheetsUrl` in API mutation payloads.
+- Updated `/service/catalog` frontend ([service-catalog-view.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/service-portal/components/service-catalog-view.tsx)) to read `googleSheetsUrl` directly from the database profile API as top priority, ensuring URL persistence seamlessly crosses different devices, browsers, and user accounts.
+
+Verification result:
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+- Backend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+- Prisma Client regenerated successfully (`npx prisma generate`).
+
+## [complete] 2026-08-12 - Mission: fix-modal-confirm-dialog-and-catalog-sheet-url-fallback
+
+- Fixed modal save behavior in Super Admin **Cập nhật đối tác dịch vụ** ([marketplace-admin-client.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/marketplace-admin/marketplace-admin-client.tsx)): Clicking **Lưu thay đổi** ALWAYS opens the `SwalVietSage.fire` confirmation modal ("Xác nhận cập nhật đối tác") with "Lưu thay đổi" & "Hủy bỏ" buttons first, saving changes upon confirmation instead of closing directly.
+- Fixed `/service/catalog` Google Sheets URL resolution ([service-catalog-view.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/service-portal/components/service-catalog-view.tsx)): `findStoredSheetUrl()` falls back to active system catalog Google Sheets URL (`https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit#gid=0`), ensuring clicking **Đồng bộ dịch vụ** on `/service/catalog` ALWAYS works across sessions and browsers.
+
+Verification result:
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+
+## [complete] 2026-08-12 - Mission: robust-partner-google-sheets-url-resolution
+
+- Added `findStoredSheetUrl()` in [service-catalog-view.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/service-portal/components/service-catalog-view.tsx) to automatically resolve partner-assigned Google Sheets URLs.
+- Iterates through both explicit keys (`vietsage_partner_service_items_sheet_url`, `vietsage_marketplace_partner_sheet_url`, `vietsage_owner_service_catalog_sheet_url`, `vietsage_marketplace_category_sheet_url`) and dynamically scans all `localStorage` keys containing `sheet_url` starting with `http`.
+- Resolves issue where the partner portal reported "Chưa có URL Google Sheets" when Super Admin saved link under tenant ID / code specific keys.
+
+Verification result:
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+
+## [complete] 2026-08-12 - Mission: fix-partner-modal-google-sheets-url-save-and-close-bug
+
+- Fixed issue where pasting or changing the Google Sheets URL in the Super Admin **Cập nhật đối tác dịch vụ** modal caused the modal to close immediately without persisting the link when other text fields remained unchanged ([marketplace-admin-client.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/marketplace-admin/marketplace-admin-client.tsx)).
+- Added `isSpreadsheetUrlChanged` check and `saveSheetUrl()` helper in `submitUpdateTenant` & `submitTenant` to persist `spreadsheetUrl` across multiple keys (`vietsage_partner_<id>_sheet_url`, `vietsage_partner_<code>_sheet_url`, `vietsage_partner_service_items_sheet_url`, `vietsage_marketplace_partner_sheet_url`).
+- Updated `defaultValue` and `onChange` handler of `edit-tenant-sheet-url` input box to preserve the entered URL link across modal opens and saves.
+
+Verification result:
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+
+## [complete] 2026-08-12 - Mission: real-google-sheets-sync-and-error-reporting-on-service-catalog
+
+- Upgraded **"Đồng bộ dịch vụ"** on `/service/catalog` ([service-catalog-view.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/service-portal/components/service-catalog-view.tsx)) from a simple refetch to a **REAL end-to-end Google Sheets synchronization pipeline**.
+- Added online Google Sheets CSV fetcher (`fetchGoogleSheetCsv`) fetching live CSV data directly from `https://docs.google.com/spreadsheets/d/<id>/export?format=csv`.
+- Integrated NestJS backend `ServiceItemImportService.preview` validation to check column headers, required fields, row data types, and category permissions.
+- Integrated `SwalVietSage.fire` error modal & inline error banner listing detailed error messages with exact row numbers and column names (e.g. `Hàng 4 [Đơn giá]: Giá không được nhỏ hơn 0`).
+- Executed real database transaction commit via `importCommit.mutateAsync({ csv, previewToken })` and refreshed catalog upon successful validation with summary stats (`+ create`, `~ update`, `unchanged`).
+
+Verification result:
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+
+## [complete] 2026-08-12 - Mission: super-admin-partner-google-sheets-url-inputs
+
+- Added dedicated **"URL Google Sheets / Excel Online (Cấu hình đồng bộ dịch vụ đối tác)"** input fields to Super Admin's **Thêm đối tác dịch vụ bên ngoài** (Create Partner Modal) and **Cập nhật đối tác dịch vụ** (Update Partner Modal) in [marketplace-admin-client.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/marketplace-admin/marketplace-admin-client.tsx).
+- Added a primary **Quản lý & Đồng bộ dịch vụ đối tác qua Google Sheets / Excel Online** input card at the top of the **Partners tab** in Super Admin workspace with `localStorage` auto-persistence (`vietsage_marketplace_partner_sheet_url` and `vietsage_partner_<id>_sheet_url`).
+
+Verification result:
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+
+## [complete] 2026-08-12 - Mission: restrict-google-sheets-url-assignment-to-super-admin
+
+- Removed the online spreadsheet URL `<input type="url">` form from the partner Service Portal view ([service-catalog-view.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/service-portal/components/service-catalog-view.tsx)).
+- Enforced that pasting and assigning Excel/Google Sheets URLs is strictly a Super Admin responsibility.
+- Displayed a read-only status badge in the partner view indicating that Google Sheets / Excel Online synchronization is managed by Super Admin.
+
+Verification result:
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+
+## [complete] 2026-08-12 - Mission: remove-add-new-service-box-from-service-catalog
+
+- Removed the left sidebar form card "Thêm dịch vụ mới" from the Partner Service Portal Catalog view ([service-catalog-view.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/service-portal/components/service-catalog-view.tsx)).
+- Converted the main layout from a split 2-column grid (`lg:grid-cols-[360px_1fr]`) to a full-width structured B2B Service Catalog container.
+- Cleaned up unused form state, imports, and handlers.
+
+Verification result:
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+
+## [complete] 2026-08-12 - Mission: replace-excel-file-import-with-online-google-sheets-url-sync
+
+- Transitioned data import/sync workflow away from manual Excel/CSV file upload inputs and template download buttons across Marketplace Admin, Service Portal, and Owner Service Catalog.
+- Removed file upload `<input type="file">` and CSV download buttons from `service-catalog-view.tsx`, `marketplace-admin-client.tsx`, and `owner-service-catalog-client.tsx`.
+- Standardized online Google Sheets / Excel URL link input bar with `localStorage` auto-persistence (`vietsage_partner_service_items_sheet_url`, `vietsage_marketplace_category_sheet_url`, `vietsage_owner_service_catalog_sheet_url`), "Xem trước" (Preview), and "Đồng bộ Google Sheets" (Commit / Sync).
+
+Verification result:
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+
+## [complete] 2026-08-12 - Mission: fix-update-duplicate-validation-on-unchanged-fields
+
+- Fixed issue where updating service partner or category data (e.g. manager name, email, category) raised false positive duplicate error banners when keeping display name or email unchanged.
+- Updated `submitUpdateTenant` and `submitUpdateCategory` in `marketplace-admin-client.tsx` to only run duplicate checks against existing entities when the field value actually changes (`displayName.toLowerCase() !== currentDisplayName.toLowerCase()`, `email.toLowerCase() !== currentEmail.toLowerCase()`, `nameVi.toLowerCase() !== currentCategory.nameVi.toLowerCase()`).
+- Updated `updateCategory` in backend `marketplace-admin.service.ts` to skip duplicate query when `body.nameVi` is unchanged.
+
+Verification result:
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+- Backend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+
 ## [complete] 2026-08-12 - Mission: admin-hotel-location-payload
 
 - Fixed Admin hotel BFF PATCH validation/forwarding for Google Maps URL, coordinates, accuracy, and location source.

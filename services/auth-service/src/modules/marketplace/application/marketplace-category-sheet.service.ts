@@ -123,7 +123,9 @@ export class MarketplaceCategorySheetService {
 
       const values = response.data.values ?? [];
       if (values.length < 2) {
-        throw new BadRequestException("Sheet không có dữ liệu hàng (yêu cầu hàng tiêu đề và ít nhất 1 dòng dữ liệu)");
+        throw new BadRequestException(
+          "Sheet không có dữ liệu hàng (yêu cầu hàng tiêu đề và ít nhất 1 dòng dữ liệu)",
+        );
       }
 
       const headers = (values[0] ?? []).map((h) => String(h).trim());
@@ -148,7 +150,9 @@ export class MarketplaceCategorySheetService {
       }
 
       if (parsedRows.length > MAX_ROWS) {
-        throw new BadRequestException(`Số lượng dòng trong file Google Sheets vượt quá giới hạn ${MAX_ROWS} dòng`);
+        throw new BadRequestException(
+          `Số lượng dòng trong file Google Sheets vượt quá giới hạn ${MAX_ROWS} dòng`,
+        );
       }
 
       return {

@@ -6918,14 +6918,6 @@ paths:
         "200":
           description: ""
       tags: *a29
-  /service-portal/categories:
-    get:
-      operationId: ServicePortalController_categories
-      parameters: []
-      responses:
-        "200":
-          description: ""
-      tags: *a29
   /service-portal/services:
     get:
       operationId: ServicePortalController_services
@@ -6965,6 +6957,30 @@ paths:
             type: string
       responses:
         "200":
+          description: ""
+      tags: *a29
+  /service-portal/services/import/template:
+    get:
+      operationId: ServicePortalController_template
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: *a29
+  /service-portal/services/import/preview:
+    post:
+      operationId: ServicePortalController_previewImport
+      parameters: []
+      responses:
+        "201":
+          description: ""
+      tags: *a29
+  /service-portal/services/import/commit:
+    post:
+      operationId: ServicePortalController_commitImport
+      parameters: []
+      responses:
+        "201":
           description: ""
       tags: *a29
   /service-portal/orders:

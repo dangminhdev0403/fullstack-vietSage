@@ -1,5 +1,10 @@
-import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
-import { TenantType, TenantUserStatus } from "@prisma/client";
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { Prisma, TenantType, TenantUserStatus } from "@prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
 import type {
   MarketplaceAvailability,
@@ -7,36 +12,32 @@ import type {
   MarketplaceServiceUpdate,
   ServiceProfileBody,
 } from "../domain/service-portal.schema";
+import { CodesService } from "../../codes/codes.service";
 
 @Injectable()
 export class ServicePortalService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly codes: CodesService,
+  ) {}
 
   async tenantId(userId: string) {
     const memberships = await this.prisma.tenantUser.findMany({
       where: { userId, status: TenantUserStatus.ACTIVE, tenant: { type: TenantType.SERVICE } },
       select: { tenantId: true },
     });
-    if (memberships.length === 0) {
-      const anyMemberships = await this.prisma.tenantUser.findMany({
-        where: { userId, tenant: { type: TenantType.SERVICE } },
-        select: { tenantId: true },
-        orderBy: { createdAt: "desc" },
-        take: 1,
-      });
-      if (anyMemberships.length === 0) {
-        throw new ForbiddenException(
-          "Service Tenant membership is required and must be unambiguous",
-        );
-      }
-      return anyMemberships[0].tenantId;
+    if (memberships.length !== 1) {
+      throw new ForbiddenException("Service Tenant membership is required and must be unambiguous");
     }
     return memberships[0].tenantId;
   }
 
   async profile(userId: string) {
     const tenantId = await this.tenantId(userId);
-    const profile = await this.prisma.serviceTenantProfile.findUnique({ where: { tenantId } });
+    const profile = await this.prisma.serviceTenantProfile.findUnique({
+      where: { tenantId },
+      include: { category: true },
+    });
     if (!profile) throw new NotFoundException("Service profile not found");
     return profile;
   }
@@ -46,57 +47,90 @@ export class ServicePortalService {
     return this.prisma.serviceTenantProfile.update({
       where: { tenantId },
       data: { ...body, locationVerifiedAt: body.latitude == null ? undefined : new Date() },
-    });
-  }
-
-  categories() {
-    return this.prisma.marketplaceCategory.findMany({
-      where: { isActive: true },
-      orderBy: [{ sortOrder: "asc" }, { code: "asc" }],
+      include: { category: true },
     });
   }
 
   async services(userId: string) {
-    return this.prisma.marketplaceService.findMany({
-      where: { serviceTenantId: await this.tenantId(userId) },
+    const serviceTenantId = await this.tenantId(userId);
+    const profile = await this.prisma.serviceTenantProfile.findUnique({
+      where: { tenantId: serviceTenantId },
       include: { category: true },
-      orderBy: { updatedAt: "desc" },
-      take: 100,
     });
+    if (!profile) throw new NotFoundException("Service profile not found");
+    return this.prisma.marketplaceService
+      .findMany({
+        where: { serviceTenantId },
+        orderBy: { updatedAt: "desc" },
+        take: 100,
+      })
+      .then((items) =>
+        items.map(({ categoryId: _legacyCategoryId, ...item }) => ({
+          ...item,
+          category: profile.category,
+        })),
+      );
   }
 
   async createService(userId: string, body: MarketplaceServiceBody) {
     const serviceTenantId = await this.tenantId(userId);
-    await this.activeCategory(body.categoryId);
-    return this.prisma.marketplaceService.create({
-      data: { ...body, serviceTenantId, currency: "VND" },
+    const profile = await this.prisma.serviceTenantProfile.findUnique({
+      where: { tenantId: serviceTenantId },
+      select: { categoryId: true, category: { select: { id: true, isActive: true } } },
     });
+    if (!profile?.categoryId || !profile.category?.isActive) {
+      throw new ConflictException("Service Tenant chưa được gán danh mục hoạt động");
+    }
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const importKey = await this.codes.generateEntityCode("MARKETPLACE_SERVICE", tx);
+        return tx.marketplaceService.create({
+          data: {
+            ...body,
+            importKey,
+            serviceTenantId,
+            categoryId: profile.categoryId!,
+            currency: "VND",
+          },
+          include: { category: true },
+        });
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002")
+        throw new ConflictException("Mã dịch vụ đã tồn tại trong Service Tenant");
+      throw error;
+    }
   }
 
   async updateService(userId: string, serviceId: string, body: MarketplaceServiceUpdate) {
     const serviceTenantId = await this.tenantId(userId);
-    if (body.categoryId) await this.activeCategory(body.categoryId);
-    const result = await this.prisma.marketplaceService.updateMany({
-      where: { id: serviceId, serviceTenantId },
-      data: { ...body, version: { increment: 1 } },
-    });
+    let result;
+    try {
+      result = await this.prisma.marketplaceService.updateMany({
+        where: { id: serviceId, serviceTenantId },
+        data: { ...body, version: { increment: 1 } },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002")
+        throw new ConflictException("Mã dịch vụ đã tồn tại trong Service Tenant");
+      throw error;
+    }
     if (result.count !== 1) throw new NotFoundException("Service not found");
-    return this.prisma.marketplaceService.findFirstOrThrow({
-      where: { id: serviceId, serviceTenantId },
+    const profile = await this.prisma.serviceTenantProfile.findUnique({
+      where: { tenantId: serviceTenantId },
+      select: { categoryId: true },
     });
+    return this.prisma.marketplaceService
+      .findFirstOrThrow({
+        where: { id: serviceId, serviceTenantId },
+      })
+      .then(({ categoryId: _legacyCategoryId, ...item }) => ({
+        ...item,
+        category: profile?.categoryId ? { id: profile.categoryId } : null,
+      }));
   }
 
   async updateAvailability(userId: string, serviceId: string, body: MarketplaceAvailability) {
     return this.updateService(userId, serviceId, body);
-  }
-
-  private async activeCategory(categoryId: string) {
-    if (
-      !(await this.prisma.marketplaceCategory.findFirst({
-        where: { id: categoryId, isActive: true },
-        select: { id: true },
-      }))
-    )
-      throw new NotFoundException("Category not found");
   }
 }

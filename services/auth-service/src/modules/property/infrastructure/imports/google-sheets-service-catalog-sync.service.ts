@@ -136,8 +136,7 @@ export class GoogleSheetsServiceCatalogSyncService {
     });
 
     const hasErrors =
-      preview.summary.errors > 0 ||
-      preview.validation.some((issue) => issue.severity === "error");
+      preview.summary.errors > 0 || preview.validation.some((issue) => issue.severity === "error");
 
     if (hasErrors) {
       throw new BadRequestException("Vẫn còn lỗi dữ liệu, không thể áp dụng đồng bộ.");

@@ -1,0 +1,316 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: frontends/front-end-vietsage/src/app/api/service-portal/route.ts, frontends/front-end-vietsage/src/features/service-portal/components/service-catalog-view.tsx, frontends/front-end-vietsage/src/features/service-portal/repository.ts, services/auth-service/src/modules/marketplace/application/service-item-import.service.ts, services/auth-service/src/modules/marketplace/infrastructure/imports/marketplace-service-item-import.adapter.ts, services/auth-service/src/modules/marketplace/tests/marketplace-service-item-import.adapter.spec.ts
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    src/
+      app/
+        api/
+          service-portal/
+            route.ts
+      features/
+        service-portal/
+          components/
+            service-catalog-view.tsx
+          repository.ts
+services/
+  auth-service/
+    src/
+      modules/
+        marketplace/
+          application/
+            service-item-import.service.ts
+          infrastructure/
+            imports/
+              marketplace-service-item-import.adapter.ts
+          tests/
+            marketplace-service-item-import.adapter.spec.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="services/auth-service/src/modules/marketplace/application/service-item-import.service.ts">
+import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { createHash } from "node:crypto";
+import { google } from "googleapis";
+import { PrismaService } from "../../../prisma/prisma.service";
+import type {
+  ImportContext,
+  ImportDiffEntry,
+  ParsedImportWorkbook,
+} from "../../../common/import/import.types";
+import {
+  MarketplaceServiceItemImportAdapter,
+  FORBIDDEN_CATEGORY_HEADERS,
+  REQUIRED_HEADERS,
+} from "../infrastructure/imports/marketplace-service-item-import.adapter";
+⋮----
+export class ServiceItemImportService {
+⋮----
+constructor(
+⋮----
+async preview(actorUserId: string, csv: string, fileName = "service-items.csv")
+⋮----
+async commit(
+    actorUserId: string,
+    csv: string,
+    previewToken: string,
+    fileName = "service-items.csv",
+)
+⋮----
+template()
+⋮----
+async export(actorUserId: string)
+⋮----
+private async context(actorUserId: string): Promise<ImportContext>
+⋮----
+private parseCsv(csv: string, fileName: string): ParsedImportWorkbook
+⋮----
+private validateHeaders(workbook: ParsedImportWorkbook, _payload: unknown)
+⋮----
+private async writeGeneratedCodes(
+    tenantId: string,
+    generatedCodes: Array<{ rowNumber: number; code: string }>,
+)
+⋮----
+private stateHash(state: unknown)
+private summary(diff: ImportDiffEntry[], validation: Array<
+private csvRecords(input: string): string[][]
+private csvRow(values: unknown[])
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/infrastructure/imports/marketplace-service-item-import.adapter.ts">
+import { Injectable, OnModuleInit } from "@nestjs/common";
+import { ImportRegistry } from "../../../../common/import/import.registry";
+import type {
+  ImportAdapter,
+  ImportCommitInput,
+  ImportCommitResult,
+  ImportContext,
+  ImportDiffEntry,
+  ImportMode,
+  ImportValidationIssue,
+  ImportWorkbookSchema,
+  ParsedImportWorkbook,
+} from "../../../../common/import/import.types";
+import { PrismaService } from "../../../../prisma/prisma.service";
+import { CodesService } from "../../../codes/codes.service";
+⋮----
+type Row = {
+  rowNumber: number;
+  itemKey: string;
+  name: string;
+  description: string | null;
+  unitPrice: number;
+  preparationMinutes: number;
+  capacity: number | null;
+  mode: "DELIVERY_TO_HOTEL" | "CUSTOMER_AT_SERVICE";
+  status: "DRAFT" | "ACTIVE" | "DISABLED";
+  translations: Record<string, { name: string; description: string | null }>;
+};
+⋮----
+type Payload = { items: Row[]; fileHash?: string };
+type StateItem = Pick<
+  PrismaMarketplaceService,
+  | "id"
+  | "importKey"
+  | "name"
+  | "description"
+  | "unitPrice"
+  | "waitingMinutes"
+  | "capacityAvailable"
+  | "mode"
+  | "status"
+>;
+type State = { items: StateItem[]; categoryId: string | null; categoryActive: boolean };
+type PrismaMarketplaceService = {
+  id: string;
+  importKey: string | null;
+  name: string;
+  description: string | null;
+  unitPrice: unknown;
+  waitingMinutes: number;
+  capacityAvailable: number | null;
+  mode: "DELIVERY_TO_HOTEL" | "CUSTOMER_AT_SERVICE";
+  status: "DRAFT" | "ACTIVE" | "DISABLED";
+};
+⋮----
+export class MarketplaceServiceItemImportAdapter
+implements ImportAdapter<Payload, State>, OnModuleInit
+⋮----
+constructor(
+⋮----
+onModuleInit()
+⋮----
+getSchema(): ImportWorkbookSchema
+⋮----
+authorize(context: ImportContext)
+⋮----
+parse(workbook: ParsedImportWorkbook, _context?: ImportContext): Payload
+⋮----
+validate(payload: Payload, _context?: ImportContext): ImportValidationIssue[]
+⋮----
+async loadCurrentState(
+    context: ImportContext,
+    db: Pick<PrismaService, "serviceTenantProfile" | "marketplaceService"> = this.prisma,
+): Promise<State>
+⋮----
+diff(
+    payload: Payload,
+    state: State,
+    _context: ImportContext,
+    _mode: ImportMode,
+): ImportDiffEntry[]
+⋮----
+async commit(input: ImportCommitInput<Payload, State>): Promise<ImportCommitResult>
+⋮----
+validateState(payload: Payload, state: State): ImportValidationIssue[]
+⋮----
+private changes(current: StateItem, row: Row)
+⋮----
+private async upsertTranslations(
+    tx: ImportCommitInput<Payload, State>["tx"],
+    serviceId: string,
+    translations: Row["translations"],
+)
+⋮----
+private error(
+    issues: ImportValidationIssue[],
+    row: Row,
+    column: string,
+    code: string,
+    message: string,
+)
+private text(value: unknown)
+private optional(value: unknown)
+private number(value: unknown)
+private optionalNumber(value: unknown)
+private enum(value: unknown)
+private mode(value: unknown): Row["mode"]
+private status(value: unknown): Row["status"]
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/tests/marketplace-service-item-import.adapter.spec.ts">
+import { MarketplaceServiceItemImportAdapter } from "../infrastructure/imports/marketplace-service-item-import.adapter";
+import { ServiceItemImportService } from "../application/service-item-import.service";
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/api/service-portal/route.ts">
+import { executeHotelOpsBackendRequest, hotelOpsHttpErrorResponse, successResponse, unknownServerErrorResponse, validationErrorResponse } from "@/app/api/hotel-ops/_utils";
+import { HttpError } from "@/core/http/http-error";
+import { servicePortalClient } from "@/features/service-portal/service-client";
+⋮----
+export async function GET(request: Request)
+export async function PATCH(request: Request)
+export async function POST(request: Request)
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/service-portal/repository.ts">
+import { unwrapApiEnvelope } from "@/core/http/api-envelope";
+import type { ServiceItemImportPreview, ServicePortalData, ServiceProfile } from "./types";
+const call = async <T>(method: string, body?: unknown) =>
+const csvCall = async (action: "template" | "export") =>
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/service-portal/components/service-catalog-view.tsx">
+import { useState } from "react";
+import { toast } from "sonner";
+import { SwalVietSage } from "@/libs/swal";
+import { useServicePortal } from "../use-service-portal";
+import type { ServiceItem, ServicePortalData } from "../types";
+⋮----
+const escapeHtml = (value: string)
+⋮----
+const fetchGoogleSheetCsv = async (): Promise<string> =>
+⋮----
+const findStoredSheetUrl = (): string
+⋮----
+const handleSyncServices = async () =>
+⋮----
+const handleEditNotice = async (item: ServiceItem) =>
+⋮----
+{/* Page Header */}
+⋮----
+{/* Catalog Summary Stats */}
+⋮----
+{/* Main Section */}
+⋮----
+{/* Header & Filter Toolbar */}
+⋮----
+{/* Filter Toolbar: Search + Category Filter + Status Filter */}
+⋮----
+{/* Compact Search Bar */}
+⋮----
+onChange=
+⋮----
+{/* Status Filter Pills */}
+⋮----
+onClick=
+⋮----
+{/* Full-Width Structured B2B Service List */}
+⋮----
+{/* Left Column: Title, Category Badge, Status Badge & Operational Info */}
+⋮----
+{/* Header Row: Service Name + Badges */}
+⋮----
+{/* Category Badge */}
+⋮----
+{/* Status Badge */}
+⋮----
+{/* Operational Attributes Row */}
+⋮----
+{/* Price */}
+⋮----
+{/* Preparation Time */}
+⋮----
+{/* Fulfillment Method */}
+⋮----
+{/* Capacity */}
+⋮----
+{/* Right Column: Primary Actions */}
+</file>
+
+</files>

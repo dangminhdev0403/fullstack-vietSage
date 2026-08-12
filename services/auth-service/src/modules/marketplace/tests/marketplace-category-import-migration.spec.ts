@@ -14,8 +14,12 @@ describe("marketplace category import i18n migration", () => {
     expect(sql).toContain('ALTER TABLE "MarketplaceCategory" ADD COLUMN "importKey" VARCHAR(80)');
     expect(sql).toContain('CREATE UNIQUE INDEX "MarketplaceCategory_importKey_key"');
     expect(sql).toContain('CREATE TABLE "MarketplaceCategoryTranslation"');
-    expect(sql).toContain('CREATE UNIQUE INDEX "MarketplaceCategoryTranslation_categoryId_locale_key"');
-    expect(sql).toContain('FOREIGN KEY ("categoryId") REFERENCES "MarketplaceCategory"("id") ON DELETE CASCADE');
+    expect(sql).toContain(
+      'CREATE UNIQUE INDEX "MarketplaceCategoryTranslation_categoryId_locale_key"',
+    );
+    expect(sql).toContain(
+      'FOREIGN KEY ("categoryId") REFERENCES "MarketplaceCategory"("id") ON DELETE CASCADE',
+    );
     expect(sql).toContain('INSERT INTO "MarketplaceCategoryTranslation"');
     expect(sql).toContain('DROP COLUMN "nameEn"');
     expect(sql).toContain('DROP COLUMN "icon"');

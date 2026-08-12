@@ -1,5 +1,7 @@
 # Contract Changes
 
+- External Service Tenants now have one Platform-owned `MarketplaceCategory` on `ServiceTenantProfile`; Platform Admin assigns/reassigns it, Service Portal no longer accepts category or manually entered service-code input, and Service Items inherit that category. New spreadsheet rows leave the system-managed code blank; the backend generates it through the shared `MARKETPLACE_SERVICE` sequence, writes it back to the saved online sheet, and uses it for rename-safe updates. A failed writeback is reported as a warning and repaired on the next same-name sync instead of creating a duplicate. Spreadsheet rows use Vietnamese names plus optional `en`, `zh`, `ko`, `ru`, `hi` translations, numeric status (`1 - Hoạt động`, `2 - Tạm ẩn`), and numeric fulfillment (`1 - Phục vụ tại địa điểm`, `2 - Giao tận nơi`). Added tenant-scoped CSV service-item import/export/template endpoints with preview/commit conflict protection. Hotel service categories remain unchanged.
+
 ## Unreleased
 
 - Added Super Admin Google Sheets import & localization for Marketplace Categories:
