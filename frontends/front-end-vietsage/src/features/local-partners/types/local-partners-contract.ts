@@ -60,6 +60,7 @@ export type NearbyServiceProvider = {
 export type HotelMarketplaceOrder = {
   id: string; orderNumber: string; serviceNameSnapshot: string; status: string;
   quantity: number; totalAmount: string | number; currency: string;
+  guestNote?: string | null; createdAt: string;
   stay: { guestDisplayName: string; room: { roomNumber: string } };
   serviceTenant: { serviceProfile: { displayName: string } | null };
 };

@@ -488,7 +488,7 @@ describe("HotelsService", () => {
     expect(repository.listHotels).toHaveBeenCalledWith({ status: "ACTIVE" }, 0, 100);
   });
 
-  it("tạo danh mục dịch vụ trong khách sạn có thể truy cập", async () => {
+  it("tạo danh mục Dịch vụ khách sạn có thể truy cập", async () => {
     const repository = createRepository();
     const service = createService(repository);
 

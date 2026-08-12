@@ -9,12 +9,13 @@ import { RequestRealtimeController } from "../api/request-realtime.controller";
 describe("RequestRealtimeTicketService", () => {
   const hotelAccessService = { assertHotelAccess: jest.fn() } as unknown as HotelAccessService;
   const jwtService = { signAsync: jest.fn() } as unknown as JwtService;
+  const prismaMock = { tenantUser: { findMany: jest.fn() } } as unknown as PrismaService;
 
   beforeEach(() => jest.clearAllMocks());
 
   it("asserts hotel access and signs only scoped owner claims", async () => {
     (jwtService.signAsync as jest.Mock).mockResolvedValue("signed-ticket");
-    const service = new RequestRealtimeTicketService(hotelAccessService, jwtService, {
+    const service = new RequestRealtimeTicketService(hotelAccessService, jwtService, prismaMock, {
       enabled: true,
       ticketSecret: "x".repeat(32),
       ticketTtlSeconds: 60,
@@ -53,7 +54,7 @@ describe("RequestRealtimeTicketService", () => {
 
   it("does not sign when hotel access is denied", async () => {
     (hotelAccessService.assertHotelAccess as jest.Mock).mockRejectedValue(new Error("denied"));
-    const service = new RequestRealtimeTicketService(hotelAccessService, jwtService, {
+    const service = new RequestRealtimeTicketService(hotelAccessService, jwtService, prismaMock, {
       enabled: true,
       ticketSecret: "x".repeat(32),
       ticketTtlSeconds: 60,
@@ -66,7 +67,7 @@ describe("RequestRealtimeTicketService", () => {
   });
 
   it("returns deliberate unavailable behavior while disabled", async () => {
-    const service = new RequestRealtimeTicketService(hotelAccessService, jwtService, {
+    const service = new RequestRealtimeTicketService(hotelAccessService, jwtService, prismaMock, {
       enabled: false,
       ticketSecret: null,
       ticketTtlSeconds: 60,

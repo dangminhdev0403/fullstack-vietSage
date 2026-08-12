@@ -18,7 +18,8 @@ export function getRequestRealtimeUrl(): string {
 
 export type RequestRealtimeAuth =
   | { mode: "owner"; ticket: string }
-  | { mode: "guest"; sessionToken: string };
+  | { mode: "guest"; sessionToken: string }
+  | { mode: "service_tenant"; ticket: string };
 
 export function createRequestRealtimeSocket(auth: RequestRealtimeAuth): Socket {
   const socketUrl = getRequestRealtimeUrl();

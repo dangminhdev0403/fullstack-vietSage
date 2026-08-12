@@ -5,6 +5,34 @@ const OWNER_ROOM_PREFIX = "owner:hotel:";
 const GUEST_SESSION_ROOM_PREFIX = "guest-session:";
 const GUEST_STAY_ROOM_PREFIX = "guest-stay:";
 
+const SERVICE_TENANT_ROOM_PREFIX = "service-tenant:";
+
+export type ExternalServiceOrderPayload = {
+  eventId?: string;
+  orderId: string;
+  orderNumber: string;
+  hotelId: string;
+  stayId: string;
+  roomId?: string | null;
+  roomNumber?: string | null;
+  guestDisplayName?: string | null;
+  serviceTenantId: string;
+  serviceTenantName?: string | null;
+  serviceId: string;
+  serviceName: string;
+  status: string;
+  quantity: number;
+  unitPrice: number | string;
+  pricingUnit?: string | null;
+  totalAmount: number | string;
+  currency: string;
+  guestNote?: string | null;
+  serviceMode: string;
+  createdAt: string;
+  updatedAt?: string;
+  version?: number;
+};
+
 export class RequestRealtimeEmitter {
   private static serverRef: Server | null = null;
 
@@ -108,8 +136,44 @@ export class RequestRealtimeEmitter {
     this.serverRef?.to(this.ownerHotelRoom(input.hotelId)).emit("stay.overdue_checkout", payload);
   }
 
+  static emitExternalServiceOrderCreated(
+    input: ExternalServiceOrderPayload & { sessionId?: string | null },
+  ) {
+    const eventId = input.eventId ?? randomUUID();
+    const payload = { ...input, eventId };
+
+    this.serverRef?.to(this.ownerHotelRoom(input.hotelId)).emit("external_service_order.created", payload);
+    this.serverRef?.to(this.serviceTenantRoom(input.serviceTenantId)).emit("external_service_order.created", payload);
+    if (input.sessionId) {
+      this.serverRef?.to(this.guestSessionRoom(input.sessionId)).emit("external_service_order.created", payload);
+    }
+    if (input.stayId) {
+      this.serverRef?.to(this.guestStayRoom(input.stayId)).emit("external_service_order.created", payload);
+    }
+  }
+
+  static emitExternalServiceOrderStatusChanged(
+    input: ExternalServiceOrderPayload & { sessionId?: string | null },
+  ) {
+    const eventId = input.eventId ?? randomUUID();
+    const payload = { ...input, eventId };
+
+    this.serverRef?.to(this.ownerHotelRoom(input.hotelId)).emit("external_service_order.status_changed", payload);
+    this.serverRef?.to(this.serviceTenantRoom(input.serviceTenantId)).emit("external_service_order.status_changed", payload);
+    if (input.sessionId) {
+      this.serverRef?.to(this.guestSessionRoom(input.sessionId)).emit("external_service_order.status_changed", payload);
+    }
+    if (input.stayId) {
+      this.serverRef?.to(this.guestStayRoom(input.stayId)).emit("external_service_order.status_changed", payload);
+    }
+  }
+
   static ownerHotelRoom(hotelId: string): string {
     return `${OWNER_ROOM_PREFIX}${hotelId}:requests`;
+  }
+
+  static serviceTenantRoom(tenantId: string): string {
+    return `${SERVICE_TENANT_ROOM_PREFIX}${tenantId}`;
   }
 
   static guestSessionRoom(sessionId: string): string {

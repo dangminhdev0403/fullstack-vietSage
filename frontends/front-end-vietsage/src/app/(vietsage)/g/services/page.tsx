@@ -2,12 +2,14 @@
 
 import {
   type FormEvent,
+  Suspense,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import Swal from "sweetalert2";
 
@@ -16,6 +18,15 @@ import { VsIcon } from "../../_components/vs-icon";
 import { VsTopBar } from "../../_components/vs-top-bar";
 import { GuestReveal } from "@/features/guest-os/components/motion/guest-reveal";
 import { GuestAccessRequiredState } from "@/features/guest-os/components/shared/guest-access-required-state";
+import {
+  GuestCategoryChips,
+  type CategoryChipItem,
+} from "@/features/guest-os/components/services/guest-category-chips";
+import {
+  GuestDiscoveryTabs,
+  type GuestDiscoveryTabKey,
+} from "@/features/guest-os/components/services/guest-discovery-tabs";
+import { GuestDiscoverySearch } from "@/features/guest-os/components/services/guest-discovery-search";
 import { GuestRequestSheet } from "@/features/guest-os/components/services/guest-request-sheet";
 import { GuestServiceEmptyState } from "@/features/guest-os/components/services/guest-service-empty-state";
 import { GuestServiceErrorState } from "@/features/guest-os/components/services/guest-service-error-state";
@@ -38,6 +49,7 @@ import { GuestCatalogRequestGuard } from "@/features/guest-os/utils/guest-catalo
 import { adaptGuestServiceCatalog } from "@/features/guest-os/utils/guest-service-catalog";
 import { getGuestFriendlyErrorMessage } from "@/features/guest-os/utils/guest-os-errors";
 import { useGuestRequestRealtime } from "@/features/request-realtime/use-guest-request-realtime";
+import { GuestMarketplace } from "@/features/marketplace/components/guest-marketplace";
 
 type GuestTranslator = ReturnType<typeof useGuestI18n>["t"];
 
@@ -126,12 +138,37 @@ function buildConfirmHtml(
   return `<div class="vs-service-confirm-content"><section class="vs-service-confirm-item"><span class="vs-service-confirm-bullet">&bull;</span><span class="vs-service-confirm-label">${escapeHtml(t("services.serviceLabel"))}</span><p class="vs-service-confirm-service">${escapeHtml(service.name)}</p></section>${noteLine}</div>`;
 }
 
-export default function GuestServicesPage() {
+function GuestServicesContent() {
   const { intlLocale, locale, t } = useGuestI18n();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
   const sessionToken = useGuestStore((state) => state.sessionToken);
   const room = useGuestStore((state) => state.room);
   const isHydrated = useGuestStoreHydrated();
+
+  // Active top-level tab: 'hotel' | 'external'
+  const initialTab =
+    searchParams.get("tab") === "external" ? "external" : "hotel";
+  const [activeTab, setActiveTab] = useState<GuestDiscoveryTabKey>(initialTab);
+
+  // Search input query
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Selected Category filter per tab
+  const [selectedHotelCategoryId, setSelectedHotelCategoryId] = useState<
+    string | null
+  >(null);
+  const [selectedExternalCategoryId, setSelectedExternalCategoryId] = useState<
+    string | null
+  >(null);
+
+  // External marketplace categories (populated from GuestMarketplace)
+  const [externalCategories, setExternalCategories] = useState<
+    CategoryChipItem[]
+  >([]);
+
+  // Selected service for Hotel Request Sheet
   const [selectedService, setSelectedService] =
     useState<GuestServiceItem | null>(null);
   const [requestNote, setRequestNote] = useState("");
@@ -140,13 +177,17 @@ export default function GuestServicesPage() {
     useState<GuestPortalRequestPriority>("NORMAL");
   const [isRequestSubmitting, setIsRequestSubmitting] = useState(false);
   const [requestError, setRequestError] = useState<string | null>(null);
+
+  // Hotel services catalog state
   const [categories, setCategories] = useState<GuestServiceCategory[]>([]);
   const [isServicesLoading, setIsServicesLoading] = useState(false);
   const [servicesError, setServicesError] = useState<string | null>(null);
   const catalogRequestGuardRef = useRef(new GuestCatalogRequestGuard());
+
   const roomLabel = room?.roomNumber
     ? t("common.roomNumber", { room: room.roomNumber })
     : t("home.roomFallback");
+
   const loadServices = useCallback(
     async (options?: { silent?: boolean }) => {
       if (!sessionToken) return;
@@ -232,8 +273,62 @@ export default function GuestServicesPage() {
     setRequestError(null);
   }, [isRequestSubmitting]);
 
-  if (!isHydrated)
-    return <div className="min-h-screen bg-background" />;
+  // Handle Tab Switch
+  const handleTabChange = (tab: GuestDiscoveryTabKey) => {
+    setActiveTab(tab);
+    setSearchQuery("");
+  };
+
+  // Convert Hotel categories to chip list items (preserving backend sort order)
+  const hotelCategoryChips = useMemo<CategoryChipItem[]>(() => {
+    return categories.map((cat) => ({
+      id: cat.id,
+      name: cat.name,
+    }));
+  }, [categories]);
+
+  // Filtered Hotel Categories & Items based on active category & debounced search query
+  const filteredHotelCategories = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+
+    return categories
+      .filter((category) => {
+        if (
+          selectedHotelCategoryId &&
+          category.id !== selectedHotelCategoryId
+        ) {
+          return false;
+        }
+        return true;
+      })
+      .map((category) => {
+        if (!q) return category;
+
+        const categoryNameMatch = category.name.toLowerCase().includes(q);
+        const categoryDescMatch = category.description
+          ?.toLowerCase()
+          .includes(q);
+
+        const matchingItems = category.items.filter((item) => {
+          const nameMatch = item.name.toLowerCase().includes(q);
+          const descMatch = item.description?.toLowerCase().includes(q);
+          return (
+            nameMatch || descMatch || categoryNameMatch || categoryDescMatch
+          );
+        });
+
+        return {
+          ...category,
+          items:
+            categoryNameMatch || categoryDescMatch
+              ? category.items
+              : matchingItems,
+        };
+      })
+      .filter((category) => category.items.length > 0);
+  }, [categories, selectedHotelCategoryId, searchQuery]);
+
+  if (!isHydrated) return <div className="min-h-screen bg-background" />;
   if (!sessionToken)
     return (
       <GuestAccessRequiredState
@@ -347,6 +442,11 @@ export default function GuestServicesPage() {
   const pageTitle = t("services.title");
   const pageSubtitle = t("services.subtitle");
 
+  const searchPlaceholder =
+    activeTab === "hotel"
+      ? "Tìm Dịch vụ khách sạn, danh mục..."
+      : "Tìm dịch vụ bên ngoài, danh mục, nhà cung cấp...";
+
   return (
     <div className="vs-page-shell vs-guest-readable vs-safe-bottom vs-guest-comfort-surface min-h-screen overflow-x-hidden text-[#18211d]">
       <VsTopBar
@@ -356,73 +456,125 @@ export default function GuestServicesPage() {
         languageBadge={locale}
       />
       <main className="vs-container pb-32 pt-24">
+        {/* Page Header */}
         <GuestServicesHeader
           roomLabel={roomLabel}
           title={pageTitle}
           subtitle={pageSubtitle}
           requestsLabel={t("requests.title")}
         />
+
+        {/* Unified Service Discovery Controls (Tabs, Search, Categories) */}
+        <GuestReveal className="mb-8 space-y-5">
+          {/* Top-Level Tabs Switcher */}
+          <GuestDiscoveryTabs
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+            hotelLabel="Dịch vụ khách sạn"
+            externalLabel="Dịch vụ bên ngoài"
+            hotelBadgeText="Yêu cầu phục vụ tại phòng"
+            externalBadgeText="Khám phá dịch vụ quanh khách sạn"
+          />
+
+          {/* Search Input Field for Active Tab */}
+          <GuestDiscoverySearch
+            placeholder={searchPlaceholder}
+            onSearchChange={setSearchQuery}
+            debounceMs={300}
+            initialValue={searchQuery}
+          />
+
+          {/* Horizontal Category Chips Navigation */}
+          <GuestCategoryChips
+            categories={
+              activeTab === "hotel" ? hotelCategoryChips : externalCategories
+            }
+            selectedCategoryId={
+              activeTab === "hotel"
+                ? selectedHotelCategoryId
+                : selectedExternalCategoryId
+            }
+            onSelectCategory={(id) => {
+              if (activeTab === "hotel") setSelectedHotelCategoryId(id);
+              else setSelectedExternalCategoryId(id);
+            }}
+            allLabel={t("requests.all")}
+          />
+        </GuestReveal>
+
+        {/* Active Tab Service List (Never renders both vertically) */}
         <GuestReveal>
-          <section aria-labelledby="guest-services-list-title">
-            <h2 id="guest-services-list-title" className="sr-only">
-              {t("services.service")}
-            </h2>
-            {isServicesLoading ? (
-              <GuestServiceSkeleton />
-            ) : servicesError ? (
-              <GuestServiceErrorState
-                message={servicesError}
-                retryLabel={t("common.retry")}
-                onRetry={() => void loadServices()}
-              />
-            ) : categories.length ? (
-              <div className="space-y-10">
-                {categories.map((category) => (
-                  <section
-                    key={category.id}
-                    aria-labelledby={`guest-service-category-${category.id}`}
-                  >
-                    <div className="mb-6">
-                      <p className="text-sm font-semibold text-[#8a6a13]">
-                        {t("services.title")}
-                      </p>
-                      <h3
-                        id={`guest-service-category-${category.id}`}
-                        className="vs-display mt-1 text-2xl font-semibold text-[#18211d] md:text-3xl"
+          <div id="guest-services-tabpanel" role="tabpanel">
+            {activeTab === "hotel" ? (
+              <section aria-labelledby="guest-hotel-services-title">
+                <h2 id="guest-hotel-services-title" className="sr-only">
+                  {t("services.service")}
+                </h2>
+                {isServicesLoading ? (
+                  <GuestServiceSkeleton />
+                ) : servicesError ? (
+                  <GuestServiceErrorState
+                    message={servicesError}
+                    retryLabel={t("common.retry")}
+                    onRetry={() => void loadServices()}
+                  />
+                ) : filteredHotelCategories.length ? (
+                  <div className="space-y-10">
+                    {filteredHotelCategories.map((category) => (
+                      <section
+                        key={category.id}
+                        aria-labelledby={`guest-service-category-${category.id}`}
                       >
-                        {category.name}
-                      </h3>
-                      {category.description ? (
-                        <p className="mt-2 text-sm text-[#5e6a62]">
-                          {category.description}
-                        </p>
-                      ) : null}
-                    </div>
-                    {category.items.length ? (
-                      <GuestServiceList
-                        services={category.items}
-                        getPrice={(service) =>
-                          getServicePrice(service, t, intlLocale)
-                        }
-                        getQuantityHint={(service) =>
-                          getQuantityHint(service, t)
-                        }
-                        quantityLabel={t("services.quantity")}
-                        actionLabel={t("services.send")}
-                        onSelect={openRequestSheet}
-                      />
-                    ) : (
-                      <GuestServiceEmptyState message={t("services.empty")} />
-                    )}
-                  </section>
-                ))}
-              </div>
+                        <div className="mb-5">
+                          <p className="text-xs font-bold uppercase tracking-wider text-[#8a6a13]">
+                            Dịch vụ khách sạn
+                          </p>
+                          <h3
+                            id={`guest-service-category-${category.id}`}
+                            className="vs-display mt-0.5 text-2xl font-semibold text-[#18211d] md:text-3xl"
+                          >
+                            {category.name}
+                          </h3>
+                          {category.description ? (
+                            <p className="mt-1.5 text-sm text-[#5e6a62]">
+                              {category.description}
+                            </p>
+                          ) : null}
+                        </div>
+                        <GuestServiceList
+                          services={category.items}
+                          getPrice={(service) =>
+                            getServicePrice(service, t, intlLocale)
+                          }
+                          getQuantityHint={(service) =>
+                            getQuantityHint(service, t)
+                          }
+                          quantityLabel={t("services.quantity")}
+                          actionLabel={t("services.send")}
+                          onSelect={openRequestSheet}
+                        />
+                      </section>
+                    ))}
+                  </div>
+                ) : (
+                  <GuestServiceEmptyState message={t("services.empty")} />
+                )}
+              </section>
             ) : (
-              <GuestServiceEmptyState message={t("services.empty")} />
+              /* External Partners Marketplace View */
+              <GuestMarketplace
+                sessionToken={sessionToken}
+                searchQuery={searchQuery}
+                selectedCategoryId={selectedExternalCategoryId}
+                onCategoriesLoaded={setExternalCategories}
+                hideHeader={true}
+              />
             )}
-          </section>
+          </div>
         </GuestReveal>
       </main>
+
+      {/* Hotel Service Request Sheet Modal */}
       {selectedService ? (
         <GuestRequestSheet
           service={selectedService}
@@ -455,5 +607,13 @@ export default function GuestServicesPage() {
       ) : null}
       <VsBottomNav active="services" />
     </div>
+  );
+}
+
+export default function GuestServicesPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background" />}>
+      <GuestServicesContent />
+    </Suspense>
   );
 }

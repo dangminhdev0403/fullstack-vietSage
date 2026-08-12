@@ -52,7 +52,7 @@ test("multiple subscribers for same token share single socket", () => {
   unsub2();
 });
 
-test("guest connect errors trigger onReconnect for active subscribers", () => {
+test("guest connect errors do not trigger onReconnect, but successful reconnect after connect does", () => {
   const sockets: any[] = [];
   let reconnectCount = 0;
   const manager = createGuestConnectionManager({
@@ -71,8 +71,19 @@ test("guest connect errors trigger onReconnect for active subscribers", () => {
     },
   });
   const unsub = manager.subscribe("token-current", { onReconnect: () => reconnectCount++ });
+  // Initial connect does not trigger onReconnect
+  sockets[0].trigger("connect");
+  assert.equal(reconnectCount, 0);
+
+  // Connect error does NOT trigger onReconnect
   sockets[0].trigger("connect_error", new Error("offline"));
-  assert.equal(reconnectCount, 1);
+  assert.equal(reconnectCount, 0);
+
+  // Next socket attempt connects (successful reconnection)
+  if (sockets[1]) {
+    sockets[1].trigger("connect");
+    assert.equal(reconnectCount, 1);
+  }
   unsub();
 });
 

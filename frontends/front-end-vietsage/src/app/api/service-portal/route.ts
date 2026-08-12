@@ -48,6 +48,7 @@ export async function POST(request: Request) {
   if (!body) return validationErrorResponse("Dữ liệu không hợp lệ");
   try {
     const data = await executeHotelOpsBackendRequest("service portal mutation", (token) => {
+      if (body.action === "ticket") return servicePortalClient.ticket(token);
       if (body.action === "transition" && body.orderId && body.toStatus) return servicePortalClient.transition(token, body.orderId, body.toStatus);
       if (body.action === "importPreview" && body.csv) return servicePortalClient.importPreview(token, body.csv, body.fileName ?? "service-items.csv");
       if (body.action === "importCommit" && body.csv && body.previewToken) return servicePortalClient.importCommit(token, body.csv, body.fileName ?? "service-items.csv", body.previewToken);

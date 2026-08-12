@@ -44,4 +44,11 @@ export class RequestRealtimeController {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     return this.tickets.issueOwnerTicket(request.user.userId, request.user.roleId, hotelId);
   }
+
+  @RequirePermission("service.marketplace.view")
+  @ApiDescript("Phát hành ticket realtime cho Service Tenant")
+  @Post("/service-portal/request-realtime-ticket")
+  issueServiceTenantTicket(@Req() request: RequestWithUser) {
+    return this.tickets.issueServiceTenantTicket(request.user.userId);
+  }
 }

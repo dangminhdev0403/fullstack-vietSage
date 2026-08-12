@@ -27,4 +27,5 @@ export const servicePortalClient = {
   importCommit: (token: string, csv: string, fileName: string, previewToken: string) => req(token, "POST", "/service-portal/services/import/commit", { csv, fileName, previewToken }),
   template: (token: string) => csvReq(token, "/service-portal/services/import/template"),
   export: (token: string) => csvReq(token, "/service-portal/services/export"),
+  ticket: (token: string) => req<{ ticket: string; expiresAt: string }>(token, "POST", "/service-portal/request-realtime-ticket"),
 };

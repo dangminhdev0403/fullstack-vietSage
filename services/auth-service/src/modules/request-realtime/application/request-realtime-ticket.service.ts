@@ -1,7 +1,9 @@
-import { Inject, Injectable, Optional, ServiceUnavailableException } from "@nestjs/common";
+import { ForbiddenException, Inject, Injectable, Optional, ServiceUnavailableException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
+import { TenantType, TenantUserStatus } from "@prisma/client";
 import { randomUUID } from "node:crypto";
 import { loadAppConfig, type RequestRealtimeConfig } from "../../../common/config/env.config";
+import { PrismaService } from "../../../prisma/prisma.service";
 import { HotelAccessService } from "../../property/property-public";
 
 @Injectable()
@@ -9,6 +11,7 @@ export class RequestRealtimeTicketService {
   constructor(
     private readonly hotelAccessService: HotelAccessService,
     private readonly jwtService: JwtService,
+    private readonly prisma: PrismaService,
     @Optional() @Inject("REQUEST_REALTIME_CONFIG") config?: RequestRealtimeConfig,
   ) {
     this.config = config ?? loadAppConfig().requestRealtime;
@@ -28,6 +31,39 @@ export class RequestRealtimeTicketService {
     const issuedAt = Date.now();
     const ticket = await this.jwtService.signAsync(
       { sub: userId, hotelId, type: "request_realtime_owner", jti: randomUUID() },
+      {
+        secret: this.config.ticketSecret,
+        audience: this.config.audience,
+        expiresIn: this.config.ticketTtlSeconds,
+      },
+    );
+
+    return {
+      ticket,
+      expiresAt: new Date(issuedAt + this.config.ticketTtlSeconds * 1000).toISOString(),
+    };
+  }
+
+  async issueServiceTenantTicket(userId: string) {
+    if (!this.config.enabled || !this.config.ticketSecret) {
+      throw new ServiceUnavailableException({
+        code: "REQUEST_REALTIME_UNAVAILABLE",
+        message: "Request realtime is unavailable",
+      });
+    }
+
+    const memberships = await this.prisma.tenantUser.findMany({
+      where: { userId, status: TenantUserStatus.ACTIVE, tenant: { type: TenantType.SERVICE } },
+      select: { tenantId: true },
+    });
+    if (memberships.length !== 1) {
+      throw new ForbiddenException("Service Tenant membership is required and must be unambiguous");
+    }
+    const serviceTenantId = memberships[0].tenantId;
+
+    const issuedAt = Date.now();
+    const ticket = await this.jwtService.signAsync(
+      { sub: userId, serviceTenantId, type: "request_realtime_service_tenant", jti: randomUUID() },
       {
         secret: this.config.ticketSecret,
         audience: this.config.audience,

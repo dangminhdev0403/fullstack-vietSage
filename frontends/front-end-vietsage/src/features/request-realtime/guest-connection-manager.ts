@@ -22,21 +22,34 @@ export type GuestRealtimeHandlers = OwnerRealtimeHandlers;
 type Entry = {
   subscribers: Set<GuestRealtimeHandlers>;
   socket?: GuestSocket;
+  generation: number;
   cancelReconnect?: () => void;
+  consecutiveFailures: number;
+  lastFailureAt?: number;
 };
 
 export function createGuestConnectionManager(deps: {
   enabled: boolean;
   createSocket(auth: { mode: "guest"; sessionToken: string }): GuestSocket;
-  scheduleReconnect?: (callback: () => void) => () => void;
+  scheduleReconnect?: (callback: () => void, attempt: number) => () => void;
 }) {
   const entries = new Map<string, Entry>();
 
   function connect(token: string, entry: Entry) {
     if (!deps.enabled || entry.subscribers.size === 0 || entry.socket) return;
 
+    const now = Date.now();
+    if (entry.lastFailureAt && entry.consecutiveFailures > 0) {
+      const cooldownMs = Math.min(300_000, Math.pow(2, entry.consecutiveFailures) * 1_000);
+      if (now - entry.lastFailureAt < cooldownMs) {
+        return;
+      }
+    }
+
+    const generation = entry.generation;
     const current = deps.createSocket({ mode: "guest", sessionToken: token });
     let terminal = false;
+    let wasConnected = false;
     entry.socket = current;
 
     const fanout = (name: keyof GuestRealtimeHandlers) => (event?: unknown) => {
@@ -54,26 +67,42 @@ export function createGuestConnectionManager(deps: {
       });
     };
 
+    current.on("connect", () => {
+      if (entry.generation !== generation) return;
+      entry.consecutiveFailures = 0;
+      entry.lastFailureAt = undefined;
+      if (wasConnected) {
+        entry.subscribers.forEach((subscriber) => subscriber.onReconnect?.());
+      }
+      wasConnected = true;
+    });
+
     current.on("request_realtime.ready", fanout("onReady"));
     current.on("guest_request.created", fanout("onCreated"));
     current.on("guest_request.updated", fanout("onUpdated"));
     current.on("guest_request.answered", fanout("onAnswered"));
     current.on("guest_message.created", fanoutRaw("onGuestMessageCreated"));
     current.on("conversation.closed", fanoutRaw("onConversationClosed"));
+    current.on("external_service_order.created", fanoutRaw("onExternalOrderCreated"));
+    current.on("external_service_order.status_changed", fanoutRaw("onExternalOrderStatusChanged"));
     current.on("request_realtime.error", (error) => {
       terminal = isTerminalRealtimeError(error);
       fanout("onError")(error);
     });
     const reconnect = () => {
-      if (entry.socket !== current) return;
+      if (entry.socket !== current || entry.subscribers.size === 0) return;
       entry.socket = undefined;
-      if (terminal || entry.subscribers.size === 0) return;
-      entry.subscribers.forEach((subscriber) => subscriber.onReconnect?.());
+      entry.consecutiveFailures += 1;
+      entry.lastFailureAt = Date.now();
+      if (terminal) return;
+
+      entry.generation += 1;
+      const currentAttempt = entry.consecutiveFailures;
       const retry = () => {
         entry.cancelReconnect = undefined;
         connect(token, entry);
       };
-      entry.cancelReconnect = deps.scheduleReconnect?.(retry) ?? (retry(), () => undefined);
+      entry.cancelReconnect = deps.scheduleReconnect?.(retry, currentAttempt) ?? (retry(), () => undefined);
     };
     current.on("connect_error", reconnect);
     current.on("disconnect", reconnect);
@@ -84,7 +113,7 @@ export function createGuestConnectionManager(deps: {
     subscribe(sessionToken: string, handlers: GuestRealtimeHandlers) {
       let entry = entries.get(sessionToken);
       if (!entry) {
-        entry = { subscribers: new Set() };
+        entry = { subscribers: new Set(), generation: 0, consecutiveFailures: 0 };
         entries.set(sessionToken, entry);
       }
       entry.subscribers.add(handlers);
@@ -93,6 +122,7 @@ export function createGuestConnectionManager(deps: {
       return () => {
         entry!.subscribers.delete(handlers);
         if (entry!.subscribers.size === 0) {
+          entry!.generation += 1;
           entry!.cancelReconnect?.();
           entry!.cancelReconnect = undefined;
           const socket = entry!.socket;

@@ -1,3 +1,106 @@
+## [complete] 2026-08-12 - Mission: fix-guestos-external-service-order-flow-end-to-end
+
+- Standardized & fixed GuestOS External Service Order flow end-to-end with single canonical order lifecycle, multi-party socket notifications, and UI upgrades:
+  1. Backend Single Order & Domain Events (`marketplace-order.service.ts`):
+     - Single source of truth created in DB (`MarketplaceOrder`). Emitted `external_service_order.created` and `external_service_order.status_changed` socket events to Guest, Hotel, and Service Tenant simultaneously.
+  2. Multi-Party Socket Gateway & Auth (`request-realtime.gateway.ts`, `request-realtime.controller.ts`, `request-realtime-ticket.service.ts`):
+     - Added endpoint `@Post("/service-portal/request-realtime-ticket")` to sign JWT tickets for Service Tenant socket connections with room authorization (`service-tenant:${tenantId}`).
+  3. Frontend Realtime Managers & Hooks (`service-tenant-connection-manager.ts`, `use-service-tenant-request-realtime.ts`):
+     - Added socket connection manager and custom hook for Service Tenant. Updated `useOwnerRequestRealtime` and `useGuestRequestRealtime` with external order listeners.
+  4. Hotel Staff Inbox & Role Separation (`request-queue-client.tsx`):
+     - Added top-level inbox tabs: **🛎️ Yêu cầu dịch vụ khách sạn** vs **🌐 Dịch vụ bên ngoài**.
+     - Hotel staff have read-only/coordination visibility badged with **"Dịch vụ bên ngoài"**, provider name, guest/room reference, service, quantity + unit, total price, and fulfillment status. Hotel operational actions ("Khẩn cấp/Bình thường") are hidden.
+  5. Service Tenant Console UI Upgrade (`service-orders-view.tsx`):
+     - Upgraded console with **"Dịch vụ bên ngoài"** badge, live socket connection indicator (`🟢 Realtime Socket Đã Kết Nối`), 4-step fulfillment timeline, guest notes, delivery mode ("🚚 Giao tận phòng" vs "📍 Khách đến địa điểm"), and status transition controls (`ACCEPTED` -> `PREPARING` -> `DELIVERING`/`READY` -> `COMPLETED` and `CANCELLED`).
+  6. Guest OS UI & Socket Auto-Refetch (`guest-marketplace.tsx`):
+     - Added **"Dịch vụ bên ngoài"** badges and connected `useGuestRequestRealtime` to automatically refresh orders upon socket event emission without page reloads.
+
+Verification result:
+- Backend unit tests (`marketplace-order.service.spec.ts` & `request-realtime.gateway.spec.ts`): 12 passed.
+- Frontend TypeScript check (`npx tsc --noEmit`): 0 errors.
+
+## [complete] 2026-08-12 - Mission: standardize-external-service-booking-quantity
+
+- Standardized External Service booking quantity as a generic concept across GuestOS & Service Portal:
+  1. Created [marketplace-unit.ts](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/marketplace/utils/marketplace-unit.ts) providing:
+     - `getServicePricingUnit`: Resolves item pricing unit (`người`, `lượt`, `xe`, `suất`, `đơn`, `vé`, etc.) automatically without hardcoded `/người`.
+     - `formatQuantityWithUnit`: Standardized customer-facing quantity formatting (`"Số lượng: 2 người"`, `"Số lượng: 1 xe"`, `"Số lượng: 3 lượt"`).
+     - `formatUnitPriceWithUnit`: Standardized unit price formatting (`"450.000 VND / lượt"`).
+     - `formatSubtotalAmount`: Calculates subtotal (`quantity × unitPrice`).
+  2. Updated [marketplace-contract.ts](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/marketplace/types/marketplace-contract.ts):
+     - Added optional `unit` and `unitSnapshot` to contract schemas.
+  3. Redesigned External Service Booking Flow in [guest-marketplace.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/marketplace/components/guest-marketplace.tsx):
+     - Added interactive booking modal with `-` / `+` quantity stepper controls.
+     - Live subtotal calculation based on selected quantity and unit price.
+     - Standardized `"Số lượng: X unit"` across service cards, booking confirmation modal, and guest order history.
+  4. Updated [service-orders-view.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/service-portal/components/service-orders-view.tsx):
+     - Formatted order item quantity and unit in B2B service portal orders view.
+
+Verification result:
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+
+## [complete] 2026-08-12 - Mission: redesign-guest-marketplace-order-confirm-dialog-ui
+
+- Redesigned guest service booking confirm dialog in [guest-marketplace.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/marketplace/components/guest-marketplace.tsx) & [swal.ts](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/libs/swal.ts):
+  1. Updated `SwalVietSage` in `swal.ts` to expand container width (`max-w-lg`), title size (`text-2xl md:text-3xl font-extrabold`), and CTA buttons (`h-12 text-base font-extrabold`).
+  2. Redesigned order confirmation modal in `guest-marketplace.tsx` with friendly, large-scale HTML card:
+     - Clear title: `"Xác nhận đặt dịch vụ"`
+     - Service name in prominent `text-xl font-extrabold`
+     - Gold category badge (`"DỊCH VỤ ĐÃ CHỌN"`)
+     - Legible row labels (`text-sm font-semibold`) and provider name (`text-base font-bold`)
+     - Highlighted price (`text-lg sm:text-xl font-black text-[#25483f]`)
+     - Customer-friendly payment note (`text-sm font-medium`)
+
+Verification result:
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+
+
+## [complete] 2026-08-12 - Mission: update-guestos-external-services-terminology-and-ui-copy
+
+- Updated GuestOS service discovery terminology and UI copy across guest-facing components:
+  1. Updated [page.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/app/(vietsage)/g/services/page.tsx): Set primary top-level tab terminology to `"Dịch vụ trong khách sạn"` and `"Dịch vụ bên ngoài"`, search placeholder to `"Tìm dịch vụ bên ngoài, danh mục, nhà cung cấp..."`, external badge text to `"Khám phá dịch vụ quanh khách sạn"`, and category section header to `"Dịch vụ trong khách sạn"`.
+  2. Updated [guest-discovery-tabs.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/guest-os/components/services/guest-discovery-tabs.tsx): Changed default external tab badge text from `"Đối tác liên kết"` to `"Khám phá dịch vụ quanh khách sạn"`.
+  3. Updated [guest-marketplace.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/marketplace/components/guest-marketplace.tsx):
+     - Header Title: `"Dịch vụ bên ngoài"`
+     - Header Eyebrow: `"Dịch vụ quanh bạn"`
+     - Header Subtitle: `"Khám phá dịch vụ quanh khách sạn và đặt trực tiếp với nhà cung cấp uy tín."`
+     - Error state: `"Không thể tải danh sách dịch vụ bên ngoài."`
+     - Visual Card Badge: `"Dịch vụ bên ngoài"`
+     - Provider fallback name: `"Nhà cung cấp"`
+     - Empty state: `"Chưa tìm thấy dịch vụ bên ngoài nào phù hợp với từ khóa tìm kiếm."`
+     - Orders section title: `"Đơn dịch vụ bên ngoài của tôi"`
+  4. Updated [partner-detail-modal.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/local-partners/components/partner-detail-modal.tsx): Updated provider payment disclaimer from `"đối tác"` to `"nhà cung cấp"`.
+
+Verification result:
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+
+
+## [complete] 2026-08-12 - Mission: professional-vietsage-service-image-preview-fallback
+
+- Updated [vs-service-image-preview.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/components/ui/vs-service-image-preview.tsx):
+  1. Redesigned preview component with custom 3D metallic gold VietSage "V" monogram vector logo (`VietSageLogoV`) featuring multi-faceted gold gradient bevels, diamond crown accent, and hexagonal shield frame.
+  2. Eliminated internal top-level badge overlays to completely prevent badge collision with card overlays (`Đối tác liên kết`, distance badge).
+  3. Added radial ambient gold glow, deep emerald gradient background (`#1d3d33` -> `#142e26` -> `#0b1c17`), crisp gold tracking-widest typography, and clean bottom footer line.
+
+Verification result:
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+
+
+## [complete] 2026-08-12 - Mission: redesign-guest-service-discovery-as-unified-service-experience
+
+- Redesigned Guest Service Discovery (`g/**`) flow into a single unified service experience:
+  1. Top-Level Tabs (`GuestDiscoveryTabs`): Added two top-level tabs for `Dịch vụ khách sạn` (Hotel Services) and `Đối tác liên kết` (External Partners). Switching tabs replaces the active list view (never renders both vertically).
+  2. Unified Search (`GuestDiscoverySearch`): Added prominent search field with 300ms debouncing, clear button, and tab-specific placeholders. Searches by service name, category name, category description, and provider/merchant name for External Partners.
+  3. Horizontal Category Chips (`GuestCategoryChips`): Added horizontal category navigation with `"Tất cả"` chip as first option, loading active source categories while preserving backend sort order.
+  4. Flow & Request Type Distinction:
+     - Hotel Services flow: Retains operational request flow with `Urgent` / `Normal` request priority selector in `GuestRequestSheet`.
+     - External Partners flow: Commercial marketplace booking/order flow without `Urgent` / `Normal` priority selector, displaying provider name, distance, unit price, waiting time, and capacity availability with `SwalVietSage` confirmation dialog.
+  5. Updated `/g/nearby/page.tsx` to redirect seamlessly to `/g/services?tab=external` for unified service discovery.
+
+Verification result:
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
+- Backend TypeScript check passed (`npx tsc --noEmit --skipLibCheck`): 0 errors.
+
 ## [complete] 2026-08-12 - Mission: remove-redundant-toolbar-button-and-update-sync-terminology
 
 - Updated [service-catalog-view.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/service-portal/components/service-catalog-view.tsx):
@@ -3686,3 +3789,22 @@ Remaining manual checkpoint:
 - Backend focused GuestOS/device/QR/payment lifecycle tests passed (7 suites, 69 tests); backend build
   remains subject to the repository's existing dependency-layout/type baseline noted in the
   backend plan.
+
+## [complete] 2026-08-12 - Mission: guest-unread-summary-spam-fix
+
+### What Changed
+
+- Fixed high-frequency API refetch loop (`GET /api/guest/messages/unread-summary`) in `createGuestConnectionManager` (`src/features/request-realtime/guest-connection-manager.ts`). Previously, Socket.IO `connect_error` and `disconnect` events fired `onReconnect` callbacks on all subscribers, triggering immediate TanStack Query invalidations (`GET /api/guest/messages/unread-summary`) 5–10 times per second whenever socket connections failed or encountered dev tunnel connection disruptions.
+- Restricted `onReconnect` execution to actual successful reconnections (`socket.on("connect")` when `wasConnected === true`).
+- Added consecutive failure tracking and exponential backoff retry delay to `guest-connection-manager.ts` and `use-guest-request-realtime.ts` (scaling up to 30s max).
+- Updated unit test suite `guest-connection-manager.test.ts` to assert that connection errors do not fire subscriber `onReconnect` callbacks while successful reconnections do.
+
+### Verification Result
+
+- `node --test src/features/request-realtime/guest-connection-manager.test.ts` passed (4/4 tests).
+- `npx eslint "src/features/request-realtime" "src/features/guest-os"` passed without errors.
+
+### Remaining Blockers / Risks
+
+- None. Socket reconnection behavior on guest pages is now aligned with the stabilized owner connection manager architecture.
+

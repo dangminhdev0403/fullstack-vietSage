@@ -11,6 +11,7 @@ import {
 } from "@prisma/client";
 import { randomUUID } from "node:crypto";
 import { PrismaService } from "../../../prisma/prisma.service";
+import { RequestRealtimeEmitter } from "../../../request-realtime.emitter";
 import { canTransitionMarketplaceOrder } from "../domain/marketplace-order-transitions";
 import type {
   CreateMarketplaceOrder,
@@ -33,7 +34,7 @@ export class MarketplaceOrderService {
     });
     if (existing) return existing;
     try {
-      return await this.prisma.$transaction(async (tx) => {
+      const created = await this.prisma.$transaction(async (tx) => {
         const service = await tx.marketplaceService.findFirst({
           where: {
             id: body.serviceId,
@@ -99,6 +100,41 @@ export class MarketplaceOrderService {
           include: { events: true },
         });
       });
+
+      const orderWithDetails = await this.prisma.marketplaceOrder.findUnique({
+        where: { id: created.id },
+        include: {
+          stay: { select: { guestDisplayName: true, room: { select: { id: true, roomNumber: true } } } },
+          serviceTenant: { select: { serviceProfile: { select: { displayName: true } } } },
+        },
+      });
+
+      if (orderWithDetails) {
+        RequestRealtimeEmitter.emitExternalServiceOrderCreated({
+          orderId: orderWithDetails.id,
+          orderNumber: orderWithDetails.orderNumber,
+          hotelId: orderWithDetails.hotelId,
+          stayId: orderWithDetails.stayId,
+          roomId: orderWithDetails.stay?.room?.id,
+          roomNumber: orderWithDetails.stay?.room?.roomNumber,
+          guestDisplayName: orderWithDetails.stay?.guestDisplayName,
+          serviceTenantId: orderWithDetails.serviceTenantId,
+          serviceTenantName: orderWithDetails.serviceTenant?.serviceProfile?.displayName,
+          serviceId: orderWithDetails.serviceId,
+          serviceName: orderWithDetails.serviceNameSnapshot,
+          status: orderWithDetails.status,
+          quantity: orderWithDetails.quantity,
+          unitPrice: orderWithDetails.unitPriceSnapshot.toString(),
+          totalAmount: orderWithDetails.totalAmount.toString(),
+          currency: orderWithDetails.currency,
+          guestNote: orderWithDetails.guestNote,
+          serviceMode: orderWithDetails.serviceModeSnapshot,
+          createdAt: orderWithDetails.createdAt.toISOString(),
+          version: orderWithDetails.version,
+        });
+      }
+
+      return created;
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
         const duplicate = await this.prisma.marketplaceOrder.findUnique({
@@ -192,7 +228,7 @@ export class MarketplaceOrderService {
 
   async transitionServiceOrder(userId: string, orderId: string, body: MarketplaceTransition) {
     const serviceTenantId = await this.portal.tenantId(userId);
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const order = await tx.marketplaceOrder.findFirst({
         where: { id: orderId, serviceTenantId },
       });
@@ -248,6 +284,42 @@ export class MarketplaceOrderService {
         include: { events: { orderBy: { createdAt: "asc" } }, revenue: true },
       });
     });
+
+    const orderWithDetails = await this.prisma.marketplaceOrder.findUnique({
+      where: { id: result.id },
+      include: {
+        stay: { select: { guestDisplayName: true, room: { select: { id: true, roomNumber: true } } } },
+        serviceTenant: { select: { serviceProfile: { select: { displayName: true } } } },
+      },
+    });
+
+    if (orderWithDetails) {
+      RequestRealtimeEmitter.emitExternalServiceOrderStatusChanged({
+        orderId: orderWithDetails.id,
+        orderNumber: orderWithDetails.orderNumber,
+        hotelId: orderWithDetails.hotelId,
+        stayId: orderWithDetails.stayId,
+        roomId: orderWithDetails.stay?.room?.id,
+        roomNumber: orderWithDetails.stay?.room?.roomNumber,
+        guestDisplayName: orderWithDetails.stay?.guestDisplayName,
+        serviceTenantId: orderWithDetails.serviceTenantId,
+        serviceTenantName: orderWithDetails.serviceTenant?.serviceProfile?.displayName,
+        serviceId: orderWithDetails.serviceId,
+        serviceName: orderWithDetails.serviceNameSnapshot,
+        status: orderWithDetails.status,
+        quantity: orderWithDetails.quantity,
+        unitPrice: orderWithDetails.unitPriceSnapshot.toString(),
+        totalAmount: orderWithDetails.totalAmount.toString(),
+        currency: orderWithDetails.currency,
+        guestNote: orderWithDetails.guestNote,
+        serviceMode: orderWithDetails.serviceModeSnapshot,
+        createdAt: orderWithDetails.createdAt.toISOString(),
+        updatedAt: orderWithDetails.updatedAt.toISOString(),
+        version: orderWithDetails.version,
+      });
+    }
+
+    return result;
   }
 
   private async postToStayFolio(

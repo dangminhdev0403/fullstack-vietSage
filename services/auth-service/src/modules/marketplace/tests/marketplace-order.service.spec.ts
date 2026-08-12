@@ -62,7 +62,30 @@ describe("Marketplace orders", () => {
         ]),
       },
     };
-    const prisma = { $transaction: (fn: (value: unknown) => unknown) => fn(tx) };
+    const prisma = {
+      marketplaceOrder: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "order-1",
+          orderNumber: "ORD-1001",
+          hotelId: "hotel-1",
+          stayId: "stay-1",
+          serviceTenantId: "provider-1",
+          serviceId: "service-1",
+          serviceNameSnapshot: "Airport transfer",
+          serviceModeSnapshot: "DELIVERY_TO_HOTEL",
+          status: "COMPLETED",
+          quantity: 2,
+          unitPriceSnapshot: new Prisma.Decimal(100),
+          totalAmount: new Prisma.Decimal(200),
+          currency: "VND",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          version: 2,
+          stay: { guestDisplayName: "John Guest", room: { id: "room-1", roomNumber: "101" } },
+        }),
+      },
+      $transaction: (fn: (value: unknown) => unknown) => fn(tx),
+    };
     const portal = { tenantId: jest.fn().mockResolvedValue("provider-1") };
     const service = new MarketplaceOrderService(prisma as never, portal as never);
 

@@ -14,6 +14,7 @@ import { GuestOsService } from "./modules/guest-operations/guest-operations-publ
 import { RequestRealtimeEmitter } from "./request-realtime.emitter";
 
 type OwnerTicketClaims = { sub?: unknown; hotelId?: unknown; type?: unknown; jti?: unknown };
+type ServiceTenantTicketClaims = { sub?: unknown; serviceTenantId?: unknown; type?: unknown; jti?: unknown };
 type HandshakeAuth = { mode?: unknown; ticket?: unknown; sessionToken?: unknown };
 
 const realtimeConfig = loadAppConfig();
@@ -42,6 +43,8 @@ export class RequestRealtimeGateway
     const auth = (socket.handshake.auth ?? {}) as HandshakeAuth;
     if (auth.mode === "owner") return this.authenticateOwner(socket, auth);
     if (auth.mode === "guest") return this.authenticateGuest(socket, auth);
+    if (auth.mode === "service_tenant" || auth.mode === "partner")
+      return this.authenticateServiceTenant(socket, auth);
     return this.reject(socket, "AUTH_REQUIRED");
   }
 
@@ -79,6 +82,37 @@ export class RequestRealtimeGateway
       }
       await socket.join(RequestRealtimeEmitter.ownerHotelRoom(claims.hotelId));
       socket.emit("request_realtime.ready", { mode: "owner", scope: { hotelId: claims.hotelId } });
+    } catch (error) {
+      return this.reject(
+        socket,
+        error instanceof Error && error.name === "TokenExpiredError"
+          ? "TICKET_EXPIRED"
+          : "TICKET_INVALID",
+      );
+    }
+  }
+
+  private async authenticateServiceTenant(socket: Socket, auth: HandshakeAuth) {
+    const ticket = typeof auth.ticket === "string" ? auth.ticket.trim() : "";
+    if (!ticket || !this.config.ticketSecret) return this.reject(socket, "AUTH_REQUIRED");
+    try {
+      const claims = await this.jwtService.verifyAsync<ServiceTenantTicketClaims>(ticket, {
+        secret: this.config.ticketSecret,
+        audience: this.config.audience,
+      });
+      if (
+        claims.type !== "request_realtime_service_tenant" ||
+        typeof claims.sub !== "string" ||
+        typeof claims.serviceTenantId !== "string" ||
+        typeof claims.jti !== "string"
+      ) {
+        return this.reject(socket, "TICKET_INVALID");
+      }
+      await socket.join(RequestRealtimeEmitter.serviceTenantRoom(claims.serviceTenantId));
+      socket.emit("request_realtime.ready", {
+        mode: "service_tenant",
+        scope: { serviceTenantId: claims.serviceTenantId },
+      });
     } catch (error) {
       return this.reject(
         socket,

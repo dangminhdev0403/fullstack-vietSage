@@ -5,6 +5,8 @@ export type OwnerRealtimeHandlers = {
   onAnswered?: (request: unknown) => void;
   onGuestMessageCreated?: (event: unknown) => void;
   onConversationClosed?: (event: unknown) => void;
+  onExternalOrderCreated?: (event: unknown) => void;
+  onExternalOrderStatusChanged?: (event: unknown) => void;
   onReconnect?: () => void;
   onError?: (error: unknown) => void;
 };
@@ -104,6 +106,8 @@ export function createOwnerConnectionManager(deps: {
         socket.on("guest_request.answered", fanout("onAnswered"));
         socket.on("guest_message.created", fanoutRaw("onGuestMessageCreated"));
         socket.on("conversation.closed", fanoutRaw("onConversationClosed"));
+        socket.on("external_service_order.created", fanoutRaw("onExternalOrderCreated"));
+        socket.on("external_service_order.status_changed", fanoutRaw("onExternalOrderStatusChanged"));
         socket.on("request_realtime.error", (error) => {
           terminal = isTerminalRealtimeError(error);
           fanout("onError")(error);

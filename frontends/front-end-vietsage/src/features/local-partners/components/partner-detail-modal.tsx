@@ -43,7 +43,7 @@ export function PartnerDetailModal({ partner, onClose }: { partner: LocalPartner
           {websiteUrl ? <a href={websiteUrl} target="_blank" rel="noopener noreferrer" className="grid min-h-11 place-items-center rounded-xl border border-[#d8ded9] px-4 font-semibold">Website</a> : null}
           {zaloUrl ? <a href={zaloUrl} target="_blank" rel="noopener noreferrer" className="grid min-h-11 place-items-center rounded-xl border border-[#d8ded9] px-4 font-semibold">Zalo</a> : null}
         </div>
-        <p className="mt-6 rounded-xl bg-[#f8f4ea] p-3 text-xs leading-5 text-[#5e6a62]">Dịch vụ do bên thứ ba cung cấp. Thanh toán trực tiếp với đối tác; VietSage không tự ghi khoản này vào Folio.</p>
+        <p className="mt-6 rounded-xl bg-[#f8f4ea] p-3 text-xs leading-5 text-[#5e6a62]">Dịch vụ do bên thứ ba cung cấp. Thanh toán trực tiếp với nhà cung cấp; VietSage không tự ghi khoản này vào Folio.</p>
       </article>
     </div>
   );

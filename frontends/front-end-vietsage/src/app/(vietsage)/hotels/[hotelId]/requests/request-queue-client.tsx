@@ -52,6 +52,7 @@ import {
 } from "@/features/hotel-ops/utils/hotel-ops-display";
 import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
 import { requestQueueResource } from "@/features/hotel-ops/resources/request-queue-resource";
+import { useNearbyServiceProviders } from "@/features/local-partners/queries/use-local-partners";
 
 type RequestQueueLabels = {
   allStatuses: string;
@@ -214,6 +215,28 @@ const statusActions: Record<GuestRequestStatus, StaffRequestAction[]> = {
   CANCELLED: [],
   FAILED: [],
 };
+
+function getExternalOrderStatusLabel(status: string): { label: string; className: string } {
+  switch (status) {
+    case "PENDING":
+      return { label: "Đang chờ xác nhận", className: "bg-amber-100 text-amber-900 border-amber-300" };
+    case "ACCEPTED":
+      return { label: "Đối tác tiếp nhận", className: "bg-blue-100 text-blue-900 border-blue-300" };
+    case "PREPARING":
+      return { label: "Đang chuẩn bị", className: "bg-indigo-100 text-indigo-900 border-indigo-300" };
+    case "DELIVERING":
+      return { label: "Đang giao tận phòng", className: "bg-cyan-100 text-cyan-900 border-cyan-300" };
+    case "READY":
+      return { label: "Sẵn sàng phục vụ", className: "bg-cyan-100 text-cyan-900 border-cyan-300" };
+    case "COMPLETED":
+      return { label: "Hoàn thành", className: "bg-emerald-100 text-emerald-900 border-emerald-300" };
+    case "CANCELLED":
+    case "REJECTED":
+      return { label: "Đã hủy", className: "bg-rose-100 text-rose-900 border-rose-300" };
+    default:
+      return { label: status, className: "bg-slate-100 text-slate-800 border-slate-300" };
+  }
+}
 
 const swalButtonColor = "#00003c";
 
@@ -748,6 +771,10 @@ export function RequestQueueClient({
     });
   }, []);
 
+  const [inboxTab, setInboxTab] = useState<"HOTEL_REQUESTS" | "EXTERNAL_ORDERS">("HOTEL_REQUESTS");
+  const { orders: externalOrdersQuery } = useNearbyServiceProviders(hotelId);
+  const externalOrders = externalOrdersQuery.data ?? [];
+
   const ownerRealtimeHandlers = useMemo(
     () => ({
       onCreated: (request: StaffRequestListItem) => {
@@ -758,13 +785,20 @@ export function RequestQueueClient({
       },
       onUpdated: applyLiveRequestChange,
       onAnswered: applyLiveRequestChange,
+      onExternalOrderCreated: () => {
+        void externalOrdersQuery.refetch();
+      },
+      onExternalOrderStatusChanged: () => {
+        void externalOrdersQuery.refetch();
+      },
       onReconnect: () => {
         startTransition(() => {
           router.refresh();
         });
+        void externalOrdersQuery.refetch();
       },
     }),
-    [applyLiveRequestChange, router],
+    [applyLiveRequestChange, externalOrdersQuery, router],
   );
 
   useOwnerRequestRealtime(hotelId, ownerRealtimeHandlers, {
@@ -1436,149 +1470,140 @@ export function RequestQueueClient({
 
   return (
     <div className="space-y-6">
-      {urgentNotifications.length > 0 ? (
-        <section className="rounded-2xl border border-red-200 bg-red-50 p-4 shadow-[0_18px_50px_rgba(127,29,29,0.12)]">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+      {/* Top level Inbox Tabs */}
+      <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 pb-3.5">
+        <button
+          type="button"
+          onClick={() => setInboxTab("HOTEL_REQUESTS")}
+          className={`inline-flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${
+            inboxTab === "HOTEL_REQUESTS"
+              ? "bg-[#00003c] text-white shadow-xs"
+              : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+          }`}
+        >
+          <span>🛎️ Yêu cầu dịch vụ khách sạn</span>
+          <span className={`rounded-full px-2.5 py-0.5 text-xs font-black ${inboxTab === "HOTEL_REQUESTS" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-800"}`}>
+            {displayedRequests.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setInboxTab("EXTERNAL_ORDERS")}
+          className={`inline-flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${
+            inboxTab === "EXTERNAL_ORDERS"
+              ? "bg-amber-800 text-white shadow-xs"
+              : "bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100"
+          }`}
+        >
+          <span>🌐 Dịch vụ bên ngoài</span>
+          <span className={`rounded-full px-2.5 py-0.5 text-xs font-black ${inboxTab === "EXTERNAL_ORDERS" ? "bg-white/20 text-white" : "bg-amber-200 text-amber-900"}`}>
+            {externalOrders.length}
+          </span>
+        </button>
+      </div>
+
+      {inboxTab === "EXTERNAL_ORDERS" ? (
+        <section className="space-y-5 rounded-2xl border border-amber-200/80 bg-amber-50/30 p-5 shadow-xs">
+          <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-amber-200/60 pb-4">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-red-700">
-                Bảng yêu cầu khẩn cấp
-              </p>
-              <h2 className="mt-1 text-xl font-black text-red-950">
-                {
-                  urgentNotifications.filter(
-                    (notification) => !notification.acknowledgedAt,
-                  ).length
-                }{" "}
-                yêu cầu chưa xác nhận
-              </h2>
-              <p className="mt-1 text-sm text-red-900/75">
-                Hãy xử lí ngay lập tức nếu có thể
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-0.5 text-xs font-extrabold text-amber-900 border border-amber-300">
+                  Dịch vụ bên ngoài
+                </span>
+                <h2 className="text-xl font-black text-slate-900">Đơn Hàng Từ Đối Tác Liên Kết</h2>
+              </div>
+              <p className="mt-1 text-xs text-slate-600 font-medium">
+                Theo dõi các đơn dịch vụ do khách lưu trú tại khách sạn đặt trực tiếp với các đơn vị đối tác liên kết. Khách sạn theo dõi tiến độ để hỗ trợ đón tiếp.
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setIsUrgentPanelOpen((current) => !current)}
-                className="rounded-lg bg-red-700 px-3 py-2 text-sm font-bold text-white"
-              >
-                {isUrgentPanelOpen ? "Thu gọn" : "Mở bảng"}
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  setUrgentNotifications((currentNotifications) =>
-                    currentNotifications.filter(
-                      (notification) =>
-                        !isFinalRequestStatus(notification.status),
-                    ),
-                  )
-                }
-                className="rounded-lg bg-white px-3 py-2 text-sm font-bold text-red-800 ring-1 ring-red-200"
-              >
-                Dọn yêu cầu đã kết thúc
-              </button>
-            </div>
-          </div>
-          {isUrgentPanelOpen ? (
-            <div className="mt-4 grid gap-3 lg:grid-cols-2">
-              {urgentNotifications.map((notification) => {
-                const isOverdue =
-                  notification.isOverdue ||
-                  (!notification.acknowledgedAt &&
-                    notification.priority === "URGENT");
+            <button
+              type="button"
+              onClick={() => void externalOrdersQuery.refetch()}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-2xs"
+            >
+              🔄 Làm mới dữ liệu ({externalOrders.length})
+            </button>
+          </header>
+
+          {externalOrders.length > 0 ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {externalOrders.map((order) => {
+                const statusMeta = getExternalOrderStatusLabel(order.status);
                 return (
                   <article
-                    key={notification.id}
-                    className={`rounded-xl border bg-white p-4 transition-all ${
-                      isOverdue
-                        ? "border-red-600 ring-2 ring-red-500/50 bg-red-50/90 shadow-md animate-pulse"
-                        : notification.acknowledgedAt
-                        ? "border-red-100 opacity-75"
-                        : "border-red-300 shadow-sm"
-                    }`}
+                    key={order.id}
+                    className="flex flex-col justify-between space-y-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs transition-all hover:shadow-md"
                   >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-black text-red-950">
-                            Phòng {notification.roomNumber}
-                          </p>
-                          {isOverdue && !notification.acknowledgedAt ? (
-                            <span className="rounded-md bg-red-600 px-2 py-0.5 text-[10px] font-black uppercase text-white shadow-xs animate-bounce">
-                              🔥 QUÁ HẠN (Overdue 5m)
-                            </span>
-                          ) : null}
-                        </div>
-                        <p className="mt-1 text-sm text-red-900 font-bold">
-                          {notification.displayName}
-                        </p>
-                        <p className="mt-1 text-xs text-red-900/70">
-                          {notification.guestName ?? "Khách"} -{" "}
-                          {formatOpsDateTime(notification.createdAt)}
-                        </p>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                        <span className="font-mono font-bold text-slate-900 text-sm">{order.orderNumber}</span>
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-extrabold border ${statusMeta.className}`}>
+                          {statusMeta.label}
+                        </span>
                       </div>
-                      <span
-                        className={`rounded-full px-2.5 py-1 text-xs font-black ${
-                          notification.acknowledgedAt
-                            ? "bg-zinc-100 text-zinc-700"
-                            : isOverdue
-                            ? "bg-red-700 text-white"
-                            : "bg-red-700 text-white"
-                        }`}
-                      >
-                        {notification.acknowledgedAt
-                          ? "Đã xác nhận"
-                          : "Chưa xác nhận"}
-                      </span>
+
+                      <div className="space-y-1.5 text-xs">
+                        <h3 className="font-bold text-slate-900 text-base">
+                          {order.serviceTenant?.serviceProfile?.displayName ?? "Đối tác dịch vụ"}
+                        </h3>
+                        <p className="font-bold text-amber-900 text-sm">
+                          {order.serviceNameSnapshot}
+                        </p>
+                        <p className="text-slate-600 font-medium">
+                          📍 Phòng {order.stay?.room?.roomNumber ?? "-"} · {order.stay?.guestDisplayName ?? "Khách lưu trú"}
+                        </p>
+                        <p className="text-slate-600 font-semibold">
+                          Số lượng: <span className="font-black text-slate-900">{order.quantity}</span> · Tổng tiền: <span className="font-black text-emerald-700">{Number(order.totalAmount).toLocaleString("vi-VN")} {order.currency}</span>
+                        </p>
+                        {order.guestNote ? (
+                          <p className="rounded-xl bg-amber-50/80 p-2.5 text-slate-700 italic border border-amber-100">
+                            &quot;{order.guestNote}&quot;
+                          </p>
+                        ) : null}
+                      </div>
                     </div>
-                    {(notification.latestNote ?? notification.description) ? (
-                      <p className="mt-3 rounded-lg bg-red-100/70 p-3 text-sm text-red-950">
-                        {notification.latestNote ?? notification.description}
-                      </p>
-                    ) : null}
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      {(() => {
-                        const cardActions = statusActions[notification.status] ?? [];
-                        const primaryAction = cardActions[0];
-                        return primaryAction ? (
-                          <button
-                            type="button"
-                            disabled={isMutating}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              acknowledgeUrgentRequest(notification.id);
-                              void updateStatusForRequest(notification, primaryAction);
-                            }}
-                            className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition hover:opacity-90 active:scale-95 disabled:opacity-50 ${actionMeta[primaryAction].className}`}
-                          >
-                            <VsIcon name={actionMeta[primaryAction].icon} className="text-xs shrink-0" />
-                            <span>{actionMeta[primaryAction].label}</span>
-                          </button>
-                        ) : null;
-                      })()}
+
+                    <div className="border-t border-slate-100 pt-3">
                       <button
                         type="button"
                         onClick={() => {
-                          acknowledgeUrgentRequest(notification.id);
-                          openRequestRow(notification);
+                          void Swal.fire({
+                            title: `<span style="font-size:18px;font-weight:800;color:#0f172a">Đơn Dịch Vụ Bên Ngoài ${order.orderNumber}</span>`,
+                            html: `
+                              <div style="text-align:left;font-size:14px;color:#334155;line-height:1.6;display:grid;gap:8px;">
+                                <p style="margin:0"><span style="display:inline-block;padding:2px 8px;border-radius:12px;background:#fef3c7;color:#92400e;font-weight:800;font-size:12px">Dịch vụ bên ngoài</span></p>
+                                <p style="margin:0"><b>Đối tác cung cấp:</b> ${order.serviceTenant?.serviceProfile?.displayName ?? "Đối tác"}</p>
+                                <p style="margin:0"><b>Dịch vụ:</b> ${order.serviceNameSnapshot}</p>
+                                <p style="margin:0"><b>Khách hàng / Phòng:</b> Phòng ${order.stay?.room?.roomNumber ?? "-"} (${order.stay?.guestDisplayName ?? "Khách lưu trú"})</p>
+                                <p style="margin:0"><b>Số lượng:</b> ${order.quantity}</p>
+                                <p style="margin:0"><b>Tổng giá trị:</b> ${Number(order.totalAmount).toLocaleString("vi-VN")} ${order.currency}</p>
+                                <p style="margin:0"><b>Trạng thái fulfillment:</b> <b style="color:#047857">${statusMeta.label} (${order.status})</b></p>
+                                <p style="margin:0"><b>Thời gian đặt:</b> ${formatOpsDateTime(order.createdAt)}</p>
+                                ${order.guestNote ? `<p style="margin:4px 0 0;padding:8px;background:#f8fafc;border-radius:8px;font-style:italic">Ghi chú: ${order.guestNote}</p>` : ""}
+                                <div style="margin-top:12px;padding:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:12px;color:#1e40af">
+                                  ℹ️ <b>Lưu ý dành cho Khách sạn:</b> Đơn hàng này do đơn vị đối tác trực tiếp tiếp nhận & phục vụ. Nhân sự khách sạn không thao tác chuyển trạng thái hay xử lý đơn.
+                                </div>
+                              </div>
+                            `,
+                            confirmButtonColor: "#00003c",
+                            confirmButtonText: "Đóng",
+                          });
                         }}
-                        className="rounded-lg bg-red-700 px-3 py-2 text-xs font-black uppercase tracking-wide text-white hover:bg-red-800"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors"
                       >
-                        Xử lý ngay
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => removeUrgentRequest(notification.id)}
-                        className="rounded-lg px-3 py-2 text-xs font-black uppercase tracking-wide text-red-800 hover:bg-red-100"
-                      >
-                        Ẩn khỏi bảng
+                        👁️ Xem chi tiết đơn
                       </button>
                     </div>
                   </article>
                 );
               })}
             </div>
-          ) : null}
+          ) : (
+            <div className="rounded-2xl border border-dashed border-amber-200 bg-white p-10 text-center text-sm font-medium text-slate-500">
+              Hiện chưa có đơn dịch vụ bên ngoài nào từ khách lưu trú.
+            </div>
+          )}
         </section>
       ) : null}
 
