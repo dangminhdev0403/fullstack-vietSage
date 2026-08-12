@@ -44,16 +44,19 @@ export async function PATCH(request: Request) {
   catch (error) { return error instanceof HttpError ? hotelOpsHttpErrorResponse(error) : unknownServerErrorResponse(); }
 }
 export async function POST(request: Request) {
-  const body = await request.json().catch(() => null) as { action?: string; orderId?: string; toStatus?: string; input?: unknown; data?: unknown; csv?: string; fileName?: string; previewToken?: string; serviceId?: string } | null;
+  const body = await request.json().catch(() => null) as { action?: string; code?: string; orderId?: string; toStatus?: string; input?: unknown; data?: unknown; csv?: string; fileName?: string; previewToken?: string; serviceId?: string } | null;
   if (!body) return validationErrorResponse("Dữ liệu không hợp lệ");
   try {
     const data = await executeHotelOpsBackendRequest("service portal mutation", (token) => {
       if (body.action === "ticket") return servicePortalClient.ticket(token);
+      if (body.action === "verifyVoucher" && body.code) return servicePortalClient.verifyVoucher(token, body.code);
+      if (body.action === "redeemVoucher" && body.code) return servicePortalClient.redeemVoucher(token, body.code);
       if (body.action === "transition" && body.orderId && body.toStatus) return servicePortalClient.transition(token, body.orderId, body.toStatus);
       if (body.action === "importPreview" && body.csv) return servicePortalClient.importPreview(token, body.csv, body.fileName ?? "service-items.csv");
       if (body.action === "importCommit" && body.csv && body.previewToken) return servicePortalClient.importCommit(token, body.csv, body.fileName ?? "service-items.csv", body.previewToken);
       if (body.action === "update" && body.serviceId) return servicePortalClient.update(token, body.serviceId, body.data);
-      return servicePortalClient.create(token, body.input);
+      if (body.action === "create" && body.input && typeof body.input === "object") return servicePortalClient.create(token, body.input);
+      throw new Error("Hành động không hợp lệ hoặc thiếu dữ liệu");
     });
     return data instanceof Response ? data : successResponse(data, 200);
   } catch (error) { return error instanceof HttpError ? hotelOpsHttpErrorResponse(error) : unknownServerErrorResponse(); }

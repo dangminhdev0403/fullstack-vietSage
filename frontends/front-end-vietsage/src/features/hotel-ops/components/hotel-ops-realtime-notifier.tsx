@@ -12,10 +12,21 @@ import {
   invalidateHotelRealtimeQueries,
   invalidateHotelRequestRealtimeQueries,
 } from "../utils/invalidate-hotel-realtime-queries";
+import { getQueryClient } from "@/app/_components/react-query-provider";
+
+function useSafeQueryClient() {
+  try {
+    return useQueryClient();
+  } catch {
+    return null;
+  }
+}
 
 export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string }>) {
   const router = useRouter();
-  const queryClient = useQueryClient();
+  const queryClient = useSafeQueryClient();
+
+  const getTargetClient = () => queryClient ?? getQueryClient();
 
   const handlers = useMemo(
     () => ({
@@ -46,7 +57,7 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
         );
 
         // Invalidate TanStack Query caches so UI updates without page reload
-        void invalidateHotelRealtimeQueries(queryClient, hotelId);
+        void invalidateHotelRealtimeQueries(getTargetClient(), hotelId);
       },
       onUpdated: (request: Partial<StaffRequestListItem> & { id: string }) => {
         if (String(request.status) === "CANCELLED") {
@@ -65,13 +76,13 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
         } else if (String(request.status) === "PENDING") {
           playRequestAlertSound(false);
         }
-        void invalidateHotelRealtimeQueries(queryClient, hotelId);
+        void invalidateHotelRealtimeQueries(getTargetClient(), hotelId);
       },
       onAnswered: () => {
-        void invalidateHotelRealtimeQueries(queryClient, hotelId);
+        void invalidateHotelRealtimeQueries(getTargetClient(), hotelId);
       },
       onGuestMessageCreated: (event: unknown) => {
-        void invalidateHotelRealtimeQueries(queryClient, hotelId);
+        void invalidateHotelRealtimeQueries(getTargetClient(), hotelId);
 
         const raw = event as {
           hotelId?: string;
@@ -101,10 +112,10 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
         }
       },
       onConversationClosed: () => {
-        void invalidateHotelRealtimeQueries(queryClient, hotelId);
+        void invalidateHotelRealtimeQueries(getTargetClient(), hotelId);
       },
       onReconnect: () => {
-        void invalidateHotelRequestRealtimeQueries(queryClient, hotelId);
+        void invalidateHotelRequestRealtimeQueries(getTargetClient(), hotelId);
       },
     }),
     [hotelId, queryClient, router],

@@ -53,6 +53,10 @@ import {
 import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
 import { requestQueueResource } from "@/features/hotel-ops/resources/request-queue-resource";
 import { useNearbyServiceProviders } from "@/features/local-partners/queries/use-local-partners";
+import type { HotelMarketplaceOrder } from "@/features/local-partners/types/local-partners-contract";
+import type { MarketplaceOrder } from "@/features/marketplace/types/marketplace-contract";
+import { printMarketplaceVoucherTicket } from "@/features/marketplace/utils/print-voucher";
+import { SwalVietSage } from "@/libs/swal";
 
 type RequestQueueLabels = {
   allStatuses: string;
@@ -220,12 +224,13 @@ function getExternalOrderStatusLabel(status: string): { label: string; className
   switch (status) {
     case "PENDING":
       return { label: "Đang chờ xác nhận", className: "bg-amber-100 text-amber-900 border-amber-300" };
+    case "CONFIRMED":
     case "ACCEPTED":
-      return { label: "Đối tác tiếp nhận", className: "bg-blue-100 text-blue-900 border-blue-300" };
+      return { label: "Đối tác đã xác nhận", className: "bg-blue-100 text-blue-900 border-blue-300" };
     case "PREPARING":
       return { label: "Đang chuẩn bị", className: "bg-indigo-100 text-indigo-900 border-indigo-300" };
     case "DELIVERING":
-      return { label: "Đang giao tận phòng", className: "bg-cyan-100 text-cyan-900 border-cyan-300" };
+      return { label: "Đang giao phòng", className: "bg-cyan-100 text-cyan-900 border-cyan-300" };
     case "READY":
       return { label: "Sẵn sàng phục vụ", className: "bg-cyan-100 text-cyan-900 border-cyan-300" };
     case "COMPLETED":
@@ -771,9 +776,46 @@ export function RequestQueueClient({
     });
   }, []);
 
-  const [inboxTab, setInboxTab] = useState<"HOTEL_REQUESTS" | "EXTERNAL_ORDERS">("HOTEL_REQUESTS");
+  const [inboxTab, setInboxTab] = useState<"HOTEL_REQUESTS" | "EXTERNAL_ORDERS" | "ALL">("HOTEL_REQUESTS");
   const { orders: externalOrdersQuery } = useNearbyServiceProviders(hotelId);
   const externalOrders = externalOrdersQuery.data ?? [];
+
+  const convertedExternalOrders = useMemo<StaffRequestListItem[]>(() => {
+    return externalOrders.map((order) => {
+      const statusMap: Record<string, GuestRequestStatus> = {
+        PENDING: "CREATED",
+        CONFIRMED: "ACKNOWLEDGED",
+        PROCESSING: "IN_PROGRESS",
+        ACCEPTED: "ACKNOWLEDGED",
+        PREPARING: "IN_PROGRESS",
+        DELIVERING: "IN_PROGRESS",
+        READY: "IN_PROGRESS",
+        COMPLETED: "COMPLETED",
+        CANCELLED: "CANCELLED",
+        REJECTED: "FAILED",
+      };
+      const status: GuestRequestStatus = statusMap[order.status] ?? "CREATED";
+      const actions = statusActions[status] ?? [];
+
+      return {
+        id: order.id,
+        displayName: `${order.serviceNameSnapshot} (${order.serviceTenant?.serviceProfile?.displayName ?? "Đối tác"})`,
+        status,
+        priority: "NORMAL",
+        quantity: order.quantity,
+        description: order.guestNote ?? null,
+        latestNote: `Mã đơn: ${order.orderNumber} · Tổng tiền: ${Number(order.totalAmount).toLocaleString("vi-VN")} ${order.currency}`,
+        createdAt: order.createdAt,
+        roomNumber: order.stay?.room?.roomNumber ?? "-",
+        guestName: order.stay?.guestDisplayName ?? "Khách lưu trú",
+        categoryName: "Dịch vụ bên ngoài",
+        assignedToName: "Đối tác liên kết",
+        stayStatus: undefined,
+        checkedOutAt: undefined,
+        actions,
+      };
+    });
+  }, [externalOrders]);
 
   const ownerRealtimeHandlers = useMemo(
     () => ({
@@ -789,6 +831,12 @@ export function RequestQueueClient({
         void externalOrdersQuery.refetch();
       },
       onExternalOrderStatusChanged: () => {
+        void externalOrdersQuery.refetch();
+      },
+      onExternalOrderHotelAcknowledged: () => {
+        void externalOrdersQuery.refetch();
+      },
+      onExternalOrderVoucherIssued: () => {
         void externalOrdersQuery.refetch();
       },
       onReconnect: () => {
@@ -838,6 +886,71 @@ export function RequestQueueClient({
       return result * directionMultiplier;
     });
   }, [filters.status, liveRequestChanges, requests, sortState]);
+
+  const activeTabRequests = useMemo(() => {
+    let list: StaffRequestListItem[] = [];
+    if (inboxTab === "HOTEL_REQUESTS") {
+      list = displayedRequests;
+    } else if (inboxTab === "EXTERNAL_ORDERS") {
+      list = convertedExternalOrders;
+    } else {
+      list = [...displayedRequests, ...convertedExternalOrders];
+    }
+
+    if (filters.status) {
+      list = list.filter((item) => item.status === filters.status);
+    }
+    if (filters.roomNumber) {
+      const q = filters.roomNumber.toLowerCase();
+      list = list.filter((item) => item.roomNumber.toLowerCase().includes(q));
+    }
+    if (filters.priority) {
+      list = list.filter((item) => item.priority === filters.priority);
+    }
+    if (filters.q) {
+      const q = filters.q.toLowerCase();
+      list = list.filter(
+        (item) =>
+          item.roomNumber.toLowerCase().includes(q) ||
+          (item.guestName ?? "").toLowerCase().includes(q) ||
+          item.displayName.toLowerCase().includes(q) ||
+          (item.latestNote ?? "").toLowerCase().includes(q),
+      );
+    }
+
+    return list.sort((a, b) => {
+      const directionMultiplier = sortState.direction === "asc" ? 1 : -1;
+      const result = compareValues(
+        getSortableRequestValue(a, sortState.key),
+        getSortableRequestValue(b, sortState.key),
+      );
+      return result * directionMultiplier;
+    });
+  }, [inboxTab, displayedRequests, convertedExternalOrders, filters, sortState]);
+
+  const activeSummaryCounts = useMemo(() => {
+    const counts: Record<GuestRequestStatus, number> = {
+      CREATED: 0,
+      ACKNOWLEDGED: 0,
+      IN_PROGRESS: 0,
+      COMPLETED: 0,
+      CANCELLED: 0,
+      FAILED: 0,
+    };
+    const list =
+      inboxTab === "HOTEL_REQUESTS"
+        ? requests
+        : inboxTab === "EXTERNAL_ORDERS"
+          ? convertedExternalOrders
+          : [...requests, ...convertedExternalOrders];
+
+    list.forEach((item) => {
+      if (item.status && counts[item.status] !== undefined) {
+        counts[item.status] += 1;
+      }
+    });
+    return counts;
+  }, [inboxTab, requests, convertedExternalOrders]);
 
 
   function openRequestRow(request: StaffRequestListItem) {
@@ -1370,18 +1483,6 @@ export function RequestQueueClient({
       cell: (request) => request.displayName,
     },
     {
-      key: "category",
-      sortable: true,
-      header: mergedLabels.category,
-      cell: (request) => request.categoryName ?? "-",
-    },
-    {
-      key: "quantity",
-      sortable: true,
-      header: mergedLabels.quantity,
-      cell: (request) => request.quantity,
-    },
-    {
       key: "priority",
       sortable: true,
       header: mergedLabels.priority,
@@ -1454,6 +1555,312 @@ export function RequestQueueClient({
     },
   ];
 
+  async function acknowledgeExternalOrder(order: HotelMarketplaceOrder) {
+    const isConfirmed = await SwalVietSage.fire({
+      title: `<span style="font-size:17px;font-weight:800;color:#0f172a">Xác nhận tiếp nhận đơn #${order.orderNumber}?</span>`,
+      html: `
+        <div style="text-align:left;font-size:13px;color:#334155;line-height:1.6;display:grid;gap:8px;padding-top:4px;">
+          <p style="margin:0"><b>Dịch vụ:</b> <span style="color:#0f172a;font-weight:700">${order.serviceNameSnapshot}</span></p>
+          <p style="margin:0"><b>Đối tác:</b> ${order.serviceTenant?.serviceProfile?.displayName ?? "Đối tác dịch vụ"}</p>
+          <p style="margin:0"><b>Khách / Phòng:</b> Phòng ${order.stay?.room?.roomNumber ?? "-"} (${order.stay?.guestDisplayName ?? "Khách lưu trú"})</p>
+          <p style="margin:0"><b>Số lượng:</b> ${order.quantity} · <b>Tổng tiền:</b> <b style="color:#047857">${Number(order.totalAmount).toLocaleString("vi-VN")} ${order.currency}</b></p>
+          <div style="margin-top:6px;padding:10px 12px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;font-size:12px;color:#065f46">
+            ⚡ <b>Hệ thống sẽ tự động:</b><br/>
+            • Tạo Mã phiếu dịch vụ (Voucher)<br/>
+            • Gửi thông báo Realtime trực tiếp tới Đối tác & Khách hàng.
+          </div>
+        </div>
+      `,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "✓ Tiếp nhận đơn",
+      cancelButtonText: "Quay lại",
+      confirmButtonColor: "#059669",
+      cancelButtonColor: "#64748b",
+      reverseButtons: false,
+    });
+
+    if (!isConfirmed.isConfirmed) return;
+
+    try {
+      await requestInternalApi(`/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/local-partners/providers/orders/${encodeURIComponent(order.id)}/acknowledge`, {
+        method: "POST",
+      });
+      toast.success(`Đã tiếp nhận đơn dịch vụ #${order.orderNumber}! Mã phiếu dịch vụ (Voucher) đã tạo thành công.`);
+      void externalOrdersQuery.refetch();
+    } catch (error) {
+      toast.error(getHttpErrorMessage(error, "Không thể tiếp nhận đơn hàng"));
+    }
+  }
+
+  async function cancelExternalOrder(order: HotelMarketplaceOrder) {
+    const isConfirmed = await SwalVietSage.fire({
+      title: `<span style="font-size:17px;font-weight:800;color:#991b1b">Xác nhận hủy đơn #${order.orderNumber}?</span>`,
+      html: `
+        <div style="text-align:left;font-size:13px;color:#334155;line-height:1.6;display:grid;gap:8px;padding-top:4px;">
+          <p style="margin:0"><b>Dịch vụ:</b> ${order.serviceNameSnapshot}</p>
+          <p style="margin:0"><b>Đối tác:</b> ${order.serviceTenant?.serviceProfile?.displayName ?? "Đối tác dịch vụ"}</p>
+          <p style="margin:0"><b>Khách / Phòng:</b> Phòng ${order.stay?.room?.roomNumber ?? "-"} (${order.stay?.guestDisplayName ?? "Khách lưu trú"})</p>
+          <div style="margin-top:6px;padding:10px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;font-size:12px;color:#991b1b">
+            ⚠️ <b>Lưu ý:</b> Đơn hàng này sẽ bị hủy. Thông báo hủy sẽ gửi Realtime đến Đối tác & Khách hàng.
+          </div>
+        </div>
+      `,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "× Hủy đơn hàng",
+      cancelButtonText: "Quay lại",
+      confirmButtonColor: "#dc2626",
+      cancelButtonColor: "#64748b",
+      reverseButtons: false,
+    });
+
+    if (!isConfirmed.isConfirmed) return;
+
+    try {
+      await requestInternalApi(`/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/local-partners/providers/orders/${encodeURIComponent(order.id)}/cancel`, {
+        method: "POST",
+      });
+      toast.success(`Đã hủy đơn dịch vụ #${order.orderNumber}`);
+      void externalOrdersQuery.refetch();
+    } catch (error) {
+      toast.error(getHttpErrorMessage(error, "Không thể hủy đơn hàng"));
+    }
+  }
+
+  function openVoucherModal(order: HotelMarketplaceOrder) {
+    if (!order.voucher?.voucherNumber && order.hotelCoordinationStatus !== "VOUCHER_ISSUED") {
+      toast.info("Chưa có mã phiếu cho đơn hàng này");
+      return;
+    }
+    printMarketplaceVoucherTicket({
+      voucherCode: order.voucher?.voucherNumber ?? "VOUCHER",
+      verificationCode: "-",
+      guestDisplayName: order.stay?.guestDisplayName ?? "Khách lưu trú",
+      roomNumber: order.stay?.room?.roomNumber ?? "-",
+      providerDisplayName: order.serviceTenant?.serviceProfile?.displayName ?? "Đối tác dịch vụ",
+      orderNumber: order.orderNumber,
+      serviceName: order.serviceNameSnapshot,
+      quantity: order.quantity,
+      totalAmount: order.totalAmount,
+      currency: order.currency,
+      guestNote: order.guestNote,
+    });
+  }
+
+  function openExternalOrderDetailModal(order: HotelMarketplaceOrder) {
+    const statusMeta = getExternalOrderStatusLabel(order.status);
+    const isHotelAcknowledged = order.hotelCoordinationStatus === "ACKNOWLEDGED" || order.hotelCoordinationStatus === "VOUCHER_ISSUED";
+
+    void SwalVietSage.fire({
+      title: `<span style="font-size:18px;font-weight:800;color:#0f172a">Đơn Dịch Vụ Bên Ngoài #${order.orderNumber}</span>`,
+      html: `
+        <div style="text-align:left;font-size:14px;color:#334155;line-height:1.6;display:grid;gap:10px;">
+          <p style="margin:0"><span style="display:inline-block;padding:2px 10px;border-radius:12px;background:#fef3c7;color:#92400e;font-weight:800;font-size:12px">🌐 Dịch vụ bên ngoài</span></p>
+          <p style="margin:0"><b>Đối tác dịch vụ:</b> ${order.serviceTenant?.serviceProfile?.displayName ?? "Đối tác"}</p>
+          <p style="margin:0"><b>Tên dịch vụ:</b> ${order.serviceNameSnapshot}</p>
+          <p style="margin:0"><b>Phòng / Khách hàng:</b> Phòng ${order.stay?.room?.roomNumber ?? "-"} (${order.stay?.guestDisplayName ?? "Khách lưu trú"})</p>
+          <p style="margin:0"><b>Số lượng:</b> ${order.quantity}</p>
+          <p style="margin:0"><b>Tổng chi phí:</b> <b style="color:#047857">${Number(order.totalAmount).toLocaleString("vi-VN")} ${order.currency}</b></p>
+          <p style="margin:0"><b>Trạng thái đối tác:</b> <b style="color:#0369a1">${statusMeta.label}</b></p>
+          <p style="margin:0"><b>Trạng thái tiếp nhận khách sạn:</b> <b style="color:${isHotelAcknowledged ? "#047857" : "#b45309"}">${isHotelAcknowledged ? "Đã tiếp nhận" : "Chờ tiếp nhận"}</b></p>
+          <p style="margin:0"><b>Thời gian tạo:</b> ${formatOpsDateTime(order.createdAt)}</p>
+          ${order.guestNote ? `<p style="margin:4px 0 0;padding:10px;background:#f8fafc;border-radius:8px;font-style:italic;border:1px solid #e2e8f0">Ghi chú của khách: ${order.guestNote}</p>` : ""}
+          ${order.voucher?.voucherNumber ? `<p style="margin:4px 0 0;padding:10px;background:#eeefec;border-radius:8px;font-weight:bold;color:#312e81;border:1px solid #c7d2fe">🎟️ Mã phiếu dịch vụ: ${order.voucher.voucherNumber}</p>` : ""}
+        </div>
+      `,
+      confirmButtonColor: "#00003c",
+      confirmButtonText: "Đóng",
+    });
+  }
+
+  const externalOrderColumns: DataTableColumn<HotelMarketplaceOrder>[] = [
+    {
+      key: "orderNumber",
+      sortable: true,
+      header: "Mã đơn",
+      cell: (order) => {
+        const shortCode =
+          order.orderNumber.length > 12
+            ? `${order.orderNumber.slice(0, 4)}...${order.orderNumber.slice(-6)}`
+            : order.orderNumber;
+        return (
+          <div title={order.orderNumber} className="py-1">
+            <div className="font-mono font-extrabold text-slate-900 text-sm tracking-tight">#{shortCode}</div>
+            <div className="text-xs text-slate-500 font-medium mt-0.5">{formatOpsDateTime(order.createdAt)}</div>
+          </div>
+        );
+      },
+    },
+    {
+      key: "partner",
+      sortable: true,
+      header: "Đối tác",
+      cell: (order) => (
+        <div className="font-bold text-slate-800 text-sm max-w-35 truncate py-1" title={order.serviceTenant?.serviceProfile?.displayName ?? "Đối tác"}>
+          {order.serviceTenant?.serviceProfile?.displayName ?? "Đối tác dịch vụ"}
+        </div>
+      ),
+    },
+    {
+      key: "service",
+      sortable: true,
+      header: "Dịch vụ",
+      cell: (order) => (
+        <div className="text-sm font-bold text-slate-900 py-1 leading-snug">
+          {order.serviceNameSnapshot}
+          {order.quantity > 1 ? (
+            <span className="ml-1.5 inline-flex items-center rounded-md bg-amber-100 px-1.5 py-0.5 text-xs font-black text-amber-900">
+              ×{order.quantity}
+            </span>
+          ) : null}
+        </div>
+      ),
+    },
+    {
+      key: "guestRoom",
+      sortable: true,
+      header: "Khách / Phòng",
+      cell: (order) => (
+        <div className="text-sm text-slate-800 font-medium py-1">
+          <span className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-black text-indigo-950 border border-indigo-200 mr-1.5">
+            Phòng {order.stay?.room?.roomNumber ?? "-"}
+          </span>
+          <span className="font-bold text-slate-900">{order.stay?.guestDisplayName ?? "Khách lưu trú"}</span>
+        </div>
+      ),
+    },
+    {
+      key: "totalAmount",
+      sortable: true,
+      header: "Tổng tiền",
+      cell: (order) => (
+        <span className="font-black text-emerald-700 text-sm py-1">
+          {Number(order.totalAmount).toLocaleString("vi-VN")} {order.currency}
+        </span>
+      ),
+    },
+    {
+      key: "status",
+      sortable: true,
+      header: "Trạng thái",
+      cell: (order) => {
+        const isHotelAcknowledged =
+          order.hotelCoordinationStatus === "ACKNOWLEDGED" ||
+          order.hotelCoordinationStatus === "VOUCHER_ISSUED";
+
+        if (order.status === "CANCELLED" || order.status === "REJECTED") {
+          return (
+            <span className="inline-flex items-center rounded-full bg-rose-50 px-3 py-1 text-xs font-bold text-rose-700 border border-rose-200">
+              Đã hủy
+            </span>
+          );
+        }
+
+        if (order.status === "COMPLETED") {
+          return (
+            <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 border border-emerald-200">
+              Hoàn thành
+            </span>
+          );
+        }
+
+        if (!isHotelAcknowledged) {
+          return (
+            <span className="inline-flex items-center rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700 border border-amber-200">
+              Chờ tiếp nhận
+            </span>
+          );
+        }
+
+        const partnerMeta = getExternalOrderStatusLabel(order.status);
+        return (
+          <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-extrabold border ${partnerMeta.className}`}>
+            {partnerMeta.label}
+          </span>
+        );
+      },
+    },
+    {
+      key: "actions",
+      sortable: false,
+      header: "Thao tác",
+      className: "whitespace-nowrap min-w-[160px]",
+      cell: (order) => {
+        const isHotelAcknowledged =
+          order.hotelCoordinationStatus === "ACKNOWLEDGED" ||
+          order.hotelCoordinationStatus === "VOUCHER_ISSUED";
+        const isVoucherIssued = Boolean(
+          order.voucher?.voucherNumber || order.hotelCoordinationStatus === "VOUCHER_ISSUED",
+        );
+        const isFinished =
+          order.status === "COMPLETED" || order.status === "CANCELLED" || order.status === "REJECTED";
+
+        if (isFinished) {
+          return <span className="text-xs font-medium text-slate-400">-</span>;
+        }
+
+        return (
+          <div className="flex items-center gap-1.5 py-1" onClick={(e) => e.stopPropagation()}>
+            {!isHotelAcknowledged ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void acknowledgeExternalOrder(order);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-emerald-700 active:scale-[0.97] transition-all"
+                  title="Tiếp nhận đơn hàng và khởi tạo mã dịch vụ (Voucher)"
+                >
+                  <VsIcon name="check_circle" className="text-xs" />
+                  <span>Tiếp nhận</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    void cancelExternalOrder(order);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-100 active:scale-[0.97] transition-all"
+                  title="Hủy đơn hàng"
+                >
+                  <VsIcon name="close" className="text-xs" />
+                  <span>Hủy</span>
+                </button>
+              </>
+            ) : (
+              <>
+                {isVoucherIssued ? (
+                  <button
+                    type="button"
+                    onClick={() => openVoucherModal(order)}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100 active:scale-[0.97] transition-all shadow-2xs"
+                    title="Xem mã phiếu dịch vụ"
+                  >
+                    <VsIcon name="confirmation_number" className="text-xs" />
+                    <span>Xem phiếu</span>
+                  </button>
+                ) : null}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    void cancelExternalOrder(order);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 active:scale-[0.97] transition-all"
+                  title="Hủy đơn hàng"
+                >
+                  <VsIcon name="close" className="text-xs" />
+                  <span>Hủy</span>
+                </button>
+              </>
+            )}
+          </div>
+        );
+      },
+    },
+  ];
+
   const requestTableHeader = (
     <div className="flex items-center justify-between border-b border-[color:rgba(198,197,213,0.18)] px-4 py-3">
       <p className="text-sm font-semibold text-[var(--on-surface-variant)]">
@@ -1501,111 +1908,22 @@ export function RequestQueueClient({
             {externalOrders.length}
           </span>
         </button>
+
+        <button
+          type="button"
+          onClick={() => setInboxTab("ALL")}
+          className={`inline-flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${
+            inboxTab === "ALL"
+              ? "bg-slate-800 text-white shadow-xs"
+              : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+          }`}
+        >
+          <span>📋 Tất cả</span>
+          <span className={`rounded-full px-2.5 py-0.5 text-xs font-black ${inboxTab === "ALL" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-800"}`}>
+            {displayedRequests.length + externalOrders.length}
+          </span>
+        </button>
       </div>
-
-      {inboxTab === "EXTERNAL_ORDERS" ? (
-        <section className="space-y-5 rounded-2xl border border-amber-200/80 bg-amber-50/30 p-5 shadow-xs">
-          <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-amber-200/60 pb-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-0.5 text-xs font-extrabold text-amber-900 border border-amber-300">
-                  Dịch vụ bên ngoài
-                </span>
-                <h2 className="text-xl font-black text-slate-900">Đơn Hàng Từ Đối Tác Liên Kết</h2>
-              </div>
-              <p className="mt-1 text-xs text-slate-600 font-medium">
-                Theo dõi các đơn dịch vụ do khách lưu trú tại khách sạn đặt trực tiếp với các đơn vị đối tác liên kết. Khách sạn theo dõi tiến độ để hỗ trợ đón tiếp.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => void externalOrdersQuery.refetch()}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-2xs"
-            >
-              🔄 Làm mới dữ liệu ({externalOrders.length})
-            </button>
-          </header>
-
-          {externalOrders.length > 0 ? (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {externalOrders.map((order) => {
-                const statusMeta = getExternalOrderStatusLabel(order.status);
-                return (
-                  <article
-                    key={order.id}
-                    className="flex flex-col justify-between space-y-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs transition-all hover:shadow-md"
-                  >
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                        <span className="font-mono font-bold text-slate-900 text-sm">{order.orderNumber}</span>
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-extrabold border ${statusMeta.className}`}>
-                          {statusMeta.label}
-                        </span>
-                      </div>
-
-                      <div className="space-y-1.5 text-xs">
-                        <h3 className="font-bold text-slate-900 text-base">
-                          {order.serviceTenant?.serviceProfile?.displayName ?? "Đối tác dịch vụ"}
-                        </h3>
-                        <p className="font-bold text-amber-900 text-sm">
-                          {order.serviceNameSnapshot}
-                        </p>
-                        <p className="text-slate-600 font-medium">
-                          📍 Phòng {order.stay?.room?.roomNumber ?? "-"} · {order.stay?.guestDisplayName ?? "Khách lưu trú"}
-                        </p>
-                        <p className="text-slate-600 font-semibold">
-                          Số lượng: <span className="font-black text-slate-900">{order.quantity}</span> · Tổng tiền: <span className="font-black text-emerald-700">{Number(order.totalAmount).toLocaleString("vi-VN")} {order.currency}</span>
-                        </p>
-                        {order.guestNote ? (
-                          <p className="rounded-xl bg-amber-50/80 p-2.5 text-slate-700 italic border border-amber-100">
-                            &quot;{order.guestNote}&quot;
-                          </p>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    <div className="border-t border-slate-100 pt-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          void Swal.fire({
-                            title: `<span style="font-size:18px;font-weight:800;color:#0f172a">Đơn Dịch Vụ Bên Ngoài ${order.orderNumber}</span>`,
-                            html: `
-                              <div style="text-align:left;font-size:14px;color:#334155;line-height:1.6;display:grid;gap:8px;">
-                                <p style="margin:0"><span style="display:inline-block;padding:2px 8px;border-radius:12px;background:#fef3c7;color:#92400e;font-weight:800;font-size:12px">Dịch vụ bên ngoài</span></p>
-                                <p style="margin:0"><b>Đối tác cung cấp:</b> ${order.serviceTenant?.serviceProfile?.displayName ?? "Đối tác"}</p>
-                                <p style="margin:0"><b>Dịch vụ:</b> ${order.serviceNameSnapshot}</p>
-                                <p style="margin:0"><b>Khách hàng / Phòng:</b> Phòng ${order.stay?.room?.roomNumber ?? "-"} (${order.stay?.guestDisplayName ?? "Khách lưu trú"})</p>
-                                <p style="margin:0"><b>Số lượng:</b> ${order.quantity}</p>
-                                <p style="margin:0"><b>Tổng giá trị:</b> ${Number(order.totalAmount).toLocaleString("vi-VN")} ${order.currency}</p>
-                                <p style="margin:0"><b>Trạng thái fulfillment:</b> <b style="color:#047857">${statusMeta.label} (${order.status})</b></p>
-                                <p style="margin:0"><b>Thời gian đặt:</b> ${formatOpsDateTime(order.createdAt)}</p>
-                                ${order.guestNote ? `<p style="margin:4px 0 0;padding:8px;background:#f8fafc;border-radius:8px;font-style:italic">Ghi chú: ${order.guestNote}</p>` : ""}
-                                <div style="margin-top:12px;padding:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:12px;color:#1e40af">
-                                  ℹ️ <b>Lưu ý dành cho Khách sạn:</b> Đơn hàng này do đơn vị đối tác trực tiếp tiếp nhận & phục vụ. Nhân sự khách sạn không thao tác chuyển trạng thái hay xử lý đơn.
-                                </div>
-                              </div>
-                            `,
-                            confirmButtonColor: "#00003c",
-                            confirmButtonText: "Đóng",
-                          });
-                        }}
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors"
-                      >
-                        👁️ Xem chi tiết đơn
-                      </button>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-dashed border-amber-200 bg-white p-10 text-center text-sm font-medium text-slate-500">
-              Hiện chưa có đơn dịch vụ bên ngoài nào từ khách lưu trú.
-            </div>
-          )}
-        </section>
-      ) : null}
 
       <form
         onSubmit={applyFilters}
@@ -1696,40 +2014,53 @@ export function RequestQueueClient({
               {requestStatusLabelMap[status]}
             </span>
             <span className="mt-3 block text-2xl font-semibold text-[var(--primary)]">
-              {summary.statuses[status] ?? 0}
+              {activeSummaryCounts[status] ?? 0}
             </span>
           </button>
         ))}
       </div>
 
-      <DataTable
-        columns={requestColumns}
-        data={displayedRequests}
-        getRowKey={(request) => request.id}
-        emptyMessage={mergedLabels.emptyState}
-        minWidth="1180px"
-        header={requestTableHeader}
-        sort={{
-          key: sortState.key,
-          direction: sortState.direction,
-          onSortChange: (key, direction) =>
-            setSortState({ key: key as RequestSortKey, direction }),
-        }}
-        pagination={
-          page && pageSize
-            ? {
-                page,
-                pageSize,
-                pageSizeOptions,
-                totalItems: total,
-                serverSide: true,
-                getPageHref: (nextPage) => getPaginationHref(nextPage),
-                getPageSizeHref: (nextPageSize) =>
-                  getPaginationHref(1, nextPageSize),
-              }
-            : undefined
-        }
-      />
+      {inboxTab === "EXTERNAL_ORDERS" ? (
+        <DataTable<HotelMarketplaceOrder>
+          columns={externalOrderColumns}
+          data={externalOrders}
+          getRowKey={(order) => order.id}
+          emptyMessage="Hiện chưa có đơn hàng dịch vụ bên ngoài nào."
+          minWidth="1000px"
+          header={requestTableHeader}
+          onRowClick={(order) => openExternalOrderDetailModal(order)}
+        />
+      ) : (
+        <DataTable
+          columns={requestColumns}
+          data={activeTabRequests}
+          getRowKey={(request) => request.id}
+          emptyMessage={mergedLabels.emptyState}
+          minWidth="1000px"
+          header={requestTableHeader}
+          onRowClick={(request) => openRequestRow(request)}
+          sort={{
+            key: sortState.key,
+            direction: sortState.direction,
+            onSortChange: (key, direction) =>
+              setSortState({ key: key as RequestSortKey, direction }),
+          }}
+          pagination={
+            page && pageSize
+              ? {
+                  page,
+                  pageSize,
+                  pageSizeOptions,
+                  totalItems: total,
+                  serverSide: true,
+                  getPageHref: (nextPage) => getPaginationHref(nextPage),
+                  getPageSizeHref: (nextPageSize) =>
+                    getPaginationHref(1, nextPageSize),
+                }
+              : undefined
+          }
+        />
+      )}
     </div>
   );
 }

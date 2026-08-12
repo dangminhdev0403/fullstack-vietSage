@@ -1,6 +1,7 @@
 "use client";
 
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+import { useGuestI18n } from "../../i18n/use-guest-i18n";
 
 export type GuestDiscoveryTabKey = "hotel" | "external";
 
@@ -18,13 +19,18 @@ export function GuestDiscoveryTabs({
   onTabChange,
   hotelLabel,
   externalLabel,
-  hotelBadgeText = "Phục vụ tại phòng",
-  externalBadgeText = "Khám phá dịch vụ quanh khách sạn",
+  hotelBadgeText,
+  externalBadgeText,
 }: GuestDiscoveryTabsProps) {
+  const { t } = useGuestI18n();
+  const resolvedHotelLabel = hotelLabel || t("services.discovery.hotel");
+  const resolvedExternalLabel = externalLabel || t("services.discovery.external");
+  const resolvedHotelBadge = hotelBadgeText ?? t("services.discovery.hotelBadge");
+  const resolvedExternalBadge = externalBadgeText ?? t("services.discovery.externalBadge");
   return (
     <div
       role="tablist"
-      aria-label="Loại dịch vụ"
+      aria-label={t("services.discovery.type")}
       className="grid w-full grid-cols-2 gap-2 rounded-[22px] bg-[#ece6d8]/70 p-1.5 shadow-[inner_0_2px_4px_rgba(0,0,0,0.04)] md:rounded-[26px]"
     >
       <button
@@ -44,14 +50,14 @@ export function GuestDiscoveryTabs({
             name="room_service"
             className={`text-xl ${activeTab === "hotel" ? "text-[#d7bd61]" : "text-[#7a887f]"}`}
           />
-          <span className="text-sm font-bold md:text-base">{hotelLabel}</span>
+          <span className="text-sm font-bold md:text-base">{resolvedHotelLabel}</span>
         </div>
         <span
           className={`mt-1 text-[11px] font-medium ${
             activeTab === "hotel" ? "text-white/80" : "text-[#7a887f]"
           }`}
         >
-          {hotelBadgeText}
+          {resolvedHotelBadge}
         </span>
       </button>
 
@@ -72,14 +78,14 @@ export function GuestDiscoveryTabs({
             name="storefront"
             className={`text-xl ${activeTab === "external" ? "text-[#d7bd61]" : "text-[#7a887f]"}`}
           />
-          <span className="text-sm font-bold md:text-base">{externalLabel}</span>
+          <span className="text-sm font-bold md:text-base">{resolvedExternalLabel}</span>
         </div>
         <span
           className={`mt-1 text-[11px] font-medium ${
             activeTab === "external" ? "text-white/80" : "text-[#7a887f]"
           }`}
         >
-          {externalBadgeText}
+          {resolvedExternalBadge}
         </span>
       </button>
     </div>

@@ -26,6 +26,7 @@ type Entry = {
   cancelReconnect?: () => void;
   consecutiveFailures: number;
   lastFailureAt?: number;
+  lastReconnectAt?: number;
 };
 
 export function createGuestConnectionManager(deps: {
@@ -72,7 +73,11 @@ export function createGuestConnectionManager(deps: {
       entry.consecutiveFailures = 0;
       entry.lastFailureAt = undefined;
       if (wasConnected) {
-        entry.subscribers.forEach((subscriber) => subscriber.onReconnect?.());
+        const now = Date.now();
+        if (!entry.lastReconnectAt || now - entry.lastReconnectAt >= 5_000) {
+          entry.lastReconnectAt = now;
+          entry.subscribers.forEach((subscriber) => subscriber.onReconnect?.());
+        }
       }
       wasConnected = true;
     });
@@ -85,6 +90,8 @@ export function createGuestConnectionManager(deps: {
     current.on("conversation.closed", fanoutRaw("onConversationClosed"));
     current.on("external_service_order.created", fanoutRaw("onExternalOrderCreated"));
     current.on("external_service_order.status_changed", fanoutRaw("onExternalOrderStatusChanged"));
+    current.on("external_service_order.hotel_acknowledged", fanoutRaw("onExternalOrderHotelAcknowledged"));
+    current.on("external_service_order.voucher_issued", fanoutRaw("onExternalOrderVoucherIssued"));
     current.on("request_realtime.error", (error) => {
       terminal = isTerminalRealtimeError(error);
       fanout("onError")(error);

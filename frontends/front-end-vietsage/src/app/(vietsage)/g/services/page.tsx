@@ -261,11 +261,11 @@ function GuestServicesContent() {
     const allItems = categories.flatMap((cat) => cat.items);
     const stillExists = allItems.some((item) => item.id === selectedService.id);
     if (!stillExists) {
-      toast.error("Dịch vụ bạn vừa chọn đã ngưng phục vụ.");
+      toast.error(t("services.selectedUnavailable"));
       const timer = setTimeout(() => setSelectedService(null), 0);
       return () => clearTimeout(timer);
     }
-  }, [categories, selectedService]);
+  }, [categories, selectedService, t]);
 
   const closeRequestSheet = useCallback(() => {
     if (isRequestSubmitting) return;
@@ -430,9 +430,7 @@ function GuestServicesContent() {
         t,
       );
       setRequestError(userMsg);
-      toast.error(
-        "Dịch vụ có thể đã bị ngưng hoạt động. Vui lòng kiểm tra lại danh mục.",
-      );
+      toast.error(t("services.serviceDiscontinued"));
     } finally {
       Swal.close();
       setIsRequestSubmitting(false);
@@ -444,8 +442,8 @@ function GuestServicesContent() {
 
   const searchPlaceholder =
     activeTab === "hotel"
-      ? "Tìm Dịch vụ khách sạn, danh mục..."
-      : "Tìm dịch vụ bên ngoài, danh mục, nhà cung cấp...";
+      ? t("services.searchHotelPlaceholder")
+      : t("services.searchExternalPlaceholder");
 
   return (
     <div className="vs-page-shell vs-guest-readable vs-safe-bottom vs-guest-comfort-surface min-h-screen overflow-x-hidden text-[#18211d]">
@@ -470,10 +468,10 @@ function GuestServicesContent() {
           <GuestDiscoveryTabs
             activeTab={activeTab}
             onTabChange={handleTabChange}
-            hotelLabel="Dịch vụ khách sạn"
-            externalLabel="Dịch vụ bên ngoài"
-            hotelBadgeText="Yêu cầu phục vụ tại phòng"
-            externalBadgeText="Khám phá dịch vụ quanh khách sạn"
+            hotelLabel={t("services.discovery.hotel")}
+            externalLabel={t("services.discovery.external")}
+            hotelBadgeText={t("services.discovery.hotelBadge")}
+            externalBadgeText={t("services.discovery.externalBadge")}
           />
 
           {/* Search Input Field for Active Tab */}
@@ -498,7 +496,7 @@ function GuestServicesContent() {
               if (activeTab === "hotel") setSelectedHotelCategoryId(id);
               else setSelectedExternalCategoryId(id);
             }}
-            allLabel={t("requests.all")}
+            allLabel={t("categories.all")}
           />
         </GuestReveal>
 
@@ -527,7 +525,7 @@ function GuestServicesContent() {
                       >
                         <div className="mb-5">
                           <p className="text-xs font-bold uppercase tracking-wider text-[#8a6a13]">
-                            Dịch vụ khách sạn
+                            {t("services.discovery.hotel")}
                           </p>
                           <h3
                             id={`guest-service-category-${category.id}`}

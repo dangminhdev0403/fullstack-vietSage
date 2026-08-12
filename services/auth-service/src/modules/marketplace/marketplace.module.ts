@@ -9,6 +9,7 @@ import { MarketplaceOrderService } from "./application/marketplace-order.service
 import { HotelMarketplaceController } from "./api/hotel-marketplace.controller";
 import { PropertyModule } from "../property/property.module";
 import { GuestOperationsModule } from "../guest-operations/guest-operations.module";
+import { RequestRealtimeModule } from "../request-realtime/request-realtime.module";
 import { ImportModule } from "../../common/import/import.module";
 import { MarketplaceCategoryImportAdapter } from "./infrastructure/imports/marketplace-category-import.adapter";
 import { MarketplaceCategorySheetService } from "./application/marketplace-category-sheet.service";
@@ -16,7 +17,7 @@ import { MarketplaceServiceItemImportAdapter } from "./infrastructure/imports/ma
 import { ServiceItemImportService } from "./application/service-item-import.service";
 
 @Module({
-  imports: [PropertyModule, GuestOperationsModule, ImportModule],
+  imports: [PropertyModule, GuestOperationsModule, RequestRealtimeModule, ImportModule],
   controllers: [
     MarketplaceAdminController,
     ServicePortalController,

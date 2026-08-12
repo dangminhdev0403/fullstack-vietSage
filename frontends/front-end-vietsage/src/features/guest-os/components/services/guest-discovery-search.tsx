@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+import { useGuestI18n } from "../../i18n/use-guest-i18n";
 
 type GuestDiscoverySearchProps = {
   readonly placeholder: string;
@@ -16,6 +17,7 @@ export function GuestDiscoverySearch({
   debounceMs = 300,
   initialValue = "",
 }: GuestDiscoverySearchProps) {
+  const { t } = useGuestI18n();
   const [value, setValue] = useState(initialValue);
 
   // Debounce search changes
@@ -51,7 +53,7 @@ export function GuestDiscoverySearch({
         <button
           type="button"
           onClick={handleClear}
-          aria-label="Xóa tìm kiếm"
+          aria-label={t("requests.clearFilters")}
           className="absolute inset-y-0 right-0 flex items-center pr-3 text-[#7a887f] hover:text-[#18211d]"
         >
           <VsIcon name="close" className="text-lg" />

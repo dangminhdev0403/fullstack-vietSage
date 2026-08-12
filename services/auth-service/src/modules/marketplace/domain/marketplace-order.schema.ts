@@ -8,7 +8,15 @@ export const createMarketplaceOrderSchema = z.object({
 });
 export const marketplaceOrderIdSchema = z.string().trim().min(1).max(80);
 export const marketplaceTransitionSchema = z.object({
-  toStatus: z.enum(["ACCEPTED", "PREPARING", "DELIVERING", "READY", "COMPLETED", "CANCELLED"]),
+  toStatus: z.enum([
+    "CONFIRMED",
+    "ACCEPTED",
+    "PREPARING",
+    "DELIVERING",
+    "READY",
+    "COMPLETED",
+    "CANCELLED",
+  ]),
   note: z.string().trim().max(500).nullish(),
 });
 export const marketplaceRevenueQuerySchema = z

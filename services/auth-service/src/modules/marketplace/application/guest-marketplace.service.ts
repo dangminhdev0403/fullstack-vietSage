@@ -48,6 +48,7 @@ export class GuestMarketplaceService {
         },
       },
       include: {
+        translations: { select: { locale: true, name: true, description: true } },
         serviceTenant: {
           select: {
             id: true,
@@ -67,11 +68,14 @@ export class GuestMarketplaceService {
       take: 100,
     });
     const sorted = rows
-      .map((row) => ({
-        ...row,
-        category: this.localizeCategory(row.serviceTenant.serviceProfile!.category!, locale),
-        distanceMeters: this.distance(hotel, row.serviceTenant.serviceProfile),
-      }))
+      .map((row) => {
+        const localized = this.localizeServiceItem(row, locale);
+        return {
+          ...localized,
+          category: this.localizeCategory(row.serviceTenant.serviceProfile!.category!, locale),
+          distanceMeters: this.distance(hotel, row.serviceTenant.serviceProfile),
+        };
+      })
       .sort(
         (left, right) =>
           (left.serviceTenant.hotelServiceLinks[0]?.sortOrder ?? 0) -
@@ -109,9 +113,30 @@ export class GuestMarketplaceService {
     },
   >(category: T, locale: SupportedLocale): T & { name: string } {
     const shortLocale = this.toShortLocale(locale);
-    const translation = category.translations?.find((t) => t.locale === shortLocale);
+    const translation = category.translations?.find(
+      (t) => t.locale === shortLocale || t.locale === locale,
+    );
     const name = translation?.name || category.nameVi || category.importKey || category.code;
     return { ...category, name };
+  }
+
+  private localizeServiceItem<
+    T extends {
+      name: string;
+      description?: string | null;
+      translations?: { locale: string; name: string; description?: string | null }[];
+    },
+  >(service: T, locale: SupportedLocale): T & { name: string; description?: string | null } {
+    const shortLocale = this.toShortLocale(locale);
+    const translation = service.translations?.find(
+      (t) => t.locale === shortLocale || t.locale === locale,
+    );
+    const name = translation?.name || service.name;
+    const description =
+      translation && translation.description !== undefined && translation.description !== null
+        ? translation.description
+        : (service.description ?? null);
+    return { ...service, name, description };
   }
 
   /** Convert SupportedLocale to short DB locale (vi-VN → vi, en → en, etc.) */

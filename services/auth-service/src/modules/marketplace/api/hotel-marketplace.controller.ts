@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Put, Query, Req } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, Req } from "@nestjs/common";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
@@ -66,7 +66,7 @@ export class HotelMarketplaceController {
   }
 
   @ApiDescript("Xem đơn Marketplace của khách sạn")
-  @RequirePermission("hotel.local-partners.view")
+  @RequirePermission("hotel.requests.view")
   @Get("orders")
   async list(@Req() req: RequestWithRequiredUser, @Param("hotelId") id: string) {
     return this.orders.listHotelOrders(await this.hotel(req, id));
@@ -84,6 +84,45 @@ export class HotelMarketplaceController {
       await this.hotel(req, id),
       parseWithZod(marketplaceOrderIdSchema, orderId),
     );
+  }
+
+  @ApiDescript("Tiếp nhận đơn Marketplace (dành cho lễ tân khách sạn)")
+  @RequirePermission("hotel.requests.view")
+  @Post("orders/:orderId/acknowledge")
+  async acknowledge(
+    @Req() req: RequestWithRequiredUser,
+    @Param("hotelId") id: string,
+    @Param("orderId") orderId: string,
+  ) {
+    const hotelId = await this.hotel(req, id);
+    const validOrderId = parseWithZod(marketplaceOrderIdSchema, orderId);
+    return this.orders.acknowledgeHotelOrder(req.user.userId, hotelId, validOrderId);
+  }
+
+  @ApiDescript("Cấp phiếu dịch vụ (Service Voucher) cho khách lưu trú")
+  @RequirePermission("hotel.requests.view")
+  @Post("orders/:orderId/issue-voucher")
+  async issueVoucher(
+    @Req() req: RequestWithRequiredUser,
+    @Param("hotelId") id: string,
+    @Param("orderId") orderId: string,
+  ) {
+    const hotelId = await this.hotel(req, id);
+    const validOrderId = parseWithZod(marketplaceOrderIdSchema, orderId);
+    return this.orders.issueServiceVoucher(req.user.userId, hotelId, validOrderId);
+  }
+
+  @ApiDescript("Hủy đơn dịch vụ ngoài")
+  @RequirePermission("hotel.requests.view")
+  @Post("orders/:orderId/cancel")
+  async cancel(
+    @Req() req: RequestWithRequiredUser,
+    @Param("hotelId") id: string,
+    @Param("orderId") orderId: string,
+  ) {
+    const hotelId = await this.hotel(req, id);
+    const validOrderId = parseWithZod(marketplaceOrderIdSchema, orderId);
+    return this.orders.cancelHotelOrder(req.user.userId, hotelId, validOrderId);
   }
 
   @ApiDescript("Xem doanh thu Marketplace của khách sạn")

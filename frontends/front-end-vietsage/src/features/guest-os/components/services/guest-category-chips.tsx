@@ -1,5 +1,7 @@
 "use client";
 
+import { useGuestI18n } from "../../i18n/use-guest-i18n";
+
 export type CategoryChipItem = {
   id: string;
   name: string;
@@ -16,12 +18,15 @@ export function GuestCategoryChips({
   categories,
   selectedCategoryId,
   onSelectCategory,
-  allLabel = "Tất cả",
+  allLabel,
 }: GuestCategoryChipsProps) {
+  const { t } = useGuestI18n();
+  const resolvedAllLabel = allLabel ?? t("categories.all");
+
   return (
     <div
       role="group"
-      aria-label="Lọc theo danh mục"
+      aria-label={t("categories.filterLabel")}
       className="flex w-full gap-2 overflow-x-auto pb-1 pt-1 no-scrollbar"
     >
       <button
@@ -34,7 +39,7 @@ export function GuestCategoryChips({
             : "border border-[#25483f]/15 bg-[#fffdfa] text-[#4a554e] hover:border-[#25483f]/30 hover:bg-[#f4eedb]/40 hover:text-[#18211d]"
         }`}
       >
-        {allLabel}
+        {resolvedAllLabel}
       </button>
       {categories.map((category) => {
         const isSelected = selectedCategoryId === category.id;

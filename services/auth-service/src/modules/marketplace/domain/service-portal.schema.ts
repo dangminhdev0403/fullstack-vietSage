@@ -30,6 +30,7 @@ const serviceFields = {
   name: z.string().trim().min(1).max(160),
   description: z.string().trim().max(1000).nullish(),
   unitPrice: z.number().nonnegative(),
+  pricingUnit: z.string().trim().max(32).nullish(),
   imageUrls: z.array(httpUrl).max(10).default([]),
   mode: z.enum(["DELIVERY_TO_HOTEL", "CUSTOMER_AT_SERVICE"]),
   capacityAvailable: z.number().int().nonnegative().nullish(),

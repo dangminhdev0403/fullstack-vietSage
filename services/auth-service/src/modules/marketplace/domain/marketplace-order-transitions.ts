@@ -1,11 +1,12 @@
-import type { MarketplaceOrderStatus, MarketplaceServiceMode } from "@prisma/client";
+import type { MarketplaceOrderStatus } from "@prisma/client";
 
 const transitions: Record<MarketplaceOrderStatus, readonly MarketplaceOrderStatus[]> = {
-  PENDING: ["ACCEPTED", "CANCELLED"],
-  ACCEPTED: ["PREPARING", "CANCELLED"],
-  PREPARING: ["DELIVERING", "READY", "CANCELLED"],
+  PENDING: ["ACCEPTED", "PREPARING", "CONFIRMED", "CANCELLED"],
+  ACCEPTED: ["PREPARING", "DELIVERING", "READY", "CONFIRMED", "COMPLETED", "CANCELLED"],
+  PREPARING: ["DELIVERING", "READY", "CONFIRMED", "COMPLETED", "CANCELLED"],
   DELIVERING: ["COMPLETED", "CANCELLED"],
   READY: ["COMPLETED", "CANCELLED"],
+  CONFIRMED: ["COMPLETED", "CANCELLED"],
   COMPLETED: [],
   CANCELLED: [],
 };
@@ -13,11 +14,6 @@ const transitions: Record<MarketplaceOrderStatus, readonly MarketplaceOrderStatu
 export function canTransitionMarketplaceOrder(
   from: MarketplaceOrderStatus,
   to: MarketplaceOrderStatus,
-  mode: MarketplaceServiceMode,
 ) {
-  return (
-    transitions[from].includes(to) &&
-    (to !== "DELIVERING" || mode === "DELIVERY_TO_HOTEL") &&
-    (to !== "READY" || mode === "CUSTOMER_AT_SERVICE")
-  );
+  return transitions[from]?.includes(to) ?? false;
 }

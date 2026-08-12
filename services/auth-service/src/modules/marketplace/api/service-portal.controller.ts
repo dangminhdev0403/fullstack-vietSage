@@ -30,12 +30,15 @@ import {
   marketplaceTransitionSchema,
 } from "../domain/marketplace-order.schema";
 
+import { RequestRealtimeTicketService } from "../../request-realtime/application/request-realtime-ticket.service";
+
 @Controller("service-portal")
 export class ServicePortalController {
   constructor(
     private readonly service: ServicePortalService,
     private readonly orders: MarketplaceOrderService,
     private readonly imports: ServiceItemImportService,
+    private readonly tickets: RequestRealtimeTicketService,
   ) {}
 
   @ApiDescript("Xem hồ sơ Service Tenant")
@@ -175,5 +178,34 @@ export class ServicePortalController {
       parseWithZod(marketplaceOrderIdSchema, id),
       parseWithZod(marketplaceTransitionSchema, body),
     );
+  }
+
+  @ApiDescript("Xác minh Service Voucher / Mã dịch vụ")
+  @RequirePermission("service.marketplace.view")
+  @Post("vouchers/verify")
+  verifyVoucher(@Req() req: RequestWithRequiredUser, @Body() body: unknown) {
+    const input = body as { code?: unknown };
+    if (typeof input.code !== "string" || !input.code.trim()) {
+      throw new BadRequestException("Voucher code/number is required");
+    }
+    return this.orders.verifyVoucher(req.user.userId, input.code.trim());
+  }
+
+  @ApiDescript("Xác nhận sử dụng Service Voucher (Redeem)")
+  @RequirePermission("service.marketplace.manage")
+  @Post("vouchers/redeem")
+  redeemVoucher(@Req() req: RequestWithRequiredUser, @Body() body: unknown) {
+    const input = body as { code?: unknown };
+    if (typeof input.code !== "string" || !input.code.trim()) {
+      throw new BadRequestException("Voucher code/number is required");
+    }
+    return this.orders.redeemVoucher(req.user.userId, input.code.trim());
+  }
+
+  @ApiDescript("Tạo ticket kết nối realtime cho Service Tenant")
+  @RequirePermission("service.marketplace.view")
+  @Post("request-realtime-ticket")
+  issueTicket(@Req() req: RequestWithRequiredUser) {
+    return this.tickets.issueServiceTenantTicket(req.user.userId);
   }
 }

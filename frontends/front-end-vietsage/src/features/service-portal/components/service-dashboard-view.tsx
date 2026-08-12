@@ -6,14 +6,16 @@ import { useServicePortal } from "../use-service-portal";
 import type { MarketplaceOrder, ServicePortalData } from "../types";
 
 function getNextStatus(order: MarketplaceOrder): { label: string; status: string } | null {
-  if (order.status === "PENDING") return { label: "Xác nhận đơn", status: "ACCEPTED" };
-  if (order.status === "ACCEPTED") return { label: "Bắt đầu chuẩn bị", status: "PREPARING" };
-  if (order.status === "PREPARING") {
-    return order.serviceModeSnapshot === "DELIVERY_TO_HOTEL"
-      ? { label: "Đang giao hàng", status: "DELIVERING" }
-      : { label: "Sẵn sàng phục vụ", status: "READY" };
+  if (order.status === "PENDING") return { label: "Xác nhận đơn", status: "CONFIRMED" };
+  if (
+    order.status === "CONFIRMED" ||
+    order.status === "ACCEPTED" ||
+    order.status === "PREPARING" ||
+    order.status === "DELIVERING" ||
+    order.status === "READY"
+  ) {
+    return { label: "Hoàn tất đơn", status: "COMPLETED" };
   }
-  if (order.status === "READY" || order.status === "DELIVERING") return { label: "Hoàn tất đơn", status: "COMPLETED" };
   return null;
 }
 

@@ -126,6 +126,20 @@ export function GuestRequestRealtimeNotifier() {
           }
         }
       },
+      onExternalOrderHotelAcknowledged: (event: unknown) => {
+        playGuestRequestSound("updated");
+        const hasVoucher = typeof event === "object" && event !== null && "voucherNumber" in event && Boolean((event as { voucherNumber?: string }).voucherNumber);
+        if (!hasVoucher) {
+          toast.success("Khách sạn đã tiếp nhận đơn dịch vụ của bạn!", { id: "guest-ext-order-ack" });
+        }
+        void queryClient.invalidateQueries();
+      },
+      onExternalOrderVoucherIssued: (event: unknown) => {
+        playGuestRequestSound("answered");
+        const code = typeof event === "object" && event !== null && "voucherNumber" in event ? String((event as { voucherNumber?: string }).voucherNumber) : "";
+        toast.success(`Khách sạn đã phát hành Mã phiếu dịch vụ${code ? `: ${code}` : ""}!`, { id: "guest-ext-order-ack" });
+        void queryClient.invalidateQueries();
+      },
       onReconnect: () => dispatchGuestRequestRealtime({ kind: "reconnected" }),
       onError: () => {
         toast.error(t("requests.realtimeInterrupted"), {

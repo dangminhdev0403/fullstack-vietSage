@@ -7,6 +7,8 @@ export type OwnerRealtimeHandlers = {
   onConversationClosed?: (event: unknown) => void;
   onExternalOrderCreated?: (event: unknown) => void;
   onExternalOrderStatusChanged?: (event: unknown) => void;
+  onExternalOrderHotelAcknowledged?: (event: unknown) => void;
+  onExternalOrderVoucherIssued?: (event: unknown) => void;
   onReconnect?: () => void;
   onError?: (error: unknown) => void;
 };
@@ -25,6 +27,7 @@ type Entry = {
   cancelReconnect?: () => void;
   consecutiveFailures: number;
   lastFailureAt?: number;
+  lastReconnectAt?: number;
 };
 
 type RealtimeError = { retryable?: unknown };
@@ -95,7 +98,11 @@ export function createOwnerConnectionManager(deps: {
           entry.consecutiveFailures = 0;
           entry.lastFailureAt = undefined;
           if (wasConnected) {
-            entry.subscribers.forEach((subscriber) => subscriber.onReconnect?.());
+            const now = Date.now();
+            if (!entry.lastReconnectAt || now - entry.lastReconnectAt >= 5_000) {
+              entry.lastReconnectAt = now;
+              entry.subscribers.forEach((subscriber) => subscriber.onReconnect?.());
+            }
           }
           wasConnected = true;
         });
@@ -108,6 +115,8 @@ export function createOwnerConnectionManager(deps: {
         socket.on("conversation.closed", fanoutRaw("onConversationClosed"));
         socket.on("external_service_order.created", fanoutRaw("onExternalOrderCreated"));
         socket.on("external_service_order.status_changed", fanoutRaw("onExternalOrderStatusChanged"));
+        socket.on("external_service_order.hotel_acknowledged", fanoutRaw("onExternalOrderHotelAcknowledged"));
+        socket.on("external_service_order.voucher_issued", fanoutRaw("onExternalOrderVoucherIssued"));
         socket.on("request_realtime.error", (error) => {
           terminal = isTerminalRealtimeError(error);
           fanout("onError")(error);

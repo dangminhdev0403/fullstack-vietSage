@@ -86,9 +86,6 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
           },
         );
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
-        startTransition(() => {
-          router.refresh();
-        });
       },
       onUpdated: (request: Partial<StaffRequestListItem> & { id: string }) => {
         if (String(request.status) === "CANCELLED") {
@@ -106,21 +103,12 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
           );
         }
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
-        startTransition(() => {
-          router.refresh();
-        });
       },
       onAnswered: () => {
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
-        startTransition(() => {
-          router.refresh();
-        });
       },
       onGuestMessageCreated: (event: unknown) => {
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
-        startTransition(() => {
-          router.refresh();
-        });
         const raw = event as {
           hotelId?: string;
           thread?: { roomNumber?: string };
@@ -139,9 +127,6 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
       },
       onConversationClosed: () => {
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
-        startTransition(() => {
-          router.refresh();
-        });
       },
       onReconnect: () => {
         void invalidateHotelRequestRealtimeQueries(queryClient, hotelId);

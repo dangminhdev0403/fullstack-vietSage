@@ -13,13 +13,17 @@ import type { MarketplaceCategory } from "@/features/marketplace/types/marketpla
 
 function generateTemporaryPassword(): string {
   const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#";
-  return Array.from({ length: 14 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+  return Array.from(
+    { length: 14 },
+    () => chars[Math.floor(Math.random() * chars.length)],
+  ).join("");
 }
 
 const inputClass =
   "w-full rounded-xl border border-[#e2d7c5] bg-[#faf6ef] px-4 py-3.5 text-base font-semibold text-[#17201b] outline-none transition-all focus:border-[#24473d] focus:bg-white focus:ring-2 focus:ring-[#24473d]/20";
 
-const labelClass = "block text-sm font-bold uppercase tracking-wider text-[#69726b] mb-1.5";
+const labelClass =
+  "block text-sm font-bold uppercase tracking-wider text-[#69726b] mb-1.5";
 
 const DEFAULT_PAGE_SIZE = 10;
 
@@ -28,32 +32,56 @@ function getErrorMessage(error: unknown, fallback: string): string {
 
   if (typeof error === "object" && error !== null) {
     const errObj = error as Record<string, unknown>;
-    const status = typeof errObj.status === "number" ? errObj.status : undefined;
+    const status =
+      typeof errObj.status === "number" ? errObj.status : undefined;
     const data = errObj.data as Record<string, unknown> | null;
 
     let serverMessage: string | undefined;
-    const isRawCode = (str: string) => /^[A-Z0-9_ -]+$/.test(str.trim()) && str.trim().length <= 30;
+    const isRawCode = (str: string) =>
+      /^[A-Z0-9_ -]+$/.test(str.trim()) && str.trim().length <= 30;
 
     if (data && typeof data === "object") {
       if (data.data && typeof data.data === "object") {
         const innerData = data.data as Record<string, unknown>;
         if (typeof innerData.detail === "string" && innerData.detail.trim()) {
           serverMessage = innerData.detail.trim();
-        } else if (typeof innerData.message === "string" && innerData.message.trim() && !isRawCode(innerData.message)) {
+        } else if (
+          typeof innerData.message === "string" &&
+          innerData.message.trim() &&
+          !isRawCode(innerData.message)
+        ) {
           serverMessage = innerData.message.trim();
         }
       }
-      if (!serverMessage && typeof data.detail === "string" && data.detail.trim()) {
+      if (
+        !serverMessage &&
+        typeof data.detail === "string" &&
+        data.detail.trim()
+      ) {
         serverMessage = data.detail.trim();
       }
-      if (!serverMessage && typeof data.message === "string" && data.message.trim() && !isRawCode(data.message)) {
+      if (
+        !serverMessage &&
+        typeof data.message === "string" &&
+        data.message.trim() &&
+        !isRawCode(data.message)
+      ) {
         serverMessage = data.message.trim();
-      } else if (!serverMessage && Array.isArray(data.message) && data.message.length > 0) {
+      } else if (
+        !serverMessage &&
+        Array.isArray(data.message) &&
+        data.message.length > 0
+      ) {
         serverMessage = data.message.join(", ");
       }
     }
 
-    if (!serverMessage && typeof errObj.message === "string" && errObj.message.trim() && !isRawCode(errObj.message)) {
+    if (
+      !serverMessage &&
+      typeof errObj.message === "string" &&
+      errObj.message.trim() &&
+      !isRawCode(errObj.message)
+    ) {
       serverMessage = errObj.message.trim();
     }
 
@@ -61,12 +89,17 @@ function getErrorMessage(error: unknown, fallback: string): string {
       return serverMessage;
     }
 
-    if (status === 409) return "Thông tin đối tác hoặc danh mục đã tồn tại trên hệ thống (Lỗi trùng lặp).";
-    if (status === 404) return "Không tìm thấy tài nguyên yêu cầu (404 Not Found).";
-    if (status === 403) return "Bạn không có quyền thực hiện thao tác này (403 Forbidden).";
+    if (status === 409)
+      return "Thông tin đối tác hoặc danh mục đã tồn tại trên hệ thống (Lỗi trùng lặp).";
+    if (status === 404)
+      return "Không tìm thấy tài nguyên yêu cầu (404 Not Found).";
+    if (status === 403)
+      return "Bạn không có quyền thực hiện thao tác này (403 Forbidden).";
     if (status === 401) return "Chưa đăng nhập hoặc phiên làm việc hết hạn.";
-    if (status === 400) return "Yêu cầu không hợp lệ hoặc thông tin nhập chưa đúng.";
-    if (status) return `Thao tác thất bại (Mã lỗi ${status}). Vui lòng kiểm tra lại.`;
+    if (status === 400)
+      return "Yêu cầu không hợp lệ hoặc thông tin nhập chưa đúng.";
+    if (status)
+      return `Thao tác thất bại (Mã lỗi ${status}). Vui lòng kiểm tra lại.`;
   }
 
   if (error instanceof Error && error.message.trim()) {
@@ -149,35 +182,50 @@ export function MarketplaceAdminClient() {
   };
 
   // Workspace View & Dialog state
-  const [activeTab, setActiveTab] = useState<"partners" | "categories">("partners");
+  const [activeTab, setActiveTab] = useState<"partners" | "categories">(
+    "partners",
+  );
   const [isTenantModalOpen, setIsTenantModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
-  const [editingTenant, setEditingTenant] = useState<ServiceTenant | null>(null);
-  const [editingCategory, setEditingCategory] = useState<MarketplaceCategory | null>(null);
+  const [editingTenant, setEditingTenant] = useState<ServiceTenant | null>(
+    null,
+  );
+  const [editingCategory, setEditingCategory] =
+    useState<MarketplaceCategory | null>(null);
   const [selectedCategoryDetail, setSelectedCategoryDetail] = useState<{
     category: MarketplaceCategory;
     activeLang: "en" | "zh" | "ko" | "ru" | "hi";
   } | null>(null);
-  const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
+  const [generatedPassword, setGeneratedPassword] = useState<string | null>(
+    null,
+  );
   const [resetAccountLabel, setResetAccountLabel] = useState("");
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [formValidationError, setFormValidationError] = useState<string | null>(null);
+  const [formValidationError, setFormValidationError] = useState<string | null>(
+    null,
+  );
 
   // Google Sheets Import state
   const [spreadsheetUrl, setSpreadsheetUrl] = useState(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("vietsage_marketplace_category_sheet_url") || "";
+      return (
+        localStorage.getItem("vietsage_marketplace_category_sheet_url") || ""
+      );
     }
     return "";
   });
-  const [sheetPreview, setSheetPreview] = useState<MarketplaceCategorySheetPreview | null>(null);
+  const [sheetPreview, setSheetPreview] =
+    useState<MarketplaceCategorySheetPreview | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
 
   const handleSpreadsheetUrlChange = (url: string) => {
     setSpreadsheetUrl(url);
     if (typeof window !== "undefined") {
-      localStorage.setItem("vietsage_marketplace_category_sheet_url", url.trim());
+      localStorage.setItem(
+        "vietsage_marketplace_category_sheet_url",
+        url.trim(),
+      );
     }
   };
 
@@ -196,8 +244,6 @@ export function MarketplaceAdminClient() {
   const [categoryPage, setCategoryPage] = useState(1);
   const [categoryPageSize, setCategoryPageSize] = useState(DEFAULT_PAGE_SIZE);
 
-
-
   const handlePreviewSheet = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!spreadsheetUrl.trim()) return;
@@ -210,7 +256,12 @@ export function MarketplaceAdminClient() {
         },
         onError: (err) => {
           setSheetPreview(null);
-          setPreviewError(getErrorMessage(err, "Không thể xem trước dữ liệu từ Google Sheets"));
+          setPreviewError(
+            getErrorMessage(
+              err,
+              "Không thể xem trước dữ liệu từ Google Sheets",
+            ),
+          );
         },
       },
     );
@@ -220,9 +271,19 @@ export function MarketplaceAdminClient() {
     if (!sheetPreview || !spreadsheetUrl.trim()) return;
     if (sheetPreview.summary.errors > 0) return;
 
-    const creates = sheetPreview.summary.creates ?? (sheetPreview.summary as Record<string, number>).create ?? 0;
-    const updates = sheetPreview.summary.updates ?? (sheetPreview.summary as Record<string, number>).update ?? 0;
-    const disables = sheetPreview.summary.disables ?? sheetPreview.summary.disable ?? (sheetPreview.summary as Record<string, number>).disable ?? 0;
+    const creates =
+      sheetPreview.summary.creates ??
+      (sheetPreview.summary as Record<string, number>).create ??
+      0;
+    const updates =
+      sheetPreview.summary.updates ??
+      (sheetPreview.summary as Record<string, number>).update ??
+      0;
+    const disables =
+      sheetPreview.summary.disables ??
+      sheetPreview.summary.disable ??
+      (sheetPreview.summary as Record<string, number>).disable ??
+      0;
 
     SwalVietSage.fire({
       title: "Xác nhận áp dụng thay đổi",
@@ -234,14 +295,20 @@ export function MarketplaceAdminClient() {
     }).then((result) => {
       if (result.isConfirmed) {
         commitMutation.mutate(
-          { spreadsheetUrl: spreadsheetUrl.trim(), expectedHash: sheetPreview.workbookHash },
+          {
+            spreadsheetUrl: spreadsheetUrl.trim(),
+            expectedHash: sheetPreview.workbookHash,
+          },
           {
             onSuccess: (res) => {
               setSheetPreview(null);
-              const summaryRec = res.summary as Record<string, number> | undefined;
+              const summaryRec = res.summary as
+                | Record<string, number>
+                | undefined;
               const resCreates = summaryRec?.creates ?? summaryRec?.create ?? 0;
               const resUpdates = summaryRec?.updates ?? summaryRec?.update ?? 0;
-              const resDisables = summaryRec?.disables ?? summaryRec?.disable ?? 0;
+              const resDisables =
+                summaryRec?.disables ?? summaryRec?.disable ?? 0;
 
               SwalVietSage.fire({
                 title: "Thành công!",
@@ -255,7 +322,10 @@ export function MarketplaceAdminClient() {
             onError: (err) => {
               SwalVietSage.fire({
                 title: "Thất bại!",
-                text: getErrorMessage(err, "Không thể áp dụng thay đổi từ Google Sheets."),
+                text: getErrorMessage(
+                  err,
+                  "Không thể áp dụng thay đổi từ Google Sheets.",
+                ),
                 icon: "error",
               });
             },
@@ -265,8 +335,8 @@ export function MarketplaceAdminClient() {
     });
   };
 
-
-  const [selectedPartnerDetails, setSelectedPartnerDetails] = useState<ServiceTenant | null>(null);
+  const [selectedPartnerDetails, setSelectedPartnerDetails] =
+    useState<ServiceTenant | null>(null);
 
   const submitCategory = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -287,7 +357,9 @@ export function MarketplaceAdminClient() {
 
     const catList = data.data?.categories ?? [];
     if (catList.some((c) => c.nameVi.toLowerCase() === nameVi.toLowerCase())) {
-      setFormValidationError(`Tên danh mục tiếng Việt "${nameVi}" đã tồn tại trên hệ thống.`);
+      setFormValidationError(
+        `Tên danh mục tiếng Việt "${nameVi}" đã tồn tại trên hệ thống.`,
+      );
       return;
     }
 
@@ -362,9 +434,19 @@ export function MarketplaceAdminClient() {
     }
 
     const catList = data.data?.categories ?? [];
-    const isNameViChanged = nameVi.toLowerCase() !== editingCategory.nameVi.toLowerCase();
-    if (isNameViChanged && catList.some((c) => c.id !== editingCategory.id && c.nameVi.toLowerCase() === nameVi.toLowerCase())) {
-      setFormValidationError(`Tên danh mục tiếng Việt "${nameVi}" trùng với danh mục khác.`);
+    const isNameViChanged =
+      nameVi.toLowerCase() !== editingCategory.nameVi.toLowerCase();
+    if (
+      isNameViChanged &&
+      catList.some(
+        (c) =>
+          c.id !== editingCategory.id &&
+          c.nameVi.toLowerCase() === nameVi.toLowerCase(),
+      )
+    ) {
+      setFormValidationError(
+        `Tên danh mục tiếng Việt "${nameVi}" trùng với danh mục khác.`,
+      );
       return;
     }
 
@@ -388,7 +470,10 @@ export function MarketplaceAdminClient() {
           {
             action: "updateCategory",
             id: editingCategory.id,
-            input: { nameVi, ...(Object.keys(translations).length > 0 ? { translations } : {}) },
+            input: {
+              nameVi,
+              ...(Object.keys(translations).length > 0 ? { translations } : {}),
+            },
           },
           {
             onSuccess: () => {
@@ -406,7 +491,10 @@ export function MarketplaceAdminClient() {
             onError: (err) => {
               SwalVietSage.fire({
                 title: "Thất bại!",
-                text: getErrorMessage(err, "Không thể cập nhật danh mục dịch vụ."),
+                text: getErrorMessage(
+                  err,
+                  "Không thể cập nhật danh mục dịch vụ.",
+                ),
                 icon: "error",
               });
             },
@@ -438,12 +526,26 @@ export function MarketplaceAdminClient() {
     }
 
     const tenantsList = data.data?.tenants ?? [];
-    if (tenantsList.some((t) => (t.serviceProfile?.displayName ?? t.name).toLowerCase() === displayName.toLowerCase())) {
-      setFormValidationError(`Tên thương hiệu đối tác "${displayName}" đã tồn tại trên hệ thống.`);
+    if (
+      tenantsList.some(
+        (t) =>
+          (t.serviceProfile?.displayName ?? t.name).toLowerCase() ===
+          displayName.toLowerCase(),
+      )
+    ) {
+      setFormValidationError(
+        `Tên thương hiệu đối tác "${displayName}" đã tồn tại trên hệ thống.`,
+      );
       return;
     }
-    if (tenantsList.some((t) => t.ownerEmail?.toLowerCase() === email.toLowerCase())) {
-      setFormValidationError(`Email tài khoản quản trị "${email}" đã được đăng ký cho đối tác khác.`);
+    if (
+      tenantsList.some(
+        (t) => t.ownerEmail?.toLowerCase() === email.toLowerCase(),
+      )
+    ) {
+      setFormValidationError(
+        `Email tài khoản quản trị "${email}" đã được đăng ký cho đối tác khác.`,
+      );
       return;
     }
 
@@ -522,13 +624,15 @@ export function MarketplaceAdminClient() {
       return;
     }
 
-    const currentDisplayName = editingTenant.serviceProfile?.displayName ?? editingTenant.name;
+    const currentDisplayName =
+      editingTenant.serviceProfile?.displayName ?? editingTenant.name;
     const currentFullName = editingTenant.ownerFullName ?? "";
     const currentEmail = editingTenant.ownerEmail ?? "";
     const currentCategoryId = editingTenant.serviceProfile?.categoryId ?? "";
 
     const tenantsList = data.data?.tenants ?? [];
-    const isDisplayNameChanged = displayName.toLowerCase() !== currentDisplayName.toLowerCase();
+    const isDisplayNameChanged =
+      displayName.toLowerCase() !== currentDisplayName.toLowerCase();
     if (
       displayName &&
       isDisplayNameChanged &&
@@ -536,10 +640,13 @@ export function MarketplaceAdminClient() {
         (t) =>
           t.id !== editingTenant.id &&
           t.code !== editingTenant.code &&
-          (t.serviceProfile?.displayName ?? t.name).toLowerCase() === displayName.toLowerCase(),
+          (t.serviceProfile?.displayName ?? t.name).toLowerCase() ===
+            displayName.toLowerCase(),
       )
     ) {
-      setFormValidationError(`Tên thương hiệu đối tác "${displayName}" trùng với đối tác khác.`);
+      setFormValidationError(
+        `Tên thương hiệu đối tác "${displayName}" trùng với đối tác khác.`,
+      );
       return;
     }
 
@@ -554,12 +661,16 @@ export function MarketplaceAdminClient() {
           t.ownerEmail?.toLowerCase() === email.toLowerCase(),
       )
     ) {
-      setFormValidationError(`Email "${email}" trùng với tài khoản owner khác.`);
+      setFormValidationError(
+        `Email "${email}" trùng với tài khoản owner khác.`,
+      );
       return;
     }
 
     const spreadsheetUrl = String(form.get("spreadsheetUrl") ?? "").trim();
-    const currentSpreadsheetUrl = (editingTenant.serviceProfile?.googleSheetsUrl ?? "").trim();
+    const currentSpreadsheetUrl = (
+      editingTenant.serviceProfile?.googleSheetsUrl ?? ""
+    ).trim();
     const isSpreadsheetUrlChanged = spreadsheetUrl !== currentSpreadsheetUrl;
 
     const ownerData: { email?: string; fullName?: string } = {};
@@ -567,7 +678,8 @@ export function MarketplaceAdminClient() {
     if (email && email !== currentEmail) ownerData.email = email;
 
     const isOwnerDataChanged = Object.keys(ownerData).length > 0;
-    const isProfileDataChanged = displayName !== currentDisplayName || categoryId !== currentCategoryId;
+    const isProfileDataChanged =
+      displayName !== currentDisplayName || categoryId !== currentCategoryId;
 
     SwalVietSage.fire({
       title: "Xác nhận cập nhật đối tác",
@@ -579,7 +691,11 @@ export function MarketplaceAdminClient() {
     }).then((result) => {
       if (!result.isConfirmed) return;
 
-      if (isProfileDataChanged || isOwnerDataChanged || isSpreadsheetUrlChanged) {
+      if (
+        isProfileDataChanged ||
+        isOwnerDataChanged ||
+        isSpreadsheetUrlChanged
+      ) {
         mutation.mutate(
           {
             action: "updateTenant",
@@ -607,7 +723,10 @@ export function MarketplaceAdminClient() {
             onError: (err) => {
               SwalVietSage.fire({
                 title: "Thất bại!",
-                text: getErrorMessage(err, "Không thể cập nhật thông tin đối tác."),
+                text: getErrorMessage(
+                  err,
+                  "Không thể cập nhật thông tin đối tác.",
+                ),
                 icon: "error",
               });
             },
@@ -659,7 +778,9 @@ export function MarketplaceAdminClient() {
           {
             onSuccess: () => {
               setIsResettingPassword(false);
-              setResetAccountLabel(editingTenant.serviceProfile?.displayName ?? editingTenant.name);
+              setResetAccountLabel(
+                editingTenant.serviceProfile?.displayName ?? editingTenant.name,
+              );
               setGeneratedPassword(newPassword);
               setEditingTenant(null);
               SwalVietSage.fire({
@@ -686,13 +807,18 @@ export function MarketplaceAdminClient() {
   };
 
   const toggleTenantStatus = (item: ServiceTenant) => {
-    const currentStatus = (item.serviceProfile?.status ?? "active").toLowerCase();
-    const isStatusActive = currentStatus === "active" || currentStatus === "published";
+    const currentStatus = (
+      item.serviceProfile?.status ?? "active"
+    ).toLowerCase();
+    const isStatusActive =
+      currentStatus === "active" || currentStatus === "published";
     const nextStatus = isStatusActive ? "DISABLED" : "ACTIVE";
     const tenantName = item.serviceProfile?.displayName ?? item.name;
 
     SwalVietSage.fire({
-      title: isStatusActive ? "Xác nhận tạm tắt đối tác" : "Xác nhận kích hoạt đối tác",
+      title: isStatusActive
+        ? "Xác nhận tạm tắt đối tác"
+        : "Xác nhận kích hoạt đối tác",
       text: `Bạn có chắc chắn muốn ${isStatusActive ? "tạm tắt hoạt động" : "kích hoạt lại"} đối tác "${tenantName}" không?`,
       icon: "warning",
       showCancelButton: true,
@@ -720,7 +846,10 @@ export function MarketplaceAdminClient() {
             onError: (err) => {
               SwalVietSage.fire({
                 title: "Thất bại!",
-                text: getErrorMessage(err, "Không thể thay đổi trạng thái đối tác."),
+                text: getErrorMessage(
+                  err,
+                  "Không thể thay đổi trạng thái đối tác.",
+                ),
                 icon: "error",
               });
             },
@@ -732,7 +861,9 @@ export function MarketplaceAdminClient() {
 
   const toggleCategoryStatus = (item: MarketplaceCategory) => {
     SwalVietSage.fire({
-      title: item.isActive ? "Xác nhận tạm tắt danh mục" : "Xác nhận kích hoạt danh mục",
+      title: item.isActive
+        ? "Xác nhận tạm tắt danh mục"
+        : "Xác nhận kích hoạt danh mục",
       text: `Bạn có chắc chắn muốn ${item.isActive ? "tạm tắt" : "kích hoạt"} danh mục "${item.nameVi}" không?`,
       icon: "warning",
       showCancelButton: true,
@@ -760,7 +891,10 @@ export function MarketplaceAdminClient() {
             onError: (err) => {
               SwalVietSage.fire({
                 title: "Thất bại!",
-                text: getErrorMessage(err, "Không thể thay đổi trạng thái danh mục."),
+                text: getErrorMessage(
+                  err,
+                  "Không thể thay đổi trạng thái danh mục.",
+                ),
                 icon: "error",
               });
             },
@@ -776,18 +910,28 @@ export function MarketplaceAdminClient() {
     if (!tenantsList) return [];
     return tenantsList.filter((item) => {
       const q = tenantSearch.toLowerCase().trim();
-      const displayName = (item.serviceProfile?.displayName ?? "").toLowerCase();
+      const displayName = (
+        item.serviceProfile?.displayName ?? ""
+      ).toLowerCase();
       const name = item.name.toLowerCase();
       const email = (item.ownerEmail ?? "").toLowerCase();
       const code = item.code.toLowerCase();
 
-      const matchesSearch = !q || displayName.includes(q) || name.includes(q) || email.includes(q) || code.includes(q);
+      const matchesSearch =
+        !q ||
+        displayName.includes(q) ||
+        name.includes(q) ||
+        email.includes(q) ||
+        code.includes(q);
 
       const status = (item.serviceProfile?.status ?? "active").toLowerCase();
       const matchesStatus =
         tenantStatusFilter === "all" ||
-        (tenantStatusFilter === "active" && (status === "active" || status === "published")) ||
-        (tenantStatusFilter === "pending" && status !== "active" && status !== "published");
+        (tenantStatusFilter === "active" &&
+          (status === "active" || status === "published")) ||
+        (tenantStatusFilter === "pending" &&
+          status !== "active" &&
+          status !== "published");
 
       return matchesSearch && matchesStatus;
     });
@@ -800,7 +944,9 @@ export function MarketplaceAdminClient() {
     return catList.filter((item) => {
       const q = categorySearch.toLowerCase().trim();
       const vi = item.nameVi.toLowerCase();
-      const en = (item.translations?.find((t) => t.locale === "en")?.name ?? "").toLowerCase();
+      const en = (
+        item.translations?.find((t) => t.locale === "en")?.name ?? ""
+      ).toLowerCase();
       const code = item.code.toLowerCase();
       return !q || vi.includes(q) || en.includes(q) || code.includes(q);
     });
@@ -809,23 +955,36 @@ export function MarketplaceAdminClient() {
   if (data.isPending) {
     return (
       <div className="flex min-h-90 flex-col items-center justify-center rounded-[1.6rem] border border-[#e8dfd1] bg-white/90 p-12 text-[#69726b] shadow-xs backdrop-blur-md">
-        <VsIcon name="progress_activity" className="h-9 w-9 animate-spin text-[#24473d] mb-3 text-4xl" />
-        <p className="text-base font-bold text-[#17201b]">Đang tải cấu hình đối tác dịch vụ...</p>
+        <VsIcon
+          name="progress_activity"
+          className="h-9 w-9 animate-spin text-[#24473d] mb-3 text-4xl"
+        />
+        <p className="text-base font-bold text-[#17201b]">
+          Đang tải cấu hình đối tác dịch vụ...
+        </p>
       </div>
     );
   }
 
   if (data.isError || !data.data) {
     return (
-      <div role="alert" className="rounded-[1.4rem] border border-rose-200 bg-rose-50/90 p-6 text-rose-800 shadow-xs backdrop-blur-md">
+      <div
+        role="alert"
+        className="rounded-[1.4rem] border border-rose-200 bg-rose-50/90 p-6 text-rose-800 shadow-xs backdrop-blur-md"
+      >
         <div className="flex items-center gap-3">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-rose-100 text-rose-600">
             <VsIcon name="info" className="text-2xl" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-rose-900">Không thể kết nối hệ thống Marketplace</h3>
+            <h3 className="text-lg font-bold text-rose-900">
+              Không thể kết nối hệ thống Marketplace
+            </h3>
             <p className="text-base mt-1 text-rose-700">
-              {getErrorMessage(data.error, "Không thể lấy thông tin Marketplace. Vui lòng kiểm tra quyền truy cập hoặc làm mới trang.")}
+              {getErrorMessage(
+                data.error,
+                "Không thể lấy thông tin Marketplace. Vui lòng kiểm tra quyền truy cập hoặc làm mới trang.",
+              )}
             </p>
           </div>
         </div>
@@ -835,7 +994,9 @@ export function MarketplaceAdminClient() {
 
   const { categories, tenants } = data.data;
   const activeTenantsCount = tenants.filter(
-    (t) => (t.serviceProfile?.status ?? "active").toLowerCase() === "active" || (t.serviceProfile?.status ?? "").toLowerCase() === "published",
+    (t) =>
+      (t.serviceProfile?.status ?? "active").toLowerCase() === "active" ||
+      (t.serviceProfile?.status ?? "").toLowerCase() === "published",
   ).length;
 
   return (
@@ -843,15 +1004,34 @@ export function MarketplaceAdminClient() {
       {/* Metric Summary Cards Bar */}
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {[
-          { label: "Tổng đối tác dịch vụ", value: tenants.length, icon: "domain" },
-          { label: "Đang hoạt động", value: `${activeTenantsCount} / ${tenants.length}`, icon: "verified_user" },
-          { label: "Danh mục dịch vụ", value: categories.length, icon: "storefront" },
+          {
+            label: "Tổng đối tác dịch vụ",
+            value: tenants.length,
+            icon: "domain",
+          },
+          {
+            label: "Đang hoạt động",
+            value: `${activeTenantsCount} / ${tenants.length}`,
+            icon: "verified_user",
+          },
+          {
+            label: "Danh mục dịch vụ",
+            value: categories.length,
+            icon: "storefront",
+          },
         ].map((metric) => (
-          <article key={metric.label} className="rounded-[1.4rem] border border-[#e8dfd1] bg-white/90 p-6 shadow-[0_16px_40px_rgba(23,32,27,0.05)] backdrop-blur-md">
+          <article
+            key={metric.label}
+            className="rounded-[1.4rem] border border-[#e8dfd1] bg-white/90 p-6 shadow-[0_16px_40px_rgba(23,32,27,0.05)] backdrop-blur-md"
+          >
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-sm font-bold uppercase tracking-wider text-[#69726b]">{metric.label}</p>
-                <p className="mt-2 text-4xl font-extrabold text-[#24473d]">{metric.value}</p>
+                <p className="text-sm font-bold uppercase tracking-wider text-[#69726b]">
+                  {metric.label}
+                </p>
+                <p className="mt-2 text-4xl font-extrabold text-[#24473d]">
+                  {metric.value}
+                </p>
               </div>
               <span className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[#faf6ef] border border-[#e8dfd1] text-[#24473d]">
                 <VsIcon name={metric.icon} className="text-3xl" />
@@ -895,7 +1075,10 @@ export function MarketplaceAdminClient() {
 
             {/* Search Input */}
             <div className="relative flex-1">
-              <VsIcon name="search" className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#8b948d] text-xl" />
+              <VsIcon
+                name="search"
+                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#8b948d] text-xl"
+              />
               <input
                 type="search"
                 value={activeTab === "partners" ? tenantSearch : categorySearch}
@@ -908,7 +1091,11 @@ export function MarketplaceAdminClient() {
                     setCategoryPage(1);
                   }
                 }}
-                placeholder={activeTab === "partners" ? "Tìm theo tên, email, mã đối tác..." : "Tìm theo tên tiếng Việt, tiếng Anh, mã..."}
+                placeholder={
+                  activeTab === "partners"
+                    ? "Tìm theo tên, email, mã đối tác..."
+                    : "Tìm theo tên tiếng Việt, tiếng Anh, mã..."
+                }
                 className="w-full rounded-xl border border-[#e2d7c5] bg-[#faf6ef] pl-12 pr-4 py-3.5 text-base font-semibold text-[#17201b] outline-none transition-all focus:border-[#24473d] focus:bg-white focus:ring-2 focus:ring-[#24473d]/20"
               />
             </div>
@@ -963,180 +1150,193 @@ export function MarketplaceAdminClient() {
       {activeTab === "partners" && (
         <section className="space-y-6">
           {/* Primary Google Sheets Sync Card for Service Partners */}
-          <div className="rounded-[1.4rem] border border-[#e8dfd1] bg-white/90 p-6 shadow-[0_16px_40px_rgba(23,32,27,0.05)] backdrop-blur-md space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h3 className="text-lg font-extrabold text-[#24473d] flex items-center gap-2">
-                  <VsIcon name="table_chart" className="text-xl text-[#24473d]" />
-                  Quản lý &amp; Đồng bộ dịch vụ đối tác qua Google Sheets / Excel Online
-                </h3>
-                <p className="text-xs font-semibold text-[#69726b] mt-0.5">
-                  Super Admin dán URL Google Sheets / Excel Online của đối tác để xem trước &amp; đồng bộ thực đơn/dịch vụ lên hệ thống.
-                </p>
-              </div>
-            </div>
-
-            <form
-              onSubmit={handlePreviewSheet}
-              className="flex flex-col sm:flex-row gap-3"
-            >
-              <input
-                type="url"
-                value={partnerSpreadsheetUrl}
-                onChange={(e) => handlePartnerSpreadsheetUrlChange(e.target.value)}
-                placeholder="Dán URL Google Sheets / Excel Online đối tác (https://docs.google.com/spreadsheets/d/...)"
-                className="flex-1 rounded-xl border border-[#e2d7c5] bg-[#faf6ef] px-4 py-3 text-sm font-semibold text-[#17201b] outline-none focus:border-[#24473d] focus:bg-white"
-              />
-              <button
-                type="submit"
-                disabled={previewMutation.isPending || !partnerSpreadsheetUrl.trim()}
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-[#24473d] px-6 py-3 text-sm font-bold text-[#fff8e8] shadow-xs hover:bg-[#1a352d] disabled:opacity-50 transition-all shrink-0"
-              >
-                <VsIcon name={previewMutation.isPending ? "progress_activity" : "preview"} className={`text-lg ${previewMutation.isPending ? "animate-spin" : ""}`} />
-                {previewMutation.isPending ? "Đang xử lý..." : "Xem trước"}
-              </button>
-            </form>
-          </div>
 
           <div className="hidden md:block">
-          <DataTable
-            columns={[
-              {
-                key: "owner",
-                header: <span className="text-xs font-black uppercase tracking-wider text-[#24473d]">ĐỐI TÁC DỊCH VỤ</span>,
-                cell: (item: ServiceTenant) => {
-                  const displayName = item.serviceProfile?.displayName ?? item.name;
-                  return (
-                    <div className="flex items-center gap-3">
-                      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#24473d] text-base font-extrabold text-[#e8b363] shadow-xs ring-2 ring-[#e8b363]/30">
-                        {displayName.charAt(0).toUpperCase()}
+            <DataTable
+              columns={[
+                {
+                  key: "owner",
+                  header: (
+                    <span className="text-xs font-black uppercase tracking-wider text-[#24473d]">
+                      ĐỐI TÁC DỊCH VỤ
+                    </span>
+                  ),
+                  cell: (item: ServiceTenant) => {
+                    const displayName =
+                      item.serviceProfile?.displayName ?? item.name;
+                    return (
+                      <div className="flex items-center gap-3">
+                        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#24473d] text-base font-extrabold text-[#e8b363] shadow-xs ring-2 ring-[#e8b363]/30">
+                          {displayName.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-base font-extrabold text-[#17201b]">
+                            {displayName}
+                          </p>
+                          <p className="text-sm font-medium text-[#69726b]">
+                            {item.name}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-base font-extrabold text-[#17201b]">{displayName}</p>
-                        <p className="text-sm font-medium text-[#69726b]">{item.name}</p>
-                      </div>
-                    </div>
-                  );
+                    );
+                  },
                 },
-              },
-              {
-                key: "ownerEmail",
-                header: <span className="text-xs font-black uppercase tracking-wider text-[#24473d]">TÀI KHOẢN QUẢN TRỊ</span>,
-                cell: (item: ServiceTenant) => (
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#e8dfd1] bg-[#fbf8f2] text-[#24473d]">
-                      <VsIcon name="person" className="text-lg" />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="font-sans text-sm font-extrabold text-[#17201b]">
-                        {item.ownerEmail ?? "Chưa thiết lập"}
-                      </span>
-                      {item.ownerFullName && (
-                        <span className="text-xs font-semibold text-[#69726b]">
-                          {item.ownerFullName}
+                {
+                  key: "ownerEmail",
+                  header: (
+                    <span className="text-xs font-black uppercase tracking-wider text-[#24473d]">
+                      TÀI KHOẢN QUẢN TRỊ
+                    </span>
+                  ),
+                  cell: (item: ServiceTenant) => (
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#e8dfd1] bg-[#fbf8f2] text-[#24473d]">
+                        <VsIcon name="person" className="text-lg" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="font-sans text-sm font-extrabold text-[#17201b]">
+                          {item.ownerEmail ?? "Chưa thiết lập"}
                         </span>
-                      )}
+                        {item.ownerFullName && (
+                          <span className="text-xs font-semibold text-[#69726b]">
+                            {item.ownerFullName}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ),
-              },
-              {
-                key: "category",
-                header: <span className="text-xs font-black uppercase tracking-wider text-[#24473d]">DANH MỤC</span>,
-                cell: (item: ServiceTenant) => (
-                  <span className="inline-flex rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-bold text-emerald-800">
-                    {item.serviceProfile?.category?.nameVi ?? "Chưa gán"}
-                  </span>
-                ),
-              },
-              {
-                key: "code",
-                header: <span className="text-xs font-black uppercase tracking-wider text-[#24473d]">MÃ MẠNG LƯỚI</span>,
-                cell: (item: ServiceTenant) => (
-                  <span className="inline-flex items-center gap-2 rounded-xl border border-[#eddab9] bg-[#fcf6ea] px-3.5 py-1.5 text-sm font-extrabold text-[#8c5e1a]">
-                    <VsIcon name="badge" className="text-[#c89b4f] text-base" />
-                    {item.code}
-                  </span>
-                ),
-              },
-              {
-                key: "status",
-                header: <span className="text-xs font-black uppercase tracking-wider text-[#24473d]">TRẠNG THÁI</span>,
-                cell: (item: ServiceTenant) => {
-                  const isStatusActive = (item.serviceProfile?.status ?? "active").toLowerCase() === "active" || (item.serviceProfile?.status ?? "").toLowerCase() === "published";
-                  return isStatusActive ? (
-                    <span className="inline-flex items-center gap-2 rounded-full border border-[#cbe5d8] bg-[#ecf7f1] px-4 py-1.5 text-sm font-extrabold text-[#1a5d3f]">
-                      <span className="h-2.5 w-2.5 rounded-full bg-[#1a5d3f] animate-pulse"></span>
-                      Hoạt động
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-2 rounded-full border border-[#e2dad0] bg-[#f5efe8] px-4 py-1.5 text-sm font-extrabold text-[#6b6660]">
-                      <span className="h-2.5 w-2.5 rounded-full bg-[#8c857d]"></span>
-                      Khởi tạo / Tạm tắt
-                    </span>
-                  );
+                  ),
                 },
-              },
-              {
-                key: "actions",
-                header: <div className="text-right text-xs font-black uppercase tracking-wider text-[#24473d]">THAO TÁC</div>,
-                cell: (item: ServiceTenant) => {
-                  const isStatusActive = (item.serviceProfile?.status ?? "active").toLowerCase() === "active" || (item.serviceProfile?.status ?? "").toLowerCase() === "published";
-                  return (
-                    <div className="flex justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setFormValidationError(null);
-                          setEditingTenant(item);
-                        }}
-                        className="inline-flex min-h-[38px] items-center gap-1.5 rounded-full border border-[#dcd1bf] bg-[#fffcf7] px-4 py-1.5 text-sm font-bold text-[#24473d] shadow-2xs transition-all hover:border-[#24473d] hover:bg-[#f5efe4]"
-                      >
-                        <VsIcon name="edit" className="text-base" />
-                        Sửa
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleTenantStatus(item);
-                        }}
-                        disabled={mutation.isPending}
-                        className={`inline-flex min-h-[38px] items-center gap-1.5 rounded-full border px-4 py-1.5 text-sm font-bold shadow-2xs transition-all ${
-                          isStatusActive
-                            ? "border-amber-300 bg-amber-50/60 text-amber-800 hover:border-amber-400 hover:bg-amber-100"
-                            : "border-emerald-300 bg-emerald-50/60 text-emerald-800 hover:border-emerald-400 hover:bg-emerald-100"
-                        }`}
-                      >
-                        <VsIcon name={isStatusActive ? "visibility_off" : "visibility"} className="text-base" />
-                        {isStatusActive ? "Tạm tắt" : "Kích hoạt"}
-                      </button>
+                {
+                  key: "category",
+                  header: (
+                    <span className="text-xs font-black uppercase tracking-wider text-[#24473d]">
+                      DANH MỤC
+                    </span>
+                  ),
+                  cell: (item: ServiceTenant) => (
+                    <span className="inline-flex rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-bold text-emerald-800">
+                      {item.serviceProfile?.category?.nameVi ?? "Chưa gán"}
+                    </span>
+                  ),
+                },
+                {
+                  key: "code",
+                  header: (
+                    <span className="text-xs font-black uppercase tracking-wider text-[#24473d]">
+                      MÃ MẠNG LƯỚI
+                    </span>
+                  ),
+                  cell: (item: ServiceTenant) => (
+                    <span className="inline-flex items-center gap-2 rounded-xl border border-[#eddab9] bg-[#fcf6ea] px-3.5 py-1.5 text-sm font-extrabold text-[#8c5e1a]">
+                      <VsIcon
+                        name="badge"
+                        className="text-[#c89b4f] text-base"
+                      />
+                      {item.code}
+                    </span>
+                  ),
+                },
+                {
+                  key: "status",
+                  header: (
+                    <span className="text-xs font-black uppercase tracking-wider text-[#24473d]">
+                      TRẠNG THÁI
+                    </span>
+                  ),
+                  cell: (item: ServiceTenant) => {
+                    const isStatusActive =
+                      (
+                        item.serviceProfile?.status ?? "active"
+                      ).toLowerCase() === "active" ||
+                      (item.serviceProfile?.status ?? "").toLowerCase() ===
+                        "published";
+                    return isStatusActive ? (
+                      <span className="inline-flex items-center gap-2 rounded-full border border-[#cbe5d8] bg-[#ecf7f1] px-4 py-1.5 text-sm font-extrabold text-[#1a5d3f]">
+                        <span className="h-2.5 w-2.5 rounded-full bg-[#1a5d3f] animate-pulse"></span>
+                        Hoạt động
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-2 rounded-full border border-[#e2dad0] bg-[#f5efe8] px-4 py-1.5 text-sm font-extrabold text-[#6b6660]">
+                        <span className="h-2.5 w-2.5 rounded-full bg-[#8c857d]"></span>
+                        Khởi tạo / Tạm tắt
+                      </span>
+                    );
+                  },
+                },
+                {
+                  key: "actions",
+                  header: (
+                    <div className="text-right text-xs font-black uppercase tracking-wider text-[#24473d]">
+                      THAO TÁC
                     </div>
-                  );
+                  ),
+                  cell: (item: ServiceTenant) => {
+                    const isStatusActive =
+                      (
+                        item.serviceProfile?.status ?? "active"
+                      ).toLowerCase() === "active" ||
+                      (item.serviceProfile?.status ?? "").toLowerCase() ===
+                        "published";
+                    return (
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFormValidationError(null);
+                            setEditingTenant(item);
+                          }}
+                          className="inline-flex min-h-[38px] items-center gap-1.5 rounded-full border border-[#dcd1bf] bg-[#fffcf7] px-4 py-1.5 text-sm font-bold text-[#24473d] shadow-2xs transition-all hover:border-[#24473d] hover:bg-[#f5efe4]"
+                        >
+                          <VsIcon name="edit" className="text-base" />
+                          Sửa
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleTenantStatus(item);
+                          }}
+                          disabled={mutation.isPending}
+                          className={`inline-flex min-h-[38px] items-center gap-1.5 rounded-full border px-4 py-1.5 text-sm font-bold shadow-2xs transition-all ${
+                            isStatusActive
+                              ? "border-amber-300 bg-amber-50/60 text-amber-800 hover:border-amber-400 hover:bg-amber-100"
+                              : "border-emerald-300 bg-emerald-50/60 text-emerald-800 hover:border-emerald-400 hover:bg-emerald-100"
+                          }`}
+                        >
+                          <VsIcon
+                            name={
+                              isStatusActive ? "visibility_off" : "visibility"
+                            }
+                            className="text-base"
+                          />
+                          {isStatusActive ? "Tạm tắt" : "Kích hoạt"}
+                        </button>
+                      </div>
+                    );
+                  },
                 },
-              },
-            ]}
-            data={filteredTenants}
-            getRowKey={(item) => item.id}
-            onRowClick={(item) => {
-              setFormValidationError(null);
-              setEditingTenant(item);
-            }}
-            emptyMessage="Không tìm thấy đối tác dịch vụ nào phù hợp"
-            pagination={{
-              page: tenantPage,
-              pageSize: tenantPageSize,
-              totalItems: filteredTenants.length,
-              onPageChange: (p) => setTenantPage(p),
-              onPageSizeChange: (s) => {
-                setTenantPageSize(s);
-                setTenantPage(1);
-              },
-            }}
-          />
-        </div>
-      </section>
+              ]}
+              data={filteredTenants}
+              getRowKey={(item) => item.id}
+              onRowClick={(item) => {
+                setFormValidationError(null);
+                setEditingTenant(item);
+              }}
+              emptyMessage="Không tìm thấy đối tác dịch vụ nào phù hợp"
+              pagination={{
+                page: tenantPage,
+                pageSize: tenantPageSize,
+                totalItems: filteredTenants.length,
+                onPageChange: (p) => setTenantPage(p),
+                onPageSizeChange: (s) => {
+                  setTenantPageSize(s);
+                  setTenantPage(1);
+                },
+              }}
+            />
+          </div>
+        </section>
       )}
 
       {/* Secondary Management Area: Service Categories Table & Google Sheets Sync */}
@@ -1147,16 +1347,23 @@ export function MarketplaceAdminClient() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h3 className="text-lg font-extrabold text-[#24473d] flex items-center gap-2">
-                  <VsIcon name="table_chart" className="text-xl text-[#24473d]" />
+                  <VsIcon
+                    name="table_chart"
+                    className="text-xl text-[#24473d]"
+                  />
                   Quản lý &amp; Đồng bộ qua Google Sheets / Excel Online
                 </h3>
                 <p className="text-xs font-semibold text-[#69726b] mt-0.5">
-                  Nhập URL Google Sheets (tab &quot;categories&quot;) để xem trước, đồng bộ danh mục &amp; đa ngôn ngữ tự động.
+                  Nhập URL Google Sheets (tab &quot;categories&quot;) để xem
+                  trước, đồng bộ danh mục &amp; đa ngôn ngữ tự động.
                 </p>
               </div>
             </div>
 
-            <form onSubmit={handlePreviewSheet} className="flex flex-col sm:flex-row gap-3">
+            <form
+              onSubmit={handlePreviewSheet}
+              className="flex flex-col sm:flex-row gap-3"
+            >
               <input
                 type="url"
                 value={spreadsheetUrl}
@@ -1169,14 +1376,25 @@ export function MarketplaceAdminClient() {
                 disabled={previewMutation.isPending || !spreadsheetUrl.trim()}
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-[#24473d] px-6 py-3 text-sm font-bold text-[#fff8e8] shadow-xs hover:bg-[#1a352d] disabled:opacity-50 transition-all shrink-0"
               >
-                <VsIcon name={previewMutation.isPending ? "progress_activity" : "preview"} className={`text-lg ${previewMutation.isPending ? "animate-spin" : ""}`} />
+                <VsIcon
+                  name={
+                    previewMutation.isPending ? "progress_activity" : "preview"
+                  }
+                  className={`text-lg ${previewMutation.isPending ? "animate-spin" : ""}`}
+                />
                 {previewMutation.isPending ? "Đang xử lý..." : "Xem trước"}
               </button>
             </form>
 
             {previewError && (
-              <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-800 flex items-center gap-3">
-                <VsIcon name="error" className="text-xl text-rose-600 shrink-0" />
+              <div
+                role="alert"
+                className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-800 flex items-center gap-3"
+              >
+                <VsIcon
+                  name="error"
+                  className="text-xl text-rose-600 shrink-0"
+                />
                 <span>{previewError}</span>
               </div>
             )}
@@ -1186,39 +1404,84 @@ export function MarketplaceAdminClient() {
                 {/* Summary Metrics */}
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                   <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-emerald-900">
-                    <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">Tạo mới</p>
-                    <p className="text-2xl font-extrabold">{sheetPreview.summary.creates ?? sheetPreview.summary.create ?? 0}</p>
+                    <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">
+                      Tạo mới
+                    </p>
+                    <p className="text-2xl font-extrabold">
+                      {sheetPreview.summary.creates ??
+                        sheetPreview.summary.create ??
+                        0}
+                    </p>
                   </div>
                   <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-amber-900">
-                    <p className="text-xs font-bold uppercase tracking-wider text-amber-700">Cập nhật</p>
-                    <p className="text-2xl font-extrabold">{sheetPreview.summary.updates ?? sheetPreview.summary.update ?? 0}</p>
+                    <p className="text-xs font-bold uppercase tracking-wider text-amber-700">
+                      Cập nhật
+                    </p>
+                    <p className="text-2xl font-extrabold">
+                      {sheetPreview.summary.updates ??
+                        sheetPreview.summary.update ??
+                        0}
+                    </p>
                   </div>
                   <div className="rounded-xl border border-rose-200 bg-rose-50/70 p-3 text-rose-900">
-                    <p className="text-xs font-bold uppercase tracking-wider text-rose-700">Gỡ bỏ / Tắt</p>
-                    <p className="text-2xl font-extrabold">{sheetPreview.summary.disables ?? sheetPreview.summary.disable ?? 0}</p>
+                    <p className="text-xs font-bold uppercase tracking-wider text-rose-700">
+                      Gỡ bỏ / Tắt
+                    </p>
+                    <p className="text-2xl font-extrabold">
+                      {sheetPreview.summary.disables ??
+                        sheetPreview.summary.disable ??
+                        0}
+                    </p>
                   </div>
                   <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-slate-900">
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Không đổi</p>
-                    <p className="text-2xl font-extrabold">{sheetPreview.summary.unchanged}</p>
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                      Không đổi
+                    </p>
+                    <p className="text-2xl font-extrabold">
+                      {sheetPreview.summary.unchanged}
+                    </p>
                   </div>
-                  <div className={`rounded-xl border p-3 ${sheetPreview.summary.errors > 0 ? "border-rose-300 bg-rose-50 text-rose-900" : "border-slate-200 bg-slate-50 text-slate-900"}`}>
-                    <p className={`text-xs font-bold uppercase tracking-wider ${sheetPreview.summary.errors > 0 ? "text-rose-700" : "text-slate-600"}`}>Lỗi</p>
-                    <p className="text-2xl font-extrabold">{sheetPreview.summary.errors}</p>
+                  <div
+                    className={`rounded-xl border p-3 ${sheetPreview.summary.errors > 0 ? "border-rose-300 bg-rose-50 text-rose-900" : "border-slate-200 bg-slate-50 text-slate-900"}`}
+                  >
+                    <p
+                      className={`text-xs font-bold uppercase tracking-wider ${sheetPreview.summary.errors > 0 ? "text-rose-700" : "text-slate-600"}`}
+                    >
+                      Lỗi
+                    </p>
+                    <p className="text-2xl font-extrabold">
+                      {sheetPreview.summary.errors}
+                    </p>
                   </div>
                 </div>
 
                 {/* Validation Errors Table */}
                 {sheetPreview.validation.length > 0 && (
-                  <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50/60 p-4 space-y-2">
+                  <div
+                    role="alert"
+                    className="rounded-xl border border-rose-200 bg-rose-50/60 p-4 space-y-2"
+                  >
                     <p className="text-sm font-extrabold text-rose-900 flex items-center gap-2">
-                      <VsIcon name="warning" className="text-lg text-rose-600" />
-                      Lỗi cần xử lý trong Google Sheets ({sheetPreview.validation.length} dòng):
+                      <VsIcon
+                        name="warning"
+                        className="text-lg text-rose-600"
+                      />
+                      Lỗi cần xử lý trong Google Sheets (
+                      {sheetPreview.validation.length} dòng):
                     </p>
                     <div className="max-h-48 overflow-y-auto space-y-1.5 pr-2">
                       {sheetPreview.validation.map((v, idx) => (
-                        <div key={idx} className="text-xs font-semibold text-rose-800 bg-white/80 p-2.5 rounded-lg border border-rose-200/80 flex items-start gap-2">
-                          <span className="font-mono font-bold bg-rose-100 px-1.5 py-0.5 rounded shrink-0">Hàng {v.row}, Cột {v.col}</span>
-                          <span>{v.message} {v.value ? `(Giá trị: "${v.value}")` : ""}</span>
+                        <div
+                          key={idx}
+                          className="text-xs font-semibold text-rose-800 bg-white/80 p-2.5 rounded-lg border border-rose-200/80 flex items-start gap-2"
+                        >
+                          <span className="font-mono font-bold bg-rose-100 px-1.5 py-0.5 rounded shrink-0">
+                            Hàng {v.row}, Cột {v.col}
+                          </span>
+                          <span>
+                            {v.message}{" "}
+                            {v.value ? `(Giá trị: "${v.value}")` : ""}
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -1228,7 +1491,9 @@ export function MarketplaceAdminClient() {
                 {/* Diff Table */}
                 {sheetPreview.diff.length > 0 && (
                   <div className="space-y-2">
-                    <p className="text-sm font-extrabold text-[#24473d]">Xem trước thay đổi ({sheetPreview.diff.length} danh mục):</p>
+                    <p className="text-sm font-extrabold text-[#24473d]">
+                      Xem trước thay đổi ({sheetPreview.diff.length} danh mục):
+                    </p>
                     <div className="max-h-60 overflow-y-auto rounded-xl border border-[#e8dfd1] bg-white">
                       <table className="w-full text-left border-collapse text-xs">
                         <thead>
@@ -1243,23 +1508,57 @@ export function MarketplaceAdminClient() {
                           {sheetPreview.diff.map((d, i) => (
                             <tr key={i} className="hover:bg-[#faf6ef]/50">
                               <td className="p-3 font-extrabold">
-                                {d.action === "create" && <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Tạo mới</span>}
-                                {d.action === "update" && <span className="text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">Cập nhật</span>}
-                                {d.action === "disable" && <span className="text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">Gỡ bỏ / Tắt</span>}
-                                {d.action === "unchanged" && <span className="text-slate-600 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">Không đổi</span>}
+                                {d.action === "create" && (
+                                  <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                                    Tạo mới
+                                  </span>
+                                )}
+                                {d.action === "update" && (
+                                  <span className="text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                                    Cập nhật
+                                  </span>
+                                )}
+                                {d.action === "disable" && (
+                                  <span className="text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                                    Gỡ bỏ / Tắt
+                                  </span>
+                                )}
+                                {d.action === "unchanged" && (
+                                  <span className="text-slate-600 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+                                    Không đổi
+                                  </span>
+                                )}
                               </td>
-                              <td className="p-3 font-mono font-bold text-[#17201b]">{d.key || "—"}</td>
+                              <td className="p-3 font-mono font-bold text-[#17201b]">
+                                {d.key || "—"}
+                              </td>
                               <td className="p-3 font-bold text-[#17201b]">
-                                {String((d.payload as Record<string, unknown> | undefined)?.nameVi ?? d.label ?? "—")}
+                                {String(
+                                  (
+                                    d.payload as
+                                      | Record<string, unknown>
+                                      | undefined
+                                  )?.nameVi ??
+                                    d.label ??
+                                    "—",
+                                )}
                               </td>
                               <td className="p-3 text-[#525b54]">
                                 {d.changes ? (
                                   <div className="space-y-0.5">
-                                    {Object.entries(d.changes).map(([field, change]) => (
-                                      <div key={field} className="font-mono">
-                                        <span className="font-bold">{field}:</span> {change.from} &rarr; <span className="font-bold text-amber-800">{change.to}</span>
-                                      </div>
-                                    ))}
+                                    {Object.entries(d.changes).map(
+                                      ([field, change]) => (
+                                        <div key={field} className="font-mono">
+                                          <span className="font-bold">
+                                            {field}:
+                                          </span>{" "}
+                                          {change.from} &rarr;{" "}
+                                          <span className="font-bold text-amber-800">
+                                            {change.to}
+                                          </span>
+                                        </div>
+                                      ),
+                                    )}
                                   </div>
                                 ) : (
                                   "—"
@@ -1278,11 +1577,23 @@ export function MarketplaceAdminClient() {
                   <button
                     type="button"
                     onClick={handleCommitSheet}
-                    disabled={commitMutation.isPending || sheetPreview.summary.errors > 0}
+                    disabled={
+                      commitMutation.isPending ||
+                      sheetPreview.summary.errors > 0
+                    }
                     className="inline-flex items-center justify-center gap-2 rounded-full bg-[#24473d] px-7 py-3 text-sm font-bold text-[#fff8e8] shadow-md shadow-[#24473d]/20 hover:bg-[#1a352d] disabled:opacity-50 transition-all"
                   >
-                    <VsIcon name={commitMutation.isPending ? "progress_activity" : "check_circle"} className={`text-lg ${commitMutation.isPending ? "animate-spin" : ""}`} />
-                    {commitMutation.isPending ? "Đang áp dụng..." : "Áp dụng thay đổi"}
+                    <VsIcon
+                      name={
+                        commitMutation.isPending
+                          ? "progress_activity"
+                          : "check_circle"
+                      }
+                      className={`text-lg ${commitMutation.isPending ? "animate-spin" : ""}`}
+                    />
+                    {commitMutation.isPending
+                      ? "Đang áp dụng..."
+                      : "Áp dụng thay đổi"}
                   </button>
                 </div>
               </div>
@@ -1293,20 +1604,30 @@ export function MarketplaceAdminClient() {
             columns={[
               {
                 key: "nameVi",
-                header: <span className="text-xs font-black uppercase tracking-wider text-[#24473d]">TÊN TIẾNG VIỆT</span>,
+                header: (
+                  <span className="text-xs font-black uppercase tracking-wider text-[#24473d]">
+                    TÊN TIẾNG VIỆT
+                  </span>
+                ),
                 cell: (item: MarketplaceCategory) => (
                   <div className="flex items-center gap-3">
                     <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#24473d] text-base font-bold text-[#e8b363]">
                       <VsIcon name="storefront" className="text-lg" />
                     </div>
-                    <p className="text-base font-extrabold text-[#17201b]">{item.nameVi}</p>
+                    <p className="text-base font-extrabold text-[#17201b]">
+                      {item.nameVi}
+                    </p>
                   </div>
                 ),
               },
 
               {
                 key: "code",
-                header: <span className="text-xs font-black uppercase tracking-wider text-[#24473d]">MÃ DANH MỤC</span>,
+                header: (
+                  <span className="text-xs font-black uppercase tracking-wider text-[#24473d]">
+                    MÃ DANH MỤC
+                  </span>
+                ),
                 cell: (item: MarketplaceCategory) => (
                   <span className="inline-flex items-center gap-2 rounded-xl border border-[#e8dfd1] bg-[#fbf8f2] px-3.5 py-1.5 font-sans text-sm font-bold text-[#17201b]">
                     {item.code}
@@ -1315,7 +1636,11 @@ export function MarketplaceAdminClient() {
               },
               {
                 key: "status",
-                header: <span className="text-xs font-black uppercase tracking-wider text-[#24473d]">TRẠNG THÁI</span>,
+                header: (
+                  <span className="text-xs font-black uppercase tracking-wider text-[#24473d]">
+                    TRẠNG THÁI
+                  </span>
+                ),
                 cell: (item: MarketplaceCategory) =>
                   item.isActive ? (
                     <span className="inline-flex items-center gap-2 rounded-full border border-[#cbe5d8] bg-[#ecf7f1] px-4 py-1.5 text-sm font-extrabold text-[#1a5d3f]">
@@ -1331,7 +1656,11 @@ export function MarketplaceAdminClient() {
               },
               {
                 key: "actions",
-                header: <div className="text-right text-xs font-black uppercase tracking-wider text-[#24473d]">THAO TÁC</div>,
+                header: (
+                  <div className="text-right text-xs font-black uppercase tracking-wider text-[#24473d]">
+                    THAO TÁC
+                  </div>
+                ),
                 cell: (item: MarketplaceCategory) => (
                   <div className="flex justify-end gap-2">
                     <button
@@ -1359,7 +1688,10 @@ export function MarketplaceAdminClient() {
                           : "border-emerald-300 bg-emerald-50/60 text-emerald-800 hover:border-emerald-400 hover:bg-emerald-100"
                       }`}
                     >
-                      <VsIcon name={item.isActive ? "visibility_off" : "visibility"} className="text-base" />
+                      <VsIcon
+                        name={item.isActive ? "visibility_off" : "visibility"}
+                        className="text-base"
+                      />
                       {item.isActive ? "Tạm tắt" : "Kích hoạt"}
                     </button>
                     <button
@@ -1371,7 +1703,10 @@ export function MarketplaceAdminClient() {
                       disabled={deleteCategoryMutation.isPending}
                       className="inline-flex min-h-[38px] items-center gap-1.5 rounded-full border border-rose-300 bg-rose-50/60 px-4 py-1.5 text-sm font-bold text-rose-800 shadow-2xs transition-all hover:border-rose-400 hover:bg-rose-100 disabled:opacity-50"
                     >
-                      <VsIcon name="delete" className="text-base text-rose-600" />
+                      <VsIcon
+                        name="delete"
+                        className="text-base text-rose-600"
+                      />
                       Xóa
                     </button>
                   </div>
@@ -1408,8 +1743,12 @@ export function MarketplaceAdminClient() {
                   <VsIcon name="storefront" className="text-3xl" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-extrabold text-[#24473d]">Thêm đối tác dịch vụ bên ngoài</h2>
-                  <p className="text-sm font-medium text-[#69726b]">Khởi tạo đối tác cung cấp dịch vụ và tài khoản quản trị</p>
+                  <h2 className="text-2xl font-extrabold text-[#24473d]">
+                    Thêm đối tác dịch vụ bên ngoài
+                  </h2>
+                  <p className="text-sm font-medium text-[#69726b]">
+                    Khởi tạo đối tác cung cấp dịch vụ và tài khoản quản trị
+                  </p>
                 </div>
               </div>
               <button
@@ -1426,8 +1765,14 @@ export function MarketplaceAdminClient() {
             </div>
 
             {formValidationError && (
-              <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-800 flex items-center gap-3 shadow-xs">
-                <VsIcon name="error" className="text-xl text-rose-600 shrink-0" />
+              <div
+                role="alert"
+                className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-800 flex items-center gap-3 shadow-xs"
+              >
+                <VsIcon
+                  name="error"
+                  className="text-xl text-rose-600 shrink-0"
+                />
                 <span>{formValidationError}</span>
               </div>
             )}
@@ -1435,7 +1780,10 @@ export function MarketplaceAdminClient() {
             <form onSubmit={submitTenant} className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="sm:col-span-2">
-                  <label htmlFor="modal-tenant-display-name" className={labelClass}>
+                  <label
+                    htmlFor="modal-tenant-display-name"
+                    className={labelClass}
+                  >
                     Tên thương hiệu hiển thị
                   </label>
                   <input
@@ -1448,10 +1796,23 @@ export function MarketplaceAdminClient() {
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label htmlFor="modal-tenant-category" className={labelClass}>Danh mục dịch vụ</label>
-                  <select id="modal-tenant-category" required name="categoryId" className={inputClass}>
+                  <label htmlFor="modal-tenant-category" className={labelClass}>
+                    Danh mục dịch vụ
+                  </label>
+                  <select
+                    id="modal-tenant-category"
+                    required
+                    name="categoryId"
+                    className={inputClass}
+                  >
                     <option value="">-- Chọn danh mục --</option>
-                    {categories.filter((c) => c.isActive).map((category) => <option key={category.id} value={category.id}>{category.nameVi}</option>)}
+                    {categories
+                      .filter((c) => c.isActive)
+                      .map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.nameVi}
+                        </option>
+                      ))}
                   </select>
                 </div>
 
@@ -1483,8 +1844,12 @@ export function MarketplaceAdminClient() {
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label htmlFor="modal-tenant-sheet-url" className={labelClass}>
-                    URL Google Sheets / Excel Online (Cấu hình đồng bộ dịch vụ đối tác)
+                  <label
+                    htmlFor="modal-tenant-sheet-url"
+                    className={labelClass}
+                  >
+                    URL Google Sheets / Excel Online (Cấu hình đồng bộ dịch vụ
+                    đối tác)
                   </label>
                   <input
                     id="modal-tenant-sheet-url"
@@ -1494,13 +1859,14 @@ export function MarketplaceAdminClient() {
                     className={inputClass}
                   />
                   <p className="mt-1 text-xs text-[#69726b]">
-                    Super Admin dán link Google Sheets / Excel Online cấp cho đối tác này để hệ thống tự động đồng bộ dịch vụ.
+                    Super Admin dán link Google Sheets / Excel Online cấp cho
+                    đối tác này để hệ thống tự động đồng bộ dịch vụ.
                   </p>
                 </div>
 
                 <div>
                   <label htmlFor="modal-owner-password" className={labelClass}>
-                    Mật khẩu 
+                    Mật khẩu
                   </label>
                   <div className="relative flex items-center">
                     <input
@@ -1516,9 +1882,14 @@ export function MarketplaceAdminClient() {
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3.5 text-[#8b948d] hover:text-[#17201b]"
-                      aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                      aria-label={
+                        showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"
+                      }
                     >
-                      <VsIcon name={showPassword ? "visibility_off" : "visibility"} className="text-xl" />
+                      <VsIcon
+                        name={showPassword ? "visibility_off" : "visibility"}
+                        className="text-xl"
+                      />
                     </button>
                   </div>
                 </div>
@@ -1558,8 +1929,12 @@ export function MarketplaceAdminClient() {
                   <VsIcon name="edit" className="text-3xl" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-extrabold text-[#24473d]">Cập nhật đối tác dịch vụ</h2>
-                  <p className="text-sm font-bold text-[#69726b]">{editingTenant.code}</p>
+                  <h2 className="text-2xl font-extrabold text-[#24473d]">
+                    Cập nhật đối tác dịch vụ
+                  </h2>
+                  <p className="text-sm font-bold text-[#69726b]">
+                    {editingTenant.code}
+                  </p>
                 </div>
               </div>
               <button
@@ -1576,31 +1951,62 @@ export function MarketplaceAdminClient() {
             </div>
 
             {formValidationError && (
-              <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-800 flex items-center gap-3 shadow-xs">
-                <VsIcon name="error" className="text-xl text-rose-600 shrink-0" />
+              <div
+                role="alert"
+                className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-800 flex items-center gap-3 shadow-xs"
+              >
+                <VsIcon
+                  name="error"
+                  className="text-xl text-rose-600 shrink-0"
+                />
                 <span>{formValidationError}</span>
               </div>
             )}
 
             <form onSubmit={submitUpdateTenant} className="space-y-4">
               <div>
-                <label htmlFor="edit-tenant-display-name" className={labelClass}>
+                <label
+                  htmlFor="edit-tenant-display-name"
+                  className={labelClass}
+                >
                   Tên thương hiệu hiển thị
                 </label>
                 <input
                   id="edit-tenant-display-name"
                   required
                   name="displayName"
-                  defaultValue={editingTenant.serviceProfile?.displayName ?? editingTenant.name}
+                  defaultValue={
+                    editingTenant.serviceProfile?.displayName ??
+                    editingTenant.name
+                  }
                   className={inputClass}
                 />
               </div>
 
               <div>
-                <label htmlFor="edit-tenant-category" className={labelClass}>Danh mục dịch vụ</label>
-                <select id="edit-tenant-category" required name="categoryId" defaultValue={editingTenant.serviceProfile?.categoryId ?? ""} className={inputClass}>
+                <label htmlFor="edit-tenant-category" className={labelClass}>
+                  Danh mục dịch vụ
+                </label>
+                <select
+                  id="edit-tenant-category"
+                  required
+                  name="categoryId"
+                  defaultValue={editingTenant.serviceProfile?.categoryId ?? ""}
+                  className={inputClass}
+                >
                   <option value="">-- Chọn danh mục --</option>
-                  {categories.filter((c) => c.isActive || c.id === editingTenant.serviceProfile?.categoryId).map((category) => <option key={category.id} value={category.id}>{category.nameVi}{!category.isActive ? " (Tạm tắt)" : ""}</option>)}
+                  {categories
+                    .filter(
+                      (c) =>
+                        c.isActive ||
+                        c.id === editingTenant.serviceProfile?.categoryId,
+                    )
+                    .map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.nameVi}
+                        {!category.isActive ? " (Tạm tắt)" : ""}
+                      </option>
+                    ))}
                 </select>
               </div>
 
@@ -1635,7 +2041,8 @@ export function MarketplaceAdminClient() {
 
               <div>
                 <label htmlFor="edit-tenant-sheet-url" className={labelClass}>
-                  URL Google Sheets / Excel Online (Cấu hình đồng bộ dịch vụ đối tác)
+                  URL Google Sheets / Excel Online (Cấu hình đồng bộ dịch vụ đối
+                  tác)
                 </label>
                 <input
                   id="edit-tenant-sheet-url"
@@ -1644,32 +2051,53 @@ export function MarketplaceAdminClient() {
                   defaultValue={
                     editingTenant.serviceProfile?.googleSheetsUrl ||
                     (typeof window !== "undefined"
-                      ? localStorage.getItem(`vietsage_partner_${editingTenant.id}_sheet_url`) ||
-                        localStorage.getItem(`vietsage_partner_${editingTenant.code}_sheet_url`) ||
+                      ? localStorage.getItem(
+                          `vietsage_partner_${editingTenant.id}_sheet_url`,
+                        ) ||
+                        localStorage.getItem(
+                          `vietsage_partner_${editingTenant.code}_sheet_url`,
+                        ) ||
                         ""
                       : "")
                   }
                   onChange={(e) => {
                     if (typeof window !== "undefined") {
                       const url = e.target.value.trim();
-                      localStorage.setItem(`vietsage_partner_${editingTenant.id}_sheet_url`, url);
-                      localStorage.setItem(`vietsage_partner_${editingTenant.code}_sheet_url`, url);
-                      localStorage.setItem("vietsage_partner_service_items_sheet_url", url);
-                      localStorage.setItem("vietsage_marketplace_partner_sheet_url", url);
+                      localStorage.setItem(
+                        `vietsage_partner_${editingTenant.id}_sheet_url`,
+                        url,
+                      );
+                      localStorage.setItem(
+                        `vietsage_partner_${editingTenant.code}_sheet_url`,
+                        url,
+                      );
+                      localStorage.setItem(
+                        "vietsage_partner_service_items_sheet_url",
+                        url,
+                      );
+                      localStorage.setItem(
+                        "vietsage_marketplace_partner_sheet_url",
+                        url,
+                      );
                     }
                   }}
                   placeholder="https://docs.google.com/spreadsheets/d/..."
                   className={inputClass}
                 />
                 <p className="mt-1 text-xs text-[#69726b]">
-                  Super Admin dán link Google Sheets / Excel Online cấp cho đối tác này để hệ thống xem trước &amp; tự động đồng bộ dịch vụ.
+                  Super Admin dán link Google Sheets / Excel Online cấp cho đối
+                  tác này để hệ thống xem trước &amp; tự động đồng bộ dịch vụ.
                 </p>
               </div>
 
               <div className="pt-3 border-t border-[#e8dfd1]/60">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold tracking-wider text-[#69726b] uppercase">Đặt lại mật khẩu</span>
-                  <span className="text-xs font-semibold text-[#8b948d]">Không bắt buộc</span>
+                  <span className="text-xs font-bold tracking-wider text-[#69726b] uppercase">
+                    Đặt lại mật khẩu
+                  </span>
+                  <span className="text-xs font-semibold text-[#8b948d]">
+                    Không bắt buộc
+                  </span>
                 </div>
                 <button
                   type="button"
@@ -1678,9 +2106,14 @@ export function MarketplaceAdminClient() {
                   className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-50/60 px-5 py-3 text-sm font-bold text-amber-900 transition-all hover:border-amber-400 hover:bg-amber-100 disabled:opacity-50"
                 >
                   <VsIcon name="lock_reset" className="text-lg" />
-                  {isResettingPassword ? "Đang tạo mật khẩu..." : "Tạo mật khẩu ngẫu nhiên"}
+                  {isResettingPassword
+                    ? "Đang tạo mật khẩu..."
+                    : "Tạo mật khẩu ngẫu nhiên"}
                 </button>
-                <p className="mt-1.5 text-xs text-[#8b948d]">Hệ thống sẽ tự tạo mật khẩu mạnh 14 ký tự, hiển thị để admin sao chép gửi cho đối tác.</p>
+                <p className="mt-1.5 text-xs text-[#8b948d]">
+                  Hệ thống sẽ tự tạo mật khẩu mạnh 14 ký tự, hiển thị để admin
+                  sao chép gửi cho đối tác.
+                </p>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-5 border-t border-[#e8dfd1]">
@@ -1717,8 +2150,12 @@ export function MarketplaceAdminClient() {
                   <VsIcon name="add_circle" className="text-3xl" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-extrabold text-[#24473d]">Thêm danh mục</h2>
-                  <p className="text-sm font-medium text-[#69726b]">Tạo phân loại dịch vụ mới trên hệ thống Marketplace</p>
+                  <h2 className="text-2xl font-extrabold text-[#24473d]">
+                    Thêm danh mục
+                  </h2>
+                  <p className="text-sm font-medium text-[#69726b]">
+                    Tạo phân loại dịch vụ mới trên hệ thống Marketplace
+                  </p>
                 </div>
               </div>
               <button
@@ -1735,8 +2172,14 @@ export function MarketplaceAdminClient() {
             </div>
 
             {formValidationError && (
-              <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-800 flex items-center gap-3 shadow-xs">
-                <VsIcon name="error" className="text-xl text-rose-600 shrink-0" />
+              <div
+                role="alert"
+                className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-800 flex items-center gap-3 shadow-xs"
+              >
+                <VsIcon
+                  name="error"
+                  className="text-xl text-rose-600 shrink-0"
+                />
                 <span>{formValidationError}</span>
               </div>
             )}
@@ -1756,7 +2199,9 @@ export function MarketplaceAdminClient() {
               </div>
 
               <div className="space-y-3 pt-2">
-                <p className="text-xs font-black uppercase tracking-wider text-[#24473d]">Tên đa ngôn ngữ khác (Tùy chọn)</p>
+                <p className="text-xs font-black uppercase tracking-wider text-[#24473d]">
+                  Tên đa ngôn ngữ khác (Tùy chọn)
+                </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label htmlFor="modal-cat-name-en" className={labelClass}>
@@ -1850,8 +2295,12 @@ export function MarketplaceAdminClient() {
                   <VsIcon name="edit" className="text-3xl" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-extrabold text-[#24473d]">Cập nhật danh mục</h2>
-                  <p className="text-sm font-bold text-[#69726b]">{editingCategory.code}</p>
+                  <h2 className="text-2xl font-extrabold text-[#24473d]">
+                    Cập nhật danh mục
+                  </h2>
+                  <p className="text-sm font-bold text-[#69726b]">
+                    {editingCategory.code}
+                  </p>
                 </div>
               </div>
               <button
@@ -1868,8 +2317,14 @@ export function MarketplaceAdminClient() {
             </div>
 
             {formValidationError && (
-              <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-800 flex items-center gap-3 shadow-xs">
-                <VsIcon name="error" className="text-xl text-rose-600 shrink-0" />
+              <div
+                role="alert"
+                className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-800 flex items-center gap-3 shadow-xs"
+              >
+                <VsIcon
+                  name="error"
+                  className="text-xl text-rose-600 shrink-0"
+                />
                 <span>{formValidationError}</span>
               </div>
             )}
@@ -1889,7 +2344,9 @@ export function MarketplaceAdminClient() {
               </div>
 
               <div className="space-y-3 pt-2">
-                <p className="text-xs font-black uppercase tracking-wider text-[#24473d]">Tên đa ngôn ngữ khác (Tùy chọn)</p>
+                <p className="text-xs font-black uppercase tracking-wider text-[#24473d]">
+                  Tên đa ngôn ngữ khác (Tùy chọn)
+                </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label htmlFor="edit-cat-name-en" className={labelClass}>
@@ -1898,7 +2355,11 @@ export function MarketplaceAdminClient() {
                     <input
                       id="edit-cat-name-en"
                       name="nameEn"
-                      defaultValue={editingCategory.translations?.find((t) => t.locale === "en")?.name ?? ""}
+                      defaultValue={
+                        editingCategory.translations?.find(
+                          (t) => t.locale === "en",
+                        )?.name ?? ""
+                      }
                       className={inputClass}
                     />
                   </div>
@@ -1909,7 +2370,11 @@ export function MarketplaceAdminClient() {
                     <input
                       id="edit-cat-name-zh"
                       name="nameZh"
-                      defaultValue={editingCategory.translations?.find((t) => t.locale === "zh")?.name ?? ""}
+                      defaultValue={
+                        editingCategory.translations?.find(
+                          (t) => t.locale === "zh",
+                        )?.name ?? ""
+                      }
                       className={inputClass}
                     />
                   </div>
@@ -1920,7 +2385,11 @@ export function MarketplaceAdminClient() {
                     <input
                       id="edit-cat-name-ko"
                       name="nameKo"
-                      defaultValue={editingCategory.translations?.find((t) => t.locale === "ko")?.name ?? ""}
+                      defaultValue={
+                        editingCategory.translations?.find(
+                          (t) => t.locale === "ko",
+                        )?.name ?? ""
+                      }
                       className={inputClass}
                     />
                   </div>
@@ -1931,7 +2400,11 @@ export function MarketplaceAdminClient() {
                     <input
                       id="edit-cat-name-ru"
                       name="nameRu"
-                      defaultValue={editingCategory.translations?.find((t) => t.locale === "ru")?.name ?? ""}
+                      defaultValue={
+                        editingCategory.translations?.find(
+                          (t) => t.locale === "ru",
+                        )?.name ?? ""
+                      }
                       className={inputClass}
                     />
                   </div>
@@ -1942,7 +2415,11 @@ export function MarketplaceAdminClient() {
                     <input
                       id="edit-cat-name-hi"
                       name="nameHi"
-                      defaultValue={editingCategory.translations?.find((t) => t.locale === "hi")?.name ?? ""}
+                      defaultValue={
+                        editingCategory.translations?.find(
+                          (t) => t.locale === "hi",
+                        )?.name ?? ""
+                      }
                       className={inputClass}
                     />
                   </div>
@@ -1983,8 +2460,12 @@ export function MarketplaceAdminClient() {
                   <VsIcon name="storefront" className="text-3xl" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-extrabold text-[#24473d]">{selectedCategoryDetail.category.nameVi}</h2>
-                  <p className="text-sm font-bold text-[#8c5e1a]">{selectedCategoryDetail.category.code}</p>
+                  <h2 className="text-2xl font-extrabold text-[#24473d]">
+                    {selectedCategoryDetail.category.nameVi}
+                  </h2>
+                  <p className="text-sm font-bold text-[#8c5e1a]">
+                    {selectedCategoryDetail.category.code}
+                  </p>
                 </div>
               </div>
               <button
@@ -1999,7 +2480,9 @@ export function MarketplaceAdminClient() {
 
             {/* Language Switcher Button Bar */}
             <div className="space-y-3">
-              <p className="text-xs font-black uppercase tracking-wider text-[#24473d]">CHỌN NGÔN NGỮ HIỂN THỊ (LANGUAGE CODES)</p>
+              <p className="text-xs font-black uppercase tracking-wider text-[#24473d]">
+                CHỌN NGÔN NGỮ HIỂN THỊ (LANGUAGE CODES)
+              </p>
               <div className="flex flex-wrap gap-2">
                 {[
                   { code: "en", flag: "🇬🇧", label: "EN — English" },
@@ -2009,7 +2492,10 @@ export function MarketplaceAdminClient() {
                   { code: "hi", flag: "🇮🇳", label: "HI — Hindi" },
                 ].map((l) => {
                   const isActive = selectedCategoryDetail.activeLang === l.code;
-                  const langName = selectedCategoryDetail.category.translations?.find((t) => t.locale === l.code)?.name;
+                  const langName =
+                    selectedCategoryDetail.category.translations?.find(
+                      (t) => t.locale === l.code,
+                    )?.name;
                   const hasVal = Boolean(langName);
 
                   return (
@@ -2019,7 +2505,12 @@ export function MarketplaceAdminClient() {
                       onClick={() =>
                         setSelectedCategoryDetail({
                           ...selectedCategoryDetail,
-                          activeLang: l.code as "en" | "zh" | "ko" | "ru" | "hi",
+                          activeLang: l.code as
+                            | "en"
+                            | "zh"
+                            | "ko"
+                            | "ru"
+                            | "hi",
                         })
                       }
                       className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-extrabold transition-all shadow-xs ${
@@ -2032,7 +2523,9 @@ export function MarketplaceAdminClient() {
                     >
                       <span>{l.flag}</span>
                       <span>{l.code.toUpperCase()}</span>
-                      {hasVal && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>}
+                      {hasVal && (
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                      )}
                     </button>
                   );
                 })}
@@ -2048,8 +2541,12 @@ export function MarketplaceAdminClient() {
                 </span>
               </div>
               <p className="text-xl font-black text-[#17201b]">
-                {selectedCategoryDetail.category.translations?.find((t) => t.locale === selectedCategoryDetail.activeLang)?.name || (
-                  <em className="text-base font-medium text-[#8c857d] not-italic">Chưa có dịch thuật cho ngôn ngữ này</em>
+                {selectedCategoryDetail.category.translations?.find(
+                  (t) => t.locale === selectedCategoryDetail.activeLang,
+                )?.name || (
+                  <em className="text-base font-medium text-[#8c857d] not-italic">
+                    Chưa có dịch thuật cho ngôn ngữ này
+                  </em>
                 )}
               </p>
             </div>
@@ -2086,13 +2583,21 @@ export function MarketplaceAdminClient() {
             <div className="flex items-center justify-between border-b border-[#e8dfd1] pb-4">
               <div className="flex items-center gap-3">
                 <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#24473d] text-[#e8b363] text-lg font-extrabold ring-2 ring-[#e8b363]/30">
-                  {(selectedPartnerDetails.serviceProfile?.displayName ?? selectedPartnerDetails.name).substring(0, 2).toUpperCase()}
+                  {(
+                    selectedPartnerDetails.serviceProfile?.displayName ??
+                    selectedPartnerDetails.name
+                  )
+                    .substring(0, 2)
+                    .toUpperCase()}
                 </div>
                 <div>
                   <h2 className="text-lg font-extrabold text-[#24473d]">
-                    {selectedPartnerDetails.serviceProfile?.displayName ?? selectedPartnerDetails.name}
+                    {selectedPartnerDetails.serviceProfile?.displayName ??
+                      selectedPartnerDetails.name}
                   </h2>
-                  <p className="text-sm font-medium text-[#69726b]">{selectedPartnerDetails.name}</p>
+                  <p className="text-sm font-medium text-[#69726b]">
+                    {selectedPartnerDetails.name}
+                  </p>
                 </div>
               </div>
               <button
@@ -2108,15 +2613,25 @@ export function MarketplaceAdminClient() {
             <div className="space-y-3 text-base">
               <div className="rounded-2xl border border-[#e8dfd1] bg-[#faf6ef] p-5 space-y-3.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-[#69726b] uppercase tracking-wider">Mã mạng lưới:</span>
-                  <span className="font-mono text-sm font-extrabold text-[#24473d]">{selectedPartnerDetails.code}</span>
+                  <span className="text-xs font-bold text-[#69726b] uppercase tracking-wider">
+                    Mã mạng lưới:
+                  </span>
+                  <span className="font-mono text-sm font-extrabold text-[#24473d]">
+                    {selectedPartnerDetails.code}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-[#69726b] uppercase tracking-wider">Tài khoản Owner:</span>
-                  <span className="font-mono text-sm font-bold text-[#17201b]">{selectedPartnerDetails.ownerEmail ?? "Chưa có"}</span>
+                  <span className="text-xs font-bold text-[#69726b] uppercase tracking-wider">
+                    Tài khoản Owner:
+                  </span>
+                  <span className="font-mono text-sm font-bold text-[#17201b]">
+                    {selectedPartnerDetails.ownerEmail ?? "Chưa có"}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-[#69726b] uppercase tracking-wider">Trạng thái:</span>
+                  <span className="text-xs font-bold text-[#69726b] uppercase tracking-wider">
+                    Trạng thái:
+                  </span>
                   <span className="text-sm font-extrabold text-[#1a5d3f] capitalize">
                     {selectedPartnerDetails.serviceProfile?.status ?? "Active"}
                   </span>
@@ -2140,7 +2655,10 @@ export function MarketplaceAdminClient() {
       <OneTimePasswordDialog
         temporaryPassword={generatedPassword}
         accountLabel={resetAccountLabel}
-        onClose={() => { setGeneratedPassword(null); setResetAccountLabel(""); }}
+        onClose={() => {
+          setGeneratedPassword(null);
+          setResetAccountLabel("");
+        }}
       />
     </div>
   );

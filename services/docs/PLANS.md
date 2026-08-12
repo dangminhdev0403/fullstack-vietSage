@@ -1,3 +1,20 @@
+## 2026-08-12 - Partner Realtime WebSocket Ticket & Voucher Verification Proxy Fix (Complete)
+
+- [x] Enlarged text sizes across order tables, badges, action buttons, and voucher modals (`text-[10px]` -> `text-xs`, `text-xs` -> `text-sm`, `text-sm` -> `text-base`) in `service-orders-view.tsx` and `request-queue-client.tsx`.
+- [x] Created Next.js API proxy routes `/api/service-portal/vouchers/verify` and `/api/service-portal/vouchers/redeem` and added `verifyVoucher` & `redeemVoucher` client SDK methods in `service-client.ts`.
+- [x] Enhanced backend `verifyVoucher` in `marketplace-order.service.ts` to support flexible code matching with or without `"VS-"` prefix (e.g. `984A9F`, `VS-984A9F`).
+- [x] Exposed `@Post("request-realtime-ticket")` in `ServicePortalController` and imported `RequestRealtimeModule` into `MarketplaceModule`, resolving Partner WebSocket connection (`🟢 Trực tuyến`) and live order status updates without page refresh.
+- [x] Verified 100% green test passing across all 10 backend marketplace test suites (51/51 unit tests) and frontend TypeScript check (`npx tsc --noEmit`).
+
+## 2026-08-12 - Realtime Hotel Acknowledgement & Partner Order Flow Consistency (Complete)
+
+- [x] Persisted Hotel acknowledgement (`hotelCoordinationStatus = 'ACKNOWLEDGED'`) and Service Voucher issuance (`'VOUCHER_ISSUED'`) in canonical `MarketplaceOrder` flow without changing Partner fulfillment status (`status`).
+- [x] Emitted post-commit realtime events (`external_service_order.hotel_acknowledged`, `external_service_order.voucher_issued`) to Partner (`service-tenant:${tenantId}`), Hotel (`owner:${hotelId}:requests`), and Guest (`guest-session:${sessionId}`, `guest-stay:${stayId}`) rooms.
+- [x] Updated Partner UI (`service-orders-view.tsx`) with realtime toast notifications and query invalidation/refetching while preserving active tab filters (`statusFilter`) and search query (`searchQuery`).
+- [x] Rendered visual badges (`"🤝 Khách sạn đã tiếp nhận"`, `"🎟️ Phiếu dịch vụ"`) on Partner order list and detail modal.
+- [x] Updated Front Desk UI (`request-queue-client.tsx`) and Guest UI (`guest-request-realtime-notifier.tsx`) with realtime notifications and query refetches.
+- [x] Verified 100% green test passing across all 10 backend marketplace test suites (51/51 tests) and frontend TypeScript check (`npx tsc --noEmit`).
+
 ## 2026-08-12 - Super Admin Marketplace Category Sheet + I18n (Complete)
 
 - [x] Added `importKey` (unique stable key) and `MarketplaceCategoryTranslation` localized name table to Prisma schema with migration `20260812000000_marketplace_category_import_i18n`. Backfilled existing `nameEn` rows into translation table and removed deprecated `nameEn` and `icon` columns.

@@ -35,7 +35,13 @@ function toSessionTokens(token: JWT | null): ServerSessionTokens {
   };
 }
 
-export async function readServerSessionTokens(req?: Request | { headers: Headers }): Promise<ServerSessionTokens> {
+import { cache } from "react";
+
+const readServerSessionTokensCached = cache(async (): Promise<ServerSessionTokens> => {
+  return readServerSessionTokensUncached();
+});
+
+async function readServerSessionTokensUncached(req?: Request | { headers: Headers }): Promise<ServerSessionTokens> {
   const requestHeaders = req ? req.headers : await headers();
   const cookieHeader = requestHeaders.get("cookie");
   const authHeader = requestHeaders.get("authorization");
@@ -72,6 +78,13 @@ export async function readServerSessionTokens(req?: Request | { headers: Headers
   }
 
   return parsed;
+}
+
+export async function readServerSessionTokens(req?: Request | { headers: Headers }): Promise<ServerSessionTokens> {
+  if (!req) {
+    return readServerSessionTokensCached();
+  }
+  return readServerSessionTokensUncached(req);
 }
 
 export async function requireRefreshableServerSession(

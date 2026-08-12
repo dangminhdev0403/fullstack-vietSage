@@ -59,7 +59,9 @@ export type NearbyServiceProvider = {
 
 export type HotelMarketplaceOrder = {
   id: string; orderNumber: string; serviceNameSnapshot: string; status: string;
-  quantity: number; totalAmount: string | number; currency: string;
+  hotelCoordinationStatus?: string | null;
+  voucher?: { voucherNumber: string; status: string } | null;
+  quantity: number; pricingUnitSnapshot?: string | null; pricingUnit?: string | null; totalAmount: string | number; currency: string;
   guestNote?: string | null; createdAt: string;
   stay: { guestDisplayName: string; room: { roomNumber: string } };
   serviceTenant: { serviceProfile: { displayName: string } | null };

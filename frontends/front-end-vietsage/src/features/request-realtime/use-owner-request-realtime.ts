@@ -10,6 +10,10 @@ type Handlers = {
   onAnswered?: (request: Partial<StaffRequestListItem> & { id: string }) => void;
   onGuestMessageCreated?: (event: unknown) => void;
   onConversationClosed?: (event: unknown) => void;
+  onExternalOrderCreated?: (event: unknown) => void;
+  onExternalOrderStatusChanged?: (event: unknown) => void;
+  onExternalOrderHotelAcknowledged?: (event: unknown) => void;
+  onExternalOrderVoucherIssued?: (event: unknown) => void;
   onReconnect?: () => void;
 };
 
@@ -26,6 +30,10 @@ export function useOwnerRequestRealtime(hotelId: string, handlers: Handlers, opt
       onAnswered: (value) => ref.current.onAnswered?.(value as Partial<StaffRequestListItem> & { id: string }),
       onGuestMessageCreated: (value) => ref.current.onGuestMessageCreated?.(value),
       onConversationClosed: (value) => ref.current.onConversationClosed?.(value),
+      onExternalOrderCreated: (value) => ref.current.onExternalOrderCreated?.(value),
+      onExternalOrderStatusChanged: (value) => ref.current.onExternalOrderStatusChanged?.(value),
+      onExternalOrderHotelAcknowledged: (value) => ref.current.onExternalOrderHotelAcknowledged?.(value),
+      onExternalOrderVoucherIssued: (value) => ref.current.onExternalOrderVoucherIssued?.(value),
       onReconnect: () => ref.current.onReconnect?.(),
       onError: (error) => {
         if (options.showConnectionToasts) {

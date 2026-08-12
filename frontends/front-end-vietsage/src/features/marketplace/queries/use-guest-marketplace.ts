@@ -1,9 +1,11 @@
 "use client";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { guestMarketplaceResource } from "../resources/guest-marketplace-resource";
+import { useGuestI18n } from "@/features/guest-os/i18n/use-guest-i18n";
 
 export function useGuestMarketplace(sessionToken: string, categoryId?: string) {
-  const resource = guestMarketplaceResource.bind({ sessionToken });
+  const { locale } = useGuestI18n();
+  const resource = guestMarketplaceResource.bind({ sessionToken, locale });
   const enabled = Boolean(sessionToken);
   return {
     categories: useQuery({ ...resource.queries.categories.options(undefined as never), enabled }),

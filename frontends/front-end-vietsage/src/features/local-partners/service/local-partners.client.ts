@@ -21,6 +21,18 @@ export class LocalPartnersClientService {
     return unwrapApiEnvelope<HotelMarketplaceOrder[]>(await this.http.request<unknown>({ method: "GET", path: `/hotels/${encodeURIComponent(hotelId)}/marketplace/orders`, accessToken })).data;
   }
 
+  async acknowledgeOrder(hotelId: string, orderId: string, accessToken: string): Promise<HotelMarketplaceOrder> {
+    return unwrapApiEnvelope<HotelMarketplaceOrder>(await this.http.request<unknown>({ method: "POST", path: `/hotels/${encodeURIComponent(hotelId)}/marketplace/orders/${encodeURIComponent(orderId)}/acknowledge`, accessToken })).data;
+  }
+
+  async issueVoucher(hotelId: string, orderId: string, accessToken: string): Promise<HotelMarketplaceOrder> {
+    return unwrapApiEnvelope<HotelMarketplaceOrder>(await this.http.request<unknown>({ method: "POST", path: `/hotels/${encodeURIComponent(hotelId)}/marketplace/orders/${encodeURIComponent(orderId)}/issue-voucher`, accessToken })).data;
+  }
+
+  async cancelOrder(hotelId: string, orderId: string, accessToken: string): Promise<HotelMarketplaceOrder> {
+    return unwrapApiEnvelope<HotelMarketplaceOrder>(await this.http.request<unknown>({ method: "POST", path: `/hotels/${encodeURIComponent(hotelId)}/marketplace/orders/${encodeURIComponent(orderId)}/cancel`, accessToken })).data;
+  }
+
   async setProviderLink(hotelId: string, providerId: string, linked: boolean, accessToken: string) {
     return this.http.request({ method: linked ? "PUT" : "DELETE", path: this.marketplacePath(hotelId, `/${encodeURIComponent(providerId)}`), accessToken, ...(linked ? { body: { status: "ACTIVE", sortOrder: 0 } } : {}) });
   }

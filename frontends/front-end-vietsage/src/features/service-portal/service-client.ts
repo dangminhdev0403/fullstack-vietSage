@@ -28,4 +28,6 @@ export const servicePortalClient = {
   template: (token: string) => csvReq(token, "/service-portal/services/import/template"),
   export: (token: string) => csvReq(token, "/service-portal/services/export"),
   ticket: (token: string) => req<{ ticket: string; expiresAt: string }>(token, "POST", "/service-portal/request-realtime-ticket"),
+  verifyVoucher: (token: string, code: string) => req<{ valid: boolean; status: string; voucherNumber: string; issuedAt?: string; expiresAt?: string; redeemedAt?: string; order: MarketplaceOrder }, { code: string }>(token, "POST", "/service-portal/vouchers/verify", { code }),
+  redeemVoucher: (token: string, code: string) => req<{ status: string; voucherNumber: string; order: MarketplaceOrder }, { code: string }>(token, "POST", "/service-portal/vouchers/redeem", { code }),
 };

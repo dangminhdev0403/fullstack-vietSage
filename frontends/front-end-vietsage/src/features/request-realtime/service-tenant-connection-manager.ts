@@ -8,14 +8,15 @@ export const serviceTenantRequestRealtimeManager = createOwnerConnectionManager(
   getTicket: () =>
     requestInternalApi<{ ticket: string; expiresAt: string }>("/api/service-portal", {
       method: "POST",
-      body: JSON.stringify({ action: "ticket" }),
+      body: { action: "ticket" },
     }),
   createSocket: (auth) =>
     createRequestRealtimeSocket(
       auth.mode === "owner" ? { mode: "service_tenant", ticket: auth.ticket } : auth,
     ),
-  scheduleReconnect: (callback) => {
-    const timer = window.setTimeout(callback, 30_000);
+  scheduleReconnect: (callback, attempt) => {
+    const delay = Math.min(15_000, Math.pow(2, attempt) * 1_000);
+    const timer = window.setTimeout(callback, delay);
     return () => window.clearTimeout(timer);
   },
 });

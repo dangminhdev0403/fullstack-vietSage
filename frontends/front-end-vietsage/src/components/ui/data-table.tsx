@@ -171,7 +171,7 @@ export function DataTable<TItem>({
       {header}
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm" style={{ minWidth }}>
-          <thead className="border-b border-[#e5dcd0] bg-[#f6f1e7]/90 text-[11px] font-extrabold uppercase tracking-[0.1em] text-[#69726b]">
+          <thead className="border-b border-[#e5dcd0] bg-[#f6f1e7]/90 text-xs font-black uppercase tracking-[0.08em] text-[#3d4540]">
             <tr>
               {columns.map((column) => {
                 const isSorted = sort?.key === column.key;

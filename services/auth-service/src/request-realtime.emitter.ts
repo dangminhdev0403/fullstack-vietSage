@@ -21,6 +21,8 @@ export type ExternalServiceOrderPayload = {
   serviceId: string;
   serviceName: string;
   status: string;
+  hotelStatus?: string | null;
+  voucherNumber?: string | null;
   quantity: number;
   unitPrice: number | string;
   pricingUnit?: string | null;
@@ -59,15 +61,12 @@ export class RequestRealtimeEmitter {
     sessionId?: string | null;
     ownerRequest: unknown;
     guestRequest?: unknown;
-    answered?: boolean;
   }) {
-    const eventName = input.answered ? "guest_request.answered" : "guest_request.updated";
-    this.serverRef
-      ?.to(this.ownerHotelRoom(input.hotelId))
-      .emit(eventName, { request: input.ownerRequest });
-
-    if (input.sessionId && input.guestRequest) {
-      this.serverRef?.to(this.guestSessionRoom(input.sessionId)).emit(eventName, {
+    this.serverRef?.to(this.ownerHotelRoom(input.hotelId)).emit("guest_request.updated", {
+      request: input.ownerRequest,
+    });
+    if (input.sessionId && input.guestRequest !== undefined) {
+      this.serverRef?.to(this.guestSessionRoom(input.sessionId)).emit("guest_request.updated", {
         request: input.guestRequest,
       });
     }
@@ -165,6 +164,38 @@ export class RequestRealtimeEmitter {
     }
     if (input.stayId) {
       this.serverRef?.to(this.guestStayRoom(input.stayId)).emit("external_service_order.status_changed", payload);
+    }
+  }
+
+  static emitExternalServiceOrderHotelAcknowledged(
+    input: ExternalServiceOrderPayload & { sessionId?: string | null },
+  ) {
+    const eventId = input.eventId ?? randomUUID();
+    const payload = { ...input, eventId };
+
+    this.serverRef?.to(this.ownerHotelRoom(input.hotelId)).emit("external_service_order.hotel_acknowledged", payload);
+    this.serverRef?.to(this.serviceTenantRoom(input.serviceTenantId)).emit("external_service_order.hotel_acknowledged", payload);
+    if (input.sessionId) {
+      this.serverRef?.to(this.guestSessionRoom(input.sessionId)).emit("external_service_order.hotel_acknowledged", payload);
+    }
+    if (input.stayId) {
+      this.serverRef?.to(this.guestStayRoom(input.stayId)).emit("external_service_order.hotel_acknowledged", payload);
+    }
+  }
+
+  static emitExternalServiceOrderVoucherIssued(
+    input: ExternalServiceOrderPayload & { sessionId?: string | null },
+  ) {
+    const eventId = input.eventId ?? randomUUID();
+    const payload = { ...input, eventId };
+
+    this.serverRef?.to(this.ownerHotelRoom(input.hotelId)).emit("external_service_order.voucher_issued", payload);
+    this.serverRef?.to(this.serviceTenantRoom(input.serviceTenantId)).emit("external_service_order.voucher_issued", payload);
+    if (input.sessionId) {
+      this.serverRef?.to(this.guestSessionRoom(input.sessionId)).emit("external_service_order.voucher_issued", payload);
+    }
+    if (input.stayId) {
+      this.serverRef?.to(this.guestStayRoom(input.stayId)).emit("external_service_order.voucher_issued", payload);
     }
   }
 

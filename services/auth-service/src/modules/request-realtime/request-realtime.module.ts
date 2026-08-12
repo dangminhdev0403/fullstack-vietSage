@@ -10,5 +10,6 @@ import { RequestRealtimeTicketService } from "./application/request-realtime-tic
   imports: [IdentityModule, GuestOperationsModule, PropertyModule],
   controllers: [RequestRealtimeController],
   providers: [RequestRealtimeTicketService, RequestRealtimeGateway],
+  exports: [RequestRealtimeTicketService],
 })
 export class RequestRealtimeModule {}

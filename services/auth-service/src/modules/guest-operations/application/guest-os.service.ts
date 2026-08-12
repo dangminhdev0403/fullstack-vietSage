@@ -629,16 +629,20 @@ export class GuestOsService {
     },
     locale: SupportedLocale,
   ) {
-    if (locale === "vi-VN") {
+    if (locale === "vi-VN" || (locale as string) === "vi") {
       return { name: row.name, description: row.description ?? null };
     }
 
-    const selected = row.translations?.find((translation) => translation.locale === locale);
+    const shortLocale = (locale as string).split("-")[0]?.toLowerCase();
+    const selected =
+      row.translations?.find((t) => t.locale === locale) ??
+      row.translations?.find((t) => t.locale === shortLocale) ??
+      row.translations?.find((t) => t.locale === "en");
 
     return {
       name: selected?.name ?? row.name,
       description:
-        selected && selected.description !== undefined
+        selected?.description !== undefined && selected?.description !== null
           ? selected.description
           : (row.description ?? null),
     };

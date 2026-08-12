@@ -1,11 +1,84 @@
+## [complete] 2026-08-13 - Mission: fix-common-cancel-button-untranslated-rendering
+
+- Fixed root cause of untranslated button rendering `common.cancel`:
+  1. Updated `src/features/guest-os/i18n/dictionary.ts`: Added missing `"common.cancel"` translations across English (`"Cancel"`), Chinese (`"取消"`), Korean (`"취소"`), Russian (`"Отмена"`), and Hindi (`"रद्द करें"`).
+  2. Updated `dictionary.ts`: Added missing localized `qr.*` device limit, room mismatch, and stay inactive keys for `zh`, `ko`, `ru`, and `hi` to ensure complete parity across all 6 supported GuestOS locales.
+  3. Cleaned up Tailwind arbitrary value lint warning (`rounded-[24px]` $\rightarrow$ `rounded-3xl`) in `src/features/marketplace/components/guest-marketplace.tsx`.
+
+Verification result:
+
+- Node.js i18n test suite passed (`node --import tsx --test src/features/guest-os/i18n/dictionary.test.ts`): 4/4 test suites passed.
+- Frontend TypeScript check passed (`npx tsc --noEmit` in `frontends/front-end-vietsage`): 0 errors.
+
+## [complete] 2026-08-12 - Mission: apply-complete-multilingual-support-guest-service-module
+
+- Applied complete end-to-end multilingual support (`vi`, `en`, `zh`, `ko`, `ru`, `hi`) across Frontend and Backend API for Guest Service module:
+  1. Frontend Dictionary Expansion: Updated `dictionary.ts` with complete dictionary keys across all 6 supported locales for Guest Discovery tabs, search placeholders, source filter tabs ("All", "Hotel Services", "External Services"), status badges, error toasts, and SweetAlert2 confirmation dialogs.
+  2. UI Component Localization: Updated `/g/services` and `/g/requests` pages, `GuestDiscoveryTabs`, `GuestDiscoverySearch`, `GuestCategoryChips`, and `GuestMarketplace` to eliminate hardcoded Vietnamese text and resolve strings through `useGuestI18n()`.
+  3. Header & Resource Scope Integration: Updated `guestMarketplaceRepository`, `guestMarketplaceResource`, and `useGuestMarketplace` query hooks to propagate active `locale` as `Accept-Language` and `x-lang` headers to backend APIs.
+  4. Backend Catalog Translation Resolution: Updated `GuestOsService.resolveCatalogText` and `GuestMarketplaceService.localizeCategory` / `localizeServiceItem` in `services/auth-service` to support short locale codes (`vi`, `en`, `zh`, `ko`, `ru`, `hi`) with fallbacks (`requested` $\rightarrow$ `short` $\rightarrow$ `en` $\rightarrow$ `default vi-VN`), and included `translations` for `MarketplaceService` items in Prisma queries.
+  5. Kept internal status/code values as stable, language-independent strings (`PENDING`, `CONFIRMED`, `ACCEPTED`, `COMPLETED`, `CANCELLED`).
+
+Verification result:
+
+- Frontend TypeScript compilation check passed (`npx tsc --noEmit` in `frontends/front-end-vietsage`): 0 errors.
+- Backend NestJS production build passed (`npm run build` in `services/auth-service`): Clean production compilation.
+- Backend Jest unit tests passed (`npm run test -- src/modules/guest-operations/ src/modules/marketplace/` in `services/auth-service`): 20/20 Test Suites passed, 119/119 Tests passed.
+
+## [complete] 2026-08-12 - Mission: simplify-external-service-verification-flow
+
+- Simplified External Service Verification & Lookup flow for Partners:
+  1. Removed QR scanning, scanner button, and separate 2-step voucher redeem workflows.
+  2. Renamed action button to `"🔑 Kiểm tra mã dịch vụ"`.
+  3. Server-Side Scoped Verification: `verifyVoucher(userId, code)` in [marketplace-order.service.ts](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/services/auth-service/src/modules/marketplace/application/marketplace-order.service.ts) resolves `serviceTenantId` from the authenticated user context (never trusting client inputs) and searches both `ServiceVoucher` and `MarketplaceOrder` by `orderNumber` / `voucherNumber` / `verificationCode`.
+  4. Single-Screen Order Detail Display: Upon code verification, returns the canonical `MarketplaceOrder` and immediately displays the order detail drawer/modal on the same screen with success toast `"Mã dịch vụ hợp lệ"`.
+  5. Direct Fulfillment Action Buttons: Provided direct action buttons for **Xác nhận** (`CONFIRMED`), **Đang xử lý** (`PREPARING`), **Hoàn thành** (`COMPLETED`), and **Hủy** (`CANCELLED`).
+
+Verification result:
+
+- Frontend & Backend TypeScript compilation checks passed (`npx tsc --noEmit`): 0 errors.
+
+## [complete] 2026-08-12 - Mission: eliminate-api-spamming-and-request-latency
+
+- Eliminated duplicate `/auth/me` backend HTTP requests, rapid socket-reconnection refetch loops, and redundant `/g/services` prefetch spam:
+  1. Wrapped `loadServerWorkspaceContext` in [server-workspace-context.ts](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/libs/server-workspace-context.ts) with `React.cache()` to memoize `authService.getProfile()` calls per RSC request lifecycle, eliminating duplicate `/auth/me` calls between server layouts and pages.
+  2. Wrapped default `readServerSessionTokens` in [server-session-tokens.ts](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/libs/server-session-tokens.ts) with `React.cache()` for request-scoped JWT session token reading.
+  3. Added a 5-second throttle guard on `onReconnect` callbacks in [guest-connection-manager.ts](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/request-realtime/guest-connection-manager.ts) and [owner-connection-manager.ts](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/request-realtime/owner-connection-manager.ts) to prevent rapid duplicate service catalog refetches during transient WebSocket connection fluctuations.
+
+Verification result:
+
+- Frontend TypeScript compilation check passed (`npx tsc --noEmit`): 0 errors.
+
+## [complete] 2026-08-12 - Mission: simplify-external-service-order-fulfillment-to-3-core-states
+
+- Simplified External Service Order fulfillment flow across backend and frontend to 3 core states (+ CANCELLED exception):
+  1. Core States: `PENDING` $\rightarrow$ `CONFIRMED` $\rightarrow$ `COMPLETED` (+ `CANCELLED` terminal exception).
+  2. Removed `PREPARING`, `DELIVERING`, and `READY` workflow states from external partner fulfillment.
+  3. Service Tenant Console (`service-orders-view.tsx` & `service-dashboard-view.tsx`):
+     - `PENDING`: Displayed primary CTA button **"Xác nhận & tiếp nhận"** $\rightarrow$ status `CONFIRMED`.
+     - `CONFIRMED`: Displayed primary CTA button **"Hoàn tất"** $\rightarrow$ status `COMPLETED`.
+     - `COMPLETED`: Displayed read-only completed state (`✓ Hoàn thành`).
+  4. Backend Domain & Validation (`marketplace-order-transitions.ts`, `marketplace-order.schema.ts`, `schema.prisma`):
+     - Added `CONFIRMED` to `MarketplaceOrderStatus` enum in `schema.prisma` and regenerated Prisma client.
+     - Updated backend transition rules in `marketplace-order-transitions.ts` (`PENDING` $\rightarrow$ `CONFIRMED` $\rightarrow$ `COMPLETED`, `CANCELLED`).
+  5. Realtime Events & Role Alignment:
+     - Preserved `MarketplaceOrder` as single source of truth and multi-party socket events (`external_service_order.created`, `external_service_order.status_changed`).
+     - Kept Hotel Staff Request Queue read-only and Guest OS status badges aligned ("Chờ xác nhận", "Đối tác đã tiếp nhận", "Hoàn thành", "Đã hủy").
+
+Verification result:
+
+- Backend Jest unit tests (`npm run test -- src/modules/marketplace/tests/`): 10/10 Test Suites Passed, 48/48 Tests Passed.
+- Frontend TypeScript check (`npx tsc --noEmit`): 0 errors.
+
 ## [complete] 2026-08-12 - Mission: fix-guest-reveal-framer-motion-blank-render-bug
 
-- Fixed root cause of blank/invisible service lists when switching tabs or loading data on Guest OS Services page ([page.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/app/(vietsage)/g/services/page.tsx)):
+- Fixed root cause of blank/invisible service lists when switching tabs or loading data on Guest OS Services page ([page.tsx](<file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/app/(vietsage)/g/services/page.tsx>)):
   1. Fixed Framer Motion bug in [guest-reveal.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/guest-os/components/motion/guest-reveal.tsx): Removed `animate={motionReady ? "hidden" : "visible"}` which forced elements to `opacity: 0` on React re-renders. Replaced with robust `initial={{ opacity: 0, y: distance }}` and `whileInView={{ opacity: 1, y: 0 }}`.
   2. Updated viewport threshold to `amount: 0.05` in both `guest-reveal.tsx` and [guest-stagger.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/guest-os/components/motion/guest-stagger.tsx) to ensure loading skeletons and dynamic service items fade in reliably on mobile screens.
   3. Added `key={activeTab}` to `<GuestReveal key={activeTab}>` in `page.tsx` so tab switches between Hotel Services and External Services trigger a clean reveal animation for the active tab content.
 
 Verification result:
+
 - Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 
 ## [complete] 2026-08-12 - Mission: redesign-service-tenant-order-console-high-density-b2b-list
@@ -19,6 +92,7 @@ Verification result:
   6. Preserved VietSage colors (`#17201b`, `#fffcf7`, `#e5ddcd`, `#5a6760`), typography, and mobile responsive grid stacking.
 
 Verification result:
+
 - Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 
 ## [complete] 2026-08-12 - Mission: fix-guestos-external-service-order-flow-end-to-end
@@ -39,6 +113,7 @@ Verification result:
      - Added **"Dịch vụ bên ngoài"** badges and connected `useGuestRequestRealtime` to automatically refresh orders upon socket event emission without page reloads.
 
 Verification result:
+
 - Backend unit tests (`marketplace-order.service.spec.ts` & `request-realtime.gateway.spec.ts`): 12 passed.
 - Frontend TypeScript check (`npx tsc --noEmit`): 0 errors.
 
@@ -60,6 +135,7 @@ Verification result:
      - Formatted order item quantity and unit in B2B service portal orders view.
 
 Verification result:
+
 - Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 
 ## [complete] 2026-08-12 - Mission: redesign-guest-marketplace-order-confirm-dialog-ui
@@ -75,13 +151,13 @@ Verification result:
      - Customer-friendly payment note (`text-sm font-medium`)
 
 Verification result:
-- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 
 ## [complete] 2026-08-12 - Mission: update-guestos-external-services-terminology-and-ui-copy
 
 - Updated GuestOS service discovery terminology and UI copy across guest-facing components:
-  1. Updated [page.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/app/(vietsage)/g/services/page.tsx): Set primary top-level tab terminology to `"Dịch vụ trong khách sạn"` and `"Dịch vụ bên ngoài"`, search placeholder to `"Tìm dịch vụ bên ngoài, danh mục, nhà cung cấp..."`, external badge text to `"Khám phá dịch vụ quanh khách sạn"`, and category section header to `"Dịch vụ trong khách sạn"`.
+  1. Updated [page.tsx](<file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/app/(vietsage)/g/services/page.tsx>): Set primary top-level tab terminology to `"Dịch vụ trong khách sạn"` and `"Dịch vụ bên ngoài"`, search placeholder to `"Tìm dịch vụ bên ngoài, danh mục, nhà cung cấp..."`, external badge text to `"Khám phá dịch vụ quanh khách sạn"`, and category section header to `"Dịch vụ trong khách sạn"`.
   2. Updated [guest-discovery-tabs.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/guest-os/components/services/guest-discovery-tabs.tsx): Changed default external tab badge text from `"Đối tác liên kết"` to `"Khám phá dịch vụ quanh khách sạn"`.
   3. Updated [guest-marketplace.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/marketplace/components/guest-marketplace.tsx):
      - Header Title: `"Dịch vụ bên ngoài"`
@@ -95,8 +171,8 @@ Verification result:
   4. Updated [partner-detail-modal.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/local-partners/components/partner-detail-modal.tsx): Updated provider payment disclaimer from `"đối tác"` to `"nhà cung cấp"`.
 
 Verification result:
-- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 
 ## [complete] 2026-08-12 - Mission: professional-vietsage-service-image-preview-fallback
 
@@ -106,8 +182,8 @@ Verification result:
   3. Added radial ambient gold glow, deep emerald gradient background (`#1d3d33` -> `#142e26` -> `#0b1c17`), crisp gold tracking-widest typography, and clean bottom footer line.
 
 Verification result:
-- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 
+- Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 
 ## [complete] 2026-08-12 - Mission: redesign-guest-service-discovery-as-unified-service-experience
 
@@ -121,6 +197,7 @@ Verification result:
   5. Updated `/g/nearby/page.tsx` to redirect seamlessly to `/g/services?tab=external` for unified service discovery.
 
 Verification result:
+
 - Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 - Backend TypeScript check passed (`npx tsc --noEmit --skipLibCheck`): 0 errors.
 
@@ -133,6 +210,7 @@ Verification result:
   4. Refined header description to enterprise-grade wording (`kiểm tra dữ liệu, đối soát thay đổi & đồng bộ thực đơn/dịch vụ lên hệ thống`).
 
 Verification result:
+
 - Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 
 ## [complete] 2026-08-12 - Mission: fix-all-ts-errors-in-marketplace-service-item-import-adapter
@@ -143,6 +221,7 @@ Verification result:
 - Fixed [codes.repository.ts](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/services/auth-service/src/modules/codes/codes.repository.ts): removed non-existent `prefix` property from `client.code.create` payload.
 
 Verification result:
+
 - TypeScript check on target adapter passed (`npx tsc --noEmit`): 0 errors in target adapter file.
 
 ## [complete] 2026-08-12 - Mission: enlarge-online-sheet-sync-panel-ui-scale
@@ -150,6 +229,7 @@ Verification result:
 - Updated [service-catalog-view.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/service-portal/components/service-catalog-view.tsx): increased font sizes, padding, icon scale, input/button heights, metric numbers (`text-3xl font-black`), validation error text (`text-sm font-semibold`), and diff preview table dimensions (`max-h-80`, `text-sm font-bold`) across the entire Google Sheets / Excel Online Sync Panel for maximum readability.
 
 Verification result:
+
 - Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 
 ## [complete] 2026-08-12 - Mission: create-missing-marketplace-service-translation-table-in-postgres
@@ -158,6 +238,7 @@ Verification result:
 - Added defensive safeguards in [marketplace-service-item-import.adapter.ts](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/services/auth-service/src/modules/marketplace/infrastructure/imports/marketplace-service-item-import.adapter.ts) to filter out empty translation payload entries.
 
 Verification result:
+
 - Database schema sync passed (`npx prisma db push`): `Your database is now in sync with your Prisma schema`.
 
 ## [complete] 2026-08-12 - Mission: implement-preferred-inline-google-sheets-sync-panel-design
@@ -172,6 +253,7 @@ Verification result:
   6. Bottom-right `Áp dụng thay đổi` commit button for instant database updates.
 
 Verification result:
+
 - Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 
 ## [complete] 2026-08-12 - Mission: fix-import-commit-500-prisma-client-known-request-error
@@ -180,6 +262,7 @@ Verification result:
 - Fixed [service-item-import.service.ts](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/services/auth-service/src/modules/marketplace/application/service-item-import.service.ts): removed explicit `{ isolationLevel: "Serializable" }` option from Prisma transaction during import commit to prevent PostgreSQL `40001` serialization conflict errors during concurrent row insertions.
 
 Verification result:
+
 - Backend TypeScript check passed (`npx tsc --noEmit --skipLibCheck`): 0 errors in marketplace/codes domain.
 
 ## [complete] 2026-08-12 - Mission: fix-nextjs-route-zod-schema-for-google-sheets-url
@@ -187,6 +270,7 @@ Verification result:
 - Fixed root cause in [route.ts](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/app/api/admin/marketplace/route.ts): added `googleSheetsUrl: z.string().trim().max(500).optional()` to NextJS API `tenant` and `updateTenant` Zod validation schemas. Previously, Zod was stripping `googleSheetsUrl` out of the request body before forwarding to NestJS backend, causing PostgreSQL `ServiceTenantProfile.googleSheetsUrl` column to remain NULL.
 
 Verification result:
+
 - Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 
 ## [complete] 2026-08-12 - Mission: completely-eliminate-localstorage-for-partner-sheet-urls
@@ -195,6 +279,7 @@ Verification result:
 - All partner sheet URLs are now stored 100% directly in the PostgreSQL database (`ServiceTenantProfile.googleSheetsUrl`), eliminating cross-partner URL overwrites and ensuring unique per-tenant data persistence across browsers and sessions.
 
 Verification result:
+
 - Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 
 ## [complete] 2026-08-12 - Mission: fix-database-persistence-for-google-sheets-url
@@ -203,6 +288,7 @@ Verification result:
 - Fixed [marketplace-admin.service.ts](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/services/auth-service/src/modules/marketplace/application/marketplace-admin.service.ts): updated `updateServiceTenant` to check `body.googleSheetsUrl !== undefined` explicitly, ensuring Prisma `upsert.create` and `upsert.update` write `googleSheetsUrl` directly to the `ServiceTenantProfile` table in PostgreSQL.
 
 Verification result:
+
 - Backend TypeScript check passed (`npx tsc --noEmit --skipLibCheck`): 0 errors.
 - Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 
@@ -211,6 +297,7 @@ Verification result:
 - Updated `fetchGoogleSheetCsv` in [service-catalog-view.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/service-portal/components/service-catalog-view.tsx) to parse `payload.data.detail` from backend response payloads, suppressing raw `"VALIDATION_ERROR"` status codes per SweetAlert2 standards and presenting human-readable messages to the user.
 
 Verification result:
+
 - Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 
 ## [complete] 2026-08-12 - Mission: apply-online-excel-and-google-sheets-sync-standard-to-service-catalog
@@ -219,6 +306,7 @@ Verification result:
 - Enhanced [service-catalog-view.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/service-portal/components/service-catalog-view.tsx): added safe summary metric count fallbacks (`creates ?? create ?? 0`, `updates ?? update ?? 0`, `disables ?? disable ?? 0`), error list breakdown modals, and pre-commit `SwalVietSage.fire` confirmation dialogs showing exact count previews before database transaction commits.
 
 Verification result:
+
 - Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 
 ## [complete] 2026-08-12 - Mission: database-persisted-google-sheets-url-for-partners
@@ -229,6 +317,7 @@ Verification result:
 - Updated `/service/catalog` frontend ([service-catalog-view.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/service-portal/components/service-catalog-view.tsx)) to read `googleSheetsUrl` directly from the database profile API as top priority, ensuring URL persistence seamlessly crosses different devices, browsers, and user accounts.
 
 Verification result:
+
 - Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 - Backend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 - Prisma Client regenerated successfully (`npx prisma generate`).
@@ -239,6 +328,7 @@ Verification result:
 - Fixed `/service/catalog` Google Sheets URL resolution ([service-catalog-view.tsx](file:///c:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/frontends/front-end-vietsage/src/features/service-portal/components/service-catalog-view.tsx)): `findStoredSheetUrl()` falls back to active system catalog Google Sheets URL (`https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit#gid=0`), ensuring clicking **Đồng bộ dịch vụ** on `/service/catalog` ALWAYS works across sessions and browsers.
 
 Verification result:
+
 - Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 
 ## [complete] 2026-08-12 - Mission: robust-partner-google-sheets-url-resolution
@@ -248,6 +338,7 @@ Verification result:
 - Resolves issue where the partner portal reported "Chưa có URL Google Sheets" when Super Admin saved link under tenant ID / code specific keys.
 
 Verification result:
+
 - Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 
 ## [complete] 2026-08-12 - Mission: fix-partner-modal-google-sheets-url-save-and-close-bug
@@ -257,6 +348,7 @@ Verification result:
 - Updated `defaultValue` and `onChange` handler of `edit-tenant-sheet-url` input box to preserve the entered URL link across modal opens and saves.
 
 Verification result:
+
 - Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 
 ## [complete] 2026-08-12 - Mission: real-google-sheets-sync-and-error-reporting-on-service-catalog
@@ -268,6 +360,7 @@ Verification result:
 - Executed real database transaction commit via `importCommit.mutateAsync({ csv, previewToken })` and refreshed catalog upon successful validation with summary stats (`+ create`, `~ update`, `unchanged`).
 
 Verification result:
+
 - Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 
 ## [complete] 2026-08-12 - Mission: super-admin-partner-google-sheets-url-inputs
@@ -276,6 +369,7 @@ Verification result:
 - Added a primary **Quản lý & Đồng bộ dịch vụ đối tác qua Google Sheets / Excel Online** input card at the top of the **Partners tab** in Super Admin workspace with `localStorage` auto-persistence (`vietsage_marketplace_partner_sheet_url` and `vietsage_partner_<id>_sheet_url`).
 
 Verification result:
+
 - Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 
 ## [complete] 2026-08-12 - Mission: restrict-google-sheets-url-assignment-to-super-admin
@@ -285,6 +379,7 @@ Verification result:
 - Displayed a read-only status badge in the partner view indicating that Google Sheets / Excel Online synchronization is managed by Super Admin.
 
 Verification result:
+
 - Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 
 ## [complete] 2026-08-12 - Mission: remove-add-new-service-box-from-service-catalog
@@ -294,6 +389,7 @@ Verification result:
 - Cleaned up unused form state, imports, and handlers.
 
 Verification result:
+
 - Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 
 ## [complete] 2026-08-12 - Mission: replace-excel-file-import-with-online-google-sheets-url-sync
@@ -303,6 +399,7 @@ Verification result:
 - Standardized online Google Sheets / Excel URL link input bar with `localStorage` auto-persistence (`vietsage_partner_service_items_sheet_url`, `vietsage_marketplace_category_sheet_url`, `vietsage_owner_service_catalog_sheet_url`), "Xem trước" (Preview), and "Đồng bộ Google Sheets" (Commit / Sync).
 
 Verification result:
+
 - Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 
 ## [complete] 2026-08-12 - Mission: fix-update-duplicate-validation-on-unchanged-fields
@@ -312,6 +409,7 @@ Verification result:
 - Updated `updateCategory` in backend `marketplace-admin.service.ts` to skip duplicate query when `body.nameVi` is unchanged.
 
 Verification result:
+
 - Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 - Backend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 
@@ -330,6 +428,7 @@ Verification result:
 - Verified WAI-ARIA inline error alerts (`role="alert"`), `SwalVietSage` confirmation for commit, disabled commit on validation errors, and invalidation of `data` on success.
 
 Verification result:
+
 - Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 - Next.js production build passed (`npm run build`): 0 errors.
 
@@ -342,6 +441,7 @@ Verification result:
 - Fixed `updateServiceTenant` in `marketplace-admin.service.ts` with Prisma `upsert` for `serviceProfile` and accurate `tenantUsers` owner lookup.
 
 Verification result:
+
 - Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 
 ## [complete] 2026-08-11 - Mission: refactor-room-messages-client-cognitive-complexity
@@ -353,6 +453,7 @@ Verification result:
 - Replaced `any` types with `QueryKey` to ensure 100% type safety and zero lint errors.
 
 Verification result:
+
 - Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 - ESLint check passed (`npx eslint "src/app/(vietsage)/hotels/[hotelId]/messages/room-messages-client.tsx"`): 0 errors.
 
@@ -363,6 +464,7 @@ Verification result:
 - Fixed Tailwind class lint warning by replacing `bg-[var(--background)]` with `bg-background`.
 
 Verification result:
+
 - Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 - ESLint check passed on `src/app/(vietsage)/g/services/page.tsx`: 0 errors.
 
@@ -378,6 +480,7 @@ Verification result:
 - Upgraded search bar and status filter tab button hover states.
 
 Verification result:
+
 - Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 
 ## [complete] 2026-08-11 - Mission: redesign-nearby-partners-discover-evaluate-connect-workflow
@@ -390,6 +493,7 @@ Verification result:
 - Completely hidden technical tenant IDs from the main UI table view.
 
 Verification result:
+
 - Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 
 ## [complete] 2026-08-11 - Mission: redesign-service-catalog-b2b-management-list
@@ -403,6 +507,7 @@ Verification result:
 - Placed action buttons (Chỉnh sửa) on the right column of each service row.
 
 Verification result:
+
 - Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 
 ## [complete] 2026-08-11 - Mission: redesign-nearby-service-partners-b2b-ui
@@ -416,6 +521,7 @@ Verification result:
 - Updated workspace registry navigation label to "Nearby Service Partners".
 
 Verification result:
+
 - Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 
 ## [complete] 2026-08-11 - Mission: external-service-partners-b2b-saas-redesign
@@ -431,9 +537,11 @@ Verification result:
 - Hidden technical UUID IDs from primary UI display while maintaining clean system code tags (`PARTNER-01`).
 
 Verification results:
+
 - Frontend & Backend TypeScript compilation: 0 errors (`npx tsc --noEmit`).
 
 Remaining blockers/risks:
+
 - None.
 
 ## [complete] 2026-08-11 - Mission: marketplace-test-data-and-admin-hotel-links-removal
@@ -444,6 +552,7 @@ Remaining blockers/risks:
 - Owner API (`listNearbyServiceTenants` + `setNearbyHotelLink`) and frontend (`OwnerNearbyProvidersClient`) were already fully implemented.
 
 Verification results:
+
 - Backend tests: 7 passed, 0 failed (`npx jest marketplace-admin`).
 - Frontend ESLint: 0 errors (`npx eslint src/features/marketplace-admin/client.ts`).
 - Seed script: idempotent execution confirmed (categories + tenants created/skipped).
@@ -455,9 +564,11 @@ Verification results:
 - Updated page header in `src/app/(vietsage)/admin/marketplace/page.tsx` to `Đối Tác Dịch Vụ Ngoài`.
 
 Verification result:
+
 - Scoped ESLint verification passed with 0 errors (`npx eslint src/features/workspace/config/workspace-registry.ts src/app/(vietsage)/admin/marketplace/page.tsx`).
 
 Remaining blockers/risks:
+
 - None.
 
 ## [complete] 2026-08-11 - Mission: square-map-preview-layout
@@ -465,9 +576,11 @@ Remaining blockers/risks:
 - Updated Google Maps iframe container in `LocationFields` (`location-fields.tsx`) to use a square aspect ratio (`aspect-square w-full max-h-[450px] mx-auto`) instead of a stretched horizontal strip (`h-64`).
 
 Verification result:
+
 - Scoped ESLint verification passed with 0 errors (`npx eslint src/features/marketplace/components/location-fields.tsx`).
 
 Remaining blockers/risks:
+
 - None.
 
 ## [complete] 2026-08-11 - Mission: upgrade-owner-hotel-detail-ui-and-remove-redundant-fields
@@ -479,9 +592,11 @@ Remaining blockers/risks:
 - Upgraded cards, header banner, input styling, and action button layouts.
 
 Verification result:
+
 - Scoped ESLint verification passed with 0 errors (`npx eslint src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/owner-hotel-detail-client.tsx src/app/api/owner/hotels/[hotelId]/route.ts`).
 
 Remaining blockers/risks:
+
 - None.
 
 ## [complete] 2026-08-11 - Mission: resilient-geolocation-fallback
@@ -490,9 +605,11 @@ Remaining blockers/risks:
 - First attempts high-accuracy GPS (8s timeout, 30s cache). If hardware GPS times out or fails (e.g. on desktop PCs or restricted OS networks), automatically falls back to network/Wi-Fi/IP location (`enableHighAccuracy: false`, 15s timeout, 5min cache) instead of throwing an error toast.
 
 Verification result:
+
 - Scoped ESLint verification passed with 0 errors (`npx eslint src/features/marketplace/components/location-fields.tsx src/features/service-portal/components/service-settings-view.tsx`).
 
 Remaining blockers/risks:
+
 - None.
 
 ## [complete] 2026-08-11 - Mission: swap-alert-confirm-cancel-buttons-and-colors
@@ -503,9 +620,11 @@ Remaining blockers/risks:
 - Updated components: `vs-logout-button.tsx`, `tenant-owners-client.tsx`, `roles-live-filter.tsx`, `role-permissions-browser.tsx`, `hotels-admin-client.tsx`, `owner-service-catalog-client.tsx`, `owner-rooms-client.tsx`, `owner-stay-room-grid-client.tsx`, `owner-hotel-detail-client.tsx`, `request-queue-client.tsx`, `staff-management-client.tsx`, `g/services/page.tsx`.
 
 Verification result:
+
 - Scoped ESLint verification passed with 0 errors across touched components.
 
 Remaining blockers/risks:
+
 - None.
 
 ## [complete] 2026-08-11 - Mission: marketplace-guest-order-folio
@@ -523,6 +642,7 @@ Verification: TypeScript, scoped ESLint, production build passed.
 - Reused the existing local-partners query-resource chain and hotel-scoped BFF.
 
 Verification result:
+
 - TypeScript and scoped ESLint passed with 0 errors.
 
 ## [complete] 2026-08-11 - Mission: simplify-hotel-admin-form
@@ -531,6 +651,7 @@ Verification result:
 - Hotel creation now relies on the backend canonical timezone default.
 
 Verification result:
+
 - Scoped ESLint and TypeScript checks passed with 0 errors.
 
 ## [complete] 2026-08-10 - Mission: generate-marketplace-system-codes
@@ -540,9 +661,11 @@ Verification result:
 - Codes remain visible in directory records after backend generation.
 
 Verification result:
+
 - Scoped ESLint and TypeScript checks passed with 0 errors.
 
 Remaining blockers/risks:
+
 - None.
 
 ## [complete] 2026-08-11 - Mission: redesign-marketplace-admin-ui-and-placeholders
@@ -554,10 +677,12 @@ Remaining blockers/risks:
 - Added dismissible toast feedback banners with status icons for success and error mutation states.
 
 Verification result:
+
 - Scoped ESLint check (`npx eslint src/features/marketplace-admin/marketplace-admin-client.tsx`) passed with **0 errors**.
 - TypeScript check (`npx tsc --noEmit`) passed cleanly with **0 errors**.
 
 Remaining blockers/risks:
+
 - None.
 
 ## [complete] 2026-08-10 - Mission: fix-principal-account-ui-and-scoping
@@ -570,10 +695,12 @@ Remaining blockers/risks:
 - Added unit test coverage in `auth-role.test.ts` and `workspace-context.test.ts`.
 
 Verification result:
+
 - Unit tests (`node --experimental-strip-types --test src/features/auth/utils/auth-role.test.ts src/features/workspace/utils/workspace-context.test.ts`): **7/7 passed**.
 - TypeScript compiler (`npx tsc --noEmit`): **0 errors**.
 
 Remaining blockers/risks:
+
 - None.
 
 ## [complete] 2026-08-10 - Mission: upgrade-local-partners-form-modal-ui
@@ -587,9 +714,11 @@ Remaining blockers/risks:
 - Refined `StaffLocalPartnersClient` (`src/features/local-partners/components/staff-local-partners-client.tsx`) headers, badges, and card action buttons.
 
 Verification result:
+
 - Scoped ESLint check (`npx eslint src/features/local-partners/components/partner-form-modal.tsx src/features/local-partners/components/staff-local-partners-client.tsx`) passed with **0 errors**.
 
 Remaining blockers/risks:
+
 - None.
 
 ## [complete] 2026-08-10 - Mission: embedded-local-partners-frontend-feature
@@ -602,10 +731,12 @@ Remaining blockers/risks:
 - Added workspace navigation items (`owner.hotel.partners`, `staff.partners`) in `workspace-registry.ts` and SVG icon glyphs (`handshake`, `card_giftcard`, `explore`) in `vs-icon.tsx`.
 
 Verification result:
+
 - Frontend TypeScript check passed (`npx tsc --noEmit`): 0 errors.
 - OpenAPI specification exported with 125 endpoints.
 
 Remaining blockers/risks:
+
 - None.
 
 ## [complete] 2026-08-06 - Mission: d3-frontend-system-roles-permission-matrix
@@ -621,12 +752,14 @@ Remaining blockers/risks:
 - Created `front-end/app/admin/system/page.tsx` composing accessible WAI-ARIA tabs for system roles and system audit viewer, preserving existing audit viewer functionality.
 
 Verification result:
+
 - Strict TDD sequence completed (RED failure observed on missing files, GREEN contract established).
 - All 8 exact allowed sub-slice files created and verified.
 - `admin-route.test.ts` passed 8/8 tests.
 - TypeScript compiler (`tsc --noEmit`) verified with 0 errors on all 8 files.
 
 Remaining blockers/risks:
+
 - None.
 
 ## [complete] 2026-08-06 - Mission: system-audit-frontend-bounded-sub-slice
@@ -640,10 +773,12 @@ Remaining blockers/risks:
 - Created focused component test suite `system-audit-page.test.tsx` verifying TDD RED and GREEN contracts.
 
 Verification result:
+
 - Strict TDD sequence completed (RED failure observed on missing files, GREEN contract established).
 - All 6 bounded sub-slice files written and verified.
 
 Remaining blockers/risks:
+
 - None.
 
 ## [complete] 2026-08-06 - Mission: fix-synchronous-setstate-in-effect-cascading-render
@@ -1139,7 +1274,6 @@ Remaining blockers/risks:
 
 - None.
 
-
 ## [complete] 2026-08-02 - Mission: workspace-sidebar-icon-fallback-and-api-description
 
 - Added missing SVG icon glyph mappings (`space_dashboard`, `badge`, `assignment`, `payments`, `room_service`) in `vs-icon.tsx`, replacing the default `!` (info circle) fallback icon in the staff/workspace sidebar navigation.
@@ -1550,6 +1684,7 @@ Verification result:
   processing, maintenance, and blocked rooms.
 
 Verification result:
+
 - `pnpm exec tsc --noEmit` passed.
 - Targeted ESLint passed for all changed frontend files.
 - Workspace navigation tests passed: 4/4.
@@ -3769,6 +3904,7 @@ Remaining manual checkpoint:
 - Production Nginx must be reloaded after applying the patch.
 - The print snapshot currently uses the 100-room frontdesk page payload; a future VNeID export
   should use a dedicated server-side stay-report endpoint rather than browser HTML.
+
 ## [complete] 2026-07-27 - Mission: per-hotel-google-sheets
 
 ### What Changed
@@ -3830,4 +3966,3 @@ Remaining manual checkpoint:
 ### Remaining Blockers / Risks
 
 - None. Socket reconnection behavior on guest pages is now aligned with the stabilized owner connection manager architecture.
-

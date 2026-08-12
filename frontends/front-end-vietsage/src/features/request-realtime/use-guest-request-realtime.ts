@@ -13,6 +13,8 @@ type Handlers = {
   onConversationClosed?: (event: unknown) => void;
   onExternalOrderCreated?: (event: unknown) => void;
   onExternalOrderStatusChanged?: (event: unknown) => void;
+  onExternalOrderHotelAcknowledged?: (event: unknown) => void;
+  onExternalOrderVoucherIssued?: (event: unknown) => void;
   onReconnect?: () => void;
   onError?: (error: unknown) => void;
 };
@@ -42,6 +44,8 @@ export function useGuestRequestRealtime(sessionToken: string | null | undefined,
       onConversationClosed: (value) => handlersRef.current.onConversationClosed?.(value),
       onExternalOrderCreated: (value) => handlersRef.current.onExternalOrderCreated?.(value),
       onExternalOrderStatusChanged: (value) => handlersRef.current.onExternalOrderStatusChanged?.(value),
+      onExternalOrderHotelAcknowledged: (value) => handlersRef.current.onExternalOrderHotelAcknowledged?.(value),
+      onExternalOrderVoucherIssued: (value) => handlersRef.current.onExternalOrderVoucherIssued?.(value),
       onReconnect: () => handlersRef.current.onReconnect?.(),
       onError: (error) => handlersRef.current.onError?.(error),
     });
