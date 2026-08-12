@@ -187,37 +187,26 @@ export function ServiceCatalogView({ data }: Readonly<{ data: ServicePortalData 
 
       {/* Online Sheet Sync Panel (Prominent, High Readability Design) */}
       <section className="rounded-2xl border border-slate-200/80 bg-white p-6 md:p-7 shadow-sm space-y-5">
-        {/* Card Header */}
-        <div className="flex items-start gap-3.5">
-          <div className="p-3 rounded-2xl bg-emerald-50 text-emerald-700 shrink-0 mt-0.5 shadow-2xs">
-            <VsIcon name="info" className="text-xl text-emerald-700" />
-          </div>
-          <div className="space-y-1">
-            <h2 className="text-lg md:text-xl font-black text-slate-900 flex items-center gap-2">
-              Quản lý & Đồng bộ qua Google Sheets / Excel Online
-            </h2>
-            <p className="text-sm text-slate-600 font-medium leading-relaxed">
-              Nhập URL Google Sheets (tab &quot;service-items&quot; / &quot;services&quot;) để kiểm tra dữ liệu, đối soát thay đổi & đồng bộ thực đơn/dịch vụ lên hệ thống.
-            </p>
-          </div>
-        </div>
-
-        {/* Input & Kiểm tra dữ liệu Action Row */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          <div className="relative flex-1">
-            <input
-              type="text"
-              readOnly
-              value={currentSheetUrl}
-              placeholder="Super Admin chưa gán link Google Sheets / Excel Online cho đối tác..."
-              className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50/80 px-4.5 py-3 text-sm font-mono text-slate-900 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20"
-            />
+        {/* Card Header with Action Button */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="p-3 rounded-2xl bg-emerald-50 text-emerald-700 shrink-0 mt-0.5 shadow-2xs">
+              <VsIcon name="info" className="text-xl text-emerald-700" />
+            </div>
+            <div className="space-y-1">
+              <h2 className="text-lg md:text-xl font-black text-slate-900 flex items-center gap-2">
+                Quản lý & Đồng bộ qua Google Sheets / Excel Online
+              </h2>
+              <p className="text-sm text-slate-600 font-medium leading-relaxed">
+                Đồng bộ danh mục thực đơn, thông tin chi tiết & đa ngôn ngữ tự động từ file Google Sheets đối tác.
+              </p>
+            </div>
           </div>
           <button
             type="button"
             onClick={handlePreviewSheet}
             disabled={isPreviewing || !currentSheetUrl}
-            className="h-12 inline-flex items-center justify-center gap-2.5 rounded-xl bg-[#1e3a34] hover:bg-[#172e29] text-white px-7 text-sm font-extrabold transition-all disabled:opacity-50 shrink-0 shadow-xs cursor-pointer"
+            className="h-12 inline-flex items-center justify-center gap-2.5 rounded-xl bg-[#1e3a34] hover:bg-[#172e29] text-white px-7 text-sm font-extrabold transition-all disabled:opacity-50 shrink-0 shadow-xs cursor-pointer self-start sm:self-center"
           >
             <VsIcon name="info" className="text-base" />
             {isPreviewing ? "Đang kiểm tra..." : "Kiểm tra dữ liệu"}
