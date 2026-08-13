@@ -564,23 +564,8 @@ export function OwnerServiceCatalogClient({
   const [categoryPageSize, setCategoryPageSize] = useState<PageSize>(10);
   const [itemPageSize, setItemPageSize] = useState<PageSize>(10);
 
-  // Google Sheets preview/commit state
-  const storageKey = `vietsage_owner_service_sheet_url_${hotelId}`;
-  const [spreadsheetUrl, setSpreadsheetUrl] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem(storageKey) || "";
-    }
-    return "";
-  });
   const [sheetPreview, setSheetPreview] = useState<ServiceCatalogPreview | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
-
-  const handleSpreadsheetUrlChange = (url: string) => {
-    setSpreadsheetUrl(url);
-    if (typeof window !== "undefined") {
-      localStorage.setItem(storageKey, url.trim());
-    }
-  };
 
   const handleDownloadTemplate = () => {
     window.open(`/api/owner/hotels/${encodeURIComponent(hotelId)}/service-catalog/import/template`, "_blank");
@@ -1134,27 +1119,8 @@ export function OwnerServiceCatalogClient({
     details?: string[];
   } | null>(null);
 
-  const handlePreviewSheet = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const url = hasGoogleSheetConfig ? "__admin_configured__" : spreadsheetUrl.trim();
-    if (!hasGoogleSheetConfig && !spreadsheetUrl.trim()) return;
-    setPreviewError(null);
-    setSyncNotice(null);
-    previewMutation.mutate(
-      { spreadsheetUrl: hasGoogleSheetConfig ? "" : spreadsheetUrl.trim() },
-      {
-        onSuccess: (resData) => {
-          setSheetPreview(resData);
-        },
-        onError: (err) => {
-          setSheetPreview(null);
-          setPreviewError(getPreviewErrorMessage(err));
-        },
-      },
-    );
-  };
-
   const handlePreviewWithConfig = () => {
+    if (!hasGoogleSheetConfig) return;
     setPreviewError(null);
     setSyncNotice(null);
     previewMutation.mutate(
@@ -1189,7 +1155,7 @@ export function OwnerServiceCatalogClient({
       if (result.isConfirmed) {
         setIsImporting(true);
         commitMutation.mutate(
-          { spreadsheetUrl: hasGoogleSheetConfig ? "" : spreadsheetUrl.trim(), expectedHash: sheetPreview.workbookHash },
+          { spreadsheetUrl: "", expectedHash: sheetPreview.workbookHash },
           {
             onSuccess: (res) => {
               setSheetPreview(null);
@@ -1436,44 +1402,21 @@ export function OwnerServiceCatalogClient({
             </h2>
             <p className="text-xs font-semibold text-[var(--on-surface-variant)] mt-0.5">
               {hasGoogleSheetConfig
-                ? "Google Sheets đã được cấu hình bởi quản trị viên. Nhấn Xem trước để kiểm tra thay đổi trước khi áp dụng."
-                : "Nhập URL Google Sheets / Excel Online để xem trước và đồng bộ dịch vụ."}
+                ? "Google Sheets đã được cấu hình bởi Super Admin. Nhấn Xem trước thay đổi để kiểm tra trước khi áp dụng."
+                : "Super Admin chưa cấu hình Google Sheets cho khách sạn này."}
             </p>
           </div>
         </div>
 
-        {/* URL input — shown only when admin has NOT configured a sheet */}
-        {!hasGoogleSheetConfig ? (
-          <form onSubmit={handlePreviewSheet} className="flex flex-col sm:flex-row gap-3">
-            <input
-              type="url"
-              value={spreadsheetUrl}
-              onChange={(e) => handleSpreadsheetUrlChange(e.target.value)}
-              placeholder="Dán URL Google Sheets (https://docs.google.com/spreadsheets/d/...)"
-              className="flex-1 rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] px-4 py-3 text-sm font-semibold text-[var(--on-surface)] outline-none focus:border-[var(--primary)] focus:bg-white transition-all"
-            />
-            <button
-              type="submit"
-              disabled={previewMutation.isPending || !spreadsheetUrl.trim()}
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-[var(--primary)] px-6 py-3 text-sm font-bold text-[var(--on-primary)] shadow-xs hover:opacity-90 disabled:opacity-50 transition-all shrink-0"
-            >
-              <VsIcon name={previewMutation.isPending ? "progress_activity" : "preview"} className={`text-lg ${previewMutation.isPending ? "animate-spin" : ""}`} />
-              {previewMutation.isPending ? "Đang xử lý..." : "Xem trước"}
-            </button>
-          </form>
-        ) : (
-          <div className="flex flex-col sm:flex-row items-start gap-3">
-            <button
-              type="button"
-              onClick={handlePreviewWithConfig}
-              disabled={previewMutation.isPending}
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-[var(--primary)] px-6 py-3 text-sm font-bold text-[var(--on-primary)] shadow-xs hover:opacity-90 disabled:opacity-50 transition-all"
-            >
-              <VsIcon name={previewMutation.isPending ? "progress_activity" : "preview"} className={`text-lg ${previewMutation.isPending ? "animate-spin" : ""}`} />
-              {previewMutation.isPending ? "Đang xử lý..." : "Xem trước thay đổi"}
-            </button>
-          </div>
-        )}
+        <button
+          type="button"
+          onClick={handlePreviewWithConfig}
+          disabled={previewMutation.isPending || !hasGoogleSheetConfig}
+          className="inline-flex items-center justify-center gap-2 rounded-full bg-[var(--primary)] px-6 py-3 text-sm font-bold text-[var(--on-primary)] shadow-xs hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 transition-all"
+        >
+          <VsIcon name={previewMutation.isPending ? "progress_activity" : "preview"} className={`text-lg ${previewMutation.isPending ? "animate-spin" : ""}`} />
+          {previewMutation.isPending ? "Đang xử lý..." : "Xem trước thay đổi"}
+        </button>
 
         {/* Preview error */}
         {previewError && (
@@ -1484,10 +1427,10 @@ export function OwnerServiceCatalogClient({
         )}
 
         {/* No config warning */}
-        {!hasGoogleSheetConfig && !spreadsheetUrl.trim() && !sheetPreview && !previewError && (
+        {!hasGoogleSheetConfig && !sheetPreview && !previewError && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800 flex items-center gap-3">
             <VsIcon name="warning" className="text-lg text-amber-600 shrink-0" />
-            <span>Chưa có Google Sheets được cấu hình. Vui lòng nhập URL hoặc liên hệ quản trị viên nền tảng.</span>
+            <span>Chưa có Google Sheets được cấu hình bởi Super Admin. Nút xem trước sẽ mở sau khi quản trị viên cập nhật liên kết.</span>
           </div>
         )}
 
