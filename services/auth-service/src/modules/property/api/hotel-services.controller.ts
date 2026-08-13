@@ -11,6 +11,7 @@ import {
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
 import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
+import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
 import type { AuthenticatedUser } from "../../../shared/security";
 import { HotelServicesService } from "../application/hotel-services.service";
 import { GoogleSheetsServiceCatalogSyncService } from "../infrastructure/imports/google-sheets-service-catalog-sync.service";
@@ -51,6 +52,7 @@ export class HotelServicesController {
   @ApiParam({ name: "hotelId", type: String })
   @ApiOkResponse({ description: "Đã đồng bộ Google Sheets" })
   @Post(":hotelId/service-catalog/sync")
+  @RequirePermission("hotel.services.manage")
   async syncServiceCatalogFromGoogleSheets(
     @Req() request: RequestWithUser,
     @Param("hotelId") hotelIdParam: string,
@@ -73,6 +75,7 @@ export class HotelServicesController {
   @ApiDescript("Xem trước dữ liệu dịch vụ Google Sheets")
   @ApiParam({ name: "hotelId", type: String })
   @Post(":hotelId/service-catalog/import/preview")
+  @RequirePermission("hotel.services.view")
   async previewServiceCatalogImport(
     @Req() request: RequestWithUser,
     @Param("hotelId") hotelIdParam: string,
@@ -93,6 +96,7 @@ export class HotelServicesController {
   @ApiDescript("Xác nhận nhập dữ liệu dịch vụ từ Google Sheets")
   @ApiParam({ name: "hotelId", type: String })
   @Post(":hotelId/service-catalog/import/commit")
+  @RequirePermission("hotel.services.manage")
   async commitServiceCatalogImport(
     @Req() request: RequestWithUser,
     @Param("hotelId") hotelIdParam: string,
