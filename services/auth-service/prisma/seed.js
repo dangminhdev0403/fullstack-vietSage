@@ -1,4 +1,5 @@
 const crypto = require("node:crypto");
+const { PrismaPg } = require("@prisma/adapter-pg");
 const {
   PrismaClient,
   UserStatus,
@@ -7,7 +8,9 @@ const {
   UserRoleStatus,
 } = require("@prisma/client");
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  adapter: new PrismaPg(process.env.DATABASE_URL),
+});
 
 const DEFAULT_ROLES = [
   { code: "SUPER_ADMIN", name: "Quản trị viên cấp cao" },
