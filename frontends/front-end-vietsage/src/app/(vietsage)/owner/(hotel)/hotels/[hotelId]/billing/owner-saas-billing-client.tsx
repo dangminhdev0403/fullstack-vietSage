@@ -181,7 +181,7 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
           <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600">
             <VsIcon name="info" className="text-3xl" />
           </div>
-          <h3 className="mt-4 text-xl font-bold">Khách sạn chưa kích hoạt Hợp đồng VietSage SaaS</h3>
+          <h3 className="mt-4 text-xl font-bold">Khách sạn chưa kích hoạt hợp đồng VietSage SaaS</h3>
           <p className="mt-2 max-w-md text-sm leading-relaxed text-amber-700 dark:text-amber-400">
             Vui lòng liên hệ Đội ngũ Quản trị viên VietSage Platform để chốt hợp đồng và kích hoạt tính năng bảo vệ doanh thu tự động.
           </p>
@@ -325,7 +325,7 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
               </span>
             </div>
             <h2 className="text-2xl lg:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
-              Hợp đồng Phí VietSage SaaS — {hotelName}
+              Hợp đồng phí VietSage SaaS — {hotelName}
             </h2>
             <p className="max-w-2xl text-sm leading-relaxed text-slate-600 dark:text-slate-300">
               Đối soát minh bạch chi phí dịch vụ nền tảng được tự động tính theo lượt phòng/ngày từ lượt khách thực tế lưu trú.
@@ -501,7 +501,7 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
       {periodsList.length > 0 && (
         <div className="space-y-4">
           <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-            Lịch sử Hóa đơn VietSage SaaS đã chốt
+            Lịch sử hóa đơn VietSage SaaS đã chốt
           </h3>
 
           <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -599,7 +599,7 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
             <h4 className="text-base font-bold text-indigo-950 dark:text-indigo-200">
-              Thông tin Chuyển khoản Thanh toán Phí VietSage SaaS
+              Thông tin chuyển khoản thanh toán phí VietSage SaaS
             </h4>
             <p className="text-sm text-slate-600 dark:text-slate-400">
               Vui lòng chuyển khoản đúng số tiền kỳ hóa đơn với cú pháp: <strong className="text-indigo-600 dark:text-indigo-400 font-mono">VIETSAGE [MÃ KHÁCH SẠN] [KỲ BILLING]</strong>

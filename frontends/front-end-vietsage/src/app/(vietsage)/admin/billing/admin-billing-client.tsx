@@ -239,7 +239,7 @@ export function AdminBillingClient() {
               <VsIcon name="payments" className="text-2xl" />
             </span>
             <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-              Quản lý Hợp đồng & Phí VietSage SaaS
+              Quản lý hợp đồng & phí VietSage SaaS
             </h1>
           </div>
           <p className="mt-2 text-base text-slate-600 dark:text-slate-400">
@@ -251,7 +251,7 @@ export function AdminBillingClient() {
           className="inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-600/20 transition-all hover:from-emerald-500 hover:to-teal-500 hover:shadow-emerald-600/30 active:scale-98"
         >
           <VsIcon name="add_circle" className="text-xl" />
-          Onboard Hợp đồng mới
+          Onboard hợp đồng mới
         </button>
       </div>
 
@@ -353,7 +353,7 @@ export function AdminBillingClient() {
         <div className="rounded-2xl border-2 border-dashed border-slate-300 p-12 text-center dark:border-slate-800">
           <VsIcon name="assignment_late" className="mx-auto text-4xl text-slate-400" />
           <h3 className="mt-3 text-lg font-bold text-slate-900 dark:text-white">Chưa có hợp đồng nào</h3>
-          <p className="mt-1 text-sm text-slate-500">Bấm &quot;Onboard Hợp đồng mới&quot; ở phía trên để bắt đầu tính phí SaaS cho khách sạn.</p>
+          <p className="mt-1 text-sm text-slate-500">Bấm &quot;Onboard hợp đồng mới&quot; ở phía trên để bắt đầu tính phí SaaS cho khách sạn.</p>
         </div>
       ) : (
         <div className="space-y-6">
@@ -510,7 +510,7 @@ export function AdminBillingClient() {
           <div className="w-full max-w-lg rounded-2xl bg-white p-8 shadow-2xl dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
             <div className="flex items-center justify-between border-b border-slate-200/80 pb-4 dark:border-slate-800">
               <h3 className="text-xl font-extrabold text-slate-900 dark:text-white">
-                Onboard Hợp đồng VietSage SaaS
+                Onboard hợp đồng VietSage SaaS
               </h3>
               <button
                 onClick={() => setShowCreateModal(false)}
@@ -597,7 +597,7 @@ export function AdminBillingClient() {
           <div className="w-full max-w-lg rounded-2xl bg-white p-8 shadow-2xl dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
             <div className="flex items-center justify-between border-b border-slate-200/80 pb-4 dark:border-slate-800">
               <h3 className="text-xl font-extrabold text-slate-900 dark:text-white">
-                Chốt Hóa đơn Kỳ thanh toán
+                Chốt hóa đơn kỳ thanh toán
               </h3>
               <button
                 onClick={() => setShowFinalizeModal(false)}
@@ -663,7 +663,7 @@ export function AdminBillingClient() {
           <div className="w-full max-w-lg rounded-2xl bg-white p-8 shadow-2xl dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
             <div className="flex items-center justify-between border-b border-slate-200/80 pb-4 dark:border-slate-800">
               <h3 className="text-xl font-extrabold text-slate-900 dark:text-white">
-                Ghi nhận Thanh toán Hóa đơn
+                Ghi nhận thanh toán hóa đơn
               </h3>
               <button
                 onClick={closeSettlementModal}
