@@ -237,7 +237,7 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
         formMode === "create"
           ? await requestJson<TenantOwner>("/api/admin/tenant-owners", {
               method: "POST",
-              body: JSON.stringify({
+              body: {
                 owner: {
                   fullName: form.fullName.trim(),
                   email: form.email.trim().toLowerCase(),
@@ -246,11 +246,11 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
                 tenant: {
                   name: form.tenantName.trim(),
                 },
-              }),
+              },
             })
           : await requestJson<TenantOwner>(`/api/admin/tenant-owners/${encodeURIComponent(editingOwner?.id ?? "")}`, {
               method: "PATCH",
-              body: JSON.stringify({
+              body: {
                 owner: {
                   fullName: form.fullName.trim(),
                   status: form.ownerStatus,
@@ -259,7 +259,7 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
                   name: form.tenantName.trim(),
                 },
                 tenantUserStatus: form.tenantUserStatus,
-              }),
+              },
             });
 
       setOwners((current) => {
