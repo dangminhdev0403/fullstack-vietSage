@@ -156,7 +156,7 @@ export class HotelMarketplaceController {
   }
 
   @ApiDescript("Xem danh sách quyết toán công nợ đối tác dịch vụ ngoài")
-  @RequirePermission("hotel.marketplace.revenue.view")
+  @RequirePermission("hotel.marketplace.view")
   @Get("settlements")
   async settlements(
     @Req() req: RequestWithRequiredUser,
