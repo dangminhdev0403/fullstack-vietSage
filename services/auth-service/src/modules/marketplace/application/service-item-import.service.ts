@@ -67,37 +67,35 @@ export class ServiceItemImportService {
       ...(await this.adapter.validate(payload, context)),
     ];
     const fileHash = createHash("sha256").update(csv, "utf8").digest("hex");
-    const result = await this.prisma.$transaction(
-      async (tx) => {
-        const state = await this.adapter.loadCurrentState(context, tx as never);
-        validation.push(...this.adapter.validateState(payload, state));
-        if (!state.categoryId || !state.categoryActive)
-          validation.push({
-            severity: "error",
-            sheet: "items",
-            code: "CATEGORY_NOT_ASSIGNED",
-            message: "Service Tenant chưa được gán danh mục hoạt động",
-          });
-        if (validation.some((i) => i.severity === "error"))
-          throw new ConflictException("File nhập có lỗi, vui lòng xem trước và sửa lại");
-        const expected = createHash("sha256")
-          .update(`${actorUserId}:${context.tenantId}:${fileHash}:${this.stateHash(state)}`)
-          .digest("hex");
-        if (expected !== previewToken)
-          throw new ConflictException(
-            "Dữ liệu đã thay đổi sau lần xem trước. Vui lòng xem trước lại.",
-          );
-        const diff = await this.adapter.diff(payload, state, context, "upsert");
-        return this.adapter.commit({
-          tx,
-          mode: "upsert",
-          context,
-          payload,
-          currentState: state,
-          diff,
+    const result = await this.prisma.$transaction(async (tx) => {
+      const state = await this.adapter.loadCurrentState(context, tx as never);
+      validation.push(...this.adapter.validateState(payload, state));
+      if (!state.categoryId || !state.categoryActive)
+        validation.push({
+          severity: "error",
+          sheet: "items",
+          code: "CATEGORY_NOT_ASSIGNED",
+          message: "Service Tenant chưa được gán danh mục hoạt động",
         });
-      },
-    );
+      if (validation.some((i) => i.severity === "error"))
+        throw new ConflictException("File nhập có lỗi, vui lòng xem trước và sửa lại");
+      const expected = createHash("sha256")
+        .update(`${actorUserId}:${context.tenantId}:${fileHash}:${this.stateHash(state)}`)
+        .digest("hex");
+      if (expected !== previewToken)
+        throw new ConflictException(
+          "Dữ liệu đã thay đổi sau lần xem trước. Vui lòng xem trước lại.",
+        );
+      const diff = await this.adapter.diff(payload, state, context, "upsert");
+      return this.adapter.commit({
+        tx,
+        mode: "upsert",
+        context,
+        payload,
+        currentState: state,
+        diff,
+      });
+    });
     if (fileName === "google-sheet.csv")
       try {
         await this.writeGeneratedCodes(

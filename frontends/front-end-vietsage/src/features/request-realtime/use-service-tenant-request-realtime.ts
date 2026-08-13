@@ -8,6 +8,8 @@ type Handlers = {
   onExternalOrderStatusChanged?: (event: unknown) => void;
   onExternalOrderHotelAcknowledged?: (event: unknown) => void;
   onExternalOrderVoucherIssued?: (event: unknown) => void;
+  onPartnerSettlementCreated?: (event: unknown) => void;
+  onPartnerSettlementUpdated?: (event: unknown) => void;
   onReconnect?: () => void;
   onError?: (error: unknown) => void;
 };
@@ -31,6 +33,8 @@ export function useServiceTenantRealtime(
       onExternalOrderStatusChanged: (value) => ref.current.onExternalOrderStatusChanged?.(value),
       onExternalOrderHotelAcknowledged: (value) => ref.current.onExternalOrderHotelAcknowledged?.(value),
       onExternalOrderVoucherIssued: (value) => ref.current.onExternalOrderVoucherIssued?.(value),
+      onPartnerSettlementCreated: (value) => ref.current.onPartnerSettlementCreated?.(value),
+      onPartnerSettlementUpdated: (value) => ref.current.onPartnerSettlementUpdated?.(value),
       onReconnect: () => ref.current.onReconnect?.(),
       onError: (error) => ref.current.onError?.(error),
     });

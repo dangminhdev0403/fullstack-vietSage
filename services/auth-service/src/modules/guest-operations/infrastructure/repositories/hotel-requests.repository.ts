@@ -334,6 +334,11 @@ export class HotelRequestsRepository {
     const subtotal = new Prisma.Decimal(unitPrice).mul(quantity);
     const zero = new Prisma.Decimal(0);
 
+    const isExt =
+      Boolean(request.serviceItem.category.name && /massage|spa|đối tác|bên ngoài|marketplace|external/i.test(request.serviceItem.category.name)) ||
+      Boolean(request.serviceItem.name && /massage|spa|đối tác|bên ngoài|marketplace|external/i.test(request.serviceItem.name)) ||
+      Boolean(request.title && /massage|spa|đối tác|bên ngoài|marketplace|external/i.test(request.title));
+
     const folioItem = await tx.folioItem.create({
       data: {
         hotelId: input.hotelId,
@@ -362,6 +367,8 @@ export class HotelRequestsRepository {
           serviceName: request.serviceItem.name,
           categoryId: request.serviceItem.category.id,
           categoryName: request.serviceItem.category.name,
+          serviceSource: isExt ? "EXTERNAL" : "HOTEL",
+          partnerName: isExt ? "Đối tác dịch vụ" : undefined,
           priceSource: request.serviceItem.priceOverride ? "SERVICE_OVERRIDE" : "CATEGORY_DEFAULT",
           originalUnitPrice: unitPrice.toString(),
           quantity,

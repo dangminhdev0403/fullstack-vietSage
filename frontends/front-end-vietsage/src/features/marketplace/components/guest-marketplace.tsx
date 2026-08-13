@@ -68,26 +68,6 @@ export function GuestMarketplace({
     selectedCategoryId ?? undefined,
   );
 
-  useGuestRequestRealtime(sessionToken, {
-    onExternalOrderCreated: () => {
-      void orders.refetch();
-    },
-    onExternalOrderStatusChanged: () => {
-      void orders.refetch();
-    },
-    onExternalOrderHotelAcknowledged: () => {
-      toast.info(t("marketplace.hotelAcknowledged"));
-      void orders.refetch();
-    },
-    onExternalOrderVoucherIssued: () => {
-      toast.success(t("marketplace.voucherIssued"));
-      void orders.refetch();
-    },
-    onReconnect: () => {
-      void orders.refetch();
-    },
-  });
-
   const [bookingItem, setBookingItem] = useState<MarketplaceServiceItem | null>(null);
   const [bookingQuantity, setBookingQuantity] = useState<number>(1);
 

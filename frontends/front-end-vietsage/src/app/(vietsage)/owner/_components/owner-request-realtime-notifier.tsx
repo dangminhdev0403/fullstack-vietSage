@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useMemo } from "react";
+import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -126,6 +126,39 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
         }
       },
       onConversationClosed: () => {
+        void invalidateHotelRealtimeQueries(queryClient, hotelId);
+      },
+      onExternalOrderCreated: (event: unknown) => {
+        const raw = event as {
+          orderId?: string;
+          roomNumber?: string;
+          guestDisplayName?: string;
+          serviceName?: string;
+        } | null;
+
+        const roomLabel = raw?.roomNumber ? `Phòng ${raw.roomNumber}` : "Khách lưu trú";
+        const guestName = raw?.guestDisplayName ?? "Khách hàng";
+        const serviceName = raw?.serviceName ?? "Dịch vụ đối tác";
+
+        toast.success("Có yêu cầu dịch vụ đối tác mới", {
+          id: `owner-ext-order-created-${raw?.orderId ?? Date.now()}`,
+          description: `${roomLabel} - ${guestName}: ${serviceName}`,
+          duration: 10000,
+          action: {
+            label: "Xem ngay",
+            onClick: () => router.push(requestQueuePath(hotelId)),
+          },
+        });
+
+        void invalidateHotelRealtimeQueries(queryClient, hotelId);
+      },
+      onExternalOrderStatusChanged: () => {
+        void invalidateHotelRealtimeQueries(queryClient, hotelId);
+      },
+      onExternalOrderHotelAcknowledged: () => {
+        void invalidateHotelRealtimeQueries(queryClient, hotelId);
+      },
+      onExternalOrderVoucherIssued: () => {
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
       },
       onReconnect: () => {

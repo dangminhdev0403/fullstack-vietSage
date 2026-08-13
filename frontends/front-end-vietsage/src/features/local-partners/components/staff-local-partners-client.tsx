@@ -12,6 +12,7 @@ import type {
   LocalPartnerInput,
 } from "../types/local-partners-contract";
 import { PartnerFormModal } from "./partner-form-modal";
+import { HotelPartnerSettlementsTab } from "./hotel-partner-settlements-tab";
 
 export function OwnerNearbyProvidersClient({
   hotelId,
@@ -20,6 +21,7 @@ export function OwnerNearbyProvidersClient({
   hotelId: string;
   canManage: boolean;
 }) {
+  const [activeTab, setActiveTab] = useState<"partners" | "settlements">("partners");
   const { providers, orders, setProviderLink } =
     useNearbyServiceProviders(hotelId);
   const [searchTerm, setSearchTerm] = useState("");
@@ -182,8 +184,38 @@ export function OwnerNearbyProvidersClient({
 
   return (
     <section className="space-y-5">
-      {/* Header Section */}
-      <header className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs space-y-4">
+      {/* Workspace Top Tabs */}
+      <div className="flex items-center gap-3 border-b border-slate-200 pb-4">
+        <button
+          type="button"
+          onClick={() => setActiveTab("partners")}
+          className={`h-12 px-6 text-sm font-extrabold rounded-2xl transition-all duration-200 cursor-pointer flex items-center gap-2 shadow-2xs ${
+            activeTab === "partners"
+              ? "bg-slate-900 text-white shadow-md shadow-slate-900/20 scale-[1.01]"
+              : "bg-slate-100 text-slate-700 hover:bg-slate-200 hover:scale-[1.01]"
+          }`}
+        >
+          <span>🤝</span> Mạng lưới đối tác lân cận
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("settlements")}
+          className={`h-12 px-6 text-sm font-extrabold rounded-2xl transition-all duration-200 cursor-pointer flex items-center gap-2 shadow-2xs ${
+            activeTab === "settlements"
+              ? "bg-gradient-to-r from-emerald-700 via-emerald-800 to-teal-800 text-white shadow-md shadow-emerald-800/25 scale-[1.01]"
+              : "bg-slate-100 text-slate-700 hover:bg-slate-200 hover:scale-[1.01]"
+          }`}
+        >
+          <span>💰</span> Quyết toán công nợ đối tác
+        </button>
+      </div>
+
+      {activeTab === "settlements" ? (
+        <HotelPartnerSettlementsTab hotelId={hotelId} />
+      ) : (
+        <>
+          {/* Header Section */}
+          <header className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
@@ -710,6 +742,8 @@ export function OwnerNearbyProvidersClient({
           ))}
         </section>
       ) : null}
+        </>
+      )}
     </section>
   );
 }

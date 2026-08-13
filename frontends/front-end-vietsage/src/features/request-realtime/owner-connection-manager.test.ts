@@ -164,3 +164,44 @@ test("connect errors reacquire a fresh owner ticket", async () => {
   assert.equal(sockets.length, 2);
   assert.equal(sockets[1].auth.ticket, "t2");
 });
+
+test("forwards external service order events to subscribers", async () => {
+  const sockets: any[] = [];
+  const manager = createOwnerConnectionManager({
+    enabled: true,
+    getTicket: async () => ({ ticket: "ticket", expiresAt: "future" }),
+    createSocket: () => {
+      const handlers = new Map<string, Function>();
+      const socket: any = {
+        on: (event: string, handler: Function) => handlers.set(event, handler),
+        connect() {},
+        disconnect() {},
+        trigger: (event: string, value?: unknown) => handlers.get(event)?.(value),
+      };
+      sockets.push(socket);
+      return socket;
+    },
+  });
+  const createdEvents: unknown[] = [];
+  const statusEvents: unknown[] = [];
+  manager.subscribe("hotel-1", {
+    onExternalOrderCreated: (event) => createdEvents.push(event),
+    onExternalOrderStatusChanged: (event) => statusEvents.push(event),
+  });
+  await manager.settled("hotel-1");
+
+  const payload = {
+    orderId: "ord-123",
+    hotelId: "hotel-1",
+    roomNumber: "200",
+    guestDisplayName: "Nguyen Van A",
+    serviceName: "Massage 60 phút",
+  };
+  sockets[0].trigger("external_service_order.created", payload);
+  sockets[0].trigger("external_service_order.status_changed", { ...payload, status: "CONFIRMED" });
+
+  assert.equal(createdEvents.length, 1);
+  assert.deepEqual(createdEvents[0], payload);
+  assert.equal(statusEvents.length, 1);
+});
+

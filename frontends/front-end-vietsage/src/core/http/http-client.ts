@@ -209,7 +209,8 @@ function logApiResponse(params: {
   responseBody: unknown;
   message?: string;
 }): void {
-  console.info(HTTP_RESPONSE_LOG_PREFIX, {
+  const logFn = params.ok ? console.info : console.error;
+  logFn(HTTP_RESPONSE_LOG_PREFIX, {
     method: params.method,
     url: params.requestUrl,
     status: params.status,
@@ -284,6 +285,15 @@ export class HttpClient {
 
       const responseBody = await parseResponseBody(response);
       if (!response.ok) {
+        logApiResponse({
+          method: options.method,
+          requestUrl: url.toString(),
+          status: response.status,
+          ok: false,
+          durationMs: Date.now() - requestStartedAt,
+          responseBody,
+        });
+
         throw new HttpError({
           message: `Request failed with status ${response.status}`,
           status: response.status,

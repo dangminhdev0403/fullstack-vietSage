@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { SwalVietSage } from "@/libs/swal";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
@@ -14,7 +13,6 @@ import {
   formatQuantityWithUnit,
   getServicePricingUnit,
 } from "@/features/marketplace/utils/marketplace-unit";
-import { useServiceTenantRealtime } from "@/features/request-realtime/use-service-tenant-request-realtime";
 import { useServicePortal } from "../use-service-portal";
 import type { MarketplaceOrder, ServicePortalData } from "../types";
 
@@ -86,146 +84,17 @@ function formatOrderDateTime(isoString: string): string {
 }
 
 export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }>) {
-  const queryClient = useQueryClient();
   const { transition, data: dataQuery } = useServicePortal();
+  const isConnected = true;
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [isConnected, setIsConnected] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<MarketplaceOrder | null>(null);
   const [sortState, setSortState] = useState<{
     key: string;
     direction: DataTableSortDirection;
   }>({ key: "created", direction: "desc" });
 
-  useServiceTenantRealtime({
-    onReady: () => setIsConnected(true),
-    onExternalOrderCreated: (event: unknown) => {
-      const payload =
-        typeof event === "object" && event !== null
-          ? (event as { orderId?: string; orderNumber?: string; serviceName?: string; roomNumber?: string })
-          : null;
-      const orderNum = payload?.orderNumber ? ` #${payload.orderNumber}` : "";
-      const room = payload?.roomNumber ? ` (Phòng ${payload.roomNumber})` : "";
-      toast.info(`🔔 CÓ ĐƠN HÀNG DỊCH VỤ MỚI${orderNum}${room}!`, {
-        duration: 12000,
-        action: {
-          label: "👉 Mở chi tiết",
-          onClick: () => {
-            if (payload?.orderId) {
-              const target = ordersList.find((o) => o.id === payload.orderId);
-              if (target) setSelectedOrder(target);
-            }
-          },
-        },
-      } as never);
-      void queryClient.invalidateQueries();
-      void dataQuery.refetch();
-    },
-    onExternalOrderStatusChanged: (event: unknown) => {
-      if (typeof event === "object" && event !== null && "orderId" in event) {
-        const payload = event as { orderId: string; status?: string };
-        setSelectedOrder((prev) =>
-          prev && prev.id === payload.orderId && payload.status
-            ? { ...prev, status: payload.status as never }
-            : prev,
-        );
-      }
-      void queryClient.invalidateQueries();
-      void dataQuery.refetch();
-    },
-    onExternalOrderHotelAcknowledged: (event: unknown) => {
-      if (typeof event === "object" && event !== null && "orderId" in event) {
-        const payload = event as { orderId: string; orderNumber?: string; hotelStatus?: string; voucherNumber?: string };
-        
-        // Show toast ONLY if voucher is not being issued simultaneously (prevents 2 stacked alerts)
-        if (!payload.voucherNumber) {
-          const orderNumber = payload.orderNumber ? ` #${payload.orderNumber}` : "";
-          toast.info(`🔔 Khách sạn đã tiếp nhận phối hợp đơn hàng${orderNumber}!`, {
-            id: `ext-order-ack-${payload.orderId}`,
-            duration: 8000,
-            action: {
-              label: "👉 Xem chi tiết",
-              onClick: () => {
-                const target = ordersList.find((o) => o.id === payload.orderId);
-                if (target) setSelectedOrder(target);
-              },
-            },
-          } as never);
-        }
 
-        setSelectedOrder((prev) =>
-          prev && prev.id === payload.orderId
-            ? {
-                ...prev,
-                hotelCoordinationStatus: payload.hotelStatus ?? "VOUCHER_ISSUED",
-                ...(payload.voucherNumber
-                  ? {
-                      voucher: {
-                        voucherNumber: payload.voucherNumber,
-                        verificationCode: prev.voucher?.verificationCode,
-                        qrTokenHash: prev.voucher?.qrTokenHash,
-                        status: prev.voucher?.status ?? "ISSUED",
-                        issuedAt: prev.voucher?.issuedAt,
-                        expiresAt: prev.voucher?.expiresAt,
-                      },
-                    }
-                  : {}),
-              }
-            : prev,
-        );
-      } else {
-        toast.info("Khách sạn đã tiếp nhận phối hợp đơn hàng!", { id: "ext-order-ack-generic", duration: 8000 });
-      }
-      void queryClient.invalidateQueries();
-      void dataQuery.refetch();
-    },
-    onExternalOrderVoucherIssued: (event: unknown) => {
-      if (typeof event === "object" && event !== null && "orderId" in event) {
-        const payload = event as { orderId: string; voucherNumber?: string; hotelStatus?: string; orderNumber?: string };
-        const code = payload.voucherNumber ? `: ${payload.voucherNumber}` : "";
-        const orderNumber = payload.orderNumber ? ` (#${payload.orderNumber})` : "";
-        toast.success(`🔔 Khách sạn đã phát hành phiếu dịch vụ${code}${orderNumber}!`, {
-          id: `ext-order-ack-${payload.orderId}`,
-          duration: 10000,
-          action: {
-            label: "👉 Xem chi tiết",
-            onClick: () => {
-              const target = ordersList.find((o) => o.id === payload.orderId);
-              if (target) setSelectedOrder(target);
-            },
-          },
-        } as never);
-        setSelectedOrder((prev) =>
-          prev && prev.id === payload.orderId
-            ? {
-                ...prev,
-                hotelCoordinationStatus: payload.hotelStatus ?? "VOUCHER_ISSUED",
-                voucher: payload.voucherNumber
-                  ? {
-                      voucherNumber: payload.voucherNumber,
-                      verificationCode: prev.voucher?.verificationCode,
-                      qrTokenHash: prev.voucher?.qrTokenHash,
-                      status: prev.voucher?.status ?? "ISSUED",
-                      issuedAt: prev.voucher?.issuedAt,
-                      expiresAt: prev.voucher?.expiresAt,
-                    }
-                  : prev.voucher,
-              }
-            : prev,
-        );
-      } else {
-        toast.success("Khách sạn đã phát hành phiếu dịch vụ!", { id: "ext-order-ack-generic", duration: 8000 });
-      }
-      void queryClient.invalidateQueries();
-      void dataQuery.refetch();
-    },
-    onReconnect: () => {
-      setIsConnected(true);
-      void queryClient.invalidateQueries();
-      void dataQuery.refetch();
-    },
-    onError: () => setIsConnected(false),
-  });
 
   const ordersList = dataQuery.data?.orders ?? data.orders;
 
@@ -354,46 +223,21 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
       },
     },
     {
-      key: "guest",
-      header: "Khách / Phòng",
+      key: "service",
+      header: "Dịch vụ / Khách",
       sortable: true,
       cell: (order) => (
-        <div className="space-y-1 py-1">
-          <div className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2 flex-wrap">
-            <span className="text-base font-extrabold text-slate-900 dark:text-white">{order.stay?.guestDisplayName ?? "Khách lưu trú"}</span>
-            <span className="inline-flex items-center rounded-md bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 text-xs font-black text-indigo-900 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800">
+        <div className="min-w-0 max-w-[260px] space-y-1 py-1">
+          <div className="truncate font-bold text-sm text-slate-900 dark:text-white leading-snug" title={order.serviceNameSnapshot}>
+            {order.serviceNameSnapshot}
+          </div>
+          <div className="flex min-w-0 items-center gap-1.5 text-xs font-medium text-slate-600 dark:text-slate-400">
+            <span className="truncate" title={order.stay?.guestDisplayName ?? "Khách lưu trú"}>
+              {order.stay?.guestDisplayName ?? "Khách lưu trú"}
+            </span>
+            <span className="shrink-0 rounded-md border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 text-[11px] font-bold text-indigo-900 dark:border-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-200">
               {order.stay?.room?.roomNumber ? `Phòng ${order.stay.room.roomNumber}` : "Phòng -"}
             </span>
-          </div>
-          <div className="text-xs text-slate-600 dark:text-slate-400 font-medium flex items-center gap-2 flex-wrap">
-            {order.hotel?.name ? <span>{order.hotel.name}</span> : null}
-            {order.hotelCoordinationStatus === "ACKNOWLEDGED" || order.hotelCoordinationStatus === "VOUCHER_ISSUED" ? (
-              <span className="text-emerald-700 dark:text-emerald-400 font-bold flex items-center gap-0.5">
-                ✓ Khách sạn đã tiếp nhận
-              </span>
-            ) : null}
-            {order.voucher?.voucherNumber || order.hotelCoordinationStatus === "VOUCHER_ISSUED" ? (
-              <span className="font-mono text-indigo-700 dark:text-indigo-300 font-bold">
-                Phiếu {order.voucher?.voucherNumber ?? "Đã phát hành"}
-              </span>
-            ) : null}
-          </div>
-          {order.guestNote ? (
-            <p className="max-w-xs truncate text-xs italic font-medium text-amber-900 dark:text-amber-300">
-              &quot;{order.guestNote}&quot;
-            </p>
-          ) : null}
-        </div>
-      ),
-    },
-    {
-      key: "service",
-      header: "Dịch vụ",
-      sortable: true,
-      cell: (order) => (
-        <div className="py-1">
-          <div className="font-bold text-sm text-slate-900 dark:text-white leading-snug">
-            {order.serviceNameSnapshot}
           </div>
         </div>
       ),

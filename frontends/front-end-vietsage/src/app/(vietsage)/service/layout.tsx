@@ -11,6 +11,7 @@ import { WorkspaceProfileProvider } from "@/features/workspace/components/worksp
 
 import { ServiceShell } from "./_components/service-shell";
 import { buildWorkspaceNavigation } from "@/features/workspace/config/workspace-registry";
+import { ServiceTenantRealtimeNotifier } from "@/features/service-portal/components/service-tenant-realtime-notifier";
 
 function redirectToLogin(reason: string): never {
   console.info("[AUTH_REDIRECT_LOGIN_SOURCE]", {
@@ -59,6 +60,7 @@ export default async function ServiceLayout({
   return (
     <AuthRefreshGate accessTokenExpiresAt={session.accessTokenExpiresAt}>
       <WorkspaceProfileProvider profileName={context.fullName}>
+        <ServiceTenantRealtimeNotifier />
         <ServiceShell navItems={navItems} subtitle={context.activeRole.name} profileName={context.fullName}>
           {children}
         </ServiceShell>

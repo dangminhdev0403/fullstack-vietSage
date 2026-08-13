@@ -368,8 +368,12 @@ export class MarketplaceAdminService {
                     update: {
                       ...(body.displayName !== undefined ? { displayName: body.displayName } : {}),
                       ...(body.categoryId !== undefined ? { categoryId: body.categoryId } : {}),
-                      ...(body.googleSheetsUrl !== undefined ? { googleSheetsUrl: body.googleSheetsUrl } : {}),
-                      ...(body.status !== undefined ? { status: body.status as MarketplaceRecordStatus } : {}),
+                      ...(body.googleSheetsUrl !== undefined
+                        ? { googleSheetsUrl: body.googleSheetsUrl }
+                        : {}),
+                      ...(body.status !== undefined
+                        ? { status: body.status as MarketplaceRecordStatus }
+                        : {}),
                     },
                   },
                 },

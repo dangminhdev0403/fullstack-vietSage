@@ -780,4 +780,200 @@ describe("BillingService checkout safety", () => {
     });
     expect(result).toEqual({ success: true });
   });
+
+  it("maps serviceSource and partnerName correctly in getInvoiceDetail", async () => {
+    const mockInvoiceDetail = {
+      invoice: {
+        id: "inv-1",
+        invoiceNumber: "INV-001",
+        status: InvoiceStatus.ISSUED,
+        currency: "VND",
+        issuedAt: new Date("2026-08-13T00:00:00.000Z"),
+        subtotalAmount: new Prisma.Decimal(300000),
+        taxAmount: new Prisma.Decimal(0),
+        discountAmount: new Prisma.Decimal(0),
+        totalAmount: new Prisma.Decimal(300000),
+        paidAmount: new Prisma.Decimal(0),
+        balanceAmount: new Prisma.Decimal(300000),
+        folio: { id: "folio-1", folioNumber: "FOL-001", status: FolioStatus.OPEN },
+        stay: { id: "stay-1", guestDisplayName: "Nguyen Van A", room: { roomNumber: "101" }, plannedCheckInAt: new Date(), plannedCheckOutAt: new Date() },
+      },
+      items: [
+        {
+          id: "item-hotel",
+          itemType: "ROOM_CHARGE",
+          sourceType: "ROOM",
+          nameSnapshot: "Tiền phòng",
+          quantity: 1,
+          unitPriceSnapshot: new Prisma.Decimal(200000),
+          subtotalSnapshot: new Prisma.Decimal(200000),
+          taxAmountSnapshot: new Prisma.Decimal(0),
+          discountAmountSnapshot: new Prisma.Decimal(0),
+          totalSnapshot: new Prisma.Decimal(200000),
+          postedAt: new Date(),
+          billingSourceSnapshot: {},
+        },
+        {
+          id: "item-external",
+          itemType: "SERVICE",
+          sourceType: "SYSTEM",
+          nameSnapshot: "Tour Sapa",
+          quantity: 1,
+          unitPriceSnapshot: new Prisma.Decimal(100000),
+          subtotalSnapshot: new Prisma.Decimal(100000),
+          taxAmountSnapshot: new Prisma.Decimal(0),
+          discountAmountSnapshot: new Prisma.Decimal(0),
+          totalSnapshot: new Prisma.Decimal(100000),
+          postedAt: new Date(),
+          billingSourceSnapshot: {
+            serviceSource: "EXTERNAL",
+            partnerName: "Công ty du lịch Sapa",
+            marketplaceOrderId: "ord-1",
+          },
+        },
+      ],
+      payments: [],
+    };
+
+    const billingRepo = {
+      findInvoiceDetail: jest.fn().mockResolvedValue(mockInvoiceDetail),
+    };
+    const hotelAccess = {
+      assertHotelAccess: jest.fn().mockResolvedValue(undefined),
+    };
+
+    const service = createService({}, billingRepo, hotelAccess);
+    const detail = await service.getInvoiceDetail("user-1", "role-1", "hotel-1", "inv-1");
+
+    expect(detail.items).toHaveLength(2);
+    expect(detail.items[0]).toMatchObject({
+      id: "item-hotel",
+      serviceSource: "HOTEL",
+      partnerName: undefined,
+    });
+    expect(detail.items[1]).toMatchObject({
+      id: "item-external",
+      serviceSource: "EXTERNAL",
+      partnerName: "Công ty du lịch Sapa",
+    });
+  });
+
+  it("retains service classification and calculates totals matching acceptance criteria (Benchmark Test)", async () => {
+    const benchmarkInvoice = {
+      invoice: {
+        id: "inv-benchmark",
+        invoiceNumber: "INV-2026-001",
+        status: InvoiceStatus.ISSUED,
+        currency: "VND",
+        issuedAt: new Date("2026-08-13T09:00:00.000Z"),
+        subtotalAmount: new Prisma.Decimal(2001100),
+        taxAmount: new Prisma.Decimal(0),
+        discountAmount: new Prisma.Decimal(0),
+        totalAmount: new Prisma.Decimal(2001100),
+        paidAmount: new Prisma.Decimal(0),
+        balanceAmount: new Prisma.Decimal(2001100),
+        folio: { id: "folio-bm", folioNumber: "FOL-200", status: FolioStatus.CHECKOUT_PENDING },
+        stay: { id: "stay-200", guestDisplayName: "Guest 200", room: { roomNumber: "200" }, plannedCheckInAt: new Date(), plannedCheckOutAt: new Date() },
+      },
+      items: [
+        {
+          id: "item-room-1",
+          itemType: "ROOM_CHARGE",
+          sourceType: "STAY",
+          nameSnapshot: "Room charge - 200",
+          quantity: 1,
+          unitPriceSnapshot: new Prisma.Decimal(1000000),
+          subtotalSnapshot: new Prisma.Decimal(1000000),
+          taxAmountSnapshot: new Prisma.Decimal(0),
+          discountAmountSnapshot: new Prisma.Decimal(0),
+          totalSnapshot: new Prisma.Decimal(1000000),
+          postedAt: new Date(),
+          billingSourceSnapshot: { roomNumber: "200" },
+        },
+        {
+          id: "item-room-2",
+          itemType: "ROOM_CHARGE",
+          sourceType: "STAY",
+          nameSnapshot: "Room charge - 200",
+          quantity: 1,
+          unitPriceSnapshot: new Prisma.Decimal(1000000),
+          subtotalSnapshot: new Prisma.Decimal(1000000),
+          taxAmountSnapshot: new Prisma.Decimal(0),
+          discountAmountSnapshot: new Prisma.Decimal(0),
+          totalSnapshot: new Prisma.Decimal(1000000),
+          postedAt: new Date(),
+          billingSourceSnapshot: { roomNumber: "200" },
+        },
+        {
+          id: "item-massage-60",
+          itemType: "SERVICE",
+          sourceType: "GUEST_REQUEST",
+          nameSnapshot: "Massage 60 minutes",
+          quantity: 1,
+          unitPriceSnapshot: new Prisma.Decimal(450),
+          subtotalSnapshot: new Prisma.Decimal(450),
+          taxAmountSnapshot: new Prisma.Decimal(0),
+          discountAmountSnapshot: new Prisma.Decimal(0),
+          totalSnapshot: new Prisma.Decimal(450),
+          postedAt: new Date(),
+          billingSourceSnapshot: { categoryName: "Spa & Massage", serviceSource: "EXTERNAL" },
+        },
+        {
+          id: "item-massage-90",
+          itemType: "SERVICE",
+          sourceType: "GUEST_REQUEST",
+          nameSnapshot: "Massage 90 minutes",
+          quantity: 1,
+          unitPriceSnapshot: new Prisma.Decimal(650),
+          subtotalSnapshot: new Prisma.Decimal(650),
+          taxAmountSnapshot: new Prisma.Decimal(0),
+          discountAmountSnapshot: new Prisma.Decimal(0),
+          totalSnapshot: new Prisma.Decimal(650),
+          postedAt: new Date(),
+          billingSourceSnapshot: { categoryName: "Spa & Massage", serviceSource: "EXTERNAL" },
+        },
+        {
+          id: "item-towel-free",
+          itemType: "SERVICE",
+          sourceType: "GUEST_REQUEST",
+          nameSnapshot: "Extra towel",
+          quantity: 1,
+          unitPriceSnapshot: new Prisma.Decimal(0),
+          subtotalSnapshot: new Prisma.Decimal(0),
+          taxAmountSnapshot: new Prisma.Decimal(0),
+          discountAmountSnapshot: new Prisma.Decimal(0),
+          totalSnapshot: new Prisma.Decimal(0),
+          postedAt: new Date(),
+          billingSourceSnapshot: { categoryName: "Housekeeping", serviceSource: "HOTEL" },
+        },
+      ],
+      payments: [],
+    };
+
+    const billingRepo = { findInvoiceDetail: jest.fn().mockResolvedValue(benchmarkInvoice) };
+    const hotelAccess = { assertHotelAccess: jest.fn().mockResolvedValue(undefined) };
+
+    const service = createService({}, billingRepo, hotelAccess);
+    const detail = await service.getInvoiceDetail("user-1", "role-1", "hotel-1", "inv-benchmark");
+
+    expect(detail.items).toHaveLength(5);
+    expect(detail.items[0]).toMatchObject({ name: "Room charge - 200", serviceSource: "HOTEL", type: "ROOM_CHARGE" });
+    expect(detail.items[1]).toMatchObject({ name: "Room charge - 200", serviceSource: "HOTEL", type: "ROOM_CHARGE" });
+    expect(detail.items[2]).toMatchObject({ name: "Massage 60 minutes", serviceSource: "EXTERNAL", type: "SERVICE" });
+    expect(detail.items[3]).toMatchObject({ name: "Massage 90 minutes", serviceSource: "EXTERNAL", type: "SERVICE" });
+    expect(detail.items[4]).toMatchObject({ name: "Extra towel", serviceSource: "HOTEL", type: "SERVICE" });
+
+    const hotelTotal = detail.items
+      .filter((i) => i.serviceSource === "HOTEL")
+      .reduce((sum, i) => sum + Number(i.total), 0);
+
+    const externalTotal = detail.items
+      .filter((i) => i.serviceSource === "EXTERNAL")
+      .reduce((sum, i) => sum + Number(i.total), 0);
+
+    expect(hotelTotal).toBe(2000000);
+    expect(externalTotal).toBe(1100);
+    expect(hotelTotal + externalTotal).toBe(2001100);
+    expect(Number(detail.invoice.totalAmount)).toBe(2001100);
+  });
 });

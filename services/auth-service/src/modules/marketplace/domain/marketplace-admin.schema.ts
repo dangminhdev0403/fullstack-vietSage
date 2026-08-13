@@ -50,6 +50,7 @@ export const serviceTenantBodySchema = z
 export const hotelServiceLinkBodySchema = z.object({
   status: z.enum(["ACTIVE", "DISABLED"]).default("ACTIVE"),
   sortOrder: z.number().int().min(0).default(0),
+  commissionRate: z.number().min(0).max(100).optional(),
 });
 export const hotelLinksQuerySchema = z.object({ hotelId: id });
 

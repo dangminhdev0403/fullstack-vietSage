@@ -1,4 +1,10 @@
-import { ForbiddenException, Inject, Injectable, Optional, ServiceUnavailableException } from "@nestjs/common";
+import {
+  ForbiddenException,
+  Inject,
+  Injectable,
+  Optional,
+  ServiceUnavailableException,
+} from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { TenantType, TenantUserStatus } from "@prisma/client";
 import { randomUUID } from "node:crypto";

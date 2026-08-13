@@ -103,6 +103,13 @@ export function hotelOpsHttpErrorResponse(error: HttpError) {
   const retryAfter = error.headers?.get("retry-after");
   if (retryAfter) headers.set("Retry-After", retryAfter);
 
+  console.error(`[API_HOTEL_OPS_ERROR ${error.status}]`, {
+    url: error.requestUrl,
+    message: error.message,
+    status: error.status,
+    data: error.data,
+  });
+
   if (error.status === 403) {
     return NextResponse.json(
       { status: 403, message: "FORBIDDEN", data: { detail: "Không có quyền thực hiện thao tác này." } },
@@ -123,7 +130,10 @@ export function hotelOpsHttpErrorResponse(error: HttpError) {
   );
 }
 
-export function unknownServerErrorResponse() {
+export function unknownServerErrorResponse(error?: unknown) {
+  if (error) {
+    console.error("[API_HOTEL_OPS_UNHANDLED_ERROR]", error);
+  }
   return NextResponse.json(
     { status: 500, message: "INTERNAL_SERVER_ERROR" },
     { status: 500 },

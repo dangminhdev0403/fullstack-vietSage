@@ -26,14 +26,39 @@ const invoiceStatusLabels: Record<string, string> = {
 
 const folioStatusLabels: Record<string, string> = {
   OPEN: "Đang mở",
-  CHECKOUT_PENDING: "Đã đóng",
+  CHECKOUT_PENDING: "Chờ checkout",
   CLOSED: "Đã đóng",
-  VOID: "Đã đóng",
+  VOID: "Đã hủy",
 };
 
 const itemTypeLabels: Record<string, string> = {
   ROOM_CHARGE: "Tiền phòng",
   SERVICE: "Dịch vụ",
+  MANUAL_CHARGE: "Phụ thu",
+  DISCOUNT: "Giảm giá",
+  ADJUSTMENT: "Điều chỉnh",
+};
+
+const paymentMethodLabels: Record<string, string> = {
+  CASH: "Tiền mặt",
+  CARD: "Thẻ ngân hàng / POS",
+  BANK_TRANSFER: "Chuyển khoản",
+  MOMO: "Ví MoMo",
+  VNPAY: "VNPAY",
+  STRIPE: "Thẻ quốc tế (Stripe)",
+  MANUAL: "Xác nhận tại lễ tân",
+  MANUAL_FRONTDESK: "Xác nhận tại lễ tân",
+};
+
+const paymentStatusLabels: Record<string, string> = {
+  PENDING: "Đang xử lý",
+  PROCESSING: "Đang xử lý",
+  SUCCEEDED: "Thành công",
+  PAID: "Đã thanh toán",
+  FAILED: "Thất bại",
+  CANCELLED: "Đã hủy",
+  EXPIRED: "Hết hạn",
+  REFUNDED: "Đã hoàn tiền",
 };
 
 function labelStatus(labels: Record<string, string>, status?: string | null): string {
@@ -65,17 +90,34 @@ function InvoiceInfo({ label, value }: { label: string; value: string }) {
   );
 }
 
+function isExternalInvoiceItem(item: InvoiceDetail["items"][number]): boolean {
+  if (item.type === "ROOM_CHARGE") return false;
+  if (item.serviceSource === "EXTERNAL") return true;
+  if (item.partnerName && item.partnerName !== "Khách sạn") return true;
+  const name = String(item.name ?? "");
+  const desc = String(item.description ?? "");
+  return /đối tác|bên ngoài|marketplace|external|massage|spa/i.test(name) || /đối tác|bên ngoài|marketplace|external|massage|spa/i.test(desc);
+}
+
 function InvoiceDetailView({ detail }: { detail: InvoiceDetail }) {
   const { invoice, folio, stay, items, payments } = detail;
   const currency = invoice.currency;
   const paidTotal = sumMoney(payments.map((payment) => payment.paidAmount ?? payment.amount));
+
+  const hotelServicesTotal = items
+    .filter((item) => !isExternalInvoiceItem(item))
+    .reduce((sum, item) => sum + Number(item.total), 0);
+
+  const externalServicesTotal = items
+    .filter((item) => isExternalInvoiceItem(item))
+    .reduce((sum, item) => sum + Number(item.total), 0);
 
   return (
     <article className="invoice-a4 mx-auto w-full max-w-[794px] overflow-hidden bg-white text-slate-950 shadow-[0_24px_80px_rgba(15,23,42,0.12)] print:shadow-none">
       <header className="invoice-section border-b border-slate-200 px-8 py-7 print:px-0 print:pt-0">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-700">VietSage Hotel Invoice</p>
+            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-700">HÓA ĐƠN KHÁCH SẠN VIETSAGE</p>
             <h1 className="mt-2 text-[30px] font-black leading-none tracking-[-0.02em] text-slate-950">
               {invoice.invoiceNumber}
             </h1>
@@ -135,18 +177,20 @@ function InvoiceDetailView({ detail }: { detail: InvoiceDetail }) {
 
         <table className="invoice-items-table w-full table-fixed border-collapse text-[11px]">
           <colgroup>
-            <col className="w-[22%]" />
+            <col className="w-[20%]" />
+            <col className="w-[14%]" />
+            <col className="w-[9%]" />
+            <col className="w-[5%]" />
             <col className="w-[11%]" />
-            <col className="w-[6%]" />
-            <col className="w-[12%]" />
-            <col className="w-[12%]" />
-            <col className="w-[10%]" />
-            <col className="w-[10%]" />
-            <col className="w-[17%]" />
+            <col className="w-[11%]" />
+            <col className="w-[8%]" />
+            <col className="w-[8%]" />
+            <col className="w-[14%]" />
           </colgroup>
           <thead>
             <tr className="border-y border-slate-300 bg-slate-100 text-[10px] uppercase tracking-[0.04em] text-slate-600 print:bg-white">
               <th className="px-2 py-2 text-left">Dịch vụ</th>
+              <th className="px-2 py-2 text-left">Phân loại nguồn</th>
               <th className="px-2 py-2 text-left">Loại</th>
               <th className="px-1 py-2 text-center">SL</th>
               <th className="px-2 py-2 text-right">Đơn giá</th>
@@ -157,24 +201,63 @@ function InvoiceDetailView({ detail }: { detail: InvoiceDetail }) {
             </tr>
           </thead>
           <tbody>
-            {items.map((item) => (
-              <tr key={item.id} className="invoice-table-row border-b border-slate-200 align-top">
-                <td className="break-words px-2 py-2 font-bold leading-4 text-slate-950"><div>{item.name}</div>{item.description ? <div className="mt-0.5 text-[10px] font-normal text-slate-500 leading-normal">{item.description}</div> : null}</td>
-                <td className="break-words px-2 py-2 leading-4 text-slate-600">{labelItemType(item.type)}</td>
-                <td className="px-1 py-2 text-center font-semibold">{formatQuantity(item.quantity)}</td>
-                <td className="px-2 py-2 text-right tabular-nums">{formatMoney(item.unitPrice, currency)}</td>
-                <td className="px-2 py-2 text-right tabular-nums">{formatMoney(item.subtotal, currency)}</td>
-                <td className="px-2 py-2 text-right tabular-nums">{formatMoney(item.taxAmount, currency)}</td>
-                <td className="px-2 py-2 text-right tabular-nums">{formatMoney(item.discountAmount, currency)}</td>
-                <td className="px-2 py-2 text-right font-black tabular-nums">{formatMoney(item.total, currency)}</td>
-              </tr>
-            ))}
+            {items.map((item) => {
+              const isExternal = isExternalInvoiceItem(item);
+              return (
+                <tr key={item.id} className="invoice-table-row border-b border-slate-200 align-top">
+                  <td className="break-words px-2 py-2 font-bold leading-4 text-slate-950">
+                    <div>{item.name}</div>
+                    {item.description ? <div className="mt-0.5 text-[10px] font-normal leading-normal text-slate-500">{item.description}</div> : null}
+                  </td>
+                  <td className="break-words px-2 py-2 leading-4">
+                    {isExternal ? (
+                      <div className="space-y-0.5">
+                        <span className="inline-block rounded border border-purple-300 bg-purple-100 px-1.5 py-0.5 text-[10px] font-extrabold text-purple-900">
+                          🌐 Ngoài khách sạn
+                        </span>
+                        {item.partnerName ? (
+                          <div className="text-[10px] font-semibold text-purple-800">🤝 {item.partnerName}</div>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <span className="inline-block rounded border border-emerald-300 bg-emerald-100 px-1.5 py-0.5 text-[10px] font-extrabold text-emerald-900">
+                        🏨 Trong khách sạn
+                      </span>
+                    )}
+                  </td>
+                  <td className="break-words px-2 py-2 leading-4 text-slate-600">{labelItemType(item.type)}</td>
+                  <td className="px-1 py-2 text-center font-semibold">{formatQuantity(item.quantity)}</td>
+                  <td className="px-2 py-2 text-right tabular-nums">{formatMoney(item.unitPrice, currency)}</td>
+                  <td className="px-2 py-2 text-right tabular-nums">{formatMoney(item.subtotal, currency)}</td>
+                  <td className="px-2 py-2 text-right tabular-nums">{formatMoney(item.taxAmount, currency)}</td>
+                  <td className="px-2 py-2 text-right tabular-nums">{formatMoney(item.discountAmount, currency)}</td>
+                  <td className="px-2 py-2 text-right font-black tabular-nums">{formatMoney(item.total, currency)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
 
         {items.length === 0 ? (
           <div className="rounded-xl border border-slate-200 p-4 text-sm text-slate-600">Chưa có dòng hóa đơn.</div>
-        ) : null}
+        ) : (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 print:grid-cols-2">
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5 text-xs print:border-slate-300 print:bg-white">
+              <div className="flex items-center justify-between font-black text-emerald-950">
+                <span>🏨 Tổng dịch vụ trong khách sạn</span>
+                <span className="text-sm tabular-nums">{formatMoney(hotelServicesTotal, currency)}</span>
+              </div>
+              <p className="mt-1 text-[11px] text-emerald-700">Bao gồm tiền phòng, dịch vụ nội bộ & các khoản thu trực tiếp từ KS</p>
+            </div>
+            <div className="rounded-xl border border-purple-200 bg-purple-50/60 p-3.5 text-xs print:border-slate-300 print:bg-white">
+              <div className="flex items-center justify-between font-black text-purple-950">
+                <span>🌐 Tổng dịch vụ ngoài khách sạn (Đối tác)</span>
+                <span className="text-sm tabular-nums">{formatMoney(externalServicesTotal, currency)}</span>
+              </div>
+              <p className="mt-1 text-[11px] text-purple-700">Các dịch vụ liên kết đối tác bên ngoài / thu hộ đối tác dịch vụ</p>
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="invoice-section grid gap-5 border-t border-slate-200 px-8 py-5 md:grid-cols-[1fr_260px] print:grid-cols-[1fr_240px] print:px-0">
@@ -183,9 +266,9 @@ function InvoiceDetailView({ detail }: { detail: InvoiceDetail }) {
           {payments.length ? (
             <table className="mt-3 w-full table-fixed border-collapse text-[11px]">
               <colgroup>
-                <col className="w-[24%]" />
-                <col className="w-[22%]" />
                 <col className="w-[28%]" />
+                <col className="w-[22%]" />
+                <col className="w-[24%]" />
                 <col className="w-[26%]" />
               </colgroup>
               <thead>
@@ -199,8 +282,8 @@ function InvoiceDetailView({ detail }: { detail: InvoiceDetail }) {
               <tbody>
                 {payments.map((payment) => (
                   <tr key={payment.id} className="invoice-table-row border-b border-slate-200">
-                    <td className="break-words px-2 py-2 font-bold">{payment.method}</td>
-                    <td className="break-words px-2 py-2 text-slate-600">{payment.status}</td>
+                    <td className="break-words px-2 py-2 font-bold">{labelStatus(paymentMethodLabels, payment.method)}</td>
+                    <td className="break-words px-2 py-2 text-slate-600">{labelStatus(paymentStatusLabels, payment.status)}</td>
                     <td className="px-2 py-2 text-right font-bold tabular-nums">{formatMoney(payment.paidAmount ?? payment.amount, currency)}</td>
                     <td className="px-2 py-2 text-slate-600">{formatDateTime(payment.confirmedAt)}</td>
                   </tr>

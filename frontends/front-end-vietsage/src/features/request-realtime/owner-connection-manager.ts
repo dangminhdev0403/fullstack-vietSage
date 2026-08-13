@@ -9,6 +9,8 @@ export type OwnerRealtimeHandlers = {
   onExternalOrderStatusChanged?: (event: unknown) => void;
   onExternalOrderHotelAcknowledged?: (event: unknown) => void;
   onExternalOrderVoucherIssued?: (event: unknown) => void;
+  onPartnerSettlementCreated?: (event: unknown) => void;
+  onPartnerSettlementUpdated?: (event: unknown) => void;
   onReconnect?: () => void;
   onError?: (error: unknown) => void;
 };
@@ -117,6 +119,10 @@ export function createOwnerConnectionManager(deps: {
         socket.on("external_service_order.status_changed", fanoutRaw("onExternalOrderStatusChanged"));
         socket.on("external_service_order.hotel_acknowledged", fanoutRaw("onExternalOrderHotelAcknowledged"));
         socket.on("external_service_order.voucher_issued", fanoutRaw("onExternalOrderVoucherIssued"));
+        socket.on("partner_settlement.created", fanoutRaw("onPartnerSettlementCreated"));
+        socket.on("PARTNER_SETTLEMENT_CREATED", fanoutRaw("onPartnerSettlementCreated"));
+        socket.on("partner_settlement.updated", fanoutRaw("onPartnerSettlementUpdated"));
+        socket.on("PARTNER_SETTLEMENT_UPDATED", fanoutRaw("onPartnerSettlementUpdated"));
         socket.on("request_realtime.error", (error) => {
           terminal = isTerminalRealtimeError(error);
           fanout("onError")(error);
@@ -132,6 +138,7 @@ export function createOwnerConnectionManager(deps: {
           const currentAttempt = entry.consecutiveFailures;
           const retry = () => {
             entry.cancelReconnect = undefined;
+            entry.lastFailureAt = undefined;
             void acquire(hotelId, entry);
           };
           entry.cancelReconnect = deps.scheduleReconnect?.(retry, currentAttempt) ?? (retry(), () => undefined);

@@ -1,3 +1,82 @@
+## [complete] 2026-08-13 - Mission: fix-datatable-column-layout-and-text-overlap-regression
+
+- Fixed DataTable visual text overlap regression across Table 1 (`HotelPartnerSettlementsTab`) and Table 2 (`ServiceSettlementsView`):
+  1. Updated `CodeCell` in `src/components/ui/data-table/data-table-cells.tsx` to act as a proper truncation container (`max-w-full truncate inline-block align-middle`) with native hover tooltip (`title={fullCode}`). Long order IDs (`#MP8D05951F9B...`) strictly clip with an ellipsis instead of overflowing into adjacent columns.
+  2. Updated `TextCell` to use `min-w-0 max-w-full truncate` with native hover tooltips on title and subtext strings instead of arbitrary max-w pixel constraints.
+  3. Enforced cell boundary isolation in `DataTable` (`src/components/ui/data-table/data-table.tsx`) by adding `overflow-hidden min-w-0` to all `<th>` and `<td>` table cells.
+  4. Controlled column widths for `Dịch vụ & đối tác` (`w-56 min-w-[190px]`) and `Dịch vụ & khách hàng` (`w-56 min-w-[200px]`) in Table 1 (`hotel-partner-settlements-tab.tsx`) and Table 2 (`service-settlements-view.tsx`), replacing unconstrained `w-auto` expansion so these columns no longer stretch excessively or take over screen real estate on desktop displays.
+
+Verification result:
+
+- Frontend TypeScript check passed (`npx tsc --noEmit` in `frontends/front-end-vietsage`).
+
+## [complete] 2026-08-13 - Mission: establish-global-reusable-datatable-design-system
+
+- Created and established a global, reusable `DataTable` design system under `src/components/ui/data-table/`:
+  1. `data-table.types.ts`: Comprehensive TypeScript definitions with column type presets (`code`, `text`, `number`, `money`, `date`, `status`, `actions`, `custom`), density modes (`comfortable` default, `compact`), alignment strategies, pagination, sorting, and multi-row selection configs.
+  2. `data-table-cells.tsx`: Standardized cell components:
+     - `StatusBadge`: Universal status pill with `whitespace-nowrap shrink-0` mapping status keys to semantic variants (`emerald`, `amber`, `blue`, `rose`, `slate`, `violet`) with icons and clear typography.
+     - `MoneyCell`: Right-aligned currency column with `tabular-nums` formatting to ensure layout stability across magnitudes (`500 VND` to `5.000.000.000 VND`).
+     - `CodeCell`: Monospace badge for order numbers, codes, and IDs.
+     - `DateCell`: Formatted date/time cell using tabular numerals.
+     - `TextCell`: Primary title + secondary muted subtext with truncation support.
+  3. `data-table-skeleton.tsx`: Animated shimmer loading rows preserving exact column layout boundaries.
+  4. `data-table-states.tsx`: Standardized `DataTableEmptyState` and `DataTableErrorState` (with retry CTA).
+  5. `data-table.tsx`: Master `<DataTable>` orchestrator enforcing fixed layout (`table-layout: fixed;`), default `1100px` minWidth, header/toolbar, non-shifting sort indicators, bulk action banner, selection checkboxes, bottom pagination bar, and responsive horizontal overflow scrolling.
+  6. Re-exported system via `src/components/ui/data-table/index.ts` and `src/components/ui/data-table.tsx`.
+  7. Migrated `HotelPartnerSettlementsTab` and `ServiceSettlementsView` to consume the new standard `DataTable` system with explicit column width rules.
+
+Verification result:
+
+- Frontend TypeScript check passed (`npx tsc --noEmit` in `frontends/front-end-vietsage`): Code 0.
+
+## [complete] 2026-08-13 - Mission: redesign-settlement-tables-and-partner-workspace-ui
+
+- Upgraded `Danh sách giao dịch quyết toán` datatables and Owner/Partners workspace UI across `HotelPartnerSettlementsTab`, `ServiceSettlementsView`, and `OwnerNearbyProvidersClient`:
+  1. Enlarged table typography scale (`text-xs uppercase font-black` headers, `text-base font-extrabold` order numbers and service titles, `text-sm font-semibold` room/guest & date tags).
+  2. Expanded datatable layout padding (`p-6` to `p-8` sections, `py-4 px-4` cell padding) and rounded corners (`rounded-2xl`).
+  3. Redesigned action buttons (`Quyết toán`, `Quyết toán đơn chọn`, filter tabs, top workspace tabs) with `h-11` / `h-10` heights, distinct gradients, drop shadows, hover scale micro-animations (`hover:scale-[1.02]`), and active press states (`active:scale-[0.98]`).
+  4. Redesigned financial metric cards (`text-3xl font-black` numbers) and settlement status badges (`✓ Đã quyết toán`, `⌛ Chưa quyết toán`).
+
+Verification result:
+
+- Frontend TypeScript check passed (`npx tsc --noEmit` in `frontends/front-end-vietsage`).
+
+## [complete] 2026-08-13 - Mission: fix-hotel-partner-settlements-cascading-render-effect-error
+
+- Fixed React cascading re-render error (`Error: Calling setState synchronously within an effect can trigger cascading renders`) in `src/features/local-partners/components/hotel-partner-settlements-tab.tsx`:
+  1. Refactored `useEffect` data fetching logic to consume async promise callbacks without calling `setLoading(true)` synchronously inside the effect body.
+  2. Moved synchronous loading state updates to user event handlers (`handleStatusFilterChange` and `refetch`).
+  3. Cleaned up unused `useCallback` import and properly wired status filter click handlers in JSX.
+
+Verification result:
+
+- ESLint / React Compiler lint check passed: 0 errors on `hotel-partner-settlements-tab.tsx`.
+- Frontend TypeScript check passed (`npx tsc --noEmit` in `frontends/front-end-vietsage`).
+
+## [complete] 2026-08-13 - Mission: fix-request-queue-missing-realtime-invalidation-import
+
+- Fixed runtime undefined reference error `invalidateHotelRealtimeQueries is not defined` in `src/app/(vietsage)/hotels/[hotelId]/requests/request-queue-client.tsx`:
+  1. Imported `invalidateHotelRealtimeQueries` from `@/features/hotel-ops/utils/invalidate-hotel-realtime-queries`.
+
+Verification result:
+
+- Frontend TypeScript check passed (`npx tsc --noEmit` in `frontends/front-end-vietsage`): 0 errors.
+
+## [complete] 2026-08-13 - Mission: external-service-financial-flow-and-settlement-lifecycle
+
+- Implemented External Service financial flow and settlement lifecycle across Hotel Billing Workspace and Service Partner Portal:
+  1. Distinguished internal vs. external services in hotel payment/billing UI (`Dịch vụ khách sạn` vs `Dịch vụ bên ngoài` with partner name).
+  2. Enforced financial model: Guest pays hotel $\rightarrow$ Hotel collects on behalf of partner $\rightarrow$ Hotel operating revenue is 0 (or commission only), Partner payable = service amount.
+  3. Added Partner Financial View on Service Portal Dashboard (Gross Sales, Hotel Collected, Net Payable, Outstanding Balance, and Settled Amount).
+  4. Added Partner Settlement History page (`/service/settlements`) and added `service.settlements` navigation item to workspace registry.
+  5. Added Hotel Partner Settlement Management tab (`HotelPartnerSettlementsTab`) under `/hotels/[hotelId]/partners` allowing hotel staff/owner to settle partner orders individually or in batch with `SwalVietSage` confirmation dialogs.
+  6. Backend NestJS APIs: `/service-portal/financial-summary`, `/service-portal/settlements`, `/hotels/:hotelId/marketplace/settlements`, `/hotels/:hotelId/marketplace/settlements/:settlementId/settle`, and batch settle.
+
+Verification result:
+
+- Frontend Next.js production build passed (`npm run build` in `frontends/front-end-vietsage`): 0 errors.
+
 ## [complete] 2026-08-13 - Mission: fix-common-cancel-button-untranslated-rendering
 
 - Fixed root cause of untranslated button rendering `common.cancel`:

@@ -26,5 +26,18 @@ export const marketplaceRevenueQuerySchema = z
     serviceTenantId: z.string().trim().min(1).max(80).optional(),
   })
   .refine((value) => !value.from || !value.to || value.from <= value.to, "from must be before to");
+export const marketplaceSettlementStatusSchema = z.enum([
+  "UNSETTLED",
+  "READY_FOR_SETTLEMENT",
+  "SETTLED",
+]);
+export const settlementIdSchema = z.string().trim().min(1).max(80);
+export const partnerSettlementQuerySchema = z.object({
+  status: marketplaceSettlementStatusSchema.optional(),
+  serviceTenantId: z.string().trim().min(1).max(80).optional(),
+});
+export const batchSettleSchema = z.object({
+  settlementIds: z.array(z.string().trim().min(1).max(80)).min(1).max(100),
+});
 export type CreateMarketplaceOrder = z.infer<typeof createMarketplaceOrderSchema>;
 export type MarketplaceTransition = z.infer<typeof marketplaceTransitionSchema>;

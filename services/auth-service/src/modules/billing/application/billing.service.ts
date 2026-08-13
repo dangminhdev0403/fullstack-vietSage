@@ -51,6 +51,50 @@ function toPagination(page?: number, limit?: number) {
   };
 }
 
+function parseSnapshot(raw: unknown): Record<string, any> {
+  if (!raw) return {};
+  if (typeof raw === "string") {
+    try {
+      return JSON.parse(raw) as Record<string, any>;
+    } catch {
+      return {};
+    }
+  }
+  if (typeof raw === "object") return raw as Record<string, any>;
+  return {};
+}
+
+function resolveServiceSource(item: {
+  itemType: string;
+  sourceType: string;
+  nameSnapshot?: string;
+  descriptionSnapshot?: string | null;
+  billingSourceSnapshot?: unknown;
+}): { isExternal: boolean; partnerName?: string } {
+  if (item.itemType === "ROOM_CHARGE") {
+    return { isExternal: false };
+  }
+
+  const snapshot = parseSnapshot(item.billingSourceSnapshot);
+  const isExternal =
+    snapshot.serviceSource === "EXTERNAL" ||
+    snapshot.serviceSource === "MARKETPLACE" ||
+    snapshot.isExternal === true ||
+    !!snapshot.marketplaceOrderId ||
+    !!snapshot.partnerName ||
+    (item.sourceType === "SYSTEM" && !!snapshot.serviceTenantId) ||
+    /đối tác|bên ngoài|marketplace|external|massage|spa/i.test(item.nameSnapshot ?? "") ||
+    /đối tác|bên ngoài|marketplace|external|massage|spa/i.test(item.descriptionSnapshot ?? "") ||
+    /đối tác|bên ngoài|marketplace|external|massage|spa/i.test(snapshot.categoryName ?? "") ||
+    /đối tác|bên ngoài|marketplace|external|massage|spa/i.test(snapshot.serviceName ?? "");
+
+  const partnerName = isExternal
+    ? (snapshot.partnerName ?? snapshot.serviceTenantName ?? "Đối tác dịch vụ")
+    : undefined;
+
+  return { isExternal, partnerName };
+}
+
 // Checkout/invoice generation must use FolioItem rows as financial source of truth;
 // Folio cached totals are a read model only and must not be trusted for snapshots.
 @Injectable()
@@ -180,11 +224,26 @@ export class BillingService {
       take: pagination.take,
     });
 
+    const items = result.rows.map((item) => {
+      const { isExternal, partnerName } = resolveServiceSource({
+        itemType: item.itemType,
+        sourceType: item.sourceType,
+        nameSnapshot: item.nameSnapshot,
+        descriptionSnapshot: item.descriptionSnapshot,
+        billingSourceSnapshot: item.billingSourceSnapshot,
+      });
+      return {
+        ...item,
+        serviceSource: isExternal ? "EXTERNAL" : "HOTEL",
+        partnerName,
+      };
+    });
+
     return {
       page: pagination.page,
       limit: pagination.limit,
       total: result.total,
-      items: result.rows,
+      items,
     };
   }
 
@@ -377,19 +436,30 @@ export class BillingService {
         checkInAt: detail.invoice.stay.checkedInAt ?? detail.invoice.stay.plannedCheckInAt,
         checkOutAt: detail.invoice.stay.checkedOutAt ?? detail.invoice.stay.plannedCheckOutAt,
       },
-      items: detail.items.map((item) => ({
-        id: item.id,
-        type: item.itemType,
-        name: item.nameSnapshot,
-        description: item.descriptionSnapshot ?? null,
-        quantity: item.quantity,
-        unitPrice: item.unitPriceSnapshot,
-        subtotal: item.subtotalSnapshot,
-        taxAmount: item.taxAmountSnapshot,
-        discountAmount: item.discountAmountSnapshot,
-        total: item.totalSnapshot,
-        postedAt: item.postedAt,
-      })),
+      items: detail.items.map((item) => {
+        const { isExternal, partnerName } = resolveServiceSource({
+          itemType: item.itemType,
+          sourceType: item.sourceType,
+          nameSnapshot: item.nameSnapshot,
+          descriptionSnapshot: item.descriptionSnapshot,
+          billingSourceSnapshot: item.billingSourceSnapshot,
+        });
+        return {
+          id: item.id,
+          type: item.itemType,
+          name: item.nameSnapshot,
+          description: item.descriptionSnapshot ?? null,
+          quantity: item.quantity,
+          unitPrice: item.unitPriceSnapshot,
+          subtotal: item.subtotalSnapshot,
+          taxAmount: item.taxAmountSnapshot,
+          discountAmount: item.discountAmountSnapshot,
+          total: item.totalSnapshot,
+          postedAt: item.postedAt,
+          serviceSource: isExternal ? ("EXTERNAL" as const) : ("HOTEL" as const),
+          partnerName,
+        };
+      }),
       payments: detail.payments.map((payment) => ({
         id: payment.id,
         hotelId: payment.hotelId,
@@ -1508,6 +1578,11 @@ export class BillingService {
         if (!existingItem) {
           const unitPrice = req.serviceItem?.priceOverride ?? req.unitPrice ?? 0;
           const subtotal = new Prisma.Decimal(unitPrice).mul(req.quantity ?? 1);
+          const isExt =
+            Boolean(req.serviceItem?.category?.name && /massage|spa|đối tác|bên ngoài|marketplace|external/i.test(req.serviceItem.category.name)) ||
+            Boolean(req.serviceItem?.name && /massage|spa|đối tác|bên ngoài|marketplace|external/i.test(req.serviceItem.name)) ||
+            Boolean(req.title && /massage|spa|đối tác|bên ngoài|marketplace|external/i.test(req.title));
+
           const newItem = await tx.folioItem.create({
             data: {
               hotelId,
@@ -1518,7 +1593,7 @@ export class BillingService {
               sourceId: req.id,
               guestRequestId: req.id,
               serviceItemId: req.serviceItemId,
-              nameSnapshot: req.serviceItem?.name ?? "Dịch vụ",
+              nameSnapshot: req.serviceItem?.name ?? req.title ?? "Dịch vụ",
               quantity: req.quantity ?? 1,
               unitPriceSnapshot: new Prisma.Decimal(unitPrice),
               subtotalSnapshot: subtotal,
@@ -1527,6 +1602,9 @@ export class BillingService {
               billingSourceSnapshot: {
                 requestId: req.id,
                 reconciledAt: new Date().toISOString(),
+                serviceSource: isExt ? "EXTERNAL" : "HOTEL",
+                categoryName: req.serviceItem?.category?.name,
+                partnerName: isExt ? "Đối tác dịch vụ" : undefined,
               },
               postedByUserId: actorUserId,
             },

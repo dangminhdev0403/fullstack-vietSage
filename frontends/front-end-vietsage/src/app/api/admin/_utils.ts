@@ -25,6 +25,12 @@ export function validationErrorResponse(detail: string) {
 }
 
 export function httpErrorResponse(error: HttpError) {
+  console.error(`[API_ADMIN_ERROR ${error.status}]`, {
+    url: error.requestUrl,
+    message: error.message,
+    status: error.status,
+    data: error.data,
+  });
   return NextResponse.json(
     error.data ?? {
       status: error.status,
@@ -34,7 +40,10 @@ export function httpErrorResponse(error: HttpError) {
   );
 }
 
-export function unknownServerErrorResponse() {
+export function unknownServerErrorResponse(error?: unknown) {
+  if (error) {
+    console.error("[API_ADMIN_UNHANDLED_ERROR]", error);
+  }
   return NextResponse.json(
     {
       status: 500,

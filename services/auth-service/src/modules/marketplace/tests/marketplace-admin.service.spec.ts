@@ -17,7 +17,9 @@ describe("Marketplace admin", () => {
     const userUpdate = jest.fn();
     const tenantUsers = [
       { user: { id: "staff-1", email: "staff@example.com", fullName: "Staff", userType: "STAFF" } },
-      { user: { id: "owner-1", email: "owner@example.com", fullName: "Owner", userType: "PARTNER" } },
+      {
+        user: { id: "owner-1", email: "owner@example.com", fullName: "Owner", userType: "PARTNER" },
+      },
     ];
     const tx = {
       tenant: {

@@ -6,10 +6,18 @@ import { MarketplaceOrderService } from "../application/marketplace-order.servic
 
 describe("Marketplace orders", () => {
   beforeEach(() => {
-    jest.spyOn(RequestRealtimeEmitter, "emitExternalServiceOrderHotelAcknowledged").mockImplementation(() => {});
-    jest.spyOn(RequestRealtimeEmitter, "emitExternalServiceOrderVoucherIssued").mockImplementation(() => {});
-    jest.spyOn(RequestRealtimeEmitter, "emitExternalServiceOrderCreated").mockImplementation(() => {});
-    jest.spyOn(RequestRealtimeEmitter, "emitExternalServiceOrderStatusChanged").mockImplementation(() => {});
+    jest
+      .spyOn(RequestRealtimeEmitter, "emitExternalServiceOrderHotelAcknowledged")
+      .mockImplementation(() => {});
+    jest
+      .spyOn(RequestRealtimeEmitter, "emitExternalServiceOrderVoucherIssued")
+      .mockImplementation(() => {});
+    jest
+      .spyOn(RequestRealtimeEmitter, "emitExternalServiceOrderCreated")
+      .mockImplementation(() => {});
+    jest
+      .spyOn(RequestRealtimeEmitter, "emitExternalServiceOrderStatusChanged")
+      .mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -45,6 +53,9 @@ describe("Marketplace orders", () => {
         findFirst: jest.fn().mockResolvedValue(order),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         findUniqueOrThrow: jest.fn().mockResolvedValue({ ...order, status: "COMPLETED" }),
+      },
+      hotelServiceLink: {
+        findUnique: jest.fn().mockResolvedValue({ commissionRate: new Prisma.Decimal("10.00") }),
       },
       marketplaceRevenueEntry: { create: jest.fn().mockResolvedValue({}) },
       marketplaceSettlement: { upsert: jest.fn().mockResolvedValue({}) },
@@ -90,7 +101,7 @@ describe("Marketplace orders", () => {
           stay: { guestDisplayName: "John Guest", room: { id: "room-1", roomNumber: "101" } },
         }),
       },
-      $transaction: (fn: (value: unknown) => unknown) => fn(tx),
+      $transaction: (fn: any) => fn(tx),
     };
     const portal = { tenantId: jest.fn().mockResolvedValue("provider-1") };
     const service = new MarketplaceOrderService(prisma as never, portal as never);
@@ -133,7 +144,7 @@ describe("Marketplace orders", () => {
     };
     const prisma = {
       marketplaceOrder: { findUnique: jest.fn().mockResolvedValue(null) },
-      $transaction: (fn: (value: unknown) => unknown) => fn(tx),
+      $transaction: (fn: any) => fn(tx),
     };
     const service = new MarketplaceOrderService(prisma as never, {} as never);
 
@@ -237,7 +248,127 @@ describe("Marketplace orders", () => {
     expect(result.voucher?.voucherNumber).toMatch(/^VS-[A-Z0-9]{6}$/);
   });
 
+  it("completes hotel marketplace order and creates settlement entry idempotently", async () => {
+    const order = {
+      id: "order-complete-1",
+      hotelId: "hotel-1",
+      stayId: "stay-1",
+      serviceId: "service-1",
+      serviceTenantId: "tenant-1",
+      status: "ACCEPTED",
+      orderNumber: "MP-COMP-1",
+      version: 1,
+      quantity: 2,
+      totalAmount: new Prisma.Decimal(200000),
+      unitPriceSnapshot: new Prisma.Decimal(100000),
+      currency: "VND",
+      serviceNameSnapshot: "City Tour",
+      serviceModeSnapshot: "CUSTOMER_AT_SERVICE",
+      capacityReservationStatus: "NOT_REQUIRED",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const tx = {
+      marketplaceOrder: {
+        findUniqueOrThrow: jest.fn().mockResolvedValue(order),
+        update: jest.fn().mockResolvedValue({ ...order, status: "COMPLETED" }),
+      },
+      serviceVoucher: {
+        findUnique: jest.fn().mockResolvedValue({ id: "v-1", status: "ISSUED" }),
+        update: jest.fn().mockResolvedValue({ id: "v-1", status: "REDEEMED" }),
+      },
+      marketplaceRevenueEntry: {
+        upsert: jest.fn().mockResolvedValue({ id: "rev-1" }),
+      },
+      hotelServiceLink: {
+        findUnique: jest.fn().mockResolvedValue({ commissionRate: new Prisma.Decimal("15.00") }),
+      },
+      marketplaceSettlement: {
+        upsert: jest.fn().mockResolvedValue({
+          id: "settle-comp-1",
+          orderId: "order-complete-1",
+          grossAmount: new Prisma.Decimal(200000),
+          commissionAmount: new Prisma.Decimal(30000),
+          netAmount: new Prisma.Decimal(170000),
+          status: "UNSETTLED",
+        }),
+      },
+      marketplaceOrderEvent: {
+        create: jest.fn().mockResolvedValue({}),
+      },
+      folio: {
+        findFirst: jest.fn().mockResolvedValue({ id: "folio-1", roomId: "room-1", currency: "VND" }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      folioItem: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({ id: "item-1" }),
+        findMany: jest.fn().mockResolvedValue([
+          {
+            subtotalSnapshot: new Prisma.Decimal(200000),
+            taxAmountSnapshot: new Prisma.Decimal(0),
+            discountAmountSnapshot: new Prisma.Decimal(0),
+            totalSnapshot: new Prisma.Decimal(200000),
+          },
+        ]),
+      },
+      serviceTenantProfile: {
+        findUnique: jest.fn().mockResolvedValue({ displayName: "Tour Partner" }),
+      },
+    };
+
+    const prisma = {
+      marketplaceOrder: {
+        findFirst: jest.fn().mockResolvedValue(order),
+        findUnique: jest.fn().mockResolvedValue({ ...order, status: "COMPLETED" }),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ ...order, status: "COMPLETED" }),
+      },
+      $transaction: jest.fn().mockImplementation((cb: (txClient: typeof tx) => Promise<unknown>) => cb(tx)),
+    };
+
+    const service = new MarketplaceOrderService(prisma as never, {} as never);
+    const result = await service.completeHotelOrder("staff-1", "hotel-1", "order-complete-1");
+
+    expect(result.status).toBe("COMPLETED");
+    expect(tx.marketplaceRevenueEntry.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ grossAmount: new Prisma.Decimal(200000) }),
+      }),
+    );
+    expect(tx.marketplaceSettlement.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          grossAmount: new Prisma.Decimal(200000),
+          commissionAmount: new Prisma.Decimal(0),
+          netAmount: new Prisma.Decimal(200000),
+          status: "UNSETTLED",
+        }),
+      }),
+    );
+  });
+
+
   it("verifies and redeems service voucher atomically inside DB transaction", async () => {
+    const order = {
+      id: "order-1",
+      hotelId: "hotel-1",
+      stayId: "stay-1",
+      serviceId: "service-1",
+      serviceTenantId: "tenant-1",
+      status: "ACCEPTED",
+      version: 1,
+      quantity: 1,
+      totalAmount: new Prisma.Decimal(450000),
+      unitPriceSnapshot: new Prisma.Decimal(450000),
+      currency: "VND",
+      serviceNameSnapshot: "60-minute Massage",
+      serviceModeSnapshot: "CUSTOMER_AT_SERVICE",
+      capacityReservationStatus: "NOT_REQUIRED",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
     const tx = {
       serviceVoucher: {
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
@@ -247,6 +378,48 @@ describe("Marketplace orders", () => {
           status: "REDEEMED",
           redeemedAt: new Date(),
         }),
+      },
+      marketplaceOrder: {
+        findUniqueOrThrow: jest.fn().mockResolvedValue(order),
+        update: jest.fn().mockResolvedValue({ ...order, status: "COMPLETED" }),
+      },
+      marketplaceRevenueEntry: {
+        create: jest.fn().mockResolvedValue({}),
+      },
+      hotelServiceLink: {
+        findUnique: jest.fn().mockResolvedValue({ commissionRate: new Prisma.Decimal("10.00") }),
+      },
+      marketplaceSettlement: {
+        upsert: jest.fn().mockResolvedValue({
+          id: "settle-1",
+          orderId: "order-1",
+          grossAmount: new Prisma.Decimal(450000),
+          commissionAmount: new Prisma.Decimal(45000),
+          netAmount: new Prisma.Decimal(405000),
+          status: "UNSETTLED",
+        }),
+      },
+      marketplaceOrderEvent: {
+        create: jest.fn().mockResolvedValue({}),
+      },
+      folio: {
+        findFirst: jest.fn().mockResolvedValue({ id: "folio-1", roomId: "room-1", currency: "VND" }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      folioItem: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({ id: "item-1" }),
+        findMany: jest.fn().mockResolvedValue([
+          {
+            subtotalSnapshot: new Prisma.Decimal(450000),
+            taxAmountSnapshot: new Prisma.Decimal(0),
+            discountAmountSnapshot: new Prisma.Decimal(0),
+            totalSnapshot: new Prisma.Decimal(450000),
+          },
+        ]),
+      },
+      serviceTenantProfile: {
+        findUnique: jest.fn().mockResolvedValue({ displayName: "Đối tác dịch vụ" }),
       },
     };
     const prisma = {
@@ -260,7 +433,21 @@ describe("Marketplace orders", () => {
           order: { id: "order-1", status: "ACCEPTED" },
         }),
       },
-      $transaction: (fn: (value: unknown) => unknown) => fn(tx),
+      marketplaceOrder: {
+        findUnique: jest.fn().mockResolvedValue({
+          ...order,
+          status: "COMPLETED",
+          stay: {
+            guestDisplayName: "Guest",
+            room: { id: "room-1", roomNumber: "101" },
+            guestSessions: [{ id: "session-1" }],
+          },
+          serviceTenant: {
+            serviceProfile: { displayName: "Partner" },
+          },
+        }),
+      },
+      $transaction: (fn: any) => fn(tx),
     };
     const portal = {
       tenantId: jest.fn().mockResolvedValue("tenant-1"),
@@ -272,5 +459,130 @@ describe("Marketplace orders", () => {
 
     const redeemed = await service.redeemVoucher("user-1", "VS-A8F39C");
     expect(redeemed.status).toBe("REDEEMED");
+  });
+
+  it("creates full-value partner liability when completed", async () => {
+    const order = {
+      id: "order-99",
+      hotelId: "hotel-1",
+      stayId: "stay-1",
+      serviceId: "service-1",
+      serviceTenantId: "provider-1",
+      status: "CONFIRMED",
+      version: 1,
+      quantity: 1,
+      totalAmount: new Prisma.Decimal(450000),
+      unitPriceSnapshot: new Prisma.Decimal(450000),
+      currency: "VND",
+      serviceNameSnapshot: "60-minute Massage",
+      serviceModeSnapshot: "CUSTOMER_AT_SERVICE",
+      capacityReservationStatus: "NOT_REQUIRED",
+    };
+
+    const settlementUpsert = jest.fn().mockResolvedValue({
+      id: "settle-1",
+      orderId: "order-99",
+      grossAmount: new Prisma.Decimal(450000),
+      commissionAmount: new Prisma.Decimal(0),
+      netAmount: new Prisma.Decimal(450000),
+      status: "UNSETTLED",
+    });
+
+    const tx = {
+      marketplaceOrder: {
+        findFirst: jest.fn().mockResolvedValue(order),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ ...order, status: "COMPLETED" }),
+      },
+      marketplaceRevenueEntry: { create: jest.fn().mockResolvedValue({}) },
+      marketplaceSettlement: { upsert: settlementUpsert },
+      marketplaceOrderEvent: { create: jest.fn().mockResolvedValue({}) },
+      folio: {
+        findFirst: jest.fn().mockResolvedValue({ id: "folio-1", roomId: "room-1", currency: "VND" }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      folioItem: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({ id: "item-1" }),
+        findMany: jest.fn().mockResolvedValue([
+          {
+            subtotalSnapshot: new Prisma.Decimal(450000),
+            taxAmountSnapshot: new Prisma.Decimal(0),
+            discountAmountSnapshot: new Prisma.Decimal(0),
+            totalSnapshot: new Prisma.Decimal(450000),
+          },
+        ]),
+      },
+    };
+
+    const prisma = {
+      marketplaceOrder: {
+        findUnique: jest.fn().mockResolvedValue({
+          ...order,
+          status: "COMPLETED",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+      },
+      $transaction: (fn: any) => fn(tx),
+    };
+    const portal = { tenantId: jest.fn().mockResolvedValue("provider-1") };
+    const service = new MarketplaceOrderService(prisma as never, portal as never);
+
+    const result = await service.transitionServiceOrder("user-1", "order-99", { toStatus: "COMPLETED" });
+
+    expect(result.status).toBe("COMPLETED");
+    expect(settlementUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { orderId: "order-99" },
+        create: expect.objectContaining({
+          grossAmount: new Prisma.Decimal(450000),
+          commissionAmount: new Prisma.Decimal(0),
+          netAmount: new Prisma.Decimal(450000),
+          status: "UNSETTLED",
+        }),
+      }),
+    );
+  });
+
+  it("updates partner settlement to SETTLED and records audit fields", async () => {
+    const existingSettlement = {
+      id: "settle-1",
+      orderId: "order-99",
+      hotelId: "hotel-1",
+      serviceTenantId: "provider-1",
+      netAmount: new Prisma.Decimal(450000),
+      status: "UNSETTLED",
+    };
+
+    const settlementUpdate = jest.fn().mockResolvedValue({
+      ...existingSettlement,
+      status: "SETTLED",
+      settledAt: new Date(),
+      settledBy: "user-hotel",
+      settledAmount: new Prisma.Decimal(450000),
+    });
+
+    const prisma = {
+      marketplaceSettlement: {
+        findFirst: jest.fn().mockResolvedValue(existingSettlement),
+        update: settlementUpdate,
+      },
+    };
+
+    const service = new MarketplaceOrderService(prisma as never, {} as never);
+    const settled = await service.settlePartnerOrder("user-hotel", "hotel-1", "settle-1");
+
+    expect(settled.status).toBe("SETTLED");
+    expect(settlementUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "settle-1" },
+        data: expect.objectContaining({
+          status: "SETTLED",
+          settledBy: "user-hotel",
+          settledAmount: new Prisma.Decimal(450000),
+        }),
+      }),
+    );
   });
 });

@@ -56,6 +56,9 @@ export type FolioItem = {
   status?: string | null;
   voidedAt?: string | null;
   postedAt?: string | null;
+  serviceSource?: "HOTEL" | "EXTERNAL";
+  partnerName?: string;
+  billingSourceSnapshot?: unknown;
 };
 
 export type Invoice = {
@@ -103,6 +106,8 @@ export type InvoiceDetail = {
     discountAmount: MoneyValue;
     total: MoneyValue;
     postedAt: string | null;
+    serviceSource?: "HOTEL" | "EXTERNAL";
+    partnerName?: string | null;
   }>;
   payments: Array<{
     id: string;

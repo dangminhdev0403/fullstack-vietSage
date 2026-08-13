@@ -25,8 +25,7 @@ function useSafeQueryClient() {
 export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string }>) {
   const router = useRouter();
   const queryClient = useSafeQueryClient();
-
-  const getTargetClient = () => queryClient ?? getQueryClient();
+  const targetQueryClient = queryClient ?? getQueryClient();
 
   const handlers = useMemo(
     () => ({
@@ -57,7 +56,7 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
         );
 
         // Invalidate TanStack Query caches so UI updates without page reload
-        void invalidateHotelRealtimeQueries(getTargetClient(), hotelId);
+        void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
       },
       onUpdated: (request: Partial<StaffRequestListItem> & { id: string }) => {
         if (String(request.status) === "CANCELLED") {
@@ -76,13 +75,13 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
         } else if (String(request.status) === "PENDING") {
           playRequestAlertSound(false);
         }
-        void invalidateHotelRealtimeQueries(getTargetClient(), hotelId);
+        void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
       },
       onAnswered: () => {
-        void invalidateHotelRealtimeQueries(getTargetClient(), hotelId);
+        void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
       },
       onGuestMessageCreated: (event: unknown) => {
-        void invalidateHotelRealtimeQueries(getTargetClient(), hotelId);
+        void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
 
         const raw = event as {
           hotelId?: string;
@@ -90,7 +89,7 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
           message?: { id?: string; senderType?: string; body?: string };
         } | null;
 
-        if (!raw || raw.hotelId !== hotelId) return;
+        if (raw?.hotelId !== hotelId) return;
 
         if (raw.message?.senderType === "GUEST") {
           playMessageAlertSound();
@@ -112,13 +111,48 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
         }
       },
       onConversationClosed: () => {
-        void invalidateHotelRealtimeQueries(getTargetClient(), hotelId);
+        void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
+      },
+      onExternalOrderCreated: (event: unknown) => {
+        playRequestAlertSound(false);
+
+        const raw = event as {
+          orderId?: string;
+          roomNumber?: string;
+          guestDisplayName?: string;
+          serviceName?: string;
+        } | null;
+
+        const roomLabel = raw?.roomNumber ? `Phòng ${raw.roomNumber}` : "Khách lưu trú";
+        const guestName = raw?.guestDisplayName ?? "Khách hàng";
+        const serviceName = raw?.serviceName ?? "Dịch vụ đối tác";
+
+        toast.success("Có yêu cầu dịch vụ đối tác mới", {
+          id: `hotel-ops-ext-order-created-${raw?.orderId ?? Date.now()}`,
+          description: `${roomLabel} - ${guestName}: ${serviceName}`,
+          duration: 10000,
+          action: {
+            label: "Xem ngay",
+            onClick: () => router.push(`/hotels/${hotelId}/requests`),
+          },
+        });
+
+        void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
+      },
+      onExternalOrderStatusChanged: () => {
+        void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
+      },
+      onExternalOrderHotelAcknowledged: () => {
+        void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
+      },
+      onExternalOrderVoucherIssued: () => {
+        void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
       },
       onReconnect: () => {
-        void invalidateHotelRequestRealtimeQueries(getTargetClient(), hotelId);
+        void invalidateHotelRequestRealtimeQueries(targetQueryClient, hotelId);
       },
     }),
-    [hotelId, queryClient, router],
+    [hotelId, router, targetQueryClient],
   );
 
   useOwnerRequestRealtime(hotelId, handlers, {

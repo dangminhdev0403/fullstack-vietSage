@@ -183,6 +183,7 @@ export class MarketplaceOrderService {
       where: { serviceTenantId: await this.portal.tenantId(userId) },
       include: {
         voucher: true,
+        settlement: true,
         stay: { select: { guestDisplayName: true, room: { select: { roomNumber: true } } } },
         hotel: { select: { name: true } },
       },
@@ -196,6 +197,7 @@ export class MarketplaceOrderService {
       where: { id: orderId, serviceTenantId: await this.portal.tenantId(userId) },
       include: {
         voucher: true,
+        settlement: true,
         events: { orderBy: { createdAt: "asc" } },
         stay: { select: { guestDisplayName: true, room: { select: { roomNumber: true } } } },
         hotel: { select: { name: true } },
@@ -210,6 +212,7 @@ export class MarketplaceOrderService {
       where: { hotelId },
       include: {
         voucher: true,
+        settlement: true,
         stay: { select: { guestDisplayName: true, room: { select: { roomNumber: true } } } },
         serviceTenant: { select: { serviceProfile: { select: { displayName: true } } } },
       },
@@ -221,7 +224,12 @@ export class MarketplaceOrderService {
   async hotelOrder(hotelId: string, orderId: string) {
     const order = await this.prisma.marketplaceOrder.findFirst({
       where: { id: orderId, hotelId },
-      include: { voucher: true, events: { orderBy: { createdAt: "asc" } } },
+      include: {
+        voucher: true,
+        settlement: true,
+        events: { orderBy: { createdAt: "asc" } },
+        serviceTenant: { select: { serviceProfile: { select: { displayName: true } } } },
+      },
     });
     if (!order) throw new NotFoundException("Không tìm thấy đơn Marketplace");
     return order;
@@ -233,9 +241,9 @@ export class MarketplaceOrderService {
         where: { id: orderId, hotelId },
       });
       if (!order) throw new NotFoundException("Không tìm thấy đơn Marketplace");
-      if (order.status === "COMPLETED" || order.status === "CANCELLED") {
+      if (order.status !== "PENDING") {
         throw new ConflictException(
-          "Đơn hàng đã hoàn thành hoặc đã hủy, không thể thực hiện hủy đơn",
+          "Đối tác đã xác nhận hoặc đơn hàng đang xử lý, khách sạn không được phép hủy",
         );
       }
       const updated = await tx.marketplaceOrder.updateMany({
@@ -408,6 +416,181 @@ export class MarketplaceOrderService {
     return this.acknowledgeHotelOrder(userId, hotelId, orderId);
   }
 
+  async completeHotelOrder(userId: string, hotelId: string, orderId: string) {
+    const existingOrder = await this.prisma.marketplaceOrder.findFirst({
+      where: { id: orderId, hotelId },
+      include: { settlement: true },
+    });
+    if (!existingOrder) throw new NotFoundException("Không tìm thấy đơn Marketplace");
+
+    if (existingOrder.status === "CANCELLED") {
+      throw new ConflictException("Đơn hàng đã bị hủy, không thể thực hiện hoàn thành");
+    }
+
+    if (existingOrder.status === "COMPLETED") {
+      return this.prisma.marketplaceOrder.findUniqueOrThrow({
+        where: { id: existingOrder.id },
+        include: {
+          events: { orderBy: { createdAt: "asc" } },
+          revenue: true,
+          settlement: true,
+          voucher: true,
+          stay: { select: { guestDisplayName: true, room: { select: { roomNumber: true } } } },
+          hotel: { select: { name: true } },
+        },
+      });
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const order = await tx.marketplaceOrder.findUniqueOrThrow({
+        where: { id: existingOrder.id },
+      });
+
+      if (order.status === "COMPLETED") {
+        return { order };
+      }
+
+      await tx.marketplaceOrder.update({
+        where: { id: order.id },
+        data: {
+          status: "COMPLETED",
+          completedAt: new Date(),
+          version: { increment: 1 },
+          capacityReservationStatus:
+            order.capacityReservationStatus === "RESERVED" ? "CONSUMED" : undefined,
+        },
+      });
+
+      const voucher = await tx.serviceVoucher.findUnique({
+        where: { orderId: order.id },
+      });
+
+      if (voucher && voucher.status === "ISSUED") {
+        await tx.serviceVoucher.update({
+          where: { id: voucher.id },
+          data: {
+            status: "REDEEMED",
+            redeemedAt: new Date(),
+            redeemedByUserId: userId,
+          },
+        });
+      }
+
+      await tx.marketplaceRevenueEntry.upsert({
+        where: { orderId: order.id },
+        create: {
+          orderId: order.id,
+          hotelId: order.hotelId,
+          serviceTenantId: order.serviceTenantId,
+          grossAmount: order.totalAmount,
+          currency: order.currency,
+          recognizedAt: new Date(),
+        },
+        update: {
+          grossAmount: order.totalAmount,
+          currency: order.currency,
+        },
+      });
+
+      const gross = order.totalAmount;
+      const commission = new Prisma.Decimal(0);
+      const net = gross;
+
+      const settlement = await tx.marketplaceSettlement.upsert({
+        where: { orderId: order.id },
+        create: {
+          orderId: order.id,
+          hotelId: order.hotelId,
+          serviceTenantId: order.serviceTenantId,
+          grossAmount: gross,
+          commissionAmount: commission,
+          netAmount: net,
+          currency: order.currency,
+          status: "UNSETTLED",
+        },
+        update: {
+          grossAmount: gross,
+          commissionAmount: commission,
+          netAmount: net,
+          currency: order.currency,
+        },
+      });
+
+      await this.postToStayFolio(tx, order);
+
+      await tx.marketplaceOrderEvent.create({
+        data: {
+          orderId: order.id,
+          actorType: MarketplaceOrderActorType.HOTEL_STAFF,
+          actorId: userId,
+          fromStatus: order.status,
+          toStatus: "COMPLETED",
+          note: "Marketplace order marked as completed by hotel reception",
+        },
+      });
+
+      return { settlement, order };
+    });
+
+    if (result.settlement) {
+      RequestRealtimeEmitter.emitPartnerSettlementCreated({
+        settlement: result.settlement,
+        hotelId: existingOrder.hotelId,
+        serviceTenantId: existingOrder.serviceTenantId,
+      });
+    }
+
+    const orderWithDetails = await this.prisma.marketplaceOrder.findUnique({
+      where: { id: existingOrder.id },
+      include: {
+        events: { orderBy: { createdAt: "asc" } },
+        revenue: true,
+        settlement: true,
+        voucher: true,
+        stay: {
+          select: {
+            guestDisplayName: true,
+            room: { select: { id: true, roomNumber: true } },
+            guestSessions: { select: { id: true }, take: 1, orderBy: { createdAt: "desc" } },
+          },
+        },
+        serviceTenant: { select: { serviceProfile: { select: { displayName: true } } } },
+      },
+    });
+
+    if (orderWithDetails) {
+      RequestRealtimeEmitter.emitExternalServiceOrderStatusChanged({
+        orderId: orderWithDetails.id,
+        orderNumber: orderWithDetails.orderNumber,
+        hotelId: orderWithDetails.hotelId,
+        stayId: orderWithDetails.stayId,
+        sessionId: orderWithDetails.stay?.guestSessions?.[0]?.id,
+        roomId: orderWithDetails.stay?.room?.id,
+        roomNumber: orderWithDetails.stay?.room?.roomNumber,
+        guestDisplayName: orderWithDetails.stay?.guestDisplayName,
+        serviceTenantId: orderWithDetails.serviceTenantId,
+        serviceTenantName: orderWithDetails.serviceTenant?.serviceProfile?.displayName,
+        serviceId: orderWithDetails.serviceId,
+        serviceName: orderWithDetails.serviceNameSnapshot,
+        status: orderWithDetails.status,
+        hotelStatus: orderWithDetails.hotelCoordinationStatus,
+        quantity: orderWithDetails.quantity,
+        pricingUnit: orderWithDetails.pricingUnitSnapshot,
+        unitPrice: orderWithDetails.unitPriceSnapshot.toString(),
+        totalAmount: orderWithDetails.totalAmount.toString(),
+        currency: orderWithDetails.currency,
+        guestNote: orderWithDetails.guestNote,
+        serviceMode: orderWithDetails.serviceModeSnapshot,
+        createdAt: orderWithDetails.createdAt.toISOString(),
+        updatedAt: orderWithDetails.updatedAt.toISOString(),
+        version: orderWithDetails.version,
+      });
+    }
+
+    return orderWithDetails;
+  }
+
+
   async verifyVoucher(userId: string, code: string) {
     const serviceTenantId = await this.portal.tenantId(userId);
     const cleaned = code.trim().toUpperCase();
@@ -504,7 +687,76 @@ export class MarketplaceOrderService {
         throw new ConflictException("Phiếu dịch vụ đã được sử dụng bởi giao dịch khác");
       }
 
-      return tx.serviceVoucher.findUniqueOrThrow({
+      const order = await tx.marketplaceOrder.findUniqueOrThrow({
+        where: { id: verification.order.id },
+      });
+
+      let settlementResult: any = null;
+
+      if (order.status !== "COMPLETED") {
+        await tx.marketplaceOrder.update({
+          where: { id: order.id },
+          data: {
+            status: "COMPLETED",
+            completedAt: new Date(),
+            version: { increment: 1 },
+            capacityReservationStatus:
+              order.capacityReservationStatus === "RESERVED" ? "CONSUMED" : undefined,
+          },
+        });
+
+        await tx.marketplaceRevenueEntry.create({
+          data: {
+            orderId: order.id,
+            hotelId: order.hotelId,
+            serviceTenantId,
+            grossAmount: order.totalAmount,
+            currency: order.currency,
+            recognizedAt: new Date(),
+          },
+        });
+
+        const gross = order.totalAmount;
+        const commission = new Prisma.Decimal(0);
+        const net = gross;
+
+        const settlement = await tx.marketplaceSettlement.upsert({
+          where: { orderId: order.id },
+          create: {
+            orderId: order.id,
+            hotelId: order.hotelId,
+            serviceTenantId,
+            grossAmount: gross,
+            commissionAmount: commission,
+            netAmount: net,
+            currency: order.currency,
+            status: "UNSETTLED",
+          },
+          update: {
+            grossAmount: gross,
+            commissionAmount: commission,
+            netAmount: net,
+            currency: order.currency,
+          },
+        });
+
+        await this.postToStayFolio(tx, order);
+
+        await tx.marketplaceOrderEvent.create({
+          data: {
+            orderId: order.id,
+            actorType: MarketplaceOrderActorType.SERVICE_STAFF,
+            actorId: userId,
+            fromStatus: order.status,
+            toStatus: "COMPLETED",
+            note: "Fulfillment completed via voucher redemption",
+          },
+        });
+
+        settlementResult = settlement;
+      }
+
+      const voucher = await tx.serviceVoucher.findUniqueOrThrow({
         where: { voucherNumber: verification.voucherNumber },
         include: {
           order: {
@@ -515,9 +767,61 @@ export class MarketplaceOrderService {
           },
         },
       });
+
+      return { voucher, settlement: settlementResult, order };
     });
 
-    return result;
+    if (result.settlement) {
+      RequestRealtimeEmitter.emitPartnerSettlementCreated({
+        settlement: result.settlement,
+        hotelId: result.order.hotelId,
+        serviceTenantId,
+      });
+
+      const orderWithDetails = await this.prisma.marketplaceOrder.findUnique({
+        where: { id: result.order.id },
+        include: {
+          stay: {
+            select: {
+              guestDisplayName: true,
+              room: { select: { id: true, roomNumber: true } },
+              guestSessions: { select: { id: true }, take: 1, orderBy: { createdAt: "desc" } },
+            },
+          },
+          serviceTenant: { select: { serviceProfile: { select: { displayName: true } } } },
+        },
+      });
+
+      if (orderWithDetails) {
+        RequestRealtimeEmitter.emitExternalServiceOrderStatusChanged({
+          orderId: orderWithDetails.id,
+          orderNumber: orderWithDetails.orderNumber,
+          hotelId: orderWithDetails.hotelId,
+          stayId: orderWithDetails.stayId,
+          sessionId: orderWithDetails.stay?.guestSessions?.[0]?.id,
+          roomId: orderWithDetails.stay?.room?.id,
+          roomNumber: orderWithDetails.stay?.room?.roomNumber,
+          guestDisplayName: orderWithDetails.stay?.guestDisplayName,
+          serviceTenantId: orderWithDetails.serviceTenantId,
+          serviceTenantName: orderWithDetails.serviceTenant?.serviceProfile?.displayName,
+          serviceId: orderWithDetails.serviceId,
+          serviceName: orderWithDetails.serviceNameSnapshot,
+          status: orderWithDetails.status,
+          quantity: orderWithDetails.quantity,
+          pricingUnit: orderWithDetails.pricingUnitSnapshot,
+          unitPrice: orderWithDetails.unitPriceSnapshot.toString(),
+          totalAmount: orderWithDetails.totalAmount.toString(),
+          currency: orderWithDetails.currency,
+          guestNote: orderWithDetails.guestNote,
+          serviceMode: orderWithDetails.serviceModeSnapshot,
+          createdAt: orderWithDetails.createdAt.toISOString(),
+          updatedAt: orderWithDetails.updatedAt.toISOString(),
+          version: orderWithDetails.version,
+        });
+      }
+    }
+
+    return result.voucher;
   }
 
   async hotelRevenue(hotelId: string, from?: Date, to?: Date, serviceTenantId?: string) {
@@ -552,6 +856,13 @@ export class MarketplaceOrderService {
       if (!order) throw new NotFoundException("Không tìm thấy đơn Marketplace");
       if (!canTransitionMarketplaceOrder(order.status, body.toStatus))
         throw new ConflictException("Trạng thái đơn không hợp lệ");
+      let capacityReservationStatus: CapacityReservationStatus | undefined = undefined;
+      if (body.toStatus === "COMPLETED" && order.capacityReservationStatus === "RESERVED") {
+        capacityReservationStatus = "CONSUMED";
+      } else if (body.toStatus === "CANCELLED" && order.capacityReservationStatus === "RESERVED") {
+        capacityReservationStatus = "RELEASED";
+      }
+
       const updated = await tx.marketplaceOrder.updateMany({
         where: { id: order.id, serviceTenantId, status: order.status, version: order.version },
         data: {
@@ -559,12 +870,7 @@ export class MarketplaceOrderService {
           version: { increment: 1 },
           completedAt: body.toStatus === "COMPLETED" ? new Date() : undefined,
           cancelledAt: body.toStatus === "CANCELLED" ? new Date() : undefined,
-          capacityReservationStatus:
-            body.toStatus === "COMPLETED" && order.capacityReservationStatus === "RESERVED"
-              ? "CONSUMED"
-              : body.toStatus === "CANCELLED" && order.capacityReservationStatus === "RESERVED"
-                ? "RELEASED"
-                : undefined,
+          capacityReservationStatus,
         },
       });
       if (updated.count !== 1) throw new ConflictException("Đơn đã được cập nhật bởi người khác");
@@ -585,9 +891,9 @@ export class MarketplaceOrderService {
           },
         });
         const gross = order.totalAmount;
-        const commission = gross.mul(new Prisma.Decimal("0.10"));
-        const net = gross.sub(commission);
-        await tx.marketplaceSettlement.upsert({
+        const commission = new Prisma.Decimal(0);
+        const net = gross;
+        const settlement = await tx.marketplaceSettlement.upsert({
           where: { orderId: order.id },
           create: {
             orderId: order.id,
@@ -607,6 +913,11 @@ export class MarketplaceOrderService {
           },
         });
         await this.postToStayFolio(tx, order);
+        RequestRealtimeEmitter.emitPartnerSettlementCreated({
+          settlement,
+          hotelId: order.hotelId,
+          serviceTenantId,
+        });
       }
       await tx.marketplaceOrderEvent.create({
         data: {
@@ -693,7 +1004,11 @@ export class MarketplaceOrderService {
     const existing = await tx.folioItem.findFirst({
       where: { folioId: folio.id, sourceType: FolioItemSourceType.SYSTEM, sourceId: order.id },
     });
-    if (!existing)
+    if (!existing) {
+      const partnerProfile = await tx.serviceTenantProfile?.findUnique({
+        where: { tenantId: order.serviceTenantId },
+        select: { displayName: true },
+      });
       await tx.folioItem.create({
         data: {
           hotelId: order.hotelId,
@@ -713,9 +1028,12 @@ export class MarketplaceOrderService {
           billingSourceSnapshot: {
             marketplaceOrderId: order.id,
             serviceTenantId: order.serviceTenantId,
+            serviceSource: "EXTERNAL",
+            partnerName: partnerProfile?.displayName ?? "Đối tác dịch vụ",
           },
         },
       });
+    }
     const items = await tx.folioItem.findMany({ where: { folioId: folio.id, voidedAt: null } });
     const zero = new Prisma.Decimal(0);
     const totals = items.reduce(
@@ -736,5 +1054,198 @@ export class MarketplaceOrderService {
         totalAmount: totals.total,
       },
     });
+  }
+
+  async getPartnerFinancialSummary(userId: string) {
+    const serviceTenantId = await this.portal.tenantId(userId);
+
+    const [orders, settlements] = await Promise.all([
+      this.prisma.marketplaceOrder.findMany({
+        where: { serviceTenantId },
+        select: {
+          id: true,
+          status: true,
+          totalAmount: true,
+          createdAt: true,
+          completedAt: true,
+          cancelledAt: true,
+        },
+      }),
+      this.prisma.marketplaceSettlement.findMany({
+        where: { serviceTenantId },
+        select: {
+          id: true,
+          grossAmount: true,
+          commissionAmount: true,
+          netAmount: true,
+          status: true,
+          settledAt: true,
+        },
+      }),
+    ]);
+
+    const completedOrders = orders.filter((o) => o.status === "COMPLETED");
+    const cancelledOrders = orders.filter((o) => o.status === "CANCELLED");
+
+    const grossSalesAmount = completedOrders.reduce(
+      (acc, o) => acc.add(o.totalAmount),
+      new Prisma.Decimal(0),
+    );
+
+    const settledAmount = settlements
+      .filter((s) => s.status === "SETTLED")
+      .reduce((acc, s) => acc.add(s.netAmount), new Prisma.Decimal(0));
+
+    const outstandingAmount = settlements
+      .filter((s) => s.status !== "SETTLED")
+      .reduce((acc, s) => acc.add(s.netAmount), new Prisma.Decimal(0));
+
+    const totalNetPayable = settlements.reduce(
+      (acc, s) => acc.add(s.netAmount),
+      new Prisma.Decimal(0),
+    );
+
+    return {
+      totalOrdersCount: orders.length,
+      completedOrdersCount: completedOrders.length,
+      cancelledOrdersCount: cancelledOrders.length,
+      grossSalesAmount: Number(grossSalesAmount),
+      hotelCollectedAmount: Number(grossSalesAmount),
+      totalNetPayable: Number(totalNetPayable),
+      settledAmount: Number(settledAmount),
+      outstandingAmount: Number(outstandingAmount),
+    };
+  }
+
+  async listPartnerSettlements(userId: string, status?: string) {
+    const serviceTenantId = await this.portal.tenantId(userId);
+    return this.prisma.marketplaceSettlement.findMany({
+      where: {
+        serviceTenantId,
+        ...(status ? { status: status as any } : {}),
+      },
+      include: {
+        order: {
+          select: {
+            orderNumber: true,
+            serviceNameSnapshot: true,
+            quantity: true,
+            status: true,
+            createdAt: true,
+            completedAt: true,
+            hotel: { select: { id: true, name: true } },
+            stay: { select: { guestDisplayName: true, room: { select: { roomNumber: true } } } },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  async listHotelPartnerSettlements(
+    hotelId: string,
+    filter?: { status?: string; serviceTenantId?: string },
+  ) {
+    return this.prisma.marketplaceSettlement.findMany({
+      where: {
+        hotelId,
+        ...(filter?.status ? { status: filter.status as any } : {}),
+        ...(filter?.serviceTenantId ? { serviceTenantId: filter.serviceTenantId } : {}),
+      },
+      include: {
+        order: {
+          select: {
+            orderNumber: true,
+            serviceNameSnapshot: true,
+            quantity: true,
+            status: true,
+            createdAt: true,
+            completedAt: true,
+            serviceTenant: { select: { serviceProfile: { select: { displayName: true } } } },
+            stay: { select: { guestDisplayName: true, room: { select: { roomNumber: true } } } },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  async settlePartnerOrder(userId: string, hotelId: string, settlementId: string) {
+    const settlement = await this.prisma.marketplaceSettlement.findFirst({
+      where: { id: settlementId, hotelId },
+    });
+    if (!settlement) {
+      throw new NotFoundException("Không tìm thấy thông tin quyết toán đối tác");
+    }
+    if (settlement.status === "SETTLED") {
+      throw new ConflictException("Đơn dịch vụ đã được quyết toán trước đó");
+    }
+
+    const updated = await this.prisma.marketplaceSettlement.update({
+      where: { id: settlement.id },
+      data: {
+        status: "SETTLED",
+        settledAt: new Date(),
+        settledBy: userId,
+        settledAmount: settlement.netAmount,
+      },
+      include: {
+        order: {
+          select: {
+            orderNumber: true,
+            serviceNameSnapshot: true,
+            hotel: { select: { name: true } },
+            serviceTenant: { select: { serviceProfile: { select: { displayName: true } } } },
+          },
+        },
+      },
+    });
+
+    RequestRealtimeEmitter.emitPartnerSettlementUpdated({
+      settlement: updated,
+      hotelId: updated.hotelId,
+      serviceTenantId: updated.serviceTenantId,
+    });
+
+    return updated;
+  }
+
+  async settlePartnerOrdersBatch(userId: string, hotelId: string, settlementIds: string[]) {
+    const settlements = await this.prisma.marketplaceSettlement.findMany({
+      where: { id: { in: settlementIds }, hotelId, status: { not: "SETTLED" } },
+    });
+
+    if (settlements.length === 0) {
+      throw new NotFoundException("Không tìm thấy khoản quyết toán nào hợp lệ để xử lý");
+    }
+
+    const now = new Date();
+    await this.prisma.marketplaceSettlement.updateMany({
+      where: { id: { in: settlements.map((s) => s.id) } },
+      data: {
+        status: "SETTLED",
+        settledAt: now,
+        settledBy: userId,
+      },
+    });
+
+    for (const s of settlements) {
+      RequestRealtimeEmitter.emitPartnerSettlementUpdated({
+        settlement: {
+          ...s,
+          status: "SETTLED",
+          settledAt: now,
+          settledBy: userId,
+          settledAmount: s.netAmount,
+        },
+        hotelId: s.hotelId,
+        serviceTenantId: s.serviceTenantId,
+      });
+    }
+
+    return {
+      settledCount: settlements.length,
+      settlementIds: settlements.map((s) => s.id),
+    };
   }
 }

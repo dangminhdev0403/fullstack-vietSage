@@ -13,12 +13,7 @@ import { useGuestStore, useGuestStoreHydrated } from "@/features/guest-os/store/
 
 import type { GuestMessagesResult } from "@/features/guest-os/types/guest-os-contract";
 import { guestMessagesResource } from "@/features/guest-os/resources/guest-messages-resource";
-import { useGuestRequestRealtime } from "@/features/request-realtime/use-guest-request-realtime";
-import {
-  createEventDeduper,
-  isConversationClosedEventForStay,
-  isGuestMessageEventForStay,
-} from "@/features/request-realtime/message-unread";
+import { GUEST_REQUEST_REALTIME_BROWSER_EVENT, type GuestRequestRealtimeBrowserEvent } from "@/features/request-realtime/guest-request-realtime-notifier";
 
 function TypewriterMessageBody({ body, createdAt }: Readonly<{ body: string; createdAt: string }>) {
   const [displayedText, setDisplayedText] = useState(() => {
@@ -131,42 +126,22 @@ export default function GuestMessagesPage() {
       },
     );
   };
-
-  const pageDeduperRef = useRef(createEventDeduper(200));
-
-  useGuestRequestRealtime(sessionToken, {
-    onGuestMessageCreated: (event: unknown) => {
-      if (trustedStayId && !isGuestMessageEventForStay(event, trustedStayId)) return;
-      if (typeof event === "object" && event !== null && "eventId" in event && (event as { eventId?: string }).eventId) {
-        if (!pageDeduperRef.current.accept((event as { eventId: string }).eventId)) return;
+  useEffect(() => {
+    const handleRealtime = (e: Event) => {
+      const customEvent = e as CustomEvent<GuestRequestRealtimeBrowserEvent>;
+      const detail = customEvent.detail;
+      if (detail?.kind === "reconnected") {
+        queryClient.invalidateQueries({ queryKey: historyOptions.queryKey }).catch(() => {});
+        queryClient.invalidateQueries({ queryKey: guestMessages.queries.unreadSummary.options(undefined as never).queryKey }).catch(() => {});
+      } else {
+        queryClient.invalidateQueries({ queryKey: historyOptions.queryKey }).catch(() => {});
       }
-      const message = (event as unknown as { message?: GuestMessagesResult["items"][number] }).message;
-      if (!message?.id) return;
-      appendRealtimeMessage(message);
-      void queryClient.invalidateQueries({
-        queryKey: guestMessages.queries.unreadSummary.options(undefined as never).queryKey,
-      });
-    },
-    onConversationClosed: (event: unknown) => {
-      if (trustedStayId && !isConversationClosedEventForStay(event, trustedStayId)) return;
-      if (typeof event === "object" && event !== null && "eventId" in event && (event as { eventId?: string }).eventId) {
-        if (!pageDeduperRef.current.accept((event as { eventId: string }).eventId)) return;
-      }
-      setConversationClosed(true);
-      void queryClient.invalidateQueries({
-        queryKey: guestMessages.queries.unreadSummary.options(undefined as never).queryKey,
-      });
-    },
-    onReconnect: () => {
-      queryClient.invalidateQueries({ queryKey: historyOptions.queryKey }).catch(() => {});
-      queryClient.invalidateQueries({ queryKey: guestMessages.queries.unreadSummary.options(undefined as never).queryKey }).catch(() => {});
-    },
-    onError: (error: unknown) => {
-      if (error && typeof error === "object" && "code" in error && (error as { code?: string }).code === "SESSION_INVALID") {
-        setConversationClosed(true);
-      }
-    },
-  });
+    };
+    window.addEventListener(GUEST_REQUEST_REALTIME_BROWSER_EVENT, handleRealtime);
+    return () => {
+      window.removeEventListener(GUEST_REQUEST_REALTIME_BROWSER_EVENT, handleRealtime);
+    };
+  }, [historyOptions.queryKey, queryClient]);
 
   useEffect(() => {
     if (!sessionToken || !unreadStaffMessageKey) return;

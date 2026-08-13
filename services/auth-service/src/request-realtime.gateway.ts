@@ -14,7 +14,12 @@ import { GuestOsService } from "./modules/guest-operations/guest-operations-publ
 import { RequestRealtimeEmitter } from "./request-realtime.emitter";
 
 type OwnerTicketClaims = { sub?: unknown; hotelId?: unknown; type?: unknown; jti?: unknown };
-type ServiceTenantTicketClaims = { sub?: unknown; serviceTenantId?: unknown; type?: unknown; jti?: unknown };
+type ServiceTenantTicketClaims = {
+  sub?: unknown;
+  serviceTenantId?: unknown;
+  type?: unknown;
+  jti?: unknown;
+};
 type HandshakeAuth = { mode?: unknown; ticket?: unknown; sessionToken?: unknown };
 
 const realtimeConfig = loadAppConfig();

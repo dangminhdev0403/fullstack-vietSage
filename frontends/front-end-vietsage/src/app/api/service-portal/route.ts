@@ -34,6 +34,17 @@ export async function GET(request: Request) {
       if (csv instanceof Response) return csv;
       return new Response(csv, { status: 200, headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="service_items${file === "template" ? "_template" : ""}.csv"` } });
     }
+    const url = new URL(request.url);
+    const action = url.searchParams.get("action");
+    if (action === "financialSummary") {
+      const summary = await executeHotelOpsBackendRequest("financial summary", (token) => servicePortalClient.financialSummary(token));
+      return summary instanceof Response ? summary : successResponse(summary);
+    }
+    if (action === "settlements") {
+      const status = url.searchParams.get("status") ?? undefined;
+      const settlements = await executeHotelOpsBackendRequest("settlements", (token) => servicePortalClient.settlements(token, status));
+      return settlements instanceof Response ? settlements : successResponse(settlements);
+    }
     const data = await executeHotelOpsBackendRequest("service portal data", (token) => servicePortalClient.data(token));
     return data instanceof Response ? data : successResponse(data);
   } catch (error) { return error instanceof HttpError ? hotelOpsHttpErrorResponse(error) : unknownServerErrorResponse(); }

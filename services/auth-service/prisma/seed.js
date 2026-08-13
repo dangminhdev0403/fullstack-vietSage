@@ -16,7 +16,20 @@ const DEFAULT_ROLES = [
   { code: "SERVICE_STAFF", name: "Nhân viên Service Tenant" },
 ];
 
-const DEFAULT_CODES = ["TENANT", "HOTEL", "ROOM", "SERVICE", "AIRPORT", "RESERVATION"];
+const DEFAULT_CODES = [
+  "TENANT",
+  "HOTEL",
+  "ROOM",
+  "SERVICE",
+  "AIRPORT",
+  "RESERVATION",
+  "FOLIO",
+  "INVOICE",
+  "PAYMENT",
+  "MARKETPLACE_CATEGORY",
+  "MARKETPLACE_SERVICE",
+  "SERVICE_TENANT",
+];
 
 async function seedCodes() {
   for (const name of DEFAULT_CODES) {

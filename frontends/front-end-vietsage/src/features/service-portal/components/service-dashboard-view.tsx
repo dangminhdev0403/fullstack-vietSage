@@ -20,9 +20,11 @@ function getNextStatus(order: MarketplaceOrder): { label: string; status: string
 }
 
 export function ServiceDashboardView({ data }: Readonly<{ data: ServicePortalData }>) {
-  const { transition } = useServicePortal();
+  const { transition, financialSummary } = useServicePortal();
   const pendingOrders = data.orders.filter((o) => o.status === "PENDING");
   const activeOrders = data.orders.filter((o) => o.status !== "COMPLETED" && o.status !== "CANCELLED");
+
+  const financial = financialSummary.data;
 
   return (
     <div className="space-y-6">
@@ -58,6 +60,72 @@ export function ServiceDashboardView({ data }: Readonly<{ data: ServicePortalDat
             >
               📋 Đơn hàng ({pendingOrders.length} mới)
             </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Financial Overview Section */}
+      <section className="space-y-3">
+        <h2 className="text-lg font-bold text-[#17201b] flex items-center gap-2">
+          <span>💰</span> Doanh số & Công nợ quyết toán với Khách sạn
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {/* Card 1: Gross Sales */}
+          <div className="rounded-2xl border border-[#e5ddcd] bg-[#fffcf7] p-5 shadow-xs space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-[#5a6760]">Doanh số dịch vụ</span>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#e8f2ee] text-[#1c553f]">
+                <VsIcon name="payments" className="text-xl" />
+              </div>
+            </div>
+            <div className="text-2xl font-extrabold text-[#17201b]">
+              {(financial?.grossSalesAmount ?? 0).toLocaleString("vi-VN")} VND
+            </div>
+            <p className="text-xs text-[#5a6760]">
+              {financial?.completedOrdersCount ?? 0} đơn hoàn thành
+            </p>
+          </div>
+
+          {/* Card 2: Collected by Hotel */}
+          <div className="rounded-2xl border border-[#e5ddcd] bg-[#fffcf7] p-5 shadow-xs space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-[#5a6760]">Hotel đã thu hộ</span>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#f4ebd9] text-[#8c6d29]">
+                <VsIcon name="account_balance_wallet" className="text-xl" />
+              </div>
+            </div>
+            <div className="text-2xl font-extrabold text-[#8c6d29]">
+              {(financial?.hotelCollectedAmount ?? 0).toLocaleString("vi-VN")} VND
+            </div>
+            <p className="text-xs text-[#5a6760]">Khách thanh toán qua KS</p>
+          </div>
+
+          {/* Card 3: Outstanding Partner Payable */}
+          <div className="rounded-2xl border border-[#e5ddcd] bg-[#fffcf7] p-5 shadow-xs space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-[#5a6760]">Công nợ chưa quyết toán</span>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#fff3db] text-[#925f0e]">
+                <VsIcon name="pending_actions" className="text-xl" />
+              </div>
+            </div>
+            <div className="text-2xl font-extrabold text-[#b2720d]">
+              {(financial?.outstandingAmount ?? 0).toLocaleString("vi-VN")} VND
+            </div>
+            <p className="text-xs text-[#5a6760]">Chờ quyết toán từ KS</p>
+          </div>
+
+          {/* Card 4: Settled Amount */}
+          <div className="rounded-2xl border border-[#e5ddcd] bg-[#fffcf7] p-5 shadow-xs space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-[#5a6760]">Đã quyết toán</span>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#e7f4eb] text-[#16562c]">
+                <VsIcon name="check_circle" className="text-xl" />
+              </div>
+            </div>
+            <div className="text-2xl font-extrabold text-[#16562c]">
+              {(financial?.settledAmount ?? 0).toLocaleString("vi-VN")} VND
+            </div>
+            <p className="text-xs text-[#5a6760]">Đã thực thu về đối tác</p>
           </div>
         </div>
       </section>
@@ -159,13 +227,14 @@ export function ServiceDashboardView({ data }: Readonly<{ data: ServicePortalDat
             <div className="space-y-3">
               {activeOrders.slice(0, 5).map((order) => {
                 const next = getNextStatus(order);
+                const isSettled = order.settlement?.status === "SETTLED";
                 return (
                   <div
                     key={order.id}
                     className="flex flex-col gap-3 rounded-xl border border-[#eae3d5] bg-[#f9f6f0] p-4 sm:flex-row sm:items-center sm:justify-between transition-colors hover:bg-white shadow-2xs"
                   >
                     <div className="space-y-1">
-                      <div className="flex items-center gap-2.5">
+                      <div className="flex items-center gap-2.5 flex-wrap">
                         <span className="font-mono font-bold text-[#17201b] text-base">{order.orderNumber}</span>
                         <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                           order.status === "PENDING"
@@ -176,8 +245,21 @@ export function ServiceDashboardView({ data }: Readonly<{ data: ServicePortalDat
                         }`}>
                           {order.status}
                         </span>
+                        {/* Settlement Status Badge */}
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                          isSettled
+                            ? "bg-[#e7f4eb] text-[#16562c] border border-[#bde2c7]"
+                            : "bg-[#fff3db] text-[#925f0e] border border-[#f3d6a2]"
+                        }`}>
+                          {isSettled ? "✓ Đã quyết toán" : "⌛ Chưa quyết toán"}
+                        </span>
                       </div>
-                      <p className="text-sm font-semibold text-[#35433a]">{order.serviceNameSnapshot}</p>
+                      <p className="text-sm font-semibold text-[#35433a]">
+                        {order.serviceNameSnapshot} — <span className="font-bold text-[#8c6d29]">{Number(order.totalAmount).toLocaleString("vi-VN")} VND</span>
+                      </p>
+                      {order.hotel?.name && (
+                        <p className="text-xs text-[#5a6760]">🏨 {order.hotel.name}</p>
+                      )}
                     </div>
 
                     {next && (

@@ -421,6 +421,15 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     anyCapabilities: ["service.marketplace.view", "service.marketplace.manage"],
   },
   {
+    key: "service.settlements",
+    personas: ["service_partner"],
+    href: "/service/settlements",
+    label: "Quyết toán công nợ",
+    icon: "account_balance_wallet",
+    order: 35,
+    anyCapabilities: ["service.marketplace.view", "service.marketplace.manage"],
+  },
+  {
     key: "service.settings",
     personas: ["service_partner"],
     href: "/service/settings",

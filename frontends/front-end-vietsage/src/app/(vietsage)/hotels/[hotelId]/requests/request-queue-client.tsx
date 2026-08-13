@@ -50,7 +50,7 @@ import {
   requestTypeLabelMap,
   statusTone,
 } from "@/features/hotel-ops/utils/hotel-ops-display";
-import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
+import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 import { requestQueueResource } from "@/features/hotel-ops/resources/request-queue-resource";
 import { useNearbyServiceProviders } from "@/features/local-partners/queries/use-local-partners";
 import type { HotelMarketplaceOrder } from "@/features/local-partners/types/local-partners-contract";
@@ -121,42 +121,42 @@ type RequestQueueClientProps = {
 };
 
 const defaultLabels: RequestQueueLabels = {
-  allStatuses: "All statuses",
-  roomNumberPlaceholder: "Room number",
-  allServiceItems: "All service items",
-  assignedUserIdPlaceholder: "Assigned user ID",
-  filterButton: "Filter",
-  requestCountSuffix: "requests",
-  manageCatalog: "Manage catalog",
-  room: "Room",
-  guest: "Guest",
-  service: "Service",
-  category: "Category",
-  quantity: "Qty",
-  priority: "Priority",
-  status: "Status",
-  assigned: "Assigned",
-  created: "Created",
-  unassigned: "Unassigned",
-  emptyState: "No requests match the current filters.",
-  closeDetail: "Close",
-  requestDetail: "Request detail",
-  reservationCode: "Reservation",
-  details: "Details",
-  actionNote: "Guest-visible note",
-  assignmentNote: "Assignment note",
-  timelineNote: "Timeline note",
-  staffUserId: "Staff user ID",
-  statusActions: "Status actions",
-  assignment: "Assignment",
-  timeline: "Timeline",
-  saveAssignment: "Assign",
-  unassign: "Unassign",
-  noTimeline: "No timeline events yet.",
-  guestVisibleNoteHelp: "Status notes are visible to the guest.",
-  openRequest: "Open request",
-  loadingDetail: "Loading request detail...",
-  operationError: "Could not update this request.",
+  allStatuses: "Tất cả trạng thái",
+  roomNumberPlaceholder: "Số phòng",
+  allServiceItems: "Tất cả dịch vụ",
+  assignedUserIdPlaceholder: "Mã nhân viên phụ trách",
+  filterButton: "Lọc",
+  requestCountSuffix: "yêu cầu",
+  manageCatalog: "Quản lý dịch vụ",
+  room: "Phòng",
+  guest: "Khách hàng",
+  service: "Dịch vụ",
+  category: "Danh mục",
+  quantity: "SL",
+  priority: "Độ ưu tiên",
+  status: "Trạng thái",
+  assigned: "Phụ trách",
+  created: "Ngày tạo",
+  unassigned: "Chưa phân công",
+  emptyState: "Hiện chưa có yêu cầu dịch vụ nào phù hợp.",
+  closeDetail: "Đóng",
+  requestDetail: "Chi tiết yêu cầu",
+  reservationCode: "Mã đặt phòng",
+  details: "Ghi chú khách hàng",
+  actionNote: "Ghi chú gửi khách hàng",
+  assignmentNote: "Ghi chú phân công",
+  timelineNote: "Ghi chú nhật ký",
+  staffUserId: "Mã nhân viên",
+  statusActions: "Thao tác",
+  assignment: "Phân công xử lý",
+  timeline: "Nhật ký tiến trình",
+  saveAssignment: "Lưu phân công",
+  unassign: "Bỏ phân công",
+  noTimeline: "Chưa có sự kiện tiến trình nào.",
+  guestVisibleNoteHelp: "Ghi chú sẽ hiển thị Realtime tới khách hàng.",
+  openRequest: "Mở yêu cầu",
+  loadingDetail: "Đang tải chi tiết yêu cầu...",
+  operationError: "Không thể cập nhật yêu cầu này.",
 };
 
 const actionMeta: Record<
@@ -645,6 +645,19 @@ export function RequestQueueClient({
   const [isUrgentPanelOpen, setIsUrgentPanelOpen] = useState(
     searchParams.get("urgentPanel") === "1",
   );
+  const [inboxTab, setInboxTab] = useState<"HOTEL_REQUESTS" | "EXTERNAL_ORDERS" | "ALL">("HOTEL_REQUESTS");
+  const [externalPage, setExternalPage] = useState(1);
+  const [externalPageSize, setExternalPageSize] = useState(10);
+  const [hotelPage, setHotelPage] = useState(1);
+  const [hotelPageSize, setHotelPageSize] = useState(10);
+
+  useEffect(() => {
+    startTransition(() => {
+      setExternalPage(1);
+      setHotelPage(1);
+    });
+  }, [inboxTab, filters]);
+
   const [selectedRow, setSelectedRow] = useState<StaffRequestListItem | null>(
     null,
   );
@@ -776,7 +789,6 @@ export function RequestQueueClient({
     });
   }, []);
 
-  const [inboxTab, setInboxTab] = useState<"HOTEL_REQUESTS" | "EXTERNAL_ORDERS" | "ALL">("HOTEL_REQUESTS");
   const { orders: externalOrdersQuery } = useNearbyServiceProviders(hotelId);
   const externalOrders = externalOrdersQuery.data ?? [];
 
@@ -808,50 +820,14 @@ export function RequestQueueClient({
         createdAt: order.createdAt,
         roomNumber: order.stay?.room?.roomNumber ?? "-",
         guestName: order.stay?.guestDisplayName ?? "Khách lưu trú",
-        categoryName: "Dịch vụ bên ngoài",
-        assignedToName: "Đối tác liên kết",
+        categoryName: "Dịch vụ ngoài khách sạn",
+        assignedToName: "Đối tác ngoài",
         stayStatus: undefined,
         checkedOutAt: undefined,
         actions,
       };
     });
   }, [externalOrders]);
-
-  const ownerRealtimeHandlers = useMemo(
-    () => ({
-      onCreated: (request: StaffRequestListItem) => {
-        applyLiveRequestChange(request);
-        if (shouldShowInUrgentPanel(request)) {
-          setIsUrgentPanelOpen(true);
-        }
-      },
-      onUpdated: applyLiveRequestChange,
-      onAnswered: applyLiveRequestChange,
-      onExternalOrderCreated: () => {
-        void externalOrdersQuery.refetch();
-      },
-      onExternalOrderStatusChanged: () => {
-        void externalOrdersQuery.refetch();
-      },
-      onExternalOrderHotelAcknowledged: () => {
-        void externalOrdersQuery.refetch();
-      },
-      onExternalOrderVoucherIssued: () => {
-        void externalOrdersQuery.refetch();
-      },
-      onReconnect: () => {
-        startTransition(() => {
-          router.refresh();
-        });
-        void externalOrdersQuery.refetch();
-      },
-    }),
-    [applyLiveRequestChange, externalOrdersQuery, router],
-  );
-
-  useOwnerRequestRealtime(hotelId, ownerRealtimeHandlers, {
-    showConnectionToasts: false,
-  });
 
   const displayedRequests = useMemo(() => {
     const byId = new Map<string, StaffRequestListItem>(
@@ -1628,6 +1604,46 @@ export function RequestQueueClient({
     }
   }
 
+  async function completeExternalOrder(order: HotelMarketplaceOrder) {
+    const isConfirmed = await SwalVietSage.fire({
+      title: `<span style="font-size:17px;font-weight:800;color:#0f172a">Xác nhận hoàn thành đơn #${order.orderNumber}?</span>`,
+      html: `
+        <div style="text-align:left;font-size:13px;color:#334155;line-height:1.6;display:grid;gap:8px;padding-top:4px;">
+          <p style="margin:0"><b>Dịch vụ:</b> <span style="color:#0f172a;font-weight:700">${order.serviceNameSnapshot}</span></p>
+          <p style="margin:0"><b>Đối tác:</b> ${order.serviceTenant?.serviceProfile?.displayName ?? "Đối tác dịch vụ"}</p>
+          <p style="margin:0"><b>Khách / Phòng:</b> Phòng ${order.stay?.room?.roomNumber ?? "-"} (${order.stay?.guestDisplayName ?? "Khách lưu trú"})</p>
+          <p style="margin:0"><b>Số lượng:</b> ${order.quantity} · <b>Tổng tiền:</b> <b style="color:#047857">${Number(order.totalAmount).toLocaleString("vi-VN")} ${order.currency}</b></p>
+          <div style="margin-top:6px;padding:10px 12px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;font-size:12px;color:#065f46">
+            ⚡ <b>Hệ thống sẽ tự động:</b><br/>
+            • Đánh dấu trạng thái đơn là <b>HOÀN THÀNH</b><br/>
+            • Tạo khoản quyết toán công nợ <b>UNSETTLED</b> với Đối tác<br/>
+            • Đưa chi phí vào Folio tài khoản lưu trú của khách.
+          </div>
+        </div>
+      `,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "✓ Xác nhận hoàn thành",
+      cancelButtonText: "Quay lại",
+      confirmButtonColor: "#059669",
+      cancelButtonColor: "#64748b",
+      reverseButtons: false,
+    });
+
+    if (!isConfirmed.isConfirmed) return;
+
+    try {
+      await requestInternalApi(`/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/local-partners/providers/orders/${encodeURIComponent(order.id)}/complete`, {
+        method: "POST",
+      });
+      toast.success(`Đã hoàn thành đơn dịch vụ #${order.orderNumber}! Khoản quyết toán đối tác đã được ghi nhận.`);
+      void externalOrdersQuery.refetch();
+    } catch (error) {
+      toast.error(getHttpErrorMessage(error, "Không thể hoàn thành đơn hàng"));
+    }
+  }
+
+
   function openVoucherModal(order: HotelMarketplaceOrder) {
     if (!order.voucher?.voucherNumber && order.hotelCoordinationStatus !== "VOUCHER_ISSUED") {
       toast.info("Chưa có mã phiếu cho đơn hàng này");
@@ -1821,7 +1837,7 @@ export function RequestQueueClient({
                   onClick={() => {
                     void cancelExternalOrder(order);
                   }}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-100 active:scale-[0.97] transition-all"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-rose-300 bg-rose-50 px-2.5 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-100 hover:border-rose-400 active:scale-[0.97] transition-all shadow-2xs"
                   title="Hủy đơn hàng"
                 >
                   <VsIcon name="close" className="text-xs" />
@@ -1830,6 +1846,18 @@ export function RequestQueueClient({
               </>
             ) : (
               <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void completeExternalOrder(order);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-emerald-700 active:scale-[0.97] transition-all"
+                  title="Xác nhận hoàn thành dịch vụ và hạch toán công nợ đối tác"
+                >
+                  <VsIcon name="check_circle" className="text-xs" />
+                  <span>Hoàn thành</span>
+                </button>
+
                 {isVoucherIssued ? (
                   <button
                     type="button"
@@ -1841,18 +1869,6 @@ export function RequestQueueClient({
                     <span>Xem phiếu</span>
                   </button>
                 ) : null}
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    void cancelExternalOrder(order);
-                  }}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 active:scale-[0.97] transition-all"
-                  title="Hủy đơn hàng"
-                >
-                  <VsIcon name="close" className="text-xs" />
-                  <span>Hủy</span>
-                </button>
               </>
             )}
           </div>
@@ -1903,7 +1919,7 @@ export function RequestQueueClient({
               : "bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100"
           }`}
         >
-          <span>🌐 Dịch vụ bên ngoài</span>
+          <span>🌐 Dịch vụ ngoài khách sạn</span>
           <span className={`rounded-full px-2.5 py-0.5 text-xs font-black ${inboxTab === "EXTERNAL_ORDERS" ? "bg-white/20 text-white" : "bg-amber-200 text-amber-900"}`}>
             {externalOrders.length}
           </span>
@@ -2025,10 +2041,21 @@ export function RequestQueueClient({
           columns={externalOrderColumns}
           data={externalOrders}
           getRowKey={(order) => order.id}
-          emptyMessage="Hiện chưa có đơn hàng dịch vụ bên ngoài nào."
+          emptyMessage="Hiện chưa có đơn hàng dịch vụ ngoài khách sạn nào."
           minWidth="1000px"
           header={requestTableHeader}
           onRowClick={(order) => openExternalOrderDetailModal(order)}
+          pagination={{
+            page: externalPage,
+            pageSize: externalPageSize,
+            totalItems: externalOrders.length,
+            pageSizeOptions: [10, 20, 50],
+            onPageChange: (newPage) => setExternalPage(newPage),
+            onPageSizeChange: (newPageSize) => {
+              setExternalPageSize(newPageSize);
+              setExternalPage(1);
+            },
+          }}
         />
       ) : (
         <DataTable
@@ -2046,7 +2073,7 @@ export function RequestQueueClient({
               setSortState({ key: key as RequestSortKey, direction }),
           }}
           pagination={
-            page && pageSize
+            inboxTab === "HOTEL_REQUESTS" && page && pageSize
               ? {
                   page,
                   pageSize,
@@ -2057,7 +2084,17 @@ export function RequestQueueClient({
                   getPageSizeHref: (nextPageSize) =>
                     getPaginationHref(1, nextPageSize),
                 }
-              : undefined
+              : {
+                  page: hotelPage,
+                  pageSize: hotelPageSize,
+                  totalItems: activeTabRequests.length,
+                  pageSizeOptions: [10, 20, 50],
+                  onPageChange: (p) => setHotelPage(p),
+                  onPageSizeChange: (ps) => {
+                    setHotelPageSize(ps);
+                    setHotelPage(1);
+                  },
+                }
           }
         />
       )}

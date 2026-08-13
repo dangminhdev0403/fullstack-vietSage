@@ -48,7 +48,7 @@ import type {
 import { GuestCatalogRequestGuard } from "@/features/guest-os/utils/guest-catalog-request-guard";
 import { adaptGuestServiceCatalog } from "@/features/guest-os/utils/guest-service-catalog";
 import { getGuestFriendlyErrorMessage } from "@/features/guest-os/utils/guest-os-errors";
-import { useGuestRequestRealtime } from "@/features/request-realtime/use-guest-request-realtime";
+import { GUEST_REQUEST_REALTIME_BROWSER_EVENT } from "@/features/request-realtime/guest-request-realtime-notifier";
 import { GuestMarketplace } from "@/features/marketplace/components/guest-marketplace";
 
 type GuestTranslator = ReturnType<typeof useGuestI18n>["t"];
@@ -227,23 +227,15 @@ function GuestServicesContent() {
     [locale, sessionToken, t],
   );
 
-  useGuestRequestRealtime(sessionToken, {
-    onReconnect: () => {
+  useEffect(() => {
+    const handleRealtime = () => {
       loadServices({ silent: true });
-    },
-    onCreated: () => {
-      loadServices({ silent: true });
-    },
-    onUpdated: () => {
-      loadServices({ silent: true });
-    },
-    onAnswered: () => {
-      loadServices({ silent: true });
-    },
-    onConversationClosed: () => {
-      loadServices({ silent: true });
-    },
-  });
+    };
+    window.addEventListener(GUEST_REQUEST_REALTIME_BROWSER_EVENT, handleRealtime);
+    return () => {
+      window.removeEventListener(GUEST_REQUEST_REALTIME_BROWSER_EVENT, handleRealtime);
+    };
+  }, [loadServices]);
 
   useEffect(() => {
     if (!isHydrated || !sessionToken) return;

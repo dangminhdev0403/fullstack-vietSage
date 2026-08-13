@@ -8,8 +8,11 @@ import { MarketplaceOrderService } from "../application/marketplace-order.servic
 import { MarketplaceAdminService } from "../application/marketplace-admin.service";
 import { hotelServiceLinkBodySchema } from "../domain/marketplace-admin.schema";
 import {
+  batchSettleSchema,
   marketplaceOrderIdSchema,
   marketplaceRevenueQuerySchema,
+  partnerSettlementQuerySchema,
+  settlementIdSchema,
 } from "../domain/marketplace-order.schema";
 
 @Controller("hotels/:hotelId/marketplace")
@@ -125,6 +128,20 @@ export class HotelMarketplaceController {
     return this.orders.cancelHotelOrder(req.user.userId, hotelId, validOrderId);
   }
 
+  @ApiDescript("Hoàn thành đơn dịch vụ ngoài (dành cho lễ tân khách sạn)")
+  @RequirePermission("hotel.requests.view")
+  @Post("orders/:orderId/complete")
+  async complete(
+    @Req() req: RequestWithRequiredUser,
+    @Param("hotelId") id: string,
+    @Param("orderId") orderId: string,
+  ) {
+    const hotelId = await this.hotel(req, id);
+    const validOrderId = parseWithZod(marketplaceOrderIdSchema, orderId);
+    return this.orders.completeHotelOrder(req.user.userId, hotelId, validOrderId);
+  }
+
+
   @ApiDescript("Xem doanh thu Marketplace của khách sạn")
   @RequirePermission("hotel.marketplace.revenue.view")
   @Get("revenue")
@@ -136,5 +153,44 @@ export class HotelMarketplaceController {
     const hotelId = await this.hotel(req, id);
     const parsed = parseWithZod(marketplaceRevenueQuerySchema, query ?? {});
     return this.orders.hotelRevenue(hotelId, parsed.from, parsed.to, parsed.serviceTenantId);
+  }
+
+  @ApiDescript("Xem danh sách quyết toán công nợ đối tác dịch vụ ngoài")
+  @RequirePermission("hotel.marketplace.revenue.view")
+  @Get("settlements")
+  async settlements(
+    @Req() req: RequestWithRequiredUser,
+    @Param("hotelId") id: string,
+    @Query() query: unknown,
+  ) {
+    const hotelId = await this.hotel(req, id);
+    const parsed = parseWithZod(partnerSettlementQuerySchema, query ?? {});
+    return this.orders.listHotelPartnerSettlements(hotelId, parsed);
+  }
+
+  @ApiDescript("Xác nhận quyết toán đơn dịch vụ ngoài cho đối tác")
+  @RequirePermission("hotel.local-partners.manage")
+  @Post("settlements/:settlementId/settle")
+  async settle(
+    @Req() req: RequestWithRequiredUser,
+    @Param("hotelId") id: string,
+    @Param("settlementId") settlementId: string,
+  ) {
+    const hotelId = await this.hotel(req, id);
+    const validSettlementId = parseWithZod(settlementIdSchema, settlementId);
+    return this.orders.settlePartnerOrder(req.user.userId, hotelId, validSettlementId);
+  }
+
+  @ApiDescript("Xác nhận quyết toán hàng loạt đơn dịch vụ ngoài cho đối tác")
+  @RequirePermission("hotel.local-partners.manage")
+  @Post("settlements/settle-batch")
+  async settleBatch(
+    @Req() req: RequestWithRequiredUser,
+    @Param("hotelId") id: string,
+    @Body() body: unknown,
+  ) {
+    const hotelId = await this.hotel(req, id);
+    const parsed = parseWithZod(batchSettleSchema, body);
+    return this.orders.settlePartnerOrdersBatch(req.user.userId, hotelId, parsed.settlementIds);
   }
 }

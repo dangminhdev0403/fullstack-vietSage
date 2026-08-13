@@ -17,6 +17,33 @@ export type MarketplaceServiceItem = {
 };
 export type MarketplaceServicesPage = { page: number; limit: number; total: number; items: MarketplaceServiceItem[] };
 export type CreateMarketplaceOrderInput = { serviceId: string; quantity: number; guestNote?: string; idempotencyKey: string };
+export type MarketplaceSettlement = {
+  id: string;
+  orderId: string;
+  hotelId: string;
+  serviceTenantId: string;
+  grossAmount: string | number;
+  commissionAmount: string | number;
+  netAmount: string | number;
+  currency: string;
+  status: "UNSETTLED" | "READY_FOR_SETTLEMENT" | "SETTLED";
+  settledAt?: string | null;
+  settledBy?: string | null;
+  settledAmount?: string | number | null;
+  settlementReference?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+export type PartnerFinancialSummary = {
+  totalOrdersCount: number;
+  completedOrdersCount: number;
+  cancelledOrdersCount: number;
+  grossSalesAmount: number;
+  hotelCollectedAmount: number;
+  totalNetPayable: number;
+  settledAmount: number;
+  outstandingAmount: number;
+};
 export type MarketplaceOrder = {
   id: string;
   orderNumber: string;
@@ -30,6 +57,7 @@ export type MarketplaceOrder = {
     issuedAt?: string;
     expiresAt?: string;
   } | null;
+  settlement?: MarketplaceSettlement | null;
   quantity: number;
   unitPriceSnapshot?: string | number | null;
   unitSnapshot?: string | null;

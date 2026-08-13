@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   Res,
 } from "@nestjs/common";
@@ -28,6 +29,7 @@ import { ServiceItemImportService } from "../application/service-item-import.ser
 import {
   marketplaceOrderIdSchema,
   marketplaceTransitionSchema,
+  partnerSettlementQuerySchema,
 } from "../domain/marketplace-order.schema";
 
 import { RequestRealtimeTicketService } from "../../request-realtime/application/request-realtime-ticket.service";
@@ -200,6 +202,21 @@ export class ServicePortalController {
       throw new BadRequestException("Voucher code/number is required");
     }
     return this.orders.redeemVoucher(req.user.userId, input.code.trim());
+  }
+
+  @ApiDescript("Xem tổng quan tài chính đối tác dịch vụ")
+  @RequirePermission("service.marketplace.view")
+  @Get("financial-summary")
+  financialSummary(@Req() req: RequestWithRequiredUser) {
+    return this.orders.getPartnerFinancialSummary(req.user.userId);
+  }
+
+  @ApiDescript("Xem danh sách quyết toán của đối tác dịch vụ")
+  @RequirePermission("service.marketplace.view")
+  @Get("settlements")
+  settlements(@Req() req: RequestWithRequiredUser, @Query() query: unknown) {
+    const parsed = parseWithZod(partnerSettlementQuerySchema, query ?? {});
+    return this.orders.listPartnerSettlements(req.user.userId, parsed.status);
   }
 
   @ApiDescript("Tạo ticket kết nối realtime cho Service Tenant")

@@ -15,7 +15,6 @@ import type {
 import { formatMoney } from "@/features/billing/utils/money";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
-import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
 
 type Props = {
   hotelId: string;
@@ -213,7 +212,8 @@ export function StaffBillingWorkspaceClient({
   const [selectedFolioId, setSelectedFolioId] = useState(
     () => initialFolio?.id ?? "",
   );
-  const [prevSelectedFolioId, setPrevSelectedFolioId] = useState(selectedFolioId);
+  const [prevSelectedFolioId, setPrevSelectedFolioId] =
+    useState(selectedFolioId);
   const [summary, setSummary] = useState<FolioSummary | null>(
     initialFolio ?? null,
   );
@@ -283,7 +283,6 @@ export function StaffBillingWorkspaceClient({
     [isDetailLoaded, items],
   );
 
-
   const currency = activeSummary?.currency ?? selectedFolio?.currency ?? "VND";
   const subtotal = toNumber(activeSummary?.subtotal ?? 0);
   const tax = toNumber(activeSummary?.tax ?? 0);
@@ -296,9 +295,25 @@ export function StaffBillingWorkspaceClient({
       .reduce((sum, item) => sum + toNumber(item.totalSnapshot), 0);
   }, [activeItems]);
 
-  const serviceChargeTotal = useMemo(() => {
+  const hotelServiceChargeTotal = useMemo(() => {
     return activeItems
-      .filter((item) => item.itemType === "SERVICE" && !isFolioItemVoided(item))
+      .filter(
+        (item) =>
+          item.itemType === "SERVICE" &&
+          !isFolioItemVoided(item) &&
+          item.serviceSource !== "EXTERNAL",
+      )
+      .reduce((sum, item) => sum + toNumber(item.totalSnapshot), 0);
+  }, [activeItems]);
+
+  const externalServiceCollectionTotal = useMemo(() => {
+    return activeItems
+      .filter(
+        (item) =>
+          item.itemType === "SERVICE" &&
+          !isFolioItemVoided(item) &&
+          item.serviceSource === "EXTERNAL",
+      )
       .reduce((sum, item) => sum + toNumber(item.totalSnapshot), 0);
   }, [activeItems]);
 
@@ -376,24 +391,6 @@ export function StaffBillingWorkspaceClient({
       clearInterval(interval);
     };
   }, [apiBase, selectedFolioId, refreshActiveFolio, router]);
-
-  const realtimeHandlers = useMemo(
-    () => ({
-      onUpdated: () => {
-        void refreshActiveFolio();
-        router.refresh();
-      },
-      onReconnect: () => {
-        void refreshActiveFolio();
-        router.refresh();
-      },
-    }),
-    [refreshActiveFolio, router],
-  );
-
-  useOwnerRequestRealtime(hotelId, realtimeHandlers, {
-    showConnectionToasts: false,
-  });
 
   async function issueInvoiceAndCollect() {
     if (!selectedFolioId || !canManage) return;
@@ -768,17 +765,61 @@ export function StaffBillingWorkspaceClient({
                           <p className="font-extrabold text-base text-[var(--primary)] truncate">
                             {item.nameSnapshot}
                           </p>
-                          <span className="inline-block text-xs font-extrabold text-[var(--secondary)] bg-amber-50 border border-amber-200/80 rounded-md px-2.5 py-0.5 mt-0.5">
-                            {item.itemType === "ROOM_CHARGE"
-                              ? "Tiền phòng"
-                              : item.itemType === "SERVICE"
-                                ? "Dịch vụ"
-                                : item.itemType === "DISCOUNT"
-                                  ? "Giảm giá"
-                                  : item.itemType === "MANUAL_CHARGE"
-                                    ? "Phụ thu"
-                                    : item.itemType}
-                          </span>
+                          {(() => {
+                            const isExternal =
+                              item.serviceSource === "EXTERNAL" ||
+                              (typeof item.billingSourceSnapshot === "object" &&
+                                item.billingSourceSnapshot !== null &&
+                                ("marketplaceOrderId" in
+                                  (item.billingSourceSnapshot as object) ||
+                                  (
+                                    item.billingSourceSnapshot as Record<
+                                      string,
+                                      unknown
+                                    >
+                                  ).serviceSource === "EXTERNAL"));
+
+                            const partnerName =
+                              item.partnerName ??
+                              (typeof item.billingSourceSnapshot === "object" &&
+                              item.billingSourceSnapshot !== null
+                                ? (
+                                    item.billingSourceSnapshot as Record<
+                                      string,
+                                      unknown
+                                    >
+                                  ).partnerName
+                                : null);
+
+                            if (isExternal) {
+                              return (
+                                <div className="space-y-0.5 mt-0.5">
+                                  <span className="inline-block text-xs font-extrabold text-purple-900 bg-purple-100 border border-purple-300 rounded-md px-2.5 py-0.5 shadow-2xs">
+                                    Dịch vụ bên ngoài
+                                  </span>
+                                  {partnerName ? (
+                                    <span className="block text-xs font-semibold text-purple-800">
+                                      🤝 {String(partnerName)}
+                                    </span>
+                                  ) : null}
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <span className="inline-block text-xs font-extrabold text-[var(--secondary)] bg-amber-50 border border-amber-200/80 rounded-md px-2.5 py-0.5 mt-0.5">
+                                {item.itemType === "ROOM_CHARGE"
+                                  ? "Tiền phòng"
+                                  : item.itemType === "SERVICE"
+                                    ? "Dịch vụ khách sạn"
+                                    : item.itemType === "DISCOUNT"
+                                      ? "Giảm giá"
+                                      : item.itemType === "MANUAL_CHARGE"
+                                        ? "Phụ thu"
+                                        : item.itemType}
+                              </span>
+                            );
+                          })()}
                           {isVoided ? (
                             <span className="ml-1 inline-block text-xs font-bold text-red-700 bg-red-100 rounded px-1.5 py-0.5">
                               Đã hủy
@@ -1049,15 +1090,36 @@ export function StaffBillingWorkspaceClient({
               </dd>
             </div>
 
-            {/* Dịch vụ & Tiện ích */}
+            {/* Dịch vụ khách sạn (Internal) */}
             <div className="flex justify-between items-center">
               <dt className="text-amber-100/90 font-bold text-sm flex items-center gap-1">
-                <span>🔔 Dịch vụ & Tiện ích</span>
+                <span>🔔 Dịch vụ khách sạn</span>
               </dt>
               <dd className="font-black text-base text-white">
-                {formatMoney(serviceChargeTotal, currency)}
+                {formatMoney(hotelServiceChargeTotal, currency)}
               </dd>
             </div>
+
+            {/* Thu hộ dịch vụ bên ngoài (External Partner Collections) */}
+            {externalServiceCollectionTotal > 0 ? (
+              <div className="space-y-1 rounded-xl bg-purple-950/40 p-2.5 border border-purple-400/40">
+                <div className="flex justify-between items-center">
+                  <dt className="text-purple-200 font-extrabold text-sm flex items-center gap-1.5">
+                    <span className="rounded-md bg-purple-500/30 px-1.5 py-0.5 text-xs text-purple-200">
+                      🤝 Thu hộ đối tác
+                    </span>
+                    <span>Dịch vụ bên ngoài</span>
+                  </dt>
+                  <dd className="font-black text-base text-purple-200">
+                    {formatMoney(externalServiceCollectionTotal, currency)}
+                  </dd>
+                </div>
+                <p className="text-[11px] text-purple-300 font-semibold">
+                  (Thu hộ đối tác — Không ghi nhận vào doanh thu hoạt động khách
+                  sạn)
+                </p>
+              </div>
+            ) : null}
 
             {/* Tạm tính (Tiền phòng + Dịch vụ) */}
             <div className="flex justify-between items-center border-t border-[#d4af37]/20 pt-2">
