@@ -14,14 +14,23 @@ export const dynamic = "force-dynamic";
 
 const createTenantOwnerSchema = z.object({
   owner: z.object({
-    fullName: z.string().trim().min(1),
-    email: z.string().trim().email(),
-    password: z.string().min(8),
+    fullName: z.string().trim().min(2, "Họ tên cần ít nhất 2 ký tự."),
+    email: z.string().trim().email("Email không hợp lệ."),
+    password: z.string().min(8, "Mật khẩu cần ít nhất 8 ký tự."),
   }),
   tenant: z.object({
-    name: z.string().trim().min(1),
+    name: z.string().trim().min(2, "Tên tổ chức cần ít nhất 2 ký tự."),
   }),
 });
+
+function formatValidationIssues(error: z.ZodError): string {
+  return error.issues
+    .map((issue) => {
+      const field = issue.path.length > 0 ? issue.path.join(".") : "payload";
+      return `${field}: ${issue.message}`;
+    })
+    .join("; ");
+}
 
 export async function POST(request: Request) {
   let payload: unknown;
@@ -33,7 +42,7 @@ export async function POST(request: Request) {
 
   const parsed = createTenantOwnerSchema.safeParse(payload);
   if (!parsed.success) {
-    return validationErrorResponse("Tenant owner payload is invalid");
+    return validationErrorResponse(formatValidationIssues(parsed.error));
   }
 
   try {
