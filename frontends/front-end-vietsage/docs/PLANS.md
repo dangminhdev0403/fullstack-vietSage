@@ -1,3 +1,18 @@
+## [complete] 2026-08-13 - Mission: complete-guestos-locale-propagation-fix
+
+- Fixed external marketplace order reload on `/g/requests`: forwards active GuestOS locale through `Accept-Language`/`x-lang` and re-fetches when locale changes.
+- Preserved existing backend translation tables, locale resolver, frontend dictionaries, and marketplace resource scope. No dependency/package changes.
+
+Verification result:
+
+- Frontend TypeScript check passed (`npm exec tsc -- --noEmit`).
+- Backend i18n/GuestOS/Marketplace tests passed: 3 suites, 42 tests.
+- Scoped `git diff --check` passed.
+
+Remaining risk:
+
+- Backend request/session/realtime localized answer text remains outside this minimal catalog fix.
+
 ## [complete] 2026-08-13 - Mission: fix-datatable-column-layout-and-text-overlap-regression
 
 - Fixed DataTable visual text overlap regression across Table 1 (`HotelPartnerSettlementsTab`) and Table 2 (`ServiceSettlementsView`):

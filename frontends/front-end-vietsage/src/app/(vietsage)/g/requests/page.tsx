@@ -105,7 +105,7 @@ export default function GuestRequestsPage() {
     void Promise.resolve().then(async () => {
       setIsExternalLoading(true);
       try {
-        const orders = await guestMarketplaceRepository.orders(sessionToken);
+        const orders = await guestMarketplaceRepository.orders(sessionToken, locale);
         if (!isCancelled) setExternalOrders(orders);
       } catch {
         if (!isCancelled) setExternalOrders([]);
@@ -114,7 +114,7 @@ export default function GuestRequestsPage() {
       }
     });
     return () => { isCancelled = true; };
-  }, [isHydrated, sessionToken, externalOrdersVersion]);
+  }, [externalOrdersVersion, isHydrated, locale, sessionToken]);
 
   const visibleRequests = useMemo(() => requests.filter((request) => matchesRequestSearch(request, requestSearch, t)), [requestSearch, requests, t]);
   const estimatedVisibleTotal = useMemo(() => getEstimatedTotal(visibleRequests), [visibleRequests]);
