@@ -55,6 +55,11 @@ import { requestQueueResource } from "@/features/hotel-ops/resources/request-que
 import { useNearbyServiceProviders } from "@/features/local-partners/queries/use-local-partners";
 import type { HotelMarketplaceOrder } from "@/features/local-partners/types/local-partners-contract";
 import type { MarketplaceOrder } from "@/features/marketplace/types/marketplace-contract";
+import {
+  calculateOrderFinancials,
+  getCanonicalOrderItems,
+  isTerminalOrderStatus,
+} from "@/features/marketplace/utils/marketplace-unit";
 import { printMarketplaceVoucherTicket } from "@/features/marketplace/utils/print-voucher";
 import { SwalVietSage } from "@/libs/swal";
 
@@ -1532,14 +1537,36 @@ export function RequestQueueClient({
   ];
 
   async function acknowledgeExternalOrder(order: HotelMarketplaceOrder) {
+    if (isTerminalOrderStatus(order.status)) {
+      toast.error("Đơn hàng đã ở trạng thái kết thúc, không thể tiếp nhận.");
+      return;
+    }
+
+    const items = getCanonicalOrderItems(order);
+    const financials = calculateOrderFinancials(order, items);
+
+    const itemsSummaryHtml = items.map((it) => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px dashed #e2e8f0;font-size:12px">
+        <span style="font-weight:600;color:#0f172a">${it.serviceName} <span style="color:#64748b">×${it.quantity}</span></span>
+        <span style="font-weight:700;color:#334155">${(Number(it.unitPrice) * Number(it.quantity)).toLocaleString("vi-VN")} ${financials.currency}</span>
+      </div>
+    `).join("");
+
     const isConfirmed = await SwalVietSage.fire({
       title: `<span style="font-size:17px;font-weight:800;color:#0f172a">Xác nhận tiếp nhận đơn #${order.orderNumber}?</span>`,
       html: `
         <div style="text-align:left;font-size:13px;color:#334155;line-height:1.6;display:grid;gap:8px;padding-top:4px;">
-          <p style="margin:0"><b>Dịch vụ:</b> <span style="color:#0f172a;font-weight:700">${order.serviceNameSnapshot}</span></p>
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;">
+            <p style="margin:0 0 4px 0;font-size:11px;font-weight:800;text-transform:uppercase;color:#64748b">Dịch vụ yêu cầu (${items.length}):</p>
+            ${itemsSummaryHtml}
+          </div>
           <p style="margin:0"><b>Đối tác:</b> ${order.serviceTenant?.serviceProfile?.displayName ?? "Đối tác dịch vụ"}</p>
           <p style="margin:0"><b>Khách / Phòng:</b> Phòng ${order.stay?.room?.roomNumber ?? "-"} (${order.stay?.guestDisplayName ?? "Khách lưu trú"})</p>
-          <p style="margin:0"><b>Số lượng:</b> ${order.quantity} · <b>Tổng tiền:</b> <b style="color:#047857">${Number(order.totalAmount).toLocaleString("vi-VN")} ${order.currency}</b></p>
+          <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:8px 10px;font-size:12px;display:grid;gap:2px">
+            <div style="display:flex;justify-content:space-between"><span>Tạm tính đối tác:</span><b style="color:#1e293b">${financials.partnerSubtotal.toLocaleString("vi-VN")} ${financials.currency}</b></div>
+            <div style="display:flex;justify-content:space-between"><span>Phí khách sạn (10%):</span><b style="color:#0284c7">+${financials.hotelFee.toLocaleString("vi-VN")} ${financials.currency}</b></div>
+            <div style="display:flex;justify-content:space-between;border-top:1px solid #86efac;padding-top:4px;margin-top:2px;font-size:13px"><span style="font-weight:700">Tổng thu khách:</span><b style="color:#047857">${financials.customerTotal.toLocaleString("vi-VN")} ${financials.currency}</b></div>
+          </div>
           <div style="margin-top:6px;padding:10px 12px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;font-size:12px;color:#065f46">
             ⚡ <b>Hệ thống sẽ tự động:</b><br/>
             • Tạo Mã phiếu dịch vụ (Voucher)<br/>
@@ -1570,13 +1597,22 @@ export function RequestQueueClient({
   }
 
   async function cancelExternalOrder(order: HotelMarketplaceOrder) {
+    if (isTerminalOrderStatus(order.status) || order.status !== "PENDING") {
+      toast.error("Chỉ có thể hủy đơn hàng đang chờ tiếp nhận.");
+      return;
+    }
+
+    const items = getCanonicalOrderItems(order);
+    const financials = calculateOrderFinancials(order, items);
+
     const isConfirmed = await SwalVietSage.fire({
       title: `<span style="font-size:17px;font-weight:800;color:#991b1b">Xác nhận hủy đơn #${order.orderNumber}?</span>`,
       html: `
         <div style="text-align:left;font-size:13px;color:#334155;line-height:1.6;display:grid;gap:8px;padding-top:4px;">
-          <p style="margin:0"><b>Dịch vụ:</b> ${order.serviceNameSnapshot}</p>
+          <p style="margin:0"><b>Dịch vụ:</b> ${order.serviceNameSnapshot}${items.length > 1 ? ` (+${items.length - 1} mục khác)` : ""}</p>
           <p style="margin:0"><b>Đối tác:</b> ${order.serviceTenant?.serviceProfile?.displayName ?? "Đối tác dịch vụ"}</p>
           <p style="margin:0"><b>Khách / Phòng:</b> Phòng ${order.stay?.room?.roomNumber ?? "-"} (${order.stay?.guestDisplayName ?? "Khách lưu trú"})</p>
+          <p style="margin:0"><b>Giá trị đơn:</b> ${financials.customerTotal.toLocaleString("vi-VN")} ${financials.currency}</p>
           <div style="margin-top:6px;padding:10px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;font-size:12px;color:#991b1b">
             ⚠️ <b>Lưu ý:</b> Đơn hàng này sẽ bị hủy. Thông báo hủy sẽ gửi Realtime đến Đối tác & Khách hàng.
           </div>
@@ -1605,19 +1641,41 @@ export function RequestQueueClient({
   }
 
   async function completeExternalOrder(order: HotelMarketplaceOrder) {
+    if (isTerminalOrderStatus(order.status)) {
+      toast.error("Đơn hàng đã ở trạng thái kết thúc, không thể thực hiện hoàn thành.");
+      return;
+    }
+
+    const items = getCanonicalOrderItems(order);
+    const financials = calculateOrderFinancials(order, items);
+
+    const itemsSummaryHtml = items.map((it) => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px dashed #e2e8f0;font-size:12px">
+        <span style="font-weight:600;color:#0f172a">${it.serviceName} <span style="color:#64748b">×${it.quantity}</span></span>
+        <span style="font-weight:700;color:#334155">${(Number(it.unitPrice) * Number(it.quantity)).toLocaleString("vi-VN")} ${financials.currency}</span>
+      </div>
+    `).join("");
+
     const isConfirmed = await SwalVietSage.fire({
       title: `<span style="font-size:17px;font-weight:800;color:#0f172a">Xác nhận hoàn thành đơn #${order.orderNumber}?</span>`,
       html: `
         <div style="text-align:left;font-size:13px;color:#334155;line-height:1.6;display:grid;gap:8px;padding-top:4px;">
-          <p style="margin:0"><b>Dịch vụ:</b> <span style="color:#0f172a;font-weight:700">${order.serviceNameSnapshot}</span></p>
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;">
+            <p style="margin:0 0 4px 0;font-size:11px;font-weight:800;text-transform:uppercase;color:#64748b">Chi tiết dịch vụ (${items.length}):</p>
+            ${itemsSummaryHtml}
+          </div>
           <p style="margin:0"><b>Đối tác:</b> ${order.serviceTenant?.serviceProfile?.displayName ?? "Đối tác dịch vụ"}</p>
           <p style="margin:0"><b>Khách / Phòng:</b> Phòng ${order.stay?.room?.roomNumber ?? "-"} (${order.stay?.guestDisplayName ?? "Khách lưu trú"})</p>
-          <p style="margin:0"><b>Số lượng:</b> ${order.quantity} · <b>Tổng tiền:</b> <b style="color:#047857">${Number(order.totalAmount).toLocaleString("vi-VN")} ${order.currency}</b></p>
+          <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:8px 10px;font-size:12px;display:grid;gap:2px">
+            <div style="display:flex;justify-content:space-between"><span>Tạm tính đối tác (Partner Subtotal):</span><b style="color:#1e293b">${financials.partnerSubtotal.toLocaleString("vi-VN")} ${financials.currency}</b></div>
+            <div style="display:flex;justify-content:space-between"><span>Phí khách sạn 10% (Hotel Fee):</span><b style="color:#0284c7">+${financials.hotelFee.toLocaleString("vi-VN")} ${financials.currency}</b></div>
+            <div style="display:flex;justify-content:space-between;border-top:1px solid #86efac;padding-top:4px;margin-top:2px;font-size:13px"><span style="font-weight:700">Tổng tiền khách trả (Customer Total):</span><b style="color:#047857">${financials.customerTotal.toLocaleString("vi-VN")} ${financials.currency}</b></div>
+          </div>
           <div style="margin-top:6px;padding:10px 12px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;font-size:12px;color:#065f46">
             ⚡ <b>Hệ thống sẽ tự động:</b><br/>
             • Đánh dấu trạng thái đơn là <b>HOÀN THÀNH</b><br/>
-            • Tạo khoản quyết toán công nợ <b>UNSETTLED</b> với Đối tác<br/>
-            • Đưa chi phí vào Folio tài khoản lưu trú của khách.
+            • Tạo khoản quyết toán công nợ <b>UNSETTLED</b> với Đối tác (${financials.partnerSubtotal.toLocaleString("vi-VN")} ${financials.currency})<br/>
+            • Đưa chi phí vào Folio tài khoản lưu trú của khách (${financials.customerTotal.toLocaleString("vi-VN")} ${financials.currency}).
           </div>
         </div>
       `,
@@ -1643,12 +1701,19 @@ export function RequestQueueClient({
     }
   }
 
-
   function openVoucherModal(order: HotelMarketplaceOrder) {
     if (!order.voucher?.voucherNumber && order.hotelCoordinationStatus !== "VOUCHER_ISSUED") {
       toast.info("Chưa có mã phiếu cho đơn hàng này");
       return;
     }
+    const items = getCanonicalOrderItems(order);
+    const financials = calculateOrderFinancials(order, items);
+    const totalQty = items.reduce((s, it) => s + (Number(it.quantity) || 1), 0);
+    const serviceName =
+      items.length > 1
+        ? `${items[0].serviceName} (+${items.length - 1} mục khác)`
+        : order.serviceNameSnapshot;
+
     printMarketplaceVoucherTicket({
       voucherCode: order.voucher?.voucherNumber ?? "VOUCHER",
       verificationCode: "-",
@@ -1656,10 +1721,10 @@ export function RequestQueueClient({
       roomNumber: order.stay?.room?.roomNumber ?? "-",
       providerDisplayName: order.serviceTenant?.serviceProfile?.displayName ?? "Đối tác dịch vụ",
       orderNumber: order.orderNumber,
-      serviceName: order.serviceNameSnapshot,
-      quantity: order.quantity,
-      totalAmount: order.totalAmount,
-      currency: order.currency,
+      serviceName,
+      quantity: totalQty,
+      totalAmount: financials.customerTotal,
+      currency: financials.currency,
       guestNote: order.guestNote,
     });
   }
@@ -1667,22 +1732,88 @@ export function RequestQueueClient({
   function openExternalOrderDetailModal(order: HotelMarketplaceOrder) {
     const statusMeta = getExternalOrderStatusLabel(order.status);
     const isHotelAcknowledged = order.hotelCoordinationStatus === "ACKNOWLEDGED" || order.hotelCoordinationStatus === "VOUCHER_ISSUED";
+    const items = getCanonicalOrderItems(order);
+    const financials = calculateOrderFinancials(order, items);
+
+    const itemsTableHtml = `
+      <div style="margin-top:6px;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;background:#ffffff">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;text-align:left">
+          <thead style="background:#f8fafc;border-bottom:1px solid #e2e8f0;color:#64748b;font-weight:700">
+            <tr>
+              <th style="padding:8px 10px">Dịch vụ (Canonical Items)</th>
+              <th style="padding:8px 10px;text-align:center">Số lượng</th>
+              <th style="padding:8px 10px;text-align:right">Đơn giá (Read-only)</th>
+              <th style="padding:8px 10px;text-align:right">Thành tiền</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${items.map((it) => `
+              <tr style="border-bottom:1px solid #f1f5f9">
+                <td style="padding:8px 10px">
+                  <div style="font-weight:700;color:#0f172a">${it.serviceName}</div>
+                  <div style="font-size:11px;color:#64748b">${it.serviceTenantName ?? order.serviceTenant?.serviceProfile?.displayName ?? "Đối tác"}</div>
+                </td>
+                <td style="padding:8px 10px;text-align:center;font-weight:700;color:#334155">${it.quantity} ${it.pricingUnit ?? ""}</td>
+                <td style="padding:8px 10px;text-align:right;color:#475569;font-family:monospace">${Number(it.unitPrice).toLocaleString("vi-VN")} ${financials.currency}</td>
+                <td style="padding:8px 10px;text-align:right;font-weight:700;color:#0f172a;font-family:monospace">${(Number(it.unitPrice) * Number(it.quantity)).toLocaleString("vi-VN")} ${financials.currency}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    `;
 
     void SwalVietSage.fire({
       title: `<span style="font-size:18px;font-weight:800;color:#0f172a">Đơn Dịch Vụ Bên Ngoài #${order.orderNumber}</span>`,
       html: `
-        <div style="text-align:left;font-size:14px;color:#334155;line-height:1.6;display:grid;gap:10px;">
-          <p style="margin:0"><span style="display:inline-block;padding:2px 10px;border-radius:12px;background:#fef3c7;color:#92400e;font-weight:800;font-size:12px">🌐 Dịch vụ bên ngoài</span></p>
-          <p style="margin:0"><b>Đối tác dịch vụ:</b> ${order.serviceTenant?.serviceProfile?.displayName ?? "Đối tác"}</p>
-          <p style="margin:0"><b>Tên dịch vụ:</b> ${order.serviceNameSnapshot}</p>
-          <p style="margin:0"><b>Phòng / Khách hàng:</b> Phòng ${order.stay?.room?.roomNumber ?? "-"} (${order.stay?.guestDisplayName ?? "Khách lưu trú"})</p>
-          <p style="margin:0"><b>Số lượng:</b> ${order.quantity}</p>
-          <p style="margin:0"><b>Tổng chi phí:</b> <b style="color:#047857">${Number(order.totalAmount).toLocaleString("vi-VN")} ${order.currency}</b></p>
-          <p style="margin:0"><b>Trạng thái đối tác:</b> <b style="color:#0369a1">${statusMeta.label}</b></p>
-          <p style="margin:0"><b>Trạng thái tiếp nhận khách sạn:</b> <b style="color:${isHotelAcknowledged ? "#047857" : "#b45309"}">${isHotelAcknowledged ? "Đã tiếp nhận" : "Chờ tiếp nhận"}</b></p>
-          <p style="margin:0"><b>Thời gian tạo:</b> ${formatOpsDateTime(order.createdAt)}</p>
-          ${order.guestNote ? `<p style="margin:4px 0 0;padding:10px;background:#f8fafc;border-radius:8px;font-style:italic;border:1px solid #e2e8f0">Ghi chú của khách: ${order.guestNote}</p>` : ""}
-          ${order.voucher?.voucherNumber ? `<p style="margin:4px 0 0;padding:10px;background:#eeefec;border-radius:8px;font-weight:bold;color:#312e81;border:1px solid #c7d2fe">🎟️ Mã phiếu dịch vụ: ${order.voucher.voucherNumber}</p>` : ""}
+        <div style="text-align:left;font-size:13px;color:#334155;line-height:1.6;display:grid;gap:10px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+            <span style="display:inline-block;padding:3px 10px;border-radius:12px;background:#fef3c7;color:#92400e;font-weight:800;font-size:12px">🌐 Đơn hàng dịch vụ đối tác liên kết</span>
+            <span style="font-size:12px;color:#64748b">${formatOpsDateTime(order.createdAt)}</span>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;background:#f8fafc;padding:10px 12px;border-radius:10px;border:1px solid #e2e8f0;font-size:12px">
+            <div>
+              <span style="color:#64748b">Khách hàng / Phòng:</span><br/>
+              <b>${order.stay?.guestDisplayName ?? "Khách lưu trú"}</b> · <span style="background:#e0e7ff;color:#3730a3;padding:1px 6px;border-radius:4px;font-weight:700">Phòng ${order.stay?.room?.roomNumber ?? "-"}</span>
+            </div>
+            <div>
+              <span style="color:#64748b">Đối tác thực hiện:</span><br/>
+              <b>${order.serviceTenant?.serviceProfile?.displayName ?? "Đối tác dịch vụ"}</b>
+            </div>
+          </div>
+
+          <div>
+            <span style="font-size:11px;font-weight:800;text-transform:uppercase;color:#475569;letter-spacing:0.04em">Danh sách hạng mục dịch vụ (${items.length} món):</span>
+            ${itemsTableHtml}
+          </div>
+
+          <!-- Pricing breakdown card (Read-only for hotel) -->
+          <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:12px;padding:12px 14px;display:grid;gap:4px;font-size:13px">
+            <div style="display:flex;justify-content:space-between;align-items:center;color:#334155">
+              <span>Tạm tính đối tác (Partner Subtotal):</span>
+              <span style="font-weight:700;font-family:monospace;color:#1e293b">${financials.partnerSubtotal.toLocaleString("vi-VN")} ${financials.currency}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;color:#0284c7">
+              <span>Phí dịch vụ khách sạn (Hotel Fee 10%):</span>
+              <span style="font-weight:700;font-family:monospace">+${financials.hotelFee.toLocaleString("vi-VN")} ${financials.currency}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;border-top:1.5px solid #86efac;padding-top:6px;margin-top:2px;font-size:14px">
+              <span style="font-weight:800;color:#065f46">Tổng tiền khách thanh toán (Customer Total):</span>
+              <span style="font-weight:900;font-family:monospace;color:#047857;font-size:16px">${financials.customerTotal.toLocaleString("vi-VN")} ${financials.currency}</span>
+            </div>
+            <div style="font-size:11px;color:#64748b;margin-top:2px;font-style:italic">
+              * Khách sạn ghi nhận toàn bộ hạng mục và không điều chỉnh trực tiếp đơn giá dịch vụ của đối tác.
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">
+            <div><b>Trạng thái đối tác:</b> <span style="color:#0369a1;font-weight:700">${statusMeta.label}</span></div>
+            <div><b>Tiếp nhận khách sạn:</b> <span style="color:${isHotelAcknowledged ? "#047857" : "#b45309"};font-weight:700">${isHotelAcknowledged ? "Đã tiếp nhận" : "Chờ tiếp nhận"}</span></div>
+          </div>
+
+          ${order.guestNote ? `<p style="margin:2px 0 0;padding:8px 10px;background:#fffbeb;border-radius:8px;font-style:italic;border:1px solid #fef3c7;font-size:12px;color:#92400e">Ghi chú của khách: &quot;${order.guestNote}&quot;</p>` : ""}
+          ${order.voucher?.voucherNumber ? `<p style="margin:2px 0 0;padding:8px 10px;background:#eef2ff;border-radius:8px;font-weight:bold;color:#312e81;border:1px solid #c7d2fe;font-size:12px">🎟️ Mã phiếu dịch vụ (Voucher): <span style="font-family:monospace;letter-spacing:0.05em">${order.voucher.voucherNumber}</span></p>` : ""}
         </div>
       `,
       confirmButtonColor: "#00003c",
@@ -1722,16 +1853,35 @@ export function RequestQueueClient({
       key: "service",
       sortable: true,
       header: "Dịch vụ",
-      cell: (order) => (
-        <div className="text-sm font-bold text-slate-900 py-1 leading-snug">
-          {order.serviceNameSnapshot}
-          {order.quantity > 1 ? (
-            <span className="ml-1.5 inline-flex items-center rounded-md bg-amber-100 px-1.5 py-0.5 text-xs font-black text-amber-900">
-              ×{order.quantity}
-            </span>
-          ) : null}
-        </div>
-      ),
+      cell: (order) => {
+        const items = getCanonicalOrderItems(order);
+        const totalQty = items.reduce((s, it) => s + (Number(it.quantity) || 1), 0);
+        if (items.length > 1) {
+          return (
+            <div className="space-y-0.5 py-1">
+              <div className="text-sm font-bold text-slate-900 leading-snug">
+                {items[0].serviceName}
+                <span className="ml-1.5 inline-flex items-center rounded-md bg-indigo-50 px-1.5 py-0.5 text-xs font-black text-indigo-900 border border-indigo-200">
+                  +{items.length - 1} mục khác
+                </span>
+              </div>
+              <div className="text-xs text-slate-500 font-medium">
+                Tổng cộng {totalQty} dịch vụ
+              </div>
+            </div>
+          );
+        }
+        return (
+          <div className="text-sm font-bold text-slate-900 py-1 leading-snug">
+            {order.serviceNameSnapshot}
+            {order.quantity > 1 ? (
+              <span className="ml-1.5 inline-flex items-center rounded-md bg-amber-100 px-1.5 py-0.5 text-xs font-black text-amber-900">
+                ×{order.quantity}
+              </span>
+            ) : null}
+          </div>
+        );
+      },
     },
     {
       key: "guestRoom",
@@ -1749,12 +1899,20 @@ export function RequestQueueClient({
     {
       key: "totalAmount",
       sortable: true,
-      header: "Tổng tiền",
-      cell: (order) => (
-        <span className="font-black text-emerald-700 text-sm py-1">
-          {Number(order.totalAmount).toLocaleString("vi-VN")} {order.currency}
-        </span>
-      ),
+      header: "Thanh toán",
+      cell: (order) => {
+        const financials = calculateOrderFinancials(order);
+        return (
+          <div className="py-1 space-y-0.5">
+            <div className="font-black text-emerald-700 text-sm">
+              {financials.customerTotal.toLocaleString("vi-VN")} {financials.currency}
+            </div>
+            <div className="text-[11px] text-slate-500 font-medium whitespace-nowrap">
+              ĐT: {financials.partnerSubtotal.toLocaleString("vi-VN")} · Phí KS: {financials.hotelFee.toLocaleString("vi-VN")}
+            </div>
+          </div>
+        );
+      },
     },
     {
       key: "status",
@@ -1803,18 +1961,17 @@ export function RequestQueueClient({
       header: "Thao tác",
       className: "whitespace-nowrap min-w-[160px]",
       cell: (order) => {
+        const isFinished = isTerminalOrderStatus(order.status);
+        if (isFinished) {
+          return <span className="text-xs font-medium text-slate-400">-</span>;
+        }
+
         const isHotelAcknowledged =
           order.hotelCoordinationStatus === "ACKNOWLEDGED" ||
           order.hotelCoordinationStatus === "VOUCHER_ISSUED";
         const isVoucherIssued = Boolean(
           order.voucher?.voucherNumber || order.hotelCoordinationStatus === "VOUCHER_ISSUED",
         );
-        const isFinished =
-          order.status === "COMPLETED" || order.status === "CANCELLED" || order.status === "REJECTED";
-
-        if (isFinished) {
-          return <span className="text-xs font-medium text-slate-400">-</span>;
-        }
 
         return (
           <div className="flex items-center gap-1.5 py-1" onClick={(e) => e.stopPropagation()}>
@@ -1822,36 +1979,41 @@ export function RequestQueueClient({
               <>
                 <button
                   type="button"
+                  disabled={isMutating || isTerminalOrderStatus(order.status)}
                   onClick={() => {
                     void acknowledgeExternalOrder(order);
                   }}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-emerald-700 active:scale-[0.97] transition-all"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-emerald-700 active:scale-[0.97] transition-all disabled:opacity-50"
                   title="Tiếp nhận đơn hàng và khởi tạo mã dịch vụ (Voucher)"
                 >
                   <VsIcon name="check_circle" className="text-xs" />
                   <span>Tiếp nhận</span>
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    void cancelExternalOrder(order);
-                  }}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-rose-300 bg-rose-50 px-2.5 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-100 hover:border-rose-400 active:scale-[0.97] transition-all shadow-2xs"
-                  title="Hủy đơn hàng"
-                >
-                  <VsIcon name="close" className="text-xs" />
-                  <span>Hủy</span>
-                </button>
+                {order.status === "PENDING" ? (
+                  <button
+                    type="button"
+                    disabled={isMutating || isTerminalOrderStatus(order.status)}
+                    onClick={() => {
+                      void cancelExternalOrder(order);
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-rose-300 bg-rose-50 px-2.5 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-100 hover:border-rose-400 active:scale-[0.97] transition-all shadow-2xs disabled:opacity-50"
+                    title="Hủy đơn hàng"
+                  >
+                    <VsIcon name="close" className="text-xs" />
+                    <span>Hủy</span>
+                  </button>
+                ) : null}
               </>
             ) : (
               <>
                 <button
                   type="button"
+                  disabled={isMutating || isTerminalOrderStatus(order.status)}
                   onClick={() => {
                     void completeExternalOrder(order);
                   }}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-emerald-700 active:scale-[0.97] transition-all"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-emerald-700 active:scale-[0.97] transition-all disabled:opacity-50"
                   title="Xác nhận hoàn thành dịch vụ và hạch toán công nợ đối tác"
                 >
                   <VsIcon name="check_circle" className="text-xs" />
@@ -1861,8 +2023,9 @@ export function RequestQueueClient({
                 {isVoucherIssued ? (
                   <button
                     type="button"
+                    disabled={isMutating}
                     onClick={() => openVoucherModal(order)}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100 active:scale-[0.97] transition-all shadow-2xs"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100 active:scale-[0.97] transition-all shadow-2xs disabled:opacity-50"
                     title="Xem mã phiếu dịch vụ"
                   >
                     <VsIcon name="confirmation_number" className="text-xs" />
@@ -1876,6 +2039,7 @@ export function RequestQueueClient({
       },
     },
   ];
+
 
   const requestTableHeader = (
     <div className="flex items-center justify-between border-b border-[color:rgba(198,197,213,0.18)] px-4 py-3">

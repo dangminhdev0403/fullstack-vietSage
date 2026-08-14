@@ -27,13 +27,17 @@ export function ServiceTenantRealtimeNotifier() {
           orderId?: string;
           orderNumber?: string;
           serviceName?: string;
+          items?: Array<{ serviceName: string; quantity?: number }>;
           roomNumber?: string;
           guestDisplayName?: string;
         } | null;
 
         const orderNum = raw?.orderNumber ? ` #${raw.orderNumber}` : "";
         const room = raw?.roomNumber ? ` (Phòng ${raw.roomNumber})` : "";
-        const service = raw?.serviceName ?? "Dịch vụ đối tác";
+        const service =
+          raw?.items && raw.items.length > 1
+            ? `${raw.items[0].serviceName} (+${raw.items.length - 1} mục khác)`
+            : (raw?.serviceName ?? "Dịch vụ đối tác");
 
         toast.info(`🔔 CÓ ĐƠN HÀNG DỊCH VỤ MỚI${orderNum}${room}!`, {
           id: `service-tenant-order-created-${raw?.orderId ?? Date.now()}`,

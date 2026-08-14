@@ -10,8 +10,12 @@ import {
   type DataTableSortDirection,
 } from "@/components/ui/data-table";
 import {
+  calculateOrderFinancials,
   formatQuantityWithUnit,
+  getCanonicalOrderItems,
+  getPartnerAuthorizedOrderItems,
   getServicePricingUnit,
+  isTerminalOrderStatus,
 } from "@/features/marketplace/utils/marketplace-unit";
 import { useServicePortal } from "../use-service-portal";
 import type { MarketplaceOrder, ServicePortalData } from "../types";
@@ -53,6 +57,7 @@ function getStatusBadge(status: string): { label: string; className: string } {
 }
 
 function getNextStatus(order: MarketplaceOrder): { label: string; status: string; icon: string } | null {
+  if (isTerminalOrderStatus(order.status)) return null;
   if (order.status === "PENDING") {
     return { label: "Xác nhận", status: "CONFIRMED", icon: "check" };
   }
@@ -93,8 +98,6 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
     key: string;
     direction: DataTableSortDirection;
   }>({ key: "created", direction: "desc" });
-
-
 
   const ordersList = dataQuery.data?.orders ?? data.orders;
 
@@ -145,8 +148,10 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
         leftVal = left.stay?.guestDisplayName ?? "";
         rightVal = right.stay?.guestDisplayName ?? "";
       } else if (sortState.key === "amount") {
-        leftVal = Number(left.totalAmount);
-        rightVal = Number(right.totalAmount);
+        const leftAuth = getPartnerAuthorizedOrderItems(left, data.profile);
+        const rightAuth = getPartnerAuthorizedOrderItems(right, data.profile);
+        leftVal = calculateOrderFinancials(left, leftAuth).partnerSubtotal;
+        rightVal = calculateOrderFinancials(right, rightAuth).partnerSubtotal;
       } else if (sortState.key === "status") {
         leftVal = left.status;
         rightVal = right.status;
@@ -160,9 +165,13 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
       }
       return String(leftVal).localeCompare(String(rightVal), undefined, { numeric: true }) * multiplier;
     });
-  }, [ordersList, searchQuery, sortState, statusFilter]);
+  }, [ordersList, searchQuery, sortState, statusFilter, data.profile]);
 
   const handleTransition = async (order: MarketplaceOrder, targetStatus?: string, customLabel?: string) => {
+    if (isTerminalOrderStatus(order.status)) {
+      toast.error("Đơn hàng đã ở trạng thái kết thúc, không thể thay đổi.");
+      return;
+    }
     const next = targetStatus ? { label: customLabel ?? targetStatus, status: targetStatus } : getNextStatus(order);
     if (!next) return;
 
@@ -226,45 +235,67 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
       key: "service",
       header: "Dịch vụ / Khách",
       sortable: true,
-      cell: (order) => (
-        <div className="min-w-0 max-w-[260px] space-y-1 py-1">
-          <div className="truncate font-bold text-sm text-slate-900 dark:text-white leading-snug" title={order.serviceNameSnapshot}>
-            {order.serviceNameSnapshot}
+      cell: (order) => {
+        const authorizedItems = getPartnerAuthorizedOrderItems(order, data.profile);
+        const firstItem = authorizedItems[0] ?? { serviceName: order.serviceNameSnapshot };
+        return (
+          <div className="min-w-0 max-w-[260px] space-y-1 py-1">
+            <div className="truncate font-bold text-sm text-slate-900 dark:text-white leading-snug" title={firstItem.serviceName}>
+              {firstItem.serviceName}
+              {authorizedItems.length > 1 ? (
+                <span className="ml-1.5 inline-flex items-center rounded-md bg-indigo-50 px-1.5 py-0.5 text-[11px] font-bold text-indigo-900 border border-indigo-200">
+                  +{authorizedItems.length - 1} mục khác
+                </span>
+              ) : null}
+            </div>
+            <div className="flex min-w-0 items-center gap-1.5 text-xs font-medium text-slate-600 dark:text-slate-400">
+              <span className="truncate" title={order.stay?.guestDisplayName ?? "Khách lưu trú"}>
+                {order.stay?.guestDisplayName ?? "Khách lưu trú"}
+              </span>
+              <span className="shrink-0 rounded-md border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 text-[11px] font-bold text-indigo-900 dark:border-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-200">
+                {order.stay?.room?.roomNumber ? `Phòng ${order.stay.room.roomNumber}` : "Phòng -"}
+              </span>
+            </div>
           </div>
-          <div className="flex min-w-0 items-center gap-1.5 text-xs font-medium text-slate-600 dark:text-slate-400">
-            <span className="truncate" title={order.stay?.guestDisplayName ?? "Khách lưu trú"}>
-              {order.stay?.guestDisplayName ?? "Khách lưu trú"}
-            </span>
-            <span className="shrink-0 rounded-md border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 text-[11px] font-bold text-indigo-900 dark:border-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-200">
-              {order.stay?.room?.roomNumber ? `Phòng ${order.stay.room.roomNumber}` : "Phòng -"}
-            </span>
-          </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       key: "quantity",
       header: "SL",
       sortable: true,
       className: "text-right whitespace-nowrap",
-      cell: (order) => (
-        <div className="text-right font-bold text-sm text-slate-900 dark:text-slate-100 py-1">
-          {order.quantity} {getServicePricingUnit(order)}
-        </div>
-      ),
+      cell: (order) => {
+        const authorizedItems = getPartnerAuthorizedOrderItems(order, data.profile);
+        const totalQty = authorizedItems.reduce((s, it) => s + (Number(it.quantity) || 1), 0);
+        const firstItem = authorizedItems[0];
+        const unit = firstItem?.pricingUnit || getServicePricingUnit(order);
+        return (
+          <div className="text-right font-bold text-sm text-slate-900 dark:text-slate-100 py-1">
+            {totalQty} {unit}
+          </div>
+        );
+      },
     },
     {
       key: "amount",
-      header: "Thành tiền",
+      header: "Doanh thu đối tác",
       sortable: true,
       className: "text-right whitespace-nowrap",
-      cell: (order) => (
-        <div className="text-right py-1">
-          <div className="font-black text-base text-emerald-700 dark:text-emerald-400">
-            {Number(order.totalAmount).toLocaleString("vi-VN")} {order.currency}
+      cell: (order) => {
+        const authorizedItems = getPartnerAuthorizedOrderItems(order, data.profile);
+        const financials = calculateOrderFinancials(order, authorizedItems);
+        return (
+          <div className="text-right py-1 space-y-0.5">
+            <div className="font-black text-base text-emerald-700 dark:text-emerald-400">
+              {financials.partnerSubtotal.toLocaleString("vi-VN")} {financials.currency}
+            </div>
+            <div className="text-[10px] text-slate-500 font-medium">
+              {authorizedItems.length > 1 ? `${authorizedItems.length} hạng mục` : "Tạm tính đối tác"}
+            </div>
           </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       key: "status",
@@ -286,6 +317,11 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
       sortable: false,
       className: "text-right whitespace-nowrap min-w-[170px]",
       cell: (order) => {
+        const isFinished = isTerminalOrderStatus(order.status);
+        if (isFinished) {
+          return <span className="text-xs font-medium text-slate-400">-</span>;
+        }
+
         const next = getNextStatus(order);
         return (
           <div className="flex items-center justify-end gap-1.5 whitespace-nowrap py-1">
@@ -304,7 +340,7 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
               </button>
             ) : null}
 
-            {order.status !== "COMPLETED" && order.status !== "CANCELLED" && order.status !== "REJECTED" ? (
+            {order.status === "PENDING" ? (
               <button
                 type="button"
                 disabled={transition.isPending}
@@ -539,51 +575,74 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
               </button>
             </div>
 
-            {/* HERO MAIN CARD: Dịch vụ & Giá trị */}
+            {/* HERO MAIN CARD: Dịch vụ & Doanh thu đối tác */}
             {(() => {
-              const unit = getServicePricingUnit(selectedOrder);
-              const formattedQuantity = formatQuantityWithUnit(selectedOrder.quantity, unit);
-              const formattedTotal = `${Number(selectedOrder.totalAmount).toLocaleString("vi-VN")} ${selectedOrder.currency}`;
-              const formattedUnitPrice = selectedOrder.unitPriceSnapshot
-                ? `${Number(selectedOrder.unitPriceSnapshot).toLocaleString("vi-VN")} ${selectedOrder.currency} / ${unit}`
-                : null;
+              const authorizedItems = getPartnerAuthorizedOrderItems(selectedOrder, data.profile);
+              const financials = calculateOrderFinancials(selectedOrder, authorizedItems);
 
               return (
                 <div className="rounded-2xl border-2 border-emerald-600/30 bg-gradient-to-br from-emerald-50/70 via-white to-amber-50/30 p-5 shadow-xs space-y-4">
                   <div className="flex items-center justify-between gap-2 border-b border-emerald-900/10 pb-3">
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-700 px-3 py-1 text-xs font-extrabold text-white tracking-wide shadow-2xs">
                       <VsIcon name="room_service" className="text-xs" />
-                      <span>DỊCH VỤ & GIÁ TRỊ YÊU CẦU</span>
+                      <span>DỊCH VỤ THUỘC QUYỀN ĐỐI TÁC</span>
                     </span>
                     <span className="font-mono text-xs font-bold text-slate-500">
                       Mã đơn: #{selectedOrder.orderNumber}
                     </span>
                   </div>
 
-                  {/* Main Service Title */}
-                  <div>
-                    <h3 className="text-2xl font-black text-slate-900 leading-tight">
-                      {selectedOrder.serviceNameSnapshot}
-                    </h3>
+                  {/* List of authorized items */}
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
+                      Hạng mục dịch vụ ủy quyền ({authorizedItems.length}):
+                    </p>
+                    <div className="border border-emerald-800/10 rounded-xl overflow-hidden bg-white/90">
+                      <table className="w-full text-xs text-left">
+                        <thead className="bg-emerald-50/60 border-b border-emerald-800/10 font-bold text-slate-600">
+                          <tr>
+                            <th className="p-2.5">Tên dịch vụ</th>
+                            <th className="p-2.5 text-center">Số lượng</th>
+                            <th className="p-2.5 text-right">Đơn giá</th>
+                            <th className="p-2.5 text-right">Thành tiền</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {authorizedItems.map((item, idx) => (
+                            <tr key={item.id ?? idx}>
+                              <td className="p-2.5 font-bold text-slate-900">{item.serviceName}</td>
+                              <td className="p-2.5 text-center text-slate-700 font-semibold">{item.quantity} {item.pricingUnit ?? ""}</td>
+                              <td className="p-2.5 text-right text-slate-700 font-mono">{Number(item.unitPrice).toLocaleString("vi-VN")} {financials.currency}</td>
+                              <td className="p-2.5 text-right font-bold text-emerald-800 font-mono">{(Number(item.unitPrice) * Number(item.quantity)).toLocaleString("vi-VN")} {financials.currency}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
 
-                  {/* Pricing & Quantity Metrics Grid */}
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 rounded-xl bg-white/90 p-4 border border-emerald-800/10 shadow-2xs">
+                  {/* Pricing & Financial Breakdown (Hides Hotel Fee) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-xl bg-white/90 p-4 border border-emerald-800/10 shadow-2xs">
                     <div>
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Số lượng</p>
-                      <p className="text-base font-extrabold text-slate-900 mt-0.5">{formattedQuantity}</p>
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Doanh thu đối tác (Partner Subtotal)</p>
+                      <p className="text-xl font-black text-emerald-700 mt-0.5">{financials.partnerSubtotal.toLocaleString("vi-VN")} {financials.currency}</p>
+                      <span className="text-[10px] text-slate-500 font-medium">Doanh thu thực nhận của đối tác</span>
                     </div>
 
-                    {formattedUnitPrice ? (
-                      <div>
-                        <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Đơn giá</p>
-                        <p className="text-xs font-bold text-slate-800 mt-0.5">{formattedUnitPrice}</p>
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Trạng thái quyết toán</p>
+                      <div className="mt-1">
+                        {selectedOrder.settlement?.status === "SETTLED" ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+                            ✓ Đã nhận quyết toán
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
+                            ⌛ Chờ khách sạn quyết toán
+                          </span>
+                        )}
                       </div>
-                    ) : null}
-
-                    <div className={formattedUnitPrice ? "col-span-2 sm:col-span-1" : ""}>
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">Thành tiền (Tổng)</p>
-                      <p className="text-xl font-black text-emerald-700 mt-0.5">{formattedTotal}</p>
+                      <span className="text-[10px] text-slate-500 font-medium mt-0.5 block">Hạch toán công nợ từ khách sạn</span>
                     </div>
                   </div>
 
@@ -604,7 +663,7 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
             {/* SECONDARY CARD: Khách hàng & Khách sạn */}
             <div className="rounded-xl bg-slate-50 p-4 border border-slate-200 space-y-2.5">
               <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Thông tin Phục vụ Khách hàng</p>
-              
+
               <div className="grid gap-3 sm:grid-cols-2 text-xs">
                 <div>
                   <span className="text-slate-500 font-medium">Khách hàng:</span>
@@ -666,7 +725,7 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
             </div>
 
             {/* Action Buttons in Modal */}
-            {selectedOrder.status !== "COMPLETED" && selectedOrder.status !== "CANCELLED" && selectedOrder.status !== "REJECTED" ? (
+            {!isTerminalOrderStatus(selectedOrder.status) ? (
               <div className="space-y-2.5 rounded-xl border border-slate-300 bg-slate-50 p-4">
                 <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Cập nhật tiến độ thực hiện</p>
                 <div className="flex flex-wrap items-center gap-2">
@@ -720,20 +779,20 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
                     </>
                   ) : null}
 
-                  <button
-                    type="button"
-                    disabled={transition.isPending}
-                    onClick={() => void handleTransition(selectedOrder, "CANCELLED", "Hủy")}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-rose-300 bg-rose-50 px-4 py-2 text-xs font-bold text-rose-800 hover:bg-rose-100 disabled:opacity-50"
-                  >
-                    <VsIcon name="close" className="text-xs" />
-                    <span>Hủy</span>
-                  </button>
+                  {selectedOrder.status === "PENDING" ? (
+                    <button
+                      type="button"
+                      disabled={transition.isPending}
+                      onClick={() => void handleTransition(selectedOrder, "CANCELLED", "Hủy")}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-rose-300 bg-rose-50 px-4 py-2 text-xs font-bold text-rose-800 hover:bg-rose-100 disabled:opacity-50"
+                    >
+                      <VsIcon name="close" className="text-xs" />
+                      <span>Hủy</span>
+                    </button>
+                  ) : null}
                 </div>
               </div>
             ) : null}
-
-
           </div>
         </div>
       ) : null}

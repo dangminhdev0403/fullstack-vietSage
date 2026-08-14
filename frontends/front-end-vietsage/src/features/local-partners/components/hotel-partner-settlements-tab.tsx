@@ -15,6 +15,7 @@ import {
   StatusBadge,
   TextCell,
 } from "@/components/ui/data-table";
+import { getCanonicalOrderItems } from "@/features/marketplace/utils/marketplace-unit";
 
 type SettlementItem = MarketplaceSettlement & { order: MarketplaceOrder };
 
@@ -241,9 +242,14 @@ export function HotelPartnerSettlementsTab({
       cell: (item) => {
         const partnerName =
           item.order?.serviceTenant?.serviceProfile?.displayName;
+        const canonicalItems = item.order ? getCanonicalOrderItems(item.order) : [];
+        const serviceTitle =
+          canonicalItems.length > 1
+            ? `${canonicalItems[0].serviceName} (+${canonicalItems.length - 1} mục khác)`
+            : (item.order?.serviceNameSnapshot ?? "Dịch vụ");
         return (
           <TextCell
-            title={item.order?.serviceNameSnapshot}
+            title={serviceTitle}
             subtext={partnerName ? `🤝 ${partnerName}` : undefined}
             truncate
           />
@@ -463,4 +469,3 @@ export function HotelPartnerSettlementsTab({
     </div>
   );
 }
-

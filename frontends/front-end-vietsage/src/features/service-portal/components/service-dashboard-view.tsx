@@ -2,10 +2,16 @@
 
 import Link from "next/link";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+import {
+  calculateOrderFinancials,
+  getPartnerAuthorizedOrderItems,
+  isTerminalOrderStatus,
+} from "@/features/marketplace/utils/marketplace-unit";
 import { useServicePortal } from "../use-service-portal";
 import type { MarketplaceOrder, ServicePortalData } from "../types";
 
 function getNextStatus(order: MarketplaceOrder): { label: string; status: string } | null {
+  if (isTerminalOrderStatus(order.status)) return null;
   if (order.status === "PENDING") return { label: "Xác nhận đơn", status: "CONFIRMED" };
   if (
     order.status === "CONFIRMED" ||
@@ -22,7 +28,8 @@ function getNextStatus(order: MarketplaceOrder): { label: string; status: string
 export function ServiceDashboardView({ data }: Readonly<{ data: ServicePortalData }>) {
   const { transition, financialSummary } = useServicePortal();
   const pendingOrders = data.orders.filter((o) => o.status === "PENDING");
-  const activeOrders = data.orders.filter((o) => o.status !== "COMPLETED" && o.status !== "CANCELLED");
+  const activeOrders = data.orders.filter((o) => !isTerminalOrderStatus(o.status));
+
 
   const financial = financialSummary.data;
 
@@ -228,6 +235,13 @@ export function ServiceDashboardView({ data }: Readonly<{ data: ServicePortalDat
               {activeOrders.slice(0, 5).map((order) => {
                 const next = getNextStatus(order);
                 const isSettled = order.settlement?.status === "SETTLED";
+                const authorizedItems = getPartnerAuthorizedOrderItems(order, data.profile);
+                const financials = calculateOrderFinancials(order, authorizedItems);
+                const firstItem = authorizedItems[0];
+                const serviceLabel = firstItem
+                  ? `${firstItem.serviceName}${authorizedItems.length > 1 ? ` (+${authorizedItems.length - 1} mục khác)` : ""}`
+                  : order.serviceNameSnapshot;
+
                 return (
                   <div
                     key={order.id}
@@ -255,18 +269,21 @@ export function ServiceDashboardView({ data }: Readonly<{ data: ServicePortalDat
                         </span>
                       </div>
                       <p className="text-sm font-semibold text-[#35433a]">
-                        {order.serviceNameSnapshot} — <span className="font-bold text-[#8c6d29]">{Number(order.totalAmount).toLocaleString("vi-VN")} VND</span>
+                        {serviceLabel} — <span className="font-bold text-[#8c6d29]">{financials.partnerSubtotal.toLocaleString("vi-VN")} {financials.currency}</span>
                       </p>
                       {order.hotel?.name && (
                         <p className="text-xs text-[#5a6760]">🏨 {order.hotel.name}</p>
                       )}
                     </div>
 
-                    {next && (
+                    {next && !isTerminalOrderStatus(order.status) && (
                       <button
                         type="button"
-                        disabled={transition.isPending}
-                        onClick={() => transition.mutate({ orderId: order.id, toStatus: next.status })}
+                        disabled={transition.isPending || isTerminalOrderStatus(order.status)}
+                        onClick={() => {
+                          if (isTerminalOrderStatus(order.status)) return;
+                          transition.mutate({ orderId: order.id, toStatus: next.status });
+                        }}
                         className="inline-flex h-10 items-center justify-center rounded-xl bg-[#17201b] px-4 text-xs font-bold text-[#f8f1e6] transition-colors hover:bg-[#27352d] disabled:opacity-50"
                       >
                         {next.label}
@@ -275,6 +292,7 @@ export function ServiceDashboardView({ data }: Readonly<{ data: ServicePortalDat
                   </div>
                 );
               })}
+
             </div>
           ) : (
             <div className="rounded-xl border border-dashed border-[#dcd3c1] p-8 text-center text-sm font-medium text-[#65726a]">

@@ -188,7 +188,3 @@ export function OwnerHotelsClient() {
     </div>
   );
 }
-
-
-
-
