@@ -557,4 +557,3 @@ export function VsIcon({ name, className, style, title }: VsIconProps) {
     </span>
   );
 }
-

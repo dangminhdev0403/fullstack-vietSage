@@ -161,4 +161,3 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
 
   return null;
 }
-

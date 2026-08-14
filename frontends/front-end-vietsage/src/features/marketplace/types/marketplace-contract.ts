@@ -84,3 +84,86 @@ export type MarketplaceOrder = {
     name?: string | null;
   } | null;
 };
+
+export type MarketplaceCartItem = {
+  id?: string;
+  serviceId: string;
+  serviceName?: string;
+  unitPrice: number | string;
+  quantity: number;
+  subtotal?: number;
+  currency?: string;
+  guestNote?: string | null;
+  unit?: string | null;
+  pricingUnit?: string | null;
+  mode?: "DELIVERY_TO_HOTEL" | "CUSTOMER_AT_SERVICE";
+  serviceTenant?: {
+    id?: string;
+    serviceProfile?: {
+      displayName?: string | null;
+      address?: string | null;
+      phone?: string | null;
+    } | null;
+  } | null;
+  service?: MarketplaceServiceItem | null;
+};
+
+export type MarketplaceCart = {
+  id?: string;
+  stayId?: string;
+  items: MarketplaceCartItem[];
+  partnerSubtotal?: number;
+  subtotal?: number;
+  hotelServiceFee?: number;
+  hotelServiceFeeRate?: number;
+  customerTotal?: number;
+  totalAmount?: number | string;
+  currency: string;
+  itemCount?: number;
+  updatedAt?: string;
+};
+
+export type AddMarketplaceCartItemInput = {
+  serviceId: string;
+  quantity: number;
+  guestNote?: string;
+};
+
+export type UpdateMarketplaceCartItemInput = {
+  quantity: number;
+  guestNote?: string;
+};
+
+export type SyncMarketplaceCartInput = {
+  items: Array<{
+    serviceId: string;
+    quantity: number;
+    guestNote?: string;
+  }>;
+};
+
+export type CheckoutMarketplaceCartInput = {
+  idempotencyKey?: string;
+  guestNote?: string;
+  generalNote?: string;
+  items?: Array<{
+    serviceId: string;
+    quantity: number;
+    guestNote?: string;
+  }>;
+};
+
+export type CheckoutMarketplaceCartResult = {
+  success?: boolean;
+  order?: MarketplaceOrder;
+  orders?: MarketplaceOrder[];
+  primaryOrderId?: string;
+  orderNumber?: string;
+  totalAmount?: number | string;
+  id?: string;
+};
+
+export type MarketplaceCartQuoteItem = MarketplaceCartItem;
+export type MarketplaceCartQuote = MarketplaceCart;
+export type ConfirmMarketplaceCartInput = CheckoutMarketplaceCartInput;
+export type ConfirmMarketplaceCartResult = CheckoutMarketplaceCartResult;

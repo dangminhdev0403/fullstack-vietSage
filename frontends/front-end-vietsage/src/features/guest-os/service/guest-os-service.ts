@@ -112,13 +112,57 @@ export class GuestOsService {
     return unwrapApiEnvelope<T>(payload).data;
   }
 
+  async getMarketplaceServiceDetail<T>(sessionToken: string, serviceId: string, locale?: GuestLocaleCode): Promise<T> {
+    const payload = await this.httpClient.request<unknown>({ method: "GET", path: this.path(`/guest/marketplace/services/${encodeURIComponent(serviceId)}`), accessToken: sessionToken, headers: localeHeaders(locale) });
+    return unwrapApiEnvelope<T>(payload).data;
+  }
+
   async listMarketplaceOrders<T>(sessionToken: string, locale?: GuestLocaleCode): Promise<T> {
     const payload = await this.httpClient.request<unknown>({ method: "GET", path: this.path("/guest/marketplace/orders"), accessToken: sessionToken, headers: localeHeaders(locale) });
     return unwrapApiEnvelope<T>(payload).data;
   }
 
+  async getMarketplaceOrderDetail<T>(sessionToken: string, orderId: string, locale?: GuestLocaleCode): Promise<T> {
+    const payload = await this.httpClient.request<unknown>({ method: "GET", path: this.path(`/guest/marketplace/orders/${encodeURIComponent(orderId)}`), accessToken: sessionToken, headers: localeHeaders(locale) });
+    return unwrapApiEnvelope<T>(payload).data;
+  }
+
   async createMarketplaceOrder<T, B>(sessionToken: string, body: B, locale?: GuestLocaleCode): Promise<T> {
     const payload = await this.httpClient.request<unknown, B>({ method: "POST", path: this.path("/guest/marketplace/orders"), accessToken: sessionToken, body, headers: localeHeaders(locale) });
+    return unwrapApiEnvelope<T>(payload).data;
+  }
+
+  async getMarketplaceCart<T>(sessionToken: string, locale?: GuestLocaleCode): Promise<T> {
+    const payload = await this.httpClient.request<unknown>({ method: "GET", path: this.path("/guest/marketplace/cart"), accessToken: sessionToken, headers: localeHeaders(locale) });
+    return unwrapApiEnvelope<T>(payload).data;
+  }
+
+  async mutateMarketplaceCart<T, B = unknown>(
+    sessionToken: string,
+    method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
+    subpath = "",
+    body?: B,
+    locale?: GuestLocaleCode,
+  ): Promise<T> {
+    const cleanSubpath = subpath ? `/${subpath.replace(/^\//, "")}` : "";
+    const payload = await this.httpClient.request<unknown, B>({
+      method,
+      path: this.path(`/guest/marketplace/cart${cleanSubpath}`),
+      accessToken: sessionToken,
+      body,
+      headers: localeHeaders(locale),
+    });
+    return unwrapApiEnvelope<T>(payload).data;
+  }
+
+  async checkoutMarketplaceCart<T, B = unknown>(sessionToken: string, body: B, locale?: GuestLocaleCode): Promise<T> {
+    const payload = await this.httpClient.request<unknown, B>({
+      method: "POST",
+      path: this.path("/guest/marketplace/cart/checkout"),
+      accessToken: sessionToken,
+      body,
+      headers: localeHeaders(locale),
+    });
     return unwrapApiEnvelope<T>(payload).data;
   }
 

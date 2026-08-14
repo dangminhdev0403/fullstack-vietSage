@@ -1,23 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
-
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { VsServiceImagePreview } from "@/components/ui/vs-service-image-preview";
 import { GuestReveal } from "@/features/guest-os/components/motion/guest-reveal";
 import { GuestStagger, GuestStaggerItem } from "@/features/guest-os/components/motion/guest-stagger";
 import { GuestServiceEmptyState } from "@/features/guest-os/components/services/guest-service-empty-state";
-import { useGuestRequestRealtime } from "@/features/request-realtime/use-guest-request-realtime";
 import { useGuestI18n } from "@/features/guest-os/i18n/use-guest-i18n";
 import { useGuestMarketplace } from "../queries/use-guest-marketplace";
-import type { MarketplaceServiceItem } from "../types/marketplace-contract";
+import type { MarketplaceOrder, MarketplaceServiceItem } from "../types/marketplace-contract";
 import {
   formatQuantityWithUnit,
-  formatSubtotalAmount,
   formatUnitPriceWithUnit,
   getServicePricingUnit,
 } from "../utils/marketplace-unit";
+import { useGuestCartStore, useGuestCartStoreHydrated } from "../store/guest-cart-store";
+import { GuestMarketplaceServiceDetail } from "./guest-marketplace-service-detail";
+import { GuestMarketplaceCartFlow } from "./guest-marketplace-cart-flow";
+import { GuestMarketplaceOrderDetail } from "./guest-marketplace-order-detail";
 
 const distance = (meters: number | null, intlLocale: string = "vi-VN") =>
   meters == null
@@ -63,13 +63,17 @@ export function GuestMarketplace({
   hideHeader = false,
 }: GuestMarketplaceProps) {
   const { t, intlLocale } = useGuestI18n();
-  const { categories, services, orders, order } = useGuestMarketplace(
+  const isCartHydrated = useGuestCartStoreHydrated();
+  const cartItemCount = useGuestCartStore((state) => state.getItemCount());
+
+  const { categories, services, orders } = useGuestMarketplace(
     sessionToken,
     selectedCategoryId ?? undefined,
   );
 
-  const [bookingItem, setBookingItem] = useState<MarketplaceServiceItem | null>(null);
-  const [bookingQuantity, setBookingQuantity] = useState<number>(1);
+  const [selectedDetailService, setSelectedDetailService] = useState<MarketplaceServiceItem | null>(null);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [selectedOrderForDetail, setSelectedOrderForDetail] = useState<MarketplaceOrder | null>(null);
 
   // Notify parent of available categories for unified category chip bar
   useEffect(() => {
@@ -98,35 +102,8 @@ export function GuestMarketplace({
     return nameMatch || descMatch || categoryMatch || providerMatch;
   });
 
-  const openBookingModal = (item: MarketplaceServiceItem) => {
-    setBookingItem(item);
-    setBookingQuantity(1);
-  };
-
-  const handleConfirmOrder = () => {
-    if (!bookingItem) return;
-    order.mutate(
-      {
-        serviceId: bookingItem.id,
-        quantity: bookingQuantity,
-        idempotencyKey: crypto.randomUUID(),
-      },
-      {
-        onSuccess: (data) => {
-          toast.success(t("marketplace.orderCreatedSuccess", { orderNumber: data.orderNumber }));
-          void orders.refetch();
-          setBookingItem(null);
-          order.reset();
-        },
-        onError: () => {
-          toast.error(t("marketplace.orderCreateError"));
-        },
-      },
-    );
-  };
-
   return (
-    <section aria-labelledby="marketplace-title" className="space-y-8">
+    <section aria-labelledby="marketplace-title" className="space-y-8 relative">
       {!hideHeader ? (
         <GuestReveal>
           <header className="mb-6">
@@ -178,7 +155,10 @@ export function GuestMarketplace({
 
             return (
               <GuestStaggerItem key={item.id} className="h-full">
-                <article className="group flex h-full flex-col overflow-hidden rounded-[24px] border border-[#25483f]/10 bg-[#fffdfa] shadow-[0_12px_36px_rgba(31,61,53,0.08)] transition-[transform,box-shadow,border-color] duration-200 active:translate-y-px md:hover:-translate-y-1 md:hover:border-[#d7bd61]/70 md:hover:shadow-[0_20px_48px_rgba(31,61,53,0.13)]">
+                <article
+                  onClick={() => setSelectedDetailService(item)}
+                  className="group flex h-full flex-col overflow-hidden rounded-[24px] border border-[#25483f]/10 bg-[#fffdfa] shadow-[0_12px_36px_rgba(31,61,53,0.08)] transition-[transform,box-shadow,border-color] duration-200 active:translate-y-px md:hover:-translate-y-1 md:hover:border-[#d7bd61]/70 md:hover:shadow-[0_20px_48px_rgba(31,61,53,0.13)] cursor-pointer"
+                >
                   {/* Image Header with VietSage Professional Preview Fallback */}
                   <div className="relative aspect-video w-full overflow-hidden bg-[#1b3830]">
                     <VsServiceImagePreview
@@ -234,14 +214,18 @@ export function GuestMarketplace({
                       ) : null}
                     </div>
 
-                    {/* Commercial Booking Action Button */}
+                    {/* Booking Action Button */}
                     <button
                       type="button"
-                      disabled={order.isPending || isSoldOut}
-                      onClick={() => openBookingModal(item)}
-                      className="vs-touch-button mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-[#25483f] px-5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(37,72,63,0.15)] transition-all hover:bg-[#19382f] active:bg-[#122b24] disabled:opacity-50"
+                      disabled={isSoldOut}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedDetailService(item);
+                      }}
+                      className="vs-touch-button mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[#25483f] px-5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(37,72,63,0.15)] transition-all hover:bg-[#19382f] active:bg-[#122b24] disabled:opacity-50"
                     >
-                      {isSoldOut ? t("marketplace.soldOut") : t("marketplace.bookService")}
+                      <VsIcon name="visibility" className="text-base" />
+                      <span>{isSoldOut ? t("marketplace.soldOut") : t("marketplace.bookService")}</span>
                     </button>
                   </div>
                 </article>
@@ -257,12 +241,18 @@ export function GuestMarketplace({
       {orders.data?.length ? (
         <GuestReveal>
           <section className="mt-12 space-y-4 rounded-[28px] border border-[#25483f]/10 bg-[#fffdfa] p-6 shadow-sm">
-            <div className="flex items-center gap-2">
-              <VsIcon name="receipt_long" className="text-xl text-[#8a6a13]" />
-              <h3 className="vs-display text-xl font-bold text-[#18211d]">
-                {t("marketplace.myOrders")}
-              </h3>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <VsIcon name="receipt_long" className="text-xl text-[#8a6a13]" />
+                <h3 className="vs-display text-xl font-bold text-[#18211d]">
+                  {t("marketplace.myOrders")}
+                </h3>
+              </div>
+              <span className="rounded-full bg-[#f8f4ea] px-3 py-1 text-xs font-black text-[#8a6a13] border border-[#25483f]/10">
+                {orders.data.length} đơn
+              </span>
             </div>
+
             <div className="grid gap-3 sm:grid-cols-2">
               {orders.data.map((item) => {
                 const orderUnit = getServicePricingUnit(item, t);
@@ -270,7 +260,8 @@ export function GuestMarketplace({
                 return (
                   <div
                     key={item.id}
-                    className="flex flex-col justify-between gap-3 rounded-2xl border border-[#25483f]/10 bg-[#f8f4ea]/60 p-4 text-sm shadow-2xs"
+                    onClick={() => setSelectedOrderForDetail(item)}
+                    className="flex flex-col justify-between gap-3 rounded-2xl border border-[#25483f]/10 bg-[#f8f4ea]/60 p-4 text-sm shadow-2xs cursor-pointer transition-all hover:bg-[#f3ede0] hover:border-[#25483f]/25"
                   >
                     <div className="space-y-1.5">
                       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#25483f]/10 pb-2">
@@ -302,7 +293,7 @@ export function GuestMarketplace({
                                 <span className="font-bold text-[#8a6a13] uppercase tracking-wider text-[10px]">
                                   {t("marketplace.voucherCodeLabel")}
                                 </span>
-                                <span className="font-mono font-black text-lg text-[#25483f] bg-[#f8f4ea] px-2.5 py-0.5 rounded-lg border border-[#25483f]/20">
+                                <span className="font-mono font-black text-base text-[#25483f] bg-[#f8f4ea] px-2 py-0.5 rounded-lg border border-[#25483f]/20">
                                   {item.voucher.voucherNumber}
                                 </span>
                               </div>
@@ -326,130 +317,58 @@ export function GuestMarketplace({
         </GuestReveal>
       ) : null}
 
-      {/* Interactive External Service Booking Modal with Quantity Stepper & Subtotal Calculation */}
-      {bookingItem ? (
-        <div
-          role="presentation"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in"
-          onMouseDown={(e) => e.target === e.currentTarget && setBookingItem(null)}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="booking-modal-title"
-            className="w-full max-w-lg overflow-hidden rounded-[2.2rem] bg-white p-7 shadow-2xl border border-gray-100 space-y-5"
+      {/* Floating Action Button for Cart (Visible whenever Cart has items) */}
+      {isCartHydrated && cartItemCount > 0 ? (
+        <div className="fixed bottom-24 right-5 z-40 md:bottom-8 md:right-8 animate-in zoom-in-95 duration-200">
+          <button
+            type="button"
+            onClick={() => setIsCartOpen(true)}
+            aria-label={t("marketplace.viewCart")}
+            className="vs-touch-button flex items-center gap-2.5 rounded-full bg-[#25483f] py-3.5 pl-4 pr-5 text-white shadow-[0_12px_28px_rgba(37,72,63,0.35)] transition-all hover:bg-[#19382f] active:scale-95"
           >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-bold text-[#8a6a13] uppercase tracking-wider">
-                  {t("marketplace.modalEyebrow")}
-                </p>
-                <h2 id="booking-modal-title" className="vs-display mt-1 text-2xl font-extrabold text-[#18211d]">
-                  {t("marketplace.modalTitle")}
-                </h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => setBookingItem(null)}
-                className="vs-touch-button flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-lg font-bold text-slate-500 hover:bg-slate-100"
-              >
-                ×
-              </button>
+            <div className="relative">
+              <VsIcon name="shopping_bag" className="text-2xl text-[#d7bd61]" />
+              <span className="absolute -top-1.5 -right-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#d7bd61] px-1 text-[11px] font-black text-[#18211d] shadow">
+                {cartItemCount > 99 ? "99+" : cartItemCount}
+              </span>
             </div>
-
-            {/* Info Card with Quantity Stepper & Live Subtotal */}
-            {(() => {
-              const unit = getServicePricingUnit(bookingItem, t);
-              const providerName =
-                bookingItem.serviceTenant?.serviceProfile?.displayName || t("marketplace.providerFallback");
-              const maxCap = bookingItem.capacityAvailable ?? 99;
-
-              return (
-                <div className="space-y-4 rounded-[22px] bg-[#f8f4ea] p-5 border border-[#25483f]/15 shadow-xs">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs font-black text-[#8a6a13] uppercase tracking-wider">
-                      {t("marketplace.selectedService")}
-                    </span>
-                    <span className="text-xl font-extrabold text-[#18211d] leading-snug">
-                      {bookingItem.name}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between border-t border-[#25483f]/12 pt-3 text-sm">
-                    <span className="font-semibold text-[#5e6a62]">{t("marketplace.provider")}</span>
-                    <span className="font-bold text-[#18211d] text-base">{providerName}</span>
-                  </div>
-
-                  <div className="flex items-center justify-between border-t border-[#25483f]/12 pt-3 text-sm">
-                    <span className="font-semibold text-[#5e6a62]">{t("marketplace.unitPrice")}</span>
-                    <span className="font-bold text-[#25483f] text-base">
-                      {formatUnitPriceWithUnit(bookingItem.unitPrice, bookingItem.currency, unit, intlLocale)}
-                    </span>
-                  </div>
-
-                  {/* Generic Quantity Stepper Field */}
-                  <div className="flex items-center justify-between border-t border-[#25483f]/12 pt-3 text-sm">
-                    <span className="font-semibold text-[#5e6a62]">{t("services.quantity")}</span>
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        disabled={bookingQuantity <= 1 || order.isPending}
-                        onClick={() => setBookingQuantity((q) => Math.max(1, q - 1))}
-                        className="vs-touch-button flex h-9 w-9 items-center justify-center rounded-full border border-[#25483f]/30 bg-white font-black text-[#25483f] transition-all hover:bg-[#25483f] hover:text-white disabled:opacity-30"
-                      >
-                        -
-                      </button>
-                      <span className="text-base font-extrabold text-[#18211d]">
-                        {formatQuantityWithUnit(bookingQuantity, unit, t)}
-                      </span>
-                      <button
-                        type="button"
-                        disabled={bookingQuantity >= maxCap || order.isPending}
-                        onClick={() => setBookingQuantity((q) => Math.min(maxCap, q + 1))}
-                        className="vs-touch-button flex h-9 w-9 items-center justify-center rounded-full border border-[#25483f]/30 bg-white font-black text-[#25483f] transition-all hover:bg-[#25483f] hover:text-white disabled:opacity-30"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Live Calculated Subtotal */}
-                  <div className="flex items-center justify-between border-t border-[#25483f]/12 pt-3 text-sm">
-                    <span className="font-semibold text-[#5e6a62]">{t("marketplace.subtotal")}</span>
-                    <span className="text-xl font-black text-[#25483f]">
-                      {formatSubtotalAmount(bookingItem.unitPrice, bookingQuantity, bookingItem.currency, intlLocale)}
-                    </span>
-                  </div>
-                </div>
-              );
-            })()}
-
-            <p className="text-sm font-medium leading-6 text-[#5e6a62] text-center">
-              {t("marketplace.roomBillNote")}
-            </p>
-
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <button
-                type="button"
-                disabled={order.isPending}
-                onClick={() => setBookingItem(null)}
-                className="vs-touch-button inline-flex h-12 items-center justify-center rounded-full border border-slate-300 bg-white px-6 text-base font-bold text-slate-700 transition-all hover:bg-slate-50"
-              >
-                {t("common.cancel")}
-              </button>
-              <button
-                type="button"
-                disabled={order.isPending}
-                onClick={handleConfirmOrder}
-                className="vs-touch-button inline-flex h-12 items-center justify-center rounded-full bg-[#25483f] px-7 text-base font-extrabold text-white shadow-lg shadow-[#25483f]/25 transition-all hover:bg-[#1a352d] disabled:opacity-50"
-              >
-                {order.isPending ? t("services.sending") : t("marketplace.bookNow")}
-              </button>
-            </div>
-          </div>
+            <span className="text-sm font-extrabold tracking-wide">{t("marketplace.cart")}</span>
+          </button>
         </div>
+      ) : null}
+
+      {/* Service Detail Drawer / Modal */}
+      {selectedDetailService ? (
+        <GuestMarketplaceServiceDetail
+          service={selectedDetailService}
+          isOpen={Boolean(selectedDetailService)}
+          onClose={() => setSelectedDetailService(null)}
+          onOpenCart={() => setIsCartOpen(true)}
+        />
+      ) : null}
+
+      {/* Complete Cart Flow Modal (Cart -> Review -> Confirm -> Order Detail) */}
+      {isCartOpen ? (
+        <GuestMarketplaceCartFlow
+          sessionToken={sessionToken}
+          isOpen={isCartOpen}
+          onClose={() => setIsCartOpen(false)}
+          availableServices={services.data?.items}
+          onOrderCreated={(order) => {
+            void orders.refetch();
+          }}
+        />
+      ) : null}
+
+      {/* Single Order Detail Modal (when user clicks an existing order) */}
+      {selectedOrderForDetail ? (
+        <GuestMarketplaceOrderDetail
+          order={selectedOrderForDetail}
+          sessionToken={sessionToken}
+          isOpen={Boolean(selectedOrderForDetail)}
+          onClose={() => setSelectedOrderForDetail(null)}
+        />
       ) : null}
     </section>
   );
 }
-
