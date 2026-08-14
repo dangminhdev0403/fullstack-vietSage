@@ -468,6 +468,7 @@ export class HotelRequestsService {
       case GuestRequestStatus.CREATED:
         return ["ACCEPT", "CANCEL"];
       case GuestRequestStatus.ACKNOWLEDGED:
+        return ["START", "CANCEL"];
       case GuestRequestStatus.IN_PROGRESS:
         return ["COMPLETE", "FAIL"];
       case GuestRequestStatus.COMPLETED:

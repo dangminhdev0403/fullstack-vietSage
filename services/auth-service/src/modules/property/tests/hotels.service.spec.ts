@@ -653,7 +653,7 @@ describe("HotelsService", () => {
 
     await expect(
       service.updateRequestStatus("actor-1", "active-role", "hotel-1", "request-1", {
-        status: GuestRequestStatus.COMPLETED,
+        status: GuestRequestStatus.IN_PROGRESS,
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(repository.updateRequestStatus).not.toHaveBeenCalled();
