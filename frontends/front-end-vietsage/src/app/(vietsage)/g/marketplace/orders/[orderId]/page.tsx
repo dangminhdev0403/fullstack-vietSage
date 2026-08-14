@@ -40,7 +40,6 @@ function MarketplaceOrderDetailContent({ params }: { params: Promise<{ orderId: 
     <div className="vs-page-shell vs-guest-readable vs-safe-bottom vs-guest-comfort-surface min-h-screen overflow-x-hidden text-[#18211d]">
       <VsTopBar
         showLeftControl={true}
-        onLeftClick={() => router.push("/g/services?tab=external")}
         rightMode="icons"
         rightLabel={roomLabel}
         languageBadge={locale}
