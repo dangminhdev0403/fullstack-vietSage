@@ -32,3 +32,4 @@ export function GuestHomeExperiences({ dining, care }: { dining: GuestHomeExperi
     </section>
   );
 }
+

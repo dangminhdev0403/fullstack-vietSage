@@ -232,3 +232,4 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
     </form>
   );
 }
+

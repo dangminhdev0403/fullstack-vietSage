@@ -10,3 +10,4 @@ export function GuestAccessRequiredState({ icon }: { icon: ReactNode }) {
 
   return <GuestStateCard title={t("common.scanQrTitle")} message={t("common.scanQrMessage")} icon={icon} />;
 }
+

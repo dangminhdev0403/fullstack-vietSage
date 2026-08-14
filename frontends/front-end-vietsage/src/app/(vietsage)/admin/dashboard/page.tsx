@@ -97,3 +97,4 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
     </>
   );
 }
+

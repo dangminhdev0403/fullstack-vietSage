@@ -530,3 +530,4 @@ export function ServiceCatalogView({ data }: Readonly<{ data: ServicePortalData 
     </div>
   );
 }
+

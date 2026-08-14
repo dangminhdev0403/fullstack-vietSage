@@ -354,3 +354,4 @@ export function PartnerFormModal({ partner, categories, onSave, onClose }: Partn
     </div>
   );
 }
+
