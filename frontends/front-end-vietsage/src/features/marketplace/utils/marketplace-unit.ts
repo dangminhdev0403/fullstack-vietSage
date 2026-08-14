@@ -135,7 +135,7 @@ export function getCanonicalOrderItems(
     order.pricingUnitSnapshot ||
     order.pricingUnit ||
     order.unitSnapshot ||
-    getServicePricingUnit(order as any);
+    getServicePricingUnit(order);
 
   return [
     {
@@ -147,7 +147,7 @@ export function getCanonicalOrderItems(
       totalAmount: order.totalAmount ?? unitPrice * quantity,
       currency: order.currency || "VND",
       serviceTenantId:
-        order.serviceTenantId ?? (order.serviceTenant as any)?.id,
+        order.serviceTenantId ?? order.serviceTenant?.id,
       serviceTenantName:
         order.serviceTenant?.serviceProfile?.displayName ||
         "Đối tác dịch vụ",
@@ -193,7 +193,7 @@ export function getPartnerAuthorizedOrderItems(
 
   // Fallback if tenant info matches order level or scoped return
   const orderTenantId =
-    order?.serviceTenantId ?? (order?.serviceTenant as any)?.id;
+    order?.serviceTenantId ?? order?.serviceTenant?.id;
   const orderTenantName =
     order?.serviceTenant?.serviceProfile?.displayName?.toLowerCase().trim();
 

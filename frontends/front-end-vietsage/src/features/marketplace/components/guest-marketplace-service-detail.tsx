@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { VsServiceImagePreview } from "@/components/ui/vs-service-image-preview";
@@ -32,13 +32,6 @@ export function GuestMarketplaceServiceDetail({
 
   const [quantity, setQuantity] = useState(1);
   const [note, setNote] = useState("");
-
-  useEffect(() => {
-    if (service) {
-      setQuantity(1);
-      setNote("");
-    }
-  }, [service]);
 
   if (!isOpen || !service) return null;
 
