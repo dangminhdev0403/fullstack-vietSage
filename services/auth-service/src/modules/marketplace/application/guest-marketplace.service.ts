@@ -1,9 +1,13 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-import { MarketplaceRecordStatus } from "@prisma/client";
+import { MarketplaceRecordStatus, Prisma } from "@prisma/client";
 import { calculateHaversineDistanceMeters } from "../../../common/geo-distance";
 import { PrismaService } from "../../../prisma/prisma.service";
 import type { SupportedLocale } from "../../../common/i18n/i18n.types";
-import type { GuestMarketplaceQuery } from "../domain/guest-marketplace.schema";
+import type {
+  AddCartItem,
+  GuestMarketplaceQuery,
+  UpdateCartItem,
+} from "../domain/guest-marketplace.schema";
 
 @Injectable()
 export class GuestMarketplaceService {
@@ -98,6 +102,236 @@ export class GuestMarketplaceService {
     const item = result.items.find((service) => service.id === serviceId);
     if (!item) throw new NotFoundException("Không tìm thấy dịch vụ Marketplace");
     return item;
+  }
+
+  async getCart(
+    scope: { hotelId: string; stayId: string; sessionId: string },
+    locale: SupportedLocale,
+  ) {
+    const cart = await this.prisma.guestCart.upsert({
+      where: { sessionId: scope.sessionId },
+      create: {
+        hotelId: scope.hotelId,
+        stayId: scope.stayId,
+        sessionId: scope.sessionId,
+      },
+      update: {
+        hotelId: scope.hotelId,
+        stayId: scope.stayId,
+      },
+      include: {
+        items: {
+          include: {
+            service: {
+              include: {
+                translations: true,
+                serviceTenant: {
+                  select: {
+                    id: true,
+                    serviceProfile: {
+                      include: {
+                        category: {
+                          include: { translations: true },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          orderBy: { createdAt: "asc" },
+        },
+      },
+    });
+
+    let partnerSubtotal = new Prisma.Decimal(0);
+    let totalItems = 0;
+
+    const items = cart.items.map((item) => {
+      const localizedService = this.localizeServiceItem(item.service, locale);
+      const itemPartnerSubtotal = item.service.unitPrice.mul(item.quantity);
+      const itemFee = itemPartnerSubtotal.mul(new Prisma.Decimal("0.10"));
+      const itemCustomerTotal = itemPartnerSubtotal.add(itemFee);
+
+      partnerSubtotal = partnerSubtotal.add(itemPartnerSubtotal);
+      totalItems += item.quantity;
+
+      return {
+        id: item.id,
+        serviceId: item.serviceId,
+        quantity: item.quantity,
+        guestNote: item.guestNote,
+        service: {
+          id: localizedService.id,
+          name: localizedService.name,
+          description: localizedService.description,
+          unitPrice: localizedService.unitPrice.toString(),
+          pricingUnit: localizedService.pricingUnit,
+          currency: localizedService.currency,
+          imageUrls: localizedService.imageUrls,
+          mode: localizedService.mode,
+          waitingMinutes: localizedService.waitingMinutes,
+          capacityAvailable: localizedService.capacityAvailable,
+          category: localizedService.serviceTenant?.serviceProfile?.category
+            ? this.localizeCategory(localizedService.serviceTenant.serviceProfile.category, locale)
+            : null,
+          serviceTenant: {
+            id: localizedService.serviceTenant.id,
+            displayName: localizedService.serviceTenant.serviceProfile?.displayName,
+          },
+        },
+        partnerSubtotal: itemPartnerSubtotal.toString(),
+        hotelServiceFeeAmount: itemFee.toString(),
+        customerTotalAmount: itemCustomerTotal.toString(),
+        currency: item.service.currency,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+      };
+    });
+
+    const hotelServiceFeeAmount = partnerSubtotal.mul(new Prisma.Decimal("0.10"));
+    const customerTotalAmount = partnerSubtotal.add(hotelServiceFeeAmount);
+    const currency = cart.items[0]?.service.currency ?? "VND";
+
+    return {
+      id: cart.id,
+      hotelId: cart.hotelId,
+      stayId: cart.stayId,
+      sessionId: cart.sessionId,
+      totalItems,
+      partnerSubtotal: partnerSubtotal.toString(),
+      hotelServiceFeeAmount: hotelServiceFeeAmount.toString(),
+      customerTotalAmount: customerTotalAmount.toString(),
+      currency,
+      items,
+      createdAt: cart.createdAt,
+      updatedAt: cart.updatedAt,
+    };
+  }
+
+  async addCartItem(
+    scope: { hotelId: string; stayId: string; sessionId: string },
+    input: AddCartItem,
+    locale: SupportedLocale,
+  ) {
+    const service = await this.prisma.marketplaceService.findFirst({
+      where: {
+        id: input.serviceId,
+        status: MarketplaceRecordStatus.ACTIVE,
+        serviceTenant: {
+          type: "SERVICE",
+          serviceProfile: {
+            status: MarketplaceRecordStatus.ACTIVE,
+            categoryId: { not: null },
+            category: { isActive: true },
+          },
+          hotelServiceLinks: { some: { hotelId: scope.hotelId, status: "ACTIVE" } },
+        },
+      },
+    });
+
+    if (!service) {
+      throw new NotFoundException("Không tìm thấy dịch vụ Marketplace khả dụng");
+    }
+
+    const cart = await this.prisma.guestCart.upsert({
+      where: { sessionId: scope.sessionId },
+      create: {
+        hotelId: scope.hotelId,
+        stayId: scope.stayId,
+        sessionId: scope.sessionId,
+      },
+      update: {
+        hotelId: scope.hotelId,
+        stayId: scope.stayId,
+      },
+    });
+
+    await this.prisma.guestCartItem.upsert({
+      where: {
+        cartId_serviceId: { cartId: cart.id, serviceId: service.id },
+      },
+      create: {
+        cartId: cart.id,
+        serviceId: service.id,
+        quantity: input.quantity,
+        guestNote: input.guestNote,
+      },
+      update: {
+        quantity: { increment: input.quantity },
+        guestNote: input.guestNote ?? undefined,
+      },
+    });
+
+    return this.getCart(scope, locale);
+  }
+
+  async updateCartItem(
+    scope: { hotelId: string; stayId: string; sessionId: string },
+    itemId: string,
+    input: UpdateCartItem,
+    locale: SupportedLocale,
+  ) {
+    const cart = await this.prisma.guestCart.findUnique({
+      where: { sessionId: scope.sessionId },
+    });
+    if (!cart) throw new NotFoundException("Không tìm thấy giỏ hàng");
+
+    const item = await this.prisma.guestCartItem.findFirst({
+      where: { id: itemId, cartId: cart.id },
+    });
+    if (!item) throw new NotFoundException("Không tìm thấy mục trong giỏ hàng");
+
+    if (input.quantity <= 0) {
+      await this.prisma.guestCartItem.delete({
+        where: { id: item.id },
+      });
+    } else {
+      await this.prisma.guestCartItem.update({
+        where: { id: item.id },
+        data: {
+          quantity: input.quantity,
+          guestNote: input.guestNote,
+        },
+      });
+    }
+
+    return this.getCart(scope, locale);
+  }
+
+  async removeCartItem(
+    scope: { hotelId: string; stayId: string; sessionId: string },
+    itemId: string,
+    locale: SupportedLocale,
+  ) {
+    const cart = await this.prisma.guestCart.findUnique({
+      where: { sessionId: scope.sessionId },
+    });
+    if (!cart) throw new NotFoundException("Không tìm thấy giỏ hàng");
+
+    const item = await this.prisma.guestCartItem.findFirst({
+      where: { id: itemId, cartId: cart.id },
+    });
+    if (!item) throw new NotFoundException("Không tìm thấy mục trong giỏ hàng");
+
+    await this.prisma.guestCartItem.delete({
+      where: { id: item.id },
+    });
+
+    return this.getCart(scope, locale);
+  }
+
+  async clearCart(scope: { hotelId: string; stayId: string; sessionId: string }) {
+    const cart = await this.prisma.guestCart.findUnique({
+      where: { sessionId: scope.sessionId },
+    });
+    if (cart) {
+      await this.prisma.guestCartItem.deleteMany({
+        where: { cartId: cart.id },
+      });
+    }
+    return { success: true, cleared: true };
   }
 
   /**

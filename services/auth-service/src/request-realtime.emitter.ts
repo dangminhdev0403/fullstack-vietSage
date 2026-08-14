@@ -7,6 +7,16 @@ const GUEST_STAY_ROOM_PREFIX = "guest-stay:";
 
 const SERVICE_TENANT_ROOM_PREFIX = "service-tenant:";
 
+export type ExternalServiceOrderItemPayload = {
+  serviceId: string;
+  serviceName: string;
+  quantity: number;
+  unitPrice: number | string;
+  partnerSubtotal?: number | string;
+  hotelServiceFeeAmount?: number | string;
+  customerTotalAmount?: number | string;
+};
+
 export type ExternalServiceOrderPayload = {
   eventId?: string;
   orderId: string;
@@ -26,6 +36,9 @@ export type ExternalServiceOrderPayload = {
   quantity: number;
   unitPrice: number | string;
   pricingUnit?: string | null;
+  partnerSubtotal?: number | string;
+  hotelServiceFeeAmount?: number | string;
+  customerTotalAmount?: number | string;
   totalAmount: number | string;
   currency: string;
   guestNote?: string | null;
@@ -33,6 +46,7 @@ export type ExternalServiceOrderPayload = {
   createdAt: string;
   updatedAt?: string;
   version?: number;
+  items?: ExternalServiceOrderItemPayload[];
 };
 
 export class RequestRealtimeEmitter {

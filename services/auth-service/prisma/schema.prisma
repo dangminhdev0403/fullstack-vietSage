@@ -618,6 +618,7 @@ model Hotel {
   localPartnerInteractionLogs   LocalPartnerInteractionLog[]
   marketplaceOrders             MarketplaceOrder[]
   serviceTenantLinks            HotelServiceLink[]            @relation("HotelServiceTenantLinks")
+  guestCarts                    GuestCart[]
 
   @@unique([tenantId, code])
   @@index([tenantId, status])
@@ -957,6 +958,7 @@ model GuestStay {
   localPartnerBookingRequests LocalPartnerBookingRequest[]
   localPartnerInteractionLogs LocalPartnerInteractionLog[]
   marketplaceOrders           MarketplaceOrder[]
+  guestCarts                  GuestCart[]
 
   @@index([hotelId, status])
   @@index([roomId, status])
@@ -1013,6 +1015,7 @@ model GuestSession {
   guestMessages             GuestMessage[]
   emergencyLocationContexts GuestLocationContext[]
   emergencyCallEvents       EmergencyCallEvent[]
+  guestCart                 GuestCart?
 
   @@index([stayId, status])
   @@index([sessionTokenHash])
@@ -1861,6 +1864,8 @@ model MarketplaceService {
   serviceTenant     Tenant                 @relation("TenantMarketplaceServices", fields: [serviceTenantId], references: [id], onDelete: Cascade)
   category          MarketplaceCategory    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   orders            MarketplaceOrder[]
+  orderItems        MarketplaceOrderItem[]
+  cartItems         GuestCartItem[]
   translations      MarketplaceServiceTranslation[]
 
   @@unique([serviceTenantId, importKey])
@@ -1975,6 +1980,9 @@ model MarketplaceOrder {
   quantity                  Int
   unitPriceSnapshot         Decimal                   @db.Decimal(12, 2)
   pricingUnitSnapshot       String?                   @db.VarChar(32)
+  partnerSubtotal           Decimal                   @default(0) @db.Decimal(12, 2)
+  hotelServiceFeeAmount     Decimal                   @default(0) @db.Decimal(12, 2)
+  customerTotalAmount       Decimal                   @default(0) @db.Decimal(12, 2)
   totalAmount               Decimal                   @db.Decimal(12, 2)
   currency                  String                    @db.Char(3)
   serviceNameSnapshot       String                    @db.VarChar(160)
@@ -1993,6 +2001,7 @@ model MarketplaceOrder {
   stay                      GuestStay                 @relation(fields: [stayId], references: [id], onDelete: Restrict)
   serviceTenant             Tenant                    @relation("ServiceTenantMarketplaceOrders", fields: [serviceTenantId], references: [id], onDelete: Restrict)
   service                   MarketplaceService        @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  items                     MarketplaceOrderItem[]
   events                    MarketplaceOrderEvent[]
   revenue                   MarketplaceRevenueEntry?
   settlement                MarketplaceSettlement?
@@ -2002,6 +2011,30 @@ model MarketplaceOrder {
   @@index([serviceTenantId, status, createdAt])
   @@index([hotelId, status, createdAt])
   @@index([stayId, createdAt])
+}
+
+model MarketplaceOrderItem {
+  id                     String                 @id @default(cuid())
+  orderId                String
+  serviceId              String
+  quantity               Int
+  unitPriceSnapshot      Decimal                @db.Decimal(12, 2)
+  pricingUnitSnapshot    String?                @db.VarChar(32)
+  serviceNameSnapshot    String                 @db.VarChar(160)
+  serviceModeSnapshot    MarketplaceServiceMode
+  waitingMinutesSnapshot Int                    @default(0)
+  partnerSubtotal        Decimal                @db.Decimal(12, 2)
+  hotelServiceFeeAmount  Decimal                @db.Decimal(12, 2)
+  customerTotalAmount    Decimal                @db.Decimal(12, 2)
+  currency               String                 @default("VND") @db.Char(3)
+  guestNote              String?                @db.VarChar(500)
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+  order                  MarketplaceOrder       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  service                MarketplaceService     @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([serviceId])
 }
 
 model MarketplaceOrderEvent {
@@ -2031,4 +2064,36 @@ model MarketplaceRevenueEntry {
 
   @@index([hotelId, recognizedAt])
   @@index([serviceTenantId, recognizedAt])
+}
+
+model GuestCart {
+  id        String          @id @default(cuid())
+  hotelId   String
+  stayId    String
+  sessionId String          @unique
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  hotel     Hotel           @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  stay      GuestStay       @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  session   GuestSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  items     GuestCartItem[]
+
+  @@index([hotelId])
+  @@index([stayId])
+}
+
+model GuestCartItem {
+  id        String             @id @default(cuid())
+  cartId    String
+  serviceId String
+  quantity  Int                @default(1)
+  guestNote String?            @db.VarChar(500)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  cart      GuestCart          @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  service   MarketplaceService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, serviceId])
+  @@index([cartId])
+  @@index([serviceId])
 }
