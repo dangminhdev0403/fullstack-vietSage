@@ -42,3 +42,4 @@ export async function POST(request: Request, context: Params) {
     return error instanceof HttpError ? hotelOpsHttpErrorResponse(error) : unknownServerErrorResponse();
   }
 }
+

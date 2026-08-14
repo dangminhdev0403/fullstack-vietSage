@@ -18,3 +18,4 @@ export const servicePortalResource = createResource<Record<string, never>>()({ n
   importPreview: defineMutation({ mutationFn: ({ variables }: { variables: { csv: string; fileName: string } }) => servicePortalRepository.importPreview(variables) }),
   importCommit: defineMutation({ mutationFn: ({ variables }: { variables: { csv: string; fileName: string; previewToken: string } }) => servicePortalRepository.importCommit(variables), invalidates }),
 } });
+

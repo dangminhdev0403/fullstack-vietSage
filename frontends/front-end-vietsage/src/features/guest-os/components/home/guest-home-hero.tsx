@@ -42,3 +42,4 @@ export function GuestHomeHero(props: GuestHomeHeroProps) {
     </section>
   );
 }
+

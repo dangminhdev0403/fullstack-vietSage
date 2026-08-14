@@ -22,3 +22,4 @@ export function GuestHomeHighlights({ items }: { items: GuestHomeHighlight[] }) 
     </section>
   );
 }
+

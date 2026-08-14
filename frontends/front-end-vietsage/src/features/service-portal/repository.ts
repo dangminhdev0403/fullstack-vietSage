@@ -51,3 +51,4 @@ export const servicePortalRepository = {
   template: () => csvCall("template"),
   export: () => csvCall("export"),
 };
+
