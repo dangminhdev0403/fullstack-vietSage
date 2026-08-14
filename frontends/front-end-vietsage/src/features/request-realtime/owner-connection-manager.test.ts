@@ -204,4 +204,3 @@ test("forwards external service order events to subscribers", async () => {
   assert.deepEqual(createdEvents[0], payload);
   assert.equal(statusEvents.length, 1);
 });
-

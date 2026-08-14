@@ -15,4 +15,3 @@ export function useServicePortal(options?: { settlementStatus?: string }) {
     importCommit: useMutation(resource.mutations.importCommit.options()),
   };
 }
-

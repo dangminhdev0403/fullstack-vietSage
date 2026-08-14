@@ -36,4 +36,3 @@ export const servicePortalClient = {
   settlePartnerOrder: (token: string, hotelId: string, settlementId: string) => req<MarketplaceSettlement>(token, "POST", `/hotels/${encodeURIComponent(hotelId)}/marketplace/settlements/${encodeURIComponent(settlementId)}/settle`),
   settlePartnerOrdersBatch: (token: string, hotelId: string, settlementIds: string[]) => req<{ settledCount: number; settlementIds: string[] }, { settlementIds: string[] }>(token, "POST", `/hotels/${encodeURIComponent(hotelId)}/marketplace/settlements/settle-batch`, { settlementIds }),
 };
-

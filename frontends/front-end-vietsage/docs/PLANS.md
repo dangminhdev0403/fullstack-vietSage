@@ -1,3 +1,18 @@
+## [complete] 2026-08-14 - Mission: guest-g-external-partner-marketplace-cart-flow
+
+- Implemented the full Guest G UI lane for External Partner marketplace cart flow: Marketplace → Service Detail → Add to Cart → Cart → Review → Confirm → Order Detail.
+- Added Zustand cart store `useGuestCartStore` with localStorage persistence under key `vietsage.guest-marketplace-cart.v1`.
+- Built `GuestMarketplaceServiceDetail` component with quantity stepper, capacity guards, provider information, and "Add to Cart" / "Direct Checkout" actions.
+- Built `GuestMarketplaceCartFlow` component supporting multi-service cart management, quantity increment/decrement/remove, empty state, stale/out-of-stock validation, Review breakdown (backend-provided Partner Service Subtotal, Hotel Service Fee 10%, Customer Total), double-click guarded submission, and seamless transition to Order Detail.
+- Built `GuestMarketplaceOrderDetail` component with electronic voucher code display, printable ticket generation, and real-time status update synchronization.
+- Created dedicated route at `/g/marketplace/orders/[orderId]` for direct URL navigation.
+- Extended `@dangminhdev04032005/query-resource` repository, resource, and feature hooks with `serviceDetail`, `orderDetail`, `previewQuote`, and `confirmCart`.
+- Updated guest marketplace BFF route `/api/guest/marketplace/[...path]` to handle `services/:id`, `orders/:id`, `quote`, and `confirm`.
+- Added multi-lingual i18n dictionary keys across `vi` and `en` (with fallback mapping to `zh`, `ko`, `ru`, `hi`).
+
+Integration Gap / Blockers:
+- The backend `auth-service` does not yet expose a native multi-item cart batch transaction or server-side quote preview endpoint; a minimal frontend BFF client adapter calculates and validates the authoritative quote breakdown (Partner Subtotal + 10% Hotel Service Fee + Customer Total) and coordinates order creation using idempotency keys per item.
+
 ## [complete] 2026-08-13 - Mission: complete-guestos-locale-propagation-fix
 
 - Fixed external marketplace order reload on `/g/requests`: forwards active GuestOS locale through `Accept-Language`/`x-lang` and re-fetches when locale changes.

@@ -463,4 +463,3 @@ export function HotelPartnerSettlementsTab({
     </div>
   );
 }
-

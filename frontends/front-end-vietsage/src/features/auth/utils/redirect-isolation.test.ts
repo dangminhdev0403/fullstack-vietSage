@@ -227,5 +227,3 @@ test("never returns 0.0.0.0 in redirect origin under any circumstance", () => {
 
   assert.equal(redirectUrl.toString(), "http://127.0.0.1:3000/login?reauth=1&callbackUrl=%2Fstaff");
 });
-
-

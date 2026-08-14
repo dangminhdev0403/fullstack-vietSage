@@ -31,6 +31,7 @@ import {
 } from "@/features/request-realtime/guest-request-realtime-notifier";
 import { guestMarketplaceRepository } from "@/features/marketplace/repositories/guest-marketplace-repository";
 import type { MarketplaceOrder } from "@/features/marketplace/types/marketplace-contract";
+import { GuestMarketplaceOrderDetail } from "@/features/marketplace/components/guest-marketplace-order-detail";
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character] ?? character);
@@ -77,6 +78,7 @@ export default function GuestRequestsPage() {
   const [isExternalLoading, setIsExternalLoading] = useState(false);
   const [externalOrdersVersion, setExternalOrdersVersion] = useState(0);
   const [sourceTab, setSourceTab] = useState<RequestSourceTab>("ALL");
+  const [selectedExternalOrder, setSelectedExternalOrder] = useState<MarketplaceOrder | null>(null);
 
   useEffect(() => {
     if (!isHydrated || !sessionToken) return;
@@ -238,7 +240,10 @@ export default function GuestRequestsPage() {
                   const totalAmount = typeof order.totalAmount === "number" ? order.totalAmount : Number(order.totalAmount);
                   return (
                     <GuestStaggerItem key={order.id}>
-                      <article className="vs-comfort-card rounded-3xl p-5 transition-shadow duration-200 hover:shadow-md">
+                      <article
+                        onClick={() => setSelectedExternalOrder(order)}
+                        className="vs-comfort-card rounded-3xl p-5 transition-shadow duration-200 hover:shadow-md cursor-pointer"
+                      >
                         <div className="mb-4 flex items-start justify-between gap-3">
                           <div className="grid size-12 shrink-0 place-items-center rounded-full bg-amber-50 text-amber-800">
                             <VsIcon name="storefront" className="text-2xl" />
@@ -294,7 +299,8 @@ export default function GuestRequestsPage() {
                             {order.voucher?.voucherNumber ? (
                               <button
                                 type="button"
-                                onClick={() => {
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                   printMarketplaceVoucherTicket({
                                     voucherCode: order.voucher!.voucherNumber!,
                                     verificationCode: order.voucher?.verificationCode ?? "VS-VERIFY",
@@ -344,6 +350,17 @@ export default function GuestRequestsPage() {
 
         <GuestRequestCta t={t} />
       </main>
+
+      {/* External Marketplace Order Detail Modal */}
+      {selectedExternalOrder && sessionToken ? (
+        <GuestMarketplaceOrderDetail
+          order={selectedExternalOrder}
+          sessionToken={sessionToken}
+          isOpen={Boolean(selectedExternalOrder)}
+          onClose={() => setSelectedExternalOrder(null)}
+        />
+      ) : null}
+
       <VsBottomNav active="requests" />
     </div>
   );
