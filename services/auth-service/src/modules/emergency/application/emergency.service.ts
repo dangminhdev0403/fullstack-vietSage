@@ -31,6 +31,8 @@ export class EmergencyService {
       dispatchableAddress: dto.location?.dispatchableAddress,
       source: dto.location?.source,
       confidence: dto.location?.confidence,
+      latitude: dto.location?.latitude,
+      longitude: dto.location?.longitude,
     });
 
     const call = await this.emergencyRepository.createCallEvent({
@@ -50,6 +52,8 @@ export class EmergencyService {
       locationUncertain: resolvedLocation.uncertain,
       metadata: {
         ...dto.metadata,
+        latitude: dto.location?.latitude,
+        longitude: dto.location?.longitude,
         roomId: session.roomId,
         roomNumber: session.roomNumber,
         roomFloor: session.roomFloor,
@@ -99,6 +103,8 @@ export class EmergencyService {
     dispatchableAddress?: string;
     source?: EmergencyLocationSource;
     confidence?: EmergencyLocationConfidence;
+    latitude?: number;
+    longitude?: number;
   }) {
     if (input.requestedLocationId) {
       const location = await this.emergencyRepository.findLocation(input.requestedLocationId);
@@ -120,6 +126,15 @@ export class EmergencyService {
         source: input.source ?? EmergencyLocationSource.MANUAL_ADDRESS,
         confidence,
         uncertain: confidence !== EmergencyLocationConfidence.HIGH,
+      };
+    }
+
+    if (input.latitude !== undefined && input.longitude !== undefined) {
+      return {
+        dispatchableAddress: `GPS:${input.latitude},${input.longitude}`,
+        source: EmergencyLocationSource.GPS,
+        confidence: input.confidence ?? EmergencyLocationConfidence.HIGH,
+        uncertain: false,
       };
     }
 

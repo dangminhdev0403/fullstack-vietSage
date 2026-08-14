@@ -81,42 +81,44 @@ export class GuestOsService {
     return unwrapApiEnvelope<GuestServicesResult>(payload).data;
   }
 
-  async listNearbyPartners<T>(sessionToken: string, categoryId?: string): Promise<T> {
+  async listNearbyPartners<T>(sessionToken: string, categoryId?: string, locale?: GuestLocaleCode): Promise<T> {
     const payload = await this.httpClient.request<unknown>({
       method: "GET",
       path: this.path("/guest/local-partners"),
       accessToken: sessionToken,
       query: categoryId ? { categoryId } : undefined,
+      headers: localeHeaders(locale),
     });
     return unwrapApiEnvelope<T>(payload).data;
   }
 
-  async listNearbyCategories<T>(sessionToken: string): Promise<T> {
+  async listNearbyCategories<T>(sessionToken: string, locale?: GuestLocaleCode): Promise<T> {
     const payload = await this.httpClient.request<unknown>({
       method: "GET",
       path: this.path("/guest/local-partners/categories"),
       accessToken: sessionToken,
+      headers: localeHeaders(locale),
     });
     return unwrapApiEnvelope<T>(payload).data;
   }
 
-  async listMarketplaceCategories<T>(sessionToken: string): Promise<T> {
-    const payload = await this.httpClient.request<unknown>({ method: "GET", path: this.path("/guest/marketplace/categories"), accessToken: sessionToken });
+  async listMarketplaceCategories<T>(sessionToken: string, locale?: GuestLocaleCode): Promise<T> {
+    const payload = await this.httpClient.request<unknown>({ method: "GET", path: this.path("/guest/marketplace/categories"), accessToken: sessionToken, headers: localeHeaders(locale) });
     return unwrapApiEnvelope<T>(payload).data;
   }
 
-  async listMarketplaceServices<T>(sessionToken: string, categoryId?: string): Promise<T> {
-    const payload = await this.httpClient.request<unknown>({ method: "GET", path: this.path("/guest/marketplace/services"), accessToken: sessionToken, query: categoryId ? { categoryId } : undefined });
+  async listMarketplaceServices<T>(sessionToken: string, categoryId?: string, locale?: GuestLocaleCode): Promise<T> {
+    const payload = await this.httpClient.request<unknown>({ method: "GET", path: this.path("/guest/marketplace/services"), accessToken: sessionToken, query: categoryId ? { categoryId } : undefined, headers: localeHeaders(locale) });
     return unwrapApiEnvelope<T>(payload).data;
   }
 
-  async listMarketplaceOrders<T>(sessionToken: string): Promise<T> {
-    const payload = await this.httpClient.request<unknown>({ method: "GET", path: this.path("/guest/marketplace/orders"), accessToken: sessionToken });
+  async listMarketplaceOrders<T>(sessionToken: string, locale?: GuestLocaleCode): Promise<T> {
+    const payload = await this.httpClient.request<unknown>({ method: "GET", path: this.path("/guest/marketplace/orders"), accessToken: sessionToken, headers: localeHeaders(locale) });
     return unwrapApiEnvelope<T>(payload).data;
   }
 
-  async createMarketplaceOrder<T, B>(sessionToken: string, body: B): Promise<T> {
-    const payload = await this.httpClient.request<unknown, B>({ method: "POST", path: this.path("/guest/marketplace/orders"), accessToken: sessionToken, body });
+  async createMarketplaceOrder<T, B>(sessionToken: string, body: B, locale?: GuestLocaleCode): Promise<T> {
+    const payload = await this.httpClient.request<unknown, B>({ method: "POST", path: this.path("/guest/marketplace/orders"), accessToken: sessionToken, body, headers: localeHeaders(locale) });
     return unwrapApiEnvelope<T>(payload).data;
   }
 

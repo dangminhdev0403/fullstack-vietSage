@@ -24,8 +24,8 @@ export const createEmergencyCallBodySchema = z
         dispatchableAddress: z.string().trim().max(500).optional(),
         source: emergencyLocationSourceSchema.optional(),
         confidence: emergencyLocationConfidenceSchema.optional(),
-        latitude: z.coerce.number().optional(),
-        longitude: z.coerce.number().optional(),
+        latitude: z.coerce.number().min(-90).max(90).optional(),
+        longitude: z.coerce.number().min(-180).max(180).optional(),
       })
       .optional(),
     metadata: z.record(z.string(), z.unknown()).optional(),

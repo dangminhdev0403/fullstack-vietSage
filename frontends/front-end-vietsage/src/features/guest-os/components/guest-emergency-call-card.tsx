@@ -27,13 +27,23 @@ export function GuestEmergencyCallCard() {
     setError(null);
 
     try {
+      const coordinates = await new Promise<GeolocationCoordinates | null>((resolve) => {
+        if (!navigator.geolocation) return resolve(null);
+        navigator.geolocation.getCurrentPosition(
+          ({ coords }) => resolve(coords),
+          () => resolve(null),
+          { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 },
+        );
+      });
       const data = await guestOsService.createEmergencyCall(
         sessionToken,
         {
           dialedNumber: "112",
           location: {
-            source: "QR",
-            confidence: room?.roomNumber ? "HIGH" : "LOW",
+            source: coordinates ? "GPS" : "QR",
+            confidence: coordinates ? "HIGH" : room?.roomNumber ? "HIGH" : "LOW",
+            latitude: coordinates?.latitude,
+            longitude: coordinates?.longitude,
           },
           metadata: {
             roomNumber: room?.roomNumber,

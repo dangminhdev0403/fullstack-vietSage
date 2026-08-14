@@ -18,14 +18,13 @@ export type GuestRequestStatus =
   | "FAILED";
 
 export type GuestRequestPriority = "NORMAL" | "URGENT";
+export type GuestLocaleCode = "vi" | "en" | "zh" | "ko" | "ru" | "hi";
 
 export type GuestPortalRequestStatus = GuestRequestStatus;
 
 export type GuestPortalRequestPriority = "NORMAL" | "URGENT";
 
 export type GuestSessionStatus = "CREATED" | "ACTIVE" | "IDLE" | "EXPIRED" | "CLOSED";
-
-export type GuestLocaleCode = "vi" | "en" | "zh" | "ko" | "ru" | "hi";
 
 export type GuestHotel = {
   id: string;

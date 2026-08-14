@@ -56,7 +56,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
       <div className="mx-auto max-w-[1600px] space-y-8">
         <header>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--secondary)]">SUPER_ADMIN</p>
-          <h1 className="mt-3 text-4xl font-semibold text-[var(--primary)]">Người dùng & phạm vi truy cập</h1>
+          <h1 className="mt-3 text-4xl font-semibold text-[var(--primary)]">Người dùng && phạm vi truy cập</h1>
           <p className="mt-2 max-w-3xl text-base text-[var(--on-surface-variant)]">
             Tách quản lý chủ đơn vị khỏi nhân viên khách sạn; vai trò và phân công khách sạn được cập nhật độc lập.
           </p>

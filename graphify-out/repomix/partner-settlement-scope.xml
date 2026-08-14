@@ -1,0 +1,357 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: services/auth-service/src/modules/marketplace/application/marketplace-order.service.ts, services/auth-service/src/modules/marketplace/application/service-portal.service.ts, services/auth-service/src/modules/marketplace/api/service-portal.controller.ts, services/auth-service/src/modules/local-partners/application/local-partners.service.ts, frontends/front-end-vietsage/src/features/local-partners/components/hotel-partner-settlements-tab.tsx, frontends/front-end-vietsage/src/features/service-portal/components/service-settlements-view.tsx
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    src/
+      features/
+        local-partners/
+          components/
+            hotel-partner-settlements-tab.tsx
+        service-portal/
+          components/
+            service-settlements-view.tsx
+services/
+  auth-service/
+    src/
+      modules/
+        local-partners/
+          application/
+            local-partners.service.ts
+        marketplace/
+          api/
+            service-portal.controller.ts
+          application/
+            marketplace-order.service.ts
+            service-portal.service.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="frontends/front-end-vietsage/src/features/local-partners/components/hotel-partner-settlements-tab.tsx">
+import { useCallback, useEffect, useState } from "react";
+import { SwalVietSage } from "@/libs/swal";
+import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
+import type { MarketplaceOrder, MarketplaceSettlement } from "@/features/marketplace/types/marketplace-contract";
+⋮----
+type SettlementItem = MarketplaceSettlement & { order: MarketplaceOrder };
+⋮----
+export function HotelPartnerSettlementsTab(
+⋮----
+const handleToggleSelect = (id: string) =>
+⋮----
+const handleSelectAllUnsettled = () =>
+⋮----
+const handleSettleSingle = async (item: SettlementItem) =>
+⋮----
+const handleSettleBatch = async () =>
+⋮----
+{/* Financial Metrics Header */}
+⋮----
+{/* Filter Toolbar & Actions */}
+⋮----
+onClick=
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/service-portal/components/service-settlements-view.tsx">
+import { useCallback, useState } from "react";
+import Link from "next/link";
+import { useServiceTenantRealtime } from "@/features/request-realtime/use-service-tenant-request-realtime";
+import { useServicePortal } from "../use-service-portal";
+⋮----
+export function ServiceSettlementsView()
+⋮----
+{/* Header Banner */}
+⋮----
+{/* Financial Summary Cards */}
+⋮----
+{/* Settlements Table & Filters */}
+</file>
+
+<file path="services/auth-service/src/modules/local-partners/application/local-partners.service.ts">
+import { Injectable, NotFoundException } from "@nestjs/common";
+import type { LocalPartnerStatus } from "@prisma/client";
+import { LocalPartnersRepository } from "../infrastructure/local-partners.repository";
+⋮----
+export class LocalPartnersService
+⋮----
+constructor(private readonly repository: LocalPartnersRepository)
+⋮----
+async onModuleInit()
+⋮----
+async getCategories()
+⋮----
+getPartnersForHotel(
+    hotelId: string,
+    filters?: { status?: LocalPartnerStatus; categoryId?: string; isFeatured?: boolean },
+)
+⋮----
+async getPartnerById(hotelId: string, partnerId: string)
+⋮----
+createPartner(
+    hotelId: string,
+    payload: Omit<Parameters<LocalPartnersRepository["createPartner"]>[0], "hotelId">,
+)
+⋮----
+async updatePartner(
+    hotelId: string,
+    partnerId: string,
+    payload: Parameters<LocalPartnersRepository["updatePartner"]>[2],
+)
+⋮----
+async setPartnerStatus(hotelId: string, partnerId: string, status: LocalPartnerStatus)
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/application/service-portal.service.ts">
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { Prisma, TenantType, TenantUserStatus } from "@prisma/client";
+import { PrismaService } from "../../../prisma/prisma.service";
+import type {
+  MarketplaceAvailability,
+  MarketplaceServiceBody,
+  MarketplaceServiceUpdate,
+  ServiceProfileBody,
+} from "../domain/service-portal.schema";
+import { CodesService } from "../../codes/codes.service";
+⋮----
+export class ServicePortalService {
+⋮----
+constructor(
+⋮----
+async tenantId(userId: string)
+⋮----
+async profile(userId: string)
+⋮----
+async updateProfile(userId: string, body: ServiceProfileBody)
+⋮----
+async services(userId: string)
+⋮----
+async createService(userId: string, body: MarketplaceServiceBody)
+⋮----
+async updateService(userId: string, serviceId: string, body: MarketplaceServiceUpdate)
+⋮----
+async updateAvailability(userId: string, serviceId: string, body: MarketplaceAvailability)
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/api/service-portal.controller.ts">
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Header,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+  Res,
+} from "@nestjs/common";
+import type { Response } from "express";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
+import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import type { RequestWithRequiredUser } from "../../../shared/security/request-with-authenticated-user";
+import { ServicePortalService } from "../application/service-portal.service";
+import {
+  marketplaceAvailabilitySchema,
+  marketplaceServiceBodySchema,
+  marketplaceServiceUpdateSchema,
+  servicePortalIdSchema,
+  serviceProfileBodySchema,
+} from "../domain/service-portal.schema";
+import { MarketplaceOrderService } from "../application/marketplace-order.service";
+import { ServiceItemImportService } from "../application/service-item-import.service";
+import {
+  marketplaceOrderIdSchema,
+  marketplaceTransitionSchema,
+  partnerSettlementQuerySchema,
+} from "../domain/marketplace-order.schema";
+⋮----
+import { RequestRealtimeTicketService } from "../../request-realtime/application/request-realtime-ticket.service";
+⋮----
+export class ServicePortalController {
+⋮----
+constructor(
+⋮----
+profile(@Req() req: RequestWithRequiredUser)
+⋮----
+updateProfile(@Req() req: RequestWithRequiredUser, @Body() body: unknown)
+⋮----
+services(@Req() req: RequestWithRequiredUser)
+⋮----
+create(@Req() req: RequestWithRequiredUser, @Body() body: unknown)
+⋮----
+update(
+    @Req() req: RequestWithRequiredUser,
+    @Param("serviceId") id: string,
+    @Body() body: unknown,
+)
+⋮----
+availability(
+    @Req() req: RequestWithRequiredUser,
+    @Param("serviceId") id: string,
+    @Body() body: unknown,
+)
+⋮----
+template(@Res() response: Response)
+⋮----
+async export(@Req() req: RequestWithRequiredUser, @Res() response: Response)
+⋮----
+previewImport(@Req() req: RequestWithRequiredUser, @Body() body: unknown)
+⋮----
+commitImport(@Req() req: RequestWithRequiredUser, @Body() body: unknown)
+⋮----
+orderList(@Req() req: RequestWithRequiredUser)
+⋮----
+order(@Req() req: RequestWithRequiredUser, @Param("orderId") id: string)
+⋮----
+transition(
+    @Req() req: RequestWithRequiredUser,
+    @Param("orderId") id: string,
+    @Body() body: unknown,
+)
+⋮----
+verifyVoucher(@Req() req: RequestWithRequiredUser, @Body() body: unknown)
+⋮----
+redeemVoucher(@Req() req: RequestWithRequiredUser, @Body() body: unknown)
+⋮----
+financialSummary(@Req() req: RequestWithRequiredUser)
+⋮----
+settlements(@Req() req: RequestWithRequiredUser, @Query() query: unknown)
+⋮----
+issueTicket(@Req() req: RequestWithRequiredUser)
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/application/marketplace-order.service.ts">
+import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  CapacityReservationStatus,
+  FolioItemSourceType,
+  FolioItemType,
+  FolioStatus,
+  MarketplaceOrderActorType,
+  MarketplaceOrderStatus,
+  MarketplaceRecordStatus,
+  Prisma,
+} from "@prisma/client";
+import { randomUUID } from "node:crypto";
+import { PrismaService } from "../../../prisma/prisma.service";
+import { RequestRealtimeEmitter } from "../../../request-realtime.emitter";
+import { canTransitionMarketplaceOrder } from "../domain/marketplace-order-transitions";
+import type {
+  CreateMarketplaceOrder,
+  MarketplaceTransition,
+} from "../domain/marketplace-order.schema";
+import { ServicePortalService } from "./service-portal.service";
+⋮----
+export class MarketplaceOrderService {
+⋮----
+constructor(
+⋮----
+async createGuestOrder(scope:
+⋮----
+listGuestOrders(stayId: string)
+⋮----
+async guestOrder(stayId: string, orderId: string)
+⋮----
+async listServiceOrders(userId: string)
+⋮----
+async serviceOrder(userId: string, orderId: string)
+⋮----
+listHotelOrders(hotelId: string)
+⋮----
+async hotelOrder(hotelId: string, orderId: string)
+⋮----
+async cancelHotelOrder(_userId: string, hotelId: string, orderId: string)
+⋮----
+async acknowledgeHotelOrder(_userId: string, hotelId: string, orderId: string)
+⋮----
+async issueServiceVoucher(userId: string, hotelId: string, orderId: string)
+⋮----
+async verifyVoucher(userId: string, code: string)
+⋮----
+async redeemVoucher(userId: string, code: string)
+⋮----
+async hotelRevenue(hotelId: string, from?: Date, to?: Date, serviceTenantId?: string)
+⋮----
+async transitionServiceOrder(userId: string, orderId: string, body: MarketplaceTransition)
+⋮----
+private async postToStayFolio(
+    tx: Prisma.TransactionClient,
+    order: {
+      id: string;
+      hotelId: string;
+      stayId: string;
+      quantity: number;
+      unitPriceSnapshot: Prisma.Decimal;
+      totalAmount: Prisma.Decimal;
+      currency: string;
+      serviceNameSnapshot: string;
+      serviceTenantId: string;
+    },
+)
+⋮----
+async getPartnerFinancialSummary(userId: string)
+⋮----
+async listPartnerSettlements(userId: string, status?: string)
+⋮----
+async listHotelPartnerSettlements(
+    hotelId: string,
+    filter?: { status?: string; serviceTenantId?: string },
+)
+⋮----
+async settlePartnerOrder(userId: string, hotelId: string, settlementId: string)
+⋮----
+async settlePartnerOrdersBatch(userId: string, hotelId: string, settlementIds: string[])
+</file>
+
+</files>

@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useGuestLocalPartners } from "../queries/use-guest-local-partners";
+import type { GuestLocaleCode } from "@/features/guest-os/types/guest-os-contract";
 
-export function GuestNearbyPreview({ sessionToken }: { sessionToken: string }) {
-  const { partners } = useGuestLocalPartners(sessionToken);
+export function GuestNearbyPreview({ sessionToken, locale }: { sessionToken: string; locale?: GuestLocaleCode }) {
+  const { partners } = useGuestLocalPartners(sessionToken, undefined, locale);
   if (partners.isError || (!partners.isPending && !partners.data?.length)) return null;
   return (
     <section aria-labelledby="nearby-preview-title" className="vs-container py-10">

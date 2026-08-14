@@ -1,4 +1,4 @@
-import type { DashboardNavItem } from "./workspace-navigation";
+import type { DashboardNavItem, DashboardNavSection } from "./workspace-navigation";
 
 export type WorkspacePersona =
   | "platform_admin"
@@ -25,6 +25,7 @@ export type WorkspaceNavigationDefinition = Omit<DashboardNavItem, "href"> & {
   personas: readonly WorkspacePersona[];
   href: `/${string}`;
   order: number;
+  section?: DashboardNavSection;
   anyCapabilities?: readonly string[];
   requiresHotel?: boolean;
   hideWhenHotelSelected?: boolean;

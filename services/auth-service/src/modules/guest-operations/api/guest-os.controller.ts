@@ -39,7 +39,7 @@ export class GuestOsController {
     private readonly guestMessagesService: GuestMessagesService,
   ) {}
 
-  @SuccessMessage("Tạo phiên khách thành công")
+  @SuccessMessage("common.success")
   @ApiBody({ schema: scanQrBodyOpenApiSchema })
   @ApiCreatedResponse({ description: "Đã chấp nhận quét QR của khách" })
   @Post("qr/scan")
@@ -49,7 +49,7 @@ export class GuestOsController {
   }
 
   @UseGuards(GuestSessionGuard)
-  @SuccessMessage("Lấy phiên khách thành công")
+  @SuccessMessage("common.success")
   @ApiOkResponse({ description: "Đã lấy phiên khách" })
   @Get("session/me")
   async getCurrentSession(@Req() request: RequestWithGuestSession) {
@@ -57,7 +57,7 @@ export class GuestOsController {
   }
 
   @UseGuards(GuestSessionGuard)
-  @SuccessMessage("Lấy danh sách dịch vụ cho khách thành công")
+  @SuccessMessage("common.success")
   @ApiOkResponse({ description: "Đã lấy danh sách dịch vụ cho khách" })
   @Get("services")
   @ApiOkResponse({
@@ -72,7 +72,7 @@ export class GuestOsController {
   }
 
   @UseGuards(GuestSessionGuard)
-  @SuccessMessage("Lấy danh sách dịch vụ trong danh mục cho khách thành công")
+  @SuccessMessage("common.success")
   @ApiOkResponse({ description: "Đã lấy danh sách dịch vụ trong danh mục cho khách" })
   @Get("service-categories/:categoryId/services")
   @ApiOkResponse({
@@ -98,7 +98,7 @@ export class GuestOsController {
   }
 
   @UseGuards(GuestSessionGuard)
-  @SuccessMessage("Tạo yêu cầu của khách thành công")
+  @SuccessMessage("common.success")
   @ApiBody({ schema: { type: "object" } })
   @ApiCreatedResponse({ description: "Đã tạo yêu cầu của khách" })
   @Post("requests")
@@ -112,7 +112,7 @@ export class GuestOsController {
   }
 
   @UseGuards(GuestSessionGuard)
-  @SuccessMessage("Lấy danh sách yêu cầu của khách thành công")
+  @SuccessMessage("common.success")
   @ApiOkResponse({ description: "Đã lấy danh sách yêu cầu của khách" })
   @Get("requests")
   @ApiOkResponse({
@@ -128,7 +128,7 @@ export class GuestOsController {
   }
 
   @UseGuards(GuestSessionGuard)
-  @SuccessMessage("Cancel guest request successfully")
+  @SuccessMessage("common.success")
   @ApiOkResponse({ description: "Guest request cancelled" })
   @Patch("requests/:requestId/cancel")
   @ApiOkResponse({
@@ -143,7 +143,7 @@ export class GuestOsController {
   }
 
   @UseGuards(GuestSessionGuard)
-  @SuccessMessage("Lấy số tin nhắn chưa đọc của khách thành công")
+  @SuccessMessage("common.success")
   @ApiDescript("Lấy số tin nhắn chưa đọc của khách")
   @Get("messages/unread-summary")
   async getUnreadSummary(@Req() request: RequestWithGuestSession) {
@@ -151,7 +151,7 @@ export class GuestOsController {
   }
 
   @UseGuards(GuestSessionGuard)
-  @SuccessMessage("Lấy hội thoại lễ tân thành công")
+  @SuccessMessage("common.success")
   @Get("messages")
   async listMessages(@Req() request: RequestWithGuestSession, @Query() query: unknown) {
     const parsed = parseWithZod(listGuestMessagesQuerySchema, query);
@@ -164,7 +164,7 @@ export class GuestOsController {
   }
 
   @UseGuards(GuestSessionGuard)
-  @SuccessMessage("Đã gửi tin nhắn cho lễ tân")
+  @SuccessMessage("common.success")
   @Post("messages")
   async sendMessage(@Req() request: RequestWithGuestSession, @Body() body: unknown) {
     const parsed = parseWithZod(guestMessageBodySchema, body);
@@ -178,7 +178,7 @@ export class GuestOsController {
   }
 
   @UseGuards(GuestSessionGuard)
-  @SuccessMessage("Đã đánh dấu tin nhắn là đã đọc")
+  @SuccessMessage("common.success")
   @Post("messages/read")
   async markMessagesRead(@Req() request: RequestWithGuestSession, @Body() body: unknown) {
     const parsed = parseWithZod(markGuestMessageReadBodySchema, body);
@@ -189,7 +189,7 @@ export class GuestOsController {
   }
 
   @UseGuards(GuestSessionGuard)
-  @SuccessMessage("Đóng phiên khách thành công")
+  @SuccessMessage("common.success")
   @ApiOkResponse({ description: "Đã đóng phiên khách" })
   @Post("session/close")
   async closeSession(@Req() request: RequestWithGuestSession) {

@@ -40,6 +40,7 @@ import {
 import { OwnerStayRoomGridClient } from "../stay/owner-stay-room-grid-client";
 import { WorkstationConnectionPanel } from "@/features/local-biometric/components/workstation-connection-panel";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
+import { RoomDetailDrawer } from "@/features/hotel-ops/components/room-detail-drawer";
 
 type Props = { hotelId: string; initialRooms: HotelRoomSummary[] };
 type RoomSortKey =
@@ -445,6 +446,9 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
   const [pageSize, setPageSize] = useState(roomPageSizeOptions[0]);
   const [roomFormErrors, setRoomFormErrors] = useState<RoomFormErrors>({});
   const [selectedQrRoom, setSelectedQrRoom] = useState<HotelRoomSummary | null>(
+    null,
+  );
+  const [selectedDetailRoom, setSelectedDetailRoom] = useState<HotelRoomSummary | null>(
     null,
   );
   const [isSaving, setIsSaving] = useState(false);
@@ -1046,7 +1050,11 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
         return (
           <select
             value={currentStatus}
-            onChange={(e) => void updateSingleRoomStatus(room, e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => {
+              e.stopPropagation();
+              void updateSingleRoomStatus(room, e.target.value);
+            }}
             className={`cursor-pointer rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.03em] outline-none transition border-0 ${statusMeta.className}`}
           >
             <option value="AVAILABLE">Trống</option>
@@ -1097,14 +1105,20 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
         const showActivate = canActivateQr(room);
 
         return (
-          <div className="flex justify-end items-center gap-1">
+          <div
+            className="flex items-center justify-end gap-1.5"
+            onClick={(e) => e.stopPropagation()}
+          >
             {!isOccupied ? (
               <button
                 type="button"
                 title={isBlocked ? "Mở khóa phòng" : "Khóa phòng"}
                 aria-label={isBlocked ? "Mở khóa phòng" : "Khóa phòng"}
-                onClick={() => void toggleRoomBlocked(room)}
-                className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition ${
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void toggleRoomBlocked(room);
+                }}
+                className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363] ${
                   isBlocked
                     ? "text-emerald-700 hover:bg-emerald-50"
                     : "text-rose-700 hover:bg-rose-50"
@@ -1121,8 +1135,11 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
               type="button"
               title="Chỉnh sửa phòng"
               aria-label="Chỉnh sửa phòng"
-              onClick={() => openEditRoom(room)}
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--primary)] transition hover:bg-[var(--primary-fixed)]"
+              onClick={(e) => {
+                e.stopPropagation();
+                openEditRoom(room);
+              }}
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--primary)] transition hover:bg-[var(--primary-fixed)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363]"
             >
               <VsIcon name="edit" className="text-lg" />
             </button>
@@ -1131,19 +1148,25 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
               <>
                 <button
                   type="button"
-                  title="Xem mã QR đang hoạt động"
-                  aria-label="Xem mã QR đang hoạt động"
-                  onClick={() => setSelectedQrRoom(room)}
-                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--primary)] transition hover:bg-[var(--primary-fixed)]"
+                  title="Quản lý QR"
+                  aria-label="Quản lý QR"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedQrRoom(room);
+                  }}
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--primary)] transition hover:bg-[var(--primary-fixed)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363]"
                 >
                   <VsIcon name="qr_code" className="text-lg" />
                 </button>
                 <button
                   type="button"
-                  title="Đổi / xoay mã QR"
-                  aria-label="Đổi hoặc xoay mã QR"
-                  onClick={() => void updateRoomFromQrAction(room, "rotate")}
-                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-blue-700 transition hover:bg-blue-50"
+                  title="Lịch sử / Đổi mã QR"
+                  aria-label="Lịch sử hoặc đổi mã QR"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void updateRoomFromQrAction(room, "rotate");
+                  }}
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-blue-700 transition hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363]"
                 >
                   <VsIcon name="history" className="text-lg" />
                 </button>
@@ -1151,10 +1174,11 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
                   type="button"
                   title="Tạm tắt QR"
                   aria-label="Tạm tắt QR"
-                  onClick={() =>
-                    void updateRoomFromQrAction(room, "deactivate")
-                  }
-                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-amber-700 transition hover:bg-amber-50"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void updateRoomFromQrAction(room, "deactivate");
+                  }}
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-amber-700 transition hover:bg-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363]"
                 >
                   <VsIcon name="visibility_off" className="text-lg" />
                 </button>
@@ -1164,10 +1188,11 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
                 type="button"
                 title="Kích hoạt QR"
                 aria-label="Kích hoạt QR"
-                onClick={() =>
-                  void updateRoomFromQrAction(room, "activate")
-                }
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-emerald-700 transition hover:bg-emerald-50"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void updateRoomFromQrAction(room, "activate");
+                }}
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-emerald-700 transition hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363]"
               >
                 <VsIcon name="verified" className="text-lg" />
               </button>
@@ -1335,7 +1360,12 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
         getRowKey={(room) => room.id}
         emptyMessage="Chưa có phòng phù hợp với bộ lọc hiện tại."
         minWidth="980px"
-        rowClassName={() => "group"}
+        rowClassName={(room) =>
+          selectedDetailRoom?.id === room.id
+            ? "bg-[#f8f1e6]/90 font-medium shadow-xs"
+            : "group"
+        }
+        onRowClick={(room) => setSelectedDetailRoom(room)}
         header={tableHeader}
         sort={{
           key: sortKey,
@@ -1349,6 +1379,22 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
           totalItems: sortedRooms.length,
           onPageChange: setPage,
           onPageSizeChange: updatePageSize,
+        }}
+      />
+
+      <RoomDetailDrawer
+        room={selectedDetailRoom}
+        clientOrigin={clientOrigin}
+        onClose={() => setSelectedDetailRoom(null)}
+        onEditRoom={(r) => {
+          setSelectedDetailRoom(null);
+          openEditRoom(r);
+        }}
+        onToggleBlocked={(r) => void toggleRoomBlocked(r)}
+        onQrAction={(r, action) => void updateRoomFromQrAction(r, action)}
+        onOpenQrModal={(r) => {
+          setSelectedDetailRoom(null);
+          setSelectedQrRoom(r);
         }}
       />
 

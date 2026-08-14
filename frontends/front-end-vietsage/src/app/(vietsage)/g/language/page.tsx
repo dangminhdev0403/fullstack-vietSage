@@ -18,25 +18,22 @@ export default function GuestLanguagePage() {
   const { locale, setLocale, t } = useGuestI18n();
   const sessionToken = useGuestStore((state) => state.sessionToken);
   const isHydrated = useGuestStoreHydrated();
-  const [selectedLanguage, setSelectedLanguage] = useState(locale);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const continueButtonRef = useRef<HTMLButtonElement>(null);
   const confirmButtonRef = useRef<HTMLButtonElement>(null);
-  const activeLanguageOption = guestLocaleOptions.find((option) => option.code === selectedLanguage) ?? guestLocaleOptions[0];
+  const activeLanguageOption = guestLocaleOptions.find((option) => option.code === locale) ?? guestLocaleOptions[0];
 
   function requestConfirmation() {
     if (!sessionToken) return;
     setIsConfirmOpen(true);
   }
 
-  function selectLanguage(language: typeof selectedLanguage) {
-    setSelectedLanguage(language);
+  function selectLanguage(language: typeof locale) {
     setLocale(language);
   }
 
   function continueToServices() {
     if (!sessionToken) return;
-    setLocale(selectedLanguage);
     setIsConfirmOpen(false);
     router.replace("/g/services");
   }
@@ -91,7 +88,7 @@ export default function GuestLanguagePage() {
 
           <div className="mt-6 grid gap-3 md:grid-cols-2" role="radiogroup" aria-label={t("language.title")}>
             {guestLocaleOptions.map((option) => {
-              const isActive = option.code === selectedLanguage;
+              const isActive = option.code === locale;
               return (
                 <button
                   key={option.code}

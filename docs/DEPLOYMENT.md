@@ -51,12 +51,15 @@ export FRONTEND_BUILD_AUTH_SECRET="$(openssl rand -hex 32)"
 docker compose -f docker-compose.prod.yml build auth-service frontend
 unset FRONTEND_BUILD_AUTH_SECRET
 docker compose -f docker-compose.prod.yml run --rm migrate
+docker compose -f docker-compose.prod.yml run --rm seed
 docker compose -f docker-compose.prod.yml up -d
 ```
 
+`seed` runs after migrations and before application startup. It is idempotent; it upserts the default roles, permissions, super admin, and all `DEFAULT_CODES`, including `FOLIO`, `INVOICE`, `PAYMENT`, `MARKETPLACE_CATEGORY`, `MARKETPLACE_SERVICE`, and `SERVICE_TENANT`. It does not reset or recreate the database.
+
 `FRONTEND_BUILD_AUTH_SECRET` is an ephemeral BuildKit secret used only while Next.js collects route data. It is not persisted in the image or production secret files.
 
-The one-shot `migrate` service runs `prisma migrate deploy` from the production auth-service image after PostgreSQL becomes healthy. `auth-service` uses `condition: service_completed_successfully`, so a failed migration prevents backend rollout. Never replace this step with `prisma db push`, `prisma migrate reset`, or database recreation. Review migration failures and stop the release instead.
+The one-shot `migrate` service runs `prisma migrate deploy` from the production auth-service image after PostgreSQL becomes healthy. `auth-service` uses `condition: service_completed_successfully` for both `migrate` and `seed`, so a failed migration or seed prevents backend rollout. Never replace these steps with `prisma db push`, `prisma migrate reset`, or database recreation. Review failures and stop the release instead.
 
 `docker compose up -d --build` also respects the migration gate, but the explicit build → migrate → start sequence above keeps release logs and failure boundaries easier to inspect.
 

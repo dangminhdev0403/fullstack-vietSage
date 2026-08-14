@@ -56,6 +56,41 @@ services:
     networks:
       - backend
 
+  seed:
+    image: "${AUTH_SERVICE_IMAGE:-vietsage-auth-service:prod}"
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    container_name: vietsage-seed
+    restart: "no"
+    mem_limit: 512m
+    cpus: "1.0"
+    pids_limit: 128
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    env_file:
+      - ./secrets/production/auth-service.env
+    environment:
+      NODE_ENV: production
+    command: ["node_modules/.bin/prisma", "db", "seed"]
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - backend
+
   auth-service:
     image: "${AUTH_SERVICE_IMAGE:-vietsage-auth-service:prod}"
     build:
@@ -89,6 +124,8 @@ services:
       postgres:
         condition: service_healthy
       migrate:
+        condition: service_completed_successfully
+      seed:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]

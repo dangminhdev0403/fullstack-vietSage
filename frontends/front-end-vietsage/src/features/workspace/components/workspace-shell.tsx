@@ -1,10 +1,10 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 
-import { useMemo } from "react";
 import { VsDashboardSidebar } from "@/app/(vietsage)/_components/vs-dashboard-sidebar";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { VsTopBar } from "@/app/(vietsage)/_components/vs-top-bar";
@@ -43,6 +43,27 @@ export function WorkspaceShell({
   const inheritedProfile = useWorkspaceProfile();
   const resolvedProfileName = profileName ?? inheritedProfile.profileName;
 
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return localStorage.getItem("vietsage_sidebar_collapsed") === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleCollapse = useCallback(() => {
+    setIsCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("vietsage_sidebar_collapsed", String(next));
+      } catch {
+        // Ignore storage errors in restricted contexts
+      }
+      return next;
+    });
+  }, []);
+
   const hotelIdMatch = pathname?.match(/^\/(?:hotels|owner\/hotels)\/([^/]+)/);
   const hotelId = hotelIdMatch?.[1] ?? null;
   const hasMessagePermission = useMemo(
@@ -69,7 +90,9 @@ export function WorkspaceShell({
 
   return (
     <div
-      className={`relative min-h-screen overflow-hidden bg-[#f5f1e8] text-[#17201b] ${printFriendly ? "owner-shell-print" : ""}`}
+      className={`relative min-h-screen overflow-hidden bg-[#f5f1e8] text-[#17201b] ${
+        printFriendly ? "owner-shell-print" : ""
+      }`}
     >
       <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_12%_8%,rgba(191,120,54,0.20),transparent_30%),radial-gradient(circle_at_82%_12%,rgba(38,101,89,0.18),transparent_34%),linear-gradient(135deg,#fffaf0_0%,#f3efe6_45%,#e9f0ea_100%)] print:hidden" />
       <div className="print:hidden">
@@ -88,13 +111,21 @@ export function WorkspaceShell({
           eyebrow={definition.eyebrow}
           description={definition.description}
           badgeByKey={badgeByKey}
+          isCollapsed={isCollapsed}
+          onToggleCollapse={toggleCollapse}
         />
       </div>
       <main
-        className={`min-h-screen px-4 pb-24 pt-24 print:p-0 md:ml-80 md:px-8 print:md:ml-0 lg:px-10 xl:px-12 ${printFriendly ? "owner-shell-main" : ""}`}
+        className={`min-h-screen px-4 pb-24 pt-24 transition-all duration-300 print:p-0 ${
+          isCollapsed ? "md:ml-20" : "md:ml-72 lg:ml-80"
+        } md:px-8 print:md:ml-0 lg:px-10 xl:px-12 ${
+          printFriendly ? "owner-shell-main" : ""
+        }`}
       >
         <div
-          className={`mx-auto max-w-[1680px] space-y-8 ${printFriendly ? "owner-shell-content" : ""}`}
+          className={`mx-auto max-w-[1680px] space-y-8 ${
+            printFriendly ? "owner-shell-content" : ""
+          }`}
         >
           {children}
         </div>
@@ -107,7 +138,9 @@ export function WorkspaceShell({
             <Link
               key={item.key}
               href={item.href}
-              className={`relative flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-center text-[10px] font-bold ${active ? "bg-[#f8f1e6] text-[#17201b]" : "text-[#d7cbb8]"}`}
+              className={`relative flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-center text-[10px] font-bold ${
+                active ? "bg-[#f8f1e6] text-[#17201b]" : "text-[#d7cbb8]"
+              }`}
             >
               <span className="relative">
                 <VsIcon name={item.icon} className="text-xl" />

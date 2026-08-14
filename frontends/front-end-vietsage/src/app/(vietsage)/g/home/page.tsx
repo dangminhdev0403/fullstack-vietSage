@@ -46,7 +46,7 @@ export default function GuestHomePage() {
           dining={{ eyebrow: t("home.foodTitle"), title: t("home.foodHeadline"), description: t("home.foodDesc"), alt: t("home.foodAlt") }}
           care={{ eyebrow: t("home.careTitle"), title: t("home.careHeadline"), description: t("home.careDesc"), alt: t("home.careAlt") }}
         />
-        <GuestNearbyPreview sessionToken={sessionToken} />
+        <GuestNearbyPreview sessionToken={sessionToken} locale={locale} />
         <GuestHomeCta roomLabel={roomLabel} title={t("home.readyTitle")} description={t("home.readyDesc")} actionLabel={t("home.sendRequest")} />
       </main>
       <VsBottomNav active="home" />

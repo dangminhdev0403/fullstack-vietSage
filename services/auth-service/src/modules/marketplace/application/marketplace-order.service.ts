@@ -18,6 +18,7 @@ import type {
   MarketplaceTransition,
 } from "../domain/marketplace-order.schema";
 import { ServicePortalService } from "./service-portal.service";
+import type { SupportedLocale } from "../../../common/i18n/i18n.types";
 
 @Injectable()
 export class MarketplaceOrderService {
@@ -157,15 +158,25 @@ export class MarketplaceOrderService {
     }
   }
 
-  listGuestOrders(stayId: string) {
-    return this.prisma.marketplaceOrder.findMany({
+  async listGuestOrders(stayId: string, locale: SupportedLocale = "vi-VN") {
+    const orders = await this.prisma.marketplaceOrder.findMany({
       where: { stayId },
       include: {
         voucher: true,
+        service: { include: { translations: true } },
         serviceTenant: { select: { serviceProfile: { select: { displayName: true } } } },
       },
       orderBy: { createdAt: "desc" },
       take: 100,
+    });
+    const shortLocale = locale === "vi-VN" ? "vi" : locale;
+    return orders.map((order) => {
+      const translation = order.service.translations.find(
+        (item) => item.locale === locale || item.locale === shortLocale,
+      );
+      if (!translation) return order;
+      const { service: _service, ...publicOrder } = order;
+      return { ...publicOrder, serviceNameSnapshot: translation.name };
     });
   }
 

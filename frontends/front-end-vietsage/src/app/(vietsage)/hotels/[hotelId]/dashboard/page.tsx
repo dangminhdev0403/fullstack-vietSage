@@ -67,7 +67,7 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
     <main className="space-y-8">
       <header className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <div>
-          <h1 className="vs-display text-4xl font-bold text-[var(--primary)]">Dashboard Tiếp Tân</h1>
+          <h1 className="vs-display text-4xl font-bold text-[var(--primary)]">Dashboard tiếp tân</h1>
           <p className="mt-2 text-base italic text-[var(--on-surface-variant)]">Kính chào Quý Quản lý. Chúc một ngày làm việc hiệu quả.</p>
         </div>
         <div className="text-left md:text-right">
@@ -131,7 +131,7 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
       <section className="grid gap-6 xl:grid-cols-[1.6fr_0.8fr]">
         <article>
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="vs-display text-2xl font-semibold text-[var(--primary)]">Yêu cầu của Khách <span className="text-[var(--error)]">•</span></h2>
+            <h2 className="vs-display text-2xl font-semibold text-[var(--primary)]">Yêu cầu của khách <span className="text-[var(--error)]">•</span></h2>
             <Link href={`/hotels/${hotelId}/requests`} className="text-sm font-bold text-[var(--primary)]">Xem tất cả</Link>
           </div>
           <div className="overflow-hidden rounded-xl bg-white shadow-sm">

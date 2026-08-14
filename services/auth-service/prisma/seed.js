@@ -65,11 +65,15 @@ async function seedRoles() {
 
 async function syncServicePermissions(serviceStaffRole) {
   if (!serviceStaffRole) return;
-  const permissions = await prisma.permission.findMany({ where: { path: { in: ["service.marketplace.view", "service.marketplace.manage"] } }, select: { id: true } });
+  const permissions = await prisma.permission.findMany({
+    where: { path: { in: ["service.marketplace.view", "service.marketplace.manage"] } },
+    select: { id: true },
+  });
   for (const permission of permissions) {
     await prisma.rolePermission.upsert({
       where: { roleId_permissionId: { roleId: serviceStaffRole.id, permissionId: permission.id } },
-      update: {}, create: { roleId: serviceStaffRole.id, permissionId: permission.id },
+      update: {},
+      create: { roleId: serviceStaffRole.id, permissionId: permission.id },
     });
   }
 }

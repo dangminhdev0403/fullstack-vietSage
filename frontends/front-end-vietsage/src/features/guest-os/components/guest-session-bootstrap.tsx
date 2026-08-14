@@ -92,6 +92,19 @@ export function GuestSessionBootstrap({ children }: { children: ReactNode }) {
     };
   }, [isHydrated, protectedRoute, validate]);
 
+  useEffect(() => {
+    const rehydrateOnHistoryRestore = () => {
+      void useGuestStore.persist.rehydrate();
+    };
+
+    window.addEventListener("pageshow", rehydrateOnHistoryRestore);
+    window.addEventListener("popstate", rehydrateOnHistoryRestore);
+    return () => {
+      window.removeEventListener("pageshow", rehydrateOnHistoryRestore);
+      window.removeEventListener("popstate", rehydrateOnHistoryRestore);
+    };
+  }, []);
+
   if (!protectedRoute) return children;
   if (!isHydrated || sessionToken === null || validatedToken !== sessionToken) {
     return <div className="min-h-screen bg-[var(--background)]" aria-busy="true" />;

@@ -636,8 +636,7 @@ export class GuestOsService {
     const shortLocale = (locale as string).split("-")[0]?.toLowerCase();
     const selected =
       row.translations?.find((t) => t.locale === locale) ??
-      row.translations?.find((t) => t.locale === shortLocale) ??
-      row.translations?.find((t) => t.locale === "en");
+      row.translations?.find((t) => t.locale === shortLocale);
 
     return {
       name: selected?.name ?? row.name,

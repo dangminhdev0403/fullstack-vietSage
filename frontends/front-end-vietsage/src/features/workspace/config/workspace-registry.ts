@@ -141,6 +141,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     label: "Tổng quan nền tảng",
     icon: "dashboard",
     order: 10,
+    section: "OVERVIEW",
   },
   {
     key: "admin.hotels",
@@ -149,6 +150,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     label: "Khách sạn",
     icon: "hotel",
     order: 20,
+    section: "OPERATIONS",
     anyCapabilities: ["platform.hotels.view", "platform.hotels.manage"],
   },
   {
@@ -158,6 +160,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     label: "Người dùng",
     icon: "group",
     order: 30,
+    section: "ADMINISTRATION",
     anyCapabilities: ["platform.users.view", "platform.users.manage"],
   },
   {
@@ -167,6 +170,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     label: "Vai trò & quyền",
     icon: "verified_user",
     order: 40,
+    section: "ADMINISTRATION",
     anyCapabilities: [
       "platform.roles.view",
       "platform.roles.manage",
@@ -180,11 +184,10 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     label: "Phí VietSage SaaS",
     icon: "payments",
     order: 50,
+    section: "ADMINISTRATION",
     anyCapabilities: [
       "platform.billing.view",
       "platform.billing.manage",
-      "platform.roles.view",
-      "platform.hotels.view",
     ],
   },
   {
@@ -194,6 +197,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     label: "Đối tác dịch vụ bên ngoài",
     icon: "storefront",
     order: 25,
+    section: "PARTNERS",
     anyCapabilities: ["platform.marketplace.view", "platform.marketplace.manage"],
   },
 
@@ -201,9 +205,10 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     key: "owner.home",
     personas: ["owner"],
     href: "/owner/dashboard",
-    label: "Tổng quan danh mục",
+    label: "Overview",
     icon: "dashboard",
     order: 10,
+    section: "OVERVIEW",
   },
   {
     key: "owner.hotels",
@@ -212,6 +217,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     label: "Khách sạn",
     icon: "hotel",
     order: 20,
+    section: "OPERATIONS",
   },
   {
     key: "owner.staff",
@@ -220,6 +226,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     label: "Nhân viên",
     icon: "group",
     order: 30,
+    section: "ADMINISTRATION",
     anyCapabilities: ["hotel.staff.view", "hotel.staff.manage"],
   },
 
@@ -231,6 +238,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     label: "Thông tin khách sạn",
     icon: "hotel",
     order: 100,
+    section: "ADMINISTRATION",
     requiresHotel: true,
     anyCapabilities: ["hotel.dashboard.view"],
   },
@@ -241,6 +249,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     label: "Máy quét CCCD",
     icon: "badge",
     order: 105,
+    section: "ADMINISTRATION",
     requiresHotel: true,
     anyCapabilities: ["hotel.stays.manage"],
   },
@@ -251,6 +260,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     label: "Dịch vụ",
     icon: "concierge",
     order: 110,
+    section: "OPERATIONS",
     requiresHotel: true,
     anyCapabilities: ["hotel.services.view", "hotel.services.manage"],
   },
@@ -258,13 +268,12 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     key: "owner.hotel.partners",
     personas: ["owner"],
     href: "/owner/hotels/{hotelId}/partners",
-    label: "Đối tác dịch vụ lân cận",
+    label: "Service Partners",
     icon: "handshake",
     order: 115,
+    section: "PARTNERS",
     requiresHotel: true,
     anyCapabilities: ["hotel.local-partners.view", "hotel.local-partners.manage"],
-
-
   },
 
   // Xử lý / Vận hành (Operations & Processing)
@@ -275,6 +284,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     label: "Phòng & lưu trú",
     icon: "bed",
     order: 120,
+    section: "OPERATIONS",
     requiresHotel: true,
     anyCapabilities: [
       "hotel.rooms.view",
@@ -293,6 +303,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     label: "Yêu cầu khách",
     icon: "assignment",
     order: 130,
+    section: "OPERATIONS",
     requiresHotel: true,
     anyCapabilities: ["hotel.requests.view", "hotel.requests.manage"],
   },
@@ -303,6 +314,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     label: "Thanh toán",
     icon: "inventory_2",
     order: 140,
+    section: "ADMINISTRATION",
     requiresHotel: true,
     anyCapabilities: ["hotel.billing.view", "hotel.billing.manage"],
   },
@@ -315,6 +327,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     label: "Điều hành hôm nay",
     icon: "space_dashboard",
     order: 10,
+    section: "OVERVIEW",
     requiresHotel: true,
     anyCapabilities: ["hotel.dashboard.view"],
   },
@@ -325,6 +338,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     label: "Máy quét CCCD",
     icon: "badge",
     order: 20,
+    section: "ADMINISTRATION",
     requiresHotel: true,
     anyCapabilities: ["hotel.stays.manage"],
   },
@@ -335,6 +349,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     label: "Quản lý dịch vụ",
     icon: "room_service",
     order: 25,
+    section: "OPERATIONS",
     requiresHotel: true,
     anyCapabilities: ["hotel.services.view", "hotel.services.manage"],
   },
@@ -345,6 +360,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     label: "Đối tác địa phương",
     icon: "handshake",
     order: 28,
+    section: "PARTNERS",
     requiresHotel: true,
     anyCapabilities: ["hotel.local-partners.view", "hotel.local-partners.manage"],
   },
@@ -355,6 +371,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     label: "Phòng & check-in",
     icon: "bed",
     order: 30,
+    section: "OPERATIONS",
     requiresHotel: true,
     anyCapabilities: [
       "hotel.rooms.view",
@@ -370,6 +387,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     label: "Xử lý yêu cầu",
     icon: "assignment",
     order: 40,
+    section: "OPERATIONS",
     requiresHotel: true,
     anyCapabilities: ["hotel.requests.view", "hotel.requests.manage"],
   },
@@ -380,6 +398,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     label: "Tin nhắn phòng",
     icon: "support_agent",
     order: 45,
+    section: "OPERATIONS",
     requiresHotel: true,
     anyCapabilities: ["hotel.messages.view", "hotel.messages.manage"],
   },
@@ -390,6 +409,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     label: "Thanh toán & doanh thu",
     icon: "payments",
     order: 50,
+    section: "ADMINISTRATION",
     requiresHotel: true,
     anyCapabilities: ["hotel.billing.view", "hotel.billing.manage"],
   },
@@ -400,6 +420,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     label: "Tổng quan",
     icon: "space_dashboard",
     order: 10,
+    section: "OVERVIEW",
     anyCapabilities: ["service.marketplace.view", "service.marketplace.manage"],
   },
   {
@@ -409,6 +430,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     label: "Danh mục dịch vụ",
     icon: "inventory_2",
     order: 20,
+    section: "OPERATIONS",
     anyCapabilities: ["service.marketplace.view", "service.marketplace.manage"],
   },
   {
@@ -418,6 +440,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     label: "Đơn hàng",
     icon: "assignment",
     order: 30,
+    section: "OPERATIONS",
     anyCapabilities: ["service.marketplace.view", "service.marketplace.manage"],
   },
   {
@@ -427,6 +450,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     label: "Quyết toán công nợ",
     icon: "account_balance_wallet",
     order: 35,
+    section: "ADMINISTRATION",
     anyCapabilities: ["service.marketplace.view", "service.marketplace.manage"],
   },
   {
@@ -436,6 +460,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     label: "Cấu hình & Vị trí",
     icon: "settings",
     order: 40,
+    section: "ADMINISTRATION",
     anyCapabilities: ["service.marketplace.view", "service.marketplace.manage"],
   },
 ];
@@ -665,6 +690,7 @@ export function buildWorkspaceNavigation(input: {
           href: resolvedPath,
           label: item.labelByPersona?.[persona] ?? item.label,
           icon: item.icon,
+          section: item.section,
         },
       ];
     });

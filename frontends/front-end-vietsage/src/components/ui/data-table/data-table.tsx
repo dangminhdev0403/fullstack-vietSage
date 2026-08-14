@@ -270,11 +270,22 @@ export function DataTable<TData>({
                 return (
                   <tr
                     key={key}
+                    tabIndex={onRowClick ? 0 : undefined}
                     onClick={onRowClick ? () => onRowClick(item) : undefined}
-                    className={`transition-colors duration-150 ${
+                    onKeyDown={
+                      onRowClick
+                        ? (e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              onRowClick(item);
+                            }
+                          }
+                        : undefined
+                    }
+                    className={`transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363] ${
                       isSelected
-                        ? "bg-amber-50/80 hover:bg-amber-50"
-                        : "hover:bg-slate-50/80"
+                        ? "bg-[#f8f1e6]/80 hover:bg-[#f8f1e6]"
+                        : "hover:bg-slate-50/90"
                     } ${onRowClick ? "cursor-pointer" : ""} ${
                       rowClassName?.(item) ?? ""
                     }`}

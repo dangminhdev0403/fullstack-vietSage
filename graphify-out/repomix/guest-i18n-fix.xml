@@ -1,0 +1,1173 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: frontends/front-end-vietsage/src/core/i18n/translations.ts, frontends/front-end-vietsage/src/features/guest-os/service/guest-os-service.ts, frontends/front-end-vietsage/src/features/guest-os/types/guest-os-contract.ts, frontends/front-end-vietsage/src/app/(vietsage)/g/[qrCode]/page.tsx, frontends/front-end-vietsage/src/app/(vietsage)/g/home/page.tsx, frontends/front-end-vietsage/src/app/(vietsage)/g/services/page.tsx, frontends/front-end-vietsage/src/app/(vietsage)/g/requests/page.tsx, services/auth-service/src/common/i18n/i18n.types.ts, services/auth-service/src/common/i18n/i18n.service.ts, services/auth-service/src/common/i18n/i18n.catalog.ts, services/auth-service/src/modules/guest-operations/api/guest-os.controller.ts, services/auth-service/src/modules/guest-operations/application/guest-os.service.ts, services/auth-service/src/modules/marketplace/application/guest-marketplace.service.ts
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    src/
+      app/
+        (vietsage)/
+          g/
+            [qrCode]/
+              page.tsx
+            home/
+              page.tsx
+            requests/
+              page.tsx
+            services/
+              page.tsx
+      core/
+        i18n/
+          translations.ts
+      features/
+        guest-os/
+          service/
+            guest-os-service.ts
+          types/
+            guest-os-contract.ts
+services/
+  auth-service/
+    src/
+      common/
+        i18n/
+          i18n.catalog.ts
+          i18n.service.ts
+          i18n.types.ts
+      modules/
+        guest-operations/
+          api/
+            guest-os.controller.ts
+          application/
+            guest-os.service.ts
+        marketplace/
+          application/
+            guest-marketplace.service.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="frontends/front-end-vietsage/src/core/i18n/translations.ts">
+export type Locale = typeof DEFAULT_LOCALE;
+⋮----
+export type TranslationKey =
+  | "errors.business.NO_ACTIVE_STAY"
+  | "errors.business.QR_EXPIRED"
+  | "errors.business.QR_REVOKED"
+  | "errors.business.ACCESS_CLOSED"
+  | "errors.business.GUEST_SESSION_LIMIT_REACHED"
+  | "errors.business.VALIDATION_FAILED"
+  | "errors.http.400"
+  | "errors.http.401"
+  | "errors.http.403"
+  | "errors.http.404"
+  | "errors.http.409"
+  | "errors.http.422"
+  | "errors.http.429"
+  | "errors.http.500"
+  | "errors.http.default"
+  | "errors.network"
+  | "errors.server"
+  | "guest.emergency.eyebrow"
+  | "guest.emergency.title"
+  | "guest.emergency.description"
+  | "guest.emergency.submit"
+  | "guest.emergency.submitting"
+  | "guest.emergency.success"
+  | "guest.emergency.retry"
+  | "guest.emergency.contactHotel";
+⋮----
+type TranslationValues = Record<string, string | number>;
+⋮----
+type TranslationDictionary = Record<TranslationKey, string>;
+⋮----
+export function translate(
+  key: TranslationKey,
+  values: TranslationValues = {},
+  locale: Locale = DEFAULT_LOCALE,
+): string
+</file>
+
+<file path="services/auth-service/src/common/i18n/i18n.catalog.ts">
+import { SupportedLocale } from "./i18n.types";
+⋮----
+type TranslationCatalog = Record<SupportedLocale, Record<string, string>>;
+</file>
+
+<file path="services/auth-service/src/common/i18n/i18n.service.ts">
+import { DEFAULT_LOCALE, SupportedLocale, TranslationParams } from "./i18n.types";
+import { I18N_CATALOG } from "./i18n.catalog";
+⋮----
+interface RequestLanguageCarrier {
+  headers?: Record<string, unknown>;
+  query?: Record<string, unknown>;
+}
+⋮----
+export class I18nService {
+⋮----
+resolveLocale(request?: RequestLanguageCarrier): SupportedLocale
+⋮----
+t(keyOrMessage: string, locale: SupportedLocale, params?: TranslationParams): string
+⋮----
+translateDetail(detail: string | string[], locale: SupportedLocale): string | string[]
+⋮----
+private translateDetailItem(detail: string, locale: SupportedLocale): string
+⋮----
+private firstHeader(
+    request: RequestLanguageCarrier | undefined,
+    name: string,
+): string | undefined
+⋮----
+private firstString(value: unknown): string | undefined
+⋮----
+private normalizeLocale(value: string | undefined): SupportedLocale | undefined
+⋮----
+private interpolate(template: string, params: TranslationParams =
+</file>
+
+<file path="services/auth-service/src/common/i18n/i18n.types.ts">
+export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
+⋮----
+export type ContentTranslationLocale = (typeof CONTENT_TRANSLATION_LOCALES)[number];
+⋮----
+export type TranslationParams = Record<string, string | number | boolean | null | undefined>;
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/g/[qrCode]/page.tsx">
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { AnimatePresence, m, useReducedMotion } from "motion/react";
+⋮----
+import { VsIcon } from "../../_components/vs-icon";
+import { HttpError } from "@/core/http/http-error";
+import { guestMotionTokens } from "@/features/guest-os/components/motion/guest-motion-tokens";
+import { GuestStateCard } from "@/features/guest-os/components/shared/guest-state-card";
+import { useGuestI18n } from "@/features/guest-os/i18n/use-guest-i18n";
+import { guestOsService } from "@/features/guest-os/service/guest-os-service-instance";
+import { useGuestStore, useGuestStoreHydrated } from "@/features/guest-os/store/guest-store";
+import { getOrCreateGuestDeviceId } from "@/features/guest-os/utils/guest-device-id";
+⋮----
+function getQrCodeParam(value: string | string[] | undefined): string
+⋮----
+function isRecord(value: unknown): value is Record<string, unknown>
+⋮----
+function readStringField(payload: unknown, fieldName: string): string | null
+⋮----
+function readNumberField(payload: unknown, fieldName: string): number | null
+⋮----
+function readNestedData(payload: unknown): unknown
+⋮----
+function isSessionSwitchRequired(error: unknown): boolean
+⋮----
+function inferGuestQrErrorStatus(error: unknown): number
+⋮----
+type GuestQrErrorInfo = {
+  titleKey: string;
+  messageKey: string;
+  params?: Record<string, string | number>;
+};
+⋮----
+function parseGuestQrError(error: unknown): GuestQrErrorInfo
+⋮----
+function QrSwitchCard(
+⋮----
+<GuestStateCard title=
+⋮----
+onConfirm=
+⋮----
+title=
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/g/home/page.tsx">
+import { VsBottomNav } from "../../_components/vs-bottom-nav";
+import { VsIcon } from "../../_components/vs-icon";
+import { VsTopBar } from "../../_components/vs-top-bar";
+import { GuestHomeCta } from "@/features/guest-os/components/home/guest-home-cta";
+import { GuestHomeExperiences } from "@/features/guest-os/components/home/guest-home-experiences";
+import { GuestHomeHero } from "@/features/guest-os/components/home/guest-home-hero";
+import { GuestHomeHighlights } from "@/features/guest-os/components/home/guest-home-highlights";
+import { GuestAccessRequiredState } from "@/features/guest-os/components/shared/guest-access-required-state";
+import { useGuestI18n } from "@/features/guest-os/i18n/use-guest-i18n";
+import { useGuestStore, useGuestStoreHydrated } from "@/features/guest-os/store/guest-store";
+import { GuestNearbyPreview } from "@/features/local-partners/components/guest-nearby-preview";
+⋮----
+function normalizeVietnameseText(value: string): string
+⋮----
+<GuestHomeHero greeting=
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/g/requests/page.tsx">
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { toast } from "sonner";
+import Swal from "sweetalert2";
+⋮----
+import { VsBottomNav } from "../../_components/vs-bottom-nav";
+import { VsIcon } from "../../_components/vs-icon";
+import { VsTopBar } from "../../_components/vs-top-bar";
+import { printMarketplaceVoucherTicket } from "@/features/marketplace/utils/print-voucher";
+import { GuestCurrentRequest } from "@/features/guest-os/components/requests/guest-current-request";
+import { GuestRequestCta } from "@/features/guest-os/components/requests/guest-request-cta";
+import { formatGuestMoney, getEstimatedTotal, getRequestTitle, getRequestTotalPrice, matchesRequestSearch, type GuestRequestTabStatus } from "@/features/guest-os/components/requests/guest-request-display";
+import { GuestRequestFilters } from "@/features/guest-os/components/requests/guest-request-filters";
+import { GuestRequestHero } from "@/features/guest-os/components/requests/guest-request-hero";
+import { GuestRequestList } from "@/features/guest-os/components/requests/guest-request-list";
+import { GuestRequestEmpty, GuestRequestError, GuestRequestSkeleton } from "@/features/guest-os/components/requests/guest-request-states";
+import { GuestReveal } from "@/features/guest-os/components/motion/guest-reveal";
+import { GuestStagger, GuestStaggerItem } from "@/features/guest-os/components/motion/guest-stagger";
+import { GuestAccessRequiredState } from "@/features/guest-os/components/shared/guest-access-required-state";
+import { useGuestI18n } from "@/features/guest-os/i18n/use-guest-i18n";
+import { guestOsService } from "@/features/guest-os/service/guest-os-service-instance";
+import { useGuestStore, useGuestStoreHydrated } from "@/features/guest-os/store/guest-store";
+import type { GuestRequest } from "@/features/guest-os/types/guest-os-contract";
+import { formatGuestDateTime } from "@/features/guest-os/utils/guest-os-display";
+import { getGuestFriendlyErrorMessage } from "@/features/guest-os/utils/guest-os-errors";
+import {
+  GUEST_REQUEST_REALTIME_BROWSER_EVENT,
+  type GuestRequestRealtimeBrowserEvent,
+} from "@/features/request-realtime/guest-request-realtime-notifier";
+import { guestMarketplaceRepository } from "@/features/marketplace/repositories/guest-marketplace-repository";
+import type { MarketplaceOrder } from "@/features/marketplace/types/marketplace-contract";
+⋮----
+function escapeHtml(value: string): string
+⋮----
+type RequestSourceTab = "ALL" | "HOTEL" | "EXTERNAL";
+⋮----
+function getExternalOrderStatusBadge(status: string, t: (key: string) => string):
+⋮----
+// External marketplace orders state
+⋮----
+// Fetch external marketplace orders
+⋮----
+const onRealtime = (event: Event) =>
+⋮----
+function clearFilters()
+function selectRequest(requestId: string)
+async function cancelGuestRequest(requestToCancel: GuestRequest)
+⋮----
+{/* Source Tab Switcher */}
+⋮----
+{/* Hotel Service Requests Section */}
+⋮----
+<GuestReveal><GuestRequestFilters selectedStatus=
+⋮----
+<GuestRequestSkeleton label=
+⋮----
+printMarketplaceVoucherTicket({
+                                    voucherCode: order.voucher!.voucherNumber!,
+                                    verificationCode: order.voucher?.verificationCode ?? "VS-VERIFY",
+                                    guestDisplayName: order.stay?.guestDisplayName ?? "Khách lưu trú",
+                                    roomNumber: order.stay?.room?.roomNumber ?? "-",
+                                    providerDisplayName: providerName,
+                                    orderNumber: order.orderNumber,
+                                    serviceName: order.serviceNameSnapshot,
+                                    quantity: order.quantity,
+                                    totalAmount: totalAmount,
+                                    currency: order.currency || "VND",
+                                    guestNote: order.guestNote,
+                                  });
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/guest-os/types/guest-os-contract.ts">
+export type GuestRequestType =
+  | "HOUSEKEEPING"
+  | "EXTRA_TOWELS"
+  | "LAUNDRY"
+  | "MAINTENANCE"
+  | "FOOD_ORDERING"
+  | "AIRPORT_TRANSFER"
+  | "TOUR_BOOKING"
+  | "ESIM_PURCHASE"
+  | "AI_CONCIERGE";
+⋮----
+export type GuestRequestStatus =
+  | "CREATED"
+  | "ACKNOWLEDGED"
+  | "IN_PROGRESS"
+  | "COMPLETED"
+  | "CANCELLED"
+  | "FAILED";
+⋮----
+export type GuestRequestPriority = "NORMAL" | "URGENT";
+⋮----
+export type GuestPortalRequestStatus = GuestRequestStatus;
+⋮----
+export type GuestPortalRequestPriority = "NORMAL" | "URGENT";
+⋮----
+export type GuestSessionStatus = "CREATED" | "ACTIVE" | "IDLE" | "EXPIRED" | "CLOSED";
+⋮----
+export type GuestLocaleCode = "vi" | "en" | "zh" | "ko" | "ru" | "hi";
+⋮----
+export type GuestHotel = {
+  id: string;
+  tenantId: string;
+  name: string;
+  code: string;
+  timezone: string;
+  brandSettings: unknown;
+};
+⋮----
+export type GuestRoom = {
+  id: string;
+  roomNumber: string;
+  floor: string | null;
+  type: string | null;
+  status: string;
+};
+⋮----
+export type GuestStay = {
+  id: string;
+  reservationCode: string;
+  guestDisplayName: string;
+  status: string;
+  plannedCheckOutAt: string;
+  checkedOutAt: string | null;
+};
+⋮----
+export type GuestSession = {
+  id: string;
+  hotelId: string;
+  roomId: string;
+  stayId: string;
+  status: GuestSessionStatus;
+  createdAt: string;
+  activatedAt: string | null;
+  lastSeenAt: string | null;
+  idleAt: string | null;
+  expiresAt: string;
+  closedAt: string | null;
+  hotel: GuestHotel;
+  room: GuestRoom;
+  stay: GuestStay;
+};
+⋮----
+export type GuestScanQrRequest = {
+  qrCode: string;
+  deviceFingerprint?: string;
+  currentSessionToken?: string;
+  forceSwitch?: boolean;
+  locale?: GuestLocaleCode;
+};
+⋮----
+export type GuestScanQrResult = {
+  sessionToken: string;
+  expiresAt: string;
+  locale?: GuestLocaleCode;
+  supportedLocales?: GuestLocaleCode[];
+  hotel: {
+    name: string;
+    timezone: string;
+    brandSettings: Record<string, unknown> | null;
+  };
+  room: {
+    roomNumber: string;
+    floor: string | null;
+    type: string | null;
+  };
+  guest: {
+    displayName: string;
+    plannedCheckOutAt: string;
+  };
+};
+⋮----
+export type GuestCurrentSessionResult = {
+  session: GuestSession;
+  availableRequestTypes: GuestRequestType[];
+};
+⋮----
+export type GuestServiceItem = {
+  id: string;
+  hotelId?: string;
+  categoryId?: string;
+  requestType?: GuestRequestType;
+  name: string;
+  description: string | null;
+  price: string | number | null;
+  currency: string;
+  quantityEnabled: boolean;
+  minQuantity: number;
+  maxQuantity: number | null;
+  metadata?: unknown;
+  sortOrder?: number;
+  status?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+⋮----
+export type GuestCatalogServiceItem = Omit<GuestServiceItem, "price" | "currency"> & {
+  effectivePrice: string | number | null;
+  effectiveCurrency: string;
+};
+⋮----
+export type GuestServiceCategory = {
+  id: string;
+  hotelId: string;
+  name: string;
+  description: string | null;
+  sortOrder: number;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  items: GuestServiceItem[];
+};
+⋮----
+export type GuestServicesResult = {
+  hotelId: string;
+  categories: Array<Omit<GuestServiceCategory, "items"> & { items: GuestCatalogServiceItem[] }>;
+};
+⋮----
+export type GuestCategoryServicesResult = {
+  category: Omit<GuestServiceCategory, "items">;
+  services: GuestServiceItem[];
+  page?: number;
+  limit?: number;
+  total?: number;
+};
+⋮----
+export type CreateGuestRequestInput = {
+  serviceItemId: string;
+  description?: string;
+  quantity?: number;
+  priority?: GuestPortalRequestPriority;
+};
+⋮----
+export type GuestRequest = {
+  id: string;
+  displayName: string;
+  displayLocale?: GuestLocaleCode;
+  status: GuestPortalRequestStatus;
+  priority?: GuestPortalRequestPriority;
+  quantity: number;
+  description: string | null;
+  answer: string | null;
+  answerLocale?: GuestLocaleCode | string | null;
+  currency?: string | null;
+  unitPrice?: string | number | null;
+  price?: string | number | null;
+  totalPrice?: string | number | null;
+  totalAmount?: string | number | null;
+  estimatedTotalPrice?: string | number | null;
+  estimatedTotalAmount?: string | number | null;
+  createdAt: string;
+  canCancel: boolean;
+};
+⋮----
+export type ListGuestRequestsQuery = {
+  page?: number;
+  limit?: number;
+  status?: GuestPortalRequestStatus;
+};
+⋮----
+export type GuestRequestsResult = {
+  page: number;
+  limit: number;
+  total: number;
+  items: GuestRequest[];
+};
+⋮----
+export type CancelGuestRequestResult = GuestRequest;
+⋮----
+export type GuestSessionCloseResult = {
+  closed: true;
+  session: GuestSession;
+};
+⋮----
+export type GuestMessageSenderType = "GUEST" | "STAFF" | "SYSTEM";
+export type GuestMessage = {
+  id: string;
+  senderType: GuestMessageSenderType;
+  senderName: string | null;
+  body: string;
+  createdAt: string;
+  readAt?: string | null;
+};
+export type GuestMessageThread = {
+  id: string;
+  stayId: string;
+  status: string;
+  roomNumber: string;
+  floor: string | null;
+  roomType: string | null;
+  guestName: string;
+  lastMessageAt: string;
+  expiresAt: string;
+  clearedAt: string | null;
+  unreadCount: number;
+  latestMessage?: GuestMessage | null;
+};
+export type GuestMessagesResult = {
+  page: number;
+  limit: number;
+  total: number;
+  nextCursor?: string | null;
+  hasMore?: boolean;
+  thread: GuestMessageThread | null;
+  items: GuestMessage[];
+};
+export type MessageUnreadSummary = { unreadCount: number };
+⋮----
+export type EmergencyLocationSource =
+  | "GPS"
+  | "QR"
+  | "INVITE"
+  | "HOST_SELECTED"
+  | "GUEST_SELECTED"
+  | "MANUAL_ADDRESS"
+  | "TENANT_DEFAULT"
+  | "IP_DERIVED"
+  | "UNKNOWN";
+⋮----
+export type EmergencyLocationConfidence = "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
+⋮----
+export type CreateGuestEmergencyCallInput = {
+  dialedNumber: string;
+  callbackNumber?: string;
+  callerReference?: string;
+  location?: {
+    emergencyLocationId?: string;
+    dispatchableAddress?: string;
+    source?: EmergencyLocationSource;
+    confidence?: EmergencyLocationConfidence;
+    latitude?: number;
+    longitude?: number;
+  };
+  metadata?: Record<string, unknown>;
+};
+⋮----
+export type GuestEmergencyCallResult = {
+  callEvent: {
+    id: string;
+    dialedNumber: string;
+    lifecycleStatus: string;
+    locationUncertain: boolean;
+    incidentId: string | null;
+  };
+  incident: {
+    id: string;
+    status: string;
+    severity: string;
+    callCount: number;
+    uniqueRoomCount: number;
+    uniqueFloorCount: number;
+    locationUncertain: boolean;
+  };
+};
+</file>
+
+<file path="services/auth-service/src/modules/guest-operations/api/guest-os.controller.ts">
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
+import { ApiBody, ApiCreatedResponse, ApiOkResponse, ApiTags } from "@nestjs/swagger";
+import type { Request } from "express";
+import {
+  createGuestRequestBodySchema as createGuestRequestBodyOpenApiSchema,
+  guestRequestDataSchema,
+  guestServiceCatalogDataSchema,
+  listGuestCategoryServicesDataSchema,
+  listGuestRequestsDataSchema,
+  successEnvelopeSchema,
+} from "../../../common/openapi/contract-schemas";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
+import { GuestOsService } from "../application/guest-os.service";
+import { GuestMessagesService } from "../application/guest-messages.service";
+import {
+  GuestSessionGuard,
+  type RequestWithGuestSession,
+} from "../infrastructure/guards/guest-session.guard";
+import {
+  createGuestRequestBodySchema,
+  guestRequestIdParamSchema,
+  listGuestCategoryServicesQuerySchema,
+  listGuestRequestsQuerySchema,
+  guestMessageBodySchema,
+  markGuestMessageReadBodySchema,
+  listGuestMessagesQuerySchema,
+  scanQrBodyOpenApiSchema,
+  scanQrBodySchema,
+  serviceCategoryIdParamSchema,
+} from "../domain/schemas/guest-os.schema";
+⋮----
+export class GuestOsController {
+⋮----
+constructor(
+⋮----
+async scanQr(@Req() request: Request, @Body() body: unknown)
+⋮----
+async getCurrentSession(@Req() request: RequestWithGuestSession)
+⋮----
+async listServices(@Req() request: RequestWithGuestSession)
+⋮----
+async listCategoryServices(
+    @Req() request: RequestWithGuestSession,
+    @Param("categoryId") categoryId: string,
+    @Query() query: unknown,
+)
+⋮----
+async createRequest(@Req() request: RequestWithGuestSession, @Body() body: unknown)
+⋮----
+async listRequests(@Req() request: RequestWithGuestSession, @Query() query: unknown)
+⋮----
+async cancelRequest(
+    @Req() request: RequestWithGuestSession,
+    @Param("requestId") requestId: string,
+)
+⋮----
+async getUnreadSummary(@Req() request: RequestWithGuestSession)
+⋮----
+async listMessages(@Req() request: RequestWithGuestSession, @Query() query: unknown)
+⋮----
+async sendMessage(@Req() request: RequestWithGuestSession, @Body() body: unknown)
+⋮----
+async markMessagesRead(@Req() request: RequestWithGuestSession, @Body() body: unknown)
+⋮----
+async closeSession(@Req() request: RequestWithGuestSession)
+</file>
+
+<file path="services/auth-service/src/modules/guest-operations/application/guest-os.service.ts">
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  Optional,
+  UnauthorizedException,
+} from "@nestjs/common";
+import {
+  GuestRequestPriority,
+  GuestRequestStatus as InternalGuestRequestStatus,
+  GuestSessionStatus,
+  Prisma,
+} from "@prisma/client";
+import type { Request } from "express";
+import { I18nService } from "../../../common/i18n/i18n.service";
+import type { SupportedLocale } from "../../../common/i18n/i18n.types";
+import {
+  addHours,
+  generateOpaqueToken,
+  hashOpaqueToken,
+} from "../../../common/security/token-hash.util";
+import { AppLogger } from "../../../common/logging/app-logger.service";
+import {
+  GUEST_REQUEST_EVENT_PUBLISHER,
+  NOOP_GUEST_REQUEST_EVENT_PUBLISHER,
+  type GuestRequestEventPublisher,
+} from "../../../shared/events";
+import { TelegramNotificationService } from "../../notifications/notifications-public";
+import {
+  GuestOsRepository,
+  type GuestRequestGuestRow,
+  type GuestSessionContextRow,
+} from "../infrastructure/repositories/guest-os.repository";
+import type {
+  CreateGuestRequestBodyInput,
+  GuestPortalRequestPriority,
+  GuestPortalRequestStatus,
+  GuestPortalRequestStatusFilter,
+  ListGuestCategoryServicesQueryInput,
+  ListGuestRequestsQueryInput,
+  ScanQrBodyInput,
+} from "../domain/schemas/guest-os.schema";
+import {
+  compatibleGuestRequestStatuses,
+  normalizeGuestRequestStatus,
+} from "../domain/guest-request-status";
+⋮----
+export interface GuestSessionContext {
+  sessionId: string;
+  hotelId: string;
+  roomId: string;
+  stayId: string;
+  status: GuestSessionStatus;
+  expiresAt: Date;
+  deviceFingerprintHash?: string | null;
+}
+⋮----
+export interface GuestRequestResponse {
+  id: string;
+  service: {
+    id: string | null;
+    name: string | null;
+  };
+  status: GuestPortalRequestStatus;
+  priority: GuestPortalRequestPriority;
+  quantity: number;
+  note: string | null;
+  answer: string | null;
+  createdAt: Date;
+}
+⋮----
+export interface GuestRequestListItemResponse {
+  id: string;
+  displayName: string;
+  status: GuestPortalRequestStatus;
+  priority: GuestPortalRequestPriority;
+  quantity: number;
+  currency: string;
+  unitPrice: Prisma.Decimal;
+  estimatedTotalAmount: Prisma.Decimal;
+  service?: {
+    id: string;
+    name: string;
+    price: Prisma.Decimal;
+    currency: string;
+  };
+  description: string | null;
+  answer: string | null;
+  createdAt: string;
+  canCancel: boolean;
+}
+⋮----
+export class GuestOsService {
+⋮----
+constructor(
+    private readonly guestOsRepository: GuestOsRepository,
+    private readonly logger: AppLogger = new AppLogger(),
+    private readonly telegramNotificationService?: TelegramNotificationService,
+    @Optional()
+    @Inject(GUEST_REQUEST_EVENT_PUBLISHER)
+    guestRequestEventPublisher?: GuestRequestEventPublisher,
+)
+⋮----
+async scanQr(dto: ScanQrBodyInput, request: Request)
+⋮----
+private async resolveCurrentSessionForScan(sessionToken?: string)
+⋮----
+private toScanQrResponse(session: GuestSessionContextRow, sessionToken: string)
+⋮----
+async authenticateGuestToken(sessionToken: string): Promise<GuestSessionContext>
+⋮----
+async getCurrentSession(context: GuestSessionContext)
+⋮----
+async listServices(context: GuestSessionContext, request?: Request)
+⋮----
+async listCategoryServices(
+    context: GuestSessionContext,
+    categoryId: string,
+    query: ListGuestCategoryServicesQueryInput,
+    request?: Request,
+)
+⋮----
+async createRequest(
+    context: GuestSessionContext,
+    dto: CreateGuestRequestBodyInput,
+    httpRequest?: Request,
+)
+⋮----
+async listRequests(
+    context: GuestSessionContext,
+    query: ListGuestRequestsQueryInput,
+    httpRequest?: Request,
+)
+⋮----
+async cancelRequest(context: GuestSessionContext, requestId: string, httpRequest?: Request)
+⋮----
+async closeSession(context: GuestSessionContext)
+⋮----
+private resolveCatalogText(
+    row: {
+      name: string;
+      description?: string | null;
+      translations?: Array<{ locale: string; name: string; description?: string | null }>;
+    },
+    locale: SupportedLocale,
+)
+⋮----
+private async loadUsableSession(sessionId: string)
+⋮----
+private async refreshSessionState(
+    session: GuestSessionContextRow,
+    now: Date,
+): Promise<GuestSessionContextRow>
+⋮----
+private toSessionData(row: GuestSessionContextRow)
+⋮----
+private toGuestRequestData(
+    row: GuestRequestGuestRow,
+    locale: SupportedLocale = "vi-VN",
+): GuestRequestResponse
+⋮----
+private toGuestRequestListItem(
+    row: GuestRequestGuestRow,
+    locale: SupportedLocale = "vi-VN",
+): GuestRequestListItemResponse
+⋮----
+private resolveGuestRequestUnitPrice(row: GuestRequestGuestRow)
+⋮----
+private toGuestRequestStatus(status: GuestRequestGuestRow["status"]): GuestPortalRequestStatus
+⋮----
+private toInternalRequestStatuses(
+    status: GuestPortalRequestStatusFilter,
+): InternalGuestRequestStatus[]
+⋮----
+private toGuestRequestPriority(
+    priority: GuestRequestGuestRow["priority"],
+): GuestPortalRequestPriority
+⋮----
+private toInternalRequestPriority(priority: GuestPortalRequestPriority): GuestRequestPriority
+⋮----
+private toInternalRequestPriorities(
+    priority: GuestPortalRequestPriority,
+): GuestRequestPriority[]
+⋮----
+private denyAccess(): never
+⋮----
+private async recordDeniedScan(
+    aggregateId: string,
+    deniedReason: string,
+    publicCode: string,
+    dto: ScanQrBodyInput,
+    request: Request,
+    context?: {
+      hotelId?: string;
+      tenantId?: string;
+      roomId?: string;
+      stayId?: string;
+      qrStatus?: string;
+      roomStatus?: string;
+      stayStatus?: string;
+    },
+)
+⋮----
+private compactJson(input: Record<string, string | undefined>): Prisma.InputJsonObject
+⋮----
+private resolveIp(request: Request): string | undefined
+⋮----
+private hashOptional(value: string | undefined): string | undefined
+⋮----
+private truncate(value: unknown, maxLength: number): string | undefined
+⋮----
+private tail(value: string, length = 8): string
+⋮----
+private resolveRequestQuantity(
+    submittedQuantity: number | undefined,
+    serviceItem: {
+      quantityEnabled: boolean;
+      minQuantity: number;
+      maxQuantity: number | null;
+    } | null,
+): number
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/guest-os/service/guest-os-service.ts">
+import { unwrapApiEnvelope } from "@/core/http/api-envelope";
+import { HttpClient, type HttpQuery } from "@/core/http/http-client";
+import type {
+  CancelGuestRequestResult,
+  CreateGuestEmergencyCallInput,
+  CreateGuestRequestInput,
+  GuestCategoryServicesResult,
+  GuestEmergencyCallResult,
+  GuestCurrentSessionResult,
+  GuestLocaleCode,
+  GuestMessagesResult,
+  MessageUnreadSummary,
+  GuestMessageThread,
+  GuestRequest,
+  GuestRequestsResult,
+  GuestScanQrRequest,
+  GuestScanQrResult,
+  GuestServicesResult,
+  GuestSessionCloseResult,
+  ListGuestRequestsQuery,
+} from "@/features/guest-os/types/guest-os-contract";
+⋮----
+export type GuestOsServiceOptions = {
+  baseUrl: string;
+  pathPrefix?: string;
+  timeoutMs?: number;
+};
+⋮----
+function localeHeaders(locale?: GuestLocaleCode): Record<string, string> | undefined
+⋮----
+export class GuestOsService {
+⋮----
+constructor(options: GuestOsServiceOptions)
+⋮----
+private path(pathname: string): string
+⋮----
+async scanQr(input: GuestScanQrRequest): Promise<GuestScanQrResult>
+⋮----
+async getCurrentSession(sessionToken: string, locale?: GuestLocaleCode): Promise<GuestCurrentSessionResult>
+⋮----
+async listServices(sessionToken: string, locale?: GuestLocaleCode): Promise<GuestServicesResult>
+⋮----
+async listNearbyPartners<T>(sessionToken: string, categoryId?: string): Promise<T>
+⋮----
+async listNearbyCategories<T>(sessionToken: string): Promise<T>
+⋮----
+async listMarketplaceCategories<T>(sessionToken: string): Promise<T>
+⋮----
+async listMarketplaceServices<T>(sessionToken: string, categoryId?: string): Promise<T>
+⋮----
+async listMarketplaceOrders<T>(sessionToken: string): Promise<T>
+⋮----
+async createMarketplaceOrder<T, B>(sessionToken: string, body: B): Promise<T>
+⋮----
+async listServicesByCategory(sessionToken: string, categoryId: string, query:
+⋮----
+async createRequest(sessionToken: string, input: CreateGuestRequestInput, locale?: GuestLocaleCode): Promise<GuestRequest>
+⋮----
+async listRequests(sessionToken: string, query: ListGuestRequestsQuery =
+⋮----
+async cancelRequest(sessionToken: string, requestId: string, locale?: GuestLocaleCode): Promise<CancelGuestRequestResult>
+⋮----
+async closeSession(sessionToken: string, locale?: GuestLocaleCode): Promise<GuestSessionCloseResult>
+⋮----
+async listMessages(
+    sessionToken: string,
+    options?: { before?: string; limit?: number },
+    locale?: GuestLocaleCode,
+): Promise<GuestMessagesResult>
+⋮----
+async getMessageUnreadSummary(sessionToken: string, locale?: GuestLocaleCode): Promise<MessageUnreadSummary>
+⋮----
+async sendMessage(sessionToken: string, body: string, clientMessageId: string, locale?: GuestLocaleCode): Promise<
+⋮----
+async markMessagesRead(sessionToken: string, readThroughMessageId: string, locale?: GuestLocaleCode): Promise<
+⋮----
+async createEmergencyCall(
+    sessionToken: string,
+    input: CreateGuestEmergencyCallInput,
+    locale?: GuestLocaleCode,
+): Promise<GuestEmergencyCallResult>
+⋮----
+export function createGuestOsService(options: GuestOsServiceOptions): GuestOsService
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/g/services/page.tsx">
+import {
+  type FormEvent,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { toast } from "sonner";
+import Swal from "sweetalert2";
+⋮----
+import { VsBottomNav } from "../../_components/vs-bottom-nav";
+import { VsIcon } from "../../_components/vs-icon";
+import { VsTopBar } from "../../_components/vs-top-bar";
+import { GuestReveal } from "@/features/guest-os/components/motion/guest-reveal";
+import { GuestAccessRequiredState } from "@/features/guest-os/components/shared/guest-access-required-state";
+import {
+  GuestCategoryChips,
+  type CategoryChipItem,
+} from "@/features/guest-os/components/services/guest-category-chips";
+import {
+  GuestDiscoveryTabs,
+  type GuestDiscoveryTabKey,
+} from "@/features/guest-os/components/services/guest-discovery-tabs";
+import { GuestDiscoverySearch } from "@/features/guest-os/components/services/guest-discovery-search";
+import { GuestRequestSheet } from "@/features/guest-os/components/services/guest-request-sheet";
+import { GuestServiceEmptyState } from "@/features/guest-os/components/services/guest-service-empty-state";
+import { GuestServiceErrorState } from "@/features/guest-os/components/services/guest-service-error-state";
+import { GuestServiceList } from "@/features/guest-os/components/services/guest-service-list";
+import { GuestServiceSkeleton } from "@/features/guest-os/components/services/guest-service-skeleton";
+import { GuestServicesHeader } from "@/features/guest-os/components/services/guest-services-header";
+import { useGuestI18n } from "@/features/guest-os/i18n/use-guest-i18n";
+import { guestOsService } from "@/features/guest-os/service/guest-os-service-instance";
+import {
+  useGuestStore,
+  useGuestStoreHydrated,
+} from "@/features/guest-os/store/guest-store";
+import type {
+  CreateGuestRequestInput,
+  GuestPortalRequestPriority,
+  GuestServiceCategory,
+  GuestServiceItem,
+} from "@/features/guest-os/types/guest-os-contract";
+import { GuestCatalogRequestGuard } from "@/features/guest-os/utils/guest-catalog-request-guard";
+import { adaptGuestServiceCatalog } from "@/features/guest-os/utils/guest-service-catalog";
+import { getGuestFriendlyErrorMessage } from "@/features/guest-os/utils/guest-os-errors";
+import { GUEST_REQUEST_REALTIME_BROWSER_EVENT } from "@/features/request-realtime/guest-request-realtime-notifier";
+import { GuestMarketplace } from "@/features/marketplace/components/guest-marketplace";
+⋮----
+type GuestTranslator = ReturnType<typeof useGuestI18n>["t"];
+⋮----
+function getServicePrice(
+  service: GuestServiceItem,
+  t: GuestTranslator,
+  intlLocale: string,
+): string
+⋮----
+function getQuantityHint(
+  service: GuestServiceItem,
+  t: GuestTranslator,
+): string | null
+⋮----
+function buildGuestRequestPayload({
+  service,
+  quantity,
+  note,
+  urgent = false,
+}: {
+  service: GuestServiceItem;
+  quantity?: number;
+  note?: string;
+  urgent?: boolean;
+}): CreateGuestRequestInput
+⋮----
+function validateQuantity(
+  service: GuestServiceItem,
+  t: GuestTranslator,
+  quantity?: number,
+): true | string
+⋮----
+function escapeHtml(value: string): string
+⋮----
+function buildConfirmHtml(
+  service: GuestServiceItem,
+  note: string,
+  t: GuestTranslator,
+): string
+⋮----
+// Active top-level tab: 'hotel' | 'external'
+⋮----
+// Search input query
+⋮----
+// Selected Category filter per tab
+⋮----
+// External marketplace categories (populated from GuestMarketplace)
+⋮----
+// Selected service for Hotel Request Sheet
+⋮----
+// Hotel services catalog state
+⋮----
+const handleRealtime = () =>
+⋮----
+// Handle Tab Switch
+const handleTabChange = (tab: GuestDiscoveryTabKey) =>
+⋮----
+// Convert Hotel categories to chip list items (preserving backend sort order)
+⋮----
+// Filtered Hotel Categories & Items based on active category & debounced search query
+⋮----
+function openRequestSheet(service: GuestServiceItem)
+setSelectedService(service);
+setRequestNote("");
+setRequestQuantity(
+      String(service.quantityEnabled ? service.minQuantity || 1 : 1),
+    );
+setRequestPriority("NORMAL");
+setRequestError(null);
+⋮----
+{/* Page Header */}
+⋮----
+{/* Unified Service Discovery Controls (Tabs, Search, Categories) */}
+⋮----
+{/* Top-Level Tabs Switcher */}
+⋮----
+{/* Search Input Field for Active Tab */}
+⋮----
+{/* Horizontal Category Chips Navigation */}
+⋮----
+{/* Active Tab Service List (Never renders both vertically) */}
+⋮----
+getQuantityHint=
+⋮----
+/* External Partners Marketplace View */
+⋮----
+{/* Hotel Service Request Sheet Modal */}
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/application/guest-marketplace.service.ts">
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { MarketplaceRecordStatus } from "@prisma/client";
+import { calculateHaversineDistanceMeters } from "../../../common/geo-distance";
+import { PrismaService } from "../../../prisma/prisma.service";
+import type { SupportedLocale } from "../../../common/i18n/i18n.types";
+import type { GuestMarketplaceQuery } from "../domain/guest-marketplace.schema";
+⋮----
+export class GuestMarketplaceService {
+⋮----
+constructor(private readonly prisma: PrismaService)
+⋮----
+async categories(hotelId: string, locale: SupportedLocale)
+⋮----
+async services(hotelId: string, query: GuestMarketplaceQuery, locale: SupportedLocale)
+⋮----
+// ponytail: bounded in-memory geo sort; move to PostGIS only after >100 mapped active items/hotel is measured.
+⋮----
+async detail(hotelId: string, serviceId: string, locale: SupportedLocale)
+⋮----
+/**
+   * Resolve localized category name.
+   * Fallback: requested locale translation → nameVi → importKey → code.
+   */
+private localizeCategory<
+    T extends {
+      nameVi: string;
+      importKey?: string | null;
+      code: string;
+      translations?: { locale: string; name: string }[];
+    },
+>(category: T, locale: SupportedLocale): T &
+⋮----
+private localizeServiceItem<
+    T extends {
+      name: string;
+      description?: string | null;
+      translations?: { locale: string; name: string; description?: string | null }[];
+    },
+>(service: T, locale: SupportedLocale): T &
+⋮----
+/** Convert SupportedLocale to short DB locale (vi-VN → vi, en → en, etc.) */
+private toShortLocale(locale: SupportedLocale): string
+⋮----
+private hotelLocation(hotelId: string)
+⋮----
+private distance(
+    hotel: { latitude: unknown; longitude: unknown },
+    profile: { latitude: unknown; longitude: unknown } | null,
+)
+</file>
+
+</files>

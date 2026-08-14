@@ -56,7 +56,7 @@ export class GuestMarketplaceController {
     );
   }
   @Get("orders") ordersList(@Req() req: RequestWithGuestSession) {
-    return this.orders.listGuestOrders(req.guestSession.stayId);
+    return this.orders.listGuestOrders(req.guestSession.stayId, this.i18n.resolveLocale(req));
   }
   @Get("orders/:orderId") order(@Req() req: RequestWithGuestSession, @Param("orderId") id: string) {
     return this.orders.guestOrder(
