@@ -25,9 +25,9 @@ export class ServiceItemImportService {
   async preview(actorUserId: string, csv: string, fileName = "service-items.csv") {
     const context = await this.context(actorUserId);
     const workbook = this.parseCsv(csv, fileName);
-    const payload = await this.adapter.parse(workbook, context);
+    const payload = this.adapter.parse(workbook, context);
     const validation = this.validateHeaders(workbook, payload);
-    validation.push(...(await this.adapter.validate(payload, context)));
+    validation.push(...this.adapter.validate(payload, context));
     const state = await this.adapter.loadCurrentState(context);
     validation.push(...this.adapter.validateState(payload, state));
     if (!state.categoryId || !state.categoryActive)
@@ -39,7 +39,7 @@ export class ServiceItemImportService {
       });
     const diff = validation.some((i) => i.severity === "error")
       ? []
-      : await this.adapter.diff(payload, state, context, "upsert");
+      : this.adapter.diff(payload, state, context, "upsert");
     const fileHash = createHash("sha256").update(csv, "utf8").digest("hex");
     const stateHash = this.stateHash(state);
     return {
@@ -61,14 +61,14 @@ export class ServiceItemImportService {
   ) {
     const context = await this.context(actorUserId);
     const workbook = this.parseCsv(csv, fileName);
-    const payload = await this.adapter.parse(workbook, context);
+    const payload = this.adapter.parse(workbook, context);
     const validation = [
       ...this.validateHeaders(workbook, payload),
-      ...(await this.adapter.validate(payload, context)),
+      ...this.adapter.validate(payload, context),
     ];
     const fileHash = createHash("sha256").update(csv, "utf8").digest("hex");
     const result = await this.prisma.$transaction(async (tx) => {
-      const state = await this.adapter.loadCurrentState(context, tx as never);
+      const state = await this.adapter.loadCurrentState(context, tx);
       validation.push(...this.adapter.validateState(payload, state));
       if (!state.categoryId || !state.categoryActive)
         validation.push({
@@ -86,7 +86,7 @@ export class ServiceItemImportService {
         throw new ConflictException(
           "Dữ liệu đã thay đổi sau lần xem trước. Vui lòng xem trước lại.",
         );
-      const diff = await this.adapter.diff(payload, state, context, "upsert");
+      const diff = this.adapter.diff(payload, state, context, "upsert");
       return this.adapter.commit({
         tx,
         mode: "upsert",
@@ -341,10 +341,18 @@ export class ServiceItemImportService {
     }
     return records;
   }
+  private text(value: unknown): string {
+    if (value == null) return "";
+    if (typeof value === "string") return value.trim();
+    if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint")
+      return `${value}`.trim();
+    return (JSON.stringify(value) ?? "").trim();
+  }
+
   private csvRow(values: unknown[]) {
     return values
       .map((v) => {
-        let text = String(v ?? "");
+        let text = this.text(v);
         if (/^[=+\-@]/.test(text)) text = `'${text}`;
         return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
       })

@@ -298,7 +298,9 @@ describe("Marketplace orders", () => {
         create: jest.fn().mockResolvedValue({}),
       },
       folio: {
-        findFirst: jest.fn().mockResolvedValue({ id: "folio-1", roomId: "room-1", currency: "VND" }),
+        findFirst: jest
+          .fn()
+          .mockResolvedValue({ id: "folio-1", roomId: "room-1", currency: "VND" }),
         update: jest.fn().mockResolvedValue({}),
       },
       folioItem: {
@@ -324,7 +326,9 @@ describe("Marketplace orders", () => {
         findUnique: jest.fn().mockResolvedValue({ ...order, status: "COMPLETED" }),
         findUniqueOrThrow: jest.fn().mockResolvedValue({ ...order, status: "COMPLETED" }),
       },
-      $transaction: jest.fn().mockImplementation((cb: (txClient: typeof tx) => Promise<unknown>) => cb(tx)),
+      $transaction: jest
+        .fn()
+        .mockImplementation((cb: (txClient: typeof tx) => Promise<unknown>) => cb(tx)),
     };
 
     const service = new MarketplaceOrderService(prisma as never, {} as never);
@@ -347,7 +351,6 @@ describe("Marketplace orders", () => {
       }),
     );
   });
-
 
   it("verifies and redeems service voucher atomically inside DB transaction", async () => {
     const order = {
@@ -403,7 +406,9 @@ describe("Marketplace orders", () => {
         create: jest.fn().mockResolvedValue({}),
       },
       folio: {
-        findFirst: jest.fn().mockResolvedValue({ id: "folio-1", roomId: "room-1", currency: "VND" }),
+        findFirst: jest
+          .fn()
+          .mockResolvedValue({ id: "folio-1", roomId: "room-1", currency: "VND" }),
         update: jest.fn().mockResolvedValue({}),
       },
       folioItem: {
@@ -498,7 +503,9 @@ describe("Marketplace orders", () => {
       marketplaceSettlement: { upsert: settlementUpsert },
       marketplaceOrderEvent: { create: jest.fn().mockResolvedValue({}) },
       folio: {
-        findFirst: jest.fn().mockResolvedValue({ id: "folio-1", roomId: "room-1", currency: "VND" }),
+        findFirst: jest
+          .fn()
+          .mockResolvedValue({ id: "folio-1", roomId: "room-1", currency: "VND" }),
         update: jest.fn().mockResolvedValue({}),
       },
       folioItem: {
@@ -529,7 +536,9 @@ describe("Marketplace orders", () => {
     const portal = { tenantId: jest.fn().mockResolvedValue("provider-1") };
     const service = new MarketplaceOrderService(prisma as never, portal as never);
 
-    const result = await service.transitionServiceOrder("user-1", "order-99", { toStatus: "COMPLETED" });
+    const result = await service.transitionServiceOrder("user-1", "order-99", {
+      toStatus: "COMPLETED",
+    });
 
     expect(result.status).toBe("COMPLETED");
     expect(settlementUpsert).toHaveBeenCalledWith(

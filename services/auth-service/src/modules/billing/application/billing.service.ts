@@ -1579,9 +1579,19 @@ export class BillingService {
           const unitPrice = req.serviceItem?.priceOverride ?? req.unitPrice ?? 0;
           const subtotal = new Prisma.Decimal(unitPrice).mul(req.quantity ?? 1);
           const isExt =
-            Boolean(req.serviceItem?.category?.name && /massage|spa|đối tác|bên ngoài|marketplace|external/i.test(req.serviceItem.category.name)) ||
-            Boolean(req.serviceItem?.name && /massage|spa|đối tác|bên ngoài|marketplace|external/i.test(req.serviceItem.name)) ||
-            Boolean(req.title && /massage|spa|đối tác|bên ngoài|marketplace|external/i.test(req.title));
+            Boolean(
+              req.serviceItem?.category?.name &&
+              /massage|spa|đối tác|bên ngoài|marketplace|external/i.test(
+                req.serviceItem.category.name,
+              ),
+            ) ||
+            Boolean(
+              req.serviceItem?.name &&
+              /massage|spa|đối tác|bên ngoài|marketplace|external/i.test(req.serviceItem.name),
+            ) ||
+            Boolean(
+              req.title && /massage|spa|đối tác|bên ngoài|marketplace|external/i.test(req.title),
+            );
 
           const newItem = await tx.folioItem.create({
             data: {

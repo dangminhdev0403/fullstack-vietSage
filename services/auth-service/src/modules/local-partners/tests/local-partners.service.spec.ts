@@ -35,10 +35,12 @@ describe("Local partners MVP", () => {
 
   it("scopes staff updates by hotel", async () => {
     await staff.updatePartner("hotel-1", "partner-1", { name: "Tên mới" });
-    expect(repository.findPartnerInHotel).toHaveBeenCalledWith("hotel-1", "partner-1");
-    expect(repository.updatePartner).toHaveBeenCalledWith("hotel-1", "partner-1", {
-      name: "Tên mới",
-    });
+    expect(repository.findPartnerInHotel.mock.calls).toContainEqual(["hotel-1", "partner-1"]);
+    expect(repository.updatePartner.mock.calls).toContainEqual([
+      "hotel-1",
+      "partner-1",
+      { name: "Tên mới" },
+    ]);
   });
 
   it("rejects cross-hotel guest detail", async () => {

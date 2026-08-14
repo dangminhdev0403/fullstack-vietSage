@@ -641,7 +641,7 @@ describe("BillingService checkout safety", () => {
     const service = createService(prisma);
 
     const result = await service.addFolioItem("user-1", "role-1", "hotel-1", "folio-1", {
-      itemType: "ADJUSTMENT" as never,
+      itemType: "ADJUSTMENT",
       name: "Phụ thu Check-out muộn",
       amount: 50000,
     });
@@ -707,7 +707,7 @@ describe("BillingService checkout safety", () => {
     const service = createService(prisma);
 
     const result = await service.addFolioItem("user-1", "role-1", "hotel-1", "folio-1", {
-      itemType: "DISCOUNT" as never,
+      itemType: "DISCOUNT",
       name: "Giảm giá 20k Khách thân thiết",
       amount: 20000,
     });
@@ -796,7 +796,13 @@ describe("BillingService checkout safety", () => {
         paidAmount: new Prisma.Decimal(0),
         balanceAmount: new Prisma.Decimal(300000),
         folio: { id: "folio-1", folioNumber: "FOL-001", status: FolioStatus.OPEN },
-        stay: { id: "stay-1", guestDisplayName: "Nguyen Van A", room: { roomNumber: "101" }, plannedCheckInAt: new Date(), plannedCheckOutAt: new Date() },
+        stay: {
+          id: "stay-1",
+          guestDisplayName: "Nguyen Van A",
+          room: { roomNumber: "101" },
+          plannedCheckInAt: new Date(),
+          plannedCheckOutAt: new Date(),
+        },
       },
       items: [
         {
@@ -873,7 +879,13 @@ describe("BillingService checkout safety", () => {
         paidAmount: new Prisma.Decimal(0),
         balanceAmount: new Prisma.Decimal(2001100),
         folio: { id: "folio-bm", folioNumber: "FOL-200", status: FolioStatus.CHECKOUT_PENDING },
-        stay: { id: "stay-200", guestDisplayName: "Guest 200", room: { roomNumber: "200" }, plannedCheckInAt: new Date(), plannedCheckOutAt: new Date() },
+        stay: {
+          id: "stay-200",
+          guestDisplayName: "Guest 200",
+          room: { roomNumber: "200" },
+          plannedCheckInAt: new Date(),
+          plannedCheckOutAt: new Date(),
+        },
       },
       items: [
         {
@@ -957,11 +969,31 @@ describe("BillingService checkout safety", () => {
     const detail = await service.getInvoiceDetail("user-1", "role-1", "hotel-1", "inv-benchmark");
 
     expect(detail.items).toHaveLength(5);
-    expect(detail.items[0]).toMatchObject({ name: "Room charge - 200", serviceSource: "HOTEL", type: "ROOM_CHARGE" });
-    expect(detail.items[1]).toMatchObject({ name: "Room charge - 200", serviceSource: "HOTEL", type: "ROOM_CHARGE" });
-    expect(detail.items[2]).toMatchObject({ name: "Massage 60 minutes", serviceSource: "EXTERNAL", type: "SERVICE" });
-    expect(detail.items[3]).toMatchObject({ name: "Massage 90 minutes", serviceSource: "EXTERNAL", type: "SERVICE" });
-    expect(detail.items[4]).toMatchObject({ name: "Extra towel", serviceSource: "HOTEL", type: "SERVICE" });
+    expect(detail.items[0]).toMatchObject({
+      name: "Room charge - 200",
+      serviceSource: "HOTEL",
+      type: "ROOM_CHARGE",
+    });
+    expect(detail.items[1]).toMatchObject({
+      name: "Room charge - 200",
+      serviceSource: "HOTEL",
+      type: "ROOM_CHARGE",
+    });
+    expect(detail.items[2]).toMatchObject({
+      name: "Massage 60 minutes",
+      serviceSource: "EXTERNAL",
+      type: "SERVICE",
+    });
+    expect(detail.items[3]).toMatchObject({
+      name: "Massage 90 minutes",
+      serviceSource: "EXTERNAL",
+      type: "SERVICE",
+    });
+    expect(detail.items[4]).toMatchObject({
+      name: "Extra towel",
+      serviceSource: "HOTEL",
+      type: "SERVICE",
+    });
 
     const hotelTotal = detail.items
       .filter((i) => i.serviceSource === "HOTEL")

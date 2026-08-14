@@ -10,7 +10,7 @@ describe("MarketplaceCategorySheetService", () => {
       preview: jest.fn(),
       commit: jest.fn(),
     };
-    service = new MarketplaceCategorySheetService(importServiceMock as any);
+    service = new MarketplaceCategorySheetService(importServiceMock);
   });
 
   it("extracts spreadsheet ID from google sheets URL", () => {

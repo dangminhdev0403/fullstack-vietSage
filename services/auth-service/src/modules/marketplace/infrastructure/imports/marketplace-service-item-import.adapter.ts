@@ -290,7 +290,7 @@ export class MarketplaceServiceItemImportAdapter
     return {
       categoryId: profile?.categoryId ?? null,
       categoryActive: profile?.category?.isActive === true,
-      items: items as StateItem[],
+      items: items,
     };
   }
 
@@ -357,7 +357,7 @@ export class MarketplaceServiceItemImportAdapter
           data: {
             serviceTenantId: tenantId,
             importKey,
-            categoryId: input.currentState.categoryId!,
+            categoryId: input.currentState.categoryId,
             name: row.name,
             description: row.description,
             unitPrice: row.unitPrice,
@@ -453,8 +453,8 @@ export class MarketplaceServiceItemImportAdapter
       ["status", current.status, row.status],
     ];
     return fields
-      .filter(([, from, to]) => String(from ?? "") !== String(to ?? ""))
-      .map(([field, from, to]) => ({ field, from: from ?? "", to: to ?? "" }));
+      .filter(([, from, to]) => this.text(from) !== this.text(to))
+      .map(([field, from, to]) => ({ field, from: this.text(from), to: this.text(to) }));
   }
 
   private async upsertTranslations(
@@ -489,7 +489,10 @@ export class MarketplaceServiceItemImportAdapter
   }
   private text(value: unknown) {
     if (value == null) return "";
-    return (typeof value === "object" ? JSON.stringify(value) : String(value)).trim();
+    if (typeof value === "string") return value.trim();
+    if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint")
+      return `${value}`.trim();
+    return (JSON.stringify(value) ?? "").trim();
   }
   private optional(value: unknown) {
     const v = this.text(value);

@@ -601,7 +601,6 @@ export class MarketplaceOrderService {
     return orderWithDetails;
   }
 
-
   async verifyVoucher(userId: string, code: string) {
     const serviceTenantId = await this.portal.tenantId(userId);
     const cleaned = code.trim().toUpperCase();

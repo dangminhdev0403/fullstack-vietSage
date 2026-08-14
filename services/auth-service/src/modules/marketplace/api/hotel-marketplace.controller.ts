@@ -141,7 +141,6 @@ export class HotelMarketplaceController {
     return this.orders.completeHotelOrder(req.user.userId, hotelId, validOrderId);
   }
 
-
   @ApiDescript("Xem doanh thu Marketplace của khách sạn")
   @RequirePermission("hotel.marketplace.revenue.view")
   @Get("revenue")

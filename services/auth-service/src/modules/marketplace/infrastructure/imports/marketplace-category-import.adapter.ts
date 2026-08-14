@@ -178,7 +178,7 @@ export class MarketplaceCategoryImportAdapter
         for (const [k, v] of Object.entries(rawRow.values)) {
           const normKey = k.trim().toLowerCase();
           if (aliases.some((a) => a.toLowerCase() === normKey)) {
-            return v != null ? String(v).trim() : "";
+            return this.text(v);
           }
         }
         return "";
@@ -461,6 +461,14 @@ export class MarketplaceCategoryImportAdapter
     }
 
     return diffs;
+  }
+
+  private text(value: unknown): string {
+    if (value == null) return "";
+    if (typeof value === "string") return value.trim();
+    if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint")
+      return `${value}`.trim();
+    return (JSON.stringify(value) ?? "").trim();
   }
 
   async commit(

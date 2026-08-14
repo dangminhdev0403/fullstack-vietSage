@@ -3,6 +3,8 @@ import { PrismaService } from "../../../prisma/prisma.service";
 import { AppLogger } from "../../../common/logging/app-logger.service";
 import { ForbiddenException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
+import { PlatformBillingModule } from "../platform-billing.module";
+import { PropertyModule } from "../../property/property.module";
 
 describe("PlatformBillingService Onboarding & Analytics", () => {
   let service: PlatformBillingService;
@@ -74,7 +76,7 @@ describe("PlatformBillingService Onboarding & Analytics", () => {
     service = new PlatformBillingService(
       mockPrisma as PrismaService,
       mockLogger as AppLogger,
-      mockHotelAccessService as any,
+      mockHotelAccessService,
     );
   });
 
@@ -413,8 +415,6 @@ describe("PlatformBillingService Onboarding & Analytics", () => {
   });
 
   it("verifies PlatformBillingModule metadata imports PropertyModule for Nest DI runtime resolution", () => {
-    const { PlatformBillingModule } = require("../platform-billing.module");
-    const { PropertyModule } = require("../../property/property.module");
     const imports = Reflect.getMetadata("imports", PlatformBillingModule) || [];
     expect(imports).toContain(PropertyModule);
   });

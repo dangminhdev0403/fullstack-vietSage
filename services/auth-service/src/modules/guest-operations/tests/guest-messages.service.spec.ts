@@ -1,5 +1,6 @@
 import { BadRequestException, HttpException, HttpStatus } from "@nestjs/common";
-import { GuestRequestActorType, GuestStayStatus } from "@prisma/client";
+import { GuestStayStatus } from "@prisma/client";
+import { GuestMessagesRepository } from "../infrastructure/repositories/guest-messages.repository";
 import { GuestMessagesService } from "../application/guest-messages.service";
 import type { GuestSessionContext } from "../application/guest-os.service";
 
@@ -14,7 +15,7 @@ describe("GuestMessagesService Reliability and Unread Badges TDD", () => {
     hotelId: "hotel-1",
     roomId: "room-1",
     stayId: "stay-123",
-    status: "ACTIVE" as any,
+    status: "ACTIVE",
     expiresAt: new Date("2026-08-05T12:00:00.000Z"),
     deviceFingerprintHash: "fp-hash-456",
   };
@@ -260,9 +261,6 @@ describe("GuestMessagesService Reliability and Unread Badges TDD", () => {
           updateMany: jest.fn(),
         },
       };
-      const {
-        GuestMessagesRepository,
-      } = require("../infrastructure/repositories/guest-messages.repository");
       const realRepo = new GuestMessagesRepository(mockPrisma);
 
       const staffResult = await realRepo.markReadForStaff("hotel-1", "t-1", "invalid-pivot");
@@ -282,9 +280,6 @@ describe("GuestMessagesService Reliability and Unread Badges TDD", () => {
           updateMany: jest.fn().mockResolvedValue({ count: 2 }),
         },
       };
-      const {
-        GuestMessagesRepository,
-      } = require("../infrastructure/repositories/guest-messages.repository");
       const realRepo = new GuestMessagesRepository(mockPrisma);
 
       const result = await realRepo.markReadForStaff("hotel-1", "t-1", "msg-pivot");

@@ -24,11 +24,7 @@ describe("MarketplaceCategoryImportAdapter", () => {
     registryMock = {
       register: jest.fn(),
     };
-    adapter = new MarketplaceCategoryImportAdapter(
-      prismaMock as any,
-      codesMock as any,
-      registryMock as any,
-    );
+    adapter = new MarketplaceCategoryImportAdapter(prismaMock, codesMock, registryMock);
   });
 
   it("registers itself as marketplace-categories supporting upsert and replace modes", () => {
@@ -111,7 +107,7 @@ describe("MarketplaceCategoryImportAdapter", () => {
       ],
     };
 
-    const issues = await adapter.validate(payload, { actorUserId: "user-1" });
+    const issues = adapter.validate(payload, { actorUserId: "user-1" });
     expect(issues.length).toBeGreaterThan(0);
     expect(issues.some((i) => i.code === "INVALID_KEY_FORMAT")).toBe(true);
     expect(issues.some((i) => i.code === "DUPLICATE_KEY")).toBe(true);
@@ -159,7 +155,7 @@ describe("MarketplaceCategoryImportAdapter", () => {
       ],
     };
 
-    const diffs = await adapter.diff(payload, state as any, { actorUserId: "user-1" }, "upsert");
+    const diffs = adapter.diff(payload, state as any, { actorUserId: "user-1" }, "upsert");
     expect(diffs).toHaveLength(2);
     expect(diffs[0].action).toBe("create");
     expect(diffs[0].key).toBe("tours");

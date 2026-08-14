@@ -335,9 +335,19 @@ export class HotelRequestsRepository {
     const zero = new Prisma.Decimal(0);
 
     const isExt =
-      Boolean(request.serviceItem.category.name && /massage|spa|đối tác|bên ngoài|marketplace|external/i.test(request.serviceItem.category.name)) ||
-      Boolean(request.serviceItem.name && /massage|spa|đối tác|bên ngoài|marketplace|external/i.test(request.serviceItem.name)) ||
-      Boolean(request.title && /massage|spa|đối tác|bên ngoài|marketplace|external/i.test(request.title));
+      Boolean(
+        request.serviceItem.category.name &&
+        /massage|spa|đối tác|bên ngoài|marketplace|external/i.test(
+          request.serviceItem.category.name,
+        ),
+      ) ||
+      Boolean(
+        request.serviceItem.name &&
+        /massage|spa|đối tác|bên ngoài|marketplace|external/i.test(request.serviceItem.name),
+      ) ||
+      Boolean(
+        request.title && /massage|spa|đối tác|bên ngoài|marketplace|external/i.test(request.title),
+      );
 
     const folioItem = await tx.folioItem.create({
       data: {
