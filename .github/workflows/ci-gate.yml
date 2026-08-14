@@ -72,9 +72,6 @@ jobs:
       - name: Prisma generate
         run: npm run prisma:generate
 
-      - name: Prisma migration status
-        run: npm run prisma:status
-
       - name: Prisma migrate deploy
         run: npm run prisma:deploy
 
