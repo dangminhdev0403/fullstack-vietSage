@@ -25,14 +25,29 @@ jobs:
   auth-service:
     name: Backend auth-service
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-password
+          POSTGRES_DB: vietsage_auth
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d vietsage_auth"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
     defaults:
       run:
         working-directory: services/auth-service
     env:
       NODE_ENV: test
       PORT: "8080"
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/vietsage_auth
-      MIGRATION_DATABASE_URL: ${{ secrets.AUTH_SERVICE_DATABASE_URL }}
+      DATABASE_URL: postgresql://postgres:ci-password@localhost:5432/vietsage_auth
+      DIRECT_URL: postgresql://postgres:ci-password@localhost:5432/vietsage_auth
+      MIGRATION_DATABASE_URL: postgresql://postgres:ci-password@localhost:5432/vietsage_auth
       JWT_ACCESS_SECRET: ci-access-secret
       JWT_REFRESH_SECRET: ci-refresh-secret
       JWT_ACCESS_TTL: 15m
@@ -58,10 +73,10 @@ jobs:
         run: npm run prisma:generate
 
       - name: Prisma migration status
-        if: ${{ env.MIGRATION_DATABASE_URL != '' }}
-        env:
-          DATABASE_URL: ${{ env.MIGRATION_DATABASE_URL }}
         run: npm run prisma:status
+
+      - name: Prisma migrate deploy
+        run: npm run prisma:deploy
 
       - name: Lint
         run: npx eslint "{src,apps,libs,test}/**/*.ts"
