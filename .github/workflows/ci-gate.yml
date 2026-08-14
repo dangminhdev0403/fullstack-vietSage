@@ -83,7 +83,8 @@ jobs:
         working-directory: frontends/front-end-vietsage
     env:
       NEXTAUTH_URL: http://localhost:3000
-      NEXTAUTH_SECRET: ci-nextauth-secret
+      NEXTAUTH_SECRET: ci-nextauth-secret-32-characters-long
+      AUTH_SECRET: ci-nextauth-secret-32-characters-long
       AUTH_TRUST_HOST: "true"
       AUTH_API_BASE_URL: http://localhost:8080
       NEXT_PUBLIC_AUTH_API_BASE_URL: http://localhost:8080
