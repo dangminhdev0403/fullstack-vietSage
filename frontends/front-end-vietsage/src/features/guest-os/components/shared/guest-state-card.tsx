@@ -35,4 +35,3 @@ export function GuestStateCard({ title, message, icon, action, live }: GuestStat
     </main>
   );
 }
-

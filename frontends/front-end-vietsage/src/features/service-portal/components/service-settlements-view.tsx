@@ -12,6 +12,7 @@ import {
   StatusBadge,
   TextCell,
 } from "@/components/ui/data-table";
+import { getCanonicalOrderItems } from "@/features/marketplace/utils/marketplace-unit";
 import type {
   MarketplaceOrder,
   MarketplaceSettlement,
@@ -52,21 +53,28 @@ export function ServiceSettlementsView() {
       header: "Dịch vụ & khách hàng",
       type: "text",
       width: "w-56 min-w-[200px]",
-      cell: (item) => (
-        <TextCell
-          title={item.order?.serviceNameSnapshot}
-          subtext={
-            item.order?.stay?.guestDisplayName
-              ? `👤 Khách: ${item.order.stay.guestDisplayName} (${
-                  item.order.stay.room?.roomNumber
-                    ? `Phòng ${item.order.stay.room.roomNumber}`
-                    : "Phòng —"
-                })`
-              : undefined
-          }
-          truncate
-        />
-      ),
+      cell: (item) => {
+        const canonicalItems = item.order ? getCanonicalOrderItems(item.order) : [];
+        const title =
+          canonicalItems.length > 1
+            ? `${canonicalItems[0].serviceName} (+${canonicalItems.length - 1} mục khác)`
+            : (item.order?.serviceNameSnapshot ?? "Dịch vụ");
+        return (
+          <TextCell
+            title={title}
+            subtext={
+              item.order?.stay?.guestDisplayName
+                ? `👤 Khách: ${item.order.stay.guestDisplayName} (${
+                    item.order.stay.room?.roomNumber
+                      ? `Phòng ${item.order.stay.room.roomNumber}`
+                      : "Phòng —"
+                  })`
+                : undefined
+            }
+            truncate
+          />
+        );
+      },
     },
     {
       id: "settlementAmount",

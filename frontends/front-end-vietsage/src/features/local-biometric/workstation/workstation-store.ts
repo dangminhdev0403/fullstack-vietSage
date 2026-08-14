@@ -241,4 +241,3 @@ const globalStore = globalThis as typeof globalThis & { __vietsageWorkstationSto
 const existingStore = globalStore.__vietsageWorkstationStore;
 if (existingStore) Object.setPrototypeOf(existingStore, WorkstationStore.prototype);
 export const workstationStore = globalStore.__vietsageWorkstationStore ??= new WorkstationStore();
-

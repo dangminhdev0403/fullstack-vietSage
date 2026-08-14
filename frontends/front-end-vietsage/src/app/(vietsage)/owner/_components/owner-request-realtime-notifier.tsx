@@ -134,11 +134,15 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
           roomNumber?: string;
           guestDisplayName?: string;
           serviceName?: string;
+          items?: Array<{ serviceName: string; quantity?: number }>;
         } | null;
 
         const roomLabel = raw?.roomNumber ? `Phòng ${raw.roomNumber}` : "Khách lưu trú";
         const guestName = raw?.guestDisplayName ?? "Khách hàng";
-        const serviceName = raw?.serviceName ?? "Dịch vụ đối tác";
+        const serviceName =
+          raw?.items && raw.items.length > 1
+            ? `${raw.items[0].serviceName} (+${raw.items.length - 1} mục khác)`
+            : (raw?.serviceName ?? "Dịch vụ đối tác");
 
         toast.success("Có yêu cầu dịch vụ đối tác mới", {
           id: `owner-ext-order-created-${raw?.orderId ?? Date.now()}`,

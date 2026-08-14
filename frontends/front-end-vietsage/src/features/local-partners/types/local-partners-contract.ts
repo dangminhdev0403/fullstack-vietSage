@@ -1,3 +1,5 @@
+import type { MarketplaceOrderItem } from "@/features/marketplace/types/marketplace-contract";
+
 export type LocalPartnerStatus = "ACTIVE" | "DISABLED";
 
 export type LocalPartnerCategory = {
@@ -58,11 +60,25 @@ export type NearbyServiceProvider = {
 };
 
 export type HotelMarketplaceOrder = {
-  id: string; orderNumber: string; serviceNameSnapshot: string; status: string;
+  id: string;
+  orderNumber: string;
+  serviceNameSnapshot: string;
+  status: string;
   hotelCoordinationStatus?: string | null;
   voucher?: { voucherNumber: string; status: string } | null;
-  quantity: number; pricingUnitSnapshot?: string | null; pricingUnit?: string | null; totalAmount: string | number; currency: string;
-  guestNote?: string | null; createdAt: string;
+  items?: MarketplaceOrderItem[];
+  partnerSubtotal?: string | number | null;
+  hotelFee?: string | number | null;
+  customerTotal?: string | number | null;
+  quantity: number;
+  unitPriceSnapshot?: string | number | null;
+  pricingUnitSnapshot?: string | null;
+  pricingUnit?: string | null;
+  totalAmount: string | number;
+  currency: string;
+  guestNote?: string | null;
+  createdAt: string;
   stay: { guestDisplayName: string; room: { roomNumber: string } };
-  serviceTenant: { serviceProfile: { displayName: string } | null };
+  serviceTenantId?: string;
+  serviceTenant: { id?: string; serviceProfile: { displayName: string } | null };
 };

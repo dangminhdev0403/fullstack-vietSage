@@ -11,4 +11,3 @@ export type DashboardNavItem = {
   icon: string;
   section?: DashboardNavSection;
 };
-

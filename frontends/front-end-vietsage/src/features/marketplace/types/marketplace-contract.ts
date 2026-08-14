@@ -44,6 +44,27 @@ export type PartnerFinancialSummary = {
   settledAmount: number;
   outstandingAmount: number;
 };
+export type MarketplaceOrderItem = {
+  id?: string;
+  serviceId?: string;
+  serviceName: string;
+  quantity: number;
+  unitPrice: string | number;
+  pricingUnit?: string | null;
+  totalAmount?: string | number;
+  currency?: string;
+  serviceTenantId?: string;
+  serviceTenantName?: string;
+  serviceMode?: "DELIVERY_TO_HOTEL" | "CUSTOMER_AT_SERVICE";
+};
+
+export type MarketplaceOrderFinancials = {
+  partnerSubtotal: number;
+  hotelFee: number;
+  customerTotal: number;
+  currency: string;
+};
+
 export type MarketplaceOrder = {
   id: string;
   orderNumber: string;
@@ -58,6 +79,10 @@ export type MarketplaceOrder = {
     expiresAt?: string;
   } | null;
   settlement?: MarketplaceSettlement | null;
+  items?: MarketplaceOrderItem[];
+  partnerSubtotal?: string | number | null;
+  hotelFee?: string | number | null;
+  customerTotal?: string | number | null;
   quantity: number;
   unitPriceSnapshot?: string | number | null;
   unitSnapshot?: string | null;
@@ -69,7 +94,9 @@ export type MarketplaceOrder = {
   serviceModeSnapshot: "DELIVERY_TO_HOTEL" | "CUSTOMER_AT_SERVICE";
   guestNote?: string | null;
   createdAt: string;
+  serviceTenantId?: string;
   serviceTenant?: {
+    id?: string;
     serviceProfile?: {
       displayName?: string | null;
     } | null;
