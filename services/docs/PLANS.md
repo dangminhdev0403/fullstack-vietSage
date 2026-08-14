@@ -1,3 +1,20 @@
+## 2026-08-14 - DB Guest Cart, Decimal Checkout, Snapshots & Folio Fee Separation (Complete)
+
+- [x] Implemented DB Guest Cart + CartItems scoped to guest session/stay/hotel:
+  1. Added `GuestCart` and `GuestCartItem` models to Prisma schema and migration `20260814000000_guest_cart_and_order_pricing_snapshots`.
+  2. Implemented Cart CRUD endpoints (`GET /cart`, `POST /cart/items`, `PATCH /cart/items/:itemId`, `DELETE /cart/items/:itemId`, `DELETE /cart`) in `GuestMarketplaceController` and `GuestMarketplaceService`.
+- [x] Implemented atomic checkout transaction with validation and Decimal pricing:
+  1. Enforced Decimal arithmetic for `partnerSubtotal`, `hotelServiceFeeAmount = 10%`, `customerTotalAmount = partnerSubtotal + hotelServiceFeeAmount`.
+  2. Created `MarketplaceOrderItem` table and snapshot columns on `MarketplaceOrder` and items.
+  3. Implemented concurrency guards with atomic capacity decrement and idempotent retry handling.
+  4. Cleared cart only after transaction commit.
+- [x] Implemented settlement partnerSubtotal only:
+  1. Gross settlement amounts for partners strictly use `partnerSubtotal` (excluding the 10% hotel service fee).
+- [x] Implemented folio stored snapshots with separate hotel fee:
+  1. Posted partner service subtotal and separate hotel service fee (10%) items to guest stay folio.
+- [x] Enforced terminal guards on orders (`COMPLETED`/`CANCELLED`) and vouchers (`REDEEMED`/`CANCELLED`/`EXPIRED`).
+- [x] Emitted canonical realtime snapshots with pricing breakdown (`partnerSubtotal`, `hotelServiceFeeAmount`, `customerTotalAmount`, `items`).
+
 ## 2026-08-13 - Fix Database Failure missing MarketplaceSettlement columns (Complete)
 
 - [x] Resolved PostgreSQL database schema discrepancy error `The column MarketplaceSettlement.settledBy does not exist in the current database`:

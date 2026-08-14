@@ -57,7 +57,10 @@ describe("Marketplace orders", () => {
       hotelServiceLink: {
         findUnique: jest.fn().mockResolvedValue({ commissionRate: new Prisma.Decimal("10.00") }),
       },
-      marketplaceRevenueEntry: { create: jest.fn().mockResolvedValue({}) },
+      marketplaceRevenueEntry: {
+        create: jest.fn().mockResolvedValue({}),
+        upsert: jest.fn().mockResolvedValue({}),
+      },
       marketplaceSettlement: { upsert: jest.fn().mockResolvedValue({}) },
       marketplaceOrderEvent: { create: jest.fn().mockResolvedValue({}) },
       folio: {
@@ -388,6 +391,7 @@ describe("Marketplace orders", () => {
       },
       marketplaceRevenueEntry: {
         create: jest.fn().mockResolvedValue({}),
+        upsert: jest.fn().mockResolvedValue({}),
       },
       hotelServiceLink: {
         findUnique: jest.fn().mockResolvedValue({ commissionRate: new Prisma.Decimal("10.00") }),
@@ -499,7 +503,10 @@ describe("Marketplace orders", () => {
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         findUniqueOrThrow: jest.fn().mockResolvedValue({ ...order, status: "COMPLETED" }),
       },
-      marketplaceRevenueEntry: { create: jest.fn().mockResolvedValue({}) },
+      marketplaceRevenueEntry: {
+        create: jest.fn().mockResolvedValue({}),
+        upsert: jest.fn().mockResolvedValue({}),
+      },
       marketplaceSettlement: { upsert: settlementUpsert },
       marketplaceOrderEvent: { create: jest.fn().mockResolvedValue({}) },
       folio: {
