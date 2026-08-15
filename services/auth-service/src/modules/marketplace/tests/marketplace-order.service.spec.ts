@@ -43,6 +43,29 @@ describe("Marketplace orders", () => {
     expect(canTransitionMarketplaceOrder("COMPLETED", "CANCELLED")).toBe(false);
   });
 
+  it("projects canonical customer totals for the owner settlement overview", async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const service = new MarketplaceOrderService(
+      { marketplaceSettlement: { findMany } } as never,
+      {} as never,
+    );
+
+    await service.listHotelPartnerSettlements("hotel-1");
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          order: expect.objectContaining({
+            select: expect.objectContaining({
+              customerTotalAmount: true,
+              hotelServiceFeeAmount: true,
+            }),
+          }),
+        }),
+      }),
+    );
+  });
+
   it("posts a completed order once to the open stay folio", async () => {
     const order = {
       id: "order-1",

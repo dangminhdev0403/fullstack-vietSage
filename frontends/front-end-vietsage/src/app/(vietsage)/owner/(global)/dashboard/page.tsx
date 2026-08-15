@@ -7,6 +7,7 @@ import { resolveWorkspacePersona } from "@/features/workspace/config/workspace-r
 import { adminService } from "@/features/admin/service/admin-service-instance";
 import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
 import { ownerAttentionRoute } from "@/features/hotel-ops/utils/owner-attention-route";
+import { servicePortalClient } from "@/features/service-portal/service-client";
 import { readServerSessionTokens } from "@/libs/server-session-tokens";
 import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
@@ -88,6 +89,11 @@ type Dashboard = {
   warnings: string[];
 };
 
+type MarketplaceRevenue = {
+  grossAmount: string | number;
+  orderCount: number;
+};
+
 function formatVnd(value: number | null | undefined): string {
   if (value == null) return "Chưa đủ dữ liệu";
   return new Intl.NumberFormat("vi-VN", {
@@ -106,45 +112,6 @@ function formatTime(value: string): string {
   }).format(new Date(value));
 }
 
-const roomStatusLabels: Record<string, string> = {
-  AVAILABLE: "Còn trống",
-  OCCUPIED: "Đang có khách",
-  PROCESSING: "Đang xử lý",
-  MAINTENANCE: "Bảo trì",
-  CLEANING: "Đang dọn phòng",
-  UNAVAILABLE: "Không khả dụng",
-};
-
-const requestStatusLabels: Record<string, string> = {
-  CREATED: "Mới tạo",
-  SENT: "Đã gửi",
-  ACKNOWLEDGED: "Đã tiếp nhận",
-  IN_PROGRESS: "Đang xử lý",
-  PROCESSING: "Đang xử lý",
-  COMPLETED: "Hoàn thành",
-  CANCELLED: "Đã hủy",
-  FAILED: "Thất bại",
-};
-
-function fallbackStatusLabel(status: string): string {
-  return status
-    .trim()
-    .toLowerCase()
-    .split("_")
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
-function roomStatusLabel(status: string): string {
-  const normalized = status.trim().toUpperCase();
-  return roomStatusLabels[normalized] ?? fallbackStatusLabel(status);
-}
-
-function requestStatusLabel(status: string): string {
-  const normalized = status.trim().toUpperCase();
-  return requestStatusLabels[normalized] ?? fallbackStatusLabel(status);
-}
 
 function StatCard({
   label,
@@ -201,23 +168,6 @@ function SectionCard({
   );
 }
 
-function MetricTile({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | number;
-}) {
-  return (
-    <div className="vs-owner-metric rounded-2xl bg-[#f8f1e6] p-4">
-      <p className="text-sm font-semibold text-[#69746c]">{label}</p>
-      <p className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-[#17201b]">
-        <AnimatedDashboardNumber value={value} />
-      </p>
-    </div>
-  );
-}
-
 export default async function OwnerDashboardPage() {
   const session = await auth();
   const tokens = await readServerSessionTokens();
@@ -246,46 +196,33 @@ export default async function OwnerDashboardPage() {
         }),
       )) as Dashboard)
     : null;
+  const marketplaceRevenue = hotel
+    ? ((await authorizedApi("get owner marketplace revenue", (accessToken) =>
+        servicePortalClient.hotelMarketplaceRevenue(accessToken!, hotel.id),
+      )) as MarketplaceRevenue)
+    : null;
 
   const kpis = dashboard
     ? [
-        { label: "Tổng số phòng", value: dashboard.rooms.total, icon: "hotel" },
-        {
-          label: "Đang có khách",
-          value: dashboard.rooms.occupied,
-          icon: "bed",
-        },
         {
           label: "Công suất phòng",
           value: `${dashboard.rooms.occupancyRate}%`,
           icon: "speed",
         },
         {
-          label: "Yêu cầu chưa xử lý",
+          label: "Phòng đang có khách",
+          value: `${dashboard.rooms.occupied}/${dashboard.rooms.total}`,
+          icon: "bed",
+        },
+        {
+          label: "Lượt đến / rời hôm nay",
+          value: `${dashboard.stays.todayCheckIns}/${dashboard.stays.todayCheckOuts}`,
+          icon: "hotel",
+        },
+        {
+          label: "Yêu cầu cần xử lý",
           value: dashboard.requests.unprocessed,
           icon: "pending_actions",
-        },
-        {
-          label: "Yêu cầu khẩn cấp",
-          value: dashboard.requests.urgentUnprocessed ?? "Chưa đủ dữ liệu",
-          icon: "report",
-        },
-        {
-          label: "Check-in hôm nay",
-          value: dashboard.stays.todayCheckIns,
-          icon: "login",
-        },
-        {
-          label: "Check-out hôm nay",
-          value: dashboard.stays.todayCheckOuts,
-          icon: "logout",
-        },
-        {
-          label: "Doanh thu hôm nay",
-          value: dashboard.revenue.available
-            ? formatVnd(dashboard.revenue.today)
-            : "Chưa đủ dữ liệu",
-          icon: "payments",
         },
       ]
     : [];
@@ -324,95 +261,45 @@ export default async function OwnerDashboardPage() {
             ))}
           </section>
 
-          {/* Core Operations Grid: Row 1 - Status Tiles (1:1 Symmetry) */}
-          <section className="grid gap-6 lg:grid-cols-2">
-            <SectionCard>
-              <h2 className="text-xl font-semibold tracking-tight text-[#17201b]">
-                Tình trạng phòng
-              </h2>
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                {Object.entries(dashboard.rooms.byStatus).map(
-                  ([key, value]) => (
-                    <MetricTile
-                      key={key}
-                      label={roomStatusLabel(key)}
-                      value={value}
-                    />
-                  ),
-                )}
-              </div>
-            </SectionCard>
-
-            <SectionCard>
-              <h2 className="text-xl font-semibold tracking-tight text-[#17201b]">
-                Yêu cầu dịch vụ của khách
-              </h2>
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                {Object.entries(dashboard.requests.byStatus).map(
-                  ([key, value]) => (
-                    <MetricTile
-                      key={key}
-                      label={requestStatusLabel(key)}
-                      value={value}
-                    />
-                  ),
-                )}
-              </div>
-            </SectionCard>
-          </section>
-
-          {/* Core Operations Grid: Row 2 - Revenue & Top Services (1:1 Symmetry) */}
-          <section className="grid gap-6 lg:grid-cols-2">
-            {dashboard.revenue.available ? (
-              <SectionCard>
-                <h2 className="text-xl font-semibold tracking-tight text-[#17201b]">
-                  Doanh thu tổng hợp
+          <SectionCard>
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-[#69746c]">Tài chính vận hành</p>
+                <h2 className="mt-1 text-xl font-semibold tracking-tight text-[#17201b]">
+                  Doanh thu cần theo dõi
                 </h2>
-                <div className="mt-4 grid grid-cols-2 gap-3">
-                  <MetricTile
-                    label="Doanh thu 7 ngày"
-                    value={formatVnd(dashboard.revenue.last7Days)}
-                  />
-                  <MetricTile
-                    label="Doanh thu tháng này"
-                    value={formatVnd(dashboard.revenue.currentMonth)}
-                  />
-                </div>
-              </SectionCard>
-            ) : (
-              <SectionCard>
-                <h2 className="text-xl font-semibold tracking-tight text-[#17201b]">
-                  Doanh thu tổng hợp
-                </h2>
-                <div className="mt-4">
-                  <EmptyState>Chưa đủ dữ liệu doanh thu.</EmptyState>
-                </div>
-              </SectionCard>
-            )}
-
-            <SectionCard>
-              <h2 className="text-xl font-semibold tracking-tight text-[#17201b]">
-                Top dịch vụ được yêu cầu nhiều
-              </h2>
-              <div className="mt-4 space-y-2">
-                {dashboard.requests.topServices.length ? (
-                  dashboard.requests.topServices.map((item) => (
-                    <div
-                      key={item.serviceName}
-                      className="vs-owner-service-row flex items-center justify-between rounded-xl bg-[#fffaf0] px-4 py-2.5 text-sm"
-                    >
-                      <span className="font-medium">{item.serviceName}</span>
-                      <strong className="font-bold text-[#24473d]">
-                        <AnimatedDashboardNumber value={item.count} /> yêu cầu
-                      </strong>
-                    </div>
-                  ))
-                ) : (
-                  <EmptyState>Chưa có dữ liệu dịch vụ.</EmptyState>
-                )}
               </div>
-            </SectionCard>
-          </section>
+              <Link
+                href={`/owner/hotels/${hotel.id}/partners`}
+                className="vs-touch-button inline-flex min-h-11 items-center justify-center rounded-full bg-[#24473d] px-5 text-sm font-bold text-[#fff8e8] shadow-sm"
+              >
+                Xem đối soát đối tác
+              </Link>
+            </div>
+            <div className="mt-5 grid gap-4 md:grid-cols-3">
+              <div className="rounded-2xl bg-[#f8f1e6] p-5">
+                <p className="text-sm font-semibold text-[#69746c]">Doanh thu hôm nay</p>
+                <p className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-[#17201b]">
+                  {dashboard.revenue.available ? formatVnd(dashboard.revenue.today) : "Chưa đủ dữ liệu"}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-[#f8f1e6] p-5">
+                <p className="text-sm font-semibold text-[#69746c]">Doanh thu tháng này</p>
+                <p className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-[#17201b]">
+                  {dashboard.revenue.available ? formatVnd(dashboard.revenue.currentMonth) : "Chưa đủ dữ liệu"}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-[#eef5ef] p-5">
+                <p className="text-sm font-semibold text-[#69746c]">Doanh thu Marketplace lũy kế</p>
+                <p className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-[#24473d]">
+                  {formatVnd(Number(marketplaceRevenue?.grossAmount ?? 0))}
+                </p>
+                <p className="mt-2 text-xs font-semibold text-[#69746c]">
+                  {marketplaceRevenue?.orderCount ?? 0} đơn ngoài đã hoàn tất
+                </p>
+              </div>
+            </div>
+          </SectionCard>
 
           {/* Action Needed Card at the Bottom */}
           <SectionCard>

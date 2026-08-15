@@ -18,11 +18,15 @@ import {
 import { getCanonicalOrderItems } from "@/features/marketplace/utils/marketplace-unit";
 
 type SettlementItem = MarketplaceSettlement & { order: MarketplaceOrder };
+type RevenueSummary = { grossAmount: string | number; orderCount: number };
 
 export function HotelPartnerSettlementsTab({
   hotelId,
 }: Readonly<{ hotelId: string }>) {
   const [settlements, setSettlements] = useState<SettlementItem[]>([]);
+  const [revenue, setRevenue] = useState<RevenueSummary | null>(null);
+  const [revenueLoading, setRevenueLoading] = useState(true);
+  const [revenueError, setRevenueError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<
     "ALL" | "UNSETTLED" | "SETTLED"
@@ -35,21 +39,21 @@ export function HotelPartnerSettlementsTab({
   const handleStatusFilterChange = (
     filter: "ALL" | "UNSETTLED" | "SETTLED",
   ) => {
-    setLoading(true);
     setStatusFilter(filter);
   };
 
   const refetch = () => {
     setLoading(true);
+    setRevenueLoading(true);
+    setRevenueError(null);
     setRefreshKey((prev) => prev + 1);
   };
 
   useEffect(() => {
     let isCancelled = false;
 
-    const query = statusFilter === "ALL" ? "" : `?status=${statusFilter}`;
     fetch(
-      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/marketplace/settlements${query}`,
+      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/marketplace/settlements`,
     )
       .then(async (res) => {
         const json = await res.json();
@@ -82,19 +86,70 @@ export function HotelPartnerSettlementsTab({
     return () => {
       isCancelled = true;
     };
-  }, [hotelId, statusFilter, refreshKey]);
+  }, [hotelId, refreshKey]);
 
-  const totalCollected = settlements.reduce(
-    (sum, s) => sum + Number(s.grossAmount),
-    0,
-  );
+  useEffect(() => {
+    let isCancelled = false;
+
+    fetch(`/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/marketplace/revenue`)
+      .then(async (response) => {
+        const json = await response.json();
+        if (!response.ok) throw new Error(json.message ?? "Không thể tải doanh thu phí dịch vụ ngoài");
+        return json;
+      })
+      .then((json) => {
+        if (!isCancelled) {
+          setRevenue(json.data ?? json);
+          setRevenueError(null);
+        }
+      })
+      .catch((err) => {
+        if (!isCancelled) {
+          setRevenue(null);
+          setRevenueError(err instanceof Error ? err.message : "Không thể tải doanh thu phí dịch vụ");
+        }
+      })
+      .finally(() => {
+        if (!isCancelled) {
+          setRevenueLoading(false);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [hotelId, refreshKey]);
+
+  const totalCollected = settlements.reduce((sum, s) => {
+    if (
+      s.order?.customerTotalAmount !== undefined &&
+      s.order?.customerTotalAmount !== null
+    ) {
+      return sum + Number(s.order.customerTotalAmount || 0);
+    }
+    if (
+      s.order?.hotelServiceFeeAmount !== undefined &&
+      s.order?.hotelServiceFeeAmount !== null
+    ) {
+      return (
+        sum +
+        Number(s.grossAmount || 0) +
+        Number(s.order.hotelServiceFeeAmount || 0)
+      );
+    }
+    return sum + Number(s.grossAmount || 0);
+  }, 0);
   const totalNetPayable = settlements.reduce(
-    (sum, s) => sum + Number(s.netAmount),
+    (sum, s) => sum + Number(s.netAmount || 0),
     0,
   );
 
   const unsettledItems = settlements.filter((s) => s.status === "UNSETTLED");
   const settledItems = settlements.filter((s) => s.status === "SETTLED");
+  const displayedSettlements =
+    statusFilter === "ALL"
+      ? settlements
+      : settlements.filter((s) => s.status === statusFilter);
 
   const handleToggleSelect = (id: string) => {
     setSelectedIds((prev) =>
@@ -119,6 +174,7 @@ export function HotelPartnerSettlementsTab({
       title: "Xác nhận quyết toán đơn hàng?",
       html: `Quyết toán cho đơn hàng <b>#${orderNum}</b> số tiền <b>${netStr} VND</b> cho đối tác dịch vụ.<br/><br/><i>Hành động này xác nhận Khách sạn đã chuyển tiền/thanh toán đầy đủ cho Đối tác.</i>`,
       showCancelButton: true,
+      reverseButtons: false,
       confirmButtonText: "Xác nhận quyết toán",
       cancelButtonText: "Quay lại",
     });
@@ -178,6 +234,7 @@ export function HotelPartnerSettlementsTab({
       title: `Quyết toán ${count} đơn hàng chọn?`,
       html: `Tổng tiền thanh toán cho đối tác: <b>${totalBatchStr} VND</b> (${count} giao dịch).<br/><br/>Xác nhận khách sạn đã đối soát và chi trả toàn bộ số tiền này.`,
       showCancelButton: true,
+      reverseButtons: false,
       confirmButtonText: `Quyết toán ${count} đơn`,
       cancelButtonText: "Quay lại",
     });
@@ -331,7 +388,39 @@ export function HotelPartnerSettlementsTab({
   return (
     <div className="space-y-6">
       {/* Financial Metrics Header */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="rounded-2xl border border-emerald-300 bg-emerald-50/50 p-6 shadow-xs space-y-2">
+          <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider">
+            Doanh thu phí dịch vụ ngoài
+          </span>
+          <div className="text-3xl font-black text-emerald-900 tracking-tight">
+            {revenueLoading ? (
+              <span className="text-xl font-bold text-emerald-700 animate-pulse">
+                Đang tải...
+              </span>
+            ) : revenueError ? (
+              <span className="text-lg font-bold text-rose-600">
+                Không thể tải
+              </span>
+            ) : revenue ? (
+              <>
+                {Number(revenue.grossAmount).toLocaleString("vi-VN")}{" "}
+                <span className="text-base font-extrabold text-emerald-700">
+                  VND
+                </span>
+              </>
+            ) : (
+              "—"
+            )}
+          </div>
+          <p className="text-xs font-medium text-emerald-800/80">
+            {revenueLoading
+              ? "Đang tải dữ liệu doanh thu..."
+              : revenueError
+                ? revenueError
+                : `Phần trăm khách sạn hưởng từ ${revenue?.orderCount ?? 0} đơn hoàn tất`}
+          </p>
+        </div>
         <div className="rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs space-y-2 hover:shadow-md transition-all">
           <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
             Khách sạn đã thu hộ
@@ -397,7 +486,7 @@ export function HotelPartnerSettlementsTab({
         density="compact"
         title="Đối soát công nợ đối tác"
         columns={columns}
-        data={settlements}
+        data={displayedSettlements}
         getRowKey={(item) => item.id}
         loading={loading}
         toolbar={
@@ -434,20 +523,20 @@ export function HotelPartnerSettlementsTab({
                     : "bg-slate-100 text-slate-700 hover:bg-slate-200 hover:scale-[1.01]"
                 }`}
               >
-                Tất cả
+                Tất cả ({settlements.length})
               </button>
             </div>
           </div>
         }
         selection={
-          statusFilter === "UNSETTLED" && unsettledItems.length > 0
+          statusFilter === "UNSETTLED" && displayedSettlements.length > 0
             ? {
                 selectedIds,
                 onSelectAll: handleSelectAllUnsettled,
                 onSelectRow: handleToggleSelect,
                 isAllSelected:
-                  selectedIds.length === unsettledItems.length &&
-                  unsettledItems.length > 0,
+                  selectedIds.length === displayedSettlements.length &&
+                  displayedSettlements.length > 0,
                 bulkActions: (
                   <button
                     type="button"

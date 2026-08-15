@@ -33,6 +33,7 @@ export const servicePortalClient = {
   financialSummary: (token: string) => req<PartnerFinancialSummary>(token, "GET", "/service-portal/financial-summary"),
   settlements: (token: string, status?: string) => req<Array<MarketplaceSettlement & { order: MarketplaceOrder }>>(token, "GET", `/service-portal/settlements${status ? `?status=${encodeURIComponent(status)}` : ""}`),
   hotelPartnerSettlements: (token: string, hotelId: string, status?: string) => req<Array<MarketplaceSettlement & { order: MarketplaceOrder }>>(token, "GET", `/hotels/${encodeURIComponent(hotelId)}/marketplace/settlements${status ? `?status=${encodeURIComponent(status)}` : ""}`),
+  hotelMarketplaceRevenue: (token: string, hotelId: string) => req<{ grossAmount: string | number; orderCount: number }>(token, "GET", `/hotels/${encodeURIComponent(hotelId)}/marketplace/revenue`),
   settlePartnerOrder: (token: string, hotelId: string, settlementId: string) => req<MarketplaceSettlement>(token, "POST", `/hotels/${encodeURIComponent(hotelId)}/marketplace/settlements/${encodeURIComponent(settlementId)}/settle`),
   settlePartnerOrdersBatch: (token: string, hotelId: string, settlementIds: string[]) => req<{ settledCount: number; settlementIds: string[] }, { settlementIds: string[] }>(token, "POST", `/hotels/${encodeURIComponent(hotelId)}/marketplace/settlements/settle-batch`, { settlementIds }),
 };
