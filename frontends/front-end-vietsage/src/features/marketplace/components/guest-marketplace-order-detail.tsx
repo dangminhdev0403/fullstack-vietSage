@@ -8,7 +8,7 @@ import { GUEST_REQUEST_REALTIME_BROWSER_EVENT } from "@/features/request-realtim
 import { printMarketplaceVoucherTicket } from "../utils/print-voucher";
 import type { MarketplaceOrder } from "../types/marketplace-contract";
 import { useGuestMarketplaceOrder } from "../queries/use-guest-marketplace";
-import { getServicePricingUnit, formatQuantityWithUnit } from "../utils/marketplace-unit";
+import { getCanonicalOrderItems, getServicePricingUnit, formatQuantityWithUnit } from "../utils/marketplace-unit";
 
 type GuestMarketplaceOrderDetailProps = {
   order?: MarketplaceOrder | null;
@@ -113,7 +113,7 @@ export function GuestMarketplaceOrderDetail({
     if (!order.voucher?.voucherNumber) return;
     printMarketplaceVoucherTicket({
       voucherCode: order.voucher.voucherNumber,
-      verificationCode: order.voucher.verificationCode ?? "VS-VERIFY",
+
       guestDisplayName: order.stay?.guestDisplayName ?? "Khách lưu trú",
       roomNumber: order.stay?.room?.roomNumber ?? "-",
       providerDisplayName: providerName,
@@ -123,6 +123,7 @@ export function GuestMarketplaceOrderDetail({
       totalAmount: totalAmountNum,
       currency: order.currency || "VND",
       guestNote: order.guestNote,
+      items: getCanonicalOrderItems(order).map(({ serviceName, quantity, unitPrice }) => ({ serviceName, quantity, unitPrice })),
     });
   };
 

@@ -1640,66 +1640,6 @@ export function RequestQueueClient({
     }
   }
 
-  async function completeExternalOrder(order: HotelMarketplaceOrder) {
-    if (isTerminalOrderStatus(order.status)) {
-      toast.error("Đơn hàng đã ở trạng thái kết thúc, không thể thực hiện hoàn thành.");
-      return;
-    }
-
-    const items = getCanonicalOrderItems(order);
-    const financials = calculateOrderFinancials(order, items);
-
-    const itemsSummaryHtml = items.map((it) => `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px dashed #e2e8f0;font-size:12px">
-        <span style="font-weight:600;color:#0f172a">${it.serviceName} <span style="color:#64748b">×${it.quantity}</span></span>
-        <span style="font-weight:700;color:#334155">${(Number(it.unitPrice) * Number(it.quantity)).toLocaleString("vi-VN")} ${financials.currency}</span>
-      </div>
-    `).join("");
-
-    const isConfirmed = await SwalVietSage.fire({
-      title: `<span style="font-size:17px;font-weight:800;color:#0f172a">Xác nhận hoàn thành đơn #${order.orderNumber}?</span>`,
-      html: `
-        <div style="text-align:left;font-size:13px;color:#334155;line-height:1.6;display:grid;gap:8px;padding-top:4px;">
-          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;">
-            <p style="margin:0 0 4px 0;font-size:11px;font-weight:800;text-transform:uppercase;color:#64748b">Chi tiết dịch vụ (${items.length}):</p>
-            ${itemsSummaryHtml}
-          </div>
-          <p style="margin:0"><b>Đối tác:</b> ${order.serviceTenant?.serviceProfile?.displayName ?? "Đối tác dịch vụ"}</p>
-          <p style="margin:0"><b>Khách / Phòng:</b> Phòng ${order.stay?.room?.roomNumber ?? "-"} (${order.stay?.guestDisplayName ?? "Khách lưu trú"})</p>
-          <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:8px 10px;font-size:12px;display:grid;gap:2px">
-            <div style="display:flex;justify-content:space-between"><span>Tạm tính đối tác (Partner Subtotal):</span><b style="color:#1e293b">${financials.partnerSubtotal.toLocaleString("vi-VN")} ${financials.currency}</b></div>
-            <div style="display:flex;justify-content:space-between"><span>Phí khách sạn 10% (Hotel Fee):</span><b style="color:#0284c7">+${financials.hotelFee.toLocaleString("vi-VN")} ${financials.currency}</b></div>
-            <div style="display:flex;justify-content:space-between;border-top:1px solid #86efac;padding-top:4px;margin-top:2px;font-size:13px"><span style="font-weight:700">Tổng tiền khách trả (Customer Total):</span><b style="color:#047857">${financials.customerTotal.toLocaleString("vi-VN")} ${financials.currency}</b></div>
-          </div>
-          <div style="margin-top:6px;padding:10px 12px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;font-size:12px;color:#065f46">
-            ⚡ <b>Hệ thống sẽ tự động:</b><br/>
-            • Đánh dấu trạng thái đơn là <b>HOÀN THÀNH</b><br/>
-            • Tạo khoản quyết toán công nợ <b>UNSETTLED</b> với Đối tác (${financials.partnerSubtotal.toLocaleString("vi-VN")} ${financials.currency})<br/>
-            • Đưa chi phí vào Folio tài khoản lưu trú của khách (${financials.customerTotal.toLocaleString("vi-VN")} ${financials.currency}).
-          </div>
-        </div>
-      `,
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonText: "✓ Xác nhận hoàn thành",
-      cancelButtonText: "Quay lại",
-      confirmButtonColor: "#059669",
-      cancelButtonColor: "#64748b",
-      reverseButtons: false,
-    });
-
-    if (!isConfirmed.isConfirmed) return;
-
-    try {
-      await requestInternalApi(`/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/local-partners/providers/orders/${encodeURIComponent(order.id)}/complete`, {
-        method: "POST",
-      });
-      toast.success(`Đã hoàn thành đơn dịch vụ #${order.orderNumber}! Khoản quyết toán đối tác đã được ghi nhận.`);
-      void externalOrdersQuery.refetch();
-    } catch (error) {
-      toast.error(getHttpErrorMessage(error, "Không thể hoàn thành đơn hàng"));
-    }
-  }
 
   function openVoucherModal(order: HotelMarketplaceOrder) {
     if (!order.voucher?.voucherNumber && order.hotelCoordinationStatus !== "VOUCHER_ISSUED") {
@@ -1716,7 +1656,7 @@ export function RequestQueueClient({
 
     printMarketplaceVoucherTicket({
       voucherCode: order.voucher?.voucherNumber ?? "VOUCHER",
-      verificationCode: "-",
+
       guestDisplayName: order.stay?.guestDisplayName ?? "Khách lưu trú",
       roomNumber: order.stay?.room?.roomNumber ?? "-",
       providerDisplayName: order.serviceTenant?.serviceProfile?.displayName ?? "Đối tác dịch vụ",
@@ -1726,6 +1666,7 @@ export function RequestQueueClient({
       totalAmount: financials.customerTotal,
       currency: financials.currency,
       guestNote: order.guestNote,
+      items: items.map(({ serviceName, quantity, unitPrice }) => ({ serviceName, quantity, unitPrice })),
     });
   }
 
@@ -1959,7 +1900,7 @@ export function RequestQueueClient({
       key: "actions",
       sortable: false,
       header: "Thao tác",
-      className: "whitespace-nowrap min-w-[160px]",
+      className: "whitespace-nowrap min-w-[100px]",
       cell: (order) => {
         const isFinished = isTerminalOrderStatus(order.status);
         if (isFinished) {
@@ -2007,19 +1948,6 @@ export function RequestQueueClient({
               </>
             ) : (
               <>
-                <button
-                  type="button"
-                  disabled={isMutating || isTerminalOrderStatus(order.status)}
-                  onClick={() => {
-                    void completeExternalOrder(order);
-                  }}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-emerald-700 active:scale-[0.97] transition-all disabled:opacity-50"
-                  title="Xác nhận hoàn thành dịch vụ và hạch toán công nợ đối tác"
-                >
-                  <VsIcon name="check_circle" className="text-xs" />
-                  <span>Hoàn thành</span>
-                </button>
-
                 {isVoucherIssued ? (
                   <button
                     type="button"

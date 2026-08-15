@@ -5,6 +5,7 @@ import type {
   CheckoutMarketplaceCartInput,
   ConfirmMarketplaceCartInput,
   CreateMarketplaceOrderInput,
+  SyncMarketplaceCartInput,
   UpdateMarketplaceCartItemInput,
 } from "../types/marketplace-contract";
 
@@ -72,6 +73,11 @@ export const guestMarketplaceResource = createResource<{ sessionToken: string; l
     clearCart: defineMutation({
       mutationFn: ({ scope }: { scope: { sessionToken: string; locale?: string }; variables?: void }) =>
         guestMarketplaceRepository.clearCart(scope.sessionToken, scope.locale),
+      invalidates: [{ type: "query", operation: "cart" }],
+    }),
+    syncCart: defineMutation({
+      mutationFn: ({ scope, variables }: { scope: { sessionToken: string; locale?: string }; variables: SyncMarketplaceCartInput }) =>
+        guestMarketplaceRepository.syncCart(scope.sessionToken, variables, scope.locale),
       invalidates: [{ type: "query", operation: "cart" }],
     }),
   },

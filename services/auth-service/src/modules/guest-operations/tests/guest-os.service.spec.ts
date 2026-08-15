@@ -31,7 +31,7 @@ describe("GuestOsService", () => {
         ip: "127.0.0.1",
       } as never),
     ).rejects.toMatchObject({
-      response: { message: ROOM_ACCESS_UNAVAILABLE_MESSAGE },
+      response: { code: "UNKNOWN_QR", message: ROOM_ACCESS_UNAVAILABLE_MESSAGE },
     });
 
     expect(repository.recordQrScan).toHaveBeenCalledWith({
@@ -43,6 +43,34 @@ describe("GuestOsService", () => {
         publicCodeTail: "unknown",
         ipHashTail: expect.any(String),
       }),
+    });
+  });
+
+  it("identifies a valid room QR without an active stay", async () => {
+    const repository = {
+      findQrForScan: jest.fn().mockResolvedValue({
+        id: "qr-1",
+        hotelId: "hotel-1",
+        roomId: "room-1",
+        status: RoomQRCodeStatus.ACTIVE,
+        hotel: { tenantId: "tenant-1" },
+        room: { id: "room-1", roomNumber: "200", status: RoomStatus.OCCUPIED },
+      }),
+      recordQrScan: jest.fn().mockResolvedValue({}),
+      findActiveStayForRoom: jest.fn().mockResolvedValue(null),
+    };
+
+    await expect(
+      new GuestOsService(repository as never).scanQr({ qrCode: "valid-room-qr" }, {
+        headers: {},
+        ip: "127.0.0.1",
+      } as never),
+    ).rejects.toMatchObject({
+      response: {
+        code: "NO_ACTIVE_STAY",
+        message: ROOM_ACCESS_UNAVAILABLE_MESSAGE,
+        roomNumber: "200",
+      },
     });
   });
 

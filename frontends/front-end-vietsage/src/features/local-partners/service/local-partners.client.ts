@@ -33,10 +33,6 @@ export class LocalPartnersClientService {
     return unwrapApiEnvelope<HotelMarketplaceOrder>(await this.http.request<unknown>({ method: "POST", path: `/hotels/${encodeURIComponent(hotelId)}/marketplace/orders/${encodeURIComponent(orderId)}/cancel`, accessToken })).data;
   }
 
-  async completeOrder(hotelId: string, orderId: string, accessToken: string): Promise<HotelMarketplaceOrder> {
-    return unwrapApiEnvelope<HotelMarketplaceOrder>(await this.http.request<unknown>({ method: "POST", path: `/hotels/${encodeURIComponent(hotelId)}/marketplace/orders/${encodeURIComponent(orderId)}/complete`, accessToken })).data;
-  }
-
 
   async setProviderLink(hotelId: string, providerId: string, linked: boolean, accessToken: string) {
     return this.http.request({ method: linked ? "PUT" : "DELETE", path: this.marketplacePath(hotelId, `/${encodeURIComponent(providerId)}`), accessToken, ...(linked ? { body: { status: "ACTIVE", sortOrder: 0 } } : {}) });

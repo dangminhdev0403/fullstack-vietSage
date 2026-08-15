@@ -40,3 +40,4 @@ coverage
 # nested repository backups
 **/.git.backup
 **/.git.backup.zip
+account.json

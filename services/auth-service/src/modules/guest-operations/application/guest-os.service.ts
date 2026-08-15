@@ -123,7 +123,7 @@ export class GuestOsService {
 
     if (!qr) {
       await this.recordDeniedScan("unknown", "UNKNOWN_QR", publicCode, dto, request);
-      this.denyAccess();
+      this.denyAccess("UNKNOWN_QR");
     }
 
     await this.guestOsRepository.recordQrScan({
@@ -142,7 +142,7 @@ export class GuestOsService {
         qrStatus: qr.status,
         roomStatus: qr.room.status,
       });
-      this.denyAccess();
+      this.denyAccess("NO_ACTIVE_STAY", qr.room.roomNumber);
     }
 
     if (
@@ -161,7 +161,7 @@ export class GuestOsService {
         roomStatus: qr.room.status,
         stayStatus: stay.status,
       });
-      this.denyAccess();
+      this.denyAccess("ACCESS_CLOSED", qr.room.roomNumber);
     }
 
     const currentSession = await this.resolveCurrentSessionForScan(dto.currentSessionToken);
@@ -802,8 +802,11 @@ export class GuestOsService {
     }
   }
 
-  private denyAccess(): never {
-    throw new ForbiddenException(ROOM_ACCESS_UNAVAILABLE_MESSAGE);
+  private denyAccess(
+    code: "UNKNOWN_QR" | "NO_ACTIVE_STAY" | "ACCESS_CLOSED",
+    roomNumber?: string,
+  ): never {
+    throw new ForbiddenException({ code, message: ROOM_ACCESS_UNAVAILABLE_MESSAGE, roomNumber });
   }
 
   private async recordDeniedScan(

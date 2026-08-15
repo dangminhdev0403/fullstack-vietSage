@@ -2,7 +2,6 @@ import { toast } from "sonner";
 
 export type PrintVoucherData = {
   voucherCode: string;
-  verificationCode: string;
   guestDisplayName: string;
   roomNumber: string;
   providerDisplayName: string;
@@ -12,7 +11,12 @@ export type PrintVoucherData = {
   totalAmount: number | string;
   currency: string;
   guestNote?: string | null;
+  items?: Array<{ serviceName: string; quantity: number; unitPrice: number | string }>;
 };
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character] ?? character);
+}
 
 export function printMarketplaceVoucherTicket(data: PrintVoucherData) {
   if (typeof window === "undefined") return;
@@ -33,6 +37,9 @@ export function printMarketplaceVoucherTicket(data: PrintVoucherData) {
 
   const numericAmount = typeof data.totalAmount === "number" ? data.totalAmount : Number(data.totalAmount || 0);
   const formattedPrice = Number.isFinite(numericAmount) ? numericAmount.toLocaleString("vi-VN") : String(data.totalAmount);
+  const serviceRows = data.items?.length
+    ? data.items.map((item) => `<div class="service-line"><strong>${escapeHtml(item.serviceName)}</strong><span>${item.quantity} × ${Number(item.unitPrice).toLocaleString("vi-VN")} ${data.currency}</span></div>`).join("")
+    : `<div class="service-title">${data.serviceName}</div>`;
   const noteSection = data.guestNote?.trim()
     ? `<div class="note-card">📝 <strong>Ghi chú từ khách:</strong> "${data.guestNote.trim()}"</div>`
     : "";
@@ -133,22 +140,7 @@ export function printMarketplaceVoucherTicket(data: PrintVoucherData) {
       letter-spacing: 3px;
       line-height: 1;
     }
-    .verify-box {
-      text-align: right;
-    }
-    .verify-code {
-      font-size: 16px;
-      font-weight: 900;
-      font-family: "Courier New", Courier, monospace;
-      color: #ffffff !important;
-      letter-spacing: 1px;
-      background: #1e293b;
-      padding: 6px 12px;
-      border-radius: 8px;
-      display: inline-block;
-      margin-top: 2px;
-      border: 1px solid #334155;
-    }
+
     .grid-2 {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -194,6 +186,15 @@ export function printMarketplaceVoucherTicket(data: PrintVoucherData) {
       color: #00003c;
       margin-bottom: 10px;
     }
+    .service-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 8px 0;
+      border-bottom: 1px dashed #cbd5e1;
+      font-size: 14px;
+    }
+    .service-line:last-of-type { border-bottom: 0; }
     .service-meta {
       display: flex;
       justify-content: space-between;
@@ -250,10 +251,7 @@ export function printMarketplaceVoucherTicket(data: PrintVoucherData) {
         <div class="voucher-label">Mã Phiếu Dịch Vụ</div>
         <div class="voucher-code">${data.voucherCode}</div>
       </div>
-      <div class="verify-box">
-        <div class="voucher-label">Mã Xác Minh</div>
-        <div class="verify-code">🔐 ${data.verificationCode}</div>
-      </div>
+
     </div>
 
     <div class="grid-2">
@@ -271,7 +269,7 @@ export function printMarketplaceVoucherTicket(data: PrintVoucherData) {
 
     <div class="service-card">
       <span class="card-label">🎟️ Chi Tiết Dịch Vụ</span>
-      <div class="service-title">${data.serviceName}</div>
+      ${serviceRows}
       <div class="service-meta">
         <div>Số lượng: <strong>${data.quantity}</strong></div>
         <div class="service-price">Tổng tiền: ${formattedPrice} ${data.currency}</div>

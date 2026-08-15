@@ -47,7 +47,6 @@ export function GuestMarketplaceCartFlow({
   const cartItems = useGuestCartStore((state) => state.items);
   const updateQuantity = useGuestCartStore((state) => state.updateQuantity);
   const removeItem = useGuestCartStore((state) => state.removeItem);
-  const updateItemNote = useGuestCartStore((state) => state.updateItemNote);
   const clearCart = useGuestCartStore((state) => state.clearCart);
 
   const [step, setStep] = useState<CartFlowStep>("CART");
@@ -55,7 +54,7 @@ export function GuestMarketplaceCartFlow({
   const [createdOrder, setCreatedOrder] = useState<MarketplaceOrder | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { checkoutCart, confirmCart, orders } = useGuestMarketplace(sessionToken);
+  const { checkoutCart, confirmCart, orders, syncCart } = useGuestMarketplace(sessionToken);
   const checkoutMutation = checkoutCart ?? confirmCart;
 
   const cartQuery = useGuestMarketplaceCart(sessionToken, {
@@ -104,13 +103,30 @@ export function GuestMarketplaceCartFlow({
     }
   };
 
-  const handleProceedToReview = () => {
+  const handleProceedToReview = async () => {
     if (cartItems.length === 0 || hasUnavailableItems) return;
-    setStep("REVIEW");
+    try {
+      await syncCart.mutateAsync({
+        items: cartItems.map(({ serviceId, quantity, guestNote }) => ({ serviceId, quantity, guestNote })),
+      });
+      setStep("REVIEW");
+    } catch {
+      toast.error(t("marketplace.orderCreateError"));
+    }
   };
 
   const handleConfirmOrder = async () => {
     if (isSubmitting || cartItems.length === 0) return;
+    const confirmation = await Swal.fire({
+      title: t("marketplace.orderReview"),
+      text: t("marketplace.confirmOrder"),
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: t("marketplace.confirmOrder"),
+      cancelButtonText: t("common.cancel"),
+      confirmButtonColor: "#25483f",
+    });
+    if (!confirmation.isConfirmed) return;
     setIsSubmitting(true);
 
     void Swal.fire({
@@ -184,14 +200,14 @@ export function GuestMarketplaceCartFlow({
   return (
     <div
       role="presentation"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-4 backdrop-blur-xs animate-in fade-in"
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-3 sm:p-4 backdrop-blur-xs animate-in fade-in"
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="cart-modal-title"
-        className="flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden rounded-[2.2rem] bg-white shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-200"
+        className="flex max-h-[min(92vh,calc(100dvh-1.5rem))] w-full max-w-xl flex-col overflow-hidden rounded-[2rem] sm:rounded-[2.2rem] bg-white shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-200"
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-100 bg-[#fbf9f4] p-5 sm:p-6 shrink-0">
@@ -233,7 +249,7 @@ export function GuestMarketplaceCartFlow({
         </div>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5">
+        <div className="flex-1 min-h-0 overflow-y-auto p-5 sm:p-6 space-y-5">
           {step === "CART" ? (
             /* CART STEP */
             cartItems.length === 0 ? (
@@ -426,11 +442,11 @@ export function GuestMarketplaceCartFlow({
                       </div>
                     ) : null}
 
-                    {cartQuery.data.hotelServiceFee !== undefined ? (
+                    {(cartQuery.data.hotelServiceFeeAmount !== undefined || cartQuery.data.hotelServiceFee !== undefined) ? (
                       <div className="flex items-center justify-between text-[#5e6a62]">
                         <span>{t("marketplace.hotelServiceFee")}:</span>
                         <span className="font-bold text-[#18211d]">
-                          {Number(cartQuery.data.hotelServiceFee ?? 0).toLocaleString(intlLocale)}{" "}
+                          {Number(cartQuery.data.hotelServiceFeeAmount ?? cartQuery.data.hotelServiceFee ?? 0).toLocaleString(intlLocale)}{" "}
                           {cartQuery.data.currency || "VND"}
                         </span>
                       </div>
@@ -439,7 +455,7 @@ export function GuestMarketplaceCartFlow({
                     <div className="flex items-center justify-between border-t border-[#25483f]/15 pt-2.5 text-sm">
                       <span className="font-extrabold text-[#18211d]">{t("marketplace.customerTotal")}:</span>
                       <span className="text-xl font-black text-[#25483f]">
-                        {Number(cartQuery.data.customerTotal ?? cartQuery.data.totalAmount ?? 0).toLocaleString(intlLocale)}{" "}
+                        {Number(cartQuery.data.customerTotalAmount ?? cartQuery.data.customerTotal ?? cartQuery.data.totalAmount ?? 0).toLocaleString(intlLocale)}{" "}
                         {cartQuery.data.currency || "VND"}
                       </span>
                     </div>
@@ -461,13 +477,13 @@ export function GuestMarketplaceCartFlow({
         </div>
 
         {/* Footer Actions */}
-        <div className="shrink-0 border-t border-gray-100 bg-[#fffdfa] p-4 sm:p-5 flex items-center justify-between gap-3">
+        <div className="shrink-0 border-t border-gray-100 bg-[#fffdfa] p-3.5 sm:p-5 grid grid-cols-2 items-center gap-2.5 sm:gap-3">
           {step === "CART" ? (
             <>
               <button
                 type="button"
                 onClick={onClose}
-                className="vs-touch-button inline-flex h-11 items-center justify-center rounded-full border border-slate-300 bg-white px-5 text-sm font-bold text-slate-700 hover:bg-slate-50"
+                className="vs-touch-button inline-flex h-11 w-full items-center justify-center rounded-full border border-slate-300 bg-white px-3 sm:px-5 text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-50"
               >
                 {t("common.continue")}
               </button>
@@ -476,7 +492,7 @@ export function GuestMarketplaceCartFlow({
                 type="button"
                 disabled={cartItems.length === 0 || hasUnavailableItems}
                 onClick={handleProceedToReview}
-                className="vs-touch-button inline-flex h-11 items-center justify-center gap-1.5 rounded-full bg-[#25483f] px-6 text-sm font-extrabold text-white shadow-md shadow-[#25483f]/20 hover:bg-[#1a352d] disabled:opacity-40"
+                className="vs-touch-button inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-full bg-[#25483f] px-3 sm:px-6 text-xs sm:text-sm font-extrabold text-white shadow-md shadow-[#25483f]/20 hover:bg-[#1a352d] disabled:opacity-40"
               >
                 <span>{t("marketplace.proceedToReview")}</span>
                 <VsIcon name="arrow_forward" className="text-sm" />
@@ -488,7 +504,7 @@ export function GuestMarketplaceCartFlow({
                 type="button"
                 disabled={isSubmitting}
                 onClick={() => setStep("CART")}
-                className="vs-touch-button inline-flex h-11 items-center justify-center gap-1.5 rounded-full border border-slate-300 bg-white px-5 text-sm font-bold text-slate-700 hover:bg-slate-50"
+                className="vs-touch-button inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-full border border-slate-300 bg-white px-3 sm:px-5 text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-50"
               >
                 <VsIcon name="arrow_back" className="text-sm" />
                 <span>{t("marketplace.backToCart")}</span>
@@ -498,7 +514,7 @@ export function GuestMarketplaceCartFlow({
                 type="button"
                 disabled={isSubmitting || cartQuery.isPending || (!cartQuery.data && cartItems.length > 0)}
                 onClick={handleConfirmOrder}
-                className="vs-touch-button inline-flex h-11 items-center justify-center gap-1.5 rounded-full bg-[#25483f] px-7 text-sm font-extrabold text-white shadow-lg shadow-[#25483f]/25 hover:bg-[#1a352d] disabled:opacity-40"
+                className="vs-touch-button inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-full bg-[#25483f] px-3 sm:px-7 text-xs sm:text-sm font-extrabold text-white shadow-lg shadow-[#25483f]/25 hover:bg-[#1a352d] disabled:opacity-40"
               >
                 <VsIcon name="check_circle" className="text-base text-[#d7bd61]" />
                 <span>{isSubmitting ? t("services.sending") : t("marketplace.confirmOrder")}</span>

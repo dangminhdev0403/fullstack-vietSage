@@ -19,6 +19,7 @@ export function useGuestMarketplace(sessionToken: string, categoryId?: string) {
     updateCartItem: useMutation(resource.mutations.updateCartItem.options()),
     removeCartItem: useMutation(resource.mutations.removeCartItem.options()),
     clearCart: useMutation(resource.mutations.clearCart.options()),
+    syncCart: useMutation(resource.mutations.syncCart.options()),
   };
 }
 

@@ -12,6 +12,16 @@ describe("public route configuration", () => {
       "/guest/messages",
       "/guest/messages/read",
       "/guest/session/close",
+      "/guest/marketplace/categories",
+      "/guest/marketplace/services",
+      "/guest/marketplace/services/service-1",
+      "/guest/marketplace/cart",
+      "/guest/marketplace/cart/items",
+      "/guest/marketplace/cart/items/item-1",
+      "/guest/marketplace/cart/checkout",
+      "/guest/marketplace/checkout",
+      "/guest/marketplace/orders",
+      "/guest/marketplace/orders/order-1",
       "/emergency/guest/calls",
     ];
 
@@ -21,6 +31,7 @@ describe("public route configuration", () => {
 
     expect(publicMatcher.isPublic("/guest/admin")).toBe(false);
     expect(publicMatcher.isPublic("/guest/requests/request-id/unknown")).toBe(false);
+    expect(publicMatcher.isPublic("/guest/marketplace/cart/unknown/extra")).toBe(false);
     expect(publicMatcher.isPublic("/emergency/guest/admin")).toBe(false);
   });
 

@@ -1605,7 +1605,8 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
                 Phòng #{getRoomNumber(selectedQrRoom)}
               </h2>
               {getGuestQrUrl(selectedQrRoom, clientOrigin) ? (
-                <div className="-mt-1 flex aspect-square w-full max-w-[360px] items-center justify-center">
+                <>
+                  <div className="-mt-1 flex aspect-square w-full max-w-[360px] items-center justify-center">
                   <BrandedRoomQr
                     ref={qrCodeRef}
                     value={getGuestQrUrl(selectedQrRoom, clientOrigin) ?? ""}
@@ -1614,6 +1615,15 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
                     title={`QR GuestOS phòng ${getRoomNumber(selectedQrRoom)}`}
                   />
                 </div>
+                {process.env.NODE_ENV === "development" ? (
+                  <a
+                    href={getGuestQrUrl(selectedQrRoom, clientOrigin) ?? ""}
+                    className="max-w-full break-all text-xs text-[var(--primary)] underline"
+                  >
+                    {getGuestQrUrl(selectedQrRoom, clientOrigin)}
+                  </a>
+                ) : null}
+                </>
               ) : (
                 <div className="mt-8 rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] px-5 py-6 text-sm font-semibold text-[var(--on-surface-variant)]">
                   Chưa có mã QR public cho phòng này. Vui lòng kích hoạt hoặc

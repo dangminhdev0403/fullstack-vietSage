@@ -65,14 +65,14 @@ export function GuestMarketplaceServiceDetail({
   return (
     <div
       role="presentation"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-4 backdrop-blur-xs animate-in fade-in"
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-3 sm:p-4 backdrop-blur-xs animate-in fade-in"
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="service-detail-title"
-        className="flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden rounded-[2.2rem] bg-white shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-200"
+        className="flex max-h-[min(92vh,calc(100dvh-1.5rem))] w-full max-w-xl flex-col overflow-hidden rounded-[2rem] sm:rounded-[2.2rem] bg-white shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-200"
       >
         {/* Modal Header */}
         <div className="relative aspect-video w-full shrink-0 overflow-hidden bg-[#1b3830]">
@@ -100,7 +100,7 @@ export function GuestMarketplaceServiceDetail({
         </div>
 
         {/* Scrollable Content Body */}
-        <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5">
+        <div className="flex-1 min-h-0 overflow-y-auto p-5 sm:p-6 space-y-5">
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-extrabold uppercase tracking-wider text-[#8a6a13]">
@@ -235,34 +235,36 @@ export function GuestMarketplaceServiceDetail({
         </div>
 
         {/* Modal Footer Actions */}
-        <div className="shrink-0 border-t border-gray-100 bg-[#fffdfa] p-4 sm:p-5 flex flex-wrap items-center justify-end gap-3">
+        <div className="shrink-0 border-t border-gray-100 bg-[#fffdfa] p-3.5 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2.5 sm:gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="vs-touch-button inline-flex h-11 items-center justify-center rounded-full border border-slate-300 bg-white px-5 text-sm font-bold text-slate-700 hover:bg-slate-50"
+            className="vs-touch-button order-3 sm:order-1 inline-flex h-11 w-full sm:w-auto items-center justify-center rounded-full border border-slate-300 bg-white px-4 sm:px-5 text-sm font-bold text-slate-700 hover:bg-slate-50"
           >
             {t("common.cancel")}
           </button>
 
-          <button
-            type="button"
-            disabled={isSoldOut}
-            onClick={() => handleAddToCart(false)}
-            className="vs-touch-button inline-flex h-11 items-center justify-center gap-1.5 rounded-full border border-[#25483f] bg-white px-5 text-sm font-bold text-[#25483f] hover:bg-[#eef3ee] active:bg-[#e2e9e3] disabled:opacity-40"
-          >
-            <VsIcon name="add_shopping_cart" className="text-base" />
-            <span>{t("marketplace.addToCart")}</span>
-          </button>
+          <div className="order-1 sm:order-2 grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-3">
+            <button
+              type="button"
+              disabled={isSoldOut}
+              onClick={() => handleAddToCart(false)}
+              className="vs-touch-button inline-flex h-11 items-center justify-center gap-1.5 rounded-full border border-[#25483f] bg-white px-3 sm:px-5 text-xs sm:text-sm font-bold text-[#25483f] hover:bg-[#eef3ee] active:bg-[#e2e9e3] disabled:opacity-40"
+            >
+              <VsIcon name="add_shopping_cart" className="text-base shrink-0" />
+              <span className="truncate">{t("marketplace.addToCart")}</span>
+            </button>
 
-          <button
-            type="button"
-            disabled={isSoldOut}
-            onClick={() => handleAddToCart(true)}
-            className="vs-touch-button inline-flex h-11 items-center justify-center gap-1.5 rounded-full bg-[#25483f] px-6 text-sm font-extrabold text-white shadow-md shadow-[#25483f]/20 hover:bg-[#1a352d] active:bg-[#122b24] disabled:opacity-40"
-          >
-            <VsIcon name="shopping_bag" className="text-base" />
-            <span>{isSoldOut ? t("marketplace.soldOut") : t("marketplace.bookNow")}</span>
-          </button>
+            <button
+              type="button"
+              disabled={isSoldOut}
+              onClick={() => handleAddToCart(true)}
+              className="vs-touch-button inline-flex h-11 items-center justify-center gap-1.5 rounded-full bg-[#25483f] px-4 sm:px-6 text-xs sm:text-sm font-extrabold text-white shadow-md shadow-[#25483f]/20 hover:bg-[#1a352d] active:bg-[#122b24] disabled:opacity-40"
+            >
+              <VsIcon name="shopping_bag" className="text-base shrink-0" />
+              <span className="truncate">{isSoldOut ? t("marketplace.soldOut") : t("marketplace.bookNow")}</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -32,6 +32,7 @@ import {
 import { guestMarketplaceRepository } from "@/features/marketplace/repositories/guest-marketplace-repository";
 import type { MarketplaceOrder } from "@/features/marketplace/types/marketplace-contract";
 import { GuestMarketplaceOrderDetail } from "@/features/marketplace/components/guest-marketplace-order-detail";
+import { getCanonicalOrderItems } from "@/features/marketplace/utils/marketplace-unit";
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character] ?? character);
@@ -303,7 +304,7 @@ export default function GuestRequestsPage() {
                                   e.stopPropagation();
                                   printMarketplaceVoucherTicket({
                                     voucherCode: order.voucher!.voucherNumber!,
-                                    verificationCode: order.voucher?.verificationCode ?? "VS-VERIFY",
+
                                     guestDisplayName: order.stay?.guestDisplayName ?? "Khách lưu trú",
                                     roomNumber: order.stay?.room?.roomNumber ?? "-",
                                     providerDisplayName: providerName,
@@ -313,6 +314,7 @@ export default function GuestRequestsPage() {
                                     totalAmount: totalAmount,
                                     currency: order.currency || "VND",
                                     guestNote: order.guestNote,
+                                    items: getCanonicalOrderItems(order).map(({ serviceName, quantity, unitPrice }) => ({ serviceName, quantity, unitPrice })),
                                   });
                                 }}
                                 className="vs-touch-button inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-emerald-800 active:scale-[0.97]"
