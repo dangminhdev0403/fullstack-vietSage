@@ -62,6 +62,7 @@ export const serviceTenantUpdateSchema = z
     displayName: z.string().trim().min(1).max(160).optional(),
     categoryId: z.string().trim().min(1).max(80).optional(),
     status: z.string().trim().min(1).max(40).optional(),
+    deliveryServiceFeeRate: z.number().min(0).max(100).nullish(),
     googleSheetsUrl: z.string().trim().max(500).nullish(),
     owner: z
       .object({

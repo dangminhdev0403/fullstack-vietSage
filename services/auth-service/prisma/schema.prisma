@@ -650,6 +650,7 @@ model PlatformBillingContractRevision {
   effectiveFrom    DateTime                @db.Date
   starTierSnapshot Int
   roomDayUnitPrice Decimal                 @db.Decimal(12, 2)
+  pricingModel     String                  @default("FIXED") @db.VarChar(16)
   currency         String                  @default("VND") @db.VarChar(3)
   paymentTermDays  Int                     @default(7)
   createdByUserId  String?
@@ -1804,6 +1805,7 @@ model ServiceTenantProfile {
   locationSource     MarketplaceLocationSource?
   locationVerifiedAt DateTime?
   coverImageUrl        String?                   @db.VarChar(500)
+  deliveryServiceFeeRate Decimal?                @db.Decimal(5, 2)
   status               MarketplaceRecordStatus   @default(DRAFT)
   createdAt            DateTime                  @default(now())
   updatedAt            DateTime                  @updatedAt

@@ -161,7 +161,8 @@ export class GuestMarketplaceService {
       const itemFee = calculateOnSiteServiceFee(
         itemPartnerSubtotal,
         item.service.mode,
-        pricingConfig?.deliveryServiceFeeRate,
+        item.service.serviceTenant.serviceProfile?.deliveryServiceFeeRate ??
+          pricingConfig?.deliveryServiceFeeRate,
       );
       const itemCustomerTotal = itemPartnerSubtotal.add(itemFee);
 

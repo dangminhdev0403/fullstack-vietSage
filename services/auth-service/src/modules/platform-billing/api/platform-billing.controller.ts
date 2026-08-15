@@ -54,7 +54,8 @@ export class CreateAdjustmentDto {
 export class CreateContractDto {
   hotelId!: string;
   starTierSnapshot?: number;
-  roomDayUnitPrice!: number;
+  pricingModel!: "FIXED" | "PERCENTAGE";
+  pricingValue!: number;
   currency?: string;
   billingStartedAt!: string;
 }
@@ -62,7 +63,8 @@ export class CreateContractDto {
 export class AddRevisionDto {
   effectiveFrom!: string;
   starTierSnapshot?: number;
-  roomDayUnitPrice!: number;
+  pricingModel!: "FIXED" | "PERCENTAGE";
+  pricingValue!: number;
   currency?: string;
 }
 

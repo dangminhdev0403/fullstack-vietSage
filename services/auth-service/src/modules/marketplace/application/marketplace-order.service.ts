@@ -69,6 +69,7 @@ export class MarketplaceOrderService {
               hotelServiceLinks: { some: { hotelId: scope.hotelId, status: "ACTIVE" } },
             },
           },
+          include: { serviceTenant: { include: { serviceProfile: true } } },
         });
         if (!service) throw new NotFoundException("Không tìm thấy dịch vụ Marketplace");
 
@@ -95,7 +96,8 @@ export class MarketplaceOrderService {
         const hotelServiceFeeAmount = calculateOnSiteServiceFee(
           partnerSubtotal,
           service.mode,
-          pricingConfig?.deliveryServiceFeeRate,
+          service.serviceTenant.serviceProfile?.deliveryServiceFeeRate ??
+            pricingConfig?.deliveryServiceFeeRate,
         );
         const customerTotalAmount = partnerSubtotal.add(hotelServiceFeeAmount);
         const totalAmount = customerTotalAmount;
@@ -354,7 +356,8 @@ export class MarketplaceOrderService {
             const itemFee = calculateOnSiteServiceFee(
               itemSubtotal,
               ci.service.mode,
-              pricingConfig?.deliveryServiceFeeRate,
+              ci.service.serviceTenant.serviceProfile?.deliveryServiceFeeRate ??
+                pricingConfig?.deliveryServiceFeeRate,
             );
             const itemTotal = itemSubtotal.add(itemFee);
             partnerSubtotal = partnerSubtotal.add(itemSubtotal);

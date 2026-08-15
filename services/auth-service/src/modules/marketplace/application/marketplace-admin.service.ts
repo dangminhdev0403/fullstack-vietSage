@@ -372,6 +372,7 @@ export class MarketplaceAdminService {
           ...(body.displayName !== undefined ||
           body.status !== undefined ||
           body.categoryId !== undefined ||
+          body.deliveryServiceFeeRate !== undefined ||
           body.googleSheetsUrl !== undefined
             ? {
                 serviceProfile: {
@@ -379,12 +380,16 @@ export class MarketplaceAdminService {
                     create: {
                       displayName: body.displayName ?? existingTenant?.name ?? "Service Partner",
                       categoryId: body.categoryId ?? undefined,
+                      deliveryServiceFeeRate: body.deliveryServiceFeeRate ?? null,
                       googleSheetsUrl: body.googleSheetsUrl ?? null,
                       status: (body.status as MarketplaceRecordStatus) ?? "ACTIVE",
                     },
                     update: {
                       ...(body.displayName !== undefined ? { displayName: body.displayName } : {}),
                       ...(body.categoryId !== undefined ? { categoryId: body.categoryId } : {}),
+                      ...(body.deliveryServiceFeeRate !== undefined
+                        ? { deliveryServiceFeeRate: body.deliveryServiceFeeRate }
+                        : {}),
                       ...(body.googleSheetsUrl !== undefined
                         ? { googleSheetsUrl: body.googleSheetsUrl }
                         : {}),

@@ -80,14 +80,20 @@ describe("PlatformBillingService Onboarding & Analytics", () => {
     );
   });
 
-  it("creates a new platform billing contract with initial revision", async () => {
+  it.each([
+    ["FIXED", 15000],
+    ["PERCENTAGE", 10],
+  ] as const)("creates a %s pricing contract revision", async (pricingModel, pricingValue) => {
     const result = await service.createContract({
       hotelId: "hotel-1",
-      roomDayUnitPrice: 15000,
+      pricingModel,
+      pricingValue,
       billingStartedAt: "2026-08-01",
     });
 
-    expect(mockPrisma.hotel.findUnique).toHaveBeenCalledWith({ where: { id: "hotel-1" } });
+    expect(mockPrisma.platformBillingContractRevision.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ pricingModel, roomDayUnitPrice: new Prisma.Decimal(pricingValue) }),
+    });
     expect(result).toBeDefined();
   });
 
@@ -97,7 +103,8 @@ describe("PlatformBillingService Onboarding & Analytics", () => {
     await expect(
       service.createContract({
         hotelId: "hotel-1",
-        roomDayUnitPrice: 15000,
+        pricingModel: "FIXED",
+        pricingValue: 15000,
         billingStartedAt: "2026-08-01",
       }),
     ).rejects.toThrow("Khách sạn đã có hợp đồng tính phí đang hoạt động");
@@ -130,6 +137,15 @@ describe("PlatformBillingService Onboarding & Analytics", () => {
       revisions: [{ roomDayUnitPrice: 20000 }],
     });
     mockPrisma.platformBillableDay.count.mockResolvedValueOnce(2);
+    mockPrisma.platformBillableDay.findMany
+      .mockResolvedValueOnce([
+        { id: "bd-1", subjectId: "r1", amount: new Prisma.Decimal(20000), currency: "VND" },
+        { id: "bd-2", subjectId: "r1", amount: new Prisma.Decimal(20000), currency: "VND" },
+      ])
+      .mockResolvedValueOnce([
+        { subjectId: "r1", amount: new Prisma.Decimal(20000), currency: "VND" },
+        { subjectId: "r1", amount: new Prisma.Decimal(20000), currency: "VND" },
+      ]);
 
     const result = await service.getOwnerAnalytics(
       "hotel-1",
@@ -283,6 +299,7 @@ describe("PlatformBillingService Onboarding & Analytics", () => {
     );
 
     expect(result.billableDaysCount).toBe(2);
+    expect(result.estimatedFee).toBe(110000);
     expect(result.roomUsageSummary).toEqual([
       {
         roomNumber: "101",

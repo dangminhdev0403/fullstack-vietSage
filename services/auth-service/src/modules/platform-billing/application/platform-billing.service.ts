@@ -219,11 +219,12 @@ export async function reconcilePlatformBillingRange(
     ), expected AS (
       SELECT DISTINCT c.id AS "contractId", r.id AS "revisionId", c."hotelId", u."subjectType",
              u."subjectId", d."serviceDate", ${UTZ} AS "hotelTimezoneSnapshot", r."starTierSnapshot",
-             r."roomDayUnitPrice", r.currency,
+             r."roomDayUnitPrice", r."pricingModel", room.price AS "roomPrice", r.currency,
              (d."serviceDate"::timestamp AT TIME ZONE ${UTZ}) AS "windowStart",
              ((d."serviceDate" + 1)::timestamp AT TIME ZONE ${UTZ}) AS "windowEnd"
       FROM "PlatformBillingContract" c
       JOIN "PlatformUsage" u ON u."hotelId" = c."hotelId"
+      JOIN "Room" room ON room.id = u."subjectId"
       CROSS JOIN days d
       JOIN LATERAL (
         SELECT r.* FROM "PlatformBillingContractRevision" r
@@ -247,8 +248,14 @@ export async function reconcilePlatformBillingRange(
     )
     SELECT 'pbd_' || md5("contractId" || ':' || "subjectType" || ':' || "subjectId" || ':' || "serviceDate"::text),
            "contractId", "revisionId", "hotelId", "subjectType", "subjectId", "serviceDate",
-           "hotelTimezoneSnapshot", "starTierSnapshot", "roomDayUnitPrice", 1, "roomDayUnitPrice", currency,
-           1, "windowStart", "windowEnd", NOW()
+           "hotelTimezoneSnapshot", "starTierSnapshot",
+           CASE WHEN "pricingModel" = 'PERCENTAGE' THEN "roomPrice" ELSE "roomDayUnitPrice" END,
+           1,
+           CASE WHEN "pricingModel" = 'PERCENTAGE'
+             THEN ROUND("roomPrice" * "roomDayUnitPrice" / 100, 2)
+             ELSE "roomDayUnitPrice"
+           END,
+           currency, 1, "windowStart", "windowEnd", NOW()
     FROM expected
     ON CONFLICT ("contractId", "subjectType", "subjectId", "serviceDate") DO NOTHING
   `;
@@ -659,7 +666,8 @@ export class PlatformBillingService {
     input: {
       hotelId: string;
       starTierSnapshot?: number;
-      roomDayUnitPrice: number;
+      pricingModel: "FIXED" | "PERCENTAGE";
+      pricingValue: number;
       currency?: string;
       billingStartedAt: string;
     },
@@ -680,7 +688,7 @@ export class PlatformBillingService {
     const onboardedAt = new Date();
     const billingStartedAt = new Date(input.billingStartedAt);
     const starTierSnapshot = input.starTierSnapshot ?? 3;
-    const roomDayUnitPrice = new Prisma.Decimal(input.roomDayUnitPrice);
+    const roomDayUnitPrice = new Prisma.Decimal(input.pricingValue);
     const currency = input.currency ?? "VND";
 
     return this.prisma.$transaction(async (tx) => {
@@ -699,6 +707,7 @@ export class PlatformBillingService {
           effectiveFrom: billingStartedAt,
           starTierSnapshot,
           roomDayUnitPrice,
+          pricingModel: input.pricingModel,
           currency,
           createdByUserId: actorUserId,
         },
@@ -716,7 +725,8 @@ export class PlatformBillingService {
     input: {
       effectiveFrom: string;
       starTierSnapshot?: number;
-      roomDayUnitPrice: number;
+      pricingModel: "FIXED" | "PERCENTAGE";
+      pricingValue: number;
       currency?: string;
     },
     actorUserId?: string,
@@ -729,7 +739,7 @@ export class PlatformBillingService {
 
     const effectiveFrom = new Date(input.effectiveFrom);
     const starTierSnapshot = input.starTierSnapshot ?? 3;
-    const roomDayUnitPrice = new Prisma.Decimal(input.roomDayUnitPrice);
+    const roomDayUnitPrice = new Prisma.Decimal(input.pricingValue);
     const currency = input.currency ?? "VND";
 
     return this.prisma.platformBillingContractRevision.create({
@@ -738,6 +748,7 @@ export class PlatformBillingService {
         effectiveFrom,
         starTierSnapshot,
         roomDayUnitPrice,
+        pricingModel: input.pricingModel,
         currency,
         createdByUserId: actorUserId,
       },
@@ -1025,7 +1036,7 @@ export class PlatformBillingService {
 
     const billableDaysCount = totalBillableDaysCount;
     const usageCount = platformUsages.length;
-    const estimatedFee = billableDaysCount * unitPrice;
+    const estimatedFee = monthBillableDays.reduce((sum, day) => sum + Number(day.amount), 0);
 
     const projectedPeriods = paginatedPeriods.map((p) => attachPeriodProjection(p));
 

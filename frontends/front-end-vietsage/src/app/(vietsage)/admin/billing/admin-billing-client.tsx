@@ -26,7 +26,7 @@ type Contract = {
   onboardedAt: string;
   billingStartedAt: string;
   hotel: { id: string; name: string; code: string };
-  revisions: Array<{ id: string; roomDayUnitPrice: number; currency: string; starTierSnapshot: number }>;
+  revisions: Array<{ id: string; roomDayUnitPrice: number; pricingModel: "FIXED" | "PERCENTAGE"; currency: string; starTierSnapshot: number }>;
   periods: Period[];
 };
 
@@ -58,7 +58,8 @@ export function AdminBillingClient() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createForm, setCreateForm] = useState({
     hotelId: "",
-    roomDayUnitPrice: "10000",
+    pricingModel: "FIXED" as "FIXED" | "PERCENTAGE",
+    pricingValue: "10000",
     billingStartedAt: new Date().toISOString().substring(0, 10),
   });
 
@@ -159,7 +160,8 @@ export function AdminBillingClient() {
         method: "POST",
         body: {
           hotelId: createForm.hotelId,
-          roomDayUnitPrice: Number(createForm.roomDayUnitPrice),
+          pricingModel: createForm.pricingModel,
+          pricingValue: Number(createForm.pricingValue),
           billingStartedAt: createForm.billingStartedAt,
         },
       });
@@ -388,7 +390,7 @@ export function AdminBillingClient() {
                     <div className="flex flex-wrap items-center gap-6 text-sm text-slate-600 dark:text-slate-400">
                       <span className="inline-flex items-center gap-1.5">
                         <VsIcon name="sell" className="text-base text-slate-400" />
-                        Đơn giá phòng/ngày: <strong className="text-slate-900 dark:text-white font-bold">{latestRev ? Number(latestRev.roomDayUnitPrice).toLocaleString("vi-VN") : 0} {latestRev?.currency ?? "VND"}</strong>
+                        {latestRev?.pricingModel === "PERCENTAGE" ? "Tỷ lệ phí" : "Mức phí/phòng/ngày"}: <strong className="text-slate-900 dark:text-white font-bold">{latestRev ? Number(latestRev.roomDayUnitPrice).toLocaleString("vi-VN") : 0} {latestRev?.pricingModel === "PERCENTAGE" ? "%" : (latestRev?.currency ?? "VND")}</strong>
                       </span>
                       <span className="inline-flex items-center gap-1.5">
                         <VsIcon name="calendar_today" className="text-base text-slate-400" />
@@ -542,19 +544,36 @@ export function AdminBillingClient() {
               </div>
 
               <div>
+                <label htmlFor="onboard-pricing-model" className="block text-sm font-semibold text-slate-800 dark:text-slate-200 mb-1.5">
+                  Phương thức tính phí <span className="text-red-500">*</span>
+                </label>
+                <select
+                  id="onboard-pricing-model"
+                  value={createForm.pricingModel}
+                  onChange={(e) => setCreateForm({ ...createForm, pricingModel: e.target.value as "FIXED" | "PERCENTAGE", pricingValue: "" })}
+                  className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                >
+                  <option value="FIXED">Phí cố định</option>
+                  <option value="PERCENTAGE">Phí theo tỷ lệ (%)</option>
+                </select>
+              </div>
+
+              <div>
                 <label htmlFor="onboard-unit-price" className="block text-sm font-semibold text-slate-800 dark:text-slate-200 mb-1.5">
-                  Đơn giá phòng/ngày (VND) <span className="text-red-500">*</span>
+                  {createForm.pricingModel === "FIXED" ? "Mức phí/phòng/ngày (VND)" : "Tỷ lệ phí trên giá phòng (%)"} <span className="text-red-500">*</span>
                 </label>
                 <input
                   id="onboard-unit-price"
                   type="number"
                   required
                   min="0"
-                  value={createForm.roomDayUnitPrice}
-                  onChange={(e) => setCreateForm({ ...createForm, roomDayUnitPrice: e.target.value })}
+                  max={createForm.pricingModel === "PERCENTAGE" ? "100" : undefined}
+                  step={createForm.pricingModel === "PERCENTAGE" ? "0.01" : "1"}
+                  value={createForm.pricingValue}
+                  onChange={(e) => setCreateForm({ ...createForm, pricingValue: e.target.value })}
                   className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                 />
-                <p className="mt-1 text-xs text-slate-500">Mức phí tính trên mỗi lượt phòng lưu trú thực tế trong ngày.</p>
+                <p className="mt-1 text-xs text-slate-500">{createForm.pricingModel === "FIXED" ? "Mức phí cố định cho mỗi phòng lưu trú thực tế trong ngày." : "Tỷ lệ áp dụng trên giá phòng đã lưu tại thời điểm phát sinh phí."}</p>
               </div>
 
               <div>

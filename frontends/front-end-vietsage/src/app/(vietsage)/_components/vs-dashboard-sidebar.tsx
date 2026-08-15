@@ -70,41 +70,45 @@ export function VsDashboardSidebar({
 
   return (
     <aside
-      className={`fixed left-0 top-0 z-40 hidden h-full flex-col border-r border-[#1f3d35]/10 bg-[#17201b] pt-20 text-[#f8f1e6] shadow-[18px_0_60px_rgba(23,32,27,0.18)] transition-all duration-300 md:flex ${
+      className={`fixed left-0 top-0 z-40 hidden h-full flex-col border-r border-[#1f3d35]/15 bg-[#17201b] pt-20 text-[#f8f1e6] shadow-[18px_0_60px_rgba(23,32,27,0.18)] transition-all duration-300 md:flex ${
         isCollapsed ? "w-20" : "w-72 lg:w-80"
       }`}
     >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(232,179,99,0.22),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.08),transparent_34%)]" />
 
-      {/* Header section */}
-      <div className={`relative mb-6 px-4 transition-all duration-300 ${isCollapsed ? "px-3" : "px-6"}`}>
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-3">
-            <VietSageBrand
-              variant="mark"
-              priority
-              className={`rounded-[1.2rem] p-1.5 shadow-[0_16px_36px_rgba(0,0,0,0.18)] transition-all duration-300 ${
-                isCollapsed ? "h-12 w-12" : "h-14 w-14"
-              }`}
-              markClassName="h-full w-full"
-            />
-            {!isCollapsed ? (
-              <span className="rounded-full border border-[#f8f1e6]/20 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#e8b363]">
-                {eyebrow}
-              </span>
-            ) : null}
-          </div>
+      {/* Floating edge toggle button on sidebar border */}
+      {onToggleCollapse ? (
+        <button
+          type="button"
+          onClick={onToggleCollapse}
+          className="group absolute -right-3.5 top-22 z-50 flex h-7 w-7 items-center justify-center rounded-full border border-[#e8b363]/40 bg-[#17201b] text-[#e8b363] shadow-[0_2px_10px_rgba(0,0,0,0.35),0_0_0_1px_rgba(232,179,99,0.12)] transition-all duration-200 hover:scale-110 hover:border-[#e8b363] hover:bg-[#23352a] hover:text-[#fff8e8] hover:shadow-[0_4px_16px_rgba(232,179,99,0.35)] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363] focus-visible:ring-offset-2 focus-visible:ring-offset-[#17201b] cursor-pointer"
+          title={isCollapsed ? "Mở rộng thanh điều hướng" : "Thu gọn thanh điều hướng"}
+          aria-label={isCollapsed ? "Mở rộng thanh điều hướng" : "Thu gọn thanh điều hướng"}
+        >
+          <VsIcon
+            name="chevron_left"
+            className={`text-xs transition-transform duration-300 ${
+              isCollapsed ? "rotate-180" : "rotate-0"
+            }`}
+          />
+        </button>
+      ) : null}
 
-          {onToggleCollapse ? (
-            <button
-              type="button"
-              onClick={onToggleCollapse}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#f8f1e6]/15 bg-white/5 text-[#d7cbb8] transition-colors hover:bg-white/15 hover:text-[#fff8e8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363]"
-              title={isCollapsed ? "Mở rộng thanh điều hướng" : "Thu gọn thanh điều hướng"}
-              aria-label={isCollapsed ? "Mở rộng thanh điều hướng" : "Thu gọn thanh điều hướng"}
-            >
-              <VsIcon name={isCollapsed ? "chevron_right" : "chevron_left"} className="text-base" />
-            </button>
+      {/* Header section */}
+      <div className={`relative mb-6 transition-all duration-300 ${isCollapsed ? "px-2" : "px-6"}`}>
+        <div className={`flex items-center ${isCollapsed ? "justify-center" : "justify-start gap-3"}`}>
+          <VietSageBrand
+            variant="mark"
+            priority
+            className={`rounded-[1.2rem] p-1.5 shadow-[0_16px_36px_rgba(0,0,0,0.18)] transition-all duration-300 ${
+              isCollapsed ? "h-11 w-11" : "h-14 w-14"
+            }`}
+            markClassName="h-full w-full"
+          />
+          {!isCollapsed ? (
+            <span className="rounded-full border border-[#f8f1e6]/20 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#e8b363]">
+              {eyebrow}
+            </span>
           ) : null}
         </div>
 

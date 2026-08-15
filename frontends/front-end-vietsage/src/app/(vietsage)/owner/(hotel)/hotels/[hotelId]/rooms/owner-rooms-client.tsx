@@ -140,8 +140,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isTechnicalMessage(message: string): boolean {
-  return /PRISMA_|Prisma|Record to update not found|Foreign key constraint|Unique constraint/i.test(
-    message,
+  return (
+    /PRISMA_|Prisma|Record to update not found|Foreign key constraint|Unique constraint/i.test(
+      message,
+    ) || /^[A-Z][A-Z0-9_]+$/.test(message)
   );
 }
 

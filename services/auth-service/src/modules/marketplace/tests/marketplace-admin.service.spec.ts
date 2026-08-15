@@ -29,6 +29,43 @@ describe("Marketplace admin", () => {
     });
   });
 
+  it("stores a delivery fee override on the edited service partner", async () => {
+    const tenantUpdate = jest.fn().mockResolvedValue({ tenantUsers: [], serviceProfile: {} });
+    const tx = {
+      tenant: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValueOnce({ name: "Spa" })
+          .mockResolvedValueOnce({ tenantUsers: [], serviceProfile: {} }),
+        update: tenantUpdate,
+      },
+      auditLog: { create: jest.fn() },
+    };
+    const service = new MarketplaceAdminService(
+      {
+        tenant: { findFirst: jest.fn().mockResolvedValue({ id: "tenant-1" }) },
+        $transaction: (fn: (value: unknown) => unknown) => fn(tx),
+      } as never,
+      {} as never,
+    );
+
+    await service.updateServiceTenant("admin-1", "tenant-1", {
+      deliveryServiceFeeRate: 12.5,
+    });
+
+    expect(tenantUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          serviceProfile: expect.objectContaining({
+            upsert: expect.objectContaining({
+              update: expect.objectContaining({ deliveryServiceFeeRate: 12.5 }),
+            }),
+          }),
+        }),
+      }),
+    );
+  });
+
   it("updates the PARTNER owner instead of the first tenant member", async () => {
     const userUpdate = jest.fn();
     const tenantUsers = [
