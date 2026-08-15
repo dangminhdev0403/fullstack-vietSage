@@ -9535,6 +9535,20 @@
         ]
       }
     },
+    "/hotels/service-portal/request-realtime-ticket": {
+      "post": {
+        "operationId": "RequestRealtimeController_issueServiceTenantTicket",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "request-realtime"
+        ]
+      }
+    },
     "/biometric-workstations/pair": {
       "post": {
         "operationId": "BiometricWorkstationsController_pair",
@@ -10152,6 +10166,32 @@
         ]
       }
     },
+    "/admin/marketplace/pricing-config": {
+      "get": {
+        "operationId": "MarketplaceAdminController_pricingConfig",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "MarketplaceAdmin"
+        ]
+      },
+      "patch": {
+        "operationId": "MarketplaceAdminController_updatePricingConfig",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "MarketplaceAdmin"
+        ]
+      }
+    },
     "/admin/marketplace/categories/import/template": {
       "get": {
         "operationId": "MarketplaceAdminController_categoryImportTemplate",
@@ -10487,6 +10527,76 @@
         ]
       }
     },
+    "/service-portal/vouchers/verify": {
+      "post": {
+        "operationId": "ServicePortalController_verifyVoucher",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ServicePortal"
+        ]
+      }
+    },
+    "/service-portal/vouchers/redeem": {
+      "post": {
+        "operationId": "ServicePortalController_redeemVoucher",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ServicePortal"
+        ]
+      }
+    },
+    "/service-portal/financial-summary": {
+      "get": {
+        "operationId": "ServicePortalController_financialSummary",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ServicePortal"
+        ]
+      }
+    },
+    "/service-portal/settlements": {
+      "get": {
+        "operationId": "ServicePortalController_settlements",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ServicePortal"
+        ]
+      }
+    },
+    "/service-portal/request-realtime-ticket": {
+      "post": {
+        "operationId": "ServicePortalController_issueTicket",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ServicePortal"
+        ]
+      }
+    },
     "/guest/marketplace/categories": {
       "get": {
         "operationId": "GuestMarketplaceController_categories",
@@ -10530,6 +10640,130 @@
         ],
         "responses": {
           "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "GuestMarketplace"
+        ]
+      }
+    },
+    "/guest/marketplace/cart": {
+      "get": {
+        "operationId": "GuestMarketplaceController_getCart",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "GuestMarketplace"
+        ]
+      },
+      "delete": {
+        "operationId": "GuestMarketplaceController_clearCart",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "GuestMarketplace"
+        ]
+      },
+      "put": {
+        "operationId": "GuestMarketplaceController_syncCart",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "GuestMarketplace"
+        ]
+      }
+    },
+    "/guest/marketplace/cart/items": {
+      "post": {
+        "operationId": "GuestMarketplaceController_addCartItem",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "GuestMarketplace"
+        ]
+      }
+    },
+    "/guest/marketplace/cart/items/{itemId}": {
+      "patch": {
+        "operationId": "GuestMarketplaceController_updateCartItem",
+        "parameters": [
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "GuestMarketplace"
+        ]
+      },
+      "delete": {
+        "operationId": "GuestMarketplaceController_removeCartItem",
+        "parameters": [
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "GuestMarketplace"
+        ]
+      }
+    },
+    "/guest/marketplace/cart/checkout": {
+      "post": {
+        "operationId": "GuestMarketplaceController_checkoutCart",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "GuestMarketplace"
+        ]
+      }
+    },
+    "/guest/marketplace/checkout": {
+      "post": {
+        "operationId": "GuestMarketplaceController_checkoutDirect",
+        "parameters": [],
+        "responses": {
+          "201": {
             "description": ""
           }
         },
@@ -10724,6 +10958,99 @@
         ]
       }
     },
+    "/hotels/{hotelId}/marketplace/orders/{orderId}/acknowledge": {
+      "post": {
+        "operationId": "HotelMarketplaceController_acknowledge",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "orderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "HotelMarketplace"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/marketplace/orders/{orderId}/issue-voucher": {
+      "post": {
+        "operationId": "HotelMarketplaceController_issueVoucher",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "orderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "HotelMarketplace"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/marketplace/orders/{orderId}/cancel": {
+      "post": {
+        "operationId": "HotelMarketplaceController_cancel",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "orderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "HotelMarketplace"
+        ]
+      }
+    },
     "/hotels/{hotelId}/marketplace/revenue": {
       "get": {
         "operationId": "HotelMarketplaceController_revenue",
@@ -10739,6 +11066,83 @@
         ],
         "responses": {
           "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "HotelMarketplace"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/marketplace/settlements": {
+      "get": {
+        "operationId": "HotelMarketplaceController_settlements",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "HotelMarketplace"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/marketplace/settlements/{settlementId}/settle": {
+      "post": {
+        "operationId": "HotelMarketplaceController_settle",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "settlementId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "HotelMarketplace"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/marketplace/settlements/settle-batch": {
+      "post": {
+        "operationId": "HotelMarketplaceController_settleBatch",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
             "description": ""
           }
         },

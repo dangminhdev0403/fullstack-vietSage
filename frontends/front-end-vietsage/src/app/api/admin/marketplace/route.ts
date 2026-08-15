@@ -13,13 +13,18 @@ const updateTenant = z.object({ action: z.literal("updateTenant"), id: z.string(
 const previewImport = z.object({ action: z.literal("previewImport"), spreadsheetUrl: z.string().trim().url() });
 const commitImport = z.object({ action: z.literal("commitImport"), spreadsheetUrl: z.string().trim().url(), expectedHash: z.string().regex(/^[a-f0-9]{64}$/) });
 const deleteCategory = z.object({ action: z.literal("deleteCategory"), id: z.string().min(1) });
-const actionSchema = z.discriminatedUnion("action", [category, tenant, updateCategory, deleteCategory, updateTenant, previewImport, commitImport]);
+const updatePricingConfig = z.object({ action: z.literal("updatePricingConfig"), input: z.object({ deliveryServiceFeeRate: z.number().min(0).max(100) }) });
+const actionSchema = z.discriminatedUnion("action", [category, tenant, updateCategory, deleteCategory, updateTenant, updatePricingConfig, previewImport, commitImport]);
 
 export async function GET() {
   try {
     const data = await executeHotelOpsBackendRequest("marketplace admin data", async (token) => {
-      const [categories, tenants] = await Promise.all([marketplaceAdminClient.categories(token), marketplaceAdminClient.tenants(token)]);
-      return { categories, tenants };
+      const [categories, tenants, pricingConfig] = await Promise.all([
+        marketplaceAdminClient.categories(token),
+        marketplaceAdminClient.tenants(token),
+        marketplaceAdminClient.pricingConfig(token),
+      ]);
+      return { categories, tenants, pricingConfig };
     });
     return data instanceof Response ? data : successResponse(data);
   } catch (error) { return error instanceof HttpError ? httpErrorResponse(error) : unknownServerErrorResponse(); }
@@ -37,6 +42,7 @@ export async function POST(request: Request) {
         case "updateCategory": return marketplaceAdminClient.updateCategory(token, action.id, action.input);
         case "deleteCategory": return marketplaceAdminClient.deleteCategory(token, action.id);
         case "updateTenant": return marketplaceAdminClient.updateTenant(token, action.id, action.input);
+        case "updatePricingConfig": return marketplaceAdminClient.updatePricingConfig(token, action.input);
         case "previewImport": return marketplaceAdminClient.previewImport(token, action.spreadsheetUrl);
         case "commitImport": return marketplaceAdminClient.commitImport(token, action.spreadsheetUrl, action.expectedHash);
       }

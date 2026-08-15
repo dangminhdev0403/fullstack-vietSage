@@ -6484,8 +6484,16 @@ paths:
                       expiresAt:
                         type: string
                         format: date-time
-      tags:
+      tags: &a23
         - request-realtime
+  /hotels/service-portal/request-realtime-ticket:
+    post:
+      operationId: RequestRealtimeController_issueServiceTenantTicket
+      parameters: []
+      responses:
+        "201":
+          description: ""
+      tags: *a23
   /biometric-workstations/pair:
     post:
       operationId: BiometricWorkstationsController_pair
@@ -6493,7 +6501,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: &a23
+      tags: &a24
         - biometric-workstations
   /biometric-workstations/authenticate:
     post:
@@ -6507,7 +6515,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a23
+      tags: *a24
   /hotels/{hotelId}/biometric-workstations/pairing:
     post:
       operationId: BiometricWorkstationsController_issuePairing
@@ -6522,7 +6530,7 @@ paths:
           description: ""
       security:
         - bearer: []
-      tags: *a23
+      tags: *a24
   /hotels/{hotelId}/biometric-workstations/status:
     get:
       operationId: BiometricWorkstationsController_status
@@ -6537,7 +6545,7 @@ paths:
           description: ""
       security:
         - bearer: []
-      tags: *a23
+      tags: *a24
   /hotels/{hotelId}/biometric-workstations:
     delete:
       operationId: BiometricWorkstationsController_disconnect
@@ -6552,7 +6560,7 @@ paths:
           description: ""
       security:
         - bearer: []
-      tags: *a23
+      tags: *a24
   /platform-billing/dashboard/summary:
     get:
       operationId: PlatformBillingController_getDashboardSummary
@@ -6560,10 +6568,10 @@ paths:
       responses:
         "200":
           description: ""
-      security: &a24
+      security: &a25
         - bearer: []
       summary: Get platform billing dashboard summary
-      tags: &a25
+      tags: &a26
         - platform-billing
   /platform-billing/contracts:
     get:
@@ -6572,18 +6580,18 @@ paths:
       responses:
         "200":
           description: ""
-      security: *a24
+      security: *a25
       summary: List platform billing contracts for admin
-      tags: *a25
+      tags: *a26
     post:
       operationId: PlatformBillingController_createContract
       parameters: []
       responses:
         "201":
           description: ""
-      security: *a24
+      security: *a25
       summary: Onboard new platform billing contract for hotel
-      tags: *a25
+      tags: *a26
   /platform-billing/contracts/{contractId}/periods:
     get:
       operationId: PlatformBillingController_listPeriods
@@ -6596,9 +6604,9 @@ paths:
       responses:
         "200":
           description: ""
-      security: *a24
+      security: *a25
       summary: List billing periods for contract
-      tags: *a25
+      tags: *a26
   /platform-billing/periods/{periodId}:
     get:
       operationId: PlatformBillingController_getPeriod
@@ -6611,9 +6619,9 @@ paths:
       responses:
         "200":
           description: ""
-      security: *a24
+      security: *a25
       summary: Get period detail with adjustments and settlements
-      tags: *a25
+      tags: *a26
   /platform-billing/contracts/{contractId}/revisions:
     post:
       operationId: PlatformBillingController_addContractRevision
@@ -6626,9 +6634,9 @@ paths:
       responses:
         "201":
           description: ""
-      security: *a24
+      security: *a25
       summary: Add contract price revision
-      tags: *a25
+      tags: *a26
   /platform-billing/contracts/{contractId}/status:
     patch:
       operationId: PlatformBillingController_updateContractStatus
@@ -6641,9 +6649,9 @@ paths:
       responses:
         "200":
           description: ""
-      security: *a24
+      security: *a25
       summary: Update contract status
-      tags: *a25
+      tags: *a26
   /platform-billing/contracts/{contractId}/finalize:
     post:
       operationId: PlatformBillingController_finalizePeriod
@@ -6656,9 +6664,9 @@ paths:
       responses:
         "201":
           description: ""
-      security: *a24
+      security: *a25
       summary: Finalize period snapshot idempotently
-      tags: *a25
+      tags: *a26
   /platform-billing/periods/{periodId}/settlement:
     post:
       operationId: PlatformBillingController_recordSettlement
@@ -6671,9 +6679,9 @@ paths:
       responses:
         "201":
           description: ""
-      security: *a24
+      security: *a25
       summary: Record settlement for finalized period
-      tags: *a25
+      tags: *a26
   /platform-billing/contracts/{contractId}/adjustments:
     post:
       operationId: PlatformBillingController_createAdjustment
@@ -6686,9 +6694,9 @@ paths:
       responses:
         "201":
           description: ""
-      security: *a24
+      security: *a25
       summary: Create append-only adjustment record
-      tags: *a25
+      tags: *a26
   /platform-billing/owner/analytics/{hotelId}:
     get:
       operationId: PlatformBillingController_getOwnerAnalytics
@@ -6701,9 +6709,9 @@ paths:
       responses:
         "200":
           description: ""
-      security: *a24
+      security: *a25
       summary: Get revenue protection analytics for hotel owner
-      tags: *a25
+      tags: *a26
   /hotels/{hotelId}/local-partners/categories:
     get:
       operationId: LocalPartnersController_categories
@@ -6716,7 +6724,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: &a26
+      tags: &a27
         - local-partners
   /hotels/{hotelId}/local-partners:
     get:
@@ -6730,7 +6738,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a26
+      tags: *a27
     post:
       operationId: LocalPartnersController_create
       parameters:
@@ -6742,7 +6750,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a26
+      tags: *a27
   /hotels/{hotelId}/local-partners/{partnerId}:
     patch:
       operationId: LocalPartnersController_update
@@ -6760,7 +6768,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a26
+      tags: *a27
   /hotels/{hotelId}/local-partners/{partnerId}/status:
     patch:
       operationId: LocalPartnersController_status
@@ -6778,7 +6786,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a26
+      tags: *a27
   /guest/local-partners/categories:
     get:
       operationId: GuestLocalPartnersController_getCategories
@@ -6786,7 +6794,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: &a27
+      tags: &a28
         - guest-local-partners
   /guest/local-partners:
     get:
@@ -6795,7 +6803,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a27
+      tags: *a28
   /guest/local-partners/{partnerId}:
     get:
       operationId: GuestLocalPartnersController_getPartner
@@ -6808,7 +6816,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a27
+      tags: *a28
   /admin/marketplace/categories:
     get:
       operationId: MarketplaceAdminController_categories
@@ -6816,7 +6824,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: &a28
+      tags: &a29
         - MarketplaceAdmin
     post:
       operationId: MarketplaceAdminController_createCategory
@@ -6824,7 +6832,22 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a28
+      tags: *a29
+  /admin/marketplace/pricing-config:
+    get:
+      operationId: MarketplaceAdminController_pricingConfig
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: *a29
+    patch:
+      operationId: MarketplaceAdminController_updatePricingConfig
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: *a29
   /admin/marketplace/categories/import/template:
     get:
       operationId: MarketplaceAdminController_categoryImportTemplate
@@ -6832,7 +6855,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a28
+      tags: *a29
   /admin/marketplace/categories/import/preview:
     post:
       operationId: MarketplaceAdminController_previewCategoryImport
@@ -6840,7 +6863,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a28
+      tags: *a29
   /admin/marketplace/categories/import/commit:
     post:
       operationId: MarketplaceAdminController_commitCategoryImport
@@ -6848,7 +6871,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a28
+      tags: *a29
   /admin/marketplace/categories/{categoryId}:
     patch:
       operationId: MarketplaceAdminController_updateCategory
@@ -6861,7 +6884,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a28
+      tags: *a29
     delete:
       operationId: MarketplaceAdminController_deleteCategory
       parameters:
@@ -6873,7 +6896,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a28
+      tags: *a29
   /admin/marketplace/service-tenants:
     get:
       operationId: MarketplaceAdminController_serviceTenants
@@ -6881,14 +6904,14 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a28
+      tags: *a29
     post:
       operationId: MarketplaceAdminController_createServiceTenant
       parameters: []
       responses:
         "201":
           description: ""
-      tags: *a28
+      tags: *a29
   /admin/marketplace/service-tenants/{tenantId}:
     patch:
       operationId: MarketplaceAdminController_updateServiceTenant
@@ -6901,7 +6924,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a28
+      tags: *a29
   /service-portal/profile:
     get:
       operationId: ServicePortalController_profile
@@ -6909,7 +6932,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: &a29
+      tags: &a30
         - ServicePortal
     patch:
       operationId: ServicePortalController_updateProfile
@@ -6917,7 +6940,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a29
+      tags: *a30
   /service-portal/services:
     get:
       operationId: ServicePortalController_services
@@ -6925,14 +6948,14 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a29
+      tags: *a30
     post:
       operationId: ServicePortalController_create
       parameters: []
       responses:
         "201":
           description: ""
-      tags: *a29
+      tags: *a30
   /service-portal/services/{serviceId}:
     patch:
       operationId: ServicePortalController_update
@@ -6945,7 +6968,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a29
+      tags: *a30
   /service-portal/services/{serviceId}/availability:
     patch:
       operationId: ServicePortalController_availability
@@ -6958,7 +6981,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a29
+      tags: *a30
   /service-portal/services/import/template:
     get:
       operationId: ServicePortalController_template
@@ -6966,7 +6989,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a29
+      tags: *a30
   /service-portal/services/import/preview:
     post:
       operationId: ServicePortalController_previewImport
@@ -6974,7 +6997,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a29
+      tags: *a30
   /service-portal/services/import/commit:
     post:
       operationId: ServicePortalController_commitImport
@@ -6982,7 +7005,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a29
+      tags: *a30
   /service-portal/orders:
     get:
       operationId: ServicePortalController_orderList
@@ -6990,7 +7013,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a29
+      tags: *a30
   /service-portal/orders/{orderId}:
     get:
       operationId: ServicePortalController_order
@@ -7003,7 +7026,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a29
+      tags: *a30
   /service-portal/orders/{orderId}/transitions:
     post:
       operationId: ServicePortalController_transition
@@ -7016,7 +7039,47 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a29
+      tags: *a30
+  /service-portal/vouchers/verify:
+    post:
+      operationId: ServicePortalController_verifyVoucher
+      parameters: []
+      responses:
+        "201":
+          description: ""
+      tags: *a30
+  /service-portal/vouchers/redeem:
+    post:
+      operationId: ServicePortalController_redeemVoucher
+      parameters: []
+      responses:
+        "201":
+          description: ""
+      tags: *a30
+  /service-portal/financial-summary:
+    get:
+      operationId: ServicePortalController_financialSummary
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: *a30
+  /service-portal/settlements:
+    get:
+      operationId: ServicePortalController_settlements
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: *a30
+  /service-portal/request-realtime-ticket:
+    post:
+      operationId: ServicePortalController_issueTicket
+      parameters: []
+      responses:
+        "201":
+          description: ""
+      tags: *a30
   /guest/marketplace/categories:
     get:
       operationId: GuestMarketplaceController_categories
@@ -7024,7 +7087,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: &a30
+      tags: &a31
         - GuestMarketplace
   /guest/marketplace/services:
     get:
@@ -7033,7 +7096,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a30
+      tags: *a31
   /guest/marketplace/services/{serviceId}:
     get:
       operationId: GuestMarketplaceController_detail
@@ -7046,7 +7109,78 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a30
+      tags: *a31
+  /guest/marketplace/cart:
+    get:
+      operationId: GuestMarketplaceController_getCart
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: *a31
+    delete:
+      operationId: GuestMarketplaceController_clearCart
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: *a31
+    put:
+      operationId: GuestMarketplaceController_syncCart
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: *a31
+  /guest/marketplace/cart/items:
+    post:
+      operationId: GuestMarketplaceController_addCartItem
+      parameters: []
+      responses:
+        "201":
+          description: ""
+      tags: *a31
+  /guest/marketplace/cart/items/{itemId}:
+    patch:
+      operationId: GuestMarketplaceController_updateCartItem
+      parameters:
+        - name: itemId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a31
+    delete:
+      operationId: GuestMarketplaceController_removeCartItem
+      parameters:
+        - name: itemId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a31
+  /guest/marketplace/cart/checkout:
+    post:
+      operationId: GuestMarketplaceController_checkoutCart
+      parameters: []
+      responses:
+        "201":
+          description: ""
+      tags: *a31
+  /guest/marketplace/checkout:
+    post:
+      operationId: GuestMarketplaceController_checkoutDirect
+      parameters: []
+      responses:
+        "201":
+          description: ""
+      tags: *a31
   /guest/marketplace/orders:
     post:
       operationId: GuestMarketplaceController_createOrder
@@ -7054,14 +7188,14 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a30
+      tags: *a31
     get:
       operationId: GuestMarketplaceController_ordersList
       parameters: []
       responses:
         "200":
           description: ""
-      tags: *a30
+      tags: *a31
   /guest/marketplace/orders/{orderId}:
     get:
       operationId: GuestMarketplaceController_order
@@ -7074,7 +7208,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a30
+      tags: *a31
   /hotels/{hotelId}/marketplace/providers:
     get:
       operationId: HotelMarketplaceController_providers
@@ -7087,7 +7221,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: &a31
+      tags: &a32
         - HotelMarketplace
   /hotels/{hotelId}/marketplace/providers/{serviceTenantId}:
     put:
@@ -7106,7 +7240,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a31
+      tags: *a32
     delete:
       operationId: HotelMarketplaceController_unlinkProvider
       parameters:
@@ -7123,7 +7257,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a31
+      tags: *a32
   /hotels/{hotelId}/marketplace/orders:
     get:
       operationId: HotelMarketplaceController_list
@@ -7136,7 +7270,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a31
+      tags: *a32
   /hotels/{hotelId}/marketplace/orders/{orderId}:
     get:
       operationId: HotelMarketplaceController_order
@@ -7154,7 +7288,61 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a31
+      tags: *a32
+  /hotels/{hotelId}/marketplace/orders/{orderId}/acknowledge:
+    post:
+      operationId: HotelMarketplaceController_acknowledge
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: orderId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a32
+  /hotels/{hotelId}/marketplace/orders/{orderId}/issue-voucher:
+    post:
+      operationId: HotelMarketplaceController_issueVoucher
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: orderId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a32
+  /hotels/{hotelId}/marketplace/orders/{orderId}/cancel:
+    post:
+      operationId: HotelMarketplaceController_cancel
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: orderId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a32
   /hotels/{hotelId}/marketplace/revenue:
     get:
       operationId: HotelMarketplaceController_revenue
@@ -7167,7 +7355,51 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a31
+      tags: *a32
+  /hotels/{hotelId}/marketplace/settlements:
+    get:
+      operationId: HotelMarketplaceController_settlements
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a32
+  /hotels/{hotelId}/marketplace/settlements/{settlementId}/settle:
+    post:
+      operationId: HotelMarketplaceController_settle
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: settlementId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a32
+  /hotels/{hotelId}/marketplace/settlements/settle-batch:
+    post:
+      operationId: HotelMarketplaceController_settleBatch
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a32
 info:
   title: VietSage Auth Service API
   description: HTTP API contract for auth, rbac, and hotel-users modules

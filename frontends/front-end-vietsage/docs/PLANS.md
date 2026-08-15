@@ -1,3 +1,10 @@
+## [complete] 2026-08-15 - Mission: super-admin-marketplace-fee-configuration
+
+- Added `Cấu hình phí` to Super Admin Marketplace with validated `0..100%` delivery-service fee editing.
+- Reused the existing Marketplace admin repository/resource/BFF chain; no dependency or package changes.
+- Removed frontend 10% financial fallback; UI consumes backend fee snapshots/rate.
+- Verification: `npx tsc --noEmit` passed; scoped ESLint passed with 0 errors and 2 pre-existing unused-variable warnings.
+
 ## [complete] 2026-08-14 - Mission: guest-g-external-partner-marketplace-cart-flow
 
 - Implemented the full Guest G UI lane for External Partner marketplace cart flow: Marketplace → Service Detail → Add to Cart → Cart → Review → Confirm → Order Detail.

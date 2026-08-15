@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   Req,
   UseGuards,
@@ -23,6 +24,7 @@ import {
   checkoutCartSchema,
   guestMarketplaceIdSchema,
   guestMarketplaceQuerySchema,
+  syncCartSchema,
   updateCartItemSchema,
 } from "../domain/guest-marketplace.schema";
 import { MarketplaceOrderService } from "../application/marketplace-order.service";
@@ -134,6 +136,16 @@ export class GuestMarketplaceController {
       stayId: req.guestSession.stayId,
       sessionId: req.guestSession.sessionId,
     });
+  }
+
+  @Put("cart")
+  syncCart(@Req() req: RequestWithGuestSession, @Body() body: unknown) {
+    const locale = this.i18n.resolveLocale(req);
+    return this.service.syncCart(
+      { hotelId: req.guestSession.hotelId, stayId: req.guestSession.stayId, sessionId: req.guestSession.sessionId },
+      parseWithZod(syncCartSchema, body),
+      locale,
+    );
   }
 
   @Post("cart/checkout")

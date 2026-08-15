@@ -1,10 +1,28 @@
 import { ConflictException } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
+import { MarketplaceServiceMode, Prisma } from "@prisma/client";
 import { RequestRealtimeEmitter } from "../../../request-realtime.emitter";
 import { canTransitionMarketplaceOrder } from "../domain/marketplace-order-transitions";
 import { MarketplaceOrderService } from "../application/marketplace-order.service";
+import { calculateOnSiteServiceFee } from "../domain/marketplace-pricing";
 
 describe("Marketplace orders", () => {
+  it("charges the configured percentage only for delivery to hotel", () => {
+    const subtotal = new Prisma.Decimal(100000);
+    expect(
+      calculateOnSiteServiceFee(
+        subtotal,
+        MarketplaceServiceMode.DELIVERY_TO_HOTEL,
+        new Prisma.Decimal("15.00"),
+      ).toString(),
+    ).toBe("15000");
+    expect(
+      calculateOnSiteServiceFee(
+        subtotal,
+        MarketplaceServiceMode.CUSTOMER_AT_SERVICE,
+        new Prisma.Decimal("15.00"),
+      ).toString(),
+    ).toBe("0");
+  });
   beforeEach(() => {
     jest
       .spyOn(RequestRealtimeEmitter, "emitExternalServiceOrderHotelAcknowledged")
@@ -484,6 +502,8 @@ describe("Marketplace orders", () => {
       version: 1,
       quantity: 1,
       totalAmount: new Prisma.Decimal(450000),
+      partnerSubtotal: new Prisma.Decimal(450000),
+      hotelServiceFeeAmount: new Prisma.Decimal(45000),
       unitPriceSnapshot: new Prisma.Decimal(450000),
       currency: "VND",
       serviceNameSnapshot: "60-minute Massage",
@@ -551,6 +571,11 @@ describe("Marketplace orders", () => {
     });
 
     expect(result.status).toBe("COMPLETED");
+    expect(tx.marketplaceRevenueEntry.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ grossAmount: new Prisma.Decimal(45000) }),
+      }),
+    );
     expect(settlementUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { orderId: "order-99" },

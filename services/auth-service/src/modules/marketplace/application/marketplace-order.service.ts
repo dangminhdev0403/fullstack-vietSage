@@ -7,6 +7,7 @@ import {
   MarketplaceOrderActorType,
   MarketplaceOrderStatus,
   MarketplaceRecordStatus,
+  MarketplaceServiceMode,
   Prisma,
 } from "@prisma/client";
 import { randomUUID } from "node:crypto";
@@ -20,6 +21,10 @@ import type {
 } from "../domain/marketplace-order.schema";
 import { ServicePortalService } from "./service-portal.service";
 import type { SupportedLocale } from "../../../common/i18n/i18n.types";
+import {
+  calculateFeePercentage,
+  calculateOnSiteServiceFee,
+} from "../domain/marketplace-pricing";
 
 @Injectable()
 export class MarketplaceOrderService {
@@ -46,6 +51,10 @@ export class MarketplaceOrderService {
 
     try {
       const created = await this.prisma.$transaction(async (tx) => {
+        const pricingConfig = await tx.marketplacePricingConfig?.findUnique({
+          where: { id: "default" },
+          select: { deliveryServiceFeeRate: true },
+        });
         const service = await tx.marketplaceService.findFirst({
           where: {
             id: body.serviceId,
@@ -83,7 +92,11 @@ export class MarketplaceOrderService {
         if (reserved !== 1) throw new ConflictException("Dịch vụ đã hết khả năng phục vụ");
 
         const partnerSubtotal = service.unitPrice.mul(body.quantity);
-        const hotelServiceFeeAmount = partnerSubtotal.mul(new Prisma.Decimal("0.10"));
+        const hotelServiceFeeAmount = calculateOnSiteServiceFee(
+          partnerSubtotal,
+          service.mode,
+          pricingConfig?.deliveryServiceFeeRate,
+        );
         const customerTotalAmount = partnerSubtotal.add(hotelServiceFeeAmount);
         const totalAmount = customerTotalAmount;
 
@@ -246,6 +259,10 @@ export class MarketplaceOrderService {
 
     try {
       const createdOrders = await this.prisma.$transaction(async (tx) => {
+        const pricingConfig = await tx.marketplacePricingConfig?.findUnique({
+          where: { id: "default" },
+          select: { deliveryServiceFeeRate: true },
+        });
         const cart = await tx.guestCart.findUnique({
           where: { sessionId: scope.sessionId },
           include: {
@@ -328,14 +345,20 @@ export class MarketplaceOrderService {
           orderIndex++;
 
           let partnerSubtotal = new Prisma.Decimal(0);
+          let hotelServiceFeeAmount = new Prisma.Decimal(0);
           let totalQuantity = 0;
           let hasReservedCapacity = false;
 
           const orderItemCreateData = tenantItems.map((ci) => {
             const itemSubtotal = ci.service.unitPrice.mul(ci.quantity);
-            const itemFee = itemSubtotal.mul(new Prisma.Decimal("0.10"));
+            const itemFee = calculateOnSiteServiceFee(
+              itemSubtotal,
+              ci.service.mode,
+              pricingConfig?.deliveryServiceFeeRate,
+            );
             const itemTotal = itemSubtotal.add(itemFee);
             partnerSubtotal = partnerSubtotal.add(itemSubtotal);
+            hotelServiceFeeAmount = hotelServiceFeeAmount.add(itemFee);
             totalQuantity += ci.quantity;
             if (ci.service.capacityAvailable != null) {
               hasReservedCapacity = true;
@@ -357,7 +380,6 @@ export class MarketplaceOrderService {
             };
           });
 
-          const hotelServiceFeeAmount = partnerSubtotal.mul(new Prisma.Decimal("0.10"));
           const customerTotalAmount = partnerSubtotal.add(hotelServiceFeeAmount);
           const totalAmount = customerTotalAmount;
 
@@ -1398,10 +1420,11 @@ export class MarketplaceOrderService {
         }
       }
       if (body.toStatus === "COMPLETED") {
-        const gross =
+        const partnerSubtotal =
           order.partnerSubtotal && !order.partnerSubtotal.isZero()
             ? order.partnerSubtotal
             : order.totalAmount;
+        const hotelRevenue = order.hotelServiceFeeAmount ?? new Prisma.Decimal(0);
 
         await tx.marketplaceRevenueEntry.upsert({
           where: { orderId: order.id },
@@ -1409,33 +1432,32 @@ export class MarketplaceOrderService {
             orderId: order.id,
             hotelId: order.hotelId,
             serviceTenantId,
-            grossAmount: gross,
+            grossAmount: hotelRevenue,
             currency: order.currency,
             recognizedAt: new Date(),
           },
           update: {
-            grossAmount: gross,
+            grossAmount: hotelRevenue,
             currency: order.currency,
           },
         });
         const commission = new Prisma.Decimal(0);
-        const net = gross;
         const settlement = await tx.marketplaceSettlement.upsert({
           where: { orderId: order.id },
           create: {
             orderId: order.id,
             hotelId: order.hotelId,
             serviceTenantId,
-            grossAmount: gross,
+            grossAmount: partnerSubtotal,
             commissionAmount: commission,
-            netAmount: net,
+            netAmount: partnerSubtotal,
             currency: order.currency,
             status: "UNSETTLED",
           },
           update: {
-            grossAmount: gross,
+            grossAmount: partnerSubtotal,
             commissionAmount: commission,
-            netAmount: net,
+            netAmount: partnerSubtotal,
             currency: order.currency,
           },
         });
@@ -1530,6 +1552,7 @@ export class MarketplaceOrderService {
       totalAmount: Prisma.Decimal;
       currency: string;
       serviceNameSnapshot: string;
+      serviceModeSnapshot: MarketplaceServiceMode;
       serviceTenantId: string;
     },
   ) {
@@ -1553,9 +1576,8 @@ export class MarketplaceOrderService {
         : order.unitPriceSnapshot.mul(order.quantity);
 
     const hotelServiceFeeAmount =
-      order.hotelServiceFeeAmount && !order.hotelServiceFeeAmount.isZero()
-        ? order.hotelServiceFeeAmount
-        : partnerSubtotal.mul(new Prisma.Decimal("0.10"));
+      order.hotelServiceFeeAmount ??
+      calculateOnSiteServiceFee(partnerSubtotal, order.serviceModeSnapshot);
 
     const customerTotalAmount =
       order.customerTotalAmount && !order.customerTotalAmount.isZero()
@@ -1597,7 +1619,9 @@ export class MarketplaceOrderService {
       });
     }
 
-    // 2. Separate Hotel Service Fee (10%) item
+    const hotelServiceFeeRate = calculateFeePercentage(partnerSubtotal, hotelServiceFeeAmount);
+
+    // 2. Separate hotel service fee item
     if (hotelServiceFeeAmount.gt(0)) {
       const feeSourceId = `${order.id}:hotel_fee`;
       const existingFeeItem = await tx.folioItem.findFirst({
@@ -1613,7 +1637,7 @@ export class MarketplaceOrderService {
             itemType: FolioItemType.SERVICE,
             sourceType: FolioItemSourceType.SYSTEM,
             sourceId: feeSourceId,
-            nameSnapshot: `Phí dịch vụ khách sạn (10%) - ${order.serviceNameSnapshot}`,
+            nameSnapshot: `Phí dịch vụ khách sạn (${hotelServiceFeeRate.toFixed(2)}%) - ${order.serviceNameSnapshot}`,
             quantity: 1,
             unitPriceSnapshot: hotelServiceFeeAmount,
             subtotalSnapshot: hotelServiceFeeAmount,
@@ -1626,7 +1650,7 @@ export class MarketplaceOrderService {
               serviceSource: "MARKETPLACE",
               isExternal: false,
               feeType: "HOTEL_SERVICE_FEE",
-              feeRate: "10%",
+              feeRate: `${hotelServiceFeeRate.toFixed(2)}%`,
               partnerSubtotal: partnerSubtotal.toString(),
               hotelServiceFeeAmount: hotelServiceFeeAmount.toString(),
             },

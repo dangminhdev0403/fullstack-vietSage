@@ -4,6 +4,11 @@
 
 ## Unreleased
 
+- Added Super Admin Marketplace fee configuration:
+  - `GET /admin/marketplace/pricing-config` returns the persisted delivery-to-hotel service fee percentage.
+  - `PATCH /admin/marketplace/pricing-config` accepts `deliveryServiceFeeRate` in the inclusive range `0..100` and requires `platform.marketplace.manage`.
+  - The configured rate applies only when `MarketplaceServiceMode = DELIVERY_TO_HOTEL`; `CUSTOMER_AT_SERVICE` remains fee-free. Existing order pricing snapshots are immutable.
+
 - Added Super Admin Google Sheets import & localization for Marketplace Categories:
   - `GET /admin/marketplace/categories/import/template`: returns UTF-8 CSV template for sheet-based category management with base Vietnamese (`name_vi`) and non-Vietnamese translations (`name_en`, `name_zh`, `name_ko`, `name_ru`, `name_hi`).
   - `POST /admin/marketplace/categories/import/preview`: parses Google Sheets URL, validates schema/duplicates, and returns bounded preview with deterministic `workbookHash`, summary counts (`creates`, `updates`, `unchanged`, `errors`), validation issues, and field diffs.

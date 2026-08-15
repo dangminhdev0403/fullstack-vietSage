@@ -21,6 +21,7 @@ export const updateCartItemSchema = z.object({
 });
 
 export const cartItemIdSchema = z.string().trim().min(1).max(80);
+export const syncCartSchema = z.object({ items: z.array(addCartItemSchema).max(50) });
 
 export const checkoutCartSchema = z.object({
   idempotencyKey: z.string().trim().min(8).max(120),
@@ -30,4 +31,5 @@ export const checkoutCartSchema = z.object({
 export type GuestMarketplaceQuery = z.infer<typeof guestMarketplaceQuerySchema>;
 export type AddCartItem = z.infer<typeof addCartItemSchema>;
 export type UpdateCartItem = z.infer<typeof updateCartItemSchema>;
+export type SyncCart = z.infer<typeof syncCartSchema>;
 export type CheckoutCart = z.infer<typeof checkoutCartSchema>;

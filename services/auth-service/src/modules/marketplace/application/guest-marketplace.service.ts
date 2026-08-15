@@ -6,8 +6,10 @@ import type { SupportedLocale } from "../../../common/i18n/i18n.types";
 import type {
   AddCartItem,
   GuestMarketplaceQuery,
+  SyncCart,
   UpdateCartItem,
 } from "../domain/guest-marketplace.schema";
+import { calculateOnSiteServiceFee } from "../domain/marketplace-pricing";
 
 @Injectable()
 export class GuestMarketplaceService {
@@ -108,6 +110,10 @@ export class GuestMarketplaceService {
     scope: { hotelId: string; stayId: string; sessionId: string },
     locale: SupportedLocale,
   ) {
+    const pricingConfig = await this.prisma.marketplacePricingConfig?.findUnique({
+      where: { id: "default" },
+      select: { deliveryServiceFeeRate: true },
+    });
     const cart = await this.prisma.guestCart.upsert({
       where: { sessionId: scope.sessionId },
       create: {
@@ -146,15 +152,21 @@ export class GuestMarketplaceService {
     });
 
     let partnerSubtotal = new Prisma.Decimal(0);
+    let hotelServiceFeeAmount = new Prisma.Decimal(0);
     let totalItems = 0;
 
     const items = cart.items.map((item) => {
       const localizedService = this.localizeServiceItem(item.service, locale);
       const itemPartnerSubtotal = item.service.unitPrice.mul(item.quantity);
-      const itemFee = itemPartnerSubtotal.mul(new Prisma.Decimal("0.10"));
+      const itemFee = calculateOnSiteServiceFee(
+        itemPartnerSubtotal,
+        item.service.mode,
+        pricingConfig?.deliveryServiceFeeRate,
+      );
       const itemCustomerTotal = itemPartnerSubtotal.add(itemFee);
 
       partnerSubtotal = partnerSubtotal.add(itemPartnerSubtotal);
+      hotelServiceFeeAmount = hotelServiceFeeAmount.add(itemFee);
       totalItems += item.quantity;
 
       return {
@@ -190,7 +202,6 @@ export class GuestMarketplaceService {
       };
     });
 
-    const hotelServiceFeeAmount = partnerSubtotal.mul(new Prisma.Decimal("0.10"));
     const customerTotalAmount = partnerSubtotal.add(hotelServiceFeeAmount);
     const currency = cart.items[0]?.service.currency ?? "VND";
 
@@ -202,6 +213,7 @@ export class GuestMarketplaceService {
       totalItems,
       partnerSubtotal: partnerSubtotal.toString(),
       hotelServiceFeeAmount: hotelServiceFeeAmount.toString(),
+      hotelServiceFeeRate: Number(pricingConfig?.deliveryServiceFeeRate ?? 10),
       customerTotalAmount: customerTotalAmount.toString(),
       currency,
       items,
@@ -332,6 +344,24 @@ export class GuestMarketplaceService {
       });
     }
     return { success: true, cleared: true };
+  }
+
+  async syncCart(scope: { hotelId: string; stayId: string; sessionId: string }, input: SyncCart, locale: SupportedLocale) {
+    await this.prisma.$transaction(async (tx) => {
+      const serviceIds = input.items.map(({ serviceId }) => serviceId);
+      const services = await tx.marketplaceService.findMany({
+        where: {
+          id: { in: serviceIds }, status: MarketplaceRecordStatus.ACTIVE,
+          serviceTenant: { type: "SERVICE", serviceProfile: { status: MarketplaceRecordStatus.ACTIVE, categoryId: { not: null }, category: { isActive: true } }, hotelServiceLinks: { some: { hotelId: scope.hotelId, status: "ACTIVE" } } },
+        },
+        select: { id: true },
+      });
+      if (services.length !== new Set(serviceIds).size) throw new NotFoundException("Có dịch vụ Marketplace không còn khả dụng");
+      const cart = await tx.guestCart.upsert({ where: { sessionId: scope.sessionId }, create: scope, update: { hotelId: scope.hotelId, stayId: scope.stayId } });
+      await tx.guestCartItem.deleteMany({ where: { cartId: cart.id } });
+      if (input.items.length) await tx.guestCartItem.createMany({ data: input.items.map((item) => ({ cartId: cart.id, ...item })) });
+    });
+    return this.getCart(scope, locale);
   }
 
   /**

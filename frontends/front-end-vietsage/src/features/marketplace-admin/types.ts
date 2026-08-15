@@ -28,9 +28,14 @@ export type MarketplaceCategorySheetPreview = {
   }>;
 };
 
+export type MarketplacePricingConfig = {
+  deliveryServiceFeeRate: string | number;
+};
+
 export type MarketplaceAdminData = {
   categories: MarketplaceCategory[];
   tenants: ServiceTenant[];
+  pricingConfig: MarketplacePricingConfig;
 };
 
 export type MarketplaceAdminAction =
@@ -39,5 +44,6 @@ export type MarketplaceAdminAction =
   | { action: "updateCategory"; id: string; input: { nameVi?: string; isActive?: boolean; translations?: Record<string, string> } }
   | { action: "deleteCategory"; id: string }
   | { action: "updateTenant"; id: string; input: { displayName?: string; categoryId?: string; status?: string; googleSheetsUrl?: string | null; owner?: { email?: string; fullName?: string; password?: string } } }
+  | { action: "updatePricingConfig"; input: { deliveryServiceFeeRate: number } }
   | { action: "previewImport"; spreadsheetUrl: string }
   | { action: "commitImport"; spreadsheetUrl: string; expectedHash: string };

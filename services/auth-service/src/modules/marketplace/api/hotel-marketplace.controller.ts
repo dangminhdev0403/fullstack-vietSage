@@ -128,18 +128,6 @@ export class HotelMarketplaceController {
     return this.orders.cancelHotelOrder(req.user.userId, hotelId, validOrderId);
   }
 
-  @ApiDescript("Hoàn thành đơn dịch vụ ngoài (dành cho lễ tân khách sạn)")
-  @RequirePermission("hotel.requests.view")
-  @Post("orders/:orderId/complete")
-  async complete(
-    @Req() req: RequestWithRequiredUser,
-    @Param("hotelId") id: string,
-    @Param("orderId") orderId: string,
-  ) {
-    const hotelId = await this.hotel(req, id);
-    const validOrderId = parseWithZod(marketplaceOrderIdSchema, orderId);
-    return this.orders.completeHotelOrder(req.user.userId, hotelId, validOrderId);
-  }
 
   @ApiDescript("Xem doanh thu Marketplace của khách sạn")
   @RequirePermission("hotel.marketplace.revenue.view")

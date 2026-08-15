@@ -1,3 +1,10 @@
+## 2026-08-15 - Super Admin Marketplace Fee Configuration (Complete)
+
+- [x] Added persisted `MarketplacePricingConfig.deliveryServiceFeeRate`, default `10.00`, validated `0..100`.
+- [x] Added permission-gated `GET/PATCH /admin/marketplace/pricing-config`.
+- [x] New delivery-to-hotel orders and cart quotes use the configured rate; customer-at-service remains `0%`; existing order snapshots remain unchanged.
+- [x] Prisma validation, 3 focused suites (30 tests), backend build, OpenAPI export/verification passed.
+
 ## 2026-08-14 - DB Guest Cart, Decimal Checkout, Snapshots & Folio Fee Separation (Complete)
 
 - [x] Implemented DB Guest Cart + CartItems scoped to guest session/stay/hotel:

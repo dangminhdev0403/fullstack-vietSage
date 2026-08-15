@@ -56,6 +56,11 @@ export type MarketplaceOrderItem = {
   serviceTenantId?: string;
   serviceTenantName?: string;
   serviceMode?: "DELIVERY_TO_HOTEL" | "CUSTOMER_AT_SERVICE";
+  serviceNameSnapshot?: string;
+  unitPriceSnapshot?: string | number;
+  pricingUnitSnapshot?: string | null;
+  partnerSubtotal?: string | number;
+  hotelServiceFeeAmount?: string | number;
 };
 
 export type MarketplaceOrderFinancials = {
@@ -82,7 +87,9 @@ export type MarketplaceOrder = {
   items?: MarketplaceOrderItem[];
   partnerSubtotal?: string | number | null;
   hotelFee?: string | number | null;
+  hotelServiceFeeAmount?: string | number | null;
   customerTotal?: string | number | null;
+  customerTotalAmount?: string | number | null;
   quantity: number;
   unitPriceSnapshot?: string | number | null;
   unitSnapshot?: string | null;
@@ -142,8 +149,10 @@ export type MarketplaceCart = {
   partnerSubtotal?: number;
   subtotal?: number;
   hotelServiceFee?: number;
+  hotelServiceFeeAmount?: number | string;
   hotelServiceFeeRate?: number;
   customerTotal?: number;
+  customerTotalAmount?: number | string;
   totalAmount?: number | string;
   currency: string;
   itemCount?: number;

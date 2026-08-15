@@ -1905,6 +1905,14 @@ model HotelServiceLink {
   @@index([serviceTenantId, status])
 }
 
+model MarketplacePricingConfig {
+  id                     String   @id @default("default") @db.VarChar(20)
+  deliveryServiceFeeRate Decimal  @default(10.00) @db.Decimal(5, 2)
+  updatedBy               String?  @db.VarChar(80)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}
+
 enum MarketplaceSettlementStatus {
   UNSETTLED
   READY_FOR_SETTLEMENT

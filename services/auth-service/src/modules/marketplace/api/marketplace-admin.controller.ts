@@ -16,6 +16,7 @@ import {
   marketplaceCategoryBodySchema,
   marketplaceCategoryUpdateSchema,
   marketplaceIdSchema,
+  marketplacePricingConfigSchema,
   serviceTenantBodySchema,
   serviceTenantUpdateSchema,
 } from "../domain/marketplace-admin.schema";
@@ -35,6 +36,25 @@ export class MarketplaceAdminController {
   @Get("categories")
   categories() {
     return this.service.listCategories();
+  }
+
+  @RequirePermission("platform.marketplace.view")
+  @SuccessMessage("Lấy cấu hình phí Marketplace thành công")
+  @ApiDescript("Xem cấu hình phí Marketplace")
+  @Get("pricing-config")
+  pricingConfig() {
+    return this.service.getPricingConfig();
+  }
+
+  @RequirePermission("platform.marketplace.manage")
+  @SuccessMessage("Cập nhật cấu hình phí Marketplace thành công")
+  @ApiDescript("Cập nhật cấu hình phí Marketplace")
+  @Patch("pricing-config")
+  updatePricingConfig(@Req() req: RequestWithRequiredUser, @Body() body: unknown) {
+    return this.service.updatePricingConfig(
+      req.user.userId,
+      parseWithZod(marketplacePricingConfigSchema, body),
+    );
   }
 
   @RequirePermission("platform.marketplace.manage")

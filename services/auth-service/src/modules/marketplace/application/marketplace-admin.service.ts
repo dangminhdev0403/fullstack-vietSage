@@ -20,6 +20,7 @@ import { CodesService } from "../../codes/codes.service";
 import type {
   HotelServiceLinkBody,
   MarketplaceCategoryBody,
+  MarketplacePricingConfigBody,
   ServiceTenantBody,
   ServiceTenantUpdateBody,
 } from "../domain/marketplace-admin.schema";
@@ -30,6 +31,22 @@ export class MarketplaceAdminService {
     private readonly prisma: PrismaService,
     private readonly codes: CodesService,
   ) {}
+
+  getPricingConfig() {
+    return this.prisma.marketplacePricingConfig.upsert({
+      where: { id: "default" },
+      create: { id: "default" },
+      update: {},
+    });
+  }
+
+  updatePricingConfig(actorId: string, body: MarketplacePricingConfigBody) {
+    return this.prisma.marketplacePricingConfig.upsert({
+      where: { id: "default" },
+      create: { id: "default", ...body, updatedBy: actorId },
+      update: { ...body, updatedBy: actorId },
+    });
+  }
 
   listCategories() {
     return this.prisma.marketplaceCategory.findMany({

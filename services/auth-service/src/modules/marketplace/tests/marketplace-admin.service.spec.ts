@@ -13,6 +13,22 @@ const body = {
 };
 
 describe("Marketplace admin", () => {
+  it("persists the platform delivery fee percentage", async () => {
+    const upsert = jest.fn().mockResolvedValue({ deliveryServiceFeeRate: "12.50" });
+    const service = new MarketplaceAdminService(
+      { marketplacePricingConfig: { upsert } } as never,
+      {} as never,
+    );
+
+    await service.updatePricingConfig("admin-1", { deliveryServiceFeeRate: 12.5 });
+
+    expect(upsert).toHaveBeenCalledWith({
+      where: { id: "default" },
+      create: { id: "default", deliveryServiceFeeRate: 12.5, updatedBy: "admin-1" },
+      update: { deliveryServiceFeeRate: 12.5, updatedBy: "admin-1" },
+    });
+  });
+
   it("updates the PARTNER owner instead of the first tenant member", async () => {
     const userUpdate = jest.fn();
     const tenantUsers = [

@@ -2,12 +2,15 @@ import { unwrapApiEnvelope } from "@/core/http/api-envelope";
 import { getBackendApiBaseUrl } from "@/core/http/backend-api-config";
 import { HttpClient } from "@/core/http/http-client";
 import type { MarketplaceCategory } from "@/features/marketplace/types/marketplace-contract";
+import type { MarketplacePricingConfig } from "./types";
 const http = new HttpClient({ baseUrl: getBackendApiBaseUrl() });
 const call = async <T, B = unknown>(token: string, method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE", path: string, body?: B) => unwrapApiEnvelope<T>(await http.request<unknown, B>({ method, path, accessToken: token, body })).data;
 export type ServiceTenant = { id: string; code: string; name: string; ownerEmail?: string | null; ownerFullName?: string | null; serviceProfile: { displayName: string; status: string; categoryId?: string | null; category?: MarketplaceCategory | null } | null };
 export const marketplaceAdminClient = {
   categories: (token: string) => call<MarketplaceCategory[]>(token, "GET", "/admin/marketplace/categories"),
   tenants: (token: string) => call<ServiceTenant[]>(token, "GET", "/admin/marketplace/service-tenants"),
+  pricingConfig: (token: string) => call<MarketplacePricingConfig>(token, "GET", "/admin/marketplace/pricing-config"),
+  updatePricingConfig: (token: string, body: MarketplacePricingConfig) => call<MarketplacePricingConfig, MarketplacePricingConfig>(token, "PATCH", "/admin/marketplace/pricing-config", body),
   category: (token: string, body: unknown) => call(token, "POST", "/admin/marketplace/categories", body),
   tenant: (token: string, body: unknown) => call(token, "POST", "/admin/marketplace/service-tenants", body),
   updateCategory: (token: string, id: string, body: unknown) => call(token, "PATCH", `/admin/marketplace/categories/${id}`, body),

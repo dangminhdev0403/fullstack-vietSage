@@ -120,7 +120,16 @@ export function getCanonicalOrderItems(
 ): MarketplaceOrderItem[] {
   if (!order) return [];
   if (Array.isArray(order.items) && order.items.length > 0) {
-    return order.items;
+    return order.items.map((item) => ({
+      ...item,
+      serviceName: item.serviceName || item.serviceNameSnapshot || "Dịch vụ đối tác",
+      unitPrice: item.unitPrice ?? item.unitPriceSnapshot ?? 0,
+      pricingUnit: item.pricingUnit ?? item.pricingUnitSnapshot,
+      totalAmount:
+        item.totalAmount ??
+        item.partnerSubtotal ??
+        Number(item.unitPrice ?? item.unitPriceSnapshot ?? 0) * (Number(item.quantity) || 1),
+    }));
   }
 
   const quantity = Number(order.quantity) || 1;
@@ -221,7 +230,10 @@ export function calculateOrderFinancials(
       const qty = Number(item.quantity) || 1;
       return sum + price * qty;
     }, 0);
-    const hotelFee = Math.round(partnerSubtotal * 0.10);
+    const hotelFee = items.reduce(
+      (sum, item) => sum + Number(item.hotelServiceFeeAmount ?? 0),
+      0,
+    );
     const customerTotal = partnerSubtotal + hotelFee;
     return {
       partnerSubtotal,
@@ -248,13 +260,16 @@ export function calculateOrderFinancials(
   }
 
   const hotelFee =
-    order?.hotelFee != null
-      ? Number(order.hotelFee)
-      : Math.round(partnerSubtotal * 0.10);
+    order?.hotelServiceFeeAmount != null || order?.hotelFee != null
+      ? Number(order.hotelServiceFeeAmount ?? order.hotelFee)
+      : items.reduce(
+          (sum, item) => sum + Number(item.hotelServiceFeeAmount ?? 0),
+          0,
+        );
 
   const customerTotal =
-    order?.customerTotal != null
-      ? Number(order.customerTotal)
+    order?.customerTotalAmount != null || order?.customerTotal != null
+      ? Number(order.customerTotalAmount ?? order.customerTotal)
       : order?.totalAmount != null
       ? Number(order.totalAmount)
       : partnerSubtotal + hotelFee;

@@ -182,7 +182,7 @@ export function MarketplaceAdminClient() {
   };
 
   // Workspace View & Dialog state
-  const [activeTab, setActiveTab] = useState<"partners" | "categories">(
+  const [activeTab, setActiveTab] = useState<"partners" | "categories" | "fees">(
     "partners",
   );
   const [isTenantModalOpen, setIsTenantModalOpen] = useState(false);
@@ -202,6 +202,7 @@ export function MarketplaceAdminClient() {
   const [resetAccountLabel, setResetAccountLabel] = useState("");
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [deliveryServiceFeeRate, setDeliveryServiceFeeRate] = useState("");
   const [formValidationError, setFormValidationError] = useState<string | null>(
     null,
   );
@@ -904,6 +905,35 @@ export function MarketplaceAdminClient() {
     });
   };
 
+  const handlePricingConfigSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const rate = Number(
+      deliveryServiceFeeRate || data.data?.pricingConfig.deliveryServiceFeeRate,
+    );
+    if (!Number.isFinite(rate) || rate < 0 || rate > 100) {
+      setFormValidationError("Phần trăm phí phải nằm trong khoảng 0 đến 100.");
+      return;
+    }
+    setFormValidationError(null);
+    mutation.mutate(
+      { action: "updatePricingConfig", input: { deliveryServiceFeeRate: rate } },
+      {
+        onSuccess: () => {
+          SwalVietSage.fire({
+            title: "Đã cập nhật",
+            text: "Mức phí mới áp dụng cho đơn dịch vụ tận nơi được tạo sau thời điểm này.",
+            icon: "success",
+            showConfirmButton: true,
+            confirmButtonText: "OK",
+          });
+        },
+        onError: (error) => {
+          setFormValidationError(getErrorMessage(error, "Không thể cập nhật mức phí dịch vụ."));
+        },
+      },
+    );
+  };
+
   // Filtered tenants
   const filteredTenants = useMemo(() => {
     const tenantsList = data.data?.tenants;
@@ -1071,37 +1101,55 @@ export function MarketplaceAdminClient() {
               >
                 <span>Danh mục dịch vụ</span>
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setDeliveryServiceFeeRate(String(data.data.pricingConfig.deliveryServiceFeeRate));
+                  setFormValidationError(null);
+                  setActiveTab("fees");
+                }}
+                className={`inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-extrabold transition-all ${
+                  activeTab === "fees"
+                    ? "bg-[#24473d] text-[#fff8e8] shadow-xs"
+                    : "text-[#69726b] hover:text-[#17201b]"
+                }`}
+              >
+                <span>Cấu hình phí</span>
+              </button>
             </div>
 
             {/* Search Input */}
-            <div className="relative flex-1">
-              <VsIcon
-                name="search"
-                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#8b948d] text-xl"
-              />
-              <input
-                type="search"
-                value={activeTab === "partners" ? tenantSearch : categorySearch}
-                onChange={(event) => {
-                  if (activeTab === "partners") {
-                    setTenantSearch(event.target.value);
-                    setTenantPage(1);
-                  } else {
-                    setCategorySearch(event.target.value);
-                    setCategoryPage(1);
+            {activeTab !== "fees" && (
+              <div className="relative flex-1">
+                <VsIcon
+                  name="search"
+                  className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#8b948d] text-xl"
+                />
+                <input
+                  type="search"
+                  value={activeTab === "partners" ? tenantSearch : categorySearch}
+                  onChange={(event) => {
+                    if (activeTab === "partners") {
+                      setTenantSearch(event.target.value);
+                      setTenantPage(1);
+                    } else {
+                      setCategorySearch(event.target.value);
+                      setCategoryPage(1);
+                    }
+                  }}
+                  placeholder={
+                    activeTab === "partners"
+                      ? "Tìm theo tên, email, mã đối tác..."
+                      : "Tìm theo tên tiếng Việt, tiếng Anh, mã..."
                   }
-                }}
-                placeholder={
-                  activeTab === "partners"
-                    ? "Tìm theo tên, email, mã đối tác..."
-                    : "Tìm theo tên tiếng Việt, tiếng Anh, mã..."
-                }
-                className="w-full rounded-xl border border-[#e2d7c5] bg-[#faf6ef] pl-12 pr-4 py-3.5 text-base font-semibold text-[#17201b] outline-none transition-all focus:border-[#24473d] focus:bg-white focus:ring-2 focus:ring-[#24473d]/20"
-              />
-            </div>
+                  className="w-full rounded-xl border border-[#e2d7c5] bg-[#faf6ef] pl-12 pr-4 py-3.5 text-base font-semibold text-[#17201b] outline-none transition-all focus:border-[#24473d] focus:bg-white focus:ring-2 focus:ring-[#24473d]/20"
+                />
+              </div>
+            )}
           </div>
 
           {/* Action Buttons */}
+          {activeTab !== "fees" && (
           <div className="flex items-center gap-3">
             {activeTab === "partners" && (
               <select
@@ -1143,8 +1191,42 @@ export function MarketplaceAdminClient() {
               Tạo đối tác dịch vụ
             </button>
           </div>
+          )}
         </div>
       </section>
+
+      {activeTab === "fees" && (
+        <section className="rounded-[1.4rem] border border-[#e8dfd1] bg-white/90 p-6 shadow-[0_16px_40px_rgba(23,32,27,0.05)]">
+          <h3 className="text-xl font-extrabold text-[#24473d]">Phí dịch vụ Marketplace</h3>
+          <p className="mt-2 text-sm font-medium text-[#69726b]">
+            Áp dụng cho dịch vụ tận nơi. Dịch vụ khách tự đến đối tác luôn 0%.
+          </p>
+          <form onSubmit={handlePricingConfigSubmit} className="mt-6 max-w-md space-y-4">
+            <label className={labelClass} htmlFor="delivery-service-fee-rate">
+              Phí dịch vụ tận nơi (%)
+            </label>
+            <input
+              id="delivery-service-fee-rate"
+              type="number"
+              min="0"
+              max="100"
+              step="0.01"
+              required
+              value={deliveryServiceFeeRate}
+              onChange={(event) => setDeliveryServiceFeeRate(event.target.value)}
+              className={inputClass}
+            />
+            {formValidationError && <p role="alert" className="text-sm font-bold text-rose-700">{formValidationError}</p>}
+            <button
+              type="submit"
+              disabled={mutation.isPending}
+              className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#24473d] px-6 text-sm font-bold text-white disabled:opacity-50"
+            >
+              {mutation.isPending ? "Đang lưu..." : "Lưu mức phí"}
+            </button>
+          </form>
+        </section>
+      )}
 
       {/* Primary Management Area: Service Partners Table & Google Sheets Sync */}
       {activeTab === "partners" && (

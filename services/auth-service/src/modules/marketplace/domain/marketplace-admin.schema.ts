@@ -53,6 +53,9 @@ export const hotelServiceLinkBodySchema = z.object({
   commissionRate: z.number().min(0).max(100).optional(),
 });
 export const hotelLinksQuerySchema = z.object({ hotelId: id });
+export const marketplacePricingConfigSchema = z.object({
+  deliveryServiceFeeRate: z.number().min(0).max(100),
+});
 
 export const serviceTenantUpdateSchema = z
   .object({
@@ -74,3 +77,4 @@ export type MarketplaceCategoryBody = z.infer<typeof marketplaceCategoryBodySche
 export type ServiceTenantBody = z.infer<typeof serviceTenantBodySchema>;
 export type ServiceTenantUpdateBody = z.infer<typeof serviceTenantUpdateSchema>;
 export type HotelServiceLinkBody = z.infer<typeof hotelServiceLinkBodySchema>;
+export type MarketplacePricingConfigBody = z.infer<typeof marketplacePricingConfigSchema>;
