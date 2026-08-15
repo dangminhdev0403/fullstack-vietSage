@@ -14,6 +14,7 @@ import {
 import type {
   CheckoutMarketplaceCartInput,
   CheckoutMarketplaceCartResult,
+  MarketplaceCart,
   MarketplaceOrder,
   MarketplaceServiceItem,
 } from "../types/marketplace-contract";
@@ -52,6 +53,7 @@ export function GuestMarketplaceCartFlow({
   const [step, setStep] = useState<CartFlowStep>("CART");
   const [generalNote, setGeneralNote] = useState("");
   const [createdOrder, setCreatedOrder] = useState<MarketplaceOrder | null>(null);
+  const [reviewCart, setReviewCart] = useState<MarketplaceCart | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { checkoutCart, confirmCart, orders, syncCart } = useGuestMarketplace(sessionToken);
@@ -60,6 +62,7 @@ export function GuestMarketplaceCartFlow({
   const cartQuery = useGuestMarketplaceCart(sessionToken, {
     enabled: isOpen && step === "REVIEW",
   });
+  const quote = reviewCart ?? cartQuery.data;
 
   if (!isOpen) return null;
 
@@ -106,9 +109,10 @@ export function GuestMarketplaceCartFlow({
   const handleProceedToReview = async () => {
     if (cartItems.length === 0 || hasUnavailableItems) return;
     try {
-      await syncCart.mutateAsync({
+      const syncedCart = await syncCart.mutateAsync({
         items: cartItems.map(({ serviceId, quantity, guestNote }) => ({ serviceId, quantity, guestNote })),
       });
+      setReviewCart(syncedCart);
       setStep("REVIEW");
     } catch {
       toast.error(t("marketplace.orderCreateError"));
@@ -425,29 +429,29 @@ export function GuestMarketplaceCartFlow({
                   Bảng kê chi phí (Hệ thống cung cấp)
                 </span>
 
-                {cartQuery.isPending ? (
+                {!quote && cartQuery.isPending ? (
                   <div className="py-4 text-center space-y-2 text-xs text-[#5e6a62]">
                     <div className="size-6 animate-spin rounded-full border-2 border-[#25483f] border-t-transparent mx-auto" />
                     <p>{t("marketplace.calculatingQuote")}</p>
                   </div>
-                ) : cartQuery.data ? (
+                ) : quote ? (
                   <div className="space-y-2.5 text-xs">
-                    {(cartQuery.data.partnerSubtotal !== undefined || cartQuery.data.subtotal !== undefined) ? (
+                    {(quote.partnerSubtotal !== undefined || quote.subtotal !== undefined) ? (
                       <div className="flex items-center justify-between text-[#5e6a62]">
                         <span>{t("marketplace.partnerSubtotal")}:</span>
                         <span className="font-bold text-[#18211d]">
-                          {Number(cartQuery.data.partnerSubtotal ?? cartQuery.data.subtotal ?? 0).toLocaleString(intlLocale)}{" "}
-                          {cartQuery.data.currency || "VND"}
+                          {Number(quote.partnerSubtotal ?? quote.subtotal ?? 0).toLocaleString(intlLocale)}{" "}
+                          {quote.currency || "VND"}
                         </span>
                       </div>
                     ) : null}
 
-                    {(cartQuery.data.hotelServiceFeeAmount !== undefined || cartQuery.data.hotelServiceFee !== undefined) ? (
+                    {(quote.hotelServiceFeeAmount !== undefined || quote.hotelServiceFee !== undefined) ? (
                       <div className="flex items-center justify-between text-[#5e6a62]">
-                        <span>{t("marketplace.hotelServiceFee")}:</span>
+                        <span>{t("marketplace.hotelServiceFee")} ({quote.hotelServiceFeeRate ?? 10}%):</span>
                         <span className="font-bold text-[#18211d]">
-                          {Number(cartQuery.data.hotelServiceFeeAmount ?? cartQuery.data.hotelServiceFee ?? 0).toLocaleString(intlLocale)}{" "}
-                          {cartQuery.data.currency || "VND"}
+                          {Number(quote.hotelServiceFeeAmount ?? quote.hotelServiceFee ?? 0).toLocaleString(intlLocale)}{" "}
+                          {quote.currency || "VND"}
                         </span>
                       </div>
                     ) : null}
@@ -455,8 +459,8 @@ export function GuestMarketplaceCartFlow({
                     <div className="flex items-center justify-between border-t border-[#25483f]/15 pt-2.5 text-sm">
                       <span className="font-extrabold text-[#18211d]">{t("marketplace.customerTotal")}:</span>
                       <span className="text-xl font-black text-[#25483f]">
-                        {Number(cartQuery.data.customerTotalAmount ?? cartQuery.data.customerTotal ?? cartQuery.data.totalAmount ?? 0).toLocaleString(intlLocale)}{" "}
-                        {cartQuery.data.currency || "VND"}
+                        {Number(quote.customerTotalAmount ?? quote.customerTotal ?? quote.totalAmount ?? 0).toLocaleString(intlLocale)}{" "}
+                        {quote.currency || "VND"}
                       </span>
                     </div>
                   </div>

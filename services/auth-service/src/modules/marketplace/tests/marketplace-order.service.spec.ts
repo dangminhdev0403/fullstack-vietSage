@@ -6,22 +6,17 @@ import { MarketplaceOrderService } from "../application/marketplace-order.servic
 import { calculateOnSiteServiceFee } from "../domain/marketplace-pricing";
 
 describe("Marketplace orders", () => {
-  it("charges the configured percentage only for delivery to hotel", () => {
-    const subtotal = new Prisma.Decimal(100000);
+  it.each([
+    MarketplaceServiceMode.DELIVERY_TO_HOTEL,
+    MarketplaceServiceMode.CUSTOMER_AT_SERVICE,
+  ])("charges the partner-configured percentage for %s", (mode) => {
     expect(
       calculateOnSiteServiceFee(
-        subtotal,
-        MarketplaceServiceMode.DELIVERY_TO_HOTEL,
-        new Prisma.Decimal("15.00"),
+        new Prisma.Decimal(100000),
+        mode,
+        new Prisma.Decimal("50.00"),
       ).toString(),
-    ).toBe("15000");
-    expect(
-      calculateOnSiteServiceFee(
-        subtotal,
-        MarketplaceServiceMode.CUSTOMER_AT_SERVICE,
-        new Prisma.Decimal("15.00"),
-      ).toString(),
-    ).toBe("0");
+    ).toBe("50000");
   });
   beforeEach(() => {
     jest

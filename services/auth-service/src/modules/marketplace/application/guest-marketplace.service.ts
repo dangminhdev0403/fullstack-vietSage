@@ -9,7 +9,7 @@ import type {
   SyncCart,
   UpdateCartItem,
 } from "../domain/guest-marketplace.schema";
-import { calculateOnSiteServiceFee } from "../domain/marketplace-pricing";
+import { calculateFeePercentage, calculateOnSiteServiceFee } from "../domain/marketplace-pricing";
 
 @Injectable()
 export class GuestMarketplaceService {
@@ -214,7 +214,7 @@ export class GuestMarketplaceService {
       totalItems,
       partnerSubtotal: partnerSubtotal.toString(),
       hotelServiceFeeAmount: hotelServiceFeeAmount.toString(),
-      hotelServiceFeeRate: Number(pricingConfig?.deliveryServiceFeeRate ?? 10),
+      hotelServiceFeeRate: Number(calculateFeePercentage(partnerSubtotal, hotelServiceFeeAmount)),
       customerTotalAmount: customerTotalAmount.toString(),
       currency,
       items,

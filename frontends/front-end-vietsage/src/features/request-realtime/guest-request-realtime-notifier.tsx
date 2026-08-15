@@ -14,7 +14,7 @@ import { useGuestRequestRealtime } from "./use-guest-request-realtime";
 export const GUEST_REQUEST_REALTIME_BROWSER_EVENT = "vietsage:guest-request-realtime";
 
 export type GuestRequestRealtimeBrowserEvent = {
-  kind: "created" | "updated" | "answered" | "reconnected";
+  kind: "created" | "updated" | "answered" | "message" | "reconnected";
   request?: Partial<GuestRequest> & { id: string };
 };
 
@@ -94,6 +94,7 @@ export function GuestRequestRealtimeNotifier() {
         toast.success(t("requests.updatedAnswer"));
       },
       onGuestMessageCreated: (event: unknown) => {
+        dispatchGuestRequestRealtime({ kind: "message" });
         const rawMessage =
           typeof event === "object" && event !== null && "message" in event
             ? (event as { message?: { id?: string; senderType?: string; body?: string } }).message

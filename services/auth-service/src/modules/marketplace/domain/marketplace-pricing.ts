@@ -2,12 +2,10 @@ import { MarketplaceServiceMode, Prisma } from "@prisma/client";
 
 export function calculateOnSiteServiceFee(
   partnerSubtotal: Prisma.Decimal,
-  mode: MarketplaceServiceMode,
+  _mode: MarketplaceServiceMode,
   percentage = new Prisma.Decimal("10.00"),
 ): Prisma.Decimal {
-  return mode === MarketplaceServiceMode.DELIVERY_TO_HOTEL
-    ? partnerSubtotal.mul(percentage).div(100)
-    : new Prisma.Decimal(0);
+  return partnerSubtotal.mul(percentage).div(100);
 }
 
 export function calculateFeePercentage(
