@@ -930,10 +930,12 @@ export class MarketplaceOrderService {
         });
       }
 
-      const gross =
+      const partnerSubtotal =
         order.partnerSubtotal && !order.partnerSubtotal.isZero()
           ? order.partnerSubtotal
           : order.totalAmount;
+
+      const hotelRevenue = order.hotelServiceFeeAmount ?? new Prisma.Decimal(0);
 
       await tx.marketplaceRevenueEntry.upsert({
         where: { orderId: order.id },
@@ -941,18 +943,18 @@ export class MarketplaceOrderService {
           orderId: order.id,
           hotelId: order.hotelId,
           serviceTenantId: order.serviceTenantId,
-          grossAmount: gross,
+          grossAmount: hotelRevenue,
           currency: order.currency,
           recognizedAt: new Date(),
         },
         update: {
-          grossAmount: gross,
+          grossAmount: hotelRevenue,
           currency: order.currency,
         },
       });
 
       const commission = new Prisma.Decimal(0);
-      const net = gross;
+      const net = partnerSubtotal;
 
       const settlement = await tx.marketplaceSettlement.upsert({
         where: { orderId: order.id },
@@ -960,14 +962,14 @@ export class MarketplaceOrderService {
           orderId: order.id,
           hotelId: order.hotelId,
           serviceTenantId: order.serviceTenantId,
-          grossAmount: gross,
+          grossAmount: partnerSubtotal,
           commissionAmount: commission,
           netAmount: net,
           currency: order.currency,
           status: "UNSETTLED",
         },
         update: {
-          grossAmount: gross,
+          grossAmount: partnerSubtotal,
           commissionAmount: commission,
           netAmount: net,
           currency: order.currency,

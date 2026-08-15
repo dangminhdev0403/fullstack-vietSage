@@ -262,7 +262,10 @@ describe("Marketplace orders", () => {
       orderNumber: "MP-COMP-1",
       version: 1,
       quantity: 2,
-      totalAmount: new Prisma.Decimal(200000),
+      partnerSubtotal: new Prisma.Decimal(200000),
+      hotelServiceFeeAmount: new Prisma.Decimal(20000),
+      customerTotalAmount: new Prisma.Decimal(220000),
+      totalAmount: new Prisma.Decimal(220000),
       unitPriceSnapshot: new Prisma.Decimal(100000),
       currency: "VND",
       serviceNameSnapshot: "City Tour",
@@ -292,8 +295,8 @@ describe("Marketplace orders", () => {
           id: "settle-comp-1",
           orderId: "order-complete-1",
           grossAmount: new Prisma.Decimal(200000),
-          commissionAmount: new Prisma.Decimal(30000),
-          netAmount: new Prisma.Decimal(170000),
+          commissionAmount: new Prisma.Decimal(0),
+          netAmount: new Prisma.Decimal(200000),
           status: "UNSETTLED",
         }),
       },
@@ -340,7 +343,7 @@ describe("Marketplace orders", () => {
     expect(result.status).toBe("COMPLETED");
     expect(tx.marketplaceRevenueEntry.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        create: expect.objectContaining({ grossAmount: new Prisma.Decimal(200000) }),
+        create: expect.objectContaining({ grossAmount: new Prisma.Decimal(20000) }),
       }),
     );
     expect(tx.marketplaceSettlement.upsert).toHaveBeenCalledWith(
