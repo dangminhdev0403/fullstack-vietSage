@@ -236,9 +236,15 @@ describe("PlatformBillingService Onboarding & Analytics", () => {
     );
 
     const rows = result.roomUsageSummary || [];
-    expect(result.usageCount).toBe(rows.reduce((s: number, r: { usageCount: number }) => s + r.usageCount, 0));
-    expect(result.billableDaysCount).toBe(rows.reduce((s: number, r: { billableDaysCount: number }) => s + r.billableDaysCount, 0));
-    expect(result.estimatedFee).toBe(rows.reduce((s: number, r: { billedAmount: number }) => s + r.billedAmount, 0));
+    expect(result.usageCount).toBe(
+      rows.reduce((s: number, r: { usageCount: number }) => s + r.usageCount, 0),
+    );
+    expect(result.billableDaysCount).toBe(
+      rows.reduce((s: number, r: { billableDaysCount: number }) => s + r.billableDaysCount, 0),
+    );
+    expect(result.estimatedFee).toBe(
+      rows.reduce((s: number, r: { billedAmount: number }) => s + r.billedAmount, 0),
+    );
     expect(result.estimatedFee).toBe(240000);
   });
 

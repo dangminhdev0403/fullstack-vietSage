@@ -54,6 +54,7 @@ def main() -> int:
             "Auth.js route": "location /api/auth/",
             "backend API route": "location /api/",
             "Socket.IO route": "location /socket.io/",
+            "public API health route": "location = /api/health",
             "Nginx health route": "location = /nginx-health",
             "apex domains": "server_name vietsage.com www.vietsage.com",
             "stay domain": "server_name stay.vietsage.com",
