@@ -27,10 +27,15 @@ export default async function OwnerBillingPage({ params, searchParams }: PagePro
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">Billing & Revenue Protection</p>
-        <h1 className="mt-2 text-3xl font-black text-slate-900 dark:text-white">Quản lý tài chính && phí VietSage SaaS</h1>
-        <p className="mt-2 max-w-2xl text-sm text-slate-500">
+      <div className="space-y-2">
+        <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/80 bg-emerald-50 px-3.5 py-1 text-xs font-bold uppercase tracking-[0.2em] text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />
+          Billing &amp; Revenue Protection
+        </div>
+        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+          Quản lý tài chính &amp; phí VietSage SaaS
+        </h1>
+        <p className="max-w-3xl text-sm leading-relaxed text-slate-600 dark:text-slate-400">
           Xem thông tin hóa đơn folio khách đang lưu trú và đối soát minh bạch chi phí VietSage SaaS theo lượt phòng/ngày.
         </p>
       </div>

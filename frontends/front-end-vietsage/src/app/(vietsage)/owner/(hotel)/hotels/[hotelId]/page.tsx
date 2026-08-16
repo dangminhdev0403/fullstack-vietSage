@@ -1,14 +1,11 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { auth } from "@/auth";
 import { HttpError } from "@/core/http/http-error";
 import { adminService } from "@/features/admin/service/admin-service-instance";
 import type { Hotel } from "@/features/admin/types/admin-contract";
-import type { DashboardNavItem } from "@/features/workspace/types/workspace-navigation";
 import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 
-import { VsIcon } from "../../../../_components/vs-icon";
 import { ownerAccessMessage } from "../../../_components/owner-auth";
 import { OwnerHotelDetailClient } from "./owner-hotel-detail-client";
 
@@ -30,10 +27,9 @@ async function getOwnerVisibleHotel(hotelId: string, accessToken: string | undef
 export default async function OwnerHotelPage({ params }: OwnerHotelPageProps) {
   const { hotelId } = await Promise.resolve(params);
   const session = await auth();
-    const callbackUrl = `/owner/hotels/${hotelId}` as const;
+  const callbackUrl = `/owner/hotels/${hotelId}` as const;
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
   
-  let sidebarItems: DashboardNavItem[];
   let hotel: Hotel | null;
 
   try {

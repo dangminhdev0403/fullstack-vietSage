@@ -11,8 +11,6 @@ import {
 } from "@/components/ui/data-table";
 import {
   calculateOrderFinancials,
-  formatQuantityWithUnit,
-  getCanonicalOrderItems,
   getPartnerAuthorizedOrderItems,
   getServicePricingUnit,
   isTerminalOrderStatus,

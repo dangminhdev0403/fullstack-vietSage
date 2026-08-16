@@ -142,7 +142,11 @@ export class GuestMarketplaceController {
   syncCart(@Req() req: RequestWithGuestSession, @Body() body: unknown) {
     const locale = this.i18n.resolveLocale(req);
     return this.service.syncCart(
-      { hotelId: req.guestSession.hotelId, stayId: req.guestSession.stayId, sessionId: req.guestSession.sessionId },
+      {
+        hotelId: req.guestSession.hotelId,
+        stayId: req.guestSession.stayId,
+        sessionId: req.guestSession.sessionId,
+      },
       parseWithZod(syncCartSchema, body),
       locale,
     );

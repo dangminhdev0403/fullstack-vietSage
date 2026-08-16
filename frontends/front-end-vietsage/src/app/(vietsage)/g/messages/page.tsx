@@ -61,7 +61,6 @@ export default function GuestMessagesPage() {
   const { locale, t } = useGuestI18n();
   const hydrated = useGuestStoreHydrated();
   const sessionToken = useGuestStore((state) => state.sessionToken);
-  const trustedStayId = useGuestStore((state) => state.stayId);
   const room = useGuestStore((state) => state.room);
   const [body, setBody] = useState("");
   const [sendError, setSendError] = useState<string | null>(null);
@@ -72,7 +71,7 @@ export default function GuestMessagesPage() {
   const prevMessageCountRef = useRef<number>(0);
   const justSentRef = useRef<boolean>(false);
   const [showNewMessageBadge, setShowNewMessageBadge] = useState(false);
-  const [conversationClosed, setConversationClosed] = useState(false);
+  const [conversationClosed] = useState(false);
   const isNearBottomRef = useRef(true);
 
   const lastSentAtRef = useRef<number>(0);
@@ -86,6 +85,7 @@ export default function GuestMessagesPage() {
   });
   const historyInput = { limit: 20 } as const;
   const historyOptions = guestMessages.infiniteQueries.history.options(historyInput);
+  const unreadSummaryQueryKey = guestMessages.queries.unreadSummary.options(undefined as never).queryKey;
 
   const messagesQuery = useInfiniteQuery({
     ...historyOptions,
@@ -113,26 +113,13 @@ export default function GuestMessagesPage() {
     .map((message) => message.id)
     .join(",");
 
-  const appendRealtimeMessage = (message: GuestMessagesResult["items"][number]) => {
-    queryClient.setQueryData<InfiniteData<GuestMessagesResult>>(
-      historyOptions.queryKey,
-      (current) => {
-        if (!current?.pages.length || current.pages.some((page) => page.items.some((item) => item.id === message.id))) {
-          return current;
-        }
-        const nextPages = [...current.pages];
-        nextPages[0] = { ...nextPages[0], items: [...nextPages[0].items, message] };
-        return { ...current, pages: nextPages };
-      },
-    );
-  };
   useEffect(() => {
     const handleRealtime = (e: Event) => {
       const customEvent = e as CustomEvent<GuestRequestRealtimeBrowserEvent>;
       const detail = customEvent.detail;
       if (detail?.kind === "reconnected") {
         queryClient.invalidateQueries({ queryKey: historyOptions.queryKey }).catch(() => {});
-        queryClient.invalidateQueries({ queryKey: guestMessages.queries.unreadSummary.options(undefined as never).queryKey }).catch(() => {});
+        queryClient.invalidateQueries({ queryKey: unreadSummaryQueryKey }).catch(() => {});
       } else {
         queryClient.invalidateQueries({ queryKey: historyOptions.queryKey }).catch(() => {});
       }
@@ -141,7 +128,7 @@ export default function GuestMessagesPage() {
     return () => {
       window.removeEventListener(GUEST_REQUEST_REALTIME_BROWSER_EVENT, handleRealtime);
     };
-  }, [historyOptions.queryKey, queryClient]);
+  }, [historyOptions.queryKey, queryClient, unreadSummaryQueryKey]);
 
   useEffect(() => {
     if (!sessionToken || !unreadStaffMessageKey) return;

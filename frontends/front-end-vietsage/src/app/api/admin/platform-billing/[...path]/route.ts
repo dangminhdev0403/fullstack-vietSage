@@ -1,11 +1,9 @@
-import { auth } from "@/auth";
 import { resolveConfiguredBackendApiBaseUrl } from "@/core/http/backend-api-config";
 import { readServerSessionTokens } from "@/libs/server-session-tokens";
 
 export const dynamic = "force-dynamic";
 
 async function proxyToNest(request: Request, params: { path: string[] }) {
-  const session = await auth();
   const tokens = await readServerSessionTokens();
   const subPath = params.path.join("/");
   const backendBaseUrl = resolveConfiguredBackendApiBaseUrl({

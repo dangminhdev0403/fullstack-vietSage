@@ -3,7 +3,6 @@ import { auth } from "@/auth";
 import { adminService } from "@/features/admin/service/admin-service-instance";
 import { StaffManagementClient } from "@/features/staff-management/components/staff-management-client";
 import { hasWorkspaceCapability } from "@/features/workspace/utils/workspace-context";
-import { buildWorkspaceNavigation } from "@/features/workspace/config/workspace-registry";
 import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 import type { TenantOption, TenantOwnerPage } from "@/features/admin/types/admin-contract";

@@ -15,29 +15,31 @@ export function BillingTabSwitcher({ hotelId, foliosPage }: BillingTabSwitcherPr
 
   return (
     <div className="space-y-6">
-      <div className="border-b border-slate-200 dark:border-slate-800">
-        <nav className="-mb-px flex gap-6">
-          <button
-            onClick={() => setActiveTab("folios")}
-            className={`border-b-2 py-3 text-sm font-semibold transition-colors ${
-              activeTab === "folios"
-                ? "border-emerald-600 text-emerald-600 dark:border-emerald-400 dark:text-emerald-400"
-                : "border-transparent text-slate-500 hover:text-slate-700"
-            }`}
-          >
-            Hóa đơn Folio Khách
-          </button>
-          <button
-            onClick={() => setActiveTab("saas")}
-            className={`border-b-2 py-3 text-sm font-semibold transition-colors ${
-              activeTab === "saas"
-                ? "border-emerald-600 text-emerald-600 dark:border-emerald-400 dark:text-emerald-400"
-                : "border-transparent text-slate-500 hover:text-slate-700"
-            }`}
-          >
-            Đối soát Phí VietSage SaaS
-          </button>
-        </nav>
+      <div className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-slate-100/80 p-1.5 dark:border-slate-800 dark:bg-slate-900/80 w-fit">
+        <button
+          type="button"
+          onClick={() => setActiveTab("folios")}
+          className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition-all duration-200 ${
+            activeTab === "folios"
+              ? "bg-white text-emerald-700 shadow-sm dark:bg-slate-800 dark:text-emerald-400"
+              : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+          }`}
+        >
+          <span className="text-base">📄</span>
+          <span>Hóa đơn Folio Khách</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("saas")}
+          className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition-all duration-200 ${
+            activeTab === "saas"
+              ? "bg-white text-emerald-700 shadow-sm dark:bg-slate-800 dark:text-emerald-400"
+              : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+          }`}
+        >
+          <span className="text-base">📊</span>
+          <span>Đối soát Phí VietSage SaaS</span>
+        </button>
       </div>
 
       {activeTab === "folios" ? (

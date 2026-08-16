@@ -206,6 +206,7 @@ export async function reconcilePlatformBillingRange(
     JOIN "Hotel" h ON h.id = c."hotelId"
     JOIN "GuestStay" s ON s."hotelId" = c."hotelId"
     WHERE c.id = ${contractId} AND s."checkedInAt" IS NOT NULL
+      AND s.status <> 'CANCELLED'::"GuestStayStatus"
       AND s."checkedInAt" < (${toDateExclusive}::date::timestamp AT TIME ZONE ${HTZ})
       AND (s."checkedOutAt" IS NULL OR s."checkedOutAt" > (${fromDate}::date::timestamp AT TIME ZONE ${HTZ}))
     ON CONFLICT ("sourceType", "sourceId", occurrence) DO UPDATE
@@ -225,6 +226,7 @@ export async function reconcilePlatformBillingRange(
       FROM "PlatformBillingContract" c
       JOIN "PlatformUsage" u ON u."hotelId" = c."hotelId"
       JOIN "Room" room ON room.id = u."subjectId"
+      LEFT JOIN "GuestStay" s ON s.id = u."sourceId" AND u."sourceType" = 'GUEST_STAY'
       CROSS JOIN days d
       JOIN LATERAL (
         SELECT r.* FROM "PlatformBillingContractRevision" r
@@ -232,6 +234,7 @@ export async function reconcilePlatformBillingRange(
         ORDER BY r."effectiveFrom" DESC LIMIT 1
       ) r ON TRUE
       WHERE c.id = ${contractId}
+        AND (u."sourceType" <> 'GUEST_STAY' OR s.id IS NULL OR s.status <> 'CANCELLED'::"GuestStayStatus")
         AND d."serviceDate" >= ${fromDate}::date AND d."serviceDate" < ${toDateExclusive}::date
         AND u."startedAt" < ((d."serviceDate" + 1)::timestamp AT TIME ZONE ${UTZ})
         AND COALESCE(u."endedAt", ${watermark}) > (d."serviceDate"::timestamp AT TIME ZONE ${UTZ})
@@ -268,6 +271,7 @@ export async function reconcilePlatformBillingRange(
       SELECT DISTINCT c.id AS "contractId", u."subjectType", u."subjectId", d."serviceDate"
       FROM "PlatformBillingContract" c
       JOIN "PlatformUsage" u ON u."hotelId" = c."hotelId"
+      LEFT JOIN "GuestStay" s ON s.id = u."sourceId" AND u."sourceType" = 'GUEST_STAY'
       CROSS JOIN days d
       JOIN LATERAL (
         SELECT r.id FROM "PlatformBillingContractRevision" r
@@ -275,6 +279,7 @@ export async function reconcilePlatformBillingRange(
         ORDER BY r."effectiveFrom" DESC LIMIT 1
       ) r ON TRUE
       WHERE c.id = ${contractId}
+        AND (u."sourceType" <> 'GUEST_STAY' OR s.id IS NULL OR s.status <> 'CANCELLED'::"GuestStayStatus")
         AND d."serviceDate" >= ${fromDate}::date AND d."serviceDate" < ${toDateExclusive}::date
         AND u."startedAt" < ((d."serviceDate" + 1)::timestamp AT TIME ZONE ${UTZ})
         AND COALESCE(u."endedAt", ${watermark}) > (d."serviceDate"::timestamp AT TIME ZONE ${UTZ})
@@ -819,8 +824,6 @@ export class PlatformBillingService {
   ) {
     const periodPage = Math.max(1, queryParam?.periodPage || 1);
     const periodLimit = Math.min(50, Math.max(1, queryParam?.periodLimit || 10));
-    const billableDayPage = Math.max(1, queryParam?.billableDayPage || 1);
-    const billableDayLimit = Math.min(100, Math.max(1, queryParam?.billableDayLimit || 20));
     const monthDate = queryParam?.monthDate;
 
     await this.hotelAccessService.assertHotelAccess(
@@ -844,9 +847,7 @@ export class PlatformBillingService {
         usageCount: 0,
         estimatedFee: 0,
         periods: [],
-        billableDays: [],
         periodsPage: { page: periodPage, limit: periodLimit, total: 0, items: [] },
-        billableDaysPage: { page: billableDayPage, limit: billableDayLimit, total: 0, items: [] },
         reminder: {
           dueSoonCount: 0,
           overdueCount: 0,
@@ -854,90 +855,87 @@ export class PlatformBillingService {
           overdueOutstandingAmount: new Prisma.Decimal(0),
           nearestDueAt: null,
         },
-        dailySummaries: [],
         roomUsageSummary: [],
       };
     }
 
     const targetDate = monthDate ? new Date(monthDate) : new Date();
+    if (!Number.isFinite(targetDate.getTime())) {
+      throw new BadRequestException("Tháng đối soát không hợp lệ");
+    }
     const startOfMonth = new Date(
       Date.UTC(targetDate.getUTCFullYear(), targetDate.getUTCMonth(), 1),
     );
     const endOfMonth = new Date(
       Date.UTC(targetDate.getUTCFullYear(), targetDate.getUTCMonth() + 1, 1),
     );
+    const monthKey = startOfMonth.toISOString().slice(0, 7);
 
     const now = new Date();
     const next7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-    const [
-      totalBillableDaysCount,
-      paginatedBillableDays,
-      monthBillableDays,
-      totalPeriodsCount,
-      paginatedPeriods,
-      summaries,
-      rooms,
-      platformUsages,
-      reminderRaw,
-    ] = await Promise.all([
-      this.prisma.platformBillableDay.count({
-        where: {
-          contractId: contract.id,
-          serviceDate: { gte: startOfMonth, lt: endOfMonth },
-        },
-      }),
-      this.prisma.platformBillableDay.findMany({
-        where: {
-          contractId: contract.id,
-          serviceDate: { gte: startOfMonth, lt: endOfMonth },
-        },
-        orderBy: { serviceDate: "desc" },
-        skip: (billableDayPage - 1) * billableDayLimit,
-        take: billableDayLimit,
-      }),
-      this.prisma.platformBillableDay.findMany({
-        where: {
-          contractId: contract.id,
-          serviceDate: { gte: startOfMonth, lt: endOfMonth },
-        },
-        select: { subjectId: true, amount: true, currency: true },
-      }),
+    const [roomRows, totalPeriodsCount, paginatedPeriods, reminderRaw] = await Promise.all([
+      // Single grouped pass: valid (non-cancelled) stays overlapping the month + persisted
+      // billable room-days for the same month, keyed per room. No N+1, no double counting.
+      // ponytail: month window uses UTC boundaries like the previous implementation;
+      // switch to hotel-timezone bounds if cross-midnight edge days ever matter.
+      this.prisma.$queryRaw<
+        Array<{
+          roomNumber: string;
+          usageCount: number;
+          billableDaysCount: number;
+          billedAmount: Prisma.Decimal | number | string;
+          currency: string | null;
+          currencyCount: number;
+        }>
+      >`
+        WITH bd AS (
+          SELECT b."subjectId",
+                 COUNT(*)::int AS "days",
+                 SUM(b.amount) AS "amount",
+                 MIN(b.currency) AS "currency",
+                 COUNT(DISTINCT b.currency)::int AS "currencyCount"
+          FROM "PlatformBillableDay" b
+          WHERE b."contractId" = ${contract.id}
+            AND b."subjectType" = 'ROOM'
+            AND b."serviceDate" >= ${startOfMonth}
+            AND b."serviceDate" < ${endOfMonth}
+          GROUP BY b."subjectId"
+        ), us AS (
+          SELECT u."subjectId", COUNT(DISTINCT u."sourceId")::int AS "stays"
+          FROM "PlatformUsage" u
+          LEFT JOIN "GuestStay" s ON s.id = u."sourceId" AND u."sourceType" = 'GUEST_STAY'
+          WHERE u."hotelId" = ${hotelId}
+            AND u."sourceType" = 'GUEST_STAY'
+            AND u."subjectType" = 'ROOM'
+            AND (s.id IS NULL OR s.status <> 'CANCELLED'::"GuestStayStatus")
+            AND u."startedAt" < ${endOfMonth}
+            AND COALESCE(u."endedAt", ${now}) >= ${startOfMonth}
+          GROUP BY u."subjectId"
+        ), subjects AS (
+          SELECT "subjectId" FROM bd UNION SELECT "subjectId" FROM us
+        )
+        SELECT COALESCE(r."roomNumber", sub."subjectId") AS "roomNumber",
+               COALESCE(us."stays", 0) AS "usageCount",
+               COALESCE(bd."days", 0) AS "billableDaysCount",
+               COALESCE(bd."amount", 0) AS "billedAmount",
+               bd."currency" AS "currency",
+               COALESCE(bd."currencyCount", 0) AS "currencyCount"
+        FROM subjects sub
+        LEFT JOIN "Room" r ON r.id = sub."subjectId"
+        LEFT JOIN bd ON bd."subjectId" = sub."subjectId"
+        LEFT JOIN us ON us."subjectId" = sub."subjectId"
+        ORDER BY 1
+      `,
       this.prisma.platformBillingPeriod.count({
-        where: { contractId: contract.id },
+        where: { contractId: contract.id, status: "FINALIZED" },
       }),
       this.prisma.platformBillingPeriod.findMany({
-        where: { contractId: contract.id },
+        where: { contractId: contract.id, status: "FINALIZED" },
         include: { settlements: true, adjustments: true },
         orderBy: { periodStart: "desc" },
         skip: (periodPage - 1) * periodLimit,
         take: periodLimit,
-      }),
-      this.prisma.platformBillingDailySummary.findMany({
-        where: {
-          contractId: contract.id,
-          serviceDate: { gte: startOfMonth, lt: endOfMonth },
-        },
-        orderBy: { serviceDate: "desc" },
-      }),
-      this.prisma.room.findMany({
-        where: { hotelId },
-        select: { id: true, roomNumber: true },
-      }),
-      this.prisma.platformUsage.findMany({
-        where: {
-          hotelId,
-          startedAt: { gte: startOfMonth, lt: endOfMonth },
-        },
-        select: {
-          id: true,
-          subjectId: true,
-          occurrence: true,
-          startedAt: true,
-          endedAt: true,
-          durationMinutes: true,
-        },
-        orderBy: { startedAt: "desc" },
       }),
       this.prisma.$queryRaw<
         Array<{
@@ -965,78 +963,29 @@ export class PlatformBillingService {
       `,
     ]);
 
-    const roomMap = new Map(rooms.map((r) => [r.id, r.roomNumber]));
-    const mappedBillableDays = paginatedBillableDays.map((bd) => ({
-      ...bd,
-      roomNumber: roomMap.get(bd.subjectId) ?? bd.subjectId,
-    }));
-
     const activeRevision = contract.revisions[0];
     const unitPrice = activeRevision ? Number(activeRevision.roomDayUnitPrice) : 0;
     const defaultCurrency = activeRevision?.currency ?? "VND";
 
-    const roomUsageMap = new Map<
-      string,
-      {
-        roomNumber: string;
-        usageCount: number;
-        billableDaysCount: number;
-        billedAmount: number;
-        currency: string;
-      }
-    >();
-
-    for (const room of rooms) {
-      roomUsageMap.set(room.id, {
-        roomNumber: room.roomNumber,
-        usageCount: 0,
-        billableDaysCount: 0,
-        billedAmount: 0,
-        currency: defaultCurrency,
-      });
-    }
-
-    for (const pu of platformUsages) {
-      const entry = roomUsageMap.get(pu.subjectId) ?? {
-        roomNumber: roomMap.get(pu.subjectId) ?? pu.subjectId,
-        usageCount: 0,
-        billableDaysCount: 0,
-        billedAmount: 0,
-        currency: defaultCurrency,
-      };
-      entry.usageCount += 1;
-      roomUsageMap.set(pu.subjectId, entry);
-    }
-
-    for (const bd of monthBillableDays) {
-      const entry = roomUsageMap.get(bd.subjectId) ?? {
-        roomNumber: roomMap.get(bd.subjectId) ?? bd.subjectId,
-        usageCount: 0,
-        billableDaysCount: 0,
-        billedAmount: 0,
-        currency: bd.currency || defaultCurrency,
-      };
-
-      const bdCurrency = bd.currency || defaultCurrency;
-      if (entry.billableDaysCount > 0 && entry.currency !== bdCurrency) {
+    const roomUsageSummary = (roomRows ?? []).map((row) => {
+      if (Number(row.currencyCount ?? 0) > 1) {
         throw new BadRequestException(
-          `Phát hiện nhiều loại tiền tệ khác nhau (${entry.currency}, ${bdCurrency}) trong cùng một phòng`,
+          `Phát hiện nhiều loại tiền tệ khác nhau trong cùng một phòng (${row.roomNumber})`,
         );
       }
+      return {
+        roomNumber: String(row.roomNumber),
+        usageCount: Number(row.usageCount ?? 0),
+        billableDaysCount: Number(row.billableDaysCount ?? 0),
+        billedAmount: Number(row.billedAmount ?? 0),
+        currency: row.currency || defaultCurrency,
+      };
+    });
 
-      entry.currency = bdCurrency;
-      entry.billableDaysCount += 1;
-      entry.billedAmount += Number(bd.amount ?? 0);
-      roomUsageMap.set(bd.subjectId, entry);
-    }
-
-    const roomUsageSummary = Array.from(roomUsageMap.values()).filter(
-      (r) => r.usageCount > 0 || r.billableDaysCount > 0,
-    );
-
-    const billableDaysCount = totalBillableDaysCount;
-    const usageCount = platformUsages.length;
-    const estimatedFee = monthBillableDays.reduce((sum, day) => sum + Number(day.amount), 0);
+    // KPI totals are the sum of the same room rows the table renders — guaranteed consistent.
+    const billableDaysCount = roomUsageSummary.reduce((sum, r) => sum + r.billableDaysCount, 0);
+    const usageCount = roomUsageSummary.reduce((sum, r) => sum + r.usageCount, 0);
+    const estimatedFee = roomUsageSummary.reduce((sum, r) => sum + r.billedAmount, 0);
 
     const projectedPeriods = paginatedPeriods.map((p) => attachPeriodProjection(p));
 
@@ -1063,27 +1012,18 @@ export class PlatformBillingService {
       items: projectedPeriods,
     };
 
-    const billableDaysPage = {
-      page: billableDayPage,
-      limit: billableDayLimit,
-      total: totalBillableDaysCount,
-      items: mappedBillableDays,
-    };
-
     return {
       hasContract: true,
       contract,
       unitPrice,
+      monthKey,
       billableDaysCount,
       usageCount,
       estimatedFee,
-      billableDays: mappedBillableDays,
       periods: projectedPeriods,
       periodsPage,
-      billableDaysPage,
       reminder,
       roomUsageSummary,
-      dailySummaries: summaries,
     };
   }
 }

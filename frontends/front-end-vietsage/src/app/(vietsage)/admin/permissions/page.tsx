@@ -8,7 +8,6 @@ import type {
   RbacRole,
 } from "@/features/rbac/types/rbac-contract";
 import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
-import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 import { VsIcon } from "../../_components/vs-icon";
 import {
   type RolePermissionsBrowserPermission,
@@ -80,7 +79,6 @@ export default async function AdminPermissionsPage({
   const requestedModuleKey = extractParam(resolvedSearchParams.module);
 
   const session = await auth();
-  const workspaceContext = await loadServerWorkspaceContext("/admin/permissions");
   const executeAuthorizedApi = createAuthorizedApiExecutor({
     session,
     callbackUrl: "/admin/permissions",

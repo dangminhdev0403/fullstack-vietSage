@@ -19,13 +19,6 @@ function getQrCodeParam(value: string | string[] | undefined): string {
 
 const RESERVED_GUEST_ROUTES = new Set(["home", "language", "requests", "services"]);
 
-const GUEST_QR_ERROR_KEYS: Record<number, string> = {
-  401: "qr.expired",
-  403: "qr.unavailable",
-  404: "qr.notFound",
-  500: "qr.interrupted",
-};
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }

@@ -30,10 +30,10 @@ const SECTION_ORDER: readonly DashboardNavSection[] = [
 ];
 
 const SECTION_LABELS: Record<DashboardNavSection, string> = {
-  OVERVIEW: "OVERVIEW",
-  OPERATIONS: "OPERATIONS",
-  ADMINISTRATION: "ADMINISTRATION",
-  PARTNERS: "PARTNERS",
+  OVERVIEW: "Tổng quan",
+  OPERATIONS: "Vận hành",
+  ADMINISTRATION: "Quản trị",
+  PARTNERS: "Đối tác",
 };
 
 export function VsDashboardSidebar({

@@ -1,22 +1,15 @@
-"use client";
-
 import {
-  type Dispatch,
   type FormEvent,
-  type SetStateAction,
   startTransition,
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
-  type QueryClient,
   useMutation,
-  useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
 import Swal from "sweetalert2";
@@ -41,20 +34,15 @@ import type {
 import { hotelRequestStatuses } from "@/features/hotel-ops/types/hotel-ops-contract";
 import {
   formatOpsDateTime,
-  getGuestLabel,
   getRequestTitle,
-  getRoomLabel,
   priorityTone,
   requestPriorityLabelMap,
   requestStatusLabelMap,
-  requestTypeLabelMap,
   statusTone,
 } from "@/features/hotel-ops/utils/hotel-ops-display";
-import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 import { requestQueueResource } from "@/features/hotel-ops/resources/request-queue-resource";
 import { useNearbyServiceProviders } from "@/features/local-partners/queries/use-local-partners";
 import type { HotelMarketplaceOrder } from "@/features/local-partners/types/local-partners-contract";
-import type { MarketplaceOrder } from "@/features/marketplace/types/marketplace-contract";
 import {
   calculateOrderFinancials,
   getCanonicalOrderItems,
@@ -100,11 +88,6 @@ type RequestQueueLabels = {
   openRequest: string;
   loadingDetail: string;
   operationError: string;
-};
-
-type UrgentRequestNotification = StaffRequestListItem & {
-  receivedAt: string;
-  acknowledgedAt?: string;
 };
 
 type RequestQueueClientProps = {
@@ -250,12 +233,6 @@ function getExternalOrderStatusLabel(status: string): { label: string; className
 
 const swalButtonColor = "#00003c";
 
-function isFinalRequestStatus(status: GuestRequestStatus): boolean {
-  return (
-    status === "COMPLETED" || status === "CANCELLED" || status === "FAILED"
-  );
-}
-
 function formatDayFilterValue(value: string | undefined): string {
   if (!value) return "";
   const trimmed = value.trim();
@@ -284,96 +261,6 @@ function getHttpErrorMessage(error: unknown, fallback: string): string {
   }
 
   return error.message;
-}
-
-function escapeHtml(value: unknown): string {
-  return String(value ?? "-").replace(/[&<>'"]/g, (character) => {
-    switch (character) {
-      case "&":
-        return "&amp;";
-      case "<":
-        return "&lt;";
-      case ">":
-        return "&gt;";
-      case "'":
-        return "&#39;";
-      case '"':
-        return "&quot;";
-      default:
-        return character;
-    }
-  });
-}
-
-function formatRequestMoney(value: unknown, currency = "VND"): string {
-  if (value === null || value === undefined || value === "") return "-";
-  const amount = typeof value === "number" ? value : Number(value);
-  if (!Number.isFinite(amount)) return String(value);
-  return `${new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(amount)} ${currency}`;
-}
-
-function getServiceDetailPrice(serviceItem: HotelGuestRequest["serviceItem"]): { value: unknown; currency: string } {
-  const category = serviceItem?.category;
-  const currency = serviceItem?.effectiveCurrency ?? category?.currency ?? serviceItem?.currency ?? "VND";
-  const value = serviceItem?.priceOverride ?? serviceItem?.effectivePrice ?? category?.defaultPrice ?? serviceItem?.price ?? null;
-  return { value, currency };
-}
-
-function renderTranslationRows(translations: Array<{ locale: string; name: string; description: string | null }> | undefined): string {
-  if (!translations?.length) return `<p style="margin:8px 0 0;color:#64748b">No multilingual content.</p>`;
-
-  return `
-    <div style="margin-top:8px;display:grid;gap:8px">
-      ${translations
-        .map((translation) => `
-          <div style="border-top:1px solid #e5e7eb;padding-top:8px">
-            <p style="margin:0"><b>${escapeHtml(translation.locale)}:</b> ${escapeHtml(translation.name)}</p>
-            <p style="margin:4px 0 0;color:#64748b">${escapeHtml(translation.description ?? "-")}</p>
-          </div>`)
-        .join("")}
-    </div>`;
-}
-
-function showServiceCatalogDetails(request: HotelGuestRequest | null, row: StaffRequestListItem, labels: RequestQueueLabels) {
-  const serviceItem = request?.serviceItem ?? null;
-  const category = serviceItem?.category ?? null;
-  const price = getServiceDetailPrice(serviceItem);
-  const serviceName = serviceItem?.name ?? row.displayName;
-  const categoryName = category?.name ?? row.categoryName ?? "-";
-
-  void Swal.fire({
-    title: labels.details,
-    html: `
-      <div style="text-align:left;display:grid;gap:12px">
-        <section style="border:1px solid #e5e7eb;border-radius:12px;padding:12px">
-          <p style="margin:0 0 6px;font-weight:700;color:#00003c">Service item</p>
-          <p style="margin:0"><b>Name:</b> ${escapeHtml(serviceName)}</p>
-          <p style="margin:4px 0 0"><b>Description:</b> ${escapeHtml(serviceItem?.description ?? row.description ?? "-")}</p>
-          <p style="margin:4px 0 0"><b>Price:</b> ${escapeHtml(formatRequestMoney(price.value, price.currency))}</p>
-          <p style="margin:4px 0 0"><b>Quantity rule:</b> ${escapeHtml(serviceItem?.quantityEnabled ? `${serviceItem.minQuantity}-${serviceItem.maxQuantity ?? "+"}` : "Not required")}</p>
-          <p style="margin:4px 0 0"><b>Status:</b> ${escapeHtml(serviceItem?.status ?? "-")}</p>
-          <p style="margin:10px 0 0;font-weight:700;color:#00003c">Multilingual options</p>
-          ${renderTranslationRows(serviceItem?.translations)}
-        </section>
-        <section style="border:1px solid #e5e7eb;border-radius:12px;padding:12px">
-          <p style="margin:0 0 6px;font-weight:700;color:#00003c">Category service</p>
-          <p style="margin:0"><b>Name:</b> ${escapeHtml(categoryName)}</p>
-          <p style="margin:4px 0 0"><b>Description:</b> ${escapeHtml(category?.description ?? "-")}</p>
-          <p style="margin:4px 0 0"><b>Default price:</b> ${escapeHtml(formatRequestMoney(category?.defaultPrice, category?.currency))}</p>
-          <p style="margin:4px 0 0"><b>Status:</b> ${escapeHtml(category?.status ?? "-")}</p>
-          <p style="margin:10px 0 0;font-weight:700;color:#00003c">Multilingual options</p>
-          ${renderTranslationRows(category?.translations)}
-        </section>
-      </div>`,
-    confirmButtonColor: swalButtonColor,
-    confirmButtonText: labels.closeDetail,
-  });
-}
-
-function hasDisplayableTimelineEvent(
-  event: NonNullable<HotelGuestRequest["events"]>[number],
-): boolean {
-  return Boolean(event.status || event.type || event.note?.trim());
 }
 
 type RequestSortKey =
@@ -438,134 +325,10 @@ function getSortableRequestValue(
   }
 }
 
-async function openRequestDetailModal({
-  request,
-  ownerApiBasePath,
-  queryClient,
-  operationErrorFallback,
-  setSelectedRow,
-  setSelectedRequest,
-  setAssignmentUserId,
-  setAssignmentNote,
-  setStatusNote,
-  setOperationError,
-}: {
-  request: StaffRequestListItem;
-  ownerApiBasePath?: string;
-  queryClient: QueryClient;
-  operationErrorFallback: string;
-  setSelectedRow: Dispatch<SetStateAction<StaffRequestListItem | null>>;
-  setSelectedRequest: Dispatch<SetStateAction<HotelGuestRequest | null>>;
-  setAssignmentUserId: Dispatch<SetStateAction<string>>;
-  setAssignmentNote: Dispatch<SetStateAction<string>>;
-  setStatusNote: Dispatch<SetStateAction<string>>;
-  setOperationError: Dispatch<SetStateAction<string | null>>;
-}) {
-  setSelectedRow(request);
-  setSelectedRequest(null);
-  setAssignmentUserId("");
-  setAssignmentNote("");
-  setStatusNote("");
-  setOperationError(null);
-
-  if (!ownerApiBasePath) return;
-
-  try {
-    const fresh = await requestQueueResource
-      .bind({ basePath: ownerApiBasePath })
-      .queries.detail.fetch(queryClient, { requestId: request.id });
-    setSelectedRequest(fresh);
-    setAssignmentUserId(fresh.assignedToUserId ?? "");
-  } catch (error) {
-    setOperationError(getHttpErrorMessage(error, operationErrorFallback));
-  }
-}
-
-function openRequestWithContext({
-  request,
-  detailMode,
-  basePath,
-  router,
-  ownerApiBasePath,
-  queryClient,
-  operationErrorFallback,
-  setSelectedRow,
-  setSelectedRequest,
-  setAssignmentUserId,
-  setAssignmentNote,
-  setStatusNote,
-  setOperationError,
-}: {
-  request: StaffRequestListItem;
-  detailMode: "page" | "modal";
-  basePath: string;
-  router: ReturnType<typeof useRouter>;
-  ownerApiBasePath?: string;
-  queryClient: QueryClient;
-  operationErrorFallback: string;
-  setSelectedRow: Dispatch<SetStateAction<StaffRequestListItem | null>>;
-  setSelectedRequest: Dispatch<SetStateAction<HotelGuestRequest | null>>;
-  setAssignmentUserId: Dispatch<SetStateAction<string>>;
-  setAssignmentNote: Dispatch<SetStateAction<string>>;
-  setStatusNote: Dispatch<SetStateAction<string>>;
-  setOperationError: Dispatch<SetStateAction<string | null>>;
-}) {
-  if (detailMode === "modal") {
-    void openRequestDetailModal({
-      request,
-      ownerApiBasePath,
-      queryClient,
-      operationErrorFallback,
-      setSelectedRow,
-      setSelectedRequest,
-      setAssignmentUserId,
-      setAssignmentNote,
-      setStatusNote,
-      setOperationError,
-    });
-    return;
-  }
-
-  router.push(`${basePath}/${request.id}`);
-}
-
-function sortUrgentNotifications(
-  notifications: UrgentRequestNotification[],
-) {
-  return notifications.sort((left, right) => {
-    if (Boolean(left.acknowledgedAt) !== Boolean(right.acknowledgedAt)) {
-      return left.acknowledgedAt ? 1 : -1;
-    }
-    return (
-      new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime()
-    );
-  });
-}
-
-function toUrgentNotification(
-  request: StaffRequestListItem,
-  existing?: UrgentRequestNotification,
-): UrgentRequestNotification {
-  return {
-    ...(existing ?? request),
-    ...request,
-    receivedAt: existing?.receivedAt ?? new Date().toISOString(),
-    acknowledgedAt: existing?.acknowledgedAt,
-  };
-}
-
 function isCheckedOutRequest(
   request: Partial<Pick<StaffRequestListItem, "checkedOutAt" | "stayStatus">>,
 ): boolean {
   return Boolean(request.checkedOutAt) || request.stayStatus === "CHECKED_OUT";
-}
-
-function shouldShowInUrgentPanel(
-  request: Partial<Pick<StaffRequestListItem, "priority" | "status" | "checkedOutAt" | "stayStatus">>,
-): boolean {
-  const status = request.status;
-  if (!status) return false;
-  return request.priority === "URGENT" && !isFinalRequestStatus(status) && !isCheckedOutRequest(request);
 }
 
 function requestToListItem(request: HotelGuestRequest): StaffRequestListItem {
@@ -589,53 +352,23 @@ function requestToListItem(request: HotelGuestRequest): StaffRequestListItem {
   };
 }
 
-function mergeUrgentRequests(
-  currentNotifications: UrgentRequestNotification[],
-  requests: StaffRequestListItem[],
-) {
-  const byId = new Map(
-    currentNotifications
-      .filter((notification) => shouldShowInUrgentPanel(notification))
-      .map((notification) => [notification.id, notification]),
-  );
-
-  requests.forEach((request) => {
-    if (shouldShowInUrgentPanel(request)) {
-      byId.set(request.id, toUrgentNotification(request, byId.get(request.id)));
-      return;
-    }
-
-    byId.delete(request.id);
-  });
-
-  return sortUrgentNotifications([...byId.values()]);
-}
-
 export function RequestQueueClient({
   hotelId,
   requests,
   total,
-  summary,
   initialFilters,
   basePath = `/hotels/${hotelId}/requests`,
   serviceCatalogPath = `/hotels/${hotelId}/services`,
   ownerApiBasePath,
   labels,
-  detailMode = "page",
-  initialDetailRequestId,
   page,
   pageSize,
   pageSizeOptions = [10, 20, 50],
 }: RequestQueueClientProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const mergedLabels = { ...defaultLabels, ...labels };
-  const operationErrorFallback = mergedLabels.operationError;
-  const canManageRequests = Boolean(ownerApiBasePath);
   const requestQueue = requestQueueResource.bind({ basePath: ownerApiBasePath ?? "" });
-  const requestedDetailId =
-    initialDetailRequestId ?? searchParams.get("requestId") ?? "";
   const [filters, setFilters] = useState(() => toFilterState(initialFilters));
   const [sortState, setSortState] = useState<{
     key: RequestSortKey;
@@ -644,12 +377,6 @@ export function RequestQueueClient({
   const [liveRequestChanges, setLiveRequestChanges] = useState<
     Record<string, Partial<StaffRequestListItem> & { id: string }>
   >({});
-  const [urgentNotifications, setUrgentNotifications] = useState<
-    UrgentRequestNotification[]
-  >(() => mergeUrgentRequests([], requests));
-  const [isUrgentPanelOpen, setIsUrgentPanelOpen] = useState(
-    searchParams.get("urgentPanel") === "1",
-  );
   const [inboxTab, setInboxTab] = useState<"HOTEL_REQUESTS" | "EXTERNAL_ORDERS" | "ALL">("HOTEL_REQUESTS");
   const [externalPage, setExternalPage] = useState(1);
   const [externalPageSize, setExternalPageSize] = useState(10);
@@ -658,114 +385,9 @@ export function RequestQueueClient({
 
   useEffect(() => {
     startTransition(() => {
-      setExternalPage(1);
-      setHotelPage(1);
+      setFilters(toFilterState(initialFilters));
     });
-  }, [inboxTab, filters]);
-
-  const [selectedRow, setSelectedRow] = useState<StaffRequestListItem | null>(
-    null,
-  );
-  const [selectedRequest, setSelectedRequest] =
-    useState<HotelGuestRequest | null>(null);
-  const [operationError, setOperationError] = useState<string | null>(null);
-  const openedDetailRequestIdRef = useRef("");
-  const [statusNote, setStatusNote] = useState("");
-  const [assignmentUserId, setAssignmentUserId] = useState("");
-  const [assignmentNote, setAssignmentNote] = useState("");
-  const selectedRequestId = selectedRow?.id;
-  const detailQueryKey = requestQueue.queries.detail.key({ requestId: selectedRequestId ?? "" });
-  const detailQuery = useQuery({
-    ...requestQueue.queries.detail.options({ requestId: selectedRequestId ?? "" }),
-    enabled:
-      detailMode === "modal" && Boolean(ownerApiBasePath && selectedRequestId),
-    refetchInterval: detailMode === "modal" && selectedRequestId ? 5000 : false,
-    refetchOnWindowFocus: true,
-  });
-  const detailRequest = detailQuery.data ?? selectedRequest;
-  const isDetailLoading = detailQuery.isFetching && !detailRequest;
-  const detailError =
-    operationError ??
-    (detailQuery.error
-      ? getHttpErrorMessage(detailQuery.error, mergedLabels.operationError)
-      : null);
-
-  useEffect(() => {
-    if (
-      detailMode !== "modal" ||
-      !ownerApiBasePath ||
-      !requestedDetailId ||
-      openedDetailRequestIdRef.current === requestedDetailId
-    ) {
-      return;
-    }
-
-    const existingRow = requests.find(
-      (request) => request.id === requestedDetailId,
-    );
-
-    if (existingRow) {
-      void openRequestDetailModal({
-        request: existingRow,
-        ownerApiBasePath,
-        queryClient,
-        operationErrorFallback,
-        setSelectedRow,
-        setSelectedRequest,
-        setAssignmentUserId,
-        setAssignmentNote,
-        setStatusNote,
-        setOperationError,
-      });
-      openedDetailRequestIdRef.current = requestedDetailId;
-      return;
-    }
-
-    let isActive = true;
-    openedDetailRequestIdRef.current = requestedDetailId;
-
-    void requestQueue.queries.detail
-      .fetch(queryClient, { requestId: requestedDetailId })
-      .then((fresh) => {
-        if (!isActive) return;
-        setSelectedRow(requestToListItem(fresh));
-        setSelectedRequest(fresh);
-        setAssignmentUserId(fresh.assignedToUserId ?? "");
-        setAssignmentNote("");
-        setStatusNote("");
-      })
-      .catch((error) => {
-        if (!isActive) return;
-        setOperationError(getHttpErrorMessage(error, operationErrorFallback));
-      });
-
-    return () => {
-      isActive = false;
-    };
-  }, [
-    detailMode,
-    operationErrorFallback,
-    ownerApiBasePath,
-    queryClient,
-    requestQueue.queries.detail,
-    requestedDetailId,
-    requests,
-  ]);
-
-  useEffect(() => {
-    const shouldOpenUrgentPanel = searchParams.get("urgentPanel") === "1";
-    if (shouldOpenUrgentPanel) {
-      queueMicrotask(() => setIsUrgentPanelOpen(true));
-    }
-  }, [searchParams]);
-
-  useEffect(() => {
-    queueMicrotask(() => {
-      setUrgentNotifications((currentNotifications) =>
-        mergeUrgentRequests(currentNotifications, requests),
-      );
-    });
-  }, [requests]);
+  }, [initialFilters]);
 
   const applyLiveRequestChange = useCallback((request: Partial<StaffRequestListItem> & { id: string }) => {
     setLiveRequestChanges((currentChanges) => ({
@@ -775,27 +397,10 @@ export function RequestQueueClient({
         ...request,
       },
     }));
-
-    setUrgentNotifications((currentNotifications) => {
-      const existing = currentNotifications.find((notification) => notification.id === request.id);
-      const merged = existing ? { ...existing, ...request } : request;
-
-      if (!shouldShowInUrgentPanel(merged)) {
-        return currentNotifications.filter((notification) => notification.id !== request.id);
-      }
-
-      const isAcknowledged = merged.status && merged.status !== "CREATED";
-      const updatedNotification = {
-        ...merged,
-        acknowledgedAt: existing?.acknowledgedAt ?? (isAcknowledged ? new Date().toISOString() : undefined),
-      };
-
-      return mergeUrgentRequests(currentNotifications, [updatedNotification as StaffRequestListItem]);
-    });
   }, []);
 
   const { orders: externalOrdersQuery } = useNearbyServiceProviders(hotelId);
-  const externalOrders = externalOrdersQuery.data ?? [];
+  const externalOrders = useMemo(() => externalOrdersQuery.data ?? [], [externalOrdersQuery.data]);
 
   const convertedExternalOrders = useMemo<StaffRequestListItem[]>(() => {
     return externalOrders.map((order) => {
@@ -935,56 +540,12 @@ export function RequestQueueClient({
 
 
   function openRequestRow(request: StaffRequestListItem) {
-    openRequestWithContext({
-      request,
-      detailMode,
-      basePath,
-      router,
-      ownerApiBasePath,
-      queryClient,
-      operationErrorFallback,
-      setSelectedRow,
-      setSelectedRequest,
-      setAssignmentUserId,
-      setAssignmentNote,
-      setStatusNote,
-      setOperationError,
-    });
+    router.push(`${basePath}/${request.id}`);
   }
 
-  const acknowledgeUrgentRequest = useCallback(
-    (requestId: string) => {
-      setUrgentNotifications((currentNotifications) =>
-        currentNotifications.map((notification) =>
-          notification.id === requestId && !notification.acknowledgedAt
-            ? { ...notification, acknowledgedAt: new Date().toISOString() }
-            : notification,
-        ),
-      );
-    },
-    [setUrgentNotifications],
-  );
-
-  const removeUrgentRequest = useCallback(
-    (requestId: string) => {
-      setUrgentNotifications((currentNotifications) =>
-        currentNotifications.filter(
-          (notification) => notification.id !== requestId,
-        ),
-      );
-    },
-    [setUrgentNotifications],
-  );
-
   function syncUpdatedRequest(updated: HotelGuestRequest) {
-    setSelectedRequest(updated);
-    setAssignmentUserId(updated.assignedToUserId ?? "");
-    setAssignmentNote("");
-    setStatusNote("");
     const listItem = requestToListItem(updated);
     applyLiveRequestChange(listItem);
-    queryClient.setQueryData(detailQueryKey, updated);
-    queryClient.invalidateQueries({ queryKey: detailQueryKey }).catch(() => {});
     queryClient.invalidateQueries({ queryKey: ["hotel-ops", hotelId] }).catch(() => {});
     queryClient.invalidateQueries({ queryKey: ["hotel-requests", hotelId] }).catch(() => {});
     queryClient.invalidateQueries({ queryKey: ["owner-requests", hotelId] }).catch(() => {});
@@ -995,20 +556,17 @@ export function RequestQueueClient({
 
   const statusMutation = useMutation(requestQueue.mutations.status.options({
     onSuccess: ({ data: updated }) => {
-      setStatusNote("");
       syncUpdatedRequest(updated);
       toast.success("Đã cập nhật trạng thái yêu cầu thành công");
     },
     onError: (error) => {
       const message = getHttpErrorMessage(error, mergedLabels.operationError);
-      setOperationError(message);
       toast.error(message);
     },
   }));
 
   const assignmentMutation = useMutation(requestQueue.mutations.assignment.options({
     onSuccess: ({ data: updated }) => {
-      setAssignmentNote("");
       syncUpdatedRequest(updated);
       void Swal.fire({
         icon: "success",
@@ -1019,7 +577,6 @@ export function RequestQueueClient({
     },
     onError: (error) => {
       const message = getHttpErrorMessage(error, mergedLabels.operationError);
-      setOperationError(message);
       void Swal.fire({
         icon: "error",
         title: "Không thể cập nhật phân công",
@@ -1082,310 +639,11 @@ export function RequestQueueClient({
     pushFilters(nextFilters);
   }
 
-  async function updateStatus(action: StaffRequestAction) {
-    if (!selectedRow || !ownerApiBasePath) return;
-
-    const meta = actionMeta[action];
-    const note = statusNote.trim() || meta.note;
-
-    setOperationError(null);
-    statusMutation.mutate({
-      requestId: selectedRow.id,
-      status: meta.status,
-      note,
-      assignedToUserId:
-        meta.status === "IN_PROGRESS"
-          ? assignmentUserId.trim() || undefined
-          : undefined,
-    });
-  }
-
-  async function saveAssignment(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!selectedRow || !ownerApiBasePath) return;
-
-    const nextAssignedToUserId = assignmentUserId.trim() || null;
-    const confirmation = await Swal.fire({
-      icon: nextAssignedToUserId ? "question" : "warning",
-      title: nextAssignedToUserId ? "Cập nhật phân công?" : "Gỡ phân công?",
-      text: nextAssignedToUserId
-        ? "Yêu cầu sẽ được giao cho nhân sự đã nhập."
-        : "Yêu cầu sẽ chuyển về trạng thái chưa phân công.",
-      showCancelButton: true,
-      confirmButtonText: "Xác nhận",
-      cancelButtonText: "Đóng",
-      confirmButtonColor: swalButtonColor,
-    });
-
-    if (!confirmation.isConfirmed) return;
-
-    setOperationError(null);
-    assignmentMutation.mutate({
-      requestId: selectedRow.id,
-      assignedToUserId: nextAssignedToUserId,
-      note: assignmentNote.trim() || undefined,
-    });
-  }
-
-  async function unassignRequest() {
-    if (!selectedRow || !ownerApiBasePath) return;
-
-    const confirmation = await Swal.fire({
-      icon: "warning",
-      title: "Gỡ phân công?",
-      text: "Yêu cầu sẽ chuyển về trạng thái chưa phân công.",
-      showCancelButton: true,
-      confirmButtonText: "Gỡ phân công",
-      cancelButtonText: "Đóng",
-      confirmButtonColor: swalButtonColor,
-    });
-
-    if (!confirmation.isConfirmed) return;
-
-    setOperationError(null);
-    assignmentMutation.mutate({
-      requestId: selectedRow.id,
-      assignedToUserId: null,
-      note: assignmentNote.trim() || "Đã gỡ phân công nhân sự.",
-    });
-  }
-
-  function renderRequestDetail(
-    row: StaffRequestListItem,
-    request: HotelGuestRequest | null,
-  ) {
-    const events = (request?.events ?? []).filter(hasDisplayableTimelineEvent);
-    const displayName = request ? getRequestTitle(request) : row.displayName;
-    const currentStatus = request?.status ?? row.status;
-    const availableActions = statusActions[currentStatus];
-    const isCheckedOut = isCheckedOutRequest(row);
-    const shouldShowActionPanel =
-      canManageRequests && !isFinalRequestStatus(currentStatus) && !isCheckedOut;
-
-    return (
-      <div
-        className={`grid gap-5 ${shouldShowActionPanel ? "xl:grid-cols-[minmax(0,1fr)_320px]" : ""}`}
-      >
-        <div className="space-y-5">
-          <div className="rounded-xl border border-[color:rgba(198,197,213,0.24)] bg-[var(--surface-container-low)] p-4">
-            <div className="flex flex-wrap gap-2">
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-bold ${statusTone(currentStatus)}`}
-              >
-                {requestStatusLabelMap[currentStatus]}
-              </span>
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-bold ${priorityTone(request?.priority ?? row.priority)}`}
-              >
-                {requestPriorityLabelMap[request?.priority ?? row.priority]}
-              </span>
-            </div>
-            <h3 className="mt-4 text-2xl font-semibold text-[var(--primary)]">
-              {displayName}
-            </h3>
-            <p className="mt-1 text-sm text-[var(--on-surface-variant)]">
-              {request?.type ? `${requestTypeLabelMap[request.type]} - ` : ""}
-              {formatOpsDateTime(request?.createdAt ?? row.createdAt)}
-            </p>
-          </div>
-          {isCheckedOut ? (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-900">
-              Khách đã checkout nên yêu cầu này không thể tiếp tục phục vụ. Vui lòng giữ lại để đối soát hoặc đóng yêu cầu theo quy trình nội bộ.
-            </div>
-          ) : null}
-          <div
-            className={`grid gap-3 md:grid-cols-2 ${shouldShowActionPanel ? "" : "xl:grid-cols-3"}`}
-          >
-            <div className="rounded-lg bg-[var(--surface-container-low)] p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
-                {mergedLabels.reservationCode}
-              </p>
-              <p className="mt-1 font-semibold text-[var(--primary)]">
-                {request?.stay?.reservationCode ?? request?.stayId ?? "-"}
-              </p>
-            </div>
-            <div className="rounded-lg bg-[var(--surface-container-low)] p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
-                {mergedLabels.room}
-              </p>
-              <p className="mt-1 font-semibold text-[var(--primary)]">
-                {request ? getRoomLabel(request) : `Phòng ${row.roomNumber}`}
-              </p>
-            </div>
-            <div className="rounded-lg bg-[var(--surface-container-low)] p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
-                {mergedLabels.assigned}
-              </p>
-              <p className="mt-1 font-semibold text-[var(--primary)]">
-                {request?.assignedToUser?.name ??
-                  request?.assignedToUserId ??
-                  row.assignedToName ??
-                  mergedLabels.unassigned}
-              </p>
-            </div>
-            <div className="rounded-lg bg-[var(--surface-container-low)] p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
-                {mergedLabels.guest}
-              </p>
-              <p className="mt-1 font-semibold text-[var(--primary)]">
-                {request ? getGuestLabel(request) : (row.guestName ?? "Khách")}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => showServiceCatalogDetails(request, row, mergedLabels)}
-              className="rounded-lg bg-[var(--surface-container-low)] p-4 text-left transition hover:bg-[var(--surface-container)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
-            >
-              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
-                {mergedLabels.service}
-              </p>
-              <p className="mt-1 font-semibold text-[var(--primary)]">
-                {request?.serviceItem?.name ?? row.displayName}
-              </p>
-              <p className="mt-2 text-xs font-semibold text-[var(--secondary)]">
-                {mergedLabels.details}
-              </p>
-            </button>
-            <div className="rounded-lg bg-[var(--surface-container-low)] p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
-                {mergedLabels.quantity}
-              </p>
-              <p className="mt-1 font-semibold text-[var(--primary)]">
-                {row.quantity}
-              </p>
-            </div>
-          </div>
-          {(request?.details ?? row.description) ? (
-            <div className="rounded-lg border border-[color:rgba(198,197,213,0.24)] p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
-                {mergedLabels.details}
-              </p>
-              <p className="mt-2 text-sm leading-6 text-[var(--on-surface-variant)]">
-                {request?.details ?? row.description}
-              </p>
-            </div>
-          ) : null}
-          <section className="rounded-xl border border-[color:rgba(198,197,213,0.24)] p-4">
-            <h3 className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
-              {mergedLabels.timeline}
-            </h3>
-            <div className="mt-3 space-y-3">
-              {events.map((event) => (
-                <div
-                  key={event.id}
-                  className="grid gap-2 rounded-lg bg-[var(--surface-container-low)] p-3 md:grid-cols-[1fr_auto] md:items-center"
-                >
-                  <p className="text-sm font-semibold text-[var(--primary)]">
-                    {event.status
-                      ? requestStatusLabelMap[event.status]
-                      : (event.type ?? mergedLabels.timelineNote)}
-                  </p>
-                  <span className="text-xs text-[var(--on-surface-variant)]">
-                    {formatOpsDateTime(event.createdAt)}
-                  </span>
-                  {event.note ? (
-                    <p className="mt-2 text-sm leading-6 text-[var(--on-surface-variant)]">
-                      {event.note}
-                    </p>
-                  ) : null}
-                </div>
-              ))}
-              {events.length === 0 ? (
-                <p className="text-sm text-[var(--on-surface-variant)]">
-                  {mergedLabels.noTimeline}
-                </p>
-              ) : null}
-            </div>
-          </section>
-        </div>
-
-        {shouldShowActionPanel ? (
-          <aside className="space-y-4">
-            {detailError ? (
-              <div className="rounded-lg border border-[var(--error)] bg-[var(--error-container)] p-3 text-sm font-semibold text-[var(--on-error-container)]">
-                {detailError}
-              </div>
-            ) : null}
-            {isDetailLoading ? (
-              <div className="rounded-lg bg-[var(--surface-container-low)] p-3 text-sm text-[var(--on-surface-variant)]">
-                {mergedLabels.loadingDetail}
-              </div>
-            ) : null}
-            <section className="rounded-xl border border-[color:rgba(198,197,213,0.24)] p-4">
-              <h3 className="font-semibold text-[var(--primary)]">
-                {mergedLabels.statusActions}
-              </h3>
-              <p className="mt-1 text-xs leading-5 text-[var(--on-surface-variant)]">
-                {mergedLabels.guestVisibleNoteHelp}
-              </p>
-              <textarea
-                value={statusNote}
-                onChange={(event) => setStatusNote(event.target.value)}
-                placeholder={mergedLabels.actionNote}
-                className="mt-3 min-h-24 w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 text-sm outline-none focus:border-[var(--primary)]"
-              />
-              <div className="mt-3 grid gap-2">
-                {availableActions.map((action) => (
-                  <button
-                    key={action}
-                    type="button"
-                    disabled={isMutating}
-                    onClick={() => void updateStatus(action)}
-                    className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all duration-150 shadow-2xs hover:shadow-xs active:scale-[0.98] disabled:opacity-60 ${actionMeta[action].className}`}
-                  >
-                    <VsIcon name={actionMeta[action].icon} className="text-sm opacity-80 shrink-0" />
-                    <span>{actionMeta[action].label}</span>
-                  </button>
-                ))}
-              </div>
-            </section>
-            <form
-              onSubmit={saveAssignment}
-              className="rounded-xl border border-[color:rgba(198,197,213,0.24)] p-4"
-            >
-              <h3 className="font-semibold text-[var(--primary)]">
-                {mergedLabels.assignment}
-              </h3>
-              <input
-                value={assignmentUserId}
-                onChange={(event) => setAssignmentUserId(event.target.value)}
-                placeholder={mergedLabels.staffUserId}
-                className="mt-3 w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 text-sm outline-none focus:border-[var(--primary)]"
-              />
-              <textarea
-                value={assignmentNote}
-                onChange={(event) => setAssignmentNote(event.target.value)}
-                placeholder={mergedLabels.assignmentNote}
-                className="mt-2 min-h-20 w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 text-sm outline-none focus:border-[var(--primary)]"
-              />
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <button
-                  disabled={isMutating}
-                  className="rounded-lg bg-[var(--primary)] px-3 py-2 text-sm font-semibold text-[var(--on-primary)] disabled:opacity-60"
-                >
-                  {mergedLabels.saveAssignment}
-                </button>
-                <button
-                  type="button"
-                  disabled={isMutating}
-                  onClick={() => void unassignRequest()}
-                  className="rounded-lg border border-[var(--outline-variant)] px-3 py-2 text-sm font-semibold text-[var(--primary)] disabled:opacity-60"
-                >
-                  {mergedLabels.unassign}
-                </button>
-              </div>
-            </form>
-          </aside>
-        ) : null}
-      </div>
-    );
-  }
-
   async function updateStatusForRequest(targetRow: StaffRequestListItem, action: StaffRequestAction) {
     if (!ownerApiBasePath) return;
 
     const meta = actionMeta[action];
-    const note = statusNote.trim() || meta.note;
+    const note = meta.note;
 
     const confirmation = await Swal.fire({
       icon: meta.status === "CANCELLED" || meta.status === "FAILED" ? "warning" : "question",
@@ -1399,7 +657,6 @@ export function RequestQueueClient({
 
     if (!confirmation.isConfirmed) return;
 
-    setOperationError(null);
     try {
       const updated = await requestInternalApi<HotelGuestRequest>(
         `${ownerApiBasePath}/${encodeURIComponent(targetRow.id)}/status`,
@@ -1412,11 +669,9 @@ export function RequestQueueClient({
         },
       );
       syncUpdatedRequest(updated);
-      setStatusNote("");
       toast.success(`Đã ${meta.label.toLowerCase()} yêu cầu phòng ${targetRow.roomNumber}`);
     } catch (error) {
       const message = getHttpErrorMessage(error, mergedLabels.operationError);
-      setOperationError(message);
       toast.error(message);
     }
   }
@@ -1520,7 +775,6 @@ export function RequestQueueClient({
                   disabled={isMutating}
                   onClick={(e) => {
                     e.stopPropagation();
-                    setSelectedRow(request);
                     void updateStatusForRequest(request, action);
                   }}
                   className={`inline-flex items-center justify-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold whitespace-nowrap transition-all duration-150 shadow-2xs hover:shadow-xs active:scale-[0.97] disabled:opacity-50 ${meta.className}`}

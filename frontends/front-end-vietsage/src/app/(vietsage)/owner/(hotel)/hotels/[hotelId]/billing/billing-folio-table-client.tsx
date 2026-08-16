@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Swal from "sweetalert2";
 
 import { requestInternalApi } from "@/core/http/internal-api-client";
+import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import type { BillingPage, FolioListItem, Invoice } from "@/features/billing/types/billing-contract";
 import { formatDateTime, formatMoney } from "@/features/billing/utils/money";
 
@@ -156,36 +157,50 @@ export function BillingFolioTableClient({
 
   return (
     <>
-      <section className="overflow-hidden rounded-[2rem] border border-[var(--outline-variant)] bg-white shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
-        <div className="relative overflow-hidden border-b border-[var(--outline-variant)] bg-[linear-gradient(135deg,#fff7ed_0%,#ecfeff_52%,#f8fafc_100%)] p-6">
-          <div className="absolute right-8 top-6 h-28 w-28 rounded-full bg-[var(--primary)]/10 blur-2xl" />
-          <div className="relative grid gap-4 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.28em] text-[var(--primary)]">Trung tâm folio</p>
-              <h2 className="mt-2 text-2xl font-black text-[var(--on-surface)]">Theo dõi doanh thu lưu trú</h2>
-              <p className="mt-2 max-w-xl text-sm text-[var(--on-surface-variant)]">
+      <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
+        <div className="relative overflow-hidden border-b border-slate-200/80 bg-gradient-to-br from-emerald-50/90 via-teal-50/40 to-slate-50 p-6 sm:p-7">
+          <div className="absolute right-0 top-0 h-48 w-48 rounded-full bg-emerald-500/10 blur-3xl" />
+          <div className="relative grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
+            <div className="space-y-2">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600/10 px-3 py-0.5 text-xs font-bold uppercase tracking-[0.2em] text-emerald-800">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
+                Trung tâm folio
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+                Theo dõi doanh thu lưu trú
+              </h2>
+              <p className="max-w-xl text-sm leading-relaxed text-slate-600">
                 Bảng này chỉ hiển thị số tiền backend trả về, giúp nhân sự kiểm tra nhanh trước khi phát hành hóa đơn.
               </p>
             </div>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <Metric label="Tổng folio" value={String(folios.length)} />
-              <Metric label="Đang mở" value={String(totals.open)} tone="amber" />
-              <Metric label="Đã phát hành/đóng" value={String(totals.pending)} tone="cyan" />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Metric label="Tổng folio" value={String(folios.length)} icon="receipt_long" />
+              <Metric label="Đang mở" value={String(totals.open)} tone="amber" icon="pending_actions" />
+              <Metric label="Đã phát hành/đóng" value={String(totals.pending)} tone="emerald" icon="task_alt" />
             </div>
           </div>
         </div>
 
-        <div className="grid gap-3 border-b border-[var(--outline-variant)] bg-white p-4 lg:grid-cols-[1fr_auto]">
-          <label className="flex items-center gap-3 rounded-2xl border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] px-4 py-3 text-sm">
-            <span className="text-[var(--on-surface-variant)]">Tìm kiếm</span>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-b border-slate-100 bg-white p-4 sm:p-5">
+          <label className="relative flex min-w-[280px] flex-1 items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-2 text-sm transition-all focus-within:border-emerald-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-500/20">
+            <span className="text-slate-400">🔍</span>
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Folio, phòng, khách..."
-              className="min-w-0 flex-1 bg-transparent font-semibold text-[var(--on-surface)] outline-none placeholder:text-[var(--on-surface-variant)]/70"
+              placeholder="Tìm kiếm Folio, phòng, khách..."
+              className="min-w-0 flex-1 bg-transparent text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400"
             />
+            {query ? (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                className="text-xs font-bold text-slate-400 hover:text-slate-600"
+              >
+                ✕
+              </button>
+            ) : null}
           </label>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
             {[
               ["ALL", "Tất cả"],
               ["OPEN", "Đang mở"],
@@ -195,10 +210,10 @@ export function BillingFolioTableClient({
                 key={value}
                 type="button"
                 onClick={() => setStatusFilter(value)}
-                className={`rounded-full px-4 py-2 text-sm font-black transition ${
+                className={`rounded-xl px-4 py-2 text-xs font-bold transition-all duration-150 ${
                   statusFilter === value
-                    ? "bg-[var(--primary)] text-white shadow-lg shadow-[var(--primary)]/20"
-                    : "border border-[var(--outline-variant)] bg-white text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-low)]"
+                    ? "bg-slate-900 text-white shadow-xs"
+                    : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                 }`}
               >
                 {label}
@@ -208,54 +223,74 @@ export function BillingFolioTableClient({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-left text-sm">
-            <thead className="bg-[var(--surface-container-low)] text-xs uppercase tracking-[0.18em] text-[var(--on-surface-variant)]">
+          <table className="w-full min-w-[700px] text-left text-base">
+            <thead className="border-b border-slate-200/80 bg-slate-50/90 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-800/80 dark:text-slate-300">
               <tr>
-                <th className="px-5 py-4">Folio</th>
-                <th className="px-5 py-4">Phòng / khách</th>
-                <th className="px-5 py-4">Trạng thái</th>
-                <th className="px-5 py-4 text-right">Tạm tính</th>
-                <th className="px-5 py-4 text-right">Thuế</th>
-                <th className="px-5 py-4 text-right">Giảm giá</th>
-                <th className="px-5 py-4 text-right">Tổng</th>
-                <th className="px-5 py-4">Mở lúc</th>
+                <th className="px-6 py-4">Folio</th>
+                <th className="px-6 py-4">Phòng / Khách</th>
+                <th className="px-6 py-4 text-center">Trạng thái</th>
+                <th className="px-6 py-4 text-right">Tổng cộng</th>
+                <th className="px-6 py-4 text-right">Mở lúc</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[var(--outline-variant)]">
-              {filteredFolios.map((folio) => (
-                <tr
-                  key={folio.id}
-                  tabIndex={0}
-                  role="button"
-                  aria-label={`Mở chi tiết folio ${folio.folioNumber ?? folio.id}`}
-                  onClick={() => void openFolioDetail(folio)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      void openFolioDetail(folio);
-                    }
-                  }}
-                  className="group cursor-pointer transition hover:bg-[#fff7ed] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--primary)]"
-                >
-                  <td className="px-5 py-4">
-                    <div className="font-black text-[var(--primary)]">{folio.folioNumber ?? folio.id}</div>
-                    <div className="mt-1 text-xs text-[var(--on-surface-variant)]">Click để xem nhanh</div>
-                  </td>
-                  <td className="px-5 py-4 text-[var(--on-surface)]">
-                    <div className="font-bold">Phòng {folio.room?.roomNumber ?? "-"}</div>
-                    <div className="text-xs text-[var(--on-surface-variant)]">{folio.stay?.guestNameSnapshot ?? "Khách lưu trú"}</div>
-                  </td>
-                  <td className="px-5 py-4"><StatusBadge status={folio.status} /></td>
-                  <td className="px-5 py-4 text-right font-semibold">{formatMoney(folio.subtotal, folio.currency)}</td>
-                  <td className="px-5 py-4 text-right">{formatMoney(folio.tax, folio.currency)}</td>
-                  <td className="px-5 py-4 text-right">{formatMoney(folio.discount, folio.currency)}</td>
-                  <td className="px-5 py-4 text-right text-base font-black text-[var(--on-surface)]">{formatMoney(folio.total, folio.currency)}</td>
-                  <td className="px-5 py-4 text-[var(--on-surface-variant)]">{formatDateTime(folio.openedAt ?? folio.createdAt)}</td>
-                </tr>
-              ))}
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {filteredFolios.map((folio) => {
+                const discountValue = Number(folio.discount ?? 0);
+
+                return (
+                  <tr
+                    key={folio.id}
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`Mở chi tiết folio ${folio.folioNumber ?? folio.id}`}
+                    onClick={() => void openFolioDetail(folio)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        void openFolioDetail(folio);
+                      }
+                    }}
+                    className="group cursor-pointer transition-colors duration-150 hover:bg-emerald-50/50 focus:outline-none focus-visible:bg-emerald-50/70 dark:hover:bg-slate-800/50"
+                  >
+                    <td className="px-6 py-4">
+                      <div className="font-mono font-bold text-emerald-700 text-base sm:text-lg group-hover:underline dark:text-emerald-400">
+                        {folio.folioNumber ?? folio.id}
+                      </div>
+                      <div className="mt-0.5 text-xs text-slate-400 flex items-center gap-1">
+                        <span>Click để xem chi tiết</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-slate-900 dark:text-white">
+                      <div className="font-bold text-base sm:text-lg">Phòng {folio.room?.roomNumber ?? "-"}</div>
+                      <div className="text-sm text-slate-500 dark:text-slate-400">{folio.stay?.guestNameSnapshot ?? "Khách lưu trú"}</div>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <StatusBadge status={folio.status} />
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="font-mono text-base sm:text-xl font-black tabular-nums text-slate-900 dark:text-white">
+                        {formatMoney(folio.total, folio.currency)}
+                      </div>
+                      {discountValue > 0 && (
+                        <div className="mt-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                          Đã giảm -{formatMoney(folio.discount, folio.currency)}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-right text-sm sm:text-base font-medium text-slate-600 dark:text-slate-400">
+                      {formatDateTime(folio.openedAt ?? folio.createdAt)}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
-          {filteredFolios.length === 0 ? <div className="p-8 text-sm text-[var(--on-surface-variant)]">Không tìm thấy folio phù hợp trong trang này.</div> : null}
+          {filteredFolios.length === 0 ? (
+            <div className="p-12 text-center text-sm text-slate-500 space-y-2">
+              <div className="text-3xl">📋</div>
+              <div className="font-medium">Không tìm thấy folio phù hợp trong trang này.</div>
+            </div>
+          ) : null}
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-4 border-t border-[var(--outline-variant)] bg-slate-50/50 p-4 text-sm font-semibold text-slate-600 dark:bg-slate-900/50 dark:text-slate-400">
@@ -308,22 +343,55 @@ export function BillingFolioTableClient({
   );
 }
 
-function Metric({ label, value, tone = "primary" }: { label: string; value: string; tone?: "primary" | "amber" | "cyan" }) {
-  const toneClass = tone === "amber" ? "bg-amber-100 text-amber-900" : tone === "cyan" ? "bg-cyan-100 text-cyan-900" : "bg-white text-[var(--primary)]";
+function Metric({
+  label,
+  value,
+  tone = "primary",
+  icon,
+}: {
+  label: string;
+  value: string;
+  tone?: "primary" | "amber" | "emerald" | "cyan";
+  icon?: string;
+}) {
+  const toneClass =
+    tone === "amber"
+      ? "bg-amber-50/90 border-amber-200/80 text-amber-950"
+      : tone === "emerald" || tone === "cyan"
+      ? "bg-emerald-50/90 border-emerald-200/80 text-emerald-950"
+      : "bg-white/90 border-slate-200/80 text-slate-900";
+
+  const numClass =
+    tone === "amber"
+      ? "text-amber-700"
+      : tone === "emerald" || tone === "cyan"
+      ? "text-emerald-700"
+      : "text-slate-900";
 
   return (
-    <div className={`rounded-2xl border border-white/70 p-4 shadow-sm ${toneClass}`}>
-      <div className="text-xs font-black uppercase tracking-[0.16em] opacity-70">{label}</div>
-      <div className="mt-1 text-2xl font-black">{value}</div>
+    <div className={`rounded-2xl border p-4 shadow-xs backdrop-blur-sm ${toneClass}`}>
+      <div className="flex items-center justify-between gap-1">
+        <div className="text-[11px] font-extrabold uppercase tracking-[0.14em] opacity-70">{label}</div>
+        {icon ? <VsIcon name={icon} className="text-base opacity-60" /> : null}
+      </div>
+      <div className={`mt-1.5 text-2xl font-black ${numClass}`}>{value}</div>
     </div>
   );
 }
 
 function StatusBadge({ status }: { status?: string }) {
   const displayStatus = toDisplayStatus(status);
-  const tone = displayStatus === "OPEN" ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-700";
+  const tone =
+    displayStatus === "OPEN"
+      ? "bg-emerald-100 text-emerald-800 border border-emerald-200/60"
+      : "bg-slate-100 text-slate-700 border border-slate-200/60";
 
-  return <span className={`inline-flex rounded-full px-3 py-1 text-xs font-black ${tone}`}>{statusLabels[displayStatus]}</span>;
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-3 py-0.5 text-xs font-bold ${tone}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${displayStatus === "OPEN" ? "bg-emerald-600 animate-pulse" : "bg-slate-400"}`} />
+      <span>{statusLabels[displayStatus]}</span>
+    </span>
+  );
 }
 
 function FolioModal({

@@ -97,6 +97,8 @@ function applySessionTokenUpdate(token: JWT, update: SessionTokenUpdate): void {
 }
 
 export const authOptions = {
+  basePath: "/api/auth",
+  trustHost: true,
   secret: resolveAuthSecret(),
   logger: {
     error: (message) => console.error("[NEXT_AUTH_ERROR]", message),

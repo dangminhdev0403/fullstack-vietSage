@@ -347,20 +347,41 @@ export class GuestMarketplaceService {
     return { success: true, cleared: true };
   }
 
-  async syncCart(scope: { hotelId: string; stayId: string; sessionId: string }, input: SyncCart, locale: SupportedLocale) {
+  async syncCart(
+    scope: { hotelId: string; stayId: string; sessionId: string },
+    input: SyncCart,
+    locale: SupportedLocale,
+  ) {
     await this.prisma.$transaction(async (tx) => {
       const serviceIds = input.items.map(({ serviceId }) => serviceId);
       const services = await tx.marketplaceService.findMany({
         where: {
-          id: { in: serviceIds }, status: MarketplaceRecordStatus.ACTIVE,
-          serviceTenant: { type: "SERVICE", serviceProfile: { status: MarketplaceRecordStatus.ACTIVE, categoryId: { not: null }, category: { isActive: true } }, hotelServiceLinks: { some: { hotelId: scope.hotelId, status: "ACTIVE" } } },
+          id: { in: serviceIds },
+          status: MarketplaceRecordStatus.ACTIVE,
+          serviceTenant: {
+            type: "SERVICE",
+            serviceProfile: {
+              status: MarketplaceRecordStatus.ACTIVE,
+              categoryId: { not: null },
+              category: { isActive: true },
+            },
+            hotelServiceLinks: { some: { hotelId: scope.hotelId, status: "ACTIVE" } },
+          },
         },
         select: { id: true },
       });
-      if (services.length !== new Set(serviceIds).size) throw new NotFoundException("Có dịch vụ Marketplace không còn khả dụng");
-      const cart = await tx.guestCart.upsert({ where: { sessionId: scope.sessionId }, create: scope, update: { hotelId: scope.hotelId, stayId: scope.stayId } });
+      if (services.length !== new Set(serviceIds).size)
+        throw new NotFoundException("Có dịch vụ Marketplace không còn khả dụng");
+      const cart = await tx.guestCart.upsert({
+        where: { sessionId: scope.sessionId },
+        create: scope,
+        update: { hotelId: scope.hotelId, stayId: scope.stayId },
+      });
       await tx.guestCartItem.deleteMany({ where: { cartId: cart.id } });
-      if (input.items.length) await tx.guestCartItem.createMany({ data: input.items.map((item) => ({ cartId: cart.id, ...item })) });
+      if (input.items.length)
+        await tx.guestCartItem.createMany({
+          data: input.items.map((item) => ({ cartId: cart.id, ...item })),
+        });
     });
     return this.getCart(scope, locale);
   }

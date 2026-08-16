@@ -354,7 +354,7 @@ export function GuestMarketplace({
           isOpen={isCartOpen}
           onClose={() => setIsCartOpen(false)}
           availableServices={services.data?.items}
-          onOrderCreated={(order) => {
+          onOrderCreated={() => {
             void orders.refetch();
           }}
         />

@@ -229,10 +229,6 @@ export function MarketplaceAdminClient() {
     }
   };
 
-  const [partnerSpreadsheetUrl, setPartnerSpreadsheetUrl] = useState("");
-  const handlePartnerSpreadsheetUrlChange = (url: string) => {
-    setPartnerSpreadsheetUrl(url);
-  };
 
   // Search & Pagination State
   const [tenantSearch, setTenantSearch] = useState("");

@@ -3,10 +3,7 @@ import { unstable_rethrow } from "next/navigation";
 
 import { rbacService } from "@/features/rbac/service/rbac-service-instance";
 import type { RbacRole } from "@/features/rbac/types/rbac-contract";
-import { buildWorkspaceNavigationForContext } from "@/features/workspace/config/workspace-registry";
-import type { DashboardNavItem } from "@/features/workspace/types/workspace-navigation";
 import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
-import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 
 import { VsIcon } from "../../_components/vs-icon";
 import {
@@ -96,45 +93,6 @@ function mapRole(role: RbacRole): RolesLiveFilterRole {
   };
 }
 
-function normalizeSidebarItems(
-  items: readonly DashboardNavItem[],
-): DashboardNavItem[] {
-  const canonicalItems = items.map((item) => {
-    const normalizedHref =
-      item.href === "/admin/dashboard?tab=permissions" ||
-      item.href === "/admin/dashboard?tab=roles" ||
-      item.href === "/admin/permissions"
-        ? "/admin/roles"
-        : item.href;
-
-    return {
-      ...item,
-      key: normalizedHref,
-      href: normalizedHref,
-      label: normalizedHref === "/admin/roles" ? "Phân quyền" : item.label,
-      icon: normalizedHref === "/admin/roles" ? "verified_user" : item.icon,
-    } satisfies DashboardNavItem;
-  });
-
-  const byHref = new Map<string, DashboardNavItem>();
-  for (const item of canonicalItems) {
-    if (!byHref.has(item.href)) {
-      byHref.set(item.href, item);
-    }
-  }
-
-  if (!byHref.has("/admin/roles")) {
-    byHref.set("/admin/roles", {
-      key: "/admin/roles",
-      href: "/admin/roles",
-      label: "Phân quyền",
-      icon: "verified_user",
-    });
-  }
-
-  return [...byHref.values()];
-}
-
 function toQueryValue(value: string | string[] | undefined): string {
   if (Array.isArray(value)) {
     return typeof value[0] === "string" ? value[0] : "";
@@ -154,7 +112,6 @@ export default async function AdminRolesPage({ searchParams }: RolesPageProps) {
     session,
     callbackUrl: "/admin/roles",
   });
-  const workspaceContext = await loadServerWorkspaceContext("/admin/roles");
 
   const rolesResults = await Promise.allSettled([
     executeAuthorizedApi("GET /roles", (accessToken) =>
@@ -166,10 +123,6 @@ export default async function AdminRolesPage({ searchParams }: RolesPageProps) {
   if (rolesApiPayload.status === "rejected") {
     unstable_rethrow(rolesApiPayload.reason);
   }
-
-  const sidebarItems = normalizeSidebarItems(
-    buildWorkspaceNavigationForContext(workspaceContext),
-  );
 
   const apiWarnings: string[] = [];
 

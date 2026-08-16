@@ -1,8 +1,6 @@
 import { auth } from "@/auth";
 import { adminService } from "@/features/admin/service/admin-service-instance";
-import { buildWorkspaceNavigationForContext } from "@/features/workspace/config/workspace-registry";
 import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
-import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 
 import { HotelsAdminClient } from "./hotels-admin-client";
 
@@ -37,7 +35,6 @@ export default async function AdminHotelsPage() {
   const session = await auth();
   const callbackUrl = "/admin/hotels" as const;
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
-  const workspaceContext = await loadServerWorkspaceContext(callbackUrl);
 
   const [hotelsPage, tenantOwners] = await Promise.all([
     authorizedApi("list hotels", (accessToken) =>

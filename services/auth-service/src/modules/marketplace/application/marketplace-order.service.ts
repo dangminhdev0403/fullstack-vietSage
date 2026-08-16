@@ -21,10 +21,7 @@ import type {
 } from "../domain/marketplace-order.schema";
 import { ServicePortalService } from "./service-portal.service";
 import type { SupportedLocale } from "../../../common/i18n/i18n.types";
-import {
-  calculateFeePercentage,
-  calculateOnSiteServiceFee,
-} from "../domain/marketplace-pricing";
+import { calculateFeePercentage, calculateOnSiteServiceFee } from "../domain/marketplace-pricing";
 
 @Injectable()
 export class MarketplaceOrderService {
@@ -200,9 +197,15 @@ export class MarketplaceOrderService {
           quantity: orderWithDetails.quantity,
           pricingUnit: orderWithDetails.pricingUnitSnapshot,
           unitPrice: orderWithDetails.unitPriceSnapshot.toString(),
-          partnerSubtotal: (orderWithDetails.partnerSubtotal ?? orderWithDetails.totalAmount).toString(),
-          hotelServiceFeeAmount: (orderWithDetails.hotelServiceFeeAmount ?? new Prisma.Decimal(0)).toString(),
-          customerTotalAmount: (orderWithDetails.customerTotalAmount ?? orderWithDetails.totalAmount).toString(),
+          partnerSubtotal: (
+            orderWithDetails.partnerSubtotal ?? orderWithDetails.totalAmount
+          ).toString(),
+          hotelServiceFeeAmount: (
+            orderWithDetails.hotelServiceFeeAmount ?? new Prisma.Decimal(0)
+          ).toString(),
+          customerTotalAmount: (
+            orderWithDetails.customerTotalAmount ?? orderWithDetails.totalAmount
+          ).toString(),
           totalAmount: orderWithDetails.totalAmount.toString(),
           currency: orderWithDetails.currency,
           guestNote: orderWithDetails.guestNote,
@@ -341,9 +344,7 @@ export class MarketplaceOrderService {
         for (const [tenantId, tenantItems] of itemsByTenant) {
           const primaryItem = tenantItems[0];
           const tenantIdempotencyKey =
-            itemsByTenant.size === 1
-              ? body.idempotencyKey
-              : `${body.idempotencyKey}-${orderIndex}`;
+            itemsByTenant.size === 1 ? body.idempotencyKey : `${body.idempotencyKey}-${orderIndex}`;
           orderIndex++;
 
           let partnerSubtotal = new Prisma.Decimal(0);
@@ -471,9 +472,15 @@ export class MarketplaceOrderService {
             quantity: orderWithDetails.quantity,
             pricingUnit: orderWithDetails.pricingUnitSnapshot,
             unitPrice: orderWithDetails.unitPriceSnapshot.toString(),
-            partnerSubtotal: (orderWithDetails.partnerSubtotal ?? orderWithDetails.totalAmount).toString(),
-            hotelServiceFeeAmount: (orderWithDetails.hotelServiceFeeAmount ?? new Prisma.Decimal(0)).toString(),
-            customerTotalAmount: (orderWithDetails.customerTotalAmount ?? orderWithDetails.totalAmount).toString(),
+            partnerSubtotal: (
+              orderWithDetails.partnerSubtotal ?? orderWithDetails.totalAmount
+            ).toString(),
+            hotelServiceFeeAmount: (
+              orderWithDetails.hotelServiceFeeAmount ?? new Prisma.Decimal(0)
+            ).toString(),
+            customerTotalAmount: (
+              orderWithDetails.customerTotalAmount ?? orderWithDetails.totalAmount
+            ).toString(),
             totalAmount: orderWithDetails.totalAmount.toString(),
             currency: orderWithDetails.currency,
             guestNote: orderWithDetails.guestNote,
@@ -1063,9 +1070,15 @@ export class MarketplaceOrderService {
         quantity: orderWithDetails.quantity,
         pricingUnit: orderWithDetails.pricingUnitSnapshot,
         unitPrice: orderWithDetails.unitPriceSnapshot.toString(),
-        partnerSubtotal: (orderWithDetails.partnerSubtotal ?? orderWithDetails.totalAmount).toString(),
-        hotelServiceFeeAmount: (orderWithDetails.hotelServiceFeeAmount ?? new Prisma.Decimal(0)).toString(),
-        customerTotalAmount: (orderWithDetails.customerTotalAmount ?? orderWithDetails.totalAmount).toString(),
+        partnerSubtotal: (
+          orderWithDetails.partnerSubtotal ?? orderWithDetails.totalAmount
+        ).toString(),
+        hotelServiceFeeAmount: (
+          orderWithDetails.hotelServiceFeeAmount ?? new Prisma.Decimal(0)
+        ).toString(),
+        customerTotalAmount: (
+          orderWithDetails.customerTotalAmount ?? orderWithDetails.totalAmount
+        ).toString(),
         totalAmount: orderWithDetails.totalAmount.toString(),
         currency: orderWithDetails.currency,
         guestNote: orderWithDetails.guestNote,
@@ -1319,9 +1332,15 @@ export class MarketplaceOrderService {
           quantity: orderWithDetails.quantity,
           pricingUnit: orderWithDetails.pricingUnitSnapshot,
           unitPrice: orderWithDetails.unitPriceSnapshot.toString(),
-          partnerSubtotal: (orderWithDetails.partnerSubtotal ?? orderWithDetails.totalAmount).toString(),
-          hotelServiceFeeAmount: (orderWithDetails.hotelServiceFeeAmount ?? new Prisma.Decimal(0)).toString(),
-          customerTotalAmount: (orderWithDetails.customerTotalAmount ?? orderWithDetails.totalAmount).toString(),
+          partnerSubtotal: (
+            orderWithDetails.partnerSubtotal ?? orderWithDetails.totalAmount
+          ).toString(),
+          hotelServiceFeeAmount: (
+            orderWithDetails.hotelServiceFeeAmount ?? new Prisma.Decimal(0)
+          ).toString(),
+          customerTotalAmount: (
+            orderWithDetails.customerTotalAmount ?? orderWithDetails.totalAmount
+          ).toString(),
           totalAmount: orderWithDetails.totalAmount.toString(),
           currency: orderWithDetails.currency,
           guestNote: orderWithDetails.guestNote,
@@ -1525,9 +1544,15 @@ export class MarketplaceOrderService {
         quantity: orderWithDetails.quantity,
         pricingUnit: orderWithDetails.pricingUnitSnapshot,
         unitPrice: orderWithDetails.unitPriceSnapshot.toString(),
-        partnerSubtotal: (orderWithDetails.partnerSubtotal ?? orderWithDetails.totalAmount).toString(),
-        hotelServiceFeeAmount: (orderWithDetails.hotelServiceFeeAmount ?? new Prisma.Decimal(0)).toString(),
-        customerTotalAmount: (orderWithDetails.customerTotalAmount ?? orderWithDetails.totalAmount).toString(),
+        partnerSubtotal: (
+          orderWithDetails.partnerSubtotal ?? orderWithDetails.totalAmount
+        ).toString(),
+        hotelServiceFeeAmount: (
+          orderWithDetails.hotelServiceFeeAmount ?? new Prisma.Decimal(0)
+        ).toString(),
+        customerTotalAmount: (
+          orderWithDetails.customerTotalAmount ?? orderWithDetails.totalAmount
+        ).toString(),
         totalAmount: orderWithDetails.totalAmount.toString(),
         currency: orderWithDetails.currency,
         guestNote: orderWithDetails.guestNote,
@@ -1718,7 +1743,9 @@ export class MarketplaceOrderService {
 
     const grossSalesAmount = completedOrders.reduce(
       (acc, o) =>
-        acc.add(o.partnerSubtotal && !o.partnerSubtotal.isZero() ? o.partnerSubtotal : o.totalAmount),
+        acc.add(
+          o.partnerSubtotal && !o.partnerSubtotal.isZero() ? o.partnerSubtotal : o.totalAmount,
+        ),
       new Prisma.Decimal(0),
     );
 

@@ -1,0 +1,320 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/rooms/owner-rooms-client.tsx, frontends/front-end-vietsage/src/features/hotel-ops/utils/service-catalog-error.ts, frontends/front-end-vietsage/src/features/hotel-ops/utils/service-catalog-error.test.ts, frontends/front-end-vietsage/src/core/http/http-error.ts, frontends/front-end-vietsage/src/app/api/owner/_utils.ts, frontends/front-end-vietsage/src/app/api/owner/hotels/[hotelId]/rooms/[roomId]/route.ts
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    src/
+      app/
+        (vietsage)/
+          owner/
+            (hotel)/
+              hotels/
+                [hotelId]/
+                  rooms/
+                    owner-rooms-client.tsx
+        api/
+          owner/
+            hotels/
+              [hotelId]/
+                rooms/
+                  [roomId]/
+                    route.ts
+            _utils.ts
+      core/
+        http/
+          http-error.ts
+      features/
+        hotel-ops/
+          utils/
+            service-catalog-error.test.ts
+            service-catalog-error.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="frontends/front-end-vietsage/src/app/api/owner/hotels/[hotelId]/rooms/[roomId]/route.ts">
+import { HttpError } from "@/core/http/http-error";
+import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
+import type { UpdateHotelRoomInput } from "@/features/hotel-ops/types/hotel-ops-contract";
+⋮----
+import {
+  executeOwnerBackendRequest,
+  ownerHttpErrorResponse,
+  successResponse,
+  unknownServerErrorResponse,
+  validationErrorResponse,
+} from "../../../../_utils";
+⋮----
+type Params = { params: Promise<{ hotelId: string; roomId: string }> };
+⋮----
+function sanitizeUpdateRoomPayload(payload: unknown): UpdateHotelRoomInput | null
+⋮----
+export async function PATCH(request: Request, context: Params)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/api/owner/_utils.ts">
+import { NextResponse } from "next/server";
+import type { Session } from "next-auth";
+⋮----
+import { auth } from "@/auth";
+import { HttpError } from "@/core/http/http-error";
+import { refreshAndSaveSessionTokens } from "@/libs/auth-session-refresh";
+import { hasAppRole } from "@/libs/rbac";
+import { readServerSessionTokens } from "@/libs/server-session-tokens";
+⋮----
+type OwnerAuthTokens = {
+  accessToken: string;
+  refreshToken: string | null;
+};
+⋮----
+type OwnerSessionTokenMetadata = {
+  accessToken: string | null;
+  refreshToken: string | null;
+  accessTokenExpiresAt: number | null;
+};
+⋮----
+type OwnerBackendRequest<T> = (accessToken: string) => Promise<T>;
+⋮----
+function shouldRefreshOwnerSession(tokens: OwnerSessionTokenMetadata, session: Session | null): boolean
+⋮----
+async function getOwnerAuthTokens(): Promise<OwnerAuthTokens | NextResponse>
+⋮----
+export async function getOwnerAccessToken(): Promise<string | NextResponse>
+⋮----
+export async function executeOwnerBackendRequest<T>(
+  _operationName: string,
+  request: OwnerBackendRequest<T>,
+): Promise<T | NextResponse>
+⋮----
+export function validationErrorResponse(detail: string)
+⋮----
+export function successResponse<TData>(data: TData, status = 200, message = "OK")
+⋮----
+export function ownerHttpErrorResponse(error: HttpError)
+⋮----
+export function unknownServerErrorResponse()
+</file>
+
+<file path="frontends/front-end-vietsage/src/core/http/http-error.ts">
+export class HttpError extends Error {
+⋮----
+constructor(params:
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/hotel-ops/utils/service-catalog-error.test.ts">
+import assert from "node:assert/strict";
+import test from "node:test";
+⋮----
+// @ts-expect-error Node's strip-types runner requires the explicit TypeScript extension.
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/hotel-ops/utils/service-catalog-error.ts">
+function isRecord(value: unknown): value is Record<string, unknown>
+⋮----
+function nestedDetail(value: unknown): string | undefined
+⋮----
+export function getServiceCatalogErrorMessage(error: unknown): string
+⋮----
+type SyncNoticeInput = {
+  inserted: number;
+  updated: number;
+  disabled: number;
+  unchanged: number;
+  skippedRows?: number;
+  skipped?: number;
+  warnings: string[];
+};
+⋮----
+export function getServiceCatalogSyncNotice(result: SyncNoticeInput)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/rooms/owner-rooms-client.tsx">
+import {
+  type FormEvent,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import { useRouter } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import Swal from "sweetalert2";
+import { z } from "zod";
+⋮----
+import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import {
+  DataTable,
+  type DataTableColumn,
+  type DataTableSortDirection,
+} from "@/components/ui/data-table";
+import { HttpError } from "@/core/http/http-error";
+import { VsIcon } from "../../../../../_components/vs-icon";
+import { filterExtraOccupants } from "@/features/hotel-ops/utils/hotel-ops-display";
+import type {
+  HotelRoomSummary,
+} from "@/features/hotel-ops/types/hotel-ops-contract";
+import { ownerRoomsResource } from "@/features/hotel-ops/resources/owner-rooms-resource";
+import {
+  BRANDED_QR_MARK_OPACITY,
+  BRANDED_QR_MARK_SRC,
+  BrandedRoomQr,
+  getBrandedQrMarkSize,
+} from "@/features/hotel-ops/components/branded-room-qr";
+import {
+  getGuestQrUrl,
+  getQrStatus,
+  getQrValue,
+  getRoomNumber,
+} from "./room-qr-utils";
+import { OwnerStayRoomGridClient } from "../stay/owner-stay-room-grid-client";
+import { WorkstationConnectionPanel } from "@/features/local-biometric/components/workstation-connection-panel";
+import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
+import { RoomDetailDrawer } from "@/features/hotel-ops/components/room-detail-drawer";
+⋮----
+type Props = { hotelId: string; initialRooms: HotelRoomSummary[] };
+type RoomSortKey =
+  | "roomNumber"
+  | "type"
+  | "floor"
+  | "price"
+  | "maxActiveGuestDevices"
+  | "qr";
+⋮----
+type RoomFormState = {
+  id?: string;
+  roomNumber: string;
+  floor: string;
+  type: string;
+  price: string;
+  maxActiveGuestDevices: string;
+  status: string;
+};
+⋮----
+type RoomFormErrors = Partial<Record<keyof Omit<RoomFormState, "id">, string>>;
+⋮----
+function randomRoomForm(): RoomFormState
+⋮----
+function subscribeClientOriginChange()
+⋮----
+function getClientOriginSnapshot(): string
+⋮----
+function getServerOriginSnapshot(): string
+⋮----
+function useClientOrigin(): string
+⋮----
+function isRecord(value: unknown): value is Record<string, unknown>
+⋮----
+function isTechnicalMessage(message: string): boolean
+⋮----
+function getNestedMessage(value: unknown): string | undefined
+⋮----
+function getBusinessErrorMessage(error: unknown, fallback: string): string
+⋮----
+function roomSearchText(room: HotelRoomSummary): string
+⋮----
+function getResolvedMaxActiveGuestDevices(room: HotelRoomSummary): number
+⋮----
+function getActiveGuestDeviceCount(room: HotelRoomSummary): number
+⋮----
+function getQrMeta(room: HotelRoomSummary)
+⋮----
+function isQrActive(room: HotelRoomSummary): boolean
+⋮----
+function canActivateQr(room: HotelRoomSummary): boolean
+⋮----
+function getRoomPrice(room: HotelRoomSummary): number | null
+⋮----
+function getRoomStatusMeta(room: HotelRoomSummary)
+⋮----
+function toRawPriceDigits(value: string): string
+⋮----
+function formatPriceInput(value: string): string
+⋮----
+function formatVnd(value: string | number | null | undefined): string
+⋮----
+function roomToForm(room: HotelRoomSummary): RoomFormState
+⋮----
+function getRoomFormErrors(form: RoomFormState): RoomFormErrors
+⋮----
+function compareRooms(
+  left: HotelRoomSummary,
+  right: HotelRoomSummary,
+  key: RoomSortKey,
+  direction: DataTableSortDirection,
+): number
+⋮----
+function roomInputClass(hasError: boolean): string
+⋮----
+void Swal.fire({
+    title,
+    text: "Vui lòng chờ trong giây lát.",
+    allowOutsideClick: false,
+    allowEscapeKey: false,
+    showConfirmButton: false,
+    didOpen: () => Swal.showLoading(),
+  });
+⋮----
+const router = useRouter();
+const queryClient = useQueryClient();
+const qrCodeRef = useRef<SVGSVGElement | null>(null);
+⋮----
+e.stopPropagation();
+void toggleRoomBlocked(room);
+⋮----
+setSelectedQrRoom(room);
+⋮----
+void updateRoomFromQrAction(room, "rotate");
+⋮----
+void updateRoomFromQrAction(room, "activate");
+⋮----
+onQrAction=
+⋮----
+aria-invalid=
+⋮----
+href=
+</file>
+
+</files>

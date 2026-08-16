@@ -22,27 +22,37 @@ export const createAdjustmentBodySchema = z.object({
   idempotencyKey: z.string().trim().min(1, "idempotencyKey không được để trống"),
 });
 
-const pricingSchema = z.object({
-  pricingModel: z.enum(["FIXED", "PERCENTAGE"]),
-  pricingValue: z.number().nonnegative("Giá trị tính phí không được là số âm"),
-}).superRefine((value, context) => {
-  if (value.pricingModel === "PERCENTAGE" && value.pricingValue > 100) {
-    context.addIssue({ code: "custom", path: ["pricingValue"], message: "Tỷ lệ phí phải từ 0 đến 100%" });
-  }
-});
+const pricingSchema = z
+  .object({
+    pricingModel: z.enum(["FIXED", "PERCENTAGE"]),
+    pricingValue: z.number().nonnegative("Giá trị tính phí không được là số âm"),
+  })
+  .superRefine((value, context) => {
+    if (value.pricingModel === "PERCENTAGE" && value.pricingValue > 100) {
+      context.addIssue({
+        code: "custom",
+        path: ["pricingValue"],
+        message: "Tỷ lệ phí phải từ 0 đến 100%",
+      });
+    }
+  });
 
-export const createContractBodySchema = z.object({
-  hotelId: z.string().trim().min(1, "hotelId không được để trống"),
-  starTierSnapshot: z.number().int().optional(),
-  currency: z.string().trim().optional(),
-  billingStartedAt: z.string().trim().min(1, "billingStartedAt không được để trống"),
-}).and(pricingSchema);
+export const createContractBodySchema = z
+  .object({
+    hotelId: z.string().trim().min(1, "hotelId không được để trống"),
+    starTierSnapshot: z.number().int().optional(),
+    currency: z.string().trim().optional(),
+    billingStartedAt: z.string().trim().min(1, "billingStartedAt không được để trống"),
+  })
+  .and(pricingSchema);
 
-export const addRevisionBodySchema = z.object({
-  effectiveFrom: z.string().trim().min(1, "effectiveFrom không được để trống"),
-  starTierSnapshot: z.number().int().optional(),
-  currency: z.string().trim().optional(),
-}).and(pricingSchema);
+export const addRevisionBodySchema = z
+  .object({
+    effectiveFrom: z.string().trim().min(1, "effectiveFrom không được để trống"),
+    starTierSnapshot: z.number().int().optional(),
+    currency: z.string().trim().optional(),
+  })
+  .and(pricingSchema);
 
 export const updateContractStatusBodySchema = z.object({
   status: z.nativeEnum(PlatformBillingContractStatus),
@@ -61,9 +71,12 @@ export const dashboardSummaryQuerySchema = z.object({
 });
 
 export const ownerAnalyticsQuerySchema = z.object({
-  monthDate: z.string().trim().optional(),
+  // Accepts YYYY-MM or YYYY-MM-DD; the service normalizes to the month window.
+  monthDate: z
+    .string()
+    .trim()
+    .regex(/^\d{4}-\d{2}(-\d{2})?$/, "monthDate phải theo dạng YYYY-MM hoặc YYYY-MM-DD")
+    .optional(),
   periodPage: z.coerce.number().int().positive().default(1),
   periodLimit: z.coerce.number().int().positive().max(50).default(10),
-  billableDayPage: z.coerce.number().int().positive().default(1),
-  billableDayLimit: z.coerce.number().int().positive().max(100).default(20),
 });

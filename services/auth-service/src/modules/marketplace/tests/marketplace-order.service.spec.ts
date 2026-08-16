@@ -6,18 +6,18 @@ import { MarketplaceOrderService } from "../application/marketplace-order.servic
 import { calculateOnSiteServiceFee } from "../domain/marketplace-pricing";
 
 describe("Marketplace orders", () => {
-  it.each([
-    MarketplaceServiceMode.DELIVERY_TO_HOTEL,
-    MarketplaceServiceMode.CUSTOMER_AT_SERVICE,
-  ])("charges the partner-configured percentage for %s", (mode) => {
-    expect(
-      calculateOnSiteServiceFee(
-        new Prisma.Decimal(100000),
-        mode,
-        new Prisma.Decimal("50.00"),
-      ).toString(),
-    ).toBe("50000");
-  });
+  it.each([MarketplaceServiceMode.DELIVERY_TO_HOTEL, MarketplaceServiceMode.CUSTOMER_AT_SERVICE])(
+    "charges the partner-configured percentage for %s",
+    (mode) => {
+      expect(
+        calculateOnSiteServiceFee(
+          new Prisma.Decimal(100000),
+          mode,
+          new Prisma.Decimal("50.00"),
+        ).toString(),
+      ).toBe("50000");
+    },
+  );
   beforeEach(() => {
     jest
       .spyOn(RequestRealtimeEmitter, "emitExternalServiceOrderHotelAcknowledged")

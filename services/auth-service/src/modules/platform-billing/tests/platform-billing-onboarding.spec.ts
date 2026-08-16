@@ -92,7 +92,10 @@ describe("PlatformBillingService Onboarding & Analytics", () => {
     });
 
     expect(mockPrisma.platformBillingContractRevision.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ pricingModel, roomDayUnitPrice: new Prisma.Decimal(pricingValue) }),
+      data: expect.objectContaining({
+        pricingModel,
+        roomDayUnitPrice: new Prisma.Decimal(pricingValue),
+      }),
     });
     expect(result).toBeDefined();
   });
@@ -134,18 +137,18 @@ describe("PlatformBillingService Onboarding & Analytics", () => {
   it("fetches owner analytics with billable days count and estimated fee", async () => {
     mockPrisma.platformBillingContract.findFirst.mockResolvedValueOnce({
       id: "contract-1",
-      revisions: [{ roomDayUnitPrice: 20000 }],
+      revisions: [{ roomDayUnitPrice: 20000, currency: "VND" }],
     });
-    mockPrisma.platformBillableDay.count.mockResolvedValueOnce(2);
-    mockPrisma.platformBillableDay.findMany
-      .mockResolvedValueOnce([
-        { id: "bd-1", subjectId: "r1", amount: new Prisma.Decimal(20000), currency: "VND" },
-        { id: "bd-2", subjectId: "r1", amount: new Prisma.Decimal(20000), currency: "VND" },
-      ])
-      .mockResolvedValueOnce([
-        { subjectId: "r1", amount: new Prisma.Decimal(20000), currency: "VND" },
-        { subjectId: "r1", amount: new Prisma.Decimal(20000), currency: "VND" },
-      ]);
+    mockPrisma.$queryRaw.mockResolvedValueOnce([
+      {
+        roomNumber: "101",
+        usageCount: 1,
+        billableDaysCount: 2,
+        billedAmount: new Prisma.Decimal(40000),
+        currency: "VND",
+        currencyCount: 1,
+      },
+    ]);
 
     const result = await service.getOwnerAnalytics(
       "hotel-1",
@@ -155,6 +158,88 @@ describe("PlatformBillingService Onboarding & Analytics", () => {
     expect(result.hasContract).toBe(true);
     expect(result.billableDaysCount).toBe(2);
     expect(result.estimatedFee).toBe(40000);
+    expect(result.monthKey).toBe("2026-08");
+  });
+
+  it("excludes cancelled stays from usage counting and reconciliation backfill SQL", async () => {
+    mockPrisma.platformBillingContract.findFirst.mockResolvedValueOnce({
+      id: "contract-cancel",
+      revisions: [{ roomDayUnitPrice: 20000, currency: "VND" }],
+    });
+    mockPrisma.$queryRaw.mockResolvedValueOnce([]);
+
+    await service.getOwnerAnalytics(
+      "hotel-cancel",
+      { monthDate: "2026-08" },
+      { actorUserId: "u", actorRoleId: "r" },
+    );
+
+    const roomSql = mockPrisma.$queryRaw.mock.calls[0][0];
+    const sql = Array.isArray(roomSql?.strings) ? roomSql.strings.join(" ") : String(roomSql);
+    expect(sql).toContain("s.status <> 'CANCELLED'");
+    expect(sql).toContain('COUNT(DISTINCT u."sourceId")');
+  });
+
+  it("counts only FINALIZED periods so finalized-period KPI stays immutable-scoped", async () => {
+    mockPrisma.platformBillingContract.findFirst.mockResolvedValueOnce({
+      id: "contract-fin",
+      revisions: [{ roomDayUnitPrice: 20000, currency: "VND" }],
+    });
+    mockPrisma.$queryRaw.mockResolvedValueOnce([]);
+    mockPrisma.platformBillingPeriod.count.mockResolvedValueOnce(4);
+
+    const result = await service.getOwnerAnalytics(
+      "hotel-fin",
+      {},
+      { actorUserId: "u", actorRoleId: "r" },
+    );
+
+    expect(mockPrisma.platformBillingPeriod.count).toHaveBeenCalledWith({
+      where: { contractId: "contract-fin", status: "FINALIZED" },
+    });
+    expect(mockPrisma.platformBillingPeriod.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { contractId: "contract-fin", status: "FINALIZED" },
+      }),
+    );
+    expect(result.periodsPage.total).toBe(4);
+  });
+
+  it("keeps room rows, monthly totals and KPI totals consistent", async () => {
+    mockPrisma.platformBillingContract.findFirst.mockResolvedValueOnce({
+      id: "contract-sum",
+      revisions: [{ roomDayUnitPrice: 20000, currency: "VND" }],
+    });
+    mockPrisma.$queryRaw.mockResolvedValueOnce([
+      {
+        roomNumber: "101",
+        usageCount: 2,
+        billableDaysCount: 3,
+        billedAmount: new Prisma.Decimal(60000),
+        currency: "VND",
+        currencyCount: 1,
+      },
+      {
+        roomNumber: "102",
+        usageCount: 0,
+        billableDaysCount: 9,
+        billedAmount: new Prisma.Decimal(180000),
+        currency: "VND",
+        currencyCount: 1,
+      },
+    ]);
+
+    const result = await service.getOwnerAnalytics(
+      "hotel-sum",
+      {},
+      { actorUserId: "u", actorRoleId: "r" },
+    );
+
+    const rows = result.roomUsageSummary || [];
+    expect(result.usageCount).toBe(rows.reduce((s: number, r: { usageCount: number }) => s + r.usageCount, 0));
+    expect(result.billableDaysCount).toBe(rows.reduce((s: number, r: { billableDaysCount: number }) => s + r.billableDaysCount, 0));
+    expect(result.estimatedFee).toBe(rows.reduce((s: number, r: { billedAmount: number }) => s + r.billedAmount, 0));
+    expect(result.estimatedFee).toBe(240000);
   });
 
   it("computes dashboard debt metrics correctly via bounded DB aggregate and excludes fully settled periods from duePeriods", async () => {
@@ -260,37 +345,20 @@ describe("PlatformBillingService Onboarding & Analytics", () => {
     mockPrisma.platformBillingContract.findFirst.mockResolvedValueOnce({
       id: contractId,
       hotelId,
-      revisions: [{ roomDayUnitPrice: new Prisma.Decimal(50000) }],
+      revisions: [{ roomDayUnitPrice: new Prisma.Decimal(50000), currency: "VND" }],
     });
-    mockPrisma.platformBillableDay.count.mockResolvedValueOnce(2);
 
-    const billableRows = [
+    mockPrisma.$queryRaw.mockResolvedValueOnce([
       {
-        id: "bd-1",
-        contractId,
-        subjectId: "room-101",
-        serviceDate: new Date("2026-02-05"),
-        amount: new Prisma.Decimal(50000),
+        roomNumber: "101",
+        usageCount: 1,
+        billableDaysCount: 2,
+        billedAmount: new Prisma.Decimal(110000),
+        currency: "VND",
+        currencyCount: 1,
       },
-      {
-        id: "bd-2",
-        contractId,
-        subjectId: "room-101",
-        serviceDate: new Date("2026-02-10"),
-        amount: new Prisma.Decimal(60000),
-      },
-    ];
-
-    mockPrisma.platformBillableDay.findMany
-      .mockResolvedValueOnce(billableRows)
-      .mockResolvedValueOnce(billableRows);
-
-    mockPrisma.platformBillingPeriod.findMany.mockResolvedValueOnce([]);
-    mockPrisma.platformBillingDailySummary.findMany.mockResolvedValueOnce([]);
-    mockPrisma.room.findMany.mockResolvedValueOnce([{ id: "room-101", roomNumber: "101" }]);
-    mockPrisma.platformUsage.findMany.mockResolvedValueOnce([
-      { id: "pu-1", subjectId: "room-101", startedAt: new Date("2026-02-05") },
     ]);
+    mockPrisma.platformBillingPeriod.findMany.mockResolvedValueOnce([]);
 
     const result = await service.getOwnerAnalytics(
       hotelId,
@@ -311,30 +379,14 @@ describe("PlatformBillingService Onboarding & Analytics", () => {
     ]);
   });
 
-  it("returns bounded periodsPage, billableDaysPage, and 7-calendar-day reminder metrics", async () => {
+  it("returns bounded periodsPage and 7-calendar-day reminder metrics", async () => {
     const hotelId = "hotel-slice3b";
     const contractId = "c-slice3b";
 
     mockPrisma.platformBillingContract.findFirst.mockResolvedValueOnce({
       id: contractId,
       hotelId,
-      revisions: [{ roomDayUnitPrice: new Prisma.Decimal(50000) }],
-    });
-
-    mockPrisma.platformBillableDay.count.mockResolvedValueOnce(35);
-    mockPrisma.platformBillableDay.findMany.mockImplementationOnce((args) => {
-      expect(args.skip).toBe(20);
-      expect(args.take).toBe(10);
-      return Promise.resolve([
-        {
-          id: "bd-21",
-          contractId,
-          subjectId: "room-101",
-          serviceDate: new Date("2026-02-15"),
-          amount: new Prisma.Decimal(50000),
-          currency: "VND",
-        },
-      ]);
+      revisions: [{ roomDayUnitPrice: new Prisma.Decimal(50000), currency: "VND" }],
     });
 
     mockPrisma.platformBillingPeriod.count.mockResolvedValueOnce(15);
@@ -351,11 +403,8 @@ describe("PlatformBillingService Onboarding & Analytics", () => {
       ]);
     });
 
-    mockPrisma.platformBillingDailySummary.findMany.mockResolvedValueOnce([]);
-    mockPrisma.room.findMany.mockResolvedValueOnce([{ id: "room-101", roomNumber: "101" }]);
-    mockPrisma.platformUsage.findMany.mockResolvedValueOnce([]);
-
-    mockPrisma.$queryRaw.mockResolvedValueOnce([
+    // 1st $queryRaw = room aggregation, 2nd = reminder metrics
+    mockPrisma.$queryRaw.mockResolvedValueOnce([]).mockResolvedValueOnce([
       {
         dueSoonCount: 1,
         overdueCount: 1,
@@ -371,8 +420,6 @@ describe("PlatformBillingService Onboarding & Analytics", () => {
         monthDate: "2026-02-15",
         periodPage: 1,
         periodLimit: 5,
-        billableDayPage: 3,
-        billableDayLimit: 10,
       },
       { actorUserId: "user-bound", actorRoleId: "role-owner" },
     );
@@ -391,18 +438,6 @@ describe("PlatformBillingService Onboarding & Analytics", () => {
       ],
     });
 
-    expect(result.billableDaysPage).toEqual({
-      page: 3,
-      limit: 10,
-      total: 35,
-      items: [
-        expect.objectContaining({
-          id: "bd-21",
-          roomNumber: "101",
-        }),
-      ],
-    });
-
     expect(result.reminder).toEqual({
       dueSoonCount: 1,
       overdueCount: 1,
@@ -411,9 +446,8 @@ describe("PlatformBillingService Onboarding & Analytics", () => {
       nearestDueAt: new Date("2026-02-12T00:00:00.000Z"),
     });
 
-    // Compatibility aliases
+    // Compatibility alias
     expect(result.periods).toEqual(result.periodsPage.items);
-    expect(result.billableDays).toEqual(result.billableDaysPage.items);
 
     // Verify SQL query uses exact Prisma table and column identifiers (PascalCase table names, camelCase column names)
     const sqlCalls = mockPrisma.$queryRaw.mock.calls;

@@ -17,20 +17,14 @@ import type {
 } from "@/features/hotel-ops/types/hotel-ops-contract";
 import { hotelServiceStatuses } from "@/features/hotel-ops/types/hotel-ops-contract";
 import {
-  useOwnerGoogleSheetSync,
   useOwnerServiceCatalogPreview,
   useOwnerServiceCatalogCommit,
 } from "@/features/hotel-ops/queries/use-google-sheet-config";
-import {
-  getServiceCatalogErrorMessage,
-  getServiceCatalogSyncNotice,
-} from "@/features/hotel-ops/utils/service-catalog-error";
 import {
   serviceStatusLabelMap,
   serviceStatusTone,
 } from "@/features/hotel-ops/utils/hotel-ops-display";
 import { showConfirmDialog, showErrorAlert, showSuccessAlert } from "@/libs/swal";
-import { googleSheetConfigRepository } from "@/features/hotel-ops/repositories/google-sheet-config-repository";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 
 type Props = {
@@ -484,10 +478,6 @@ function showLoading(title: string) {
   });
 }
 
-function closeLoading() {
-  Swal.close();
-}
-
 type ServiceCatalogPreview = {
   workbookHash: string;
   summary: {
@@ -537,7 +527,6 @@ export function OwnerServiceCatalogClient({
   hasGoogleSheetConfig,
 }: Props) {
   const router = useRouter();
-  const syncGoogleSheet = useOwnerGoogleSheetSync(hotelId);
   const previewMutation = useOwnerServiceCatalogPreview(hotelId);
   const commitMutation = useOwnerServiceCatalogCommit(hotelId);
   const [tab, setTab] = useState<"categories" | "items">("categories");
@@ -550,7 +539,6 @@ export function OwnerServiceCatalogClient({
   const [itemForm, setItemForm] = useState<ItemFormState | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
-  const [syncError, setSyncError] = useState<string | null>(null);
   const [categorySort, setCategorySort] = useState<SortState<CategorySortKey>>({
     key: "name",
     direction: "asc",
@@ -566,10 +554,6 @@ export function OwnerServiceCatalogClient({
 
   const [sheetPreview, setSheetPreview] = useState<ServiceCatalogPreview | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
-
-  const handleDownloadTemplate = () => {
-    window.open(`/api/owner/hotels/${encodeURIComponent(hotelId)}/service-catalog/import/template`, "_blank");
-  };
 
 
 
@@ -1184,51 +1168,6 @@ export function OwnerServiceCatalogClient({
       }
     });
   };
-
-  async function syncGoogleSheets() {
-    setSyncError(null);
-    setSyncNotice(null);
-    const confirmed = await Swal.fire({
-      icon: "question",
-      title: "Đồng bộ Google Sheets?",
-      text: "Hệ thống sẽ đọc dữ liệu mới nhất từ Google Sheets và cập nhật catalog dịch vụ.",
-      showCancelButton: true,
-      reverseButtons: false,
-      confirmButtonText: "Đồng bộ Google Sheets",
-      cancelButtonText: "Hủy",
-      confirmButtonColor: "#00003c",
-      cancelButtonColor: "#767684",
-    });
-    if (!confirmed.isConfirmed) return;
-    setIsImporting(true);
-    try {
-      showLoading("Đang đồng bộ Google Sheets");
-      const result = await syncGoogleSheet.mutateAsync(undefined);
-      await refreshServiceCatalog();
-      router.refresh();
-      closeLoading();
-      const notice = getServiceCatalogSyncNotice(result);
-      const skippedRows = result.skippedRows ?? result.skipped ?? 0;
-      setSyncNotice({
-        type: skippedRows > 0 ? "warning" : "success",
-        title: notice.title,
-        text: notice.text,
-        details: result.warnings && result.warnings.length > 0 ? result.warnings : undefined,
-      });
-      await Swal.fire({ ...notice, confirmButtonColor: "#00003c" });
-    } catch (error) {
-      closeLoading();
-      const errorMsg = getServiceCatalogErrorMessage(error);
-      setSyncError(errorMsg);
-      setSyncNotice({
-        type: "error",
-        title: "Không thể đồng bộ Google Sheets",
-        text: errorMsg,
-      });
-    } finally {
-      setIsImporting(false);
-    }
-  }
 
   async function saveItem(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

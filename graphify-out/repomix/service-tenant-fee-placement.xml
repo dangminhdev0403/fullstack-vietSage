@@ -1,0 +1,497 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: frontends/front-end-vietsage/src/features/marketplace-admin/marketplace-admin-client.tsx, frontends/front-end-vietsage/src/features/marketplace-admin/client.ts, frontends/front-end-vietsage/src/features/marketplace-admin/types.ts, frontends/front-end-vietsage/src/features/workspace/config/workspace-registry.ts, services/auth-service/src/modules/marketplace/application/marketplace-admin.service.ts, services/auth-service/src/modules/marketplace/api/marketplace-admin.controller.ts, services/auth-service/src/modules/marketplace/domain/marketplace-admin.schema.ts
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    src/
+      features/
+        marketplace-admin/
+          client.ts
+          marketplace-admin-client.tsx
+          types.ts
+        workspace/
+          config/
+            workspace-registry.ts
+services/
+  auth-service/
+    src/
+      modules/
+        marketplace/
+          api/
+            marketplace-admin.controller.ts
+          application/
+            marketplace-admin.service.ts
+          domain/
+            marketplace-admin.schema.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="frontends/front-end-vietsage/src/features/marketplace-admin/client.ts">
+import { unwrapApiEnvelope } from "@/core/http/api-envelope";
+import { getBackendApiBaseUrl } from "@/core/http/backend-api-config";
+import { HttpClient } from "@/core/http/http-client";
+import type { MarketplaceCategory } from "@/features/marketplace/types/marketplace-contract";
+import type { MarketplacePricingConfig } from "./types";
+⋮----
+const call = async <T, B = unknown>(token: string, method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE", path: string, body?: B) => unwrapApiEnvelope<T>(await http.request<unknown, B>(
+export type ServiceTenant = { id: string; code: string; name: string; ownerEmail?: string | null; ownerFullName?: string | null; serviceProfile: { displayName: string; status: string; categoryId?: string | null; category?: MarketplaceCategory | null } | null };
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/api/marketplace-admin.controller.ts">
+import { Body, Controller, Delete, Get, Header, Param, Patch, Post, Req } from "@nestjs/common";
+import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
+import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
+import type { RequestWithRequiredUser } from "../../../shared/security/request-with-authenticated-user";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { ImportTemplateService } from "../../../common/import/import-template.service";
+import { MarketplaceAdminService } from "../application/marketplace-admin.service";
+import { MarketplaceCategorySheetService } from "../application/marketplace-category-sheet.service";
+import { MarketplaceCategoryImportAdapter } from "../infrastructure/imports/marketplace-category-import.adapter";
+import {
+  categorySheetCommitInputSchema,
+  categorySheetInputSchema,
+} from "../domain/marketplace-category-import.schema";
+import {
+  marketplaceCategoryBodySchema,
+  marketplaceCategoryUpdateSchema,
+  marketplaceIdSchema,
+  marketplacePricingConfigSchema,
+  serviceTenantBodySchema,
+  serviceTenantUpdateSchema,
+} from "../domain/marketplace-admin.schema";
+⋮----
+export class MarketplaceAdminController
+⋮----
+constructor(
+⋮----
+categories()
+⋮----
+pricingConfig()
+⋮----
+updatePricingConfig(@Req() req: RequestWithRequiredUser, @Body() body: unknown)
+⋮----
+categoryImportTemplate()
+⋮----
+previewCategoryImport(@Req() req: RequestWithRequiredUser, @Body() body: unknown)
+⋮----
+commitCategoryImport(@Req() req: RequestWithRequiredUser, @Body() body: unknown)
+⋮----
+createCategory(@Req() req: RequestWithRequiredUser, @Body() body: unknown)
+⋮----
+updateCategory(
+    @Req() req: RequestWithRequiredUser,
+    @Param("categoryId") id: string,
+    @Body() body: unknown,
+)
+⋮----
+deleteCategory(@Req() req: RequestWithRequiredUser, @Param("categoryId") id: string)
+⋮----
+serviceTenants()
+⋮----
+createServiceTenant(@Req() req: RequestWithRequiredUser, @Body() body: unknown)
+⋮----
+updateServiceTenant(
+    @Req() req: RequestWithRequiredUser,
+    @Param("tenantId") id: string,
+    @Body() body: unknown,
+)
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/marketplace-admin/types.ts">
+import type { MarketplaceCategory } from "@/features/marketplace/types/marketplace-contract";
+⋮----
+export type ServiceTenant = {
+  id: string;
+  code: string;
+  name: string;
+  ownerEmail?: string | null;
+  ownerFullName?: string | null;
+  serviceProfile: { displayName: string; status: string; categoryId?: string | null; googleSheetsUrl?: string | null; category?: MarketplaceCategory | null } | null;
+};
+export type MarketplaceCategorySheetPreview = {
+  workbookHash: string;
+  summary: { creates?: number; create?: number; updates?: number; update?: number; disables?: number; disable?: number; unchanged: number; errors: number };
+  validation: Array<{
+    sheet: string;
+    row: number;
+    col: string;
+    value: string;
+    message: string;
+    severity: "error" | "warning";
+  }>;
+  diff: Array<{
+    key: string;
+    action: "create" | "update" | "disable" | "unchanged";
+    changes?: Array<{ field: string; from?: unknown; to?: unknown }> | Record<string, { from: string; to: string }>;
+    payload?: Record<string, unknown>;
+    label?: string;
+  }>;
+};
+⋮----
+export type MarketplacePricingConfig = {
+  deliveryServiceFeeRate: string | number;
+};
+⋮----
+export type MarketplaceAdminData = {
+  categories: MarketplaceCategory[];
+  tenants: ServiceTenant[];
+  pricingConfig: MarketplacePricingConfig;
+};
+⋮----
+export type MarketplaceAdminAction =
+  | { action: "category"; input: { nameVi: string; sortOrder: number; isActive: boolean; translations?: Record<string, string> } }
+  | { action: "tenant"; input: { displayName: string; categoryId: string; googleSheetsUrl?: string | null; owner: { email: string; fullName: string; password: string } } }
+  | { action: "updateCategory"; id: string; input: { nameVi?: string; isActive?: boolean; translations?: Record<string, string> } }
+  | { action: "deleteCategory"; id: string }
+  | { action: "updateTenant"; id: string; input: { displayName?: string; categoryId?: string; status?: string; googleSheetsUrl?: string | null; owner?: { email?: string; fullName?: string; password?: string } } }
+  | { action: "updatePricingConfig"; input: { deliveryServiceFeeRate: number } }
+  | { action: "previewImport"; spreadsheetUrl: string }
+  | { action: "commitImport"; spreadsheetUrl: string; expectedHash: string };
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/marketplace-admin/marketplace-admin-client.tsx">
+import { type FormEvent, useMemo, useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+⋮----
+import { DataTable } from "@/components/ui/data-table";
+import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+import { OneTimePasswordDialog } from "@/features/account/security/one-time-password-dialog";
+import { SwalVietSage } from "@/libs/swal";
+import { marketplaceAdminResource } from "./resource";
+import type { MarketplaceCategorySheetPreview, ServiceTenant } from "./types";
+import type { MarketplaceCategory } from "@/features/marketplace/types/marketplace-contract";
+⋮----
+function generateTemporaryPassword(): string
+⋮----
+function getErrorMessage(error: unknown, fallback: string): string
+⋮----
+const isRawCode = (str: string)
+⋮----
+const handleDeleteCategory = (cat: MarketplaceCategory) =>
+⋮----
+// Workspace View & Dialog state
+⋮----
+// Google Sheets Import state
+⋮----
+const handleSpreadsheetUrlChange = (url: string) =>
+⋮----
+const handlePartnerSpreadsheetUrlChange = (url: string) =>
+⋮----
+// Search & Pagination State
+⋮----
+const handlePreviewSheet = (e: FormEvent<HTMLFormElement>) =>
+⋮----
+const handleCommitSheet = () =>
+⋮----
+const submitCategory = (event: FormEvent<HTMLFormElement>) =>
+⋮----
+const submitUpdateCategory = (event: FormEvent<HTMLFormElement>) =>
+⋮----
+const submitTenant = (event: FormEvent<HTMLFormElement>) =>
+⋮----
+const submitUpdateTenant = (event: FormEvent<HTMLFormElement>) =>
+⋮----
+const handleResetTenantPassword = () =>
+⋮----
+const toggleTenantStatus = (item: ServiceTenant) =>
+⋮----
+const toggleCategoryStatus = (item: MarketplaceCategory) =>
+⋮----
+const handlePricingConfigSubmit = (event: FormEvent<HTMLFormElement>) =>
+⋮----
+// Filtered tenants
+⋮----
+// Filtered categories
+⋮----
+{/* Metric Summary Cards Bar */}
+⋮----
+{/* Top Search Header & Primary Action Buttons Bar */}
+⋮----
+{/* Tab Switcher & Search Bar */}
+⋮----
+{/* View Tab Switcher */}
+⋮----
+{/* Search Input */}
+⋮----
+setTenantPage(1);
+⋮----
+{/* Action Buttons */}
+⋮----
+setFormValidationError(null);
+setIsTenantModalOpen(true);
+⋮----
+{/* Primary Management Area: Service Partners Table & Google Sheets Sync */}
+⋮----
+{/* Primary Google Sheets Sync Card for Service Partners */}
+⋮----
+e.stopPropagation();
+⋮----
+setEditingTenant(item);
+⋮----
+setTenantPageSize(s);
+⋮----
+{/* Primary Google Sheets Batch Import Card */}
+⋮----
+onChange=
+⋮----
+{/* Summary Metrics */}
+⋮----
+{/* Validation Errors Table */}
+⋮----
+{/* Diff Table */}
+⋮----
+{/* Commit Action */}
+⋮----
+setEditingCategory(item);
+⋮----
+handleDeleteCategory(item);
+⋮----
+setCategoryPageSize(s);
+setCategoryPage(1);
+⋮----
+setIsTenantModalOpen(false);
+⋮----
+setEditingTenant(null);
+⋮----
+{/* Modal 3: Create Service Category */}
+⋮----
+setIsCategoryModalOpen(false);
+⋮----
+{/* Modal 4: Edit Service Category */}
+⋮----
+setEditingCategory(null);
+⋮----
+{/* Modal 5: Category Details View Modal with Language Switcher Buttons */}
+⋮----
+{/* Language Switcher Button Bar */}
+⋮----
+{/* Dynamic Content Display Box */}
+⋮----
+{/* Modal 6: View Partner Details */}
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/domain/marketplace-admin.schema.ts">
+import { z } from "zod";
+⋮----
+export type MarketplaceCategoryBody = z.infer<typeof marketplaceCategoryBodySchema>;
+export type ServiceTenantBody = z.infer<typeof serviceTenantBodySchema>;
+export type ServiceTenantUpdateBody = z.infer<typeof serviceTenantUpdateSchema>;
+export type HotelServiceLinkBody = z.infer<typeof hotelServiceLinkBodySchema>;
+export type MarketplacePricingConfigBody = z.infer<typeof marketplacePricingConfigSchema>;
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/application/marketplace-admin.service.ts">
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import {
+  MarketplaceRecordStatus,
+  Prisma,
+  TenantType,
+  TenantUserStatus,
+  UserRoleStatus,
+  UserStatus,
+  UserType,
+} from "@prisma/client";
+⋮----
+import { calculateHaversineDistanceMeters } from "../../../common/geo-distance";
+import { PrismaService } from "../../../prisma/prisma.service";
+import { CodesService } from "../../codes/codes.service";
+import type {
+  HotelServiceLinkBody,
+  MarketplaceCategoryBody,
+  MarketplacePricingConfigBody,
+  ServiceTenantBody,
+  ServiceTenantUpdateBody,
+} from "../domain/marketplace-admin.schema";
+⋮----
+export class MarketplaceAdminService {
+⋮----
+constructor(
+⋮----
+getPricingConfig()
+⋮----
+updatePricingConfig(actorId: string, body: MarketplacePricingConfigBody)
+⋮----
+listCategories()
+⋮----
+async createCategory(_actorId: string, body: MarketplaceCategoryBody)
+⋮----
+async updateCategory(
+    _actorId: string,
+    categoryId: string,
+    body: Partial<MarketplaceCategoryBody>,
+)
+⋮----
+async deleteCategory(_actorId: string, categoryId: string)
+⋮----
+async listServiceTenants()
+⋮----
+async listNearbyServiceTenants(hotelId: string)
+⋮----
+// ponytail: bounded in-memory geo filter; use PostGIS after >100 active providers is measured.
+⋮----
+async createServiceTenant(actorId: string, body: ServiceTenantBody)
+⋮----
+async updateServiceTenant(actorId: string, tenantId: string, body: ServiceTenantUpdateBody)
+⋮----
+async listHotelLinks(hotelId: string)
+⋮----
+async setNearbyHotelLink(
+    actorId: string,
+    hotelId: string,
+    serviceTenantId: string,
+    body: HotelServiceLinkBody,
+)
+⋮----
+async setHotelLink(
+    actorId: string,
+    hotelId: string,
+    serviceTenantId: string,
+    body: HotelServiceLinkBody,
+)
+⋮----
+disableHotelLink(actorId: string, hotelId: string, serviceTenantId: string)
+⋮----
+private async category(id: string)
+⋮----
+private async activeCategory(id: string)
+⋮----
+private async hotel(id: string)
+⋮----
+private async serviceTenant(id: string)
+⋮----
+private audit(
+    tx: Prisma.TransactionClient,
+    actorId: string,
+    tenantId: string,
+    action: string,
+    entityType: string,
+    entityId: string,
+)
+⋮----
+private uniqueConflict(error: unknown, message: string)
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/workspace/config/workspace-registry.ts">
+import type { DashboardNavItem } from "../types/workspace-navigation";
+⋮----
+import type {
+  WorkspaceDefinition,
+  WorkspaceNavigationDefinition,
+  WorkspacePersona,
+  WorkspaceRegistry,
+  WorkspaceRegistryExtension,
+  WorkspaceWidgetDefinition,
+} from "../types/workspace-registry";
+⋮----
+// Cấu hình / Thiết lập (Configuration & Catalog Setup)
+⋮----
+// Xử lý / Vận hành (Operations & Processing)
+⋮----
+// Staff Navigation (Cấu hình trước, Xử lý sau)
+⋮----
+function normalizeRoleCode(roleCode: string): string
+⋮----
+function mergeByKey<T extends { key: string }>(
+  base: readonly T[],
+  additions: readonly T[],
+  replaceExisting: boolean,
+  kind: string,
+): T[]
+⋮----
+export function createWorkspaceRegistry(
+  extensions: readonly WorkspaceRegistryExtension[] = [],
+): WorkspaceRegistry
+⋮----
+function hasAnyCapability(
+  permissions: readonly string[],
+  required?: readonly string[],
+): boolean
+⋮----
+function resolvePath(
+  path: `/${string}`,
+  hotelId: string | null,
+): `/$
+⋮----
+export function resolveWorkspacePersona(
+  roleCode: string,
+  registry: WorkspaceRegistry = workspaceRegistry,
+): WorkspacePersona | null
+⋮----
+export function getWorkspaceDefinition(
+  persona: WorkspacePersona,
+  registry: WorkspaceRegistry = workspaceRegistry,
+): WorkspaceDefinition
+⋮----
+export function buildWorkspaceNavigation(input: {
+  persona: WorkspacePersona;
+  permissions: readonly string[];
+  hotelId?: string | null;
+  registry?: WorkspaceRegistry;
+}): DashboardNavItem[]
+⋮----
+export function buildWorkspaceNavigationForContext(input: {
+  activeRole: { code: string };
+  permissions: readonly string[];
+  hotelId?: string | null;
+  registry?: WorkspaceRegistry;
+}): DashboardNavItem[]
+⋮----
+export function getWorkspaceDashboardWidgets(input: {
+  persona: WorkspacePersona;
+  permissions: readonly string[];
+  hotelId?: string | null;
+  registry?: WorkspaceRegistry;
+}): WorkspaceWidgetDefinition[]
+</file>
+
+</files>

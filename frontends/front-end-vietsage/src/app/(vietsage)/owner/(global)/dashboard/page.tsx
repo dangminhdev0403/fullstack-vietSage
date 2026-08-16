@@ -235,10 +235,10 @@ export default async function OwnerDashboardPage() {
           <div>
             <div className="flex items-center gap-3">
               <span className="rounded-full border border-[#e8b363]/35 bg-[#e8b363]/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-[#e8b363]">
-                Operational Dashboard
+                Bảng điều hành
               </span>
               <span className="text-xs font-bold text-[#d7cbb8]">
-                Snapshot: {dashboard ? formatTime(dashboard.generatedAt) : "Chưa có dữ liệu"}
+                Cập nhật lúc: {dashboard ? formatTime(dashboard.generatedAt) : "Chưa có dữ liệu"}
               </span>
             </div>
             <h1 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl text-white">

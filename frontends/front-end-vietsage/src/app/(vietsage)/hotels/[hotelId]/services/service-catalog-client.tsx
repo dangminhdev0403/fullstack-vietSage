@@ -44,26 +44,6 @@ type ItemFormState = {
   status: HotelServiceStatus;
 };
 
-const emptyCategoryForm: CategoryFormState = {
-  name: "",
-  description: "",
-  id_group: "",
-  sortOrder: "0",
-  status: "ACTIVE",
-};
-
-function emptyItemForm(categoryId = ""): ItemFormState {
-  return {
-    categoryId,
-    name: "",
-    description: "",
-    price: "",
-    currency: "USD",
-    sortOrder: "0",
-    status: "ACTIVE",
-  };
-}
-
 function toNumber(value: string): number | undefined {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : undefined;
