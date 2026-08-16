@@ -325,31 +325,33 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative flex items-center rounded-xl border border-slate-200 bg-white px-3 py-1.5 shadow-xs focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 dark:border-slate-800 dark:bg-slate-900">
-              <VsIcon name="search" className="mr-1.5 text-sm text-slate-400" />
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Search room */}
+            <div className="relative flex items-center rounded-xl border border-slate-200 bg-white px-3.5 py-2 shadow-xs transition-all focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 sm:py-2.5 dark:border-slate-800 dark:bg-slate-900">
+              <VsIcon name="search" className="mr-2 text-base text-slate-400" />
               <input
                 type="text"
                 value={roomQuery}
                 onChange={(e) => setRoomQuery(e.target.value)}
-                placeholder="Tìm phòng..."
+                placeholder="Tìm số phòng..."
                 aria-label="Tìm phòng"
-                className="w-28 bg-transparent text-xs font-semibold text-slate-900 outline-none placeholder:text-slate-400 sm:w-36 dark:text-white"
+                className="w-40 bg-transparent text-sm font-semibold text-slate-900 outline-none placeholder:text-slate-400 sm:w-56 md:w-64 dark:text-white"
               />
               {roomQuery && (
                 <button
                   type="button"
                   onClick={() => setRoomQuery("")}
                   aria-label="Xóa từ khóa tìm phòng"
-                  className="ml-1 text-slate-400 hover:text-slate-600"
+                  className="ml-1.5 text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                 >
                   ✕
                 </button>
               )}
             </div>
 
-            <label className="flex items-center gap-1.5 rounded-xl border border-emerald-200/80 bg-emerald-50/80 px-3 py-1.5 text-xs font-bold text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300">
-              <VsIcon name="calendar_month" className="text-sm text-emerald-600" />
+            {/* Month Picker */}
+            <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-emerald-200/90 bg-emerald-50/90 px-4 py-2 text-sm font-bold text-emerald-800 shadow-xs transition-all hover:bg-emerald-100/80 sm:py-2.5 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300">
+              <VsIcon name="calendar_month" className="text-base text-emerald-600 dark:text-emerald-400" />
               <span className="sr-only">Tháng đối soát</span>
               <input
                 type="month"
@@ -359,7 +361,7 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
                   const next = e.target.value;
                   if (MONTH_PARAM.test(next)) updateQueryParams({ month: next, periodPage: "1" });
                 }}
-                className="bg-transparent text-xs font-bold text-emerald-800 outline-none dark:text-emerald-300"
+                className="cursor-pointer bg-transparent text-sm font-bold text-emerald-800 outline-none dark:text-emerald-300"
               />
             </label>
           </div>

@@ -8,10 +8,7 @@ import {
 } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  useMutation,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Swal from "sweetalert2";
 import { toast } from "sonner";
 
@@ -208,26 +205,53 @@ const statusActions: Record<GuestRequestStatus, StaffRequestAction[]> = {
   FAILED: [],
 };
 
-function getExternalOrderStatusLabel(status: string): { label: string; className: string } {
+function getExternalOrderStatusLabel(status: string): {
+  label: string;
+  className: string;
+} {
   switch (status) {
     case "PENDING":
-      return { label: "Đang chờ xác nhận", className: "bg-amber-100 text-amber-900 border-amber-300" };
+      return {
+        label: "Đang chờ xác nhận",
+        className: "bg-amber-100 text-amber-900 border-amber-300",
+      };
     case "CONFIRMED":
     case "ACCEPTED":
-      return { label: "Đối tác đã xác nhận", className: "bg-blue-100 text-blue-900 border-blue-300" };
+      return {
+        label: "Đối tác đã xác nhận",
+        className: "bg-blue-100 text-blue-900 border-blue-300",
+      };
     case "PREPARING":
-      return { label: "Đang chuẩn bị", className: "bg-indigo-100 text-indigo-900 border-indigo-300" };
+      return {
+        label: "Đang chuẩn bị",
+        className: "bg-indigo-100 text-indigo-900 border-indigo-300",
+      };
     case "DELIVERING":
-      return { label: "Đang giao phòng", className: "bg-cyan-100 text-cyan-900 border-cyan-300" };
+      return {
+        label: "Đang giao phòng",
+        className: "bg-cyan-100 text-cyan-900 border-cyan-300",
+      };
     case "READY":
-      return { label: "Sẵn sàng phục vụ", className: "bg-cyan-100 text-cyan-900 border-cyan-300" };
+      return {
+        label: "Sẵn sàng phục vụ",
+        className: "bg-cyan-100 text-cyan-900 border-cyan-300",
+      };
     case "COMPLETED":
-      return { label: "Hoàn thành", className: "bg-emerald-100 text-emerald-900 border-emerald-300" };
+      return {
+        label: "Hoàn thành",
+        className: "bg-emerald-100 text-emerald-900 border-emerald-300",
+      };
     case "CANCELLED":
     case "REJECTED":
-      return { label: "Đã hủy", className: "bg-rose-100 text-rose-900 border-rose-300" };
+      return {
+        label: "Đã hủy",
+        className: "bg-rose-100 text-rose-900 border-rose-300",
+      };
     default:
-      return { label: status, className: "bg-slate-100 text-slate-800 border-slate-300" };
+      return {
+        label: status,
+        className: "bg-slate-100 text-slate-800 border-slate-300",
+      };
   }
 }
 
@@ -368,7 +392,9 @@ export function RequestQueueClient({
   const router = useRouter();
   const queryClient = useQueryClient();
   const mergedLabels = { ...defaultLabels, ...labels };
-  const requestQueue = requestQueueResource.bind({ basePath: ownerApiBasePath ?? "" });
+  const requestQueue = requestQueueResource.bind({
+    basePath: ownerApiBasePath ?? "",
+  });
   const [filters, setFilters] = useState(() => toFilterState(initialFilters));
   const [sortState, setSortState] = useState<{
     key: RequestSortKey;
@@ -377,7 +403,9 @@ export function RequestQueueClient({
   const [liveRequestChanges, setLiveRequestChanges] = useState<
     Record<string, Partial<StaffRequestListItem> & { id: string }>
   >({});
-  const [inboxTab, setInboxTab] = useState<"HOTEL_REQUESTS" | "EXTERNAL_ORDERS" | "ALL">("HOTEL_REQUESTS");
+  const [inboxTab, setInboxTab] = useState<
+    "HOTEL_REQUESTS" | "EXTERNAL_ORDERS" | "ALL"
+  >("HOTEL_REQUESTS");
   const [externalPage, setExternalPage] = useState(1);
   const [externalPageSize, setExternalPageSize] = useState(10);
   const [hotelPage, setHotelPage] = useState(1);
@@ -389,18 +417,24 @@ export function RequestQueueClient({
     });
   }, [initialFilters]);
 
-  const applyLiveRequestChange = useCallback((request: Partial<StaffRequestListItem> & { id: string }) => {
-    setLiveRequestChanges((currentChanges) => ({
-      ...currentChanges,
-      [request.id]: {
-        ...currentChanges[request.id],
-        ...request,
-      },
-    }));
-  }, []);
+  const applyLiveRequestChange = useCallback(
+    (request: Partial<StaffRequestListItem> & { id: string }) => {
+      setLiveRequestChanges((currentChanges) => ({
+        ...currentChanges,
+        [request.id]: {
+          ...currentChanges[request.id],
+          ...request,
+        },
+      }));
+    },
+    [],
+  );
 
   const { orders: externalOrdersQuery } = useNearbyServiceProviders(hotelId);
-  const externalOrders = useMemo(() => externalOrdersQuery.data ?? [], [externalOrdersQuery.data]);
+  const externalOrders = useMemo(
+    () => externalOrdersQuery.data ?? [],
+    [externalOrdersQuery.data],
+  );
 
   const convertedExternalOrders = useMemo<StaffRequestListItem[]>(() => {
     return externalOrders.map((order) => {
@@ -447,7 +481,9 @@ export function RequestQueueClient({
     for (const request of Object.values(liveRequestChanges)) {
       const existing = byId.get(request.id);
       const nextStatus = request.status ?? existing?.status;
-      const nextActions = nextStatus ? (statusActions[nextStatus] ?? []) : (existing?.actions ?? []);
+      const nextActions = nextStatus
+        ? (statusActions[nextStatus] ?? [])
+        : (existing?.actions ?? []);
       byId.set(
         request.id,
         existing
@@ -512,7 +548,13 @@ export function RequestQueueClient({
       );
       return result * directionMultiplier;
     });
-  }, [inboxTab, displayedRequests, convertedExternalOrders, filters, sortState]);
+  }, [
+    inboxTab,
+    displayedRequests,
+    convertedExternalOrders,
+    filters,
+    sortState,
+  ]);
 
   const activeSummaryCounts = useMemo(() => {
     const counts: Record<GuestRequestStatus, number> = {
@@ -538,7 +580,6 @@ export function RequestQueueClient({
     return counts;
   }, [inboxTab, requests, convertedExternalOrders]);
 
-
   function openRequestRow(request: StaffRequestListItem) {
     router.push(`${basePath}/${request.id}`);
   }
@@ -546,45 +587,55 @@ export function RequestQueueClient({
   function syncUpdatedRequest(updated: HotelGuestRequest) {
     const listItem = requestToListItem(updated);
     applyLiveRequestChange(listItem);
-    queryClient.invalidateQueries({ queryKey: ["hotel-ops", hotelId] }).catch(() => {});
-    queryClient.invalidateQueries({ queryKey: ["hotel-requests", hotelId] }).catch(() => {});
-    queryClient.invalidateQueries({ queryKey: ["owner-requests", hotelId] }).catch(() => {});
+    queryClient
+      .invalidateQueries({ queryKey: ["hotel-ops", hotelId] })
+      .catch(() => {});
+    queryClient
+      .invalidateQueries({ queryKey: ["hotel-requests", hotelId] })
+      .catch(() => {});
+    queryClient
+      .invalidateQueries({ queryKey: ["owner-requests", hotelId] })
+      .catch(() => {});
     startTransition(() => {
       router.refresh();
     });
   }
 
-  const statusMutation = useMutation(requestQueue.mutations.status.options({
-    onSuccess: ({ data: updated }) => {
-      syncUpdatedRequest(updated);
-      toast.success("Đã cập nhật trạng thái yêu cầu thành công");
-    },
-    onError: (error) => {
-      const message = getHttpErrorMessage(error, mergedLabels.operationError);
-      toast.error(message);
-    },
-  }));
+  const statusMutation = useMutation(
+    requestQueue.mutations.status.options({
+      onSuccess: ({ data: updated }) => {
+        syncUpdatedRequest(updated);
+        toast.success("Đã cập nhật trạng thái yêu cầu thành công");
+      },
+      onError: (error) => {
+        const message = getHttpErrorMessage(error, mergedLabels.operationError);
+        toast.error(message);
+      },
+    }),
+  );
 
-  const assignmentMutation = useMutation(requestQueue.mutations.assignment.options({
-    onSuccess: ({ data: updated }) => {
-      syncUpdatedRequest(updated);
-      void Swal.fire({
-        icon: "success",
-        title: "Đã cập nhật phân công",
-        timer: 1300,
-        showConfirmButton: false,
-      });
-    },
-    onError: (error) => {
-      const message = getHttpErrorMessage(error, mergedLabels.operationError);
-      void Swal.fire({
-        icon: "error",
-        title: "Không thể cập nhật phân công",
-        text: message,
-        confirmButtonColor: swalButtonColor,
-      });
-    },
-  }));
+  const assignmentMutation = useMutation(
+    requestQueue.mutations.assignment.options({
+      onSuccess: ({ data: updated }) => {
+        syncUpdatedRequest(updated);
+        void Swal.fire({
+          icon: "success",
+          title: "Đã cập nhật phân công",
+          timer: 1300,
+          showConfirmButton: false,
+        });
+      },
+      onError: (error) => {
+        const message = getHttpErrorMessage(error, mergedLabels.operationError);
+        void Swal.fire({
+          icon: "error",
+          title: "Không thể cập nhật phân công",
+          text: message,
+          confirmButtonColor: swalButtonColor,
+        });
+      },
+    }),
+  );
   const isMutating = statusMutation.isPending || assignmentMutation.isPending;
 
   function updateFilter(key: string, value: string) {
@@ -639,14 +690,20 @@ export function RequestQueueClient({
     pushFilters(nextFilters);
   }
 
-  async function updateStatusForRequest(targetRow: StaffRequestListItem, action: StaffRequestAction) {
+  async function updateStatusForRequest(
+    targetRow: StaffRequestListItem,
+    action: StaffRequestAction,
+  ) {
     if (!ownerApiBasePath) return;
 
     const meta = actionMeta[action];
     const note = meta.note;
 
     const confirmation = await Swal.fire({
-      icon: meta.status === "CANCELLED" || meta.status === "FAILED" ? "warning" : "question",
+      icon:
+        meta.status === "CANCELLED" || meta.status === "FAILED"
+          ? "warning"
+          : "question",
       title: `${meta.label} yêu cầu phòng ${targetRow.roomNumber}?`,
       text: "Xác nhận cập nhật trạng thái yêu cầu của phòng này.",
       showCancelButton: true,
@@ -669,7 +726,9 @@ export function RequestQueueClient({
         },
       );
       syncUpdatedRequest(updated);
-      toast.success(`Đã ${meta.label.toLowerCase()} yêu cầu phòng ${targetRow.roomNumber}`);
+      toast.success(
+        `Đã ${meta.label.toLowerCase()} yêu cầu phòng ${targetRow.roomNumber}`,
+      );
     } catch (error) {
       const message = getHttpErrorMessage(error, mergedLabels.operationError);
       toast.error(message);
@@ -762,8 +821,10 @@ export function RequestQueueClient({
       header: mergedLabels.statusActions,
       className: "whitespace-nowrap min-w-[210px]",
       cell: (request) => {
-        const available = request.actions ?? statusActions[request.status] ?? [];
-        if (!available.length || isCheckedOutRequest(request)) return <span className="text-xs text-slate-400">-</span>;
+        const available =
+          request.actions ?? statusActions[request.status] ?? [];
+        if (!available.length || isCheckedOutRequest(request))
+          return <span className="text-xs text-slate-400">-</span>;
         return (
           <div className="flex items-center gap-1.5 whitespace-nowrap">
             {available.map((action) => {
@@ -779,7 +840,10 @@ export function RequestQueueClient({
                   }}
                   className={`inline-flex items-center justify-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold whitespace-nowrap transition-all duration-150 shadow-2xs hover:shadow-xs active:scale-[0.97] disabled:opacity-50 ${meta.className}`}
                 >
-                  <VsIcon name={meta.icon} className="text-xs opacity-75 shrink-0" />
+                  <VsIcon
+                    name={meta.icon}
+                    className="text-xs opacity-75 shrink-0"
+                  />
                   <span>{meta.label}</span>
                 </button>
               );
@@ -799,12 +863,16 @@ export function RequestQueueClient({
     const items = getCanonicalOrderItems(order);
     const financials = calculateOrderFinancials(order, items);
 
-    const itemsSummaryHtml = items.map((it) => `
+    const itemsSummaryHtml = items
+      .map(
+        (it) => `
       <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px dashed #e2e8f0;font-size:12px">
         <span style="font-weight:600;color:#0f172a">${it.serviceName} <span style="color:#64748b">×${it.quantity}</span></span>
         <span style="font-weight:700;color:#334155">${(Number(it.unitPrice) * Number(it.quantity)).toLocaleString("vi-VN")} ${financials.currency}</span>
       </div>
-    `).join("");
+    `,
+      )
+      .join("");
 
     const isConfirmed = await SwalVietSage.fire({
       title: `<span style="font-size:17px;font-weight:800;color:#0f172a">Xác nhận tiếp nhận đơn #${order.orderNumber}?</span>`,
@@ -840,10 +908,15 @@ export function RequestQueueClient({
     if (!isConfirmed.isConfirmed) return;
 
     try {
-      await requestInternalApi(`/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/local-partners/providers/orders/${encodeURIComponent(order.id)}/acknowledge`, {
-        method: "POST",
-      });
-      toast.success(`Đã tiếp nhận đơn dịch vụ #${order.orderNumber}! Mã phiếu dịch vụ (Voucher) đã tạo thành công.`);
+      await requestInternalApi(
+        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/local-partners/providers/orders/${encodeURIComponent(order.id)}/acknowledge`,
+        {
+          method: "POST",
+        },
+      );
+      toast.success(
+        `Đã tiếp nhận đơn dịch vụ #${order.orderNumber}! Mã phiếu dịch vụ (Voucher) đã tạo thành công.`,
+      );
       void externalOrdersQuery.refetch();
     } catch (error) {
       toast.error(getHttpErrorMessage(error, "Không thể tiếp nhận đơn hàng"));
@@ -884,9 +957,12 @@ export function RequestQueueClient({
     if (!isConfirmed.isConfirmed) return;
 
     try {
-      await requestInternalApi(`/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/local-partners/providers/orders/${encodeURIComponent(order.id)}/cancel`, {
-        method: "POST",
-      });
+      await requestInternalApi(
+        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/local-partners/providers/orders/${encodeURIComponent(order.id)}/cancel`,
+        {
+          method: "POST",
+        },
+      );
       toast.success(`Đã hủy đơn dịch vụ #${order.orderNumber}`);
       void externalOrdersQuery.refetch();
     } catch (error) {
@@ -894,9 +970,11 @@ export function RequestQueueClient({
     }
   }
 
-
   function openVoucherModal(order: HotelMarketplaceOrder) {
-    if (!order.voucher?.voucherNumber && order.hotelCoordinationStatus !== "VOUCHER_ISSUED") {
+    if (
+      !order.voucher?.voucherNumber &&
+      order.hotelCoordinationStatus !== "VOUCHER_ISSUED"
+    ) {
       toast.info("Chưa có mã phiếu cho đơn hàng này");
       return;
     }
@@ -913,20 +991,27 @@ export function RequestQueueClient({
 
       guestDisplayName: order.stay?.guestDisplayName ?? "Khách lưu trú",
       roomNumber: order.stay?.room?.roomNumber ?? "-",
-      providerDisplayName: order.serviceTenant?.serviceProfile?.displayName ?? "Đối tác dịch vụ",
+      providerDisplayName:
+        order.serviceTenant?.serviceProfile?.displayName ?? "Đối tác dịch vụ",
       orderNumber: order.orderNumber,
       serviceName,
       quantity: totalQty,
       totalAmount: financials.customerTotal,
       currency: financials.currency,
       guestNote: order.guestNote,
-      items: items.map(({ serviceName, quantity, unitPrice }) => ({ serviceName, quantity, unitPrice })),
+      items: items.map(({ serviceName, quantity, unitPrice }) => ({
+        serviceName,
+        quantity,
+        unitPrice,
+      })),
     });
   }
 
   function openExternalOrderDetailModal(order: HotelMarketplaceOrder) {
     const statusMeta = getExternalOrderStatusLabel(order.status);
-    const isHotelAcknowledged = order.hotelCoordinationStatus === "ACKNOWLEDGED" || order.hotelCoordinationStatus === "VOUCHER_ISSUED";
+    const isHotelAcknowledged =
+      order.hotelCoordinationStatus === "ACKNOWLEDGED" ||
+      order.hotelCoordinationStatus === "VOUCHER_ISSUED";
     const items = getCanonicalOrderItems(order);
     const financials = calculateOrderFinancials(order, items);
 
@@ -942,7 +1027,9 @@ export function RequestQueueClient({
             </tr>
           </thead>
           <tbody>
-            ${items.map((it) => `
+            ${items
+              .map(
+                (it) => `
               <tr style="border-bottom:1px solid #f1f5f9">
                 <td style="padding:8px 10px">
                   <div style="font-weight:700;color:#0f172a">${it.serviceName}</div>
@@ -952,7 +1039,9 @@ export function RequestQueueClient({
                 <td style="padding:8px 10px;text-align:right;color:#475569;font-family:monospace">${Number(it.unitPrice).toLocaleString("vi-VN")} ${financials.currency}</td>
                 <td style="padding:8px 10px;text-align:right;font-weight:700;color:#0f172a;font-family:monospace">${(Number(it.unitPrice) * Number(it.quantity)).toLocaleString("vi-VN")} ${financials.currency}</td>
               </tr>
-            `).join("")}
+            `,
+              )
+              .join("")}
           </tbody>
         </table>
       </div>
@@ -1028,8 +1117,12 @@ export function RequestQueueClient({
             : order.orderNumber;
         return (
           <div title={order.orderNumber} className="py-1">
-            <div className="font-mono font-extrabold text-slate-900 text-sm tracking-tight">#{shortCode}</div>
-            <div className="text-xs text-slate-500 font-medium mt-0.5">{formatOpsDateTime(order.createdAt)}</div>
+            <div className="font-mono font-extrabold text-slate-900 text-sm tracking-tight">
+              #{shortCode}
+            </div>
+            <div className="text-xs text-slate-500 font-medium mt-0.5">
+              {formatOpsDateTime(order.createdAt)}
+            </div>
           </div>
         );
       },
@@ -1039,8 +1132,12 @@ export function RequestQueueClient({
       sortable: true,
       header: "Đối tác",
       cell: (order) => (
-        <div className="font-bold text-slate-800 text-sm max-w-35 truncate py-1" title={order.serviceTenant?.serviceProfile?.displayName ?? "Đối tác"}>
-          {order.serviceTenant?.serviceProfile?.displayName ?? "Đối tác dịch vụ"}
+        <div
+          className="font-bold text-slate-800 text-sm max-w-35 truncate py-1"
+          title={order.serviceTenant?.serviceProfile?.displayName ?? "Đối tác"}
+        >
+          {order.serviceTenant?.serviceProfile?.displayName ??
+            "Đối tác dịch vụ"}
         </div>
       ),
     },
@@ -1050,7 +1147,10 @@ export function RequestQueueClient({
       header: "Dịch vụ",
       cell: (order) => {
         const items = getCanonicalOrderItems(order);
-        const totalQty = items.reduce((s, it) => s + (Number(it.quantity) || 1), 0);
+        const totalQty = items.reduce(
+          (s, it) => s + (Number(it.quantity) || 1),
+          0,
+        );
         if (items.length > 1) {
           return (
             <div className="space-y-0.5 py-1">
@@ -1087,7 +1187,9 @@ export function RequestQueueClient({
           <span className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-black text-indigo-950 border border-indigo-200 mr-1.5">
             Phòng {order.stay?.room?.roomNumber ?? "-"}
           </span>
-          <span className="font-bold text-slate-900">{order.stay?.guestDisplayName ?? "Khách lưu trú"}</span>
+          <span className="font-bold text-slate-900">
+            {order.stay?.guestDisplayName ?? "Khách lưu trú"}
+          </span>
         </div>
       ),
     },
@@ -1100,10 +1202,12 @@ export function RequestQueueClient({
         return (
           <div className="py-1 space-y-0.5">
             <div className="font-black text-emerald-700 text-sm">
-              {financials.customerTotal.toLocaleString("vi-VN")} {financials.currency}
+              {financials.customerTotal.toLocaleString("vi-VN")}{" "}
+              {financials.currency}
             </div>
             <div className="text-[11px] text-slate-500 font-medium whitespace-nowrap">
-              ĐT: {financials.partnerSubtotal.toLocaleString("vi-VN")} · Phí KS: {financials.hotelFee.toLocaleString("vi-VN")}
+              ĐT: {financials.partnerSubtotal.toLocaleString("vi-VN")} · Phí KS:{" "}
+              {financials.hotelFee.toLocaleString("vi-VN")}
             </div>
           </div>
         );
@@ -1144,7 +1248,9 @@ export function RequestQueueClient({
 
         const partnerMeta = getExternalOrderStatusLabel(order.status);
         return (
-          <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-extrabold border ${partnerMeta.className}`}>
+          <span
+            className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-extrabold border ${partnerMeta.className}`}
+          >
             {partnerMeta.label}
           </span>
         );
@@ -1165,11 +1271,15 @@ export function RequestQueueClient({
           order.hotelCoordinationStatus === "ACKNOWLEDGED" ||
           order.hotelCoordinationStatus === "VOUCHER_ISSUED";
         const isVoucherIssued = Boolean(
-          order.voucher?.voucherNumber || order.hotelCoordinationStatus === "VOUCHER_ISSUED",
+          order.voucher?.voucherNumber ||
+          order.hotelCoordinationStatus === "VOUCHER_ISSUED",
         );
 
         return (
-          <div className="flex items-center gap-1.5 py-1" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="flex items-center gap-1.5 py-1"
+            onClick={(e) => e.stopPropagation()}
+          >
             {!isHotelAcknowledged ? (
               <>
                 <button
@@ -1222,7 +1332,6 @@ export function RequestQueueClient({
     },
   ];
 
-
   const requestTableHeader = (
     <div className="flex items-center justify-between border-b border-[color:rgba(198,197,213,0.18)] px-4 py-3">
       <p className="text-sm font-semibold text-[var(--on-surface-variant)]">
@@ -1251,7 +1360,9 @@ export function RequestQueueClient({
           }`}
         >
           <span>🛎️ Yêu cầu dịch vụ khách sạn</span>
-          <span className={`rounded-full px-2.5 py-0.5 text-xs font-black ${inboxTab === "HOTEL_REQUESTS" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-800"}`}>
+          <span
+            className={`rounded-full px-2.5 py-0.5 text-xs font-black ${inboxTab === "HOTEL_REQUESTS" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-800"}`}
+          >
             {displayedRequests.length}
           </span>
         </button>
@@ -1266,7 +1377,9 @@ export function RequestQueueClient({
           }`}
         >
           <span>🌐 Dịch vụ ngoài khách sạn</span>
-          <span className={`rounded-full px-2.5 py-0.5 text-xs font-black ${inboxTab === "EXTERNAL_ORDERS" ? "bg-white/20 text-white" : "bg-amber-200 text-amber-900"}`}>
+          <span
+            className={`rounded-full px-2.5 py-0.5 text-xs font-black ${inboxTab === "EXTERNAL_ORDERS" ? "bg-white/20 text-white" : "bg-amber-200 text-amber-900"}`}
+          >
             {externalOrders.length}
           </span>
         </button>
@@ -1281,7 +1394,9 @@ export function RequestQueueClient({
           }`}
         >
           <span>📋 Tất cả</span>
-          <span className={`rounded-full px-2.5 py-0.5 text-xs font-black ${inboxTab === "ALL" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-800"}`}>
+          <span
+            className={`rounded-full px-2.5 py-0.5 text-xs font-black ${inboxTab === "ALL" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-800"}`}
+          >
             {displayedRequests.length + externalOrders.length}
           </span>
         </button>
@@ -1292,7 +1407,10 @@ export function RequestQueueClient({
         className="grid gap-3 rounded-xl border border-[color:rgba(198,197,213,0.24)] bg-white p-4 md:grid-cols-2 xl:grid-cols-6"
       >
         <label className="relative md:col-span-2 xl:col-span-2">
-          <VsIcon name="search" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-[var(--on-surface-variant)]" />
+          <VsIcon
+            name="search"
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-[var(--on-surface-variant)]"
+          />
           <input
             value={filters.q ?? ""}
             onChange={(event) => updateFilter("q", event.target.value)}
