@@ -71,6 +71,8 @@ def main() -> int:
         ):
             if header not in nginx:
                 fail(f"Docker Nginx config is missing proxy header: {header}", failures)
+        if "geolocation=(self)" not in nginx or "geolocation=()" in nginx:
+            fail("Docker Nginx must allow same-origin browser geolocation", failures)
 
     if failures:
         print("Production Nginx verification FAILED:")
