@@ -160,7 +160,7 @@ export function ServiceCatalogView({ data }: Readonly<{ data: ServicePortalData 
               </span>
             </div>
             <h1 className="mt-2 text-2xl font-extrabold text-slate-900 tracking-tight">
-              Service Catalog / Danh Mục Dịch Vụ
+              Service Catalog / Danh mục dịch vụ
             </h1>
             <p className="mt-1 text-sm font-medium text-slate-500">
               Quản lý bảng giá, thời gian chuẩn bị và hình thức phục vụ của các dịch vụ trong hệ thống.
@@ -195,7 +195,7 @@ export function ServiceCatalogView({ data }: Readonly<{ data: ServicePortalData 
             </div>
             <div className="space-y-1">
               <h2 className="text-lg md:text-xl font-black text-slate-900 flex items-center gap-2">
-                Quản lý & Đồng bộ qua Google Sheets / Excel Online
+                Quản lý & đồng bộ qua Google Sheets / Excel Online
               </h2>
               <p className="text-sm text-slate-600 font-medium leading-relaxed">
                 Đồng bộ danh mục thực đơn, thông tin chi tiết & đa ngôn ngữ tự động từ file Google Sheets đối tác.

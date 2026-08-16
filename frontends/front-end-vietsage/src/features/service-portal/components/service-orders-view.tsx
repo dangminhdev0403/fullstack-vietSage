@@ -381,7 +381,7 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
               🌐 Dịch vụ bên ngoài
             </span>
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-              Quản Lý Đơn Dịch Vụ Đối Tác
+              Quản lý đơn dịch vụ đối tác
             </h1>
           </div>
           <p className="mt-0.5 text-xs sm:text-sm text-slate-500 font-medium">

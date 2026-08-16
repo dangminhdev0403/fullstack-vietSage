@@ -237,7 +237,7 @@ export function OwnerNearbyProvidersClient({
               </span>
             </div>
             <h1 className="mt-2 text-2xl font-extrabold text-slate-900 tracking-tight">
-              Đối Tác Dịch Vụ Lân Cận
+              Đối tác dịch vụ lân cận
             </h1>
             <p className="mt-1 text-sm font-medium text-slate-500">
               Khám phá và kết nối với các đối tác dịch vụ đáng tin cậy trong khu

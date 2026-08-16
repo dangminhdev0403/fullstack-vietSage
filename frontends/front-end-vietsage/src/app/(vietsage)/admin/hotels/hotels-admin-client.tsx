@@ -508,7 +508,7 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }:
             <div className="mb-6 flex items-start justify-between gap-4 border-b border-slate-100 pb-5 dark:border-slate-800">
               <div>
                 <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-                  {formMode === "create" ? "Tạo Khách Sạn Mới" : "Cập Nhật Khách Sạn"}
+                  {formMode === "create" ? "Tạo khách sạn mới" : "Cập nhật khách sạn"}
                 </h2>
                 <p className="mt-1.5 text-sm font-semibold text-slate-500 dark:text-slate-400">
                   {formMode === "create" ? "Khách sạn sẽ được phân quyền quản lý dưới Tổ chức đã chọn." : "Cập nhật cấu hình chi tiết khách sạn."}
