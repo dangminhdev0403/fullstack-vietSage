@@ -215,6 +215,20 @@ Read:
 - API behavior changes must update the relevant contract docs in the same task.
 - Architecture docs should stay short; put detailed guidance in companion guide files.
 
+## Mandatory UI/UX Quality Routing
+
+For any task whose primary intent is UI inspection, UI repair, UX review, visual polish, responsive stabilization, typography/icon/layout correction, redesign of an existing frontend surface, or rendered-browser quality, load and follow:
+
+- `.agents/skills/ui-quality-promax/SKILL.md`
+
+The UI Quality Pro-Max skill is mandatory even when the user does not name it explicitly. Natural-language requests such as `soi lại giao diện`, `fix UI`, `fix UX`, `polish`, `responsive`, `review giao diện`, `ổn định dashboard`, `kiểm tra UI`, or `redesign existing page` trigger it.
+
+For web UI work, final rendered-browser inspection through Chrome DevTools MCP is required. Tests/build do not substitute for UI verification. Screenshots are evidence, not decoration: the agent must visually inspect the rendered result after the final source change.
+
+When relevant local taste/design skills exist under `.agents/skills/`, they may be consulted only as supporting heuristics through UI Quality Pro-Max. Preserve VietSage's existing product identity, repository architecture, current design system, and security/business rules over taste-skill suggestions.
+
+UI Quality Pro-Max does not override the Graphify/Repomix navigation policy. Shared UI primitives, tokens, navigation shells, forms, tables, and feedback components require Graphify impact analysis before modification.
+
 ## Before Final Report
 
 Report:
