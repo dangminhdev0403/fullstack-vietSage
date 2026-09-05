@@ -173,7 +173,8 @@ Read:
 
 1. `frontends/front-end-vietsage/docs/ARCHITECTURE.md`
 2. `frontends/front-end-vietsage/docs/RULES.md`
-3. The task-specific guide:
+3. For every UI creation, modification, or review task, load `.agents/skills/design-dna/SKILL.md`. This includes typography, spacing, color, components, layout, responsive behavior, motion, accessibility, UI states, and visual stability. Skip it only when the task has no rendered UI effect.
+4. The task-specific guide:
    - feature/module work: `frontends/front-end-vietsage/docs/MODULE_GUIDE.md`
    - API/contract work: `frontends/front-end-vietsage/docs/CONTRACT_GUIDE.md`
    - runtime/UI/state/realtime/error/i18n work: `frontends/front-end-vietsage/docs/RUNTIME_UI_GUIDE.md`
@@ -238,3 +239,13 @@ Report:
 - validation commands run and real results;
 - docs updated;
 - remaining risks/blockers.
+
+## AGY / Ponytail execution policy
+
+- `PONYTAIL.md` is mandatory for every coding agent and corrective run. Read it before editing; Ponytail `full` remains active unless the user explicitly disables it.
+- AGY runs exactly one focused check covering its changed behavior. AGY must not run full lint, the full test suite, or a full build.
+- Host verification runs each slice's targeted gate in parallel.
+- Integration cherry-picks accepted slices without rerunning module-wide gates after every commit.
+- After all slices integrate, run affected/module lint, tests, and build once via the orchestrator final gate. Run the full merge gate once before PR/merge when required.
+- Never skip trust-boundary validation, security, accessibility, or data-loss prevention to save time.
+- Preserve unrelated dirty/untracked work. Dependency, lockfile, migration, destructive, deploy, and production changes remain approval-gated.

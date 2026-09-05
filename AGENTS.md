@@ -21,3 +21,13 @@ Rules:
 - If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
 - After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+
+## AGY / Ponytail execution policy
+
+- `PONYTAIL.md` is mandatory for every coding agent and corrective run. Read it before editing; Ponytail `full` remains active unless the user explicitly disables it.
+- AGY runs exactly one focused check covering its changed behavior. AGY must not run full lint, the full test suite, or a full build.
+- Host verification runs each slice's targeted gate in parallel.
+- Integration cherry-picks accepted slices without rerunning module-wide gates after every commit.
+- After all slices integrate, run affected/module lint, tests, and build once via the orchestrator final gate. Run the full merge gate once before PR/merge when required.
+- Never skip trust-boundary validation, security, accessibility, or data-loss prevention to save time.
+- Preserve unrelated dirty/untracked work. Dependency, lockfile, migration, destructive, deploy, and production changes remain approval-gated.
