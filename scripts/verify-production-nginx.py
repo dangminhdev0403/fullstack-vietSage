@@ -73,6 +73,8 @@ def main() -> int:
                 fail(f"Docker Nginx config is missing proxy header: {header}", failures)
         if "geolocation=(self)" not in nginx or "geolocation=()" in nginx:
             fail("Docker Nginx must allow same-origin browser geolocation", failures)
+        if "camera=(self)" not in nginx or "camera=()" in nginx:
+            fail("Docker Nginx must allow same-origin camera access for biometric scanning", failures)
 
     if failures:
         print("Production Nginx verification FAILED:")
