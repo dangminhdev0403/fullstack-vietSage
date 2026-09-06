@@ -123,8 +123,9 @@ test("CSRF, production guard, streamed body cap and strict phone schema", async 
     headers: { origin: "http://evil.com", host: "192.168.185.184:3000", "sec-fetch-site": "same-origin" },
     body: "{}"
   })), false);
-  assert.equal(mobileShiftAvailable("production"),false);
-  assert.equal(mobileShiftAvailable("development"),true);
+  assert.equal(mobileShiftAvailable("production"), true);
+  assert.equal(mobileShiftAvailable("development"), true);
+  assert.equal(mobileShiftAvailable("disabled"), false);
   assert.deepEqual(await limitedJson(request({"Content-Type":"application/json"})),{});
   await assert.rejects(limitedJson(request({"Content-Type":"application/json","Content-Length":"9000"})));
   const huge = new Request("https://hotel.test", {method:"POST",headers:{"Content-Type":"application/json"},body:'"'+'x'.repeat(9000)+'"'});

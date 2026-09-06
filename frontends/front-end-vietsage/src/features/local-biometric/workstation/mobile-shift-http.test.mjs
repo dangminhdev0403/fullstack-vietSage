@@ -94,6 +94,9 @@ test("real desktop route and repository agree; phone stays raw and scan-only", a
   assert.equal((await repo.desk("hotel", deskId)).session, null);
   await assert.rejects(repo.phone(), (error) => error instanceof MobileApiError && error.status === 404);
   environment.NODE_ENV = "production";
+  const prodAllowed = await desktop.GET(new Request(`https://desk.test/api/cccd-mobile/hotels/hotel/sessions?deskId=${deskId}`), { params: Promise.resolve({ hotelId: "hotel" }) });
+  assert.equal(prodAllowed.status, 200);
+  environment.DISABLE_MOBILE_CCCD_SCAN = "true";
   const blocked = await desktop.GET(new Request(`https://desk.test/api/cccd-mobile/hotels/hotel/sessions?deskId=${deskId}`), { params: Promise.resolve({ hotelId: "hotel" }) });
   assert.equal(blocked.status, 503);
   assert.equal((await blocked.json()).code, "SHARED_STORE_REQUIRED");
