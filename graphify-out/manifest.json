@@ -1,8 +1,8 @@
 {
   "frontends/front-end-vietsage/eslint.config.mjs": {
-    "mtime": 1783626773.2978578,
-    "ast_hash": "ccc23dd2b1ffdffe041d1a13cbd2a4f1",
-    "semantic_hash": "ccc23dd2b1ffdffe041d1a13cbd2a4f1"
+    "mtime": 1788708073.2992225,
+    "ast_hash": "6181309b4b1ff7f0bdfa2cef1b905707",
+    "semantic_hash": ""
   },
   "frontends/front-end-vietsage/next-auth.d.ts": {
     "mtime": 1783626773.2978578,
@@ -1285,8 +1285,8 @@
     "semantic_hash": ""
   },
   "scripts/verify-production-nginx.py": {
-    "mtime": 1786887653.6079025,
-    "ast_hash": "4d31119712ed6712bdcf1cb5f5df1c8b",
+    "mtime": 1788708541.954861,
+    "ast_hash": "8a31907ca5adbf8c63912cd51e0abc99",
     "semantic_hash": ""
   },
   "scripts/verify-production-tls.py": {
@@ -5445,8 +5445,8 @@
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/features/local-biometric/components/mobile-cccd-capture.tsx": {
-    "mtime": 1788704463.183172,
-    "ast_hash": "44f5ab2bc53e6f62f4a2fe219e6dcb4b",
+    "mtime": 1788708954.7320623,
+    "ast_hash": "a973c63c53aa43acb224bdfe552ac9d8",
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/features/local-biometric/components/mobile-cccd-scan.tsx": {
@@ -5455,8 +5455,8 @@
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/features/local-biometric/hooks/use-mobile-cccd-scan.ts": {
-    "mtime": 1788704463.1871712,
-    "ast_hash": "b5fdd745ca63a02cc1d6a52fd3bac872",
+    "mtime": 1788708252.4293487,
+    "ast_hash": "c687bfdd6f04e43f27d1811a33644840",
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/features/local-biometric/hooks/use-mobile-phone.ts": {
@@ -5585,8 +5585,8 @@
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/features/local-biometric/utils/jsqr.js": {
-    "mtime": 1788704463.196152,
-    "ast_hash": "e6b9999de7b85f2c093dd32d41ec74fc",
+    "mtime": 1788708077.0237446,
+    "ast_hash": "d8f3dda1eb12c6a123f45fcbf9909d8c",
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/features/local-biometric/utils/safe-uuid.test.ts": {
@@ -5605,8 +5605,8 @@
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/features/local-biometric/components/mobile-cccd-connection-panel.tsx": {
-    "mtime": 1788707559.6731014,
-    "ast_hash": "c220b7e14e84440365eb1b4109a262d9",
+    "mtime": 1788708084.6410275,
+    "ast_hash": "a135e24f9d33d1f9b2a3a5a4e6d5fa29",
     "semantic_hash": ""
   },
   "frontends/front-end-vietsage/src/features/local-biometric/components/mobile-cccd-connection.test.ts": {
