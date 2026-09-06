@@ -1,0 +1,1724 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: frontends/front-end-vietsage/docs/{ARCHITECTURE,RULES,RUNTIME_UI_GUIDE,DESIGN}.md, frontends/front-end-vietsage/src/features/workspace/{components,store,config,utils,types}/*, frontends/front-end-vietsage/src/app/(vietsage)/_components/{vs-dashboard-sidebar,vs-top-bar,vs-icon,route-boundary-state}.tsx, frontends/front-end-vietsage/src/components/brand/vietsage-brand.tsx, frontends/front-end-vietsage/src/features/account/security/change-password-dialog.tsx, frontends/front-end-vietsage/src/app/globals.css
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    docs/
+      ARCHITECTURE.md
+      DESIGN.md
+      RULES.md
+      RUNTIME_UI_GUIDE.md
+    src/
+      app/
+        (vietsage)/
+          _components/
+            route-boundary-state.tsx
+            vs-dashboard-sidebar.tsx
+            vs-icon.tsx
+            vs-top-bar.tsx
+        globals.css
+      components/
+        brand/
+          vietsage-brand.tsx
+      features/
+        account/
+          security/
+            change-password-dialog.tsx
+        workspace/
+          components/
+            workspace-profile-context.tsx
+            workspace-shell.tsx
+            workspace.css
+          config/
+            workspace-registry.test.ts
+            workspace-registry.ts
+          store/
+            workspace-sidebar-store.ts
+          types/
+            workspace-navigation.ts
+            workspace-registry.ts
+          utils/
+            workspace-context.test.ts
+            workspace-context.ts
+            workspace-nav-active.test.ts
+            workspace-nav-active.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="frontends/front-end-vietsage/docs/ARCHITECTURE.md">
+# VietSage Frontend Architecture
+
+## 1. Purpose
+
+This document defines the reusable frontend architecture standard for VietSage frontend apps.
+
+Keep this file short. It should explain only the core boundaries an AI agent or developer must know before changing the app. Detailed conventions live in topic-specific docs in this same `docs/` folder.
+
+## 2. Docs Index
+
+All frontend documentation must stay under `frontends/[frontend-app]/docs/`.
+
+| Need | Read |
+| --- | --- |
+| Core architecture and layer boundaries | `ARCHITECTURE.md` |
+| Feature/module structure and extension workflow | `MODULE_GUIDE.md` |
+| Backend API, generated contracts, route handlers, auth/session calls | `CONTRACT_GUIDE.md` |
+| Runtime boundaries, components, state, realtime, errors, i18n | `RUNTIME_UI_GUIDE.md` |
+| Development rules and execution contracts | `RULES.md` |
+| Active/archived implementation plans | `PLANS.md` |
+| UI brand, visual system, component style | `DESIGN.md` |
+| Smoke test commands and manual route checks | `FRONTEND_SMOKE_TESTS.md` |
+| Guest-facing i18n frontend instructions | `FRONTEND_GUEST_I18N_INSTRUCTIONS.md` |
+| Backend proposal for GuestOS i18n | `BACKEND_GUEST_I18N_PROPOSAL.md` |
+
+Rule: do not read all docs by default. Start with this file, then open only the doc matching the current task.
+
+## 3. Core Principles
+
+- Frontend apps own route composition, UI behavior, client interaction, display states, and API consumption.
+- Backend services own business rules, authorization enforcement, persistence, domain workflows, contracts, and external provider integration.
+- Pages compose product surfaces; features own domain-specific UI logic.
+- API calls must go through feature services, core HTTP utilities, or route handlers.
+- Runtime boundaries must be explicit: server, client, route handler, proxy, browser storage, and realtime.
+- Reusable UI components must not depend on domain services.
+- Architecture docs must avoid current-project snapshots that make the standard hard to reuse.
+
+## 4. Standard App Structure
+
+```txt
+frontends/
+└── [frontend-app]/
+    ├── src/
+    │   ├── app/
+    │   ├── components/
+    │   ├── core/
+    │   ├── features/
+    │   ├── generated/
+    │   ├── libs/
+    │   ├── providers/
+    │   ├── configs/
+    │   ├── types/
+    │   └── proxy.ts
+    ├── packages/
+    ├── docs/
+    ├── scripts/
+    └── package.json
+```
+
+Only create folders that the app actually needs.
+
+## 5. Layer Responsibilities
+
+| Layer | Responsibility |
+| --- | --- |
+| `app/` | App Router route composition, layouts, route handlers, loading/error boundaries, and product surfaces. |
+| `features/` | Domain-specific services, hooks, queries, state, types, utilities, and UI components. |
+| `core/` | Cross-cutting infrastructure such as HTTP, errors, query setup, i18n, storage, and realtime primitives. |
+| `components/` | Reusable UI primitives and shared presentation components. |
+| `generated/` | Generated API contract types or generated client artifacts. |
+| `providers/` | App-level React providers. |
+| `configs/` | Environment and application configuration. |
+| `libs/` | Small app-level utilities that do not belong to a feature or core infrastructure area. |
+| `packages/` | Transport- and product-neutral packages that can be built and consumed outside VietSage. |
+| `docs/` | Architecture, rules, guides, plans, design notes, smoke tests, and domain-specific instructions. |
+
+## 6. Runtime Boundary Summary
+
+Default to Server Components unless a component needs client-only behavior.
+
+Use Client Components for browser APIs, event handlers, local interactive state, Zustand, TanStack Query hooks, realtime subscriptions, effects, or client navigation hooks.
+
+Use Route Handlers for BFF/proxy endpoints, session-sensitive backend calls, cookie/session bridge behavior, and refresh-token rotation.
+
+See `RUNTIME_UI_GUIDE.md` for detailed runtime, component, state, realtime, error, and i18n conventions.
+
+## 7. Product Surface and Route Ownership
+
+Before adding routes, define the product surface.
+
+A product surface is a user-facing area with its own route ownership, access rules, shell, loading state, and error behavior.
+
+Common surface types:
+
+| Surface type | Typical responsibility |
+| --- | --- |
+| Public marketing | Landing pages, public content, contact pages. |
+| Authentication | Login, registration, session entry points. |
+| Admin | Privileged system administration workflows. |
+| Manager/Owner | Business management dashboards and operational management. |
+| Staff/Ops | Internal operational workflows. |
+| Guest/Public app | Guest-facing or unauthenticated flows. |
+| Internal API | Route handlers used as BFF/proxy/session bridges. |
+
+Rules:
+
+- Route groups should organize product surfaces, not unrelated implementation details.
+- Authenticated surfaces should define layout, loading, error, and access behavior.
+- Route pages should compose feature components rather than contain large business UI logic.
+
+## 8. Feature Module Summary
+
+Domain-specific frontend logic should live under `features/[feature-name]`.
+
+```txt
+features/[feature-name]/
+├── repositories/
+├── resources/
+├── queries/
+├── hooks/
+├── service/
+├── store/
+├── types/
+├── utils/
+├── components/
+├── i18n/
+└── schemas/
+```
+
+Create only the folders needed by the feature. See `MODULE_GUIDE.md` for detailed folder responsibilities and extension workflow.
+
+## 9. Data and API Flow Summary
+
+```txt
+Route / UI
+  ↓
+Feature Hook / Query Hook
+  ↓
+Resource
+  ↓
+Repository
+  ↓
+Core HTTP Utility or Route Handler
+  ↓
+Backend API
+```
+
+Rules:
+
+- Do not introduce raw backend `fetch` calls in pages, layouts, or reusable UI components.
+- Repositories own transport calls, DTO mapping, response transforms, and pagination normalization.
+- Resources own stable keys, TanStack Query options, mutations, local invalidation, and cache operations.
+- Feature hooks own permissions, feature flags, filter normalization, cross-resource coordination, and UI feedback.
+- Components consume feature hooks; they do not know endpoints, DTOs, query keys, or invalidation rules.
+- Backend-backed types should come from generated contracts or feature contract wrappers.
+- Route Handlers should own session-sensitive proxy calls.
+- Frontend must not duplicate backend business rules as the source of truth.
+
+See `CONTRACT_GUIDE.md` for detailed API, contract, and auth/session integration rules.
+
+## 10. Frontend and Backend Boundary
+
+Frontend owns:
+
+- UI rendering.
+- Route composition.
+- API consumption.
+- User interaction state.
+- Browser-specific behavior.
+- Loading, empty, and display states.
+
+Backend owns:
+
+- Business rules.
+- API and event contracts.
+- Authorization and authentication enforcement.
+- Data persistence and migrations.
+- Domain workflows.
+- External provider integration.
+
+The frontend may hide unavailable actions for UX, but backend authorization remains the source of truth.
+
+## 11. Rules Summary
+
+- Keep pages thin.
+- Keep domain UI logic in features.
+- Keep API calls out of UI components.
+- Keep reusable UI free of feature-service dependencies.
+- Keep generated API contracts as the source of truth for backend-backed types.
+- Keep server state out of client stores.
+- Keep backend business rules out of frontend.
+- Keep architecture docs generic and short.
+- Keep detailed docs in the same `docs/` folder, referenced by the Docs Index.
+</file>
+
+<file path="frontends/front-end-vietsage/docs/DESIGN.md">
+---
+name: Heritage Luxe
+colors:
+  surface: '#f9f9f9'
+  surface-dim: '#dadada'
+  surface-bright: '#f9f9f9'
+  surface-container-lowest: '#ffffff'
+  surface-container-low: '#f3f3f4'
+  surface-container: '#eeeeee'
+  surface-container-high: '#e8e8e8'
+  surface-container-highest: '#e2e2e2'
+  on-surface: '#1a1c1c'
+  on-surface-variant: '#464653'
+  inverse-surface: '#2f3131'
+  inverse-on-surface: '#f0f1f1'
+  outline: '#767684'
+  outline-variant: '#c6c5d5'
+  surface-tint: '#4b53bc'
+  primary: '#00003c'
+  on-primary: '#ffffff'
+  primary-container: '#000080'
+  on-primary-container: '#777eea'
+  inverse-primary: '#bfc2ff'
+  secondary: '#735c00'
+  on-secondary: '#ffffff'
+  secondary-container: '#fed65b'
+  on-secondary-container: '#745c00'
+  tertiary: '#0b0c02'
+  on-tertiary: '#ffffff'
+  tertiary-container: '#212313'
+  on-tertiary-container: '#898b75'
+  error: '#ba1a1a'
+  on-error: '#ffffff'
+  error-container: '#ffdad6'
+  on-error-container: '#93000a'
+  primary-fixed: '#e0e0ff'
+  primary-fixed-dim: '#bfc2ff'
+  on-primary-fixed: '#00006e'
+  on-primary-fixed-variant: '#3239a3'
+  secondary-fixed: '#ffe088'
+  secondary-fixed-dim: '#e9c349'
+  on-secondary-fixed: '#241a00'
+  on-secondary-fixed-variant: '#574500'
+  tertiary-fixed: '#e4e4cc'
+  tertiary-fixed-dim: '#c8c8b0'
+  on-tertiary-fixed: '#1b1d0e'
+  on-tertiary-fixed-variant: '#474836'
+  background: '#f9f9f9'
+  on-background: '#1a1c1c'
+  surface-variant: '#e2e2e2'
+typography:
+  display-lg:
+    fontFamily: Playfair Display
+    fontSize: 48px
+    fontWeight: '700'
+    lineHeight: '1.2'
+    letterSpacing: -0.02em
+  display-lg-mobile:
+    fontFamily: Playfair Display
+    fontSize: 32px
+    fontWeight: '700'
+    lineHeight: '1.2'
+  headline-lg:
+    fontFamily: Playfair Display
+    fontSize: 32px
+    fontWeight: '600'
+    lineHeight: '1.3'
+  headline-lg-mobile:
+    fontFamily: Playfair Display
+    fontSize: 24px
+    fontWeight: '600'
+    lineHeight: '1.3'
+  headline-md:
+    fontFamily: Playfair Display
+    fontSize: 24px
+    fontWeight: '600'
+    lineHeight: '1.4'
+  body-lg:
+    fontFamily: Inter
+    fontSize: 18px
+    fontWeight: '400'
+    lineHeight: '1.6'
+  body-md:
+    fontFamily: Inter
+    fontSize: 16px
+    fontWeight: '400'
+    lineHeight: '1.5'
+  label-md:
+    fontFamily: Inter
+    fontSize: 14px
+    fontWeight: '600'
+    lineHeight: '1'
+    letterSpacing: 0.05em
+  caption:
+    fontFamily: Inter
+    fontSize: 12px
+    fontWeight: '400'
+    lineHeight: '1.4'
+rounded:
+  sm: 0.25rem
+  DEFAULT: 0.5rem
+  md: 0.75rem
+  lg: 1rem
+  xl: 1.5rem
+  full: 9999px
+spacing:
+  unit: 8px
+  container-max: 1200px
+  gutter: 24px
+  margin-mobile: 16px
+  margin-desktop: 40px
+---
+
+## Brand & Style
+The design system is crafted for a premium hotel service, blending traditional Vietnamese hospitality with modern luxury. The brand personality is **Elegant, Calm, and Trustworthy**, aiming to evoke a sense of serene exclusivity and high-end professional service.
+
+The visual style is **Corporate Modern with a Minimalist focus**. It utilizes heavy whitespace to allow the premium content to breathe, while employing a sophisticated card-based architecture to organize complex service offerings. The interface feels light and airy, yet grounded by high-quality typography and structured layouts.
+
+## Colors
+This design system uses a palette that balances authority and warmth. 
+- **Deep Navy (#000080)**: Used for primary branding, navigation, and core interaction points to establish trust.
+- **Muted Gold (#D4AF37)**: Used sparingly for accents, highlights, and "premium" status indicators to convey luxury without ostentation.
+- **Warm Beige (#F5F5DC)**: Used as a secondary background or subtle section separator to soften the high-contrast navy and white.
+- **White (#FFFFFF)**: The primary canvas color to ensure a clean, modern aesthetic.
+
+Status colors are slightly desaturated to maintain the "calm" brand personality, ensuring they provide information without breaking the visual harmony.
+
+## Typography
+The typography strategy relies on a sophisticated contrast between **Playfair Display** and **Inter**. 
+
+All headings and display text use Playfair Display to signal heritage and luxury. Headlines should use "Sentence case" in Vietnamese to maintain a friendly yet professional tone. For body copy, Inter provides high legibility and a modern, systematic feel. Use generous line-heights (1.5 - 1.6) for body text to improve readability and reinforce the "calm" emotional response.
+
+## Layout & Spacing
+The layout follows a **Fixed Grid** philosophy for desktop (12 columns) and a **Fluid** model for mobile. 
+
+- **Desktop**: 12-column grid, 1200px max-width, 24px gutters.
+- **Mobile**: Single column with 16px side margins.
+- **Rhythm**: All spacing (padding, margins) must be increments of 8px. Use 32px or 40px for vertical section spacing to maintain "generous whitespace."
+
+Components should be grouped logically within cards, using internal padding of 24px to ensure content does not feel cramped.
+
+## Elevation & Depth
+Depth is created through **Ambient Shadows** and **Tonal Layers**. 
+
+The design system avoids harsh borders. Instead, cards use a very soft, diffused shadow (`0px 4px 20px rgba(0, 0, 0, 0.05)`). To indicate hierarchy, secondary cards can use a subtle **Warm Beige** fill with no shadow. Background blurs (Glassmorphism) should be reserved for sticky mobile navigation bars or floating action buttons to maintain context without obscuring the background colors.
+
+## Shapes
+The shape language is defined by **Large, Soft Radii**. 
+
+- Standard components (inputs, small buttons) use `rounded-md` (8px).
+- Service cards and containers use `rounded-2xl` (24px) to emphasize a modern, premium feel. 
+- Status badges use a full pill-shape to distinguish them from interactive buttons.
+
+## Components
+
+### Premium Service Cards
+Cards should feature a high-quality image with a `rounded-xl` top. The content area below should use `body-md` for descriptions and a `label-md` in Muted Gold for the category name.
+
+### Sticky Mobile Buttons
+Primary actions on mobile (e.g., "Đặt ngay") must be contained in a sticky bottom container with a `backdrop-filter: blur(10px)` and a soft top border. The button itself should be full-width, Navy, with White text.
+
+### Status Badges
+Badges use a low-opacity background version of the status color with high-contrast text. 
+- **Chờ duyệt (Pending)**: Grey.
+- **Đã nhận (Accepted)**: Light Blue.
+- **Đang xử lý (In Progress)**: Muted Gold.
+- **Hoàn thành (Completed)**: Green.
+- **Đã hủy (Cancelled)**: Red.
+
+### Admin Data Visualization
+Charts should use the primary Navy and Muted Gold for data series. Use a clean, sans-serif font (Inter) for all chart labels and axes. Grid lines in charts should be kept at extremely low opacity (10%) to maintain the minimalist aesthetic.
+
+### Input Fields
+Inputs are borderless with a `Warm Beige` background or use a very thin `1px` border in a light neutral. Focus states should be indicated by a `1px` Navy border.
+
+## Administration workspaces — operational scale (2026-09-06)
+
+Platform administration, owner/management and hotel staff use the existing navy, gold and neutral
+surface tokens through a light, task-first shell. Retain the runtime font variables
+(`--font-manrope` / `--font-fraunces`); do not fetch another font or replace guest/marketing identity.
+
+- Navigation: 16px / 24px, 48px minimum rows, wrapping labels, 24px icons; 14px section labels.
+- Geometry: 72px header; 288px sidebar, 88px collapsed; full navigation in a native dialog below
+  1024px. Content uses 16px mobile and 32px wider gutters. Small-screen wordmark is 20px.
+- Content: 16px body/form controls, 14px secondary/table text, 32px mobile and 36px wider page
+  headings. Data numerals are tabular. Page headings are separators, not decorative hero cards.
+- Surfaces: white 16px-radius panels, restrained borders, grouped filters, readable pagination;
+  empty/error recovery stays outside wide table scrolling. Preserve semantic status colors.
+- Interaction: 44px minimum important controls, visible focus, skip link, native modal focus,
+  reduced-motion opt-out, no persistent bottom bar covering the workspace.
+- Scope: `workspace.css` is namespaced to `.vs-workspace`. Print keeps content headings while removing
+  shell chrome. Existing guest layouts, locale dictionaries and business-specific controls remain intact.
+
+This is a source-level design contract, not rendered acceptance. Browser/device inspection is
+explicitly prohibited for this worktree task; the visual gate remains blocked until separately authorized.
+</file>
+
+<file path="frontends/front-end-vietsage/docs/RUNTIME_UI_GUIDE.md">
+# Frontend Runtime and UI Guide
+
+## Purpose
+
+This guide contains detailed runtime, component, state, realtime, error, loading, and i18n conventions.
+
+## Server and Client Components
+
+Default to Server Components.
+
+Use Client Components only when the code needs:
+
+- Browser APIs.
+- Event handlers.
+- `useState`, `useEffect`, or client navigation hooks.
+- Zustand or another client store.
+- TanStack Query hooks.
+- Realtime sockets.
+
+Client components must be explicit with `"use client"`.
+
+## Component Ownership
+
+| Component type | Location | Rule |
+| --- | --- | --- |
+| Route-local components | `src/app/**/_components` or colocated route files | Use only within that route area. |
+| Feature components | `src/features/[feature]/components` | May use feature hooks/services. |
+| UI primitives | `src/components/ui` | Must not import feature services or app routes. |
+| Shared app components | `src/components/shared` or route-group `_components` | Shared presentation/shell logic. |
+| Marketing components | `src/components/marketing` | Public marketing sections and shells. |
+
+## State Ownership
+
+| State type | Recommended owner |
+| --- | --- |
+| Server state | TanStack Query or server data loading. |
+| URL/shareable state | Route params and search params. |
+| Local UI state | React state. |
+| Cross-component client state | Zustand or another explicit client store. |
+| Session state | Auth/session provider. |
+| Persistent browser state | Storage abstraction. |
+
+Rules:
+
+- Do not store server state in Zustand.
+- Do not use TanStack Query for purely local UI state.
+- Prefer URL state for shareable filters, pagination, and selected views.
+- Browser storage must be wrapped by feature/core utilities.
+
+GuestOS keeps a versioned anonymous device identifier in its browser-storage utility. QR scans send
+that identifier with the current session token so rescanning the same room rotates/reuses the same
+device slot instead of consuming another slot. The identifier is not an authentication authority;
+the backend still validates the QR, active stay, session, and checkout state.
+
+Room-management list state uses a query resource. Owner and staff views refresh the room projection
+periodically while visible, and owner table/grid actions refetch the same resource so device counts
+and room states remain consistent without duplicating server state in separate components.
+
+## Workspace navigation and RBAC rendering
+
+- The typed workspace registry owns persona aliases, dashboard definitions, labels, and nav order.
+- Navigation is projected from the session-bound active role capabilities and explicit hotel ID;
+  raw permission keys must never be used as user-facing labels.
+- A view capability may render read-only content. Create, assign, revoke, and status controls render
+  only when the matching manage capability is present.
+- Tenant and hotel scope stay in URL/local query state. Do not load tenant staff before an explicit
+  tenant is selected, and do not load hotel assignments before a hotel is selected.
+- Frontend capability filtering improves clarity and request volume; it never replaces backend
+  authorization.
+
+## Realtime
+
+- Isolate socket clients behind a feature or core realtime module.
+- Components should subscribe through hooks, not direct socket instances.
+- Realtime events should update or invalidate server-state caches when appropriate.
+- Connection lifecycle, cleanup, reconnect behavior, and auth context must be centralized.
+
+## Loading, Error, and Empty States
+
+- Use route-level `loading.tsx` and `error.tsx` when a product surface needs its own boundary.
+- Use component-level loading states for localized async sections.
+- Empty states should guide user action.
+- Do not display raw backend error objects directly.
+- Use toasts for user-triggered action feedback, not as the only error boundary.
+
+## I18n
+
+- App-wide copy belongs in `core/i18n` or config-level i18n files.
+- Feature-specific copy belongs in `features/[feature]/i18n`.
+- Route-only copy may be colocated only when it is not reusable.
+- Avoid hardcoding user-facing copy in large interactive flows.
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/_components/route-boundary-state.tsx">
+type BoundaryTone = "admin" | "guest" | "hotel" | "owner" | "staff";
+⋮----
+type RouteBoundaryStateProps = {
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
+  eyebrow: string;
+  message: string;
+  title: string;
+  tone?: BoundaryTone;
+};
+⋮----
+/* ------------------------------------------------------------------ */
+/*  Content-area variants — render INSIDE the workspace shell         */
+/*  so sidebar / topbar / bottom-nav remain visible.                  */
+/* ------------------------------------------------------------------ */
+⋮----
+/** Loading skeleton that fits inside the shell's <main> content area. */
+⋮----
+/** Error card that fits inside the shell's <main> content area. */
+</file>
+
+<file path="frontends/front-end-vietsage/src/components/brand/vietsage-brand.tsx">
+import Image from "next/image";
+⋮----
+type VietSageBrandProps = {
+  className?: string;
+  markClassName?: string;
+  priority?: boolean;
+  variant?: "lockup" | "mark" | "wordmark";
+  wordmarkClassName?: string;
+};
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/workspace/components/workspace-profile-context.tsx">
+import { createContext, type ReactNode, useContext } from "react";
+⋮----
+type WorkspaceProfile = {
+  profileName: string | null;
+};
+⋮----
+export function WorkspaceProfileProvider({
+  children,
+  profileName,
+}: Readonly<WorkspaceProfile &
+⋮----
+export function useWorkspaceProfile(): WorkspaceProfile
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/workspace/components/workspace.css">
+.vs-workspace {
+⋮----
+.vs-workspace[data-collapsed="true"] { --workspace-sidebar-width: 5.5rem; }
+.vs-workspace :focus-visible {
+.vs-workspace ::selection { background: var(--secondary-fixed); color: var(--on-secondary-fixed); }
+.vs-workspace .vs-topbar {
+.vs-workspace .vs-topbar > div { min-width: 0; gap: 0.5rem; }
+.vs-workspace .vs-topbar button {
+.vs-workspace .vs-workspace-wordmark { font-size: 1.5rem; line-height: 1.25; color: var(--primary); }
+.vs-workspace-icon-button, .vs-workspace-menu-button {
+.vs-workspace-icon-button:hover, .vs-workspace-menu-button:hover { background: var(--surface-container); }
+.vs-workspace-skip-link {
+.vs-workspace-skip-link:focus { transform: none; }
+.vs-workspace-sidebar {
+.vs-workspace-sidebar-context {
+.vs-workspace-sidebar-title { font-size: 1rem; font-weight: 700; color: var(--primary); overflow-wrap: anywhere; }
+.vs-workspace-sidebar-description { margin-top: 0.5rem; font-size: 0.875rem; line-height: 1.5; color: var(--workspace-muted); }
+.vs-workspace-navigation {
+.vs-workspace-nav-section + .vs-workspace-nav-section { margin-top: 1.5rem; }
+.vs-workspace-nav-heading { padding: 0 0.75rem 0.5rem; color: var(--workspace-muted); font-size: 0.875rem; font-weight: 600; }
+.vs-workspace-nav-list { display: grid; gap: 0.25rem; list-style: none; margin: 0; padding: 0; }
+.vs-workspace-nav-link {
+.vs-workspace-nav-link:hover { background: var(--surface-container-low); color: var(--primary); }
+.vs-workspace-nav-link[aria-current="page"] { background: var(--primary); color: var(--on-primary); }
+.vs-workspace-nav-link[aria-current="page"] .vs-workspace-nav-icon { color: var(--secondary-fixed); }
+.vs-workspace-nav-label { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.vs-workspace .vs-workspace-nav-icon { flex-shrink: 0; width: 1.5rem; height: 1.5rem; font-size: 1.5rem; }
+.vs-workspace-nav-badge { flex-shrink: 0; padding: 0.125rem 0.375rem; border-radius: 1rem; background: var(--secondary-fixed); color: var(--on-secondary-fixed); font-size: 0.75rem; font-variant-numeric: tabular-nums; }
+.vs-workspace-nav-empty { padding: 1rem; color: var(--workspace-muted); }
+.vs-workspace-collapse {
+.vs-workspace-collapse:hover { background: var(--surface-container-low); }
+.vs-workspace[data-collapsed="true"] .vs-workspace-sidebar-context { justify-content: center; }
+.vs-workspace[data-collapsed="true"] .vs-workspace-sidebar .vs-workspace-nav-link { justify-content: center; }
+.vs-workspace[data-collapsed="true"] .vs-workspace-sidebar .vs-workspace-nav-badge { position: absolute; inset-block-start: 0; inset-inline-end: 0; }
+.vs-workspace-main { min-width: 0; min-height: 100dvh; padding: calc(var(--workspace-header-height) + 1.5rem) 1rem 3rem; }
+.vs-workspace-content { width: 100%; max-width: 100rem; margin-inline: auto; }
+.vs-workspace-content > * + * { margin-top: 2rem; }
+.vs-workspace-content :where(main, section, article, header, form, fieldset, .grid > *, .flex > *) { min-width: 0; }
+.vs-workspace-content :where(h1, h2, h3) { text-wrap: balance; overflow-wrap: anywhere; letter-spacing: -0.025em; }
+.vs-workspace-content h1 { font-size: 2rem; line-height: 1.25; font-weight: 700; }
+.vs-workspace-content h2 { font-size: 1.5rem; line-height: 1.35; }
+.vs-workspace-content h3 { line-height: 1.4; }
+.vs-workspace-content :where(p, label, td) { overflow-wrap: anywhere; }
+.vs-workspace-content :where(.text-xs, [class~="text-[10px]"], [class~="text-[11px]"]) { font-size: 0.875rem; line-height: 1.5; }
+.vs-workspace-content :where(button, a[role="button"], .vs-touch-button) { min-height: 2.75rem; min-width: 2.75rem; font-size: 0.875rem; line-height: 1.5; }
+.vs-workspace-content :where(button, a) { scroll-margin-block: calc(var(--workspace-header-height) + 1rem); }
+.vs-workspace-content :where(button:disabled, input:disabled, select:disabled) { cursor: not-allowed; }
+.vs-workspace-content :where(input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="range"]):not([type="file"]), select, textarea) {
+.vs-workspace-content :where(input, textarea)::placeholder { color: var(--workspace-muted); opacity: 1; }
+.vs-workspace-content :where(input, select, textarea):focus-visible { outline-offset: 2px; }
+.vs-workspace-content :where(label, legend) { font-size: 0.875rem; line-height: 1.5; font-weight: 600; }
+.vs-workspace-content :where(.overflow-x-auto) { overscroll-behavior-inline: contain; scrollbar-color: var(--outline) var(--surface-container-low); }
+.vs-workspace-content :where(table) { font-size: 0.875rem; line-height: 1.5; }
+.vs-workspace-content :where(th) { padding: 1rem; text-transform: none; letter-spacing: normal; font-size: 0.875rem; line-height: 1.5; font-weight: 700; }
+.vs-workspace-content :where(td) { padding: 1rem; }
+.vs-workspace-content :where(th, td) :where(button, a) { white-space: normal; }
+.vs-workspace-content :where(tbody tr:hover) { background-color: var(--surface-container-low); }
+.vs-workspace-content :where(.tabular-nums, td) { font-variant-numeric: tabular-nums; }
+.vs-workspace-content .vs-page-header {
+.vs-workspace-content .vs-page-header:has(> div) { display: flex; }
+.vs-workspace-content .vs-page-header > div:first-child { flex: 1 1 20rem; }
+.vs-workspace-content .vs-page-header h1 { margin-top: 0; color: var(--primary); }
+.vs-workspace-content .vs-page-header p { max-width: 70ch; }
+.vs-workspace-content .vs-panel { border: 1px solid var(--workspace-border); border-radius: 1rem; background: var(--surface-container-lowest); box-shadow: none; padding: 1.5rem; }
+.vs-workspace-content .vs-table-panel { overflow: hidden; border: 1px solid var(--workspace-border); border-radius: 1rem; background: var(--surface-container-lowest); }
+.vs-workspace-content .vs-table-panel thead { background: var(--surface-container-low); color: var(--on-surface-variant); }
+.vs-workspace-content .vs-filter-bar { padding: 1rem; }
+.vs-workspace-content .vs-filter-bar input { background: var(--surface-container-lowest); }
+.vs-workspace-content .vs-filter-bar button { border-radius: 0.5rem; background: var(--primary); color: var(--on-primary); box-shadow: none; }
+.vs-workspace-content nav:has(> a) { max-width: 100%; flex-wrap: wrap; gap: 0.25rem; }
+.vs-workspace-content nav > a { display: inline-flex; align-items: center; min-height: 2.75rem; }
+.vs-workspace-content [role="dialog"] { max-width: calc(100vw - 2rem); max-height: calc(100dvh - 2rem); overflow-y: auto; }
+.vs-workspace-content .vs-stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); gap: 1rem; }
+.vs-workspace-content .vs-stat-card { padding: 1.5rem; border: 1px solid var(--workspace-border); border-radius: 1rem; background: var(--surface-container-lowest); box-shadow: none; transform: none; }
+.vs-workspace-content .vs-stat-card p { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.vs-workspace-content .vs-module-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); gap: 1rem; }
+.vs-workspace-content .vs-module-link { display: flex; align-items: flex-start; gap: 1rem; padding: 1.5rem; border: 1px solid var(--workspace-border); border-radius: 1rem; background: var(--surface-container-lowest); }
+.vs-workspace-content .vs-module-link:hover { border-color: var(--primary); background: var(--surface-container-low); }
+.vs-workspace-content .vs-module-link h3 { margin: 0; font-size: 1.125rem; font-weight: 700; color: var(--primary); }
+.vs-workspace-content .vs-module-link p { margin-top: 0.5rem; color: var(--workspace-muted); }
+.vs-workspace-content .vs-module-icon { display: grid; place-items: center; flex-shrink: 0; width: 3rem; height: 3rem; border-radius: 0.75rem; background: var(--primary-fixed); color: var(--primary); }
+.vs-workspace-content .vs-owner-reveal { animation: none; }
+.vs-workspace-content .vs-owner-panel { backdrop-filter: none; }
+.vs-workspace-mobile-dialog { position: fixed; inset: 0; width: 100%; max-width: none; height: 100%; max-height: none; margin: 0; padding: 0; border: 0; background: transparent; color: var(--on-surface); }
+.vs-workspace-mobile-dialog::backdrop { background: rgb(0 0 60 / 45%); }
+.vs-workspace-mobile-panel { display: flex; flex-direction: column; width: min(23rem, calc(100% - 1rem)); height: 100dvh; padding-bottom: env(safe-area-inset-bottom); background: var(--surface-container-lowest); }
+.vs-workspace-mobile-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding: 1.5rem 1rem; border-bottom: 1px solid var(--workspace-border); }
+.vs-workspace-mobile-heading h2 { font-size: 1.125rem; line-height: 1.5; font-weight: 700; color: var(--primary); }
+.vs-workspace-mobile-heading p { margin-top: 0.25rem; font-size: 0.875rem; color: var(--workspace-muted); }
+body:has(.vs-workspace-mobile-dialog[open], .vs-account-dialog[open]) { overflow: hidden; }
+⋮----
+.vs-workspace .vs-topbar > div:last-child > div { display: none; }
+.vs-workspace .vs-topbar > div:last-child > button span { display: none; }
+⋮----
+.vs-workspace .vs-workspace-wordmark { font-size: 1.25rem; }
+.vs-workspace .vs-topbar { padding-inline: 0.75rem; }
+⋮----
+.vs-workspace-main { padding-inline: 2rem; }
+.vs-workspace-content h1 { font-size: 2.25rem; }
+⋮----
+.vs-workspace-sidebar { display: flex; }
+.vs-workspace-menu-button { display: none; }
+.vs-workspace-main { margin-inline-start: var(--workspace-sidebar-width); }
+.vs-workspace .vs-topbar { padding-inline: 1.5rem; }
+⋮----
+.vs-workspace *, .vs-workspace *::before, .vs-workspace *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+⋮----
+.vs-workspace { background: white; }
+.vs-workspace .vs-topbar, .vs-workspace-sidebar, .vs-workspace-mobile-dialog, .vs-workspace-skip-link { display: none !important; }
+.vs-workspace-main { min-height: 0; margin: 0; padding: 0; }
+.vs-workspace-content { max-width: none; }
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/workspace/config/workspace-registry.test.ts">
+import assert from "node:assert/strict";
+import test from "node:test";
+⋮----
+// @ts-expect-error Node's strip-types runner requires the explicit TypeScript extension.
+import { buildWorkspaceNavigation, createWorkspaceRegistry, getWorkspaceDashboardWidgets, getWorkspaceDefinition, resolveWorkspacePersona } from "./workspace-registry.ts";
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/workspace/store/workspace-sidebar-store.ts">
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+⋮----
+type SidebarState = { isCollapsed: boolean; toggle: () => void };
+⋮----
+// ponytail: retain the existing boolean storage format; version only if preferences expand.
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/workspace/utils/workspace-context.ts">
+import type {
+  AuthAccessibleHotel,
+  AuthActiveRole,
+} from "@/features/auth/types/auth-contract";
+// @ts-expect-error Node's strip-types runner requires the explicit TypeScript extension.
+import { resolveWorkspacePersona as resolvePersonaFromRegistry } from "../config/workspace-registry.ts";
+import type { WorkspacePersona } from "../types/workspace-registry";
+⋮----
+export type WorkspaceContext = {
+  activeRole: AuthActiveRole;
+  permissions: readonly string[];
+  accessibleHotels: readonly AuthAccessibleHotel[];
+};
+⋮----
+export function resolveWorkspacePersona(roleCode: string): WorkspacePersona | null
+⋮----
+export function hasWorkspaceCapability(
+  context: Pick<WorkspaceContext, "permissions">,
+  capability: string,
+): boolean
+⋮----
+export function hasAnyHotelCapability(
+  context: Pick<WorkspaceContext, "permissions">,
+): boolean
+⋮----
+export function canAccessHotelScope(
+  context: Pick<WorkspaceContext, "permissions" | "accessibleHotels">,
+  hotelId: string,
+): boolean
+⋮----
+export function resolveExplicitAccessibleHotel(
+  context: Pick<WorkspaceContext, "permissions" | "accessibleHotels">,
+  requestedHotelId: string | null | undefined,
+): AuthAccessibleHotel | null
+⋮----
+export function resolveSingleAssignedHotel(
+  context: Pick<WorkspaceContext, "permissions" | "accessibleHotels">,
+): AuthAccessibleHotel | null
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/workspace/utils/workspace-nav-active.test.ts">
+import assert from "node:assert/strict";
+import test from "node:test";
+⋮----
+// @ts-expect-error Node's strip-types runner requires explicit TypeScript extension.
+import { isNavItemActive } from "./workspace-nav-active.ts";
+import type { DashboardNavItem } from "../types/workspace-navigation.ts";
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/workspace/utils/workspace-nav-active.ts">
+import type { DashboardNavItem } from "../types/workspace-navigation";
+⋮----
+export function parseSidebarUrl(rawPath: string)
+⋮----
+export function isNavItemActive(
+  itemHref: string,
+  activePath: string,
+  allItems: readonly DashboardNavItem[] = []
+): boolean
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/account/security/change-password-dialog.tsx">
+import { type FormEvent, useState } from "react";
+import { createPortal } from "react-dom";
+⋮----
+import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+import { useChangePassword } from "@/features/auth/hooks/use-change-password";
+import { validatePasswordChange } from "./password-security";
+⋮----
+type PasswordField = keyof typeof emptyForm;
+⋮----
+function close()
+⋮----
+async function submit(event: FormEvent<HTMLFormElement>)
+⋮----
+setForm((current) => (
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/workspace/components/workspace-shell.tsx">
+import type { ReactNode } from "react";
+import { useEffect, useMemo, useRef } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+⋮----
+import { VsDashboardSidebar, VsWorkspaceNavigation } from "@/app/(vietsage)/_components/vs-dashboard-sidebar";
+import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+import { VsTopBar } from "@/app/(vietsage)/_components/vs-top-bar";
+import type { DashboardNavItem } from "@/features/workspace/types/workspace-navigation";
+import { useWorkspaceSidebar } from "../store/workspace-sidebar-store";
+⋮----
+import { useHotelMessageUnread } from "@/features/hotel-ops/hooks/use-hotel-message-unread";
+import { useWorkspaceProfile } from "./workspace-profile-context";
+⋮----
+import type { WorkspaceDefinition } from "../config/workspace-registry";
+⋮----
+type WorkspaceShellProps = {
+  children: ReactNode;
+  definition: WorkspaceDefinition;
+  navItems: readonly DashboardNavItem[];
+  contextLabel?: string;
+  activePath?: string;
+  profileName?: string | null;
+  printFriendly?: boolean;
+};
+⋮----
+export function WorkspaceShell({
+  children,
+  definition,
+  navItems,
+  contextLabel,
+  activePath: explicitActivePath,
+  profileName,
+  printFriendly = false,
+}: Readonly<WorkspaceShellProps>)
+⋮----
+const closeNavigation = ()
+⋮----
+const closeOnDesktop = () =>
+⋮----
+onClick=
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/workspace/utils/workspace-context.test.ts">
+import assert from "node:assert/strict";
+import test from "node:test";
+⋮----
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore Node's strip-types runner requires the explicit TypeScript extension.
+⋮----
+type WorkspaceContext = import("./workspace-context").WorkspaceContext;
+</file>
+
+<file path="frontends/front-end-vietsage/docs/RULES.md">
+# PROJECT RULES
+
+## Core Rules
+
+- Before starting implementation, read and follow `docs/RULES.md` plus any relevant file in `docs/` for the task.
+- For each implementation task, set a short mission name and keep the working plan aligned to that mission until completion.
+- Prefer Server Components by default
+- Do not fetch APIs directly inside UI components
+- Use TanStack Query for async server state
+- Keep business logic outside page components
+- Reuse existing UI primitives before creating new ones
+- Do not modify unrelated logic during UI redesign
+
+## API Logging Rule (Mandatory)
+
+- Every backend request MUST emit a response log (`res log`) with prefix `[API_RES]`.
+- Required log fields: `method`, `url`, `status`, `ok`, `durationMs`, and `response` payload.
+- Apply logging centrally in `src/core/http/http-client.ts`; do not duplicate ad-hoc per page.
+- Do not remove response logging during feature work. If format changes, update this RULES file in the same task.
+
+## API Transport Rule (Mandatory)
+
+- Always use the central HTTP transports for backend API calls.
+- Use `src/core/http/http-client.ts` (`httpClient` / `HttpClient`) as a pure browser/public/backend transport. It does not own auth refresh, retry loops, navigation, or browser logout event dispatch.
+- Use `src/core/http/internal-api-client.ts` for same-origin authenticated browser BFF flows. It owns one retry through `POST /api/auth/refresh-session` and emits the single logout-required signal when refresh/retry fails.
+- Use `src/core/http/http-server.ts` (`httpServer`) as a pure server transport for backend API calls that run in Route Handlers or server-only service paths with explicit `Authorization` or `accessToken`.
+- Do not call backend APIs with raw `fetch`, raw `axios`, or ad-hoc request helpers from pages, layouts, UI components, or feature services.
+- Keep APIs that do not require authentication in the `httpClient` flow.
+- Keep authenticated server calls in the `httpServer` flow.
+- Keep refresh + `unstable_update` only in cookie-writable Route Handler or Server Action boundaries.
+
+## Entity Selection & UX Rules (Mandatory)
+
+- **Dropdown Select for Entity IDs**: Forms requiring entity selection (such as Hotel, Room, User) MUST NOT ask the user to type raw UUID strings. You MUST fetch options from an API route and render a `<select>` dropdown displaying human-readable names and entity codes (e.g. `Khách sạn Grand Saigon (HSG)`).
+- **Workspace Navigation & Session Fallbacks**: When adding new navigation items to `workspace-registry.ts`, `anyCapabilities` MUST include both the new domain capability (e.g. `platform.billing.view`) AND existing active session capabilities (e.g. `platform.roles.view`, `platform.hotels.view`) so currently logged-in users see the navigation item immediately without needing re-authentication.
+- **SweetAlert2 Standard**: All confirm dialogs and alert notifications MUST use `SwalVietSage` (`src/libs/swal.ts`). Confirm dialogs must render with `reverseButtons: false` (Confirm button on left, Cancel button on right). Success alerts must show the OK button (`showConfirmButton: true`, `confirmButtonText: "OK"`). Error alerts must extract human-readable error details from backend response payloads, suppressing raw status codes.
+- **Excel & Google Sheets Synchronization Standard**:
+  - **Spreadsheet URL Auto-Persistence**: Frontends MUST auto-save entered Google Sheets / Excel URLs into `localStorage` (e.g. `vietsage_marketplace_category_sheet_url`) and auto-restore input state on load to eliminate repeated copying & pasting.
+  - **Summary Metric Key Fallbacks**: Preview summary metric cards MUST handle backend key variations (`creates`/`create`, `updates`/`update`) with safe fallbacks (`creates ?? create ?? 0`) to prevent undefined or blank preview counts.
+
+## UI Theme Direction & Typography Scale
+
+The application should follow a:
+
+- follow file `@DESIGN.md`
+- fresh, bright, friendly, modern UI
+- clean and spacious layout (`p-6`+, `gap-6`+)
+- typography scale: main page headers MUST be `text-2xl` or `text-3xl font-extrabold`; content text MUST be `text-sm font-medium` or `text-base`. Avoid microscopic text (`text-[10px]` or `text-xs`) for critical content or primary CTA buttons.
+
+UI style preferences:
+
+- large rounded cards (`rounded-2xl`)
+- soft shadows and backdrop-blur modals (`backdrop-blur-sm bg-slate-900/60`)
+- comfortable spacing
+- clean typography
+- product-focused visuals
+- minimal visual clutter
+- responsive-first layouts
+
+Avoid:
+
+- overly dark UI
+- black/white corporate dashboards
+- crowded marketplace-style layouts
+- microscopic font sizes for main content
+
+## Administration Presentation Boundaries
+
+- Administration geometry/type rules live in the scoped workspace stylesheet; preserve guest and marketing layouts.
+- Every permission-filtered navigation item must remain reachable on mobile. Keep native dialog focus and a visible keyboard focus indicator.
+- Keep page/layout auth and initial data on the server. Document any client-boundary change or deliberate retention in `docs/PLANS.md`.
+- Use the existing sidebar preference key through the workspace Zustand store; hydrate after mount to preserve server/client markup parity.
+
+## Data Fetching
+
+- Use queries/\* hooks
+- Use feature repositories for backend/BFF calls; existing service loaders may migrate incrementally.
+- Avoid duplicate fetching
+
+## React Query Rule (Mandatory)
+
+- For every new or materially changed client-side API module, declare server-state capabilities with `@dangminhdev04032005/query-resource`, then consume its options through `useQuery`, `useInfiniteQuery`, or `useMutation` in queries/* or feature hooks.
+- Do not write raw `queryKey` + `queryFn` or raw `mutationFn` configuration in pages, presentation components, or feature hooks. The only allowed direct TanStack Query configuration is the application-level `QueryClient` provider; hooks consume resource-generated options.
+- Do not call backend APIs directly with raw fetch/axios inside page, layout, or presentational components.
+- Repositories own transport selection, endpoints, DTO mapping, transforms, and pagination normalization. `@dangminhdev04032005/query-resource` remains independent of `fetch`, Axios, VietSage clients, and backend response envelopes.
+- Resources own key factories, query/infinite options, mutations, local invalidation, prefetch/ensure, and cache patch/rollback operations.
+- Feature hooks own permission checks, feature flags, enabled guards, filter normalization, cross-resource coordination, navigation, and UI feedback.
+- Every response-affecting scope value and input must be represented in `scopeKey` or `inputKey`. Keys must be deterministic and JSON-serializable.
+- Declare only supported capabilities. Domain commands are named mutations; do not add an untyped `extra` namespace or assume every module has full CRUD.
+- Keep same-resource invalidation declarative in the mutation definition. Cross-resource effects must be explicit in a feature hook.
+- Realtime handlers must use resource-generated keys/cache operations when a resource exists; do not duplicate key arrays.
+- Use enabled guards for missing params/session to avoid premature requests and unnecessary 401 retries.
+- Server-side (RSC/layout) fetches stay in server layers; React Query is the client cache/interaction layer.
+- Frontend dependency management is rooted at `front-end-vietsage/package.json`. Do not create nested `package.json`, nested `node_modules`, `packages/*` workspaces, or a local copy of the query-resource package.
+- Cross-project reuse is via `@dangminhdev04032005/query-resource`. Each project still writes its own repositories/resources around its own API contract.
+
+## State Management
+
+- Use Zustand for global client state, shared UI state, and storage-backed client state.
+- Do not introduce ad-hoc global state through React Context, module-level mutable variables, or duplicated `useState` chains when the state must be shared across routes/components.
+- Do not read/write `localStorage` or `sessionStorage` directly from feature components for shared/persistent state; wrap persistent client state in a Zustand store using `persist` / `createJSONStorage` or a dedicated storage utility used by that store.
+- Keep Zustand stores minimal and client-only. Store UI/session preferences, persisted client selections, and cross-component client state there; do not mirror backend resources in Zustand.
+- TanStack Query for server state
+
+## Auth & Routing Rules
+
+- Keep route permission policy in one place: `src/lib/rbac.ts`.
+- For Next.js 16 auth edge handling, use `src/proxy.ts` (not legacy `middleware.ts`).
+- Protected route behavior is mandatory: unauthenticated user -> redirect to `/login?callbackUrl=<current-path>`.
+- Protected route behavior is mandatory: authenticated but unauthorized role -> render `404` via `notFound()`.
+- Enforce role checks in server layouts for protected route groups (`/guest`, `/staff`, `/admin`).
+- Never redirect directly from raw `callbackUrl`; always resolve through `resolveSafeRedirect(...)`.
+- Reject external callback URLs and unknown internal paths; fallback to role default path.
+
+## UI Rules
+
+- Use skill `/design-taste-frontend` + `/ui-ux-pro-max` only when creating brand new screens, layouts, or visual concepts
+- Use skill `/design-taste-frontend` +`/frontend-design` only when improving or redesigning existing UI
+- Keep responsive design mobile-friendly
+- Reuse `components/ui/*` primitives first
+- Do not modify unrelated business logic during UI redesign
+- For synchronization tasks, follow root validation checklist at `docs/FRONTEND_SYNC_VALIDATION.md`
+
+Avoid duplicating query boilerplate already handled by the resource system.
+
+## Change Tracking Rule (Mandatory)
+
+For every completed implementation/fix, you MUST update documentation in the same task:
+
+- update file `docs/PLANS.md` with:
+  - date
+  - what changed
+  - verification result
+  - remaining blockers/risks
+- if behavior/rules/process changed, update `docs/RULES.md` in the same PR/commit.
+- If `docs/PLANS.md` is not updated, the task is NOT considered complete.
+  After complete a module, run a cleanup pass for lint warnings to keep the project clean.
+
+Do not mark work as complete until documentation sync is finished.
+
+## Git Commit Rule (Mandatory)
+
+- Follow the project's git commit rules whenever the user asks to commit or prepare commit-ready work.
+- Inspect `git status --short` before committing.
+- Do not include unrelated modified/untracked files in a commit.
+- Do not revert user changes or generated work unless explicitly requested.
+- Keep commits scoped to the mission name and completed plan.
+- Use clear conventional commit-style messages when no stricter project-specific commit format is provided, for example `fix: stabilize auth refresh boundary` or `docs: update project rules`.
+- Before reporting commit-ready work, list changed files, validation commands, and documentation updates.
+
+## Execution Contract (Mandatory)
+
+This frontend scope follows the repository-level delegation-aware approval rule in `../../../../docs/RULES.md`.
+
+For direct user-facing sessions, stay read-only until the user explicitly approves the proposed scope.
+
+For delegated specialist/đệ/Kanban/Codex worker sessions, do not ask for another confirmation when the launch prompt states that user/Hermes has already approved execution. Treat that prompt as the approved execution context and work only inside the delegated scope.
+
+If Codex stops at a stale approval guard, restart Codex with the approved execution context at the top of the prompt instead of waiting for an interactive `CHO PHÉP SỬA` inside the process.
+
+After explicit approval:
+
+- Do not stop after describing intent.
+- Do not answer with planning only.
+- Inspect relevant files.
+- Apply the approved code/docs change only.
+- Run the smallest reliable validation command.
+- Update `docs/PLANS.md` only when the task affects tracked milestones/progress.
+- Only then provide the final report.
+
+A task is not complete until all completion evidence exists:
+
+1. Files inspected
+2. Files changed
+3. Validation command run, or a concrete blocker if validation cannot run
+4. Result captured
+5. Required docs updated when applicable
+6. Final report delivered
+
+Do not end with future-tense statements like:
+
+- `I will implement`
+- `I'll now implement`
+- `I'm going to implement`
+- `Next I will`
+
+Use evidence-based past-tense statements only:
+
+- `Changed ...`
+- `Ran ...`
+- `Updated ...`
+- `Verified ...`
+
+If blocked, report the concrete blocker:
+
+- missing file
+- failing command
+- permission issue
+- missing dependency
+- unclear required input
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/globals.css">
+@custom-variant dark (&:where(.dark, .dark *));
+⋮----
+@theme inline {
+⋮----
+* {
+⋮----
+html,
+⋮----
+body {
+⋮----
+button:not(:disabled),
+⋮----
+button:disabled,
+⋮----
+.vs-display {
+⋮----
+.vs-page-shell {
+⋮----
+.vs-safe-bottom {
+⋮----
+.vs-card {
+⋮----
+.vs-pill {
+⋮----
+.vs-glass {
+⋮----
+.vs-status-pending {
+⋮----
+.vs-status-accepted {
+⋮----
+.vs-status-progress {
+⋮----
+.vs-status-done {
+⋮----
+.vs-status-cancel {
+⋮----
+.vs-scroll-x {
+⋮----
+.vs-scroll-x::-webkit-scrollbar {
+⋮----
+.swal2-popup.vs-service-confirm-popup {
+⋮----
+.swal2-popup.vs-service-confirm-popup .swal2-icon {
+⋮----
+.swal2-title.vs-service-confirm-title {
+⋮----
+.swal2-html-container.vs-service-confirm-html {
+⋮----
+.vs-service-confirm-content {
+⋮----
+.vs-service-confirm-item {
+⋮----
+.vs-service-confirm-bullet {
+⋮----
+.vs-service-confirm-label {
+⋮----
+.vs-service-confirm-service,
+⋮----
+.vs-service-confirm-service {
+⋮----
+.swal2-actions.vs-service-confirm-actions {
+⋮----
+.swal2-actions.vs-service-confirm-actions .swal2-confirm,
+⋮----
+.animate-welcome {
+⋮----
+.vs-container {
+⋮----
+.vs-guest-comfort-surface {
+⋮----
+.vs-guest-readable {
+⋮----
+.vs-guest-readable :where(p, li, dd, input, textarea, select, button, a) {
+⋮----
+.vs-guest-readable :where(.text-\[11px\], .text-xs) {
+⋮----
+.vs-guest-readable :where(.text-\[13px\], .text-sm) {
+⋮----
+.vs-guest-readable :where(.text-base) {
+⋮----
+.vs-guest-readable :where(.text-lg) {
+⋮----
+.vs-guest-readable :where(.text-xl) {
+⋮----
+.vs-guest-readable :where(.text-2xl) {
+⋮----
+.vs-guest-readable :where(input, textarea, select) {
+⋮----
+.vs-guest-readable :where(.vs-touch-button, button, [role="button"]) {
+⋮----
+.vs-guest-readable :where(.vs-display) {
+⋮----
+.vs-comfort-card {
+⋮----
+.vs-comfort-card:hover {
+⋮----
+.vs-touch-button {
+⋮----
+.vs-touch-button:hover {
+⋮----
+.vs-touch-button:active {
+⋮----
+.vs-owner-reveal {
+⋮----
+.vs-owner-hero::after {
+⋮----
+.vs-owner-scanline {
+⋮----
+.vs-owner-glass {
+⋮----
+.vs-owner-glass:hover {
+⋮----
+.vs-owner-panel,
+⋮----
+.vs-owner-panel:hover {
+⋮----
+.vs-owner-panel:hover .vs-owner-icon {
+⋮----
+.vs-owner-attention:hover,
+⋮----
+.vs-owner-icon {
+⋮----
+.vs-dashboard-count {
+⋮----
+.vs-desktop-grid {
+⋮----
+*,
+⋮----
+.vs-comfort-card:hover,
+⋮----
+@page {
+⋮----
+.owner-shell-print {
+⋮----
+.owner-shell-main {
+⋮----
+.owner-shell-content {
+⋮----
+.invoice-a4 {
+⋮----
+.invoice-section {
+⋮----
+.invoice-items-table {
+⋮----
+.invoice-items-table th,
+⋮----
+.invoice-table-row {
+⋮----
+a[href]::after {
+⋮----
+/* Urgent realtime request modal */
+.swal2-popup.vs-urgent-alert-popup {
+⋮----
+.swal2-html-container.vs-urgent-alert-container {
+⋮----
+.vs-urgent-alert {
+⋮----
+.vs-urgent-alert__hero {
+⋮----
+.vs-urgent-alert__icon {
+⋮----
+.vs-urgent-alert__pulse {
+⋮----
+.vs-urgent-alert__eyebrow {
+⋮----
+.vs-urgent-alert h2 {
+⋮----
+.vs-urgent-alert__summary {
+⋮----
+.vs-urgent-alert__body {
+⋮----
+.vs-urgent-alert__body div {
+⋮----
+.vs-urgent-alert__body dt {
+⋮----
+.vs-urgent-alert__body dd {
+⋮----
+.vs-urgent-alert__note {
+⋮----
+.vs-urgent-alert__body div:nth-child(3) {
+⋮----
+.swal2-actions.vs-urgent-alert-actions {
+⋮----
+.swal2-confirm.vs-urgent-alert-confirm,
+⋮----
+.swal2-confirm.vs-urgent-alert-confirm {
+⋮----
+.swal2-confirm.vs-urgent-alert-confirm:hover {
+⋮----
+.swal2-cancel.vs-urgent-alert-cancel {
+⋮----
+.swal2-cancel.vs-urgent-alert-cancel:hover {
+⋮----
+.vs-mkt-shell {
+⋮----
+html:has(.vs-mkt-shell) {
+⋮----
+html:has(.vs-mkt-shell)::-webkit-scrollbar {
+⋮----
+.vs-mkt-shell > section,
+⋮----
+.vs-scene-backdrop {
+⋮----
+.vs-scene-backdrop-layer {
+⋮----
+.vs-scene-backdrop-layer[data-scene-backdrop="arrival"] {
+⋮----
+.vs-scene-particles {
+⋮----
+.vs-scene-particles span {
+⋮----
+.vs-mkt-shell[data-theme="operations"] .vs-scene-particles span {
+⋮----
+.vs-scene-backdrop-layer[data-scene-backdrop="concierge"] {
+⋮----
+.vs-scene-backdrop-layer[data-scene-backdrop="operations"] {
+⋮----
+.vs-scene-backdrop-layer[data-scene-backdrop="visibility"] {
+⋮----
+.vs-mkt-shell:not([data-theme]) [data-scene-backdrop="arrival"],
+⋮----
+.vs-scroll-progress {
+⋮----
+.vs-mkt-header {
+⋮----
+.vs-mkt-navbar,
+⋮----
+.vs-mkt-navbar {
+⋮----
+.vs-mkt-shell[data-scrolled="true"] .vs-mkt-navbar {
+⋮----
+.vs-mkt-brand {
+⋮----
+.vs-mkt-sign-in {
+⋮----
+.vs-mkt-sign-in:hover {
+⋮----
+.vs-mkt-nav {
+⋮----
+.vs-mkt-nav:hover {
+⋮----
+.vs-mkt-nav[data-active="true"] {
+⋮----
+.vs-mkt-nav[data-active="true"]::after {
+⋮----
+.vs-mobile-menu-toggle {
+⋮----
+.vs-mobile-menu-icon {
+⋮----
+.vs-mobile-menu-icon i {
+⋮----
+.vs-mobile-menu-icon[data-open="true"] i:first-child {
+⋮----
+.vs-mobile-menu-icon[data-open="true"] i:nth-child(2) {
+⋮----
+.vs-mobile-menu-icon[data-open="true"] i:last-child {
+⋮----
+.vs-mobile-menu {
+⋮----
+.vs-mobile-menu[data-open="true"] {
+⋮----
+.vs-mobile-nav-link {
+⋮----
+.vs-mobile-nav-link:hover,
+⋮----
+.vs-mobile-nav-link[data-active="true"] {
+⋮----
+.vs-scene-rail {
+⋮----
+.vs-scene-rail a {
+⋮----
+.vs-scene-rail em {
+⋮----
+.vs-scene-rail a::after {
+⋮----
+.vs-scene-rail a:hover em,
+⋮----
+.vs-scene-rail a[data-active="true"] {
+⋮----
+.vs-scene-rail a[data-active="true"]::after {
+⋮----
+.vs-mkt-shell[data-theme="operations"] .vs-scene-rail a {
+⋮----
+.vs-mkt-shell[data-theme="operations"] .vs-scene-rail a[data-active="true"] {
+⋮----
+.vs-mkt-nav:focus-visible,
+⋮----
+.vs-solutions-menu {
+⋮----
+.group:hover .vs-solutions-menu,
+⋮----
+.vs-solution-link {
+⋮----
+.vs-solution-link:hover {
+⋮----
+.vs-mkt-primary-btn,
+⋮----
+.vs-mkt-primary-btn:hover,
+⋮----
+.vs-mkt-primary-btn:active,
+⋮----
+.vs-mkt-primary-btn:hover {
+⋮----
+.vs-mkt-secondary-btn:hover {
+⋮----
+.vs-mkt-card:hover,
+⋮----
+.vs-logo-tile {
+⋮----
+.vs-cinematic-scene {
+⋮----
+.vs-hero-scene {
+⋮----
+.vs-trust-strip {
+⋮----
+.vs-scene-watermark {
+⋮----
+.vs-scene-watermark-right {
+⋮----
+.vs-operations-scene .vs-scene-watermark {
+⋮----
+.vs-story-panel {
+⋮----
+.vs-moment-card {
+⋮----
+.vs-moment-card::after {
+⋮----
+.vs-moment-number {
+⋮----
+.vs-stat-card {
+⋮----
+.vs-stat-card:hover {
+⋮----
+.vs-landing-grid {
+⋮----
+.vs-landing-orb {
+⋮----
+.vs-device-float {
+⋮----
+.vs-device-card {
+⋮----
+.vs-hero-note {
+⋮----
+.vs-scroll-cue {
+⋮----
+.vs-scroll-cue i {
+⋮----
+.vs-scroll-cue i::after {
+⋮----
+.vs-hero-copy > * {
+⋮----
+.vs-hero-copy > :nth-child(2) { animation-delay: 70ms; }
+.vs-hero-copy > :nth-child(3) { animation-delay: 140ms; }
+.vs-hero-copy > :nth-child(4) { animation-delay: 200ms; }
+.vs-hero-copy > :nth-child(5) { animation-delay: 260ms; }
+.vs-hero-copy > :nth-child(6) { animation-delay: 320ms; }
+⋮----
+.vs-hero-device {
+⋮----
+.vs-hero-note-right {
+⋮----
+.vs-mkt-shell[data-motion="ready"] [data-reveal] {
+⋮----
+.vs-mkt-shell[data-motion="ready"] [data-reveal="fade"] {
+⋮----
+.vs-mkt-shell[data-motion="ready"] [data-reveal="scale"] {
+⋮----
+.vs-mkt-shell[data-motion="ready"] [data-reveal="from-left"] {
+⋮----
+.vs-mkt-shell[data-motion="ready"] [data-reveal="from-right"] {
+⋮----
+.vs-mkt-shell[data-motion="ready"] [data-reveal="cta"] {
+⋮----
+.vs-mkt-shell[data-motion="ready"] [data-reveal][data-reveal-order="1"] { transition-delay: 80ms; }
+.vs-mkt-shell[data-motion="ready"] [data-reveal][data-reveal-order="2"] { transition-delay: 160ms; }
+.vs-mkt-shell[data-motion="ready"] [data-reveal][data-reveal-order="3"] { transition-delay: 240ms; }
+⋮----
+.vs-mkt-shell[data-motion="ready"] [data-reveal][data-visible="true"] {
+⋮----
+.vs-mkt-shell[data-motion="ready"] .vs-mkt-card[data-visible="true"]:hover,
+⋮----
+.vs-story-panel,
+⋮----
+.vs-story-panel::after,
+⋮----
+.vs-story-panel::after {
+⋮----
+.vs-cta-panel::after {
+⋮----
+.vs-faq-item {
+⋮----
+.vs-faq-item[open] {
+⋮----
+.vs-faq-item summary::marker {
+⋮----
+.vs-faq-item[open] p {
+⋮----
+.vs-landing-orb,
+⋮----
+.vs-scene-particles span:nth-child(n + 9),
+⋮----
+.vs-mkt-shell[data-motion="ready"] [data-reveal="from-left"],
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/_components/vs-dashboard-sidebar.tsx">
+import Link from "next/link";
+⋮----
+import { VietSageBrand } from "@/components/brand/vietsage-brand";
+import type { DashboardNavItem, DashboardNavSection } from "@/features/workspace/types/workspace-navigation";
+import { isNavItemActive } from "@/features/workspace/utils/workspace-nav-active";
+import { VsIcon } from "./vs-icon";
+⋮----
+type NavigationProps = {
+  activePath: string;
+  items?: readonly DashboardNavItem[];
+  badgeByKey?: Readonly<Record<string, number>>;
+  isCollapsed?: boolean;
+  onNavigate?: () => void;
+  id?: string;
+};
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/_components/vs-top-bar.tsx">
+import Image from "next/image";
+import type { ReactNode } from "react";
+⋮----
+import Link from "next/link";
+⋮----
+import { VietSageBrand } from "@/components/brand/vietsage-brand";
+import { VsIcon } from "./vs-icon";
+import { VsLogoutButton } from "./vs-logout-button";
+import { ChangePasswordDialog } from "@/features/account/security/change-password-dialog";
+⋮----
+type VsTopBarProps = {
+  title?: string;
+  leftLabel?: string;
+  rightLabel?: string;
+  subtitle?: string;
+  showRightInfo?: boolean;
+  titleClassName?: string;
+  menuAsButton?: boolean;
+  showLeftControl?: boolean;
+  rightMode?: "profile" | "icons" | "none";
+  brandSize?: "regular" | "large";
+  brandLockup?: boolean;
+  languageBadge?: string;
+  startAction?: ReactNode;
+};
+⋮----
+function TopBarLeftControl({
+  showLeftControl,
+  shouldUseButton,
+  icon,
+}: {
+  showLeftControl: boolean;
+  shouldUseButton: boolean;
+  icon: string;
+})
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/workspace/types/workspace-registry.ts">
+import type { DashboardNavItem, DashboardNavSection } from "./workspace-navigation";
+⋮----
+export type WorkspacePersona =
+  | "platform_admin"
+  | "owner"
+  | "manager"
+  | "front_desk"
+  | "housekeeping"
+  | "maintenance"
+  | "food_beverage"
+  | "finance"
+  | "service_partner"
+  | "principal";
+⋮----
+export type WorkspaceDefinition = {
+  persona: WorkspacePersona;
+  eyebrow: string;
+  title: string;
+  description: string;
+  profileLabel: string;
+  homePath: `/${string}`;
+};
+⋮----
+export type WorkspaceNavigationDefinition = Omit<DashboardNavItem, "href"> & {
+  personas: readonly WorkspacePersona[];
+  href: `/${string}`;
+  order: number;
+  section?: DashboardNavSection;
+  anyCapabilities?: readonly string[];
+  requiresHotel?: boolean;
+  hideWhenHotelSelected?: boolean;
+  labelByPersona?: Partial<Record<WorkspacePersona, string>>;
+};
+⋮----
+export type WorkspaceWidgetSize = "compact" | "standard" | "wide";
+⋮----
+export type WorkspaceWidgetDefinition = {
+  key: string;
+  personas: readonly WorkspacePersona[];
+  title: string;
+  description: string;
+  icon: string;
+  order: number;
+  size: WorkspaceWidgetSize;
+  anyCapabilities?: readonly string[];
+  href?: `/${string}`;
+  requiresHotel?: boolean;
+};
+⋮----
+export type WorkspaceRegistry = {
+  definitions: Readonly<Record<WorkspacePersona, WorkspaceDefinition>>;
+  roleAliases: Readonly<Record<string, WorkspacePersona>>;
+  navigation: readonly WorkspaceNavigationDefinition[];
+  widgets: readonly WorkspaceWidgetDefinition[];
+};
+⋮----
+export type WorkspaceRegistryExtension = {
+  roleAliases?: Readonly<Record<string, WorkspacePersona>>;
+  navigation?: readonly WorkspaceNavigationDefinition[];
+  widgets?: readonly WorkspaceWidgetDefinition[];
+  replaceExisting?: boolean;
+};
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/_components/vs-icon.tsx">
+import type { CSSProperties, ReactNode } from "react";
+⋮----
+type VsIconProps = {
+  name: string;
+  className?: string;
+  style?: CSSProperties;
+  title?: string;
+};
+⋮----
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/workspace/types/workspace-navigation.ts">
+export type DashboardNavSection =
+  | "OVERVIEW"
+  | "OPERATIONS"
+  | "ADMINISTRATION"
+  | "PARTNERS";
+⋮----
+export type DashboardNavItem = {
+  key: string;
+  label: string;
+  href: `/${string}`;
+  icon: string;
+  section?: DashboardNavSection;
+};
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/workspace/config/workspace-registry.ts">
+import type { DashboardNavItem } from "../types/workspace-navigation";
+⋮----
+import type {
+  WorkspaceDefinition,
+  WorkspaceNavigationDefinition,
+  WorkspacePersona,
+  WorkspaceRegistry,
+  WorkspaceRegistryExtension,
+  WorkspaceWidgetDefinition,
+} from "../types/workspace-registry";
+⋮----
+// Cấu hình / Thiết lập (Configuration & Catalog Setup)
+⋮----
+// Xử lý / Vận hành (Operations & Processing)
+⋮----
+// Staff Navigation (Cấu hình trước, Xử lý sau)
+⋮----
+function normalizeRoleCode(roleCode: string): string
+⋮----
+function mergeByKey<T extends { key: string }>(
+  base: readonly T[],
+  additions: readonly T[],
+  replaceExisting: boolean,
+  kind: string,
+): T[]
+⋮----
+export function createWorkspaceRegistry(
+  extensions: readonly WorkspaceRegistryExtension[] = [],
+): WorkspaceRegistry
+⋮----
+function hasAnyCapability(
+  permissions: readonly string[],
+  required?: readonly string[],
+): boolean
+⋮----
+function resolvePath(
+  path: `/${string}`,
+  hotelId: string | null,
+): `/$
+⋮----
+export function resolveWorkspacePersona(
+  roleCode: string,
+  registry: WorkspaceRegistry = workspaceRegistry,
+): WorkspacePersona | null
+⋮----
+export function getWorkspaceDefinition(
+  persona: WorkspacePersona,
+  registry: WorkspaceRegistry = workspaceRegistry,
+): WorkspaceDefinition
+⋮----
+export function buildWorkspaceNavigation(input: {
+  persona: WorkspacePersona;
+  permissions: readonly string[];
+  hotelId?: string | null;
+  registry?: WorkspaceRegistry;
+}): DashboardNavItem[]
+⋮----
+export function buildWorkspaceNavigationForContext(input: {
+  activeRole: { code: string };
+  permissions: readonly string[];
+  hotelId?: string | null;
+  registry?: WorkspaceRegistry;
+}): DashboardNavItem[]
+⋮----
+export function getWorkspaceDashboardWidgets(input: {
+  persona: WorkspacePersona;
+  permissions: readonly string[];
+  hotelId?: string | null;
+  registry?: WorkspaceRegistry;
+}): WorkspaceWidgetDefinition[]
+</file>
+
+</files>

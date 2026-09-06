@@ -24,7 +24,7 @@ export default async function OwnerHotelServicesPage({ params }: PageProps) {
 
   return (
     <>
-      <header>
+      <header className="vs-page-header">
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--secondary)]">DỊCH VỤ</p>
         <h1 className="mt-3 text-4xl font-semibold text-[var(--primary)]">Danh mục dịch vụ</h1>
         <p className="mt-2 max-w-3xl text-base text-[var(--on-surface-variant)]">Cấu hình nhóm dịch vụ và dịch vụ khách có thể yêu cầu trong khách sạn.</p>

@@ -53,7 +53,7 @@ export default async function HotelServicesPage({ params }: ServicesPageProps) {
 
   return (
     <>
-      <header className="flex flex-col gap-2">
+      <header className="vs-page-header flex flex-col gap-2">
         <p className="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">
           Khách sạn {hotelId}
         </p>

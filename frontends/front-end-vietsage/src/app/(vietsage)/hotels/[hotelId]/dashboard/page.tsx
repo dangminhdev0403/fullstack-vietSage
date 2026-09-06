@@ -63,10 +63,10 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
   ] as const;
 
   return (
-    <main className="space-y-8">
-      <header className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+    <div className="space-y-8">
+      <header className="vs-page-header">
         <div>
-          <h1 className="vs-display text-4xl font-bold text-[var(--primary)]">Dashboard tiếp tân</h1>
+          <h1 className="vs-display text-4xl font-bold text-[var(--primary)]">Bảng điều hành lễ tân</h1>
           <p className="mt-2 text-base italic text-[var(--on-surface-variant)]">Kính chào Quý Quản lý. Chúc một ngày làm việc hiệu quả.</p>
         </div>
         <div className="text-left md:text-right">
@@ -75,9 +75,9 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
         </div>
       </header>
 
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <section className="vs-stat-grid">
         {roomCards.map((card) => (
-          <article key={card.label} className="group flex min-h-40 flex-col justify-between rounded-xl border border-[var(--outline-variant)]/30 bg-[var(--surface-container-low)] p-5 transition hover:-translate-y-1 hover:shadow-lg">
+          <article key={card.label} className="vs-stat-card flex min-h-40 flex-col justify-between rounded-xl border border-[var(--outline-variant)]/30 bg-[var(--surface-container-low)] p-5">
             <div className="flex items-start justify-between">
               <VsIcon name={card.icon} className={`text-3xl ${card.tone}`} />
               {card.progress !== undefined ? (
@@ -95,9 +95,9 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
         ))}
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="vs-stat-grid">
         {operations.map((operation) => (
-          <article key={operation.label} className={`flex items-center gap-4 rounded-xl border-l-4 bg-white p-5 shadow-sm ${operation.tone}`}>
+          <article key={operation.label} className="vs-stat-card flex items-center gap-4">
             <span className={`flex size-12 items-center justify-center rounded-lg ${operation.iconTone}`}><VsIcon name={operation.icon} className="text-2xl" /></span>
             <div>
               <p className="text-sm font-semibold text-[var(--on-surface-variant)]">{operation.label}</p>
@@ -163,6 +163,6 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
         <article className="rounded-xl border border-[var(--outline-variant)] bg-white p-5"><p className="text-sm font-bold text-[var(--primary)]">SLA yêu cầu</p><p className="mt-2 text-3xl font-bold text-[var(--primary)]">{dashboard.sla.completedWithinSlaPercent == null ? "--" : `${dashboard.sla.completedWithinSlaPercent}%`}</p><p className="mt-1 text-sm text-[var(--on-surface-variant)]">Hoàn tất trong {dashboard.sla.thresholdMinutes} phút</p></article>
         <article className="rounded-xl border border-[var(--outline-variant)] bg-white p-5"><p className="text-sm font-bold text-[var(--primary)]">Tình trạng vận hành</p><p className="mt-2 text-3xl font-bold text-[var(--secondary)]">{dashboard.health.score}/100</p><p className="mt-1 text-sm text-[var(--on-surface-variant)]">{dashboard.health.title}</p></article>
       </section>
-    </main>
+    </div>
   );
 }

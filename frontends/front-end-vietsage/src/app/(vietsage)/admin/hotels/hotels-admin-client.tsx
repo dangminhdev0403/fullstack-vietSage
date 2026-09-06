@@ -1,5 +1,4 @@
 "use client";
-
 import { type FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Swal from "sweetalert2";
@@ -376,13 +375,13 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }:
 
   return (
     <div className="space-y-6">
-      <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <section className="vs-stat-grid">
         {[
           { label: "Tổng khách sạn", value: total || hotels.length, icon: "hotel" },
           { label: "Đang vận hành", value: activeCount, icon: "verified_user" },
           { label: "Tổ chức khả dụng", value: tenantCount, icon: "domain" },
         ].map((metric) => (
-          <article key={metric.label} className="rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-6">
+          <article key={metric.label} className="vs-stat-card">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-sm font-medium text-[var(--on-surface-variant)]">{metric.label}</p>
@@ -402,7 +401,7 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }:
         </section>
       ) : null}
 
-      <section className="rounded-[1.4rem] border border-[#e8dfd1] bg-white/90 p-5 shadow-[0_16px_40px_rgba(23,32,27,0.05)] backdrop-blur-md">
+      <section className="vs-panel vs-filter-bar">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="relative flex-1">
             <VsIcon name="search" className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#8b948d]" />
@@ -410,6 +409,7 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }:
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
+              aria-label="Tìm theo khách sạn, mã, tổ chức..."
               placeholder="Tìm theo khách sạn, mã, tổ chức..."
               className="w-full rounded-xl border border-[#e2d7c5] bg-[#faf6ef] pl-11 pr-4 py-3 text-sm font-semibold text-[#17201b] outline-none transition-all focus:border-[#24473d] focus:bg-white focus:ring-2 focus:ring-[#24473d]/20"
             />
@@ -426,8 +426,8 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }:
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-[1.6rem] border border-[#e8dfd1] bg-white/95 shadow-[0_16px_45px_rgba(23,32,27,0.06)] backdrop-blur-md">
-        <div className="overflow-x-auto">
+      <section className="vs-table-panel">
+        <div role="region" aria-label="Bảng dữ liệu" tabIndex={0} className="overflow-x-auto">
           <table className="w-full min-w-[980px] text-left text-sm">
             <thead className="border-b border-[#e5dcd0] bg-[#f6f1e7]/90 text-[11px] font-extrabold uppercase tracking-[0.1em] text-[#69726b]">
               <tr>

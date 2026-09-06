@@ -70,7 +70,7 @@ export default async function StaffRoomsPage({ params }: PageProps) {
 
   return (
     <>
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <header className="vs-page-header flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[var(--secondary)]">SƠ ĐỒ PHÒNG</p>
           <h1 className="vs-display mt-2 text-4xl font-semibold text-[var(--primary)]">Mở phòng và lưu trú</h1>
