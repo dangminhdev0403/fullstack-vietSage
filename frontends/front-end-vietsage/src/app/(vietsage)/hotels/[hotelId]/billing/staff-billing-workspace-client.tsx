@@ -724,7 +724,7 @@ export function StaffBillingWorkspaceClient({
         </div>
 
         {/* Bảng Dịch Vụ & Chi Phí (Fluent Fluid Layout - Proportional Column Widths) */}
-        <div role="region" aria-label="Bảng dữ liệu" tabIndex={0} className="flex-1 flex flex-col overflow-x-auto min-h-[380px]">
+        <div className="flex-1 flex flex-col overflow-x-auto min-h-[380px]">
           <table className="w-full text-left text-sm border-collapse table-fixed">
             <thead className="border-b border-[var(--outline-variant)] bg-[var(--surface-container-low,#f4efe6)] text-xs font-black uppercase tracking-wider text-[var(--on-surface-variant)]">
               <tr>

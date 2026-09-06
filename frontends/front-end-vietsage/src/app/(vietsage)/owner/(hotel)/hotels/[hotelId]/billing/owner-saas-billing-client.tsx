@@ -368,7 +368,7 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
         </div>
 
         <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900">
-          <div role="region" aria-label="Bảng dữ liệu" tabIndex={0} className="overflow-x-auto">
+          <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-left text-base">
               <thead className="border-b border-slate-200/80 bg-slate-50/90 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-800/80 dark:text-slate-300">
                 <tr>
@@ -468,7 +468,7 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
           </h3>
 
           <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900">
-            <div role="region" aria-label="Bảng dữ liệu" tabIndex={0} className="overflow-x-auto">
+            <div className="overflow-x-auto">
               <table className="w-full min-w-[640px] text-left text-base text-slate-600 dark:text-slate-300">
                 <thead className="border-b border-slate-200/80 bg-slate-50/90 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-800/80 dark:text-slate-300">
                   <tr>

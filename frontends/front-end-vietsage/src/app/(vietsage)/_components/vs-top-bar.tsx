@@ -1,5 +1,4 @@
 import Image from "next/image";
-import type { ReactNode } from "react";
 
 import Link from "next/link";
 
@@ -21,7 +20,6 @@ type VsTopBarProps = {
   brandSize?: "regular" | "large";
   brandLockup?: boolean;
   languageBadge?: string;
-  startAction?: ReactNode;
 };
 
 const profileImage = "/brand/vietsage-logo.jpg";
@@ -132,7 +130,6 @@ export function VsTopBar({
   brandSize = "regular",
   brandLockup = true,
   languageBadge = "VI",
-  startAction,
 }: VsTopBarProps) {
   const icon = leftLabel.toLowerCase() === "back" ? "arrow_back" : "menu";
   const shouldUseButton = icon === "arrow_back" || menuAsButton;
@@ -149,9 +146,8 @@ export function VsTopBar({
       : "h-5 w-auto md:h-7";
 
   return (
-    <header className="vs-topbar fixed top-0 z-50 flex h-16 w-full items-center justify-between border-b border-[#24473d]/10 bg-[#fff8e8]/78 px-4 shadow-[0_16px_45px_rgba(31,61,53,0.08)] backdrop-blur-xl md:px-10">
+    <header className="fixed top-0 z-50 flex h-16 w-full items-center justify-between border-b border-[#24473d]/10 bg-[#fff8e8]/78 px-4 shadow-[0_16px_45px_rgba(31,61,53,0.08)] backdrop-blur-xl md:px-10">
       <div className="flex items-center gap-3 md:gap-4">
-        {startAction}
         <TopBarLeftControl
           showLeftControl={showLeftControl}
           shouldUseButton={shouldUseButton}

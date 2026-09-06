@@ -93,11 +93,11 @@ function PaginationButton({
   onClick?: () => void;
 }>) {
   const baseClass =
-    "inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-700 transition-all shadow-2xs whitespace-nowrap";
+    "inline-flex h-9 min-w-9 items-center justify-center rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-bold text-slate-700 transition-all shadow-2xs whitespace-nowrap";
 
   if (disabled) {
     return (
-      <span aria-disabled="true" className={`${baseClass} pointer-events-none cursor-not-allowed opacity-40`}>
+      <span className={`${baseClass} pointer-events-none cursor-not-allowed opacity-40`}>
         {children}
       </span>
     );
@@ -155,14 +155,15 @@ export function DataTable<TData>({
   const bounds = pageBounds(totalItems, page, pageSize);
   const pageSizeOptions = pagination?.pageSizeOptions ?? [10, 25, 50];
 
-  const pyClass = density === "compact" ? "py-3 px-4" : "py-4 px-4";
+  const pyClass = density === "compact" ? "py-2.5 px-4" : "py-3.5 px-4";
   const headerPyClass = density === "compact" ? "py-3 px-4" : "py-3.5 px-4";
+  const totalCols = columns.length + (selectable ? 1 : 0);
 
   const selectedCount = selection?.selectedIds.length ?? 0;
   const resolvedEmptyTitle = emptyState?.title ?? emptyMessage ?? "Không có dữ liệu";
 
   return (
-    <div className="vs-data-table min-w-0 rounded-2xl border border-slate-200 bg-white overflow-hidden space-y-0" aria-busy={loading}>
+    <div className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden space-y-0">
       {/* Header & Toolbar */}
       {title || toolbar || header || (selectable && selectedCount > 0) ? (
         <div className="p-5 sm:p-6 border-b border-slate-100 bg-white space-y-4">
@@ -175,7 +176,7 @@ export function DataTable<TData>({
 
           {/* Bulk Action Banner */}
           {selectable && selectedCount > 0 ? (
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-amber-50 border border-amber-200 px-4 py-2.5 shadow-2xs">
+            <div className="flex items-center justify-between gap-3 rounded-xl bg-amber-50 border border-amber-200 px-4 py-2.5 shadow-2xs">
               <span className="text-xs font-extrabold text-amber-900">
                 Đã chọn <b>{selectedCount}</b> bản ghi
               </span>
@@ -190,21 +191,14 @@ export function DataTable<TData>({
       ) : null}
 
       {/* Main Table Area */}
-      {loading ? <p role="status" className="sr-only">Đang tải dữ liệu</p> : null}
-      {!loading && error ? (
-        <DataTableErrorState error={error} onRetry={onRetry} />
-      ) : !loading && pageData.length === 0 ? (
-        <DataTableEmptyState title={resolvedEmptyTitle} description={emptyState?.description} icon={emptyState?.icon} action={emptyState?.action} />
-      ) : (
-      <div role="region" aria-label={typeof title === "string" ? title : "Danh sách dữ liệu"} tabIndex={0} className="overflow-x-auto">
+      <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse table-fixed" style={{ minWidth }}>
           <thead>
-            <tr className={`border-b border-slate-200 bg-slate-50 text-sm font-semibold text-slate-600 ${headerPyClass}`}>
+            <tr className={`border-b-2 border-slate-200 bg-slate-100/90 text-xs font-black uppercase tracking-wider text-slate-600 ${headerPyClass}`}>
               {selectable ? (
                 <th className={`${headerPyClass} w-12 min-w-[48px] text-center`}>
                   <input
                     type="checkbox"
-                    aria-label="Chọn tất cả dòng trên trang"
                     checked={selection?.isAllSelected ?? (selectedCount > 0 && selectedCount === pageData.length)}
                     onChange={() => selection?.onSelectAll?.()}
                     className="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-600"
@@ -240,19 +234,17 @@ export function DataTable<TData>({
                 return (
                   <th
                     key={colId}
-                    scope="col"
-                    aria-sort={column.sortable ? (isSorted ? (sort.direction === "asc" ? "ascending" : "descending") : "none") : undefined}
                     className={`${headerPyClass} ${alignClass} ${widthClass} overflow-hidden min-w-0 ${column.headerClassName ?? ""}`}
                   >
                     {column.sortable && sort?.getSortHref ? (
-                      <a href={sort.getSortHref(colId, nextDirection)} className="inline-flex min-h-11 items-center cursor-pointer">
+                      <a href={sort.getSortHref(colId, nextDirection)} className="inline-flex cursor-pointer">
                         {headerContent}
                       </a>
                     ) : column.sortable && sort?.onSortChange ? (
                       <button
                         type="button"
                         onClick={() => sort.onSortChange?.(colId, nextDirection)}
-                        className="inline-flex min-h-11 items-center cursor-pointer text-left"
+                        className="inline-flex cursor-pointer text-left"
                       >
                         {headerContent}
                       </button>
@@ -268,7 +260,9 @@ export function DataTable<TData>({
           <tbody className="divide-y divide-slate-100 bg-white">
             {loading ? (
               <DataTableSkeleton columns={columns} density={density} selectable={selectable} />
-            ) : (
+            ) : error ? (
+              <DataTableErrorState error={error} onRetry={onRetry} colSpan={totalCols} />
+            ) : pageData.length > 0 ? (
               pageData.map((item) => {
                 const key = getRowKey(item);
                 const isSelected = selection?.selectedIds.includes(key) ?? false;
@@ -281,7 +275,6 @@ export function DataTable<TData>({
                     onKeyDown={
                       onRowClick
                         ? (e) => {
-                            if (e.target !== e.currentTarget) return;
                             if (e.key === "Enter" || e.key === " ") {
                               e.preventDefault();
                               onRowClick(item);
@@ -301,7 +294,6 @@ export function DataTable<TData>({
                       <td className={`${pyClass} w-12 min-w-[48px] text-center overflow-hidden`} onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
-                          aria-label={`Chọn dòng ${key}`}
                           checked={isSelected}
                           onChange={() => selection?.onSelectRow?.(key)}
                           className="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-600"
@@ -334,22 +326,28 @@ export function DataTable<TData>({
                   </tr>
                 );
               })
+            ) : (
+              <DataTableEmptyState
+                title={resolvedEmptyTitle}
+                description={emptyState?.description}
+                icon={emptyState?.icon}
+                action={emptyState?.action}
+                colSpan={totalCols}
+              />
             )}
           </tbody>
         </table>
       </div>
-      )}
 
       {/* Pagination Footer */}
       {pagination ? (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/60 px-5 py-4 text-sm text-slate-600">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/60 px-5 py-3.5 text-xs text-slate-600">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-medium text-slate-500">Hiển thị</span>
             <select
-              aria-label="Số dòng mỗi trang"
               value={pageSize}
               onChange={(e) => pagination.onPageSizeChange?.(Number(e.target.value))}
-              className="min-h-11 rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold text-slate-800 shadow-2xs focus:border-emerald-600 focus:outline-none"
+              className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-800 shadow-2xs focus:border-emerald-600 focus:outline-none"
             >
               {pageSizeOptions.map((opt) => (
                 <option key={opt} value={opt}>

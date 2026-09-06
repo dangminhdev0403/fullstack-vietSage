@@ -126,7 +126,7 @@ function StatCard({
 }) {
   return (
     <article
-      className="vs-stat-card vs-owner-panel rounded-[1.4rem] border border-white/70 bg-white/80 p-5 shadow-[0_16px_40px_rgba(31,61,53,0.10)] backdrop-blur"
+      className="vs-owner-panel vs-owner-reveal rounded-[1.4rem] border border-white/70 bg-white/80 p-5 shadow-[0_16px_40px_rgba(31,61,53,0.10)] backdrop-blur"
       style={{ animationDelay: `${delay}ms` }}
     >
       <div className="flex items-start justify-between gap-4">
@@ -161,7 +161,7 @@ function SectionCard({
 }) {
   return (
     <section
-      className={`vs-panel vs-owner-panel rounded-[1.75rem] border border-white/70 bg-white/80 p-6 shadow-[0_18px_60px_rgba(31,61,53,0.10)] backdrop-blur ${className}`}
+      className={`vs-owner-panel rounded-[1.75rem] border border-white/70 bg-white/80 p-6 shadow-[0_18px_60px_rgba(31,61,53,0.10)] backdrop-blur ${className}`}
     >
       {children}
     </section>
@@ -229,14 +229,24 @@ export default async function OwnerDashboardPage() {
 
   return (
     <>
-      <header className="vs-page-header">
-        <div>
-          <h1 className="vs-display">Tổng quan vận hành — {hotel?.name ?? "Khách sạn"}</h1>
-          <p className="mt-3 text-base text-[var(--on-surface-variant)]">
-            Cập nhật lúc: {dashboard ? formatTime(dashboard.generatedAt) : "Chưa có dữ liệu"}
-          </p>
+      <section className="vs-owner-hero vs-owner-reveal relative overflow-hidden rounded-3xl border border-white/70 bg-[#17201b] px-6 py-6 text-[#fff8e8] shadow-[0_20px_60px_rgba(23,32,27,0.20)] md:px-8 md:py-8">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(232,179,99,0.25),transparent_28%),linear-gradient(135deg,rgba(255,255,255,0.08),transparent_42%)]" />
+        <div className="relative z-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <div className="flex items-center gap-3">
+              <span className="rounded-full border border-[#e8b363]/35 bg-[#e8b363]/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-[#e8b363]">
+                Bảng điều hành
+              </span>
+              <span className="text-xs font-bold text-[#d7cbb8]">
+                Cập nhật lúc: {dashboard ? formatTime(dashboard.generatedAt) : "Chưa có dữ liệu"}
+              </span>
+            </div>
+            <h1 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl text-white">
+              Tổng quan vận hành — {hotel?.name ?? "Khách sạn"}
+            </h1>
+          </div>
         </div>
-      </header>
+      </section>
 
       {!dashboard ? (
         <EmptyState>
@@ -245,7 +255,7 @@ export default async function OwnerDashboardPage() {
       ) : (
         <>
           {/* Executive KPI Cards */}
-          <section className="vs-stat-grid">
+          <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
             {kpis.map((item, index) => (
               <StatCard key={item.label} {...item} delay={80 + index * 45} />
             ))}
@@ -266,10 +276,10 @@ export default async function OwnerDashboardPage() {
                 Xem đối soát đối tác
               </Link>
             </div>
-            <div className="vs-stat-grid mt-5">
+            <div className="mt-5 grid gap-4 md:grid-cols-3">
               <div className="rounded-2xl bg-[#f8f1e6] p-5">
                 <p className="text-sm font-semibold text-[#69746c]">Doanh thu hôm nay</p>
-                <p className="mt-2 text-2xl font-semibold tracking-tight text-[#17201b]">
+                <p className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-[#17201b]">
                   {dashboard.revenue.available ? formatVnd(dashboard.revenue.today) : "Chưa đủ dữ liệu"}
                 </p>
               </div>

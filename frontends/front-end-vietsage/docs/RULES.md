@@ -64,13 +64,6 @@ Avoid:
 - crowded marketplace-style layouts
 - microscopic font sizes for main content
 
-## Administration Presentation Boundaries
-
-- Administration geometry/type rules live in the scoped workspace stylesheet; preserve guest and marketing layouts.
-- Every permission-filtered navigation item must remain reachable on mobile. Keep native dialog focus and a visible keyboard focus indicator.
-- Keep page/layout auth and initial data on the server. Document any client-boundary change or deliberate retention in `docs/PLANS.md`.
-- Use the existing sidebar preference key through the workspace Zustand store; hydrate after mount to preserve server/client markup parity.
-
 ## Data Fetching
 
 - Use queries/\* hooks

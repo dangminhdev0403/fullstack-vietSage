@@ -1,4 +1,5 @@
 "use client";
+
 import { startTransition, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Swal from "sweetalert2";
@@ -609,7 +610,6 @@ export function OwnerStayRoomGridClient({
             type="search"
             value={query}
             onChange={(event) => updateQuery(event.target.value)}
-            aria-label="Tìm theo số phòng hoặc loại phòng..."
             placeholder="Tìm theo số phòng hoặc loại phòng..."
             className="h-11 w-full rounded-xl border border-[var(--outline-variant)] bg-white pl-10 pr-4 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary-fixed)]"
           />

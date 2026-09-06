@@ -172,24 +172,3 @@ Charts should use the primary Navy and Muted Gold for data series. Use a clean, 
 
 ### Input Fields
 Inputs are borderless with a `Warm Beige` background or use a very thin `1px` border in a light neutral. Focus states should be indicated by a `1px` Navy border.
-
-## Administration workspaces — operational scale (2026-09-06)
-
-Platform administration, owner/management and hotel staff use the existing navy, gold and neutral
-surface tokens through a light, task-first shell. Retain the runtime font variables
-(`--font-manrope` / `--font-fraunces`); do not fetch another font or replace guest/marketing identity.
-
-- Navigation: 16px / 24px, 48px minimum rows, wrapping labels, 24px icons; 14px section labels.
-- Geometry: 72px header; 288px sidebar, 88px collapsed; full navigation in a native dialog below
-  1024px. Content uses 16px mobile and 32px wider gutters. Small-screen wordmark is 20px.
-- Content: 16px body/form controls, 14px secondary/table text, 32px mobile and 36px wider page
-  headings. Data numerals are tabular. Page headings are separators, not decorative hero cards.
-- Surfaces: white 16px-radius panels, restrained borders, grouped filters, readable pagination;
-  empty/error recovery stays outside wide table scrolling. Preserve semantic status colors.
-- Interaction: 44px minimum important controls, visible focus, skip link, native modal focus,
-  reduced-motion opt-out, no persistent bottom bar covering the workspace.
-- Scope: `workspace.css` is namespaced to `.vs-workspace`. Print keeps content headings while removing
-  shell chrome. Existing guest layouts, locale dictionaries and business-specific controls remain intact.
-
-This is a source-level design contract, not rendered acceptance. Browser/device inspection is
-explicitly prohibited for this worktree task; the visual gate remains blocked until separately authorized.

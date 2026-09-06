@@ -434,7 +434,7 @@ export function PermissionWorkbench({
           </p>
         </div>
 
-        <div role="region" aria-label="Bảng dữ liệu" tabIndex={0} className="overflow-x-auto rounded-xl border border-[color:rgba(198,197,213,0.35)]">
+        <div className="overflow-x-auto rounded-xl border border-[color:rgba(198,197,213,0.35)]">
           <table className="min-w-[960px] w-full border-collapse text-sm">
             <thead>
               <tr className="bg-[var(--surface-container-low)] text-left text-[var(--on-surface-variant)]">

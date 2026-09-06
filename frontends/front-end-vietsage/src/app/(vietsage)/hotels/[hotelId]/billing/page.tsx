@@ -43,7 +43,7 @@ export default async function StaffBillingPage({ params }: PageProps) {
     <div className="space-y-4">
       <StaffSaasReminder reminder={analytics?.reminder ?? null} />
 
-      <header className="vs-page-header flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+      <header className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--secondary)]">THANH TOÁN & THU DOANH THU</p>
           <h1 className="vs-display mt-0.5 text-2xl font-semibold text-[var(--primary)] md:text-3xl">Folio, checkout && doanh thu</h1>

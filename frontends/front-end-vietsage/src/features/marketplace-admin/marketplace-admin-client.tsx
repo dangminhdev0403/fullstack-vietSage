@@ -1,4 +1,5 @@
 "use client";
+
 import { type FormEvent, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
@@ -1099,11 +1100,6 @@ export function MarketplaceAdminClient() {
                       setCategoryPage(1);
                     }
                   }}
-                  aria-label={
-                    activeTab === "partners"
-                      ? "Tìm theo tên, email, mã đối tác..."
-                      : "Tìm theo tên tiếng Việt, tiếng Anh, mã..."
-                  }
                   placeholder={
                     activeTab === "partners"
                       ? "Tìm theo tên, email, mã đối tác..."

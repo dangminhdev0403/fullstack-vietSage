@@ -56,7 +56,7 @@ export default async function OwnerHotelPage({ params }: OwnerHotelPageProps) {
 
   return (
     <>
-      <header className="vs-page-header">
+      <header>
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--secondary)]">KHÁCH SẠN</p>
         <h1 className="mt-3 text-4xl font-semibold text-[var(--primary)]">{hotel.name}</h1>
         <p className="mt-2 max-w-3xl text-base text-[var(--on-surface-variant)]">

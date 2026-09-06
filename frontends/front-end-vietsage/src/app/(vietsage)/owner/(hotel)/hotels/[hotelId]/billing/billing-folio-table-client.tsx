@@ -222,7 +222,7 @@ export function BillingFolioTableClient({
           </div>
         </div>
 
-        <div role="region" aria-label="Bảng dữ liệu" tabIndex={0} className="overflow-x-auto">
+        <div className="overflow-x-auto">
           <table className="w-full min-w-[700px] text-left text-base">
             <thead className="border-b border-slate-200/80 bg-slate-50/90 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-800/80 dark:text-slate-300">
               <tr>
