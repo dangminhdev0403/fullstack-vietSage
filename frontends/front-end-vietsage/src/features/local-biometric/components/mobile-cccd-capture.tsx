@@ -38,18 +38,18 @@ export function MobileCccdCapture({ requestId, expiresAt, send }: Props) {
     if (videoRef.current) videoRef.current.srcObject = null;
   }, []);
 
+  const statusRef = useRef(status);
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
+
   useEffect(() => {
     mounted.current = true;
     const pause = () => {
       // Don't stop camera during "starting", because on mobile OS, the browser's permission prompt triggers visibilitychange/document.hidden!
-      if (document.hidden) {
-        setStatus((s) => {
-          if (s === "scanning") {
-            stopCamera();
-            return "idle";
-          }
-          return s;
-        });
+      if (document.hidden && statusRef.current === "scanning") {
+        stopCamera();
+        setStatus("idle");
       }
     };
     document.addEventListener("visibilitychange", pause);
