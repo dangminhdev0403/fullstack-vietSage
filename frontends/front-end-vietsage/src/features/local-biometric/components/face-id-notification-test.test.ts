@@ -8,8 +8,8 @@ const page = readFileSync(new URL("../../../app/(vietsage)/owner/(hotel)/hotels/
 const registry = readFileSync(new URL("../../workspace/config/workspace-registry.ts", import.meta.url), "utf8");
 
 test("FaceID tab is hidden and CCCD device panels are rendered directly", () => {
-  assert.match(tabs, /WorkstationConnectionPanel/);
-  assert.match(tabs, /WorkstationTestScanPanel/);
+  assert.match(tabs, /MobileCccdConnectionPanel/);
+  assert.match(tabs, /MobileCccdTestScanPanel/);
   assert.match(page, /BiometricOwnerTabs/);
   assert.doesNotMatch(registry, /owner\.hotel\.face-id|\/owner\/hotels\/\{hotelId\}\/face-id/);
 });

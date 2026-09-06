@@ -1,5 +1,5 @@
 import type { IntakePayload, IntakePayloadV2 } from "../intake/intake-contract";
-import { safeRandomUuid } from "../utils/safe-uuid";
+import { randomUUID } from "node:crypto";
 
 type Pairing = { code: string; hotelId: string; operatorId: string; expiresAt: number };
 type Workstation = { token: string; hotelId: string; pairedAt: number; lastSeenAt: number; expiresAt: number };
@@ -36,7 +36,7 @@ export class WorkstationStore {
 
   constructor(
     now: () => number = Date.now,
-    createSecret: () => string = () => safeRandomUuid().replace(/-/g, "") + safeRandomUuid().replace(/-/g, ""),
+    createSecret: () => string = () => randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, ""),
   ) {
     this.now = now;
     this.createSecret = createSecret;
@@ -66,7 +66,7 @@ export class WorkstationStore {
   }
 
   private createScan(hotelId: string, operatorId: string, ttlSeconds: number, source: Scan["source"]) {
-    const scanRequestId = safeRandomUuid();
+    const scanRequestId = randomUUID();
     const scan: Scan = {
       scanRequestId,
       hotelId,

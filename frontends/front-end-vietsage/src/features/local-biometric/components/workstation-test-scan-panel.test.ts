@@ -11,7 +11,7 @@ test("owner can test a CCCD scan without selecting a room or persisting a stay",
   assert.match(source, /CccdPreview/);
   assert.match(source, /buildCccdPreviewModel/);
   assert.doesNotMatch(source, /fetch\(|checkIn|roomId|stayId|Hoàn tất/);
-  assert.match(page, /WorkstationTestScanPanel/);
+  assert.match(page, /BiometricOwnerTabs/);
 });
 
 test("test scan explains its volatile privacy boundary", () => {
