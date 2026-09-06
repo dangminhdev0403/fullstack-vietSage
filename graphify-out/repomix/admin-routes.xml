@@ -1,0 +1,1077 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: frontends/front-end-vietsage/src/app/(vietsage)/{admin,owner,hotels,staff,service}/**/{page,layout,loading,error}.tsx
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    src/
+      app/
+        (vietsage)/
+          admin/
+            billing/
+              page.tsx
+            dashboard/
+              page.tsx
+            hotels/
+              page.tsx
+            marketplace/
+              page.tsx
+            permissions/
+              page.tsx
+            roles/
+              page.tsx
+            users/
+              page.tsx
+            error.tsx
+            layout.tsx
+            loading.tsx
+            page.tsx
+          hotels/
+            [hotelId]/
+              billing/
+                invoices/
+                  [invoiceId]/
+                    page.tsx
+                page.tsx
+              biometric/
+                page.tsx
+              dashboard/
+                page.tsx
+              messages/
+                page.tsx
+              partners/
+                page.tsx
+              requests/
+                [requestId]/
+                  page.tsx
+                page.tsx
+              rooms/
+                page.tsx
+              services/
+                page.tsx
+              layout.tsx
+            error.tsx
+            layout.tsx
+            loading.tsx
+          owner/
+            (global)/
+              dashboard/
+                error.tsx
+                loading.tsx
+                page.tsx
+              hotels/
+                page.tsx
+              staff/
+                page.tsx
+              layout.tsx
+            (hotel)/
+              hotels/
+                [hotelId]/
+                  billing/
+                    invoices/
+                      [invoiceId]/
+                        page.tsx
+                    page.tsx
+                  biometric/
+                    page.tsx
+                  partners/
+                    page.tsx
+                  requests/
+                    [requestId]/
+                      page.tsx
+                    page.tsx
+                  rooms/
+                    qr-export/
+                      page.tsx
+                    page.tsx
+                  services/
+                    page.tsx
+                  stay/
+                    page.tsx
+                  layout.tsx
+                  loading.tsx
+                  page.tsx
+            error.tsx
+            layout.tsx
+            loading.tsx
+            page.tsx
+          service/
+            catalog/
+              page.tsx
+            dashboard/
+              page.tsx
+            orders/
+              page.tsx
+            settings/
+              page.tsx
+            settlements/
+              page.tsx
+            layout.tsx
+            page.tsx
+          staff/
+            dashboard/
+              page.tsx
+            front-desk/
+              page.tsx
+            manager/
+              page.tsx
+            operations/
+              page.tsx
+            error.tsx
+            layout.tsx
+            loading.tsx
+            page.tsx
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/admin/billing/page.tsx">
+import type { Metadata } from "next";
+import { AdminBillingClient } from "./admin-billing-client";
+⋮----
+export default function AdminBillingPage()
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/admin/error.tsx">
+import { ContentErrorState } from "../_components/route-boundary-state";
+⋮----
+export default function AdminError(
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/admin/layout.tsx">
+import { auth } from "@/auth";
+import { type ReactNode } from "react";
+⋮----
+import { notFound, redirect } from "next/navigation";
+import { AuthRefreshGate } from "../_components/auth-refresh-gate";
+import { hasAppRole } from "@/libs/rbac";
+import { requireRefreshableServerSession } from "@/libs/server-session-tokens";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
+import { resolveWorkspacePersona } from "@/features/workspace/utils/workspace-context";
+import { WorkspaceProfileProvider } from "@/features/workspace/components/workspace-profile-context";
+⋮----
+import { AdminShell } from "./_components/admin-shell";
+import { buildWorkspaceNavigation } from "@/features/workspace/config/workspace-registry";
+⋮----
+function redirectToLogin(reason: string): never
+⋮----
+export default async function AdminLayout({
+  children,
+}: Readonly<{
+  children: ReactNode;
+}>)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/admin/loading.tsx">
+import { ContentLoadingState } from "../_components/route-boundary-state";
+⋮----
+export default function AdminLoading()
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/admin/page.tsx">
+import { redirect } from "next/navigation";
+⋮----
+export default function AdminPage()
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/biometric/page.tsx">
+import { auth } from "@/auth";
+import { notFound } from "next/navigation";
+import { BiometricOwnerTabs } from "@/features/local-biometric/components/biometric-owner-tabs";
+import { assertCanAccessHotelOps, canUseHotelId, requireHotelOpsServerTokens } from "@/features/hotel-ops/utils/hotel-route-auth";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
+⋮----
+type PageProps = { params: Promise<{ hotelId: string }> | { hotelId: string } };
+⋮----
+export default async function StaffHotelBiometricPage(
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/messages/page.tsx">
+import { auth } from "@/auth";
+import { notFound } from "next/navigation";
+import { assertCanAccessHotelOps, canUseHotelId } from "@/features/hotel-ops/utils/hotel-route-auth";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
+import { requireHotelOpsServerTokens } from "@/features/hotel-ops/utils/hotel-route-auth";
+import { RoomMessagesClient } from "./room-messages-client";
+⋮----
+export default async function RoomMessagesPage(
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/requests/[requestId]/page.tsx">
+import { redirect } from "next/navigation";
+⋮----
+type PageProps = {
+  params: Promise<{ hotelId: string; requestId: string }> | { hotelId: string; requestId: string };
+};
+⋮----
+export default async function HotelRequestDetailPage(
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/requests/page.tsx">
+import { auth } from "@/auth";
+⋮----
+import { notFound } from "next/navigation";
+import { RequestQueueClient } from "./request-queue-client";
+import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
+import type { ListHotelRequestsQuery } from "@/features/hotel-ops/types/hotel-ops-contract";
+import { assertCanAccessHotelOps, canUseHotelId, requireHotelOpsServerTokens } from "@/features/hotel-ops/utils/hotel-route-auth";
+import { canLoadRequestServiceCatalog } from "@/features/hotel-ops/utils/request-page-permissions";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
+⋮----
+type RequestsPageProps = {
+  params: Promise<{ hotelId: string }> | { hotelId: string };
+  searchParams?: Promise<Record<string, string | string[] | undefined>> | Record<string, string | string[] | undefined>;
+};
+⋮----
+function getFirst(value: string | string[] | undefined): string | undefined
+⋮----
+function normalizeDayFilter(value: string | undefined, boundary: "start" | "end"): string | undefined
+⋮----
+export default async function HotelRequestsPage(
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/rooms/page.tsx">
+import { notFound } from "next/navigation";
+import { auth } from "@/auth";
+import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
+import { assertCanAccessHotelOps, canUseHotelId, requireHotelOpsServerTokens } from "@/features/hotel-ops/utils/hotel-route-auth";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
+import { StaffRoomsClient } from "./staff-rooms-client";
+import { WorkstationConnectionPanel } from "@/features/local-biometric/components/workstation-connection-panel";
+⋮----
+type PageProps = { params: Promise<{ hotelId: string }> | { hotelId: string } };
+⋮----
+export default async function StaffRoomsPage(
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/hotels/error.tsx">
+import { RouteBoundaryState } from "../_components/route-boundary-state";
+⋮----
+export default function HotelsError(
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/hotels/layout.tsx">
+import { auth } from "@/auth";
+import { notFound, redirect } from "next/navigation";
+import { type ReactNode } from "react";
+⋮----
+import { AuthRefreshGate } from "../_components/auth-refresh-gate";
+import { hasAppRole } from "@/libs/rbac";
+import { requireRefreshableServerSession } from "@/libs/server-session-tokens";
+⋮----
+function redirectToLogin(reason: string): never
+⋮----
+export default async function HotelsLayout(
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/hotels/loading.tsx">
+import { RouteLoadingState } from "../_components/route-boundary-state";
+⋮----
+export default function HotelsLoading()
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/owner/(global)/dashboard/error.tsx">
+export default function OwnerDashboardError(
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/owner/(global)/dashboard/loading.tsx">
+
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/owner/(global)/hotels/page.tsx">
+import { notFound } from "next/navigation";
+import { resolveWorkspacePersona } from "@/features/workspace/config/workspace-registry";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
+⋮----
+import { OwnerHotelsClient } from "./owner-hotels-client";
+⋮----
+export default async function OwnerHotelsPage()
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/owner/(global)/layout.tsx">
+import { type ReactNode } from "react";
+import { buildWorkspaceNavigationForContext } from "@/features/workspace/config/workspace-registry";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
+import { WorkspaceProfileProvider } from "@/features/workspace/components/workspace-profile-context";
+import { OwnerShell } from "../_components/owner-shell";
+⋮----
+export default async function OwnerGlobalLayout({
+  children,
+}: Readonly<{
+  children: ReactNode;
+}>)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/biometric/page.tsx">
+import { BiometricOwnerTabs } from "@/features/local-biometric/components/biometric-owner-tabs";
+⋮----
+type PageProps = { params: Promise<{ hotelId: string }> | { hotelId: string } };
+⋮----
+export default async function OwnerHotelBiometricPage(
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/requests/[requestId]/page.tsx">
+import { redirect } from "next/navigation";
+⋮----
+type PageProps = {
+  params:
+    | Promise<{ hotelId: string; requestId: string }>
+    | { hotelId: string; requestId: string };
+};
+⋮----
+export default async function OwnerHotelRequestDetailPage({
+  params,
+}: PageProps)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/requests/page.tsx">
+import { auth } from "@/auth";
+import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
+import type { ListHotelRequestsQuery } from "@/features/hotel-ops/types/hotel-ops-contract";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
+⋮----
+import { RequestQueueClient } from "../../../../../hotels/[hotelId]/requests/request-queue-client";
+⋮----
+type PageProps = {
+  params: Promise<{ hotelId: string }> | { hotelId: string };
+  searchParams?: Promise<Record<string, string | string[] | undefined>> | Record<string, string | string[] | undefined>;
+};
+⋮----
+function getFirst(value: string | string[] | undefined): string | undefined
+⋮----
+function getPositiveInt(value: string | undefined, fallback: number): number
+⋮----
+function normalizeDayFilter(value: string | undefined, boundary: "start" | "end"): string | undefined
+⋮----
+initialDetailRequestId=
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/rooms/qr-export/page.tsx">
+import { OwnerRoomsQrExportClient } from "./qr-export-client";
+⋮----
+type PageProps = { params: Promise<{ hotelId: string }> | { hotelId: string } };
+⋮----
+export default async function OwnerRoomsQrExportPage(
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/rooms/page.tsx">
+import { auth } from "@/auth";
+import { HttpError } from "@/core/http/http-error";
+import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
+⋮----
+import { OwnerRoomsClient } from "./owner-rooms-client";
+⋮----
+type PageProps = { params: Promise<{ hotelId: string }> | { hotelId: string } };
+⋮----
+export default async function OwnerHotelRoomsPage(
+⋮----
+// Re-throw to let createAuthorizedApiExecutor handle 401/403
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/services/page.tsx">
+import { auth } from "@/auth";
+import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
+⋮----
+import { OwnerServiceCatalogClient } from "./owner-service-catalog-client";
+⋮----
+type PageProps = { params: Promise<{ hotelId: string }> | { hotelId: string } };
+⋮----
+export default async function OwnerHotelServicesPage(
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/stay/page.tsx">
+import { redirect } from "next/navigation";
+⋮----
+type PageProps = {
+  params: Promise<{ hotelId: string }> | { hotelId: string };
+};
+⋮----
+export default async function LegacyOwnerHotelStayPage(
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/layout.tsx">
+import { type ReactNode } from "react";
+import { buildWorkspaceNavigationForContext } from "@/features/workspace/config/workspace-registry";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
+import { WorkspaceProfileProvider } from "@/features/workspace/components/workspace-profile-context";
+import { OwnerShell } from "../../../_components/owner-shell";
+⋮----
+export default async function OwnerHotelLayout({
+  children,
+  params,
+}: Readonly<{
+  children: ReactNode;
+  params: Promise<{ hotelId: string }>;
+}>)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/loading.tsx">
+{/* Header skeleton */}
+⋮----
+{/* Metric Cards skeleton */}
+⋮----
+{/* Main Table / Grid Skeleton */}
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/owner/error.tsx">
+import { RouteBoundaryState } from "../_components/route-boundary-state";
+⋮----
+export default function OwnerError(
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/owner/layout.tsx">
+import { type ReactNode } from "react";
+⋮----
+import { auth } from "@/auth";
+⋮----
+import { AuthRefreshGate } from "../_components/auth-refresh-gate";
+import { OwnerRequestRealtimeNotifier } from "./_components/owner-request-realtime-notifier";
+import { assertCanAccessOwner, requireOwnerServerTokens } from "./_components/owner-auth";
+⋮----
+export default async function OwnerLayout(
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/owner/loading.tsx">
+import { RouteLoadingState } from "../_components/route-boundary-state";
+⋮----
+export default function OwnerLoading()
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/staff/dashboard/page.tsx">
+import { redirect } from "next/navigation";
+⋮----
+export default function StaffDashboardRedirectPage()
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/staff/front-desk/page.tsx">
+import { redirect } from "next/navigation";
+⋮----
+export default function FrontDeskDashboardPage()
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/staff/manager/page.tsx">
+import { redirect } from "next/navigation";
+⋮----
+export default function ManagerDashboardPage()
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/staff/operations/page.tsx">
+import { redirect } from "next/navigation";
+⋮----
+export default function OperationsDashboardPage()
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/staff/error.tsx">
+import { ContentErrorState } from "../_components/route-boundary-state";
+⋮----
+export default function StaffError(
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/staff/layout.tsx">
+import { auth } from "@/auth";
+import { type ReactNode } from "react";
+⋮----
+import { notFound, redirect } from "next/navigation";
+import { AuthRefreshGate } from "../_components/auth-refresh-gate";
+import { hasAppRole } from "@/libs/rbac";
+import { requireRefreshableServerSession } from "@/libs/server-session-tokens";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
+import { resolveWorkspacePersona } from "@/features/workspace/utils/workspace-context";
+import { WorkspaceProfileProvider } from "@/features/workspace/components/workspace-profile-context";
+⋮----
+function redirectToLogin(reason: string): never
+⋮----
+export default async function StaffLayout({
+  children,
+}: Readonly<{
+  children: ReactNode;
+}>)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/staff/loading.tsx">
+import { ContentLoadingState } from "../_components/route-boundary-state";
+⋮----
+export default function StaffLoading()
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/staff/page.tsx">
+import { redirect } from "next/navigation";
+⋮----
+import { VsIcon } from "../_components/vs-icon";
+import {
+  resolveSingleAssignedHotel,
+  resolveWorkspacePersona,
+} from "@/features/workspace/utils/workspace-context";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
+⋮----
+export default async function StaffEntryPage()
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/admin/hotels/page.tsx">
+import { auth } from "@/auth";
+import { adminService } from "@/features/admin/service/admin-service-instance";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
+⋮----
+import { HotelsAdminClient } from "./hotels-admin-client";
+⋮----
+async function listTenantOwnersForSelector(accessToken?: string)
+⋮----
+export default async function AdminHotelsPage()
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/admin/permissions/page.tsx">
+import { auth } from "@/auth";
+import Link from "next/link";
+import { unstable_rethrow } from "next/navigation";
+⋮----
+import { rbacService } from "@/features/rbac/service/rbac-service-instance";
+import type {
+  RbacPermissionModuleSummary,
+  RbacRole,
+} from "@/features/rbac/types/rbac-contract";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
+import { VsIcon } from "../../_components/vs-icon";
+import {
+  type RolePermissionsBrowserPermission,
+  type RolePermissionsBrowserRole,
+  RolePermissionsBrowser,
+} from "./_components/role-permissions-browser";
+import { PermissionsWarningsAlert } from "./_components/permissions-warnings-alert";
+⋮----
+type PermissionsPageProps = {
+  searchParams?:
+    | Promise<Record<string, string | string[] | undefined>>
+    | Record<string, string | string[] | undefined>;
+};
+⋮----
+function isRecord(value: unknown): value is Record<string, unknown>
+⋮----
+function toObjectArray<T extends Record<string, unknown>>(value: unknown): T[]
+⋮----
+function mapRole(role: RbacRole): RolePermissionsBrowserRole
+⋮----
+function extractParam(value: string | string[] | undefined): string | null
+⋮----
+export default async function AdminPermissionsPage({
+  searchParams,
+}: Readonly<PermissionsPageProps>)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/admin/roles/page.tsx">
+import { auth } from "@/auth";
+import { unstable_rethrow } from "next/navigation";
+⋮----
+import { rbacService } from "@/features/rbac/service/rbac-service-instance";
+import type { RbacRole } from "@/features/rbac/types/rbac-contract";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
+⋮----
+import { VsIcon } from "../../_components/vs-icon";
+import {
+  RolesLiveFilter,
+  type RolesLiveFilterRole,
+} from "./_components/roles-live-filter";
+⋮----
+type RolePermissionView = {
+  method: string;
+  path: string;
+};
+⋮----
+type RolesPageProps = {
+  searchParams?:
+    | Promise<Record<string, string | string[] | undefined>>
+    | Record<string, string | string[] | undefined>;
+};
+⋮----
+function isRecord(value: unknown): value is Record<string, unknown>
+⋮----
+function toObjectArray<T extends Record<string, unknown>>(value: unknown): T[]
+⋮----
+function moduleFromPath(path: string): string
+⋮----
+function mapRole(role: RbacRole): RolesLiveFilterRole
+⋮----
+function toQueryValue(value: string | string[] | undefined): string
+⋮----
+initialQuery=
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/dashboard/page.tsx">
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { auth } from "@/auth";
+import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
+import { formatMoney } from "@/features/billing/utils/money";
+import { assertCanAccessHotelOps, canUseHotelId, requireHotelOpsServerTokens } from "@/features/hotel-ops/utils/hotel-route-auth";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
+import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+import { formatDayMonth } from "./dashboard-presentation";
+import { WorkstationConnectionPanel } from "@/features/local-biometric/components/workstation-connection-panel";
+⋮----
+type PageProps = { params: Promise<{ hotelId: string }> | { hotelId: string } };
+⋮----
+function formatTime(value: string): string
+⋮----
+function percent(value: number): number
+⋮----
+function attentionRoute(hotelId: string, item:
+⋮----
+<p className=
+⋮----
+<Link key=
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/services/page.tsx">
+import { auth } from "@/auth";
+import { notFound } from "next/navigation";
+import { ServiceCatalogClient } from "./service-catalog-client";
+import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
+import {
+  assertCanAccessHotelOps,
+  canUseHotelId,
+  requireHotelOpsServerTokens,
+} from "@/features/hotel-ops/utils/hotel-route-auth";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
+⋮----
+type ServicesPageProps = {
+  params: Promise<{ hotelId: string }> | { hotelId: string };
+};
+⋮----
+export default async function HotelServicesPage(
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/page.tsx">
+import { notFound } from "next/navigation";
+⋮----
+import { auth } from "@/auth";
+import { HttpError } from "@/core/http/http-error";
+import { adminService } from "@/features/admin/service/admin-service-instance";
+import type { Hotel } from "@/features/admin/types/admin-contract";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
+⋮----
+import { ownerAccessMessage } from "../../../_components/owner-auth";
+import { OwnerHotelDetailClient } from "./owner-hotel-detail-client";
+⋮----
+type OwnerHotelPageProps = {
+  params: Promise<{ hotelId: string }> | { hotelId: string };
+};
+⋮----
+async function getOwnerVisibleHotel(hotelId: string, accessToken: string | undefined): Promise<Hotel | null>
+⋮----
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/owner/page.tsx">
+import { redirect } from "next/navigation";
+⋮----
+export default function OwnerPage()
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/service/catalog/page.tsx">
+import { useServicePortal } from "@/features/service-portal/use-service-portal";
+import { ServiceCatalogView } from "@/features/service-portal/components/service-catalog-view";
+⋮----
+export default function ServiceCatalogPage()
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/service/dashboard/page.tsx">
+import { useServicePortal } from "@/features/service-portal/use-service-portal";
+import { ServiceDashboardView } from "@/features/service-portal/components/service-dashboard-view";
+⋮----
+export default function ServiceDashboardPage()
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/service/orders/page.tsx">
+import { useServicePortal } from "@/features/service-portal/use-service-portal";
+import { ServiceOrdersView } from "@/features/service-portal/components/service-orders-view";
+⋮----
+export default function ServiceOrdersPage()
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/service/settings/page.tsx">
+import { useServicePortal } from "@/features/service-portal/use-service-portal";
+import { ServiceSettingsView } from "@/features/service-portal/components/service-settings-view";
+⋮----
+export default function ServiceSettingsPage()
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/service/settlements/page.tsx">
+import { ServiceSettlementsView } from "@/features/service-portal/components/service-settlements-view";
+⋮----
+export default function ServiceSettlementsPage()
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/admin/users/page.tsx">
+import Link from "next/link";
+import { auth } from "@/auth";
+import { adminService } from "@/features/admin/service/admin-service-instance";
+import { StaffManagementClient } from "@/features/staff-management/components/staff-management-client";
+import { hasWorkspaceCapability } from "@/features/workspace/utils/workspace-context";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
+import type { TenantOption, TenantOwnerPage } from "@/features/admin/types/admin-contract";
+import { TenantOwnersClient } from "./tenant-owners-client";
+⋮----
+type Props = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>> | Record<string, string | string[] | undefined>;
+};
+⋮----
+function first(value: string | string[] | undefined): string
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/billing/invoices/[invoiceId]/page.tsx">
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { auth } from "@/auth";
+import { billingService } from "@/features/billing/service/billing-service-instance";
+import { formatDateTime, formatMoney } from "@/features/billing/utils/money";
+import { assertCanAccessHotelOps, canUseHotelId, requireHotelOpsServerTokens } from "@/features/hotel-ops/utils/hotel-route-auth";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
+import { InvoiceActions } from "./invoice-actions";
+⋮----
+type PageProps = { params: Promise<{ hotelId: string; invoiceId: string }> | { hotelId: string; invoiceId: string } };
+⋮----
+function labelStatus(labels: Record<string, string>, status?: string | null): string
+⋮----
+function isExternalInvoiceItem(item: (typeof items)[number]): boolean
+⋮----
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/billing/page.tsx">
+import { notFound } from "next/navigation";
+import { auth } from "@/auth";
+import { billingService } from "@/features/billing/service/billing-service-instance";
+import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
+import { formatMoney } from "@/features/billing/utils/money";
+import { assertCanAccessHotelOps, canUseHotelId, requireHotelOpsServerTokens } from "@/features/hotel-ops/utils/hotel-route-auth";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
+import { StaffBillingWorkspaceClient } from "./staff-billing-workspace-client";
+import { StaffSaasReminder } from "./staff-saas-reminder";
+import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+⋮----
+type PageProps = { params: Promise<{ hotelId: string }> | { hotelId: string } };
+⋮----
+export default async function StaffBillingPage(
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/owner/(global)/dashboard/page.tsx">
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
+⋮----
+import { auth } from "@/auth";
+import { resolveWorkspacePersona } from "@/features/workspace/config/workspace-registry";
+import { adminService } from "@/features/admin/service/admin-service-instance";
+import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
+import { ownerAttentionRoute } from "@/features/hotel-ops/utils/owner-attention-route";
+import { servicePortalClient } from "@/features/service-portal/service-client";
+import { readServerSessionTokens } from "@/libs/server-session-tokens";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
+⋮----
+import { VsIcon } from "../../../_components/vs-icon";
+import { AnimatedDashboardNumber } from "./animated-dashboard-number";
+⋮----
+type Dashboard = {
+  hotelId: string;
+  generatedAt: string;
+  rooms: {
+    total: number;
+    occupied: number;
+    occupancyRate: number;
+    byStatus: Record<string, number>;
+  };
+  stays: {
+    todayCheckIns: number;
+    todayCheckOuts: number;
+    pendingCheckOuts: number;
+    activeStays: number;
+  };
+  requests: {
+    unprocessed: number;
+    urgentUnprocessed: number | null;
+    byStatus: Record<string, number>;
+    topServices: Array<{ serviceName: string; count: number }>;
+  };
+  revenue: {
+    available: boolean;
+    currency: string;
+    today: number | null;
+    last7Days: number | null;
+    currentMonth: number | null;
+  };
+  health: {
+    score: number | null;
+    status: "excellent" | "good" | "warning" | "critical" | "unknown";
+    title: string;
+    factors: Array<{
+      type: string;
+      label: string;
+      impact: string;
+      message: string;
+    }>;
+  };
+  attention: Array<{
+    id: string;
+    type: string;
+    priority: "urgent" | "high" | "normal";
+    title: string;
+    description: string;
+    createdAt: string;
+    action: { label: string; route: string };
+  }>;
+  insights: Array<{
+    id: string;
+    severity: "info" | "warning" | "critical";
+    title: string;
+    description: string;
+    metric?: { current: number; previous?: number; changePercent?: number };
+  }>;
+  sla: {
+    available: boolean;
+    averageResponseMinutes: number | null;
+    averageCompletionMinutes: number | null;
+    completedWithinSlaPercent: number | null;
+    thresholdMinutes: number;
+  };
+  activities: Array<{
+    id: string;
+    type: string;
+    title: string;
+    description: string;
+    createdAt: string;
+  }>;
+  warnings: string[];
+};
+⋮----
+type MarketplaceRevenue = {
+  grossAmount: string | number;
+  orderCount: number;
+};
+⋮----
+function formatVnd(value: number | null | undefined): string
+⋮----
+function formatTime(value: string): string
+⋮----
+Cập nhật lúc:
+⋮----
+{/* Executive KPI Cards */}
+⋮----
+{/* Action Needed Card at the Bottom */}
+⋮----
+href=
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/owner/(global)/staff/page.tsx">
+import { notFound } from "next/navigation";
+import { auth } from "@/auth";
+import { adminService } from "@/features/admin/service/admin-service-instance";
+import { StaffManagementClient } from "@/features/staff-management/components/staff-management-client";
+import { hasWorkspaceCapability } from "@/features/workspace/utils/workspace-context";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
+⋮----
+type Props = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>> | Record<string, string | string[] | undefined>;
+};
+⋮----
+function first(value: string | string[] | undefined): string | null
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/billing/invoices/[invoiceId]/page.tsx">
+import Link from "next/link";
+⋮----
+import { auth } from "@/auth";
+import { billingService } from "@/features/billing/service/billing-service-instance";
+import type { InvoiceDetail, MoneyValue } from "@/features/billing/types/billing-contract";
+import { formatDateTime, formatMoney } from "@/features/billing/utils/money";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
+⋮----
+import { InvoicePrintButton } from "./invoice-print-button";
+import { InvoiceActions } from "@/app/(vietsage)/hotels/[hotelId]/billing/invoices/[invoiceId]/invoice-actions";
+⋮----
+type PageProps = {
+  params:
+    | Promise<{ hotelId: string; invoiceId: string }>
+    | { hotelId: string; invoiceId: string };
+};
+⋮----
+function labelStatus(labels: Record<string, string>, status?: string | null): string
+⋮----
+function labelItemType(type: string): string
+⋮----
+function formatQuantity(value: number): string
+⋮----
+function sumMoney(values: MoneyValue[]): number
+⋮----
+function InvoiceInfo(
+⋮----
+function isExternalInvoiceItem(item: InvoiceDetail["items"][number]): boolean
+⋮----
+<dd className="font-bold">
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/service/layout.tsx">
+import { auth } from "@/auth";
+import { type ReactNode } from "react";
+⋮----
+import { notFound, redirect } from "next/navigation";
+import { AuthRefreshGate } from "../_components/auth-refresh-gate";
+import { hasAppRole } from "@/libs/rbac";
+import { requireRefreshableServerSession } from "@/libs/server-session-tokens";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
+import { resolveWorkspacePersona } from "@/features/workspace/utils/workspace-context";
+import { WorkspaceProfileProvider } from "@/features/workspace/components/workspace-profile-context";
+⋮----
+import { ServiceShell } from "./_components/service-shell";
+import { buildWorkspaceNavigation } from "@/features/workspace/config/workspace-registry";
+import { ServiceTenantRealtimeNotifier } from "@/features/service-portal/components/service-tenant-realtime-notifier";
+⋮----
+function redirectToLogin(reason: string): never
+⋮----
+export default async function ServiceLayout({
+  children,
+}: Readonly<{
+  children: ReactNode;
+}>)
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/service/page.tsx">
+import { redirect } from "next/navigation";
+⋮----
+export default function ServiceRootPage()
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/admin/marketplace/page.tsx">
+import { MarketplaceAdminClient } from "@/features/marketplace-admin/marketplace-admin-client";
+⋮----
+export default function MarketplaceAdminPage()
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/partners/page.tsx">
+import { notFound } from "next/navigation";
+import { auth } from "@/auth";
+import { assertCanAccessHotelOps, canUseHotelId, requireHotelOpsServerTokens } from "@/features/hotel-ops/utils/hotel-route-auth";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
+import { OwnerNearbyProvidersClient } from "@/features/local-partners/components/staff-local-partners-client";
+⋮----
+type PageProps = { params: Promise<{ hotelId: string }> | { hotelId: string } };
+⋮----
+export default async function StaffLocalPartnersPage(
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/billing/page.tsx">
+import { auth } from "@/auth";
+import { billingService } from "@/features/billing/service/billing-service-instance";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
+⋮----
+import { BillingTabSwitcher } from "./billing-tab-switcher";
+⋮----
+type PageProps = {
+  params: Promise<{ hotelId: string }> | { hotelId: string };
+  searchParams?: Promise<{ folioPage?: string; tab?: string }> | { folioPage?: string; tab?: string };
+};
+⋮----
+export default async function OwnerBillingPage(
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/partners/page.tsx">
+import { OwnerNearbyProvidersClient } from "@/features/local-partners/components/staff-local-partners-client";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
+⋮----
+type PageProps = { params: Promise<{ hotelId: string }> | { hotelId: string } };
+⋮----
+export default async function OwnerLocalPartnersPage(
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/admin/dashboard/page.tsx">
+import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
+⋮----
+import { VsIcon } from "../../_components/vs-icon";
+import {
+  getWorkspaceDashboardWidgets,
+} from "@/features/workspace/config/workspace-registry";
+import { resolveWorkspacePersona } from "@/features/workspace/utils/workspace-context";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
+⋮----
+type DashboardPageProps = {
+  searchParams?:
+    | Promise<Record<string, string | string[] | undefined>>
+    | Record<string, string | string[] | undefined>;
+};
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/(vietsage)/hotels/[hotelId]/layout.tsx">
+import { type ReactNode } from "react";
+import { notFound } from "next/navigation";
+import { auth } from "@/auth";
+⋮----
+import { assertCanAccessHotelOps, canUseHotelId, requireHotelOpsServerTokens } from "@/features/hotel-ops/utils/hotel-route-auth";
+import { buildWorkspaceNavigationForContext, getWorkspaceDefinition, resolveWorkspacePersona } from "@/features/workspace/config/workspace-registry";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
+import { WorkspaceProfileProvider } from "@/features/workspace/components/workspace-profile-context";
+import { WorkspaceShell } from "@/features/workspace/components/workspace-shell";
+⋮----
+import { HotelOpsRealtimeNotifier } from "@/features/hotel-ops/components/hotel-ops-realtime-notifier";
+⋮----
+export default async function HotelOpsLayout({
+  children,
+  params,
+}: Readonly<{
+  children: ReactNode;
+  params: Promise<{ hotelId: string }>;
+}>)
+⋮----
+definition=
+</file>
+
+</files>

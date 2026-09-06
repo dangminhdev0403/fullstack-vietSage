@@ -67,9 +67,9 @@ export function OwnerHotelsClient() {
 
   return (
     <div className="space-y-6">
-      <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <section className="vs-stat-grid">
         {metrics.map((metric) => (
-          <article key={metric.label} className="rounded-[1.5rem] border border-white/70 bg-white/75 p-6 shadow-[0_18px_50px_rgba(31,61,53,0.10)] backdrop-blur">
+          <article key={metric.label} className="vs-stat-card">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-sm font-semibold text-[#5f6b63]">{metric.label}</p>
@@ -83,11 +83,11 @@ export function OwnerHotelsClient() {
         ))}
       </section>
 
-      <section className="rounded-[1.5rem] border border-white/70 bg-white/75 p-5 shadow-[0_18px_50px_rgba(31,61,53,0.08)] backdrop-blur">
+      <section className="vs-panel vs-filter-bar">
         <div className="flex flex-col gap-3 md:flex-row md:items-center">
           <div className="relative flex-1">
             <VsIcon name="search" className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--outline)]" />
-            <input
+            <input aria-label="Tìm theo khách sạn, mã, múi giờ..."
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
@@ -123,8 +123,8 @@ export function OwnerHotelsClient() {
         </section>
       ) : null}
 
-      <section className="overflow-hidden rounded-[1.75rem] border border-white/70 bg-white/80 shadow-[0_18px_60px_rgba(31,61,53,0.12)] backdrop-blur">
-        <div className="overflow-x-auto">
+      <section className="vs-table-panel">
+        <div role="region" aria-label="Bảng dữ liệu" tabIndex={0} className="overflow-x-auto">
           <table className="w-full min-w-[840px] text-left text-sm">
             <thead className="bg-[#f8f1e6] text-xs uppercase tracking-[0.10em] text-[#5f6b63]">
               <tr>

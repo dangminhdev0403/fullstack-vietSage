@@ -1,5 +1,4 @@
 "use client";
-
 import {
   type FormEvent,
   useMemo,
@@ -1217,6 +1216,7 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
           type="search"
           value={query}
           onChange={(event) => updateQuery(event.target.value)}
+          aria-label="Tìm số phòng, loại phòng hoặc tầng..."
           placeholder="Tìm số phòng, loại phòng hoặc tầng..."
           className="min-h-12 w-full rounded-xl border-0 bg-[var(--surface-container-low)] pl-10 pr-4 text-sm outline-none ring-1 ring-transparent transition focus:ring-[var(--primary)]"
         />

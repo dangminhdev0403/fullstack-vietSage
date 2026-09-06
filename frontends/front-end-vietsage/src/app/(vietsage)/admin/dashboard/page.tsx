@@ -36,23 +36,22 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
 
   return (
     <>
-      <header className="rounded-[2rem] border border-[#24473d]/10 bg-[#fffaf0]/85 p-6 shadow-[0_22px_70px_rgba(31,61,53,0.10)] md:p-9">
-        <p className="text-sm font-bold uppercase tracking-[0.22em] text-[#bf7836]">
-          Platform administration
-        </p>
-        <h1 className="vs-display mt-3 text-4xl font-semibold tracking-[-0.04em] text-[#17201b] md:text-5xl">
+      <header className="vs-page-header">
+        <div>
+        <h1 className="vs-display">
           Trung tâm quản trị VietSage
         </h1>
-        <p className="mt-4 max-w-3xl text-base leading-7 text-[#5f6b63]">
+        <p className="mt-3 max-w-3xl text-base leading-7 text-[var(--on-surface-variant)]">
           Không gian này chỉ dành cho cấu hình cấp nền tảng. Vận hành khách sạn, lễ tân và công
           việc nhân viên được tách sang workspace tương ứng.
         </p>
-        <div className="mt-6 flex flex-wrap gap-3 text-sm font-semibold">
-          <span className="rounded-full bg-[#24473d] px-4 py-2 text-[#fff8e8]">
+        </div>
+        <div className="flex flex-wrap gap-3 text-sm font-semibold">
+          <span className="rounded-lg bg-[var(--primary-fixed)] px-4 py-2 text-[var(--on-primary-fixed)]">
             {context.activeRole.name}
           </span>
-          <span className="rounded-full bg-[#eadfce] px-4 py-2 text-[#5d3b1f]">
-            {context.permissions.length} capability đang hoạt động
+          <span className="rounded-lg bg-[var(--secondary-fixed)] px-4 py-2 text-[var(--on-secondary-fixed)]">
+            {context.permissions.length} quyền đang hoạt động
           </span>
         </div>
       </header>
@@ -62,28 +61,30 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
           <h2 className="vs-display text-3xl font-semibold tracking-[-0.03em] text-[#17201b]">
             Khu vực quản trị
           </h2>
-          <p className="mt-1 text-sm text-[#6d756e]">Chỉ hiển thị module được cấp cho role hiện tại.</p>
+          <p className="mt-2 text-base text-[var(--on-surface-variant)]">Các khu vực được cấp cho vai trò hiện tại.</p>
         </div>
 
         {availableModules.length > 0 ? (
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          <div className="vs-module-grid">
             {availableModules.map((widget) => {
               if (!widget.href) return null;
               return (
                 <Link
                   key={widget.key}
                   href={widget.href}
-                  className="group rounded-[1.75rem] border border-[#24473d]/10 bg-white/85 p-6 shadow-[0_18px_50px_rgba(31,61,53,0.08)] transition-transform hover:-translate-y-1"
+                  className="vs-module-link"
                 >
-                  <span className="grid size-12 place-items-center rounded-2xl bg-[#e6efe9] text-[#24473d]">
+                  <span className="vs-module-icon">
                     <VsIcon name={widget.icon} className="text-2xl" />
                   </span>
-                  <h3 className="mt-5 text-xl font-bold text-[#17201b]">{widget.title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-[#6d756e]">{widget.description}</p>
-                  <span className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-[#bf7836]">
-                    Mở module
-                    <VsIcon name="arrow_forward" className="transition-transform group-hover:translate-x-1" />
+                  <div>
+                  <h3>{widget.title}</h3>
+                  <p className="text-sm leading-6">{widget.description}</p>
+                  <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[var(--primary)]">
+                    Mở khu vực
+                    <VsIcon name="arrow_forward" />
                   </span>
+                  </div>
                 </Link>
               );
             })}

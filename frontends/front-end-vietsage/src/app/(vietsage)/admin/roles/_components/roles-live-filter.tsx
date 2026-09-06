@@ -1,5 +1,4 @@
 "use client";
-
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -680,6 +679,7 @@ export function RolesLiveFilter({
                   type="search"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
+                  aria-label="Tìm theo tên vai trò (Role)..."
                   placeholder="Tìm theo tên vai trò (Role)..."
                   className="w-full rounded-lg border-0 bg-[var(--surface-container-low)] px-11 py-3 text-sm text-[var(--on-surface)] outline-none focus:ring-2 focus:ring-[var(--primary)]"
                 />
@@ -723,7 +723,7 @@ export function RolesLiveFilter({
       </section>
 
       <section className="overflow-hidden rounded-xl border border-[color:rgba(198,197,213,0.2)] bg-white shadow-[0_4px_20px_rgba(0,0,0,0.05)]">
-        <div className="overflow-x-auto">
+        <div role="region" aria-label="Bảng dữ liệu" tabIndex={0} className="overflow-x-auto">
           <table className="min-w-full text-left">
             <thead>
               <tr className="bg-[var(--surface-container-low)] text-sm font-semibold uppercase tracking-[0.08em] text-[var(--outline)]">

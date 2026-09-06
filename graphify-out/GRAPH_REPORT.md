@@ -1,16 +1,16 @@
-# Graph Report - fullstack-vietSage  (2026-08-16)
+# Graph Report - admin-ui-overhaul  (2026-09-06)
 
 ## Corpus Check
-- 1062 files · ~706,883 words
+- 1066 files · ~711,729 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 8145 nodes · 18716 edges · 401 communities (334 shown, 67 thin omitted)
+- 8201 nodes · 18771 edges · 402 communities (337 shown, 65 thin omitted)
 - Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 335 edges (avg confidence: 0.65)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `76859f74`
+- Built from commit: `9450196b`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -392,6 +392,7 @@
 - MarketplaceCategorySheetService
 - transformation.interceptor.ts
 - react
+- @nestjs/platform-socket.io
 - room-table-drawer.test.ts
 - .getDashboard
 
@@ -422,103 +423,103 @@
 ## Import Cycles
 - None detected.
 
-## Communities (401 total, 67 thin omitted)
+## Communities (402 total, 65 thin omitted)
 
 ### Community 0 - "executeOwnerBackendRequest"
-Cohesion: 0.06
-Nodes (94): Params, POST(), Params, POST(), Params, PATCH(), updateRequestAssignmentSchema, createRequestEventSchema (+86 more)
+Cohesion: 0.05
+Nodes (109): POST(), Params, POST(), Params, PATCH(), updateRequestAssignmentSchema, createRequestEventSchema, Params (+101 more)
 
 ### Community 1 - "httpErrorResponse"
 Cohesion: 0.06
-Nodes (77): GET(), HotelParams, jsonRecordSchema, PATCH(), updateHotelSchema, Context, DELETE(), mutate() (+69 more)
+Nodes (76): GET(), HotelParams, jsonRecordSchema, PATCH(), updateHotelSchema, Context, DELETE(), mutate() (+68 more)
 
 ### Community 2 - "executeHotelOpsBackendRequest"
-Cohesion: 0.07
-Nodes (87): Params, POST(), Params, POST(), GET(), Params, POST(), GET() (+79 more)
+Cohesion: 0.05
+Nodes (122): POST(), POST(), GET(), POST(), GET(), GET(), POST(), GET() (+114 more)
 
 ### Community 3 - "PrismaService"
-Cohesion: 0.12
+Cohesion: 0.13
 Nodes (18): bookingRequestIdParamSchema, createBookingRequestBodySchema, createLocalPartnerBodySchema, createLocalPartnerOfferBodySchema, hotelIdParamSchema, listGuestPartnersQuerySchema, localPartnerBodySchema, localPartnerBookingStatusSchema (+10 more)
 
 ### Community 4 - "authorizeHotelWorkstation"
-Cohesion: 0.06
-Nodes (46): createServiceItemBodySchema, hotelServiceItemDataSchema, listHotelServiceItemsDataSchema, updateServiceItemBodySchema, createHotelBodySchema, googleSheetUrlSchema, listHotelsQuerySchema, parseGoogleSheetId() (+38 more)
+Cohesion: 0.09
+Nodes (31): createServiceItemBodySchema, hotelServiceItemDataSchema, listHotelServiceItemsDataSchema, updateServiceItemBodySchema, RequestWithUser, CreateServiceCategoryBodyInput, createServiceCategoryBodySchema, CreateServiceItemBodyInput (+23 more)
 
 ### Community 5 - "owner-service-catalog-client.tsx"
 Cohesion: 0.05
-Nodes (51): BaseLocale, CatalogLocale, catalogLocales, CatalogPage, CategoryFormState, CategorySortKey, categoryToForm(), emptyCategoryForm (+43 more)
+Nodes (52): BaseLocale, CatalogLocale, catalogLocales, CatalogPage, CategoryFormState, CategorySortKey, categoryToForm(), emptyCategoryForm (+44 more)
 
 ### Community 6 - "HotelAccessService"
-Cohesion: 0.07
-Nodes (16): RouteInput, HOTEL_ASSIGNMENT_REQUIRED_ROLE_CODES, HOTEL_OPERATOR_ROLE_CODES, HotelAccessService, Injectable, HotelsService, Injectable, CreateHotelBodyInput (+8 more)
+Cohesion: 0.04
+Nodes (18): HOTEL_ASSIGNMENT_REQUIRED_ROLE_CODES, HOTEL_OPERATOR_ROLE_CODES, MANUAL_ROOM_STATUSES, HotelsService, Injectable, CheckOutBodyInput, CreateRoomsBodyInput, ListRoomsQueryInput (+10 more)
 
 ### Community 7 - "unwrapApiEnvelope"
 Cohesion: 0.06
-Nodes (43): unwrapApiEnvelope(), AuthRequestOptions, createHotelOpsService(), HotelOpsService, HotelOpsServiceOptions, hotelPath(), EMPTY_STAFF_DASHBOARD_DATA, loadStaffDashboardData() (+35 more)
+Nodes (29): unwrapApiEnvelope(), AuthRequestOptions, createHotelOpsService(), HotelOpsService, HotelOpsServiceOptions, hotelPath(), isRecord(), parseServiceCatalogSyncResponse() (+21 more)
 
 ### Community 8 - "GuestLocaleCode"
-Cohesion: 0.08
-Nodes (34): createGuestOsService(), GuestOsService, GuestOsServiceOptions, localeHeaders(), CancelGuestRequestResult, CreateGuestEmergencyCallInput, CreateGuestRequestInput, EmergencyLocationConfidence (+26 more)
+Cohesion: 0.14
+Nodes (16): createGuestOsService(), GuestOsService, GuestOsServiceOptions, localeHeaders(), CancelGuestRequestResult, CreateGuestEmergencyCallInput, CreateGuestRequestInput, GuestCategoryServicesResult (+8 more)
 
 ### Community 9 - "hotel-services.controller.ts"
-Cohesion: 0.08
-Nodes (19): InlineKeyboard, STATUS_LABELS, TelegramCallbackQuery, OverdueCheckoutAlertService, OverdueStayAlertResult, Cron, Inject, Injectable (+11 more)
+Cohesion: 0.06
+Nodes (22): parseSnapshot(), resolveServiceSource(), now, InlineKeyboard, STATUS_LABELS, TelegramCallbackQuery, OverdueCheckoutAlertService, OverdueStayAlertResult (+14 more)
 
 ### Community 10 - "_do_request"
 Cohesion: 0.04
 Nodes (34): _do_request(), PUT /settings requires Bearer token, validates, persists, increments generation., Bodies > 1 MiB must be rejected (414 or 400)., POST /pair: single-use code, issues session token., Helper: issue code via pairing store, exchange it via POST /pair., Second use of the same code must return 401., Token from POST /pair must work for PUT /settings., Verify mutating endpoints need auth; GET /health and GET /settings are public. (+26 more)
 
 ### Community 11 - "HttpError"
-Cohesion: 0.05
-Nodes (15): HotelServicesService, Injectable, CreateServiceCategoryBodyInput, CreateServiceItemBodyInput, ListServiceCategoriesQueryInput, ListServiceItemsQueryInput, UpdateServiceCategoryBodyInput, UpdateServiceItemBodyInput (+7 more)
+Cohesion: 0.08
+Nodes (6): HotelServicesService, Injectable, ServiceCatalogTranslationInput, ServiceItemRow, HotelServiceCatalogRepository, Injectable
 
 ### Community 12 - "local-partners-contract.ts"
 Cohesion: 0.09
-Nodes (25): distanceLabel(), GuestLocalPartners(), GuestNearbyPreview(), HotelPartnerSettlementsTab(), PartnerDetailModal(), safeExternalUrl(), PartnerFormModal(), PartnerFormModalProps (+17 more)
+Nodes (24): distanceLabel(), GuestLocalPartners(), GuestNearbyPreview(), HotelPartnerSettlementsTab(), PartnerDetailModal(), safeExternalUrl(), PartnerFormModal(), PartnerFormModalProps (+16 more)
 
 ### Community 13 - "marketing-shell.tsx"
-Cohesion: 0.07
-Nodes (32): items, metadata, items, metadata, metadata, posts, items, metadata (+24 more)
+Cohesion: 0.11
+Nodes (17): items, metadata, items, metadata, metadata, posts, items, metadata (+9 more)
 
 ### Community 14 - "DpapiSecretStore"
-Cohesion: 0.04
-Nodes (34): DpapiSecretStore, User-scoped DPAPI secret store for the bridge communicationKey.      Parameters, Encrypt and store *plaintext* using DPAPI.          The plaintext is encoded as, Decrypt and return the protected secret as raw bytes.          The returned byte, True if a secret has been protected (blob is non-None)., _FakeAdapter, test_local_settings.py – TDD tests for local_settings.py and local_secrets.py., AC1: Atomic write with same-dir temp, flush/fsync, os.replace. (+26 more)
+Cohesion: 0.06
+Nodes (25): DpapiSecretStore, User-scoped DPAPI secret store for the bridge communicationKey.      Parameter, Encrypt and store *plaintext* using DPAPI.          The plaintext is encoded a, Decrypt and return the protected secret as raw bytes.          The returned by, True if a secret has been protected (blob is non-None)., _FakeAdapter, test_local_settings.py – TDD tests for local_settings.py and local_secrets.py., In-process DPAPI stub: XOR-encrypt with 0x55 (detectable, not secure). (+17 more)
 
 ### Community 15 - "hotel-rooms.service.ts"
-Cohesion: 0.08
-Nodes (18): addHours(), generateOpaqueToken(), hashOpaqueToken(), HotelRoomsService, MANUAL_ROOM_STATUSES, Injectable, ReservationsService, Injectable (+10 more)
+Cohesion: 0.06
+Nodes (16): addHours(), generateOpaqueToken(), hashOpaqueToken(), BillingService, toPagination(), Injectable, HotelRoomsService, Injectable (+8 more)
 
 ### Community 16 - "RbacService"
-Cohesion: 0.06
-Nodes (13): normalizeModuleKey(), normalizeOptionalText(), normalizePermissionIds(), PERMISSION_PROTECTED_ROLE_CODES, RbacService, Injectable, CreateRoleBodyInput, ListRolePermissionModulePermissionsQueryInput (+5 more)
+Cohesion: 0.05
+Nodes (14): normalizeModuleKey(), normalizeOptionalText(), normalizePermissionIds(), PERMISSION_PROTECTED_ROLE_CODES, RbacService, Injectable, CreateRoleBodyInput, ListPermissionsQueryInput (+6 more)
 
 ### Community 17 - "AuthService"
-Cohesion: 0.15
-Nodes (3): AuthService, Injectable, Interval
+Cohesion: 0.09
+Nodes (8): AuthService, Injectable, Interval, AccessTokenPayload, JwtStrategy, Injectable, LocalStrategy, Injectable
 
 ### Community 18 - "hotel-partner-settlements-tab.tsx"
-Cohesion: 0.08
-Nodes (32): CodeCell(), DateCell(), MoneyCell(), STATUS_MAP, StatusBadge(), StatusBadgeProps, StatusVariant, TextCell() (+24 more)
+Cohesion: 0.07
+Nodes (33): CodeCell(), DateCell(), MoneyCell(), STATUS_MAP, StatusBadge(), StatusBadgeProps, StatusVariant, TextCell() (+25 more)
 
 ### Community 19 - "auth.controller.ts"
 Cohesion: 0.17
 Nodes (17): AuthRateLimit(), AuthController, ApiBody, ApiCreatedResponse, ApiHeader, ApiOkResponse, ApiTags, Body (+9 more)
 
 ### Community 20 - "guest-request-display.ts"
-Cohesion: 0.09
-Nodes (45): getExternalOrderStatusBadge(), GuestRequestsPage(), RequestSourceTab, GuestReveal(), GuestRevealProps, GuestCurrentRequest(), Props, GuestRequestCard() (+37 more)
+Cohesion: 0.12
+Nodes (39): getExternalOrderStatusBadge(), GuestRequestsPage(), RequestSourceTab, GuestCurrentRequest(), Props, GuestRequestCard(), Props, GuestRequestCta() (+31 more)
 
 ### Community 21 - "auth-service.ts"
-Cohesion: 0.08
-Nodes (30): AuthErrorCode, AuthLoginResult, AuthMeResult, AuthService, AuthServiceOptions, AuthTokens, toAuthIdentity(), toAuthServiceError() (+22 more)
+Cohesion: 0.05
+Nodes (42): AuthErrorCode, AuthLoginResult, AuthMeResult, AuthService, AuthServiceError, AuthServiceOptions, AuthTokens, createAuthService() (+34 more)
 
 ### Community 22 - "owner-rooms-client.tsx"
-Cohesion: 0.07
-Nodes (46): canActivateQr(), compareRooms(), formatPriceInput(), formatVnd(), getActiveGuestDeviceCount(), getBusinessErrorMessage(), getClientOriginSnapshot(), getNestedMessage() (+38 more)
+Cohesion: 0.10
+Nodes (33): canActivateQr(), compareRooms(), formatPriceInput(), formatVnd(), getActiveGuestDeviceCount(), getBusinessErrorMessage(), getClientOriginSnapshot(), getNestedMessage() (+25 more)
 
 ### Community 23 - "HotelRoomsRepository"
-Cohesion: 0.13
-Nodes (13): AuthServiceError, createAuthService(), authService, applySessionTokenUpdate(), AuthorizedUser, credentialsSchema, jwt(), returnJwtToken() (+5 more)
+Cohesion: 0.04
+Nodes (44): 1. Snapshot, 2026-07-14 - Batch C Authenticated Request Realtime, 2026-07-14 - GuestOS Reliable Request Recovery Batch A, 2026-07-19 - Staff Scope and CI Stabilization, 2026-07-19 - Workspace V2 P0 Active Context, 2026-07-20 - Workspace RBAC and Staff Administration, 2026-07-20 - Workspace V2 P3 Service Boundaries, 2026-07-21 - Staff Stitch Operations Flow Sync (+36 more)
 
 ### Community 24 - "ApiDescript"
 Cohesion: 0.18
@@ -528,13 +529,9 @@ Nodes (19): PermissionsController, RolesController, ApiBody, ApiCreatedResponse,
 Cohesion: 0.14
 Nodes (23): defaultCheckOutValue(), formatRoomDate(), formatRoomPrice(), getBusinessErrorMessage(), getNestedMessage(), getRoomAvailability(), getRoomNumber(), getRoomStatus() (+15 more)
 
-### Community 26 - ".assertHotelAccess"
-Cohesion: 0.05
-Nodes (4): AuthRepository, Injectable, PrismaService, Injectable
-
 ### Community 27 - "server-api-auth.ts"
-Cohesion: 0.07
-Nodes (11): InvoiceController, ApiTags, Controller, BillingService, parseSnapshot(), resolveServiceSource(), toPagination(), Injectable (+3 more)
+Cohesion: 0.05
+Nodes (40): API Catalog v1 (Auth Service), `AuthTokens`, Base Protocol, Common Data Types, `DELETE /hotel-users/:id/roles/:roleId` (Protected), `DELETE /roles/:id` (Protected), Error Envelope, `GET /api/v1/admin/permissions` (Protected) (+32 more)
 
 ### Community 28 - "CCCD Preview Dashboard + Local Tool UI Implementation Plan"
 Cohesion: 0.05
@@ -545,8 +542,8 @@ Cohesion: 0.10
 Nodes (10): TelegramWebhookController, ApiHeader, Body, Controller, Headers, Post, TelegramNotificationService, Inject (+2 more)
 
 ### Community 30 - "roles-live-filter.tsx"
-Cohesion: 0.06
-Nodes (45): AuthRedirectError, confirmRoleAction(), emptyRoleForm(), formatDate(), getUnauthorizedCount(), handleUnauthorizedResponse(), isRecord(), moduleFromPath() (+37 more)
+Cohesion: 0.08
+Nodes (36): AuthRedirectError, confirmRoleAction(), emptyRoleForm(), formatDate(), getUnauthorizedCount(), handleUnauthorizedResponse(), isRecord(), moduleFromPath() (+28 more)
 
 ### Community 31 - "Execution Log"
 Cohesion: 0.03
@@ -561,32 +558,32 @@ Cohesion: 0.08
 Nodes (23): bearer(), BiometricWorkstationsController, RequestWithUser, ApiBearerAuth, ApiTags, Body, Controller, Delete (+15 more)
 
 ### Community 35 - "rbac.ts"
-Cohesion: 0.07
-Nodes (51): AdminShell(), AdminLayout(), redirectToLogin(), AuthRefreshGate(), AuthRefreshGateProps, loginUrl(), logoutToLogin(), HotelsLayout() (+43 more)
+Cohesion: 0.06
+Nodes (58): AdminLayout(), redirectToLogin(), AuthRefreshGate(), AuthRefreshGateProps, loginUrl(), logoutToLogin(), HotelsLayout(), redirectToLogin() (+50 more)
 
 ### Community 36 - "import.types.ts"
-Cohesion: 0.11
+Cohesion: 0.12
 Nodes (6): ImportRegistry, Injectable, ImportService, Injectable, ImportAdapter, ImportPreviewResult
 
 ### Community 37 - "app-logger.service.ts"
-Cohesion: 0.15
-Nodes (18): { AppModule }, { createOpenApiDocument }, exportOpenApi(), fs, { NestFactory }, path, YAML, configureApp() (+10 more)
+Cohesion: 0.10
+Nodes (22): { AppModule }, { createOpenApiDocument }, exportOpenApi(), fs, { NestFactory }, path, YAML, configureApp() (+14 more)
 
 ### Community 38 - "ServiceCatalogImportAdapter"
-Cohesion: 0.10
-Nodes (9): ParsedServiceCatalogCategory, ParsedServiceCatalogItem, ServiceCatalogImportAdapter, ServiceCatalogImportPayload, ServiceCatalogImportState, TRANSLATION_COLUMNS, TranslationInput, TranslationLocale (+1 more)
+Cohesion: 0.18
+Nodes (3): ServiceCatalogImportAdapter, TRANSLATION_COLUMNS, Injectable
 
 ### Community 39 - "property.module.ts"
-Cohesion: 0.10
-Nodes (34): ImportModule, Module, BillingModule, Module, CodesModule, Global, Module, EmergencyModule (+26 more)
+Cohesion: 0.08
+Nodes (32): ImportModule, Module, InvoiceController, ApiTags, Controller, BillingModule, Module, CodesModule (+24 more)
 
 ### Community 40 - "LocalSettingsStore"
-Cohesion: 0.09
-Nodes (12): LocalSettingsStore, Thread-safe store for non-secret local settings.      Persistence is atomic: a t, Parameters         ----------         path:          absolute path to the JSON s, Return a copy of the current in-memory running settings., Read and validate the settings file.          If the file does not exist, return, Validate *raw*, persist atomically, update generation.          If communication, Write *data* to a tempfile then atomically rename to self._path., AC6: Pair bootstrap only from loopback. (+4 more)
+Cohesion: 0.08
+Nodes (21): Exception, _dpapi_available(), _dpapi_protect(), _dpapi_unprotect(), local_secrets.py – Windows user-scoped DPAPI secret adapter.  Design rules (Sl, Wraps the actual ctypes DPAPI calls., Raised when the DPAPI secret store is not available or not on Windows., Return True only when running on Windows with ctypes access. (+13 more)
 
 ### Community 41 - "[hotelId]/page.tsx"
-Cohesion: 0.10
-Nodes (27): RequestWithUser, RequestWithUser, RequestWithUser, addFolioItemBodySchema, billingIdParamSchema, confirmManualPaymentBodySchema, createPaymentSessionBodySchema, issueInvoiceBodySchema (+19 more)
+Cohesion: 0.11
+Nodes (24): RequestWithUser, RequestWithUser, RequestWithUser, addFolioItemBodySchema, billingIdParamSchema, confirmManualPaymentBodySchema, createPaymentSessionBodySchema, issueInvoiceBodySchema (+16 more)
 
 ### Community 42 - "compilerOptions"
 Cohesion: 0.06
@@ -594,15 +591,19 @@ Nodes (30): compilerOptions, allowJs, esModuleInterop, incremental, isolatedModu
 
 ### Community 43 - "BiometricStore"
 Cohesion: 0.07
-Nodes (15): BiometricStore, _discard_scan_locked(), mask_identity(), Remove scan from dict, clearing portrait from memory. Called under lock., Create a new scan.  If there is a prior active scan it is silently         disca, Discard a scan: remove it from memory (including portrait), reset active, BiometricStoreTests, CallbackQueue (+7 more)
+Nodes (15): BiometricStore, _discard_scan_locked(), mask_identity(), Remove scan from dict, clearing portrait from memory. Called under lock., Create a new scan.  If there is a prior active scan it is silently         disc, Discard a scan: remove it from memory (including portrait), reset active, BiometricStoreTests, CallbackQueue (+7 more)
 
 ### Community 44 - "API Catalog v1 (Auth Service)"
-Cohesion: 0.05
-Nodes (40): API Catalog v1 (Auth Service), `AuthTokens`, Base Protocol, Common Data Types, `DELETE /hotel-users/:id/roles/:roleId` (Protected), `DELETE /roles/:id` (Protected), Error Envelope, `GET /api/v1/admin/permissions` (Protected) (+32 more)
+Cohesion: 0.08
+Nodes (23): GuestRequestSheet(), GuestRequestSheetProps, EmergencyLocationConfidence, EmergencyLocationSource, GuestCatalogServiceItem, GuestHotel, GuestMessage, GuestMessageSenderType (+15 more)
+
+### Community 45 - "GoogleSheetsServiceCatalogSyncService"
+Cohesion: 0.18
+Nodes (3): GoogleSheetsServiceCatalogSyncService, Cron, Injectable
 
 ### Community 46 - "MarketplaceServiceItemImportAdapter"
-Cohesion: 0.12
-Nodes (6): ImportCommitInput, ServiceItemImportService, Injectable, FORBIDDEN_CATEGORY_HEADERS, MarketplaceServiceItemImportAdapter, Injectable
+Cohesion: 0.14
+Nodes (4): ServiceItemImportService, Injectable, MarketplaceServiceItemImportAdapter, Injectable
 
 ### Community 47 - "devDependencies"
 Cohesion: 0.04
@@ -613,40 +614,40 @@ Cohesion: 0.08
 Nodes (11): BoundaryTone, ContentErrorState(), ContentErrorStateProps, ContentLoadingState(), ContentLoadingStateProps, RouteBoundaryState(), RouteBoundaryStateProps, RouteLoadingState() (+3 more)
 
 ### Community 49 - "admin-service.ts"
-Cohesion: 0.13
-Nodes (17): AdminService, AdminServiceOptions, createAdminService(), TemporaryPasswordResult, AdminPage, CreateHotelInput, Hotel, HotelListQuery (+9 more)
+Cohesion: 0.10
+Nodes (22): AdminService, AdminServiceOptions, createAdminService(), TemporaryPasswordResult, AdminPage, CreateHotelInput, Hotel, HotelListQuery (+14 more)
 
 ### Community 50 - "service-client.ts"
-Cohesion: 0.08
-Nodes (42): FormState, locationFromHotel(), OwnerHotelDetailClient(), OwnerHotelDetailClientProps, ServiceCatalogPage(), ServiceDashboardPage(), ServiceOrdersPage(), ServiceSettingsPage() (+34 more)
+Cohesion: 0.10
+Nodes (34): ServiceCatalogPage(), ServiceDashboardPage(), ServiceOrdersPage(), ServiceSettingsPage(), LocationFields(), LocationValue, parseGoogleMapsCoordinates(), PartnerFinancialSummary (+26 more)
 
 ### Community 51 - "marketplace-category-import.adapter.ts"
-Cohesion: 0.09
-Nodes (28): ImportAction, ImportColumnSchema, ImportColumnType, ImportCommitResult, ImportContext, ImportDiffEntry, ImportEntitySummary, ImportFieldChange (+20 more)
+Cohesion: 0.08
+Nodes (29): ImportAction, ImportColumnSchema, ImportColumnType, ImportContext, ImportDiffEntry, ImportEntitySummary, ImportFieldChange, ImportIssueSeverity (+21 more)
 
 ### Community 52 - "PushQueue"
 Cohesion: 0.10
 Nodes (9): build_biophoto_command(), build_user_command(), load_profiles(), main(), make_handler(), make_tls_context(), PushQueue, validate_pin() (+1 more)
 
 ### Community 53 - "staff-rooms-client.tsx"
-Cohesion: 0.11
-Nodes (29): activeStayProgress(), emptyReservation(), FlowMode, formatDateTime(), getGuestQrUrl(), getRoomNumber(), getRoomQrValue(), getRoomStatus() (+21 more)
+Cohesion: 0.13
+Nodes (26): activeStayProgress(), emptyReservation(), FlowMode, formatDateTime(), getGuestQrUrl(), getRoomNumber(), getRoomQrValue(), getRoomStatus() (+18 more)
 
 ### Community 54 - "2026-05-31"
 Cohesion: 0.06
 Nodes (33): 2026-05-31, Remaining Blockers / Risks, Remaining Blockers / Risks (401 Refresh + Logout Handling), Remaining Blockers / Risks (Fix Too Many Redirect Loop), Remaining Blockers / Risks (Hotfix: ERR_TOO_MANY_REDIRECTS), Remaining Blockers / Risks (Navigation Stability), Remaining Blockers / Risks (Per-API 401 Refresh + Retry), Remaining Blockers / Risks (Permissions UI Sync: Remove Back CTA + Keep Horizontal Tabs) (+25 more)
 
 ### Community 55 - "PlatformBillingController"
-Cohesion: 0.12
-Nodes (17): ApiOperation, PlatformBillingController, ApiBearerAuth, ApiTags, Body, Controller, Get, Param (+9 more)
+Cohesion: 0.25
+Nodes (14): ApiOperation, parseWithZod(), PlatformBillingController, ApiBearerAuth, ApiTags, Body, Controller, Get (+6 more)
 
 ### Community 56 - "[qrCode]/page.tsx"
 Cohesion: 0.15
 Nodes (19): getQrCodeParam(), GuestQrEntryPage(), GuestQrErrorInfo, inferGuestQrErrorStatus(), isRecord(), isSessionSwitchRequired(), parseGuestQrError(), readNestedData() (+11 more)
 
 ### Community 57 - "hotel-ops-contract.ts"
-Cohesion: 0.05
-Nodes (58): Params, Params, Params, Params, Params, Params, Params, schema (+50 more)
+Cohesion: 0.33
+Nodes (5): Params, translationSchema, translationsSchema, updateItemSchema, UpdateServiceItemInput
 
 ### Community 58 - "HotelUsersController"
 Cohesion: 0.20
@@ -658,18 +659,18 @@ Nodes (17): HotelsController, ApiBody, ApiCreatedResponse, ApiHeader, ApiOkRespo
 
 ### Community 60 - "TestValidateSettingsSchema"
 Cohesion: 0.08
-Nodes (17): ValueError, local_settings.py – non-secret bridge settings with atomic persistence.  Design, Validate *raw* against the strict settings schema.      Returns a new dict with, Raised when a settings dict fails schema validation., SettingsValidationError, _validate_ipv4(), _validate_loopback_addr(), _validate_origin() (+9 more)
+Nodes (17): ValueError, local_settings.py – non-secret bridge settings with atomic persistence.  Desig, Validate *raw* against the strict settings schema.      Returns a new dict wit, Raised when a settings dict fails schema validation., SettingsValidationError, _validate_ipv4(), _validate_loopback_addr(), _validate_origin() (+9 more)
 
 ### Community 61 - "env.config.ts"
-Cohesion: 0.12
-Nodes (22): AppConfig, AuthAdminConfig, AuthConfig, AuthzConfig, ConfigSchema, EnvConfig, envPath, loadAppConfig() (+14 more)
+Cohesion: 0.16
+Nodes (19): AppConfig, AuthAdminConfig, AuthConfig, AuthzConfig, ConfigSchema, EnvConfig, envPath, loadAppConfig() (+11 more)
 
 ### Community 62 - "internal-api-client.ts"
-Cohesion: 0.08
-Nodes (28): AdminBillingClient(), Contract, HotelOption, Period, Summary, metadata, ApiEnvelope, isRecord() (+20 more)
+Cohesion: 0.07
+Nodes (42): AdminBillingClient(), Contract, HotelOption, Period, Summary, metadata, displayGuest(), displayRoom() (+34 more)
 
 ### Community 63 - "MarketplaceAdminService"
-Cohesion: 0.07
+Cohesion: 0.08
 Nodes (22): MarketplaceAdminService, Injectable, hotelLinksQuerySchema, HotelServiceLinkBody, httpUrl, id, location, MarketplaceCategoryBody (+14 more)
 
 ### Community 64 - "dependencies"
@@ -677,8 +678,8 @@ Cohesion: 0.50
 Nodes (3): dependencies, @dangminhdev04032005/query-resource, @dangminhdev04032005/query-resource
 
 ### Community 65 - "parseWithZod"
-Cohesion: 0.11
-Nodes (29): MarketplaceAdminController, Body, Controller, Delete, Get, Header, Param, Patch (+21 more)
+Cohesion: 0.14
+Nodes (23): HotelMarketplaceController, Body, Controller, Delete, Get, Param, Post, Put (+15 more)
 
 ### Community 66 - "scripts"
 Cohesion: 0.08
@@ -686,79 +687,79 @@ Nodes (24): scripts, build, db:seed, format, lint, openapi:export, prisma:check,
 
 ### Community 67 - "GuestMessagesService"
 Cohesion: 0.09
-Nodes (9): GuestMessagesService, Inject, Injectable, Optional, decodeThreadCursor(), encodeThreadCursor(), GuestMessageRow, GuestMessagesRepository (+1 more)
+Nodes (10): GuestMessagesService, Inject, Injectable, Optional, GuestSessionContext, decodeThreadCursor(), encodeThreadCursor(), GuestMessageRow (+2 more)
 
 ### Community 68 - ".resetPassword"
-Cohesion: 0.14
+Cohesion: 0.15
 Nodes (17): TenantOwnersController, ApiBody, ApiCreatedResponse, ApiOkResponse, ApiParam, ApiQuery, ApiTags, Body (+9 more)
 
 ### Community 69 - "(global)/dashboard/page.tsx"
-Cohesion: 0.15
-Nodes (12): AnimatedDashboardNumber(), AnimatedDashboardNumberProps, formatAnimatedValue(), parseNumberValue(), Dashboard, formatTime(), formatVnd(), MarketplaceRevenue (+4 more)
+Cohesion: 0.18
+Nodes (10): AnimatedDashboardNumber(), AnimatedDashboardNumberProps, formatAnimatedValue(), parseNumberValue(), Dashboard, formatTime(), formatVnd(), MarketplaceRevenue (+2 more)
 
 ### Community 70 - "billing-service.ts"
-Cohesion: 0.16
-Nodes (11): AuthRequestOptions, BillingService, BillingServiceOptions, createBillingService(), hotelPath(), IssueInvoiceInput, FolioItem, FolioSummary (+3 more)
+Cohesion: 0.10
+Nodes (22): BillingTabSwitcher(), BillingTabSwitcherProps, currentMonthKey(), formatVnd(), OwnerAnalyticsData, OwnerSaasBillingClient(), PaginatedResult, PeriodItem (+14 more)
 
 ### Community 71 - "compilerOptions"
-Cohesion: 0.09
-Nodes (22): compilerOptions, allowSyntheticDefaultImports, declaration, emitDecoratorMetadata, esModuleInterop, experimentalDecorators, forceConsistentCasingInFileNames, incremental (+14 more)
+Cohesion: 0.07
+Nodes (28): Current Snapshot, Current Status, Current Truth (Unified), Files Updated, Goal, Issues Encountered & Resolved, Key Changes, Latest Session (+20 more)
 
 ### Community 72 - "FaceID Guest Enrollment, Recognition, and Notification Implementation Plan"
 Cohesion: 0.06
 Nodes (30): 10. Explicit non-goals, 11. Approval boundary, 1. Evidence and current state, 2. Target flow, 3. Canonical state machines, 4. Minimal data model, 5. Implementation phases, 6. API contract sketch (+22 more)
 
 ### Community 73 - "EmergencyRepository"
-Cohesion: 0.07
-Nodes (21): EmergencyController, ApiBody, ApiCreatedResponse, ApiTags, Body, Controller, Post, Req (+13 more)
+Cohesion: 0.06
+Nodes (25): EmergencyController, ApiBody, ApiCreatedResponse, ApiTags, Body, Controller, Post, Req (+17 more)
 
 ### Community 74 - "identity.module.ts"
 Cohesion: 0.07
-Nodes (18): PUBLIC_PATTERNS, PUBLIC_REGEX, publicMatcher, AccessTokenPayload, LegacyRefreshTokenPayload, PasswordVerificationResult, AuthorizationService, PermissionCheckResult (+10 more)
+Nodes (28): BUSINESS_PERMISSIONS, PUBLIC_PATTERNS, PUBLIC_REGEX, publicMatcher, AuthorizationService, PermissionCheckResult, Injectable, HotelUserDirectoryEntry (+20 more)
 
 ### Community 75 - "Session: Auth Service - Prisma 7 Upgrade (Completed)"
-Cohesion: 0.07
-Nodes (28): Current Snapshot, Current Status, Current Truth (Unified), Files Updated, Goal, Issues Encountered & Resolved, Key Changes, Latest Session (+20 more)
+Cohesion: 0.10
+Nodes (9): AC1: Atomic write with same-dir temp, flush/fsync, os.replace., AC1: If os.replace raises, the old settings file is preserved.          We pat, Generation and in-memory running config are NOT changed on failure., Orphaned temp files must be removed even when replace fails., Atomic rename is only safe same-filesystem; temp must be in the same dir., AC5: Generation incremented exactly once after full success., Idempotency guard: one successful put → generation is exactly 1., TestAtomicWrite (+1 more)
 
 ### Community 76 - "Hn212Client"
 Cohesion: 0.09
-Nodes (18): Hn212Client, Hn212ProtocolError, LocalState, ValueError, Record a reader message if it contains idCode and personName.         Thread-saf, Protocol mismatch without exposing identity-bearing payloads., Return True iff:           - online is True           - lastSeen is not None and, Ignore HN212Plugin's empty text heartbeat; parse real events strictly. (+10 more)
+Nodes (18): Hn212Client, Hn212ProtocolError, LocalState, ValueError, Record a reader message if it contains idCode and personName.         Thread-sa, Protocol mismatch without exposing identity-bearing payloads., Return True iff:           - online is True           - lastSeen is not None a, Ignore HN212Plugin's empty text heartbeat; parse real events strictly. (+10 more)
 
 ### Community 77 - "SuccessMessage"
 Cohesion: 0.21
 Nodes (14): GuestOsController, ApiBody, ApiCreatedResponse, ApiOkResponse, ApiTags, Body, Controller, Get (+6 more)
 
 ### Community 78 - "config/workspace-registry.ts"
-Cohesion: 0.08
-Nodes (40): AdminShellProps, AdminDashboardPage(), DashboardPageProps, SECTION_LABELS, SECTION_ORDER, VsDashboardSidebar(), VsDashboardSidebarProps, OwnerShell() (+32 more)
+Cohesion: 0.06
+Nodes (50): AdminShell(), AdminShellProps, AdminDashboardPage(), DashboardPageProps, NavigationProps, SECTIONS, VsDashboardSidebar(), VsDashboardSidebarProps (+42 more)
 
 ### Community 79 - "Secrets and Docker Production Env Consolidation Plan"
 Cohesion: 0.08
-Nodes (24): Compose Design, Current Context, `docker-compose.prod.yml`, `docker-compose.yml`, Env Ownership Model, Git Policy, Open Questions Before Execution, Proposed Target Structure (+16 more)
+Nodes (25): 10. Accessibility baseline, 11. Zoom and content stress, 12. Runtime and performance sanity, 13. Defect classification, 14. Architecture boundaries, 15. Visual acceptance and scorecard, 16. Final report evidence, 1. When this skill is mandatory (+17 more)
 
 ### Community 80 - "HotelServicesController"
 Cohesion: 0.23
 Nodes (15): HotelServicesController, ApiBody, ApiCreatedResponse, ApiOkResponse, ApiParam, ApiTags, Body, Controller (+7 more)
 
 ### Community 81 - "Graphify + Repomix Code Navigation Policy"
-Cohesion: 0.08
-Nodes (23): Agent Instructions for fullstack-vietSage, Agent Instructions for fullstack-vietSage, Backend work, Before Final Report, Cross-system / repository-wide work, Escalation Rule, File Reading Policy, Frontend work (+15 more)
+Cohesion: 0.09
+Nodes (22): Agent Instructions for fullstack-vietSage, Backend work, Before Final Report, Cross-system / repository-wide work, Escalation Rule, File Reading Policy, Frontend work, Graph Schema Reference (+14 more)
 
 ### Community 82 - "guestHttpErrorResponse"
 Cohesion: 0.06
 Nodes (89): POST(), GET(), GET(), Context, DELETE(), GET(), PATCH(), POST() (+81 more)
 
 ### Community 83 - "._make_store"
-Cohesion: 0.09
-Nodes (19): LogDomain, LogLevel, LogMetadata, redactLogMetadata(), redactValue(), LoggingModule, Global, Module (+11 more)
+Cohesion: 0.06
+Nodes (21): AppLogger, LogDomain, LogLevel, LogMetadata, Injectable, redactLogMetadata(), redactValue(), LoggingModule (+13 more)
 
 ### Community 84 - "Notifications Shell Phase Implementation Plan"
-Cohesion: 0.11
-Nodes (18): Commit Plan, Current Context, Naming Decision, Non-goals, Notifications Shell Phase Implementation Plan, Risks and Mitigations, Security Decision: Remove Secret from URL Path, Target Structure (+10 more)
+Cohesion: 0.08
+Nodes (24): Compose Design, Current Context, `docker-compose.prod.yml`, `docker-compose.yml`, Env Ownership Model, Git Policy, Open Questions Before Execution, Proposed Target Structure (+16 more)
 
 ### Community 85 - "rbac-service.ts"
 Cohesion: 0.07
-Nodes (30): HttpClient, createRbacService(), CreateRoleBody, DeleteRoleResult, ListPermissionModulePermissionsOptions, ListPermissionsOptions, RbacService, RbacServiceOptions (+22 more)
+Nodes (29): createRbacService(), CreateRoleBody, DeleteRoleResult, ListPermissionModulePermissionsOptions, ListPermissionsOptions, RbacService, RbacServiceOptions, toRolePermissionPayload() (+21 more)
 
 ### Community 86 - ".assignRoom"
 Cohesion: 0.19
@@ -776,53 +777,49 @@ Nodes (19): 10. Reservations (Quản lý Đặt phòng), 11. Hotel Staff Assignm
 Cohesion: 0.22
 Nodes (15): HotelRequestsController, ApiBody, ApiCreatedResponse, ApiOkResponse, ApiParam, ApiQuery, ApiTags, Body (+7 more)
 
-### Community 90 - "marketplace-admin-client.tsx"
-Cohesion: 0.12
-Nodes (5): RoutePermissionSyncService, Injectable, createModulesContainer(), DemoController, PublicController
-
 ### Community 91 - "reservations.service.ts"
 Cohesion: 0.20
 Nodes (5): AuthRateLimitKey, AuthRateLimitGuard, RateLimitBucket, expectHttpStatus(), Injectable
 
 ### Community 92 - "useGuestI18n"
-Cohesion: 0.10
-Nodes (43): VsServiceImagePreview(), VsServiceImagePreviewProps, guestIntlLocale(), interpolate(), Replacements, useGuestI18n(), CartFlowStep, GuestMarketplaceCartFlow() (+35 more)
+Cohesion: 0.11
+Nodes (38): VsServiceImagePreview(), VsServiceImagePreviewProps, CartFlowStep, GuestMarketplaceCartFlow(), GuestMarketplaceCartFlowProps, distance(), getGuestOrderStatusBadge(), GuestMarketplace() (+30 more)
 
 ### Community 93 - "use-guest-message-unread.ts"
-Cohesion: 0.23
-Nodes (16): useHotelMessageUnread(), UseHotelMessageUnreadOptions, useOptionalQueryClient(), badgeText(), ConversationClosedRealtimeEvent, createEventDeduper(), GuestMessageRealtimeEvent, isConversationClosedEvent() (+8 more)
+Cohesion: 0.21
+Nodes (18): useGuestMessageUnread(), useHotelMessageUnread(), UseHotelMessageUnreadOptions, useOptionalQueryClient(), hotelMessagesResource, badgeText(), ConversationClosedRealtimeEvent, createEventDeduper() (+10 more)
 
 ### Community 94 - "dependencies"
-Cohesion: 0.11
-Nodes (19): @auth/core, dependencies, @auth/core, @dangminhdev04032005/query-resource, motion, next, react-dom, socket.io-client (+11 more)
+Cohesion: 0.10
+Nodes (21): @auth/core, dependencies, @auth/core, motion, next, react, react-dom, socket.io-client (+13 more)
 
 ### Community 95 - "guest-os.controller.ts"
-Cohesion: 0.08
-Nodes (33): createGuestRequestBodySchema, guestRequestDataSchema, guestServiceCatalogDataSchema, listGuestCategoryServicesDataSchema, listGuestRequestsDataSchema, GuestRequestListItemResponse, GuestRequestResponse, GuestSessionContext (+25 more)
+Cohesion: 0.09
+Nodes (22): compilerOptions, allowSyntheticDefaultImports, declaration, emitDecoratorMetadata, esModuleInterop, experimentalDecorators, forceConsistentCasingInFileNames, incremental (+14 more)
 
 ### Community 96 - "HotelUsersRepository"
-Cohesion: 0.10
-Nodes (10): ActorContext, HotelUsersService, MANAGED_ROLE_CODES, normalizeIds(), PROTECTED_ROLE_CODES, TenantScopedHotelUser, Injectable, HotelUsersRepository (+2 more)
+Cohesion: 0.07
+Nodes (19): HotelUserDirectoryService, Injectable, ActorContext, HotelUsersService, MANAGED_ROLE_CODES, normalizeIds(), PROTECTED_ROLE_CODES, TenantScopedHotelUser (+11 more)
 
 ### Community 98 - "CODEX-STITCH-SYNC.md"
-Cohesion: 0.12
-Nodes (16): Before modifying existing implemented screens, Command Understanding, Data Rules, Error Handling, Finalization, If the screen does not exist, If the screen exists clearly, If the user command is ambiguous (+8 more)
+Cohesion: 0.22
+Nodes (11): MarketplaceAdminController, Body, Controller, Delete, Get, Header, Param, Patch (+3 more)
 
 ### Community 99 - "VietSage Auth/HTTP Stabilization Phase Plan"
-Cohesion: 0.12
-Nodes (16): Codex Prompt Template per Phase, Current State Summary, Final Definition of Done, Global Rules for Every Phase, Phase 0 — Repo Path + Documentation Hygiene, Phase 1 — Token Privacy: Stop Exposing Tokens in Browser Session, Phase 2 — Server Auth Coordinator + Pure `http-server.ts`, Phase 3 — Pure Browser `http-client.ts` + Remove Duplicate Refresh Owner (+8 more)
+Cohesion: 0.23
+Nodes (4): SupportedLocale, GuestMarketplaceService, Injectable, mockPrisma
 
 ### Community 100 - "health.controller.ts"
-Cohesion: 0.22
-Nodes (9): healthDataSchema, HealthController, ApiOkResponse, ApiTags, Controller, Get, HealthResponse, HealthService (+1 more)
+Cohesion: 0.18
+Nodes (11): healthDataSchema, HealthController, ApiOkResponse, ApiTags, Controller, Get, HealthModule, Module (+3 more)
 
 ### Community 101 - "loadServerWorkspaceContext"
-Cohesion: 0.07
-Nodes (61): AdminHotelsPage(), listTenantOwnersForSelector(), AdminUsersPage(), first(), Props, itemTypeLabels, labelStatus(), PageProps (+53 more)
+Cohesion: 0.06
+Nodes (66): AdminHotelsPage(), listTenantOwnersForSelector(), AdminUsersPage(), first(), Props, itemTypeLabels, labelStatus(), PageProps (+58 more)
 
 ### Community 102 - "AppLogger"
-Cohesion: 0.12
-Nodes (5): AppLogger, Injectable, Cron, Inject, Optional
+Cohesion: 0.15
+Nodes (15): RequestWithUser, checkOutBodySchema, createRoomBodySchema, createRoomsBodySchema, createStayBodySchema, listRoomsQuerySchema, qrReasonBodySchema, qrStatusQuerySchema (+7 more)
 
 ### Community 103 - ".list"
 Cohesion: 0.19
@@ -837,28 +834,28 @@ Cohesion: 0.06
 Nodes (34): 10. Definition of Done, 11. Blockers và quyết định không được tự đoán, 12. Ước tính, 1. Mục tiêu, 2. Phạm vi cứng, 3. Kiến trúc chuẩn, 4. Trạng thái hiện tại đã xác minh, 5. Hợp đồng nghiệp vụ bất biến (+26 more)
 
 ### Community 106 - "3. Implementation tasks"
-Cohesion: 0.12
-Nodes (16): 1. Confirmed context and root causes, 2. Acceptance criteria, 3. Implementation tasks, 4. Likely production files changed, 5. Risks and mitigations, 6. Execution order and approval boundary, Task 1 — Create a deterministic regression loop for the frontend login loop, Task 2 — Add safe `canRefresh` session metadata (+8 more)
+Cohesion: 0.11
+Nodes (18): Commit Plan, Current Context, Naming Decision, Non-goals, Notifications Shell Phase Implementation Plan, Risks and Mitigations, Security Decision: Remove Secret from URL Path, Target Structure (+10 more)
 
 ### Community 107 - "cccd-preview.ts"
-Cohesion: 0.06
-Nodes (37): PageProps, BiometricOwnerTabs(), CccdCheckInCapture, CccdCheckInPanel(), Props, CccdPreview(), Props, CheckInWorkspace() (+29 more)
+Cohesion: 0.16
+Nodes (15): CccdCheckInCapture, CccdCheckInPanel(), Props, CccdPreview(), Props, CheckInOccupantField, CheckInStayFields, CheckInWorkspaceProps (+7 more)
 
 ### Community 108 - "External Service Flow Completion and Google MCP Verification Plan"
 Cohesion: 0.06
 Nodes (31): 1. Audited baseline, 2. Plan compliance verdict, 3. Proven root gaps, 4. Minimal implementation plan, 5. Google MCP setup and real-operation plan, 6. Runtime Google authorization decision, 7. Verification commands, 8. Acceptance criteria (+23 more)
 
 ### Community 109 - "stitch_vietsage/DESIGN.md"
-Cohesion: 0.15
-Nodes (12): Admin Data Visualization, Brand & Style, Colors, Components, Elevation & Depth, Input Fields, Layout & Spacing, Premium Service Cards (+4 more)
+Cohesion: 0.18
+Nodes (12): OneTimePasswordDialog(), Props, generateTemporaryPassword(), getErrorMessage(), MarketplaceAdminClient(), marketplaceAdminRepository, invalidates, marketplaceAdminResource (+4 more)
 
 ### Community 110 - "platform-billing.service.ts"
-Cohesion: 0.12
-Nodes (14): assertReconciliationRange(), closePlatformUsageAtCheckout(), HTZ, PeriodPaymentState, PeriodProjection, reconcilePlatformBillingRange(), recordPlatformUsageAtCheckIn(), StayUsageInput (+6 more)
+Cohesion: 0.04
+Nodes (31): Inject, Optional, BillingRepository, Injectable, CodeSequenceSnapshot, CodesRepository, PrismaClientLike, Injectable (+23 more)
 
 ### Community 111 - "http-client.ts"
-Cohesion: 0.12
-Nodes (22): changePasswordSchema, noStore(), POST(), appendQuery(), createTimeoutController(), httpServer, HttpServerRequestConfig, isPublicRequest() (+14 more)
+Cohesion: 0.06
+Nodes (48): changePasswordSchema, noStore(), POST(), clampBackendApiLimit(), appendQuery(), createTimeoutController(), extractApiResponseMessage(), HttpClient (+40 more)
 
 ### Community 112 - "FaceID Security PUSH Check-in to Hotel Notification Implementation Plan"
 Cohesion: 0.06
@@ -870,47 +867,47 @@ Nodes (10): Slice 3: TEST mode scan + discard_scan., start_scan() with no args p
 
 ### Community 114 - "tsconfig.build.json"
 Cohesion: 0.14
-Nodes (13): dist, **/*spec.ts, src/**/*.ts, test, ./tsconfig.json, compilerOptions, incremental, outDir (+5 more)
+Nodes (13): compilerOptions, incremental, outDir, rootDir, exclude, extends, include, dist (+5 more)
 
 ### Community 115 - ".create"
 Cohesion: 0.22
 Nodes (10): HotelNotificationRoutesController, ApiParam, ApiTags, Body, Controller, Get, Param, Patch (+2 more)
 
 ### Community 116 - "i18n.service.ts"
-Cohesion: 0.11
-Nodes (13): I18N_CATALOG, TranslationCatalog, I18nService, LEGACY_MESSAGE_KEYS, LOCALE_ALIASES, RequestLanguageCarrier, CONTENT_TRANSLATION_LOCALES, ContentTranslationLocale (+5 more)
+Cohesion: 0.15
+Nodes (10): I18N_CATALOG, TranslationCatalog, I18nService, LEGACY_MESSAGE_KEYS, LOCALE_ALIASES, RequestLanguageCarrier, CONTENT_TRANSLATION_LOCALES, ContentTranslationLocale (+2 more)
 
 ### Community 117 - "mock.ts"
 Cohesion: 0.17
 Nodes (10): statusClassMap, VsStatusChipProps, adminRecentRequests, guestServices, guestTrackingHistory, RequestPriority, RequestStatus, ServiceCategory (+2 more)
 
 ### Community 118 - "guest-store.ts"
-Cohesion: 0.08
-Nodes (31): navItems, NavKey, VsBottomNav(), VsBottomNavProps, VsTopBar(), Context, MarketplaceOrderDetailContent(), GuestMessagesPage() (+23 more)
+Cohesion: 0.07
+Nodes (41): navItems, NavKey, VsBottomNav(), VsBottomNavProps, VsTopBar(), GuestHomePage(), normalizeVietnameseText(), Context (+33 more)
 
 ### Community 119 - "jest"
 Cohesion: 0.15
 Nodes (13): js, json, **/*.(t|j)s, jest, collectCoverageFrom, coverageDirectory, moduleFileExtensions, rootDir (+5 more)
 
 ### Community 120 - "RBAC Architecture"
-Cohesion: 0.12
-Nodes (15): Active workspace context, Authorization flow, Backend architecture, Bridge storage strategy, Built-in workspace presets, Business permission examples, Current direction, Explicit permission decorator (+7 more)
+Cohesion: 0.17
+Nodes (14): createHotelBodySchema, hotelDataSchema, listHotelsDataSchema, updateHotelBodySchema, RequestWithUser, CreateHotelBodyInput, createHotelBodySchema, googleSheetUrlSchema (+6 more)
 
 ### Community 121 - "readServerSessionTokens"
-Cohesion: 0.08
-Nodes (35): config, GET(), buildLoginRedirect(), GET(), getCallbackUrl(), createRequestRedirectUrl(), firstForwardedValue(), isLocalHost() (+27 more)
+Cohesion: 0.07
+Nodes (39): config, GET(), buildLoginRedirect(), GET(), getCallbackUrl(), isExpectedRefreshFailure(), POST(), refreshFailureResponse() (+31 more)
 
 ### Community 122 - "Dịch vụ & địa điểm lân cận — kế hoạch phê duyệt"
 Cohesion: 0.06
 Nodes (32): 10. Không thay đổi, 11. Approval gate, 1. Phát hiện quan trọng, 2. Mục tiêu sản phẩm đã chốt cho MVP, 3. YAGNI — bỏ khỏi MVP, 4. Kiến trúc tối thiểu, 5. API contract đề xuất, 6. UX Pro-Max acceptance (+24 more)
 
 ### Community 123 - "hotel-dashboard.service.ts"
-Cohesion: 0.13
-Nodes (17): HotelDashboardController, ApiTags, Controller, ACTIVE_STAY_STATUSES, addDays(), buildDashboardHealth(), buildDashboardInsights(), buildDashboardSla() (+9 more)
+Cohesion: 0.06
+Nodes (26): HotelDashboardController, ApiTags, Controller, HotelAccessService, Injectable, ACTIVE_STAY_STATUSES, addDays(), buildDashboardHealth() (+18 more)
 
 ### Community 124 - "MarketplaceOrderService"
 Cohesion: 0.09
-Nodes (4): MarketplaceOrderService, Injectable, ServicePortalService, Injectable
+Nodes (5): MarketplaceOrderService, Injectable, ServicePortalService, Injectable, MarketplaceTransition
 
 ### Community 125 - "seed.js"
 Cohesion: 0.22
@@ -924,15 +921,15 @@ Nodes (12): crypto, DEFAULT_CODES, DEFAULT_ROLES, main(), prisma, {
 
 ### Community 126 - "VietSage Backend Rules For Codex"
 Cohesion: 0.12
-Nodes (15): Backend Priorities, Cache Rules, Codex Output Rule, Engineering Rules, Milestone Execution Rule, OpenAPI Export Rules, Patch Reliability Rules, Prisma Migration Rules (+7 more)
+Nodes (16): Before modifying existing implemented screens, Command Understanding, Data Rules, Error Handling, Finalization, If the screen does not exist, If the screen exists clearly, If the user command is ambiguous (+8 more)
 
 ### Community 127 - "VietSage Production Docker + Nginx Implementation Plan"
-Cohesion: 0.13
-Nodes (14): Already present, Approval sequence, Assumptions requiring confirmation, Confirmed blockers/gaps, Current repository findings, Files expected to change overall, Out of scope unless separately approved, Phase 1 — Make the production Compose topology valid (+6 more)
+Cohesion: 0.12
+Nodes (16): Codex Prompt Template per Phase, Current State Summary, Final Definition of Done, Global Rules for Every Phase, Phase 0 — Repo Path + Documentation Hygiene, Phase 1 — Token Privacy: Stop Exposing Tokens in Browser Session, Phase 2 — Server Auth Coordinator + Pure `http-server.ts`, Phase 3 — Pure Browser `http-client.ts` + Remove Duplicate Refresh Owner (+8 more)
 
 ### Community 128 - "F2 — Reservation to check-in"
-Cohesion: 0.14
-Nodes (13): API tracer order, Compatibility, Core invariants, Current local blocker, F0 — Checkout safety, F1 — Staff hotel scope, F2 — Reservation to check-in, Front Desk vertical slices (+5 more)
+Cohesion: 0.12
+Nodes (16): 1. Confirmed context and root causes, 2. Acceptance criteria, 3. Implementation tasks, 4. Likely production files changed, 5. Risks and mitigations, 6. Execution order and approval boundary, Task 1 — Create a deterministic regression loop for the frontend login loop, Task 2 — Add safe `canRefresh` session metadata (+8 more)
 
 ### Community 129 - "auth-refresh-smoke.mjs"
 Cohesion: 0.42
@@ -959,20 +956,20 @@ Cohesion: 0.08
 Nodes (24): 1. Hiện trạng đã xác minh, 2. Acceptance criteria, 3.1 Event catalog, 3.2 Guest catalog refresh, 3.3 Unread summary backend, 3.4 Unread resource + shell, 3.5 Navigation rendering, 3. Thiết kế chi tiết (+16 more)
 
 ### Community 135 - "Backend Proposal: GuestOS Multilingual API Support for `/g/**`"
-Cohesion: 0.14
-Nodes (13): 1. Locale Negotiation, 2. Translated Service Catalog Responses, 3. Request Snapshot Localization, 4. QR Session Language Persistence, 5. Error and Validation Messages, 6. Realtime Event Localization, Acceptance Criteria, Backend Proposal: GuestOS Multilingual API Support for `/g/**` (+5 more)
+Cohesion: 0.19
+Nodes (12): GuestHomeHero(), GuestHomeHeroProps, GuestHomeHighlight, GuestHomeHighlights(), GuestStagger(), GuestStaggerItem(), GuestStaggerProps, GuestServiceCard() (+4 more)
 
 ### Community 136 - "guest-os.service.ts"
-Cohesion: 0.12
-Nodes (22): assignHotelUserRolesBodySchema, createHotelUserBodySchema, listHotelUsersDataSchema, managedHotelUserRoleArrayDataSchema, revokeHotelUserRoleDataSchema, tenantScopedHotelUserDataSchema, updateHotelUserStatusBodySchema, AssignHotelUserRolesBodyInput (+14 more)
+Cohesion: 0.15
+Nodes (18): assignHotelUserRolesBodySchema, createHotelUserBodySchema, listHotelUsersDataSchema, managedHotelUserRoleArrayDataSchema, revokeHotelUserRoleDataSchema, tenantScopedHotelUserDataSchema, updateHotelUserStatusBodySchema, RequestWithUser (+10 more)
 
 ### Community 137 - "Emergency Boundary Hardening Phase Plan"
-Cohesion: 0.14
-Nodes (13): Current Context, Emergency Boundary Hardening Phase Plan, Non-Goals, Risks and Mitigations, Success Criteria, Target Structure, Task 1: Baseline and RED Boundary Tests, Task 2: Move Emergency to Context Folder Shape (+5 more)
+Cohesion: 0.12
+Nodes (15): Active workspace context, Authorization flow, Backend architecture, Bridge storage strategy, Built-in workspace presets, Business permission examples, Current direction, Explicit permission decorator (+7 more)
 
 ### Community 138 - "services/docs/PLANS.md"
-Cohesion: 0.04
-Nodes (44): 1. Snapshot, 2026-07-14 - Batch C Authenticated Request Realtime, 2026-07-14 - GuestOS Reliable Request Recovery Batch A, 2026-07-19 - Staff Scope and CI Stabilization, 2026-07-19 - Workspace V2 P0 Active Context, 2026-07-20 - Workspace RBAC and Staff Administration, 2026-07-20 - Workspace V2 P3 Service Boundaries, 2026-07-21 - Staff Stitch Operations Flow Sync (+36 more)
+Cohesion: 0.12
+Nodes (15): Backend Priorities, Cache Rules, Codex Output Rule, Engineering Rules, Milestone Execution Rule, OpenAPI Export Rules, Patch Reliability Rules, Prisma Migration Rules (+7 more)
 
 ### Community 139 - "scripts"
 Cohesion: 0.25
@@ -983,16 +980,16 @@ Cohesion: 0.13
 Nodes (14): Checkout Completion Flow, Current approach, Future async events, Guest request lifecycle compatibility, Guest stay message flow, Guest Tracking Flow, Observability, Outbox readiness (+6 more)
 
 ### Community 141 - "auth-service/package.json"
-Cohesion: 0.15
-Nodes (12): allowScripts, argon2@0.44.0, prisma@7.9.0, @prisma/engines@7.9.0, unrs-resolver@1.12.2, author, description, license (+4 more)
+Cohesion: 0.13
+Nodes (14): allowScripts, argon2@0.44.0, prisma@7.9.1, @prisma/engines@7.9.1, unrs-resolver@1.12.2, author, description, license (+6 more)
 
 ### Community 142 - "TestLocalStateHasValidReaderState"
 Cohesion: 0.14
 Nodes (11): AC2: HN readiness = connected socket + recent valid reader state., online=False → not ready even if lastSeen is recent., online=True but lastSeen=None → not ready., online=True but lastSeen > 30 s ago → not ready., online=True, recent lastSeen, but no idCode/personName → not ready., online=True + recent + last_reader_message with idCode + personName → ready., A valid reader message does not help if the socket went offline., A message with personName but no idCode → not sufficient. (+3 more)
 
 ### Community 143 - "api-contract/package.json"
-Cohesion: 0.25
-Nodes (7): description, license, name, private, scripts, verify, version
+Cohesion: 0.13
+Nodes (14): Already present, Approval sequence, Assumptions requiring confirmation, Confirmed blockers/gaps, Current repository findings, Files expected to change overall, Out of scope unless separately approved, Phase 1 — Make the production Compose topology valid (+6 more)
 
 ### Community 144 - "dependencies"
 Cohesion: 0.04
@@ -1007,20 +1004,20 @@ Cohesion: 0.18
 Nodes (11): RequestRealtimeConfig, HotelActorContext, hotelIdParamSchema, RequestRealtimeController, RequestWithUser, ApiTags, Controller, RequestRealtimeTicketService (+3 more)
 
 ### Community 147 - "VietSage Documentation Rules"
-Cohesion: 0.15
-Nodes (12): Canonical Documentation Locations, Delegated specialist / Codex worker sessions, Direct user-facing sessions, Global Execution Rule: Delegation-Aware Approval, Mandatory Update Rules, Non-Goals, Review Checklist, Scope (+4 more)
+Cohesion: 0.25
+Nodes (10): PageProps, getClientOriginSnapshot(), getServerOriginSnapshot(), OwnerRoomsQrExportClient(), Props, subscribeClientOriginChange(), useClientOrigin(), getGuestQrUrl() (+2 more)
 
 ### Community 148 - "workspace-context.ts"
-Cohesion: 0.42
-Nodes (7): StaffEntryPage(), canAccessHotelScope(), hasAnyHotelCapability(), PLATFORM_HOTEL_CAPABILITIES, resolveExplicitAccessibleHotel(), resolveSingleAssignedHotel(), WorkspaceContext
+Cohesion: 0.25
+Nodes (9): ownerRoomsRepository, StaffRoomsListInput, staffRoomsRepository, ownerRoomsResource, staffRoomsResource, HotelOpsPage, HotelRoomSummary, ListHotelRoomsQuery (+1 more)
 
 ### Community 149 - "VietSage Frontend Architecture"
-Cohesion: 0.15
-Nodes (12): 10. Frontend and Backend Boundary, 11. Rules Summary, 1. Purpose, 2. Docs Index, 3. Core Principles, 4. Standard App Structure, 5. Layer Responsibilities, 6. Runtime Boundary Summary (+4 more)
+Cohesion: 0.14
+Nodes (13): API tracer order, Compatibility, Core invariants, Current local blocker, F0 — Checkout safety, F1 — Staff hotel scope, F2 — Reservation to check-in, Front Desk vertical slices (+5 more)
 
 ### Community 150 - "docs/DESIGN.md"
-Cohesion: 0.15
-Nodes (12): Admin Data Visualization, Brand & Style, Colors, Components, Elevation & Depth, Input Fields, Layout & Spacing, Premium Service Cards (+4 more)
+Cohesion: 0.14
+Nodes (13): Admin Data Visualization, Administration workspaces — operational scale (2026-09-06), Brand & Style, Colors, Components, Elevation & Depth, Input Fields, Layout & Spacing (+5 more)
 
 ### Community 151 - "final-boundary-release.spec.ts"
 Cohesion: 0.33
@@ -1035,20 +1032,20 @@ Cohesion: 0.33
 Nodes (5): JWT, next-auth, next-auth/jwt, Session, User
 
 ### Community 154 - "nest-cli.json"
-Cohesion: 0.33
-Nodes (5): collection, compilerOptions, deleteOutDir, $schema, sourceRoot
+Cohesion: 0.14
+Nodes (13): 1. Locale Negotiation, 2. Translated Service Catalog Responses, 3. Request Snapshot Localization, 4. QR Session Language Persistence, 5. Error and Validation Messages, 6. Realtime Event Localization, Acceptance Criteria, Backend Proposal: GuestOS Multilingual API Support for `/g/**` (+5 more)
 
 ### Community 155 - "role-permissions-browser.tsx"
 Cohesion: 0.06
 Nodes (52): filterPermissions(), METHOD_FILTERS, MethodFilter, methodToneClassMap, PermissionWorkbench(), PermissionWorkbenchProps, sortPermissions(), toPermissionKey() (+44 more)
 
 ### Community 156 - "PROJECT RULES"
-Cohesion: 0.13
-Nodes (14): API Logging Rule (Mandatory), API Transport Rule (Mandatory), Auth & Routing Rules, Change Tracking Rule (Mandatory), Core Rules, Data Fetching, Entity Selection & UX Rules (Mandatory), Execution Contract (Mandatory) (+6 more)
+Cohesion: 0.12
+Nodes (15): Administration Presentation Boundaries, API Logging Rule (Mandatory), API Transport Rule (Mandatory), Auth & Routing Rules, Change Tracking Rule (Mandatory), Core Rules, Data Fetching, Entity Selection & UX Rules (Mandatory) (+7 more)
 
 ### Community 157 - "request-queue-client.tsx"
-Cohesion: 0.11
-Nodes (18): authLogoutDataSchema, authMeDataSchema, authTokensDataSchema, loginBodySchema, refreshTokenBodySchema, ZodTaggedBadRequest, ZodValidationIssue, ZodValidationMeta (+10 more)
+Cohesion: 0.12
+Nodes (17): authLogoutDataSchema, authMeDataSchema, authTokensDataSchema, loginBodySchema, refreshTokenBodySchema, ZodTaggedBadRequest, ZodValidationIssue, ZodValidationMeta (+9 more)
 
 ### Community 158 - "verify-contract.cjs"
 Cohesion: 0.33
@@ -1059,32 +1056,36 @@ Cohesion: 0.40
 Nodes (4): globalCss, landingPage, marketingShell, motionRoot
 
 ### Community 161 - "Final Release Boundary Gate Phase Plan"
-Cohesion: 0.17
-Nodes (11): Current Context, Final Release Boundary Gate Phase Plan, Non-Goals, Success Criteria, Task 1: Repository Hygiene Guard, Task 2: Validate and Include `tsconfig.json`, Task 3: Add Final Boundary Regression Spec, Task 4: Final Docs Cleanup (+3 more)
+Cohesion: 0.14
+Nodes (13): Current Context, Emergency Boundary Hardening Phase Plan, Non-Goals, Risks and Mitigations, Success Criteria, Target Structure, Task 1: Baseline and RED Boundary Tests, Task 2: Move Emergency to Context Folder Shape (+5 more)
 
 ### Community 162 - "front-end-vietsage/package.json"
-Cohesion: 0.50
-Nodes (3): name, private, version
+Cohesion: 0.40
+Nodes (4): name, pnpm, private, version
 
 ### Community 163 - "TenantOwnersService"
-Cohesion: 0.10
-Nodes (12): generateTemporaryPassword(), validatePasswordPolicy(), TenantOwnerItem, TenantOwnersService, Injectable, CreateTenantOwnerBodyInput, ListTenantOwnersQueryInput, UpdateTenantOwnerBodyInput (+4 more)
+Cohesion: 0.09
+Nodes (13): generateTemporaryPassword(), validatePasswordPolicy(), TenantOwnerItem, TenantOwnersService, Injectable, ListTenantOwnersQueryInput, UpdateTenantOwnerBodyInput, TenantOwnerRoleNotConfiguredError (+5 more)
 
 ### Community 164 - "VietSage VPS deployment"
-Cohesion: 0.18
-Nodes (10): 1. Pull code on the VPS, 2. Create production secret files, 3. Build, migrate, and start Docker services, 4. Docker-managed Nginx (current production path), 5. Legacy host-Nginx cutover reference, 6. Open firewall ports, 7. Issue HTTPS certificates with Docker Certbot, 8. Verify externally (+2 more)
+Cohesion: 0.20
+Nodes (10): getInitialLoginValues(), getLoginSearchParams(), getValidationErrors(), heroTypingPhrases, initialLoginValues, LoginFormErrors, LoginFormValues, LoginPage() (+2 more)
 
 ### Community 165 - "tenant-owners-client.tsx"
-Cohesion: 0.10
-Nodes (29): generateTemporaryPassword(), getErrorMessage(), MarketplaceAdminClient(), marketplaceAdminRepository, invalidates, marketplaceAdminResource, MarketplaceAdminAction, MarketplaceAdminData (+21 more)
+Cohesion: 0.17
+Nodes (19): guestMarketplaceRepository, request(), guestMarketplaceResource, AddMarketplaceCartItemInput, CheckoutMarketplaceCartInput, CheckoutMarketplaceCartResult, ConfirmMarketplaceCartInput, ConfirmMarketplaceCartResult (+11 more)
 
 ### Community 166 - "guest-marketplace.controller.ts"
-Cohesion: 0.08
-Nodes (32): AddCartItem, addCartItemSchema, cartItemIdSchema, CheckoutCart, checkoutCartSchema, guestMarketplaceIdSchema, GuestMarketplaceQuery, guestMarketplaceQuerySchema (+24 more)
+Cohesion: 0.13
+Nodes (20): AddCartItem, addCartItemSchema, cartItemIdSchema, CheckoutCart, checkoutCartSchema, guestMarketplaceIdSchema, GuestMarketplaceQuery, guestMarketplaceQuerySchema (+12 more)
 
 ### Community 167 - "route-permission-sync.service.ts"
-Cohesion: 0.33
-Nodes (4): countDistinctGuestDevices(), countDistinctGuestDevicesByStay(), getGuestDeviceIdentityKey(), GuestDeviceIdentity
+Cohesion: 0.18
+Nodes (8): ImportCommitInput, ImportCommitResult, ParsedServiceCatalogCategory, ParsedServiceCatalogItem, ServiceCatalogImportPayload, ServiceCatalogImportState, TranslationInput, TranslationLocale
+
+### Community 169 - "init-secrets.sh"
+Cohesion: 0.15
+Nodes (12): Canonical Documentation Locations, Delegated specialist / Codex worker sessions, Direct user-facing sessions, Global Execution Rule: Delegation-Aware Approval, Mandatory Update Rules, Non-Goals, Review Checklist, Scope (+4 more)
 
 ### Community 171 - "verify-production-migration.py"
 Cohesion: 0.67
@@ -1099,52 +1100,52 @@ Cohesion: 0.73
 Nodes (5): _check_app_services(), _check_auth_postgres_networks(), _check_frontend_build(), main(), service_block()
 
 ### Community 175 - "VietSage Architecture"
-Cohesion: 0.20
-Nodes (9): 1. Architecture decision, 2. Current runtime topology, 3. Bounded contexts, 4. Dependency direction, 5. Contract source of truth, 6. Event and async strategy, 7. Service extraction policy, 8. Rename policy (+1 more)
+Cohesion: 0.15
+Nodes (12): 10. Frontend and Backend Boundary, 11. Rules Summary, 1. Purpose, 2. Docs Index, 3. Core Principles, 4. Standard App Structure, 5. Layer Responsibilities, 6. Runtime Boundary Summary (+4 more)
 
 ### Community 176 - "Frontend Sync Validation Guide"
-Cohesion: 0.20
-Nodes (9): Completion Evidence (Required), Frontend Sync Validation Guide, Phase 1 - Pre-Sync Checks, Phase 2 - Implementation Checks, Phase 3 - Validation Commands, Phase 4 - Route QA Checklist, Phase 5 - Contract Alignment Checks, Report Template (+1 more)
+Cohesion: 0.15
+Nodes (12): Admin Data Visualization, Brand & Style, Colors, Components, Elevation & Depth, Input Fields, Layout & Spacing, Premium Service Cards (+4 more)
 
 ### Community 177 - "Frontend Runtime and UI Guide"
-Cohesion: 0.20
-Nodes (9): Component Ownership, Frontend Runtime and UI Guide, I18n, Loading, Error, and Empty States, Purpose, Realtime, Server and Client Components, State Ownership (+1 more)
+Cohesion: 0.22
+Nodes (8): DesktopNavLink(), isActivePath(), MarketingHeader(), primaryLinks, solutionLinks, MarketingMotionRoot(), CardItem, sceneParticles
 
 ### Community 178 - "VietSage VPS Cutover and Deployment Plan"
-Cohesion: 0.20
-Nodes (9): Approval Boundaries, Files Likely to Change Before Execution, Final Acceptance Criteria, Immediate Rollback Procedure, Known Current State, Non-Negotiable Safety Rules, Required Evidence Bundle, Required Inputs Before Execution (+1 more)
+Cohesion: 0.17
+Nodes (11): Current Context, Final Release Boundary Gate Phase Plan, Non-Goals, Success Criteria, Task 1: Repository Hygiene Guard, Task 2: Validate and Include `tsconfig.json`, Task 3: Add Final Boundary Regression Spec, Task 4: Final Docs Cleanup (+3 more)
 
 ### Community 180 - "Backend Contract and Data Guide"
-Cohesion: 0.20
-Nodes (9): Anti-patterns, API Contracts, Authorization, Backend Contract and Data Guide, Data Ownership, Error Contracts, Migration Rules, Purpose (+1 more)
+Cohesion: 0.21
+Nodes (6): LaunchHold(), metadata, items, VsSidebarProps, VietSageBrand(), VietSageBrandProps
 
 ### Community 181 - "VietSage Backend Module Guide"
 Cohesion: 0.20
-Nodes (9): Cross-module dependency rule, Current boundary examples, Module ownership, Public vs internal files, Purpose, Recommended module shapes, Refactor workflow, Verification commands (+1 more)
+Nodes (8): WorkstationScanState, ScanRequest, ScanResult, WorkstationPairingStatus, workstationRepository, ScanInput, Scope, workstationResource
 
 ### Community 182 - "P1 QA Migration Verification Checklist"
-Cohesion: 0.22
-Nodes (8): Backend Auth Service, Contract Export, Verify, and Diff, Docker Compose Config and Build, Frontend API Sync, Lint, and Build, P1 QA Migration Verification Checklist, Pass Criteria, Preconditions, Smoke Tests
+Cohesion: 0.18
+Nodes (10): 1. Pull code on the VPS, 2. Create production secret files, 3. Build, migrate, and start Docker services, 4. Docker-managed Nginx (current production path), 5. Legacy host-Nginx cutover reference, 6. Open firewall ports, 7. Issue HTTPS certificates with Docker Certbot, 8. Verify externally (+2 more)
 
 ### Community 183 - "VietSage Service and Module Boundary"
-Cohesion: 0.22
-Nodes (8): Boundary layers, Boundary verification, Current approved public ports/services, Current boundary model, Future service extraction, Public boundary rules, Repository export policy, VietSage Service and Module Boundary
+Cohesion: 0.24
+Nodes (9): BrandedRoomQr, BrandedRoomQrProps, getBrandedQrMarkSize(), formatDateTime(), formatVnd(), QR_STATUS_MAP, ROOM_STATUS_MAP, RoomDetailDrawer() (+1 more)
 
 ### Community 186 - "Frontend API Integration Guide"
-Cohesion: 0.22
-Nodes (8): Anti-patterns, Auth and Session Rules, Contract Rules, Error Contract Rules, Frontend API Integration Guide, HTTP Rules, Purpose, Standard API Flow
+Cohesion: 0.20
+Nodes (9): 1. Architecture decision, 2. Current runtime topology, 3. Bounded contexts, 4. Dependency direction, 5. Contract source of truth, 6. Event and async strategy, 7. Service extraction policy, 8. Rename policy (+1 more)
 
 ### Community 187 - "hotel-requests.controller.ts"
-Cohesion: 0.18
-Nodes (17): createRequestEventBodySchema, guestRequestPrioritySchema, guestRequestPriorityValues, hotelIdParamSchema, jsonRecordSchema, ListHotelMessagesQueryInput, listHotelMessagesQuerySchema, listStaffRequestsQuerySchema (+9 more)
+Cohesion: 0.20
+Nodes (9): Completion Evidence (Required), Frontend Sync Validation Guide, Phase 1 - Pre-Sync Checks, Phase 2 - Implementation Checks, Phase 3 - Validation Commands, Phase 4 - Route QA Checklist, Phase 5 - Contract Alignment Checks, Report Template (+1 more)
 
 ### Community 188 - "marketplace/route.ts"
-Cohesion: 0.18
-Nodes (8): GuestLocalPartnersController, ApiTags, Controller, Get, Param, Query, Req, UseGuards
+Cohesion: 0.20
+Nodes (9): Component Ownership, Frontend Runtime and UI Guide, I18n, Loading, Error, and Empty States, Purpose, Realtime, Server and Client Components, State Ownership (+1 more)
 
 ### Community 189 - "GuestOsService"
-Cohesion: 0.06
-Nodes (9): GuestOsService, Inject, Injectable, Optional, ScanQrBodyInput, GuestOsRepository, GuestRequestGuestRow, GuestSessionContextRow (+1 more)
+Cohesion: 0.04
+Nodes (44): createGuestRequestBodySchema, guestRequestDataSchema, guestServiceCatalogDataSchema, listGuestCategoryServicesDataSchema, listGuestRequestsDataSchema, GuestOsService, GuestRequestListItemResponse, GuestRequestResponse (+36 more)
 
 ### Community 190 - "password-ui-entrypoints.test.mjs"
 Cohesion: 0.29
@@ -1159,32 +1160,32 @@ Cohesion: 0.15
 Nodes (12): Acceptance criteria, Bối cảnh và root cause đã xác minh, Files dự kiến thay đổi tối thiểu, Không làm, Rủi ro còn lại, Sửa Quốc tịch, Quê quán người ở cùng và ẩn link QR — Implementation Plan, Task 1: Khóa regression tại UI và BFF, Task 2: Sửa đúng seam BFF lễ tân (+4 more)
 
 ### Community 197 - "Frontend Feature Guide"
-Cohesion: 0.22
-Nodes (8): Adding a Feature, Anti-patterns, Dependency Rules, Extending a Workspace Dashboard, Folder Responsibilities, Frontend Feature Guide, Purpose, Standard Feature Shape
+Cohesion: 0.20
+Nodes (9): Approval Boundaries, Files Likely to Change Before Execution, Final Acceptance Criteria, Immediate Rollback Procedure, Known Current State, Non-Negotiable Safety Rules, Required Evidence Bundle, Required Inputs Before Execution (+1 more)
 
 ### Community 198 - "Phase 2 — Production Database Backup and Migration Decision"
-Cohesion: 0.22
-Nodes (9): 2.1 Create and verify backup, 2.2 Rehearse restore before touching production schema, 2.3 Select one database path, 2.4 Review migrations, Gate 2 — Data GO/NO-GO, Path A — Existing Compose volume is the live DB, Path B — Current DB must move into the new Compose volume, Path C — Keep an external/host database (+1 more)
+Cohesion: 0.20
+Nodes (9): Anti-patterns, API Contracts, Authorization, Backend Contract and Data Guide, Data Ownership, Error Contracts, Migration Rules, Purpose (+1 more)
 
 ### Community 199 - "VietSage Core API (`auth-service` historical path)"
-Cohesion: 0.22
-Nodes (8): Architecture status, Contract export, Health check, Requirements, Run, Setup, Validation commands, VietSage Core API (`auth-service` historical path)
+Cohesion: 0.20
+Nodes (9): Cross-module dependency rule, Current boundary examples, Module ownership, Public vs internal files, Purpose, Recommended module shapes, Refactor workflow, Verification commands (+1 more)
 
 ### Community 200 - "use-guest-i18n.ts"
-Cohesion: 0.19
-Nodes (16): parseWithZod(), ApiOkResponse, ApiParam, Get, Param, Req, HotelMarketplaceController, Body (+8 more)
+Cohesion: 0.33
+Nodes (5): ApiOkResponse, ApiParam, Get, Param, Req
 
 ### Community 201 - "VietSage Backend Architecture"
-Cohesion: 0.22
-Nodes (8): 1. Purpose, 2. Docs Index, 3. Core Principles, 4. Current Backend Runtime, 5. Standard Module Boundary, 6. Request and Contract Flow, 7. Backend and Frontend Boundary, VietSage Backend Architecture
+Cohesion: 0.33
+Nodes (9): RolesLiveFilterRole, AdminRolesPage(), isRecord(), mapRole(), moduleFromPath(), RolePermissionView, RolesPageProps, toObjectArray() (+1 more)
 
 ### Community 202 - "VietSage Service Evolution"
 Cohesion: 0.25
 Nodes (7): Decision, Extraction triggers, Pre-extraction checklist, Rename policy, Suggested future extraction order, VietSage Service Evolution, What does not justify extraction by itself
 
 ### Community 203 - "Frontend Smoke Tests"
-Cohesion: 0.25
-Nodes (7): Auth Refresh And Callback Smoke, Auth Refresh Concurrency Harness, Automated Commands, Frontend Smoke Tests, Manual Route Smoke, Remaining Large-Component And A11y Refactor List, Workspace V2 P3 Role Matrix
+Cohesion: 0.24
+Nodes (3): createModulesContainer(), DemoController, PublicController
 
 ### Community 204 - "PRODUCT.md"
 Cohesion: 0.25
@@ -1199,8 +1200,8 @@ Cohesion: 0.19
 Nodes (8): Slice 3 AC5: discard_scan behavior in BiometricStore., get_scan after discard → ValueError., Discarding the active scan resets active_scan_id to None., Portrait bytes are cleared from the scan data on discard., discard_scan with unknown ID → ValueError., Starting a new scan deterministically discards the prior active scan., Starting a scan when there is no prior active scan must not raise., TestDiscardScanBehavior
 
 ### Community 207 - "Frontend Instructions: GuestOS Backend I18n Sync"
-Cohesion: 0.29
-Nodes (6): Backend Follow-Up Still Needed, Current Backend Contract, Expected Behavior After Frontend Sync, Frontend Instructions: GuestOS Backend I18n Sync, Implementation Instructions, Verification Checklist
+Cohesion: 0.22
+Nodes (8): Backend Auth Service, Contract Export, Verify, and Diff, Docker Compose Config and Build, Frontend API Sync, Lint, and Build, P1 QA Migration Verification Checklist, Pass Criteria, Preconditions, Smoke Tests
 
 ### Community 208 - "PROJECT PLAN"
 Cohesion: 0.29
@@ -1211,60 +1212,60 @@ Cohesion: 0.07
 Nodes (29): 2026-07-14 - Batch C Authenticated Request Realtime, 2026-07-14 - Guest Request Contract Sync, 2026-07-14 - GuestOS Reliable Request Recovery Batch B, [complete] 2026-07-21 - Mission: recover-e4711-ui-auth-rbac, [complete] 2026-07-27 - Mission: account-and-guest-entrypoint-ui-fixes, [complete] 2026-07-27 - Mission: per-hotel-google-sheets, [complete] 2026-07-27 - Mission: public-launch-and-frontdesk-workflow, [complete] 2026-07-27 - Mission: tenant-room-action-icons (+21 more)
 
 ### Community 210 - "VietSage DOCX Architecture Refactor Plan"
-Cohesion: 0.29
-Nodes (6): Approved execution strategy, Current architecture vs DOCX target, Executive summary, Explicit non-goals for this phase, Follow-up code phases after this baseline, VietSage DOCX Architecture Refactor Plan
+Cohesion: 0.22
+Nodes (8): Boundary layers, Boundary verification, Current approved public ports/services, Current boundary model, Future service extraction, Public boundary rules, Repository export policy, VietSage Service and Module Boundary
 
 ### Community 211 - "Phase 1 — Prepare Release and Rollback Assets"
-Cohesion: 0.29
-Nodes (7): 1.1 Create a timestamped private release directory, 1.2 Check out the exact approved commit, 1.3 Provision secrets securely, 1.4 Run repository validation, 1.5 Prepare immutable local release tags, Gate 1 — Preparation GO/NO-GO, Phase 1 — Prepare Release and Rollback Assets
+Cohesion: 0.22
+Nodes (8): Anti-patterns, Auth and Session Rules, Contract Rules, Error Contract Rules, Frontend API Integration Guide, HTTP Rules, Purpose, Standard API Flow
 
 ### Community 212 - "Phase 3 — Start Docker Stack Behind Host Nginx"
-Cohesion: 0.29
-Nodes (7): 3.1 Bind Docker Nginx to loopback alternate ports, 3.2 Start services in controlled order, 3.3 Loopback smoke matrix, 3.4 Add temporary host-Nginx bridge, 3.5 Public bridge validation, Gate 3 — Application GO/NO-GO, Phase 3 — Start Docker Stack Behind Host Nginx
+Cohesion: 0.22
+Nodes (8): Adding a Feature, Anti-patterns, Dependency Rules, Extending a Workspace Dashboard, Folder Responsibilities, Frontend Feature Guide, Purpose, Standard Feature Shape
 
 ### Community 213 - "Phase 4 — Provision Docker-Managed Certificate Safely"
-Cohesion: 0.29
-Nodes (7): 4.1 Bridge ACME challenge through host Nginx, 4.2 Use dry-run rather than saved staging certificate, 4.3 Issue Docker production certificate, 4.4 Start Docker TLS on loopback, 4.5 Renewal rehearsal, Gate 4 — TLS GO/NO-GO, Phase 4 — Provision Docker-Managed Certificate Safely
+Cohesion: 0.22
+Nodes (9): 2.1 Create and verify backup, 2.2 Rehearse restore before touching production schema, 2.3 Select one database path, 2.4 Review migrations, Gate 2 — Data GO/NO-GO, Path A — Existing Compose volume is the live DB, Path B — Current DB must move into the new Compose volume, Path C — Keep an external/host database (+1 more)
 
 ### Community 214 - "VietSage Backend Extension and Service Evolution Guide"
-Cohesion: 0.29
-Nodes (6): Add a new module when, Default choice, Extract a service only when, New module checklist, Service extraction checklist, VietSage Backend Extension and Service Evolution Guide
+Cohesion: 0.22
+Nodes (8): Architecture status, Contract export, Health check, Requirements, Run, Setup, Validation commands, VietSage Core API (`auth-service` historical path)
 
 ### Community 215 - "Multilingual Backend Plan"
-Cohesion: 0.29
-Nodes (6): Catalog Naming, Module Migration, Multilingual Backend Plan, Request Locale, Response Contract, Scope
+Cohesion: 0.22
+Nodes (8): 1. Purpose, 2. Docs Index, 3. Core Principles, 4. Current Backend Runtime, 5. Standard Module Boundary, 6. Request and Contract Flow, 7. Backend and Frontend Boundary, VietSage Backend Architecture
 
 ### Community 216 - "VietSage API Contract Policy"
-Cohesion: 0.33
-Nodes (5): Contract rules, Current runtime, Source of truth, Verification, VietSage API Contract Policy
+Cohesion: 0.28
+Nodes (7): faqs, MarketingHome(), marketingMetadata, moments, solutions, why, stats
 
 ### Community 217 - "VietSage Documentation Index"
-Cohesion: 0.33
-Nodes (5): Current architecture baseline, Documentation Structure, Read Order For AI Agents, Root Docs, VietSage Documentation Index
+Cohesion: 0.28
+Nodes (7): hotelStaffAssignmentDataSchema, listHotelStaffAssignmentsDataSchema, revokeHotelStaffAssignmentDataSchema, successEnvelopeSchema(), RequestWithUser, hotelStaffUserIdParamSchema, listHotelStaffAssignmentsQuerySchema
 
 ### Community 222 - "vs-icon.tsx"
 Cohesion: 0.08
-Nodes (26): commonLinks, ACCESS_CONTROL_TABS, AccessControlNavHeaderProps, AccessControlTab, iconGlyph(), VsIcon(), VsIconProps, GuestHomePage() (+18 more)
+Nodes (21): commonLinks, ACCESS_CONTROL_TABS, AccessControlNavHeaderProps, AccessControlTab, iconGlyph(), VsIcon(), VsIconProps, VsTopBarProps (+13 more)
 
 ### Community 223 - "Phase 0 — Read-Only VPS Discovery"
-Cohesion: 0.33
-Nodes (6): 0.1 Capture system and capacity, 0.2 Inventory Docker and current application runtime, 0.3 Inventory host Nginx and certificate lifecycle, 0.4 Inventory production database without exposing credentials, Gate 0 — Inventory GO/NO-GO, Phase 0 — Read-Only VPS Discovery
+Cohesion: 0.25
+Nodes (5): ApiOkResponse, ApiParam, Param, Post, Req
 
 ### Community 224 - "HotelRequestsRepository"
-Cohesion: 0.11
-Nodes (17): createOwnerSchema, editOwnerSchema, emptyForm, formatDate(), formatTenantDisplayName(), FormMode, OwnerFormState, ownerStatuses (+9 more)
+Cohesion: 0.12
+Nodes (15): createOwnerSchema, editOwnerSchema, emptyForm, formatDate(), formatTenantDisplayName(), FormMode, OwnerFormState, ownerStatuses (+7 more)
 
 ### Community 225 - "Sheet contract"
 Cohesion: 0.14
 Nodes (13): Explicitly skipped, Likely changed files, Product decisions, Risks and controls, Sheet contract, Super Admin Marketplace Category Sheet + I18n Implementation Plan, Task 1: Add Marketplace category import identity and translations, Task 2: Add Marketplace category ImportAdapter (+5 more)
 
 ### Community 226 - "Contract Changes"
-Cohesion: 0.33
-Nodes (5): 0.1.0, 0.1.1, 0.2.0, Contract Changes, Unreleased
+Cohesion: 0.25
+Nodes (7): Auth Refresh And Callback Smoke, Auth Refresh Concurrency Harness, Automated Commands, Frontend Smoke Tests, Manual Route Smoke, Remaining Large-Component And A11y Refactor List, Workspace V2 P3 Role Matrix
 
 ### Community 227 - "API Contract Sync Package"
-Cohesion: 0.33
-Nodes (5): API Contract Sync Package, Export from auth-service, Structure, Sync frontend OpenAPI types, Verify contract package
+Cohesion: 0.25
+Nodes (7): description, license, name, private, scripts, verify, version
 
 ### Community 228 - "ADR-001: Modular Monolith First"
 Cohesion: 0.40
@@ -1283,31 +1284,31 @@ Cohesion: 0.40
 Nodes (4): ADR-004: Service Extraction Criteria, Consequences, Context, Decision
 
 ### Community 232 - "Frontend Codex Instructions"
-Cohesion: 0.40
-Nodes (4): Completion Report, Frontend Codex Instructions, Frontend Rules, Required Reading
+Cohesion: 0.29
+Nodes (6): Backend Follow-Up Still Needed, Current Backend Contract, Expected Behavior After Frontend Sync, Frontend Instructions: GuestOS Backend I18n Sync, Implementation Instructions, Verification Checklist
 
 ### Community 233 - "Frontend Codex Instructions"
-Cohesion: 0.40
-Nodes (4): Completion Report, Frontend Codex Instructions, Frontend Rules, Required Reading
+Cohesion: 0.29
+Nodes (6): Approved execution strategy, Current architecture vs DOCX target, Executive summary, Explicit non-goals for this phase, Follow-up code phases after this baseline, VietSage DOCX Architecture Refactor Plan
 
 ### Community 238 - "seed-marketplace-test-data.js"
 Cohesion: 0.23
-Nodes (11): adapter, buildTenants(), CATEGORIES, crypto, main(), offsetCoords(), prisma, {
-  PrismaClient,
-  TenantType,
-  TenantUserStatus,
-  UserRoleStatus,
-  UserStatus,
-  UserType,
+Nodes (11): adapter, buildTenants(), CATEGORIES, crypto, main(), offsetCoords(), prisma, {
+  PrismaClient,
+  TenantType,
+  TenantUserStatus,
+  UserRoleStatus,
+  UserStatus,
+  UserType,
 } (+3 more)
 
 ### Community 239 - "libs/auth.ts"
 Cohesion: 0.09
-Nodes (33): POST(), serverErrorResponse(), tokenTail(), unauthorizedResponse(), isExpectedRefreshFailure(), POST(), refreshFailureResponse(), serverErrorResponse() (+25 more)
+Nodes (32): GET(), PATCH(), POST(), proxyToNest(), POST(), serverErrorResponse(), tokenTail(), unauthorizedResponse() (+24 more)
 
 ### Community 240 - "hotel-requests.service.ts"
-Cohesion: 0.06
-Nodes (29): buildRequestSearchFilter(), completedRequestStatuses, HotelRequestsService, RequestStatusSummary, RequestSummaryResponse, StaffRequestAction, StaffRequestListItemResponse, Inject (+21 more)
+Cohesion: 0.05
+Nodes (45): buildRequestSearchFilter(), completedRequestStatuses, HotelRequestsService, RequestStatusSummary, RequestSummaryResponse, StaffRequestAction, StaffRequestListItemResponse, Inject (+37 more)
 
 ### Community 244 - "Existing dirty-work boundary"
 Cohesion: 0.18
@@ -1315,55 +1316,83 @@ Nodes (10): Antigravity dispatch contract, Existing dirty-work boundary, Final i
 
 ### Community 247 - "SupportedLocale"
 Cohesion: 0.18
-Nodes (4): parse_ack(), Parse PUSH command ACK response body, preserving raw Return integer code     and, test_security_push_protocol.py - Unit tests for Phase 0 Security PUSH protocol c, TestSecurityPushProtocol
+Nodes (4): parse_ack(), Parse PUSH command ACK response body, preserving raw Return integer code     an, test_security_push_protocol.py - Unit tests for Phase 0 Security PUSH protocol c, TestSecurityPushProtocol
 
 ### Community 248 - "Phase 5 — Final Listener Handoff"
-Cohesion: 0.40
-Nodes (5): 5.1 Pre-cutover checklist, 5.2 Stop host listener and recreate Docker Nginx on public ports, 5.3 Public verification matrix, Gate 5 — Cutover GO/NO-GO, Phase 5 — Final Listener Handoff
+Cohesion: 0.29
+Nodes (7): 1.1 Create a timestamped private release directory, 1.2 Check out the exact approved commit, 1.3 Provision secrets securely, 1.4 Run repository validation, 1.5 Prepare immutable local release tags, Gate 1 — Preparation GO/NO-GO, Phase 1 — Prepare Release and Rollback Assets
 
 ### Community 249 - "Phase 6 — Observation and Post-Cutover Operations"
-Cohesion: 0.40
-Nodes (5): 6.1 Observation, 6.2 Schedule renewal, 6.3 Backup schedule, 6.4 Retire legacy path only after acceptance, Phase 6 — Observation and Post-Cutover Operations
+Cohesion: 0.29
+Nodes (7): 3.1 Bind Docker Nginx to loopback alternate ports, 3.2 Start services in controlled order, 3.3 Loopback smoke matrix, 3.4 Add temporary host-Nginx bridge, 3.5 Public bridge validation, Gate 3 — Application GO/NO-GO, Phase 3 — Start Docker Stack Behind Host Nginx
 
 ### Community 250 - "staff-billing-workspace-client.tsx"
-Cohesion: 0.17
-Nodes (17): clampBackendApiLimit(), clampBackendApiLimitValue(), appendQuery(), createTimeoutController(), extractApiResponseMessage(), HttpClientOptions, HttpRequestOptions, isPublicRequest() (+9 more)
+Cohesion: 0.29
+Nodes (7): 4.1 Bridge ACME challenge through host Nginx, 4.2 Use dry-run rather than saved staging certificate, 4.3 Issue Docker production certificate, 4.4 Start Docker TLS on loopback, 4.5 Renewal rehearsal, Gate 4 — TLS GO/NO-GO, Phase 4 — Provision Docker-Managed Certificate Safely
 
 ### Community 252 - "billing-folio-table-client.tsx"
-Cohesion: 0.17
-Nodes (14): canResetFrontdeskPassword(), PasswordSecurityFields, resetResponseHeaders(), validatePasswordChange(), FormFieldErrors, Props, StaffHotelOption, StaffManagementClient() (+6 more)
+Cohesion: 0.29
+Nodes (6): Add a new module when, Default choice, Extract a service only when, New module checklist, Service extraction checklist, VietSage Backend Extension and Service Evolution Guide
 
 ### Community 253 - "Scope decisions"
 Cohesion: 0.20
 Nodes (9): Billing Tabs, Pagination, and Due Reminder Implementation Plan, Excluded, Final verification, Scope decisions, Slice 1: Fix `BillingTabSwitcher` key warning at the composition seam, Slice 2: Paginate owner folios using the existing API contract, Slice 3: Verify billable-day truth, add bounded pagination, room amounts, and due-soon projection, Slice 4: Fully Vietnamese owner overview, room prices, and due reminder (+1 more)
 
 ### Community 254 - "front-end-vietsage/README.md"
-Cohesion: 0.50
-Nodes (3): Deploy on Vercel, Getting Started, Learn More
+Cohesion: 0.29
+Nodes (6): Catalog Naming, Module Migration, Multilingual Backend Plan, Request Locale, Response Contract, Scope
+
+### Community 255 - "rules/graphify.md"
+Cohesion: 0.29
+Nodes (7): Acceptance blockers / residual risks, Exact frontend files changed, [in review — visual gate blocked] 2026-09-06 — Mission: isolated-admin-ui-overhaul, Isolation and evidence, SSR / client decisions — every route, Validation, What changed / surface audit
+
+### Community 256 - "workflows/graphify.md"
+Cohesion: 0.38
+Nodes (3): loadComponent(), require, source()
+
+### Community 257 - "CODEX.md"
+Cohesion: 0.38
+Nodes (5): Scope, HotelMessage, HotelMessageThread, HotelMessageThreadList, HotelMessageThreadPage
 
 ### Community 258 - "WorkstationStore"
-Cohesion: 0.20
-Nodes (17): displayGuest(), displayRoom(), FolioItemsPage, formatDate(), formatNumberInput(), formatNumberOrPercentInput(), getFolioInvoiceId(), getItemIcon() (+9 more)
+Cohesion: 0.33
+Nodes (5): Contract rules, Current runtime, Source of truth, Verification, VietSage API Contract Policy
 
 ### Community 259 - "TestPairingStore"
-Cohesion: 0.12
-Nodes (11): PairingStore, Operator-issued single-use pairing codes and session tokens.      Security prope, Validate *code* with constant-time compare; if valid issue a session token., Return True if *token* is valid and not expired., After first successful redeem, the same code must not work again., Codes with ttl=0 should not be redeemable., Session tokens issued with ttl=0 expire immediately., Session tokens must not be excessively long. (+3 more)
+Cohesion: 0.10
+Nodes (14): PairingStore, Operator-issued single-use pairing codes and session tokens.      Security pro, Validate *code* with constant-time compare; if valid issue a session token., Return True if *token* is valid and not expired., After first successful redeem, the same code must not work again., Codes with ttl=0 should not be redeemable., Session tokens issued with ttl=0 expire immediately., Session tokens must not be excessively long. (+6 more)
+
+### Community 260 - "services/AGENTS.md"
+Cohesion: 0.33
+Nodes (5): Current architecture baseline, Documentation Structure, Read Order For AI Agents, Root Docs, VietSage Documentation Index
+
+### Community 261 - "services/CODEX.md"
+Cohesion: 0.33
+Nodes (6): 0.1 Capture system and capacity, 0.2 Inventory Docker and current application runtime, 0.3 Inventory host Nginx and certificate lifecycle, 0.4 Inventory production database without exposing credentials, Gate 0 — Inventory GO/NO-GO, Phase 0 — Read-Only VPS Discovery
+
+### Community 262 - "MIGRATION_GUIDE.md"
+Cohesion: 0.33
+Nodes (5): collection, compilerOptions, deleteOutDir, $schema, sourceRoot
+
+### Community 265 - "@nestjs/schedule"
+Cohesion: 0.33
+Nodes (5): 0.1.0, 0.1.1, 0.2.0, Contract Changes, Unreleased
 
 ### Community 266 - "qr-export-client.tsx"
-Cohesion: 0.18
-Nodes (11): OwnerRequestRealtimeNotifier(), formatDate(), getErrorMessage(), OwnerHotelsClient(), statusLabel(), statusTone(), useOwnerHotelsQuery(), OwnerHotelsListInput (+3 more)
+Cohesion: 0.33
+Nodes (7): formatDate(), getErrorMessage(), OwnerHotelsClient(), statusLabel(), statusTone(), useOwnerHotelsQuery(), ownerHotelsResource
 
 ### Community 269 - "register/page.tsx"
-Cohesion: 0.05
-Nodes (25): LaunchHold(), metadata, items, VsSidebarProps, VsTopBarProps, getValidationErrors(), heroTypingPhrases, initialFormValues (+17 more)
+Cohesion: 0.13
+Nodes (8): getValidationErrors(), heroTypingPhrases, initialFormValues, inputClass(), RegisterFormErrors, RegisterFormValues, RegisterPage(), registerSchema
 
 ### Community 270 - "service-portal.controller.ts"
-Cohesion: 0.23
-Nodes (12): httpUrl, MarketplaceAvailability, marketplaceAvailabilitySchema, MarketplaceServiceBody, marketplaceServiceBodySchema, MarketplaceServiceUpdate, marketplaceServiceUpdateSchema, profileFields (+4 more)
+Cohesion: 0.12
+Nodes (22): hotelServiceLinkBodySchema, batchSettleSchema, checkoutCartSchema, createMarketplaceOrderSchema, marketplaceOrderIdSchema, marketplaceRevenueQuerySchema, marketplaceSettlementStatusSchema, marketplaceTransitionSchema (+14 more)
 
 ### Community 271 - "(hotel)/hotels/[hotelId]/billing/invoices/[invoiceId]/page.tsx"
-Cohesion: 0.17
-Nodes (14): folioStatusLabels, formatQuantity(), InvoiceDetailView(), invoiceStatusLabels, isExternalInvoiceItem(), itemTypeLabels, labelItemType(), labelStatus() (+6 more)
+Cohesion: 0.08
+Nodes (28): InvoiceActions(), Props, BillingFolioTableClient(), BillingFolioTableClientProps, FolioModal(), StatusBadge(), statusLabels, toDisplayStatus() (+20 more)
 
 ### Community 273 - "Active Plan"
 Cohesion: 0.50
@@ -1386,56 +1415,56 @@ Cohesion: 0.50
 Nodes (3): guestQrEntrySource, ownerQrUtilsSource, staffRoomsSource
 
 ### Community 284 - "staff-management-client.tsx"
-Cohesion: 0.12
-Nodes (10): AssignStaffRoleInput, RepositoryRequestOptions, StaffDirectoryListInput, staffDirectoryRepository, TemporaryPasswordResult, UpdateStaffAssignmentInput, UpdateStaffUserInput, INVALIDATE_DIRECTORY (+2 more)
+Cohesion: 0.08
+Nodes (24): canResetFrontdeskPassword(), PasswordSecurityFields, resetResponseHeaders(), validatePasswordChange(), FormFieldErrors, Props, StaffHotelOption, StaffManagementClient() (+16 more)
 
 ### Community 286 - "invalidate-hotel-realtime-queries.ts"
-Cohesion: 0.43
-Nodes (6): AudioWindow, getAudioContext(), playMessageAlertSound(), playRequestAlertSound(), useServiceTenantRealtime(), ServiceTenantRealtimeNotifier()
+Cohesion: 0.21
+Nodes (16): AudioWindow, OwnerHotelRequestRealtimeNotifier(), OwnerRequestRealtimeNotifier(), playUrgentRequestSound(), requestQueuePath(), HotelOpsRealtimeNotifier(), useSafeQueryClient(), invalidateHotelRealtimeQueries() (+8 more)
 
 ### Community 288 - "service-catalog-import.adapter.ts"
-Cohesion: 0.20
-Nodes (13): createTenantOwnerBodySchema, listTenantOwnersDataSchema, TENANT_USER_STATUS_ENUM, tenantOwnerDataSchema, updateTenantOwnerBodySchema, USER_STATUS_ENUM, RequestWithUser, createTenantOwnerBodySchema (+5 more)
+Cohesion: 0.18
+Nodes (14): createTenantOwnerBodySchema, listTenantOwnersDataSchema, TENANT_USER_STATUS_ENUM, tenantOwnerDataSchema, updateTenantOwnerBodySchema, USER_STATUS_ENUM, RequestWithUser, CreateTenantOwnerBodyInput (+6 more)
 
 ### Community 289 - "change-password-dialog.tsx"
 Cohesion: 0.27
 Nodes (10): LocalPartnersController, ApiTags, Body, Controller, Get, Param, Patch, Post (+2 more)
 
 ### Community 290 - "guest-os-contract.ts"
-Cohesion: 0.07
-Nodes (26): buildConfirmHtml(), escapeHtml(), getQuantityHint(), getServicePrice(), GuestServicesContent(), GuestTranslator, CategoryChipItem, GuestCategoryChips() (+18 more)
+Cohesion: 0.09
+Nodes (18): buildConfirmHtml(), escapeHtml(), getQuantityHint(), getServicePrice(), GuestServicesContent(), GuestTranslator, CategoryChipItem, GuestDiscoveryTabKey (+10 more)
 
 ### Community 291 - "rbac.service.ts"
-Cohesion: 0.12
-Nodes (25): GLOBAL_MENU_ORDER, HIDDEN_NAVIGATION_MENU_PATHS, MENU_PATH_ALIASES, compareModuleKeysByNavigationOrder(), humanizeModuleName(), isHiddenModuleKey(), isHiddenNavigationPath(), mapPermissionRootPathToMenu() (+17 more)
+Cohesion: 0.09
+Nodes (34): BUSINESS_PERMISSION_MENU_PATHS, resolveBusinessPermissionMenuPath(), BUSINESS_PERMISSION_KEYS, BusinessPermissionDefinition, BusinessPermissionKey, isBusinessPermissionKey(), GLOBAL_MENU_ORDER, HIDDEN_NAVIGATION_MENU_PATHS (+26 more)
 
 ### Community 292 - "g/messages/page.tsx"
-Cohesion: 0.20
-Nodes (5): HotelStaffAssignmentsService, Injectable, ListHotelStaffAssignmentsQueryInput, HotelStaffAssignmentsRepository, Injectable
+Cohesion: 0.33
+Nodes (5): API Contract Sync Package, Export from auth-service, Structure, Sync frontend OpenAPI types, Verify contract package
 
 ### Community 293 - "room-detail-drawer.tsx"
-Cohesion: 0.22
-Nodes (11): ChangePasswordDialog(), emptyForm, hiddenPasswords, PasswordField, passwordFields, useChangePassword(), authRepository, ChangePasswordInput (+3 more)
+Cohesion: 0.33
+Nodes (6): @babel/core, nanoid, postcss, sharp, socket.io-parser, overrides
 
 ### Community 294 - "RequestRealtimeEmitter"
-Cohesion: 0.14
-Nodes (8): RequestRealtimeEmitter, HandshakeAuth, OwnerTicketClaims, realtimeConfig, RequestRealtimeGateway, ServiceTenantTicketClaims, WebSocketGateway, WebSocketServer
+Cohesion: 0.12
+Nodes (10): RequestRealtimeEmitter, HandshakeAuth, OwnerTicketClaims, realtimeConfig, RequestRealtimeGateway, ServiceTenantTicketClaims, Inject, Optional (+2 more)
 
 ### Community 295 - "SecurityPushStore"
 Cohesion: 0.13
-Nodes (9): Any, Get next command to send to device sn.          Enforces 1 outstanding command p, Process command ACK for device sn.          Matches command ID to outstanding co, SQLite-backed state engine for Security PUSH protocol emulator.      Enforces:, Get all spooled events., Get current state of device sn., Get outstanding command information for device sn if any., Close underlying SQLite connection. (+1 more)
+Nodes (9): Any, Get next command to send to device sn.          Enforces 1 outstanding command, Process command ACK for device sn.          Matches command ID to outstanding, SQLite-backed state engine for Security PUSH protocol emulator.      Enforces:, Get all spooled events., Get current state of device sn., Get outstanding command information for device sn if any., Close underlying SQLite connection. (+1 more)
 
 ### Community 297 - "VietSage biometric bridge"
 Cohesion: 0.40
 Nodes (4): Browser API, Run on Windows, Test, VietSage biometric bridge
 
 ### Community 299 - "local_secrets.py"
-Cohesion: 0.19
-Nodes (12): Exception, _dpapi_available(), _dpapi_protect(), _dpapi_unprotect(), local_secrets.py – Windows user-scoped DPAPI secret adapter.  Design rules (Slic, Wraps the actual ctypes DPAPI calls., Raised when the DPAPI secret store is not available or not on Windows., Return True only when running on Windows with ctypes access. (+4 more)
+Cohesion: 0.40
+Nodes (4): FormState, locationFromHotel(), OwnerHotelDetailClient(), OwnerHotelDetailClientProps
 
 ### Community 300 - "LocalPartnersRepository"
-Cohesion: 0.10
-Nodes (8): calculateHaversineDistanceMeters(), GuestLocalPartnersService, Injectable, LocalPartnersService, Injectable, LocalPartnersRepository, partnerInclude, Injectable
+Cohesion: 0.07
+Nodes (16): calculateHaversineDistanceMeters(), GuestLocalPartnersController, ApiTags, Controller, Get, Param, Query, Req (+8 more)
 
 ### Community 303 - "workstation-connection-panel.test.ts"
 Cohesion: 0.50
@@ -1443,11 +1472,11 @@ Nodes (3): dashboard, route, source
 
 ### Community 304 - "security_push_protocol.py"
 Cohesion: 0.16
-Nodes (15): build_biophoto_command(), build_user_command(), Any, security_push_protocol.py - Phase 0 Security PUSH protocol emulator contracts., Validate opaque numeric PIN without CCCD length semantics.      Accepts any non-, Generate response for PUSH data upload requests.      /iclock/fdata responds OK, Sanitize name field by replacing tabs and newlines with spaces., Validate JPEG bytes with SOI (0xFF 0xD8), EOI (0xFF 0xD9), and bounded size. (+7 more)
+Nodes (15): build_biophoto_command(), build_user_command(), Any, security_push_protocol.py - Phase 0 Security PUSH protocol emulator contracts., Validate opaque numeric PIN without CCCD length semantics.      Accepts any no, Generate response for PUSH data upload requests.      /iclock/fdata responds O, Sanitize name field by replacing tabs and newlines with spaces., Validate JPEG bytes with SOI (0xFF 0xD8), EOI (0xFF 0xD9), and bounded size. (+7 more)
 
 ### Community 307 - "app/layout.tsx"
-Cohesion: 0.11
-Nodes (22): AppToaster(), getQueryClient(), makeQueryClient(), ReactQueryProvider(), ReactQueryProviderProps, fraunces, manrope, metadata (+14 more)
+Cohesion: 0.23
+Nodes (8): AppToaster(), getQueryClient(), makeQueryClient(), ReactQueryProvider(), ReactQueryProviderProps, fraunces, manrope, metadata
 
 ### Community 309 - "face-id-notification-test.test.ts"
 Cohesion: 0.40
@@ -1466,8 +1495,8 @@ Cohesion: 0.50
 Nodes (3): billingServicePath, pagePath, reminderPath
 
 ### Community 313 - "service-catalog-client.tsx"
-Cohesion: 0.06
-Nodes (54): actionMeta, compareValues(), defaultLabels, formatDayFilterValue(), getExternalOrderStatusLabel(), getHttpErrorMessage(), getSortableRequestValue(), isCheckedOutRequest() (+46 more)
+Cohesion: 0.07
+Nodes (47): actionMeta, compareValues(), defaultLabels, formatDayFilterValue(), getExternalOrderStatusLabel(), getHttpErrorMessage(), getSortableRequestValue(), isCheckedOutRequest() (+39 more)
 
 ### Community 315 - "billing-folio-pagination.test.ts"
 Cohesion: 0.50
@@ -1482,8 +1511,8 @@ Cohesion: 0.20
 Nodes (10): 3. Data model cập nhật, Native DB immutability, `PlatformBillableDay` — immutable positive charge, `PlatformBillingAdjustment` — append-only correction, `PlatformBillingContract`, `PlatformBillingContractRevision` — append-only, `PlatformBillingDailySummary` — rebuildable projection, `PlatformBillingPeriod` — invoice snapshot (+2 more)
 
 ### Community 318 - "contract-schemas.ts"
-Cohesion: 0.06
-Nodes (45): createHotelBodySchema, createRoleBodySchema, deletedDataSchema, frontendNavigationRoleDataSchema, frontendPermissionItemDataSchema, frontendPermissionModuleDataSchema, guestRequestListItemDataSchema, guestRequestPriorityEnum (+37 more)
+Cohesion: 0.07
+Nodes (43): createRoleBodySchema, deletedDataSchema, frontendNavigationRoleDataSchema, frontendPermissionItemDataSchema, frontendPermissionModuleDataSchema, guestRequestListItemDataSchema, guestRequestPriorityEnum, guestRequestStatusEnum (+35 more)
 
 ### Community 319 - "platform-billing.controller.ts"
 Cohesion: 0.16
@@ -1491,23 +1520,23 @@ Nodes (18): AddRevisionDto, CreateAdjustmentDto, CreateContractDto, FinalizePeri
 
 ### Community 320 - "bridge_app.py"
 Cohesion: 0.22
-Nodes (7): main(), make_api_handler(), Collect component readiness and return a diagnostics dict.      AC1: bridge/hn21, Build the HTTP request handler class.      Parameters     ----------     store,, Generate and store a new single-use pairing code., _run_diagnostics(), provision_user()
+Nodes (7): main(), make_api_handler(), Collect component readiness and return a diagnostics dict.      AC1: bridge/hn, Build the HTTP request handler class.      Parameters     ----------     sto, Generate and store a new single-use pairing code., _run_diagnostics(), provision_user()
 
 ### Community 321 - "RequestRealtimeGateway"
-Cohesion: 0.24
-Nodes (9): HttpMethod, HttpQuery, TemporaryPasswordResult, CreateHotelStaffUserInput, HotelStaffAssignment, HotelStaffAssignmentsPage, HotelStaffUser, HotelStaffUsersPage (+1 more)
+Cohesion: 0.53
+Nodes (5): getFirst(), getPositiveInt(), normalizeDayFilter(), OwnerHotelRequestsPage(), PageProps
 
 ### Community 322 - "src/auth.ts"
 Cohesion: 0.40
 Nodes (4): mask_pin(), mask_sn(), Safe masked logging for Serial Numbers., Safe masked logging for PINs.
 
 ### Community 324 - "identity-public.ts"
-Cohesion: 0.14
-Nodes (21): BUSINESS_PERMISSION_MENU_PATHS, resolveBusinessPermissionMenuPath(), BUSINESS_PERMISSION_KEYS, BUSINESS_PERMISSIONS, BusinessPermissionDefinition, BusinessPermissionKey, isBusinessPermissionKey(), BootstrapAdminConfig (+13 more)
+Cohesion: 0.40
+Nodes (4): Completion Report, Frontend Codex Instructions, Frontend Rules, Required Reading
 
 ### Community 327 - "PairingStore"
 Cohesion: 0.07
-Nodes (19): _build_stores(), _FakeAdapter, test_bridge_app.py – TDD tests for Slice 2 bridge endpoints.  Covers:   - POST /, Base class that starts the bridge handler with test stubs., GET /health must remain public (no auth required)., Health must not require a Bearer token., GET /settings is public; returns only communicationKeyConfigured., The response must NEVER contain any plaintext secret. (+11 more)
+Nodes (19): _build_stores(), _FakeAdapter, test_bridge_app.py – TDD tests for Slice 2 bridge endpoints.  Covers:   - POS, Base class that starts the bridge handler with test stubs., GET /health must remain public (no auth required)., Health must not require a Bearer token., GET /settings is public; returns only communicationKeyConfigured., The response must NEVER contain any plaintext secret. (+11 more)
 
 ### Community 333 - "4. Deterministic Daily Ledger Algorithm"
 Cohesion: 0.33
@@ -1519,7 +1548,7 @@ Nodes (6): Phase 1 — Contract revisions + usage + daily ledger + recovery, Tas
 
 ### Community 336 - "parse_rtlog_or_transaction"
 Cohesion: 0.40
-Nodes (3): parse_rtlog_or_transaction(), Parse real-time attendance transaction/rtlog line, preserving raw fields and ver, Spool an attendance/rtlog event with deterministic deduplication.          Retur
+Nodes (3): parse_rtlog_or_transaction(), Parse real-time attendance transaction/rtlog line, preserving raw fields and ver, Spool an attendance/rtlog event with deterministic deduplication.          Ret
 
 ### Community 337 - "2026-07-22 - Stay-Scoped Front Desk Messages"
 Cohesion: 0.50
@@ -1542,7 +1571,7 @@ Cohesion: 0.40
 Nodes (5): Phase 2 — Idempotent period finalization, debt, settlement, API, Task 2.1 — RED: period invariants, Task 2.2 — Implement one finalize command, Task 2.3 — Private API + RBAC, Task 2.4 — OpenAPI synchronization
 
 ### Community 346 - "RequestWithGuestSession"
-Cohesion: 0.19
+Cohesion: 0.20
 Nodes (13): RequestWithGuestSession, GuestMarketplaceController, Body, Controller, Delete, Get, Param, Patch (+5 more)
 
 ### Community 347 - "1. Evidence và kết luận review"
@@ -1550,16 +1579,16 @@ Cohesion: 0.50
 Nodes (4): 1. Evidence và kết luận review, Architectural weaknesses found, Files/flows đã kiểm tra, Mathematical limitation được xử lý rõ
 
 ### Community 349 - "guest-connection-manager.ts"
-Cohesion: 0.17
-Nodes (6): createGuestConnectionManager(), Entry, GuestRealtimeHandlers, GuestSocket, RealtimeError, OwnerRealtimeHandlers
+Cohesion: 0.09
+Nodes (10): createGuestConnectionManager(), Entry, GuestRealtimeHandlers, GuestSocket, RealtimeError, createOwnerConnectionManager(), Entry, ManagedSocket (+2 more)
 
 ### Community 350 - "8. Performance plan"
 Cohesion: 0.67
 Nodes (3): 8. Performance plan, Indexes, Query rules
 
 ### Community 353 - "owner-request-realtime-manager.ts"
-Cohesion: 0.23
-Nodes (8): ownerRequestRealtimeManager, createRequestRealtimeSocket(), getRequestRealtimeUrl(), RequestRealtimeAuth, RequestRealtimeEvent, serviceTenantRequestRealtimeManager, Handlers, Handlers
+Cohesion: 0.19
+Nodes (10): ownerRequestRealtimeManager, createRequestRealtimeSocket(), getRequestRealtimeUrl(), RequestRealtimeAuth, RequestRealtimeEvent, serviceTenantRequestRealtimeManager, guestRequestRealtimeManager, Handlers (+2 more)
 
 ### Community 354 - "Tenant-Owned Service Category and Service Item Spreadsheet Implementation Plan"
 Cohesion: 0.22
@@ -1570,20 +1599,20 @@ Cohesion: 0.22
 Nodes (9): 10. Implementation Order, Slice 0 — Baseline and data audit, Slice 1 — Expand schema, Slice 2 — Admin category assignment, Slice 3 — Resolve legacy tenants, Slice 4 — Service Portal contract cutover, Slice 5 — Spreadsheet backend, Slice 6 — Spreadsheet frontend (+1 more)
 
 ### Community 356 - "workstation-store.ts"
-Cohesion: 0.05
-Nodes (47): authCache, GET(), getCachedWorkstation(), headers, Context, DELETE(), GET(), headers (+39 more)
+Cohesion: 0.04
+Nodes (55): authCache, GET(), getCachedWorkstation(), headers, Context, DELETE(), GET(), headers (+47 more)
 
 ### Community 357 - ".register"
-Cohesion: 0.27
-Nodes (8): BillingFolioTableClient(), BillingFolioTableClientProps, FolioModal(), StatusBadge(), statusLabels, toDisplayStatus(), formatDateTime(), formatMoney()
+Cohesion: 0.40
+Nodes (4): Completion Report, Frontend Codex Instructions, Frontend Rules, Required Reading
 
 ### Community 358 - "backend-api-config.ts"
-Cohesion: 0.23
-Nodes (12): GET(), PATCH(), POST(), proxyToNest(), GET(), BackendApiEnvironment, BackendApiLimitQueryValue, BackendApiLimitValue (+4 more)
+Cohesion: 0.09
+Nodes (27): Params, Params, Params, Params, Params, Params, schema, Params (+19 more)
 
 ### Community 360 - "room-messages-client.tsx"
-Cohesion: 0.13
-Nodes (19): appendMessageToThreadCache(), emitTypingSignal(), formatMessageTime(), markThreadReadInCache(), Message, removeClosedStayFromWaitingListInCache(), RoomMessagesClient(), Thread (+11 more)
+Cohesion: 0.20
+Nodes (14): appendMessageToThreadCache(), emitTypingSignal(), formatMessageTime(), markThreadReadInCache(), Message, removeClosedStayFromWaitingListInCache(), RoomMessagesClient(), Thread (+6 more)
 
 ### Community 361 - "3.2 Non-destructive expand/resolve/contract migrations"
 Cohesion: 0.29
@@ -1597,25 +1626,29 @@ Nodes (7): 5.1 Format decision, 5.2 Tenant-editable columns only, 5.3 Endpoints,
 Cohesion: 0.40
 Nodes (5): 4.1 Platform Admin contracts, 4.2 Service Portal contracts, 4.3 Guest/read-path changes, 4.4 OpenAPI and error contracts, 4. Backend APIs and RBAC
 
+### Community 365 - "zustand"
+Cohesion: 0.40
+Nodes (5): 5.1 Pre-cutover checklist, 5.2 Stop host listener and recreate Docker Nginx on public ports, 5.3 Public verification matrix, Gate 5 — Cutover GO/NO-GO, Phase 5 — Final Listener Handoff
+
 ### Community 366 - "9. Tests"
 Cohesion: 0.40
 Nodes (5): 9.1 Schema/migration tests, 9.2 Backend unit/integration tests, 9.3 Frontend tests, 9.4 Manual acceptance, 9. Tests
 
 ### Community 367 - "use-guest-request-realtime.ts"
-Cohesion: 0.18
-Nodes (4): createOwnerConnectionManager(), Entry, ManagedSocket, RealtimeError
+Cohesion: 0.40
+Nodes (5): 6.1 Observation, 6.2 Schedule renewal, 6.3 Backup schedule, 6.4 Retire legacy path only after acceptance, Phase 6 — Observation and Post-Cutover Operations
 
 ### Community 368 - "ImportValidationIssue"
-Cohesion: 0.29
+Cohesion: 0.33
 Nodes (3): ImportErrorReportService, Injectable, ImportValidationIssue
 
 ### Community 369 - "guest-os.repository.ts"
-Cohesion: 0.23
-Nodes (10): createRoleBodySchema, listPermissionsQuerySchema, listRolePermissionModulePermissionsQuerySchema, ListRolesQueryInput, listRolesQuerySchema, PermissionModuleKeyParamInput, permissionModuleKeyParamSchema, replaceRolePermissionsBodySchema (+2 more)
+Cohesion: 0.50
+Nodes (3): Deploy on Vercel, Getting Started, Learn More
 
 ### Community 373 - "ImportTemplateService"
-Cohesion: 0.27
-Nodes (3): ImportTemplateService, Injectable, ImportWorkbookSchema
+Cohesion: 0.15
+Nodes (5): ImportTemplateService, Injectable, ImportWorkbookSchema, MarketplaceCategorySheetService, Injectable
 
 ### Community 375 - "2026-07-14 - Marketing Navigation Usability Fix"
 Cohesion: 0.50
@@ -1653,29 +1686,9 @@ Nodes (4): 8. Migration and Backward Compatibility, Dual-read window, Release se
 Cohesion: 0.22
 Nodes (7): DetailValue, ErrorResponseBody, ExtractedZodValidationMeta, RequestWithId, ValidationIssue, isPrismaRecordNotFound(), mapPrismaRecordNotFound()
 
-### Community 388 - "intake-contract.ts"
-Cohesion: 0.32
-Nodes (7): currentMonthKey(), formatVnd(), OwnerAnalyticsData, OwnerSaasBillingClient(), PaginatedResult, PeriodItem, RoomUsageRow
-
 ### Community 390 - "reservations.controller.ts"
 Cohesion: 0.36
 Nodes (6): checkInResponseSchema, RequestWithUser, reservationResponseSchema, assignReservationRoomBodySchema, createReservationBodySchema, listArrivalsQuerySchema
-
-### Community 392 - "billing-contract.ts"
-Cohesion: 0.53
-Nodes (3): BillingTabSwitcherProps, BillingPage, FolioListItem
-
-### Community 394 - "prisma.service.ts"
-Cohesion: 0.13
-Nodes (10): Inject, Optional, CodeSequenceSnapshot, CodesRepository, PrismaClientLike, Injectable, CodesService, Injectable (+2 more)
-
-### Community 395 - "invoice-print-button.tsx"
-Cohesion: 0.47
-Nodes (5): buildWordHtml(), downloadWordInvoice(), getInvoiceFileName(), InvoicePrintButton(), InvoicePrintButtonProps
-
-### Community 397 - "transformation.interceptor.ts"
-Cohesion: 0.25
-Nodes (4): Response, ResponseData, TransformationInterceptor, Injectable
 
 ### Community 401 - "room-table-drawer.test.ts"
 Cohesion: 0.50
@@ -1686,24 +1699,24 @@ Cohesion: 0.33
 Nodes (5): ApiOkResponse, ApiParam, Get, Param, Req
 
 ## Knowledge Gaps
-- **2450 isolated node(s):** `eslintConfig`, `nextConfig`, `name`, `version`, `private` (+2445 more)
+- **2488 isolated node(s):** `eslintConfig`, `nextConfig`, `name`, `version`, `private` (+2483 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **67 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **65 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `GET()` connect `httpErrorResponse` to `parseWithZod`, `executeHotelOpsBackendRequest`, `local-partners-contract.ts`?**
-  _High betweenness centrality (0.077) - this node is a cross-community bridge._
-- **Why does `PrismaService` connect `.assertHotelAccess` to `HotelNotificationRoutesService`, `HotelAccessService`, `hotel-services.controller.ts`, `prisma.service.ts`, `HttpError`, `service-portal.controller.ts`, `hotel-rooms.service.ts`, `RbacService`, `RequestRealtimeTicketService`, `server-api-auth.ts`, `GuestRequestEventPublisher`, `biometric-workstations.controller.ts`, `TenantOwnersService`, `import.types.ts`, `g/messages/page.tsx`, `guest-marketplace.controller.ts`, `route-permission-sync.service.ts`, `property.module.ts`, `ServiceCatalogImportAdapter`, `LocalPartnersRepository`, `MarketplaceServiceItemImportAdapter`, `marketplace-category-import.adapter.ts`, `PlatformBillingController`, `GuestOsService`, `MarketplaceAdminService`, `GuestMessagesService`, `EmergencyRepository`, `identity.module.ts`, `._make_store`, `RequestWithGuestSession`, `HotelUsersRepository`, `platform-billing.service.ts`, `hotel-requests.service.ts`, `i18n.service.ts`, `hotel-dashboard.service.ts`, `MarketplaceOrderService`?**
-  _High betweenness centrality (0.075) - this node is a cross-community bridge._
-- **Why does `ApiDescript()` connect `parseWithZod` to `PrismaService`, `authorizeHotelWorkstation`, `reservations.controller.ts`, `guest-os.service.ts`, `service-portal.controller.ts`, `.getDashboard`, `auth.controller.ts`, `RequestRealtimeTicketService`, `ApiDescript`, `.processWebhook`, `request-queue-client.tsx`, `GuestRequestEventPublisher`, `service-catalog-import.adapter.ts`, `change-password-dialog.tsx`, `biometric-workstations.controller.ts`, `guest-marketplace.controller.ts`, `[hotelId]/page.tsx`, `PlatformBillingController`, `HotelUsersController`, `hotel-requests.controller.ts`, `marketplace/route.ts`, `.listHotels`, `contract-schemas.ts`, `MarketplaceAdminService`, `platform-billing.controller.ts`, `FolioController`, `.resetPassword`, `use-guest-i18n.ts`, `SuccessMessage`, `HotelServicesController`, `.assignRoom`, `HotelRequestsController`, `guest-os.controller.ts`, `health.controller.ts`, `.list`, `HotelRoomsController`, `.create`?**
-  _High betweenness centrality (0.043) - this node is a cross-community bridge._
+- **Why does `GET()` connect `httpErrorResponse` to `executeHotelOpsBackendRequest`, `local-partners-contract.ts`, `CODEX-STITCH-SYNC.md`?**
+  _High betweenness centrality (0.085) - this node is a cross-community bridge._
+- **Why does `PrismaService` connect `platform-billing.service.ts` to `HotelAccessService`, `hotel-services.controller.ts`, `HttpError`, `service-portal.controller.ts`, `hotel-rooms.service.ts`, `RbacService`, `RequestRealtimeTicketService`, `.assertHotelAccess`, `GuestRequestEventPublisher`, `biometric-workstations.controller.ts`, `TenantOwnersService`, `import.types.ts`, `guest-marketplace.controller.ts`, `property.module.ts`, `route-permission-sync.service.ts`, `LocalPartnersRepository`, `MarketplaceServiceItemImportAdapter`, `marketplace-category-import.adapter.ts`, `GuestOsService`, `MarketplaceAdminService`, `GuestMessagesService`, `EmergencyRepository`, `identity.module.ts`, `HotelUsersRepository`, `VietSage Auth/HTTP Stabilization Phase Plan`, `hotel-requests.service.ts`, `hotel-dashboard.service.ts`, `MarketplaceOrderService`?**
+  _High betweenness centrality (0.059) - this node is a cross-community bridge._
+- **Why does `ApiDescript()` connect `ApiDescript` to `PrismaService`, `authorizeHotelWorkstation`, `reservations.controller.ts`, `guest-os.service.ts`, `service-portal.controller.ts`, `.getDashboard`, `auth.controller.ts`, `RequestRealtimeTicketService`, `.processWebhook`, `request-queue-client.tsx`, `GuestRequestEventPublisher`, `service-catalog-import.adapter.ts`, `change-password-dialog.tsx`, `biometric-workstations.controller.ts`, `[hotelId]/page.tsx`, `LocalPartnersRepository`, `PlatformBillingController`, `HotelUsersController`, `.listHotels`, `GuestOsService`, `contract-schemas.ts`, `MarketplaceAdminService`, `platform-billing.controller.ts`, `FolioController`, `parseWithZod`, `.resetPassword`, `use-guest-i18n.ts`, `SuccessMessage`, `HotelServicesController`, `.assignRoom`, `HotelRequestsController`, `VietSage Documentation Index`, `Phase 0 — Read-Only VPS Discovery`, `CODEX-STITCH-SYNC.md`, `health.controller.ts`, `AppLogger`, `.list`, `HotelRoomsController`, `hotel-requests.service.ts`, `.create`, `RBAC Architecture`?**
+  _High betweenness centrality (0.050) - this node is a cross-community bridge._
 - **What connects `eslintConfig`, `nextConfig`, `name` to the rest of the system?**
-  _2450 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _2488 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `executeOwnerBackendRequest` be split into smaller, more focused modules?**
-  _Cohesion score 0.05782848151062156 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.04910853925555208 - nodes in this community are weakly interconnected._
 - **Should `httpErrorResponse` be split into smaller, more focused modules?**
-  _Cohesion score 0.06323232323232324 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.06282828282828283 - nodes in this community are weakly interconnected._
 - **Should `executeHotelOpsBackendRequest` be split into smaller, more focused modules?**
-  _Cohesion score 0.07190265486725664 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.04891304347826087 - nodes in this community are weakly interconnected._

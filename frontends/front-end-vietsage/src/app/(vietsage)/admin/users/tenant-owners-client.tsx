@@ -1,5 +1,4 @@
 "use client";
-
 import { type FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SwalVietSage } from "@/libs/swal";
@@ -321,6 +320,7 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
+              aria-label="Tìm theo tên, email, tổ chức..."
               placeholder="Tìm theo tên, email, tổ chức..."
               className="w-full rounded-xl border border-[#e2d7c5] bg-[#faf6ef] pl-11 pr-4 py-3 text-sm font-semibold text-[#17201b] outline-none transition-all focus:border-[#24473d] focus:bg-white focus:ring-2 focus:ring-[#24473d]/20"
             />
