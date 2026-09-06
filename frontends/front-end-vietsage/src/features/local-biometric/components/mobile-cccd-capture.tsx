@@ -41,9 +41,15 @@ export function MobileCccdCapture({ requestId, expiresAt, send }: Props) {
   useEffect(() => {
     mounted.current = true;
     const pause = () => {
+      // Don't stop camera during "starting", because on mobile OS, the browser's permission prompt triggers visibilitychange/document.hidden!
       if (document.hidden) {
-        stopCamera();
-        setStatus((s) => (s === "scanning" || s === "starting" ? "idle" : s));
+        setStatus((s) => {
+          if (s === "scanning") {
+            stopCamera();
+            return "idle";
+          }
+          return s;
+        });
       }
     };
     document.addEventListener("visibilitychange", pause);
@@ -88,8 +94,14 @@ export function MobileCccdCapture({ requestId, expiresAt, send }: Props) {
     setStatus("starting");
     setError("");
 
+    // Allow DOM to unhide video container before starting camera/video playback
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
     const video = videoRef.current;
-    if (!video) return;
+    if (!video) {
+      setStatus("idle");
+      return;
+    }
 
     try {
       const scanner = new QrScanner(
@@ -126,10 +138,11 @@ export function MobileCccdCapture({ requestId, expiresAt, send }: Props) {
     } catch (err) {
       stopCamera();
       setStatus("idle");
+      const msg = err instanceof Error ? err.message : String(err);
       setError(
-        err instanceof Error
-          ? `Không mở được camera: ${err.message}. Kiểm tra quyền truy cập camera.`
-          : "Không mở được camera. Kiểm tra quyền camera và HTTPS."
+        msg && msg !== "Camera not found."
+          ? `Không mở được camera: ${msg}. Kiểm tra quyền truy cập camera.`
+          : "Không mở được camera. Vui lòng kiểm tra quyền camera trong cài đặt trình duyệt và thử lại."
       );
     }
   };
@@ -293,6 +306,7 @@ export function MobileCccdCapture({ requestId, expiresAt, send }: Props) {
       <div className={`relative overflow-hidden rounded-2xl bg-black shadow-inner ${status === "scanning" || status === "starting" ? "block" : "hidden"}`}>
         <video
           ref={videoRef}
+          autoPlay
           playsInline
           muted
           className="aspect-[3/4] w-full object-cover"
