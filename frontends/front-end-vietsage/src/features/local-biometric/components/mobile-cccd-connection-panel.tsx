@@ -4,7 +4,6 @@ import { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { useMobileCccdScan } from "../hooks/use-mobile-cccd-scan";
 
-const button = "min-h-11 rounded-xl border border-blue-300 bg-white px-4 py-2 text-base font-bold text-blue-800 hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-50";
 const ignoreCapture = () => {};
 
 export function MobileCccdConnectionPanel({ hotelId }: { hotelId: string }) {

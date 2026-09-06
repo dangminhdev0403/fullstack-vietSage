@@ -13,8 +13,6 @@ if (typeof window !== "undefined") {
 
 type Props = { requestId: string; expiresAt: number; send: (body: PhoneCommand) => Promise<ShiftResult> };
 
-const button = "min-h-11 w-full rounded-xl bg-blue-700 px-4 py-2 text-base font-bold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-50";
-
 export function MobileCccdCapture({ requestId, expiresAt, send }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const scannerRef = useRef<QrScanner | null>(null);

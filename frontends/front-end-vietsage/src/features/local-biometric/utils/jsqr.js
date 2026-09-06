@@ -1,3 +1,4 @@
+/* eslint-disable */
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object') {
 		var mod = factory();

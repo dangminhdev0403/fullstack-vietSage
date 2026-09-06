@@ -4,7 +4,6 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { mobileShiftResource } from "../resources/mobile-shift-resource";
 import { useMobileDesk } from "../store/mobile-desk-store";
 import { mayApplyMobile } from "../utils/mobile-scan-client";
-import { safeRandomUuid } from "../utils/safe-uuid";
 import type { DesktopCommand } from "../workstation/mobile-shift-security";
 import type { ShiftResult } from "../repositories/mobile-shift-repository";
 import type { CccdCheckInCapture } from "../components/cccd-check-in-panel";
@@ -36,14 +35,18 @@ export function useMobileCccdScan({ hotelId, targetContext, targetLabel, onCaptu
   const targetKey = useMemo(() => targetContext ? `${deskId}:${targetContext}` : "", [deskId, targetContext]);
   const view = query.data && "sessionId" in query.data ? query.data : null;
   const latest = useRef({ targetKey, onCapture, mounted: true });
-  useLayoutEffect(() => { latest.current = { targetKey, onCapture, mounted: true }; return () => { latest.current.mounted = false; }; }, [targetKey, onCapture]);
   const queue = useRef<Promise<unknown>>(Promise.resolve());
   const applied = useRef(new Set<string>());
   const pendingRead = useRef<string | null>(null);
   const mutateRef = useRef(mutation.mutateAsync);
-  mutateRef.current = mutation.mutateAsync;
   const refetchRef = useRef(query.refetch);
-  refetchRef.current = query.refetch;
+
+  useLayoutEffect(() => {
+    latest.current = { targetKey, onCapture, mounted: true };
+    mutateRef.current = mutation.mutateAsync;
+    refetchRef.current = query.refetch;
+    return () => { latest.current.mounted = false; };
+  }, [targetKey, onCapture, mutation.mutateAsync, query.refetch]);
 
   const command = useCallback((body: DesktopCommand): Promise<ShiftResult> => {
     const job = queue.current.catch(() => {}).then(() => mutateRef.current(body));
@@ -87,9 +90,12 @@ export function useMobileCccdScan({ hotelId, targetContext, targetLabel, onCaptu
   const targetedKeyRef = useRef<string | null>(null);
   const activeRequestIdRef = useRef<string | null>(null);
   const sessionIdRef = useRef<string | null>(null);
-  sessionIdRef.current = sessionId ?? null;
   const deskIdRef = useRef(deskId);
-  deskIdRef.current = deskId;
+
+  useLayoutEffect(() => {
+    sessionIdRef.current = sessionId ?? null;
+    deskIdRef.current = deskId;
+  }, [sessionId, deskId]);
 
   // Establish target when targetContext / targetKey changes (e.g. switching to Guest 2, 3, 4)
   useEffect(() => {

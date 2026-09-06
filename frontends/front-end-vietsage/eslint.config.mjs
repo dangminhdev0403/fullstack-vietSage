@@ -12,6 +12,7 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "src/features/local-biometric/utils/jsqr.js",
   ]),
   
 ]);
