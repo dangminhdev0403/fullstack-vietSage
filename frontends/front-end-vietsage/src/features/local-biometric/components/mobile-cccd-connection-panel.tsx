@@ -145,7 +145,7 @@ export function MobileCccdConnectionPanel({ hotelId }: { hotelId: string }) {
                 </p>
               </div>
               <div className="flex items-center justify-center gap-2.5 sm:gap-3.5">
-                {view.comparisonCode.split("").map((digit, i) => (
+                {(view.comparisonCode ?? "").split("").map((digit, i) => (
                   <span
                     key={i}
                     className="flex h-16 w-12 sm:h-20 sm:w-16 items-center justify-center rounded-2xl border-2 border-amber-400 bg-white font-mono text-3xl sm:text-4xl font-black text-[#000080] shadow-sm"
