@@ -88,4 +88,10 @@ export async function limitedJson(request: Request, max = 8192): Promise<unknown
     return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(merged));
   } finally { reader.releaseLock(); }
 }
-export const mobileShiftAvailable = (environment: string | undefined) => environment !== "production";
+export const mobileShiftAvailable = (environment?: string) => {
+  if (environment === "disabled") return false;
+  if (process.env.DISABLE_MOBILE_CCCD_SCAN === "true" || process.env.ENABLE_MOBILE_CCCD_SCAN === "false") {
+    return false;
+  }
+  return true;
+};
