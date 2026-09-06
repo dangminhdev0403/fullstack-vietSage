@@ -5,6 +5,7 @@ export type CccdPreviewModel = {
   fields: PreviewField[]; // only present fields, in order
   portraitDataUrl: string | null; // safe data URL from base64
   capturedAt: string | null; // formatted local datetime
+  chipVerified: boolean;
 };
 
 const formatDate = (isoString: string) => {
@@ -82,6 +83,7 @@ export function buildCccdPreviewModel(payload: IntakePayloadV2, now = new Date()
 
   return {
     fields,
+    chipVerified: payload.verification?.chipAuthenticated === true && payload.verification?.sodVerified === true,
     portraitDataUrl,
     capturedAt: payload.capturedAt ? formatCapturedAt(payload.capturedAt) : null,
   };

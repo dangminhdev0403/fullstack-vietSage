@@ -22,9 +22,8 @@ export default async function StaffHotelBiometricPage({ params }: PageProps) {
   return (
     <main className="space-y-6">
       <header>
-        <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[var(--secondary)]">BỘ PHẬN LỄ TÂN</p>
-        <h1 className="vs-display mt-2 text-4xl font-semibold text-[var(--primary)]">Máy quét CCCD</h1>
-        <p className="mt-2 max-w-3xl text-sm text-[var(--on-surface-variant)]">Quản lý kết nối thiết bị đọc chip CCCD và kiểm tra nhận diện tại quầy lễ tân.</p>
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--secondary)]">BỘ PHẬN LỄ TÂN</p>
+        <h1 className="vs-display mt-1 text-3xl font-extrabold text-[var(--primary)] sm:text-4xl">Máy quét CCCD</h1>
       </header>
       <BiometricOwnerTabs hotelId={hotelId} />
     </main>

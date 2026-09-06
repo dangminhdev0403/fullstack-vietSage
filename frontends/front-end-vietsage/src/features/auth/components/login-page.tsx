@@ -8,7 +8,6 @@ import {
   type FocusEvent,
   type FormEvent,
   useEffect,
-  useRef,
   useState,
 } from "react";
 import Swal from "sweetalert2";
@@ -73,16 +72,14 @@ function getLoginSearchParams(): URLSearchParams {
 function getInitialLoginValues(): LoginFormValues {
   const params = getLoginSearchParams();
   const email = (params.get("email") ?? "").replace(/\s+/g, "");
-  const password = params.get("password") ?? "";
 
-  if (!email && !password) {
+  if (!email) {
     return initialLoginValues;
   }
 
   return {
     ...initialLoginValues,
     email,
-    password,
   };
 }
 
@@ -190,7 +187,6 @@ export default function LoginPage() {
     useState<LoginFormValues>(getInitialLoginValues);
   const [formErrors, setFormErrors] = useState<LoginFormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const hasAutoSubmittedRef = useRef(false);
 
   useEffect(() => {
     const fullPhrase = heroTypingPhrases[heroPhraseIndex];
@@ -359,20 +355,6 @@ export default function LoginPage() {
     event.preventDefault();
     await submitLogin(formValues);
   };
-
-  useEffect(() => {
-    const params = getLoginSearchParams();
-    const email = params.get("email")?.trim() ?? "";
-    const password = params.get("password") ?? "";
-    const autoLogin = params.get("autoLogin") === "1" || params.get("autologin") === "1";
-
-    if (!autoLogin || hasAutoSubmittedRef.current || !email || !password) {
-      return;
-    }
-
-    hasAutoSubmittedRef.current = true;
-    void submitLogin({ email, password });
-  }, []);
 
   const emailInputClass = `${fieldClassName} ${
     formErrors.email

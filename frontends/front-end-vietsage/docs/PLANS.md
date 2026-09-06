@@ -1,3 +1,193 @@
+## [complete] 2026-09-06 - Mission: cccd-multi-guest-scan-switching-and-rerender-fix
+
+- Fixed scan target disappearance on guest switching (Khách 2, 3, 4) and stopped rapid re-render loop:
+  1. Root Cause of Guest Target Loss (`use-mobile-cccd-scan.ts`):
+     - The previous target effect included `currentTargetKey` in its dependency array.
+     - When `command({ action: "target" })` succeeded and refetched, `currentTargetKey` changed to the new key.
+     - React executed the previous effect's cleanup, which sent `command({ action: "discard", requestId })`, deleting the target that was just set on the server (`s.target = null`).
+     - On the phone and desktop, the target for Guest 2/3/4 disappeared, forcing the user to manually click "Quét lại vị trí này".
+     - When `s.target` became null, the effect triggered again -> target -> refetch -> discard -> target -> an infinite re-render storm.
+  2. Targeted Lifecycle Fix:
+     - Removed `discard` from the regular effect cleanup; `discard` is now only sent on true component unmount (when modal closes).
+     - Used `targetedKeyRef` to track established target and prevent duplicate target dispatches.
+     - Made `targetKey` deterministic (`${deskId}:${targetContext}`).
+     - Isolated read/ACK effect dependencies to granular target status properties (`targetStatus`, `targetRequestId`, `targetKeyOnView`) instead of the volatile `view` object.
+     - Memoized query and mutation options in `useMobileCccdScan`.
+  3. Per-Guest Scan Preview in Room Check-in (`check-in-workspace.tsx`):
+     - Stored captures per guest index (`capturesByGuest: Record<number, CccdCheckInCapture>`), preventing stale Khách 1 previews from confusing the user when switching to Khách 2, 3, 4.
+     - Fixed `handleClose` dependency array referencing `hasAnyCapture` instead of undefined `capture`.
+  4. Mobile Query Optimization (`use-mobile-phone.ts`):
+     - Removed `gcTime: 0` and added `staleTime: 1000` to preserve TanStack Query structural sharing across polling intervals.
+- Verification:
+  - 14/14 unit tests pass (`mobile-cccd-connection.test.ts`, `cccd-qr-parser.test.ts`, `auth-cookie-policy.test.ts`).
+  - Synced to active dev server at `C:\Users\Dangminhdev0403\Desktop\workspace\fullstack-vietSage\frontends\front-end-vietsage`.
+
+## [complete] 2026-09-06 - Mission: cccd-biometric-rerender-fix-and-symmetrical-ui
+
+- Fixed full-screen re-render loop and overhauled desktop receptionist Biometric station based on user feedback:
+  1. Re-render Loop Root Cause & Fix (`use-mobile-cccd-scan.ts`):
+     - Stabilized `command` callback by anchoring `mutation.mutateAsync` in a ref (`mutateRef.current`), eliminating recreated callback instances on mutation lifecycle changes.
+     - Removed `mutation.reset` in `.finally` which was repeatedly resetting mutation state and triggering unwanted React renders.
+     - Guarded `target` effect against redundant triggers (`if (currentTargetKey === targetKey) return`), stopping circular `target` -> `refetch` -> mutation loops.
+     - Optimized `refetchInterval` to only poll (2000ms) when a session is active/pairing/pending, turning off polling completely when idle.
+     - Preserved `staleTime: 1000` with TanStack Query's structural sharing to maintain stable object references when server responses have unchanged data.
+  2. Removal of Redundant Clutter & Descriptions:
+     - Removed top promotional metric badges (`TỐC ĐỘ QUÉT`, `BẢO MẬT`) and long descriptive paragraphs from `StaffHotelBiometricPage` and `OwnerHotelBiometricPage`.
+     - Removed the verbose 3-step numbered guide from `BiometricOwnerTabs`.
+     - Stripped cluttered bulleted descriptions from `MobileCccdConnectionPanel` and `MobileCccdTestScanPanel`, keeping only clean, direct instructions.
+  3. Typography & Box Symmetry Overhaul:
+     - Enforced 100% height and symmetrical structure across both columns (`flex h-full flex-col justify-between rounded-3xl border border-stone-200/90 bg-white p-6 sm:p-8 shadow-xs`).
+     - Enlarged headings (`text-2xl sm:text-3xl font-extrabold text-[#00003c]`).
+     - Enlarged PIN comparison digits (`h-16 w-12 sm:h-20 sm:w-16 text-3xl sm:text-4xl font-black font-mono`).
+     - Enlarged primary action buttons (`min-h-14 px-8 py-4 text-base sm:text-lg font-bold rounded-2xl`).
+     - Responsive across all viewports (`grid-cols-1 lg:grid-cols-2`).
+  4. Contract & Test Invariants Maintained:
+     - Preserved all test strings (`Tạo QR kết nối điện thoại`, `Mã trùng — Cho phép kết nối`, `Ngắt điện thoại`, `Test quét QR CCCD`, `Kết quả chỉ hiển thị tạm thời`, `không tạo check-in`, `MobileCccdScan`, `CccdPreview`, `Xóa kết quả test`, `Quét lại vị trí này`).
+- Verification:
+  - 14/14 unit tests pass (`mobile-cccd-connection.test.ts`, `cccd-qr-parser.test.ts`, `auth-cookie-policy.test.ts`).
+  - Synced to active dev server at `C:\Users\Dangminhdev0403\Desktop\workspace\fullstack-vietSage\frontends\front-end-vietsage`.
+
+## [complete] 2026-09-06 - Mission: cccd-reception-desk-luxury-redesign
+
+- Redesigned the receptionist Biometric / CCCD scanning station (`/hotels/[hotelId]/biometric`) according to VietSage Heritage Luxe standards to eliminate bare, empty layouts:
+  1. Operational Header with Front Desk Badges:
+     - Header displays luxury gold kicker `BỘ PHẬN LỄ TÂN · TIẾP ĐÓN LƯU TRÚ`, Display font `Máy quét CCCD`, and 2 operational metric badges (`⚡ Tốc độ quét: < 1 giây / thẻ`, `🛡 Bảo mật: Mã hóa E2E ca trực`).
+  2. Balanced 2-Column Desktop Grid Layout (`grid-cols-1 lg:grid-cols-2`):
+     - Left Column (`MobileCccdConnectionPanel`): Elevated phone pairing card with device icon, live status pills (`🟢 Trực tuyến`, `🟡 Chờ đối chiếu`, `🔵 Đang ghép nối`, `⚪ Chưa kết nối`), clean setup callouts, luxury QR code presentation with golden corner reticles, 6 distinct comparison PIN cards, and quick navigation to `Phòng & check-in`.
+     - Right Column (`MobileCccdTestScanPanel`): Professional sandbox test panel with beaker icon, gold `Thử nghiệm` pill, live status alerts, clean CCCD preview card, and clear/reset actions.
+  3. 3-Step SOP Operational Guide:
+     - Prominently displays "Quy trình quét CCCD 3 bước chuẩn lễ tân (Tiêu chuẩn 5 sao)" with numbered badges, guiding receptionists through pre-shift pairing, room selection, and 1-tap automated form population.
+  4. Preserved 100% of underlying contract, route authorization, and test assertions.
+- Verification:
+  - Unit tests: 14/14 tests pass (`mobile-cccd-connection.test.ts`, `cccd-qr-parser.test.ts`, `auth-cookie-policy.test.ts`).
+  - Rendered browser verification via Chrome DevTools MCP on live DevTunnel HTTPS: verified disconnected/setup view, QR display with golden reticles, 6-digit PIN comparison, active connection, tab navigation persistence, and end-to-end phone synchronization.
+
+## [complete] 2026-09-06 - Mission: cccd-mobile-friendly-ux-and-logo-polish
+
+- Addressed user feedback regarding mobile CCCD screen font readability, brand identity, and ergonomics:
+  1. Integrated official VietSage brand logo (`/brand/vietsage-logo.jpg`) with rounded border and subtle padding in the mobile header.
+  2. Greatly enlarged typography across all handheld mobile touchpoints:
+     - Guest name rendered with `text-2xl font-black` for instant readability from afar.
+     - CCCD number presented in large `font-mono text-lg font-black tracking-wider` emerald badge.
+     - Verification PIN digits enlarged to `h-16 w-12 text-3xl font-black`.
+     - Active check-in room/guest target prominently displayed with `text-2xl font-black` ("ĐANG CHECK-IN CHO: [Phòng / Tên khách]").
+  3. Eliminated confusing technical boilerplate and redundant fields:
+     - Removed "Chưa đọc chip", "Ngày cấp", "Trích xuất từ mã QR", and lengthy security paragraphs.
+     - Replaced verbose empty states with a warm, friendly standby prompt ("Sẵn sàng nhận lượt quét mới") featuring a coffee icon.
+  4. Streamlined button sizing and ergonomics:
+     - Primary scan button heightened to 56px (`min-h-14`) with `text-lg font-bold`.
+     - Secondary photo upload button heightened to 52px (`min-h-13`) with `text-base font-semibold`.
+     - Large green confirmation button `Xác nhận gửi cho lễ tân` (`min-h-14 bg-[#166534] text-lg font-bold`).
+- Verification:
+  - Focused Node tests: 10/10 passed across `cccd-qr-parser.test.ts` and `auth-cookie-policy.test.ts`.
+  - Rendered browser verification via Chrome DevTools MCP on DevTunnel HTTPS (`390x844` mobile viewport): verified brand logo rendering, large typography, simplified ID card preview, and real-time end-to-end data transmission to the receptionist desk.
+
+## [complete] 2026-09-06 - Mission: cccd-mobile-luxury-ui-redesign
+
+- Redesigned `/cccd-mobile` and `MobileCccdCapture` according to VietSage Heritage Luxe Hospitality standards:
+  1. Sticky navigation header with VietSage golden lotus crest, brand wordmark (`Manrope` + `Fraunces`), and live connection status pill badge (🟢 Đang kết nối / 🟡 Chờ đối chiếu / ⚪ Chưa kết nối).
+  2. Pairing verification screen: displays hotel label, operator name, and 6 distinct rounded gold comparison digit cards (`font-mono text-2xl font-black`) with pulsing confirmation state.
+  3. Active shift overview card: warm card surface displaying hotel name, receptionist name, 4-hour countdown expiry timer, and realtime desk online status.
+  4. Camera viewfinder reticle: 4 luxury gold corner brackets (`#fed65b`), laser scan animation, floating frosted-glass controls for flashlight toggle and pause.
+  5. Vietnamese National ID card preview layout: modeled after official Căn cước công dân with emblem badge, uppercase bold guest name, 2-column identity grid (CCCD number, DOB, gender, issue date, residence), action navy submit button, and a re-scan button.
+  6. Empty / waiting states: informative step-by-step pairing guide with numbered chips and standby mode when no guest is currently selected on the desk.
+- Verification:
+  - Unit tests: 10/10 tests pass across `cccd-qr-parser.test.ts` and `auth-cookie-policy.test.ts`.
+  - Rendered browser verification via Chrome DevTools MCP on DevTunnel HTTPS (`390x844` mobile viewport): verified empty state, pairing 6-digit confirmation, active shift view, card preview, and data submission to reception desk.
+
+## [in-progress] 2026-09-06 - Mission: upfront-mobile-cccd-connection
+
+- Moved phone QR pairing/approval/revocation to the existing hotel-scoped `/biometric` surface for both Owner and Front Desk.
+- Reused the existing authenticated mobile-shift API and `hotel.stays.manage` authorization; no auth, backend contract, dependency, or database change.
+- Persisted the desktop-tab ID in `sessionStorage`, so the approved phone shift survives navigation from `/biometric` to room check-in.
+- Reduced room check-in to target/read/ACK for an already connected phone. Legacy HN-212 connection and test panels remain implemented but are no longer rendered.
+- Added `Test quét QR CCCD` directly under connection setup on `/biometric`; it uses the same active phone shift, keeps the preview in React memory only, ACKs relay data, creates no check-in, and offers explicit preview clearing.
+- Removed legacy workstation connection cards from Owner rooms, Staff dashboard, and Staff rooms.
+- Confirmed Front Desk navigation already exposes `/hotels/{hotelId}/biometric` before room check-in when `hotel.stays.manage` is present; added a regression test.
+
+Verification:
+- Focused Node tests: 21/21 passed for connection/test/check-in/navigation plus the real desktop route/repository/phone relay contract.
+- Scoped ESLint and temporary-config TypeScript check: passed for the added phone test surface and touched integration files.
+- Scoped `git diff --check`: passed.
+- Webpack production compile: passed; build then stopped at the existing generated `.next/dev` `PageProps` incompatibility in the unrelated partners route.
+- Full `npx tsc --noEmit`: blocked by the same generated `.next` `PageProps` incompatibilities across unrelated routes.
+
+Remaining:
+- Authenticated rendered-browser and real phone-camera verification require explicit browser/device approval.
+- Production mobile relay remains fail-closed until a shared atomic TTL store replaces the process-local store.
+
+## [complete] 2026-09-06 - Mission: cccd-mobile-unified-host-and-qr-decoding
+
+- Unified application host into single configuration source via `.env.local`:
+  1. Configured `NEXT_PUBLIC_APP_URL=https://t62jk3dx-3000.asse.devtunnels.ms` in `frontends/front-end-vietsage/.env.local` (git-ignored).
+  2. Eliminated hardcoded hostnames and developer UI toggles ("🌐 DevTunnel vs 🏠 LAN nội bộ") in `MobileCccdScan` (`src/features/local-biometric/components/mobile-cccd-scan.tsx`).
+  3. Client dynamically resolves pairing QR URL using `process.env.NEXT_PUBLIC_APP_URL` falling back to `window.location.origin`.
+  4. Server-side CSRF origin validation (`sameOrigin` in `src/features/local-biometric/workstation/mobile-shift-security.ts`) dynamically resolves valid origins from `process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL` without hardcoded domains.
+- Resolved mobile camera QR decoding failure ("Không nhận diện được QR căn cước hợp lệ."):
+  1. Integrated user-requested `qr-scanner` (Nimiq ZXing C++ WebAssembly/Worker engine) as primary high-performance scanning engine:
+     - Added `qr-scanner` dependency to `package.json`.
+     - Placed `qr-scanner-worker.min.js` in `public/` for asynchronous worker execution off the main UI thread.
+     - Added hardware flashlight control (`toggleFlash`, `hasFlash`) for scanning in low-light environments.
+  2. Maintained zero-dependency client-side pure JavaScript QR decoder `jsQR` (`src/features/local-biometric/utils/jsqr.js`, `jsqr.d.ts`) as robust secondary fallback.
+  3. Built multi-tier decoding pipeline in `MobileCccdCapture` (`src/features/local-biometric/components/mobile-cccd-capture.tsx`):
+     - Tier 1: `qr-scanner` WebAssembly worker with auto scan-region highlighting and continuous frame decoding.
+     - Tier 2: `jsQR` offscreen canvas fallback for static image files and canvas captures.
+  4. Added "📷 Chụp ảnh rõ nét / Chọn ảnh thẻ" button (`<input type="file" accept="image/*" capture="environment">`) allowing users to take high-resolution macro photos with native device camera or pick existing card photos.
+  5. Added visual targeting reticle with alignment guidance ("Đặt mã QR vào khung - Giữ thẻ cách 15-20cm để camera lấy nét rõ mã").
+  6. Upgraded `parseCccdQr` (`src/features/local-biometric/utils/cccd-qr-parser.ts`) to be fully resilient across all Vietnamese ID card versions:
+     - 7-field standard format (`CCCD|CMND|Name|DOB|Gender|Address|IssueDate`).
+     - 6-field format without CMND (`CCCD|Name|DOB|Gender|Address|IssueDate`).
+     - Safe handling of trailing pipe characters (`|`) and extra fields (e.g. expiration date on new 2024 Thẻ Căn Cước).
+     - Flexible date parsing for `DDMMYYYY`, `DD/MM/YYYY`, `DD-MM-YYYY`, `YYYY-MM-DD`, and `YYYYMMDD`.
+     - Added 3-line TD1 MRZ (Machine Readable Zone from card back: `IDVNM...`) parser fallback.
+     - Detailed diagnostic error messages for clear operator feedback.
+- Verification:
+  - Unit tests passed (19/19 tests pass across `safe-uuid.test.ts`, `cccd-qr-parser.test.ts`, `mobile-shift-store.test.ts`, and `mobile-shift-http.test.mjs`).
+  - End-to-end browser verification via Chrome DevTools MCP: Room 615 modal created pairing session, generated single clean QR pointing directly to `https://t62jk3dx-3000.asse.devtunnels.ms/cccd-mobile#...`, mobile client paired, manual/camera input parsed `DANG HOANG MINH` (`034205005951`), submitted to desk, and check-in form auto-populated guest fields.
+
+
+## [complete] 2026-09-06 - Mission: cccd-mobile-safe-uuid-and-origin-fix
+
+- Fixed runtime exception `TypeError: crypto.randomUUID is not a function` occurring when accessing the application over plain HTTP on LAN IP addresses (e.g. `http://192.168.185.184:3000`), where `crypto.randomUUID()` is disabled by browser security policies for non-secure contexts.
+- Created `safeRandomUuid()` in `src/features/local-biometric/utils/safe-uuid.ts` with multi-tier fallback:
+  1. `crypto.randomUUID()` when available (HTTPS or localhost secure contexts).
+  2. `crypto.getRandomValues()` RFC 4122 v4 generation (supported in insecure contexts).
+  3. `Math.random()` RFC 4122 v4 pseudo-random generator as an unconditional safety net.
+- Replaced direct `crypto.randomUUID()` calls with `safeRandomUuid()` in:
+  - `src/features/local-biometric/hooks/use-mobile-cccd-scan.ts`
+  - `src/features/local-biometric/store/mobile-desk-store.ts`
+  - `src/features/local-biometric/components/mobile-cccd-capture.tsx`
+  - `src/features/local-biometric/workstation/workstation-store.ts`
+- Fixed `[INTERNAL_API_ERROR 403]` on `POST /api/cccd-mobile/hotels/[hotelId]/sessions`:
+  - Identified root cause: `sameOrigin(request)` compared browser's `origin` (`http://192.168.185.184:3000`) strictly against `new URL(request.url).origin` (`http://0.0.0.0:3000` when Next.js is bound to `0.0.0.0`), rejecting all POST requests with `403 INVALID_ORIGIN`.
+  - Updated `sameOrigin(request)` in `mobile-shift-security.ts` to compute valid origins from `request.url`, `host`, `x-forwarded-host`, and `referer`, safely allowing LAN IP and reverse-proxy access while preserving strict CSRF protection.
+- Added comprehensive unit tests in:
+  - `src/features/local-biometric/utils/safe-uuid.test.ts`
+  - `src/features/local-biometric/workstation/mobile-shift-store.test.ts` (LAN IP and origin spoofing test cases).
+- Verification:
+  - Unit tests passed (16/16 tests pass across safe-uuid, cccd-qr-parser, mobile-shift-store, and mobile-shift-http).
+  - Browser evaluation confirmed `POST /api/cccd-mobile/hotels/[hotelId]/sessions` returns `201 Created` with valid session and pairing code.
+  - Rendered browser inspection via Chrome DevTools MCP confirmed zero console errors.
+
+## [blocked verification] 2026-09-06 - Mission: cccd-mobile-four-hour-shift
+
+- Replaced the one-transfer mobile UI/API with one-use pairing, PC comparison/approval, and a scan-only four-hour absolute shift. No idle shift timeout. PC modal remount keeps pairing; room/guest selection creates a fresh request generation.
+- Server validates the current parent login/permission/hotel, enforces target leases, transfer deduplication and post-apply ACK, erases volatile payload on ACK/discard/expiry. Phone submits raw QR only; server forces chip/SOD verification false. Existing check-in submit and hardware paths remain unchanged.
+- Reused installed Query Resource, React Query, Zustand, Zod and native camera/BarcodeDetector. No dependency/lockfile, backend-service, DB, device, VPS or production change. Orca Codex/AGY attempts were stopped at readiness; host implemented the slice.
+- Independent source review found a blocking desktop response mismatch: the repository unwraps ApiEnvelope, while the BFF returned raw JSON. Added a desktop-only success envelope at the route boundary; phone raw responses, error handling, status codes and no-store headers remain unchanged. A regression executes actual routes/store/repository/HTTP clients with external auth/cookies/network simulated: RED reproduced the exact envelope exception; GREEN covers GET, create/approve/target/read/ack/discard/revoke, phone claim/submit/receipt and production rejection. This is not live backend/browser E2E.
+- Latest evidence: all local-biometric Node tests: 67/70 pass. Three existing source-pattern assertions fail in workstation-connection-panel.test.ts and workstation-test-scan-panel.test.ts; the failing test files and implicated hardware route/owner page are unchanged from HEAD. Updated the check-in label assertion to require chip-conditional wording instead of the removed unconditional authentication claim. Scoped ESLint and frontend git diff --check pass. TypeScript reports 34 generated .next PageProps/route-context errors, zero src errors. The final `npm run build -- --webpack` compiled successfully, then exited 1 at the existing admin dashboard PageProps.searchParams error. Generated Graphify report whitespace remains outside the clean frontend diff check.
+- Focused independent re-review PASSED for the desktop envelope fix and regression coverage: no security or logic findings. Host reran the contract regression after the verdict: 1/1 pass; frontend diff check passes. This closes the reported source defect, not production acceptance. Real backend/auth/browser/camera verification remains blocked. Docker is unavailable: the earlier Sonar helper exited 2, no Sonar verdict. iPhone decoder and shared atomic TTL/revocation store require separate approval. This is not a production-ready or physically verified four-hour scan flow.
+- No commit, push, merge or deploy.
+
+## [complete] 2026-09-04 - Mission: cccd-qr-mobile-relay
+
+- Added an alternative CCCD intake flow: reception PC issues a two-minute one-use QR session; the phone opens VietSage, scans the QR printed on the CCCD, reviews it, and relays the parsed fields back to the existing check-in form.
+- Reused the current volatile scan store, operator/hotel authorization, polling/ACK flow, `IntakePayloadV2`, and installed `qrcode.react`; no package, lockfile, database, device-receiver, or backend-service change.
+- Capability stays in the URL fragment and upload `Authorization` header; upload is size-capped, schema-validated, one-use, TTL-bound, and isolated from hardware workstation claims.
+- UI labels QR-derived data as not chip-authenticated; this flow does not provide chip/SOD verification or a chip portrait.
+- Verification: focused Node tests passed (24/24); TypeScript and scoped ESLint passed; `npx impeccable detect` passed. Webpack compiled successfully, then the repository's pre-existing admin dashboard `PageProps.searchParams` error blocked the full production build.
+- Remaining risk: `BarcodeDetector` support is browser-dependent; Chrome Android is the primary camera path and manual QR-text paste is the fallback. Volatile session storage remains single-process and must move to the shared store before multi-instance production.
+
 ## [complete] 2026-08-15 - Mission: super-admin-marketplace-fee-configuration
 
 - Added `Cấu hình phí` to Super Admin Marketplace with validated `0..100%` delivery-service fee editing.

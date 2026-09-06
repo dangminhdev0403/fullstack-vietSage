@@ -24,8 +24,13 @@ export function resolveSessionCookiePolicy(requestHeaders: Headers): SessionCook
     ?.split(",", 1)[0]
     ?.trim()
     .toLowerCase();
-  const secureCookie =
-    hasCookie(cookieHeader, SECURE_AUTHJS_SESSION_COOKIE) || forwardedProtocol === "https";
+  const hasSecureCookie = hasCookie(cookieHeader, SECURE_AUTHJS_SESSION_COOKIE);
+  const hasNonSecureCookie = hasCookie(cookieHeader, AUTHJS_SESSION_COOKIE);
+
+  // Prefer the cookie that actually exists in the request.
+  // Handles DevTunnel / reverse-proxy: AUTH_URL is HTTP (Auth.js sets non-secure
+  // cookie name) but x-forwarded-proto is HTTPS (would expect __Secure- prefix).
+  const secureCookie = hasSecureCookie || (forwardedProtocol === "https" && !hasNonSecureCookie);
 
   return {
     secureCookie,

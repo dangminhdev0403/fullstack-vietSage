@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
-import type { Hotel } from "@/features/admin/types/admin-contract";
+import type { Hotel, HotelsPage } from "@/features/admin/types/admin-contract";
 import { useOwnerHotelsQuery } from "@/features/owner/queries/use-owner-hotels-query";
 
 import { VsIcon } from "../../../_components/vs-icon";
@@ -34,10 +34,10 @@ function getErrorMessage(error: unknown): string {
   return "Không thể tải danh sách khách sạn.";
 }
 
-export function OwnerHotelsClient() {
+export function OwnerHotelsClient({ initialHotels }: { initialHotels?: HotelsPage } = {}) {
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const hotelsQuery = useOwnerHotelsQuery();
+  const hotelsQuery = useOwnerHotelsQuery({ initialData: initialHotels });
 
   const hotels = useMemo(() => hotelsQuery.data?.items ?? [], [hotelsQuery.data?.items]);
   const total = hotelsQuery.data?.total ?? hotels.length;
@@ -158,7 +158,7 @@ export function OwnerHotelsClient() {
                       <td className="px-5 py-4">
                         <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusTone(hotel.status)}`}>{statusLabel(hotel.status)}</span>
                       </td>
-                      <td className="px-5 py-4 text-[var(--on-surface-variant)]">{hotel.timezone ?? "Asia/Saigon"}</td>
+                      <td className="px-5 py-4 text-[var(--on-surface-variant)]">{hotel.timezone ?? "Asia/Ho_Chi_Minh"}</td>
                       <td className="px-5 py-4 text-[var(--on-surface-variant)]">{formatDate(hotel.updatedAt ?? hotel.createdAt)}</td>
                       <td className="px-5 py-4 text-right">
                         <Link

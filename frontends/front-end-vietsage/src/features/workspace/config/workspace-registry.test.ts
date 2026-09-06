@@ -65,6 +65,23 @@ test("gives owners a separate biometric workstation connection tab", () => {
   );
 });
 
+test("gives receptionists biometric setup before room check-in", () => {
+  const navigation = buildWorkspaceNavigation({
+    persona: "front_desk",
+    permissions: ["hotel.stays.manage", "hotel.rooms.view"],
+    hotelId: "hotel-1",
+  });
+
+  assert.ok(
+    navigation.findIndex((item) => item.key === "staff.biometric")
+      < navigation.findIndex((item) => item.key === "staff.rooms"),
+  );
+  assert.equal(
+    navigation.some((item) => item.key === "staff.biometric" && item.href === "/hotels/hotel-1/biometric"),
+    true,
+  );
+});
+
 test("filters dashboard widgets by persona, capability, and explicit hotel scope", () => {
   const withoutHotel = getWorkspaceDashboardWidgets({
     persona: "manager",

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useWorkstationScan } from "../hooks/use-workstation-scan";
+import { MobileCccdScan } from "./mobile-cccd-scan";
 
 export type CccdCheckInCapture = {
   guestDisplayName: string;
@@ -18,9 +19,11 @@ type Props = {
   onCapture: (capture: CccdCheckInCapture | null) => void;
   activeGuestLabel?: string;
   autoRequestScanKey?: string | number;
+  mobileTargetContext?: string;
+  mobileTargetLabel?: string;
 };
 
-export function CccdCheckInPanel({ hotelId, onCapture, activeGuestLabel, autoRequestScanKey }: Props) {
+export function CccdCheckInPanel({ hotelId, onCapture, activeGuestLabel, autoRequestScanKey, mobileTargetContext, mobileTargetLabel }: Props) {
   const { state, requestScan } = useWorkstationScan(hotelId);
   const [now, setNow] = useState(() => Date.now());
   const emittedTransferId = useRef<string | null>(null);
@@ -105,6 +108,7 @@ export function CccdCheckInPanel({ hotelId, onCapture, activeGuestLabel, autoReq
       {busy ? <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-blue-100"><div className="h-full w-2/3 animate-pulse rounded-full bg-blue-600" /></div> : null}
       {error ? <p role="alert" className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-800">{error}</p> : null}
       {state.phase === "expired" ? <p role="alert" className="mt-3 text-sm font-semibold text-amber-800">Lượt quét đã hết hạn. Hãy quét lại.</p> : null}
+      {mobileTargetContext ? <MobileCccdScan hotelId={hotelId} onCapture={onCapture} targetContext={mobileTargetContext} targetLabel={mobileTargetLabel ?? activeGuestLabel ?? "Khách đang chọn"} /> : null}
     </section>
   );
 }

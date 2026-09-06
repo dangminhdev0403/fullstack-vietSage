@@ -1,4 +1,5 @@
 import type { IntakePayload, IntakePayloadV2 } from "../intake/intake-contract";
+import { safeRandomUuid } from "../utils/safe-uuid";
 
 type Pairing = { code: string; hotelId: string; operatorId: string; expiresAt: number };
 type Workstation = { token: string; hotelId: string; pairedAt: number; lastSeenAt: number; expiresAt: number };
@@ -9,8 +10,10 @@ type Scan = {
   expiresAt: number;
   payload: IntakePayload | IntakePayloadV2 | null;
   claimedBy: string | null;
+  source: "workstation" | "mobile";
   status: "waiting" | "claimed" | "received" | "acknowledged" | "discarded";
 };
+type MobileCapability = { scanRequestId: string; expiresAt: number };
 export type RecognitionInput = {
   providerEventId: string; deviceId: string; deviceUserId: string; occurredAt: string;
   sourceTable: string; verifyType: string; eventCode: string;
@@ -27,12 +30,13 @@ export class WorkstationStore {
   private readonly workstations = new Map<string, Workstation>();
   private readonly scans = new Map<string, Scan>();
   private readonly recognitions = new Map<string, Recognition>();
+  private mobileCapabilities?: Map<string, MobileCapability> = new Map();
   private readonly now: () => number;
   private readonly createSecret: () => string;
 
   constructor(
     now: () => number = Date.now,
-    createSecret: () => string = () => crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, ""),
+    createSecret: () => string = () => safeRandomUuid().replace(/-/g, "") + safeRandomUuid().replace(/-/g, ""),
   ) {
     this.now = now;
     this.createSecret = createSecret;
@@ -61,8 +65,8 @@ export class WorkstationStore {
     return { token, hotelId: workstation.hotelId };
   }
 
-  requestScan(hotelId: string, operatorId: string, ttlSeconds = 60) {
-    const scanRequestId = crypto.randomUUID();
+  private createScan(hotelId: string, operatorId: string, ttlSeconds: number, source: Scan["source"]) {
+    const scanRequestId = safeRandomUuid();
     const scan: Scan = {
       scanRequestId,
       hotelId,
@@ -70,10 +74,37 @@ export class WorkstationStore {
       expiresAt: this.now() + ttlSeconds * 1_000,
       payload: null,
       claimedBy: null,
+      source,
       status: "waiting",
     };
     this.scans.set(scanRequestId, scan);
     return { scanRequestId, expiresAt: scan.expiresAt };
+  }
+
+  requestScan(hotelId: string, operatorId: string, ttlSeconds = 60) {
+    return this.createScan(hotelId, operatorId, ttlSeconds, "workstation");
+  }
+
+  requestMobileScan(hotelId: string, operatorId: string, ttlSeconds = 120) {
+    const scan = this.createScan(hotelId, operatorId, ttlSeconds, "mobile");
+    const capability = this.createSecret();
+    (this.mobileCapabilities ??= new Map()).set(capability, scan);
+    return { ...scan, capability };
+  }
+
+  completeMobile(capability: string, payload: IntakePayload | IntakePayloadV2) {
+    const capabilities = this.mobileCapabilities ??= new Map();
+    const issued = capabilities.get(capability);
+    if (!issued || this.now() >= issued.expiresAt) {
+      capabilities.delete(capability);
+      return false;
+    }
+    const scan = this.scans.get(issued.scanRequestId);
+    if (!scan || scan.status !== "waiting" || this.now() >= scan.expiresAt) return false;
+    capabilities.delete(capability);
+    scan.payload = payload;
+    scan.status = "received";
+    return true;
   }
 
   poll(token: string) {
@@ -85,6 +116,7 @@ export class WorkstationStore {
     workstation.lastSeenAt = this.now();
     const scan = [...this.scans.values()].find((item) =>
       item.hotelId === workstation.hotelId
+      && item.source === "workstation"
       && (item.status === "waiting" || (item.status === "claimed" && item.claimedBy === token))
       && this.now() < item.expiresAt,
     );
@@ -97,6 +129,7 @@ export class WorkstationStore {
   pollWorkstation(hotelId: string, workstationId: string) {
     const scan = [...this.scans.values()].find((item) =>
       item.hotelId === hotelId
+      && item.source === "workstation"
       && (item.status === "waiting" || (item.status === "claimed" && item.claimedBy === workstationId))
       && this.now() < item.expiresAt,
     );
@@ -168,6 +201,12 @@ export class WorkstationStore {
     for (const [key, value] of this.workstations.entries()) {
       if (nowTime >= value.expiresAt) {
         this.workstations.delete(key);
+        count++;
+      }
+    }
+    for (const [key, value] of (this.mobileCapabilities ??= new Map()).entries()) {
+      if (nowTime >= value.expiresAt) {
+        this.mobileCapabilities.delete(key);
         count++;
       }
     }

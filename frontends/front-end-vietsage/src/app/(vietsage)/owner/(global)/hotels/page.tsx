@@ -1,16 +1,36 @@
+import { auth } from "@/auth";
 import { notFound } from "next/navigation";
+import { adminService } from "@/features/admin/service/admin-service-instance";
+import type { HotelsPage } from "@/features/admin/types/admin-contract";
 import { resolveWorkspacePersona } from "@/features/workspace/config/workspace-registry";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
+import { readServerSessionTokens } from "@/libs/server-session-tokens";
 
 import { OwnerHotelsClient } from "./owner-hotels-client";
 
 export const dynamic = "force-dynamic";
 
 export default async function OwnerHotelsPage() {
+  const session = await auth();
+  const tokens = await readServerSessionTokens();
   const callbackUrl = "/owner/hotels" as const;
-  const workspaceContext = await loadServerWorkspaceContext(callbackUrl);
+  const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
+  const workspaceContext = await loadServerWorkspaceContext(
+    callbackUrl,
+    tokens.accessToken,
+  );
   const persona = resolveWorkspacePersona(workspaceContext.activeRole.code);
   if (persona !== "owner") notFound();
+
+  let initialHotels: HotelsPage | undefined;
+  try {
+    initialHotels = await authorizedApi("list owner hotels", (accessToken) =>
+      adminService.listHotels({ query: { page: 1, limit: 100 }, accessToken }),
+    );
+  } catch (error) {
+    console.error("[OWNER_HOTELS_PAGE_ERROR]", error);
+  }
 
   return (
     <>
@@ -22,7 +42,7 @@ export default async function OwnerHotelsPage() {
         </p>
       </header>
 
-      <OwnerHotelsClient />
+      <OwnerHotelsClient initialHotels={initialHotels} />
     </>
   );
 }

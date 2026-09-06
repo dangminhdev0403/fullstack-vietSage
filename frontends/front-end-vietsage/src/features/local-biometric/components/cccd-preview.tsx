@@ -19,9 +19,9 @@ export function CccdPreview({ model }: Props) {
       </div>
 
       <div className="flex min-w-0 flex-col">
-        <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-3">
-          <p className="text-sm font-bold text-emerald-900">Xác thực thành công</p>
-          <p className="mt-1 text-xs leading-5 text-emerald-800">Chip hợp lệ, dữ liệu toàn vẹn, CCCD còn hiệu lực.</p>
+        <div className={`mb-4 rounded-xl border px-3.5 py-3 ${model.chipVerified ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
+          <p className="text-sm font-bold">{model.chipVerified ? "Chip và SOD đã được xác thực" : "Dữ liệu chưa xác thực chip"}</p>
+          <p className="mt-1 text-sm leading-5">{model.chipVerified ? "Kiểm tra thông tin và thời hạn căn cước trước khi check-in." : "QR chỉ cung cấp thông tin. Đối chiếu căn cước gốc trước khi check-in."}</p>
         </div>
 
         <dl className="mb-4 grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">

@@ -19,6 +19,7 @@
     "next": "16.2.11",
     "next-auth": "5.0.0-beta.32",
     "qrcode.react": "^4.2.0",
+    "qr-scanner": "^1.4.2",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "socket.io-client": "^4.8.3",

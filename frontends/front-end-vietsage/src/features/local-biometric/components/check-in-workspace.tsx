@@ -5,8 +5,9 @@ import Swal from "sweetalert2";
 import { filterExtraOccupants } from "@/features/hotel-ops/utils/hotel-ops-display";
 import type { CheckInWorkspaceProps, CheckInStayFields } from "../types/check-in-workspace";
 import { buildCccdPreviewModel } from "../utils/cccd-preview";
-import { CccdCheckInPanel, type CccdCheckInCapture } from "./cccd-check-in-panel";
+import type { CccdCheckInCapture } from "./cccd-check-in-panel";
 import { CccdPreview } from "./cccd-preview";
+import { MobileCccdScan } from "./mobile-cccd-scan";
 
 const inputClass = "min-h-[48px] w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-[15px] text-slate-950 shadow-sm outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100";
 
@@ -18,7 +19,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
     plannedCheckOutAt: initialStayFields?.plannedCheckOutAt || "",
     guestIdentityNumber: initialStayFields?.guestIdentityNumber || "",
   });
-  const [capture, setCapture] = useState<CccdCheckInCapture | null>(null);
+  const [capturesByGuest, setCapturesByGuest] = useState<Record<number, CccdCheckInCapture>>({});
   const [occupants, setOccupants] = useState<Array<{ fullName: string; phone?: string; identityNumber?: string; dateOfBirth?: string; gender?: string; nationality?: string; residencePlace?: string }>>([]);
   const [activeGuestIndex, setActiveGuestIndex] = useState<number>(0);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -41,9 +42,11 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
     });
   }, []);
 
+  const hasAnyCapture = Object.keys(capturesByGuest).length > 0;
+
   const handleClose = useCallback(async () => {
     const dirty = Boolean(
-      capture
+      hasAnyCapture
       || fields.guestDisplayName !== (initialStayFields?.guestDisplayName || "")
       || fields.guestPhone !== (initialStayFields?.guestPhone || "")
       || fields.plannedCheckOutAt !== (initialStayFields?.plannedCheckOutAt || "")
@@ -63,7 +66,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
       if (!confirmed.isConfirmed) return;
     }
     onClose();
-  }, [capture, fields, initialStayFields, onClose]);
+  }, [hasAnyCapture, fields, initialStayFields, onClose]);
 
   useEffect(() => {
     if (!open) return;
@@ -99,8 +102,8 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
   }, [handleClose, open]);
 
   const handleCapture = useCallback((nextCapture: CccdCheckInCapture | null) => {
-    setCapture(nextCapture);
     if (!nextCapture) return;
+    setCapturesByGuest((prev) => ({ ...prev, [activeGuestIndex]: nextCapture }));
 
     if (activeGuestIndex === 0) {
       setFields((current) => ({
@@ -137,7 +140,8 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
 
   if (!open) return null;
 
-  const previewModel = capture?.payload ? buildCccdPreviewModel(capture.payload) : null;
+  const currentGuestCapture = capturesByGuest[activeGuestIndex] ?? null;
+  const previewModel = currentGuestCapture?.payload ? buildCccdPreviewModel(currentGuestCapture.payload) : null;
   const roomStatus = room.status === "ready" ? "Phòng sẵn sàng" : room.status;
 
   return (
@@ -157,8 +161,8 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
           </div>
 
           <ol data-ui="check-in-progress" aria-label="Tiến trình check-in" className="mt-5 grid grid-cols-3 gap-2 text-xs font-semibold sm:text-sm">
-            <li className={`rounded-lg px-2 py-2.5 text-center ${capture ? "bg-emerald-50 text-emerald-800" : "bg-blue-600 text-white"}`}>1. Quét CCCD</li>
-            <li className={`rounded-lg px-2 py-2.5 text-center ${capture ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-500"}`}>2. Kiểm tra</li>
+            <li className={`rounded-lg px-2 py-2.5 text-center ${hasAnyCapture ? "bg-emerald-50 text-emerald-800" : "bg-blue-600 text-white"}`}>1. Quét CCCD</li>
+            <li className={`rounded-lg px-2 py-2.5 text-center ${hasAnyCapture ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-500"}`}>2. Kiểm tra</li>
             <li className="rounded-lg bg-slate-100 px-2 py-2.5 text-center text-slate-500">3. Hoàn tất</li>
           </ol>
         </header>
@@ -177,11 +181,11 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <h3 id="identity-heading" className="text-base font-bold text-slate-950">
-                    Máy quét CCCD {activeGuestIndex === 0 ? "(Khách 1 - Đại diện)" : `(Khách ở cùng #${activeGuestIndex + 1})`}
+                    Điện thoại quét QR CCCD {activeGuestIndex === 0 ? "(Khách 1 - Đại diện)" : `(Khách ở cùng #${activeGuestIndex + 1})`}
                   </h3>
-                  <p className="mt-0.5 text-sm text-slate-600">Đặt thẻ CCCD lên máy đọc HN-212 để tự động nạp vị trí đang chọn.</p>
+                  <p className="mt-0.5 text-base text-slate-600">Quét mã QR trên CCCD để tự động nạp vị trí đang chọn.</p>
                 </div>
-                {capture ? <span className="shrink-0 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">Xác thực thành công</span> : null}
+                {currentGuestCapture ? <span className="shrink-0 rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-800">{previewModel?.chipVerified ? "Chip và SOD đã xác thực" : "Đã đọc thông tin — chưa xác thực chip"}</span> : null}
               </div>
 
               {/* Guest slot selector tabs */}
@@ -220,11 +224,11 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                 </button>
               </div>
 
-              <CccdCheckInPanel
+              <MobileCccdScan
                 hotelId={hotelId}
                 onCapture={handleCapture}
-                activeGuestLabel={activeGuestIndex === 0 ? "Khách 1 - Đại diện" : `Khách ở cùng #${activeGuestIndex + 1}`}
-                autoRequestScanKey={activeGuestIndex}
+                targetContext={`${room.id}:${activeGuestIndex}`}
+                targetLabel={`Phòng ${room.roomNumber} — Khách ${activeGuestIndex + 1}`}
               />
               {previewModel ? <CccdPreview model={previewModel} /> : null}
             </section>

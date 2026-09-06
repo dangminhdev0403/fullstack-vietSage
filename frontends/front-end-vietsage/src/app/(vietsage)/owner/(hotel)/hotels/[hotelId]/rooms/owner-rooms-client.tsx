@@ -38,7 +38,6 @@ import {
   getRoomNumber,
 } from "./room-qr-utils";
 import { OwnerStayRoomGridClient } from "../stay/owner-stay-room-grid-client";
-import { WorkstationConnectionPanel } from "@/features/local-biometric/components/workstation-connection-panel";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 import { RoomDetailDrawer } from "@/features/hotel-ops/components/room-detail-drawer";
 
@@ -1282,8 +1281,6 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
         </button>
         </div>
       </div>
-
-      <WorkstationConnectionPanel hotelId={hotelId} />
 
       <section className="space-y-5">
         <div className="overflow-hidden rounded-3xl border border-[#d7bd61]/40 bg-[linear-gradient(135deg,#173d34,#25483f_52%,#f4d36f)] p-[1px] shadow-[0_24px_70px_rgba(31,61,53,0.18)]">

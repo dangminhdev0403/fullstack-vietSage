@@ -23,8 +23,9 @@ test("check-in workspace keeps content reachable and actions responsive", () => 
 });
 
 test("successful capture changes hierarchy from scan action to verification", () => {
-  assert.match(workspace, /Máy quét CCCD/);
-  assert.match(workspace, /Xác thực thành công/);
+  assert.match(workspace, /Điện thoại quét QR CCCD/);
+  assert.match(workspace, /previewModel\?\.chipVerified\s*\?\s*"Chip và SOD đã xác thực"\s*:\s*"Đã đọc thông tin — chưa xác thực chip"/);
+  assert.doesNotMatch(workspace, /Xác thực thành công/);
   assert.match(workspace, /Dữ liệu CCCD chỉ xử lý tạm thời/);
 });
 

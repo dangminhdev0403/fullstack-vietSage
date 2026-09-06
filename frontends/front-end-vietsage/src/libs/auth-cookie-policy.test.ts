@@ -64,3 +64,22 @@ test("does not let an untrusted forwarded host force secure-cookie mode", () => 
     },
   );
 });
+
+test("prefers the non-secure cookie when AUTH_URL is HTTP but DevTunnel forwards as HTTPS", () => {
+  // DevTunnel sets x-forwarded-proto: https, but AUTH_URL=http://...
+  // makes Auth.js set authjs.session-token (non-secure).
+  // resolveSessionCookiePolicy must use the cookie that actually exists.
+  assert.deepEqual(
+    resolveSessionCookiePolicy(
+      new Headers({
+        host: "t62jk3dx-3000.asse.devtunnels.ms",
+        "x-forwarded-proto": "https",
+        cookie: "authjs.session-token=eyJhbGciOi...",
+      }),
+    ),
+    {
+      secureCookie: false,
+      cookieName: "authjs.session-token",
+    },
+  );
+});

@@ -29,6 +29,37 @@ test("pair once then receive and complete one scan command", () => {
   assert.equal(readResult?.status, "received");
 });
 
+test("mobile capability completes its operator scan once without a workstation", () => {
+  const secrets = ["mobile-capability"];
+  const store = new WorkstationStore(() => 1_000, () => secrets.shift()!);
+  const issued = store.requestMobileScan("hotel-1", "operator-1", 120);
+
+  assert.equal(store.completeMobile(issued.capability, result), true);
+  assert.equal(store.completeMobile(issued.capability, result), false);
+  assert.equal(
+    store.readScan(issued.scanRequestId, "hotel-1", "operator-1")?.payload?.guest.identityNumber,
+    "001234567890",
+  );
+});
+
+test("mobile capability expires at the boundary", () => {
+  let now = 1_000;
+  const store = new WorkstationStore(() => now, () => "mobile-capability");
+  const issued = store.requestMobileScan("hotel-1", "operator-1", 120);
+  now = issued.expiresAt;
+  assert.equal(store.completeMobile(issued.capability, result), false);
+});
+
+test("workstations cannot claim a mobile scan session", () => {
+  const secrets = ["pair", "workstation", "mobile-capability"];
+  const store = new WorkstationStore(() => 1_000, () => secrets.shift()!);
+  const workstation = store.pair(store.issuePairing("hotel-1", "operator-1").code)!;
+  const issued = store.requestMobileScan("hotel-1", "operator-1");
+
+  assert.equal(store.poll(workstation.token), null);
+  assert.equal(store.completeMobile(issued.capability, result), true);
+});
+
 test("wrong hotel cannot read or complete scan", () => {
   const secrets = ["pair-1", "token-1", "pair-2", "token-2"];
   const store = new WorkstationStore(() => 1_000, () => secrets.shift()!);
