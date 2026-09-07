@@ -743,7 +743,7 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
         </div>
       </header>
 
-      <section className="flex-1 min-h-0 grid overflow-hidden rounded-2xl border border-[var(--outline-variant)] bg-white shadow-[0_8px_30px_rgba(0,0,0,0.04)] lg:grid-cols-[360px_1fr]">
+      <section className="flex-1 min-h-0 grid overflow-hidden rounded-2xl border border-[var(--outline-variant)] bg-white shadow-[0_8px_30px_rgba(0,0,0,0.04)] lg:grid-cols-[290px_1fr] xl:grid-cols-[340px_1fr]">
         {/* Sidebar: Thread List */}
         <aside className={`${selectedId ? "hidden lg:flex" : "flex"} min-h-0 flex-col border-b border-[var(--outline-variant)] bg-[var(--surface-container-lowest,#fdfbf7)] lg:border-b-0 lg:border-r`}>
           <div className="border-b border-[var(--outline-variant)] p-3.5 space-y-2.5">

@@ -1101,9 +1101,9 @@ export function StaffRoomsClient({
       `}</style>
 
       <section className="sticky top-0 z-20 -mx-2 rounded-xl bg-[var(--surface)]/90 px-2 py-3 backdrop-blur md:top-2">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex min-w-0 flex-1 flex-col gap-3 lg:flex-row lg:items-center">
-            <label className="relative min-w-0 flex-1 lg:max-w-xs">
+        <div className="flex flex-col gap-3 2xl:flex-row 2xl:items-center 2xl:justify-between">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2.5">
+            <label className="relative min-w-[200px] flex-1 sm:flex-initial sm:w-60 lg:w-72">
               <VsIcon
                 name="search"
                 className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-[var(--outline)]"
@@ -1115,14 +1115,14 @@ export function StaffRoomsClient({
                 placeholder="Tìm kiếm phòng hoặc khách..."
               />
             </label>
-            <div className="grid gap-2 sm:grid-cols-3 lg:flex">
+            <div className="flex flex-wrap items-center gap-2">
               <select
                 value={floor}
                 onChange={(event) => {
                   setFloor(event.target.value);
                   setPage(1);
                 }}
-                className="h-11 rounded-lg border-0 bg-[var(--surface-container-low)] px-3 text-sm ring-1 ring-transparent focus:ring-[var(--primary)]"
+                className="h-11 shrink-0 rounded-lg border-0 bg-[var(--surface-container-low)] px-3 text-sm ring-1 ring-transparent focus:ring-[var(--primary)] min-w-[115px]"
               >
                 <option value="all">Tầng: Tất cả</option>
                 {floors.map((value) => (
@@ -1137,7 +1137,7 @@ export function StaffRoomsClient({
                   setType(event.target.value);
                   setPage(1);
                 }}
-                className="h-11 rounded-lg border-0 bg-[var(--surface-container-low)] px-3 text-sm ring-1 ring-transparent focus:ring-[var(--primary)]"
+                className="h-11 shrink-0 rounded-lg border-0 bg-[var(--surface-container-low)] px-3 text-sm ring-1 ring-transparent focus:ring-[var(--primary)] min-w-[145px]"
               >
                 <option value="all">Loại phòng: Tất cả</option>
                 {types.map((value) => (
@@ -1152,7 +1152,7 @@ export function StaffRoomsClient({
                   setStatus(event.target.value as RoomStatusFilter);
                   setPage(1);
                 }}
-                className="h-11 rounded-lg border-0 bg-[var(--surface-container-low)] px-3 text-sm ring-1 ring-transparent focus:ring-[var(--primary)]"
+                className="h-11 shrink-0 rounded-lg border-0 bg-[var(--surface-container-low)] px-3 text-sm ring-1 ring-transparent focus:ring-[var(--primary)] min-w-[145px]"
               >
                 {statusFilters.map((item) => (
                   <option key={item.value} value={item.value}>
@@ -1161,13 +1161,13 @@ export function StaffRoomsClient({
                 ))}
               </select>
             </div>
-            <button type="button" onClick={printActiveStayList} className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-[var(--primary)] px-4 text-sm font-bold text-white hover:opacity-90">
+            <button type="button" onClick={printActiveStayList} className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-[var(--primary)] px-4 text-sm font-bold text-white hover:opacity-90 whitespace-nowrap">
               <VsIcon name="print" className="text-base" />
               In danh sách lưu trú
             </button>
           </div>
-          <div className="flex items-center justify-between gap-4">
-            <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-[var(--on-surface-variant)]">
+          <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 2xl:ml-auto">
+            <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-[var(--on-surface-variant)] whitespace-nowrap">
               <input
                 type="checkbox"
                 checked={vipOnly}
@@ -1179,7 +1179,7 @@ export function StaffRoomsClient({
               />
               Chế độ VIP
             </label>
-            <div className="grid grid-cols-2 gap-4 border-l border-[var(--outline-variant)] pl-4 text-center">
+            <div className="grid grid-cols-2 gap-4 border-l border-[var(--outline-variant)] pl-4 text-center shrink-0">
               <div>
                 <p className="text-xs text-[var(--on-surface-variant)]">Tổng</p>
                 <p className="font-bold text-[var(--primary)]">{totalItems}</p>
@@ -1197,7 +1197,7 @@ export function StaffRoomsClient({
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_24rem]">
+      <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem] 2xl:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="relative min-h-[400px] flex flex-col justify-between">
           <div className="relative flex-1">
             {isFetching && (
@@ -1205,7 +1205,7 @@ export function StaffRoomsClient({
                 <div className="h-10 w-10 animate-spin rounded-full border-4 border-[var(--primary)] border-t-transparent" />
               </div>
             )}
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
               {rooms.map((room) => {
                 const roomStatus = getRoomStatus(room);
                 const progress = activeStayProgress(room);
@@ -1230,8 +1230,8 @@ export function StaffRoomsClient({
                     } ${roomCardClass(roomStatus)}`}
                   >
                     {/* Header */}
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
                         <h3 className="vs-display text-3xl font-semibold">
                           {getRoomNumber(room)}
                         </h3>
@@ -1361,9 +1361,9 @@ export function StaffRoomsClient({
                         <div className="h-1.5 rounded-full bg-[var(--surface-container-high)]" />
                       )}
 
-                      <div className="mt-3 flex items-center justify-between gap-2 overflow-hidden">
+                      <div className="mt-3 flex items-center justify-between gap-1.5 overflow-hidden">
                         <span
-                          className="min-w-0 truncate text-xs font-extrabold text-amber-950 bg-amber-100/90 border border-amber-300 px-2 py-0.5 rounded-md shadow-2xs"
+                          className="shrink-0 whitespace-nowrap text-xs font-extrabold text-amber-950 bg-amber-100/90 border border-amber-300 px-2 py-0.5 rounded-md shadow-2xs tabular-nums tracking-tight"
                           title={
                             room.price && Number(room.price) > 0
                               ? `Giá phòng: ${formatMoney({ price: room.price ?? null, currency: "VND" })}`
@@ -1374,7 +1374,7 @@ export function StaffRoomsClient({
                             ? `${formatMoney({ price: room.price ?? null, currency: "VND" })}`
                             : room.type ? room.type : "Giá linh hoạt"}
                         </span>
-                        <span className={roomStatusBadgeClass(roomStatus)}>
+                        <span className={`${roomStatusBadgeClass(roomStatus)} shrink-0 whitespace-nowrap`}>
                           {roomStatusLabel(roomStatus)}
                         </span>
                       </div>

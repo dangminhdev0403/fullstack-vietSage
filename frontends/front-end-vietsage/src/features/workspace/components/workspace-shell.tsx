@@ -117,8 +117,8 @@ export function WorkspaceShell({
       </div>
       <main
         className={`min-h-screen px-4 pb-24 pt-24 transition-all duration-300 print:p-0 ${
-          isCollapsed ? "md:ml-20" : "md:ml-72 lg:ml-80"
-        } md:px-8 print:md:ml-0 lg:px-10 xl:px-12 ${
+          isCollapsed ? "md:ml-20" : "md:ml-72 2xl:ml-80"
+        } sm:px-6 lg:px-8 2xl:px-10 print:md:ml-0 ${
           printFriendly ? "owner-shell-main" : ""
         }`}
       >

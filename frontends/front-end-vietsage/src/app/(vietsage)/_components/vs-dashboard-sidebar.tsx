@@ -71,7 +71,7 @@ export function VsDashboardSidebar({
   return (
     <aside
       className={`fixed left-0 top-0 z-40 hidden h-full flex-col border-r border-[#1f3d35]/15 bg-[#17201b] pt-20 text-[#f8f1e6] shadow-[18px_0_60px_rgba(23,32,27,0.18)] transition-all duration-300 md:flex ${
-        isCollapsed ? "w-20" : "w-72 lg:w-80"
+        isCollapsed ? "w-20" : "w-72 2xl:w-80"
       }`}
     >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(232,179,99,0.22),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.08),transparent_34%)]" />
@@ -196,7 +196,7 @@ export function VsDashboardSidebar({
                   <Link
                     key={item.key}
                     href={item.href}
-                    className={`group flex h-[52px] items-center gap-3.5 rounded-xl px-3.5 text-sm font-semibold transition-all duration-200 ${
+                    className={`group flex h-[52px] items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-all duration-200 ${
                       isActive
                         ? "bg-[#f8f1e6] text-[#17201b] shadow-[0_4px_16px_rgba(0,0,0,0.18)]"
                         : "text-[#d7cbb8] hover:bg-white/10 hover:text-[#fff8e8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363]"
@@ -211,7 +211,7 @@ export function VsDashboardSidebar({
                     >
                       <VsIcon name={item.icon} className="text-[19px]" />
                     </span>
-                    <span className="truncate font-medium text-sm">{item.label}</span>
+                    <span className="min-w-0 flex-1 truncate font-medium text-sm whitespace-nowrap">{item.label}</span>
                     {badge > 0 ? (
                       <span
                         className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-[#e8b363] px-1.5 text-[11px] font-bold text-[#17201b] shadow-sm transition-all"

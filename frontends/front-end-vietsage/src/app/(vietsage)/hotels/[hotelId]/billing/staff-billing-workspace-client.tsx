@@ -524,7 +524,7 @@ export function StaffBillingWorkspaceClient({
   }
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[340px_1fr_320px] items-stretch">
+    <div className="grid gap-5 xl:grid-cols-[290px_1fr] 2xl:grid-cols-[300px_1fr_320px] items-stretch">
       {/* CỘT TÁI CHÍNH 1: HÀNG ĐỢI FOLIO / PHÒNG CHỜ THANH TOÁN */}
       <aside className="flex h-full flex-col min-h-0 overflow-hidden rounded-2xl border border-[var(--outline-variant)] bg-white shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
         <div className="space-y-3.5 border-b border-[var(--outline-variant)] bg-[var(--surface-container-lowest,#fdfbf7)] p-4">
@@ -955,7 +955,7 @@ export function StaffBillingWorkspaceClient({
       </main>
 
       {/* CỘT RIGHT 3: TỔNG TIỀN & XÁC NHẬN THU THỦ TỤC */}
-      <aside className="flex h-full flex-col justify-start space-y-3">
+      <aside className="flex h-full flex-col justify-start space-y-3 xl:col-span-2 2xl:col-span-1">
         {/* Hướng dẫn nghiệp vụ điều chỉnh chi phí Folio (Chữ to, rõ ràng, layout chuẩn) */}
         <details className="group rounded-2xl border border-amber-300 bg-gradient-to-br from-amber-50 via-amber-100/60 to-orange-50 p-3 text-amber-950 shadow-sm">
           <summary className="flex cursor-pointer items-center justify-between gap-2 font-black text-xs sm:text-sm text-amber-950 select-none">

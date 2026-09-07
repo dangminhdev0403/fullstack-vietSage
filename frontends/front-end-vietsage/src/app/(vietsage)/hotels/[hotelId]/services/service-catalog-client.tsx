@@ -382,20 +382,20 @@ export function ServiceCatalogClient({
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 rounded-xl border border-[color:rgba(198,197,213,0.24)] bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex rounded-lg bg-[var(--surface-container-low)] p-1">
+        <div className="flex shrink-0 rounded-lg bg-[var(--surface-container-low)] p-1">
           <button type="button" onClick={() => setTab("categories")} className={`rounded-md px-5 py-2 text-base font-semibold ${tab === "categories" ? "bg-white text-[var(--primary)] shadow-sm" : "text-[var(--on-surface-variant)]"}`}>Nhóm dịch vụ</button>
           <button type="button" onClick={() => setTab("items")} className={`rounded-md px-5 py-2 text-base font-semibold ${tab === "items" ? "bg-white text-[var(--primary)] shadow-sm" : "text-[var(--on-surface-variant)]"}`}>Dịch vụ</button>
         </div>
 
-        <div className="flex flex-1 flex-col gap-2 lg:max-w-4xl lg:flex-row">
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm kiếm dịch vụ..." className="min-h-11 flex-1 rounded-lg border border-[color:rgba(198,197,213,0.55)] px-4 text-base outline-none focus:border-[var(--primary)]" />
+        <div className="flex flex-1 flex-wrap items-center gap-2 lg:max-w-4xl">
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm kiếm dịch vụ..." className="min-h-11 min-w-[200px] flex-1 rounded-lg border border-[color:rgba(198,197,213,0.55)] px-4 text-base outline-none focus:border-[var(--primary)]" />
           {tab === "items" ? (
-            <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} className="min-h-11 rounded-lg border border-[color:rgba(198,197,213,0.55)] px-4 text-base">
+            <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} className="min-h-11 min-w-[150px] shrink-0 rounded-lg border border-[color:rgba(198,197,213,0.55)] px-4 text-base">
               <option value="">Tất cả nhóm</option>
               {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
             </select>
           ) : null}
-          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="min-h-11 rounded-lg border border-[color:rgba(198,197,213,0.55)] px-4 text-base">
+          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="min-h-11 min-w-[160px] shrink-0 rounded-lg border border-[color:rgba(198,197,213,0.55)] px-4 text-base">
             <option value="">Tất cả trạng thái</option>
             {hotelServiceStatuses.map((status) => <option key={status} value={status}>{serviceStatusLabelMap[status]}</option>)}
           </select>

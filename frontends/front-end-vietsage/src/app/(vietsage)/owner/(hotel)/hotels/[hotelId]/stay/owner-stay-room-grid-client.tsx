@@ -600,7 +600,7 @@ export function OwnerStayRoomGridClient({
       </div>
 
       <div className="mb-4 flex flex-col gap-3 rounded-xl border border-[var(--outline-variant)] bg-white p-4 shadow-[0_4px_20px_rgba(0,0,0,0.04)] lg:flex-row lg:items-center">
-        <label className="relative min-w-0 flex-1">
+        <label className="relative min-w-[200px] sm:min-w-[240px] flex-1">
           <span className="sr-only">Tìm phòng</span>
           <VsIcon
             name="search"
@@ -614,7 +614,7 @@ export function OwnerStayRoomGridClient({
             className="h-11 w-full rounded-xl border border-[var(--outline-variant)] bg-white pl-10 pr-4 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary-fixed)]"
           />
         </label>
-        <div className="flex gap-2 overflow-x-auto pb-1 lg:pb-0">
+        <div className="flex gap-2 overflow-x-auto pb-1 lg:pb-0 shrink-0">
           {statusFilters.map((filter) => (
             <button
               key={filter.value}
