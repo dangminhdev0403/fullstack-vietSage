@@ -13,8 +13,8 @@ export function MobileCccdTestScanPanel({ hotelId }: { hotelId: string }) {
     <section className="flex h-full flex-col justify-between rounded-3xl border border-stone-200/90 bg-white p-6 sm:p-8 shadow-xs">
       <div className="flex flex-1 flex-col">
         {/* Header */}
-        <div className="flex items-start justify-between gap-4 pb-6 border-b border-stone-100">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-4 pb-6 border-b border-stone-100">
+          <div className="flex items-center gap-4 min-w-0">
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#735c00]/10 text-[#735c00]">
               <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
@@ -29,7 +29,7 @@ export function MobileCccdTestScanPanel({ hotelId }: { hotelId: string }) {
               </p>
             </div>
           </div>
-          <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3.5 py-1.5 text-xs sm:text-sm font-bold text-amber-800">
+          <span className="shrink-0 inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3.5 py-1.5 text-xs sm:text-sm font-bold text-amber-800">
             Thử nghiệm
           </span>
         </div>

@@ -293,7 +293,7 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
 
   return (
     <div className="space-y-6">
-      <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {[
           { label: "Tổng đối tác", value: total || owners.length, icon: "group" },
           { label: "Đang hoạt động", value: activeCount, icon: "verified_user" },
@@ -314,8 +314,8 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
       </section>
 
       <section className="rounded-[1.4rem] border border-[#e8dfd1] bg-white/90 p-5 shadow-[0_16px_40px_rgba(23,32,27,0.05)] backdrop-blur-md">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="relative flex-1">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative flex-1 min-w-[200px]">
             <VsIcon name="search" className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#8b948d]" />
             <input
               type="search"
@@ -325,7 +325,7 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
               className="w-full rounded-xl border border-[#e2d7c5] bg-[#faf6ef] pl-11 pr-4 py-3 text-sm font-semibold text-[#17201b] outline-none transition-all focus:border-[#24473d] focus:bg-white focus:ring-2 focus:ring-[#24473d]/20"
             />
           </div>
-          <button type="button" onClick={openCreateDialog} className="inline-flex items-center justify-center gap-2 rounded-full bg-[#24473d] px-5 py-3 text-sm font-bold text-[#fff8e8] shadow-md shadow-[#24473d]/20 transition-all hover:bg-[#1a352d] active:scale-98">
+          <button type="button" onClick={openCreateDialog} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-[#24473d] px-5 py-3 text-sm font-bold text-[#fff8e8] shadow-md shadow-[#24473d]/20 transition-all hover:bg-[#1a352d] active:scale-98">
             <VsIcon name="person_add" className="text-lg text-[#e8b363]" />
             Tạo đối tác khách sạn
           </button>
@@ -478,7 +478,7 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
 
       {isDialogOpen ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 px-4 py-6 md:items-center">
-          <form onSubmit={submitForm} className="w-full max-w-2xl rounded-xl bg-white p-6 shadow-2xl">
+          <form onSubmit={submitForm} className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl bg-white p-6 shadow-2xl">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-2xl font-semibold text-[var(--primary)]">{formMode === "create" ? "Tạo đối tác khách sạn" : "Cập nhật đối tác khách sạn"}</h2>

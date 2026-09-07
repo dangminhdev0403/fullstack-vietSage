@@ -863,9 +863,9 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
      ════════════════════════════════════════════════════════════════ */
 
   return (
-    <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
+    <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-6 xl:gap-8">
       {/* ─── LEFT SIDEBAR: Role List (desktop) ─── */}
-      <aside className="hidden w-[280px] shrink-0 lg:block">
+      <aside className="hidden w-[240px] xl:w-[280px] shrink-0 lg:block">
         <div className="sticky top-6 space-y-3">
           <h2 className="vs-display text-lg font-semibold text-[var(--primary)]">
             Vai trò

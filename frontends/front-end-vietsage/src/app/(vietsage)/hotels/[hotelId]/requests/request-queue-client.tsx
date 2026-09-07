@@ -1482,7 +1482,7 @@ export function RequestQueueClient({
         </div>
       </form>
 
-      <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
         {hotelRequestStatuses.map((status) => (
           <button
             key={status}

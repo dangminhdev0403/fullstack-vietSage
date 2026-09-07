@@ -32,8 +32,8 @@ export function MobileCccdConnectionPanel({ hotelId }: { hotelId: string }) {
     >
       <div className="flex flex-1 flex-col">
         {/* Header */}
-        <div className="flex items-start justify-between gap-4 pb-6 border-b border-stone-100">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-4 pb-6 border-b border-stone-100">
+          <div className="flex items-center gap-4 min-w-0">
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#000080]/10 text-[#000080]">
               <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -48,7 +48,7 @@ export function MobileCccdConnectionPanel({ hotelId }: { hotelId: string }) {
               </p>
             </div>
           </div>
-          <div>
+          <div className="shrink-0">
             {view?.phase === "active" ? (
               <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-1.5 text-xs sm:text-sm font-bold text-emerald-800">
                 <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />

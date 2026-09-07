@@ -388,7 +388,7 @@ export function HotelPartnerSettlementsTab({
   return (
     <div className="space-y-6">
       {/* Financial Metrics Header */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
         <div className="rounded-2xl border border-emerald-300 bg-emerald-50/50 p-6 shadow-xs space-y-2">
           <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider">
             Doanh thu phí dịch vụ ngoài
@@ -491,7 +491,7 @@ export function HotelPartnerSettlementsTab({
         loading={loading}
         toolbar={
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-2.5">
+            <div className="flex flex-wrap items-center gap-2.5">
               <button
                 type="button"
                 onClick={() => handleStatusFilterChange("UNSETTLED")}

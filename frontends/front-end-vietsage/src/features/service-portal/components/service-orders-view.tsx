@@ -521,6 +521,7 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
       {/* Main DataTable View */}
       <div className="rounded-xl border border-slate-200 shadow-2xs overflow-x-auto bg-white">
         <DataTable
+          minWidth="960px"
           columns={columns}
           data={filteredOrders}
           getRowKey={(order) => order.id}

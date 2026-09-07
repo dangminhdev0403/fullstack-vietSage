@@ -255,7 +255,7 @@ export default async function OwnerDashboardPage() {
       ) : (
         <>
           {/* Executive KPI Cards */}
-          <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {kpis.map((item, index) => (
               <StatCard key={item.label} {...item} delay={80 + index * 45} />
             ))}
@@ -276,7 +276,7 @@ export default async function OwnerDashboardPage() {
                 Xem đối soát đối tác
               </Link>
             </div>
-            <div className="mt-5 grid gap-4 md:grid-cols-3">
+            <div className="mt-5 grid gap-4 sm:grid-cols-3">
               <div className="rounded-2xl bg-[#f8f1e6] p-5">
                 <p className="text-sm font-semibold text-[#69746c]">Doanh thu hôm nay</p>
                 <p className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-[#17201b]">

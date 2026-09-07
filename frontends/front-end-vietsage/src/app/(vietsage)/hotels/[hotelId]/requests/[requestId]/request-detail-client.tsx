@@ -212,7 +212,7 @@ export function RequestDetailClient({
 
           {request.details ? <p className="mt-6 rounded-lg bg-[var(--surface-container-low)] p-4 text-sm leading-6 text-[var(--on-surface-variant)]">{request.details}</p> : null}
 
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
+          <div className="mt-6 grid gap-4 sm:grid-cols-3">
             <div className="rounded-lg border border-[color:rgba(198,197,213,0.2)] p-4"><p className="text-xs uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">{labels.reservation}</p><p className="mt-1 font-semibold">{request.stay?.reservationCode ?? "-"}</p></div>
             <div className="rounded-lg border border-[color:rgba(198,197,213,0.2)] p-4"><p className="text-xs uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">{labels.serviceItem}</p><p className="mt-1 font-semibold">{request.serviceItem?.name ?? labels.rawRequest}</p></div>
             <div className="rounded-lg border border-[color:rgba(198,197,213,0.2)] p-4"><p className="text-xs uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">{labels.price}</p><p className="mt-1 font-semibold">{request.serviceItem ? formatMoney(request.serviceItem) : "-"}</p></div>

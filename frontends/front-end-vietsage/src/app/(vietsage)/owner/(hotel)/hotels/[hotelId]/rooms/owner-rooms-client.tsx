@@ -1226,7 +1226,7 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
           setRoomStatusFilter(event.target.value);
           setPage(1);
         }}
-        className="min-h-12 min-w-[180px] rounded-xl border-0 bg-[var(--surface-container-low)] px-4 text-sm outline-none ring-1 ring-transparent transition focus:ring-[var(--primary)]"
+        className="min-h-12 min-w-[180px] shrink-0 rounded-xl border-0 bg-[var(--surface-container-low)] px-4 text-sm outline-none ring-1 ring-transparent transition focus:ring-[var(--primary)]"
       >
         <option value="">Trạng thái: Tất cả</option>
         <option value="AVAILABLE">Trống (Sẵn sàng)</option>
@@ -1238,7 +1238,7 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
       <select
         value={qrStatusFilter}
         onChange={(event) => updateQrStatusFilter(event.target.value)}
-        className="min-h-12 min-w-[180px] rounded-xl border-0 bg-[var(--surface-container-low)] px-4 text-sm outline-none ring-1 ring-transparent transition focus:ring-[var(--primary)]"
+        className="min-h-12 min-w-[180px] shrink-0 rounded-xl border-0 bg-[var(--surface-container-low)] px-4 text-sm outline-none ring-1 ring-transparent transition focus:ring-[var(--primary)]"
       >
         <option value="">QR: Tất cả</option>
         <option value="ACTIVE">Đang hoạt động</option>

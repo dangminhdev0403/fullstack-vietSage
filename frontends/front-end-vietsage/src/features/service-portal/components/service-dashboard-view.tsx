@@ -76,7 +76,7 @@ export function ServiceDashboardView({ data }: Readonly<{ data: ServicePortalDat
         <h2 className="text-lg font-bold text-[#17201b] flex items-center gap-2">
           <span>💰</span> Doanh số & Công nợ quyết toán với Khách sạn
         </h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {/* Card 1: Gross Sales */}
           <div className="rounded-2xl border border-[#e5ddcd] bg-[#fffcf7] p-5 shadow-xs space-y-2">
             <div className="flex items-center justify-between">
@@ -138,7 +138,7 @@ export function ServiceDashboardView({ data }: Readonly<{ data: ServicePortalDat
       </section>
 
       {/* KPI Cards Grid */}
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {/* Card 1: Total Services */}
         <div className="rounded-2xl border border-[#e5ddcd] bg-[#fffcf7] p-5 shadow-xs space-y-3">
           <div className="flex items-center justify-between">

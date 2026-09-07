@@ -138,23 +138,23 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
       {/* Top Banner & Header */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#17201b] via-[#24352b] to-[#121914] p-6 text-[#f8f1e6] shadow-md">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 min-w-0">
             <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[#e8b363] text-2xl font-black text-[#17201b] shadow-md border-2 border-white/20">
               🏨
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1 min-w-0">
               <div className="inline-flex items-center gap-1.5 rounded-full bg-[#e8b363]/20 px-3 py-0.5 text-xs font-bold text-[#f5c77e] border border-[#e8b363]/30">
                 <span className="h-2 w-2 rounded-full bg-[#e8b363] animate-pulse" />
                 Hồ sơ vận hành chính thức
               </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-[#fff8e8]">{hotel.name}</h1>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-[#fff8e8] truncate">{hotel.name}</h1>
             </div>
           </div>
 
           <button
             type="button"
             onClick={handleReset}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-white/10 px-4 text-xs sm:text-sm font-bold text-[#f8f1e6] backdrop-blur-sm border border-white/20 transition-all hover:bg-white/20"
+            className="shrink-0 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-white/10 px-4 text-xs sm:text-sm font-bold text-[#f8f1e6] backdrop-blur-sm border border-white/20 transition-all hover:bg-white/20"
           >
             <span>🔄</span>
             <span>Hoàn tác thay đổi</span>

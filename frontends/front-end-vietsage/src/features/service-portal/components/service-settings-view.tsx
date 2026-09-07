@@ -250,8 +250,8 @@ export function ServiceSettingsView({ data }: Readonly<{ data: ServicePortalData
         <div className="space-y-6 rounded-2xl border border-[#e5ddcd] bg-[#fffcf7] p-7 shadow-[0_4px_20px_rgba(23,32,27,0.04)] h-fit">
           {/* Cover Header Banner matching Left Card */}
           <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#17201b] via-[#24352b] to-[#121914] p-5 sm:p-6 text-[#f8f1e6]">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-4 min-w-0">
                 <div className="flex h-15 w-15 shrink-0 items-center justify-center rounded-2xl bg-[#e8b363] text-2xl text-[#17201b] shadow-md border-2 border-white/20">
                   📍
                 </div>

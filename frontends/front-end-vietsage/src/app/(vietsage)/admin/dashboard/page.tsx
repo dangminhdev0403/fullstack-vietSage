@@ -66,7 +66,7 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
         </div>
 
         {availableModules.length > 0 ? (
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
             {availableModules.map((widget) => {
               if (!widget.href) return null;
               return (

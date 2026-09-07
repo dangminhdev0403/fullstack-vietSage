@@ -376,7 +376,7 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }:
 
   return (
     <div className="space-y-6">
-      <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {[
           { label: "Tổng khách sạn", value: total || hotels.length, icon: "hotel" },
           { label: "Đang vận hành", value: activeCount, icon: "verified_user" },
@@ -403,8 +403,8 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }:
       ) : null}
 
       <section className="rounded-[1.4rem] border border-[#e8dfd1] bg-white/90 p-5 shadow-[0_16px_40px_rgba(23,32,27,0.05)] backdrop-blur-md">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="relative flex-1">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative flex-1 min-w-[200px]">
             <VsIcon name="search" className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#8b948d]" />
             <input
               type="search"
@@ -418,7 +418,7 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }:
             type="button"
             onClick={openCreateDialog}
             disabled={!hasTenantOptions || isSaving}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-[#24473d] px-5 py-3 text-sm font-bold text-[#fff8e8] shadow-md shadow-[#24473d]/20 transition-all hover:bg-[#1a352d] active:scale-98 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-[#24473d] px-5 py-3 text-sm font-bold text-[#fff8e8] shadow-md shadow-[#24473d]/20 transition-all hover:bg-[#1a352d] active:scale-98 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <VsIcon name="hotel" className="text-lg text-[#e8b363]" />
             Tạo khách sạn

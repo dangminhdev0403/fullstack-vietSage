@@ -1052,9 +1052,9 @@ export function MarketplaceAdminClient() {
 
       {/* Top Search Header & Primary Action Buttons Bar */}
       <section className="rounded-[1.4rem] border border-[#e8dfd1] bg-white/90 p-6 shadow-[0_16px_40px_rgba(23,32,27,0.05)] backdrop-blur-md">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           {/* Tab Switcher & Search Bar */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 min-w-0">
             {/* View Tab Switcher */}
             <div className="inline-flex items-center gap-1.5 rounded-full border border-[#e8dfd1] bg-[#faf6ef] p-1.5 shrink-0">
               <button
@@ -1083,7 +1083,7 @@ export function MarketplaceAdminClient() {
             </div>
 
             {/* Search Input */}
-            <div className="relative flex-1">
+            <div className="relative flex-1 min-w-[200px]">
                 <VsIcon
                   name="search"
                   className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#8b948d] text-xl"
@@ -1111,7 +1111,7 @@ export function MarketplaceAdminClient() {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3 shrink-0">
             {activeTab === "partners" && (
               <select
                 aria-label="Lọc trạng thái đối tác"
@@ -1120,7 +1120,7 @@ export function MarketplaceAdminClient() {
                   setTenantStatusFilter(e.target.value);
                   setTenantPage(1);
                 }}
-                className="h-12 rounded-full border border-[#e2d7c5] bg-[#faf6ef] px-5 text-sm font-extrabold text-[#17201b] outline-none focus:border-[#24473d]"
+                className="h-12 shrink-0 rounded-full border border-[#e2d7c5] bg-[#faf6ef] px-5 text-sm font-extrabold text-[#17201b] outline-none focus:border-[#24473d]"
               >
                 <option value="all">Tất cả trạng thái</option>
                 <option value="active">Đang hoạt động</option>
@@ -1134,7 +1134,7 @@ export function MarketplaceAdminClient() {
                 setFormValidationError(null);
                 setIsCategoryModalOpen(true);
               }}
-              className="inline-flex items-center justify-center gap-2 rounded-full border border-[#dcd1bf] bg-[#fffcf7] px-5 py-3 text-sm font-bold text-[#24473d] shadow-2xs transition-all hover:border-[#24473d] hover:bg-[#f5efe4]"
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-[#dcd1bf] bg-[#fffcf7] px-5 py-3 text-sm font-bold text-[#24473d] shadow-2xs transition-all hover:border-[#24473d] hover:bg-[#f5efe4]"
             >
               <VsIcon name="add_circle" className="text-lg text-[#24473d]" />
               Thêm danh mục
@@ -1146,7 +1146,7 @@ export function MarketplaceAdminClient() {
                 setFormValidationError(null);
                 setIsTenantModalOpen(true);
               }}
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-[#24473d] px-6 py-3 text-sm font-bold text-[#fff8e8] shadow-md shadow-[#24473d]/20 transition-all hover:bg-[#1a352d] active:scale-98"
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-[#24473d] px-6 py-3 text-sm font-bold text-[#fff8e8] shadow-md shadow-[#24473d]/20 transition-all hover:bg-[#1a352d] active:scale-98"
             >
               <VsIcon name="storefront" className="text-lg text-[#e8b363]" />
               Tạo đối tác dịch vụ
@@ -1162,6 +1162,7 @@ export function MarketplaceAdminClient() {
 
           <div className="hidden md:block">
             <DataTable
+              minWidth="920px"
               columns={[
                 {
                   key: "owner",
@@ -1610,6 +1611,7 @@ export function MarketplaceAdminClient() {
           </div>
 
           <DataTable
+            minWidth="760px"
             columns={[
               {
                 key: "nameVi",
@@ -1745,7 +1747,7 @@ export function MarketplaceAdminClient() {
       {/* Modal 1: Create External Service Partner */}
       {isTenantModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#17201b]/60 p-4 backdrop-blur-md animate-in fade-in duration-150">
-          <div className="w-full max-w-lg rounded-[1.6rem] border border-[#e8dfd1] bg-[#fffcf8] p-7 shadow-[0_24px_50px_rgba(23,32,27,0.15)] space-y-6">
+          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[1.6rem] border border-[#e8dfd1] bg-[#fffcf8] p-7 shadow-[0_24px_50px_rgba(23,32,27,0.15)] space-y-6">
             <div className="flex items-center justify-between border-b border-[#e8dfd1] pb-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#24473d] text-[#e8b363]">
@@ -1931,7 +1933,7 @@ export function MarketplaceAdminClient() {
       {/* Modal 2: Edit External Service Partner */}
       {editingTenant && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#17201b]/60 p-4 backdrop-blur-md animate-in fade-in duration-150">
-          <div className="w-full max-w-lg rounded-[1.6rem] border border-[#e8dfd1] bg-[#fffcf8] p-7 shadow-[0_24px_50px_rgba(23,32,27,0.15)] space-y-6">
+          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[1.6rem] border border-[#e8dfd1] bg-[#fffcf8] p-7 shadow-[0_24px_50px_rgba(23,32,27,0.15)] space-y-6">
             <div className="flex items-center justify-between border-b border-[#e8dfd1] pb-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#24473d] text-[#e8b363]">
@@ -2172,7 +2174,7 @@ export function MarketplaceAdminClient() {
       {/* Modal 3: Create Service Category */}
       {isCategoryModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#17201b]/60 p-4 backdrop-blur-md animate-in fade-in duration-150">
-          <div className="w-full max-w-md rounded-[1.6rem] border border-[#e8dfd1] bg-[#fffcf8] p-7 shadow-[0_24px_50px_rgba(23,32,27,0.15)] space-y-6">
+          <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-[1.6rem] border border-[#e8dfd1] bg-[#fffcf8] p-7 shadow-[0_24px_50px_rgba(23,32,27,0.15)] space-y-6">
             <div className="flex items-center justify-between border-b border-[#e8dfd1] pb-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#24473d] text-[#e8b363]">
@@ -2317,7 +2319,7 @@ export function MarketplaceAdminClient() {
       {/* Modal 4: Edit Service Category */}
       {editingCategory && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#17201b]/60 p-4 backdrop-blur-md animate-in fade-in duration-150">
-          <div className="w-full max-w-lg rounded-[1.6rem] border border-[#e8dfd1] bg-[#fffcf8] p-7 shadow-[0_24px_50px_rgba(23,32,27,0.15)] space-y-6">
+          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[1.6rem] border border-[#e8dfd1] bg-[#fffcf8] p-7 shadow-[0_24px_50px_rgba(23,32,27,0.15)] space-y-6">
             <div className="flex items-center justify-between border-b border-[#e8dfd1] pb-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#24473d] text-[#e8b363]">
@@ -2482,7 +2484,7 @@ export function MarketplaceAdminClient() {
       {/* Modal 5: Category Details View Modal with Language Switcher Buttons */}
       {selectedCategoryDetail && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#17201b]/60 p-4 backdrop-blur-md animate-in fade-in duration-150">
-          <div className="w-full max-w-lg rounded-[1.6rem] border border-[#e8dfd1] bg-[#fffcf8] p-7 shadow-[0_24px_50px_rgba(23,32,27,0.15)] space-y-6">
+          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[1.6rem] border border-[#e8dfd1] bg-[#fffcf8] p-7 shadow-[0_24px_50px_rgba(23,32,27,0.15)] space-y-6">
             <div className="flex items-center justify-between border-b border-[#e8dfd1] pb-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#24473d] text-[#e8b363]">

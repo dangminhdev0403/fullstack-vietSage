@@ -124,7 +124,7 @@ export function ServiceSettlementsView() {
       </section>
 
       {/* Financial Summary Cards */}
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border border-[#e5ddcd] bg-[#fffcf7] p-5 shadow-xs space-y-1">
           <span className="text-xs font-semibold text-[#5a6760]">Doanh số khách sạn thu hộ</span>
           <div className="text-2xl font-extrabold text-[#17201b]">

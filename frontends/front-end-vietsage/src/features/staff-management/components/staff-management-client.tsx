@@ -201,7 +201,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
 
   return (
     <div className="space-y-6">
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid gap-4 sm:grid-cols-3">
         {[
           { label: "Nhân viên", value: data?.users.total ?? 0, icon: "group" },
           {

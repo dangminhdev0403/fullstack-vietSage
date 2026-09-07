@@ -1316,7 +1316,7 @@ export function OwnerServiceCatalogClient({
               setItemPage(1);
             }}
             placeholder="Tìm dịch vụ"
-            className="min-h-10 flex-1 rounded-lg border border-[var(--outline-variant)] px-3 text-sm outline-none transition-colors focus:border-[var(--primary)]"
+            className="min-h-10 flex-1 min-w-[200px] rounded-lg border border-[var(--outline-variant)] px-3 text-sm outline-none transition-colors focus:border-[var(--primary)]"
           />
           <button
             type="button"
@@ -1325,7 +1325,7 @@ export function OwnerServiceCatalogClient({
                 ? setCategoryForm(emptyCategoryForm)
                 : setItemForm(emptyItemForm(categories[0]?.id ?? ""))
             }
-            className="cursor-pointer rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-[var(--on-primary)] transition-colors hover:bg-[color:rgba(0,0,60,0.88)]"
+            className="shrink-0 cursor-pointer rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-[var(--on-primary)] transition-colors hover:bg-[color:rgba(0,0,60,0.88)]"
           >
             {tab === "categories" ? "Tạo nhóm" : "Tạo dịch vụ"}
           </button>
