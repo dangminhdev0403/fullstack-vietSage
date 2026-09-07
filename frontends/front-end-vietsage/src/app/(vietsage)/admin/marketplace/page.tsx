@@ -1,6 +1,7 @@
+"use client";
+
 import { MarketplaceAdminClient } from "@/features/marketplace-admin/marketplace-admin-client";
 
-export const dynamic = "force-dynamic";
 export default function MarketplaceAdminPage() {
   return (
     <div className="mx-auto max-w-[1500px] space-y-7">
