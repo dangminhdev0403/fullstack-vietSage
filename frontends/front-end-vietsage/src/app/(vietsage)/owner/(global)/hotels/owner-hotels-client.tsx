@@ -67,7 +67,7 @@ export function OwnerHotelsClient({ initialHotels }: { initialHotels?: HotelsPag
 
   return (
     <div className="space-y-6">
-      <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {metrics.map((metric) => (
           <article key={metric.label} className="rounded-[1.5rem] border border-white/70 bg-white/75 p-6 shadow-[0_18px_50px_rgba(31,61,53,0.10)] backdrop-blur">
             <div className="flex items-center justify-between gap-4">

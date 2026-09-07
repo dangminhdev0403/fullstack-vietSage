@@ -75,7 +75,7 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
         </div>
       </header>
 
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <section className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
         {roomCards.map((card) => (
           <article key={card.label} className="group flex min-h-40 flex-col justify-between rounded-xl border border-[var(--outline-variant)]/30 bg-[var(--surface-container-low)] p-5 transition hover:-translate-y-1 hover:shadow-lg">
             <div className="flex items-start justify-between">

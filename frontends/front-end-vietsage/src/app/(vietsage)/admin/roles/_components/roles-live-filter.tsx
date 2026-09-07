@@ -724,7 +724,7 @@ export function RolesLiveFilter({
 
       <section className="overflow-hidden rounded-xl border border-[color:rgba(198,197,213,0.2)] bg-white shadow-[0_4px_20px_rgba(0,0,0,0.05)]">
         <div className="overflow-x-auto">
-          <table className="min-w-full text-left">
+          <table className="w-full min-w-[860px] text-left">
             <thead>
               <tr className="bg-[var(--surface-container-low)] text-sm font-semibold uppercase tracking-[0.08em] text-[var(--outline)]">
                 <th className="px-6 py-4">Tên vai trò</th>
@@ -895,7 +895,7 @@ export function RolesLiveFilter({
 
       {isDialogOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4">
-          <div className="w-full max-w-xl rounded-xl bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.18)]">
+          <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-xl bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.18)]">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--secondary)]">

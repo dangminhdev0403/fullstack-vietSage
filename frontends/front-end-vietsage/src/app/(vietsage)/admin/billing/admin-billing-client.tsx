@@ -425,7 +425,7 @@ export function AdminBillingClient() {
                     </div>
                   ) : (
                     <div className="overflow-x-auto rounded-xl border border-slate-200/80 dark:border-slate-800">
-                      <table className="w-full text-left text-sm">
+                      <table className="w-full min-w-[680px] text-left text-sm">
                         <thead className="bg-slate-100/70 text-xs font-bold uppercase tracking-wider text-slate-600 dark:bg-slate-800/60 dark:text-slate-400">
                           <tr>
                             <th className="px-5 py-3.5 font-bold">Từ ngày</th>
