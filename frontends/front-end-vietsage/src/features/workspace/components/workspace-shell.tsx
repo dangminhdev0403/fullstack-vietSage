@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 
@@ -43,14 +43,19 @@ export function WorkspaceShell({
   const inheritedProfile = useWorkspaceProfile();
   const resolvedProfileName = profileName ?? inheritedProfile.profileName;
 
-  const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
+
+  useEffect(() => {
     try {
-      return localStorage.getItem("vietsage_sidebar_collapsed") === "true";
+      if (localStorage.getItem("vietsage_sidebar_collapsed") === "true") {
+        // Browser-only preference is restored after hydration.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setIsCollapsed(true);
+      }
     } catch {
-      return false;
+      // Ignore storage errors in restricted contexts
     }
-  });
+  }, []);
 
   const toggleCollapse = useCallback(() => {
     setIsCollapsed((prev) => {

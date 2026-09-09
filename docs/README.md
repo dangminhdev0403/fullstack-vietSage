@@ -11,9 +11,9 @@ VietSage is currently a **modular monolith**: one deployed NestJS core API under
 | Scope | Location | Purpose |
 | --- | --- | --- |
 | Root / cross-system | `docs/` | System architecture, bounded contexts, service evolution, API/event/secret/RBAC policies, deployment and validation. |
-| Backend standards | `services/docs/` | Backend modular-monolith standards, module guide, contract/data guide, extension workflow, rules/plans/migration notes. |
+| Backend standards | `services/docs/` | Backend modular-monolith standards, module guide, contract/data guide, extension workflow, rules, and migration notes. |
 | Current backend core API | `services/auth-service/` | NestJS runtime service currently acting as VietSage core API. |
-| Frontend app | `frontends/front-end-vietsage/docs/` | Frontend architecture standard, module guide, contract guide, runtime/UI guide, rules/plans/design/smoke/i18n notes. |
+| Frontend app | `frontends/front-end-vietsage/docs/` | Frontend architecture standard, module guide, contract guide, runtime/UI guide, rules/design/smoke/i18n notes. |
 | Shared API contract package | `shared/api-contract/docs/` | Generated/curated API catalog and contract changelog. |
 
 ## Read Order For AI Agents
@@ -22,7 +22,7 @@ VietSage is currently a **modular monolith**: one deployed NestJS core API under
 2. For cross-domain work, read `DOMAIN_MAP.md` and `SERVICE_EVOLUTION.md`.
 3. Open only the guide matching the task: `MODULE_GUIDE.md`, `CONTRACT_GUIDE.md`, `RUNTIME_UI_GUIDE.md`, `EXTENSION_GUIDE.md`, or the relevant root doc.
 4. Open `RULES.md` before implementation or validation work.
-5. Open `PLANS.md` only when the task involves planning/progress tracking.
+5. For complex work, read the plan lifecycle in `docs/RULES.md`, then only the selected root `.hermes/plans/<timestamp>-<slug>.md`.
 
 Do not load every markdown file by default.
 

@@ -459,6 +459,7 @@ def main():
     parser.add_argument("--api-port", type=int, default=18080)
     parser.add_argument("--api-cert")
     parser.add_argument("--api-key")
+
     parser.add_argument("--allowed-origin", action="append", default=["http://localhost:3000", "http://127.0.0.1:3000"])
     parser.add_argument("--hn212-url", default="ws://localhost:8000")
     parser.add_argument("--device-ip", default="192.168.55.11")
@@ -479,6 +480,7 @@ def main():
         raise SystemExit("API browser-facing chỉ được bind loopback")
     if bool(args.api_cert) != bool(args.api_key):
         raise SystemExit("Cần cả --api-cert và --api-key")
+
 
     # Initialise Slice 2 stores (best-effort; unavailable on non-Windows).
     settings_store = None

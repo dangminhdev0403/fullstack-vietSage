@@ -41,3 +41,8 @@ coverage
 **/.git.backup
 **/.git.backup.zip
 account.json
+
+# Local agent continuation and execution state
+.hermes/plans/
+.hermes/tasks/
+NUL

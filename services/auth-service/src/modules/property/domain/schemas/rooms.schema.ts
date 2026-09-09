@@ -104,6 +104,18 @@ export const listRoomsQuerySchema = z
   })
   .strict();
 
+const identityNumberSchema = z
+  .string()
+  .trim()
+  .transform((val) => val.toUpperCase())
+  .pipe(
+    z
+      .string()
+      .min(1, "Số CCCD/Hộ chiếu không được để trống")
+      .max(32, "Số CCCD/Hộ chiếu tối đa 32 ký tự")
+      .regex(/^[A-Z0-9]+$/, "Số CCCD/Hộ chiếu chỉ bao gồm chữ cái và chữ số"),
+  );
+
 export const stayOccupantInputSchema = z.object({
   fullName: z
     .string({ message: "Họ tên khách là bắt buộc" })
@@ -111,7 +123,7 @@ export const stayOccupantInputSchema = z.object({
     .min(2, "Họ tên khách phải từ 2 ký tự")
     .max(120, "Họ tên khách tối đa 120 ký tự"),
   phone: z.string().trim().max(40, "Số điện thoại tối đa 40 ký tự").optional(),
-  identityNumber: z.string().trim().max(32, "Số CCCD/Hộ chiếu tối đa 32 ký tự").optional(),
+  identityNumber: identityNumberSchema.optional(),
   dateOfBirth: z.string().trim().max(20, "Ngày sinh tối đa 20 ký tự").optional(),
   gender: z.string().trim().max(20, "Giới tính tối đa 20 ký tự").optional(),
   nationality: z.string().trim().max(80, "Quốc tịch tối đa 80 ký tự").optional(),
@@ -131,13 +143,7 @@ export const createStayBodySchema = z
       .min(2, "Tên khách hàng phải từ 2 ký tự")
       .max(120, "Tên khách hàng tối đa 120 ký tự"),
     guestPhone: z.string().trim().max(40, "Số điện thoại tối đa 40 ký tự").optional(),
-    guestIdentityNumber: z
-      .string()
-      .trim()
-      .refine((val) => !val || /^(\d{9}|\d{12})$/.test(val), {
-        message: "Số CCCD/CMND phải gồm 9 hoặc 12 chữ số",
-      })
-      .optional(),
+    guestIdentityNumber: identityNumberSchema.optional(),
     guestDateOfBirth: z.string().trim().max(20, "Ngày sinh tối đa 20 ký tự").optional(),
     guestGender: z.string().trim().max(20, "Giới tính tối đa 20 ký tự").optional(),
     guestNationality: z.string().trim().max(80, "Quốc tịch tối đa 80 ký tự").optional(),

@@ -116,20 +116,11 @@ Avoid:
 
 Avoid duplicating query boilerplate already handled by the resource system.
 
-## Change Tracking Rule (Mandatory)
+## Change Tracking Rule
 
-For every completed implementation/fix, you MUST update documentation in the same task:
-
-- update file `docs/PLANS.md` with:
-  - date
-  - what changed
-  - verification result
-  - remaining blockers/risks
-- if behavior/rules/process changed, update `docs/RULES.md` in the same PR/commit.
-- If `docs/PLANS.md` is not updated, the task is NOT considered complete.
-  After complete a module, run a cleanup pass for lint warnings to keep the project clean.
-
-Do not mark work as complete until documentation sync is finished.
+- Follow the root `.hermes/plans` lifecycle in `../../../docs/RULES.md` for complex work. Routine fixes do not create planning logs.
+- Update permanent documentation only when architecture, API contracts, operating procedures, or repository rules change.
+- After completing a module, run a cleanup pass for lint warnings.
 
 ## Git Commit Rule (Mandatory)
 
@@ -158,7 +149,7 @@ After explicit approval:
 - Inspect relevant files.
 - Apply the approved code/docs change only.
 - Run the smallest reliable validation command.
-- Update `docs/PLANS.md` only when the task affects tracked milestones/progress.
+- Update the selected root `.hermes/plans` file only when the approved task is complex.
 - Only then provide the final report.
 
 A task is not complete until all completion evidence exists:

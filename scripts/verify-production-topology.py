@@ -42,6 +42,8 @@ def _check_frontend_build(compose: str, failures: list[str]) -> None:
         compose,
     ):
         failures.append("production Compose must source frontend build auth from the process environment")
+    if "OPEN_MRZ_BASE_URL" in frontend or "open-mrz:" in compose:
+        failures.append("identity-document OCR must remain on the receptionist workstation, not the VPS")
 
 
 def _check_app_services(compose: str, failures: list[str]) -> None:

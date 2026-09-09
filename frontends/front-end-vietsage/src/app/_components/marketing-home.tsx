@@ -4,92 +4,99 @@ import {
   Hero,
   MarketingShell,
   SectionHeader,
-  stats,
 } from "@/components/marketing/marketing-shell";
 import type { Metadata } from "next";
 
 export const marketingMetadata: Metadata = {
-  title: "VietSage | In-room Concierge Platform",
+  title: "VietSage | Nền tảng trợ lý số tại phòng",
   description:
-    "VietSage helps hotels deliver in-room digital concierge, room service requests, multilingual support, and smoother guest comfort journeys without replacing the PMS.",
+    "VietSage cung cấp giải pháp trợ lý số tại phòng qua mã QR, tiếp nhận và điều phối dịch vụ tức thì, hỗ trợ đa ngôn ngữ và nâng tầm trải nghiệm khách lưu trú mà không thay thế hệ thống PMS.",
   openGraph: {
-    title: "VietSage In-room Concierge Platform",
+    title: "VietSage | Nền tảng trợ lý số tại phòng",
     description:
-      "A premium digital concierge layer for in-room requests, amenities, service routing, multilingual support, and better guest comfort.",
+      "Lớp dịch vụ E-Concierge số tại phòng: tối ưu yêu cầu buồng phòng, ẩm thực tại phòng, điều phối tác vụ tức thì và hỗ trợ khách quốc tế đa ngôn ngữ.",
     images: ["/brand/register-hero.png"],
   },
 };
 
+const stats = [
+  ["24/7", "trợ lý số tại phòng"],
+  ["QR", "không cần tải ứng dụng"],
+  ["Tức thì", "tự động điều phối"],
+  ["Đa ngữ", "hỗ trợ khách quốc tế"],
+];
+
 const solutions = [
   {
-    title: "Room concierge by QR",
-    text: "Guests scan in the room and request towels, amenities, housekeeping, dining, transport, or local help without downloading an app.",
+    title: "Trợ lý số tại phòng qua mã QR",
+    text: "Khách chỉ cần quét mã QR đặt tại phòng để yêu cầu khăn tắm, vật dụng cá nhân, buồng phòng, ẩm thực hay cẩm nang địa phương mà không cần tải ứng dụng.",
   },
   {
-    title: "Service routing for staff",
-    text: "Each request reaches the right team with room context, priority, language support, and a simple status flow from received to completed.",
+    title: "Tự động điều phối tác vụ",
+    text: "Mọi yêu cầu được chuyển đến đúng bộ phận phụ trách kèm số phòng, mức ưu tiên, ngôn ngữ của khách và cập nhật theo thời gian thực.",
   },
   {
-    title: "Comfort-focused guest journey",
-    text: "The experience feels like a quiet digital front desk inside the room: helpful, premium, multilingual, and available exactly when guests need it.",
+    title: "Nâng tầm trải nghiệm lưu trú",
+    text: "Đóng vai trò như một bàn E-Concierge số tinh gọn ngay tại phòng: chuẩn xác, cao cấp, hỗ trợ đa ngôn ngữ và luôn sẵn sàng phục vụ 24/7.",
   },
 ];
 
 const why = [
   {
-    title: "Not hotel CRM",
-    text: "VietSage is not centered on managing guest profiles or marketing campaigns; it is built for active service moments during the stay.",
+    title: "Chuyên biệt cho trải nghiệm lưu trú",
+    text: "VietSage không cạnh tranh với các hệ thống CRM quản lý tiếp thị; nền tảng tập trung giải quyết tức thì mọi nhu cầu phát sinh thực tế của khách trong suốt thời gian lưu trú.",
   },
   {
-    title: "Less friction at reception",
-    text: "Routine questions and requests move from phone calls or lobby queues into a clear guest self-service flow inside the room.",
+    title: "Giải tỏa áp lực quầy lễ tân",
+    text: "Chuyển các yêu cầu dịch vụ thường gặp và thắc mắc của khách từ cuộc gọi tổng đài hoặc hàng chờ tiền sảnh sang luồng tự phục vụ nhanh gọn ngay tại phòng.",
   },
   {
-    title: "More comfortable stays",
-    text: "Guests can ask for what they need privately and quickly, while staff receive structured information instead of scattered messages.",
+    title: "Nâng chuẩn tiện nghi & riêng tư",
+    text: "Khách chủ động gửi yêu cầu nhanh chóng và riêng tư; nhân viên tiếp nhận phiếu công việc chuẩn hóa thay vì ghi nhận thủ công qua điện thoại hay tin nhắn rời rạc.",
   },
   {
-    title: "Multilingual service",
-    text: "International guests can understand services and submit requests more confidently, helping teams respond with fewer misunderstandings.",
+    title: "Giao tiếp đa ngôn ngữ",
+    text: "Khách quốc tế dễ dàng nắm rõ dịch vụ và gửi yêu cầu bằng chính tiếng mẹ đẻ; hệ thống tự động dịch thuật giúp đội ngũ vận hành xử lý thông suốt, loại bỏ hiểu nhầm.",
   },
   {
-    title: "Operational visibility",
-    text: "Owners and managers see request volume, service speed, guest demand, and team workload without turning the guest journey into a back-office CRM.",
+    title: "Minh bạch dữ liệu vận hành",
+    text: "Ban quản lý và chủ đầu tư dễ dàng theo dõi tần suất yêu cầu, thời gian đáp ứng (SLA), nhu cầu thực tế của khách và hiệu suất từng bộ phận theo thời gian thực.",
   },
   {
-    title: "Works beside PMS",
-    text: "VietSage complements existing hotel systems by adding a guest-facing service layer for convenience, comfort, and better in-room hospitality.",
+    title: "Tương thích hoàn hảo với PMS",
+    text: "VietSage đóng vai trò là lớp giao tiếp trải nghiệm khách (Guest Experience Layer) song hành cùng hệ sinh thái PMS sẵn có, nâng cấp chất lượng phục vụ mà không làm gián đoạn hệ thống cốt lõi.",
   },
 ];
 
 const moments = [
-  "A guest needs extra towels after check-in and sends the request from the room QR.",
-  "A family orders in-room dining without calling reception during the evening rush.",
-  "A foreign guest asks for checkout guidance in their language and receives clear next steps.",
+  "Khách cần bổ sung khăn tắm và vật dụng sau khi nhận phòng, gửi yêu cầu tức thì qua mã QR đặt tại phòng.",
+  "Gia đình đặt dịch vụ ẩm thực tại phòng thuận tiện mà không cần chờ máy tổng đài trong khung giờ cao điểm.",
+  "Khách quốc tế tra cứu hướng dẫn trả phòng (check-out) và chính sách khách sạn bằng chính ngôn ngữ của họ một cách chuẩn xác.",
 ];
 
 const faqs = [
   [
-    "Is VietSage a CRM or PMS replacement?",
-    "No. VietSage is a guest-facing service and in-room concierge layer. It helps hotels improve comfort, service access, multilingual support, and operational follow-up during the stay.",
+    "VietSage có thay thế hệ thống PMS hoặc CRM hiện tại không?",
+    "Không. VietSage là lớp trải nghiệm khách lưu trú (Guest Experience Layer) và trợ lý E-Concierge tại phòng. Nền tảng hoạt động song hành, bổ trợ hoàn hảo cho hệ thống PMS sẵn có nhằm giải quyết bài toán tiếp nhận dịch vụ, hỗ trợ đa ngôn ngữ và chuẩn hóa quy trình phục vụ tại phòng.",
   ],
   [
-    "Do guests need to install an app?",
-    "No. The intended flow is simple QR access from the room, so guests can request services quickly without app download friction.",
+    "Khách lưu trú có cần cài đặt ứng dụng không?",
+    "Hoàn toàn không. Khách chỉ cần quét mã QR tại phòng bằng camera điện thoại để truy cập ngay web-app dịch vụ, thao tác nhanh chóng mà không cần tải hay cài đặt bất kỳ ứng dụng nào.",
   ],
   [
-    "What does the hotel team receive?",
-    "The team receives structured room requests, service categories, statuses, and context so staff can coordinate more clearly and respond faster.",
+    "Đội ngũ vận hành khách sạn nhận và xử lý yêu cầu ra sao?",
+    "Các bộ phận liên quan (Lễ tân, Buồng phòng, F&B...) tiếp nhận phiếu yêu cầu chuẩn hóa theo số phòng, danh mục dịch vụ, độ ưu tiên và được dịch tự động về tiếng Việt, giúp phân công công việc minh bạch và phản hồi tức thì.",
   ],
 ];
 
 export function MarketingHome() {
   return (
-    <MarketingShell>
+    <MarketingShell locale="vi">
       <Hero
-        eyebrow="Digital front desk inside every room"
-        title="Bring reception, room service, and guest comfort into one calm in-room flow."
-        text="VietSage gives hotel guests a premium QR concierge for amenities, dining, housekeeping, local help, and multilingual support while giving staff a clearer way to route and complete every request."
+        locale="vi"
+        eyebrow="Trợ lý E-Concierge số tại từng phòng nghỉ"
+        title="Kết nối lễ tân, buồng phòng và trải nghiệm lưu trú trong một quy trình liền mạch."
+        text="VietSage mang đến giải pháp trợ lý QR thông minh hỗ trợ vật dụng phòng, ẩm thực tại phòng, dịch vụ buồng phòng, cẩm nang địa phương và đa ngôn ngữ; đồng thời giúp nhân viên phân luồng và xử lý từng yêu cầu nhanh chóng, chuẩn xác."
       >
         <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {stats.map(([v, l], index) => (
@@ -99,8 +106,8 @@ export function MarketingHome() {
               data-reveal-order={index}
               className="vs-stat-card rounded-3xl border border-[#123d2a]/10 bg-white/70 p-4 shadow-sm shadow-[#123d2a]/5"
             >
-              <strong className="text-3xl text-[#123d2a]">{v}</strong>
-              <span className="block text-xs uppercase tracking-[.14em] text-[#627064]">
+              <strong className="text-2xl text-[#123d2a]">{v}</strong>
+              <span className="block text-[10px] leading-4 uppercase tracking-[.1em] text-[#627064]">
                 {l}
               </span>
             </div>
@@ -111,10 +118,10 @@ export function MarketingHome() {
       <section className="vs-trust-strip px-5 py-12 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <p data-reveal="fade" className="text-center text-xs font-black uppercase tracking-[.28em] text-[#b8872f]">
-            Guest comfort, not guest database management
+            Tối ưu trải nghiệm thực tế của khách lưu trú thay vì quản trị dữ liệu cồng kềnh
           </p>
           <div className="mt-8 grid gap-3 sm:grid-cols-4">
-            {["IN-ROOM QR", "AMENITIES", "ROOM SERVICE", "LOCAL HELP"].map((item, index) => (
+            {["QR TẠI PHÒNG", "VẬT DỤNG PHÒNG", "ẨM THỰC TẠI PHÒNG", "CẨM NANG ĐỊA PHƯƠNG"].map((item, index) => (
               <span
                 key={item}
                 data-reveal="scale"
@@ -129,12 +136,12 @@ export function MarketingHome() {
       </section>
 
       <section id="concierge" data-scene="concierge" className="vs-cinematic-scene relative overflow-hidden px-5 py-24 lg:px-8 lg:py-32">
-        <div className="vs-scene-watermark vs-scene-watermark-right" aria-hidden="true">STAY</div>
+        <div className="vs-scene-watermark vs-scene-watermark-right" aria-hidden="true">LƯU TRÚ</div>
         <div className="relative mx-auto max-w-7xl">
           <SectionHeader
-            eyebrow="What VietSage adds"
-            title="A hospitality layer for the moments guests actually feel."
-            text="Instead of focusing on CRM-style customer management, VietSage focuses on the in-stay experience: what guests need now, who should handle it, and how smoothly the hotel can deliver."
+            eyebrow="Giải pháp chuyên biệt từ VietSage"
+            title="Số hóa mọi điểm chạm trong suốt kỳ lưu trú của khách."
+            text="Thay vì quản trị dữ liệu như CRM truyền thống, VietSage tập trung xử lý nhu cầu thực tế: khách cần gì, bộ phận nào tiếp nhận và phục vụ nhanh nhất."
             reveal="from-left"
           />
           <div className="mt-12">
@@ -144,17 +151,15 @@ export function MarketingHome() {
       </section>
 
       <section id="operations" data-scene="operations" className="vs-cinematic-scene vs-operations-scene relative overflow-hidden px-5 py-24 lg:px-8 lg:py-32">
-        <div className="vs-scene-watermark" aria-hidden="true">FLOW</div>
+        <div className="vs-scene-watermark" aria-hidden="true">VẬN HÀNH</div>
         <div className="relative mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.92fr_1.08fr]">
           <div data-reveal="from-left" className="vs-story-panel rounded-[2rem] p-8 text-white lg:sticky lg:top-32 lg:self-start">
-            <p className="text-xs font-black uppercase tracking-[0.26em] text-[#f3c66b]">03 / From room to team</p>
-            <h2 className="vs-display mt-5 text-3xl font-black leading-[1.02] tracking-[-0.035em] md:text-6xl md:leading-none md:tracking-[-0.04em]">
-              Every small request becomes a clear service signal.
+            <p className="text-xs font-black uppercase tracking-[0.26em] text-[#f3c66b]">03 / Kết nối tức thì từ phòng đến nhân sự</p>
+            <h2 className="vs-display mt-5 text-3xl font-black leading-[1.02] tracking-[-0.035em] md:text-6xl md:leading-none md:tracking-[-0.04em] [text-wrap:balance]">
+              Chuyển hóa mọi yêu cầu tại phòng thành tác vụ chính xác.
             </h2>
             <p className="mt-5 text-white/72">
-              The goal is not to copy a CRM page. The product direction is a quiet,
-              premium service layer that helps guests feel cared for without making
-              staff manage chaotic phone calls and chat threads.
+              VietSage mang đến công cụ hỗ trợ tinh gọn, chuyên nghiệp, giúp khách luôn an tâm được phục vụ chu đáo mà không gây quá tải cho nhân viên qua các cuộc gọi dồn dập.
             </p>
           </div>
           <div className="grid gap-4">
@@ -176,12 +181,12 @@ export function MarketingHome() {
       </section>
 
       <section id="visibility" data-scene="visibility" className="vs-cinematic-scene relative overflow-hidden px-5 py-24 lg:px-8 lg:py-32">
-        <div className="vs-scene-watermark vs-scene-watermark-right" aria-hidden="true">CALM</div>
+        <div className="vs-scene-watermark vs-scene-watermark-right" aria-hidden="true">MINH BẠCH</div>
         <div className="relative mx-auto max-w-7xl">
           <SectionHeader
-            eyebrow="Why this matters"
-            title="Less lobby friction. More in-room convenience. Better service rhythm."
-            text="Hotels can keep their existing management stack while adding a guest-facing experience that improves comfort, convenience, and staff coordination."
+            eyebrow="Tại sao chọn VietSage"
+            title="Giải tỏa áp lực lễ tân. Nâng chuẩn tiện nghi phòng. Tối ưu hiệu suất vận hành."
+            text="Khách sạn tiếp tục duy trì hệ thống PMS hiện có, đồng thời trang bị thêm nền tảng số hóa tại phòng giúp nâng cao mức độ hài lòng của khách và tối ưu năng lực phối hợp giữa các bộ phận."
             reveal="from-right"
           />
           <div className="mt-12">
@@ -193,9 +198,9 @@ export function MarketingHome() {
       <section data-scene="visibility" className="px-5 py-20 lg:px-8">
         <div className="mx-auto max-w-4xl">
           <SectionHeader
-            eyebrow="FAQ"
-            title="Clear positioning before a demo."
-            text="VietSage is designed around in-room hospitality and service delivery, not cloning a customer-care CRM narrative."
+            eyebrow="Câu hỏi thường gặp"
+            title="Giải đáp thắc mắc trước khi trải nghiệm bản demo."
+            text="VietSage được phát triển chuyên sâu cho dịch vụ tại phòng và tối ưu vận hành khách sạn, khác biệt hoàn toàn với các phần mềm CRM phổ thông."
           />
           <div className="mt-10 space-y-3">
             {faqs.map(([q, a]) => (
@@ -209,7 +214,7 @@ export function MarketingHome() {
           </div>
         </div>
       </section>
-      <Cta />
+      <Cta locale="vi" />
     </MarketingShell>
   );
 }

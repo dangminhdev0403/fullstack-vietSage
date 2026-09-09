@@ -16,6 +16,14 @@ const primaryLinks = [
   { label: "Contact", href: "/contact" },
 ];
 
+const primaryLinksVi = [
+  { label: "Trang chủ", href: "/" },
+  { label: "Về chúng tôi", href: "/about" },
+  { label: "Blog", href: "/blog" },
+  { label: "Doanh nghiệp (B2B)", href: "/b2b" },
+  { label: "Liên hệ", href: "/contact" },
+];
+
 const solutionLinks = [
   {
     title: "VietSage Hotel",
@@ -34,11 +42,17 @@ const solutionLinks = [
   },
 ];
 
+const solutionLinksVi = [
+  { title: "VietSage Hotel", href: "/", text: "Trải nghiệm khách lưu trú, tự động hóa vận hành và minh bạch báo cáo." },
+  { title: "VietSage Commerce", href: "/commerce", text: "Quản lý danh mục, đặt hàng trực tuyến và phân tích kinh doanh." },
+  { title: "VietSage Health", href: "/health", text: "Hành trình y tế số, đặt lịch khám và điều phối dịch vụ." },
+];
+
 function isActivePath(pathname: string, href: string) {
   return href === "/" ? pathname === href : pathname.startsWith(href);
 }
 
-export function MarketingHeader({ accountAction }: { accountAction: { label: string; href: string } }) {
+export function MarketingHeader({ accountAction, locale = "en" }: { accountAction: { label: string; href: string }; locale?: "en" | "vi" }) {
   const pathname = usePathname();
   const headerRef = useRef<HTMLElement>(null);
   const firstMobileLinkRef = useRef<HTMLAnchorElement>(null);
@@ -47,6 +61,16 @@ export function MarketingHeader({ accountAction }: { accountAction: { label: str
   const solutionsActive = ["/commerce", "/health"].some((href) =>
     pathname.startsWith(href),
   );
+  const vietnamese = locale === "vi";
+  const visiblePrimaryLinks = vietnamese ? primaryLinksVi : primaryLinks;
+  const visibleSolutionLinks = vietnamese ? solutionLinksVi : solutionLinks;
+  const accountLabel = vietnamese
+    ? accountAction.href === "/dangnhap"
+      ? "Đăng nhập"
+      : accountAction.href === "/g/home"
+        ? "Giao diện khách lưu trú"
+        : "Vào trang quản trị"
+    : accountAction.label;
 
   useEffect(() => {
     if (!mobileOpen) return;
@@ -75,7 +99,7 @@ export function MarketingHeader({ accountAction }: { accountAction: { label: str
     <header ref={headerRef} className="vs-mkt-header sticky top-0 z-50">
       <nav
         className="vs-mkt-navbar mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-5 lg:px-6"
-        aria-label="Main navigation"
+        aria-label={vietnamese ? "Điều hướng chính" : "Main navigation"}
       >
         <Link href="/" className="vs-mkt-brand flex min-w-0 items-center">
           <span className="min-w-0">
@@ -86,13 +110,13 @@ export function MarketingHeader({ accountAction }: { accountAction: { label: str
               wordmarkClassName="h-5 w-auto sm:h-6"
             />
             <span className="hidden truncate text-xs text-[#627064] sm:block">
-              Hospitality technology platform
+              {vietnamese ? "Nền tảng công nghệ quản trị khách sạn" : "Hospitality technology platform"}
             </span>
           </span>
         </Link>
 
         <div className="hidden items-center gap-1 xl:flex">
-          <DesktopNavLink pathname={pathname} href="/" label="Home" />
+          <DesktopNavLink pathname={pathname} href="/" label={vietnamese ? "Trang chủ" : "Home"} />
           <div className="group relative">
             <button
               className="vs-mkt-nav"
@@ -100,12 +124,12 @@ export function MarketingHeader({ accountAction }: { accountAction: { label: str
               type="button"
               aria-haspopup="true"
             >
-              Solutions
+              {vietnamese ? "Giải pháp" : "Solutions"}
               <span className="ml-1 text-[0.65rem]" aria-hidden="true">&#9662;</span>
             </button>
             <div className="vs-solutions-menu invisible absolute left-1/2 top-full w-[680px] pt-4 opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
               <div className="grid grid-cols-3 gap-3 rounded-[2rem] border border-[#123d2a]/10 bg-[#fffdf7]/95 p-4 shadow-2xl shadow-[#123d2a]/15 backdrop-blur-xl">
-                {solutionLinks.map((item) => (
+                {visibleSolutionLinks.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
@@ -121,14 +145,14 @@ export function MarketingHeader({ accountAction }: { accountAction: { label: str
               </div>
             </div>
           </div>
-          {primaryLinks.slice(1).map((link) => (
+          {visiblePrimaryLinks.slice(1).map((link) => (
             <DesktopNavLink key={link.href} pathname={pathname} {...link} />
           ))}
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
           <Link className="vs-mkt-sign-in hidden sm:inline-flex" href={accountAction.href}>
-            {accountAction.label}
+            {accountLabel}
           </Link>
           <a
             className="vs-mkt-primary-btn hidden rounded-full bg-[#123d2a] px-5 py-3 text-sm font-black text-white shadow-lg shadow-[#123d2a]/20 md:inline-flex"
@@ -136,17 +160,17 @@ export function MarketingHeader({ accountAction }: { accountAction: { label: str
             target="_blank"
             rel="noopener noreferrer"
           >
-            Request demo
+            {vietnamese ? "Yêu cầu demo" : "Request demo"}
           </a>
           <button
             className="vs-mobile-menu-toggle grid h-11 w-11 place-items-center rounded-full xl:hidden"
             type="button"
             aria-expanded={mobileOpen}
             aria-controls="marketing-mobile-menu"
-            aria-label={mobileOpen ? "Close navigation menu" : "Open navigation menu"}
+            aria-label={mobileOpen ? (vietnamese ? "Đóng menu điều hướng" : "Close navigation menu") : (vietnamese ? "Mở menu điều hướng" : "Open navigation menu")}
             onClick={() => setMobileOpen((open) => !open)}
           >
-            <span className="sr-only">Menu</span>
+            <span className="sr-only">{vietnamese ? "Menu điều hướng" : "Menu"}</span>
             <span className="vs-mobile-menu-icon" data-open={mobileOpen ? "true" : "false"} aria-hidden="true">
               <i />
               <i />
@@ -173,7 +197,7 @@ export function MarketingHeader({ accountAction }: { accountAction: { label: str
               tabIndex={mobileOpen ? 0 : -1}
               onClick={() => setMobileOpen(false)}
             >
-              Home
+              {vietnamese ? "Trang chủ" : "Home"}
             </Link>
 
             <button
@@ -184,12 +208,12 @@ export function MarketingHeader({ accountAction }: { accountAction: { label: str
               tabIndex={mobileOpen ? 0 : -1}
               onClick={() => setMobileSolutionsOpen((open) => !open)}
             >
-              Solutions
+              {vietnamese ? "Giải pháp" : "Solutions"}
               <span aria-hidden="true">{mobileSolutionsOpen ? "-" : "+"}</span>
             </button>
             {mobileSolutionsOpen && (
               <div className="grid gap-2 px-2 pb-2 sm:grid-cols-3">
-                {solutionLinks.map((item) => (
+                {visibleSolutionLinks.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
@@ -202,7 +226,7 @@ export function MarketingHeader({ accountAction }: { accountAction: { label: str
               </div>
             )}
 
-            {primaryLinks.slice(1).map((link) => (
+            {visiblePrimaryLinks.slice(1).map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
@@ -218,7 +242,7 @@ export function MarketingHeader({ accountAction }: { accountAction: { label: str
 
             <div className="mt-2 grid grid-cols-2 gap-2 border-t border-[#123d2a]/10 pt-3 sm:hidden">
               <Link className="vs-mkt-sign-in justify-center" href={accountAction.href} tabIndex={mobileOpen ? 0 : -1} onClick={() => setMobileOpen(false)}>
-                {accountAction.label}
+                {accountLabel}
               </Link>
               <a
                 className="rounded-full bg-[#123d2a] px-4 py-3 text-center text-sm font-black text-white"
@@ -228,7 +252,7 @@ export function MarketingHeader({ accountAction }: { accountAction: { label: str
                 tabIndex={mobileOpen ? 0 : -1}
                 onClick={() => setMobileOpen(false)}
               >
-                Request demo
+                {vietnamese ? "Yêu cầu demo" : "Request demo"}
               </a>
             </div>
           </div>

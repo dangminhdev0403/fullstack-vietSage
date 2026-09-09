@@ -19,14 +19,54 @@ describe("guest stay CCCD identity", () => {
     },
   );
 
-  it.each(["12345678", "1234567890123", "03420A005951"])(
-    "rejects an invalid identity number: %s",
-    (value) => {
-      expect(
-        createStayBodySchema.safeParse({ ...stayInput, guestIdentityNumber: value }).success,
-      ).toBe(false);
-    },
-  );
+  it.each([
+    ["L898902C3", "L898902C3"],
+    ["  ab1234567 ", "AB1234567"],
+  ])("accepts and normalizes passport numbers: %s -> %s", (value, expected) => {
+    expect(
+      createStayBodySchema.parse({ ...stayInput, guestIdentityNumber: value }).guestIdentityNumber,
+    ).toBe(expected);
+  });
+
+  it.each([
+    "   ",
+    "AB 12345",
+    "AB-12345",
+    "AB_12345",
+    "AB123456789012345678901234567890123",
+    "AB\n12345",
+    "AB\t12345",
+    "AB12345é",
+  ])("rejects invalid passport/CCCD formatting: %s", (value) => {
+    expect(
+      createStayBodySchema.safeParse({ ...stayInput, guestIdentityNumber: value }).success,
+    ).toBe(false);
+  });
+
+  it("applies the same identity schema and normalization to occupants", () => {
+    const parsed = createStayBodySchema.parse({
+      ...stayInput,
+      occupants: [
+        {
+          fullName: "Anna Eriksson",
+          identityNumber: "  l898902c3  ",
+        },
+      ],
+    });
+    expect(parsed.occupants?.[0].identityNumber).toBe("L898902C3");
+
+    expect(
+      createStayBodySchema.safeParse({
+        ...stayInput,
+        occupants: [
+          {
+            fullName: "Anna Eriksson",
+            identityNumber: "INVALID-NUM",
+          },
+        ],
+      }).success,
+    ).toBe(false);
+  });
 
   it("keeps manual check-in valid without an identity number", () => {
     expect(createStayBodySchema.safeParse(stayInput).success).toBe(true);

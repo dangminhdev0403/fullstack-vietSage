@@ -4,6 +4,11 @@ import Image from "next/image";
 import { MobileCccdCapture } from "@/features/local-biometric/components/mobile-cccd-capture";
 import { useMobilePhone } from "@/features/local-biometric/hooks/use-mobile-phone";
 
+if (typeof window !== "undefined") {
+  (window as unknown as { zaloJSV2: unknown }).zaloJSV2 =
+    (window as unknown as { zaloJSV2: unknown }).zaloJSV2 || {};
+}
+
 export default function CccdMobilePage() {
   const { view, ready, error, send, disconnect } = useMobilePhone();
 
@@ -29,7 +34,7 @@ export default function CccdMobilePage() {
               VietSage
             </span>
             <span className="block text-xs font-bold text-[#166534]">
-              Quét CCCD Di Động
+              Quét giấy tờ di động
             </span>
           </div>
         </div>
@@ -188,53 +193,82 @@ export default function CccdMobilePage() {
                 </p>
               </div>
             ) : view.target ? (
-              <section className="rounded-2xl border-2 border-[#000080]/30 bg-white p-5 shadow-sm space-y-4">
+              <section className="rounded-2xl border-[3px] border-[#000080] bg-white shadow-md overflow-hidden space-y-0">
                 {/* Target Room Header */}
-                <div className="border-b border-stone-100 pb-3">
-                  <p className="text-xs font-bold uppercase tracking-wider text-[#000080]">
-                    ĐANG CHECK-IN CHO:
-                  </p>
-                  <p className="text-2xl font-black text-[#00003c] mt-0.5">
+                <div className="bg-[#000080] px-5 py-3.5">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="relative flex h-2.5 w-2.5">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-60" />
+                      <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-white" />
+                    </span>
+                    <p className="text-xs font-bold uppercase tracking-wider text-blue-200">
+                      ĐANG CHECK-IN CHO
+                    </p>
+                  </div>
+                  <p className="text-2xl font-black text-white">
                     {view.target.label}
                   </p>
                 </div>
 
                 {/* Sub-component: Scanner or Status */}
-                {view.target.status === "waiting" ? (
-                  <MobileCccdCapture
-                    key={view.target.requestId}
-                    requestId={view.target.requestId}
-                    expiresAt={view.target.expiresAt}
-                    send={send}
-                  />
-                ) : view.target.status === "received" ? (
-                  <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-6 text-center space-y-2">
-                    <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-700 animate-pulse">
-                      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                      </svg>
+                <div className="p-5 space-y-4">
+                  {view.target.status === "waiting" ? (
+                    <MobileCccdCapture
+                      key={view.target.requestId}
+                      requestId={view.target.requestId}
+                      expiresAt={view.target.expiresAt}
+                      send={send}
+                    />
+                  ) : view.target.status === "received" ? (
+                    <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-6 text-center space-y-2">
+                      <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-700 animate-pulse">
+                        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                        </svg>
+                      </div>
+                      <p className="text-base font-bold text-blue-950">Đã gửi dữ liệu</p>
+                      <p className="text-sm text-blue-800">
+                        Đang chờ nhân viên lễ tân bấm nhận trên màn hình máy tính.
+                      </p>
                     </div>
-                    <p className="text-base font-bold text-blue-950">Đã gửi dữ liệu</p>
-                    <p className="text-sm text-blue-800">
-                      Đang chờ nhân viên lễ tân bấm nhận trên màn hình máy tính.
+                  ) : (
+                    <p className="text-center text-sm text-stone-500 py-3">
+                      Chờ máy lễ tân chọn khách tiếp theo…
                     </p>
-                  </div>
-                ) : (
-                  <p className="text-center text-sm text-stone-500 py-3">
-                    Chờ máy lễ tân chọn khách tiếp theo…
-                  </p>
-                )}
+                  )}
+                </div>
               </section>
             ) : (
-              <div className="rounded-2xl border border-dashed border-stone-300 bg-white p-8 text-center space-y-3">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-stone-100 text-3xl">
-                  ☕
+              <div className="rounded-2xl border-[3px] border-emerald-400 bg-white p-6 text-center space-y-4 shadow-sm">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-3xl shadow-2xs">
+                  ⚡
                 </div>
                 <div className="space-y-1.5">
-                  <p className="text-lg font-bold text-stone-800">Sẵn sàng nhận lượt quét mới</p>
-                  <p className="text-sm text-stone-500 leading-relaxed">
-                    Khi lễ tân chọn phòng trên máy tính, màn hình quét CCCD sẽ tự động mở tại đây.
+                  <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3.5 py-1.5 text-sm font-bold text-emerald-800 border border-emerald-300">
+                    <span className="relative flex h-2.5 w-2.5">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
+                      <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-600" />
+                    </span>
+                    <span>ACTIVE — ĐÃ KẾT NỐI</span>
+                  </div>
+                  <h3 className="text-xl font-black text-[#00003c]">Sẵn sàng tiếp nhận lượt quét</h3>
+                  <p className="text-sm text-stone-600 leading-relaxed max-w-xs mx-auto">
+                    Để chụp CCCD / Hộ chiếu cho phòng:
                   </p>
+                </div>
+                <div className="rounded-xl bg-stone-50 p-3.5 text-left text-xs sm:text-sm text-stone-700 space-y-2 border border-stone-200">
+                  <div className="flex items-start gap-2">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700 text-xs">1</span>
+                    <span>Trên máy tính lễ tân, mở hộp thoại <strong>Check-in phòng</strong> bất kỳ.</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700 text-xs">2</span>
+                    <span>Bấm chọn <strong>&quot;Quét bằng điện thoại&quot;</strong> tại vị trí khách cần quét.</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 font-bold text-emerald-800 text-xs">✓</span>
+                    <span>Màn hình điện thoại này sẽ <strong>tự động mở máy ảnh chụp ngay</strong>.</span>
+                  </div>
                 </div>
               </div>
             )}

@@ -17,7 +17,7 @@ All frontend documentation must stay under `frontends/[frontend-app]/docs/`.
 | Backend API, generated contracts, route handlers, auth/session calls | `CONTRACT_GUIDE.md` |
 | Runtime boundaries, components, state, realtime, errors, i18n | `RUNTIME_UI_GUIDE.md` |
 | Development rules and execution contracts | `RULES.md` |
-| Active/archived implementation plans | `PLANS.md` |
+| Complex plan lifecycle | `../../../docs/RULES.md`, then the selected root `.hermes/plans/<timestamp>-<slug>.md` |
 | UI brand, visual system, component style | `DESIGN.md` |
 | Smoke test commands and manual route checks | `FRONTEND_SMOKE_TESTS.md` |
 | Guest-facing i18n frontend instructions | `FRONTEND_GUEST_I18N_INSTRUCTIONS.md` |
@@ -32,6 +32,7 @@ Rule: do not read all docs by default. Start with this file, then open only the 
 - Pages compose product surfaces; features own domain-specific UI logic.
 - API calls must go through feature services, core HTTP utilities, or route handlers.
 - Runtime boundaries must be explicit: server, client, route handler, proxy, browser storage, and realtime.
+- Identity-document images are processed only by OpenMRZ on the receptionist workstation loopback; phone flows send parsed CCCD QR fields and never upload document images to the VPS.
 - Reusable UI components must not depend on domain services.
 - Architecture docs must avoid current-project snapshots that make the standard hard to reuse.
 

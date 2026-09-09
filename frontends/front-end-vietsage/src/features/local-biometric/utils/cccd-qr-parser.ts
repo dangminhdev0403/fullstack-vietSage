@@ -51,9 +51,40 @@ function parseDate(value: string): string {
 }
 
 function parseMrz(lines: string[]): CccdQrData | null {
-  if (lines.length < 3) return null;
+  if (lines.length < 2) return null;
   const l1 = lines[0].trim();
   const l2 = lines[1].trim();
+
+  // TD3 2-line Passport MRZ (44 chars per line)
+  if (lines.length === 2 || (lines.length >= 2 && l1.length >= 36 && l2.length >= 36)) {
+    if (l1.startsWith("P") || l1.includes("<")) {
+      const docNum = l2.slice(0, 9).replace(/<+/g, "").trim();
+      const namePart = l1.slice(5).replace(/<+/g, " ").trim();
+      let dateOfBirth = "";
+      let gender = "Nam";
+      if (/^\d{6}/.test(l2.slice(13))) {
+        const yy = Number(l2.slice(13, 15));
+        const mm = l2.slice(15, 17);
+        const dd = l2.slice(17, 19);
+        const fullYear = yy < 50 ? 2000 + yy : 1900 + yy;
+        dateOfBirth = `${fullYear}-${mm}-${dd}`;
+      }
+      if (l2.slice(20, 21) === "F") gender = "Nữ";
+      if (docNum && namePart) {
+        return {
+          identityNumber: docNum,
+          displayName: namePart,
+          dateOfBirth: dateOfBirth || "2000-01-01",
+          gender,
+          residencePlace: "Việt Nam",
+          identityIssueDate: new Date().toISOString().slice(0, 10),
+        };
+      }
+    }
+  }
+
+  // TD1 3-line ID Card MRZ (30 chars per line)
+  if (lines.length < 3) return null;
   const l3 = lines[2].trim();
   if (!l1.includes("<") && !l2.includes("<")) return null;
   const optPart = l1.slice(15).replace(/<+/g, "").match(/\d{12}/);
@@ -86,7 +117,7 @@ export function parseCccdQr(raw: string): CccdQrData {
   const trimmed = raw.trim();
 
   const lines = trimmed.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  if (lines.length >= 3 && (lines[0].includes("<") || lines[1].includes("<"))) {
+  if (lines.length >= 2 && (lines[0].includes("<") || lines[1].includes("<"))) {
     const mrz = parseMrz(lines);
     if (mrz) return mrz;
   }
@@ -101,8 +132,8 @@ export function parseCccdQr(raw: string): CccdQrData {
   }
 
   const identityNumber = tokens[0];
-  if (!/^\d{9,12}$/.test(identityNumber)) {
-    throw new Error(`Số căn cước không hợp lệ: ${identityNumber}`);
+  if (!/^[A-Za-z0-9]{6,32}$/.test(identityNumber)) {
+    throw new Error(`Số căn cước hoặc hộ chiếu không hợp lệ: ${identityNumber}`);
   }
 
   let displayName = "";

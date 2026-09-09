@@ -11,6 +11,8 @@ export type CccdCheckInCapture = {
   guestGender?: string;
   guestNationality?: string;
   guestResidencePlace?: string;
+  documentKind?: "passport" | "visa";
+  mrzValid?: boolean;
   payload?: import("../intake/intake-contract").IntakePayloadV2;
 };
 

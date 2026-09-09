@@ -1,0 +1,6 @@
+# Open MRZ — files excluded from Git & Docker
+.runtime/
+__pycache__/
+*.pyc
+images/
+NUL

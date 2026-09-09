@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { DataTable } from "@/components/ui/data-table";
@@ -207,14 +207,20 @@ export function MarketplaceAdminClient() {
   );
 
   // Google Sheets Import state
-  const [spreadsheetUrl, setSpreadsheetUrl] = useState(() => {
-    if (typeof window !== "undefined") {
-      return (
-        localStorage.getItem("vietsage_marketplace_category_sheet_url") || ""
-      );
+  const [spreadsheetUrl, setSpreadsheetUrl] = useState("");
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("vietsage_marketplace_category_sheet_url");
+      if (saved) {
+        // Browser-only persisted value is restored after hydration.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setSpreadsheetUrl(saved);
+      }
+    } catch {
+      // Ignore storage errors in restricted contexts
     }
-    return "";
-  });
+  }, []);
   const [sheetPreview, setSheetPreview] =
     useState<MarketplaceCategorySheetPreview | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);

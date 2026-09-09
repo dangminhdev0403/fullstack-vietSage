@@ -11,7 +11,7 @@ Codex must follow repository-level instructions before making frontend changes.
    - feature/module work: `docs/MODULE_GUIDE.md`
    - API/contract work: `docs/CONTRACT_GUIDE.md`
    - runtime/UI/state/realtime/error/i18n work: `docs/RUNTIME_UI_GUIDE.md`
-   - planning/progress work: `docs/PLANS.md`
+   - complex planning/continuation: `../../docs/RULES.md`, then the selected root `.hermes/plans/<timestamp>-<slug>.md`
 
 ## Frontend Rules
 

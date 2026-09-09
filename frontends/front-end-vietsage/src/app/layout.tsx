@@ -1,4 +1,4 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import { Fraunces, Manrope } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
@@ -49,6 +49,31 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        <script
+          id="in-app-webview-guard"
+          dangerouslySetInnerHTML={{
+            __html: `
+              if (typeof window !== 'undefined') {
+                window.zaloJSV2 = window.zaloJSV2 || {};
+                var origOnError = window.onerror;
+                window.onerror = function(msg, url, line, col, error) {
+                  if (typeof msg === 'string' && (msg.indexOf('zaloJSV2') !== -1 || msg.indexOf('zalo') !== -1)) {
+                    return true;
+                  }
+                  if (origOnError) return origOnError.apply(this, arguments);
+                  return false;
+                };
+                window.addEventListener('error', function(e) {
+                  var m = e && (e.message || (e.error && e.error.message)) || '';
+                  if (typeof m === 'string' && (m.indexOf('zaloJSV2') !== -1 || m.indexOf('zalo') !== -1)) {
+                    e.stopImmediatePropagation();
+                    e.preventDefault();
+                  }
+                }, true);
+              }
+            `,
+          }}
+        />
         <Script
           async
           src="https://www.googletagmanager.com/gtag/js?id=G-S5153HRYYD"

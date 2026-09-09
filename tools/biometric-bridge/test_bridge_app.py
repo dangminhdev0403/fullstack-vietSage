@@ -19,6 +19,7 @@ import json
 import os
 import sys
 import tempfile
+from pathlib import Path
 import threading
 import time
 import unittest
@@ -234,6 +235,17 @@ class TestBridgeEndpointSetup(unittest.TestCase):
         cls._server.shutdown()
         import shutil
         shutil.rmtree(cls._tmp_dir, ignore_errors=True)
+
+
+class TestNoOpenMrzBoundary(unittest.TestCase):
+    def test_biometric_bridge_contains_no_open_mrz_runtime_or_route(self):
+        root = Path(__file__).parent
+        self.assertFalse((root / "open_mrz_engine.py").exists())
+        self.assertFalse((root / "mrz_parser.py").exists())
+        self.assertFalse((root / "mrz_assets").exists())
+        source = (root / "bridge_app.py").read_text(encoding="utf-8")
+        self.assertNotIn("/ocr/mrz", source)
+        self.assertNotIn("mrz_engine", source)
 
 
 class TestHealthEndpoint(TestBridgeEndpointSetup):

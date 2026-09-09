@@ -191,13 +191,10 @@ If a command is not run, report that it was not run. Never claim unexecuted vali
 
 ## Progress Tracking Rule
 
-Use `services/docs/PLANS.md` as the source of truth for project progress.
-
-- During execution, mark the active plan item as `processing` directly in `PLANS.md`.
-- After implementation and validation, mark the item as `complete` in `PLANS.md`.
-- Keep tracking lightweight: update only the relevant milestone/task line, not a verbose session log.
-- If validation is skipped or blocked, note that directly on the relevant plan item instead of creating a separate status file.
-- Never claim an item is `complete` before the required validation for that scope has run or the validation gap is explicitly documented.
+- Follow the root `.hermes/plans` lifecycle in `../../docs/RULES.md` for complex work. Routine fixes do not create planning logs.
+- Update the selected plan only at phase boundaries, blockers, decisions, or verification changes.
+- Never set `status: success` before every phase and required validation are successful.
+- Update permanent backend documentation only when contracts, architecture, operating procedures, or repository rules change.
 
 ## Codex Output Rule
 

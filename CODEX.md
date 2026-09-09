@@ -10,5 +10,5 @@ Minimum required flow:
 4. Apply the task without changing unrelated files.
 5. Do not modify any `package.json` unless the user explicitly approved it.
 6. Run the smallest reliable validation command for the touched area.
-7. Update the relevant `PLANS.md` only when the task changes architecture, API behavior, tracked milestones, or implementation progress.
+7. For complex work, follow `docs/RULES.md` and update only the selected root `.hermes/plans/<timestamp>-<slug>.md`.
 8. Final report must include changed files and validation results.

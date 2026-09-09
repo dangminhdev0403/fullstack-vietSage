@@ -15,7 +15,7 @@ Keep this file short. Detailed conventions live in topic-specific docs in this s
 | API contracts, authorization, data ownership, migrations, realtime/integrations | `CONTRACT_GUIDE.md` |
 | New service/service-extraction workflow | `EXTENSION_GUIDE.md` |
 | Development rules, security rules, validation gates, execution contract | `RULES.md` |
-| Active/archived backend milestones and progress tracking | `PLANS.md` |
+| Complex plan lifecycle | `../../docs/RULES.md`, then the selected root `.hermes/plans/<timestamp>-<slug>.md` |
 
 Rule: do not read all docs by default. Start with this file, then open only the doc matching the current task.
 

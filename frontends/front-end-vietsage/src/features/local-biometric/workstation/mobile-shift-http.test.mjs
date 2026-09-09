@@ -10,7 +10,7 @@ import ts from "typescript";
 const require = createRequire(import.meta.url);
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 
-test("real desktop route and repository agree; phone stays raw and scan-only", async (t) => {
+test("real desktop route and repository agree; phone relays validated fields without images", async (t) => {
   const deskId = "00000000-0000-4000-8000-000000000001";
   const token = `test.${Buffer.from(JSON.stringify({ sid: "parent", sub: "staff" })).toString("base64url")}.test`;
   const timers = [];

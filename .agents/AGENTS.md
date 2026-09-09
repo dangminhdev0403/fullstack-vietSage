@@ -178,7 +178,7 @@ Read:
    - feature/module work: `frontends/front-end-vietsage/docs/MODULE_GUIDE.md`
    - API/contract work: `frontends/front-end-vietsage/docs/CONTRACT_GUIDE.md`
    - runtime/UI/state/realtime/error/i18n work: `frontends/front-end-vietsage/docs/RUNTIME_UI_GUIDE.md`
-   - planning/progress work: `frontends/front-end-vietsage/docs/PLANS.md`
+   - complex planning/continuation: `docs/RULES.md`, then the selected root `.hermes/plans/<timestamp>-<slug>.md`
 
 ### Backend work
 
@@ -192,7 +192,7 @@ Read:
    - service extension/extraction work: `services/docs/EXTENSION_GUIDE.md`
    - migration work: `services/docs/MIGRATION_GUIDE.md`
    - i18n backend work: `services/docs/MULTILINGUAL_BACKEND_PLAN.md`
-   - planning/progress work: `services/docs/PLANS.md`
+   - complex planning/continuation: `docs/RULES.md`, then the selected root `.hermes/plans/<timestamp>-<slug>.md`
 
 ## Hard Rules
 

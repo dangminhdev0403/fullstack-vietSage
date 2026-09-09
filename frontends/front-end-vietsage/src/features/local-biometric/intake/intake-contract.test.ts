@@ -51,6 +51,16 @@ test("Intake Contract Parsing", async (t) => {
     assert.strictEqual(parsed.schemaVersion, 2);
   });
 
+  await t.test("Accept and normalize an alphanumeric passport number", () => {
+    const parsed = parseIntakePayload({
+      schemaVersion: 2,
+      transferId: "123e4567-e89b-12d3-a456-426614174000",
+      capturedAt: "2026-07-31T09:34:32Z",
+      guest: { displayName: "PASSPORT TEST", identityNumber: "m12345678" },
+    });
+    assert.strictEqual(parsed.guest.identityNumber, "M12345678");
+  });
+
   await t.test("Reject whitespace-only displayName", () => {
     const raw = {
       schemaVersion: 2,

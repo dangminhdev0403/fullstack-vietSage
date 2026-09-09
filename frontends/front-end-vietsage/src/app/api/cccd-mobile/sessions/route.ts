@@ -24,7 +24,8 @@ export async function POST(request: Request) {
     }
     const payload = intakePayloadV2Schema.parse({
       schemaVersion: 2, transferId: body.transferId, capturedAt: new Date().toISOString(),
-      guest: parseCccdQr(body.raw), verification: { chipAuthenticated: false, sodVerified: false },
+      guest: parseCccdQr(body.raw),
+      verification: { chipAuthenticated: false, sodVerified: false },
     });
     return json(shiftStore.submit(token, body.requestId, payload), 202);
   } catch (error) { return failure(error); }

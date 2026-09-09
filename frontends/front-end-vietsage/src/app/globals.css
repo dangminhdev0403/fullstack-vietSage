@@ -944,7 +944,6 @@ button:disabled,
 
 html:has(.vs-mkt-shell) {
   scroll-behavior: smooth;
-  scroll-snap-type: y proximity;
   scrollbar-width: none;
 }
 
@@ -1472,10 +1471,6 @@ html:has(.vs-mkt-shell)::-webkit-scrollbar {
   will-change: transform;
 }
 
-.vs-hero-note {
-  transform: translateZ(52px);
-}
-
 .vs-scroll-cue {
   position: absolute;
   z-index: 3;
@@ -1524,13 +1519,6 @@ html:has(.vs-mkt-shell)::-webkit-scrollbar {
   animation: vs-hero-device-in 920ms 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.vs-hero-note {
-  animation: vs-note-in 620ms 760ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.vs-hero-note-right {
-  animation-delay: 900ms;
-}
 
 .vs-mkt-shell[data-motion="ready"] [data-reveal] {
   opacity: 0;
@@ -1664,10 +1652,6 @@ html:has(.vs-mkt-shell)::-webkit-scrollbar {
   to { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
 }
 
-@keyframes vs-note-in {
-  from { opacity: 0; transform: translate3d(0, 12px, 0) scale(0.94); }
-  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
-}
 
 @keyframes vs-faq-answer-in {
   from { opacity: 0; transform: translateY(-4px); }
@@ -1681,7 +1665,6 @@ html:has(.vs-mkt-shell)::-webkit-scrollbar {
   .vs-scroll-cue i::after,
   .vs-hero-copy > *,
   .vs-hero-device,
-  .vs-hero-note,
   .vs-faq-item[open] p {
     animation: none;
   }
@@ -1749,7 +1732,7 @@ html:has(.vs-mkt-shell)::-webkit-scrollbar {
   }
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1599px) {
   .vs-scene-rail {
     display: none;
   }

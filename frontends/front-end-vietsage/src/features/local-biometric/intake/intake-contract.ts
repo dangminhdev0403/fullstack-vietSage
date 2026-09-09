@@ -19,21 +19,29 @@ export const intakePayloadSchema = z.object({
   }).strict(),
 }).strict();
 
+const identityNumberV2Schema = z
+  .string()
+  .trim()
+  .transform((value) => value.toUpperCase())
+  .pipe(z.string().min(1).max(32).regex(/^[A-Z0-9]+$/));
+
+export const intakeGuestV2Schema = z.object({
+  displayName: z.string().trim().min(1).max(160),
+  identityNumber: identityNumberV2Schema,
+  dateOfBirth: z.string().date().optional(),
+  gender: z.string().trim().max(32).optional(),
+  nationality: z.string().trim().max(80).optional(),
+  identityIssueDate: z.string().date().optional(),
+  identityExpiryDate: z.string().date().optional(),
+  race: z.string().trim().max(80).optional(),
+  residencePlace: z.string().trim().max(512).optional(),
+}).strict();
+
 export const intakePayloadV2Schema = z.object({
   schemaVersion: z.literal(2),
   transferId: z.string().uuid(),
   capturedAt: z.string().datetime(),
-  guest: z.object({
-    displayName: z.string().trim().min(1).max(160),
-    identityNumber: z.string().regex(/^\d{9,12}$/),
-    dateOfBirth: z.string().date().optional(),
-    gender: z.string().trim().max(32).optional(),
-    nationality: z.string().trim().max(80).optional(),
-    identityIssueDate: z.string().date().optional(),
-    identityExpiryDate: z.string().date().optional(),
-    race: z.string().trim().max(80).optional(),
-    residencePlace: z.string().trim().max(512).optional(),
-  }).strict(),
+  guest: intakeGuestV2Schema,
   verification: z.object({
     chipAuthenticated: z.boolean().optional(),
     sodVerified: z.boolean().optional(),
