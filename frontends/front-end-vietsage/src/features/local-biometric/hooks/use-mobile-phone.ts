@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { mobileShiftResource } from "../resources/mobile-shift-resource";
-import { MobileApiError } from "../repositories/mobile-shift-repository";
+import { MobileApiError, mobileShiftRepository } from "../repositories/mobile-shift-repository";
 import type { PhoneCommand } from "../workstation/mobile-shift-security";
 export function useMobilePhone() {
   const resource = mobileShiftResource.bind({ hotelId: "phone", deskId: "phone" });
@@ -28,9 +28,15 @@ export function useMobilePhone() {
     try { const result = await mutate(body); await refetch(); return result; }
     finally { reset(); }
   };
+  const sendDocument = async (requestId: string, transferId: string, file: File) => {
+    setError("");
+    const result = await mobileShiftRepository.sendDocument(requestId, transferId, file);
+    await refetch();
+    return result;
+  };
   const terminalError = query.error instanceof MobileApiError && [401, 403, 404].includes(query.error.status);
   return { view: ended || terminalError ? null : query.data ?? null, ready, online: !query.isError && !ended,
-    error: error || (query.error instanceof Error ? query.error.message : ""), send,
+    error: error || (query.error instanceof Error ? query.error.message : ""), send, sendDocument,
     disconnect: async () => { try { await send({ action: "disconnect" }); setEnded(true); } catch(e) { setError(e instanceof Error ? e.message : "Không thể ngắt phiên."); } },
   };
 }

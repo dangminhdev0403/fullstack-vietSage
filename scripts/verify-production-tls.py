@@ -87,6 +87,11 @@ def _check_nginx_configs(failures: list[str]) -> None:
         for required in required_tls:
             if required not in tls:
                 failures.append(f"HTTPS Nginx config is missing: {required}")
+        if tls.count("location ^~ /api/cccd-mobile/ {\n        access_log off;") != 2:
+            failures.append("both TLS hosts must disable mobile relay access logs")
+        for required in ("client_max_body_size 16m", "proxy_request_buffering off", "proxy_buffering off"):
+            if tls.count(required) != 2:
+                failures.append(f"both TLS hosts must stream bounded mobile document uploads: {required}")
         if re.search(r"ssl_protocols[^;]*(TLSv1(?:\.0|\.1)?)([\s;])", tls):
             failures.append("HTTPS config enables obsolete TLS protocol")
 

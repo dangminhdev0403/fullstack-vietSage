@@ -8,6 +8,7 @@ const testScan = readFileSync(new URL("./mobile-cccd-test-scan-panel.tsx", impor
 const scan = readFileSync(new URL("./mobile-cccd-scan.tsx", import.meta.url), "utf8");
 const workspace = readFileSync(new URL("./check-in-workspace.tsx", import.meta.url), "utf8");
 const deskStore = readFileSync(new URL("../store/mobile-desk-store.ts", import.meta.url), "utf8");
+const mobileScanHook = readFileSync(new URL("../hooks/use-mobile-cccd-scan.ts", import.meta.url), "utf8");
 
 test("phone pairing is configured once on the biometric page", () => {
   assert.match(tabs, /MobileCccdConnectionPanel/);
@@ -37,6 +38,9 @@ test("room check-in only targets an already connected phone", () => {
   assert.match(scan, /Quét lại vị trí này/);
   assert.doesNotMatch(workspace, /CccdCheckInPanel|HN-212|Đặt thẻ CCCD/);
   assert.match(workspace, /MobileCccdScan|Điện thoại quét QR CCCD/);
+  assert.match(mobileScanHook, /if \(!result\?\.success\) \{[\s\S]*action: "discard"[\s\S]*action: "target"/);
+  assert.match(mobileScanHook, /\}\)\.catch\(report\)\.finally/);
+  assert.match(mobileScanHook, /const dataUpdatedAt = query\.dataUpdatedAt/);
 });
 
 test("phone shift keeps the same desktop-tab identity across route changes", () => {

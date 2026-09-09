@@ -29,4 +29,5 @@ test("desktop upload retains accessible status and error regions", () => {
   assert.match(source, /aria-live="polite"/);
   assert.match(source, /role="alert"/);
   assert.match(source, /aria-live="assertive"/);
+  assert.match(source, /catch \(caught\)[\s\S]*setError\(caught instanceof Error \? caught\.message/);
 });

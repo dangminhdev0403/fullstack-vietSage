@@ -7,7 +7,8 @@ export const SCAN_MS = 120_000;
 const DESK_MS = 15_000;
 type Owner = { hotelId: string; operatorId: string; parentId: string; deskId: string };
 type Receipt = { requestId: string; transferId: string; status: "received" | "acknowledged"; expiresAt: number };
-type Target = { requestId: string; key: string; label: string; expiresAt: number; status: "waiting" | "received" | "acknowledged"; transferId: string | null };
+type Target = { requestId: string; key: string; label: string; expiresAt: number; status: "waiting" | "received" | "document" | "acknowledged"; transferId: string | null };
+type PendingDocument = { requestId: string; transferId: string; contentType: string; bytes: Uint8Array; hash: string };
 export type MobileShiftView = {
   sessionId: string; phase: "pairing" | "pending" | "active";
   hotelLabel: string; operatorLabel: string; comparisonCode: string | null;
@@ -17,6 +18,7 @@ export type MobileShiftView = {
 type Shift = Owner & Omit<MobileShiftView, "deskOnline"> & {
   exchangeHash: string | null; phoneHash: string | null; deskSeenAt: number;
   accessToken: string; payload: IntakePayloadV2 | null; payloadHash: string | null;
+  document: PendingDocument | null;
   usedTransfers: Set<string>;
 };
 export class MobileShiftError extends Error {
@@ -26,10 +28,10 @@ export class MobileShiftError extends Error {
     super(code); this.code = code; this.status = status;
   }
 }
-const hash = (value: string) => createHash("sha256").update(value).digest("hex");
+const hash = (value: string | Uint8Array) => createHash("sha256").update(value).digest("hex");
 const matches = (s: Shift, o: Owner) => s.hotelId === o.hotelId && s.operatorId === o.operatorId && s.parentId === o.parentId && s.deskId === o.deskId;
 
-// ponytail: single-process volatile relay; replace with shared atomic TTL store before enabling production.
+// ponytail: single-replica volatile relay; replace with shared atomic TTL storage before adding frontend replicas.
 export class MobileShiftStore {
   private readonly sessions = new Map<string, Shift>();
   private readonly now: () => number;
@@ -40,7 +42,7 @@ export class MobileShiftStore {
     for (const [id, s] of this.sessions) {
       if (this.now() >= s.expiresAt) { this.sessions.delete(id); continue; }
       if (s.target && (this.now() >= s.target.expiresAt || this.now() - s.deskSeenAt >= DESK_MS)) {
-        s.target = null; s.payload = null; s.payloadHash = null;
+        s.target = null; s.payload = null; s.payloadHash = null; s.document = null;
       }
       if (s.receipt && this.now() >= s.receipt.expiresAt) s.receipt = null;
     }
@@ -75,7 +77,7 @@ export class MobileShiftStore {
     const s: Shift = {
       ...o, ...labels, sessionId: randomUUID(), phase: "pairing", comparisonCode: null,
       expiresAt: this.now() + PAIR_MS, exchangeHash: hash(code), phoneHash: null,
-      accessToken, deskSeenAt: this.now(), target: null, payload: null, payloadHash: null,
+      accessToken, deskSeenAt: this.now(), target: null, payload: null, payloadHash: null, document: null,
       receipt: null, usedTransfers: new Set(),
     };
     this.sessions.set(s.sessionId, s);
@@ -113,7 +115,7 @@ export class MobileShiftStore {
   target(o: Owner, id: string, key: string, label: string) {
     const s = this.owned(o, id);
     if (s.phase !== "active") throw new MobileShiftError("NOT_APPROVED", 409);
-    s.deskSeenAt = this.now(); s.payload = null; s.payloadHash = null;
+    s.deskSeenAt = this.now(); s.payload = null; s.payloadHash = null; s.document = null;
     s.target = { requestId: randomUUID(), key, label, expiresAt: Math.min(this.now() + SCAN_MS, s.expiresAt), status: "waiting", transferId: null };
     return this.view(s, true);
   }
@@ -135,17 +137,47 @@ export class MobileShiftStore {
     s.receipt = { requestId, transferId: payload.transferId, status: "received", expiresAt: t.expiresAt };
     return this.view(s);
   }
+  submitDocument(token: string, requestId: string, transferId: string, contentType: string, bytes: Uint8Array) {
+    const s = this.byPhone(token);
+    if (s.phase !== "active") throw new MobileShiftError("NOT_APPROVED", 409);
+    if (s.receipt?.requestId === requestId && s.receipt.transferId === transferId && s.receipt.status === "acknowledged") return this.view(s);
+    const t = s.target;
+    if (!t || t.requestId !== requestId || this.now() - s.deskSeenAt >= DESK_MS) throw new MobileShiftError("STALE_TARGET", 409);
+    const digest = hash(bytes);
+    if (t.status !== "waiting") {
+      if (t.status !== "document" || t.transferId !== transferId || s.document?.hash !== digest) throw new MobileShiftError("DUPLICATE_TRANSFER", 409);
+      return this.view(s);
+    }
+    if (s.usedTransfers.has(transferId)) throw new MobileShiftError("DUPLICATE_TRANSFER", 409);
+    if (s.usedTransfers.size >= 2_000) throw new MobileShiftError("CAPACITY", 429);
+    // ponytail: O(n) over <=200 sessions; use shared volatile blob storage when scaling horizontally.
+    const retainedBytes = [...this.sessions.values()].reduce((total, item) => total + (item.document?.bytes.byteLength ?? 0), 0);
+    if (retainedBytes + bytes.byteLength > 64 * 1024 * 1024) throw new MobileShiftError("CAPACITY", 429);
+    s.usedTransfers.add(transferId);
+    s.document = { requestId, transferId, contentType, bytes: bytes.slice(), hash: digest };
+    t.status = "document"; t.transferId = transferId;
+    s.receipt = { requestId, transferId, status: "received", expiresAt: t.expiresAt };
+    return this.view(s);
+  }
+  document(o: Owner, id: string, requestId: string) {
+    const s = this.owned(o, id);
+    const document = s.document;
+    if (!s.target || s.target.status !== "document" || s.target.requestId !== requestId || !document || document.requestId !== requestId) {
+      throw new MobileShiftError("DOCUMENT_NOT_FOUND", 404);
+    }
+    return { ...document, bytes: document.bytes.slice() };
+  }
   ack(o: Owner, id: string, requestId: string, transferId: string) {
     const s = this.owned(o, id);
     if (s.receipt?.requestId === requestId && s.receipt.transferId === transferId && s.receipt.status === "acknowledged") return this.view(s, true);
-    if (!s.target || s.target.requestId !== requestId || s.target.transferId !== transferId || s.target.status !== "received") throw new MobileShiftError("STALE_TARGET", 409);
-    s.target.status = "acknowledged"; s.payload = null; s.payloadHash = null;
+    if (!s.target || s.target.requestId !== requestId || s.target.transferId !== transferId || !["received", "document"].includes(s.target.status)) throw new MobileShiftError("STALE_TARGET", 409);
+    s.target.status = "acknowledged"; s.payload = null; s.payloadHash = null; s.document = null;
     s.receipt = { requestId, transferId, status: "acknowledged", expiresAt: this.now() + SCAN_MS };
     return this.view(s, true);
   }
   discard(o: Owner, id: string, requestId: string) {
     const s = this.owned(o, id);
-    if (s.target?.requestId === requestId) { s.target = null; s.payload = null; s.payloadHash = null; }
+    if (s.target?.requestId === requestId) { s.target = null; s.payload = null; s.payloadHash = null; s.document = null; }
     return this.view(s, true);
   }
   revoke(o: Owner, id: string) { this.owned(o, id); this.sessions.delete(id); }

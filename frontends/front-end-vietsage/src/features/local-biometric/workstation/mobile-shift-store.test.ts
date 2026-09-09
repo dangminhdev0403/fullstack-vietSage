@@ -90,6 +90,20 @@ test("request TTL, conditional discard and revoke erase relay payload", () => {
   f.store.revoke(owner,f.issued.sessionId);
   assert.throws(() => f.store.phone(f.claimed.token));
 });
+test("passport photo stays in the volatile relay until desktop ACK", () => {
+  const f = setup();
+  const target = f.store.target(owner, f.issued.sessionId, "slot", "Phòng 101").target!;
+  const transferId = crypto.randomUUID();
+  const bytes = new Uint8Array([1, 2, 3]);
+  const sent = f.store.submitDocument(f.claimed.token, target.requestId, transferId, "image/jpeg", bytes);
+  assert.equal(sent.target!.status, "document");
+  assert.equal(JSON.stringify(sent).includes("bytes"), false);
+  const document = f.store.document(owner, f.issued.sessionId, target.requestId);
+  assert.equal(document.transferId, transferId);
+  assert.deepEqual([...document.bytes], [...bytes]);
+  f.store.ack(owner, f.issued.sessionId, target.requestId, transferId);
+  assert.throws(() => f.store.document(owner, f.issued.sessionId, target.requestId));
+});
 test("new pairing replaces same desk only; bounded store does not evict live sessions", () => {
   const store = new MobileShiftStore(Date.now, 2);
   const first = store.create(owner,labels,"token");
@@ -102,7 +116,7 @@ test("new pairing replaces same desk only; bounded store does not evict live ses
 });
 
 // @ts-expect-error Node strip-types requires explicit extension.
-import { sameOrigin, limitedJson, phoneCommand, mobileShiftAvailable } from "./mobile-shift-security.ts";
+import { sameOrigin, limitedBytes, limitedJson, phoneCommand, mobileShiftAvailable } from "./mobile-shift-security.ts";
 // @ts-expect-error Node strip-types requires explicit extension.
 import { mayApplyMobile } from "../utils/mobile-scan-client.ts";
 // @ts-expect-error Node strip-types requires explicit extension.
@@ -113,6 +127,8 @@ test("CSRF, production guard, streamed body cap and strict phone schema", async 
   assert.equal(sameOrigin(request({ origin: "https://evil.test" })),false);
   assert.equal(sameOrigin(request({})),false);
   assert.equal(sameOrigin(request({ origin:"https://hotel.test", "sec-fetch-site":"cross-site" })),false);
+  assert.equal(sameOrigin(request({ origin:"https://evil.test", referer:"https://evil.test/form" })),false);
+  assert.equal(sameOrigin(request({ origin:"https://evil.test", "x-forwarded-host":"evil.test", "x-forwarded-proto":"https" })),false);
   assert.equal(sameOrigin(new Request("http://0.0.0.0:3000/api/cccd-mobile/sessions", {
     method: "POST",
     headers: { origin: "http://192.168.185.184:3000", host: "192.168.185.184:3000", "sec-fetch-site": "same-origin" },
@@ -130,6 +146,7 @@ test("CSRF, production guard, streamed body cap and strict phone schema", async 
   await assert.rejects(limitedJson(request({"Content-Type":"application/json","Content-Length":"9000"})));
   const huge = new Request("https://hotel.test", {method:"POST",headers:{"Content-Type":"application/json"},body:'"'+'x'.repeat(9000)+'"'});
   await assert.rejects(limitedJson(huge));
+  await assert.rejects(limitedBytes(new Request("https://hotel.test", {method:"POST",headers:{"Content-Length":"15728641"},body:"x"})));
   const valid = { action:"submit", requestId:crypto.randomUUID(),transferId:crypto.randomUUID(),raw:"synthetic" };
   assert.equal(phoneCommand.safeParse({...valid,verification:{chipAuthenticated:true}}).success,false);
   assert.equal(phoneCommand.safeParse({...valid,raw:"x".repeat(4097)}).success,false);

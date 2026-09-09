@@ -4,9 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Swal from "sweetalert2";
 import { filterExtraOccupants } from "@/features/hotel-ops/utils/hotel-ops-display";
 import type { CheckInWorkspaceProps, CheckInStayFields } from "../types/check-in-workspace";
-import { buildCccdPreviewModel } from "../utils/cccd-preview";
 import type { CccdCheckInCapture } from "./cccd-check-in-panel";
-import { CccdPreview } from "./cccd-preview";
 import { MobileCccdScan } from "./mobile-cccd-scan";
 import { DesktopDocumentOcrUpload } from "./desktop-document-ocr-upload";
 
@@ -545,8 +543,6 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
 
   if (!open) return null;
 
-  const currentGuestCapture = capturesByGuest[activeGuestIndex] ?? null;
-  const previewModel = currentGuestCapture?.payload ? buildCccdPreviewModel(currentGuestCapture.payload) : null;
   const roomStatus = room.status === "ready" ? "Phòng sẵn sàng" : room.status;
 
   const totalGuests = 1 + occupants.length;
@@ -555,7 +551,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-0 sm:p-3 md:p-6 backdrop-blur-[2px]" role="dialog" aria-modal="true" aria-labelledby="ciw-heading">
-      <div ref={dialogRef} className="flex h-[100dvh] w-full flex-col overflow-hidden bg-slate-50 shadow-2xl md:h-auto md:max-h-[calc(100dvh-48px)] md:w-[calc(100vw-32px)] md:max-w-[880px] md:rounded-2xl md:border md:border-white/70">
+      <div ref={dialogRef} className="flex h-[100dvh] w-full flex-col overflow-hidden bg-slate-50 shadow-2xl md:h-auto md:max-h-[calc(100dvh-48px)] md:w-[calc(100vw-32px)] md:max-w-[1400px] md:rounded-2xl md:border md:border-white/70">
 
         {/* TOP HEADER: Clean Title + Status Badge (No room duplication!) */}
         <header className="z-10 shrink-0 border-b border-slate-200 bg-white px-4 py-3 sm:px-6 sm:py-3.5">
@@ -711,16 +707,8 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                 </button>
               </div>
 
-              {/* Right: Validation status badge + Segmented Mode Switch */}
+              {/* Right: Segmented Mode Switch */}
               <div className="flex items-center gap-2">
-                {currentGuestCapture ? (
-                  <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-800 border border-blue-200">
-                    {currentGuestCapture.documentKind
-                      ? currentGuestCapture.mrzValid ? "MRZ hợp lệ" : "MRZ cần kiểm tra"
-                      : previewModel?.chipVerified ? "Chip và SOD đã xác thực" : "Đã đọc thông tin — chưa xác thực chip"}
-                  </span>
-                ) : null}
-
                 {/* Segmented Mode Switch */}
                 <div className="inline-flex items-center rounded-xl bg-slate-200/80 p-1 text-xs sm:text-sm font-bold shadow-2xs">
                   <button
@@ -775,7 +763,6 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                 </section>
               </div>
 
-              {previewModel ? <CccdPreview model={previewModel} /> : null}
             </div>
           </div>
 

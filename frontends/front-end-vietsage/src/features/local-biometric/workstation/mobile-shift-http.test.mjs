@@ -10,11 +10,12 @@ import ts from "typescript";
 const require = createRequire(import.meta.url);
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 
-test("real desktop route and repository agree; phone relays validated fields without images", async (t) => {
+test("real routes relay validated QR fields and volatile passport images", async (t) => {
   const deskId = "00000000-0000-4000-8000-000000000001";
   const token = `test.${Buffer.from(JSON.stringify({ sid: "parent", sub: "staff" })).toString("base64url")}.test`;
   const timers = [];
   let phoneCookie = "";
+  let failNextFetch = false;
   const environment = { NODE_ENV: "test" };
   // Only external auth/cookies/network are simulated; execute current routes, store and HTTP clients.
   const mocks = {
@@ -35,10 +36,11 @@ test("real desktop route and repository agree; phone relays validated fields wit
       } };
     } } },
   };
-  const context = createContext({ console, Buffer, URL, Request, Response, Headers, AbortSignal,
+  const context = createContext({ console, Buffer, URL, URLSearchParams, Request, Response, Headers, AbortSignal, Blob, File,
     TextDecoder, Uint8Array, structuredClone, process: { env: environment },
     setInterval: (...args) => { const timer = setInterval(...args); timers.push(timer); return timer; },
     fetch: async (url, init = {}) => {
+      if (failNextFetch) { failNextFetch = false; throw new Error("synthetic network failure"); }
       const headers = new Headers(init.headers);
       headers.set("Origin", "https://desk.test");
       const request = new Request(new URL(url, "https://desk.test"), { ...init, headers });
@@ -88,7 +90,26 @@ test("real desktop route and repository agree; phone relays validated fields wit
   assert.equal((await command("read")).payload.guest.displayName, "KHACH THU");
   assert.equal((await command("ack", { requestId: target.requestId, transferId })).payload, null);
   assert.equal((await repo.phone()).receipt.status, "acknowledged");
-  const next = (await command("target", { targetKey: "guest-2", targetLabel: "Room 102" })).target;
+  const passportTarget = (await command("target", { targetKey: "guest-2", targetLabel: "Room 102" })).target;
+  const passportTransferId = "00000000-0000-4000-8000-000000000003";
+  await assert.rejects(
+    repo.sendDocument(passportTarget.requestId, passportTransferId, new File(["not-an-image"], "fake.jpg", { type: "image/jpeg" })),
+    (error) => error instanceof MobileApiError && error.status === 422,
+  );
+  const passport = new File([new Uint8Array([0xff, 0xd8, 0xff, 0x00, 0xff, 0xd9])], "passport.jpg", { type: "image/jpeg" });
+  failNextFetch = true;
+  const passportSent = await repo.sendDocument(passportTarget.requestId, passportTransferId, passport);
+  assert.equal(passportSent.target.status, "document");
+  assert.equal((await repo.sendDocument(passportTarget.requestId, passportTransferId, passport)).target.status, "document");
+  assert.equal("payload" in passportSent, false);
+  assert.equal(JSON.stringify(passportSent).includes("bytes"), false);
+  const downloaded = await repo.document("hotel", deskId, created.sessionId, passportTarget.requestId);
+  assert.equal(downloaded.transferId, passportTransferId);
+  assert.deepEqual([...new Uint8Array(await downloaded.file.arrayBuffer())], [0xff, 0xd8, 0xff, 0x00, 0xff, 0xd9]);
+  assert.equal((await command("ack", { requestId: passportTarget.requestId, transferId: passportTransferId })).target.status, "acknowledged");
+  assert.equal((await repo.sendDocument(passportTarget.requestId, passportTransferId, passport)).receipt.status, "acknowledged");
+  await assert.rejects(repo.document("hotel", deskId, created.sessionId, passportTarget.requestId), (error) => error instanceof MobileApiError && error.status === 404);
+  const next = (await command("target", { targetKey: "guest-3", targetLabel: "Room 103" })).target;
   assert.equal((await command("discard", { requestId: next.requestId })).target, null);
   assert.equal((await command("revoke")).revoked, true);
   assert.equal((await repo.desk("hotel", deskId)).session, null);

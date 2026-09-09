@@ -31,12 +31,12 @@ export function MobileCccdScan(props: Props) {
 
           <div className="flex items-center gap-2">
             <span className="text-xs sm:text-sm font-semibold text-stone-700">
-              {view.target?.status === "acknowledged" ? "✅ Đã nhận vào check-in" : view.target?.status === "received" ? "⏳ Đang nhận…" : "📱 Chờ quét"}
+              {view.target?.status === "acknowledged" ? "✅ Đã nhận vào check-in" : view.target?.status === "received" ? "⏳ Đang nhận…" : view.target?.status === "document" ? "⏳ Đang OCR hộ chiếu…" : "📱 Chờ quét"}
             </span>
             <p role="status" className="sr-only">
               {view.target?.status === "acknowledged"
                 ? "Đã nhận vào bản nháp check-in."
-                : view.target?.status === "received"
+                : view.target?.status === "received" || view.target?.status === "document"
                   ? "Đang nhận và xác nhận dữ liệu…"
                   : view.target
                     ? "Chờ điện thoại quét căn cước."
@@ -44,7 +44,7 @@ export function MobileCccdScan(props: Props) {
             </p>
             <button
               type="button"
-              disabled={busy || view.target?.status === "received"}
+              disabled={busy || view.target?.status === "received" || view.target?.status === "document"}
               onClick={() => void rescan()}
               className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-stone-300 bg-white px-3 text-xs sm:text-sm font-bold text-stone-800 shadow-2xs hover:bg-stone-50 disabled:opacity-50"
             >

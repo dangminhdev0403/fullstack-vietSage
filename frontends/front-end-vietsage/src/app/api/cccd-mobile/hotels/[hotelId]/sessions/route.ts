@@ -10,6 +10,18 @@ export async function GET(request: Request, context: Context) {
     const { hotelId } = await context.params;
     const deskId = deskIdSchema.parse(new URL(request.url).searchParams.get("deskId"));
     const { owner, accessToken } = await desktopOwner(request, hotelId, deskId);
+    const requestId = new URL(request.url).searchParams.get("requestId");
+    const sessionId = new URL(request.url).searchParams.get("sessionId");
+    if (requestId || sessionId) {
+      const document = shiftStore.document(owner, deskIdSchema.parse(sessionId), deskIdSchema.parse(requestId));
+      return new Response(document.bytes, { headers: {
+        "Cache-Control": "no-store, private",
+        "Content-Type": document.contentType,
+        "X-Transfer-Id": document.transferId,
+        "Referrer-Policy": "no-referrer",
+        "X-Content-Type-Options": "nosniff",
+      } });
+    }
     const view = shiftStore.desk(owner, accessToken);
     if (view) delete view.payload;
     return json(view ?? { session: null });

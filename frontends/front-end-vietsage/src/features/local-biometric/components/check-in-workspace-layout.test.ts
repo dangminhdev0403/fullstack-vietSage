@@ -16,6 +16,8 @@ test("check-in workspace presents a guided identity-document flow", () => {
 
 test("check-in workspace keeps content reachable and actions responsive", () => {
   assert.match(workspace, /max-h-\[calc\(100dvh-48px\)\]/);
+  assert.match(workspace, /md:max-w-\[1400px\]/);
+  assert.doesNotMatch(workspace, /max-w-\[880px\]/);
   assert.match(workspace, /min-h-0 flex-1 overflow-y-auto/);
   assert.match(workspace, /flex-col-reverse[^\"]*sm:flex-row/);
   assert.match(workspace, /lg:grid-cols-\[minmax\(0,3fr\)_minmax\(340px,2\.2fr\)\]/);
@@ -24,8 +26,7 @@ test("check-in workspace keeps content reachable and actions responsive", () => 
 
 test("successful capture changes hierarchy from scan action to verification", () => {
   assert.match(workspace, /Điện thoại quét QR CCCD/);
-  assert.match(workspace, /previewModel\?\.chipVerified\s*\?\s*"Chip và SOD đã xác thực"\s*:\s*"Đã đọc thông tin — chưa xác thực chip"/);
-  assert.doesNotMatch(workspace, /Xác thực thành công/);
+  assert.doesNotMatch(workspace, /<CccdPreview|buildCccdPreviewModel/);
   assert.match(workspace, /Dữ liệu giấy tờ chỉ xử lý tạm thời/);
 });
 
@@ -60,7 +61,6 @@ test("workspace maps a multi-file MRZ batch to consecutive guest slots", () => {
   assert.match(workspace, /<DesktopDocumentOcrUpload\s+onCaptures=\{handleDocumentCaptures\}/);
   assert.match(workspace, /const targetSlot = occupantIndex \+ 1/);
   assert.match(workspace, /while \(next\.length <= occupantIndex\)/);
-  assert.match(workspace, /currentGuestCapture\.mrzValid \? "MRZ hợp lệ" : "MRZ cần kiểm tra"/);
 });
 
 test("workspace retains exact phone QR wording for phone block and uses CCCD / hộ chiếu for combined section", () => {

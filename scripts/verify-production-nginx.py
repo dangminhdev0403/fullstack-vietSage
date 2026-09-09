@@ -10,6 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSE_PATH = ROOT / "docker-compose.prod.yml"
 NGINX_PATH = ROOT / "deploy/nginx/docker-vietsage.conf"
+HOST_NGINX_PATH = ROOT / "deploy/nginx/vietsage.conf"
 
 
 def fail(message: str, failures: list[str]) -> None:
@@ -75,6 +76,21 @@ def main() -> int:
             fail("Docker Nginx must allow same-origin browser geolocation", failures)
         if "camera=(self)" not in nginx or "camera=()" in nginx:
             fail("Docker Nginx must allow same-origin camera access for biometric scanning", failures)
+        if nginx.count("location ^~ /api/cccd-mobile/ {\n        access_log off;") != 2:
+            fail("both public hosts must disable mobile relay access logs", failures)
+        for required in ("client_max_body_size 16m", "proxy_request_buffering off", "proxy_buffering off"):
+            if nginx.count(required) != 2:
+                fail(f"both public hosts must stream bounded mobile document uploads: {required}", failures)
+
+    host_nginx = HOST_NGINX_PATH.read_text(encoding="utf-8") if HOST_NGINX_PATH.is_file() else ""
+    if not host_nginx:
+        fail("missing host Nginx config", failures)
+    else:
+        if host_nginx.count("location ^~ /api/cccd-mobile/ {\n        access_log off;") != 2:
+            fail("both host-Nginx public hosts must disable mobile relay access logs", failures)
+        for required in ("client_max_body_size 16m", "proxy_request_buffering off", "proxy_buffering off"):
+            if host_nginx.count(required) != 2:
+                fail(f"both host-Nginx public hosts must stream bounded mobile document uploads: {required}", failures)
 
     if failures:
         print("Production Nginx verification FAILED:")

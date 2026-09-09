@@ -10,7 +10,7 @@ if (typeof window !== "undefined") {
 }
 
 export default function CccdMobilePage() {
-  const { view, ready, error, send, disconnect } = useMobilePhone();
+  const { view, ready, error, send, sendDocument, disconnect } = useMobilePhone();
 
   const comparisonDigits = view?.comparisonCode ? view.comparisonCode.replace(/\s+/g, "").split("") : [];
 
@@ -218,17 +218,18 @@ export default function CccdMobilePage() {
                       requestId={view.target.requestId}
                       expiresAt={view.target.expiresAt}
                       send={send}
+                      sendDocument={sendDocument}
                     />
-                  ) : view.target.status === "received" ? (
+                  ) : view.target.status === "received" || view.target.status === "document" ? (
                     <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-6 text-center space-y-2">
                       <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-700 animate-pulse">
                         <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                         </svg>
                       </div>
-                      <p className="text-base font-bold text-blue-950">Đã gửi dữ liệu</p>
+                      <p className="text-base font-bold text-blue-950">{view.target.status === "document" ? "Đã gửi ảnh hộ chiếu" : "Đã gửi dữ liệu"}</p>
                       <p className="text-sm text-blue-800">
-                        Đang chờ nhân viên lễ tân bấm nhận trên màn hình máy tính.
+                        {view.target.status === "document" ? "Đang nhận dạng tại máy lễ tân." : "Đang chờ nhân viên lễ tân bấm nhận trên màn hình máy tính."}
                       </p>
                     </div>
                   ) : (
@@ -267,7 +268,7 @@ export default function CccdMobilePage() {
                   </div>
                   <div className="flex items-start gap-2">
                     <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 font-bold text-emerald-800 text-xs">✓</span>
-                    <span>Màn hình điện thoại này sẽ <strong>tự động mở máy ảnh chụp ngay</strong>.</span>
+                    <span>Chọn <strong>quét QR CCCD</strong> hoặc <strong>chụp hộ chiếu</strong>.</span>
                   </div>
                 </div>
               </div>

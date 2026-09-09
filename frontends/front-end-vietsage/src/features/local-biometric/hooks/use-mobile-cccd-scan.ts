@@ -7,6 +7,8 @@ import { mayApplyMobile } from "../utils/mobile-scan-client";
 import type { DesktopCommand } from "../workstation/mobile-shift-security";
 import type { ShiftResult } from "../repositories/mobile-shift-repository";
 import type { CccdCheckInCapture } from "../components/cccd-check-in-panel";
+import { mobileShiftRepository } from "../repositories/mobile-shift-repository";
+import { recognizeDesktopIdentityDocuments } from "../utils/identity-document-ocr";
 
 type Props = { hotelId: string; targetContext: string; targetLabel: string; onCapture: (value: CccdCheckInCapture | null) => void };
 export function useMobileCccdScan({ hotelId, targetContext, targetLabel, onCapture }: Props) {
@@ -60,13 +62,43 @@ export function useMobileCccdScan({ hotelId, targetContext, targetLabel, onCaptu
   const targetStatus = view?.target?.status;
   const targetRequestId = view?.target?.requestId;
   const targetKeyOnView = view?.target?.key;
+  const dataUpdatedAt = query.dataUpdatedAt;
 
   // Read incoming scan data and send ACK
   useEffect(() => {
     if (phase !== "active" || !sessionId || !targetContext || !targetKey) return;
     if (targetKeyOnView !== targetKey) return;
-    if (targetStatus !== "received" || !targetRequestId || pendingRead.current === targetRequestId) return;
+    if ((targetStatus !== "received" && targetStatus !== "document") || !targetRequestId || pendingRead.current === targetRequestId) return;
     pendingRead.current = targetRequestId;
+    if (targetStatus === "document") {
+      void mobileShiftRepository.document(hotelId, deskId, sessionId, targetRequestId).then(async ({ file, transferId }) => {
+        const [result] = await recognizeDesktopIdentityDocuments([file]);
+        if (!latest.current.mounted || latest.current.targetKey !== targetKey) return;
+        if (!result?.success) {
+          await command({ action: "discard", deskId, sessionId, requestId: targetRequestId });
+          await command({ action: "target", deskId, sessionId, targetKey, targetLabel });
+          await refetchRef.current();
+          report(new Error(result?.error || "Không nhận diện được hộ chiếu"));
+          return;
+        }
+        if (!applied.current.has(transferId)) {
+          latest.current.onCapture({
+            guestDisplayName: result.guestDisplayName,
+            guestIdentityNumber: result.guestIdentityNumber,
+            guestDateOfBirth: result.guestDateOfBirth,
+            guestGender: result.guestGender,
+            guestNationality: result.guestNationality,
+            guestResidencePlace: result.guestResidencePlace,
+            documentKind: result.documentKind,
+            mrzValid: result.mrzValid,
+          });
+          applied.current.add(transferId);
+        }
+        await command({ action: "ack", deskId, sessionId, requestId: targetRequestId, transferId });
+        await refetchRef.current();
+      }).catch(report).finally(() => { pendingRead.current = null; });
+      return;
+    }
     void command({ action: "read", deskId, sessionId }).then(async (received) => {
       if (!latest.current.mounted || latest.current.targetKey !== targetKey || !mayApplyMobile(received, targetKey)) return;
       const payload = received.payload!;
@@ -85,23 +117,14 @@ export function useMobileCccdScan({ hotelId, targetContext, targetLabel, onCaptu
       await command({ action: "ack", deskId, sessionId, requestId: received.target!.requestId, transferId: payload.transferId });
       await refetchRef.current();
     }).catch(report).finally(() => { pendingRead.current = null; });
-  }, [phase, sessionId, targetStatus, targetRequestId, targetKeyOnView, targetContext, targetKey, deskId, command, report]);
+  }, [phase, sessionId, targetStatus, targetRequestId, targetKeyOnView, targetContext, targetKey, targetLabel, hotelId, deskId, dataUpdatedAt, command, report]);
 
   const targetedKeyRef = useRef<string | null>(null);
-  const activeRequestIdRef = useRef<string | null>(null);
-  const sessionIdRef = useRef<string | null>(null);
-  const deskIdRef = useRef(deskId);
-
-  useLayoutEffect(() => {
-    sessionIdRef.current = sessionId ?? null;
-    deskIdRef.current = deskId;
-  }, [sessionId, deskId]);
 
   // Establish target when targetContext / targetKey changes (e.g. switching to Guest 2, 3, 4)
   useEffect(() => {
     if (phase !== "active" || !sessionId || !targetContext || !targetKey) {
       targetedKeyRef.current = null;
-      activeRequestIdRef.current = null;
       return;
     }
     // Only dispatch target when key has changed
@@ -109,9 +132,8 @@ export function useMobileCccdScan({ hotelId, targetContext, targetLabel, onCaptu
     targetedKeyRef.current = targetKey;
 
     let cancelled = false;
-    void command({ action: "target", deskId, sessionId, targetKey, targetLabel }).then(async (result) => {
+    void command({ action: "target", deskId, sessionId, targetKey, targetLabel }).then(async () => {
       if (cancelled) return;
-      activeRequestIdRef.current = result.target?.requestId ?? null;
       await refetchRef.current();
     }).catch((e) => {
       if (targetedKeyRef.current === targetKey) targetedKeyRef.current = null;
@@ -123,16 +145,14 @@ export function useMobileCccdScan({ hotelId, targetContext, targetLabel, onCaptu
     };
   }, [phase, sessionId, targetContext, targetKey, targetLabel, deskId, command, report]);
 
-  // Discard open target ONLY when the scanning component unmounts (e.g. check-in modal closed)
+  // Discard the current target when it is replaced or the check-in modal closes.
   useEffect(() => {
     return () => {
-      const sId = sessionIdRef.current;
-      const reqId = activeRequestIdRef.current;
-      if (sId && reqId) {
-        void command({ action: "discard", deskId: deskIdRef.current, sessionId: sId, requestId: reqId }).catch(() => {});
+      if (sessionId && targetRequestId) {
+        void command({ action: "discard", deskId, sessionId, requestId: targetRequestId }).catch(() => {});
       }
     };
-  }, [command]);
+  }, [command, deskId, sessionId, targetRequestId]);
 
   const perform = async (body: DesktopCommand) => {
     setBusy(true); setError("");

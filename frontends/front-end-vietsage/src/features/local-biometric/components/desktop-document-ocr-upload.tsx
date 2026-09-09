@@ -62,6 +62,8 @@ export function DesktopDocumentOcrUpload({ onCaptures, disabled = false }: Deskt
       }
       if (captures.length) onCaptures(captures);
       if (errors.length) setError(errors.join(" "));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Không thể nhận diện giấy tờ");
     } finally {
       processingRef.current = false;
       setIsProcessing(false);
