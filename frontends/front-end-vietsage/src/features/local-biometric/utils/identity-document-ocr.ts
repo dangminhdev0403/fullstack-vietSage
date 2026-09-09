@@ -193,7 +193,7 @@ async function tryDecodeQrFromFile(
   }
 }
 
-export async function recognizeDesktopIdentityDocuments(files: readonly File[]): Promise<IdentityDocumentBatchItem[]> {
+export async function recognizeDesktopIdentityDocuments(files: readonly File[], hotelId: string): Promise<IdentityDocumentBatchItem[]> {
   // Phase 1: Try QR decode for each file (browser BarcodeDetector)
   const results: (IdentityDocumentBatchItem | null)[] = new Array(files.length).fill(null);
   const mrzFiles: { file: File; originalIndex: number }[] = [];
@@ -209,33 +209,27 @@ export async function recognizeDesktopIdentityDocuments(files: readonly File[]):
     }),
   );
 
-  // Phase 2: Send remaining files to OpenMRZ for MRZ recognition
-  if (mrzFiles.length > 0) {
+  // Phase 2: send one bounded image at a time to the authenticated VPS BFF.
+  for (const { file, originalIndex } of mrzFiles) {
     const body = new FormData();
-    mrzFiles.forEach(({ file }) => body.append("files", file, file.name));
+    body.append("files", file, file.name);
     let response: Response;
     try {
-      response = await fetch("http://127.0.0.1:8787/vietsage/mrz", {
+      response = await fetch(`/api/cccd-mobile/hotels/${encodeURIComponent(hotelId)}/ocr`, {
         method: "POST",
-        headers: { "X-VietSage-OCR": "1" },
         body,
         signal: AbortSignal.timeout(120_000),
       });
     } catch {
-      throw new Error("Không kết nối được OpenMRZ local tại 127.0.0.1:8787");
+      throw new Error("Không kết nối được máy chủ OpenMRZ");
     }
 
     const payload = await response.json().catch(() => null) as { error?: unknown } | null;
     if (!response.ok) {
       throw new Error(typeof payload?.error === "string" ? payload.error : "Nhận diện MRZ không thành công");
     }
-    const mrzResults = parseLocalMrzBatch(payload);
-    // Map MRZ results back to original positions
-    mrzResults.forEach((item, mrzIdx) => {
-      if (mrzIdx < mrzFiles.length) {
-        results[mrzFiles[mrzIdx].originalIndex] = item;
-      }
-    });
+    const item = parseLocalMrzBatch(payload)[0];
+    if (item) results[originalIndex] = { ...item, index: originalIndex + 1, filename: file.name };
   }
 
   return results.filter((r): r is IdentityDocumentBatchItem => r !== null);

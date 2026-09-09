@@ -21,11 +21,12 @@ export function convertMrzResultToCapture(result: IdentityDocumentOcrResult): Cc
 }
 
 export type DesktopDocumentOcrUploadProps = {
+  hotelId: string;
   onCaptures: (captures: CccdCheckInCapture[]) => void;
   disabled?: boolean;
 };
 
-export function DesktopDocumentOcrUpload({ onCaptures, disabled = false }: DesktopDocumentOcrUploadProps) {
+export function DesktopDocumentOcrUpload({ hotelId, onCaptures, disabled = false }: DesktopDocumentOcrUploadProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [progress, setProgress] = useState("");
@@ -49,13 +50,13 @@ export function DesktopDocumentOcrUpload({ onCaptures, disabled = false }: Deskt
 
     try {
       const accepted = rawFiles.filter((file, index) => {
-        if (!file.type.startsWith("image/")) { errors.push(`Tệp ${index + 1}: định dạng không hợp lệ.`); return false; }
+        if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) { errors.push(`Tệp ${index + 1}: định dạng không hợp lệ.`); return false; }
         if (file.size > 15 * 1024 * 1024) { errors.push(`Tệp ${index + 1}: vượt quá 15MB.`); return false; }
         return true;
       });
       setProgress(`Đang xử lý ${accepted.length} tài liệu`);
       if (accepted.length) {
-        for (const item of await recognizeDesktopIdentityDocuments(accepted)) {
+        for (const item of await recognizeDesktopIdentityDocuments(accepted, hotelId)) {
           if (item.success) captures.push(convertMrzResultToCapture(item));
           else errors.push(`Tệp ${item.index || "?"}: ${item.error}.`);
         }
@@ -130,7 +131,7 @@ export function DesktopDocumentOcrUpload({ onCaptures, disabled = false }: Deskt
         id="desktop-document-file-input"
         type="file"
         multiple
-        accept="image/jpeg,image/png,image/webp,image/bmp"
+        accept="image/jpeg,image/png,image/webp"
         disabled={disabled || isProcessing}
         onChange={handleFileChange}
         className="sr-only"

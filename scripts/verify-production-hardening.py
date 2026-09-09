@@ -12,9 +12,10 @@ COMPOSE = ROOT / "docker-compose.prod.yml"
 DOCKERFILES = {
     "auth-service": ROOT / "services/auth-service/Dockerfile",
     "frontend": ROOT / "frontends/front-end-vietsage/Dockerfile",
+    "open-mrz": ROOT / "tools/open-mrz/Dockerfile",
 }
-SERVICES = ("postgres", "migrate", "auth-service", "frontend", "nginx", "certbot")
-APP_SERVICES = ("migrate", "auth-service", "frontend", "nginx", "certbot")
+SERVICES = ("postgres", "migrate", "auth-service", "open-mrz", "frontend", "nginx", "certbot")
+APP_SERVICES = ("migrate", "auth-service", "open-mrz", "frontend", "nginx", "certbot")
 
 
 def service_block(compose: str, service: str) -> str:

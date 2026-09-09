@@ -749,7 +749,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
             {/* Active intake action banner */}
             <div className="w-full">
               <div className={intakeMethod === "upload" ? "block" : "hidden"}>
-                <DesktopDocumentOcrUpload onCaptures={handleDocumentCaptures} />
+                <DesktopDocumentOcrUpload hotelId={hotelId} onCaptures={handleDocumentCaptures} />
               </div>
 
               <div className={intakeMethod === "mobile" ? "block" : "hidden"}>

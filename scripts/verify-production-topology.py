@@ -9,7 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSE_PATH = ROOT / "docker-compose.prod.yml"
-APP_SERVICES = ("auth-service", "frontend")
+APP_SERVICES = ("auth-service", "open-mrz", "frontend")
 
 
 def service_block(compose: str, service: str) -> str:
@@ -42,8 +42,13 @@ def _check_frontend_build(compose: str, failures: list[str]) -> None:
         compose,
     ):
         failures.append("production Compose must source frontend build auth from the process environment")
-    if "OPEN_MRZ_BASE_URL" in frontend or "open-mrz:" in compose:
-        failures.append("identity-document OCR must remain on the receptionist workstation, not the VPS")
+    if "OPEN_MRZ_BASE_URL: http://open-mrz:8787" not in frontend:
+        failures.append("frontend must call the internal OpenMRZ service")
+    open_mrz = service_block(compose, "open-mrz")
+    if re.search(r"(?m)^    ports:\n", open_mrz):
+        failures.append("OpenMRZ must not publish a production host port")
+    if "- ocr" not in open_mrz or "- ocr" not in frontend or not re.search(r"(?m)^  ocr:\n    internal: true$", compose):
+        failures.append("frontend and OpenMRZ must share a dedicated internal OCR network")
 
 
 def _check_app_services(compose: str, failures: list[str]) -> None:

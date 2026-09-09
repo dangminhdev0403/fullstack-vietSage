@@ -29,8 +29,8 @@ ALLOWED_BROWSER_ORIGINS = {
     "http://127.0.0.1:3000",
 }
 
-# Khống chế số lượng tác vụ OCR đồng thời để bảo vệ CPU & RAM dưới tải 10,000 requests
-MAX_CONCURRENT_OCR = max(4, (os.cpu_count() or 4) * 2)
+# ponytail: per-container concurrency knob; tune after measuring OCR memory/latency.
+MAX_CONCURRENT_OCR = max(1, int(os.environ.get("OPEN_MRZ_MAX_CONCURRENT_OCR", max(4, (os.cpu_count() or 4) * 2))))
 OCR_SEMAPHORE = threading.BoundedSemaphore(MAX_CONCURRENT_OCR)
 
 # Bộ lưu trữ khách đã check-in (In-memory CRUD store)

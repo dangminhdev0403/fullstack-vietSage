@@ -48,7 +48,7 @@ docker compose -f docker-compose.yml up -d --build
 docker compose -f docker-compose.prod.yml config
 python scripts/verify-production-migration.py
 export FRONTEND_BUILD_AUTH_SECRET="$(openssl rand -hex 32)"
-docker compose -f docker-compose.prod.yml build auth-service frontend
+docker compose -f docker-compose.prod.yml build auth-service open-mrz frontend
 unset FRONTEND_BUILD_AUTH_SECRET
 docker compose -f docker-compose.prod.yml run --rm migrate
 docker compose -f docker-compose.prod.yml run --rm seed
@@ -208,10 +208,10 @@ Production services have explicit CPU, memory, and PID limits based on measured 
 ```bash
 python scripts/verify-production-hardening.py
 docker compose -f docker-compose.prod.yml config --quiet
-docker inspect vietsage-auth-service vietsage-frontend vietsage-nginx
+docker inspect vietsage-auth-service vietsage-open-mrz vietsage-frontend vietsage-nginx
 ```
 
-The application and ingress containers use read-only root filesystems, `no-new-privileges`, dropped capabilities, and non-root image users. PostgreSQL needs a writable data volume and therefore does not use a read-only root filesystem.
+The application, OpenMRZ, and ingress containers use read-only root filesystems, `no-new-privileges`, dropped capabilities, and non-root image users. OpenMRZ is reachable only by the frontend on the dedicated internal `ocr` network; port `8787` is never published. Browser uploads use the authenticated hotel-scoped BFF, so reception computers need no local OCR installation. PostgreSQL needs a writable data volume and therefore does not use a read-only root filesystem.
 
 Create an encrypted/off-host production backup according to the VPS storage policy. The repository helper creates a PostgreSQL custom-format dump, a SHA-256 checksum, and permissions restricted by `umask 077`:
 
@@ -232,10 +232,11 @@ Use immutable application image references for a release:
 
 ```bash
 export AUTH_SERVICE_IMAGE=registry.example/vietsage-auth-service:<release-id>
+export OPEN_MRZ_IMAGE=registry.example/vietsage-open-mrz:<release-id>
 export FRONTEND_IMAGE=registry.example/vietsage-frontend:<release-id>
 docker compose -f docker-compose.prod.yml config --quiet
 docker compose -f docker-compose.prod.yml run --rm migrate
-docker compose -f docker-compose.prod.yml up -d --no-build auth-service frontend nginx
+docker compose -f docker-compose.prod.yml up -d --no-build auth-service open-mrz frontend nginx
 ```
 
-For application rollback, set both variables to the previously verified tags and recreate `migrate`, `auth-service`, `frontend`, and `nginx`. The migration gate still runs; do not assume an older application image can reverse a newer database schema.
+For application rollback, set all three image variables to the previously verified tags and recreate `migrate`, `auth-service`, `open-mrz`, `frontend`, and `nginx`. The migration gate still runs; do not assume an older application image can reverse a newer database schema.

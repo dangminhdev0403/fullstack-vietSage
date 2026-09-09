@@ -30,7 +30,7 @@ test("validates local MRZ bridge responses before filling the form", () => {
   assert.throws(() => parseLocalMrzResult({ documentKind: "passport", identityNumber: "../bad", fullName: "X" }));
 });
 
-test("standalone OpenMRZ batch rejection is surfaced without fallback", async () => {
+test("server OpenMRZ rejection is surfaced without fallback", async () => {
   const originalFetch = globalThis.fetch;
   const originalWindow = globalThis.window;
   Object.defineProperty(globalThis, "window", { configurable: true, value: { location: { protocol: "http:" } } });
@@ -40,7 +40,7 @@ test("standalone OpenMRZ batch rejection is surfaced without fallback", async ()
   });
   try {
     await assert.rejects(
-      () => recognizeDesktopIdentityDocuments([new File(["image"], "passport.jpg", { type: "image/jpeg" })]),
+      () => recognizeDesktopIdentityDocuments([new File(["image"], "passport.jpg", { type: "image/jpeg" })], "hotel-1"),
       /Không tìm thấy MRZ hộ chiếu hợp lệ/,
     );
   } finally {
@@ -59,11 +59,20 @@ test("parses isolated success and failure items from OpenMRZ batch", () => {
   assert.equal(items[1].success, false);
 });
 
-test("frontend contains no embedded OCR runtime or biometric bridge endpoint", () => {
+test("browser uses the authenticated hotel-scoped BFF, never workstation loopback", () => {
   const source = fs.readFileSync(new URL("./identity-document-ocr.ts", import.meta.url), "utf8");
+  const routePath = path.join(frontendRoot, "src/app/api/cccd-mobile/hotels/[hotelId]/ocr/route.ts");
+  const route = fs.readFileSync(routePath, "utf8");
   assert.doesNotMatch(source, /tesseract|from ["']mrz["']|recognizeIdentityDocument|parseTd3PassportMrz|parseCccdOcrText/i);
-  assert.doesNotMatch(source, /18080|biometric-bridge|\/api\/cccd-mobile\/ocr/i);
-  assert.match(source, /http:\/\/127\.0\.0\.1:8787\/vietsage\/mrz/);
-  assert.equal(fs.existsSync(path.join(frontendRoot, "src/app/api/cccd-mobile/ocr/route.ts")), false);
+  assert.doesNotMatch(source, /127\.0\.0\.1:8787|biometric-bridge/i);
+  assert.match(source, /\/api\/cccd-mobile\/hotels\/\$\{encodeURIComponent\(hotelId\)\}\/ocr/);
+  assert.match(route, /auth\(\)/);
+  assert.match(route, /authorizeHotelWorkstation\(session, hotelId\)/);
+  assert.match(route, /OPEN_MRZ_BASE_URL/);
+  assert.match(route, /limitedBytes\(request, 16 \* 1024 \* 1024\)/);
+  assert.match(route, /\.formData\(\)/);
+  assert.match(route, /files\.length !== 1/);
+  assert.match(route, /image\/jpeg/);
+  assert.match(route, /const jpeg =/);
   assert.equal(fs.existsSync(path.join(frontendRoot, "public/ocr")), false);
 });

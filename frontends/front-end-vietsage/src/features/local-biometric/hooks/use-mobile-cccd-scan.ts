@@ -73,7 +73,7 @@ export function useMobileCccdScan({ hotelId, targetContext, targetLabel, onCaptu
     pendingRead.current = targetRequestId;
     if (targetStatus === "document") {
       void mobileShiftRepository.document(hotelId, deskId, sessionId, targetRequestId).then(async ({ file, transferId }) => {
-        const [result] = await recognizeDesktopIdentityDocuments([file]);
+        const [result] = await recognizeDesktopIdentityDocuments([file], hotelId);
         if (!latest.current.mounted || latest.current.targetKey !== targetKey) return;
         if (!result?.success) {
           await command({ action: "discard", deskId, sessionId, requestId: targetRequestId });

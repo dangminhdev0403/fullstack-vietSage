@@ -31,6 +31,7 @@ Backend API
 - Use feature services for domain API calls.
 - Use core HTTP utilities for shared transport concerns.
 - Use route handlers for BFF/proxy behavior and session-sensitive calls.
+- Identity-document OCR uses the hotel-scoped authenticated BFF and the internal production OpenMRZ service; browsers never call an OCR host directly.
 - Feature services should not contain UI display decisions.
 
 ## Auth and Session Rules

@@ -15,12 +15,16 @@ test("real routes relay validated QR fields and volatile passport images", async
   const token = `test.${Buffer.from(JSON.stringify({ sid: "parent", sub: "staff" })).toString("base64url")}.test`;
   const timers = [];
   let phoneCookie = "";
+  let authorizedOcrHotel = "";
   const environment = { NODE_ENV: "test" };
   // Only external auth/cookies/network are simulated; execute current routes, store and HTTP clients.
   const mocks = {
     "server-only": {},
     "next/headers": { cookies: async () => ({ get: () => ({ value: phoneCookie }) }) },
     "@/auth": { auth: async () => ({ user: { id: "staff" } }) },
+    "@/features/local-biometric/workstation/authorize-hotel-workstation": {
+      authorizeHotelWorkstation: async (_session, hotelId) => { authorizedOcrHotel = hotelId; return null; },
+    },
     "@/libs/server-session-tokens": { readServerSessionTokens: async () => ({ accessToken: token }) },
     "@/libs/auth-session-refresh": { refreshAndSaveSessionTokens: () => assert.fail("unexpected auth refresh") },
     "@/core/http/internal-session-refresh": {
@@ -35,10 +39,14 @@ test("real routes relay validated QR fields and volatile passport images", async
       } };
     } } },
   };
-  const context = createContext({ console, Buffer, URL, URLSearchParams, Request, Response, Headers, AbortSignal, Blob, File,
+  const context = createContext({ console, Buffer, URL, URLSearchParams, Request, Response, Headers, AbortSignal, Blob, File, FormData,
     TextDecoder, Uint8Array, structuredClone, process: { env: environment },
     setInterval: (...args) => { const timer = setInterval(...args); timers.push(timer); return timer; },
     fetch: async (url, init = {}) => {
+      if (String(url).startsWith("http://open-mrz:8787/")) {
+        assert.equal((await new Request(url, init).formData()).getAll("files").length, 1);
+        return Response.json({ results: [{ success: true, documentKind: "passport", identityNumber: "PASS123", fullName: "PASSPORT HOLDER" }] });
+      }
       const headers = new Headers(init.headers);
       headers.set("Origin", "https://desk.test");
       const request = new Request(new URL(url, "https://desk.test"), { ...init, headers });
@@ -69,7 +77,16 @@ test("real routes relay validated QR fields and volatile passport images", async
   }
   const desktop = load("@/app/api/cccd-mobile/hotels/[hotelId]/sessions/route");
   const phone = load("@/app/api/cccd-mobile/sessions/route");
+  const ocr = load("@/app/api/cccd-mobile/hotels/[hotelId]/ocr/route");
   const { mobileShiftRepository: repo, MobileApiError } = load("@/features/local-biometric/repositories/mobile-shift-repository");
+  const ocrForm = new FormData();
+  ocrForm.append("files", new File([new Uint8Array([0xff, 0xd8, 0xff, 0xd9])], "passport.jpg", { type: "image/jpeg" }));
+  const ocrResponse = await ocr.POST(new Request("https://desk.test/api/cccd-mobile/hotels/hotel/ocr", {
+    method: "POST", headers: { Origin: "https://desk.test" }, body: ocrForm,
+  }), { params: Promise.resolve({ hotelId: "hotel" }) });
+  assert.equal(ocrResponse.status, 200);
+  assert.equal(authorizedOcrHotel, "hotel");
+  assert.equal((await ocrResponse.json()).results[0].identityNumber, "PASS123");
   assert.equal((await repo.desk("hotel", deskId)).session, null);
   const created = await repo.command("hotel", { action: "create", deskId });
   assert.equal(created.phase, "pairing");
