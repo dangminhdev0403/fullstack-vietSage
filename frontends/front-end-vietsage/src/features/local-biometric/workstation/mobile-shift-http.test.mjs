@@ -15,7 +15,6 @@ test("real routes relay validated QR fields and volatile passport images", async
   const token = `test.${Buffer.from(JSON.stringify({ sid: "parent", sub: "staff" })).toString("base64url")}.test`;
   const timers = [];
   let phoneCookie = "";
-  let failNextFetch = false;
   const environment = { NODE_ENV: "test" };
   // Only external auth/cookies/network are simulated; execute current routes, store and HTTP clients.
   const mocks = {
@@ -40,7 +39,6 @@ test("real routes relay validated QR fields and volatile passport images", async
     TextDecoder, Uint8Array, structuredClone, process: { env: environment },
     setInterval: (...args) => { const timer = setInterval(...args); timers.push(timer); return timer; },
     fetch: async (url, init = {}) => {
-      if (failNextFetch) { failNextFetch = false; throw new Error("synthetic network failure"); }
       const headers = new Headers(init.headers);
       headers.set("Origin", "https://desk.test");
       const request = new Request(new URL(url, "https://desk.test"), { ...init, headers });
@@ -97,7 +95,6 @@ test("real routes relay validated QR fields and volatile passport images", async
     (error) => error instanceof MobileApiError && error.status === 422,
   );
   const passport = new File([new Uint8Array([0xff, 0xd8, 0xff, 0x00, 0xff, 0xd9])], "passport.jpg", { type: "image/jpeg" });
-  failNextFetch = true;
   const passportSent = await repo.sendDocument(passportTarget.requestId, passportTransferId, passport);
   assert.equal(passportSent.target.status, "document");
   assert.equal((await repo.sendDocument(passportTarget.requestId, passportTransferId, passport)).target.status, "document");

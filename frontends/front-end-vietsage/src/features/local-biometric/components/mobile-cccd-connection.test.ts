@@ -38,9 +38,15 @@ test("room check-in only targets an already connected phone", () => {
   assert.match(scan, /Quét lại vị trí này/);
   assert.doesNotMatch(workspace, /CccdCheckInPanel|HN-212|Đặt thẻ CCCD/);
   assert.match(workspace, /MobileCccdScan|Điện thoại quét QR CCCD/);
-  assert.match(mobileScanHook, /if \(!result\?\.success\) \{[\s\S]*action: "discard"[\s\S]*action: "target"/);
+  assert.match(mobileScanHook, /if \(!result\?\.success\) \{[\s\S]*action: "discard"[\s\S]*setTargetGeneration/);
   assert.match(mobileScanHook, /\}\)\.catch\(report\)\.finally/);
   assert.match(mobileScanHook, /const dataUpdatedAt = query\.dataUpdatedAt/);
+  assert.match(mobileScanHook, /requestId = result\.target\?\.requestId/);
+  assert.match(mobileScanHook, /if \(cancelled && requestId\)[\s\S]*action: "discard"/);
+  assert.match(mobileScanHook, /return \(\) => \{[\s\S]*cancelled = true;[\s\S]*if \(requestId\)[\s\S]*action: "discard"/);
+  assert.equal((mobileScanHook.match(/action: "target"/g) ?? []).length, 1);
+  assert.match(mobileScanHook, /if \(!result\?\.success\)[\s\S]*setTargetGeneration\(\(value\) => value \+ 1\)/);
+  assert.match(mobileScanHook, /rescan: \(\) => \{[\s\S]*setTargetGeneration\(\(value\) => value \+ 1\)/);
 });
 
 test("phone shift keeps the same desktop-tab identity across route changes", () => {

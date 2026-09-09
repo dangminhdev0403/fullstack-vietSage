@@ -24,14 +24,11 @@ export const mobileShiftRepository = {
     return body;
   },
   async sendDocument(requestId: string, transferId: string, file: File): Promise<ShiftResult> {
-    const upload = () => fetch("/api/cccd-mobile/sessions", {
+    const response = await fetch("/api/cccd-mobile/sessions", {
       method: "POST", credentials: "same-origin", cache: "no-store",
       headers: { "Content-Type": file.type, "X-Scan-Request": requestId, "X-Transfer-Id": transferId },
       body: file, signal: AbortSignal.timeout(30_000),
     });
-    let response: Response;
-    try { response = await upload(); }
-    catch { response = await upload(); }
     const body = await response.json().catch(() => null);
     if (!response.ok) throw new MobileApiError(body?.error ?? "Không thể gửi ảnh hộ chiếu.", response.status);
     return body;

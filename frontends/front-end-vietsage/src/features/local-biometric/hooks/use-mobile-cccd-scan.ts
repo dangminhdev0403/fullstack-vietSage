@@ -34,6 +34,7 @@ export function useMobileCccdScan({ hotelId, targetContext, targetLabel, onCaptu
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [targetGeneration, setTargetGeneration] = useState(0);
   const targetKey = useMemo(() => targetContext ? `${deskId}:${targetContext}` : "", [deskId, targetContext]);
   const view = query.data && "sessionId" in query.data ? query.data : null;
   const latest = useRef({ targetKey, onCapture, mounted: true });
@@ -76,8 +77,8 @@ export function useMobileCccdScan({ hotelId, targetContext, targetLabel, onCaptu
         if (!latest.current.mounted || latest.current.targetKey !== targetKey) return;
         if (!result?.success) {
           await command({ action: "discard", deskId, sessionId, requestId: targetRequestId });
-          await command({ action: "target", deskId, sessionId, targetKey, targetLabel });
-          await refetchRef.current();
+          if (!latest.current.mounted || latest.current.targetKey !== targetKey) return;
+          setTargetGeneration((value) => value + 1);
           report(new Error(result?.error || "Không nhận diện được hộ chiếu"));
           return;
         }
@@ -119,40 +120,28 @@ export function useMobileCccdScan({ hotelId, targetContext, targetLabel, onCaptu
     }).catch(report).finally(() => { pendingRead.current = null; });
   }, [phase, sessionId, targetStatus, targetRequestId, targetKeyOnView, targetContext, targetKey, targetLabel, hotelId, deskId, dataUpdatedAt, command, report]);
 
-  const targetedKeyRef = useRef<string | null>(null);
-
-  // Establish target when targetContext / targetKey changes (e.g. switching to Guest 2, 3, 4)
+  // This effect exclusively owns the target it creates, including pre-refetch cleanup.
   useEffect(() => {
-    if (phase !== "active" || !sessionId || !targetContext || !targetKey) {
-      targetedKeyRef.current = null;
-      return;
-    }
-    // Only dispatch target when key has changed
-    if (targetedKeyRef.current === targetKey) return;
-    targetedKeyRef.current = targetKey;
+    if (phase !== "active" || !sessionId || !targetContext || !targetKey) return;
 
     let cancelled = false;
-    void command({ action: "target", deskId, sessionId, targetKey, targetLabel }).then(async () => {
-      if (cancelled) return;
+    let requestId: string | undefined;
+    void command({ action: "target", deskId, sessionId, targetKey, targetLabel }).then(async (result) => {
+      requestId = result.target?.requestId;
+      if (cancelled && requestId) {
+        await command({ action: "discard", deskId, sessionId, requestId });
+        return;
+      }
       await refetchRef.current();
     }).catch((e) => {
-      if (targetedKeyRef.current === targetKey) targetedKeyRef.current = null;
       report(e);
     });
 
     return () => {
       cancelled = true;
+      if (requestId) void command({ action: "discard", deskId, sessionId, requestId }).catch(() => {});
     };
-  }, [phase, sessionId, targetContext, targetKey, targetLabel, deskId, command, report]);
-
-  // Discard the current target when it is replaced or the check-in modal closes.
-  useEffect(() => {
-    return () => {
-      if (sessionId && targetRequestId) {
-        void command({ action: "discard", deskId, sessionId, requestId: targetRequestId }).catch(() => {});
-      }
-    };
-  }, [command, deskId, sessionId, targetRequestId]);
+  }, [phase, sessionId, targetContext, targetKey, targetLabel, targetGeneration, deskId, command, report]);
 
   const perform = async (body: DesktopCommand) => {
     setBusy(true); setError("");
@@ -169,9 +158,6 @@ export function useMobileCccdScan({ hotelId, targetContext, targetLabel, onCaptu
     create: () => perform({ action: "create", deskId }),
     approve: () => view?.comparisonCode && perform({ action: "approve", deskId, sessionId: view.sessionId, comparisonCode: view.comparisonCode }),
     revoke: () => view && perform({ action: "revoke", deskId, sessionId: view.sessionId }),
-    rescan: () => {
-      targetedKeyRef.current = null;
-      return view && perform({ action: "target", deskId, sessionId: view.sessionId, targetKey, targetLabel });
-    },
+    rescan: () => { setError(""); setTargetGeneration((value) => value + 1); },
   };
 }
