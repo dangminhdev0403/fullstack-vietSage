@@ -19,6 +19,8 @@ This guide covers API contracts, authorization, data ownership, migrations, real
 - Authorization must run at the API boundary before business logic.
 - Frontend route gating is UX only; backend remains the enforcement authority.
 - Route permission keys should be stable and based on method/path contracts when route-permission sync is used.
+- Role APIs expose persisted `SYSTEM_TEMPLATE` or `CUSTOM` type. System templates are immutable.
+- Permission mutation ceilings come only from the session-bound active role, never the union of a user's roles.
 
 ## Error Contracts
 

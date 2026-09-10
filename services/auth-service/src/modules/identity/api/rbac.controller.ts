@@ -16,6 +16,7 @@ import {
   permissionDataSchema,
   permissionModuleLookupListDataSchema,
   roleModulePermissionsBodySchema as roleModulePermissionsBodyOpenApiSchema,
+  roleCapabilityListDataSchema,
   roleMenusDataSchema,
   rolePermissionModulePermissionsPageDataSchema,
   rolePermissionModuleSummaryDataSchema,
@@ -124,6 +125,7 @@ export class RolesController {
     return this.rbacService.getRoleMenus(request.user.roleId);
   }
 
+  @RequirePermission("platform.roles.view")
   @SuccessMessage("Lấy chi tiết vai trò thành công")
   @ApiDescript("Xem chi tiết vai trò")
   @ApiParam({ name: "id", type: String })
@@ -196,6 +198,49 @@ export class RolesController {
   @Get(":id/permissions")
   async listRolePermissions(@Param("id") roleId: string) {
     return this.rbacService.listRolePermissions(roleId);
+  }
+
+  @RequirePermission("platform.roles.view")
+  @SuccessMessage("Lấy capability của vai trò thành công")
+  @ApiDescript("Xem capability nghiệp vụ của vai trò")
+  @ApiParam({ name: "id", type: String })
+  @ApiOkResponse({
+    schema: successEnvelopeSchema(
+      roleCapabilityListDataSchema,
+      200,
+      "Lấy capability của vai trò thành công",
+    ),
+  })
+  @Get(":id/capabilities")
+  async listRoleCapabilities(@Param("id") roleId: string) {
+    return this.rbacService.listRoleCapabilities(roleId);
+  }
+
+  @RequirePermission("platform.permissions.manage")
+  @SuccessMessage("Cập nhật capability của vai trò thành công")
+  @ApiDescript("Thay thế capability nghiệp vụ của vai trò")
+  @ApiParam({ name: "id", type: String })
+  @ApiBody({ schema: replaceRolePermissionsBodyOpenApiSchema })
+  @ApiOkResponse({
+    schema: successEnvelopeSchema(
+      roleCapabilityListDataSchema,
+      200,
+      "Cập nhật capability của vai trò thành công",
+    ),
+  })
+  @Put(":id/capabilities")
+  async replaceRoleCapabilities(
+    @Req() request: RequestWithUser,
+    @Param("id") roleId: string,
+    @Body() body: unknown,
+  ) {
+    const dto = parseWithZod(replaceRolePermissionsBodyZodSchema, body);
+    return this.rbacService.replaceRoleCapabilities(
+      request.user.userId,
+      request.user.roleId,
+      roleId,
+      dto,
+    );
   }
 
   @RequirePermission("platform.roles.view")
@@ -335,6 +380,7 @@ export class RolesController {
 
     return this.rbacService.grantRolePermissionModulePermissions(
       request.user.userId,
+      request.user.roleId,
       parsedParams.roleId,
       parsedParams.moduleKey,
       dto,
@@ -366,6 +412,7 @@ export class RolesController {
 
     return this.rbacService.revokeRolePermissionModulePermissions(
       request.user.userId,
+      request.user.roleId,
       parsedParams.roleId,
       parsedParams.moduleKey,
       dto,
@@ -386,9 +433,18 @@ export class RolesController {
     ),
   })
   @Put(":id/permissions")
-  async replacePermissions(@Param("id") roleId: string, @Body() body: unknown) {
+  async replacePermissions(
+    @Req() request: RequestWithUser,
+    @Param("id") roleId: string,
+    @Body() body: unknown,
+  ) {
     const dto = parseWithZod(replaceRolePermissionsBodyZodSchema, body);
-    return this.rbacService.replacePermissions(roleId, dto);
+    return this.rbacService.replacePermissions(
+      request.user.userId,
+      request.user.roleId,
+      roleId,
+      dto,
+    );
   }
 }
 

@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+- Role responses now expose persisted `type` (`SYSTEM_TEMPLATE` or `CUSTOM`). System templates are immutable; permission mutations are constrained to the actor's session-bound active-role grants.
+- Remaining private JWT routes now declare business capabilities. Added `hotel.notifications.view` and `hotel.notifications.manage`; existing route grants migrate without widening role access.
+- Added `GET|PUT /roles/{id}/capabilities` for capability-only role administration. Responses expose `key`, `domain`, `label`, `description`, `risk`, and `enabled`; updates preserve legacy route grants.
+
 - Added Super Admin Marketplace fee configuration:
   - `GET /admin/marketplace/pricing-config` returns the persisted delivery-to-hotel service fee percentage.
   - `PATCH /admin/marketplace/pricing-config` accepts `deliveryServiceFeeRate` in the inclusive range `0..100` and requires `platform.marketplace.manage`.

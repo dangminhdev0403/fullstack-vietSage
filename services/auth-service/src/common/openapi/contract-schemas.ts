@@ -1,6 +1,7 @@
 export const USER_STATUS_ENUM = ["ACTIVE", "LOCKED", "DISABLED"] as const;
 export const TENANT_USER_STATUS_ENUM = ["ACTIVE", "INVITED", "DISABLED"] as const;
 export const ROLE_STATUS_ENUM = ["ACTIVE", "DISABLED"] as const;
+export const ROLE_TYPE_ENUM = ["SYSTEM_TEMPLATE", "CUSTOM"] as const;
 export const HTTP_METHOD_ENUM = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"] as const;
 
 export function successEnvelopeSchema(
@@ -171,10 +172,11 @@ export const roleDataSchema = {
     name: { type: "string" },
     description: { type: "string", nullable: true },
     status: { type: "string", enum: ROLE_STATUS_ENUM },
+    type: { type: "string", enum: ROLE_TYPE_ENUM },
     createdAt: { type: "string", format: "date-time" },
     updatedAt: { type: "string", format: "date-time" },
   },
-  required: ["id", "code", "name", "description", "status", "createdAt", "updatedAt"],
+  required: ["id", "code", "name", "description", "status", "type", "createdAt", "updatedAt"],
 };
 
 export const permissionDataSchema = {
@@ -190,21 +192,52 @@ export const permissionDataSchema = {
   required: ["id", "method", "path", "description", "createdAt", "updatedAt"],
 };
 
+export const roleCapabilityDataSchema = {
+  type: "object",
+  properties: {
+    id: { type: "string" },
+    key: { type: "string" },
+    domain: { type: "string" },
+    label: { type: "string" },
+    description: { type: "string" },
+    risk: { type: "string", enum: ["LOW", "MEDIUM", "HIGH", "CRITICAL"] },
+    enabled: { type: "boolean" },
+  },
+  required: ["id", "key", "domain", "label", "description", "risk", "enabled"],
+};
+
+export const roleCapabilityListDataSchema = {
+  type: "array",
+  items: roleCapabilityDataSchema,
+};
+
 export const frontendNavigationRoleDataSchema = {
   type: "object",
   properties: {
     id: { type: "string" },
+    code: { type: "string" },
     description: { type: "string", nullable: true },
     createdAt: { type: "string", format: "date-time" },
     name: { type: "string" },
     status: { type: "string", enum: ROLE_STATUS_ENUM },
+    type: { type: "string", enum: ROLE_TYPE_ENUM },
     menus: {
       type: "array",
       items: { type: "string" },
     },
     enabledCount: { type: "number" },
   },
-  required: ["id", "description", "createdAt", "name", "status", "menus", "enabledCount"],
+  required: [
+    "id",
+    "code",
+    "description",
+    "createdAt",
+    "name",
+    "status",
+    "type",
+    "menus",
+    "enabledCount",
+  ],
 };
 
 export const roleMenusDataSchema = {
@@ -333,6 +366,7 @@ export const roleWithRelationsDataSchema = {
     "name",
     "description",
     "status",
+    "type",
     "createdAt",
     "updatedAt",
     "rolePermissions",

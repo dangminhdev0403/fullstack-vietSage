@@ -27,7 +27,7 @@ const ConfigSchema = z.object({
   AUTH_IDEMPOTENCY_ENCRYPTION_KEY: z.string().optional(),
   AUTH_LEGACY_REFRESH_ACCEPT_UNTIL: z.string().optional(),
   AUTHZ_ENFORCEMENT_ENABLED: z.string().optional(),
-  AUTHZ_ROUTE_SYNC_ENABLED: z.string().optional(),
+
   AUTHZ_STRICT_MODE: z.string().optional(),
   AUTH_ADMIN_EMAIL: z.string().optional(),
   AUTH_ADMIN_NAME: z.string().optional(),
@@ -80,7 +80,6 @@ export interface AuthConfig {
 }
 
 export interface AuthzConfig {
-  routeSyncEnabled: boolean;
   strictMode: boolean;
   enforcementEnabled: boolean;
 }
@@ -299,11 +298,6 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       ),
     },
     authz: {
-      routeSyncEnabled: parseBooleanEnv(
-        validated.AUTHZ_ROUTE_SYNC_ENABLED,
-        true,
-        "AUTHZ_ROUTE_SYNC_ENABLED",
-      ),
       strictMode: authzStrictMode,
       enforcementEnabled: authzEnforcementEnabled,
     },

@@ -10,8 +10,6 @@ import {
   requestInternalApi,
   requestInternalApiEnvelope,
 } from "@/core/http/internal-api-client";
-import type { RbacPermissionMethod } from "@/features/rbac/types/rbac-contract";
-
 import { VsIcon } from "../../../_components/vs-icon";
 
 /* ────────────────────────── exported types ────────────────────────── */
@@ -24,13 +22,14 @@ export type RolePermissionsBrowserRole = {
   userCount: number;
   enabledCount: number | null;
   createdAt: string;
+  type: "SYSTEM_TEMPLATE" | "CUSTOM";
 };
 
 export type RolePermissionsBrowserPermission = {
   id: string;
-  method: RbacPermissionMethod;
-  path: string;
+  key: string;
   description: string;
+  risk: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
   moduleKey?: string;
   moduleLabel?: string;
   moduleIcon?: string;
@@ -141,15 +140,6 @@ const BUSINESS_MODULE_LABELS: Record<
   },
 };
 
-const METHOD_BADGE_CLASS_MAP: Record<RbacPermissionMethod, string> = {
-  GET: "bg-[var(--primary-fixed)] text-[var(--on-primary-fixed-variant)]",
-  POST: "bg-[var(--secondary-container)] text-[var(--on-secondary-container)]",
-  PUT: "bg-[var(--tertiary-fixed)] text-[var(--on-tertiary-fixed)]",
-  PATCH:
-    "bg-[color:rgba(254,214,91,0.28)] text-[var(--on-secondary-container)]",
-  DELETE: "bg-[var(--error-container)] text-[var(--on-error-container)]",
-  OPTIONS: "bg-[var(--surface-container)] text-[var(--on-surface-variant)]",
-};
 
 function toTitleCase(value: string): string {
   return value
@@ -179,9 +169,6 @@ function moduleIcon(moduleKey: string): string {
   return "menu";
 }
 
-function toPermissionMethodBadgeClass(method: RbacPermissionMethod): string {
-  return METHOD_BADGE_CLASS_MAP[method] ?? METHOD_BADGE_CLASS_MAP.OPTIONS;
-}
 
 function businessActionLabel(description: string): string {
   return description
@@ -264,18 +251,21 @@ function parseRolePermissions(
     if (!isRecord(item)) continue;
     if (
       typeof item.id !== "string" ||
-      typeof item.method !== "string" ||
-      typeof item.path !== "string" ||
-      typeof item.description !== "string"
+      typeof item.key !== "string" ||
+      typeof item.domain !== "string" ||
+      typeof item.description !== "string" ||
+      typeof item.risk !== "string" ||
+      item.enabled !== true
     )
       continue;
-    const method = item.method.trim().toUpperCase() as RbacPermissionMethod;
-    if (!Object.hasOwn(METHOD_BADGE_CLASS_MAP, method)) continue;
     mapped.push({
       id: item.id,
-      method,
-      path: item.path,
+      key: item.key,
       description: item.description,
+      risk: item.risk as RolePermissionsBrowserPermission["risk"],
+      moduleKey: item.domain,
+      moduleLabel: item.domain,
+      enabled: true,
     });
   }
   return mapped;
@@ -299,7 +289,7 @@ async function fetchRolePermissions(
   try {
     const permissions = await requestInternalApi<
       RolePermissionsBrowserPermission[]
-    >(`/api/rbac/roles/${encodeURIComponent(roleId)}/permissions`, {
+    >(`/api/rbac/roles/${encodeURIComponent(roleId)}/capabilities`, {
       method: "GET",
     });
     return parseRolePermissions({ data: permissions });
@@ -320,7 +310,7 @@ async function replaceRolePermissions(
   try {
     const payload = await requestInternalApiEnvelope<
       RolePermissionsBrowserPermission[]
-    >(`/api/rbac/roles/${encodeURIComponent(roleId)}/permissions`, {
+    >(`/api/rbac/roles/${encodeURIComponent(roleId)}/capabilities`, {
       method: "PUT",
       body: { permissionIds },
     });
@@ -418,14 +408,7 @@ function moduleKeyFromPermission(
 ): string {
   const key = permission.moduleKey?.trim();
   if (key && key.length > 0) return key;
-  // Fallback: derive from path
-  const segments = permission.path.split("/").filter(Boolean);
-  if (segments.length >= 3 && segments[0] === "api" && segments[1] === "v1")
-    return segments[2] ?? "misc";
-  if (segments.length >= 2 && segments[0] === "permissions")
-    return segments[1] ?? "misc";
-  if (segments.length >= 1) return segments[0] ?? "misc";
-  return "misc";
+  return permission.key.split(".")[0] ?? "misc";
 }
 
 function buildPermissionModules(
@@ -450,11 +433,11 @@ function buildPermissionModules(
         items[0]?.moduleIcon ??
         moduleIcon(key),
       permissions: [...items].sort((a, b) => {
-        const pathCmp = a.path.localeCompare(b.path, "en", {
+        const pathCmp = a.key.localeCompare(b.key, "en", {
           sensitivity: "base",
         });
         if (pathCmp !== 0) return pathCmp;
-        return a.method.localeCompare(b.method, "en", { sensitivity: "base" });
+        return a.description.localeCompare(b.description, "vi", { sensitivity: "base" });
       }),
     }))
     .sort((a, b) =>
@@ -511,6 +494,7 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
 
   /* ── derived ── */
   const selectedRole = roles.find((r) => r.id === selectedRoleId) ?? null;
+  const selectedRoleReadOnly = selectedRole?.type === "SYSTEM_TEMPLATE";
   const selectedRoleHasCache = selectedRoleId
     ? Object.prototype.hasOwnProperty.call(permissionsByRoleId, selectedRoleId)
     : false;
@@ -725,7 +709,7 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
     selectedRole?.name ?? selectedRoleId ?? "vai trò đã chọn";
 
   async function handleResetChanges() {
-    if (!selectedRoleId || !selectedRoleHasCache || selectedRoleSaving) return;
+    if (!selectedRoleId || !selectedRoleHasCache || selectedRoleSaving || selectedRoleReadOnly) return;
 
     if (!selectedRoleHasUnsavedChanges) {
       await Swal.fire({
@@ -768,7 +752,7 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
 
   /* ── save ── */
   async function handleSaveChanges() {
-    if (!selectedRoleId || !selectedRoleHasCache || selectedRoleSaving) return;
+    if (!selectedRoleId || !selectedRoleHasCache || selectedRoleSaving || selectedRoleReadOnly) return;
 
     if (!selectedRoleHasUnsavedChanges) {
       await SwalVietSage.fire({
@@ -972,6 +956,11 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
                 Ngày tạo:{" "}
                 {selectedRole ? formatDate(selectedRole.createdAt) : "Không có"}
               </p>
+              {selectedRoleReadOnly ? (
+                <p className="mt-2 text-sm font-semibold text-[var(--secondary)]">
+                  Vai trò hệ thống · Chỉ đọc. Tạo vai trò tùy chỉnh để thay đổi capability.
+                </p>
+              ) : null}
             </div>
 
             <div className="min-w-[120px] rounded-xl border border-[color:rgba(198,197,213,0.3)] bg-[var(--surface-container-low)] px-4 py-3 text-center">
@@ -1121,6 +1110,7 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
                         handleModuleSelectAll(activeModulePermissions)
                       }
                       disabled={
+                        selectedRoleReadOnly ||
                         selectedRoleSaving ||
                         activeModulePermissions.length === 0
                       }
@@ -1141,6 +1131,7 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
                         handleModuleDisableAll(activeModulePermissions)
                       }
                       disabled={
+                        selectedRoleReadOnly ||
                         selectedRoleSaving ||
                         activeModulePermissions.length === 0
                       }
@@ -1160,9 +1151,6 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
                 {/* ── Permission list — single column ── */}
                 <div className="space-y-2 max-h-[55vh] overflow-y-auto pr-1">
                   {activeModulePermissions.map((permission) => {
-                    const badgeClass = toPermissionMethodBadgeClass(
-                      permission.method,
-                    );
                     const isAssigned = selectedRoleDraftPermissionIdSet.has(
                       permission.id,
                     );
@@ -1197,20 +1185,9 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
                             <p className="text-sm font-semibold text-[var(--on-surface)]">
                               {businessActionLabel(permission.description)}
                             </p>
-                            {/* Method/path in collapsible details */}
-                            <details className="mt-1">
-                              <summary className="cursor-pointer text-[11px] text-[var(--outline)] hover:text-[var(--on-surface-variant)]">
-                                Chi tiết endpoint
-                              </summary>
-                              <p className="mt-1 break-all font-mono text-[11px] text-[var(--outline)]">
-                                <span
-                                  className={`mr-2 rounded px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-[0.06em] ${badgeClass}`}
-                                >
-                                  {permission.method}
-                                </span>
-                                {permission.path}
-                              </p>
-                            </details>
+                            <p className="mt-1 font-mono text-[11px] text-[var(--outline)]">
+                              {permission.key} · Rủi ro {permission.risk}
+                            </p>
                           </div>
                         </div>
 
@@ -1218,7 +1195,7 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
                           <button
                             type="button"
                             onClick={() => handleResetPermission(permission.id)}
-                            disabled={selectedRoleSaving || !isDirty}
+                            disabled={selectedRoleReadOnly || selectedRoleSaving || !isDirty}
                             className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-[var(--outline-variant)] text-[var(--outline)] transition-colors hover:bg-[var(--surface-container-low)] disabled:cursor-not-allowed disabled:opacity-40"
                             aria-label={`Đặt lại quyền ${permission.description} theo giá trị ban đầu`}
                             title={isDirty ? "Đặt lại quyền này" : "Đã đồng bộ"}
@@ -1239,7 +1216,7 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
                                   e.currentTarget.checked,
                                 )
                               }
-                              disabled={selectedRoleSaving}
+                              disabled={selectedRoleReadOnly || selectedRoleSaving}
                               className="peer sr-only"
                               aria-label={`Quyền ${permission.description}`}
                             />
@@ -1281,7 +1258,7 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
               <button
                 type="button"
                 onClick={handleResetChanges}
-                disabled={!selectedRoleHasCache || selectedRoleSaving}
+                disabled={!selectedRoleHasCache || selectedRoleSaving || selectedRoleReadOnly}
                 className="cursor-pointer rounded-lg border border-[var(--primary)] px-4 py-2 text-xs font-bold uppercase tracking-[0.08em] text-[var(--primary)] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Đặt lại
@@ -1291,7 +1268,9 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
                 onClick={() => {
                   void handleSaveChanges();
                 }}
-                disabled={!selectedRoleHasUnsavedChanges || selectedRoleSaving}
+                disabled={
+                  !selectedRoleHasUnsavedChanges || selectedRoleSaving || selectedRoleReadOnly
+                }
                 className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[var(--primary)] px-5 py-2.5 text-xs font-bold uppercase tracking-[0.08em] text-[var(--on-primary)] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <VsIcon

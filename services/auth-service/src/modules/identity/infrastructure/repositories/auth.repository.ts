@@ -441,45 +441,6 @@ export class AuthRepository {
     });
   }
 
-  async countUserWithRoutePermission(
-    userId: string,
-    roleId: string,
-    method: HttpMethod,
-    path: string,
-  ) {
-    return this.prisma.user.count({
-      where: {
-        id: userId,
-        userRoles: {
-          some: {
-            roleId,
-            status: UserRoleStatus.ACTIVE,
-            role: {
-              status: RoleStatus.ACTIVE,
-              rolePermissions: {
-                some: {
-                  permission: {
-                    method,
-                    path,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-  }
-
-  async countPermissionByMethodPath(method: HttpMethod, path: string) {
-    return this.prisma.permission.count({
-      where: {
-        method,
-        path,
-      },
-    });
-  }
-
   async countUserWithBusinessPermission(userId: string, roleId: string, permissionKey: string) {
     return this.prisma.user.count({
       where: {
@@ -496,6 +457,7 @@ export class AuthRepository {
                   rolePermissions: {
                     some: {
                       permission: {
+                        method: HttpMethod.OPTIONS,
                         path: permissionKey,
                       },
                     },
@@ -534,12 +496,12 @@ export class AuthRepository {
     });
   }
 
-  async upsertRoleByCode(data: { code: string; name: string; description: string | null }) {
+  async upsertRoleByCode(data: Prisma.RoleCreateInput) {
     return this.prisma.role.upsert({
       where: {
         code: data.code,
       },
-      update: {},
+      update: { type: data.type },
       create: data,
     });
   }
@@ -565,14 +527,15 @@ export class AuthRepository {
     });
   }
 
-  async listPermissionIds() {
+  async listBusinessPermissionIds(permissionKeys: string[]) {
     const permissions = await this.prisma.permission.findMany({
-      select: {
-        id: true,
+      where: {
+        method: HttpMethod.OPTIONS,
+        path: { in: permissionKeys },
       },
+      select: { id: true },
     });
-
-    return permissions.map((permission) => permission.id);
+    return permissions.map(({ id }) => id);
   }
 
   async createRolePermissions(roleId: string, permissionIds: string[]) {

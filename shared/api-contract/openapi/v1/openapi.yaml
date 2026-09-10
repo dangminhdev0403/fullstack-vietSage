@@ -485,6 +485,11 @@ paths:
                         enum:
                           - ACTIVE
                           - DISABLED
+                      type:
+                        type: string
+                        enum:
+                          - SYSTEM_TEMPLATE
+                          - CUSTOM
                       createdAt:
                         type: string
                         format: date-time
@@ -497,6 +502,7 @@ paths:
                       - name
                       - description
                       - status
+                      - type
                       - createdAt
                       - updatedAt
                 required:
@@ -535,6 +541,8 @@ paths:
                       properties:
                         id:
                           type: string
+                        code:
+                          type: string
                         description:
                           type: string
                           nullable: true
@@ -548,6 +556,11 @@ paths:
                           enum:
                             - ACTIVE
                             - DISABLED
+                        type:
+                          type: string
+                          enum:
+                            - SYSTEM_TEMPLATE
+                            - CUSTOM
                         menus:
                           type: array
                           items:
@@ -556,10 +569,12 @@ paths:
                           type: number
                       required:
                         - id
+                        - code
                         - description
                         - createdAt
                         - name
                         - status
+                        - type
                         - menus
                         - enabledCount
                 required:
@@ -613,6 +628,11 @@ paths:
                         enum:
                           - ACTIVE
                           - DISABLED
+                      type:
+                        type: string
+                        enum:
+                          - SYSTEM_TEMPLATE
+                          - CUSTOM
                       createdAt:
                         type: string
                         format: date-time
@@ -682,6 +702,7 @@ paths:
                       - name
                       - description
                       - status
+                      - type
                       - createdAt
                       - updatedAt
                       - rolePermissions
@@ -770,6 +791,11 @@ paths:
                         enum:
                           - ACTIVE
                           - DISABLED
+                      type:
+                        type: string
+                        enum:
+                          - SYSTEM_TEMPLATE
+                          - CUSTOM
                       createdAt:
                         type: string
                         format: date-time
@@ -839,6 +865,7 @@ paths:
                       - name
                       - description
                       - status
+                      - type
                       - createdAt
                       - updatedAt
                       - rolePermissions
@@ -907,6 +934,11 @@ paths:
                         enum:
                           - ACTIVE
                           - DISABLED
+                      type:
+                        type: string
+                        enum:
+                          - SYSTEM_TEMPLATE
+                          - CUSTOM
                       createdAt:
                         type: string
                         format: date-time
@@ -919,6 +951,7 @@ paths:
                       - name
                       - description
                       - status
+                      - type
                       - createdAt
                       - updatedAt
                 required:
@@ -1014,6 +1047,11 @@ paths:
                         enum:
                           - ACTIVE
                           - DISABLED
+                      type:
+                        type: string
+                        enum:
+                          - SYSTEM_TEMPLATE
+                          - CUSTOM
                       createdAt:
                         type: string
                         format: date-time
@@ -1026,6 +1064,7 @@ paths:
                       - name
                       - description
                       - status
+                      - type
                       - createdAt
                       - updatedAt
                 required:
@@ -1174,6 +1213,150 @@ paths:
                         - description
                         - createdAt
                         - updatedAt
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a2
+  /roles/{id}/capabilities:
+    get:
+      operationId: RolesController_listRoleCapabilities
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Lấy capability của vai trò thành công
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        key:
+                          type: string
+                        domain:
+                          type: string
+                        label:
+                          type: string
+                        description:
+                          type: string
+                        risk:
+                          type: string
+                          enum:
+                            - LOW
+                            - MEDIUM
+                            - HIGH
+                            - CRITICAL
+                        enabled:
+                          type: boolean
+                      required:
+                        - id
+                        - key
+                        - domain
+                        - label
+                        - description
+                        - risk
+                        - enabled
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a2
+    put:
+      operationId: RolesController_replaceRoleCapabilities
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                permissionIds:
+                  type: array
+                  items:
+                    type: string
+              required:
+                - permissionIds
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Cập nhật capability của vai trò thành công
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        key:
+                          type: string
+                        domain:
+                          type: string
+                        label:
+                          type: string
+                        description:
+                          type: string
+                        risk:
+                          type: string
+                          enum:
+                            - LOW
+                            - MEDIUM
+                            - HIGH
+                            - CRITICAL
+                        enabled:
+                          type: boolean
+                      required:
+                        - id
+                        - key
+                        - domain
+                        - label
+                        - description
+                        - risk
+                        - enabled
                 required:
                   - status
                   - error
@@ -1907,7 +2090,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: &a5
+      tags: &a4
         - hotel-users
     get:
       operationId: HotelUsersController_listHotelUsers
@@ -1927,7 +2110,7 @@ paths:
           required: false
           in: query
           schema:
-            enum: &a4
+            enum:
               - ACTIVE
               - INVITED
               - DISABLED
@@ -1990,7 +2173,10 @@ paths:
                                 - DISABLED
                             tenantStatus:
                               type: string
-                              enum: *a4
+                              enum:
+                                - ACTIVE
+                                - INVITED
+                                - DISABLED
                             tenantId:
                               type: string
                             joinedAt:
@@ -2054,7 +2240,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a5
+      tags: *a4
   /hotel-users/managed-roles:
     get:
       operationId: HotelUsersController_listManagedRoles
@@ -2104,7 +2290,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a5
+      tags: *a4
   /hotel-users/{id}:
     get:
       operationId: HotelUsersController_getHotelUser
@@ -2219,7 +2405,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a5
+      tags: *a4
     patch:
       operationId: HotelUsersController_updateHotelUser
       parameters:
@@ -2236,7 +2422,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a5
+      tags: *a4
   /hotel-users/{id}/status:
     patch:
       operationId: HotelUsersController_updateHotelUserStatus
@@ -2365,7 +2551,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a5
+      tags: *a4
   /hotel-users/{id}/roles:
     post:
       operationId: HotelUsersController_assignHotelUserRoles
@@ -2496,7 +2682,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a5
+      tags: *a4
   /hotel-users/{id}/roles/{roleId}:
     delete:
       operationId: HotelUsersController_revokeHotelUserRole
@@ -2556,7 +2742,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a5
+      tags: *a4
   /hotel-users/{id}/reset-password:
     post:
       operationId: HotelUsersController_resetPassword
@@ -2575,7 +2761,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a5
+      tags: *a4
   /tenant-owners:
     get:
       operationId: TenantOwnersController_listTenantOwners
@@ -2764,7 +2950,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: &a6
+      tags: &a5
         - tenant-owners
     post:
       operationId: TenantOwnersController_createTenantOwner
@@ -2937,7 +3123,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a6
+      tags: *a5
   /tenant-owners/tenant-options:
     get:
       operationId: TenantOwnersController_listTenantOptions
@@ -2945,7 +3131,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a6
+      tags: *a5
   /tenant-owners/{id}:
     get:
       operationId: TenantOwnersController_getTenantOwner
@@ -3085,7 +3271,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a6
+      tags: *a5
     patch:
       operationId: TenantOwnersController_updateTenantOwner
       parameters:
@@ -3257,7 +3443,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a6
+      tags: *a5
   /tenant-owners/{id}/reset-password:
     post:
       operationId: TenantOwnersController_resetPassword
@@ -3270,7 +3456,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a6
+      tags: *a5
   /hotels:
     post:
       operationId: HotelsController_createHotel
@@ -3388,7 +3574,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: &a7
+      tags: &a6
         - hotels
     get:
       operationId: HotelsController_listHotels
@@ -3522,7 +3708,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a7
+      tags: *a6
   /hotels/{hotelId}:
     get:
       operationId: HotelsController_getHotel
@@ -3618,7 +3804,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a7
+      tags: *a6
     patch:
       operationId: HotelsController_updateHotel
       parameters:
@@ -3742,7 +3928,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a7
+      tags: *a6
   /hotels/{hotelId}/rooms:
     post:
       operationId: HotelRoomsController_createRoom
@@ -3761,7 +3947,7 @@ paths:
       responses:
         "201":
           description: Đã tạo phòng
-      tags: &a8
+      tags: &a7
         - hotel-rooms
     get:
       operationId: HotelRoomsController_listRooms
@@ -3794,7 +3980,7 @@ paths:
       responses:
         "200":
           description: Đã lấy danh sách phòng
-      tags: *a8
+      tags: *a7
   /hotels/{hotelId}/rooms/bulk:
     post:
       operationId: HotelRoomsController_createRooms
@@ -3813,7 +3999,7 @@ paths:
       responses:
         "201":
           description: Đã tạo danh sách phòng
-      tags: *a8
+      tags: *a7
   /hotels/{hotelId}/rooms/{roomId}:
     patch:
       operationId: HotelRoomsController_updateRoom
@@ -3837,7 +4023,7 @@ paths:
       responses:
         "200":
           description: Đã cập nhật phòng
-      tags: *a8
+      tags: *a7
   /hotels/{hotelId}/stays:
     post:
       operationId: HotelRoomsController_createStay
@@ -3856,7 +4042,7 @@ paths:
       responses:
         "201":
           description: Đã tạo lượt lưu trú
-      tags: *a8
+      tags: *a7
   /hotels/{hotelId}/stays/check-in:
     post:
       operationId: HotelRoomsController_createAndCheckInStay
@@ -3875,7 +4061,7 @@ paths:
       responses:
         "201":
           description: Đã tạo và check-in lượt lưu trú
-      tags: *a8
+      tags: *a7
   /hotels/{hotelId}/stays/{stayId}/check-in:
     post:
       operationId: HotelRoomsController_checkInStay
@@ -3893,7 +4079,7 @@ paths:
       responses:
         "200":
           description: Đã check-in lượt lưu trú
-      tags: *a8
+      tags: *a7
   /hotels/{hotelId}/stays/{stayId}/check-out:
     post:
       operationId: HotelRoomsController_checkOutStay
@@ -3917,7 +4103,7 @@ paths:
       responses:
         "200":
           description: Đã check-out lượt lưu trú
-      tags: *a8
+      tags: *a7
   /hotels/{hotelId}/stays/{stayId}:
     patch:
       operationId: HotelRoomsController_updateStay
@@ -3941,7 +4127,7 @@ paths:
       responses:
         "200":
           description: Đã cập nhật lượt lưu trú
-      tags: *a8
+      tags: *a7
   /hotels/{hotelId}/rooms/{roomId}/qr/rotate:
     post:
       operationId: HotelRoomsController_rotateQr
@@ -3965,7 +4151,7 @@ paths:
       responses:
         "200":
           description: Đã xoay mã QR phòng
-      tags: *a8
+      tags: *a7
   /hotels/{hotelId}/rooms/{roomId}/qr/activate:
     post:
       operationId: HotelRoomsController_activateQr
@@ -3983,7 +4169,7 @@ paths:
       responses:
         "200":
           description: Đã kích hoạt mã QR phòng
-      tags: *a8
+      tags: *a7
   /hotels/{hotelId}/rooms/{roomId}/qr/deactivate:
     post:
       operationId: HotelRoomsController_deactivateQr
@@ -4007,7 +4193,7 @@ paths:
       responses:
         "200":
           description: Đã hủy kích hoạt mã QR phòng
-      tags: *a8
+      tags: *a7
   /hotels/{hotelId}/service-catalog/sync:
     post:
       operationId: HotelServicesController_syncServiceCatalogFromGoogleSheets
@@ -4020,7 +4206,7 @@ paths:
       responses:
         "200":
           description: Đã đồng bộ Google Sheets
-      tags: &a9
+      tags: &a8
         - hotel-services
   /hotels/{hotelId}/service-catalog/import/preview:
     post:
@@ -4034,7 +4220,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a9
+      tags: *a8
   /hotels/{hotelId}/service-catalog/import/commit:
     post:
       operationId: HotelServicesController_commitServiceCatalogImport
@@ -4047,7 +4233,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a9
+      tags: *a8
   /hotels/{hotelId}/service-catalog/import/template:
     get:
       operationId: HotelServicesController_serviceCatalogImportTemplate
@@ -4055,7 +4241,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a9
+      tags: *a8
   /hotels/{hotelId}/service-categories:
     get:
       operationId: HotelServicesController_listServiceCategories
@@ -4068,7 +4254,7 @@ paths:
       responses:
         "200":
           description: Đã lấy danh mục dịch vụ
-      tags: *a9
+      tags: *a8
     post:
       operationId: HotelServicesController_createServiceCategory
       parameters:
@@ -4086,7 +4272,7 @@ paths:
       responses:
         "201":
           description: Đã tạo danh mục dịch vụ
-      tags: *a9
+      tags: *a8
   /hotels/{hotelId}/service-categories/{categoryId}:
     patch:
       operationId: HotelServicesController_updateServiceCategory
@@ -4110,7 +4296,7 @@ paths:
       responses:
         "200":
           description: Đã cập nhật danh mục dịch vụ
-      tags: *a9
+      tags: *a8
   /hotels/{hotelId}/service-items:
     get:
       operationId: HotelServicesController_listServiceItems
@@ -4254,7 +4440,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a9
+      tags: *a8
     post:
       operationId: HotelServicesController_createServiceItem
       parameters:
@@ -4284,15 +4470,15 @@ paths:
                 priceOverride:
                   type: number
                   minimum: 0
-                quantityEnabled: &a10
+                quantityEnabled:
                   type: boolean
                   description: When true, guests must submit quantity within
                     minQuantity/maxQuantity.
-                minQuantity: &a11
+                minQuantity:
                   type: integer
                   minimum: 1
                   description: Minimum guest-selectable quantity when quantityEnabled is true.
-                maxQuantity: &a12
+                maxQuantity:
                   type: integer
                   minimum: 1
                   nullable: true
@@ -4353,9 +4539,20 @@ paths:
                       effectiveCurrency:
                         type: string
                         example: VND
-                      quantityEnabled: *a10
-                      minQuantity: *a11
-                      maxQuantity: *a12
+                      quantityEnabled:
+                        type: boolean
+                        description: When true, guests must submit quantity within
+                          minQuantity/maxQuantity.
+                      minQuantity:
+                        type: integer
+                        minimum: 1
+                        description: Minimum guest-selectable quantity when quantityEnabled is true.
+                      maxQuantity:
+                        type: integer
+                        minimum: 1
+                        nullable: true
+                        description: Maximum guest-selectable quantity when quantityEnabled is true.
+                          Null means no cap.
                       metadata:
                         type: object
                         additionalProperties: true
@@ -4419,7 +4616,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a9
+      tags: *a8
   /hotels/{hotelId}/service-items/{itemId}:
     patch:
       operationId: HotelServicesController_updateServiceItem
@@ -4457,15 +4654,15 @@ paths:
                   type: number
                   minimum: 0
                   nullable: true
-                quantityEnabled: &a13
+                quantityEnabled:
                   type: boolean
                   description: When true, guests must submit quantity within
                     minQuantity/maxQuantity.
-                minQuantity: &a14
+                minQuantity:
                   type: integer
                   minimum: 1
                   description: Minimum guest-selectable quantity when quantityEnabled is true.
-                maxQuantity: &a15
+                maxQuantity:
                   type: integer
                   minimum: 1
                   nullable: true
@@ -4525,9 +4722,20 @@ paths:
                       effectiveCurrency:
                         type: string
                         example: VND
-                      quantityEnabled: *a13
-                      minQuantity: *a14
-                      maxQuantity: *a15
+                      quantityEnabled:
+                        type: boolean
+                        description: When true, guests must submit quantity within
+                          minQuantity/maxQuantity.
+                      minQuantity:
+                        type: integer
+                        minimum: 1
+                        description: Minimum guest-selectable quantity when quantityEnabled is true.
+                      maxQuantity:
+                        type: integer
+                        minimum: 1
+                        nullable: true
+                        description: Maximum guest-selectable quantity when quantityEnabled is true.
+                          Null means no cap.
                       metadata:
                         type: object
                         additionalProperties: true
@@ -4591,7 +4799,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a9
+      tags: *a8
   /hotels/{hotelId}/dashboard:
     get:
       operationId: HotelDashboardController_getDashboard
@@ -4676,7 +4884,7 @@ paths:
                   plannedCheckOutAt:
                     type: string
                     format: date-time
-      tags: &a16
+      tags: &a9
         - hotel-reservations
   /hotels/{hotelId}/arrivals:
     get:
@@ -4763,7 +4971,7 @@ paths:
                         plannedCheckOutAt:
                           type: string
                           format: date-time
-      tags: *a16
+      tags: *a9
   /hotels/{hotelId}/reservations/{reservationId}/room:
     put:
       operationId: ReservationsController_assignRoom
@@ -4829,7 +5037,7 @@ paths:
                   plannedCheckOutAt:
                     type: string
                     format: date-time
-      tags: *a16
+      tags: *a9
   /hotels/{hotelId}/reservations/{reservationId}/check-in:
     post:
       operationId: ReservationsController_checkIn
@@ -4915,7 +5123,7 @@ paths:
                         type: string
                         enum:
                           - ACTIVE
-      tags: *a16
+      tags: *a9
   /hotels/{hotelId}/staff-assignments:
     get:
       operationId: HotelStaffAssignmentsController_list
@@ -5050,7 +5258,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: &a17
+      tags: &a10
         - hotel-staff
   /hotels/{hotelId}/staff-assignments/{userId}:
     put:
@@ -5157,7 +5365,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a17
+      tags: *a10
     delete:
       operationId: HotelStaffAssignmentsController_revoke
       parameters:
@@ -5210,7 +5418,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a17
+      tags: *a10
   /hotels/{hotelId}/folios:
     get:
       operationId: FolioController_listFolios
@@ -5233,7 +5441,7 @@ paths:
       responses:
         "200":
           description: Danh sách folio
-      tags: &a18
+      tags: &a11
         - billing-folios
   /hotels/{hotelId}/stays/{stayId}/active-folio:
     get:
@@ -5252,7 +5460,7 @@ paths:
       responses:
         "200":
           description: Folio đang mở
-      tags: *a18
+      tags: *a11
   /hotels/{hotelId}/folios/{folioId}/summary:
     get:
       operationId: FolioController_getFolioSummary
@@ -5270,7 +5478,7 @@ paths:
       responses:
         "200":
           description: Tổng quan folio
-      tags: *a18
+      tags: *a11
   /hotels/{hotelId}/folios/{folioId}/checkout/issue-invoice:
     post:
       operationId: FolioController_issueInvoice
@@ -5313,7 +5521,7 @@ paths:
       responses:
         "200":
           description: Invoice đã phát hành
-      tags: *a18
+      tags: *a11
   /hotels/{hotelId}/folios/{folioId}/items:
     get:
       operationId: FolioController_listFolioItems
@@ -5331,7 +5539,7 @@ paths:
       responses:
         "200":
           description: Danh sách FolioItem
-      tags: *a18
+      tags: *a11
     post:
       operationId: FolioController_addFolioItem
       parameters:
@@ -5348,7 +5556,7 @@ paths:
       responses:
         "200":
           description: Mục FolioItem đã tạo
-      tags: *a18
+      tags: *a11
   /hotels/{hotelId}/folios/{folioId}:
     get:
       operationId: FolioController_getFolioDetail
@@ -5366,7 +5574,7 @@ paths:
       responses:
         "200":
           description: Chi tiết folio
-      tags: *a18
+      tags: *a11
   /hotels/{hotelId}/folios/{folioId}/items/{itemId}/void:
     post:
       operationId: FolioController_voidFolioItem
@@ -5389,7 +5597,7 @@ paths:
       responses:
         "200":
           description: Kết quả hủy mục
-      tags: *a18
+      tags: *a11
   /hotels/{hotelId}/invoices/{invoiceId}:
     get:
       operationId: InvoiceController_getInvoiceDetail
@@ -5432,7 +5640,7 @@ paths:
       responses:
         "200":
           description: Payment pending/session
-      tags: &a19
+      tags: &a12
         - billing-payments
   /hotels/{hotelId}/invoices/{invoiceId}/payments/manual-confirm:
     post:
@@ -5457,7 +5665,7 @@ paths:
       responses:
         "200":
           description: Payment, invoice, folio và stay đã hoàn tất
-      tags: *a19
+      tags: *a12
   /hotels/{hotelId}/payments/{paymentId}/status:
     get:
       operationId: PaymentController_getPaymentStatus
@@ -5475,7 +5683,7 @@ paths:
       responses:
         "200":
           description: Payment status
-      tags: *a19
+      tags: *a12
   /payments/webhook/{provider}:
     post:
       operationId: PaymentController_processWebhook
@@ -5506,7 +5714,7 @@ paths:
       responses:
         "200":
           description: Webhook đã xử lý
-      tags: *a19
+      tags: *a12
   /guest/qr/scan:
     post:
       operationId: GuestOsController_scanQr
@@ -5542,7 +5750,7 @@ paths:
       responses:
         "201":
           description: Đã chấp nhận quét QR của khách
-      tags: &a20
+      tags: &a13
         - guest-os
   /guest/session/me:
     get:
@@ -5551,7 +5759,7 @@ paths:
       responses:
         "200":
           description: Đã lấy phiên khách
-      tags: *a20
+      tags: *a13
   /guest/services:
     get:
       operationId: GuestOsController_listServices
@@ -5704,7 +5912,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a20
+      tags: *a13
   /guest/service-categories/{categoryId}/services:
     get:
       operationId: GuestOsController_listCategoryServices
@@ -5807,7 +6015,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a20
+      tags: *a13
   /guest/requests:
     post:
       operationId: GuestOsController_createRequest
@@ -5920,7 +6128,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a20
+      tags: *a13
     get:
       operationId: GuestOsController_listRequests
       parameters: []
@@ -6037,7 +6245,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a20
+      tags: *a13
   /guest/requests/{requestId}/cancel:
     patch:
       operationId: GuestOsController_cancelRequest
@@ -6123,7 +6331,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a20
+      tags: *a13
   /guest/messages/unread-summary:
     get:
       operationId: GuestOsController_getUnreadSummary
@@ -6131,7 +6339,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a20
+      tags: *a13
   /guest/messages:
     get:
       operationId: GuestOsController_listMessages
@@ -6139,14 +6347,14 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a20
+      tags: *a13
     post:
       operationId: GuestOsController_sendMessage
       parameters: []
       responses:
         "201":
           description: ""
-      tags: *a20
+      tags: *a13
   /guest/messages/read:
     post:
       operationId: GuestOsController_markMessagesRead
@@ -6154,7 +6362,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a20
+      tags: *a13
   /guest/session/close:
     post:
       operationId: GuestOsController_closeSession
@@ -6162,7 +6370,7 @@ paths:
       responses:
         "200":
           description: Đã đóng phiên khách
-      tags: *a20
+      tags: *a13
   /hotels/{hotelId}/messages/unread-summary:
     get:
       operationId: HotelRequestsController_getUnreadSummary
@@ -6175,7 +6383,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: &a21
+      tags: &a14
         - hotel-requests
   /hotels/{hotelId}/messages:
     get:
@@ -6189,7 +6397,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a21
+      tags: *a14
   /hotels/{hotelId}/messages/{threadId}:
     get:
       operationId: HotelRequestsController_getMessageThread
@@ -6207,7 +6415,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a21
+      tags: *a14
   /hotels/{hotelId}/messages/{threadId}/reply:
     post:
       operationId: HotelRequestsController_replyMessage
@@ -6225,7 +6433,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a21
+      tags: *a14
   /hotels/{hotelId}/messages/{threadId}/read:
     post:
       operationId: HotelRequestsController_markMessageThreadRead
@@ -6243,7 +6451,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a21
+      tags: *a14
   /hotels/{hotelId}/requests:
     get:
       operationId: HotelRequestsController_listRequests
@@ -6264,7 +6472,7 @@ paths:
       responses:
         "200":
           description: Đã lấy danh sách yêu cầu của khách
-      tags: *a21
+      tags: *a14
   /hotels/{hotelId}/requests/summary:
     get:
       operationId: HotelRequestsController_getRequestsSummary
@@ -6277,7 +6485,7 @@ paths:
       responses:
         "200":
           description: Guest request summary
-      tags: *a21
+      tags: *a14
   /hotels/{hotelId}/requests/{requestId}:
     get:
       operationId: HotelRequestsController_getRequestDetail
@@ -6295,7 +6503,7 @@ paths:
       responses:
         "200":
           description: Đã lấy yêu cầu của khách
-      tags: *a21
+      tags: *a14
   /hotels/{hotelId}/requests/{requestId}/status:
     patch:
       operationId: HotelRequestsController_updateRequestStatus
@@ -6319,7 +6527,7 @@ paths:
       responses:
         "200":
           description: Đã cập nhật yêu cầu của khách
-      tags: *a21
+      tags: *a14
   /hotels/{hotelId}/requests/{requestId}/assignment:
     patch:
       operationId: HotelRequestsController_updateRequestAssignment
@@ -6343,7 +6551,7 @@ paths:
       responses:
         "200":
           description: Đã cập nhật phân công yêu cầu của khách
-      tags: *a21
+      tags: *a14
   /hotels/{hotelId}/requests/{requestId}/events:
     post:
       operationId: HotelRequestsController_createRequestEvent
@@ -6367,7 +6575,7 @@ paths:
       responses:
         "201":
           description: Đã tạo sự kiện yêu cầu của khách
-      tags: *a21
+      tags: *a14
   /integrations/telegram/webhook:
     post:
       operationId: TelegramWebhookController_handleWebhook
@@ -6395,7 +6603,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: &a22
+      tags: &a15
         - hotel-notification-routes
     post:
       operationId: HotelNotificationRoutesController_create
@@ -6408,7 +6616,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a22
+      tags: *a15
   /hotels/{hotelId}/notification-routes/{routeId}:
     patch:
       operationId: HotelNotificationRoutesController_update
@@ -6426,7 +6634,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a22
+      tags: *a15
   /emergency/guest/calls:
     post:
       operationId: EmergencyController_createGuestEmergencyCall
@@ -6484,7 +6692,7 @@ paths:
                       expiresAt:
                         type: string
                         format: date-time
-      tags: &a23
+      tags: &a16
         - request-realtime
   /hotels/service-portal/request-realtime-ticket:
     post:
@@ -6493,7 +6701,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a23
+      tags: *a16
   /biometric-workstations/pair:
     post:
       operationId: BiometricWorkstationsController_pair
@@ -6501,7 +6709,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: &a24
+      tags: &a17
         - biometric-workstations
   /biometric-workstations/authenticate:
     post:
@@ -6515,7 +6723,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a24
+      tags: *a17
   /hotels/{hotelId}/biometric-workstations/pairing:
     post:
       operationId: BiometricWorkstationsController_issuePairing
@@ -6530,7 +6738,7 @@ paths:
           description: ""
       security:
         - bearer: []
-      tags: *a24
+      tags: *a17
   /hotels/{hotelId}/biometric-workstations/status:
     get:
       operationId: BiometricWorkstationsController_status
@@ -6545,7 +6753,7 @@ paths:
           description: ""
       security:
         - bearer: []
-      tags: *a24
+      tags: *a17
   /hotels/{hotelId}/biometric-workstations:
     delete:
       operationId: BiometricWorkstationsController_disconnect
@@ -6560,7 +6768,7 @@ paths:
           description: ""
       security:
         - bearer: []
-      tags: *a24
+      tags: *a17
   /platform-billing/dashboard/summary:
     get:
       operationId: PlatformBillingController_getDashboardSummary
@@ -6568,10 +6776,10 @@ paths:
       responses:
         "200":
           description: ""
-      security: &a25
+      security: &a18
         - bearer: []
       summary: Get platform billing dashboard summary
-      tags: &a26
+      tags: &a19
         - platform-billing
   /platform-billing/contracts:
     get:
@@ -6580,18 +6788,18 @@ paths:
       responses:
         "200":
           description: ""
-      security: *a25
+      security: *a18
       summary: List platform billing contracts for admin
-      tags: *a26
+      tags: *a19
     post:
       operationId: PlatformBillingController_createContract
       parameters: []
       responses:
         "201":
           description: ""
-      security: *a25
+      security: *a18
       summary: Onboard new platform billing contract for hotel
-      tags: *a26
+      tags: *a19
   /platform-billing/contracts/{contractId}/periods:
     get:
       operationId: PlatformBillingController_listPeriods
@@ -6604,9 +6812,9 @@ paths:
       responses:
         "200":
           description: ""
-      security: *a25
+      security: *a18
       summary: List billing periods for contract
-      tags: *a26
+      tags: *a19
   /platform-billing/periods/{periodId}:
     get:
       operationId: PlatformBillingController_getPeriod
@@ -6619,9 +6827,9 @@ paths:
       responses:
         "200":
           description: ""
-      security: *a25
+      security: *a18
       summary: Get period detail with adjustments and settlements
-      tags: *a26
+      tags: *a19
   /platform-billing/contracts/{contractId}/revisions:
     post:
       operationId: PlatformBillingController_addContractRevision
@@ -6634,9 +6842,9 @@ paths:
       responses:
         "201":
           description: ""
-      security: *a25
+      security: *a18
       summary: Add contract price revision
-      tags: *a26
+      tags: *a19
   /platform-billing/contracts/{contractId}/status:
     patch:
       operationId: PlatformBillingController_updateContractStatus
@@ -6649,9 +6857,9 @@ paths:
       responses:
         "200":
           description: ""
-      security: *a25
+      security: *a18
       summary: Update contract status
-      tags: *a26
+      tags: *a19
   /platform-billing/contracts/{contractId}/finalize:
     post:
       operationId: PlatformBillingController_finalizePeriod
@@ -6664,9 +6872,9 @@ paths:
       responses:
         "201":
           description: ""
-      security: *a25
+      security: *a18
       summary: Finalize period snapshot idempotently
-      tags: *a26
+      tags: *a19
   /platform-billing/periods/{periodId}/settlement:
     post:
       operationId: PlatformBillingController_recordSettlement
@@ -6679,9 +6887,9 @@ paths:
       responses:
         "201":
           description: ""
-      security: *a25
+      security: *a18
       summary: Record settlement for finalized period
-      tags: *a26
+      tags: *a19
   /platform-billing/contracts/{contractId}/adjustments:
     post:
       operationId: PlatformBillingController_createAdjustment
@@ -6694,9 +6902,9 @@ paths:
       responses:
         "201":
           description: ""
-      security: *a25
+      security: *a18
       summary: Create append-only adjustment record
-      tags: *a26
+      tags: *a19
   /platform-billing/owner/analytics/{hotelId}:
     get:
       operationId: PlatformBillingController_getOwnerAnalytics
@@ -6709,9 +6917,9 @@ paths:
       responses:
         "200":
           description: ""
-      security: *a25
+      security: *a18
       summary: Get revenue protection analytics for hotel owner
-      tags: *a26
+      tags: *a19
   /hotels/{hotelId}/local-partners/categories:
     get:
       operationId: LocalPartnersController_categories
@@ -6724,7 +6932,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: &a27
+      tags: &a20
         - local-partners
   /hotels/{hotelId}/local-partners:
     get:
@@ -6738,7 +6946,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a27
+      tags: *a20
     post:
       operationId: LocalPartnersController_create
       parameters:
@@ -6750,7 +6958,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a27
+      tags: *a20
   /hotels/{hotelId}/local-partners/{partnerId}:
     patch:
       operationId: LocalPartnersController_update
@@ -6768,7 +6976,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a27
+      tags: *a20
   /hotels/{hotelId}/local-partners/{partnerId}/status:
     patch:
       operationId: LocalPartnersController_status
@@ -6786,7 +6994,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a27
+      tags: *a20
   /guest/local-partners/categories:
     get:
       operationId: GuestLocalPartnersController_getCategories
@@ -6794,7 +7002,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: &a28
+      tags: &a21
         - guest-local-partners
   /guest/local-partners:
     get:
@@ -6803,7 +7011,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a28
+      tags: *a21
   /guest/local-partners/{partnerId}:
     get:
       operationId: GuestLocalPartnersController_getPartner
@@ -6816,7 +7024,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a28
+      tags: *a21
   /admin/marketplace/categories:
     get:
       operationId: MarketplaceAdminController_categories
@@ -6824,7 +7032,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: &a29
+      tags: &a22
         - MarketplaceAdmin
     post:
       operationId: MarketplaceAdminController_createCategory
@@ -6832,7 +7040,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a29
+      tags: *a22
   /admin/marketplace/pricing-config:
     get:
       operationId: MarketplaceAdminController_pricingConfig
@@ -6840,14 +7048,14 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a29
+      tags: *a22
     patch:
       operationId: MarketplaceAdminController_updatePricingConfig
       parameters: []
       responses:
         "200":
           description: ""
-      tags: *a29
+      tags: *a22
   /admin/marketplace/categories/import/template:
     get:
       operationId: MarketplaceAdminController_categoryImportTemplate
@@ -6855,7 +7063,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a29
+      tags: *a22
   /admin/marketplace/categories/import/preview:
     post:
       operationId: MarketplaceAdminController_previewCategoryImport
@@ -6863,7 +7071,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a29
+      tags: *a22
   /admin/marketplace/categories/import/commit:
     post:
       operationId: MarketplaceAdminController_commitCategoryImport
@@ -6871,7 +7079,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a29
+      tags: *a22
   /admin/marketplace/categories/{categoryId}:
     patch:
       operationId: MarketplaceAdminController_updateCategory
@@ -6884,7 +7092,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a29
+      tags: *a22
     delete:
       operationId: MarketplaceAdminController_deleteCategory
       parameters:
@@ -6896,7 +7104,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a29
+      tags: *a22
   /admin/marketplace/service-tenants:
     get:
       operationId: MarketplaceAdminController_serviceTenants
@@ -6904,14 +7112,14 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a29
+      tags: *a22
     post:
       operationId: MarketplaceAdminController_createServiceTenant
       parameters: []
       responses:
         "201":
           description: ""
-      tags: *a29
+      tags: *a22
   /admin/marketplace/service-tenants/{tenantId}:
     patch:
       operationId: MarketplaceAdminController_updateServiceTenant
@@ -6924,7 +7132,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a29
+      tags: *a22
   /service-portal/profile:
     get:
       operationId: ServicePortalController_profile
@@ -6932,7 +7140,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: &a30
+      tags: &a23
         - ServicePortal
     patch:
       operationId: ServicePortalController_updateProfile
@@ -6940,7 +7148,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a30
+      tags: *a23
   /service-portal/services:
     get:
       operationId: ServicePortalController_services
@@ -6948,14 +7156,14 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a30
+      tags: *a23
     post:
       operationId: ServicePortalController_create
       parameters: []
       responses:
         "201":
           description: ""
-      tags: *a30
+      tags: *a23
   /service-portal/services/{serviceId}:
     patch:
       operationId: ServicePortalController_update
@@ -6968,7 +7176,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a30
+      tags: *a23
   /service-portal/services/{serviceId}/availability:
     patch:
       operationId: ServicePortalController_availability
@@ -6981,7 +7189,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a30
+      tags: *a23
   /service-portal/services/import/template:
     get:
       operationId: ServicePortalController_template
@@ -6989,7 +7197,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a30
+      tags: *a23
   /service-portal/services/import/preview:
     post:
       operationId: ServicePortalController_previewImport
@@ -6997,7 +7205,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a30
+      tags: *a23
   /service-portal/services/import/commit:
     post:
       operationId: ServicePortalController_commitImport
@@ -7005,7 +7213,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a30
+      tags: *a23
   /service-portal/orders:
     get:
       operationId: ServicePortalController_orderList
@@ -7013,7 +7221,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a30
+      tags: *a23
   /service-portal/orders/{orderId}:
     get:
       operationId: ServicePortalController_order
@@ -7026,7 +7234,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a30
+      tags: *a23
   /service-portal/orders/{orderId}/transitions:
     post:
       operationId: ServicePortalController_transition
@@ -7039,7 +7247,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a30
+      tags: *a23
   /service-portal/vouchers/verify:
     post:
       operationId: ServicePortalController_verifyVoucher
@@ -7047,7 +7255,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a30
+      tags: *a23
   /service-portal/vouchers/redeem:
     post:
       operationId: ServicePortalController_redeemVoucher
@@ -7055,7 +7263,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a30
+      tags: *a23
   /service-portal/financial-summary:
     get:
       operationId: ServicePortalController_financialSummary
@@ -7063,7 +7271,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a30
+      tags: *a23
   /service-portal/settlements:
     get:
       operationId: ServicePortalController_settlements
@@ -7071,7 +7279,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a30
+      tags: *a23
   /service-portal/request-realtime-ticket:
     post:
       operationId: ServicePortalController_issueTicket
@@ -7079,7 +7287,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a30
+      tags: *a23
   /guest/marketplace/categories:
     get:
       operationId: GuestMarketplaceController_categories
@@ -7087,7 +7295,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: &a31
+      tags: &a24
         - GuestMarketplace
   /guest/marketplace/services:
     get:
@@ -7096,7 +7304,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a31
+      tags: *a24
   /guest/marketplace/services/{serviceId}:
     get:
       operationId: GuestMarketplaceController_detail
@@ -7109,7 +7317,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a31
+      tags: *a24
   /guest/marketplace/cart:
     get:
       operationId: GuestMarketplaceController_getCart
@@ -7117,21 +7325,21 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a31
+      tags: *a24
     delete:
       operationId: GuestMarketplaceController_clearCart
       parameters: []
       responses:
         "200":
           description: ""
-      tags: *a31
+      tags: *a24
     put:
       operationId: GuestMarketplaceController_syncCart
       parameters: []
       responses:
         "200":
           description: ""
-      tags: *a31
+      tags: *a24
   /guest/marketplace/cart/items:
     post:
       operationId: GuestMarketplaceController_addCartItem
@@ -7139,7 +7347,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a31
+      tags: *a24
   /guest/marketplace/cart/items/{itemId}:
     patch:
       operationId: GuestMarketplaceController_updateCartItem
@@ -7152,7 +7360,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a31
+      tags: *a24
     delete:
       operationId: GuestMarketplaceController_removeCartItem
       parameters:
@@ -7164,7 +7372,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a31
+      tags: *a24
   /guest/marketplace/cart/checkout:
     post:
       operationId: GuestMarketplaceController_checkoutCart
@@ -7172,7 +7380,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a31
+      tags: *a24
   /guest/marketplace/checkout:
     post:
       operationId: GuestMarketplaceController_checkoutDirect
@@ -7180,7 +7388,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a31
+      tags: *a24
   /guest/marketplace/orders:
     post:
       operationId: GuestMarketplaceController_createOrder
@@ -7188,14 +7396,14 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a31
+      tags: *a24
     get:
       operationId: GuestMarketplaceController_ordersList
       parameters: []
       responses:
         "200":
           description: ""
-      tags: *a31
+      tags: *a24
   /guest/marketplace/orders/{orderId}:
     get:
       operationId: GuestMarketplaceController_order
@@ -7208,7 +7416,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a31
+      tags: *a24
   /hotels/{hotelId}/marketplace/providers:
     get:
       operationId: HotelMarketplaceController_providers
@@ -7221,7 +7429,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: &a32
+      tags: &a25
         - HotelMarketplace
   /hotels/{hotelId}/marketplace/providers/{serviceTenantId}:
     put:
@@ -7240,7 +7448,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a32
+      tags: *a25
     delete:
       operationId: HotelMarketplaceController_unlinkProvider
       parameters:
@@ -7257,7 +7465,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a32
+      tags: *a25
   /hotels/{hotelId}/marketplace/orders:
     get:
       operationId: HotelMarketplaceController_list
@@ -7270,7 +7478,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a32
+      tags: *a25
   /hotels/{hotelId}/marketplace/orders/{orderId}:
     get:
       operationId: HotelMarketplaceController_order
@@ -7288,7 +7496,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a32
+      tags: *a25
   /hotels/{hotelId}/marketplace/orders/{orderId}/acknowledge:
     post:
       operationId: HotelMarketplaceController_acknowledge
@@ -7306,7 +7514,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a32
+      tags: *a25
   /hotels/{hotelId}/marketplace/orders/{orderId}/issue-voucher:
     post:
       operationId: HotelMarketplaceController_issueVoucher
@@ -7324,7 +7532,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a32
+      tags: *a25
   /hotels/{hotelId}/marketplace/orders/{orderId}/cancel:
     post:
       operationId: HotelMarketplaceController_cancel
@@ -7342,7 +7550,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a32
+      tags: *a25
   /hotels/{hotelId}/marketplace/revenue:
     get:
       operationId: HotelMarketplaceController_revenue
@@ -7355,7 +7563,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a32
+      tags: *a25
   /hotels/{hotelId}/marketplace/settlements:
     get:
       operationId: HotelMarketplaceController_settlements
@@ -7368,7 +7576,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a32
+      tags: *a25
   /hotels/{hotelId}/marketplace/settlements/{settlementId}/settle:
     post:
       operationId: HotelMarketplaceController_settle
@@ -7386,7 +7594,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a32
+      tags: *a25
   /hotels/{hotelId}/marketplace/settlements/settle-batch:
     post:
       operationId: HotelMarketplaceController_settleBatch
@@ -7399,7 +7607,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a32
+      tags: *a25
 info:
   title: VietSage Auth Service API
   description: HTTP API contract for auth, rbac, and hotel-users modules

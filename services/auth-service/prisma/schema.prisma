@@ -48,6 +48,11 @@ enum RoleStatus {
   DISABLED
 }
 
+enum RoleType {
+  SYSTEM_TEMPLATE
+  CUSTOM
+}
+
 enum AuthSessionStatus {
   ACTIVE
   REVOKED
@@ -393,6 +398,7 @@ model Role {
   name            String           @db.VarChar(120)
   description     String?          @db.VarChar(255)
   status          RoleStatus       @default(ACTIVE)
+  type            RoleType         @default(CUSTOM)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   userRoles       UserRole[]

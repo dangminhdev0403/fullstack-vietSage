@@ -33,7 +33,6 @@ describe("HealthController (e2e)", () => {
   let httpServer: Server;
 
   beforeAll(() => {
-    process.env.AUTHZ_ROUTE_SYNC_ENABLED = "false";
     process.env.AUTHZ_ENFORCEMENT_ENABLED = "false";
     process.env.AUTHZ_STRICT_MODE = "false";
   });

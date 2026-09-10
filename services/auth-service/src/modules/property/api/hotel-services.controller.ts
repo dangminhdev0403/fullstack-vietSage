@@ -118,6 +118,7 @@ export class HotelServicesController {
   @Header("Content-Disposition", 'attachment; filename="hotel_services_catalog_template.csv"')
   @ApiDescript("Tải file mẫu CSV catalog dịch vụ")
   @Get(":hotelId/service-catalog/import/template")
+  @RequirePermission("hotel.services.view")
   serviceCatalogImportTemplate() {
     const csvs = this.templateService.toCsvSheets(this.catalogAdapter.getSchema());
     return "\uFEFF" + (csvs.categories ?? "") + "\n\n" + (csvs.items ?? "");
@@ -128,6 +129,7 @@ export class HotelServicesController {
   @ApiParam({ name: "hotelId", type: String })
   @ApiOkResponse({ description: "Đã lấy danh mục dịch vụ" })
   @Get(":hotelId/service-categories")
+  @RequirePermission("hotel.services.view")
   async listServiceCategories(
     @Req() request: RequestWithUser,
     @Param("hotelId") hotelIdParam: string,
@@ -149,6 +151,7 @@ export class HotelServicesController {
   @ApiBody({ schema: { type: "object" } })
   @ApiCreatedResponse({ description: "Đã tạo danh mục dịch vụ" })
   @Post(":hotelId/service-categories")
+  @RequirePermission("hotel.services.manage")
   async createServiceCategory(
     @Req() request: RequestWithUser,
     @Param("hotelId") hotelIdParam: string,
@@ -171,6 +174,7 @@ export class HotelServicesController {
   @ApiBody({ schema: { type: "object" } })
   @ApiOkResponse({ description: "Đã cập nhật danh mục dịch vụ" })
   @Patch(":hotelId/service-categories/:categoryId")
+  @RequirePermission("hotel.services.manage")
   async updateServiceCategory(
     @Req() request: RequestWithUser,
     @Param("hotelId") hotelIdParam: string,
@@ -194,6 +198,7 @@ export class HotelServicesController {
   @ApiParam({ name: "hotelId", type: String })
   @ApiOkResponse({ description: "Đã lấy danh sách dịch vụ" })
   @Get(":hotelId/service-items")
+  @RequirePermission("hotel.services.view")
   @ApiOkResponse({
     schema: successEnvelopeSchema(
       listHotelServiceItemsDataSchema,
@@ -222,6 +227,7 @@ export class HotelServicesController {
   @ApiBody({ schema: { type: "object" } })
   @ApiCreatedResponse({ description: "Đã tạo dịch vụ" })
   @Post(":hotelId/service-items")
+  @RequirePermission("hotel.services.manage")
   @ApiBody({ schema: createServiceItemBodyOpenApiSchema })
   @ApiCreatedResponse({
     schema: successEnvelopeSchema(hotelServiceItemDataSchema, 201, "Tao dich vu thanh cong"),
@@ -248,6 +254,7 @@ export class HotelServicesController {
   @ApiBody({ schema: { type: "object" } })
   @ApiOkResponse({ description: "Đã cập nhật dịch vụ" })
   @Patch(":hotelId/service-items/:itemId")
+  @RequirePermission("hotel.services.manage")
   @ApiBody({ schema: updateServiceItemBodyOpenApiSchema })
   @ApiOkResponse({
     schema: successEnvelopeSchema(hotelServiceItemDataSchema, 200, "Cap nhat dich vu thanh cong"),

@@ -6,6 +6,7 @@ const {
   UserType,
   TenantUserStatus,
   UserRoleStatus,
+  RoleType,
 } = require("@prisma/client");
 
 const prisma = new PrismaClient({
@@ -49,8 +50,8 @@ async function seedRoles() {
   for (const role of DEFAULT_ROLES) {
     const savedRole = await prisma.role.upsert({
       where: { code: role.code },
-      update: { name: role.name },
-      create: role,
+      update: { name: role.name, type: RoleType.SYSTEM_TEMPLATE },
+      create: { ...role, type: RoleType.SYSTEM_TEMPLATE },
     });
     roleByCode.set(savedRole.code, savedRole);
   }

@@ -8,7 +8,10 @@ import type {
   RbacPermissionModulePermissionsPage,
   RbacPermissionModuleSummary,
   RbacRole,
+  RbacRoleCapability,
   RbacStandalonePermission,
+  RoleCapabilitiesListResponseEnvelope,
+  RoleCapabilitiesReplaceResponseEnvelope,
   RolePermissionModuleDisableAllResponseEnvelope,
   RolePermissionModulePermissionsListQuery,
   RolePermissionModulePermissionsListResponseEnvelope,
@@ -184,6 +187,32 @@ export class RbacService {
 
     const rolePermissionsEnvelope = unwrapApiEnvelope<RbacPermission[]>(rolePermissionsPayload);
     return rolePermissionsEnvelope.data;
+  }
+
+  async listRoleCapabilities(roleId: string, accessToken?: string): Promise<RbacRoleCapability[]> {
+    const payload = await this.authenticatedRequest<RoleCapabilitiesListResponseEnvelope>({
+      method: "GET",
+      path: `/roles/${encodeURIComponent(roleId)}/capabilities`,
+      accessToken,
+    });
+    return unwrapApiEnvelope<RbacRoleCapability[]>(payload).data;
+  }
+
+  async replaceRoleCapabilities(
+    roleId: string,
+    permissionIds: string[],
+    accessToken?: string,
+  ): Promise<RbacRoleCapability[]> {
+    const payload = await this.authenticatedRequest<
+      RoleCapabilitiesReplaceResponseEnvelope,
+      RolePermissionsMutationBody
+    >({
+      method: "PUT",
+      path: `/roles/${encodeURIComponent(roleId)}/capabilities`,
+      body: toRolePermissionPayload(permissionIds),
+      accessToken,
+    });
+    return unwrapApiEnvelope<RbacRoleCapability[]>(payload).data;
   }
 
   async listMyPermissionModules(accessToken?: string): Promise<RbacPermissionModuleSummary[]> {

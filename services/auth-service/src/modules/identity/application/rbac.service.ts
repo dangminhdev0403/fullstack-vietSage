@@ -4,7 +4,7 @@
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { Prisma, RoleStatus, type Permission, type Role } from "@prisma/client";
+import { Prisma, RoleStatus, RoleType, type Permission, type Role } from "@prisma/client";
 import {
   compareModuleKeysByNavigationOrder,
   humanizeModuleName,
@@ -14,6 +14,10 @@ import {
   sortMenuPathsByNavigationOrder,
 } from "../../../common/config/permission-module.util";
 import { DEFAULT_NAVIGATION_MENU } from "../../../common/config/navigation.config";
+import {
+  BUSINESS_PERMISSIONS,
+  isBusinessPermissionKey,
+} from "../../../common/config/business-permissions.registry";
 import { resolveBusinessPermissionMenuPath } from "../../../common/config/business-permission-menu.util";
 import { AppLogger } from "../../../common/logging/app-logger.service";
 import { RbacRepository } from "../infrastructure/repositories/rbac.repository";
@@ -26,15 +30,6 @@ import type {
   UpdateRoleBodyInput,
 } from "../domain/schemas/rbac.schema";
 import { AuthService } from "./authentication.service";
-
-const PROTECTED_ROLE_CODES = new Set([
-  "SUPER_ADMIN",
-  "VIETSAGE_OPERATION",
-  "TENANT_OWNER",
-  "HOTEL_OWNER",
-]);
-
-const PERMISSION_PROTECTED_ROLE_CODES = new Set(["SUPER_ADMIN"]);
 
 type RoleWithRelations = Prisma.RoleGetPayload<{
   include: {
@@ -59,6 +54,7 @@ type FrontendNavigationRole = {
   name: string;
   code: string;
   status: RoleStatus;
+  type: RoleType;
   menus: string[];
   enabledCount: number;
 };
@@ -273,6 +269,7 @@ export class RbacService {
 
   async grantRolePermissionModulePermissions(
     actorUserId: string,
+    actorRoleId: string,
     roleId: string,
     moduleKey: string,
     dto: RoleModulePermissionsBodyInput,
@@ -285,7 +282,7 @@ export class RbacService {
       dto.permissionIds,
       resolved.moduleKey,
     );
-    await this.assertActorCanManagePermissionIds(actorUserId, permissionIds);
+    await this.assertActorCanManagePermissionIds(actorUserId, actorRoleId, permissionIds);
 
     await this.rbacRepository.createRolePermissions(roleId, permissionIds);
 
@@ -309,6 +306,7 @@ export class RbacService {
 
   async revokeRolePermissionModulePermissions(
     actorUserId: string,
+    actorRoleId: string,
     roleId: string,
     moduleKey: string,
     dto: RoleModulePermissionsBodyInput,
@@ -321,7 +319,7 @@ export class RbacService {
       dto.permissionIds,
       resolved.moduleKey,
     );
-    await this.assertActorCanManagePermissionIds(actorUserId, permissionIds);
+    await this.assertActorCanManagePermissionIds(actorUserId, actorRoleId, permissionIds);
 
     await this.rbacRepository.deleteRolePermissions(roleId, permissionIds);
 
@@ -344,12 +342,21 @@ export class RbacService {
   }
 
   async replacePermissions(
+    actorUserId: string,
+    actorRoleId: string,
     roleId: string,
     dto: ReplaceRolePermissionsBodyInput,
   ): Promise<Permission[]> {
     const role = await this.findRoleOrThrow(roleId);
     this.assertRolePermissionsMutable(role);
     const permissionIds = await this.resolvePermissionIdsOrThrow(dto.permissionIds, true);
+    const currentPermissionIds = (await this.listRolePermissionsByRoleId(roleId)).map(
+      (permission) => permission.id,
+    );
+    await this.assertActorCanManagePermissionIds(actorUserId, actorRoleId, [
+      ...currentPermissionIds,
+      ...permissionIds,
+    ]);
 
     if (permissionIds.length === 0) {
       await this.rbacRepository.clearRolePermissions(roleId);
@@ -377,6 +384,62 @@ export class RbacService {
     );
 
     return this.listRolePermissionsByRoleId(roleId);
+  }
+
+  async listRoleCapabilities(roleId: string) {
+    await this.findRoleOrThrow(roleId);
+    const rows = await this.rbacRepository.listBusinessPermissionsForRole(
+      roleId,
+      BUSINESS_PERMISSIONS.map(({ key }) => key),
+    );
+    const definitions = new Map<string, (typeof BUSINESS_PERMISSIONS)[number]>(
+      BUSINESS_PERMISSIONS.map((item) => [item.key, item]),
+    );
+    return rows.map((permission) => {
+      const definition = definitions.get(permission.path);
+      if (!definition) {
+        throw new Error(`Capability registry thiếu key ${permission.path}`);
+      }
+      return {
+        id: permission.id,
+        key: definition.key,
+        domain: definition.domain,
+        label: definition.label,
+        description: definition.description,
+        risk: definition.risk,
+        enabled: permission.rolePermissions.length > 0,
+      };
+    });
+  }
+
+  async replaceRoleCapabilities(
+    actorUserId: string,
+    actorRoleId: string,
+    roleId: string,
+    dto: ReplaceRolePermissionsBodyInput,
+  ) {
+    const role = await this.findRoleOrThrow(roleId);
+    this.assertRolePermissionsMutable(role);
+    const capabilityKeys = BUSINESS_PERMISSIONS.map(({ key }) => key);
+    const capabilities = await this.rbacRepository.listBusinessPermissionsForRole(
+      roleId,
+      capabilityKeys,
+    );
+    const capabilityIds = new Set(capabilities.map(({ id }) => id));
+    const permissionIds = normalizePermissionIds(dto.permissionIds);
+    const invalidIds = permissionIds.filter((id) => !capabilityIds.has(id));
+    if (invalidIds.length) {
+      throw new BadRequestException(`Các id capability không tồn tại: ${invalidIds.join(", ")}`);
+    }
+    const currentIds = capabilities
+      .filter(({ rolePermissions }) => rolePermissions.length > 0)
+      .map(({ id }) => id);
+    await this.assertActorCanManagePermissionIds(actorUserId, actorRoleId, [
+      ...currentIds,
+      ...permissionIds,
+    ]);
+    await this.rbacRepository.replaceRoleBusinessPermissions(roleId, permissionIds, capabilityKeys);
+    return this.listRoleCapabilities(roleId);
   }
 
   private logRoleEvent(
@@ -420,13 +483,13 @@ export class RbacService {
   }
 
   private assertRoleMutable(role: Role): void {
-    if (PROTECTED_ROLE_CODES.has(role.code)) {
+    if (role.type === RoleType.SYSTEM_TEMPLATE) {
       throw new ForbiddenException(`Vai trò ${role.code} được bảo vệ và không thể chỉnh sửa`);
     }
   }
 
   private assertRolePermissionsMutable(role: Role): void {
-    if (PERMISSION_PROTECTED_ROLE_CODES.has(role.code)) {
+    if (role.type === RoleType.SYSTEM_TEMPLATE) {
       throw new ForbiddenException(
         `Quyền của vai trò ${role.code} được bảo vệ và không thể chỉnh sửa`,
       );
@@ -506,8 +569,11 @@ export class RbacService {
       code: role.code,
       name: role.name,
       status: role.status,
+      type: role.type,
       menus: this.mapRoleToMenus(role),
-      enabledCount: role._count?.rolePermissions ?? role.rolePermissions.length,
+      enabledCount: role.rolePermissions.filter(({ permission }) =>
+        isBusinessPermissionKey(permission.path),
+      ).length,
     };
   }
 
@@ -590,17 +656,18 @@ export class RbacService {
 
   private async assertActorCanManagePermissionIds(
     actorUserId: string,
+    actorRoleId: string,
     permissionIds: string[],
   ): Promise<void> {
-    const systemRoleCodes =
-      await this.rbacRepository.listActiveSystemRoleCodesByUserId(actorUserId);
-    if (systemRoleCodes.includes("SUPER_ADMIN")) {
+    const actorRole = await this.rbacRepository.findActiveRoleAccess(actorUserId, actorRoleId);
+    if (!actorRole) {
+      throw new ForbiddenException("Vai trò đang hoạt động không hợp lệ");
+    }
+    if (actorRole.code === "SUPER_ADMIN") {
       return;
     }
 
-    const actorPermissionIds = new Set(
-      await this.rbacRepository.listActivePermissionIdsByUserId(actorUserId),
-    );
+    const actorPermissionIds = new Set(actorRole.permissionIds);
     const unauthorizedIds = permissionIds.filter(
       (permissionId) => !actorPermissionIds.has(permissionId),
     );

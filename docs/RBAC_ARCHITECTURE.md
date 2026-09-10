@@ -53,6 +53,14 @@ These keys are stable and should not change when route paths change.
 Migration `0034_workspace_role_capabilities` applies one-time defaults. Later administrator edits
 are preserved because startup synchronization does not re-grant revoked role capabilities.
 
+Roles have a persisted type:
+
+- `SYSTEM_TEMPLATE`: built-in workspace preset; name, status, deletion, and grants are immutable.
+- `CUSTOM`: administrator-created role; mutable within the actor's active-role permission ceiling.
+
+Administrators create variants by cloning a system template into a custom role; system templates are
+never edited in place.
+
 | Workspace role | Default responsibility |
 | --- | --- |
 | `SUPER_ADMIN` | Complete platform and business capability surface |
@@ -100,11 +108,24 @@ services/auth-service/src/shared/decorators/require-permission.decorator.ts
 1. Public routes bypass authorization.
 2. If authorization enforcement is disabled, allow only for configured non-production migration mode.
 3. Require authenticated user.
-4. If `@RequirePermission(...)` exists, check business permission within the role ID bound to the
-   authenticated session; never aggregate grants from the user's other active roles.
-5. Otherwise fall back to old route-based permission only during the bridge phase.
+4. Require `@RequirePermission(...)` and check that business capability within the role ID bound to
+   the authenticated session; never aggregate grants from the user's other active roles.
+5. Deny private JWT handlers missing explicit capability metadata.
 
-Production target is fail-closed.
+Authorization is fail-closed. Route method/path grants remain stored for rollback compatibility but
+are not synchronized, evaluated, or shown in the administrator UI.
+
+Permission mutations use the same session-bound role ID. Non-super-admin actors may grant or revoke
+only permissions held by that active role; permissions from other active roles are not aggregated.
+
+All private JWT controller handlers declare an explicit business permission. Guest-session routes,
+authentication self-service routes, health, and verified webhooks remain explicit exceptions. The
+route-permission bridge migration copies existing role grants to matching business capabilities; it
+does not grant capabilities to roles that lacked the legacy route grant.
+
+The administrator access-model UI reads and writes `GET|PUT /roles/{id}/capabilities`. These
+endpoints expose only catalog capabilities (`key`, `domain`, `label`, `description`, `risk`,
+`enabled`). Capability replacement preserves legacy route grants during the compatibility window.
 
 ### Active workspace context
 

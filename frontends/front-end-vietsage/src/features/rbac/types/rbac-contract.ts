@@ -65,6 +65,12 @@ export type RbacRole = RolesListResponseEnvelope["data"][number] & {
 
 export type RbacStandalonePermission = PermissionsListResponseEnvelope["data"][number];
 
+export type RoleCapabilitiesListResponseEnvelope =
+  operations["RolesController_listRoleCapabilities"]["responses"][200]["content"]["application/json"];
+export type RoleCapabilitiesReplaceResponseEnvelope =
+  operations["RolesController_replaceRoleCapabilities"]["responses"][200]["content"]["application/json"];
+export type RbacRoleCapability = RoleCapabilitiesListResponseEnvelope["data"][number];
+
 export type RbacPermissionModuleSummary = RolePermissionModulesListResponseEnvelope["data"][number];
 export type RbacPermissionModulePermissionsPage = RolePermissionModulePermissionsListResponseEnvelope["data"];
 export type RbacPermissionModulePermissionItem = RbacPermissionModulePermissionsPage["items"][number];

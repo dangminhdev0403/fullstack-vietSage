@@ -1,179 +1,119 @@
 ﻿import { ExecutionContext, ForbiddenException } from "@nestjs/common";
 import type { Request } from "express";
 import { publicMatcher } from "../../common/config/routes.config";
+import { REQUIRED_PERMISSION_KEY } from "../decorators/require-permission.decorator";
 import { AuthorizationService } from "../../modules/identity/identity-public";
 import { AuthorizationGuard } from "./authorization.guard";
 
 describe("AuthorizationGuard", () => {
   let authorizationService: {
-    checkUserRoutePermission: jest.Mock;
+    checkUserBusinessPermission: jest.Mock;
   };
 
-  const createContext = (request: Partial<Request>): ExecutionContext => {
+  const createContext = (request: Partial<Request>, permissionKey?: string): ExecutionContext => {
+    const handler = () => undefined;
+    if (permissionKey) {
+      Reflect.defineMetadata(REQUIRED_PERMISSION_KEY, permissionKey, handler);
+    }
     return {
-      switchToHttp: () => ({
-        getRequest: () => request,
-      }),
+      getType: () => "http",
+      getHandler: () => handler,
+      getClass: () => class TestController {},
+      switchToHttp: () => ({ getRequest: () => request }),
     } as ExecutionContext;
   };
 
   beforeEach(() => {
     authorizationService = {
-      checkUserRoutePermission: jest.fn(),
+      checkUserBusinessPermission: jest.fn(),
     };
-
     jest.restoreAllMocks();
   });
 
   it("bypasses public routes", async () => {
     process.env.AUTHZ_ENFORCEMENT_ENABLED = "true";
-    process.env.AUTHZ_STRICT_MODE = "false";
-
     const guard = new AuthorizationGuard(authorizationService as unknown as AuthorizationService);
     jest.spyOn(publicMatcher, "isPublic").mockReturnValue(true);
 
-    const request = {
-      path: "/health",
-    } as Partial<Request>;
-
-    await expect(guard.canActivate(createContext(request))).resolves.toBe(true);
-    expect(authorizationService.checkUserRoutePermission).not.toHaveBeenCalled();
+    await expect(guard.canActivate(createContext({ path: "/health" }))).resolves.toBe(true);
+    expect(authorizationService.checkUserBusinessPermission).not.toHaveBeenCalled();
   });
 
   it("allows private routes when enforcement is disabled", async () => {
     process.env.AUTHZ_ENFORCEMENT_ENABLED = "false";
-    process.env.AUTHZ_STRICT_MODE = "false";
-
     const guard = new AuthorizationGuard(authorizationService as unknown as AuthorizationService);
     jest.spyOn(publicMatcher, "isPublic").mockReturnValue(false);
 
-    const request = {
-      path: "/auth/me",
-      method: "GET",
-      user: { userId: "u1", email: "a@b.c", roleId: "r1" },
-      route: { path: "/auth/me" },
-      baseUrl: "",
-    } as unknown as Request;
-
-    await expect(guard.canActivate(createContext(request))).resolves.toBe(true);
-    expect(authorizationService.checkUserRoutePermission).not.toHaveBeenCalled();
+    await expect(
+      guard.canActivate(
+        createContext({
+          path: "/roles",
+          method: "GET",
+          user: { userId: "u1", email: "a@b.c", roleId: "r1" },
+        }),
+      ),
+    ).resolves.toBe(true);
   });
 
-  it("denies with 403 when user has no matching permission", async () => {
+  it("denies private routes without explicit business permission metadata", async () => {
     process.env.AUTHZ_ENFORCEMENT_ENABLED = "true";
-    process.env.AUTHZ_STRICT_MODE = "false";
-
     const guard = new AuthorizationGuard(authorizationService as unknown as AuthorizationService);
     jest.spyOn(publicMatcher, "isPublic").mockReturnValue(false);
-    authorizationService.checkUserRoutePermission.mockResolvedValue({
-      allowed: false,
-      permissionExists: true,
-    });
 
-    const request = {
-      path: "/auth/me",
-      method: "GET",
-      user: { userId: "u1", email: "a@b.c", roleId: "r1" },
-      route: { path: "/auth/me" },
-      baseUrl: "",
-      originalUrl: "/auth/me",
-    } as unknown as Request;
+    await expect(
+      guard.canActivate(
+        createContext({
+          path: "/unmapped",
+          method: "GET",
+          originalUrl: "/unmapped",
+          user: { userId: "u1", email: "a@b.c", roleId: "r1" },
+        }),
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
 
-    await expect(guard.canActivate(createContext(request))).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
-    expect(authorizationService.checkUserRoutePermission).toHaveBeenCalledWith(
+  it("authorizes only the explicit business permission for the active role", async () => {
+    process.env.AUTHZ_ENFORCEMENT_ENABLED = "true";
+    authorizationService.checkUserBusinessPermission.mockResolvedValue(true);
+    const guard = new AuthorizationGuard(authorizationService as unknown as AuthorizationService);
+    jest.spyOn(publicMatcher, "isPublic").mockReturnValue(false);
+
+    await expect(
+      guard.canActivate(
+        createContext(
+          {
+            path: "/roles",
+            method: "GET",
+            user: { userId: "u1", email: "a@b.c", roleId: "r1" },
+          },
+          "platform.roles.view",
+        ),
+      ),
+    ).resolves.toBe(true);
+    expect(authorizationService.checkUserBusinessPermission).toHaveBeenCalledWith(
       "u1",
       "r1",
-      "GET",
-      "/auth/me",
+      "platform.roles.view",
     );
   });
 
-  it("allows unresolved route when strict mode is disabled", async () => {
+  it("denies when the active role lacks the explicit business permission", async () => {
     process.env.AUTHZ_ENFORCEMENT_ENABLED = "true";
-    process.env.AUTHZ_STRICT_MODE = "false";
-
+    authorizationService.checkUserBusinessPermission.mockResolvedValue(false);
     const guard = new AuthorizationGuard(authorizationService as unknown as AuthorizationService);
     jest.spyOn(publicMatcher, "isPublic").mockReturnValue(false);
 
-    const request = {
-      path: "/auth/me",
-      method: "GET",
-      user: { userId: "u1", email: "a@b.c", roleId: "r1" },
-      baseUrl: "",
-      originalUrl: "/auth/me",
-    } as unknown as Request;
-
-    await expect(guard.canActivate(createContext(request))).resolves.toBe(true);
-    expect(authorizationService.checkUserRoutePermission).not.toHaveBeenCalled();
-  });
-
-  it("denies unresolved route when strict mode is enabled", async () => {
-    process.env.AUTHZ_ENFORCEMENT_ENABLED = "true";
-    process.env.AUTHZ_STRICT_MODE = "true";
-
-    const guard = new AuthorizationGuard(authorizationService as unknown as AuthorizationService);
-    jest.spyOn(publicMatcher, "isPublic").mockReturnValue(false);
-
-    const request = {
-      path: "/auth/me",
-      method: "GET",
-      user: { userId: "u1", email: "a@b.c", roleId: "r1" },
-      baseUrl: "",
-      originalUrl: "/auth/me",
-    } as unknown as Request;
-
-    await expect(guard.canActivate(createContext(request))).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
-  });
-
-  it("allows missing permission row when strict mode is disabled", async () => {
-    process.env.AUTHZ_ENFORCEMENT_ENABLED = "true";
-    process.env.AUTHZ_STRICT_MODE = "false";
-
-    const guard = new AuthorizationGuard(authorizationService as unknown as AuthorizationService);
-    jest.spyOn(publicMatcher, "isPublic").mockReturnValue(false);
-    authorizationService.checkUserRoutePermission.mockResolvedValue({
-      allowed: false,
-      permissionExists: false,
-    });
-
-    const request = {
-      path: "/users/1",
-      method: "GET",
-      user: { userId: "u1", email: "a@b.c", roleId: "r1" },
-      baseUrl: "/users",
-      route: { path: ":id" },
-      originalUrl: "/users/1",
-    } as unknown as Request;
-
-    await expect(guard.canActivate(createContext(request))).resolves.toBe(true);
-  });
-
-  it("denies missing permission row when strict mode is enabled", async () => {
-    process.env.AUTHZ_ENFORCEMENT_ENABLED = "true";
-    process.env.AUTHZ_STRICT_MODE = "true";
-
-    const guard = new AuthorizationGuard(authorizationService as unknown as AuthorizationService);
-    jest.spyOn(publicMatcher, "isPublic").mockReturnValue(false);
-    authorizationService.checkUserRoutePermission.mockResolvedValue({
-      allowed: false,
-      permissionExists: false,
-    });
-
-    const request = {
-      path: "/users/1",
-      method: "GET",
-      user: { userId: "u1", email: "a@b.c", roleId: "r1" },
-      baseUrl: "/users",
-      route: { path: ":id" },
-      originalUrl: "/users/1",
-    } as unknown as Request;
-
-    await expect(guard.canActivate(createContext(request))).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
+    await expect(
+      guard.canActivate(
+        createContext(
+          {
+            path: "/roles",
+            method: "GET",
+            user: { userId: "u1", email: "a@b.c", roleId: "r1" },
+          },
+          "platform.roles.view",
+        ),
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 });

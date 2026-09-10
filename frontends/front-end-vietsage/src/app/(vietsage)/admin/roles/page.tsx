@@ -89,6 +89,7 @@ function mapRole(role: RbacRole): RolesLiveFilterRole {
     createdAt: typeof role.createdAt === "string" ? role.createdAt : "",
     updatedAt: typeof role.updatedAt === "string" ? role.updatedAt : "",
     status: role.status === "DISABLED" ? "DISABLED" : "ACTIVE",
+    type: role.type,
     permissions,
   };
 }

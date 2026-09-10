@@ -62,8 +62,8 @@ export async function GET(
   }
 
   try {
-    const data = await rbacService.listRolePermissions(roleId);
-    return successResponse(data, 200, "Role permissions fetched successfully");
+    const data = await rbacService.listRoleCapabilities(roleId);
+    return successResponse(data, 200, "Role capabilities fetched successfully");
   } catch (error) {
     if (error instanceof HttpError) {
       return httpErrorResponse(error);
@@ -98,8 +98,8 @@ export async function PUT(
   }
 
   try {
-    const data = await rbacService.replaceRolePermissions(roleId, permissionIds);
-    return successResponse(data, 200, "Role permissions replaced successfully");
+    const data = await rbacService.replaceRoleCapabilities(roleId, permissionIds);
+    return successResponse(data, 200, "Role capabilities replaced successfully");
   } catch (error) {
     if (error instanceof HttpError) {
       return httpErrorResponse(error);

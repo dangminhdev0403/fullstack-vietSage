@@ -4,6 +4,7 @@ import type { Request } from "express";
 import { z } from "zod";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
 import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
 import type { AuthenticatedUser } from "../../../shared/security";
 import { hotelIdParamSchema } from "../../property/property-public";
@@ -32,6 +33,7 @@ const updateRouteBodySchema = routeBodySchema
 export class HotelNotificationRoutesController {
   constructor(private readonly routesService: HotelNotificationRoutesService) {}
 
+  @RequirePermission("hotel.notifications.view")
   @SuccessMessage("Lấy cấu hình Telegram thành công")
   @ApiDescript("Quản lý cấu hình Telegram")
   @ApiParam({ name: "hotelId", type: String })
@@ -41,6 +43,7 @@ export class HotelNotificationRoutesController {
     return this.routesService.list(request.user.userId, request.user.roleId, hotelId);
   }
 
+  @RequirePermission("hotel.notifications.manage")
   @SuccessMessage("Tạo cấu hình Telegram thành công")
   @ApiDescript("Quản lý cấu hình Telegram")
   @ApiParam({ name: "hotelId", type: String })
@@ -59,6 +62,7 @@ export class HotelNotificationRoutesController {
     );
   }
 
+  @RequirePermission("hotel.notifications.manage")
   @SuccessMessage("Cập nhật cấu hình Telegram thành công")
   @ApiDescript("Quản lý cấu hình Telegram")
   @ApiParam({ name: "hotelId", type: String })

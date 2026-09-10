@@ -233,10 +233,11 @@ export class RbacRepository {
     });
   }
 
-  async listActiveSystemRoleCodesByUserId(userId: string) {
-    const rows = await this.prisma.userRole.findMany({
+  async findActiveRoleAccess(userId: string, roleId: string) {
+    const row = await this.prisma.userRole.findFirst({
       where: {
         userId,
+        roleId,
         status: UserRoleStatus.ACTIVE,
         role: {
           status: RoleStatus.ACTIVE,
@@ -246,26 +247,6 @@ export class RbacRepository {
         role: {
           select: {
             code: true,
-          },
-        },
-      },
-    });
-
-    return rows.map((row) => row.role.code);
-  }
-
-  async listActivePermissionIdsByUserId(userId: string) {
-    const rows = await this.prisma.userRole.findMany({
-      where: {
-        userId,
-        status: UserRoleStatus.ACTIVE,
-        role: {
-          status: RoleStatus.ACTIVE,
-        },
-      },
-      select: {
-        role: {
-          select: {
             rolePermissions: {
               select: {
                 permissionId: true,
@@ -276,13 +257,12 @@ export class RbacRepository {
       },
     });
 
-    return Array.from(
-      new Set(
-        rows.flatMap((row) =>
-          row.role.rolePermissions.map((rolePermission) => rolePermission.permissionId),
-        ),
-      ),
-    );
+    return row
+      ? {
+          code: row.role.code,
+          permissionIds: row.role.rolePermissions.map(({ permissionId }) => permissionId),
+        }
+      : null;
   }
 
   async listRolePermissions(roleId: string) {
@@ -292,6 +272,26 @@ export class RbacRepository {
         permission: true,
       },
       orderBy: [{ permission: { method: "asc" } }, { permission: { path: "asc" } }],
+    });
+  }
+
+  async listBusinessPermissionsForRole(roleId: string, permissionKeys: string[]) {
+    return this.prisma.permission.findMany({
+      where: {
+        method: "OPTIONS",
+        path: { in: permissionKeys },
+      },
+      orderBy: [{ moduleKey: "asc" }, { path: "asc" }],
+      select: {
+        id: true,
+        path: true,
+        moduleKey: true,
+        description: true,
+        rolePermissions: {
+          where: { roleId },
+          select: { roleId: true },
+        },
+      },
     });
   }
 
@@ -330,6 +330,30 @@ export class RbacRepository {
       });
 
       return [deleted, created] as const;
+    });
+  }
+
+  async replaceRoleBusinessPermissions(
+    roleId: string,
+    permissionIds: string[],
+    permissionKeys: string[],
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.rolePermission.deleteMany({
+        where: {
+          roleId,
+          permission: {
+            method: "OPTIONS",
+            path: { in: permissionKeys },
+          },
+        },
+      });
+      if (permissionIds.length) {
+        await tx.rolePermission.createMany({
+          data: permissionIds.map((permissionId) => ({ roleId, permissionId })),
+          skipDuplicates: true,
+        });
+      }
     });
   }
 }

@@ -209,6 +209,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/roles/{id}/capabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["RolesController_listRoleCapabilities"];
+        put: operations["RolesController_replaceRoleCapabilities"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/roles/me/permission-modules": {
         parameters: {
             query?: never;
@@ -1569,6 +1585,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/hotels/service-portal/request-realtime-ticket": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["RequestRealtimeController_issueServiceTenantTicket"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/biometric-workstations/pair": {
         parameters: {
             query?: never;
@@ -1948,6 +1980,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/marketplace/pricing-config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["MarketplaceAdminController_pricingConfig"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["MarketplaceAdminController_updatePricingConfig"];
+        trace?: never;
+    };
     "/admin/marketplace/categories/import/template": {
         parameters: {
             query?: never;
@@ -2204,6 +2252,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/service-portal/vouchers/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ServicePortalController_verifyVoucher"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/service-portal/vouchers/redeem": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ServicePortalController_redeemVoucher"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/service-portal/financial-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ServicePortalController_financialSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/service-portal/settlements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ServicePortalController_settlements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/service-portal/request-realtime-ticket": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ServicePortalController_issueTicket"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/guest/marketplace/categories": {
         parameters: {
             query?: never;
@@ -2246,6 +2374,86 @@ export interface paths {
         get: operations["GuestMarketplaceController_detail"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/guest/marketplace/cart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GuestMarketplaceController_getCart"];
+        put: operations["GuestMarketplaceController_syncCart"];
+        post?: never;
+        delete: operations["GuestMarketplaceController_clearCart"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/guest/marketplace/cart/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["GuestMarketplaceController_addCartItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/guest/marketplace/cart/items/{itemId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["GuestMarketplaceController_removeCartItem"];
+        options?: never;
+        head?: never;
+        patch: operations["GuestMarketplaceController_updateCartItem"];
+        trace?: never;
+    };
+    "/guest/marketplace/cart/checkout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["GuestMarketplaceController_checkoutCart"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/guest/marketplace/checkout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["GuestMarketplaceController_checkoutDirect"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2348,6 +2556,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/hotels/{hotelId}/marketplace/orders/{orderId}/acknowledge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["HotelMarketplaceController_acknowledge"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/marketplace/orders/{orderId}/issue-voucher": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["HotelMarketplaceController_issueVoucher"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/marketplace/orders/{orderId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["HotelMarketplaceController_cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/hotels/{hotelId}/marketplace/revenue": {
         parameters: {
             query?: never;
@@ -2358,6 +2614,54 @@ export interface paths {
         get: operations["HotelMarketplaceController_revenue"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/marketplace/settlements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["HotelMarketplaceController_settlements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/marketplace/settlements/{settlementId}/settle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["HotelMarketplaceController_settle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/marketplace/settlements/settle-batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["HotelMarketplaceController_settleBatch"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2691,12 +2995,15 @@ export interface operations {
                         message: string;
                         data: {
                             id: string;
+                            code: string;
                             description: string | null;
                             /** Format: date-time */
                             createdAt: string;
                             name: string;
                             /** @enum {string} */
                             status: "ACTIVE" | "DISABLED";
+                            /** @enum {string} */
+                            type: "SYSTEM_TEMPLATE" | "CUSTOM";
                             menus: string[];
                             enabledCount: number;
                         }[];
@@ -2744,6 +3051,8 @@ export interface operations {
                             description: string | null;
                             /** @enum {string} */
                             status: "ACTIVE" | "DISABLED";
+                            /** @enum {string} */
+                            type: "SYSTEM_TEMPLATE" | "CUSTOM";
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -2787,6 +3096,8 @@ export interface operations {
                             description: string | null;
                             /** @enum {string} */
                             status: "ACTIVE" | "DISABLED";
+                            /** @enum {string} */
+                            type: "SYSTEM_TEMPLATE" | "CUSTOM";
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -2880,6 +3191,8 @@ export interface operations {
                             description: string | null;
                             /** @enum {string} */
                             status: "ACTIVE" | "DISABLED";
+                            /** @enum {string} */
+                            type: "SYSTEM_TEMPLATE" | "CUSTOM";
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -2985,6 +3298,8 @@ export interface operations {
                             description: string | null;
                             /** @enum {string} */
                             status: "ACTIVE" | "DISABLED";
+                            /** @enum {string} */
+                            type: "SYSTEM_TEMPLATE" | "CUSTOM";
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -3028,6 +3343,8 @@ export interface operations {
                             description: string | null;
                             /** @enum {string} */
                             status: "ACTIVE" | "DISABLED";
+                            /** @enum {string} */
+                            type: "SYSTEM_TEMPLATE" | "CUSTOM";
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -3122,6 +3439,92 @@ export interface operations {
                             createdAt: string;
                             /** Format: date-time */
                             updatedAt: string;
+                        }[];
+                    };
+                };
+            };
+        };
+    };
+    RolesController_listRoleCapabilities: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 200 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Lấy capability của vai trò thành công */
+                        message: string;
+                        data: {
+                            id: string;
+                            key: string;
+                            domain: string;
+                            label: string;
+                            description: string;
+                            /** @enum {string} */
+                            risk: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+                            enabled: boolean;
+                        }[];
+                    };
+                };
+            };
+        };
+    };
+    RolesController_replaceRoleCapabilities: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    permissionIds: string[];
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 200 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Cập nhật capability của vai trò thành công */
+                        message: string;
+                        data: {
+                            id: string;
+                            key: string;
+                            domain: string;
+                            label: string;
+                            description: string;
+                            /** @enum {string} */
+                            risk: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+                            enabled: boolean;
                         }[];
                     };
                 };
@@ -6691,6 +7094,23 @@ export interface operations {
             };
         };
     };
+    RequestRealtimeController_issueServiceTenantTicket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     BiometricWorkstationsController_pair: {
         parameters: {
             query?: never;
@@ -7171,6 +7591,40 @@ export interface operations {
             };
         };
     };
+    MarketplaceAdminController_pricingConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    MarketplaceAdminController_updatePricingConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     MarketplaceAdminController_categoryImportTemplate: {
         parameters: {
             query?: never;
@@ -7525,6 +7979,91 @@ export interface operations {
             };
         };
     };
+    ServicePortalController_verifyVoucher: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServicePortalController_redeemVoucher: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServicePortalController_financialSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServicePortalController_settlements: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServicePortalController_issueTicket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     GuestMarketplaceController_categories: {
         parameters: {
             query?: never;
@@ -7571,6 +8110,146 @@ export interface operations {
         requestBody?: never;
         responses: {
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    GuestMarketplaceController_getCart: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    GuestMarketplaceController_syncCart: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    GuestMarketplaceController_clearCart: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    GuestMarketplaceController_addCartItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    GuestMarketplaceController_removeCartItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                itemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    GuestMarketplaceController_updateCartItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                itemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    GuestMarketplaceController_checkoutCart: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    GuestMarketplaceController_checkoutDirect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7729,6 +8408,66 @@ export interface operations {
             };
         };
     };
+    HotelMarketplaceController_acknowledge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                orderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HotelMarketplaceController_issueVoucher: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                orderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HotelMarketplaceController_cancel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                orderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     HotelMarketplaceController_revenue: {
         parameters: {
             query?: never;
@@ -7741,6 +8480,64 @@ export interface operations {
         requestBody?: never;
         responses: {
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HotelMarketplaceController_settlements: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HotelMarketplaceController_settle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                settlementId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HotelMarketplaceController_settleBatch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };

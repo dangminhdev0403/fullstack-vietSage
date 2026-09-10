@@ -18,6 +18,7 @@ import {
 } from "../../../common/openapi/contract-schemas";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
 import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
 import type { AuthenticatedUser } from "../../../shared/security";
 import { HotelsService } from "../application/hotels.service";
@@ -37,6 +38,7 @@ interface RequestWithUser extends Request {
 export class HotelsController {
   constructor(private readonly hotelsService: HotelsService) {}
 
+  @RequirePermission("platform.hotels.manage")
   @SuccessMessage("Tạo khách sạn thành công")
   @ApiDescript("Tạo khách sạn")
   @ApiBody({ schema: createHotelBodyOpenApiSchema })
@@ -50,6 +52,7 @@ export class HotelsController {
     return this.hotelsService.createHotel(request.user.userId, request.user.roleId, dto);
   }
 
+  @RequirePermission("platform.hotels.view")
   @SuccessMessage("Lấy danh sách khách sạn thành công")
   @ApiDescript("Xem danh sách khách sạn")
   @ApiQuery({ name: "tenantId", required: false, type: String })
@@ -78,6 +81,7 @@ export class HotelsController {
     });
   }
 
+  @RequirePermission("platform.hotels.view")
   @SuccessMessage("Lấy thông tin khách sạn thành công")
   @ApiDescript("Xem chi tiết khách sạn")
   @ApiParam({ name: "hotelId", type: String })
@@ -91,6 +95,7 @@ export class HotelsController {
     return this.hotelsService.getHotel(request.user.userId, request.user.roleId, hotelId);
   }
 
+  @RequirePermission("platform.hotels.manage")
   @SuccessMessage("Cập nhật khách sạn thành công")
   @ApiDescript("Cập nhật khách sạn")
   @ApiParam({ name: "hotelId", type: String })

@@ -31,6 +31,7 @@ import {
 } from "../../../common/openapi/contract-schemas";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
 import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
 import type { AuthenticatedUser } from "../../../shared/security";
 import {
@@ -51,6 +52,7 @@ interface RequestWithUser extends Request {
 export class TenantOwnersController {
   constructor(private readonly tenantOwnersService: TenantOwnersService) {}
 
+  @RequirePermission("platform.users.view")
   @SuccessMessage("Lấy danh sách chủ đơn vị thành công")
   @ApiDescript("Xem danh sách chủ đơn vị")
   @ApiQuery({ name: "tenantId", required: false, type: String })
@@ -73,6 +75,7 @@ export class TenantOwnersController {
     return this.tenantOwnersService.listTenantOwners(request.user.userId, parsedQuery);
   }
 
+  @RequirePermission("platform.users.view")
   @SuccessMessage("Lấy danh sách lựa chọn đơn vị thành công")
   @ApiDescript("Xem danh sách đơn vị gọn cho dropdown")
   @Get("tenant-options")
@@ -80,6 +83,7 @@ export class TenantOwnersController {
     return this.tenantOwnersService.listTenantOptions(request.user.userId);
   }
 
+  @RequirePermission("platform.users.view")
   @SuccessMessage("Lấy thông tin chủ đơn vị thành công")
   @ApiDescript("Xem chi tiết chủ đơn vị")
   @ApiParam({ name: "id", type: String })
@@ -97,6 +101,7 @@ export class TenantOwnersController {
     return this.tenantOwnersService.getTenantOwner(request.user.userId, id);
   }
 
+  @RequirePermission("platform.users.manage")
   @SuccessMessage("Tạo chủ đơn vị thành công")
   @ApiDescript("Tạo chủ đơn vị")
   @ApiBody({ schema: createTenantOwnerBodyOpenApiSchema })
@@ -110,6 +115,7 @@ export class TenantOwnersController {
     return this.tenantOwnersService.createTenantOwner(request.user.userId, dto);
   }
 
+  @RequirePermission("platform.users.manage")
   @SuccessMessage("Cập nhật chủ đơn vị thành công")
   @ApiDescript("Cập nhật chủ đơn vị")
   @ApiParam({ name: "id", type: String })
@@ -129,6 +135,7 @@ export class TenantOwnersController {
     return this.tenantOwnersService.updateTenantOwner(request.user.userId, id, dto);
   }
 
+  @RequirePermission("platform.users.manage")
   @HttpCode(HttpStatus.OK)
   @SuccessMessage("Cấp lại mật khẩu chủ đơn vị thành công")
   @ApiDescript("SUPER_ADMIN cấp lại mật khẩu cho chủ đơn vị")

@@ -22,6 +22,7 @@ export type RolesLiveFilterRole = {
   name: string;
   description: string | null;
   status: "ACTIVE" | "DISABLED";
+  type: "SYSTEM_TEMPLATE" | "CUSTOM";
   permissionCount: number;
   createdAt: string;
   updatedAt: string;
@@ -38,11 +39,6 @@ type RolesLiveFilterProps = {
 const SEARCH_DEBOUNCE_MS = 350;
 const UNAUTHORIZED_REDIRECT_THRESHOLD = 3;
 const UNAUTHORIZED_COUNTER_KEY = "vietsage:roles-api-401-count";
-const PROTECTED_ROLE_CODES = new Set([
-  "SUPER_ADMIN",
-  "VIETSAGE_OPERATION",
-  "HOTEL_OWNER",
-]);
 
 type RoleFormMode = "create" | "edit";
 
@@ -400,6 +396,7 @@ function normalizeApiRole(
         : role.status === "ACTIVE"
           ? "ACTIVE"
           : fallback?.status ?? "ACTIVE",
+    type: role.type === "SYSTEM_TEMPLATE" ? "SYSTEM_TEMPLATE" : (fallback?.type ?? "CUSTOM"),
     permissionCount,
     createdAt: role.createdAt ?? fallback?.createdAt ?? "",
     updatedAt: role.updatedAt ?? fallback?.updatedAt ?? "",
@@ -750,7 +747,7 @@ export function RolesLiveFilter({
                 filteredRoles.map((role) => (
                   (() => {
                     const isDisabled = role.status === "DISABLED";
-                    const isProtected = PROTECTED_ROLE_CODES.has(role.code);
+                    const isProtected = role.type === "SYSTEM_TEMPLATE";
                     const isRoleBusy =
                       submittingAction === `disable:${role.id}` ||
                       submittingAction === `delete:${role.id}`;
@@ -814,7 +811,7 @@ export function RolesLiveFilter({
                           onClick={() => openEditDialog(role)}
                           className="rounded-lg p-2 text-[var(--outline)] transition-colors hover:bg-[var(--surface-container)] hover:text-[var(--primary)]"
                           title="Sửa vai trò"
-                          disabled={isRoleBusy}
+                          disabled={isProtected || isRoleBusy}
                         >
                           <VsIcon name="edit" className="text-[18px]" />
                         </button>

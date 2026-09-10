@@ -3,13 +3,11 @@ import Link from "next/link";
 import { unstable_rethrow } from "next/navigation";
 
 import { rbacService } from "@/features/rbac/service/rbac-service-instance";
-import type {
-  RbacPermissionModuleSummary,
-  RbacRole,
-} from "@/features/rbac/types/rbac-contract";
+import type { RbacRole } from "@/features/rbac/types/rbac-contract";
 import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 import { VsIcon } from "../../_components/vs-icon";
 import {
+  type ModuleSummary,
   type RolePermissionsBrowserPermission,
   type RolePermissionsBrowserRole,
   RolePermissionsBrowser,
@@ -56,6 +54,7 @@ function mapRole(role: RbacRole): RolePermissionsBrowserRole {
     userCount,
     enabledCount,
     createdAt: typeof role.createdAt === "string" ? role.createdAt : "",
+    type: role.type,
   };
 }
 
@@ -110,98 +109,46 @@ export default async function AdminPermissionsPage({
   }
 
   const effectiveRoleId = selectedRoleId ?? roles[0]?.id ?? null;
-  let moduleSummaries: RbacPermissionModuleSummary[] = [];
-
-  if (effectiveRoleId && roles.some((role) => role.id === effectiveRoleId)) {
-    try {
-      moduleSummaries = await executeAuthorizedApi(
-        `GET /roles/${effectiveRoleId}/permission-modules`,
-        (accessToken) =>
-          rbacService.listPermissionModulesForRole(
-            effectiveRoleId,
-            accessToken,
-          ),
-      );
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Lỗi API danh sách module quyền không xác định";
-      apiWarnings.push(
-        `GET permission modules cho ${effectiveRoleId} thất bại: ${message}`,
-      );
-    }
-  }
-
-  const initialPermissionsByRoleId: Record<
-    string,
-    RolePermissionsBrowserPermission[]
-  > = {};
-
+  const initialPermissionsByRoleId: Record<string, RolePermissionsBrowserPermission[]> = {};
   let allPermissions: RolePermissionsBrowserPermission[] = [];
 
   if (effectiveRoleId && roles.some((role) => role.id === effectiveRoleId)) {
     try {
-      const allPermissionsPages = await Promise.all(
-        moduleSummaries.map(async (summary) => {
-          const items = [];
-          let page = 1;
-          let total = 0;
-
-          do {
-            const result = await executeAuthorizedApi(
-              `GET /roles/${effectiveRoleId}/permission-modules/${summary.moduleKey}/permissions?page=${page}`,
-              (accessToken) =>
-                rbacService.listPermissionModulePermissionsForRole(
-                  effectiveRoleId,
-                  summary.moduleKey,
-                  { query: { page, limit: 100 }, accessToken },
-                ),
-            );
-            items.push(...result.items);
-            total = result.total;
-            page += 1;
-          } while (items.length < total);
-
-          return items.map((item) => ({
-            ...item,
-            moduleKey: summary.moduleKey,
-            moduleLabel: summary.moduleName,
-          }));
-        }),
+      const capabilities = await executeAuthorizedApi(
+        `GET /roles/${effectiveRoleId}/capabilities`,
+        (accessToken) => rbacService.listRoleCapabilities(effectiveRoleId, accessToken),
       );
-
-      const flattenedItems = allPermissionsPages.flat();
-
-      allPermissions = flattenedItems.map((item) => ({
-        id: item.permissionId,
-        method: item.method,
-        path: item.path,
+      allPermissions = capabilities.map((item) => ({
+        id: item.id,
+        key: item.key,
         description: item.description,
-        moduleKey: item.moduleKey,
-        moduleLabel: item.moduleLabel,
+        moduleKey: item.domain,
+        moduleLabel: item.domain,
+        risk: item.risk,
+        enabled: item.enabled,
       }));
-
-      initialPermissionsByRoleId[effectiveRoleId] = flattenedItems
-        .filter((item) => item.enabled)
-        .map((item) => ({
-          id: item.permissionId,
-          method: item.method,
-          path: item.path,
-          description: item.description,
-          moduleKey: item.moduleKey,
-          moduleLabel: item.moduleLabel,
-        }));
+      initialPermissionsByRoleId[effectiveRoleId] = allPermissions.filter((item) => item.enabled);
     } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Lỗi API quyền của vai trò không xác định";
-      apiWarnings.push(
-        `GET permissions cho ${effectiveRoleId} thất bại: ${message}`,
-      );
+      const message = error instanceof Error ? error.message : "Lỗi API capability không xác định";
+      apiWarnings.push(`GET capabilities cho ${effectiveRoleId} thất bại: ${message}`);
     }
   }
+
+  const moduleSummaries = Object.values(
+    allPermissions.reduce<Record<string, ModuleSummary>>((summaries, permission) => {
+      const moduleKey = permission.moduleKey ?? "misc";
+      const summary = summaries[moduleKey] ?? {
+        moduleKey,
+        moduleName: permission.moduleLabel ?? moduleKey,
+        totalPermissions: 0,
+        enabledCount: 0,
+      };
+      summary.totalPermissions += 1;
+      if (permission.enabled) summary.enabledCount += 1;
+      summaries[moduleKey] = summary;
+      return summaries;
+    }, {}),
+  );
 
   return (
     <>
