@@ -10,9 +10,11 @@ import {
 } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Swal from "sweetalert2";
 import { toast } from "sonner";
+
+import { RequestDetailClient } from "./[requestId]/request-detail-client";
 
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import {
@@ -280,10 +282,18 @@ function toFilterState(
 
 function getHttpErrorMessage(error: unknown, fallback: string): string {
   if (!(error instanceof HttpError)) return fallback;
+  if (error.status === 403) {
+    return "Bạn không có quyền thực hiện thao tác này.";
+  }
   const data = error.data;
-  if (data && typeof data === "object" && "data" in data) {
-    const detail = (data as { data?: { detail?: unknown } }).data?.detail;
-    if (typeof detail === "string") return detail;
+  if (data && typeof data === "object") {
+    if ("message" in data && typeof (data as { message: unknown }).message === "string") {
+      return (data as { message: string }).message;
+    }
+    if ("data" in data) {
+      const detail = (data as { data?: { detail?: unknown } }).data?.detail;
+      if (typeof detail === "string") return detail;
+    }
   }
 
   return error.message;
@@ -390,6 +400,8 @@ export function RequestQueueClient({
   page,
   pageSize,
   pageSizeOptions = [10, 20, 50],
+  detailMode = "modal",
+  initialDetailRequestId,
 }: RequestQueueClientProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -412,6 +424,40 @@ export function RequestQueueClient({
   const [externalPageSize, setExternalPageSize] = useState(10);
   const [hotelPage, setHotelPage] = useState(1);
   const [hotelPageSize, setHotelPageSize] = useState(10);
+  const [activeDetailRequestId, setActiveDetailRequestId] = useState<string | null>(
+    initialDetailRequestId ?? null,
+  );
+
+  useEffect(() => {
+    if (initialDetailRequestId !== undefined) {
+      setActiveDetailRequestId(initialDetailRequestId || null);
+    }
+  }, [initialDetailRequestId]);
+
+  useEffect(() => {
+    function onPopState() {
+      const params = new URLSearchParams(window.location.search);
+      setActiveDetailRequestId(params.get("requestId"));
+    }
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  const {
+    data: detailRequest,
+    isLoading: isDetailLoading,
+    error: detailError,
+  } = useQuery({
+    queryKey: ["hotel-request-detail", hotelId, activeDetailRequestId],
+    queryFn: async () => {
+      if (!activeDetailRequestId) return null;
+      const apiPath = ownerApiBasePath
+        ? `${ownerApiBasePath}/${encodeURIComponent(activeDetailRequestId)}`
+        : `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/requests/${encodeURIComponent(activeDetailRequestId)}`;
+      return requestInternalApi<HotelGuestRequest>(apiPath, { method: "GET" });
+    },
+    enabled: Boolean(activeDetailRequestId),
+  });
 
   useEffect(() => {
     startTransition(() => {
@@ -583,7 +629,23 @@ export function RequestQueueClient({
   }, [inboxTab, requests, convertedExternalOrders]);
 
   function openRequestRow(request: StaffRequestListItem) {
-    router.push(`${basePath}/${request.id}`);
+    if (detailMode === "modal") {
+      setActiveDetailRequestId(request.id);
+      const url = new URL(window.location.href);
+      url.searchParams.set("requestId", request.id);
+      window.history.pushState({}, "", url.toString());
+    } else {
+      router.push(`${basePath}/${request.id}`);
+    }
+  }
+
+  function closeDetailModal() {
+    setActiveDetailRequestId(null);
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("requestId")) {
+      url.searchParams.delete("requestId");
+      window.history.pushState({}, "", url.pathname + (url.search ? url.search : ""));
+    }
   }
 
   function syncUpdatedRequest(updated: HotelGuestRequest) {
@@ -1564,6 +1626,49 @@ export function RequestQueueClient({
           }
         />
       )}
+
+      {activeDetailRequestId ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm overflow-y-auto"
+          onClick={closeDetailModal}
+        >
+          <div
+            className="relative max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between border-b pb-3">
+              <h2 className="text-xl font-bold text-[var(--primary)]">
+                {mergedLabels.requestDetail}
+              </h2>
+              <button
+                type="button"
+                onClick={closeDetailModal}
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 transition cursor-pointer"
+                aria-label={mergedLabels.closeDetail}
+              >
+                <VsIcon name="close" className="text-xl" />
+              </button>
+            </div>
+            {isDetailLoading ? (
+              <div className="flex h-64 items-center justify-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-[var(--primary)] border-t-transparent" />
+              </div>
+            ) : detailError ? (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                {mergedLabels.operationError}
+              </div>
+            ) : detailRequest ? (
+              <RequestDetailClient
+                hotelId={hotelId}
+                initialRequest={detailRequest}
+                apiBasePath={ownerApiBasePath ?? `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/requests`}
+              />
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

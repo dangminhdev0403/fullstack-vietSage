@@ -38,7 +38,13 @@ export default async function HotelRequestsPage({ params, searchParams }: Reques
   const tokens = await requireHotelOpsServerTokens(callbackUrl);
   const workspaceContext = await loadServerWorkspaceContext(callbackUrl, tokens.accessToken);
 
-  if (!canUseHotelId(workspaceContext, hotelId) || (!workspaceContext.permissions.includes("hotel.requests.view") && !workspaceContext.permissions.includes("hotel.requests.manage"))) {
+  const canAccessRequests =
+    workspaceContext.permissions.includes("hotel.requests.view") ||
+    workspaceContext.permissions.includes("hotel.requests.manage") ||
+    workspaceContext.permissions.includes("hotel.requests.coordinate") ||
+    workspaceContext.permissions.includes("hotel.requests.execute");
+
+  if (!canUseHotelId(workspaceContext, hotelId) || !canAccessRequests) {
     notFound();
   }
 
@@ -111,6 +117,7 @@ export default async function HotelRequestsPage({ params, searchParams }: Reques
         initialFilters={initialFilters}
         ownerApiBasePath={`/api/hotel-ops/hotels/${hotelId}/requests`}
         detailMode="modal"
+        initialDetailRequestId={getFirst(resolvedSearchParams.requestId)}
       />
     </>
   );

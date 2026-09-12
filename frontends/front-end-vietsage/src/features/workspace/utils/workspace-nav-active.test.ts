@@ -48,3 +48,55 @@ test("isNavItemActive highlights admin roles and permissions navigation item cor
   assert.equal(isNavItemActive(accessItem.href, "/admin/permissions", adminItems), true);
   assert.equal(isNavItemActive(accessItem.href, "/admin/users", adminItems), false);
 });
+
+test("buildWorkspaceNavigation produces governance and monitoring items for owner", () => {
+  const ownerItems = buildWorkspaceNavigation({
+    persona: "owner",
+    permissions: [
+      "hotel.dashboard.view",
+      "hotel.staff.view",
+      "hotel.services.view",
+      "hotel.local-partners.view",
+      "hotel.rooms.view",
+      "hotel.requests.coordinate",
+      "hotel.billing.view",
+    ],
+    hotelId: "hotel-1",
+  });
+  const keys = ownerItems.map((item) => item.key);
+  assert.ok(keys.includes("owner.home"));
+  assert.ok(keys.includes("owner.hotels"));
+  assert.ok(keys.includes("owner.staff"));
+  assert.ok(keys.includes("owner.hotel.overview"));
+  assert.ok(keys.includes("owner.hotel.services"));
+  assert.ok(keys.includes("owner.hotel.partners"));
+  assert.ok(keys.includes("owner.hotel.rooms"));
+  assert.ok(keys.includes("owner.hotel.requests"));
+  assert.ok(keys.includes("owner.hotel.billing"));
+  assert.equal(keys.includes("owner.hotel.biometric"), false);
+});
+
+test("buildWorkspaceNavigation produces shift, rooms, requests, messages, checkout, tools for frontdesk", () => {
+  const frontdeskItems = buildWorkspaceNavigation({
+    persona: "front_desk",
+    permissions: [
+      "hotel.dashboard.view",
+      "hotel.rooms.view",
+      "hotel.rooms.status.manage",
+      "hotel.stays.check-in",
+      "hotel.requests.execute",
+      "hotel.messages.view",
+      "hotel.billing.checkout",
+    ],
+    hotelId: "hotel-1",
+  });
+  const keys = frontdeskItems.map((item) => item.key);
+  assert.deepEqual(keys, [
+    "staff.dashboard",
+    "staff.rooms",
+    "staff.requests",
+    "staff.messages",
+    "staff.billing",
+    "staff.biometric",
+  ]);
+});

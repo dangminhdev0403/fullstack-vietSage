@@ -6,18 +6,31 @@ import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 import { StaffRoomsClient } from "./staff-rooms-client";
 
-type PageProps = { params: Promise<{ hotelId: string }> | { hotelId: string } };
+type PageProps = {
+  params: Promise<{ hotelId: string }> | { hotelId: string };
+  searchParams?: Promise<Record<string, string | string[] | undefined>> | Record<string, string | string[] | undefined>;
+};
 export const dynamic = "force-dynamic";
 
-export default async function StaffRoomsPage({ params }: PageProps) {
+function getFirst(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function StaffRoomsPage({ params, searchParams }: PageProps) {
   const { hotelId } = await Promise.resolve(params);
+  const resolvedSearchParams = await Promise.resolve(searchParams ?? {});
+  const initialFlow = getFirst(resolvedSearchParams.flow);
   const callbackUrl = `/hotels/${hotelId}/rooms` as const;
   const session = await auth();
   assertCanAccessHotelOps(session, callbackUrl);
   const tokens = await requireHotelOpsServerTokens(callbackUrl);
   const context = await loadServerWorkspaceContext(callbackUrl, tokens.accessToken);
-  const canViewRooms = context.permissions.includes("hotel.rooms.view");
-  const canViewReservations = context.permissions.includes("hotel.reservations.view") || context.permissions.includes("hotel.reservations.manage");
+  const canViewRooms =
+    context.permissions.includes("hotel.rooms.view") ||
+    context.permissions.includes("hotel.rooms.status.manage");
+  const canViewReservations =
+    context.permissions.includes("hotel.reservations.view") ||
+    context.permissions.includes("hotel.reservations.manage");
   if (!canUseHotelId(context, hotelId) || (!canViewRooms && !canViewReservations)) {
     notFound();
   }
@@ -94,7 +107,11 @@ export default async function StaffRoomsPage({ params }: PageProps) {
           arrivals={arrivals.items}
           canManageRooms={context.permissions.includes("hotel.rooms.manage")}
           canManageReservations={context.permissions.includes("hotel.reservations.manage")}
-          canManageStays={context.permissions.includes("hotel.stays.manage")}
+          canManageStays={
+            context.permissions.includes("hotel.stays.manage") ||
+            context.permissions.includes("hotel.stays.check-in")
+          }
+          initialFlow={initialFlow}
         />
       </section>
     </>

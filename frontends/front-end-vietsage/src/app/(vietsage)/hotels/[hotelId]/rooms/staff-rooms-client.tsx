@@ -33,6 +33,7 @@ type Props = {
   canManageRooms: boolean;
   canManageReservations: boolean;
   canManageStays: boolean;
+  initialFlow?: string;
 };
 
 type RoomStatusFilter =
@@ -391,6 +392,7 @@ export function StaffRoomsClient({
   canManageRooms,
   canManageReservations,
   canManageStays,
+  initialFlow,
 }: Props) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -405,7 +407,10 @@ export function StaffRoomsClient({
   const [type, setType] = useState("all");
   const [status, setStatus] = useState<RoomStatusFilter>("all");
   const [vipOnly, setVipOnly] = useState(false);
-  const [flow, setFlow] = useState<FlowMode>("walk-in");
+  const [flow, setFlow] = useState<FlowMode>(() => {
+    if (initialFlow === "reservation") return "reservation";
+    return "walk-in";
+  });
   const [selectedRoom, setSelectedRoom] = useState<HotelRoomSummary | null>(
     null,
   );
@@ -521,6 +526,26 @@ export function StaffRoomsClient({
     setSubmitError(undefined);
     setIsCheckInOpen(true);
   }
+
+  useEffect(() => {
+    if (initialFlow === "reservation") {
+      setFlow("reservation");
+    } else if (initialFlow === "check-in") {
+      setFlow("walk-in");
+      if (canManageStays && availableRooms.length > 0) {
+        setSelectedRoom(availableRooms[0]);
+        setIsCheckInOpen(true);
+      }
+    }
+  }, [initialFlow, canManageStays, availableRooms]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.search.includes("flow=")) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("flow");
+      window.history.replaceState({}, "", url.pathname + (url.search ? url.search : ""));
+    }
+  }, []);
 
   async function markRoomCleaned(room: HotelRoomSummary) {
     const confirmation = await Swal.fire({
