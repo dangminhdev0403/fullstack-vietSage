@@ -1,3 +1,7 @@
+jest.mock("../../../prisma/prisma.service", () => ({
+  PrismaService: class MockPrismaService {},
+}));
+
 import {
   FolioStatus,
   GuestSessionStatus,
@@ -10,6 +14,9 @@ import {
   RoomStatus,
 } from "@prisma/client";
 import { ConflictException } from "@nestjs/common";
+import { REQUIRED_PERMISSION_KEY } from "../../../shared/decorators/require-permission.decorator";
+import { FolioController } from "../api/folio.controller";
+import { PaymentController } from "../api/payment.controller";
 import { BillingService } from "../application/billing.service";
 
 const now = new Date("2026-07-18T10:00:00.000Z");
@@ -1007,5 +1014,65 @@ describe("BillingService checkout safety", () => {
     expect(externalTotal).toBe(1100);
     expect(hotelTotal + externalTotal).toBe(2001100);
     expect(Number(detail.invoice.totalAmount)).toBe(2001100);
+  });
+
+  it("getFolioSummary performs no create or update in the database (query purity)", async () => {
+    const prisma = {
+      folio: {
+        findFirst: jest.fn(),
+        update: jest.fn(),
+      },
+      folioItem: {
+        create: jest.fn(),
+        update: jest.fn(),
+      },
+      guestRequest: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+    };
+    const repository = {
+      getFolioSummary: jest.fn().mockResolvedValue({
+        latestItemPostedAt: null,
+        grouped: [],
+        folio: {
+          id: "folio-pure",
+          hotelId: "hotel-1",
+          stayId: "stay-1",
+          folioNumber: "FOL-PURE",
+          status: FolioStatus.OPEN,
+          currency: "VND",
+          subtotalAmount: new Prisma.Decimal(500000),
+          taxAmount: new Prisma.Decimal(0),
+          discountAmount: new Prisma.Decimal(0),
+          totalAmount: new Prisma.Decimal(500000),
+          updatedAt: new Date("2026-07-18T00:00:00.000Z"),
+        },
+      }),
+    };
+    const service = createService(prisma, repository);
+
+    const summary = await service.getFolioSummary("user-1", "active-role", "hotel-1", "folio-pure");
+
+    expect(summary).toBeDefined();
+    expect(summary.total).toEqual(new Prisma.Decimal(500000));
+    expect(repository.getFolioSummary).toHaveBeenCalledWith("hotel-1", "folio-pure");
+    expect(prisma.folio.findFirst).not.toHaveBeenCalled();
+    expect(prisma.folio.update).not.toHaveBeenCalled();
+    expect(prisma.folioItem.create).not.toHaveBeenCalled();
+    expect(prisma.folioItem.update).not.toHaveBeenCalled();
+  });
+
+  it("requires hotel.billing.checkout permission for issueInvoice and confirmManualPayment", () => {
+    const issueInvoicePermission = Reflect.getMetadata(
+      REQUIRED_PERMISSION_KEY,
+      FolioController.prototype.issueInvoice,
+    );
+    const confirmManualPaymentPermission = Reflect.getMetadata(
+      REQUIRED_PERMISSION_KEY,
+      PaymentController.prototype.confirmManualPayment,
+    );
+
+    expect(issueInvoicePermission).toBe("hotel.billing.checkout");
+    expect(confirmManualPaymentPermission).toBe("hotel.billing.checkout");
   });
 });

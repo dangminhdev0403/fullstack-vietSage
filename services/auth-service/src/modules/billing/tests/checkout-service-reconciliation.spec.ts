@@ -1,3 +1,7 @@
+jest.mock("../../../prisma/prisma.service", () => ({
+  PrismaService: class MockPrismaService {},
+}));
+
 import { BillingService } from "../application/billing.service";
 import { BadRequestException } from "@nestjs/common";
 

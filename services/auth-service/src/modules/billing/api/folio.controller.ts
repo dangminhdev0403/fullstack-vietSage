@@ -96,7 +96,7 @@ export class FolioController {
   }
 
   @SuccessMessage("Phát hành invoice checkout thành công")
-  @RequirePermission("hotel.billing.manage")
+  @RequirePermission("hotel.billing.checkout")
   @ApiDescript("Phát hành hóa đơn")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "folioId", type: String })

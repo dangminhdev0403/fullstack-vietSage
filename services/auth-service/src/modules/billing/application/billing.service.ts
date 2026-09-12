@@ -505,29 +505,6 @@ export class BillingService {
   }
 
   private async buildFolioSummary(hotelId: string, folioId: string) {
-    if (this.prisma?.folio?.findFirst) {
-      const rawFolio = await this.prisma.folio.findFirst({
-        where: { id: folioId, hotelId },
-        include: {
-          hotel: { select: { id: true, name: true } },
-          room: true,
-          stay: true,
-        },
-      });
-
-      if (rawFolio && rawFolio.status === FolioStatus.OPEN && rawFolio.stay && rawFolio.room) {
-        try {
-          await this.ensureRoomChargeFolioItem(
-            this.prisma,
-            rawFolio,
-            rawFolio.createdByUserId ?? "system",
-          );
-        } catch {
-          // Silent catch for summary auto-ensure
-        }
-      }
-    }
-
     const result = await this.billingRepository.getFolioSummary(hotelId, folioId);
 
     if (!result) {

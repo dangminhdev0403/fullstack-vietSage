@@ -63,7 +63,7 @@ export class PaymentController {
   }
 
   @SuccessMessage("Xác nhận đã thu tiền thành công")
-  @RequirePermission("hotel.billing.manage")
+  @RequirePermission("hotel.billing.checkout")
   @ApiDescript("Xác nhận thanh toán tại quầy và hoàn tất checkout")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "invoiceId", type: String })
