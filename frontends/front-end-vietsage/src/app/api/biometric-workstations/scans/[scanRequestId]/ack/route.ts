@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { workstationStore } from "@/features/local-biometric/workstation/workstation-store";
 import { authorizeHotelWorkstation } from "@/features/local-biometric/workstation/authorize-hotel-workstation";
 export const dynamic = "force-dynamic";
-type Context = { params: Promise<{ scanRequestId: string }> | { scanRequestId: string } };
+type Context = { params: Promise<{ scanRequestId: string }> };
 
 export async function DELETE(request: Request, context: Context) {
   const session = await auth();

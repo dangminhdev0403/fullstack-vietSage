@@ -10,8 +10,8 @@ import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 
 type RequestsPageProps = {
-  params: Promise<{ hotelId: string }> | { hotelId: string };
-  searchParams?: Promise<Record<string, string | string[] | undefined>> | Record<string, string | string[] | undefined>;
+  params: Promise<{ hotelId: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
 export const dynamic = "force-dynamic";
@@ -31,7 +31,7 @@ function normalizeDayFilter(value: string | undefined, boundary: "start" | "end"
 
 export default async function HotelRequestsPage({ params, searchParams }: RequestsPageProps) {
   const { hotelId } = await Promise.resolve(params);
-  const resolvedSearchParams = await Promise.resolve(searchParams ?? {});
+  const resolvedSearchParams = (await searchParams) ?? {};
   const callbackUrl = `/hotels/${hotelId}/requests` as const;
   const session = await auth();
   assertCanAccessHotelOps(session, callbackUrl);

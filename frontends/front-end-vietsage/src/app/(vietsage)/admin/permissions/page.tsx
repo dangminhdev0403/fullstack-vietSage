@@ -14,9 +14,7 @@ import type { RolePermissionsBrowserPermission } from "./permission-types";
 import { PermissionsWarningsAlert } from "./_components/permissions-warnings-alert";
 
 type PermissionsPageProps = {
-  searchParams?:
-    | Promise<Record<string, string | string[] | undefined>>
-    | Record<string, string | string[] | undefined>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
 const CANONICAL_ROLE_CODES = [
@@ -82,7 +80,7 @@ function extractParam(value: string | string[] | undefined): string | null {
 export default async function AdminPermissionsPage({
   searchParams,
 }: Readonly<PermissionsPageProps>) {
-  const resolvedSearchParams = await Promise.resolve(searchParams ?? {});
+  const resolvedSearchParams = (await searchParams) ?? {};
   const selectedRoleId = extractParam(resolvedSearchParams.roleId);
 
   const session = await auth();

@@ -10,7 +10,7 @@ import {
 
 export const dynamic = "force-dynamic";
 const headers = { "Cache-Control": "no-store, private" };
-type Context = { params: Promise<{ hotelId: string }> | { hotelId: string } };
+type Context = { params: Promise<{ hotelId: string }> };
 
 async function context(request: Request, routeContext: Context) {
   const { hotelId } = await Promise.resolve(routeContext.params);

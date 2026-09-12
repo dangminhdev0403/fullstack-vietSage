@@ -60,7 +60,8 @@ function fixture() {
 }
 
 beforeEach(() => {
-  process.env.KBTT_BASIC_AUTH_VALUE = randomBytes(24).toString("base64");
+  process.env.KBTT_LOGIN_BASIC_AUTH_VALUE = randomBytes(24).toString("base64");
+  process.env.KBTT_TOKEN_BASIC_AUTH_VALUE = randomBytes(24).toString("base64");
   process.env.KBTT_CREDENTIAL_ENCRYPTION_KEY = randomBytes(32).toString("base64");
 });
 afterEach(() => {
@@ -74,9 +75,9 @@ afterAll(() => {
 describe("KBTT secure manual authentication", () => {
   it("requires valid paired secrets and encrypts with hotel-bound authenticated encryption", () => {
     expect(loadKbttConfig({})).toEqual({});
-    expect(() => loadKbttConfig({ KBTT_BASIC_AUTH_VALUE: "invalid" })).toThrow(
-      "Invalid KBTT configuration",
-    );
+    expect(() =>
+      loadKbttConfig({ KBTT_LOGIN_BASIC_AUTH_VALUE: randomBytes(24).toString("base64") }),
+    ).toThrow("Invalid KBTT configuration");
     const cipher = new KbttCredentialCipher();
     const encrypted = cipher.encrypt("hotel-1", credentials);
     expect(cipher.decrypt("hotel-1", encrypted)).toEqual(credentials);
@@ -108,7 +109,7 @@ describe("KBTT secure manual authentication", () => {
     expect(options).toMatchObject({
       method: "POST",
       redirect: "error",
-      headers: { Authorization: "Basic " + process.env.KBTT_BASIC_AUTH_VALUE },
+      headers: { Authorization: "Basic " + process.env.KBTT_LOGIN_BASIC_AUTH_VALUE },
     });
     expect((options.headers as Record<string, string>)["User-Agent"]).toBe("Mozilla/5.0");
     expect(options.signal).toBeInstanceOf(AbortSignal);
@@ -117,6 +118,9 @@ describe("KBTT secure manual authentication", () => {
       "grant-type": "api_cslt",
     });
     await provider.refresh("fixture&refresh+value");
+    expect((fetchMock.mock.calls[1][1].headers as Record<string, string>).Authorization).toBe(
+      "Basic " + process.env.KBTT_TOKEN_BASIC_AUTH_VALUE,
+    );
     expect((fetchMock.mock.calls[1][0] as URL).searchParams.get("refresh_token")).toBe(
       "fixture&refresh+value",
     );

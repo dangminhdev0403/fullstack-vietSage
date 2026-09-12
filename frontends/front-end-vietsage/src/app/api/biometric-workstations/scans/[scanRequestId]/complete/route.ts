@@ -7,7 +7,7 @@ import { workstationStore } from "@/features/local-biometric/workstation/worksta
 export const dynamic = "force-dynamic";
 const MAX = 1_048_576;
 const headers = { "Cache-Control": "no-store, private" };
-type Context = { params: Promise<{ scanRequestId: string }> | { scanRequestId: string } };
+type Context = { params: Promise<{ scanRequestId: string }> };
 
 export async function POST(request: Request, context: Context) {
   const token = bearerToken(request);

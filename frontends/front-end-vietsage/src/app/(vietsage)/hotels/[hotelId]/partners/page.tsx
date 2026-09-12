@@ -4,7 +4,7 @@ import { assertCanAccessHotelOps, canUseHotelId, requireHotelOpsServerTokens } f
 import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 import { OwnerNearbyProvidersClient } from "@/features/local-partners/components/staff-local-partners-client";
 
-type PageProps = { params: Promise<{ hotelId: string }> | { hotelId: string } };
+type PageProps = { params: Promise<{ hotelId: string }> };
 export const dynamic = "force-dynamic";
 
 export default async function StaffLocalPartnersPage({ params }: PageProps) {

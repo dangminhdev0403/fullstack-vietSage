@@ -8,7 +8,7 @@ import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 import { InvoiceActions } from "./invoice-actions";
 
-type PageProps = { params: Promise<{ hotelId: string; invoiceId: string }> | { hotelId: string; invoiceId: string } };
+type PageProps = { params: Promise<{ hotelId: string; invoiceId: string }> };
 export const dynamic = "force-dynamic";
 
 const itemTypeLabels: Record<string, string> = {

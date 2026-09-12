@@ -5,7 +5,7 @@ import { recognitionRelayAvailable } from "@/features/local-biometric/workstatio
 import { workstationStore } from "@/features/local-biometric/workstation/workstation-store";
 
 export const dynamic = "force-dynamic";
-type Context = { params: Promise<{ hotelId: string }> | { hotelId: string } };
+type Context = { params: Promise<{ hotelId: string }> };
 
 export async function GET(_request: Request, context: Context) {
   const headers = { "Cache-Control": "no-store, private" };

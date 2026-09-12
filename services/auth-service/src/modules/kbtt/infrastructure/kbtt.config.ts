@@ -8,21 +8,31 @@ const base64 = z
   .refine((value) => Buffer.from(value, "base64").toString("base64") === value);
 const configSchema = z
   .object({
-    KBTT_BASIC_AUTH_VALUE: base64.optional(),
+    KBTT_LOGIN_BASIC_AUTH_VALUE: base64.optional(),
+    KBTT_TOKEN_BASIC_AUTH_VALUE: base64.optional(),
     KBTT_CREDENTIAL_ENCRYPTION_KEY: base64
       .refine((value) => Buffer.from(value, "base64").length === 32)
       .optional(),
   })
   .refine(
     (config) =>
-      Boolean(config.KBTT_BASIC_AUTH_VALUE) === Boolean(config.KBTT_CREDENTIAL_ENCRYPTION_KEY),
+      [
+        config.KBTT_LOGIN_BASIC_AUTH_VALUE,
+        config.KBTT_TOKEN_BASIC_AUTH_VALUE,
+        config.KBTT_CREDENTIAL_ENCRYPTION_KEY,
+      ].filter(Boolean).length === 0 ||
+      [
+        config.KBTT_LOGIN_BASIC_AUTH_VALUE,
+        config.KBTT_TOKEN_BASIC_AUTH_VALUE,
+        config.KBTT_CREDENTIAL_ENCRYPTION_KEY,
+      ].every(Boolean),
   );
 
 export function loadKbttConfig(env: NodeJS.ProcessEnv = process.env) {
   const parsed = configSchema.safeParse(env);
   if (!parsed.success) {
     throw new Error(
-      "Invalid KBTT configuration: configure both secrets using canonical base64 and a 32-byte encryption key",
+      "Invalid KBTT configuration: configure both Basic auth values and the 32-byte encryption key",
     );
   }
   return parsed.data;

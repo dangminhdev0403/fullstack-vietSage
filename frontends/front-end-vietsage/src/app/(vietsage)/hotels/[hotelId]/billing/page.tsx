@@ -10,7 +10,7 @@ import { StaffBillingWorkspaceClient } from "./staff-billing-workspace-client";
 import { StaffSaasReminder } from "./staff-saas-reminder";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 
-type PageProps = { params: Promise<{ hotelId: string }> | { hotelId: string } };
+type PageProps = { params: Promise<{ hotelId: string }> };
 export const dynamic = "force-dynamic";
 
 export default async function StaffBillingPage({ params }: PageProps) {

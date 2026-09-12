@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 type PageProps = {
-  params: Promise<{ hotelId: string }> | { hotelId: string };
+  params: Promise<{ hotelId: string }>;
 };
 
 export default async function LegacyOwnerHotelStayPage({ params }: PageProps) {

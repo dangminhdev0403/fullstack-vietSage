@@ -6,8 +6,8 @@ import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 import { RequestQueueClient } from "../../../../../hotels/[hotelId]/requests/request-queue-client";
 
 type PageProps = {
-  params: Promise<{ hotelId: string }> | { hotelId: string };
-  searchParams?: Promise<Record<string, string | string[] | undefined>> | Record<string, string | string[] | undefined>;
+  params: Promise<{ hotelId: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
 export const dynamic = "force-dynamic";
@@ -33,7 +33,7 @@ function normalizeDayFilter(value: string | undefined, boundary: "start" | "end"
 
 export default async function OwnerHotelRequestsPage({ params, searchParams }: PageProps) {
   const { hotelId } = await Promise.resolve(params);
-  const resolvedSearchParams = await Promise.resolve(searchParams ?? {});
+  const resolvedSearchParams = (await searchParams) ?? {};
   const session = await auth();
     const callbackUrl = `/owner/hotels/${hotelId}/requests` as const;
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });

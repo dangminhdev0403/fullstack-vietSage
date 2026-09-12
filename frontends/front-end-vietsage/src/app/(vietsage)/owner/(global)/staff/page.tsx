@@ -7,7 +7,7 @@ import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 
 type Props = {
-  searchParams?: Promise<Record<string, string | string[] | undefined>> | Record<string, string | string[] | undefined>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
 function first(value: string | string[] | undefined): string | null {
@@ -22,7 +22,7 @@ export default async function OwnerStaffPage({ searchParams }: Props) {
   if (!hasWorkspaceCapability(context, "hotel.staff.view") && !hasWorkspaceCapability(context, "hotel.staff.manage")) {
     notFound();
   }
-  const params = await Promise.resolve(searchParams ?? {});
+  const params = (await searchParams) ?? {};
   const requestedTenantId = first(params.tenantId);
   const tenantId = context.tenants.some((tenant) => tenant.id === requestedTenantId)
     ? requestedTenantId

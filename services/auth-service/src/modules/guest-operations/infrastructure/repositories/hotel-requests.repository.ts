@@ -114,7 +114,7 @@ export class HotelRequestsRepository {
     expectedStatus: GuestRequestStatus;
     status: GuestRequestStatus;
     note?: string;
-    assignedToUserId?: string;
+    assignedToUserId?: string | null;
     priority?: Prisma.GuestRequestUpdateInput["priority"];
     tenantId: string;
   }) {
@@ -141,18 +141,19 @@ export class HotelRequestsRepository {
           billingFolioItemId = folioItem.id;
         }
 
+        const data: Prisma.GuestRequestUncheckedUpdateInput = {
+          status: input.status,
+          assignedToUserId: input.assignedToUserId,
+          priority: input.priority,
+          completedAt,
+          cancelledAt: input.status === GuestRequestStatus.CANCELLED ? new Date() : undefined,
+          billingPostStatus: input.status === GuestRequestStatus.COMPLETED ? "POSTED" : undefined,
+          billingPostedAt: input.status === GuestRequestStatus.COMPLETED ? new Date() : undefined,
+          billingFolioItemId,
+        };
         const updated = await tx.guestRequest.update({
           where: { id: input.requestId },
-          data: {
-            status: input.status,
-            assignedToUserId: input.assignedToUserId,
-            priority: input.priority,
-            completedAt,
-            cancelledAt: input.status === GuestRequestStatus.CANCELLED ? new Date() : undefined,
-            billingPostStatus: input.status === GuestRequestStatus.COMPLETED ? "POSTED" : undefined,
-            billingPostedAt: input.status === GuestRequestStatus.COMPLETED ? new Date() : undefined,
-            billingFolioItemId,
-          },
+          data,
           include: requestDetailInclude,
         });
 
@@ -199,7 +200,7 @@ export class HotelRequestsRepository {
         where: { id: input.requestId, hotelId: input.hotelId },
       });
 
-      const data: Prisma.GuestRequestUpdateInput = {};
+      const data: Prisma.GuestRequestUncheckedUpdateInput = {};
       if (input.assignedToUserId !== undefined) {
         data.assignedToUserId = input.assignedToUserId;
       }
@@ -214,11 +215,8 @@ export class HotelRequestsRepository {
       });
 
       const toAssignedToUserId =
-        input.assignedToUserId !== undefined
-          ? input.assignedToUserId
-          : existing.assignedToUserId;
-      const toPriority =
-        input.priority !== undefined ? input.priority : existing.priority;
+        input.assignedToUserId !== undefined ? input.assignedToUserId : existing.assignedToUserId;
+      const toPriority = input.priority !== undefined ? input.priority : existing.priority;
 
       await tx.guestRequestEvent.create({
         data: {

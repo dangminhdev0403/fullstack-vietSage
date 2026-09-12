@@ -7,8 +7,8 @@ import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 import { StaffRoomsClient } from "./staff-rooms-client";
 
 type PageProps = {
-  params: Promise<{ hotelId: string }> | { hotelId: string };
-  searchParams?: Promise<Record<string, string | string[] | undefined>> | Record<string, string | string[] | undefined>;
+  params: Promise<{ hotelId: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 export const dynamic = "force-dynamic";
 
@@ -18,7 +18,7 @@ function getFirst(value: string | string[] | undefined): string | undefined {
 
 export default async function StaffRoomsPage({ params, searchParams }: PageProps) {
   const { hotelId } = await Promise.resolve(params);
-  const resolvedSearchParams = await Promise.resolve(searchParams ?? {});
+  const resolvedSearchParams = (await searchParams) ?? {};
   const initialFlow = getFirst(resolvedSearchParams.flow);
   const callbackUrl = `/hotels/${hotelId}/rooms` as const;
   const session = await auth();

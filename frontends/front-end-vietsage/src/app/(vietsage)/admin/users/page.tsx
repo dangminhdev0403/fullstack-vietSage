@@ -9,7 +9,7 @@ import type { TenantOption, TenantOwnerPage } from "@/features/admin/types/admin
 import { TenantOwnersClient } from "./tenant-owners-client";
 
 type Props = {
-  searchParams?: Promise<Record<string, string | string[] | undefined>> | Record<string, string | string[] | undefined>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
 function first(value: string | string[] | undefined): string {
@@ -17,7 +17,7 @@ function first(value: string | string[] | undefined): string {
 }
 
 export default async function AdminUsersPage({ searchParams }: Props) {
-  const params = await Promise.resolve(searchParams ?? {});
+  const params = (await searchParams) ?? {};
   const requestedTab = first(params.tab) === "staff" ? "staff" : "owners";
   const requestedTenantId = first(params.tenantId).trim();
   const session = await auth();

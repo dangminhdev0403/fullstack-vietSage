@@ -9,13 +9,11 @@ import { resolveWorkspacePersona } from "@/features/workspace/utils/workspace-co
 import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 
 type DashboardPageProps = {
-  searchParams?:
-    | Promise<Record<string, string | string[] | undefined>>
-    | Record<string, string | string[] | undefined>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
 export default async function AdminDashboardPage({ searchParams }: DashboardPageProps) {
-  const resolvedSearchParams = await Promise.resolve(searchParams ?? {});
+  const resolvedSearchParams = (await searchParams) ?? {};
   const rawTab = resolvedSearchParams.tab;
   const tab = Array.isArray(rawTab) ? rawTab[0] : rawTab;
   const normalizedTab = typeof tab === "string" ? tab.trim().toLowerCase() : "";

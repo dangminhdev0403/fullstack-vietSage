@@ -9,7 +9,7 @@ import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { formatDayMonth } from "./dashboard-presentation";
 
-type PageProps = { params: Promise<{ hotelId: string }> | { hotelId: string } };
+type PageProps = { params: Promise<{ hotelId: string }> };
 export const dynamic = "force-dynamic";
 
 function formatTime(value: string): string {

@@ -8,7 +8,7 @@ import {
 import { HttpError } from "@/core/http/http-error";
 
 type Params = {
-  params: Promise<{ hotelId: string; folioId: string }> | { hotelId: string; folioId: string };
+  params: Promise<{ hotelId: string; folioId: string }>;
 };
 
 export async function POST(request: Request, context: Params) {

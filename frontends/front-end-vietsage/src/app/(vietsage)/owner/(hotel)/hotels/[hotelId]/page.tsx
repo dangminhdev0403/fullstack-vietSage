@@ -10,7 +10,7 @@ import { ownerAccessMessage } from "../../../_components/owner-auth";
 import { OwnerHotelDetailClient } from "./owner-hotel-detail-client";
 
 type OwnerHotelPageProps = {
-  params: Promise<{ hotelId: string }> | { hotelId: string };
+  params: Promise<{ hotelId: string }>;
 };
 
 export const dynamic = "force-dynamic";

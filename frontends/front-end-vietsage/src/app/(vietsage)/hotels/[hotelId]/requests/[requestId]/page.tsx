@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 type PageProps = {
-  params: Promise<{ hotelId: string; requestId: string }> | { hotelId: string; requestId: string };
+  params: Promise<{ hotelId: string; requestId: string }>;
 };
 
 export const dynamic = "force-dynamic";

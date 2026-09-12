@@ -5,8 +5,8 @@ import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 import { BillingTabSwitcher } from "./billing-tab-switcher";
 
 type PageProps = {
-  params: Promise<{ hotelId: string }> | { hotelId: string };
-  searchParams?: Promise<{ folioPage?: string; tab?: string }> | { folioPage?: string; tab?: string };
+  params: Promise<{ hotelId: string }>;
+  searchParams?: Promise<{ folioPage?: string; tab?: string }>;
 };
 
 export const dynamic = "force-dynamic";

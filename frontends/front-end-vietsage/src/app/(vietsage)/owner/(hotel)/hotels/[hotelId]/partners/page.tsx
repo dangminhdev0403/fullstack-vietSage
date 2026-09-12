@@ -1,7 +1,7 @@
 import { OwnerNearbyProvidersClient } from "@/features/local-partners/components/staff-local-partners-client";
 import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 
-type PageProps = { params: Promise<{ hotelId: string }> | { hotelId: string } };
+type PageProps = { params: Promise<{ hotelId: string }> };
 export const dynamic = "force-dynamic";
 
 export default async function OwnerLocalPartnersPage({ params }: PageProps) {

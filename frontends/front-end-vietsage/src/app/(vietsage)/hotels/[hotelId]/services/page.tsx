@@ -11,7 +11,7 @@ import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 
 type ServicesPageProps = {
-  params: Promise<{ hotelId: string }> | { hotelId: string };
+  params: Promise<{ hotelId: string }>;
 };
 
 export const dynamic = "force-dynamic";
@@ -49,6 +49,7 @@ export default async function HotelServicesPage({ params }: ServicesPageProps) {
         accessToken,
       }),
     ),
+  ]);
   const canManage = workspaceContext.permissions.includes("hotel.services.manage");
 
   return (

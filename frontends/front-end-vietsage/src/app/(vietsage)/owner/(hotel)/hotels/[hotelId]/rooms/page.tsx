@@ -5,7 +5,7 @@ import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 
 import { OwnerRoomsClient } from "./owner-rooms-client";
 
-type PageProps = { params: Promise<{ hotelId: string }> | { hotelId: string } };
+type PageProps = { params: Promise<{ hotelId: string }> };
 
 export const dynamic = "force-dynamic";
 

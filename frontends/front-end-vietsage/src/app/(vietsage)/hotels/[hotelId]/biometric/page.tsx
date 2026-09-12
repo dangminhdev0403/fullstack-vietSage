@@ -4,7 +4,7 @@ import { BiometricOwnerTabs } from "@/features/local-biometric/components/biomet
 import { assertCanAccessHotelOps, canUseHotelId, requireHotelOpsServerTokens } from "@/features/hotel-ops/utils/hotel-route-auth";
 import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 
-type PageProps = { params: Promise<{ hotelId: string }> | { hotelId: string } };
+type PageProps = { params: Promise<{ hotelId: string }> };
 export const dynamic = "force-dynamic";
 
 export default async function StaffHotelBiometricPage({ params }: PageProps) {

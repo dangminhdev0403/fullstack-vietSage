@@ -10,9 +10,7 @@ import { InvoicePrintButton } from "./invoice-print-button";
 import { InvoiceActions } from "@/app/(vietsage)/hotels/[hotelId]/billing/invoices/[invoiceId]/invoice-actions";
 
 type PageProps = {
-  params:
-    | Promise<{ hotelId: string; invoiceId: string }>
-    | { hotelId: string; invoiceId: string };
+  params: Promise<{ hotelId: string; invoiceId: string }>;
 };
 
 const invoiceStatusLabels: Record<string, string> = {
