@@ -5,9 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Swal from "sweetalert2";
 
-import { requestInternalApi } from "@/core/http/internal-api-client";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
-import type { BillingPage, FolioListItem, Invoice } from "@/features/billing/types/billing-contract";
+import type { BillingPage, FolioListItem } from "@/features/billing/types/billing-contract";
 import { formatDateTime, formatMoney } from "@/features/billing/utils/money";
 
 type BillingFolioTableClientProps = {
@@ -35,7 +34,7 @@ function getFolioInvoiceId(folio: FolioListItem): string | null {
 export function BillingFolioTableClient({
   hotelId,
   foliosPage,
-  apiBasePath = `/api/owner/hotels/${encodeURIComponent(hotelId)}`,
+  apiBasePath: _apiBasePath = `/api/owner/hotels/${encodeURIComponent(hotelId)}`,
   invoiceBasePath = `/owner/hotels/${encodeURIComponent(hotelId)}/billing/invoices`,
 }: BillingFolioTableClientProps) {
   const router = useRouter();
@@ -45,9 +44,6 @@ export function BillingFolioTableClient({
   const totalPages = Math.max(1, Math.ceil(totalItems / foliosPage.limit));
 
   const [selectedFolio, setSelectedFolio] = useState<FolioListItem | null>(null);
-  const [issuedInvoice, setIssuedInvoice] = useState<Invoice | null>(null);
-  const [issueError, setIssueError] = useState<string | null>(null);
-  const [isIssuingInvoice, setIsIssuingInvoice] = useState(false);
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [query, setQuery] = useState("");
 
@@ -79,8 +75,6 @@ export function BillingFolioTableClient({
 
   function openFolio(folio: FolioListItem) {
     setSelectedFolio(folio);
-    setIssuedInvoice(null);
-    setIssueError(null);
   }
 
   async function openFolioDetail(folio: FolioListItem) {
@@ -91,48 +85,11 @@ export function BillingFolioTableClient({
 
     const invoiceId = getFolioInvoiceId(folio);
     if (!invoiceId) {
-      await Swal.fire({
-        icon: "warning",
-        title: "Chưa có mã hóa đơn",
-        text: `Folio ${folio.folioNumber ?? folio.id} đã đóng nhưng danh sách folio chưa trả về invoiceId để mở trang chi tiết.`,
-        confirmButtonText: "Đã hiểu",
-        confirmButtonColor: "#0f766e",
-      });
+      openFolio(folio);
       return;
     }
 
     router.push(`${invoiceBasePath}/${encodeURIComponent(invoiceId)}`);
-  }
-
-  async function issueInvoice(folio: FolioListItem) {
-    const confirmation = await Swal.fire({
-      icon: "warning",
-      title: "Phát hành hóa đơn?",
-      text: `Folio ${folio.folioNumber ?? folio.id} sẽ được khóa chi phí và chuyển sang chờ thanh toán.`,
-      showCancelButton: true,
-      confirmButtonText: "Phát hành hóa đơn",
-      cancelButtonText: "Hủy",
-      confirmButtonColor: "#0f766e",
-      cancelButtonColor: "#64748b",
-    });
-
-    if (!confirmation.isConfirmed) return;
-
-    setIsIssuingInvoice(true);
-    setIssueError(null);
-
-    try {
-      const invoice = await requestInternalApi<Invoice>(
-        `${apiBasePath}/billing/folios/${encodeURIComponent(folio.id)}/invoice`,
-        { method: "POST" },
-      );
-      setIssuedInvoice(invoice);
-      router.push(`${invoiceBasePath}/${encodeURIComponent(invoice.id)}`);
-    } catch (error) {
-      setIssueError(error instanceof Error ? error.message : "Không thể phát hành hóa đơn. Vui lòng thử lại.");
-    } finally {
-      setIsIssuingInvoice(false);
-    }
   }
 
   async function exportOrder(folio: FolioListItem) {
@@ -331,11 +288,7 @@ export function BillingFolioTableClient({
       {selectedFolio ? (
         <FolioModal
           folio={selectedFolio}
-          invoice={issuedInvoice}
-          isIssuingInvoice={isIssuingInvoice}
-          issueError={issueError}
           onClose={() => setSelectedFolio(null)}
-          onCloseRoom={() => issueInvoice(selectedFolio)}
           onExportOrder={() => exportOrder(selectedFolio)}
         />
       ) : null}
@@ -396,26 +349,13 @@ function StatusBadge({ status }: { status?: string }) {
 
 function FolioModal({
   folio,
-  invoice,
-  isIssuingInvoice,
-  issueError,
   onClose,
-  onCloseRoom,
   onExportOrder,
 }: {
   folio: FolioListItem;
-  invoice: Invoice | null;
-  isIssuingInvoice: boolean;
-  issueError: string | null;
   onClose: () => void;
-  onCloseRoom: () => void;
   onExportOrder: () => void;
 }) {
-  const isOpen = folio.status === "OPEN";
-  const isBlocked = Boolean(folio.isStale || folio.requiresRecalculation || folio.hasDuplicateOpenFolios);
-  const hasIssuedInvoice = Boolean(invoice);
-  const isCloseRoomDisabled = isBlocked || isIssuingInvoice || hasIssuedInvoice;
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
       <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-[2rem] bg-white shadow-2xl">
@@ -445,33 +385,11 @@ function FolioModal({
         </div>
 
         <div className="space-y-4 border-t border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] p-6">
-          {isBlocked ? (
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
-              Folio cần được kiểm tra lại trước khi phát hành hóa đơn.
-            </div>
-          ) : null}
-          {issueError ? <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">{issueError}</div> : null}
-          {invoice ? (
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
-              <div className="font-black">Đã phát hành hóa đơn {invoice.invoiceNumber}</div>
-              <div className="mt-1">Tổng hóa đơn: {formatMoney(invoice.totalAmount, invoice.currency)} · Đang chờ thu tiền</div>
-            </div>
-          ) : null}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-[var(--on-surface-variant)]">
-              Phát hành hóa đơn sẽ khóa chi phí folio. Checkout chỉ hoàn tất sau khi xác nhận đã thu tiền.
+              Thông tin đối soát doanh thu chi tiết cho folio lưu trú.
             </p>
             <div className="flex flex-wrap gap-2">
-              {isOpen ? (
-                <button
-                  type="button"
-                  onClick={onCloseRoom}
-                  disabled={isCloseRoomDisabled}
-                  className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--primary)] px-4 text-sm font-black text-white transition disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {isIssuingInvoice ? "Đang phát hành..." : hasIssuedInvoice ? "Đã phát hành" : "Phát hành hóa đơn"}
-                </button>
-              ) : null}
               <button
                 type="button"
                 onClick={onExportOrder}

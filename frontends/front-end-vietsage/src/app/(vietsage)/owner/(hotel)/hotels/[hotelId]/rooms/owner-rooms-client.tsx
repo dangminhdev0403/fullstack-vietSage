@@ -600,7 +600,7 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
         floor: roomForm.floor.trim() || undefined,
         type: roomForm.type.trim() || undefined,
         price,
-        status: roomForm.status,
+        ...(!isEditing ? { status: roomForm.status } : {}),
         ...(roomForm.maxActiveGuestDevices.trim()
           ? { maxActiveGuestDevices: Number(roomForm.maxActiveGuestDevices) }
           : isEditing
@@ -673,72 +673,6 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
       await Swal.fire({
         icon: "error",
         title: "Không thể cập nhật QR",
-        text: getBusinessErrorMessage(error, "Vui lòng thử lại."),
-        confirmButtonColor: "#00003c",
-      });
-    }
-  }
-
-  async function toggleRoomBlocked(room: HotelRoomSummary) {
-    const isBlocked = room.status?.trim().toUpperCase() === "BLOCKED";
-    const confirmation = await Swal.fire({
-      icon: isBlocked ? "question" : "warning",
-      title: isBlocked
-        ? `Mở khóa phòng ${getRoomNumber(room)}?`
-        : `Khóa phòng ${getRoomNumber(room)}?`,
-      text: isBlocked
-        ? "Phòng sẽ trở lại trạng thái TRỐNG và có thể được sử dụng."
-        : "Phòng sẽ không thể được đặt, gán booking hoặc check-in cho đến khi mở khóa.",
-      showCancelButton: true,
-      confirmButtonText: isBlocked ? "Mở khóa phòng" : "Khóa phòng",
-      cancelButtonText: "Hủy",
-      confirmButtonColor: isBlocked ? "#173d34" : "#ba1a1a",
-    });
-    if (!confirmation.isConfirmed) return;
-
-    try {
-      showLoading(isBlocked ? "Đang mở khóa phòng" : "Đang khóa phòng");
-      await requestInternalApiEnvelope(
-        `/api/owner/hotels/${encodeURIComponent(hotelId)}/rooms/${encodeURIComponent(room.id)}`,
-        { method: "PATCH", body: { status: isBlocked ? "AVAILABLE" : "BLOCKED" } },
-      );
-      await refreshRooms();
-      await toast.fire({
-        icon: "success",
-        title: isBlocked ? "Đã mở khóa phòng" : "Đã khóa phòng",
-      });
-    } catch (error) {
-      await Swal.fire({
-        icon: "error",
-        title: "Không thể cập nhật trạng thái phòng",
-        text: getBusinessErrorMessage(error, "Vui lòng thử lại."),
-        confirmButtonColor: "#00003c",
-      });
-    }
-  }
-
-  async function updateSingleRoomStatus(
-    room: HotelRoomSummary,
-    newStatus: string,
-  ) {
-    const currentStatus = room.status?.trim().toUpperCase() || "AVAILABLE";
-    if (currentStatus === newStatus) return;
-
-    try {
-      showLoading("Đang cập nhật trạng thái phòng...");
-      await requestInternalApiEnvelope(
-        `/api/owner/hotels/${encodeURIComponent(hotelId)}/rooms/${encodeURIComponent(room.id)}`,
-        { method: "PATCH", body: { status: newStatus } },
-      );
-      await refreshRooms();
-      await toast.fire({
-        icon: "success",
-        title: "Đã cập nhật trạng thái phòng",
-      });
-    } catch (error) {
-      await Swal.fire({
-        icon: "error",
-        title: "Không thể cập nhật trạng thái phòng",
         text: getBusinessErrorMessage(error, "Vui lòng thử lại."),
         confirmButtonColor: "#00003c",
       });
@@ -1034,35 +968,13 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
       className: "px-4 py-5",
       headerClassName: "px-4 py-5",
       cell: (room) => {
-        const currentStatus = room.status?.trim().toUpperCase() || "AVAILABLE";
         const statusMeta = getRoomStatusMeta(room);
-        const isOccupied = currentStatus === "OCCUPIED";
-
-        if (isOccupied) {
-          return (
-            <span
-              className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.03em] ${statusMeta.className}`}
-            >
-              {statusMeta.label}
-            </span>
-          );
-        }
-
         return (
-          <select
-            value={currentStatus}
-            onClick={(e) => e.stopPropagation()}
-            onChange={(e) => {
-              e.stopPropagation();
-              void updateSingleRoomStatus(room, e.target.value);
-            }}
-            className={`cursor-pointer rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.03em] outline-none transition border-0 ${statusMeta.className}`}
+          <span
+            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.03em] ${statusMeta.className}`}
           >
-            <option value="AVAILABLE">Trống</option>
-            <option value="PROCESSING">Chờ dọn</option>
-            <option value="MAINTENANCE">Bảo trì</option>
-            <option value="BLOCKED">Đã khóa</option>
-          </select>
+            {statusMeta.label}
+          </span>
         );
       },
     },
@@ -1100,8 +1012,6 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
       className: "whitespace-nowrap px-4 py-5 text-right",
       headerClassName: "px-4 py-5 text-right",
       cell: (room) => {
-        const isOccupied = room.status?.trim().toUpperCase() === "OCCUPIED";
-        const isBlocked = room.status?.trim().toUpperCase() === "BLOCKED";
         const qrIsActive = isQrActive(room);
         const showActivate = canActivateQr(room);
 
@@ -1110,27 +1020,6 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
             className="flex items-center justify-end gap-1.5"
             onClick={(e) => e.stopPropagation()}
           >
-            {!isOccupied ? (
-              <button
-                type="button"
-                title={isBlocked ? "Mở khóa phòng" : "Khóa phòng"}
-                aria-label={isBlocked ? "Mở khóa phòng" : "Khóa phòng"}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  void toggleRoomBlocked(room);
-                }}
-                className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363] ${
-                  isBlocked
-                    ? "text-emerald-700 hover:bg-emerald-50"
-                    : "text-rose-700 hover:bg-rose-50"
-                }`}
-              >
-                <VsIcon
-                  name={isBlocked ? "task_alt" : "block"}
-                  className="text-lg"
-                />
-              </button>
-            ) : null}
 
             <button
               type="button"
@@ -1389,7 +1278,6 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
           setSelectedDetailRoom(null);
           openEditRoom(r);
         }}
-        onToggleBlocked={(r) => void toggleRoomBlocked(r)}
         onQrAction={(r, action) => void updateRoomFromQrAction(r, action)}
         onOpenQrModal={(r) => {
           setSelectedDetailRoom(null);
@@ -1540,18 +1428,32 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
                 <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">
                   Trạng thái phòng
                 </span>
-                <select
-                  value={roomForm.status}
-                  onChange={(event) =>
-                    updateRoomFormField("status", event.target.value)
-                  }
-                  className="h-12 w-full rounded-xl border-0 bg-[var(--surface-container-low)] px-3 text-sm font-semibold text-[var(--on-surface)] outline-none ring-1 ring-transparent transition focus:ring-[var(--primary)]"
-                >
-                  <option value="AVAILABLE">Trống (Sẵn sàng)</option>
-                  <option value="PROCESSING">Chờ dọn</option>
-                  <option value="MAINTENANCE">Bảo trì</option>
-                  <option value="BLOCKED">Đã khóa</option>
-                </select>
+                {roomForm.id ? (
+                  <div className="flex h-12 items-center rounded-xl bg-[var(--surface-container-low)] px-3 text-sm font-semibold text-[var(--on-surface)]">
+                    {roomForm.status === "BLOCKED"
+                      ? "Đã khóa"
+                      : roomForm.status === "OCCUPIED"
+                        ? "Đang ở"
+                        : roomForm.status === "PROCESSING"
+                          ? "Chờ dọn"
+                          : roomForm.status === "MAINTENANCE"
+                            ? "Bảo trì"
+                            : "Trống (Sẵn sàng)"}
+                  </div>
+                ) : (
+                  <select
+                    value={roomForm.status}
+                    onChange={(event) =>
+                      updateRoomFormField("status", event.target.value)
+                    }
+                    className="h-12 w-full rounded-xl border-0 bg-[var(--surface-container-low)] px-3 text-sm font-semibold text-[var(--on-surface)] outline-none ring-1 ring-transparent transition focus:ring-[var(--primary)]"
+                  >
+                    <option value="AVAILABLE">Trống (Sẵn sàng)</option>
+                    <option value="PROCESSING">Chờ dọn</option>
+                    <option value="MAINTENANCE">Bảo trì</option>
+                    <option value="BLOCKED">Đã khóa</option>
+                  </select>
+                )}
               </label>
             </div>
             <div className="mt-6 flex flex-col-reverse gap-3 border-t border-[var(--surface-container)] pt-5 sm:flex-row sm:justify-end">

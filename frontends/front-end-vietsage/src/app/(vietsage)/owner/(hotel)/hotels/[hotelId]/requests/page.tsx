@@ -81,14 +81,16 @@ export default async function OwnerHotelRequestsPage({ params, searchParams }: P
 
       <RequestQueueClient
         hotelId={hotelId}
-        requests={requestsPage.items}
+        requests={requestsPage.items.map((item) => ({
+          ...item,
+          actions: [],
+        }))}
         total={requestsPage.total}
         summary={requestSummary}
         serviceItems={serviceItemsPage.items}
         initialFilters={initialFilters}
         basePath={`/owner/hotels/${hotelId}/requests`}
         serviceCatalogPath={`/owner/hotels/${hotelId}/services`}
-        ownerApiBasePath={`/api/owner/hotels/${hotelId}/requests`}
         detailMode="modal"
         initialDetailRequestId={getFirst(resolvedSearchParams.requestId)}
         page={requestsPage.page}

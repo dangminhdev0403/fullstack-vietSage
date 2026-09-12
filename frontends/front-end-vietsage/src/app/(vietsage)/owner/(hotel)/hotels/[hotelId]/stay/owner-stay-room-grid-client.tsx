@@ -1,23 +1,13 @@
 "use client";
 
-import { startTransition, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import Swal from "sweetalert2";
+import { useMemo, useState } from "react";
 
-
-import { useQueryClient } from "@tanstack/react-query";
-import { HttpError } from "@/core/http/http-error";
-import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
-import { CheckInWorkspace } from "@/features/local-biometric/components/check-in-workspace";
-import type { CheckInStayFields } from "@/features/local-biometric/types/check-in-workspace";
 import type {
-  HotelCheckInResult,
   HotelRoomSummary,
 } from "@/features/hotel-ops/types/hotel-ops-contract";
 
 import { VsIcon } from "../../../../../_components/vs-icon";
 import { filterExtraOccupants } from "@/features/hotel-ops/utils/hotel-ops-display";
-import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 
 function joinClasses(...classes: (string | boolean | undefined | null)[]): string {
   return classes.filter(Boolean).join(" ");
@@ -136,9 +126,6 @@ function roomTileClass(room: HotelRoomSummary): string {
   return "border-emerald-300 bg-emerald-100 text-emerald-900 font-bold hover:-translate-y-0.5 hover:shadow-md";
 }
 
-function isCheckInAllowed(room: HotelRoomSummary): boolean {
-  return getRoomAvailability(room) === "available";
-}
 
 function roomSearchText(room: HotelRoomSummary): string {
   return [room.id, room.roomNumber, room.type, room.status]
@@ -166,21 +153,6 @@ function formatRoomDate(value: string | null | undefined): string {
   }).format(date);
 }
 
-function defaultCheckOutValue(): string {
-  const value = new Date();
-  value.setDate(value.getDate() + 1);
-  value.setHours(12, 0, 0, 0);
-
-  const offsetMs = value.getTimezoneOffset() * 60_000;
-  return new Date(value.getTime() - offsetMs).toISOString().slice(0, 16);
-}
-
-
-function toIsoFromLocal(value: string): string | undefined {
-  if (!value) return undefined;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
-}
 
 function StayOccupantsViewer({ stay }: { stay: NonNullable<HotelRoomSummary["activeStay"]> }) {
   const [selectedGuestIndex, setSelectedGuestIndex] = useState(0);
@@ -285,71 +257,16 @@ function StayOccupantsViewer({ stay }: { stay: NonNullable<HotelRoomSummary["act
 }
 
 
-function isTechnicalMessage(message: string): boolean {
-  return /PRISMA_|Prisma|Record to update not found|Foreign key constraint|Unique constraint/i.test(
-    message,
-  );
-}
-
-function getNestedMessage(value: unknown): string | undefined {
-  if (!value || typeof value !== "object" || Array.isArray(value))
-    return undefined;
-
-  const record = value as Record<string, unknown>;
-  if (record.data && typeof record.data === "object" && !Array.isArray(record.data)) {
-    const dataMessage = getNestedMessage(record.data);
-    if (dataMessage) return dataMessage;
-  }
-
-  const candidates = [record.detail, record.message, record.errorMessage];
-  for (const candidate of candidates) {
-    if (
-      typeof candidate === "string" &&
-      candidate.trim() &&
-      candidate.trim() !== "VALIDATION_ERROR" &&
-      !isTechnicalMessage(candidate)
-    ) {
-      return candidate.trim();
-    }
-  }
-
-  return getNestedMessage(record.error);
-}
-
-function getBusinessErrorMessage(error: unknown, fallback: string): string {
-  if (error instanceof HttpError) {
-    return getNestedMessage(error.data) ?? fallback;
-  }
-
-  if (
-    error instanceof Error &&
-    error.message &&
-    !isTechnicalMessage(error.message)
-  ) {
-    return error.message;
-  }
-
-  return fallback;
-}
-
 export function OwnerStayRoomGridClient({
-  hotelId,
+  hotelId: _hotelId,
   rooms,
-  apiBasePath = `/api/owner/hotels/${encodeURIComponent(hotelId)}`,
-  onRoomsChanged,
+  apiBasePath: _apiBasePath,
+  onRoomsChanged: _onRoomsChanged,
 }: Props) {
-  const router = useRouter();
-  const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<RoomStatusFilter>("all");
   const [page, setPage] = useState(1);
-  const [selectedRoom, setSelectedRoom] = useState<HotelRoomSummary | null>(
-    null,
-  );
   const [detailRoom, setDetailRoom] = useState<HotelRoomSummary | null>(null);
-  const [isCheckInOpen, setIsCheckInOpen] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [submitError, setSubmitError] = useState<string | undefined>();
 
   const filteredRooms = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -382,190 +299,8 @@ export function OwnerStayRoomGridClient({
     setPage(1);
   }
 
-  function openCheckIn(room: HotelRoomSummary) {
-    if (!isCheckInAllowed(room)) return;
-
-    setSelectedRoom(room);
-    setSubmitError(undefined);
-    setIsCheckInOpen(true);
-  }
-
   function handleTileClick(room: HotelRoomSummary) {
     setDetailRoom(room);
-  }
-
-  async function markRoomCleaned(room: HotelRoomSummary) {
-    const confirm = await Swal.fire({
-      icon: "question",
-      title: `Hoàn tất dọn phòng ${getRoomNumber(room)}?`,
-      text: "Trạng thái phòng sẽ chuyển sang TRỐNG (Sẵn sàng đón khách mới).",
-      showCancelButton: true,
-      confirmButtonText: "Đã dọn xong → Chuyển TRỐNG",
-      cancelButtonText: "Đóng",
-      confirmButtonColor: "#17201b",
-    });
-    if (!confirm.isConfirmed) return;
-
-    try {
-      await requestInternalApiEnvelope(
-        `/api/owner/hotels/${encodeURIComponent(hotelId)}/rooms/${encodeURIComponent(room.id)}`,
-        { method: "PATCH", body: { status: "AVAILABLE" } },
-      );
-      setDetailRoom(null);
-      await Swal.fire({
-        icon: "success",
-        title: `Phòng ${getRoomNumber(room)} đã sẵn sàng!`,
-        text: "Trạng thái phòng đã được cập nhật thành TRỐNG.",
-        confirmButtonColor: "#17201b",
-      });
-      await invalidateHotelRealtimeQueries(queryClient, hotelId);
-      await onRoomsChanged?.();
-      startTransition(() => router.refresh());
-    } catch (error) {
-      await Swal.fire({
-        icon: "error",
-        title: "Không thể cập nhật trạng thái phòng",
-        text: getBusinessErrorMessage(error, "Vui lòng thử lại."),
-        confirmButtonColor: "#17201b",
-      });
-    }
-  }
-
-  async function updateRoomStatus(
-    room: HotelRoomSummary,
-    targetStatus: "AVAILABLE" | "PROCESSING" | "MAINTENANCE" | "BLOCKED",
-  ) {
-    const labels: Record<string, string> = {
-      AVAILABLE: "TRỐNG (Sẵn sàng)",
-      PROCESSING: "CHỜ DỌN",
-      MAINTENANCE: "BẢO TRÌ",
-      BLOCKED: "ĐÃ KHÓA",
-    };
-    const roomNum = getRoomNumber(room);
-    const confirm = await Swal.fire({
-      icon: "question",
-      title: `Chuyển phòng ${roomNum} sang ${labels[targetStatus]}?`,
-      text: `Xác nhận cập nhật trạng thái phòng ${roomNum}.`,
-      showCancelButton: true,
-      confirmButtonText: "Xác nhận chuyển",
-      cancelButtonText: "Hủy",
-      confirmButtonColor: "#17201b",
-    });
-    if (!confirm.isConfirmed) return;
-
-    try {
-      await requestInternalApiEnvelope(
-        `/api/owner/hotels/${encodeURIComponent(hotelId)}/rooms/${encodeURIComponent(room.id)}`,
-        { method: "PATCH", body: { status: targetStatus } },
-      );
-      setDetailRoom(null);
-      await Swal.fire({
-        icon: "success",
-        title: `Phòng ${roomNum} đã chuyển sang ${labels[targetStatus]}!`,
-        confirmButtonColor: "#17201b",
-      });
-      await invalidateHotelRealtimeQueries(queryClient, hotelId);
-      await onRoomsChanged?.();
-      startTransition(() => router.refresh());
-    } catch (error) {
-      await Swal.fire({
-        icon: "error",
-        title: "Không thể cập nhật trạng thái phòng",
-        text: getBusinessErrorMessage(error, "Vui lòng thử lại."),
-        confirmButtonColor: "#17201b",
-      });
-    }
-  }
-
-  function closeCheckIn() {
-    if (isSaving) return;
-    setIsCheckInOpen(false);
-    setSelectedRoom(null);
-    setSubmitError(undefined);
-  }
-
-  async function submitCheckIn(fields: CheckInStayFields) {
-    if (!selectedRoom || !isCheckInAllowed(selectedRoom)) return;
-
-    const plannedCheckOutAt = toIsoFromLocal(fields.plannedCheckOutAt);
-    if (!plannedCheckOutAt) {
-      setSubmitError("Chọn thời gian check-out hợp lệ.");
-      return;
-    }
-
-    const confirmed = await Swal.fire({
-      icon: "question",
-      title: "Xác nhận check-in",
-      text: `Bạn muốn check-in khách ${fields.guestDisplayName.trim()} vào phòng ${getRoomNumber(selectedRoom)}?`,
-      showCancelButton: true,
-      confirmButtonColor: "#00003c",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: "Đồng ý",
-      cancelButtonText: "Hủy",
-    });
-
-    if (!confirmed.isConfirmed) return;
-
-    setIsSaving(true);
-    setSubmitError(undefined);
-    try {
-      const result = await requestInternalApiEnvelope<HotelCheckInResult>(
-        `${apiBasePath}/stays`,
-        {
-          method: "POST",
-          body: {
-            roomId: selectedRoom.id,
-            guestDisplayName: fields.guestDisplayName.trim(),
-            ...(fields.guestPhone.trim()
-              ? { guestPhone: fields.guestPhone.trim() }
-              : {}),
-            ...(fields.guestIdentityNumber?.trim()
-              ? { guestIdentityNumber: fields.guestIdentityNumber.trim() }
-              : {}),
-            ...(fields.guestDateOfBirth?.trim()
-              ? { guestDateOfBirth: fields.guestDateOfBirth.trim() }
-              : {}),
-            ...(fields.guestGender?.trim()
-              ? { guestGender: fields.guestGender.trim() }
-              : {}),
-            ...(fields.guestNationality?.trim()
-              ? { guestNationality: fields.guestNationality.trim() }
-              : {}),
-            ...(fields.guestResidencePlace?.trim()
-              ? { guestResidencePlace: fields.guestResidencePlace.trim() }
-              : {}),
-            ...(fields.occupants?.length ? { occupants: fields.occupants } : {}),
-            plannedCheckInAt: new Date().toISOString(),
-            plannedCheckOutAt,
-          },
-        },
-      );
-
-
-      setIsCheckInOpen(false);
-      setSelectedRoom(null);
-      await Swal.fire({
-        icon: "success",
-        title: "Đã mở phòng cho khách",
-        text: `Mã truy cập GuestOS: ${result.data.accessCode}. QR phòng đã được kích hoạt.`,
-        confirmButtonText: "Hoàn tất",
-        confirmButtonColor: "#00003c",
-      });
-    } catch (error) {
-      setSubmitError(getBusinessErrorMessage(error, "Không thể check-in. Vui lòng thử lại."));
-      await Swal.fire({
-        icon: "error",
-        title: "Không thể check-in",
-        text: getBusinessErrorMessage(error, "Vui lòng thử lại."),
-        confirmButtonColor: "#00003c",
-      });
-    } finally {
-      await onRoomsChanged?.();
-      startTransition(() => {
-        router.refresh();
-      });
-      setIsSaving(false);
-    }
   }
 
   return (
@@ -785,100 +520,9 @@ export function OwnerStayRoomGridClient({
                 Đóng
               </button>
 
-              {getRoomAvailability(detailRoom) === "processing" ? (
-                <button
-                  type="button"
-                  onClick={() => void markRoomCleaned(detailRoom)}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-amber-700 px-4 text-sm font-bold text-white transition hover:bg-amber-800"
-                >
-                  <VsIcon name="cleaning_services" />
-                  Đã dọn xong → Chuyển TRỐNG
-                </button>
-              ) : null}
-
-              {getRoomAvailability(detailRoom) === "maintenance" ? (
-                <button
-                  type="button"
-                  onClick={() => void updateRoomStatus(detailRoom, "AVAILABLE")}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 text-sm font-bold text-white transition hover:bg-emerald-800"
-                >
-                  <VsIcon name="build" />
-                  Xong bảo trì → Chuyển TRỐNG
-                </button>
-              ) : null}
-
-              {getRoomAvailability(detailRoom) === "blocked" ? (
-                <button
-                  type="button"
-                  onClick={() => void updateRoomStatus(detailRoom, "AVAILABLE")}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 text-sm font-bold text-white transition hover:bg-emerald-800"
-                >
-                  <VsIcon name="lock_open" />
-                  Mở khóa → Chuyển TRỐNG
-                </button>
-              ) : (
-                getRoomAvailability(detailRoom) !== "occupied" ? (
-                  <button
-                    type="button"
-                    onClick={() => void updateRoomStatus(detailRoom, "BLOCKED")}
-                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-rose-700 px-4 text-sm font-bold text-white transition hover:bg-rose-800"
-                  >
-                    <VsIcon name="block" />
-                    Khóa phòng
-                  </button>
-                ) : null
-              )}
-
-              {getRoomAvailability(detailRoom) === "available" ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => void updateRoomStatus(detailRoom, "PROCESSING")}
-                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 text-sm font-bold text-white transition hover:bg-amber-700"
-                  >
-                    <VsIcon name="cleaning_services" />
-                    Chuyển CHỜ DỌN
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void updateRoomStatus(detailRoom, "MAINTENANCE")}
-                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-700 px-4 text-sm font-bold text-white transition hover:bg-slate-800"
-                  >
-                    <VsIcon name="build" />
-                    Bảo trì
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const room = detailRoom;
-                      setDetailRoom(null);
-                      openCheckIn(room);
-                    }}
-                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-5 text-sm font-bold text-white transition hover:opacity-90"
-                  >
-                    <VsIcon name="login" />
-                    Check-in phòng
-                  </button>
-                </>
-              ) : null}
             </div>
           </section>
         </div>
-      ) : null}
-
-      {isCheckInOpen && selectedRoom ? (
-        <CheckInWorkspace
-          key={selectedRoom.id}
-          open={isCheckInOpen}
-          hotelId={hotelId}
-          room={{ id: selectedRoom.id, roomNumber: getRoomNumber(selectedRoom), type: getRoomType(selectedRoom), status: roomStatusLabel(selectedRoom) }}
-          canManageStays={true}
-          initialStayFields={{ plannedCheckOutAt: defaultCheckOutValue() }}
-          submitState={isSaving ? 'submitting' : 'idle'}
-          submitError={submitError}
-          onSubmit={submitCheckIn}
-          onClose={closeCheckIn}
-        />
       ) : null}
     </section>
   );
