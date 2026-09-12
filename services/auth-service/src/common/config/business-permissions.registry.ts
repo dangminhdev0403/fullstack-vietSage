@@ -43,6 +43,8 @@ export type BusinessPermissionKey =
   | "hotel.local-partners.manage"
   | "hotel.notifications.view"
   | "hotel.notifications.manage"
+  | "hotel.kbtt.view"
+  | "hotel.kbtt.manage"
   | "guest.experience.use"
   | "system.health.view";
 
@@ -176,6 +178,8 @@ export const BUSINESS_PERMISSIONS: readonly BusinessPermissionDefinition[] = [
     "hotel-notifications",
     "Quản lý cấu hình thông báo khách sạn",
   ),
+  permission("hotel.kbtt.view", "hotel-kbtt", "Xem kết nối khai báo tạm trú"),
+  permission("hotel.kbtt.manage", "hotel-kbtt", "Quản lý kết nối khai báo tạm trú"),
   permission("guest.experience.use", "guest-experience", "Sử dụng GuestOS", "MEDIUM"),
   permission("system.health.view", "system-health", "Xem trạng thái hệ thống"),
 ];

@@ -2,6 +2,16 @@
 
 Docker Compose is the production/local-container runtime path. Real secrets live in ignored `secrets/docker/*.env` or `secrets/production/*.env` files on each machine/VPS and must not be committed.
 
+## KBTT hotel credentials
+
+- Set both runtime-only secrets on the backend: `KBTT_BASIC_AUTH_VALUE` (canonical base64 provider credential value, without the Basic prefix) and `KBTT_CREDENTIAL_ENCRYPTION_KEY` (canonical base64 encoding of exactly 32 cryptographically random bytes). Never reuse JWT keys.
+- Both absent disables new KBTT authentication; partial or malformed configuration fails module initialization. Never commit values or include them in command history, logs, browser storage, screenshots, or API responses.
+- `KbttHotelConnection` stores username/password together as AES-256-GCM ciphertext, with a fresh 12-byte IV, 16-byte tag, key version 1, and hotel ID as authenticated associated data. Moving ciphertext to another hotel fails authentication. Only bounded CSLT metadata and safe status/timestamps remain readable.
+- Access/refresh tokens exist only in backend process memory. GET is passive; only explicit owner connection/check actions authenticate or refresh. Restart or expiry does not start background login, polling, or scheduled guest submission.
+- Key version 1 has no automatic rotation/keyring. Back up the encryption key separately under restricted access; losing/changing it makes saved credentials unreadable. Reconnect each hotel with its account after replacing the runtime key, or implement an explicitly reviewed re-encryption migration before rotating.
+- Disconnect best-effort revokes the process-local provider token and deletes the saved connection. Provider outage/restart can leave an unavailable old token active remotely until its expiry; no token is persisted for later revocation.
+- Review outbound HTTP tracing/proxy configuration: the provider requires refresh/access tokens in query strings on refresh/revoke. Do not record these URLs, Authorization headers, provider bodies, or form credentials. The adapter uses fixed HTTPS endpoints, rejects redirects, applies a 10-second timeout and a 64-KiB response limit, and exposes only stable sanitized failures.
+
 ## Local environment backup flow
 
 Before committing environment-template changes, copy each service's real local `.env` into the repository-root `secrets/` folder:

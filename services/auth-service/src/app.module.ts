@@ -22,6 +22,7 @@ import { BiometricWorkstationsModule } from "./modules/biometric-workstations/bi
 import { PlatformBillingModule } from "./modules/platform-billing/platform-billing.module";
 import { LocalPartnersModule } from "./modules/local-partners/local-partners.module";
 import { MarketplaceModule } from "./modules/marketplace/marketplace.module";
+import { KbttModule } from "./modules/kbtt/kbtt.module";
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { MarketplaceModule } from "./modules/marketplace/marketplace.module";
     PlatformBillingModule,
     LocalPartnersModule,
     MarketplaceModule,
+    KbttModule,
   ],
   providers: [
     {

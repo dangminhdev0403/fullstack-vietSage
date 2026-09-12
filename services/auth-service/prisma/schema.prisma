@@ -629,9 +629,30 @@ model Hotel {
   marketplaceOrders             MarketplaceOrder[]
   serviceTenantLinks            HotelServiceLink[]            @relation("HotelServiceTenantLinks")
   guestCarts                    GuestCart[]
+  kbttConnection                KbttHotelConnection?
 
   @@unique([tenantId, code])
   @@index([tenantId, status])
+}
+
+model KbttHotelConnection {
+  hotelId            String   @id
+  ciphertext         String
+  iv                 String   @db.VarChar(24)
+  authTag            String   @db.VarChar(32)
+  keyVersion         Int      @default(1)
+  status             String   @default("CONNECTED") @db.VarChar(20)
+  csltId             String   @db.VarChar(32)
+  csltKhuVuc         Int
+  csltDonVi          Int
+  maTTCuaCslt        String   @db.VarChar(32)
+  maPxCuaCslt        String   @db.VarChar(32)
+  isCsltChinh        Boolean
+  lastCheckedAt      DateTime
+  lastConnectedAt    DateTime
+  lastErrorCode      String?  @db.VarChar(40)
+  lastErrorMessage   String?  @db.VarChar(200)
+  hotel              Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
 }
 
 model PlatformBillingContract {
