@@ -37,7 +37,7 @@ export const updateRequestStatusBodySchema = z
   .object({
     status: z.enum(canonicalGuestRequestStatuses),
     note: z.string().trim().max(1000).optional(),
-    assignedToUserId: z.string().trim().min(1).optional(),
+    assignedToUserId: z.string().trim().min(1).nullable().optional(),
     priority: guestRequestPrioritySchema.optional(),
   })
   .strict();
@@ -45,6 +45,7 @@ export const updateRequestStatusBodySchema = z
 export const updateRequestAssignmentBodySchema = z
   .object({
     assignedToUserId: z.string().trim().min(1).nullable().optional(),
+    priority: guestRequestPrioritySchema.optional(),
     note: z.string().trim().max(1000).optional(),
   })
   .strict();

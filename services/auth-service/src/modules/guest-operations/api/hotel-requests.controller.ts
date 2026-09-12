@@ -210,7 +210,7 @@ export class HotelRequestsController {
   }
 
   @SuccessMessage("Cập nhật yêu cầu của khách thành công")
-  @RequirePermission("hotel.requests.manage")
+  @RequirePermission("hotel.requests.execute")
   @ApiDescript("Cập nhật yêu cầu khách")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "requestId", type: String })
@@ -236,7 +236,7 @@ export class HotelRequestsController {
   }
 
   @SuccessMessage("Cập nhật phân công yêu cầu của khách thành công")
-  @RequirePermission("hotel.requests.manage")
+  @RequirePermission("hotel.requests.coordinate")
   @ApiDescript("Phân công yêu cầu khách")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "requestId", type: String })
@@ -262,7 +262,7 @@ export class HotelRequestsController {
   }
 
   @SuccessMessage("Tạo sự kiện yêu cầu của khách thành công")
-  @RequirePermission("hotel.requests.manage")
+  @RequirePermission("hotel.requests.coordinate")
   @ApiDescript("Thêm ghi chú yêu cầu khách")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "requestId", type: String })

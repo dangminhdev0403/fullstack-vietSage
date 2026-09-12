@@ -277,6 +277,17 @@ export class HotelRequestsService {
 
     this.assertRequestTransition(existing.status, dto.status);
 
+    if (dto.assignedToUserId) {
+      const assignee = await this.hotelRequestsRepository.findAssignableStaffInTenant(
+        dto.assignedToUserId,
+        hotel.tenantId,
+        hotelId,
+      );
+      if (!assignee) {
+        throw new BadRequestException("Người dùng được phân công không khả dụng cho khách sạn này");
+      }
+    }
+
     const updated = await this.hotelRequestsRepository.updateRequestStatus({
       hotelId,
       requestId,
@@ -303,11 +314,22 @@ export class HotelRequestsService {
 
   async updateRequestAssignment(
     actorUserId: string,
-    activeRoleId: string,
-    hotelId: string,
-    requestId: string,
-    dto: UpdateRequestAssignmentBodyInput,
+    activeRoleIdOrHotelId: string,
+    hotelIdOrRequestId: string,
+    requestIdOrDto?: string | UpdateRequestAssignmentBodyInput,
+    dtoParam?: UpdateRequestAssignmentBodyInput,
   ) {
+    const {
+      activeRoleId,
+      hotelId,
+      requestId,
+      payload: dto,
+    } = this.parseHotelRequestArgs<UpdateRequestAssignmentBodyInput>(
+      activeRoleIdOrHotelId,
+      hotelIdOrRequestId,
+      requestIdOrDto,
+      dtoParam,
+    );
     const hotel = await this.hotelAccessService.assertHotelAccess(
       actorUserId,
       activeRoleId,
@@ -318,7 +340,7 @@ export class HotelRequestsService {
       throw new NotFoundException("Không tìm thấy yêu cầu");
     }
 
-    const assignedToUserId = dto.assignedToUserId ?? null;
+    const assignedToUserId = dto.assignedToUserId;
     if (assignedToUserId) {
       const assignee = await this.hotelRequestsRepository.findAssignableStaffInTenant(
         assignedToUserId,
@@ -335,6 +357,7 @@ export class HotelRequestsService {
       requestId,
       actorUserId,
       assignedToUserId,
+      priority: dto.priority,
       note: dto.note?.trim(),
       tenantId: hotel.tenantId,
     });
@@ -353,11 +376,22 @@ export class HotelRequestsService {
 
   async createRequestEvent(
     actorUserId: string,
-    activeRoleId: string,
-    hotelId: string,
-    requestId: string,
-    dto: CreateRequestEventBodyInput,
+    activeRoleIdOrHotelId: string,
+    hotelIdOrRequestId: string,
+    requestIdOrDto?: string | CreateRequestEventBodyInput,
+    dtoParam?: CreateRequestEventBodyInput,
   ) {
+    const {
+      activeRoleId,
+      hotelId,
+      requestId,
+      payload: dto,
+    } = this.parseHotelRequestArgs<CreateRequestEventBodyInput>(
+      activeRoleIdOrHotelId,
+      hotelIdOrRequestId,
+      requestIdOrDto,
+      dtoParam,
+    );
     const hotel = await this.hotelAccessService.assertHotelAccess(
       actorUserId,
       activeRoleId,

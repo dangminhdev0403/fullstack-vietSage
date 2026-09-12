@@ -11,6 +11,7 @@ import {
   HotelStaffAssignmentStatus,
   Prisma,
   TenantUserStatus,
+  UserStatus,
 } from "@prisma/client";
 import { PrismaService } from "../../../../prisma/prisma.service";
 import { requestDetailInclude, requestListInclude } from "./guest-request-repository.types";
@@ -98,6 +99,7 @@ export class HotelRequestsRepository {
     return this.prisma.user.findFirst({
       where: {
         id: userId,
+        status: UserStatus.ACTIVE,
         tenantUsers: { some: { tenantId, status: TenantUserStatus.ACTIVE } },
         hotelAssignments: { some: { hotelId, status: HotelStaffAssignmentStatus.ACTIVE } },
       },
@@ -187,7 +189,8 @@ export class HotelRequestsRepository {
     hotelId: string;
     requestId: string;
     actorUserId: string;
-    assignedToUserId: string | null;
+    assignedToUserId?: string | null;
+    priority?: Prisma.GuestRequestUpdateInput["priority"];
     note?: string;
     tenantId: string;
   }) {
@@ -196,11 +199,26 @@ export class HotelRequestsRepository {
         where: { id: input.requestId, hotelId: input.hotelId },
       });
 
+      const data: Prisma.GuestRequestUpdateInput = {};
+      if (input.assignedToUserId !== undefined) {
+        data.assignedToUserId = input.assignedToUserId;
+      }
+      if (input.priority !== undefined) {
+        data.priority = input.priority;
+      }
+
       const updated = await tx.guestRequest.update({
         where: { id: input.requestId },
-        data: { assignedToUserId: input.assignedToUserId },
+        data,
         include: requestDetailInclude,
       });
+
+      const toAssignedToUserId =
+        input.assignedToUserId !== undefined
+          ? input.assignedToUserId
+          : existing.assignedToUserId;
+      const toPriority =
+        input.priority !== undefined ? input.priority : existing.priority;
 
       await tx.guestRequestEvent.create({
         data: {
@@ -213,7 +231,9 @@ export class HotelRequestsRepository {
           visibility: "INTERNAL",
           metadata: {
             fromAssignedToUserId: existing.assignedToUserId,
-            toAssignedToUserId: input.assignedToUserId,
+            toAssignedToUserId,
+            fromPriority: existing.priority,
+            toPriority,
           },
         },
       });
@@ -227,7 +247,9 @@ export class HotelRequestsRepository {
         payload: {
           requestId: updated.id,
           fromAssignedToUserId: existing.assignedToUserId,
-          toAssignedToUserId: input.assignedToUserId,
+          toAssignedToUserId,
+          fromPriority: existing.priority,
+          toPriority,
         },
       });
 
