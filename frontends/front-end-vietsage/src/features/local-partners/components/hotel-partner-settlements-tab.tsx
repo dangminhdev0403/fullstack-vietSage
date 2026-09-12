@@ -22,7 +22,8 @@ type RevenueSummary = { grossAmount: string | number; orderCount: number };
 
 export function HotelPartnerSettlementsTab({
   hotelId,
-}: Readonly<{ hotelId: string }>) {
+  canManage = true,
+}: Readonly<{ hotelId: string; canManage?: boolean }>) {
   const [settlements, setSettlements] = useState<SettlementItem[]>([]);
   const [revenue, setRevenue] = useState<RevenueSummary | null>(null);
   const [revenueLoading, setRevenueLoading] = useState(true);
@@ -166,6 +167,7 @@ export function HotelPartnerSettlementsTab({
   };
 
   const handleSettleSingle = async (item: SettlementItem) => {
+    if (!canManage) return;
     const orderNum = item.order?.orderNumber ?? item.orderId;
     const netStr = Number(item.netAmount).toLocaleString("vi-VN");
 
@@ -218,7 +220,7 @@ export function HotelPartnerSettlementsTab({
   };
 
   const handleSettleBatch = async () => {
-    if (selectedIds.length === 0) return;
+    if (!canManage || selectedIds.length === 0) return;
     const count = selectedIds.length;
     const selectedSettlements = settlements.filter((s) =>
       selectedIds.includes(s.id),
@@ -355,34 +357,38 @@ export function HotelPartnerSettlementsTab({
       width: "w-40 min-w-[150px]",
       cell: (item) => <StatusBadge status={item.status} />,
     },
-    {
-      id: "actions",
-      header: "Thao tác",
-      type: "actions",
-      width: "w-32 min-w-[120px]",
-      cell: (item) => {
-        const isSettled = item.status === "SETTLED";
-        if (!isSettled) {
-          return (
-            <button
-              type="button"
-              disabled={submitting}
-              onClick={() => void handleSettleSingle(item)}
-              className="h-9 px-4 inline-flex items-center justify-center gap-1.5 text-xs font-extrabold text-white whitespace-nowrap shrink-0 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 shadow-xs hover:shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
-            >
-              Quyết toán
-            </button>
-          );
-        }
-        return (
-          <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 inline-block whitespace-nowrap">
-            {item.settledAt
-              ? new Date(item.settledAt).toLocaleDateString("vi-VN")
-              : "Đã hoàn thành"}
-          </span>
-        );
-      },
-    },
+    ...(canManage
+      ? [
+          {
+            id: "actions",
+            header: "Thao tác",
+            type: "actions",
+            width: "w-32 min-w-[120px]",
+            cell: (item: SettlementItem) => {
+              const isSettled = item.status === "SETTLED";
+              if (!isSettled) {
+                return (
+                  <button
+                    type="button"
+                    disabled={submitting}
+                    onClick={() => void handleSettleSingle(item)}
+                    className="h-9 px-4 inline-flex items-center justify-center gap-1.5 text-xs font-extrabold text-white whitespace-nowrap shrink-0 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 shadow-xs hover:shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    Quyết toán
+                  </button>
+                );
+              }
+              return (
+                <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 inline-block whitespace-nowrap">
+                  {item.settledAt
+                    ? new Date(item.settledAt).toLocaleDateString("vi-VN")
+                    : "Đã hoàn thành"}
+                </span>
+              );
+            },
+          } as DataTableColumnDef<SettlementItem>,
+        ]
+      : []),
   ];
 
   return (
@@ -529,7 +535,7 @@ export function HotelPartnerSettlementsTab({
           </div>
         }
         selection={
-          statusFilter === "UNSETTLED" && displayedSettlements.length > 0
+          canManage && statusFilter === "UNSETTLED" && displayedSettlements.length > 0
             ? {
                 selectedIds,
                 onSelectAll: handleSelectAllUnsettled,

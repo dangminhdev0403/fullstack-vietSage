@@ -20,6 +20,7 @@ import {
 
 type ServiceCatalogClientProps = {
   hotelId: string;
+  canManage?: boolean;
   initialCategories: HotelServiceCategory[];
   initialItems: HotelServiceItem[];
 };
@@ -51,6 +52,7 @@ function toNumber(value: string): number | undefined {
 
 export function ServiceCatalogClient({
   hotelId,
+  canManage = false,
   initialCategories,
   initialItems,
 }: ServiceCatalogClientProps) {
@@ -93,7 +95,7 @@ export function ServiceCatalogClient({
 
   async function saveCategory(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!categoryForm) {
+    if (!canManage || !categoryForm) {
       return;
     }
 
@@ -131,7 +133,7 @@ export function ServiceCatalogClient({
 
   async function saveItem(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!itemForm) {
+    if (!canManage || !itemForm) {
       return;
     }
 
@@ -168,6 +170,10 @@ export function ServiceCatalogClient({
   }
 
   async function toggleCategory(category: HotelServiceCategory) {
+    if (!canManage) {
+      return;
+    }
+
     const isDeactivating = category.status === "ACTIVE";
     const actionText = isDeactivating ? "vô hiệu hóa" : "kích hoạt";
     const actionTitle = isDeactivating ? "Vô hiệu hóa nhóm dịch vụ?" : "Kích hoạt nhóm dịch vụ?";
@@ -209,6 +215,10 @@ export function ServiceCatalogClient({
   }
 
   async function toggleItem(item: HotelServiceItem) {
+    if (!canManage) {
+      return;
+    }
+
     const isDeactivating = item.status === "ACTIVE";
     const actionText = isDeactivating ? "vô hiệu hóa" : "kích hoạt";
     const actionTitle = isDeactivating ? "Vô hiệu hóa dịch vụ?" : "Kích hoạt dịch vụ?";
@@ -249,135 +259,149 @@ export function ServiceCatalogClient({
     }
   }
 
-  const categoryColumns: DataTableColumn<HotelServiceCategory>[] = [
-    {
-      key: "name",
-      header: "Tên nhóm",
-      cell: (category) => <span className="text-base font-semibold text-[var(--primary)]">{category.name}</span>,
-    },
-    {
-      key: "description",
-      header: "Mô tả",
-      cell: (category) => <span className="text-sm text-[var(--on-surface-variant)]">{category.description ?? "-"}</span>,
-    },
-    {
-      key: "telegram",
-      header: "Telegram Group ID",
-      headerClassName: "text-center",
-      className: "text-center",
-      cell: (category) =>
-        category.id_group ? (
-          <span className="inline-block rounded-full bg-[var(--primary-fixed)] px-3 py-1 text-xs font-bold text-[var(--on-primary-fixed-variant)]">
-            {category.id_group}
+  const categoryColumns = useMemo<DataTableColumn<HotelServiceCategory>[]>(() => {
+    const base: DataTableColumn<HotelServiceCategory>[] = [
+      {
+        key: "name",
+        header: "Tên nhóm",
+        cell: (category) => <span className="text-base font-semibold text-[var(--primary)]">{category.name}</span>,
+      },
+      {
+        key: "description",
+        header: "Mô tả",
+        cell: (category) => <span className="text-sm text-[var(--on-surface-variant)]">{category.description ?? "-"}</span>,
+      },
+      {
+        key: "telegram",
+        header: "Telegram Group ID",
+        headerClassName: "text-center",
+        className: "text-center",
+        cell: (category) =>
+          category.id_group ? (
+            <span className="inline-block rounded-full bg-[var(--primary-fixed)] px-3 py-1 text-xs font-bold text-[var(--on-primary-fixed-variant)]">
+              {category.id_group}
+            </span>
+          ) : (
+            <span className="text-sm text-[var(--on-surface-variant)]">Tùy chọn</span>
+          ),
+      },
+      {
+        key: "sort",
+        header: "Thứ tự sắp xếp",
+        headerClassName: "text-center",
+        className: "text-center",
+        cell: (category) => <span className="text-base font-semibold text-[var(--on-surface)]">{category.sortOrder}</span>,
+      },
+      {
+        key: "status",
+        header: "Trạng thái",
+        headerClassName: "text-center",
+        className: "text-center whitespace-nowrap",
+        cell: (category) => (
+          <span className={`inline-flex items-center justify-center whitespace-nowrap rounded-full px-3 py-1 text-xs font-bold ${serviceStatusTone(category.status)}`}>
+            {serviceStatusLabelMap[category.status]}
           </span>
-        ) : (
-          <span className="text-sm text-[var(--on-surface-variant)]">Tùy chọn</span>
         ),
-    },
-    {
-      key: "sort",
-      header: "Thứ tự sắp xếp",
-      headerClassName: "text-center",
-      className: "text-center",
-      cell: (category) => <span className="text-base font-semibold text-[var(--on-surface)]">{category.sortOrder}</span>,
-    },
-    {
-      key: "status",
-      header: "Trạng thái",
-      headerClassName: "text-center",
-      className: "text-center whitespace-nowrap",
-      cell: (category) => (
-        <span className={`inline-flex items-center justify-center whitespace-nowrap rounded-full px-3 py-1 text-xs font-bold ${serviceStatusTone(category.status)}`}>
-          {serviceStatusLabelMap[category.status]}
-        </span>
-      ),
-    },
-    {
-      key: "actions",
-      header: "Thao tác (Bật/Tắt)",
-      headerClassName: "text-right",
-      className: "text-right",
-      cell: (category) => (
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={() => void toggleCategory(category)}
-            className={`rounded-lg px-3.5 py-1.5 text-sm font-semibold transition-colors ${
-              category.status === "ACTIVE"
-                ? "border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100"
-                : "border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
-            }`}
-          >
-            {category.status === "ACTIVE" ? "Vô hiệu hóa" : "Kích hoạt"}
-          </button>
-        </div>
-      ),
-    },
-  ];
+      },
+    ];
 
-  const itemColumns: DataTableColumn<HotelServiceItem>[] = [
-    {
-      key: "item",
-      header: "Tên dịch vụ",
-      cell: (item) => (
-        <div>
-          <div className="text-base font-semibold text-[var(--primary)]">{item.name}</div>
-          <div className="max-w-md truncate text-sm text-[var(--on-surface-variant)]">{item.description ?? "-"}</div>
-        </div>
-      ),
-    },
-    {
-      key: "category",
-      header: "Nhóm dịch vụ",
-      cell: (item) => <span className="text-base font-medium text-[var(--on-surface)]">{categoryById.get(item.categoryId)?.name ?? item.categoryId}</span>,
-    },
-    {
-      key: "price",
-      header: "Giá tiền",
-      headerClassName: "text-right",
-      className: "text-right",
-      cell: (item) => <span className="text-base font-semibold text-[var(--primary)]">{formatMoney(item)}</span>,
-    },
-    {
-      key: "sort",
-      header: "Thứ tự",
-      headerClassName: "text-center",
-      className: "text-center",
-      cell: (item) => <span className="text-base font-semibold text-[var(--on-surface)]">{item.sortOrder}</span>,
-    },
-    {
-      key: "status",
-      header: "Trạng thái",
-      headerClassName: "text-center",
-      className: "text-center",
-      cell: (item) => (
-        <span className={`inline-block rounded-full px-3 py-1 text-xs font-bold ${serviceStatusTone(item.status)}`}>
-          {serviceStatusLabelMap[item.status]}
-        </span>
-      ),
-    },
-    {
-      key: "actions",
-      header: "Thao tác (Bật/Tắt)",
-      headerClassName: "text-right",
-      className: "text-right",
-      cell: (item) => (
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={() => void toggleItem(item)}
-            className={`rounded-lg px-3.5 py-1.5 text-sm font-semibold transition-colors ${
-              item.status === "ACTIVE"
-                ? "border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100"
-                : "border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
-            }`}
-          >
-            {item.status === "ACTIVE" ? "Vô hiệu hóa" : "Kích hoạt"}
-          </button>
-        </div>
-      ),
-    },
-  ];
+    if (canManage) {
+      base.push({
+        key: "actions",
+        header: "Thao tác (Bật/Tắt)",
+        headerClassName: "text-right",
+        className: "text-right",
+        cell: (category) => (
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => void toggleCategory(category)}
+              className={`rounded-lg px-3.5 py-1.5 text-sm font-semibold transition-colors ${
+                category.status === "ACTIVE"
+                  ? "border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100"
+                  : "border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+              }`}
+            >
+              {category.status === "ACTIVE" ? "Vô hiệu hóa" : "Kích hoạt"}
+            </button>
+          </div>
+        ),
+      });
+    }
+
+    return base;
+  }, [canManage]);
+
+  const itemColumns = useMemo<DataTableColumn<HotelServiceItem>[]>(() => {
+    const base: DataTableColumn<HotelServiceItem>[] = [
+      {
+        key: "item",
+        header: "Tên dịch vụ",
+        cell: (item) => (
+          <div>
+            <div className="text-base font-semibold text-[var(--primary)]">{item.name}</div>
+            <div className="max-w-md truncate text-sm text-[var(--on-surface-variant)]">{item.description ?? "-"}</div>
+          </div>
+        ),
+      },
+      {
+        key: "category",
+        header: "Nhóm dịch vụ",
+        cell: (item) => <span className="text-base font-medium text-[var(--on-surface)]">{categoryById.get(item.categoryId)?.name ?? item.categoryId}</span>,
+      },
+      {
+        key: "price",
+        header: "Giá tiền",
+        headerClassName: "text-right",
+        className: "text-right",
+        cell: (item) => <span className="text-base font-semibold text-[var(--primary)]">{formatMoney(item)}</span>,
+      },
+      {
+        key: "sort",
+        header: "Thứ tự",
+        headerClassName: "text-center",
+        className: "text-center",
+        cell: (item) => <span className="text-base font-semibold text-[var(--on-surface)]">{item.sortOrder}</span>,
+      },
+      {
+        key: "status",
+        header: "Trạng thái",
+        headerClassName: "text-center",
+        className: "text-center",
+        cell: (item) => (
+          <span className={`inline-block rounded-full px-3 py-1 text-xs font-bold ${serviceStatusTone(item.status)}`}>
+            {serviceStatusLabelMap[item.status]}
+          </span>
+        ),
+      },
+    ];
+
+    if (canManage) {
+      base.push({
+        key: "actions",
+        header: "Thao tác (Bật/Tắt)",
+        headerClassName: "text-right",
+        className: "text-right",
+        cell: (item) => (
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => void toggleItem(item)}
+              className={`rounded-lg px-3.5 py-1.5 text-sm font-semibold transition-colors ${
+                item.status === "ACTIVE"
+                  ? "border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100"
+                  : "border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+              }`}
+            >
+              {item.status === "ACTIVE" ? "Vô hiệu hóa" : "Kích hoạt"}
+            </button>
+          </div>
+        ),
+      });
+    }
+
+    return base;
+  }, [categoryById, canManage]);
 
   return (
     <div className="space-y-6">
@@ -424,7 +448,7 @@ export function ServiceCatalogClient({
         />
       )}
 
-      {categoryForm ? (
+      {canManage && categoryForm ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4">
           <form onSubmit={saveCategory} className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
             <h2 className="vs-display mb-5 text-2xl font-semibold text-[var(--primary)]">{categoryForm.id ? "Sửa nhóm dịch vụ" : "Thêm nhóm dịch vụ"}</h2>
@@ -443,7 +467,7 @@ export function ServiceCatalogClient({
         </div>
       ) : null}
 
-      {itemForm ? (
+      {canManage && itemForm ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4">
           <form onSubmit={saveItem} className="w-full max-w-2xl rounded-xl bg-white p-6 shadow-xl">
             <h2 className="vs-display mb-5 text-2xl font-semibold text-[var(--primary)]">{itemForm.id ? "Sửa dịch vụ" : "Thêm dịch vụ"}</h2>

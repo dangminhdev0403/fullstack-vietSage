@@ -25,9 +25,11 @@ export default async function StaffLocalPartnersPage({ params }: PageProps) {
     notFound();
   }
 
+  const canManage = context.permissions.includes("hotel.local-partners.manage");
+
   return (
     <div className="space-y-6">
-      <OwnerNearbyProvidersClient hotelId={hotelId} canManage={false} />
+      <OwnerNearbyProvidersClient hotelId={hotelId} canManage={canManage} />
     </div>
   );
 }

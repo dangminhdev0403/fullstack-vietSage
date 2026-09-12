@@ -16,10 +16,10 @@ import { HotelPartnerSettlementsTab } from "./hotel-partner-settlements-tab";
 
 export function OwnerNearbyProvidersClient({
   hotelId,
-  canManage,
+  canManage = false,
 }: {
   hotelId: string;
-  canManage: boolean;
+  canManage?: boolean;
 }) {
   const [activeTab, setActiveTab] = useState<"partners" | "settlements">("partners");
   const { providers, orders, setProviderLink } =
@@ -119,8 +119,10 @@ export function OwnerNearbyProvidersClient({
           ${serviceListHtml}
         </div>
       `,
-      showCancelButton: true,
-      confirmButtonText: provider.linked ? "Ngắt kết nối" : "Kết nối đối tác",
+      showCancelButton: canManage,
+      confirmButtonText: canManage
+        ? (provider.linked ? "Ngắt kết nối" : "Kết nối đối tác")
+        : "Đóng",
       cancelButtonText: "Đóng",
     }).then((res) => {
       if (res.isConfirmed && canManage) {
@@ -136,6 +138,7 @@ export function OwnerNearbyProvidersClient({
     linked: boolean;
     serviceProfile: { displayName: string } | null;
   }) {
+    if (!canManage) return;
     const isConnecting = !provider.linked;
     const displayName = provider.serviceProfile?.displayName ?? provider.name;
 
@@ -197,21 +200,23 @@ export function OwnerNearbyProvidersClient({
         >
           <span>🤝</span> Mạng lưới đối tác lân cận
         </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("settlements")}
-          className={`h-12 px-6 text-sm font-extrabold rounded-2xl transition-all duration-200 cursor-pointer flex items-center gap-2 shadow-2xs ${
-            activeTab === "settlements"
-              ? "bg-gradient-to-r from-emerald-700 via-emerald-800 to-teal-800 text-white shadow-md shadow-emerald-800/25 scale-[1.01]"
-              : "bg-slate-100 text-slate-700 hover:bg-slate-200 hover:scale-[1.01]"
-          }`}
-        >
-          <span>💰</span> Quyết toán công nợ đối tác
-        </button>
+        {canManage ? (
+          <button
+            type="button"
+            onClick={() => setActiveTab("settlements")}
+            className={`h-12 px-6 text-sm font-extrabold rounded-2xl transition-all duration-200 cursor-pointer flex items-center gap-2 shadow-2xs ${
+              activeTab === "settlements"
+                ? "bg-gradient-to-r from-emerald-700 via-emerald-800 to-teal-800 text-white shadow-md shadow-emerald-800/25 scale-[1.01]"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200 hover:scale-[1.01]"
+            }`}
+          >
+            <span>💰</span> Quyết toán công nợ đối tác
+          </button>
+        ) : null}
       </div>
 
-      {activeTab === "settlements" ? (
-        <HotelPartnerSettlementsTab hotelId={hotelId} />
+      {canManage && activeTab === "settlements" ? (
+        <HotelPartnerSettlementsTab hotelId={hotelId} canManage={canManage} />
       ) : (
         <>
           {/* Header Section */}
@@ -750,10 +755,10 @@ export function OwnerNearbyProvidersClient({
 
 export function StaffLocalPartnersClient({
   hotelId,
-  canManage,
+  canManage = false,
 }: {
   hotelId: string;
-  canManage: boolean;
+  canManage?: boolean;
 }) {
   const { list, categories, create, update, status } =
     useLocalPartners(hotelId);
@@ -762,6 +767,7 @@ export function StaffLocalPartnersClient({
   const [error, setError] = useState<string>();
 
   async function save(input: LocalPartnerInput) {
+    if (!canManage) return;
     setError(undefined);
     try {
       if (editing) await update.mutateAsync({ partnerId: editing.id, input });
@@ -781,6 +787,7 @@ export function StaffLocalPartnersClient({
   }
 
   async function toggle(partner: LocalPartner) {
+    if (!canManage) return;
     const isDisabling = partner.status === "ACTIVE";
     const result = await SwalVietSage.fire({
       icon: isDisabling ? "warning" : "question",
@@ -1057,7 +1064,7 @@ export function StaffLocalPartnersClient({
         </div>
       )}
 
-      {formOpen ? (
+      {canManage && formOpen ? (
         <PartnerFormModal
           partner={editing}
           categories={categories.data ?? []}
