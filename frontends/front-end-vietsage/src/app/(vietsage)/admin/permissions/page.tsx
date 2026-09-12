@@ -7,11 +7,10 @@ import type { RbacRole } from "@/features/rbac/types/rbac-contract";
 import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 import { VsIcon } from "../../_components/vs-icon";
 import {
-  type ModuleSummary,
-  type RolePermissionsBrowserPermission,
   type RolePermissionsBrowserRole,
   RolePermissionsBrowser,
 } from "./_components/role-permissions-browser";
+import type { RolePermissionsBrowserPermission } from "./permission-types";
 import { PermissionsWarningsAlert } from "./_components/permissions-warnings-alert";
 
 type PermissionsPageProps = {
@@ -19,6 +18,12 @@ type PermissionsPageProps = {
     | Promise<Record<string, string | string[] | undefined>>
     | Record<string, string | string[] | undefined>;
 };
+
+const CANONICAL_ROLE_CODES = [
+  "TENANT_OWNER",
+  "HOTEL_FRONTDESK",
+  "SERVICE_STAFF",
+] as const;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -43,6 +48,9 @@ function mapRole(role: RbacRole): RolePermissionsBrowserRole {
   const enabledCount =
     typeof role.enabledCount === "number" ? role.enabledCount : null;
 
+  const roleType: RolePermissionsBrowserRole["type"] =
+    role.type === "CUSTOM" ? "CUSTOM" : "SYSTEM_TEMPLATE";
+
   return {
     id: role.id,
     code:
@@ -54,7 +62,8 @@ function mapRole(role: RbacRole): RolePermissionsBrowserRole {
     userCount,
     enabledCount,
     createdAt: typeof role.createdAt === "string" ? role.createdAt : "",
-    type: role.type,
+    type: roleType,
+    baseRoleId: typeof role.baseRoleId === "string" ? role.baseRoleId : null,
   };
 }
 
@@ -75,7 +84,6 @@ export default async function AdminPermissionsPage({
 }: Readonly<PermissionsPageProps>) {
   const resolvedSearchParams = await Promise.resolve(searchParams ?? {});
   const selectedRoleId = extractParam(resolvedSearchParams.roleId);
-  const requestedModuleKey = extractParam(resolvedSearchParams.module);
 
   const session = await auth();
   const executeAuthorizedApi = createAuthorizedApiExecutor({
@@ -97,7 +105,18 @@ export default async function AdminPermissionsPage({
 
   const roles =
     rolesResult.status === "fulfilled"
-      ? toObjectArray<RbacRole>(rolesResult.value).map(mapRole)
+      ? toObjectArray<RbacRole>(rolesResult.value)
+          .filter((role) => role.code !== "SUPER_ADMIN")
+          .filter((role) => {
+            if (role.type === "CUSTOM") return true;
+            return (
+              typeof role.code === "string" &&
+              CANONICAL_ROLE_CODES.includes(
+                role.code as (typeof CANONICAL_ROLE_CODES)[number],
+              )
+            );
+          })
+          .map(mapRole)
       : [];
 
   if (rolesResult.status === "rejected") {
@@ -109,71 +128,69 @@ export default async function AdminPermissionsPage({
   }
 
   const effectiveRoleId = selectedRoleId ?? roles[0]?.id ?? null;
-  const initialPermissionsByRoleId: Record<string, RolePermissionsBrowserPermission[]> = {};
-  let allPermissions: RolePermissionsBrowserPermission[] = [];
+  const initialPermissionsByRoleId: Record<
+    string,
+    RolePermissionsBrowserPermission[]
+  > = {};
 
   if (effectiveRoleId && roles.some((role) => role.id === effectiveRoleId)) {
     try {
-      const capabilities = await executeAuthorizedApi(
-        `GET /roles/${effectiveRoleId}/capabilities`,
-        (accessToken) => rbacService.listRoleCapabilities(effectiveRoleId, accessToken),
+      const permissions = await executeAuthorizedApi(
+        `GET /roles/${effectiveRoleId}/permissions`,
+        (accessToken) =>
+          rbacService.listRolePermissions(effectiveRoleId, accessToken),
       );
-      allPermissions = capabilities.map((item) => ({
-        id: item.id,
-        key: item.key,
-        description: item.description,
-        moduleKey: item.domain,
-        moduleLabel: item.domain,
-        risk: item.risk,
-        enabled: item.enabled,
+      initialPermissionsByRoleId[effectiveRoleId] = toObjectArray<{
+        id: string;
+        method: string;
+        path: string;
+        description?: string | null;
+      }>(permissions).map((item) => ({
+        id: typeof item.id === "string" ? item.id : "",
+        method: typeof item.method === "string" ? item.method : "GET",
+        path: typeof item.path === "string" ? item.path : "",
+        description:
+          typeof item.description === "string" && item.description.trim().length > 0
+            ? item.description.trim()
+            : `${item.method ?? "GET"} ${item.path ?? ""}`.trim(),
       }));
-      initialPermissionsByRoleId[effectiveRoleId] = allPermissions.filter((item) => item.enabled);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Lỗi API capability không xác định";
-      apiWarnings.push(`GET capabilities cho ${effectiveRoleId} thất bại: ${message}`);
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Lỗi API permissions không xác định";
+      apiWarnings.push(
+        `GET permissions cho ${effectiveRoleId} thất bại: ${message}`,
+      );
     }
   }
 
-  const moduleSummaries = Object.values(
-    allPermissions.reduce<Record<string, ModuleSummary>>((summaries, permission) => {
-      const moduleKey = permission.moduleKey ?? "misc";
-      const summary = summaries[moduleKey] ?? {
-        moduleKey,
-        moduleName: permission.moduleLabel ?? moduleKey,
-        totalPermissions: 0,
-        enabledCount: 0,
-      };
-      summary.totalPermissions += 1;
-      if (permission.enabled) summary.enabledCount += 1;
-      summaries[moduleKey] = summary;
-      return summaries;
-    }, {}),
-  );
-
   return (
-    <>
-      <div className="mx-auto max-w-[1600px] space-y-6">
-      <section>
+    <div className="mx-auto max-w-[1600px] space-y-4">
+      {/* ── Page Header matching reference design ── */}
+      <header className="space-y-1">
         <Link
           href="/admin/roles"
-          className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline-variant)] bg-white px-4 py-2 text-sm font-semibold text-[var(--primary)] transition-colors hover:bg-[var(--surface-container-low)]"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 transition-colors hover:text-gray-900"
         >
-          <VsIcon name="arrow_back" className="text-[16px]" />
-          Quay lại danh sách vai trò
+          <VsIcon name="arrow_back" className="text-[14px]" />
+          <span>Vai trò & Quyền</span>
         </Link>
-      </section>
+        <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+          Vai trò & Quyền
+        </h1>
+        <p className="text-xs text-gray-500">
+          Xem danh sách quyền hạn mặc định của các vai trò nghiệp vụ trong hệ thống.
+        </p>
+      </header>
 
       <PermissionsWarningsAlert warnings={apiWarnings} />
 
       <RolePermissionsBrowser
         roles={roles}
-        permissionModuleSummaries={moduleSummaries}
         initialRoleId={effectiveRoleId}
-        initialModuleKey={requestedModuleKey}
         initialPermissionsByRoleId={initialPermissionsByRoleId}
-        allPermissions={allPermissions}
       />
-      </div>
-    </>
+    </div>
   );
 }

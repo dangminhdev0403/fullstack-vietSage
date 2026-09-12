@@ -1,181 +1,32 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-
-import Swal from "sweetalert2";
-import { SwalVietSage } from "@/libs/swal";
-
 import { HttpError } from "@/core/http/http-error";
-import {
-  requestInternalApi,
-  requestInternalApiEnvelope,
-} from "@/core/http/internal-api-client";
+import { requestInternalApi } from "@/core/http/internal-api-client";
+import type { RbacRole } from "@/features/rbac/types/rbac-contract";
+import { showConfirmDialog, showErrorAlert, showSuccessAlert } from "@/libs/swal";
 import { VsIcon } from "../../../_components/vs-icon";
+import type {
+  RolePermissionsBrowserPermission,
+  RolePermissionsBrowserRole,
+} from "../permission-types";
+import { RbacRoleListPanel } from "./rbac-role-list-panel";
+import { type DetailTab, RbacRoleDetailHeader } from "./rbac-role-detail-header";
+import { RbacPermissionGroups } from "./rbac-capability-groups";
 
-/* ────────────────────────── exported types ────────────────────────── */
-
-export type RolePermissionsBrowserRole = {
-  id: string;
-  code: string;
-  name: string;
-  description: string | null;
-  userCount: number;
-  enabledCount: number | null;
-  createdAt: string;
-  type: "SYSTEM_TEMPLATE" | "CUSTOM";
+export type {
+  RolePermissionsBrowserPermission,
+  RolePermissionsBrowserRole,
 };
-
-export type RolePermissionsBrowserPermission = {
-  id: string;
-  key: string;
-  description: string;
-  risk: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
-  moduleKey?: string;
-  moduleLabel?: string;
-  moduleIcon?: string;
-  enabled?: boolean;
-};
-
-export type ModuleSummary = {
-  moduleKey: string;
-  moduleName: string;
-  totalPermissions: number;
-  enabledCount: number;
-};
-
-/* ────────────────────────── props ────────────────────────── */
 
 type RolePermissionsBrowserProps = {
   roles: RolePermissionsBrowserRole[];
-  permissionModuleSummaries: ModuleSummary[];
   initialRoleId: string | null;
-  initialModuleKey: string | null;
   initialPermissionsByRoleId?: Record<
     string,
     RolePermissionsBrowserPermission[]
   >;
-  allPermissions?: RolePermissionsBrowserPermission[];
 };
-
-/* ────────────────────────── constants ────────────────────────── */
-
-const BUSINESS_MODULE_LABELS: Record<
-  string,
-  { label: string; icon: string; tone: string }
-> = {
-  "platform-users": {
-    label: "Người dùng nền tảng",
-    icon: "group",
-    tone: "bg-sky-50 text-sky-700",
-  },
-  "platform-roles": {
-    label: "Vai trò",
-    icon: "verified_user",
-    tone: "bg-indigo-50 text-indigo-700",
-  },
-  "platform-permissions": {
-    label: "Phân quyền",
-    icon: "admin_panel_settings",
-    tone: "bg-amber-50 text-amber-800",
-  },
-  "platform-hotels": {
-    label: "Khách sạn nền tảng",
-    icon: "apartment",
-    tone: "bg-cyan-50 text-cyan-700",
-  },
-  "hotel-dashboard": {
-    label: "Dashboard khách sạn",
-    icon: "dashboard",
-    tone: "bg-emerald-50 text-emerald-700",
-  },
-  "hotel-rooms": {
-    label: "Phòng",
-    icon: "bed",
-    tone: "bg-lime-50 text-lime-700",
-  },
-  "hotel-room-qr": {
-    label: "QR phòng",
-    icon: "qr_code",
-    tone: "bg-yellow-50 text-yellow-800",
-  },
-  "hotel-stays": {
-    label: "Lưu trú",
-    icon: "hotel",
-    tone: "bg-blue-50 text-blue-700",
-  },
-  "hotel-reservations": {
-    label: "Đặt phòng & khách đến",
-    icon: "event_available",
-    tone: "bg-sky-50 text-sky-700",
-  },
-  "hotel-staff": {
-    label: "Nhân viên khách sạn",
-    icon: "group",
-    tone: "bg-violet-50 text-violet-700",
-  },
-  "hotel-requests": {
-    label: "Yêu cầu khách",
-    icon: "room_service",
-    tone: "bg-orange-50 text-orange-700",
-  },
-  "hotel-billing": {
-    label: "Thanh toán",
-    icon: "receipt_long",
-    tone: "bg-rose-50 text-rose-700",
-  },
-  "hotel-services": {
-    label: "Dịch vụ",
-    icon: "concierge",
-    tone: "bg-teal-50 text-teal-700",
-  },
-  "guest-experience": {
-    label: "GuestOS",
-    icon: "phonelink",
-    tone: "bg-purple-50 text-purple-700",
-  },
-  "system-health": {
-    label: "Hệ thống",
-    icon: "monitor_heart",
-    tone: "bg-slate-100 text-slate-700",
-  },
-};
-
-
-function toTitleCase(value: string): string {
-  return value
-    .replace(/[-_]/g, " ")
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(" ");
-}
-
-function moduleLabel(moduleKey: string, fallbackName?: string): string {
-  return BUSINESS_MODULE_LABELS[moduleKey]?.label ?? fallbackName ?? toTitleCase(moduleKey);
-}
-
-function moduleIcon(moduleKey: string): string {
-  const configured = BUSINESS_MODULE_LABELS[moduleKey];
-  if (configured) return configured.icon;
-
-  const normalized = moduleKey.toLowerCase();
-  if (normalized.includes("auth")) return "verified";
-  if (normalized.includes("user") || normalized.includes("staff")) return "group";
-  if (normalized.includes("room")) return "bed";
-  if (normalized.includes("hotel")) return "hotel";
-  if (normalized.includes("booking")) return "schedule";
-  if (normalized.includes("dashboard") || normalized.includes("analytic")) return "dashboard";
-  if (normalized.includes("role") || normalized.includes("permission")) return "verified_user";
-  return "menu";
-}
-
-
-function businessActionLabel(description: string): string {
-  return description
-    .replace(/^View /i, "Xem ")
-    .replace(/^Manage /i, "Quản lý ")
-    .trim();
-}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -201,71 +52,31 @@ function getErrorMessage(payload: unknown, fallback: string): string {
   return fallback;
 }
 
-function normalizePermissionIds(permissionIds: readonly string[]): string[] {
-  const unique = new Set<string>();
-  for (const id of permissionIds) {
-    if (typeof id !== "string") continue;
-    const normalized = id.trim();
-    if (normalized.length === 0) continue;
-    unique.add(normalized);
-  }
-  return [...unique].sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" }));
-}
-
-function arePermissionIdsEqual(
-  first: readonly string[],
-  second: readonly string[],
-): boolean {
-  if (first.length !== second.length) return false;
-  const secondSet = new Set(second);
-  for (const id of first) {
-    if (!secondSet.has(id)) return false;
-  }
-  return true;
-}
-
-function countPermissionSelectionDelta(
-  first: readonly string[],
-  second: readonly string[],
-): number {
-  const firstSet = new Set(first);
-  const secondSet = new Set(second);
-  let delta = 0;
-  for (const id of firstSet) {
-    if (!secondSet.has(id)) delta += 1;
-  }
-  for (const id of secondSet) {
-    if (!firstSet.has(id)) delta += 1;
-  }
-  return delta;
-}
-
 function parseRolePermissions(
   payload: unknown,
 ): RolePermissionsBrowserPermission[] {
   if (!isRecord(payload) || !Array.isArray(payload.data)) {
-    throw new Error("Phản hồi role-permissions không đúng định dạng");
+    throw new Error("Phản hồi danh sách quyền không đúng định dạng");
   }
   const mapped: RolePermissionsBrowserPermission[] = [];
   for (const item of payload.data) {
     if (!isRecord(item)) continue;
     if (
       typeof item.id !== "string" ||
-      typeof item.key !== "string" ||
-      typeof item.domain !== "string" ||
-      typeof item.description !== "string" ||
-      typeof item.risk !== "string" ||
-      item.enabled !== true
-    )
+      typeof item.method !== "string" ||
+      typeof item.path !== "string"
+    ) {
       continue;
+    }
+    const description =
+      typeof item.description === "string" && item.description.trim().length > 0
+        ? item.description.trim()
+        : `${item.method} ${item.path}`;
     mapped.push({
       id: item.id,
-      key: item.key,
-      description: item.description,
-      risk: item.risk as RolePermissionsBrowserPermission["risk"],
-      moduleKey: item.domain,
-      moduleLabel: item.domain,
-      enabled: true,
+      method: item.method,
+      path: item.path,
+      description,
     });
   }
   return mapped;
@@ -276,12 +87,12 @@ function formatDate(value: string): string {
   if (Number.isNaN(date.getTime())) return "Không có";
   return new Intl.DateTimeFormat("vi-VN", {
     day: "2-digit",
-    month: "short",
+    month: "2-digit",
     year: "numeric",
   }).format(date);
 }
 
-/* ────────────── BFF fetch helpers ────────────── */
+/* ────────────── BFF fetch helper (GET only) ────────────── */
 
 async function fetchRolePermissions(
   roleId: string,
@@ -303,201 +114,115 @@ async function fetchRolePermissions(
   }
 }
 
-async function replaceRolePermissions(
-  roleId: string,
-  permissionIds: readonly string[],
-): Promise<RolePermissionsBrowserPermission[]> {
-  try {
-    const payload = await requestInternalApiEnvelope<
-      RolePermissionsBrowserPermission[]
-    >(`/api/rbac/roles/${encodeURIComponent(roleId)}/capabilities`, {
-      method: "PUT",
-      body: { permissionIds },
-    });
-    return parseRolePermissions(payload);
-  } catch (error) {
-    if (error instanceof HttpError) {
-      throw new Error(
-        getErrorMessage(error.data, `Yêu cầu thất bại với mã ${error.status}`),
-      );
-    }
-    throw error;
-  }
-}
-
-function showLoadingBox(title: string, text: string): void {
-  void Swal.fire({
-    title,
-    text,
-    allowOutsideClick: false,
-    allowEscapeKey: false,
-    showConfirmButton: false,
-    didOpen: () => {
-      Swal.showLoading();
-    },
+async function createCustomRoleApi(body: {
+  code: string;
+  name: string;
+  description?: string | null;
+  baseRoleId: string;
+  permissionIds: string[];
+}): Promise<RbacRole> {
+  return requestInternalApi<RbacRole>("/api/rbac/roles", {
+    method: "POST",
+    body,
   });
 }
 
-function closeLoadingBox(): void {
-  if (Swal.isVisible()) {
-    Swal.close();
-  }
+async function updateCustomRoleApi(
+  roleId: string,
+  body: {
+    name?: string;
+    description?: string | null;
+    baseRoleId?: string;
+    permissionIds?: string[];
+  },
+): Promise<RbacRole> {
+  return requestInternalApi<RbacRole>(`/api/rbac/roles/${encodeURIComponent(roleId)}`, {
+    method: "PATCH",
+    body,
+  });
+}
+
+async function deleteCustomRoleApi(roleId: string): Promise<{ deleted: boolean }> {
+  return requestInternalApi<{ deleted: boolean }>(`/api/rbac/roles/${encodeURIComponent(roleId)}`, {
+    method: "DELETE",
+  });
 }
 
 /* ────────────── URL sync helper ────────────── */
 
-function replaceUrlParams(
-  roleId: string | null,
-  moduleKey: string | null,
-): void {
+function replaceUrlParams(roleId: string | null): void {
   const params = new URLSearchParams();
   if (roleId) params.set("roleId", roleId);
-  if (moduleKey) params.set("module", moduleKey);
   const url = `${window.location.pathname}?${params.toString()}`;
   window.history.replaceState(null, "", url);
 }
 
-/* ────────────── state types ────────────── */
-
-/** Cache key = `${roleId}` — permissions for the entire role */
 type PermissionsByRoleId = Record<string, RolePermissionsBrowserPermission[]>;
-
-/** Draft per role — full set of toggled permission IDs */
-type DraftPermissionIdsByRoleId = Record<string, string[]>;
 type LoadingByRoleId = Record<string, boolean>;
-type SavingByRoleId = Record<string, boolean>;
 type ErrorByRoleId = Record<string, string | null>;
 
-/* ────────────────────── internal helpers ────────────────────── */
+type RoleTab = "DEFAULT" | "CUSTOM";
 
-function normalizeInitialRoleId(
-  roles: readonly RolePermissionsBrowserRole[],
-  initialRoleId: string | null,
-): string | null {
-  if (initialRoleId && roles.some((r) => r.id === initialRoleId))
-    return initialRoleId;
-  return roles[0]?.id ?? null;
-}
-
-function toInitialDraftMap(
-  initialPermissionsByRoleId: Record<
-    string,
-    RolePermissionsBrowserPermission[]
-  >,
-): DraftPermissionIdsByRoleId {
-  const draft: DraftPermissionIdsByRoleId = {};
-  for (const [roleId, permissions] of Object.entries(
-    initialPermissionsByRoleId,
-  )) {
-    draft[roleId] = normalizePermissionIds(permissions.map((p) => p.id));
-  }
-  return draft;
-}
-
-/* ────────────── group permissions by module ────────────── */
-
-type PermissionModule = {
-  moduleKey: string;
-  label: string;
-  icon: string;
-  permissions: RolePermissionsBrowserPermission[];
+type ModalFormState = {
+  isOpen: boolean;
+  mode: "create" | "edit";
+  roleId?: string;
+  code: string;
+  name: string;
+  description: string;
+  baseRoleId: string;
+  selectedPermissionIds: Set<string>;
+  loadingBasePermissions: boolean;
+  baseRolePermissions: RolePermissionsBrowserPermission[];
+  submitting: boolean;
+  error: string | null;
+  permissionFilterQuery: string;
 };
 
-function moduleKeyFromPermission(
-  permission: RolePermissionsBrowserPermission,
-): string {
-  const key = permission.moduleKey?.trim();
-  if (key && key.length > 0) return key;
-  return permission.key.split(".")[0] ?? "misc";
-}
+export function RolePermissionsBrowser({
+  roles,
+  initialRoleId,
+  initialPermissionsByRoleId = {},
+}: RolePermissionsBrowserProps) {
+  const [currentRoles, setCurrentRoles] = useState<RolePermissionsBrowserRole[]>(roles);
+  const [prevRoles, setPrevRoles] = useState(roles);
 
-function buildPermissionModules(
-  permissions: readonly RolePermissionsBrowserPermission[],
-): PermissionModule[] {
-  const map = new Map<string, RolePermissionsBrowserPermission[]>();
-  for (const perm of permissions) {
-    const key = moduleKeyFromPermission(perm);
-    const list = map.get(key) ?? [];
-    list.push(perm);
-    map.set(key, list);
+  if (prevRoles !== roles) {
+    setPrevRoles(roles);
+    setCurrentRoles(roles);
   }
-  return [...map.entries()]
-    .map(([key, items]) => ({
-      moduleKey: key,
-      label:
-        BUSINESS_MODULE_LABELS[key]?.label ??
-        items[0]?.moduleLabel ??
-        toTitleCase(key),
-      icon:
-        BUSINESS_MODULE_LABELS[key]?.icon ??
-        items[0]?.moduleIcon ??
-        moduleIcon(key),
-      permissions: [...items].sort((a, b) => {
-        const pathCmp = a.key.localeCompare(b.key, "en", {
-          sensitivity: "base",
-        });
-        if (pathCmp !== 0) return pathCmp;
-        return a.description.localeCompare(b.description, "vi", { sensitivity: "base" });
-      }),
-    }))
-    .sort((a, b) =>
-      a.label.localeCompare(b.label, "en", { sensitivity: "base" }),
-    );
-}
 
-/* ════════════════════════════════════════════════════════════════
-   ██  MAIN COMPONENT
-   ════════════════════════════════════════════════════════════════ */
-
-export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
-  const {
-    roles,
-    permissionModuleSummaries,
-    initialRoleId,
-    initialModuleKey,
-    initialPermissionsByRoleId = {},
-    allPermissions = [],
-  } = props;
-
-  /* ── role selection ── */
-  const resolvedInitialRoleId = normalizeInitialRoleId(roles, initialRoleId);
-  const [selectedRoleId, setSelectedRoleId] = useState<string | null>(
-    resolvedInitialRoleId,
+  const defaultRoles = useMemo(
+    () => currentRoles.filter((r) => r.type === "SYSTEM_TEMPLATE"),
+    [currentRoles],
   );
 
-  /* ── module selection (client-side, no Next.js Link) ── */
-  const [selectedModuleKey, setSelectedModuleKey] = useState<string | null>(
-    () => {
-      if (
-        initialModuleKey &&
-        permissionModuleSummaries.some((m) => m.moduleKey === initialModuleKey)
-      ) {
-        return initialModuleKey;
-      }
-      return permissionModuleSummaries[0]?.moduleKey ?? null;
-    },
+  const customRoles = useMemo(
+    () => currentRoles.filter((r) => r.type === "CUSTOM"),
+    [currentRoles],
   );
 
-  /* ── mobile role panel toggle ── */
-  const [mobileRolePanelOpen, setMobileRolePanelOpen] = useState(false);
+  const initialRole = roles.find((r) => r.id === initialRoleId);
+  const initialTab: RoleTab = initialRole?.type === "CUSTOM" ? "CUSTOM" : "DEFAULT";
+  const [activeRoleTab, setActiveRoleTab] = useState<RoleTab>(initialTab);
 
-  /* ── permission state ── */
+  const activeTabRoles = activeRoleTab === "DEFAULT" ? defaultRoles : customRoles;
+
+  const [selectedRoleId, setSelectedRoleId] = useState<string | null>(() => {
+    if (initialRoleId && roles.some((r) => r.id === initialRoleId)) {
+      return initialRoleId;
+    }
+    return (initialTab === "DEFAULT" ? defaultRoles[0]?.id : customRoles[0]?.id) ?? defaultRoles[0]?.id ?? null;
+  });
+
+  const [detailTab, setDetailTab] = useState<DetailTab>("PERMISSIONS");
+
   const [permissionsByRoleId, setPermissionsByRoleId] =
     useState<PermissionsByRoleId>(initialPermissionsByRoleId);
-  const [draftPermissionIdsByRoleId, setDraftPermissionIdsByRoleId] =
-    useState<DraftPermissionIdsByRoleId>(() =>
-      toInitialDraftMap(initialPermissionsByRoleId),
-    );
   const [loadingByRoleId, setLoadingByRoleId] = useState<LoadingByRoleId>({});
-  const [savingByRoleId, setSavingByRoleId] = useState<SavingByRoleId>({});
   const [errorByRoleId, setErrorByRoleId] = useState<ErrorByRoleId>({});
 
-  /* ── derived ── */
-  const selectedRole = roles.find((r) => r.id === selectedRoleId) ?? null;
-  const selectedRoleReadOnly = selectedRole?.type === "SYSTEM_TEMPLATE";
-  const selectedRoleHasCache = selectedRoleId
-    ? Object.prototype.hasOwnProperty.call(permissionsByRoleId, selectedRoleId)
-    : false;
+  const selectedRole = currentRoles.find((r) => r.id === selectedRoleId) ?? null;
 
   const selectedRolePermissions = useMemo(
     () => (selectedRoleId ? (permissionsByRoleId[selectedRoleId] ?? []) : []),
@@ -507,98 +232,39 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
   const selectedRoleLoading = selectedRoleId
     ? loadingByRoleId[selectedRoleId] === true
     : false;
-  const selectedRoleSaving = selectedRoleId
-    ? savingByRoleId[selectedRoleId] === true
-    : false;
   const selectedRoleError = selectedRoleId
     ? (errorByRoleId[selectedRoleId] ?? null)
     : null;
 
-  const selectedRoleAssignedPermissionIds = useMemo(
-    () => normalizePermissionIds(selectedRolePermissions.map((p) => p.id)),
-    [selectedRolePermissions],
-  );
+  const selectedRoleTotalPermissions =
+    selectedRoleId && permissionsByRoleId[selectedRoleId]
+      ? selectedRolePermissions.length
+      : (selectedRole?.enabledCount ?? 0);
 
-  const selectedRoleAssignedPermissionIdSet = useMemo(
-    () => new Set(selectedRoleAssignedPermissionIds),
-    [selectedRoleAssignedPermissionIds],
-  );
-
-  const selectedRoleDraftPermissionIds = useMemo(() => {
-    if (!selectedRoleId) return [];
-    return (
-      draftPermissionIdsByRoleId[selectedRoleId] ??
-      selectedRoleAssignedPermissionIds
-    );
-  }, [
-    draftPermissionIdsByRoleId,
-    selectedRoleAssignedPermissionIds,
-    selectedRoleId,
-  ]);
-
-  const selectedRoleDraftPermissionIdSet = useMemo(
-    () => new Set(selectedRoleDraftPermissionIds),
-    [selectedRoleDraftPermissionIds],
-  );
-
-  const selectedRoleHasUnsavedChanges = selectedRoleHasCache
-    ? !arePermissionIdsEqual(
-        selectedRoleAssignedPermissionIds,
-        selectedRoleDraftPermissionIds,
-      )
-    : false;
-
-  const selectedRoleUnsavedChangesCount = selectedRoleHasCache
-    ? countPermissionSelectionDelta(
-        selectedRoleAssignedPermissionIds,
-        selectedRoleDraftPermissionIds,
-      )
-    : 0;
-
-  const selectedRoleTotalPermissions = selectedRoleHasCache
-    ? selectedRoleDraftPermissionIdSet.size
-    : (selectedRole?.enabledCount ?? 0);
-
-  /* ── group permissions by module for the currently-loaded role ── */
-  const permissionModules = useMemo(
-    () => buildPermissionModules(allPermissions.length > 0 ? allPermissions : selectedRolePermissions),
-    [allPermissions, selectedRolePermissions],
-  );
-
-  /** The module's permissions for the currently selected moduleKey */
-  const activeModulePermissions = useMemo(() => {
-    if (!selectedModuleKey) return [];
-    const mod = permissionModules.find(
-      (m) => m.moduleKey === selectedModuleKey,
-    );
-    return mod?.permissions ?? [];
-  }, [permissionModules, selectedModuleKey]);
-
-  /* ── load role permissions ── */
   const loadingRef = useRef<Set<string>>(new Set());
 
   const loadRolePermissions = useCallback(
-    async (roleId: string) => {
-      if (permissionsByRoleId[roleId] || loadingRef.current.has(roleId)) return;
+    async (roleId: string): Promise<RolePermissionsBrowserPermission[]> => {
+      if (permissionsByRoleId[roleId]) {
+        return permissionsByRoleId[roleId];
+      }
+      if (loadingRef.current.has(roleId)) {
+        return [];
+      }
       loadingRef.current.add(roleId);
       setLoadingByRoleId((prev) => ({ ...prev, [roleId]: true }));
       setErrorByRoleId((prev) => ({ ...prev, [roleId]: null }));
       try {
         const permissions = await fetchRolePermissions(roleId);
-        const assignedIds = normalizePermissionIds(
-          permissions.map((p) => p.id),
-        );
         setPermissionsByRoleId((prev) => ({ ...prev, [roleId]: permissions }));
-        setDraftPermissionIdsByRoleId((prev) => ({
-          ...prev,
-          [roleId]: assignedIds,
-        }));
+        return permissions;
       } catch (error) {
         const message =
           error instanceof Error
             ? error.message
             : "Không tải được quyền của vai trò";
         setErrorByRoleId((prev) => ({ ...prev, [roleId]: message }));
+        return [];
       } finally {
         loadingRef.current.delete(roleId);
         setLoadingByRoleId((prev) => ({ ...prev, [roleId]: false }));
@@ -607,7 +273,6 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
     [permissionsByRoleId],
   );
 
-  /* ── auto-load on initial mount ── */
   const didInitialLoad = useRef(false);
   useEffect(() => {
     if (didInitialLoad.current) return;
@@ -617,672 +282,931 @@ export function RolePermissionsBrowser(props: RolePermissionsBrowserProps) {
         void loadRolePermissions(selectedRoleId);
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadRolePermissions, permissionsByRoleId, selectedRoleId]);
 
-  /* ── draft mutation helpers ── */
-  const mutateSelectedRoleDraft = useCallback(
-    (mutator: (draft: Set<string>) => void) => {
-      if (!selectedRoleId) return;
-      setDraftPermissionIdsByRoleId((prev) => {
-        const fallbackIds =
-          permissionsByRoleId[selectedRoleId]?.map((p) => p.id) ?? [];
-        const currentSet = new Set(prev[selectedRoleId] ?? fallbackIds);
-        mutator(currentSet);
-        return {
-          ...prev,
-          [selectedRoleId]: normalizePermissionIds([...currentSet]),
-        };
-      });
-    },
-    [permissionsByRoleId, selectedRoleId],
-  );
-
-  const handlePermissionToggle = useCallback(
-    (permissionId: string, nextChecked: boolean) => {
-      mutateSelectedRoleDraft((draft) => {
-        if (nextChecked) {
-          draft.add(permissionId);
-        } else {
-          draft.delete(permissionId);
-        }
-      });
-    },
-    [mutateSelectedRoleDraft],
-  );
-
-  const handleResetPermission = useCallback(
-    (permissionId: string) => {
-      const shouldBeAssigned =
-        selectedRoleAssignedPermissionIdSet.has(permissionId);
-      mutateSelectedRoleDraft((draft) => {
-        if (shouldBeAssigned) {
-          draft.add(permissionId);
-        } else {
-          draft.delete(permissionId);
-        }
-      });
-    },
-    [mutateSelectedRoleDraft, selectedRoleAssignedPermissionIdSet],
-  );
-
-  const handleModuleSelectAll = useCallback(
-    (permissions: readonly RolePermissionsBrowserPermission[]) => {
-      mutateSelectedRoleDraft((draft) => {
-        for (const p of permissions) draft.add(p.id);
-      });
-    },
-    [mutateSelectedRoleDraft],
-  );
-
-  const handleModuleDisableAll = useCallback(
-    (permissions: readonly RolePermissionsBrowserPermission[]) => {
-      mutateSelectedRoleDraft((draft) => {
-        for (const p of permissions) draft.delete(p.id);
-      });
-    },
-    [mutateSelectedRoleDraft],
-  );
-
-  /* ── role selection handler ── */
   const handleSelectRole = useCallback(
     (roleId: string) => {
       setSelectedRoleId(roleId);
-      setMobileRolePanelOpen(false);
-      replaceUrlParams(roleId, selectedModuleKey);
+      replaceUrlParams(roleId);
       void loadRolePermissions(roleId);
     },
-    [loadRolePermissions, selectedModuleKey],
+    [loadRolePermissions],
   );
 
-  /* ── module selection handler (client-side only) ── */
-  const handleSelectModule = useCallback(
-    (moduleKey: string) => {
-      setSelectedModuleKey(moduleKey);
-      replaceUrlParams(selectedRoleId, moduleKey);
+  const handleRoleTabChange = (nextTab: RoleTab) => {
+    setActiveRoleTab(nextTab);
+    const targetRoles = nextTab === "DEFAULT" ? defaultRoles : customRoles;
+    const isCurrentInTarget = targetRoles.some((r) => r.id === selectedRoleId);
+    if (!isCurrentInTarget) {
+      const nextSelectedId = targetRoles[0]?.id ?? null;
+      setSelectedRoleId(nextSelectedId);
+      replaceUrlParams(nextSelectedId);
+      if (nextSelectedId) {
+        void loadRolePermissions(nextSelectedId);
+      }
+    }
+  };
+
+  /* ────────────── Create / Edit Modal State ────────────── */
+
+  const [modalState, setModalState] = useState<ModalFormState>({
+    isOpen: false,
+    mode: "create",
+    code: "",
+    name: "",
+    description: "",
+    baseRoleId: "",
+    selectedPermissionIds: new Set<string>(),
+    loadingBasePermissions: false,
+    baseRolePermissions: [],
+    submitting: false,
+    error: null,
+    permissionFilterQuery: "",
+  });
+
+  const handleOpenCreateModal = useCallback(async () => {
+    const initialBaseRoleId = defaultRoles[0]?.id ?? "";
+    setModalState({
+      isOpen: true,
+      mode: "create",
+      code: "",
+      name: "",
+      description: "",
+      baseRoleId: initialBaseRoleId,
+      selectedPermissionIds: new Set<string>(),
+      loadingBasePermissions: initialBaseRoleId.length > 0,
+      baseRolePermissions: [],
+      submitting: false,
+      error: null,
+      permissionFilterQuery: "",
+    });
+
+    if (initialBaseRoleId) {
+      const perms = await loadRolePermissions(initialBaseRoleId);
+      setModalState((prev) => ({
+        ...prev,
+        baseRolePermissions: perms,
+        loadingBasePermissions: false,
+      }));
+    }
+  }, [defaultRoles, loadRolePermissions]);
+
+  const handleOpenEditModal = useCallback(
+    async (role: RolePermissionsBrowserRole) => {
+      const targetBaseRoleId = role.baseRoleId ?? defaultRoles[0]?.id ?? "";
+      setModalState({
+        isOpen: true,
+        mode: "edit",
+        roleId: role.id,
+        code: role.code,
+        name: role.name,
+        description: role.description ?? "",
+        baseRoleId: targetBaseRoleId,
+        selectedPermissionIds: new Set<string>(),
+        loadingBasePermissions: true,
+        baseRolePermissions: [],
+        submitting: false,
+        error: null,
+        permissionFilterQuery: "",
+      });
+
+      const [customPerms, basePerms] = await Promise.all([
+        loadRolePermissions(role.id),
+        targetBaseRoleId ? loadRolePermissions(targetBaseRoleId) : Promise.resolve([]),
+      ]);
+
+      const initialSelected = new Set(customPerms.map((p) => p.id));
+      setModalState((prev) => ({
+        ...prev,
+        selectedPermissionIds: initialSelected,
+        baseRolePermissions: basePerms,
+        loadingBasePermissions: false,
+      }));
     },
-    [selectedRoleId],
+    [defaultRoles, loadRolePermissions],
   );
 
-  /* ── reset ── */
-  const selectedRoleName =
-    selectedRole?.name ?? selectedRoleId ?? "vai trò đã chọn";
+  const handleModalBaseChange = useCallback(
+    async (newBaseRoleId: string) => {
+      setModalState((prev) => ({
+        ...prev,
+        baseRoleId: newBaseRoleId,
+        loadingBasePermissions: true,
+        error: null,
+      }));
 
-  async function handleResetChanges() {
-    if (!selectedRoleId || !selectedRoleHasCache || selectedRoleSaving || selectedRoleReadOnly) return;
+      const newBasePerms = await loadRolePermissions(newBaseRoleId);
+      const newBasePermSet = new Set(newBasePerms.map((p) => p.id));
 
-    if (!selectedRoleHasUnsavedChanges) {
-      await Swal.fire({
-        icon: "info",
-        title: "Không có thay đổi để đặt lại",
-        text: "Dữ liệu nhập đã trùng với máy chủ?",
-        confirmButtonText: "Đồng ý",
-        timer: 2200,
-        timerProgressBar: true,
+      setModalState((prev) => {
+        // "changing base drops selections not present in the new base."
+        const nextSelected = new Set<string>();
+        for (const id of prev.selectedPermissionIds) {
+          if (newBasePermSet.has(id)) {
+            nextSelected.add(id);
+          }
+        }
+        return {
+          ...prev,
+          baseRoleId: newBaseRoleId,
+          baseRolePermissions: newBasePerms,
+          selectedPermissionIds: nextSelected,
+          loadingBasePermissions: false,
+        };
       });
+    },
+    [loadRolePermissions],
+  );
+
+  const handleTogglePermission = useCallback((permissionId: string) => {
+    setModalState((prev) => {
+      const next = new Set(prev.selectedPermissionIds);
+      if (next.has(permissionId)) {
+        next.delete(permissionId);
+      } else {
+        next.add(permissionId);
+      }
+      return { ...prev, selectedPermissionIds: next };
+    });
+  }, []);
+
+  const handleSelectAllPermissions = useCallback(
+    (select: boolean, items: RolePermissionsBrowserPermission[]) => {
+      setModalState((prev) => {
+        const next = new Set(prev.selectedPermissionIds);
+        if (select) {
+          for (const item of items) {
+            next.add(item.id);
+          }
+        } else {
+          for (const item of items) {
+            next.delete(item.id);
+          }
+        }
+        return { ...prev, selectedPermissionIds: next };
+      });
+    },
+    [],
+  );
+
+  const handleCloseModal = useCallback(() => {
+    if (modalState.submitting) return;
+    setModalState((prev) => ({ ...prev, isOpen: false }));
+  }, [modalState.submitting]);
+
+  const handleSubmitModal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setModalState((prev) => ({ ...prev, error: null }));
+
+    const trimmedCode = modalState.code.trim().toUpperCase();
+    const trimmedName = modalState.name.trim();
+    const trimmedDesc = modalState.description.trim();
+
+    if (modalState.mode === "create") {
+      if (!trimmedCode) {
+        setModalState((prev) => ({ ...prev, error: "Mã vai trò không được để trống" }));
+        return;
+      }
+      if (!/^[A-Z0-9_]{2,80}$/.test(trimmedCode)) {
+        setModalState((prev) => ({
+          ...prev,
+          error: "Mã vai trò chỉ bao gồm 2-80 ký tự chữ hoa, số và dấu gạch dưới (VD: STAFF_SERVICE)",
+        }));
+        return;
+      }
+    }
+
+    if (!trimmedName || trimmedName.length < 2) {
+      setModalState((prev) => ({ ...prev, error: "Tên vai trò phải có ít nhất 2 ký tự" }));
       return;
     }
 
-    const resetConfirmation = await SwalVietSage.fire({
-      icon: "warning",
-      title: "Đặt lại tất cả thay đổi?",
-      text: "Hành động này sẽ khôi phục dữ liệu về ban đầu.",
-      showCancelButton: true,
-      confirmButtonText: "Đồng ý",
-      cancelButtonText: "Huỷ",
-    });
-
-    if (!resetConfirmation.isConfirmed) return;
-
-    showLoadingBox("Đang xử lí..", "Xin chờ.");
-    setDraftPermissionIdsByRoleId((prev) => ({
-      ...prev,
-      [selectedRoleId]: selectedRoleAssignedPermissionIds,
-    }));
-    closeLoadingBox();
-
-    await SwalVietSage.fire({
-      icon: "success",
-      title: "Đã đặt lại thay đổi",
-      text: "Dữ liệu về ban đầu sẽ khôi phục.",
-      confirmButtonText: "OK",
-      showConfirmButton: true,
-    });
-  }
-
-  /* ── save ── */
-  async function handleSaveChanges() {
-    if (!selectedRoleId || !selectedRoleHasCache || selectedRoleSaving || selectedRoleReadOnly) return;
-
-    if (!selectedRoleHasUnsavedChanges) {
-      await SwalVietSage.fire({
-        icon: "info",
-        title: "Không có quyền nào thay đổi để lưu",
-        text: "Không có thay đổi nào cho vai trò này.",
-        confirmButtonText: "OK",
-        showConfirmButton: true,
-      });
+    if (!modalState.baseRoleId) {
+      setModalState((prev) => ({ ...prev, error: "Vui lòng chọn vai trò cơ sở" }));
       return;
     }
 
-    const saveConfirmation = await SwalVietSage.fire({
-      icon: "question",
-      title: "Lưu thay đổi quyền?",
-      text: "Hành động này sẽ thay thế dữ liệu hiện tại.",
-      showCancelButton: true,
-      confirmButtonText: "Đồng ý lưu",
-      cancelButtonText: "Huỷ",
-    });
+    setModalState((prev) => ({ ...prev, submitting: true }));
 
-    if (!saveConfirmation.isConfirmed) return;
-
-    const nextPermissionIds = normalizePermissionIds(
-      selectedRoleDraftPermissionIds,
-    );
-
-    showLoadingBox("Đang lưu...", "Vui lòng chờ.");
-    setSavingByRoleId((prev) => ({ ...prev, [selectedRoleId]: true }));
-    setErrorByRoleId((prev) => ({ ...prev, [selectedRoleId]: null }));
+    const selectedIds = Array.from(modalState.selectedPermissionIds);
 
     try {
-      const updatedPermissions = await replaceRolePermissions(
-        selectedRoleId,
-        nextPermissionIds,
-      );
-      const confirmedIds = normalizePermissionIds(
-        updatedPermissions.map((p) => p.id),
-      );
+      if (modalState.mode === "create") {
+        const created = await createCustomRoleApi({
+          code: trimmedCode,
+          name: trimmedName,
+          description: trimmedDesc.length > 0 ? trimmedDesc : null,
+          baseRoleId: modalState.baseRoleId,
+          permissionIds: selectedIds,
+        });
 
-      setPermissionsByRoleId((prev) => ({
-        ...prev,
-        [selectedRoleId]: updatedPermissions,
-      }));
-      setDraftPermissionIdsByRoleId((prev) => ({
-        ...prev,
-        [selectedRoleId]: confirmedIds,
-      }));
+        const newBrowserRole: RolePermissionsBrowserRole = {
+          id: created.id,
+          code: created.code ?? trimmedCode,
+          name: created.name,
+          description: created.description ?? null,
+          userCount: 0,
+          enabledCount: selectedIds.length,
+          createdAt: created.createdAt ?? new Date().toISOString(),
+          type: "CUSTOM",
+          baseRoleId: modalState.baseRoleId,
+        };
 
-      closeLoadingBox();
+        const chosenPermissions = modalState.baseRolePermissions.filter((p) =>
+          modalState.selectedPermissionIds.has(p.id),
+        );
 
-      await SwalVietSage.fire({
-        icon: "success",
-        title: "Đã lưu thay đổi",
-        text: `${selectedRoleName} có ${confirmedIds.length} Quyền đang hoạt động.`,
-        confirmButtonText: "OK",
-        showConfirmButton: true,
-      });
+        setCurrentRoles((prev) => [...prev, newBrowserRole]);
+        setPermissionsByRoleId((prev) => ({
+          ...prev,
+          [newBrowserRole.id]: chosenPermissions,
+        }));
+
+        setActiveRoleTab("CUSTOM");
+        setSelectedRoleId(newBrowserRole.id);
+        replaceUrlParams(newBrowserRole.id);
+
+        setModalState((prev) => ({ ...prev, isOpen: false, submitting: false }));
+        void showSuccessAlert("Thành công", "Tạo vai trò tùy chỉnh thành công");
+      } else {
+        const roleId = modalState.roleId!;
+        const updated = await updateCustomRoleApi(roleId, {
+          name: trimmedName,
+          description: trimmedDesc.length > 0 ? trimmedDesc : null,
+          baseRoleId: modalState.baseRoleId,
+          permissionIds: selectedIds,
+        });
+
+        setCurrentRoles((prev) =>
+          prev.map((r) =>
+            r.id === roleId
+              ? {
+                  ...r,
+                  name: updated.name,
+                  description: updated.description ?? null,
+                  baseRoleId: modalState.baseRoleId,
+                  enabledCount: selectedIds.length,
+                }
+              : r,
+          ),
+        );
+
+        const chosenPermissions = modalState.baseRolePermissions.filter((p) =>
+          modalState.selectedPermissionIds.has(p.id),
+        );
+
+        setPermissionsByRoleId((prev) => ({
+          ...prev,
+          [roleId]: chosenPermissions,
+        }));
+
+        setModalState((prev) => ({ ...prev, isOpen: false, submitting: false }));
+        void showSuccessAlert("Thành công", "Cập nhật vai trò tùy chỉnh thành công");
+      }
     } catch (error) {
-      closeLoadingBox();
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Không lưu được thay đổi do lỗi không xác định.";
-      setErrorByRoleId((prev) => ({ ...prev, [selectedRoleId]: message }));
-
-      await SwalVietSage.fire({
-        icon: "error",
-        title: "Lưu thất bại",
-        text: message,
-        confirmButtonText: "OK",
-        showConfirmButton: true,
-      });
-    } finally {
-      closeLoadingBox();
-      setSavingByRoleId((prev) => ({ ...prev, [selectedRoleId]: false }));
+      let errorMessage = "Không thể lưu vai trò";
+      if (error instanceof HttpError) {
+        errorMessage = getErrorMessage(error.data, errorMessage);
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      setModalState((prev) => ({
+        ...prev,
+        submitting: false,
+        error: errorMessage,
+      }));
     }
-  }
+  };
 
-  /* ── module stats for the active module ── */
-  const activeModuleAssignedCount = activeModulePermissions.reduce(
-    (count, p) => count + (selectedRoleDraftPermissionIdSet.has(p.id) ? 1 : 0),
-    0,
-  );
-  const activeModuleAllSelected =
-    activeModulePermissions.length > 0 &&
-    activeModuleAssignedCount === activeModulePermissions.length;
-  const activeModuleAllDisabled = activeModuleAssignedCount === 0;
+  /* ────────────── Delete Custom Role ────────────── */
 
-  /* ════════════════════════════════════════════════════════════════
-     ██  RENDER
-     ════════════════════════════════════════════════════════════════ */
+  const handleDeleteRole = async (role: RolePermissionsBrowserRole) => {
+    const result = await showConfirmDialog({
+      title: "Xóa vai trò tùy chỉnh",
+      text: `Bạn có chắc chắn muốn xóa vai trò "${role.name}" (${role.code})? Hành động này không thể hoàn tác.`,
+      confirmText: "Xóa vai trò",
+      cancelText: "Hủy bỏ",
+      icon: "warning",
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      await deleteCustomRoleApi(role.id);
+
+      setCurrentRoles((prev) => prev.filter((r) => r.id !== role.id));
+      setPermissionsByRoleId((prev) => {
+        const next = { ...prev };
+        delete next[role.id];
+        return next;
+      });
+
+      const remainingCustom = customRoles.filter((r) => r.id !== role.id);
+      const nextSelectedId = remainingCustom[0]?.id ?? null;
+      setSelectedRoleId(nextSelectedId);
+      replaceUrlParams(nextSelectedId);
+      if (nextSelectedId) {
+        void loadRolePermissions(nextSelectedId);
+      }
+
+      void showSuccessAlert("Đã xóa", "Xóa vai trò tùy chỉnh thành công");
+    } catch (error) {
+      let message = "Không thể xóa vai trò";
+      if (error instanceof HttpError) {
+        message = getErrorMessage(error.data, message);
+      } else if (error instanceof Error) {
+        message = error.message;
+      }
+      void showErrorAlert("Không thể xóa vai trò", message);
+    }
+  };
+
+  const baseRoleOfSelected = useMemo(() => {
+    if (!selectedRole || selectedRole.type !== "CUSTOM" || !selectedRole.baseRoleId) {
+      return null;
+    }
+    return defaultRoles.find((r) => r.id === selectedRole.baseRoleId) ?? null;
+  }, [defaultRoles, selectedRole]);
+
+  const modalFilteredPermissions = useMemo(() => {
+    const q = modalState.permissionFilterQuery.trim().toLowerCase();
+    if (!q) return modalState.baseRolePermissions;
+    return modalState.baseRolePermissions.filter((p) =>
+      p.description.toLowerCase().includes(q),
+    );
+  }, [modalState.baseRolePermissions, modalState.permissionFilterQuery]);
 
   return (
-    <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-6 xl:gap-8">
-      {/* ─── LEFT SIDEBAR: Role List (desktop) ─── */}
-      <aside className="hidden w-[240px] xl:w-[280px] shrink-0 lg:block">
-        <div className="sticky top-6 space-y-3">
-          <h2 className="vs-display text-lg font-semibold text-[var(--primary)]">
-            Vai trò
-          </h2>
-          <ul className="space-y-2">
-            {roles.map((role) => {
-              const isActive = role.id === selectedRoleId;
-              return (
-                <li key={role.id}>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectRole(role.id)}
-                    className={`w-full rounded-xl border px-4 py-3 text-left transition-colors ${
-                      isActive
-                        ? "border-[var(--primary)] bg-[var(--primary-fixed)]"
-                        : "border-[color:rgba(198,197,213,0.45)] bg-[var(--surface-container-lowest)] hover:bg-[var(--surface-container-low)]"
-                    }`}
-                  >
-                    <p className="text-[10px] font-bold uppercase tracking-[0.06em] text-[var(--on-surface-variant)]">
-                      {role.code}
-                    </p>
-                    <p className="mt-1 text-sm font-semibold text-[var(--primary)]">
-                      {role.name}
-                    </p>
-                    <p className="mt-1.5 text-[11px] text-[var(--outline)]">
-                      {role.userCount} người dùng
-                      {role.enabledCount != null
-                        ? ` · ${role.enabledCount} quyền`
-                        : ""}
-                    </p>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      </aside>
-
-      {/* ─── MOBILE: Role Selector Toggle ─── */}
-      <div className="lg:hidden">
+    <div className="space-y-4">
+      {/* ── Top Horizontal Navigation: Vai trò mặc định / Vai trò tùy chỉnh ── */}
+      <div
+        className="flex items-center gap-2 border-b border-[color:rgba(198,197,213,0.35)] pb-3"
+        role="tablist"
+        aria-label="Phân loại vai trò"
+      >
         <button
           type="button"
-          onClick={() => setMobileRolePanelOpen((v) => !v)}
-          className="flex w-full items-center justify-between rounded-xl border border-[var(--outline-variant)] bg-white px-4 py-3 text-sm font-semibold text-[var(--primary)]"
+          role="tab"
+          aria-selected={activeRoleTab === "DEFAULT"}
+          onClick={() => handleRoleTabChange("DEFAULT")}
+          className={`flex min-h-11 items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition-all ${
+            activeRoleTab === "DEFAULT"
+              ? "bg-[#25483f] text-white shadow-sm"
+              : "bg-gray-100/80 text-gray-600 hover:bg-gray-200/80 hover:text-gray-900"
+          }`}
         >
-          <span>
-            <VsIcon name="verified_user" className="mr-2 inline text-[16px]" />
-            {selectedRole?.name ?? "Chọn vai trò"}
+          <VsIcon name="shield" className="text-[18px]" />
+          <span>Vai trò mặc định</span>
+          <span
+            className={`ml-1.5 rounded-full px-2 py-0.5 text-xs font-bold ${
+              activeRoleTab === "DEFAULT"
+                ? "bg-white/20 text-white"
+                : "bg-gray-200 text-gray-700"
+            }`}
+          >
+            {defaultRoles.length}
           </span>
-          <VsIcon
-            name={mobileRolePanelOpen ? "expand_less" : "expand_more"}
-            className="text-[20px]"
-          />
         </button>
 
-        {mobileRolePanelOpen ? (
-          <ul className="mt-2 space-y-1.5 rounded-xl border border-[var(--outline-variant)] bg-white p-3">
-            {roles.map((role) => {
-              const isActive = role.id === selectedRoleId;
-              return (
-                <li key={role.id}>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectRole(role.id)}
-                    className={`w-full rounded-lg px-3 py-2.5 text-left text-sm transition-colors ${
-                      isActive
-                        ? "bg-[var(--primary-fixed)] font-semibold text-[var(--primary)]"
-                        : "text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-low)]"
-                    }`}
-                  >
-                    <span className="mr-2 text-[10px] font-bold uppercase tracking-[0.05em] opacity-70">
-                      {role.code}
-                    </span>
-                    {role.name}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        ) : null}
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeRoleTab === "CUSTOM"}
+          onClick={() => handleRoleTabChange("CUSTOM")}
+          className={`flex min-h-11 items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition-all ${
+            activeRoleTab === "CUSTOM"
+              ? "bg-[#25483f] text-white shadow-sm"
+              : "bg-gray-100/80 text-gray-600 hover:bg-gray-200/80 hover:text-gray-900"
+          }`}
+        >
+          <VsIcon name="tune" className="text-[18px]" />
+          <span>Vai trò tùy chỉnh</span>
+          <span
+            className={`ml-1.5 rounded-full px-2 py-0.5 text-xs font-bold ${
+              activeRoleTab === "CUSTOM"
+                ? "bg-white/20 text-white"
+                : "bg-gray-200 text-gray-700"
+            }`}
+          >
+            {customRoles.length}
+          </span>
+        </button>
       </div>
 
-      {/* ─── RIGHT CONTENT AREA ─── */}
-      <div className="min-w-0 flex-1 space-y-6">
-        {/* ── Role Header Card ── */}
-        <article className="vs-card rounded-2xl border-l-4 border-l-[var(--primary)] p-5 md:p-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div>
-              <div className="mb-1.5 flex flex-wrap items-center gap-3">
-                <h1 className="vs-display text-2xl font-semibold leading-tight text-[var(--primary)] md:text-[28px]">
-                  Cấu hình truy cập: {selectedRole?.name ?? "Chưa chọn vai trò"}
-                </h1>
-                {selectedRole ? (
-                  <span className="rounded-full bg-[var(--primary-fixed)] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.06em] text-[var(--on-primary-fixed)]">
-                    {selectedRole.code}
-                  </span>
-                ) : null}
-              </div>
-              <p className="max-w-3xl text-sm text-[var(--on-surface-variant)]">
-                {selectedRole?.description ??
-                  "Chọn vai trò để bật/tắt các quyền nghiệp vụ theo nhóm chức năng."}
-              </p>
-              <p className="mt-2 text-xs text-[var(--outline)]">
-                Ngày tạo:{" "}
-                {selectedRole ? formatDate(selectedRole.createdAt) : "Không có"}
-              </p>
-              {selectedRoleReadOnly ? (
-                <p className="mt-2 text-sm font-semibold text-[var(--secondary)]">
-                  Vai trò hệ thống · Chỉ đọc. Tạo vai trò tùy chỉnh để thay đổi capability.
-                </p>
-              ) : null}
-            </div>
+      {/* ── Main Grid Layout ── */}
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
+        {/* ── Left Pane: Role List ── */}
+        <div className="lg:col-span-4 xl:col-span-3">
+          <RbacRoleListPanel
+            roles={activeTabRoles}
+            selectedRoleId={selectedRoleId}
+            onSelectRole={handleSelectRole}
+            className="sticky top-6 max-h-[calc(100vh-48px)] overflow-hidden"
+            isCustomTab={activeRoleTab === "CUSTOM"}
+            onCreateRole={handleOpenCreateModal}
+          />
+        </div>
 
-            <div className="min-w-[120px] rounded-xl border border-[color:rgba(198,197,213,0.3)] bg-[var(--surface-container-low)] px-4 py-3 text-center">
-              <p className="vs-display text-3xl font-bold leading-none text-[var(--primary)]">
-                {selectedRoleTotalPermissions}
-              </p>
-              <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--outline)]">
-                Quyền nghiệp vụ
-              </p>
-            </div>
-          </div>
-        </article>
+        {/* ── Right Pane: Detail & Permissions ── */}
+        <div className="space-y-6 lg:col-span-8 xl:col-span-9">
+          {/* Default Role Header (Read-only) */}
+          {selectedRole && selectedRole.type === "SYSTEM_TEMPLATE" && (
+            <RbacRoleDetailHeader
+              role={selectedRole}
+              totalPermissions={selectedRoleTotalPermissions}
+              activeTab={detailTab}
+              onTabChange={setDetailTab}
+            />
+          )}
 
-        {/* ── Error state ── */}
-        {selectedRoleError ? (
-          <section className="rounded-xl border border-[color:rgba(186,26,26,0.2)] bg-[var(--error-container)]/60 px-4 py-3 text-sm text-[var(--on-error-container)]">
-            <p>{selectedRoleError}</p>
-            {selectedRoleId ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setPermissionsByRoleId((prev) => {
-                    const next = { ...prev };
-                    delete next[selectedRoleId];
-                    return next;
-                  });
-                  setDraftPermissionIdsByRoleId((prev) => {
-                    const next = { ...prev };
-                    delete next[selectedRoleId];
-                    return next;
-                  });
-                  setErrorByRoleId((prev) => ({
-                    ...prev,
-                    [selectedRoleId]: null,
-                  }));
-                  void loadRolePermissions(selectedRoleId);
-                }}
-                className="mt-2 inline-flex items-center rounded-md border border-[var(--outline)] px-2 py-1 text-xs font-semibold uppercase tracking-[0.08em]"
-              >
-                Thử lại
-              </button>
-            ) : null}
-          </section>
-        ) : null}
-
-        {/* ── Loading state ── */}
-        {selectedRoleLoading ? (
-          <section className="rounded-xl bg-[var(--surface-container-low)] px-4 py-4 text-sm text-[var(--on-surface-variant)]">
-            <div className="flex items-center gap-3">
-              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-[var(--primary)] border-t-transparent" />
-              Đang tải quyền ...
-            </div>
-          </section>
-        ) : null}
-
-        {/* ── Empty / no cache state ── */}
-        {!selectedRoleLoading && !selectedRoleError && !selectedRoleHasCache ? (
-          <section className="vs-card rounded-2xl p-6 text-sm text-[var(--on-surface-variant)]">
-            Hãy chọn vai trò để xem quyền
-          </section>
-        ) : null}
-
-        {/* ── Module Tabs + Permission Content ── */}
-        {!selectedRoleLoading && !selectedRoleError && selectedRoleHasCache ? (
-          <>
-            {/* Module tabs — vertical on mobile, horizontal tabs on desktop */}
-            <nav
-              className="flex flex-col gap-1.5 rounded-xl border border-[var(--outline-variant)] bg-white p-3 md:flex-row md:flex-wrap md:gap-2"
-              aria-label="Nhóm quyền"
-            >
-              {permissionModuleSummaries.map((mod) => {
-                const isActive = mod.moduleKey === selectedModuleKey;
-                const icon = moduleIcon(mod.moduleKey);
-
-                // Use the draft count from the current role if available
-                const modulePerms = permissionModules.find(
-                  (m) => m.moduleKey === mod.moduleKey,
-                );
-                const draftEnabledCount = modulePerms
-                  ? modulePerms.permissions.reduce(
-                      (c, p) =>
-                        c +
-                        (selectedRoleDraftPermissionIdSet.has(p.id) ? 1 : 0),
-                      0,
-                    )
-                  : mod.enabledCount;
-
-                return (
-                  <button
-                    key={mod.moduleKey}
-                    type="button"
-                    onClick={() => handleSelectModule(mod.moduleKey)}
-                    className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-xs font-semibold transition-colors ${
-                      isActive
-                        ? "bg-[var(--primary)] text-white"
-                        : "bg-[var(--surface-container-low)] text-[var(--primary)] hover:bg-[var(--surface-container)]"
-                    }`}
-                  >
-                    <VsIcon name={icon} className="text-[16px] shrink-0" />
-                    <span className="min-w-0 truncate">
-                      {moduleLabel(mod.moduleKey, mod.moduleName)}
-                    </span>
-                    <span
-                      className={`ml-auto shrink-0 tabular-nums ${isActive ? "opacity-80" : "opacity-60"}`}
-                    >
-                      {draftEnabledCount}/{mod.totalPermissions}
-                    </span>
-                  </button>
-                );
-              })}
-            </nav>
-
-            {/* ── Active Module Permissions ── */}
-            {activeModulePermissions.length === 0 ? (
-              <section className="vs-card rounded-2xl p-6 text-sm text-[var(--on-surface-variant)]">
-                {selectedModuleKey
-                  ? "Không có quyền nào trong module này cho vai trò đã chọn."
-                  : "Chọn một module để xem quyền."}
-              </section>
-            ) : (
-              <section className="space-y-3">
-                {/* Module header with select all / disable all */}
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--surface-container-low)] px-4 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <VsIcon
-                      name={moduleIcon(selectedModuleKey ?? "")}
-                      className="text-[18px] text-secondary"
-                    />
-                    <h2 className="text-sm font-semibold text-[var(--primary)]">
-                      {moduleLabel(
-                        selectedModuleKey ?? "",
-                        permissionModuleSummaries.find(
-                          (m) => m.moduleKey === selectedModuleKey,
-                        )?.moduleName,
-                      )}
-                    </h2>
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--outline)]">
-                      {activeModuleAssignedCount}/
-                      {activeModulePermissions.length} quyền đang bật
-                    </span>
+          {/* Custom Role Header with Edit / Delete Actions */}
+          {selectedRole && selectedRole.type === "CUSTOM" && (
+            <div className="rounded-2xl border border-[color:rgba(198,197,213,0.35)] bg-white p-5 shadow-sm sm:p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-800 shadow-2xs">
+                    <VsIcon name="tune" className="text-[32px]" />
                   </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleModuleSelectAll(activeModulePermissions)
-                      }
-                      disabled={
-                        selectedRoleReadOnly ||
-                        selectedRoleSaving ||
-                        activeModulePermissions.length === 0
-                      }
-                      className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] transition-colors ${
-                        activeModuleAllSelected
-                          ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--on-primary)]"
-                          : "border-[var(--outline-variant)] text-[var(--outline)] hover:bg-[var(--surface-container-high)]"
-                      } disabled:cursor-not-allowed disabled:opacity-60`}
-                      aria-label="Chọn tất cả quyền trong module"
-                    >
-                      <VsIcon name="done_all" className="text-[12px]" />
-                      Chọn tất cả
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleModuleDisableAll(activeModulePermissions)
-                      }
-                      disabled={
-                        selectedRoleReadOnly ||
-                        selectedRoleSaving ||
-                        activeModulePermissions.length === 0
-                      }
-                      className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] transition-colors ${
-                        activeModuleAllDisabled
-                          ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--on-primary)]"
-                          : "border-[var(--outline-variant)] text-[var(--outline)] hover:bg-[var(--surface-container-high)]"
-                      } disabled:cursor-not-allowed disabled:opacity-60`}
-                      aria-label="Bỏ chọn tất cả quyền trong module"
-                    >
-                      <VsIcon name="block" className="text-[12px]" />
-                      Bỏ chọn
-                    </button>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="rounded bg-emerald-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-emerald-900">
+                        Vai trò tùy chỉnh
+                      </span>
+                      {baseRoleOfSelected && (
+                        <span className="text-xs text-gray-500">
+                          Kế thừa: <strong className="text-gray-700">{baseRoleOfSelected.name}</strong>
+                        </span>
+                      )}
+                    </div>
+                    <h1 className="text-xl font-bold tracking-tight text-gray-900 sm:text-2xl">
+                      {selectedRole.code}
+                    </h1>
+                    <p className="mt-0.5 text-sm text-gray-500">
+                      {selectedRole.name !== selectedRole.code
+                        ? selectedRole.name
+                        : selectedRole.description ?? "Vai trò tùy chỉnh"}
+                      {" • "}
+                      <span className="font-semibold text-gray-700">
+                        {selectedRoleTotalPermissions} quyền
+                      </span>
+                    </p>
                   </div>
                 </div>
 
-                {/* ── Permission list — single column ── */}
-                <div className="space-y-2 max-h-[55vh] overflow-y-auto pr-1">
-                  {activeModulePermissions.map((permission) => {
-                    const isAssigned = selectedRoleDraftPermissionIdSet.has(
-                      permission.id,
-                    );
-                    const isAssignedFromApi =
-                      selectedRoleAssignedPermissionIdSet.has(permission.id);
-                    const isDirty = isAssigned !== isAssignedFromApi;
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleOpenEditModal(selectedRole)}
+                    className="flex min-h-11 items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 shadow-xs transition hover:bg-gray-50 hover:text-gray-900"
+                  >
+                    <VsIcon name="edit" className="text-[18px]" />
+                    <span>Chỉnh sửa</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteRole(selectedRole)}
+                    className="flex min-h-11 items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-bold text-red-600 shadow-xs transition hover:bg-red-100 hover:text-red-700"
+                  >
+                    <VsIcon name="delete" className="text-[18px]" />
+                    <span>Xóa vai trò</span>
+                  </button>
+                </div>
+              </div>
 
-                    return (
-                      <div
-                        key={permission.id}
-                        className={`group flex items-center justify-between rounded-xl border p-3 transition-colors ${
-                          isAssigned
-                            ? "border-[var(--primary)]/20 bg-[var(--primary-fixed)]/35"
-                            : "border-transparent bg-[var(--surface-container-low)]"
-                        }`}
+              {/* Sub Navigation Tabs */}
+              <div className="mt-6 flex border-b border-gray-200" role="tablist" aria-label="Chi tiết vai trò">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={detailTab === "PERMISSIONS"}
+                  onClick={() => setDetailTab("PERMISSIONS")}
+                  className={`flex min-h-11 h-11 items-center gap-2 border-b-2 px-4 text-xs font-semibold transition-colors ${
+                    detailTab === "PERMISSIONS"
+                      ? "border-emerald-700 text-emerald-900"
+                      : "border-transparent text-gray-500 hover:text-gray-900"
+                  }`}
+                >
+                  <VsIcon name="key" className="text-[16px]" />
+                  <span>Quyền hạn ({selectedRoleTotalPermissions})</span>
+                </button>
+
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={detailTab === "INFO"}
+                  onClick={() => setDetailTab("INFO")}
+                  className={`flex min-h-11 h-11 items-center gap-2 border-b-2 px-4 text-xs font-semibold transition-colors ${
+                    detailTab === "INFO"
+                      ? "border-emerald-700 text-emerald-900"
+                      : "border-transparent text-gray-500 hover:text-gray-900"
+                  }`}
+                >
+                  <VsIcon name="info" className="text-[16px]" />
+                  <span>Thông tin</span>
+                </button>
+
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={detailTab === "USERS"}
+                  onClick={() => setDetailTab("USERS")}
+                  className={`flex min-h-11 h-11 items-center gap-2 border-b-2 px-4 text-xs font-semibold transition-colors ${
+                    detailTab === "USERS"
+                      ? "border-emerald-700 text-emerald-900"
+                      : "border-transparent text-gray-500 hover:text-gray-900"
+                  }`}
+                >
+                  <VsIcon name="groups" className="text-[16px]" />
+                  <span>Người dùng ({selectedRole.userCount})</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Truthful Empty State when Custom Tab has no custom roles */}
+          {activeRoleTab === "CUSTOM" && customRoles.length === 0 && (
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-white p-12 text-center shadow-xs">
+              <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-emerald-50 text-emerald-800 mb-4">
+                <VsIcon name="tune" className="text-[32px]" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">
+                Chưa có vai trò tùy chỉnh nào
+              </h3>
+              <p className="mt-1 max-w-md text-sm text-gray-500">
+                Tạo vai trò tùy chỉnh kế thừa từ vai trò cơ sở để phân bổ quyền hạn phù hợp với mô hình vận hành của bạn.
+              </p>
+              <button
+                type="button"
+                onClick={handleOpenCreateModal}
+                className="mt-5 flex min-h-11 items-center gap-2 rounded-xl bg-[#25483f] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#1a352d]"
+              >
+                <VsIcon name="add" className="text-[18px]" />
+                <span>Tạo vai trò mới</span>
+              </button>
+            </div>
+          )}
+
+          {/* Error Notification */}
+          {selectedRoleError && (
+            <div className="flex items-center justify-between rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+              <span>{selectedRoleError}</span>
+              {selectedRoleId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPermissionsByRoleId((prev) => {
+                      const next = { ...prev };
+                      delete next[selectedRoleId];
+                      return next;
+                    });
+                    void loadRolePermissions(selectedRoleId);
+                  }}
+                  className="flex min-h-11 items-center justify-center rounded-lg bg-red-600 px-4 font-semibold text-white transition hover:bg-red-700"
+                >
+                  Thử lại
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Loading Spinner */}
+          {selectedRoleLoading && (
+            <div className="flex items-center justify-center gap-3 rounded-2xl border border-[color:rgba(198,197,213,0.35)] bg-white p-12 text-sm text-gray-500 shadow-sm">
+              <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
+              <span>Đang tải danh sách quyền...</span>
+            </div>
+          )}
+
+          {/* Detail Content */}
+          {!selectedRoleLoading && selectedRole && (
+            <>
+              {detailTab === "PERMISSIONS" && (
+                <RbacPermissionGroups permissions={selectedRolePermissions} />
+              )}
+
+              {detailTab === "INFO" && (
+                <div className="rounded-2xl border border-[color:rgba(198,197,213,0.35)] bg-white p-6 shadow-sm">
+                  <h3 className="text-sm font-bold text-gray-900">
+                    Thông tin vai trò
+                  </h3>
+                  <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="rounded-xl bg-gray-50 p-3">
+                      <dt className="text-xs font-semibold text-gray-500">Mã vai trò</dt>
+                      <dd className="mt-1 font-mono text-sm font-bold text-gray-900">{selectedRole.code}</dd>
+                    </div>
+                    <div className="rounded-xl bg-gray-50 p-3">
+                      <dt className="text-xs font-semibold text-gray-500">Tên hiển thị</dt>
+                      <dd className="mt-1 text-sm font-bold text-gray-900">{selectedRole.name}</dd>
+                    </div>
+                    <div className="rounded-xl bg-gray-50 p-3">
+                      <dt className="text-xs font-semibold text-gray-500">Loại cấu hình</dt>
+                      <dd className="mt-1 text-sm text-gray-700">
+                        {selectedRole.type === "CUSTOM"
+                          ? "Vai trò tùy chỉnh"
+                          : "Vai trò hệ thống mặc định"}
+                      </dd>
+                    </div>
+                    {selectedRole.type === "CUSTOM" && baseRoleOfSelected && (
+                      <div className="rounded-xl bg-gray-50 p-3">
+                        <dt className="text-xs font-semibold text-gray-500">Vai trò cơ sở</dt>
+                        <dd className="mt-1 text-sm font-bold text-gray-900">
+                          {baseRoleOfSelected.name} ({baseRoleOfSelected.code})
+                        </dd>
+                      </div>
+                    )}
+                    <div className="rounded-xl bg-gray-50 p-3">
+                      <dt className="text-xs font-semibold text-gray-500">Ngày tạo</dt>
+                      <dd className="mt-1 text-sm text-gray-700">{formatDate(selectedRole.createdAt)}</dd>
+                    </div>
+                    <div className="rounded-xl bg-gray-50 p-3 sm:col-span-2">
+                      <dt className="text-xs font-semibold text-gray-500">Mô tả nghiệp vụ</dt>
+                      <dd className="mt-1 text-sm text-gray-700">
+                        {selectedRole.description || "Không có mô tả bổ sung cho vai trò này."}
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+              )}
+
+              {detailTab === "USERS" && (
+                <div className="rounded-2xl border border-[color:rgba(198,197,213,0.35)] bg-white p-6 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-900">
+                        Danh sách người dùng được gán ({selectedRole.userCount})
+                      </h3>
+                      <p className="mt-0.5 text-xs text-gray-500">
+                        Các tài khoản hiện đang thừa hưởng quyền hạn từ vai trò này.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50/50 p-6 text-center text-xs text-gray-500">
+                    {selectedRole.userCount > 0
+                      ? `Hiện có ${selectedRole.userCount} người dùng đang áp dụng vai trò này. Quản lý phân bổ tài khoản được thực hiện tại mục Quản lý người dùng.`
+                      : "Chưa có người dùng nào được gán vai trò này."}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* ── Create / Edit Custom Role Modal ── */}
+      {modalState.isOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-xs"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="role-modal-title"
+        >
+          <div className="relative flex max-h-[90vh] w-full max-w-2xl flex-col rounded-3xl border border-gray-100 bg-white shadow-2xl">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-800">
+                  <VsIcon name={modalState.mode === "create" ? "add" : "edit"} className="text-[20px]" />
+                </div>
+                <div>
+                  <h2 id="role-modal-title" className="text-lg font-bold text-gray-900">
+                    {modalState.mode === "create" ? "Tạo vai trò tùy chỉnh" : "Chỉnh sửa vai trò tùy chỉnh"}
+                  </h2>
+                  <p className="text-xs text-gray-500">
+                    {modalState.mode === "create"
+                      ? "Khởi tạo vai trò mới với tập quyền thu hẹp từ vai trò cơ sở"
+                      : `Cập nhật cấu hình và phân quyền cho ${modalState.code}`}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseModal}
+                disabled={modalState.submitting}
+                className="flex h-11 w-11 min-h-11 min-w-11 items-center justify-center rounded-xl text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 disabled:opacity-50"
+                aria-label="Đóng cửa sổ"
+              >
+                <VsIcon name="close" className="text-[20px]" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleSubmitModal} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <div className="flex-1 space-y-4 overflow-y-auto px-6 py-4">
+                {modalState.error && (
+                  <div className="rounded-xl border border-red-200 bg-red-50 p-3.5 text-sm text-red-700">
+                    {modalState.error}
+                  </div>
+                )}
+
+                {/* Form fields */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {/* Code field */}
+                  <div>
+                    <label htmlFor="modal-code" className="block text-xs font-bold uppercase tracking-wider text-gray-700">
+                      Mã vai trò <span className="text-red-500">*</span>
+                    </label>
+                    {modalState.mode === "create" ? (
+                      <>
+                        <input
+                          id="modal-code"
+                          type="text"
+                          value={modalState.code}
+                          onChange={(e) =>
+                            setModalState((prev) => ({
+                              ...prev,
+                              code: e.target.value.toUpperCase(),
+                            }))
+                          }
+                          placeholder="VD: FRONTDESK_NIGHT"
+                          className="mt-1.5 h-11 min-h-11 w-full rounded-xl border border-gray-300 px-3.5 font-mono text-sm text-gray-900 uppercase placeholder-gray-400 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                          required
+                        />
+                        <p className="mt-1 text-[11px] text-gray-500">
+                          Chỉ chữ hoa, số và gạch dưới (A-Z, 0-9, _)
+                        </p>
+                      </>
+                    ) : (
+                      <div className="mt-1.5 flex h-11 min-h-11 items-center rounded-xl border border-gray-200 bg-gray-100 px-3.5 font-mono text-sm font-bold text-gray-700">
+                        {modalState.code}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Name field */}
+                  <div>
+                    <label htmlFor="modal-name" className="block text-xs font-bold uppercase tracking-wider text-gray-700">
+                      Tên vai trò <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      id="modal-name"
+                      type="text"
+                      value={modalState.name}
+                      onChange={(e) =>
+                        setModalState((prev) => ({ ...prev, name: e.target.value }))
+                      }
+                      placeholder="VD: Lễ tân ca đêm"
+                      className="mt-1.5 h-11 min-h-11 w-full rounded-xl border border-gray-300 px-3.5 text-sm text-gray-900 placeholder-gray-400 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Base Role Select */}
+                <div>
+                  <label htmlFor="modal-base-role" className="block text-xs font-bold uppercase tracking-wider text-gray-700">
+                    Vai trò cơ sở <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="modal-base-role"
+                    value={modalState.baseRoleId}
+                    onChange={(e) => void handleModalBaseChange(e.target.value)}
+                    className="mt-1.5 h-11 min-h-11 w-full rounded-xl border border-gray-300 bg-white px-3.5 text-sm font-medium text-gray-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                    required
+                  >
+                    <option value="" disabled>-- Chọn vai trò cơ sở --</option>
+                    {defaultRoles.map((dr) => (
+                      <option key={dr.id} value={dr.id}>
+                        {dr.name} ({dr.code})
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-[11px] text-gray-500">
+                    Vai trò tùy chỉnh chỉ được cấp các quyền thuộc phạm vi vai trò cơ sở đã chọn.
+                  </p>
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label htmlFor="modal-desc" className="block text-xs font-bold uppercase tracking-wider text-gray-700">
+                    Mô tả nghiệp vụ
+                  </label>
+                  <textarea
+                    id="modal-desc"
+                    value={modalState.description}
+                    onChange={(e) =>
+                      setModalState((prev) => ({ ...prev, description: e.target.value }))
+                    }
+                    placeholder="Mô tả tóm tắt phạm vi trách nhiệm của vai trò..."
+                    rows={2}
+                    className="mt-1.5 w-full rounded-xl border border-gray-300 p-3 text-sm text-gray-900 placeholder-gray-400 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                  />
+                </div>
+
+                {/* Permission Checklist Area */}
+                <div className="border-t border-gray-200 pt-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-gray-700">
+                        Danh sách quyền hạn ({modalState.selectedPermissionIds.size} / {modalState.baseRolePermissions.length})
+                      </h4>
+                      <p className="text-[11px] text-gray-500">
+                        Chọn các quyền được phép thực thi trong vai trò này.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectAllPermissions(true, modalFilteredPermissions)}
+                        className="text-xs font-semibold text-emerald-800 hover:underline"
                       >
-                        <div className="flex min-w-0 flex-1 items-center gap-3">
-                          <span
-                            className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-                              BUSINESS_MODULE_LABELS[selectedModuleKey ?? ""]
-                                ?.tone ??
-                              "bg-[var(--surface-container)] text-[var(--primary)]"
+                        Chọn tất cả
+                      </button>
+                      <span className="text-gray-300">•</span>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectAllPermissions(false, modalFilteredPermissions)}
+                        className="text-xs font-semibold text-gray-600 hover:underline"
+                      >
+                        Bỏ chọn
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Filter inside permissions */}
+                  <div className="mt-2.5">
+                    <input
+                      type="text"
+                      value={modalState.permissionFilterQuery}
+                      onChange={(e) =>
+                        setModalState((prev) => ({
+                          ...prev,
+                          permissionFilterQuery: e.target.value,
+                        }))
+                      }
+                      placeholder="Lọc danh sách quyền..."
+                      className="h-10 min-h-10 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 text-xs text-gray-900 placeholder-gray-400 focus:bg-white focus:border-emerald-500 focus:outline-none"
+                    />
+                  </div>
+
+                  {/* Checklist scroll area */}
+                  <div className="mt-2.5 max-h-56 space-y-1.5 overflow-y-auto rounded-xl border border-gray-200 p-2.5">
+                    {modalState.loadingBasePermissions ? (
+                      <div className="flex items-center justify-center gap-2 py-8 text-xs text-gray-500">
+                        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
+                        <span>Đang tải danh sách quyền từ vai trò cơ sở...</span>
+                      </div>
+                    ) : modalFilteredPermissions.length === 0 ? (
+                      <p className="py-6 text-center text-xs text-gray-400 italic">
+                        {modalState.permissionFilterQuery.trim()
+                          ? "Không tìm thấy quyền phù hợp với từ khóa"
+                          : "Vai trò cơ sở chưa có quyền hạn nào"}
+                      </p>
+                    ) : (
+                      modalFilteredPermissions.map((perm) => {
+                        const isChecked = modalState.selectedPermissionIds.has(perm.id);
+                        return (
+                          <label
+                            key={perm.id}
+                            className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 transition-colors ${
+                              isChecked
+                                ? "border-emerald-300 bg-emerald-50/50 text-emerald-950"
+                                : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
                             }`}
                           >
-                            <VsIcon
-                              name={moduleIcon(selectedModuleKey ?? "")}
-                              className="text-[16px]"
-                            />
-                          </span>
-
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-semibold text-[var(--on-surface)]">
-                              {businessActionLabel(permission.description)}
-                            </p>
-                            <p className="mt-1 font-mono text-[11px] text-[var(--outline)]">
-                              {permission.key} · Rủi ro {permission.risk}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="ml-3 flex shrink-0 items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleResetPermission(permission.id)}
-                            disabled={selectedRoleReadOnly || selectedRoleSaving || !isDirty}
-                            className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-[var(--outline-variant)] text-[var(--outline)] transition-colors hover:bg-[var(--surface-container-low)] disabled:cursor-not-allowed disabled:opacity-40"
-                            aria-label={`Đặt lại quyền ${permission.description} theo giá trị ban đầu`}
-                            title={isDirty ? "Đặt lại quyền này" : "Đã đồng bộ"}
-                          >
-                            <VsIcon
-                              name="restart_alt"
-                              className="text-[14px]"
-                            />
-                          </button>
-
-                          <label className="relative inline-flex h-5 w-10 cursor-pointer items-center">
                             <input
                               type="checkbox"
-                              checked={isAssigned}
-                              onChange={(e) =>
-                                handlePermissionToggle(
-                                  permission.id,
-                                  e.currentTarget.checked,
-                                )
-                              }
-                              disabled={selectedRoleReadOnly || selectedRoleSaving}
-                              className="peer sr-only"
-                              aria-label={`Quyền ${permission.description}`}
+                              checked={isChecked}
+                              onChange={() => handleTogglePermission(perm.id)}
+                              className="h-4 w-4 rounded border-gray-300 text-emerald-700 focus:ring-emerald-500"
                             />
-                            <span
-                              className={`h-5 w-10 rounded-full transition-colors ${
-                                isAssigned
-                                  ? "bg-[var(--primary)]"
-                                  : "bg-[var(--surface-container-high)]"
-                              }`}
-                            />
-                            <span
-                              className={`pointer-events-none absolute h-4 w-4 rounded-full bg-white shadow transition-transform ${
-                                isAssigned ? "left-5" : "left-1"
-                              }`}
-                            />
+                            <span className="text-xs font-medium leading-relaxed">
+                              {perm.description}
+                            </span>
                           </label>
-                        </div>
-                      </div>
-                    );
-                  })}
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
-              </section>
-            )}
-          </>
-        ) : null}
+              </div>
 
-        {/* ── Sticky Save Footer ── */}
-        <footer className="sticky bottom-0 z-40 -mx-4 rounded-t-xl border-t border-[color:rgba(198,197,213,0.25)] bg-[color:rgba(255,255,255,0.92)] px-4 py-3 backdrop-blur md:-mx-6 md:px-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-[var(--primary)]">
-                {selectedRoleHasCache
-                  ? `${selectedRoleUnsavedChangesCount} thay đổi chưa lưu`
-                  : "Chưa chọn vai trò"}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={handleResetChanges}
-                disabled={!selectedRoleHasCache || selectedRoleSaving || selectedRoleReadOnly}
-                className="cursor-pointer rounded-lg border border-[var(--primary)] px-4 py-2 text-xs font-bold uppercase tracking-[0.08em] text-[var(--primary)] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Đặt lại
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  void handleSaveChanges();
-                }}
-                disabled={
-                  !selectedRoleHasUnsavedChanges || selectedRoleSaving || selectedRoleReadOnly
-                }
-                className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[var(--primary)] px-5 py-2.5 text-xs font-bold uppercase tracking-[0.08em] text-[var(--on-primary)] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <VsIcon
-                  name={selectedRoleSaving ? "hourglass_top" : "task_alt"}
-                  className="text-[14px]"
-                />
-                {selectedRoleSaving ? "Đang lưu..." : "Lưu thay đổi"}
-              </button>
-            </div>
+              {/* Modal Footer */}
+              <div className="flex items-center justify-end gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4 rounded-b-3xl">
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  disabled={modalState.submitting}
+                  className="inline-flex min-h-11 items-center justify-center rounded-xl border border-gray-300 bg-white px-5 text-sm font-bold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="submit"
+                  disabled={modalState.submitting || modalState.loadingBasePermissions}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#25483f] px-6 text-sm font-bold text-white shadow-sm transition hover:bg-[#1a352d] disabled:opacity-50"
+                >
+                  {modalState.submitting && (
+                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  )}
+                  <span>{modalState.mode === "create" ? "Tạo vai trò" : "Lưu thay đổi"}</span>
+                </button>
+              </div>
+            </form>
           </div>
-        </footer>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -166,8 +166,8 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
   {
     key: "admin.access",
     personas: ["platform_admin"],
-    href: "/admin/roles",
-    label: "Vai trò & quyền",
+    href: "/admin/permissions",
+    label: "Vai trò & Quyền",
     icon: "verified_user",
     order: 40,
     section: "ADMINISTRATION",
@@ -491,10 +491,10 @@ const WIDGETS: readonly WorkspaceWidgetDefinition[] = [
   {
     key: "platform.access",
     personas: ["platform_admin"],
-    title: "Vai trò & quyền hạn",
+    title: "Vai trò & Quyền hạn",
     description: "Quản trị role template, capability và chính sách truy cập.",
     icon: "verified_user",
-    href: "/admin/roles",
+    href: "/admin/permissions",
     order: 30,
     size: "standard",
     anyCapabilities: [

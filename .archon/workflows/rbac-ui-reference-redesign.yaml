@@ -1,0 +1,115 @@
+name: rbac-ui-reference-redesign
+description: |
+  Approval-gated RBAC UI redesign matching the supplied reference. Archon exposes
+  plan, three parallel component lanes, integration, and final verification.
+interactive: true
+worktree:
+  enabled: false
+
+nodes:
+  - id: execution-plan
+    bash: |
+      cat .hermes/plans/2026-09-10-rbac-ui-reference-redesign.md
+    timeout: 10000
+
+  - id: approve-ui-plan
+    approval:
+      message: |
+        Approve this RBAC UI redesign plan. No UI file or worker starts before approval.
+
+        $execution-plan.output
+      capture_response: true
+    depends_on: [execution-plan]
+
+  - id: preflight
+    bash: |
+      ORCA='C:/Users/Dangminhdev0403/AppData/Local/Programs/orca/resources/bin/orca.cmd'
+      "$ORCA" status --json >/dev/null
+      test -f frontends/front-end-vietsage/src/app/'(vietsage)'/admin/permissions/_components/role-permissions-browser.tsx
+      test -f .archon/scripts/run-rbac-ui-lane.ps1
+      printf 'READY'
+    depends_on: [approve-ui-plan]
+    timeout: 30000
+
+  - id: lane-role-list
+    bash: |
+      ORCA='C:/Users/Dangminhdev0403/AppData/Local/Programs/orca/resources/bin/orca.cmd'
+      "$ORCA" terminal create --worktree 'path:C:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage' --title 'RBAC UI role-list' --command "& 'C:\Users\Dangminhdev0403\Desktop\workspace\fullstack-vietSage\.archon\scripts\run-rbac-ui-lane.ps1' -Lane role-list" --json
+    depends_on: [preflight]
+    timeout: 120000
+
+  - id: lane-capability-groups
+    bash: |
+      ORCA='C:/Users/Dangminhdev0403/AppData/Local/Programs/orca/resources/bin/orca.cmd'
+      "$ORCA" terminal create --worktree 'path:C:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage' --title 'RBAC UI capability-groups' --command "& 'C:\Users\Dangminhdev0403\Desktop\workspace\fullstack-vietSage\.archon\scripts\run-rbac-ui-lane.ps1' -Lane capability-groups" --json
+    depends_on: [preflight]
+    timeout: 120000
+
+  - id: lane-role-detail
+    bash: |
+      ORCA='C:/Users/Dangminhdev0403/AppData/Local/Programs/orca/resources/bin/orca.cmd'
+      "$ORCA" terminal create --worktree 'path:C:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage' --title 'RBAC UI role-detail' --command "& 'C:\Users\Dangminhdev0403\Desktop\workspace\fullstack-vietSage\.archon\scripts\run-rbac-ui-lane.ps1' -Lane role-detail" --json
+    depends_on: [preflight]
+    timeout: 120000
+
+  - id: wait-role-list
+    bash: |
+      payload=$lane-role-list.output
+      handle=$(printf '%s' "$payload" | python -c "import json,sys; print(json.load(sys.stdin)['result']['terminal']['handle'])")
+      ORCA='C:/Users/Dangminhdev0403/AppData/Local/Programs/orca/resources/bin/orca.cmd'
+      "$ORCA" terminal wait --terminal "$handle" --for exit --timeout-ms 1200000 --json
+    depends_on: [lane-role-list]
+    timeout: 1260000
+
+  - id: wait-capability-groups
+    bash: |
+      payload=$lane-capability-groups.output
+      handle=$(printf '%s' "$payload" | python -c "import json,sys; print(json.load(sys.stdin)['result']['terminal']['handle'])")
+      ORCA='C:/Users/Dangminhdev0403/AppData/Local/Programs/orca/resources/bin/orca.cmd'
+      "$ORCA" terminal wait --terminal "$handle" --for exit --timeout-ms 1200000 --json
+    depends_on: [lane-capability-groups]
+    timeout: 1260000
+
+  - id: wait-role-detail
+    bash: |
+      payload=$lane-role-detail.output
+      handle=$(printf '%s' "$payload" | python -c "import json,sys; print(json.load(sys.stdin)['result']['terminal']['handle'])")
+      ORCA='C:/Users/Dangminhdev0403/AppData/Local/Programs/orca/resources/bin/orca.cmd'
+      "$ORCA" terminal wait --terminal "$handle" --for exit --timeout-ms 1200000 --json
+    depends_on: [lane-role-detail]
+    timeout: 1260000
+
+  - id: integration
+    bash: |
+      ORCA='C:/Users/Dangminhdev0403/AppData/Local/Programs/orca/resources/bin/orca.cmd'
+      "$ORCA" terminal create --worktree 'path:C:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage' --title 'RBAC UI integration' --command "& 'C:\Users\Dangminhdev0403\Desktop\workspace\fullstack-vietSage\.archon\scripts\run-rbac-ui-lane.ps1' -Lane integration" --json
+    depends_on: [wait-role-list, wait-capability-groups, wait-role-detail]
+    timeout: 120000
+
+  - id: wait-integration
+    bash: |
+      payload=$integration.output
+      handle=$(printf '%s' "$payload" | python -c "import json,sys; print(json.load(sys.stdin)['result']['terminal']['handle'])")
+      ORCA='C:/Users/Dangminhdev0403/AppData/Local/Programs/orca/resources/bin/orca.cmd'
+      "$ORCA" terminal wait --terminal "$handle" --for exit --timeout-ms 1200000 --json
+    depends_on: [integration]
+    timeout: 1260000
+
+  - id: final-static-gate
+    bash: |
+      cd frontends/front-end-vietsage
+      npx eslint 'src/app/(vietsage)/admin/permissions/**/*.{ts,tsx}'
+      npx tsc --noEmit
+      node 'C:/Users/Dangminhdev0403/AppData/Local/hermes/skills/impeccable/scripts/detect.mjs' --json 'src/app/(vietsage)/admin/permissions/page.tsx' 'src/app/(vietsage)/admin/permissions/_components/role-permissions-browser.tsx' 'src/app/(vietsage)/admin/permissions/_components/rbac-role-list-panel.tsx' 'src/app/(vietsage)/admin/permissions/_components/rbac-capability-groups.tsx' 'src/app/(vietsage)/admin/permissions/_components/rbac-role-detail-header.tsx'
+      npm run build
+    depends_on: [wait-integration]
+    timeout: 1200000
+
+  - id: browser-qa
+    approval:
+      message: |
+        Static gate passed. Open the already-running frontend at
+        http://localhost:3000/admin/permissions and inspect desktop/mobile in Orca.
+        Approve only after the visual result matches the reference; reject with exact defects.
+      capture_response: true
+    depends_on: [final-static-gate]

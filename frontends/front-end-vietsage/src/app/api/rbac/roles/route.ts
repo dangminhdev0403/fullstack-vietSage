@@ -1,5 +1,6 @@
 import { HttpError } from "@/core/http/http-error";
 import { rbacService } from "@/features/rbac/service/rbac-service-instance";
+import type { CreateRoleInput } from "@/features/rbac/types/rbac-contract";
 
 import {
   httpErrorResponse,
@@ -14,7 +15,13 @@ type CreateRolePayload = {
   code?: unknown;
   name?: unknown;
   description?: unknown;
+  baseRoleId?: unknown;
+  permissionIds?: unknown;
 };
+
+function normalizeString(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
 
 function normalizeOptionalString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim().length > 0
@@ -30,24 +37,43 @@ export async function POST(request: Request) {
     payload = null;
   }
 
-  const code = normalizeOptionalString(payload?.code);
-  const name = normalizeOptionalString(payload?.name);
+  const code = normalizeString(payload?.code);
+  const name = normalizeString(payload?.name);
+  const baseRoleId = normalizeString(payload?.baseRoleId);
   const description = normalizeOptionalString(payload?.description);
 
+  if (!code) {
+    return validationErrorResponse("Mã vai trò (code) là bắt buộc");
+  }
   if (!name) {
-    return validationErrorResponse("name is required");
+    return validationErrorResponse("Tên vai trò (name) là bắt buộc");
+  }
+  if (!baseRoleId) {
+    return validationErrorResponse("Vai trò cơ sở (baseRoleId) là bắt buộc");
   }
 
-  try {
-    const data = await rbacService.createRole(
-      {
-        name,
-        ...(code ? { code } : {}),
-        ...(description ? { description } : {}),
-      },
-    );
+  if (
+    !Array.isArray(payload?.permissionIds) ||
+    !payload.permissionIds.every((item) => typeof item === "string")
+  ) {
+    return validationErrorResponse("permissionIds phải là một danh sách chuỗi");
+  }
 
-    return successResponse(data, 201, "Role created successfully");
+  const permissionIds: string[] = payload.permissionIds
+    .map((id) => (typeof id === "string" ? id.trim() : ""))
+    .filter((id) => id.length > 0);
+
+  const input: CreateRoleInput = {
+    code,
+    name,
+    baseRoleId,
+    permissionIds,
+    ...(description !== undefined ? { description } : {}),
+  };
+
+  try {
+    const data = await rbacService.createRole(input);
+    return successResponse(data, 201, "Tạo vai trò thành công");
   } catch (error) {
     if (error instanceof HttpError) {
       return httpErrorResponse(error);

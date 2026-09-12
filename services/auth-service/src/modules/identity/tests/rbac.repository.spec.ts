@@ -44,35 +44,4 @@ describe("RbacRepository", () => {
       }),
     );
   });
-
-  it("replaces business capabilities without deleting route grants", async () => {
-    const deleteMany = jest.fn().mockResolvedValue({ count: 1 });
-    const createMany = jest.fn().mockResolvedValue({ count: 1 });
-    const transaction = jest.fn(async (callback) =>
-      callback({ rolePermission: { deleteMany, createMany } }),
-    );
-    const repository = new RbacRepository({
-      $transaction: transaction,
-    } as unknown as PrismaService);
-
-    await repository.replaceRoleBusinessPermissions(
-      "role-1",
-      ["cap-2"],
-      ["hotel.rooms.view", "hotel.rooms.manage"],
-    );
-
-    expect(deleteMany).toHaveBeenCalledWith({
-      where: {
-        roleId: "role-1",
-        permission: {
-          method: "OPTIONS",
-          path: { in: ["hotel.rooms.view", "hotel.rooms.manage"] },
-        },
-      },
-    });
-    expect(createMany).toHaveBeenCalledWith({
-      data: [{ roleId: "role-1", permissionId: "cap-2" }],
-      skipDuplicates: true,
-    });
-  });
 });

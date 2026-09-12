@@ -8,7 +8,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "start": "nest start",
-    "start:dev": "nest start --watch",
+    "start:dev": "portless api.vietsage --app-port 8080 nest start --watch",
     "prisma:dev": "npx prisma migrate deploy && npx prisma generate",
     "prisma:create--create-only": "npx prisma migrate dev --create-only",
     "prisma:generate": "npx prisma generate",

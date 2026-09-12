@@ -2,6 +2,8 @@ import { unwrapApiEnvelope } from "@/core/http/api-envelope";
 import { HttpClient, type HttpMethod, type HttpQuery } from "@/core/http/http-client";
 import { httpServer } from "@/core/http/http-server";
 import type {
+  CreateRoleInput,
+  DeleteRoleResult,
   PermissionsListQuery,
   PermissionsListResponseEnvelope,
   RbacPermission,
@@ -11,18 +13,12 @@ import type {
   RbacRoleCapability,
   RbacStandalonePermission,
   RoleCapabilitiesListResponseEnvelope,
-  RoleCapabilitiesReplaceResponseEnvelope,
-  RolePermissionModuleDisableAllResponseEnvelope,
   RolePermissionModulePermissionsListQuery,
   RolePermissionModulePermissionsListResponseEnvelope,
-  RolePermissionModuleSelectAllResponseEnvelope,
   RolePermissionModulesListResponseEnvelope,
-  RolePermissionsGrantResponseEnvelope,
   RolePermissionsListResponseEnvelope,
-  RolePermissionsMutationBody,
-  RolePermissionsReplaceResponseEnvelope,
-  RolePermissionsRevokeResponseEnvelope,
   RolesListResponseEnvelope,
+  UpdateRoleInput,
 } from "@/features/rbac/types/rbac-contract";
 import { readServerSessionTokens } from "@/libs/server-session-tokens";
 
@@ -40,25 +36,6 @@ export type ListPermissionModulePermissionsOptions = {
   query?: RolePermissionModulePermissionsListQuery;
   accessToken?: string;
 };
-
-export type CreateRoleBody = {
-  code?: string;
-  name: string;
-  description?: string;
-};
-
-export type UpdateRoleBody = {
-  name?: string;
-  description?: string;
-};
-
-export type DeleteRoleResult = {
-  deleted: true;
-};
-
-function toRolePermissionPayload(permissionIds: string[]): RolePermissionsMutationBody {
-  return { permissionIds };
-}
 
 export class RbacService {
   private readonly baseUrl: string;
@@ -120,8 +97,8 @@ export class RbacService {
     return roleEnvelope.data;
   }
 
-  async createRole(body: CreateRoleBody, accessToken?: string): Promise<RbacRole> {
-    const rolePayload = await this.authenticatedRequest<unknown, CreateRoleBody>({
+  async createRole(body: CreateRoleInput, accessToken?: string): Promise<RbacRole> {
+    const rolePayload = await this.authenticatedRequest<unknown, CreateRoleInput>({
       method: "POST",
       path: "/roles",
       body,
@@ -132,22 +109,15 @@ export class RbacService {
     return roleEnvelope.data;
   }
 
-  async updateRole(roleId: string, body: UpdateRoleBody, accessToken?: string): Promise<RbacRole> {
-    const rolePayload = await this.authenticatedRequest<unknown, UpdateRoleBody>({
+  async updateRole(
+    roleId: string,
+    body: UpdateRoleInput,
+    accessToken?: string,
+  ): Promise<RbacRole> {
+    const rolePayload = await this.authenticatedRequest<unknown, UpdateRoleInput>({
       method: "PATCH",
       path: `/roles/${encodeURIComponent(roleId)}`,
       body,
-      accessToken,
-    });
-
-    const roleEnvelope = unwrapApiEnvelope<RbacRole>(rolePayload);
-    return roleEnvelope.data;
-  }
-
-  async disableRole(roleId: string, accessToken?: string): Promise<RbacRole> {
-    const rolePayload = await this.authenticatedRequest<unknown>({
-      method: "POST",
-      path: `/roles/${encodeURIComponent(roleId)}/disable`,
       accessToken,
     });
 
@@ -165,6 +135,7 @@ export class RbacService {
     const roleEnvelope = unwrapApiEnvelope<DeleteRoleResult>(rolePayload);
     return roleEnvelope.data;
   }
+
 
   async listPermissions(options: ListPermissionsOptions = {}): Promise<RbacStandalonePermission[]> {
     const permissionsPayload = await this.authenticatedRequest<PermissionsListResponseEnvelope>({
@@ -193,23 +164,6 @@ export class RbacService {
     const payload = await this.authenticatedRequest<RoleCapabilitiesListResponseEnvelope>({
       method: "GET",
       path: `/roles/${encodeURIComponent(roleId)}/capabilities`,
-      accessToken,
-    });
-    return unwrapApiEnvelope<RbacRoleCapability[]>(payload).data;
-  }
-
-  async replaceRoleCapabilities(
-    roleId: string,
-    permissionIds: string[],
-    accessToken?: string,
-  ): Promise<RbacRoleCapability[]> {
-    const payload = await this.authenticatedRequest<
-      RoleCapabilitiesReplaceResponseEnvelope,
-      RolePermissionsMutationBody
-    >({
-      method: "PUT",
-      path: `/roles/${encodeURIComponent(roleId)}/capabilities`,
-      body: toRolePermissionPayload(permissionIds),
       accessToken,
     });
     return unwrapApiEnvelope<RbacRoleCapability[]>(payload).data;
@@ -271,67 +225,8 @@ export class RbacService {
     return permissionsEnvelope.data;
   }
 
-  async selectAllMyPermissionModule(moduleKey: string, accessToken?: string): Promise<RbacPermissionModuleSummary> {
-    const selectAllPayload = await this.authenticatedRequest<RolePermissionModuleSelectAllResponseEnvelope>({
-      method: "POST",
-      path: `/roles/me/permission-modules/${encodeURIComponent(moduleKey)}/select-all`,
-      accessToken,
-    });
-
-    const selectAllEnvelope = unwrapApiEnvelope<RbacPermissionModuleSummary>(selectAllPayload);
-    return selectAllEnvelope.data;
-  }
-
-  async disableAllMyPermissionModule(moduleKey: string, accessToken?: string): Promise<RbacPermissionModuleSummary> {
-    const disableAllPayload = await this.authenticatedRequest<RolePermissionModuleDisableAllResponseEnvelope>({
-      method: "POST",
-      path: `/roles/me/permission-modules/${encodeURIComponent(moduleKey)}/disable-all`,
-      accessToken,
-    });
-
-    const disableAllEnvelope = unwrapApiEnvelope<RbacPermissionModuleSummary>(disableAllPayload);
-    return disableAllEnvelope.data;
-  }
-
-  async replaceRolePermissions(roleId: string, permissionIds: string[], accessToken?: string): Promise<RbacPermission[]> {
-    const replacePayload = await this.authenticatedRequest<RolePermissionsReplaceResponseEnvelope, RolePermissionsMutationBody>({
-      method: "PUT",
-      path: `/roles/${encodeURIComponent(roleId)}/permissions`,
-      body: toRolePermissionPayload(permissionIds),
-      accessToken,
-    });
-
-    const replaceEnvelope = unwrapApiEnvelope<RbacPermission[]>(replacePayload);
-    return replaceEnvelope.data;
-  }
-
-  async grantRolePermissions(roleId: string, permissionIds: string[], accessToken?: string): Promise<RbacPermission[]> {
-    const grantPayload = await this.authenticatedRequest<RolePermissionsGrantResponseEnvelope, RolePermissionsMutationBody>({
-      method: "POST",
-      path: `/roles/${encodeURIComponent(roleId)}/permissions/grant`,
-      body: toRolePermissionPayload(permissionIds),
-      accessToken,
-    });
-
-    const grantEnvelope = unwrapApiEnvelope<RbacPermission[]>(grantPayload);
-    return grantEnvelope.data;
-  }
-
-  async revokeRolePermissions(roleId: string, permissionIds: string[], accessToken?: string): Promise<RbacPermission[]> {
-    const revokePayload = await this.authenticatedRequest<RolePermissionsRevokeResponseEnvelope, RolePermissionsMutationBody>({
-      method: "POST",
-      path: `/roles/${encodeURIComponent(roleId)}/permissions/revoke`,
-      body: toRolePermissionPayload(permissionIds),
-      accessToken,
-    });
-
-    const revokeEnvelope = unwrapApiEnvelope<RbacPermission[]>(revokePayload);
-    return revokeEnvelope.data;
-  }
 }
 
 export function createRbacService(options: RbacServiceOptions): RbacService {
   return new RbacService(options);
 }
-
-

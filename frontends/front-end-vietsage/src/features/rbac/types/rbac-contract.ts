@@ -1,4 +1,4 @@
-﻿import type { operations } from "@/generated/openapi/v1";
+import type { operations } from "@/generated/openapi/v1";
 
 export type RolesListResponseEnvelope =
   operations["RolesController_listRoles"]["responses"][200]["content"]["application/json"];
@@ -15,29 +15,11 @@ export type RolePermissionModulePermissionsListResponseEnvelope =
 export type RolePermissionModulePermissionsListQuery =
   operations["RolesController_listRolePermissionModulePermissions"]["parameters"]["query"];
 
-export type RolePermissionModuleSelectAllResponseEnvelope =
-  operations["RolesController_grantRolePermissionModulePermissions"]["responses"][201]["content"]["application/json"];
-
-export type RolePermissionModuleDisableAllResponseEnvelope =
-  operations["RolesController_revokeRolePermissionModulePermissions"]["responses"][201]["content"]["application/json"];
-
 export type PermissionsListResponseEnvelope =
   operations["PermissionsController_listPermissions"]["responses"][200]["content"]["application/json"];
 
 export type PermissionsListQuery =
   operations["PermissionsController_listPermissions"]["parameters"]["query"];
-
-export type RolePermissionsMutationBody =
-  operations["RolesController_replacePermissions"]["requestBody"]["content"]["application/json"];
-
-export type RolePermissionsReplaceResponseEnvelope =
-  operations["RolesController_replacePermissions"]["responses"][200]["content"]["application/json"];
-
-export type RolePermissionsGrantResponseEnvelope =
-  RolePermissionsReplaceResponseEnvelope;
-
-export type RolePermissionsRevokeResponseEnvelope =
-  RolePermissionsReplaceResponseEnvelope;
 
 export type RbacPermission = RolePermissionsListResponseEnvelope["data"][number];
 export type RbacPermissionMethod = RbacPermission["method"];
@@ -49,12 +31,16 @@ export type RbacRolePermission = {
   permission?: Partial<RbacPermission>;
 };
 
+export type RoleType = "SYSTEM_TEMPLATE" | "CUSTOM";
+
 export type RbacRole = RolesListResponseEnvelope["data"][number] & {
   code?: string;
   description?: string | null;
   status?: "ACTIVE" | "DISABLED";
   createdAt?: string;
   updatedAt?: string;
+  type?: RoleType | string;
+  baseRoleId?: string | null;
   rolePermissions?: RbacRolePermission[];
   enabledCount?: number;
   _count?: {
@@ -63,12 +49,30 @@ export type RbacRole = RolesListResponseEnvelope["data"][number] & {
   };
 };
 
+export type CreateRoleInput = {
+  code: string;
+  name: string;
+  description?: string | null;
+  baseRoleId: string;
+  permissionIds: string[];
+};
+
+export type UpdateRoleInput = {
+  name?: string;
+  description?: string | null;
+  baseRoleId?: string;
+  permissionIds?: string[];
+};
+
+export type DeleteRoleResult = {
+  deleted: boolean;
+  id?: string;
+};
+
 export type RbacStandalonePermission = PermissionsListResponseEnvelope["data"][number];
 
 export type RoleCapabilitiesListResponseEnvelope =
   operations["RolesController_listRoleCapabilities"]["responses"][200]["content"]["application/json"];
-export type RoleCapabilitiesReplaceResponseEnvelope =
-  operations["RolesController_replaceRoleCapabilities"]["responses"][200]["content"]["application/json"];
 export type RbacRoleCapability = RoleCapabilitiesListResponseEnvelope["data"][number];
 
 export type RbacPermissionModuleSummary = RolePermissionModulesListResponseEnvelope["data"][number];

@@ -1,4 +1,28 @@
-import type { RbacPermissionMethod } from "@/features/rbac/types/rbac-contract";
+import type {
+  RbacPermissionMethod,
+  RoleType,
+} from "@/features/rbac/types/rbac-contract";
+
+export type { RoleType };
+
+export type RolePermissionsBrowserRole = {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  userCount: number;
+  enabledCount: number | null;
+  createdAt: string;
+  type: RoleType;
+  baseRoleId?: string | null;
+};
+
+export type RolePermissionsBrowserPermission = {
+  id: string;
+  method: RbacPermissionMethod | string;
+  path: string;
+  description: string;
+};
 
 export type PermissionViewModel = {
   id: string;

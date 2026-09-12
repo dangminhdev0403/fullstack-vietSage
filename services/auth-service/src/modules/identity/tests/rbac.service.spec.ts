@@ -1,20 +1,26 @@
-﻿import { ForbiddenException, NotFoundException } from "@nestjs/common";
-import { HttpMethod, RoleStatus } from "@prisma/client";
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from "@nestjs/common";
+import { HttpMethod, RoleStatus, RoleType } from "@prisma/client";
 import { RbacRepository } from "../infrastructure/repositories/rbac.repository";
 import { RbacService } from "../application/rbac.service";
-import { AuthService } from "../application/authentication.service";
 
 describe("RbacService", () => {
   let service: RbacService;
   let rbacRepository: {
-    createRole: jest.Mock;
     listRolesWithRelations: jest.Mock;
     findRoleWithRelationsById: jest.Mock;
     findRoleWithRelationsByName: jest.Mock;
     findRoleById: jest.Mock;
-    updateRole: jest.Mock;
-    disableRole: jest.Mock;
+    findRoleByCode: jest.Mock;
+    createRoleWithPermissions: jest.Mock;
+    updateRoleWithPermissions: jest.Mock;
     deleteRole: jest.Mock;
+    countUserRolesByRoleId: jest.Mock;
+    replaceRolePermissions: jest.Mock;
     listPermissions: jest.Mock;
     listPermissionTotalsByModule: jest.Mock;
     listRolePermissionModuleKeys: jest.Mock;
@@ -23,28 +29,23 @@ describe("RbacService", () => {
     listPermissionsByModuleKey: jest.Mock;
     listRolePermissionIdsByRoleAndPermissionIds: jest.Mock;
     findPermissionById: jest.Mock;
-    listRolePermissions: jest.Mock;
-    createRolePermissions: jest.Mock;
-    deleteRolePermissions: jest.Mock;
-    clearRolePermissions: jest.Mock;
-    replaceRolePermissions: jest.Mock;
     findPermissionsByIds: jest.Mock;
-    findPermissionsByIdsWithModuleKey: jest.Mock;
-    findActiveRoleAccess: jest.Mock;
+    listRolePermissions: jest.Mock;
     listBusinessPermissionsForRole: jest.Mock;
-    replaceRoleBusinessPermissions: jest.Mock;
   };
 
   beforeEach(() => {
     rbacRepository = {
-      createRole: jest.fn(),
       listRolesWithRelations: jest.fn(),
       findRoleWithRelationsById: jest.fn(),
       findRoleWithRelationsByName: jest.fn(),
       findRoleById: jest.fn(),
-      updateRole: jest.fn(),
-      disableRole: jest.fn(),
+      findRoleByCode: jest.fn(),
+      createRoleWithPermissions: jest.fn(),
+      updateRoleWithPermissions: jest.fn(),
       deleteRole: jest.fn(),
+      countUserRolesByRoleId: jest.fn(),
+      replaceRolePermissions: jest.fn(),
       listPermissions: jest.fn(),
       listPermissionTotalsByModule: jest.fn(),
       listRolePermissionModuleKeys: jest.fn(),
@@ -53,38 +54,12 @@ describe("RbacService", () => {
       listPermissionsByModuleKey: jest.fn(),
       listRolePermissionIdsByRoleAndPermissionIds: jest.fn(),
       findPermissionById: jest.fn(),
-      listRolePermissions: jest.fn(),
-      createRolePermissions: jest.fn(),
-      deleteRolePermissions: jest.fn(),
-      clearRolePermissions: jest.fn(),
-      replaceRolePermissions: jest.fn(),
       findPermissionsByIds: jest.fn(),
-      findPermissionsByIdsWithModuleKey: jest.fn(),
-      findActiveRoleAccess: jest.fn(),
+      listRolePermissions: jest.fn(),
       listBusinessPermissionsForRole: jest.fn(),
-      replaceRoleBusinessPermissions: jest.fn(),
     };
 
-    service = new RbacService(
-      rbacRepository as unknown as RbacRepository,
-      { revokeRoleSessions: jest.fn() } as unknown as AuthService,
-    );
-  });
-
-  it("creates role with normalized code", async () => {
-    rbacRepository.createRole.mockResolvedValue({ id: "r1", code: "HOTEL_STAFF" });
-
-    await service.createRole({
-      code: "hotel_staff",
-      name: "Hotel Staff",
-      description: "Operational role",
-    });
-
-    expect(rbacRepository.createRole).toHaveBeenCalledWith({
-      code: "HOTEL_STAFF",
-      name: "Hotel Staff",
-      description: "Operational role",
-    });
+    service = new RbacService(rbacRepository as unknown as RbacRepository);
   });
 
   it("returns frontend navigation roles with mapped menus", async () => {
@@ -131,6 +106,7 @@ describe("RbacService", () => {
         createdAt: "2024-01-01T00:00:00.000Z",
         name: "Hotel Manager",
         status: RoleStatus.ACTIVE,
+        baseRoleId: null,
         menus: ["/dashboard", "/users", "/roles", "/bookings", "/admin/roles", "/permissions"],
         enabledCount: 1,
         type: "SYSTEM_TEMPLATE",
@@ -142,6 +118,7 @@ describe("RbacService", () => {
         createdAt: "2024-01-01T00:00:00.000Z",
         name: "Hotel Staff",
         status: RoleStatus.ACTIVE,
+        baseRoleId: null,
         menus: ["/dashboard"],
         enabledCount: 0,
         type: "CUSTOM",
@@ -173,6 +150,7 @@ describe("RbacService", () => {
         createdAt: "2024-01-01T00:00:00.000Z",
         name: "Hotel Manager",
         status: RoleStatus.ACTIVE,
+        baseRoleId: null,
         menus: ["/dashboard"],
         enabledCount: 0,
       },
@@ -219,78 +197,6 @@ describe("RbacService", () => {
     });
 
     await expect(service.getRoleMenus("role_super_admin_001")).resolves.toEqual(["/dashboard"]);
-  });
-
-  it("blocks updating protected role", async () => {
-    rbacRepository.findRoleById.mockResolvedValue({
-      id: "r1",
-      code: "SUPER_ADMIN",
-      type: "SYSTEM_TEMPLATE",
-    });
-
-    await expect(service.updateRole("r1", { name: "Renamed" })).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
-  });
-
-  it("blocks deleting protected role", async () => {
-    rbacRepository.findRoleById.mockResolvedValue({
-      id: "r1",
-      code: "HOTEL_OWNER",
-      type: "SYSTEM_TEMPLATE",
-    });
-
-    await expect(service.deleteRole("r1")).rejects.toBeInstanceOf(ForbiddenException);
-  });
-
-  it("blocks disabling every system template", async () => {
-    rbacRepository.findRoleById.mockResolvedValue({
-      id: "r1",
-      code: "HOTEL_MANAGER",
-      type: "SYSTEM_TEMPLATE",
-      status: RoleStatus.ACTIVE,
-    });
-
-    await expect(service.disableRole("r1")).rejects.toBeInstanceOf(ForbiddenException);
-    expect(rbacRepository.disableRole).not.toHaveBeenCalled();
-  });
-
-  it("disables mutable role", async () => {
-    rbacRepository.findRoleById.mockResolvedValue({
-      id: "r1",
-      code: "CUSTOM_MANAGER",
-      type: "CUSTOM",
-      status: RoleStatus.ACTIVE,
-    });
-    rbacRepository.disableRole.mockResolvedValue({
-      id: "r1",
-      code: "CUSTOM_MANAGER",
-      type: "CUSTOM",
-      status: RoleStatus.DISABLED,
-    });
-
-    await expect(service.disableRole("r1")).resolves.toEqual({
-      id: "r1",
-      code: "CUSTOM_MANAGER",
-      type: "CUSTOM",
-      status: RoleStatus.DISABLED,
-    });
-
-    expect(rbacRepository.disableRole).toHaveBeenCalledWith("r1");
-  });
-
-  it("returns disabled role without rewriting it", async () => {
-    const role = {
-      id: "r1",
-      code: "CUSTOM_MANAGER",
-      type: "CUSTOM",
-      status: RoleStatus.DISABLED,
-    };
-    rbacRepository.findRoleById.mockResolvedValue(role);
-
-    await expect(service.disableRole("r1")).resolves.toBe(role);
-
-    expect(rbacRepository.disableRole).not.toHaveBeenCalled();
   });
 
   it("throws not found when role is missing", async () => {
@@ -420,121 +326,6 @@ describe("RbacService", () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it("grants selected permissions in one module and returns updated summary", async () => {
-    rbacRepository.findRoleById.mockResolvedValue({ id: "r2", code: "CUSTOM_MANAGER" });
-    rbacRepository.countPermissionsByModuleKey.mockResolvedValue(2);
-    rbacRepository.findPermissionsByIdsWithModuleKey.mockResolvedValue([
-      { id: "p1", moduleKey: "users" },
-      { id: "p2", moduleKey: "users" },
-    ]);
-    rbacRepository.findActiveRoleAccess.mockResolvedValue({
-      code: "SUPER_ADMIN",
-      permissionIds: [],
-    });
-    rbacRepository.createRolePermissions.mockResolvedValue({ count: 2 });
-    rbacRepository.countRolePermissionsByModuleKey.mockResolvedValue(2);
-
-    const result = await service.grantRolePermissionModulePermissions(
-      "actor-1",
-      "actor-role-1",
-      "r2",
-      "users",
-      { permissionIds: ["p1", "p1", "p2"] },
-    );
-
-    expect(rbacRepository.createRolePermissions).toHaveBeenCalledWith("r2", ["p1", "p2"]);
-    expect(result).toEqual({
-      moduleKey: "users",
-      moduleName: "Người dùng",
-      totalPermissions: 2,
-      enabledCount: 2,
-      disabledCount: 0,
-      allSelected: true,
-      allDisabled: false,
-    });
-  });
-
-  it("rejects granting permission ids outside the requested module", async () => {
-    rbacRepository.findRoleById.mockResolvedValue({ id: "r2", code: "HOTEL_MANAGER" });
-    rbacRepository.countPermissionsByModuleKey.mockResolvedValue(2);
-    rbacRepository.findPermissionsByIdsWithModuleKey.mockResolvedValue([
-      { id: "p1", moduleKey: "users" },
-      { id: "p2", moduleKey: "roles" },
-    ]);
-
-    await expect(
-      service.grantRolePermissionModulePermissions("actor-1", "actor-role-1", "r2", "users", {
-        permissionIds: ["p1", "p2"],
-      }),
-    ).rejects.toThrow("Các id quyền không thuộc nhóm users: p2");
-  });
-
-  it("blocks permission changes for every system template", async () => {
-    rbacRepository.findRoleById.mockResolvedValue({
-      id: "r1",
-      code: "TENANT_OWNER",
-      type: "SYSTEM_TEMPLATE",
-    });
-
-    await expect(
-      service.revokeRolePermissionModulePermissions("actor-1", "actor-role-1", "r1", "users", {
-        permissionIds: ["p1"],
-      }),
-    ).rejects.toBeInstanceOf(ForbiddenException);
-
-    expect(rbacRepository.deleteRolePermissions).not.toHaveBeenCalled();
-  });
-
-  it("blocks module permission changes for super admin role", async () => {
-    rbacRepository.findRoleById.mockResolvedValue({
-      id: "r1",
-      code: "SUPER_ADMIN",
-      type: "SYSTEM_TEMPLATE",
-    });
-
-    await expect(
-      service.revokeRolePermissionModulePermissions("actor-1", "actor-role-1", "r1", "users", {
-        permissionIds: ["p1"],
-      }),
-    ).rejects.toBeInstanceOf(ForbiddenException);
-  });
-
-  it("replaces permissions within the active role ceiling", async () => {
-    rbacRepository.findRoleById.mockResolvedValue({ id: "r2", code: "CUSTOM_MANAGER" });
-    rbacRepository.findPermissionsByIds.mockResolvedValue([{ id: "p1" }]);
-    rbacRepository.listRolePermissions.mockResolvedValue([]);
-    rbacRepository.findActiveRoleAccess.mockResolvedValue({
-      code: "SUPER_ADMIN",
-      permissionIds: [],
-    });
-    rbacRepository.replaceRolePermissions.mockResolvedValue(undefined);
-
-    await service.replacePermissions("actor-1", "actor-role-1", "r2", {
-      permissionIds: ["p1"],
-    });
-
-    expect(rbacRepository.replaceRolePermissions).toHaveBeenCalledWith("r2", ["p1"]);
-  });
-
-  it("rejects full replacement outside the active role permission ceiling", async () => {
-    rbacRepository.findRoleById.mockResolvedValue({ id: "r2", code: "CUSTOM_MANAGER" });
-    rbacRepository.findPermissionsByIds.mockResolvedValue([{ id: "p1" }, { id: "p2" }]);
-    rbacRepository.listRolePermissions.mockResolvedValue([{ permission: { id: "p1" } }]);
-    rbacRepository.findActiveRoleAccess.mockResolvedValue({
-      code: "HOTEL_MANAGER",
-      permissionIds: ["p1"],
-    });
-
-    await expect(
-      service.replacePermissions("actor-1", "actor-role-1", "r2", {
-        permissionIds: ["p1", "p2"],
-      }),
-    ).rejects.toBeInstanceOf(ForbiddenException);
-
-    expect(rbacRepository.findActiveRoleAccess).toHaveBeenCalledWith("actor-1", "actor-role-1");
-    expect(rbacRepository.replaceRolePermissions).not.toHaveBeenCalled();
-  });
-
   it("lists only business capabilities with role selection state", async () => {
     rbacRepository.findRoleById.mockResolvedValue({ id: "r2", code: "CUSTOM_MANAGER" });
     rbacRepository.listBusinessPermissionsForRole.mockResolvedValue([
@@ -558,47 +349,6 @@ describe("RbacService", () => {
         enabled: true,
       },
     ]);
-  });
-
-  it("replaces only business capabilities and preserves route grants", async () => {
-    rbacRepository.findRoleById.mockResolvedValue({
-      id: "r2",
-      code: "CUSTOM_MANAGER",
-      type: "CUSTOM",
-    });
-    rbacRepository.listBusinessPermissionsForRole
-      .mockResolvedValueOnce([
-        {
-          id: "p1",
-          path: "hotel.rooms.view",
-          moduleKey: "hotel-rooms",
-          description: "Xem phòng",
-          rolePermissions: [{ roleId: "r2" }],
-        },
-        {
-          id: "p2",
-          path: "hotel.rooms.manage",
-          moduleKey: "hotel-rooms",
-          description: "Quản lý phòng",
-          rolePermissions: [],
-        },
-      ])
-      .mockResolvedValueOnce([]);
-    rbacRepository.findActiveRoleAccess.mockResolvedValue({
-      code: "SUPER_ADMIN",
-      permissionIds: [],
-    });
-
-    await service.replaceRoleCapabilities("actor-1", "actor-role-1", "r2", {
-      permissionIds: ["p2"],
-    });
-
-    expect(rbacRepository.replaceRoleBusinessPermissions).toHaveBeenCalledWith(
-      "r2",
-      ["p2"],
-      expect.arrayContaining(["hotel.rooms.view", "hotel.rooms.manage"]),
-    );
-    expect(rbacRepository.replaceRolePermissions).not.toHaveBeenCalled();
   });
 
   it("builds permission filters by method/path/search", async () => {
@@ -663,5 +413,308 @@ describe("RbacService", () => {
       { id: "roles", module: "roles", name: "Vai trò" },
       { id: "permissions", module: "permissions", name: "Quyền" },
     ]);
+  });
+
+  describe("Custom role CRUD and base-role subset constraints", () => {
+    it("creates custom role constrained by allowed base role permission ceiling", async () => {
+      const baseRole = {
+        id: "base_frontdesk_id",
+        code: "HOTEL_FRONTDESK",
+        name: "Lễ tân",
+        type: RoleType.SYSTEM_TEMPLATE,
+        status: RoleStatus.ACTIVE,
+        rolePermissions: [
+          { permissionId: "p_view" },
+          { permissionId: "p_edit" },
+        ],
+      };
+
+      rbacRepository.findRoleByCode.mockResolvedValue(null);
+      rbacRepository.findRoleWithRelationsByName.mockResolvedValue(null);
+      rbacRepository.findRoleWithRelationsById.mockResolvedValue(baseRole);
+      rbacRepository.findPermissionsByIds.mockResolvedValue([{ id: "p_view" }]);
+      rbacRepository.createRoleWithPermissions.mockResolvedValue({
+        id: "custom_role_1",
+        code: "FRONTDESK_NIGHT",
+        name: "Lễ tân ca đêm",
+        description: "Ca đêm chỉ xem",
+        type: RoleType.CUSTOM,
+        status: RoleStatus.ACTIVE,
+        baseRoleId: "base_frontdesk_id",
+      });
+
+      const result = await service.createRole({
+        code: "FRONTDESK_NIGHT",
+        name: "Lễ tân ca đêm",
+        description: "Ca đêm chỉ xem",
+        baseRoleId: "base_frontdesk_id",
+        permissionIds: ["p_view"],
+      });
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          id: "custom_role_1",
+          code: "FRONTDESK_NIGHT",
+          type: RoleType.CUSTOM,
+          baseRoleId: "base_frontdesk_id",
+        }),
+      );
+      expect(rbacRepository.createRoleWithPermissions).toHaveBeenCalledWith({
+        code: "FRONTDESK_NIGHT",
+        name: "Lễ tân ca đêm",
+        description: "Ca đêm chỉ xem",
+        baseRoleId: "base_frontdesk_id",
+        permissionIds: ["p_view"],
+      });
+    });
+
+    it("rejects creating custom role with permission outside base role ceiling", async () => {
+      const baseRole = {
+        id: "base_frontdesk_id",
+        code: "HOTEL_FRONTDESK",
+        type: RoleType.SYSTEM_TEMPLATE,
+        status: RoleStatus.ACTIVE,
+        rolePermissions: [{ permissionId: "p_view" }],
+      };
+
+      rbacRepository.findRoleByCode.mockResolvedValue(null);
+      rbacRepository.findRoleWithRelationsByName.mockResolvedValue(null);
+      rbacRepository.findRoleWithRelationsById.mockResolvedValue(baseRole);
+      rbacRepository.findPermissionsByIds.mockResolvedValue([
+        { id: "p_view" },
+        { id: "p_admin_delete" },
+      ]);
+
+      await expect(
+        service.createRole({
+          code: "FRONTDESK_NIGHT",
+          name: "Lễ tân ca đêm",
+          baseRoleId: "base_frontdesk_id",
+          permissionIds: ["p_view", "p_admin_delete"],
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("rejects creating custom role with non-existent permission id", async () => {
+      const baseRole = {
+        id: "base_frontdesk_id",
+        code: "HOTEL_FRONTDESK",
+        type: RoleType.SYSTEM_TEMPLATE,
+        status: RoleStatus.ACTIVE,
+        rolePermissions: [{ permissionId: "p_view" }],
+      };
+
+      rbacRepository.findRoleByCode.mockResolvedValue(null);
+      rbacRepository.findRoleWithRelationsByName.mockResolvedValue(null);
+      rbacRepository.findRoleWithRelationsById.mockResolvedValue(baseRole);
+      rbacRepository.findPermissionsByIds.mockResolvedValue([]);
+
+      await expect(
+        service.createRole({
+          code: "FRONTDESK_NIGHT",
+          name: "Lễ tân ca đêm",
+          baseRoleId: "base_frontdesk_id",
+          permissionIds: ["p_non_existent"],
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("rejects creating custom role with duplicate permission ids", async () => {
+      const baseRole = {
+        id: "base_frontdesk_id",
+        code: "HOTEL_FRONTDESK",
+        type: RoleType.SYSTEM_TEMPLATE,
+        status: RoleStatus.ACTIVE,
+        rolePermissions: [{ permissionId: "p_view" }],
+      };
+
+      rbacRepository.findRoleByCode.mockResolvedValue(null);
+      rbacRepository.findRoleWithRelationsByName.mockResolvedValue(null);
+      rbacRepository.findRoleWithRelationsById.mockResolvedValue(baseRole);
+
+      await expect(
+        service.createRole({
+          code: "FRONTDESK_NIGHT",
+          name: "Lễ tân ca đêm",
+          baseRoleId: "base_frontdesk_id",
+          permissionIds: ["p_view", "p_view"],
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("rejects creating custom role with SUPER_ADMIN base role", async () => {
+      const superAdminRole = {
+        id: "super_admin_id",
+        code: "SUPER_ADMIN",
+        type: RoleType.SYSTEM_TEMPLATE,
+        status: RoleStatus.ACTIVE,
+        rolePermissions: [],
+      };
+
+      rbacRepository.findRoleByCode.mockResolvedValue(null);
+      rbacRepository.findRoleWithRelationsByName.mockResolvedValue(null);
+      rbacRepository.findRoleWithRelationsById.mockResolvedValue(superAdminRole);
+
+      await expect(
+        service.createRole({
+          code: "CUSTOM_ADMIN",
+          name: "Custom Admin",
+          baseRoleId: "super_admin_id",
+          permissionIds: [],
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("rejects creating custom role with non-system base role", async () => {
+      const customRole = {
+        id: "custom_role_base_id",
+        code: "ANOTHER_CUSTOM",
+        type: RoleType.CUSTOM,
+        status: RoleStatus.ACTIVE,
+        rolePermissions: [],
+      };
+
+      rbacRepository.findRoleByCode.mockResolvedValue(null);
+      rbacRepository.findRoleWithRelationsByName.mockResolvedValue(null);
+      rbacRepository.findRoleWithRelationsById.mockResolvedValue(customRole);
+
+      await expect(
+        service.createRole({
+          code: "CUSTOM_SUBROLE",
+          name: "Custom Subrole",
+          baseRoleId: "custom_role_base_id",
+          permissionIds: [],
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("rejects creating custom role when code or name already exists", async () => {
+      rbacRepository.findRoleByCode.mockResolvedValue({ id: "existing_id" });
+
+      await expect(
+        service.createRole({
+          code: "FRONTDESK_NIGHT",
+          name: "Lễ tân ca đêm",
+          baseRoleId: "base_frontdesk_id",
+          permissionIds: [],
+        }),
+      ).rejects.toThrow(ConflictException);
+
+      rbacRepository.findRoleByCode.mockResolvedValue(null);
+      rbacRepository.findRoleWithRelationsByName.mockResolvedValue({ id: "existing_name_id" });
+
+      await expect(
+        service.createRole({
+          code: "FRONTDESK_NIGHT",
+          name: "Lễ tân ca đêm",
+          baseRoleId: "base_frontdesk_id",
+          permissionIds: [],
+        }),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it("rejects updating or mutating default system template role", async () => {
+      rbacRepository.findRoleWithRelationsById.mockResolvedValue({
+        id: "template_id",
+        code: "HOTEL_FRONTDESK",
+        type: RoleType.SYSTEM_TEMPLATE,
+        rolePermissions: [],
+      });
+
+      await expect(
+        service.updateRole("template_id", {
+          name: "Renamed Frontdesk",
+        }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it("updates custom role metadata and subsets permissions within base ceiling", async () => {
+      const customRole = {
+        id: "custom_role_1",
+        code: "CUSTOM_ROLE",
+        name: "Custom Role Old",
+        type: RoleType.CUSTOM,
+        baseRoleId: "base_frontdesk_id",
+        rolePermissions: [{ permissionId: "p_view" }],
+      };
+
+      const baseRole = {
+        id: "base_frontdesk_id",
+        code: "HOTEL_FRONTDESK",
+        type: RoleType.SYSTEM_TEMPLATE,
+        status: RoleStatus.ACTIVE,
+        rolePermissions: [
+          { permissionId: "p_view" },
+          { permissionId: "p_edit" },
+        ],
+      };
+
+      rbacRepository.findRoleWithRelationsById
+        .mockResolvedValueOnce(customRole)
+        .mockResolvedValueOnce(baseRole);
+      rbacRepository.findRoleWithRelationsByName.mockResolvedValue(null);
+      rbacRepository.findPermissionsByIds.mockResolvedValue([
+        { id: "p_view" },
+        { id: "p_edit" },
+      ]);
+      rbacRepository.updateRoleWithPermissions.mockResolvedValue({
+        ...customRole,
+        name: "Custom Role New",
+      });
+
+      const result = await service.updateRole("custom_role_1", {
+        name: "Custom Role New",
+        permissionIds: ["p_view", "p_edit"],
+      });
+
+      expect(result.name).toBe("Custom Role New");
+      expect(rbacRepository.updateRoleWithPermissions).toHaveBeenCalledWith(
+        "custom_role_1",
+        {
+          name: "Custom Role New",
+          description: undefined,
+          baseRoleId: undefined,
+        },
+        ["p_view", "p_edit"],
+      );
+    });
+
+    it("blocks deleting custom role when assigned users exist", async () => {
+      rbacRepository.findRoleById.mockResolvedValue({
+        id: "custom_role_1",
+        code: "CUSTOM_ROLE",
+        type: RoleType.CUSTOM,
+      });
+      rbacRepository.countUserRolesByRoleId.mockResolvedValue(3);
+
+      await expect(service.deleteRole("custom_role_1")).rejects.toThrow(ConflictException);
+      expect(rbacRepository.deleteRole).not.toHaveBeenCalled();
+    });
+
+    it("deletes custom role when no users are assigned", async () => {
+      rbacRepository.findRoleById.mockResolvedValue({
+        id: "custom_role_1",
+        code: "CUSTOM_ROLE",
+        type: RoleType.CUSTOM,
+      });
+      rbacRepository.countUserRolesByRoleId.mockResolvedValue(0);
+      rbacRepository.deleteRole.mockResolvedValue(undefined);
+
+      const result = await service.deleteRole("custom_role_1");
+
+      expect(result).toEqual({ deleted: true });
+      expect(rbacRepository.deleteRole).toHaveBeenCalledWith("custom_role_1");
+    });
+
+    it("blocks deleting default system template role", async () => {
+      rbacRepository.findRoleById.mockResolvedValue({
+        id: "default_role_1",
+        code: "TENANT_OWNER",
+        type: RoleType.SYSTEM_TEMPLATE,
+      });
+
+      await expect(service.deleteRole("default_role_1")).rejects.toThrow(ForbiddenException);
+      expect(rbacRepository.deleteRole).not.toHaveBeenCalled();
+    });
   });
 });

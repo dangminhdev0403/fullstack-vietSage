@@ -3,6 +3,8 @@ import test from "node:test";
 
 // @ts-expect-error Node's strip-types runner requires explicit TypeScript extension.
 import { isNavItemActive } from "./workspace-nav-active.ts";
+// @ts-expect-error Node's strip-types runner requires explicit TypeScript extension.
+import { buildWorkspaceNavigation } from "../config/workspace-registry.ts";
 import type { DashboardNavItem } from "../types/workspace-navigation.ts";
 
 const ownerHotelItems: readonly DashboardNavItem[] = [
@@ -33,4 +35,16 @@ test("isNavItemActive highlights owner hotel billing invoices sub-route correctl
 test("isNavItemActive highlights staff navigation with search params correctly", () => {
   const staffPath = "/owner/staff?hotelId=hotel-1";
   assert.equal(isNavItemActive("/owner/staff", staffPath, ownerHotelItems), true);
+});
+
+test("isNavItemActive highlights admin roles and permissions navigation item correctly", () => {
+  const adminItems = buildWorkspaceNavigation({
+    persona: "platform_admin",
+    permissions: ["platform.roles.view"],
+  });
+  const accessItem = adminItems.find((item) => item.label === "Vai trò & quyền");
+  assert.ok(accessItem);
+  assert.equal(accessItem.href, "/admin/permissions");
+  assert.equal(isNavItemActive(accessItem.href, "/admin/permissions", adminItems), true);
+  assert.equal(isNavItemActive(accessItem.href, "/admin/users", adminItems), false);
 });

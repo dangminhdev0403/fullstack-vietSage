@@ -1,16 +1,10 @@
 import { Injectable } from "@nestjs/common";
-import { Prisma, RoleStatus, UserRoleStatus } from "@prisma/client";
+import { Prisma, RoleStatus, RoleType, UserRoleStatus } from "@prisma/client";
 import { PrismaService } from "../../../../prisma/prisma.service";
 
 @Injectable()
 export class RbacRepository {
   constructor(private readonly prisma: PrismaService) {}
-
-  async createRole(data: { code: string; name: string; description: string | null }) {
-    return this.prisma.role.create({
-      data,
-    });
-  }
 
   async listRolesWithRelations() {
     return this.prisma.role.findMany({
@@ -90,17 +84,79 @@ export class RbacRepository {
     });
   }
 
-  async updateRole(
+  async findRoleByCode(code: string) {
+    return this.prisma.role.findUnique({
+      where: { code },
+    });
+  }
+
+  async createRoleWithPermissions(data: {
+    code: string;
+    name: string;
+    description?: string | null;
+    baseRoleId: string;
+    permissionIds: string[];
+  }) {
+    return this.prisma.$transaction(async (tx) => {
+      const role = await tx.role.create({
+        data: {
+          code: data.code,
+          name: data.name,
+          description: data.description,
+          type: RoleType.CUSTOM,
+          status: RoleStatus.ACTIVE,
+          baseRoleId: data.baseRoleId,
+        },
+      });
+
+      if (data.permissionIds.length > 0) {
+        await tx.rolePermission.createMany({
+          data: data.permissionIds.map((permissionId) => ({
+            roleId: role.id,
+            permissionId,
+          })),
+        });
+      }
+
+      return role;
+    });
+  }
+
+  async updateRoleWithPermissions(
     roleId: string,
     data: {
       name?: string;
       description?: string | null;
-      status?: RoleStatus;
+      baseRoleId?: string;
     },
+    permissionIds?: string[],
   ) {
-    return this.prisma.role.update({
-      where: { id: roleId },
-      data,
+    return this.prisma.$transaction(async (tx) => {
+      const role = await tx.role.update({
+        where: { id: roleId },
+        data: {
+          ...(data.name !== undefined ? { name: data.name } : {}),
+          ...(data.description !== undefined ? { description: data.description } : {}),
+          ...(data.baseRoleId !== undefined ? { baseRoleId: data.baseRoleId } : {}),
+        },
+      });
+
+      if (permissionIds !== undefined) {
+        await tx.rolePermission.deleteMany({
+          where: { roleId },
+        });
+
+        if (permissionIds.length > 0) {
+          await tx.rolePermission.createMany({
+            data: permissionIds.map((permissionId) => ({
+              roleId,
+              permissionId,
+            })),
+          });
+        }
+      }
+
+      return role;
     });
   }
 
@@ -110,9 +166,24 @@ export class RbacRepository {
     });
   }
 
-  async disableRole(roleId: string) {
-    return this.updateRole(roleId, {
-      status: RoleStatus.DISABLED,
+  async countUserRolesByRoleId(roleId: string): Promise<number> {
+    return this.prisma.userRole.count({
+      where: { roleId },
+    });
+  }
+
+  async replaceRolePermissions(roleId: string, permissionIds: string[]) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.rolePermission.deleteMany({
+        where: { roleId },
+      });
+
+      if (permissionIds.length > 0) {
+        await tx.rolePermission.createMany({
+          data: permissionIds.map((permissionId) => ({ roleId, permissionId })),
+          skipDuplicates: true,
+        });
+      }
     });
   }
 
@@ -292,68 +363,6 @@ export class RbacRepository {
           select: { roleId: true },
         },
       },
-    });
-  }
-
-  async createRolePermissions(roleId: string, permissionIds: string[]) {
-    return this.prisma.rolePermission.createMany({
-      data: permissionIds.map((permissionId) => ({ roleId, permissionId })),
-      skipDuplicates: true,
-    });
-  }
-
-  async deleteRolePermissions(roleId: string, permissionIds: string[]) {
-    return this.prisma.rolePermission.deleteMany({
-      where: {
-        roleId,
-        permissionId: {
-          in: permissionIds,
-        },
-      },
-    });
-  }
-
-  async clearRolePermissions(roleId: string) {
-    return this.prisma.rolePermission.deleteMany({
-      where: { roleId },
-    });
-  }
-
-  async replaceRolePermissions(roleId: string, permissionIds: string[]) {
-    return this.prisma.$transaction(async (tx) => {
-      const deleted = await tx.rolePermission.deleteMany({
-        where: { roleId },
-      });
-      const created = await tx.rolePermission.createMany({
-        data: permissionIds.map((permissionId) => ({ roleId, permissionId })),
-        skipDuplicates: true,
-      });
-
-      return [deleted, created] as const;
-    });
-  }
-
-  async replaceRoleBusinessPermissions(
-    roleId: string,
-    permissionIds: string[],
-    permissionKeys: string[],
-  ) {
-    return this.prisma.$transaction(async (tx) => {
-      await tx.rolePermission.deleteMany({
-        where: {
-          roleId,
-          permission: {
-            method: "OPTIONS",
-            path: { in: permissionKeys },
-          },
-        },
-      });
-      if (permissionIds.length) {
-        await tx.rolePermission.createMany({
-          data: permissionIds.map((permissionId) => ({ roleId, permissionId })),
-          skipDuplicates: true,
-        });
-      }
     });
   }
 }

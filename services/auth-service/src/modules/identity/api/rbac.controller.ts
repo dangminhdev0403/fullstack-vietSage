@@ -1,4 +1,4 @@
-﻿import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Req } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
 import {
   ApiBody,
   ApiCreatedResponse,
@@ -15,14 +15,12 @@ import {
   HTTP_METHOD_ENUM,
   permissionDataSchema,
   permissionModuleLookupListDataSchema,
-  roleModulePermissionsBodySchema as roleModulePermissionsBodyOpenApiSchema,
   roleCapabilityListDataSchema,
+  roleDataSchema,
   roleMenusDataSchema,
   rolePermissionModulePermissionsPageDataSchema,
   rolePermissionModuleSummaryDataSchema,
   rolePermissionModulePermissionsQuerySchema as rolePermissionModulePermissionsQueryOpenApiSchema,
-  replaceRolePermissionsBodySchema as replaceRolePermissionsBodyOpenApiSchema,
-  roleDataSchema,
   roleWithRelationsDataSchema,
   successEnvelopeSchema,
   updateRoleBodySchema as updateRoleBodyOpenApiSchema,
@@ -39,8 +37,6 @@ import {
   listRolePermissionModulePermissionsQuerySchema as listRolePermissionModulePermissionsQueryZodSchema,
   listPermissionsQuerySchema as listPermissionsQueryZodSchema,
   permissionModuleKeyParamSchema as permissionModuleKeyParamZodSchema,
-  roleModulePermissionsBodySchema as roleModulePermissionsBodyZodSchema,
-  replaceRolePermissionsBodySchema as replaceRolePermissionsBodyZodSchema,
   updateRoleBodySchema as updateRoleBodyZodSchema,
 } from "../domain/schemas/rbac.schema";
 
@@ -65,7 +61,7 @@ export class RolesController {
 
   @RequirePermission("platform.roles.manage")
   @SuccessMessage("Tạo vai trò thành công")
-  @ApiDescript("Tạo vai trò")
+  @ApiDescript("Tạo vai trò tùy chỉnh")
   @ApiBody({ schema: createRoleBodyOpenApiSchema })
   @ApiCreatedResponse({
     description: "Bao phản hồi tạo vai trò",
@@ -144,7 +140,7 @@ export class RolesController {
 
   @RequirePermission("platform.roles.manage")
   @SuccessMessage("Cập nhật vai trò thành công")
-  @ApiDescript("Cập nhật vai trò")
+  @ApiDescript("Cập nhật vai trò tùy chỉnh")
   @ApiParam({ name: "id", type: String })
   @ApiBody({ schema: updateRoleBodyOpenApiSchema })
   @ApiOkResponse({
@@ -158,21 +154,8 @@ export class RolesController {
   }
 
   @RequirePermission("platform.roles.manage")
-  @SuccessMessage("Tắt vai trò thành công")
-  @ApiDescript("Tạm ngừng vai trò")
-  @ApiParam({ name: "id", type: String })
-  @ApiOkResponse({
-    description: "Bao phản hồi tắt vai trò",
-    schema: successEnvelopeSchema(roleDataSchema, 200, "Tắt vai trò thành công"),
-  })
-  @Post(":id/disable")
-  async disableRole(@Param("id") roleId: string) {
-    return this.rbacService.disableRole(roleId);
-  }
-
-  @RequirePermission("platform.roles.manage")
   @SuccessMessage("Xóa vai trò thành công")
-  @ApiDescript("Xóa vai trò")
+  @ApiDescript("Xóa vai trò tùy chỉnh")
   @ApiParam({ name: "id", type: String })
   @ApiOkResponse({
     description: "Bao phản hồi xóa vai trò",
@@ -214,33 +197,6 @@ export class RolesController {
   @Get(":id/capabilities")
   async listRoleCapabilities(@Param("id") roleId: string) {
     return this.rbacService.listRoleCapabilities(roleId);
-  }
-
-  @RequirePermission("platform.permissions.manage")
-  @SuccessMessage("Cập nhật capability của vai trò thành công")
-  @ApiDescript("Thay thế capability nghiệp vụ của vai trò")
-  @ApiParam({ name: "id", type: String })
-  @ApiBody({ schema: replaceRolePermissionsBodyOpenApiSchema })
-  @ApiOkResponse({
-    schema: successEnvelopeSchema(
-      roleCapabilityListDataSchema,
-      200,
-      "Cập nhật capability của vai trò thành công",
-    ),
-  })
-  @Put(":id/capabilities")
-  async replaceRoleCapabilities(
-    @Req() request: RequestWithUser,
-    @Param("id") roleId: string,
-    @Body() body: unknown,
-  ) {
-    const dto = parseWithZod(replaceRolePermissionsBodyZodSchema, body);
-    return this.rbacService.replaceRoleCapabilities(
-      request.user.userId,
-      request.user.roleId,
-      roleId,
-      dto,
-    );
   }
 
   @RequirePermission("platform.roles.view")
@@ -354,103 +310,7 @@ export class RolesController {
       parsedQuery,
     );
   }
-
-  @RequirePermission("platform.permissions.manage")
-  @SuccessMessage("Cấp quyền theo nhóm quyền thành công")
-  @ApiDescript("Cấp phân quyền")
-  @ApiParam({ name: "roleId", type: String })
-  @ApiParam({ name: "moduleKey", type: String })
-  @ApiBody({ schema: roleModulePermissionsBodyOpenApiSchema })
-  @ApiCreatedResponse({
-    description: "Bao phản hồi cấp quyền theo nhóm quyền",
-    schema: successEnvelopeSchema(
-      rolePermissionModuleSummaryDataSchema,
-      201,
-      "Cấp quyền theo nhóm quyền thành công",
-    ),
-  })
-  @Post(":roleId/modules/:moduleKey/permissions/grant")
-  async grantRolePermissionModulePermissions(
-    @Req() request: RequestWithUser,
-    @Param() params: unknown,
-    @Body() body: unknown,
-  ) {
-    const parsedParams = parseWithZod(permissionModuleRoleParamSchema, params);
-    const dto = parseWithZod(roleModulePermissionsBodyZodSchema, body);
-
-    return this.rbacService.grantRolePermissionModulePermissions(
-      request.user.userId,
-      request.user.roleId,
-      parsedParams.roleId,
-      parsedParams.moduleKey,
-      dto,
-    );
-  }
-
-  @RequirePermission("platform.permissions.manage")
-  @SuccessMessage("Thu hồi quyền theo nhóm quyền thành công")
-  @ApiDescript("Thu hồi phân quyền")
-  @ApiParam({ name: "roleId", type: String })
-  @ApiParam({ name: "moduleKey", type: String })
-  @ApiBody({ schema: roleModulePermissionsBodyOpenApiSchema })
-  @ApiCreatedResponse({
-    description: "Bao phản hồi thu hồi quyền theo nhóm quyền",
-    schema: successEnvelopeSchema(
-      rolePermissionModuleSummaryDataSchema,
-      201,
-      "Thu hồi quyền theo nhóm quyền thành công",
-    ),
-  })
-  @Post(":roleId/modules/:moduleKey/permissions/revoke")
-  async revokeRolePermissionModulePermissions(
-    @Req() request: RequestWithUser,
-    @Param() params: unknown,
-    @Body() body: unknown,
-  ) {
-    const parsedParams = parseWithZod(permissionModuleRoleParamSchema, params);
-    const dto = parseWithZod(roleModulePermissionsBodyZodSchema, body);
-
-    return this.rbacService.revokeRolePermissionModulePermissions(
-      request.user.userId,
-      request.user.roleId,
-      parsedParams.roleId,
-      parsedParams.moduleKey,
-      dto,
-    );
-  }
-
-  @RequirePermission("platform.permissions.manage")
-  @SuccessMessage("Thay thế toàn bộ quyền của vai trò thành công")
-  @ApiDescript("Cập nhật phân quyền")
-  @ApiParam({ name: "id", type: String })
-  @ApiBody({ schema: replaceRolePermissionsBodyOpenApiSchema })
-  @ApiOkResponse({
-    description: "Bao phản hồi thay thế quyền",
-    schema: successEnvelopeSchema(
-      permissionArrayDataSchema,
-      200,
-      "Thay thế toàn bộ quyền của vai trò thành công",
-    ),
-  })
-  @Put(":id/permissions")
-  async replacePermissions(
-    @Req() request: RequestWithUser,
-    @Param("id") roleId: string,
-    @Body() body: unknown,
-  ) {
-    const dto = parseWithZod(replaceRolePermissionsBodyZodSchema, body);
-    return this.rbacService.replacePermissions(
-      request.user.userId,
-      request.user.roleId,
-      roleId,
-      dto,
-    );
-  }
 }
-
-const permissionModuleRoleParamSchema = permissionModuleKeyParamZodSchema.extend({
-  roleId: permissionModuleKeyParamZodSchema.shape.moduleKey,
-});
 
 @ApiTags("rbac.permissions")
 @Controller("permissions")

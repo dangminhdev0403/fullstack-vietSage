@@ -1,4 +1,4 @@
-﻿import { HttpMethod } from "@prisma/client";
+import { HttpMethod } from "@prisma/client";
 import { z } from "zod";
 
 export const createRoleBodySchema = z
@@ -14,7 +14,16 @@ export const createRoleBodySchema = z
       .trim()
       .min(2, "name phải có ít nhất 2 ký tự")
       .max(120, "name must not exceed 120 characters"),
-    description: z.string().max(255, "description must not exceed 255 characters").optional(),
+    description: z
+      .string()
+      .max(255, "description must not exceed 255 characters")
+      .nullable()
+      .optional(),
+    baseRoleId: z
+      .string()
+      .trim()
+      .min(1, "baseRoleId là bắt buộc"),
+    permissionIds: z.array(z.string().trim()),
   })
   .strict();
 
@@ -26,19 +35,17 @@ export const updateRoleBodySchema = z
       .min(2, "name phải có ít nhất 2 ký tự")
       .max(120, "name must not exceed 120 characters")
       .optional(),
-    description: z.string().max(255, "description must not exceed 255 characters").optional(),
-  })
-  .strict();
-
-export const replaceRolePermissionsBodySchema = z
-  .object({
-    permissionIds: z.array(z.string()),
-  })
-  .strict();
-
-export const roleModulePermissionsBodySchema = z
-  .object({
-    permissionIds: z.array(z.string()).min(1, "permissionIds must contain at least one id"),
+    description: z
+      .string()
+      .max(255, "description must not exceed 255 characters")
+      .nullable()
+      .optional(),
+    baseRoleId: z
+      .string()
+      .trim()
+      .min(1, "baseRoleId không được để trống")
+      .optional(),
+    permissionIds: z.array(z.string().trim()).optional(),
   })
   .strict();
 
@@ -81,8 +88,6 @@ export const listRolePermissionModulePermissionsQuerySchema = z
 
 export type CreateRoleBodyInput = z.infer<typeof createRoleBodySchema>;
 export type UpdateRoleBodyInput = z.infer<typeof updateRoleBodySchema>;
-export type ReplaceRolePermissionsBodyInput = z.infer<typeof replaceRolePermissionsBodySchema>;
-export type RoleModulePermissionsBodyInput = z.infer<typeof roleModulePermissionsBodySchema>;
 export type ListRolesQueryInput = z.infer<typeof listRolesQuerySchema>;
 export type ListPermissionsQueryInput = z.infer<typeof listPermissionsQuerySchema>;
 export type PermissionModuleKeyParamInput = z.infer<typeof permissionModuleKeyParamSchema>;

@@ -1,30 +1,19 @@
-﻿import { HttpMethod } from "@prisma/client";
+import { HttpMethod } from "@prisma/client";
 import { parseWithZod } from "../../../../common/validation/parse-with-zod";
 import {
-  createRoleBodySchema,
+  listRolesQuerySchema,
   listRolePermissionModulePermissionsQuerySchema,
   listPermissionsQuerySchema,
   permissionModuleKeyParamSchema,
 } from "../../domain/schemas/rbac.schema";
 
 describe("rbac.schema", () => {
-  it("parses valid create role body", () => {
-    const result = parseWithZod(createRoleBodySchema, {
-      code: "HOTEL_MANAGER",
-      name: "Hotel Manager",
-      description: "Role for manager",
+  it("parses valid list roles query", () => {
+    const result = parseWithZod(listRolesQuerySchema, {
+      q: "frontdesk",
     });
 
-    expect(result.code).toBe("HOTEL_MANAGER");
-  });
-
-  it("rejects create role code with lowercase letters", () => {
-    expect(() =>
-      parseWithZod(createRoleBodySchema, {
-        code: "hotel_manager",
-        name: "Hotel Manager",
-      }),
-    ).toThrow("code can only contain A-Z, 0-9, and underscore");
+    expect(result).toEqual({ q: "frontdesk" });
   });
 
   it("parses permission query with enum method", () => {

@@ -1,0 +1,41 @@
+name: tenant-owner-frontdesk-agy-boundary
+description: Capability-first owner/frontdesk refactor executed by Orca-supervised AGY worktrees.
+interactive: false
+worktree:
+  enabled: false
+mutates_checkout: false
+nodes:
+  - id: baseline
+    bash: |
+      printf 'verified temporary baseline branch required'
+  - id: contract
+    bash: |
+      cat .hermes/plans/2026-09-12_144505-agy-00-capability-contract.md
+    depends_on: [baseline]
+  - id: backend-property
+    bash: cat .hermes/plans/2026-09-12_144505-agy-10-backend-property.md
+    depends_on: [contract]
+  - id: backend-billing
+    bash: cat .hermes/plans/2026-09-12_144505-agy-11-backend-billing.md
+    depends_on: [contract]
+  - id: backend-requests
+    bash: cat .hermes/plans/2026-09-12_144505-agy-12-backend-requests.md
+    depends_on: [contract]
+  - id: backend-marketplace-scope
+    bash: cat .hermes/plans/2026-09-12_144505-agy-13-backend-marketplace-scope.md
+    depends_on: [contract]
+  - id: frontend-owner
+    bash: cat .hermes/plans/2026-09-12_144505-agy-20-frontend-owner.md
+    depends_on: [backend-property, backend-billing, backend-requests, backend-marketplace-scope]
+  - id: frontend-staff
+    bash: cat .hermes/plans/2026-09-12_144505-agy-21-frontend-staff.md
+    depends_on: [backend-property, backend-billing, backend-requests, backend-marketplace-scope]
+  - id: frontend-navigation
+    bash: cat .hermes/plans/2026-09-12_144505-agy-22-frontend-navigation-deeplink.md
+    depends_on: [backend-property, backend-billing, backend-requests, backend-marketplace-scope]
+  - id: review-security
+    bash: cat .hermes/plans/2026-09-12_144505-agy-30-review-security.md
+    depends_on: [frontend-owner, frontend-staff, frontend-navigation]
+  - id: review-ui
+    bash: cat .hermes/plans/2026-09-12_144505-agy-31-review-ui.md
+    depends_on: [frontend-owner, frontend-staff, frontend-navigation]

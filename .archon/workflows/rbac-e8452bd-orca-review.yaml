@@ -1,0 +1,138 @@
+name: rbac-e8452bd-orca-review
+description: |
+  Approval-gated, read-only review of RBAC commit e8452bd. Archon owns the visible
+  plan and approval gate; Orca owns three parallel visible Codex review terminals.
+interactive: true
+worktree:
+  enabled: false
+mutates_checkout: false
+
+nodes:
+  - id: execution-plan
+    bash: |
+      cat <<'PLAN'
+      RESULT
+        Review pushed RBAC commit e8452bd before any follow-up correction.
+
+      SCOPE
+        Repository: C:\Users\Dangminhdev0403\Desktop\workspace\fullstack-vietSage
+        Base:       e8452bd^1
+        Target:     e8452bd
+        Mode:       read-only review; no edits, migrations, commit, push, deploy.
+
+      CONTROL PLANE
+        Archon: plan, approval, phase status, final aggregation.
+        Orca: visible terminals and process lifecycle.
+        Codex: three isolated read-only review lanes.
+        AGY: BLOCKED — no agy CLI or configured supervisor exists on this host.
+
+      PARALLEL LANES
+        1. backend-security: authorization, active-role ceiling, migration safety.
+        2. frontend-contract: capability-only UI/BFF/OpenAPI closure, accessibility.
+        3. tests-runtime: regression coverage, DB migration evidence, rollout risks.
+
+      POST-APPROVAL PHASES
+        preflight-orca -> launch 3 lanes in parallel -> wait 3 lanes in parallel
+        -> aggregate reports. Any correction requires a new Archon plan and approval.
+
+      EVIDENCE
+        Orca terminal handles, Codex report files, Archon node status.
+      PLAN
+    timeout: 10000
+
+  - id: approve-review
+    approval:
+      message: |
+        Review this exact plan and workflow. Approve to launch three read-only Codex
+        review workers visibly in Orca. No worker starts before approval.
+
+        $execution-plan.output
+      capture_response: true
+    depends_on: [execution-plan]
+
+  - id: preflight-orca
+    bash: |
+      ORCA='C:/Users/Dangminhdev0403/AppData/Local/Programs/orca/resources/bin/orca.cmd'
+      "$ORCA" status --json >/dev/null
+      mkdir -p .archon/reviews/rbac-e8452bd
+      printf 'ORCA_READY'
+    depends_on: [approve-review]
+    timeout: 30000
+
+  - id: launch-backend-security
+    bash: |
+      ORCA='C:/Users/Dangminhdev0403/AppData/Local/Programs/orca/resources/bin/orca.cmd'
+      "$ORCA" terminal create \
+        --worktree 'path:C:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage' \
+        --title 'RBAC REVIEW backend-security' \
+        --command 'codex exec --model gpt-5.6-sol -c model_reasoning_effort="high" --sandbox read-only -C "C:\Users\Dangminhdev0403\Desktop\workspace\fullstack-vietSage" -o ".archon\reviews\rbac-e8452bd\backend-security.md" "Read AGENTS.md and PONYTAIL.md. Review commit e8452bd against its parent only. Do not edit files. Focus authorization fail-closed behavior, active-role ceiling, SYSTEM_TEMPLATE immutability, Prisma migrations, privilege escalation, data-loss and rollout risks. Report only actionable findings with severity and file:line; otherwise PASS."' \
+        --json
+    depends_on: [preflight-orca]
+    timeout: 120000
+
+  - id: launch-frontend-contract
+    bash: |
+      ORCA='C:/Users/Dangminhdev0403/AppData/Local/Programs/orca/resources/bin/orca.cmd'
+      "$ORCA" terminal create \
+        --worktree 'path:C:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage' \
+        --title 'RBAC REVIEW frontend-contract' \
+        --command 'codex exec --model gpt-5.6-sol -c model_reasoning_effort="high" --sandbox read-only -C "C:\Users\Dangminhdev0403\Desktop\workspace\fullstack-vietSage" -o ".archon\reviews\rbac-e8452bd\frontend-contract.md" "Read AGENTS.md and PONYTAIL.md. Review commit e8452bd against its parent only. Do not edit files. Focus capability-only UI/BFF/OpenAPI closure, SYSTEM_TEMPLATE read-only UX, stale route-permission exposure, generated contract correctness, accessibility and state handling. Report only actionable findings with severity and file:line; otherwise PASS."' \
+        --json
+    depends_on: [preflight-orca]
+    timeout: 120000
+
+  - id: launch-tests-runtime
+    bash: |
+      ORCA='C:/Users/Dangminhdev0403/AppData/Local/Programs/orca/resources/bin/orca.cmd'
+      "$ORCA" terminal create \
+        --worktree 'path:C:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage' \
+        --title 'RBAC REVIEW tests-runtime' \
+        --command 'codex exec --model gpt-5.6-sol -c model_reasoning_effort="high" --sandbox read-only -C "C:\Users\Dangminhdev0403\Desktop\workspace\fullstack-vietSage" -o ".archon\reviews\rbac-e8452bd\tests-runtime.md" "Read AGENTS.md and PONYTAIL.md. Review commit e8452bd against its parent only. Do not edit files. Focus regression coverage, migration invariants, E2E gaps, runtime bootstrap behavior, backward compatibility and release evidence. Report only actionable findings with severity and file:line; otherwise PASS."' \
+        --json
+    depends_on: [preflight-orca]
+    timeout: 120000
+
+  - id: wait-backend-security
+    bash: |
+      payload=$launch-backend-security.output
+      handle=$(printf '%s' "$payload" | python -c "import json,sys; print(json.load(sys.stdin)['result']['terminal']['handle'])")
+      ORCA='C:/Users/Dangminhdev0403/AppData/Local/Programs/orca/resources/bin/orca.cmd'
+      "$ORCA" terminal wait --terminal "$handle" --for exit --timeout-ms 1800000 --json >/dev/null
+      test -s .archon/reviews/rbac-e8452bd/backend-security.md
+      cat .archon/reviews/rbac-e8452bd/backend-security.md
+    depends_on: [launch-backend-security]
+    timeout: 1860000
+
+  - id: wait-frontend-contract
+    bash: |
+      payload=$launch-frontend-contract.output
+      handle=$(printf '%s' "$payload" | python -c "import json,sys; print(json.load(sys.stdin)['result']['terminal']['handle'])")
+      ORCA='C:/Users/Dangminhdev0403/AppData/Local/Programs/orca/resources/bin/orca.cmd'
+      "$ORCA" terminal wait --terminal "$handle" --for exit --timeout-ms 1800000 --json >/dev/null
+      test -s .archon/reviews/rbac-e8452bd/frontend-contract.md
+      cat .archon/reviews/rbac-e8452bd/frontend-contract.md
+    depends_on: [launch-frontend-contract]
+    timeout: 1860000
+
+  - id: wait-tests-runtime
+    bash: |
+      payload=$launch-tests-runtime.output
+      handle=$(printf '%s' "$payload" | python -c "import json,sys; print(json.load(sys.stdin)['result']['terminal']['handle'])")
+      ORCA='C:/Users/Dangminhdev0403/AppData/Local/Programs/orca/resources/bin/orca.cmd'
+      "$ORCA" terminal wait --terminal "$handle" --for exit --timeout-ms 1800000 --json >/dev/null
+      test -s .archon/reviews/rbac-e8452bd/tests-runtime.md
+      cat .archon/reviews/rbac-e8452bd/tests-runtime.md
+    depends_on: [launch-tests-runtime]
+    timeout: 1860000
+
+  - id: aggregate-review
+    bash: |
+      printf '# RBAC e8452bd parallel review\n\n'
+      backend=$wait-backend-security.output
+      frontend=$wait-frontend-contract.output
+      runtime=$wait-tests-runtime.output
+      printf '## Backend/security\n%s\n\n' "$backend"
+      printf '## Frontend/contract\n%s\n\n' "$frontend"
+      printf '## Tests/runtime\n%s\n' "$runtime"
+    depends_on: [wait-backend-security, wait-frontend-contract, wait-tests-runtime]
+    timeout: 10000

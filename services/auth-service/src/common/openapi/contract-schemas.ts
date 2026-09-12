@@ -173,6 +173,7 @@ export const roleDataSchema = {
     description: { type: "string", nullable: true },
     status: { type: "string", enum: ROLE_STATUS_ENUM },
     type: { type: "string", enum: ROLE_TYPE_ENUM },
+    baseRoleId: { type: "string", nullable: true },
     createdAt: { type: "string", format: "date-time" },
     updatedAt: { type: "string", format: "date-time" },
   },
@@ -221,6 +222,7 @@ export const frontendNavigationRoleDataSchema = {
     name: { type: "string" },
     status: { type: "string", enum: ROLE_STATUS_ENUM },
     type: { type: "string", enum: ROLE_TYPE_ENUM },
+    baseRoleId: { type: "string", nullable: true },
     menus: {
       type: "array",
       items: { type: "string" },
@@ -380,8 +382,13 @@ export const createRoleBodySchema = {
     code: { type: "string", minLength: 2, maxLength: 80 },
     name: { type: "string", minLength: 2, maxLength: 120 },
     description: { type: "string", maxLength: 255 },
+    baseRoleId: { type: "string" },
+    permissionIds: {
+      type: "array",
+      items: { type: "string" },
+    },
   },
-  required: ["code", "name"],
+  required: ["code", "name", "baseRoleId", "permissionIds"],
 };
 
 export const updateRoleBodySchema = {
@@ -389,6 +396,11 @@ export const updateRoleBodySchema = {
   properties: {
     name: { type: "string", minLength: 2, maxLength: 120 },
     description: { type: "string", maxLength: 255 },
+    baseRoleId: { type: "string" },
+    permissionIds: {
+      type: "array",
+      items: { type: "string" },
+    },
   },
 };
 
