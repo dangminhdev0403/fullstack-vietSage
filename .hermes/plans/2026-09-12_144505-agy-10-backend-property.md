@@ -6,10 +6,12 @@
 - `services/auth-service/src/modules/property/api/hotel-rooms.controller.ts`
 - `services/auth-service/src/modules/property/api/reservations.controller.ts`
 - `services/auth-service/src/modules/biometric-workstations/api/biometric-workstations.controller.ts`
+- `services/auth-service/src/modules/property/domain/schemas/rooms.schema.ts`
+- `services/auth-service/src/modules/property/application/hotel-rooms.service.ts`
 - `services/auth-service/src/modules/property/tests/hotel-operation-permissions.spec.ts`
-**Acceptance:** Walk-in and existing-stay check-in require `hotel.stays.check-in`; reservation check-in requires the same execution key in addition to resource validation; direct checkout requires `hotel.stays.check-out`; operational room status requires `hotel.rooms.status.manage`. Metadata/QR policy remains unchanged unless current endpoint is inseparable—then BLOCKED. Biometric workstation follows check-in execution, not owner role.
+**Acceptance:** Walk-in and existing-stay check-in require `hotel.stays.check-in`; reservation check-in requires the same execution key in addition to resource validation; direct checkout requires `hotel.stays.check-out`; operational room status uses a dedicated validated command endpoint requiring `hotel.rooms.status.manage`. The existing metadata update endpoint remains under `hotel.rooms.manage` and no longer accepts `status`. QR policy remains unchanged. Biometric workstation follows check-in execution, not owner role.
 **Focused check:** `cd services/auth-service && npx jest src/modules/property/tests/hotel-operation-permissions.spec.ts --runInBand`
-**Implementation:** Prefer decorator-only enforcement and one metadata contract test. Do not rewrite services or status machines.
+**Implementation:** Prefer decorator-only enforcement except the approved minimal room-status split: add one strict status body schema, one service method reusing current access/repository/status validation, and one dedicated controller endpoint. Do not rewrite repositories or status machines.
 
 
 ## Global contract
