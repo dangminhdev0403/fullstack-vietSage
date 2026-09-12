@@ -8,7 +8,13 @@ export const kbttCredentialsSchema = z
       .trim()
       .min(1)
       .max(120)
-      .regex(/^[^\x00-\x1f\x7f]+$/),
+      .refine(
+        (value) =>
+          ![...value].some((character) => {
+            const code = character.charCodeAt(0);
+            return code < 32 || code === 127;
+          }),
+      ),
     password: z.string().min(1).max(256),
   })
   .strict();

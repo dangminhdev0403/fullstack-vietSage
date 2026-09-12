@@ -9,6 +9,20 @@ export function kbttAuthFailed() {
   return new HttpException({ code: "KBTT_AUTH_FAILED", message: KBTT_AUTH_FAILED_MESSAGE }, 422);
 }
 
+function kbttProviderError(
+  code: "KBTT_MISSING_AUTHORITY" | "KBTT_PROVIDER_UNAVAILABLE" | "KBTT_PROVIDER_INVALID_RESPONSE",
+) {
+  const messages = {
+    KBTT_MISSING_AUTHORITY: "Tài khoản chưa được cấp quyền khai báo tạm trú.",
+    KBTT_PROVIDER_UNAVAILABLE: "Không thể kết nối hệ thống Bộ Công an. Vui lòng thử lại.",
+    KBTT_PROVIDER_INVALID_RESPONSE: "Hệ thống Bộ Công an trả về dữ liệu không hợp lệ.",
+  } as const;
+  return new HttpException(
+    { code, message: messages[code] },
+    code === "KBTT_MISSING_AUTHORITY" ? 422 : 502,
+  );
+}
+
 @Injectable()
 export class KbttProviderClient {
   private readonly config = loadKbttConfig();
@@ -35,7 +49,15 @@ export class KbttProviderClient {
 
   private session(data: unknown) {
     const parsed = kbttSessionSchema.safeParse(data);
-    if (!parsed.success || parsed.data.Exp * 1000 <= Date.now() + 60_000) throw kbttAuthFailed();
+    if (!parsed.success) {
+      const authorities =
+        data && typeof data === "object" && "Authorities" in data ? data.Authorities : null;
+      if (Array.isArray(authorities) && !authorities.includes("kbtt:create-3th"))
+        throw kbttProviderError("KBTT_MISSING_AUTHORITY");
+      throw kbttProviderError("KBTT_PROVIDER_INVALID_RESPONSE");
+    }
+    if (parsed.data.Exp * 1000 <= Date.now() + 60_000)
+      throw kbttProviderError("KBTT_PROVIDER_INVALID_RESPONSE");
     return parsed.data;
   }
 
@@ -48,19 +70,25 @@ export class KbttProviderClient {
     if (!this.config.KBTT_BASIC_AUTH_VALUE) throw kbttUnavailable();
     const url = new URL("https://api-tbltkbtt.bocongan.gov.vn/authorization-service/oauth/" + path);
     if (query) url.search = new URLSearchParams(query).toString();
+    let response: Response;
     try {
-      const response = await fetch(url, {
+      response = await fetch(url, {
         method,
         headers: {
           Authorization: "Basic " + this.config.KBTT_BASIC_AUTH_VALUE,
           "Content-Type": "application/x-www-form-urlencoded",
           Accept: "application/json",
+          "User-Agent": "Mozilla/5.0",
         },
         body,
         redirect: "error",
         signal: AbortSignal.timeout(10_000),
       });
-      if (!response.ok || !response.body) throw kbttAuthFailed();
+    } catch {
+      throw kbttProviderError("KBTT_PROVIDER_UNAVAILABLE");
+    }
+    if (!response.ok || !response.body) throw kbttProviderError("KBTT_PROVIDER_UNAVAILABLE");
+    try {
       const reader = response.body.getReader();
       const chunks: Uint8Array[] = [];
       let size = 0;
@@ -69,7 +97,7 @@ export class KbttProviderClient {
           const chunk = await reader.read();
           if (chunk.done) break;
           size += chunk.value.byteLength;
-          if (size > 65_536) throw kbttAuthFailed();
+          if (size > 65_536) throw kbttProviderError("KBTT_PROVIDER_INVALID_RESPONSE");
           chunks.push(chunk.value);
         }
       } finally {
@@ -80,13 +108,14 @@ export class KbttProviderClient {
         !envelope ||
         typeof envelope !== "object" ||
         !("code" in envelope) ||
-        envelope.code !== "200" ||
         !("data" in envelope)
       )
-        throw kbttAuthFailed();
+        throw kbttProviderError("KBTT_PROVIDER_INVALID_RESPONSE");
+      if (envelope.code !== "200") throw kbttAuthFailed();
       return envelope.data;
-    } catch {
-      throw kbttAuthFailed();
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw kbttProviderError("KBTT_PROVIDER_INVALID_RESPONSE");
     }
   }
 }

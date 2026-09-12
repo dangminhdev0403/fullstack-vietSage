@@ -25,7 +25,11 @@ import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
 import type { RequestWithRequiredUser } from "../../../shared/security/request-with-authenticated-user";
 import { KbttService } from "../application/kbtt.service";
-import { hotelIdParamSchema, kbttCredentialsSchema } from "../domain/schemas/kbtt.schema";
+import {
+  hotelIdParamSchema,
+  kbttCredentialsSchema,
+  type KbttCredentials,
+} from "../domain/schemas/kbtt.schema";
 
 const connectionSchema = successEnvelopeSchema(
   {
@@ -117,7 +121,7 @@ export class KbttController {
     @Param("hotelId") hotelId: string,
     @Body() body: unknown,
   ) {
-    let credentials;
+    let credentials: KbttCredentials;
     try {
       credentials = parseWithZod(kbttCredentialsSchema, body);
     } catch {

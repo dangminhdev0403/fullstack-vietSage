@@ -85,14 +85,27 @@ export class KbttService implements OnModuleDestroy {
         } else {
           session = await this.provider.login(this.cipher.decrypt(hotelId, connection));
         }
-      } catch {
+      } catch (error) {
         this.sessions.delete(hotelId);
+        const response =
+          error &&
+          typeof error === "object" &&
+          "response" in error &&
+          error.response &&
+          typeof error.response === "object"
+            ? (error.response as { code?: string; message?: string })
+            : {};
+        const isStableError = response.code?.startsWith("KBTT_") ?? false;
+        const code = isStableError ? response.code! : "KBTT_AUTH_FAILED";
+        const message =
+          isStableError && response.message ? response.message : KBTT_AUTH_FAILED_MESSAGE;
         await this.repository.update(connection, {
           status: "AUTH_FAILED",
           lastCheckedAt: new Date(),
-          lastErrorCode: "KBTT_AUTH_FAILED",
-          lastErrorMessage: KBTT_AUTH_FAILED_MESSAGE,
+          lastErrorCode: code,
+          lastErrorMessage: message,
         });
+        if (isStableError && error && typeof error === "object") throw error;
         throw kbttAuthFailed();
       }
       let updated: KbttHotelConnection;

@@ -31,6 +31,7 @@ const errorMessages: Record<string, string> = {
   KBTT_PROVIDER_UNAVAILABLE: "Không thể kết nối hệ thống Bộ Công an. Vui lòng thử lại.",
   KBTT_PROVIDER_INVALID_RESPONSE: "Không thể kiểm tra kết nối. Vui lòng liên hệ hỗ trợ.",
   KBTT_CREDENTIAL_DECRYPT_FAILED: "Không thể kiểm tra kết nối. Vui lòng liên hệ hỗ trợ.",
+  KBTT_UNAVAILABLE: "Không thể kiểm tra kết nối. Vui lòng liên hệ hỗ trợ.",
 };
 
 export function kbttErrorMessage(code: string | null): string {
