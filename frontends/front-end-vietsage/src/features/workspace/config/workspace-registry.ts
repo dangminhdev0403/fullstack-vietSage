@@ -254,6 +254,17 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     anyCapabilities: ["hotel.stays.manage"],
   },
   {
+    key: "owner.hotel.kbtt",
+    personas: ["owner"],
+    href: "/owner/hotels/{hotelId}/kbtt",
+    label: "Khai báo tạm trú Bộ Công an",
+    icon: "verified_user",
+    order: 106,
+    section: "ADMINISTRATION",
+    requiresHotel: true,
+    anyCapabilities: ["hotel.kbtt.view", "hotel.kbtt.manage", "hotel.dashboard.view"],
+  },
+  {
     key: "owner.hotel.services",
     personas: ["owner"],
     href: "/owner/hotels/{hotelId}/services",

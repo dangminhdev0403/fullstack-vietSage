@@ -56,6 +56,16 @@ Backend API
 - Preserve stable backend error codes/titles where the UI needs deterministic handling.
 - UI copy for errors should be user-facing and localized when required.
 
+## KBTT Connection (Phase 1)
+
+- Owner page: `/owner/hotels/{hotelId}/kbtt`; navigation label: `Khai báo tạm trú Bộ Công an`.
+- BFF: `/api/owner/hotels/{hotelId}/kbtt/connection` supports GET, PUT, DELETE; POST uses `/connection/check`. Backend paths omit `/api/owner`.
+- GET reads stored status only. Provider authentication/checks happen only after an explicit connect, check, or re-login action; no polling, background reconnect, or guest submission.
+- Read capability: `hotel.kbtt.view`; write capability: `hotel.kbtt.manage`. Navigation also accepts `hotel.dashboard.view` for active-session compatibility; this does not grant API access.
+- PUT accepts only username (trimmed, 1–120 characters) and password (1–256 characters, whitespace preserved). Password is never prefilled, persisted to browser storage, or returned; completed mutation variables are scrubbed.
+- Responses contain only the confirmed KBTT status/CSLT metadata contract. Unknown fields are stripped; provider errors are translated through an allowlist; BFF responses use `Cache-Control: no-store`.
+- Focused contract check: `node --test src/features/kbtt/kbtt-contract.test.mjs`.
+
 ## Anti-patterns
 
 - Raw `fetch` scattered in components.
