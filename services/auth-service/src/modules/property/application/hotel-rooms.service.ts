@@ -30,6 +30,7 @@ import type {
   ListRoomsQueryInput,
   QrReasonBodyInput,
   UpdateRoomBodyInput,
+  UpdateRoomStatusBodyInput,
   UpdateStayBodyInput,
 } from "../domain/schemas/rooms.schema";
 
@@ -162,7 +163,7 @@ export class HotelRoomsService {
     activeRoleId: string,
     hotelId: string,
     roomId: string,
-    dto: UpdateRoomBodyInput,
+    dto: UpdateRoomBodyInput & { status?: RoomStatus },
   ) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
 
@@ -197,6 +198,49 @@ export class HotelRoomsService {
     }
 
     this.logBusinessEvent("Room updated", "ROOM_UPDATED", "updateRoom", {
+      actorUserId,
+      hotelId,
+      roomId,
+      status: room.status,
+    });
+    return this.toRoomData(room);
+  }
+
+  async updateRoomStatus(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    roomId: string,
+    dto: UpdateRoomStatusBodyInput,
+  ) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+
+    if (dto.status && !MANUAL_ROOM_STATUSES.has(dto.status)) {
+      throw new BadRequestException(
+        "Chỉ có thể đổi phòng sang TRỐNG, CHỜ DỌN, BẢO TRÌ hoặc ĐÃ KHÓA.",
+      );
+    }
+
+    const currentRoom = await this.hotelRoomsRepository.findRoomInHotel(hotelId, roomId);
+    if (!currentRoom) {
+      throw new NotFoundException("Không tìm thấy phòng");
+    }
+
+    if (dto.status === RoomStatus.BLOCKED && currentRoom.guestStays.length > 0) {
+      throw new ConflictException(
+        "Không thể khóa phòng khi khách đang lưu trú. Hãy xử lý hoặc chuyển phòng cho khách trước.",
+      );
+    }
+
+    const room = await this.hotelRoomsRepository.updateRoomInHotel(hotelId, roomId, {
+      status: dto.status,
+    } satisfies Prisma.RoomUpdateInput);
+
+    if (!room) {
+      throw new NotFoundException("Không tìm thấy phòng");
+    }
+
+    this.logBusinessEvent("Room status updated", "ROOM_STATUS_UPDATED", "updateRoomStatus", {
       actorUserId,
       hotelId,
       roomId,

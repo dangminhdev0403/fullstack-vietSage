@@ -188,7 +188,7 @@ export class ReservationsController {
     );
   }
 
-  @RequirePermission("hotel.reservations.manage")
+  @RequirePermission("hotel.stays.check-in")
   @SuccessMessage("Check-in đặt phòng thành công")
   @ApiDescript("Tạo stay và folio theo transaction")
   @ApiParam({ name: "hotelId", type: String })

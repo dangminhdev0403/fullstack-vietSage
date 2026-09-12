@@ -76,12 +76,17 @@ export const updateRoomBodySchema = z
       .min(1, "Tối thiểu 1 thiết bị")
       .nullable()
       .optional(),
-    status: roomStatusSchema.optional(),
   })
   .strict()
   .refine((value) => Object.keys(value).length > 0, {
     message: "Cần ít nhất một trường thông tin phòng để cập nhật",
   });
+
+export const updateRoomStatusBodySchema = z
+  .object({
+    status: roomStatusSchema,
+  })
+  .strict();
 
 export const listRoomsQuerySchema = z
   .object({
@@ -203,6 +208,7 @@ export const qrStatusQuerySchema = z
 export type CreateRoomBodyInput = z.infer<typeof createRoomBodySchema>;
 export type CreateRoomsBodyInput = z.infer<typeof createRoomsBodySchema>;
 export type UpdateRoomBodyInput = z.infer<typeof updateRoomBodySchema>;
+export type UpdateRoomStatusBodyInput = z.infer<typeof updateRoomStatusBodySchema>;
 export type ListRoomsQueryInput = z.infer<typeof listRoomsQuerySchema>;
 export type CreateStayBodyInput = z.infer<typeof createStayBodySchema>;
 export type CheckOutBodyInput = z.infer<typeof checkOutBodySchema>;

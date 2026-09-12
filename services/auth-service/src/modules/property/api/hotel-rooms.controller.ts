@@ -22,6 +22,7 @@ import {
   listRoomsQuerySchema,
   qrReasonBodySchema,
   updateRoomBodySchema,
+  updateRoomStatusBodySchema,
   updateStayBodySchema,
 } from "../domain/schemas/rooms.schema";
 import {
@@ -134,6 +135,32 @@ export class HotelRoomsController {
     );
   }
 
+  @SuccessMessage("Cập nhật trạng thái phòng thành công")
+  @RequirePermission("hotel.rooms.status.manage")
+  @ApiDescript("Cập nhật trạng thái phòng")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiParam({ name: "roomId", type: String })
+  @ApiBody({ schema: { type: "object" } })
+  @ApiOkResponse({ description: "Đã cập nhật trạng thái phòng" })
+  @Patch(":hotelId/rooms/:roomId/status")
+  async updateRoomStatus(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("roomId") roomIdParam: string,
+    @Body() body: unknown,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    const roomId = parseWithZod(roomIdParamSchema, roomIdParam);
+    const dto = parseWithZod(updateRoomStatusBodySchema, body);
+    return this.hotelRoomsService.updateRoomStatus(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      roomId,
+      dto,
+    );
+  }
+
   @SuccessMessage("Tạo lượt lưu trú thành công")
   @RequirePermission("hotel.stays.manage")
   @ApiDescript("Tạo khách lưu trú")
@@ -157,7 +184,7 @@ export class HotelRoomsController {
   }
 
   @SuccessMessage("Check-in lượt lưu trú thành công")
-  @RequirePermission("hotel.stays.manage")
+  @RequirePermission("hotel.stays.check-in")
   @ApiDescript("Check-in khách")
   @ApiParam({ name: "hotelId", type: String })
   @ApiBody({ schema: { type: "object" } })
@@ -179,7 +206,7 @@ export class HotelRoomsController {
   }
 
   @SuccessMessage("Check-in lượt lưu trú thành công")
-  @RequirePermission("hotel.stays.manage")
+  @RequirePermission("hotel.stays.check-in")
   @ApiDescript("Check-in khách")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "stayId", type: String })
@@ -201,7 +228,7 @@ export class HotelRoomsController {
   }
 
   @SuccessMessage("Check-out lượt lưu trú thành công")
-  @RequirePermission("hotel.stays.manage")
+  @RequirePermission("hotel.stays.check-out")
   @ApiDescript("Check-out khách")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "stayId", type: String })

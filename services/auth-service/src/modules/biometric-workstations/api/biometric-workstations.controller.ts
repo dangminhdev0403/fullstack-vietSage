@@ -47,7 +47,7 @@ export class BiometricWorkstationsController {
   }
 
   @ApiBearerAuth()
-  @RequirePermission("hotel.stays.manage")
+  @RequirePermission("hotel.stays.check-in")
   @ApiDescript("Cấp mã ghép nối trạm sinh trắc học")
   @Post("hotels/:hotelId/biometric-workstations/pairing")
   async issuePairing(@Req() request: RequestWithUser, @Param("hotelId") hotelId: string) {
@@ -60,7 +60,7 @@ export class BiometricWorkstationsController {
   }
 
   @ApiBearerAuth()
-  @RequirePermission("hotel.stays.manage")
+  @RequirePermission("hotel.stays.check-in")
   @ApiDescript("Kiểm tra trạng thái trạm sinh trắc học")
   @Get("hotels/:hotelId/biometric-workstations/status")
   async status(@Req() request: RequestWithUser, @Param("hotelId") hotelId: string) {
@@ -73,7 +73,7 @@ export class BiometricWorkstationsController {
   }
 
   @ApiBearerAuth()
-  @RequirePermission("hotel.stays.manage")
+  @RequirePermission("hotel.stays.check-in")
   @ApiDescript("Thu hồi kết nối trạm sinh trắc học")
   @Delete("hotels/:hotelId/biometric-workstations")
   async disconnect(@Req() request: RequestWithUser, @Param("hotelId") hotelId: string) {
