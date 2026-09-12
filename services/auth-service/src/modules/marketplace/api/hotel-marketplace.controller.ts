@@ -90,7 +90,7 @@ export class HotelMarketplaceController {
   }
 
   @ApiDescript("Tiếp nhận đơn Marketplace (dành cho lễ tân khách sạn)")
-  @RequirePermission("hotel.requests.view")
+  @RequirePermission("hotel.requests.execute")
   @Post("orders/:orderId/acknowledge")
   async acknowledge(
     @Req() req: RequestWithRequiredUser,
@@ -103,7 +103,7 @@ export class HotelMarketplaceController {
   }
 
   @ApiDescript("Cấp phiếu dịch vụ (Service Voucher) cho khách lưu trú")
-  @RequirePermission("hotel.requests.view")
+  @RequirePermission("hotel.requests.execute")
   @Post("orders/:orderId/issue-voucher")
   async issueVoucher(
     @Req() req: RequestWithRequiredUser,
@@ -116,7 +116,7 @@ export class HotelMarketplaceController {
   }
 
   @ApiDescript("Hủy đơn dịch vụ ngoài")
-  @RequirePermission("hotel.requests.view")
+  @RequirePermission("hotel.requests.execute")
   @Post("orders/:orderId/cancel")
   async cancel(
     @Req() req: RequestWithRequiredUser,

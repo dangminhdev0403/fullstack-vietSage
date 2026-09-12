@@ -26,7 +26,21 @@ export class HotelCoreRepository {
           },
           select: {
             role: {
-              select: { code: true },
+              select: {
+                id: true,
+                code: true,
+                baseRoleId: true,
+                baseRole: {
+                  select: { code: true },
+                },
+                rolePermissions: {
+                  select: {
+                    permission: {
+                      select: { path: true },
+                    },
+                  },
+                },
+              },
             },
           },
         },

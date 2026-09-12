@@ -156,4 +156,97 @@ describe("HotelAccessService", () => {
       ForbiddenException,
     );
   });
+
+  it("cho phép vai trò tùy chỉnh hợp lệ (custom role) truy cập khách sạn được phân công mà không bị chặn bởi role code", async () => {
+    const repository = createRepository({
+      findActorById: jest.fn().mockResolvedValue({
+        id: "custom-staff-1",
+        userRoles: [{ role: { code: "CUSTOM_FRONTDESK_ROLE" } }],
+        tenantUsers: [{ tenantId: "tenant-1" }],
+        hotelAssignments: [{ hotelId: "hotel-1" }],
+      }),
+      findHotelById: jest.fn().mockResolvedValue({ id: "hotel-1", tenantId: "tenant-1" }),
+    });
+    const service = new HotelAccessService(repository as never);
+
+    await expect(
+      service.assertHotelAccess("custom-staff-1", "custom-role-id", "hotel-1"),
+    ).resolves.toMatchObject({ id: "hotel-1", tenantId: "tenant-1" });
+  });
+
+  it("từ chối vai trò tùy chỉnh hợp lệ khi chưa được phân công tại khách sạn (bảo toàn staff assignment isolation)", async () => {
+    const repository = createRepository({
+      findActorById: jest.fn().mockResolvedValue({
+        id: "custom-staff-1",
+        userRoles: [{ role: { code: "CUSTOM_FRONTDESK_ROLE" } }],
+        tenantUsers: [{ tenantId: "tenant-1" }],
+        hotelAssignments: [{ hotelId: "hotel-1" }],
+      }),
+      findHotelById: jest.fn().mockResolvedValue({ id: "hotel-2", tenantId: "tenant-1" }),
+    });
+    const service = new HotelAccessService(repository as never);
+
+    await expect(
+      service.assertHotelAccess("custom-staff-1", "custom-role-id", "hotel-2"),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("từ chối vai trò tùy chỉnh hợp lệ khi truy cập khách sạn ngoài tenant", async () => {
+    const repository = createRepository({
+      findActorById: jest.fn().mockResolvedValue({
+        id: "custom-staff-1",
+        userRoles: [{ role: { code: "CUSTOM_ROLE" } }],
+        tenantUsers: [{ tenantId: "tenant-1" }],
+        hotelAssignments: [{ hotelId: "hotel-foreign" }],
+      }),
+      findHotelById: jest.fn().mockResolvedValue({ id: "hotel-foreign", tenantId: "tenant-foreign" }),
+    });
+    const service = new HotelAccessService(repository as never);
+
+    await expect(
+      service.assertHotelAccess("custom-staff-1", "custom-role-id", "hotel-foreign"),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("vai trò tùy chỉnh kế thừa TENANT_OWNER qua baseRole có owner tenant scope mà không yêu cầu assignment", async () => {
+    const repository = createRepository({
+      findActorById: jest.fn().mockResolvedValue({
+        id: "custom-owner-1",
+        userRoles: [
+          {
+            role: {
+              code: "CUSTOM_OWNER_ROLE",
+              baseRole: { code: "TENANT_OWNER" },
+            },
+          },
+        ],
+        tenantUsers: [{ tenantId: "tenant-1" }],
+        hotelAssignments: [],
+      }),
+      findHotelByIdAndTenantIds: jest.fn().mockResolvedValue({
+        id: "hotel-1",
+        tenantId: "tenant-1",
+      }),
+    });
+    const service = new HotelAccessService(repository as never);
+
+    await expect(
+      service.assertHotelAccess("custom-owner-1", "custom-owner-role-id", "hotel-1"),
+    ).resolves.toMatchObject({ id: "hotel-1", tenantId: "tenant-1" });
+  });
+
+  it("từ chối khi user không có active role hợp lệ trong phiên (session-bound active role)", async () => {
+    const repository = createRepository({
+      findActorById: jest.fn().mockResolvedValue({
+        id: "actor-1",
+        userRoles: [],
+        tenantUsers: [{ tenantId: "tenant-1" }],
+      }),
+    });
+    const service = new HotelAccessService(repository as never);
+
+    await expect(
+      service.loadActorContext("actor-1", "inactive-or-unassigned-role"),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
 });

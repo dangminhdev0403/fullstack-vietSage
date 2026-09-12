@@ -7,27 +7,6 @@ import {
 import { HotelCoreRepository } from "../infrastructure/repositories/hotel-core.repository";
 import type { HotelDetailRow } from "../infrastructure/repositories/hotel-repository.types";
 
-const HOTEL_OPERATOR_ROLE_CODES = new Set([
-  "SUPER_ADMIN",
-  "TENANT_OWNER",
-  "HOTEL_OWNER",
-  "HOTEL_MANAGER",
-  "HOTEL_FRONTDESK",
-  "HOTEL_HOUSEKEEPING",
-  "HOTEL_MAINTENANCE",
-  "HOTEL_FNB",
-  "HOTEL_FINANCE",
-]);
-
-const HOTEL_ASSIGNMENT_REQUIRED_ROLE_CODES = new Set([
-  "HOTEL_MANAGER",
-  "HOTEL_FRONTDESK",
-  "HOTEL_HOUSEKEEPING",
-  "HOTEL_MAINTENANCE",
-  "HOTEL_FNB",
-  "HOTEL_FINANCE",
-]);
-
 export interface HotelActorContext {
   userId: string;
   roleCodes: Set<string>;
@@ -36,6 +15,7 @@ export interface HotelActorContext {
   requiresHotelAssignment?: boolean;
   isSuperAdmin: boolean;
   isTenantOwner: boolean;
+  permissions?: Set<string>;
 }
 
 @Injectable()
@@ -48,21 +28,40 @@ export class HotelAccessService {
       throw new ForbiddenException("Không tìm thấy người thực hiện");
     }
 
-    const roleCodes = new Set(actor.userRoles.map((entry) => entry.role.code));
-    const allowed = Array.from(roleCodes).some((code) => HOTEL_OPERATOR_ROLE_CODES.has(code));
-    if (!allowed) {
+    if (!actor.userRoles || actor.userRoles.length === 0) {
       throw new ForbiddenException("Bạn không được phép quản lý vận hành khách sạn");
     }
 
+    const roleCodes = new Set(actor.userRoles.map((entry) => entry.role.code));
+    const baseRoleCodes = new Set(
+      actor.userRoles
+        .map((entry) => (entry.role as { baseRole?: { code?: string } | null })?.baseRole?.code)
+        .filter((code): code is string => Boolean(code)),
+    );
+
+    const permissions = new Set<string>();
+    for (const entry of actor.userRoles) {
+      const rolePermissions = (
+        entry.role as { rolePermissions?: Array<{ permission?: { path?: string } }> }
+      )?.rolePermissions;
+      for (const rp of rolePermissions ?? []) {
+        if (rp?.permission?.path) {
+          permissions.add(rp.permission.path);
+        }
+      }
+    }
+
+    const isSuperAdmin = roleCodes.has("SUPER_ADMIN") || baseRoleCodes.has("SUPER_ADMIN");
+    const isTenantOwner =
+      (roleCodes.has("TENANT_OWNER") || baseRoleCodes.has("TENANT_OWNER")) && !isSuperAdmin;
+    const isHotelOwner = roleCodes.has("HOTEL_OWNER") || baseRoleCodes.has("HOTEL_OWNER");
+
+    const hasElevatedHotelScope = isSuperAdmin || isTenantOwner || isHotelOwner;
+    const requiresHotelAssignment = !hasElevatedHotelScope;
+
     const tenantIds = new Set(actor.tenantUsers.map((entry) => entry.tenantId));
     const assignedHotelIds = new Set((actor.hotelAssignments ?? []).map((entry) => entry.hotelId));
-    const hasElevatedHotelScope = ["SUPER_ADMIN", "TENANT_OWNER", "HOTEL_OWNER"].some((code) =>
-      roleCodes.has(code),
-    );
-    const requiresHotelAssignment =
-      !hasElevatedHotelScope &&
-      Array.from(roleCodes).some((code) => HOTEL_ASSIGNMENT_REQUIRED_ROLE_CODES.has(code));
-    const isTenantOwner = roleCodes.has("TENANT_OWNER") && !roleCodes.has("SUPER_ADMIN");
+
     if (isTenantOwner && tenantIds.size === 0) {
       throw new ForbiddenException("TENANT_OWNER không có thành viên tenant đang hoạt động");
     }
@@ -73,8 +72,9 @@ export class HotelAccessService {
       tenantIds,
       assignedHotelIds,
       requiresHotelAssignment,
-      isSuperAdmin: roleCodes.has("SUPER_ADMIN"),
+      isSuperAdmin,
       isTenantOwner,
+      permissions,
     };
   }
 
