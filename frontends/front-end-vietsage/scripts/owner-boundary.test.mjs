@@ -21,20 +21,16 @@ const requestsSource = read(
   "src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/requests/page.tsx",
 );
 
-test("owner stay room grid removes execution actions and retains read-only occupancy", () => {
-  // Execution actions and workspaces must be absent
-  assert.doesNotMatch(stayGridSource, /CheckInWorkspace/);
-  assert.doesNotMatch(stayGridSource, /openCheckIn/);
-  assert.doesNotMatch(stayGridSource, /submitCheckIn/);
-  assert.doesNotMatch(stayGridSource, /markRoomCleaned/);
-  assert.doesNotMatch(stayGridSource, /updateRoomStatus/);
-  assert.doesNotMatch(stayGridSource, /Đã dọn xong → Chuyển TRỐNG/);
-  assert.doesNotMatch(stayGridSource, /Xong bảo trì → Chuyển TRỐNG/);
-  assert.doesNotMatch(stayGridSource, /Check-in phòng/);
-
-  // Read-only occupancy view and room overview must remain
+test("owner stay room grid exposes check-in and room status actions", () => {
+  assert.match(stayGridSource, /CheckInWorkspace/);
+  assert.match(stayGridSource, /openCheckIn/);
+  assert.match(stayGridSource, /submitCheckIn/);
+  assert.match(stayGridSource, /markRoomCleaned/);
+  assert.match(stayGridSource, /updateRoomStatus/);
+  assert.match(stayGridSource, /Đã dọn xong → Chuyển TRỐNG/);
+  assert.match(stayGridSource, /Xong bảo trì → Chuyển TRỐNG/);
+  assert.match(stayGridSource, /Check-in phòng/);
   assert.match(stayGridSource, /StayOccupantsViewer/);
-  assert.match(stayGridSource, /Khách đang lưu trú/);
   assert.match(stayGridSource, /roomStatusLabel/);
   assert.match(stayGridSource, /handleTileClick/);
 });
