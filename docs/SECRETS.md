@@ -4,7 +4,7 @@ Docker Compose is the production/local-container runtime path. Real secrets live
 
 ## KBTT hotel credentials
 
-- Set three runtime-only secrets on the backend: `KBTT_LOGIN_BASIC_AUTH_VALUE` (Get Token Basic value), `KBTT_TOKEN_BASIC_AUTH_VALUE` (Refresh/Revoke Basic value), both without the `Basic ` prefix, and `KBTT_CREDENTIAL_ENCRYPTION_KEY` (canonical base64 encoding of exactly 32 cryptographically random bytes). Never reuse JWT keys.
+- Set `KBTT_BASE_URL` to the provider HTTPS origin (no endpoint path). Set three runtime-only secrets on the backend: `KBTT_LOGIN_BASIC_AUTH_VALUE` (Get Token Basic value), `KBTT_TOKEN_BASIC_AUTH_VALUE` (Refresh/Revoke Basic value), both without the `Basic ` prefix, and `KBTT_CREDENTIAL_ENCRYPTION_KEY` (canonical base64 encoding of exactly 32 cryptographically random bytes). Never reuse JWT keys.
 - Both absent disables new KBTT authentication; partial or malformed configuration fails module initialization. Never commit values or include them in command history, logs, browser storage, screenshots, or API responses.
 - `KbttHotelConnection` stores username/password together as AES-256-GCM ciphertext, with a fresh 12-byte IV, 16-byte tag, key version 1, and hotel ID as authenticated associated data. Moving ciphertext to another hotel fails authentication. Only bounded CSLT metadata and safe status/timestamps remain readable.
 - Access/refresh tokens exist only in backend process memory. GET is passive; only explicit owner connection/check actions authenticate or refresh. Restart or expiry does not start background login, polling, or scheduled guest submission.

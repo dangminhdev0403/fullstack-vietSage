@@ -71,8 +71,8 @@ export class KbttProviderClient {
       path === "token"
         ? this.config.KBTT_LOGIN_BASIC_AUTH_VALUE
         : this.config.KBTT_TOKEN_BASIC_AUTH_VALUE;
-    if (!basicAuth) throw kbttUnavailable();
-    const url = new URL("https://api-tbltkbtt.bocongan.gov.vn/authorization-service/oauth/" + path);
+    if (!basicAuth || !this.config.KBTT_BASE_URL) throw kbttUnavailable();
+    const url = new URL(`${this.config.KBTT_BASE_URL}/authorization-service/oauth/${path}`);
     if (query) url.search = new URLSearchParams(query).toString();
     let response: Response;
     try {

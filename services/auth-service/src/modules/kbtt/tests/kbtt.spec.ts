@@ -60,6 +60,7 @@ function fixture() {
 }
 
 beforeEach(() => {
+  process.env.KBTT_BASE_URL = "https://api-kbtt.example.test";
   process.env.KBTT_LOGIN_BASIC_AUTH_VALUE = randomBytes(24).toString("base64");
   process.env.KBTT_TOKEN_BASIC_AUTH_VALUE = randomBytes(24).toString("base64");
   process.env.KBTT_CREDENTIAL_ENCRYPTION_KEY = randomBytes(32).toString("base64");
@@ -105,7 +106,7 @@ describe("KBTT secure manual authentication", () => {
     const provider = new KbttProviderClient();
     expect(await provider.login(credentials)).toEqual(data);
     const [url, options] = fetchMock.mock.calls[0] as [URL, RequestInit];
-    expect(url.href).toBe("https://api-tbltkbtt.bocongan.gov.vn/authorization-service/oauth/token");
+    expect(url.href).toBe(`${process.env.KBTT_BASE_URL}/authorization-service/oauth/token`);
     expect(options).toMatchObject({
       method: "POST",
       redirect: "error",

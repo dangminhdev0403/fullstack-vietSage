@@ -8,6 +8,11 @@ const base64 = z
   .refine((value) => Buffer.from(value, "base64").toString("base64") === value);
 const configSchema = z
   .object({
+    KBTT_BASE_URL: z
+      .url()
+      .refine((value) => new URL(value).protocol === "https:")
+      .transform((value) => value.replace(/\/+$/, ""))
+      .optional(),
     KBTT_LOGIN_BASIC_AUTH_VALUE: base64.optional(),
     KBTT_TOKEN_BASIC_AUTH_VALUE: base64.optional(),
     KBTT_CREDENTIAL_ENCRYPTION_KEY: base64
@@ -15,24 +20,22 @@ const configSchema = z
       .optional(),
   })
   .refine(
-    (config) =>
-      [
+    (config) => {
+      const values = [
+        config.KBTT_BASE_URL,
         config.KBTT_LOGIN_BASIC_AUTH_VALUE,
         config.KBTT_TOKEN_BASIC_AUTH_VALUE,
         config.KBTT_CREDENTIAL_ENCRYPTION_KEY,
-      ].filter(Boolean).length === 0 ||
-      [
-        config.KBTT_LOGIN_BASIC_AUTH_VALUE,
-        config.KBTT_TOKEN_BASIC_AUTH_VALUE,
-        config.KBTT_CREDENTIAL_ENCRYPTION_KEY,
-      ].every(Boolean),
+      ];
+      return values.filter(Boolean).length === 0 || values.every(Boolean);
+    },
   );
 
 export function loadKbttConfig(env: NodeJS.ProcessEnv = process.env) {
   const parsed = configSchema.safeParse(env);
   if (!parsed.success) {
     throw new Error(
-      "Invalid KBTT configuration: configure both Basic auth values and the 32-byte encryption key",
+      "Invalid KBTT configuration: configure the HTTPS base URL, both Basic auth values and the 32-byte encryption key",
     );
   }
   return parsed.data;
