@@ -1,18 +1,66 @@
-import { Injectable, NotFoundException, type OnModuleDestroy } from "@nestjs/common";
-import type { KbttHotelConnection } from "@prisma/client";
-import { HotelAccessService } from "../../property/property-public";
 import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  type OnModuleDestroy,
+} from "@nestjs/common";
+import type {
+  CitizenshipKind,
+  KbttDeclarationStatus,
+  KbttGuestDeclaration,
+  KbttHotelConnection,
+  Prisma,
+} from "@prisma/client";
+import {
+  HotelAccessService,
+  HotelStayOccupantsReadService,
+} from "../../property/property-public";
+import { z } from "zod";
+import {
+  isValidCalendarDate,
+  kbttForeignReadySchema,
   kbttMetadata,
+  kbttProviderCountrySchema,
+  kbttProviderNamedItemSchema,
+  kbttProviderProvinceSchema,
+  kbttProviderWardSchema,
+  kbttVietnameseReadySchema,
+  parseDraftPayload,
+  type KbttCatalogItemView,
+  type KbttCatalogKind,
+  type KbttCatalogQuery,
   type KbttCredentials,
+  type KbttDerivedStatus,
   type KbttSession,
 } from "../domain/schemas/kbtt.schema";
 import { KbttCredentialCipher } from "../infrastructure/kbtt-credential-cipher";
 import {
   KbttProviderClient,
   kbttAuthFailed,
+  kbttProviderError,
   KBTT_AUTH_FAILED_MESSAGE,
 } from "../infrastructure/kbtt-provider.client";
 import { KbttRepository } from "../infrastructure/kbtt.repository";
+
+function formatVietnamDateTime(date: Date | string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+  const map: Record<string, string> = {};
+  for (const part of parts) {
+    map[part.type] = part.value;
+  }
+  return `${map.year}-${map.month}-${map.day} ${map.hour}:${map.minute}:${map.second}`;
+}
 
 @Injectable()
 export class KbttService implements OnModuleDestroy {
@@ -24,6 +72,7 @@ export class KbttService implements OnModuleDestroy {
     private readonly repository: KbttRepository,
     private readonly cipher: KbttCredentialCipher,
     private readonly provider: KbttProviderClient,
+    private readonly occupantsReadService?: HotelStayOccupantsReadService,
   ) {}
 
   async get(userId: string, roleId: string, hotelId: string) {
@@ -34,7 +83,7 @@ export class KbttService implements OnModuleDestroy {
   async connect(userId: string, roleId: string, hotelId: string, credentials: KbttCredentials) {
     await this.access.assertHotelAccess(userId, roleId, hotelId);
     return this.serialize(hotelId, async () => {
-      const encrypted = this.cipher.encrypt(hotelId, credentials);
+      const encrypted = await this.cipher.encrypt(hotelId, credentials);
       const session = await this.provider.login(credentials);
       const now = new Date();
       let connection: KbttHotelConnection;
@@ -80,10 +129,10 @@ export class KbttService implements OnModuleDestroy {
           try {
             session = await this.provider.refresh(cached.session.RefreshToken);
           } catch {
-            session = await this.provider.login(this.cipher.decrypt(hotelId, connection));
+            session = await this.provider.login(await this.cipher.decrypt(hotelId, connection));
           }
         } else {
-          session = await this.provider.login(this.cipher.decrypt(hotelId, connection));
+          session = await this.provider.login(await this.cipher.decrypt(hotelId, connection));
         }
       } catch (error) {
         this.sessions.delete(hotelId);
@@ -170,6 +219,297 @@ export class KbttService implements OnModuleDestroy {
     }
   }
 
+  async listDeclarations(
+    userId: string,
+    roleId: string,
+    hotelId: string,
+    pagination?: { page?: number; limit?: number },
+  ) {
+    await this.access.assertHotelAccess(userId, roleId, hotelId);
+    const occupants = (await this.occupantsReadService?.getActiveStayOccupants(hotelId)) ?? [];
+    const page = Math.max(1, pagination?.page ?? 1);
+    const limit = Math.min(100, Math.max(1, pagination?.limit ?? 50));
+    const offset = (page - 1) * limit;
+    const pagedOccupants = occupants.slice(offset, offset + limit);
+
+    const occupantIds = pagedOccupants.map((o) => o.id);
+    const declarations = await this.repository.findDeclarationsByHotel(hotelId, occupantIds);
+
+    const declarationsByOccupant = new Map<string, KbttGuestDeclaration>();
+    for (const decl of declarations) {
+      if (!declarationsByOccupant.has(decl.occupantId)) {
+        declarationsByOccupant.set(decl.occupantId, decl);
+      }
+    }
+
+    return pagedOccupants.map((occupant) => {
+      const decl = declarationsByOccupant.get(occupant.id) ?? null;
+      const classification = decl?.declarationKind ?? occupant.citizenshipKind ?? null;
+      const derivedStatus: KbttDerivedStatus =
+        decl && decl.status ? (decl.status as KbttDerivedStatus) : "MISSING_PROFILE";
+
+      return {
+        occupantId: occupant.id,
+        stayId: occupant.stayId,
+        hotelId: occupant.hotelId,
+        roomId: occupant.roomId,
+        roomNumber: occupant.roomNumber,
+        isPrimary: occupant.isPrimary,
+        fullName: occupant.fullName,
+        phone: occupant.phone,
+        identityNumber: occupant.identityNumber,
+        dateOfBirth: occupant.dateOfBirth,
+        gender: occupant.gender,
+        nationality: occupant.nationality,
+        residencePlace: occupant.residencePlace,
+        citizenshipKind: classification,
+        derivedStatus,
+        stayStatus: occupant.stayStatus,
+        reservationCode: occupant.reservationCode,
+        checkedInAt: occupant.checkedInAt ? occupant.checkedInAt.toISOString() : null,
+        plannedCheckInAt: occupant.plannedCheckInAt.toISOString(),
+        plannedCheckOutAt: occupant.plannedCheckOutAt.toISOString(),
+        declaration: decl
+          ? {
+              id: decl.id,
+              revision: decl.revision,
+              status: decl.status,
+              declarationKind: decl.declarationKind,
+              providerCode: decl.providerCode,
+              providerMessage: decl.providerMessage,
+              submittedAt: decl.submittedAt ? decl.submittedAt.toISOString() : null,
+              createdAt: decl.createdAt.toISOString(),
+              updatedAt: decl.updatedAt.toISOString(),
+            }
+          : null,
+      };
+    });
+  }
+
+  async getDeclaration(userId: string, roleId: string, hotelId: string, occupantId: string) {
+    await this.access.assertHotelAccess(userId, roleId, hotelId);
+    const occupant = await this.repository.findOccupant(hotelId, occupantId);
+    if (!occupant) {
+      throw new NotFoundException("Khách lưu trú không tồn tại trong khách sạn này.");
+    }
+    const decl = await this.repository.findLatestDeclaration(hotelId, occupantId);
+    return {
+      occupant: {
+        id: occupant.id,
+        stayId: occupant.stayId,
+        hotelId: occupant.hotelId,
+        fullName: occupant.fullName,
+        phone: occupant.phone,
+        identityNumber: occupant.identityNumber,
+        dateOfBirth: occupant.dateOfBirth,
+        gender: occupant.gender,
+        nationality: occupant.nationality,
+        residencePlace: occupant.residencePlace,
+        isPrimary: occupant.isPrimary,
+        citizenshipKind: decl?.declarationKind ?? occupant.citizenshipKind ?? null,
+      },
+      declaration: decl ? this.viewDeclaration(decl) : null,
+      derivedStatus: decl ? decl.status : "MISSING_PROFILE",
+    };
+  }
+
+  async saveDraft(
+    userId: string,
+    roleId: string,
+    hotelId: string,
+    occupantId: string,
+    body: unknown,
+  ) {
+    await this.access.assertHotelAccess(userId, roleId, hotelId);
+    const occupant = await this.repository.findOccupant(hotelId, occupantId);
+    if (!occupant) {
+      throw new NotFoundException("Khách lưu trú không tồn tại trong khách sạn này.");
+    }
+
+    const { citizenshipKind, data } = parseDraftPayload(body);
+
+    const EDITABLE_STATUSES: readonly KbttDeclarationStatus[] = ["DRAFT", "READY", "FAILED"];
+    const existing = await this.repository.findLatestDeclaration(hotelId, occupantId);
+    if (existing && !EDITABLE_STATUSES.includes(existing.status)) {
+      if (existing.status === "SUBMITTED") {
+        throw new BadRequestException(
+          "Hồ sơ đã được gửi thành công đến cơ quan quản lý (SUBMITTED), không thể sửa đổi.",
+        );
+      }
+      if (existing.status === "SENDING") {
+        throw new BadRequestException(
+          "Hồ sơ đang trong quá trình gửi (SENDING), không thể sửa đổi.",
+        );
+      }
+      if (existing.status === "UNKNOWN") {
+        throw new BadRequestException(
+          "Hồ sơ ở trạng thái không xác định (UNKNOWN), không thể sửa đổi.",
+        );
+      }
+      if (existing.status === "CANCELLED") {
+        throw new BadRequestException(
+          "Hồ sơ đã bị hủy (CANCELLED), cần tạo bản sửa đổi mới.",
+        );
+      }
+      throw new BadRequestException(`Không thể sửa đổi hồ sơ ở trạng thái ${existing.status}.`);
+    }
+
+    const draftData = { ...data };
+    if (!draftData.hoTen && occupant.fullName) draftData.hoTen = occupant.fullName;
+    if (!draftData.soPhong && occupant.stay?.room?.roomNumber) {
+      draftData.soPhong = occupant.stay.room.roomNumber;
+    }
+    if (!draftData.ngayDenCsltStr && (occupant.stay?.checkedInAt || occupant.stay?.plannedCheckInAt)) {
+      draftData.ngayDenCsltStr = formatVietnamDateTime(
+        occupant.stay.checkedInAt || occupant.stay.plannedCheckInAt,
+      );
+    }
+    if (!draftData.ngayDiDuKienStr && occupant.stay?.plannedCheckOutAt) {
+      draftData.ngayDiDuKienStr = formatVietnamDateTime(occupant.stay.plannedCheckOutAt);
+    }
+    if (
+      !draftData.ngayThangNamSinhStr &&
+      occupant.dateOfBirth &&
+      isValidCalendarDate(occupant.dateOfBirth)
+    ) {
+      draftData.ngayThangNamSinhStr = occupant.dateOfBirth;
+    }
+    if (!draftData.gioiTinh && occupant.gender) {
+      const g = occupant.gender.trim().toUpperCase();
+      if (g === "M" || g === "MALE" || g === "NAM") draftData.gioiTinh = "M";
+      else if (g === "F" || g === "FEMALE" || g === "NỮ" || g === "NU") draftData.gioiTinh = "F";
+    }
+
+    if (citizenshipKind === "VIETNAMESE") {
+      if (!draftData.soGiayTo && occupant.identityNumber) {
+        const rawId = occupant.identityNumber.trim();
+        if (/^[A-Za-z0-9]{1,32}$/.test(rawId)) {
+          draftData.soGiayTo = rawId;
+        }
+      }
+    } else {
+      if (!draftData.soHoChieu && occupant.identityNumber) {
+        const rawId = occupant.identityNumber.trim();
+        if (/^[A-Za-z0-9]{1,32}$/.test(rawId)) {
+          draftData.soHoChieu = rawId;
+        }
+      }
+    }
+
+    let savedDeclaration: KbttGuestDeclaration;
+    if (existing) {
+      savedDeclaration = await this.repository.updateDeclaration({
+        id: existing.id,
+        hotelId,
+        expectedVersion: existing.version,
+        allowedStatuses: ["DRAFT", "READY", "FAILED"],
+        data: {
+          declarationKind: citizenshipKind,
+          draftPayloadJson: draftData as Prisma.InputJsonValue,
+          status: "DRAFT",
+        },
+      });
+    } else {
+      savedDeclaration = await this.repository.createDeclaration({
+        hotelId,
+        stayId: occupant.stayId,
+        occupantId,
+        declarationKind: citizenshipKind,
+        revision: 1,
+        status: "DRAFT",
+        draftPayloadJson: draftData as Prisma.InputJsonValue,
+      });
+    }
+
+    if (occupant.citizenshipKind !== citizenshipKind) {
+      await this.repository.updateOccupantCitizenship(occupantId, hotelId, citizenshipKind);
+    }
+
+    return this.viewDeclaration(savedDeclaration);
+  }
+
+  async markReady(userId: string, roleId: string, hotelId: string, occupantId: string) {
+    await this.access.assertHotelAccess(userId, roleId, hotelId);
+    const occupant = await this.repository.findOccupant(hotelId, occupantId);
+    if (!occupant) {
+      throw new NotFoundException("Khách lưu trú không tồn tại trong khách sạn này.");
+    }
+    const decl = await this.repository.findLatestDeclaration(hotelId, occupantId);
+    if (!decl) {
+      throw new NotFoundException("Chưa có bản nháp khai báo để chuyển trạng thái READY.");
+    }
+    const EDITABLE_STATUSES: readonly KbttDeclarationStatus[] = ["DRAFT", "READY", "FAILED"];
+    if (!EDITABLE_STATUSES.includes(decl.status)) {
+      if (decl.status === "SUBMITTED") {
+        throw new BadRequestException("Hồ sơ đã được gửi thành công, không thể thay đổi trạng thái.");
+      }
+      if (decl.status === "SENDING") {
+        throw new BadRequestException("Hồ sơ đang trong quá trình gửi, không thể thay đổi trạng thái.");
+      }
+      if (decl.status === "UNKNOWN") {
+        throw new BadRequestException(
+          "Hồ sơ ở trạng thái không xác định (UNKNOWN), không thể thay đổi trạng thái.",
+        );
+      }
+      if (decl.status === "CANCELLED") {
+        throw new BadRequestException(
+          "Hồ sơ đã bị hủy (CANCELLED), không thể chuyển sang READY.",
+        );
+      }
+      throw new BadRequestException(`Không thể chuyển sang READY từ trạng thái ${decl.status}.`);
+    }
+
+    const draft = (decl.draftPayloadJson ?? {}) as Record<string, unknown>;
+    if (decl.declarationKind === "VIETNAMESE") {
+      const result = kbttVietnameseReadySchema.safeParse(draft);
+      if (!result.success) {
+        const errors = result.error.issues
+          .map((i) => `${i.path.join(".")}: ${i.message}`)
+          .join("; ");
+        throw new BadRequestException(`Bản nháp chưa đủ điều kiện READY: ${errors}`);
+      }
+    } else {
+      const result = kbttForeignReadySchema.safeParse(draft);
+      if (!result.success) {
+        const errors = result.error.issues
+          .map((i) => `${i.path.join(".")}: ${i.message}`)
+          .join("; ");
+        throw new BadRequestException(`Bản nháp chưa đủ điều kiện READY: ${errors}`);
+      }
+    }
+
+    const updated = await this.repository.updateDeclaration({
+      id: decl.id,
+      hotelId,
+      expectedVersion: decl.version,
+      allowedStatuses: ["DRAFT", "READY", "FAILED"],
+      data: {
+        status: "READY",
+      },
+    });
+
+    return this.viewDeclaration(updated);
+  }
+
+  private viewDeclaration(decl: KbttGuestDeclaration) {
+    return {
+      id: decl.id,
+      hotelId: decl.hotelId,
+      stayId: decl.stayId,
+      occupantId: decl.occupantId,
+      declarationKind: decl.declarationKind,
+      revision: decl.revision,
+      status: decl.status,
+      draftPayload: decl.draftPayloadJson,
+      providerCode: decl.providerCode,
+      providerMessage: decl.providerMessage,
+      submittedAt: decl.submittedAt ? decl.submittedAt.toISOString() : null,
+      version: decl.version,
+      createdAt: decl.createdAt.toISOString(),
+      updatedAt: decl.updatedAt.toISOString(),
+    };
+  }
+
   private view(connection: KbttHotelConnection | null) {
     return {
       configured: Boolean(connection),
@@ -185,6 +525,172 @@ export class KbttService implements OnModuleDestroy {
       lastConnectedAt: connection?.lastConnectedAt.toISOString() ?? null,
       lastErrorCode: connection?.lastErrorCode ?? null,
       lastErrorMessage: connection?.lastErrorMessage ?? null,
+    };
+  }
+
+  async listCatalog(
+    userId: string,
+    roleId: string,
+    hotelId: string,
+    kind: KbttCatalogKind,
+    query: KbttCatalogQuery,
+  ): Promise<KbttCatalogItemView[]> {
+    await this.access.assertHotelAccess(userId, roleId, hotelId);
+    let parentCodeNormalized: string | undefined = undefined;
+    if (query.parentCode !== undefined) {
+      parentCodeNormalized = query.parentCode.trim();
+    } else if (kind !== "WARD") {
+      parentCodeNormalized = "";
+    }
+    const items = await this.repository.listCatalogItems({
+      kind,
+      parentCodeNormalized,
+      includeInactive: query.includeInactive,
+      limit: query.limit,
+    });
+    return items.map((item) => ({
+      id: item.id,
+      kind: item.kind,
+      code: item.code,
+      parentCode: item.parentCodeNormalized || null,
+      nameVi: item.nameVi,
+      nameEn: item.nameEn ?? null,
+      isActive: item.isActive,
+      fetchedAt: item.fetchedAt.toISOString(),
+    }));
+  }
+
+  async syncCatalog(
+    userId: string,
+    roleId: string,
+    hotelId: string,
+    kind: KbttCatalogKind,
+    options?: { provinceCode?: string },
+  ) {
+    await this.access.assertHotelAccess(userId, roleId, hotelId);
+    let provinceCode: string | undefined = undefined;
+    if (kind === "WARD") {
+      provinceCode = options?.provinceCode?.trim();
+      if (!provinceCode) {
+        throw new BadRequestException(
+          "Mã tỉnh/thành phố (maTT) là bắt buộc khi đồng bộ danh mục phường xã.",
+        );
+      }
+    }
+
+    const rawData = await this.provider.fetchCatalog(kind, provinceCode);
+    let candidateItems: Array<{
+      code: string;
+      nameVi: string;
+      nameEn: string | null;
+      parentCodeNormalized: string;
+    }> = [];
+
+    switch (kind) {
+      case "NATIONALITY": {
+        const parsed = z.array(kbttProviderCountrySchema).safeParse(rawData);
+        if (!parsed.success) {
+          throw kbttProviderError("KBTT_PROVIDER_INVALID_RESPONSE");
+        }
+        candidateItems = parsed.data.map((item) => ({
+          code: item.maQT,
+          nameVi: item.tenQT,
+          nameEn: item.tenQTEn ?? null,
+          parentCodeNormalized: "",
+        }));
+        break;
+      }
+      case "PROVINCE": {
+        const parsed = z.array(kbttProviderProvinceSchema).safeParse(rawData);
+        if (!parsed.success) {
+          throw kbttProviderError("KBTT_PROVIDER_INVALID_RESPONSE");
+        }
+        candidateItems = parsed.data.map((item) => ({
+          code: item.maTT,
+          nameVi: item.tenTT,
+          nameEn: item.tenTTEn ?? null,
+          parentCodeNormalized: "",
+        }));
+        break;
+      }
+      case "WARD": {
+        const parsed = z.array(kbttProviderWardSchema).safeParse(rawData);
+        if (!parsed.success) {
+          throw kbttProviderError("KBTT_PROVIDER_INVALID_RESPONSE");
+        }
+        candidateItems = parsed.data.map((item) => ({
+          code: item.maPhuongXa,
+          nameVi: item.tenPhuongXa,
+          nameEn: item.tenPhuongXaEn ?? null,
+          parentCodeNormalized: (item.trucThuocTinh || provinceCode!).trim(),
+        }));
+        break;
+      }
+      case "STAY_REASON": {
+        const parsed = z.array(kbttProviderNamedItemSchema).safeParse(rawData);
+        if (!parsed.success) {
+          throw kbttProviderError("KBTT_PROVIDER_INVALID_RESPONSE");
+        }
+        candidateItems = parsed.data.map((item) => ({
+          code: item.id,
+          nameVi: item.name,
+          nameEn: null,
+          parentCodeNormalized: "",
+        }));
+        break;
+      }
+      case "DOCUMENT_TYPE": {
+        const parsed = z.array(kbttProviderNamedItemSchema).safeParse(rawData);
+        if (!parsed.success) {
+          throw kbttProviderError("KBTT_PROVIDER_INVALID_RESPONSE");
+        }
+        candidateItems = parsed.data.map((item) => ({
+          code: item.id,
+          nameVi: item.name,
+          nameEn: null,
+          parentCodeNormalized: "",
+        }));
+        break;
+      }
+      case "RESIDENCE_PLACE": {
+        const parsed = z.array(kbttProviderNamedItemSchema).safeParse(rawData);
+        if (!parsed.success) {
+          throw kbttProviderError("KBTT_PROVIDER_INVALID_RESPONSE");
+        }
+        candidateItems = parsed.data.map((item) => ({
+          code: item.id,
+          nameVi: item.name,
+          nameEn: null,
+          parentCodeNormalized: "",
+        }));
+        break;
+      }
+      default:
+        throw new BadRequestException("Loại danh mục KBTT không hợp lệ.");
+    }
+
+    const seen = new Set<string>();
+    const deduplicatedCandidates: typeof candidateItems = [];
+    for (const item of candidateItems) {
+      const key = `${item.code}::${item.parentCodeNormalized}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        deduplicatedCandidates.push(item);
+      }
+    }
+
+    const parentCodeNormalized = kind === "WARD" ? provinceCode! : "";
+    const result = await this.repository.syncCatalogItems(
+      kind,
+      parentCodeNormalized,
+      deduplicatedCandidates,
+    );
+
+    return {
+      kind,
+      parentCode: parentCodeNormalized || null,
+      totalFetched: deduplicatedCandidates.length,
+      syncedAt: result.syncedAt.toISOString(),
     };
   }
 }

@@ -382,6 +382,17 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     anyCapabilities: ["hotel.messages.view", "hotel.messages.manage"],
   },
   {
+    key: "staff.kbtt",
+    personas: ["owner", "manager", "front_desk"],
+    href: "/hotels/{hotelId}/kbtt",
+    label: "Khai báo tạm trú",
+    icon: "verified_user",
+    order: 45,
+    section: "OPERATIONS",
+    requiresHotel: true,
+    anyCapabilities: ["hotel.kbtt.declarations.view", "hotel.kbtt.declarations.manage"],
+  },
+  {
     key: "staff.billing",
     personas: ["manager", "front_desk", "finance"],
     href: "/hotels/{hotelId}/billing",

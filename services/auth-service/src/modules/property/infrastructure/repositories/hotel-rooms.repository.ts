@@ -727,16 +727,6 @@ export class HotelRoomsRepository {
       plannedCheckOutAt?: Date;
       guestDisplayName?: string;
       guestPhone?: string;
-      occupants?: Array<{
-        fullName: string;
-        phone?: string;
-        identityNumber?: string;
-        dateOfBirth?: string;
-        gender?: string;
-        nationality?: string;
-        residencePlace?: string;
-        isPrimary?: boolean;
-      }>;
     },
   ) {
     return this.prisma.$transaction(async (tx) => {
@@ -745,53 +735,22 @@ export class HotelRoomsRepository {
       });
       if (!existingStay) return null;
 
-      const updatedDisplayName = input.guestDisplayName?.trim() || existingStay.guestDisplayName;
-      const updatedPhone =
-        input.guestPhone !== undefined ? input.guestPhone : existingStay.guestPhone;
+      const primaryOccupantUpdates: { fullName?: string; phone?: string | null } = {};
+      if (input.guestDisplayName !== undefined) {
+        primaryOccupantUpdates.fullName = input.guestDisplayName.trim();
+      }
+      if (input.guestPhone !== undefined) {
+        primaryOccupantUpdates.phone = input.guestPhone;
+      }
 
-      if (input.occupants !== undefined) {
-        await tx.guestStayOccupant.deleteMany({
-          where: { stayId, hotelId },
-        });
-
-        await tx.guestStayOccupant.createMany({
-          data: [
-            {
-              stayId,
-              hotelId,
-              fullName: updatedDisplayName,
-              phone: updatedPhone ?? undefined,
-              identityNumber: existingStay.guestIdentityNumber ?? undefined,
-              dateOfBirth: existingStay.guestDateOfBirth ?? undefined,
-              gender: existingStay.guestGender ?? undefined,
-              nationality: existingStay.guestNationality ?? undefined,
-              residencePlace: existingStay.guestResidencePlace ?? undefined,
-              isPrimary: true,
-            },
-            ...(input.occupants ?? [])
-              .filter(
-                (occ) =>
-                  occ.fullName.trim() &&
-                  !(
-                    occ.fullName.trim() === updatedDisplayName &&
-                    (!occ.identityNumber?.trim() ||
-                      occ.identityNumber?.trim() ===
-                        (existingStay.guestIdentityNumber?.trim() ?? ""))
-                  ),
-              )
-              .map((occ) => ({
-                stayId,
-                hotelId,
-                fullName: occ.fullName.trim(),
-                phone: occ.phone?.trim() || undefined,
-                identityNumber: occ.identityNumber?.trim() || undefined,
-                dateOfBirth: occ.dateOfBirth?.trim() || undefined,
-                gender: occ.gender?.trim() || undefined,
-                nationality: occ.nationality?.trim() || undefined,
-                residencePlace: occ.residencePlace?.trim() || undefined,
-                isPrimary: false,
-              })),
-          ],
+      if (Object.keys(primaryOccupantUpdates).length > 0) {
+        await tx.guestStayOccupant.updateMany({
+          where: {
+            hotelId,
+            stayId,
+            isPrimary: true,
+          },
+          data: primaryOccupantUpdates,
         });
       }
 
@@ -1142,5 +1101,50 @@ export class HotelRoomsRepository {
     }
 
     return existingQr;
+  }
+
+  async findActiveStayOccupantsByHotel(hotelId: string) {
+    return this.prisma.guestStayOccupant.findMany({
+      where: {
+        hotelId,
+        stay: {
+          hotelId,
+          status: {
+            in: [
+              GuestStayStatus.ACTIVE,
+              GuestStayStatus.CHECKED_IN,
+              GuestStayStatus.CHECKOUT_PENDING,
+            ],
+          },
+        },
+      },
+      include: {
+        stay: {
+          select: {
+            id: true,
+            hotelId: true,
+            roomId: true,
+            reservationCode: true,
+            status: true,
+            plannedCheckInAt: true,
+            plannedCheckOutAt: true,
+            checkedInAt: true,
+            room: {
+              select: {
+                id: true,
+                roomNumber: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: [
+        { stay: { room: { roomNumber: "asc" } } },
+        { stayId: "asc" },
+        { isPrimary: "desc" },
+        { createdAt: "asc" },
+        { id: "asc" },
+      ],
+    });
   }
 }

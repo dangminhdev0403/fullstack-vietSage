@@ -9,6 +9,7 @@ import {
   Param,
   Post,
   Put,
+  Query,
   Req,
 } from "@nestjs/common";
 import {
@@ -27,7 +28,12 @@ import type { RequestWithRequiredUser } from "../../../shared/security/request-w
 import { KbttService } from "../application/kbtt.service";
 import {
   hotelIdParamSchema,
+  kbttCatalogKindSchema,
+  kbttCatalogQuerySchema,
   kbttCredentialsSchema,
+  kbttPaginationQuerySchema,
+  occupantIdParamSchema,
+  type KbttCatalogKind,
   type KbttCredentials,
 } from "../domain/schemas/kbtt.schema";
 
@@ -83,11 +89,11 @@ const connectionSchema = successEnvelopeSchema(
   status: 503,
   description: "KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable",
 })
-@Controller("hotels/:hotelId/kbtt/connection")
+@Controller("hotels/:hotelId/kbtt")
 export class KbttController {
   constructor(private readonly service: KbttService) {}
 
-  @Get()
+  @Get("connection")
   @Header("Cache-Control", "no-store")
   @RequirePermission("hotel.kbtt.view")
   @ApiOperation({ summary: "View saved hotel KBTT connection; never contacts provider" })
@@ -100,7 +106,7 @@ export class KbttController {
     );
   }
 
-  @Put()
+  @Put("connection")
   @Header("Cache-Control", "no-store")
   @RequirePermission("hotel.kbtt.manage")
   @ApiOperation({ summary: "Authenticate and save encrypted hotel credentials only after success" })
@@ -135,7 +141,7 @@ export class KbttController {
     );
   }
 
-  @Post("check")
+  @Post("connection/check")
   @HttpCode(200)
   @Header("Cache-Control", "no-store")
   @RequirePermission("hotel.kbtt.manage")
@@ -151,7 +157,7 @@ export class KbttController {
     );
   }
 
-  @Delete()
+  @Delete("connection")
   @Header("Cache-Control", "no-store")
   @RequirePermission("hotel.kbtt.manage")
   @ApiOperation({ summary: "Best-effort revoke and remove saved credentials and local tokens" })
@@ -161,6 +167,191 @@ export class KbttController {
       request.user.userId,
       request.user.roleId,
       parseWithZod(hotelIdParamSchema, hotelId),
+    );
+  }
+
+  @Get("declarations")
+  @Header("Cache-Control", "no-store")
+  @RequirePermission("hotel.kbtt.declarations.view")
+  @ApiOperation({ summary: "List active occupants combined with KBTT declaration status" })
+  listDeclarations(
+    @Req() request: RequestWithRequiredUser,
+    @Param("hotelId") hotelId: string,
+    @Query() query?: unknown,
+  ) {
+    const pagination = parseWithZod(kbttPaginationQuerySchema, query ?? {});
+    return this.service.listDeclarations(
+      request.user.userId,
+      request.user.roleId,
+      parseWithZod(hotelIdParamSchema, hotelId),
+      pagination,
+    );
+  }
+
+  @Get("declarations/:occupantId")
+  @Header("Cache-Control", "no-store")
+  @ApiParam({ name: "occupantId", type: String })
+  @RequirePermission("hotel.kbtt.declarations.view")
+  @ApiOperation({ summary: "Get occupant profile and latest KBTT declaration" })
+  getDeclaration(
+    @Req() request: RequestWithRequiredUser,
+    @Param("hotelId") hotelId: string,
+    @Param("occupantId") occupantId: string,
+  ) {
+    return this.service.getDeclaration(
+      request.user.userId,
+      request.user.roleId,
+      parseWithZod(hotelIdParamSchema, hotelId),
+      parseWithZod(occupantIdParamSchema, occupantId),
+    );
+  }
+
+  @Put("declarations/:occupantId/draft")
+  @Header("Cache-Control", "no-store")
+  @ApiParam({ name: "occupantId", type: String })
+  @RequirePermission("hotel.kbtt.declarations.manage")
+  @ApiOperation({ summary: "Create or update KBTT declaration draft" })
+  saveDraft(
+    @Req() request: RequestWithRequiredUser,
+    @Param("hotelId") hotelId: string,
+    @Param("occupantId") occupantId: string,
+    @Body() body: unknown,
+  ) {
+    return this.service.saveDraft(
+      request.user.userId,
+      request.user.roleId,
+      parseWithZod(hotelIdParamSchema, hotelId),
+      parseWithZod(occupantIdParamSchema, occupantId),
+      body,
+    );
+  }
+
+  @Post("declarations/:occupantId/ready")
+  @HttpCode(200)
+  @Header("Cache-Control", "no-store")
+  @ApiParam({ name: "occupantId", type: String })
+  @RequirePermission("hotel.kbtt.declarations.manage")
+  @ApiOperation({ summary: "Validate all required provider fields and transition draft to READY" })
+  markReady(
+    @Req() request: RequestWithRequiredUser,
+    @Param("hotelId") hotelId: string,
+    @Param("occupantId") occupantId: string,
+  ) {
+    return this.service.markReady(
+      request.user.userId,
+      request.user.roleId,
+      parseWithZod(hotelIdParamSchema, hotelId),
+      parseWithZod(occupantIdParamSchema, occupantId),
+    );
+  }
+
+  @Get("catalogs")
+  @Header("Cache-Control", "no-store")
+  @RequirePermission("hotel.kbtt.declarations.view")
+  @ApiOperation({ summary: "List cached KBTT reference catalog items by query" })
+  listCatalogByQuery(
+    @Req() request: RequestWithRequiredUser,
+    @Param("hotelId") hotelId: string,
+    @Query("kind") kindParam: string,
+    @Query() query?: unknown,
+  ) {
+    const validKind = parseWithZod(kbttCatalogKindSchema, kindParam);
+    const validQuery = parseWithZod(kbttCatalogQuerySchema, query ?? {});
+    return this.service.listCatalog(
+      request.user.userId,
+      request.user.roleId,
+      parseWithZod(hotelIdParamSchema, hotelId),
+      validKind,
+      validQuery,
+    );
+  }
+
+  @Get("catalogs/:kind")
+  @Header("Cache-Control", "no-store")
+  @ApiParam({ name: "kind", enum: ["NATIONALITY", "PROVINCE", "WARD", "STAY_REASON", "DOCUMENT_TYPE", "RESIDENCE_PLACE"] })
+  @RequirePermission("hotel.kbtt.declarations.view")
+  @ApiOperation({ summary: "List cached KBTT reference catalog items" })
+  listCatalog(
+    @Req() request: RequestWithRequiredUser,
+    @Param("hotelId") hotelId: string,
+    @Param("kind") kind: string,
+    @Query() query?: unknown,
+  ) {
+    const validKind = parseWithZod(kbttCatalogKindSchema, kind);
+    const validQuery = parseWithZod(kbttCatalogQuerySchema, query ?? {});
+    return this.service.listCatalog(
+      request.user.userId,
+      request.user.roleId,
+      parseWithZod(hotelIdParamSchema, hotelId),
+      validKind,
+      validQuery,
+    );
+  }
+
+  @Post("catalogs/sync")
+  @HttpCode(200)
+  @Header("Cache-Control", "no-store")
+  @RequirePermission("hotel.kbtt.declarations.manage")
+  @ApiOperation({ summary: "Manually synchronize a reference catalog from provider into local cache by payload" })
+  syncCatalogByBody(
+    @Req() request: RequestWithRequiredUser,
+    @Param("hotelId") hotelId: string,
+    @Body() body?: unknown,
+    @Query() query?: unknown,
+  ) {
+    const parsedBody = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
+    const parsedQuery = (query && typeof query === "object" ? query : {}) as Record<string, unknown>;
+    const kind = (parsedBody.kind || parsedQuery.kind) as string;
+    const validKind = parseWithZod(kbttCatalogKindSchema, kind);
+    const provinceCode = (
+      (parsedBody.provinceCode ||
+        parsedBody.parentCode ||
+        parsedBody.maTT ||
+        parsedQuery.provinceCode ||
+        parsedQuery.parentCode ||
+        parsedQuery.maTT ||
+        "") as string
+    ).trim();
+    return this.service.syncCatalog(
+      request.user.userId,
+      request.user.roleId,
+      parseWithZod(hotelIdParamSchema, hotelId),
+      validKind,
+      { provinceCode: provinceCode || undefined },
+    );
+  }
+
+  @Post("catalogs/:kind/sync")
+  @HttpCode(200)
+  @Header("Cache-Control", "no-store")
+  @ApiParam({ name: "kind", enum: ["NATIONALITY", "PROVINCE", "WARD", "STAY_REASON", "DOCUMENT_TYPE", "RESIDENCE_PLACE"] })
+  @RequirePermission("hotel.kbtt.declarations.manage")
+  @ApiOperation({ summary: "Manually synchronize a reference catalog from provider into local cache" })
+  syncCatalog(
+    @Req() request: RequestWithRequiredUser,
+    @Param("hotelId") hotelId: string,
+    @Param("kind") kind: string,
+    @Body() body?: unknown,
+    @Query() query?: unknown,
+  ) {
+    const validKind = parseWithZod(kbttCatalogKindSchema, kind);
+    const parsedBody = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
+    const parsedQuery = (query && typeof query === "object" ? query : {}) as Record<string, unknown>;
+    const provinceCode = (
+      (parsedBody.provinceCode ||
+        parsedBody.parentCode ||
+        parsedBody.maTT ||
+        parsedQuery.provinceCode ||
+        parsedQuery.parentCode ||
+        parsedQuery.maTT ||
+        "") as string
+    ).trim();
+    return this.service.syncCatalog(
+      request.user.userId,
+      request.user.roleId,
+      parseWithZod(hotelIdParamSchema, hotelId),
+      validKind,
+      { provinceCode: provinceCode || undefined },
     );
   }
 }

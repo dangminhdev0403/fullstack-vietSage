@@ -1,5 +1,9 @@
-import { HttpException, Injectable } from "@nestjs/common";
-import { kbttSessionSchema, type KbttCredentials } from "../domain/schemas/kbtt.schema";
+import { BadRequestException, HttpException, Injectable } from "@nestjs/common";
+import {
+  kbttSessionSchema,
+  type KbttCatalogKind,
+  type KbttCredentials,
+} from "../domain/schemas/kbtt.schema";
 import { kbttUnavailable, loadKbttConfig } from "./kbtt.config";
 
 export const KBTT_AUTH_FAILED_MESSAGE =
@@ -9,7 +13,7 @@ export function kbttAuthFailed() {
   return new HttpException({ code: "KBTT_AUTH_FAILED", message: KBTT_AUTH_FAILED_MESSAGE }, 422);
 }
 
-function kbttProviderError(
+export function kbttProviderError(
   code: "KBTT_MISSING_AUTHORITY" | "KBTT_PROVIDER_UNAVAILABLE" | "KBTT_PROVIDER_INVALID_RESPONSE",
 ) {
   const messages = {
@@ -45,6 +49,26 @@ export class KbttProviderClient {
 
   async revoke(accessToken: string) {
     await this.request("revoke", "DELETE", undefined, { access_token: accessToken });
+  }
+
+  async fetchCatalog(kind: KbttCatalogKind, parentCode?: string): Promise<unknown> {
+    const paths: Record<KbttCatalogKind, string> = {
+      NATIONALITY: "/cms-backend/public/dm-qt/3th/get-all",
+      PROVINCE: "/cms-backend/public/dm-tinh-tp/get-all",
+      WARD: "/cms-backend/public/dm-phuong-xa",
+      STAY_REASON: "/cms-backend/public/ly-do-cu-tru/get-all",
+      DOCUMENT_TYPE: "/cms-backend/public/loai-giay-to/get-all",
+      RESIDENCE_PLACE: "/cms-backend/public/noi-cu-tru/get-all",
+    };
+    const path = paths[kind];
+    const query: Record<string, string> = {};
+    if (kind === "WARD") {
+      if (!parentCode || !parentCode.trim()) {
+        throw new BadRequestException("Mã tỉnh/thành phố (trucThuocTinh) là bắt buộc để tải danh mục phường xã.");
+      }
+      query.trucThuocTinh = parentCode.trim();
+    }
+    return this.requestPublic(path, query);
   }
 
   private session(data: unknown) {
@@ -117,6 +141,65 @@ export class KbttProviderClient {
         throw kbttProviderError("KBTT_PROVIDER_INVALID_RESPONSE");
       if (envelope.code !== "200") throw kbttAuthFailed();
       return envelope.data;
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw kbttProviderError("KBTT_PROVIDER_INVALID_RESPONSE");
+    }
+  }
+
+  private async requestPublic(
+    path: string,
+    query?: Record<string, string>,
+  ): Promise<unknown> {
+    if (!this.config.KBTT_BASE_URL) throw kbttUnavailable();
+    const url = new URL(`${this.config.KBTT_BASE_URL}${path}`);
+    if (query && Object.keys(query).length > 0) {
+      url.search = new URLSearchParams(query).toString();
+    }
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "Mozilla/5.0",
+        },
+        redirect: "error",
+        signal: AbortSignal.timeout(10_000),
+      });
+    } catch {
+      throw kbttProviderError("KBTT_PROVIDER_UNAVAILABLE");
+    }
+    if (!response.ok || !response.body) throw kbttProviderError("KBTT_PROVIDER_UNAVAILABLE");
+    try {
+      const reader = response.body.getReader();
+      const chunks: Uint8Array[] = [];
+      let size = 0;
+      const MAX_CATALOG_SIZE = 5 * 1024 * 1024;
+      try {
+        for (;;) {
+          const chunk = await reader.read();
+          if (chunk.done) break;
+          size += chunk.value.byteLength;
+          if (size > MAX_CATALOG_SIZE) throw kbttProviderError("KBTT_PROVIDER_INVALID_RESPONSE");
+          chunks.push(chunk.value);
+        }
+      } finally {
+        await reader.cancel();
+      }
+      const envelope: unknown = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+      if (
+        !envelope ||
+        typeof envelope !== "object" ||
+        !("code" in envelope) ||
+        !("data" in envelope)
+      ) {
+        throw kbttProviderError("KBTT_PROVIDER_INVALID_RESPONSE");
+      }
+      if ((envelope as { code: unknown }).code !== "200") {
+        throw kbttProviderError("KBTT_PROVIDER_INVALID_RESPONSE");
+      }
+      return (envelope as { data: unknown }).data;
     } catch (error) {
       if (error instanceof HttpException) throw error;
       throw kbttProviderError("KBTT_PROVIDER_INVALID_RESPONSE");

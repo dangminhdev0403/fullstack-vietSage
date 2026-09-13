@@ -3,7 +3,7 @@ import { Interval } from "@nestjs/schedule";
 import { PlatformBillingContractStatus, Prisma } from "@prisma/client";
 import { AppLogger } from "../../../common/logging/app-logger.service";
 import { PrismaService } from "../../../prisma/prisma.service";
-import { HotelAccessService } from "../../property/property-public";
+import { HotelAccessService } from "../../property/application/hotel-access.service";
 
 const DAY_MS = 86_400_000;
 const MAX_RECONCILIATION_DAYS = 31;

@@ -102,6 +102,30 @@ enum GuestStayStatus {
   CANCELLED
 }
 
+enum CitizenshipKind {
+  VIETNAMESE
+  FOREIGN
+}
+
+enum KbttDeclarationStatus {
+  DRAFT
+  READY
+  SENDING
+  SUBMITTED
+  FAILED
+  UNKNOWN
+  CANCELLED
+}
+
+enum KbttCatalogKind {
+  NATIONALITY
+  PROVINCE
+  WARD
+  STAY_REASON
+  DOCUMENT_TYPE
+  RESIDENCE_PLACE
+}
+
 enum ReservationStatus {
   CONFIRMED
   ARRIVAL_READY
@@ -630,6 +654,7 @@ model Hotel {
   serviceTenantLinks            HotelServiceLink[]            @relation("HotelServiceTenantLinks")
   guestCarts                    GuestCart[]
   kbttConnection                KbttHotelConnection?
+  kbttGuestDeclarations         KbttGuestDeclaration[]
 
 }
 
@@ -651,6 +676,52 @@ model KbttHotelConnection {
   lastErrorCode      String?  @db.VarChar(40)
   lastErrorMessage   String?  @db.VarChar(200)
   hotel              Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+}
+
+model KbttGuestDeclaration {
+  id                          String                @id @default(cuid())
+  hotelId                     String
+  stayId                      String
+  occupantId                  String
+  declarationKind             CitizenshipKind
+  revision                    Int                   @default(1)
+  status                      KbttDeclarationStatus @default(DRAFT)
+  draftPayloadJson            Json?
+  submittedPayloadJson        Json?
+  submittedPayloadFingerprint String?               @db.VarChar(64)
+  providerCode                String?               @db.VarChar(32)
+  providerMessage             String?               @db.VarChar(500)
+  providerResponseJson        Json?
+  submittedAt                 DateTime?
+  version                     Int                   @default(1)
+  createdAt                   DateTime              @default(now())
+  updatedAt                   DateTime              @updatedAt
+
+  hotel                       Hotel                 @relation(fields: [hotelId], references: [id], onDelete: Restrict)
+  stay                        GuestStay             @relation(fields: [stayId], references: [id], onDelete: Restrict)
+  occupant                    GuestStayOccupant     @relation(fields: [occupantId], references: [id], onDelete: Restrict)
+
+  @@unique([hotelId, stayId, occupantId, revision])
+  @@index([hotelId, status])
+  @@index([occupantId])
+  @@index([stayId])
+}
+
+model KbttCatalogItem {
+  id                   String          @id @default(cuid())
+  kind                 KbttCatalogKind
+  code                 String          @db.VarChar(64)
+  parentCodeNormalized String          @default("") @db.VarChar(64)
+  nameVi               String          @db.VarChar(255)
+  nameEn               String?         @db.VarChar(255)
+  isActive             Boolean         @default(true)
+  fetchedAt            DateTime        @default(now())
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  @@unique([kind, code, parentCodeNormalized])
+  @@index([kind, isActive])
+  @@index([kind, parentCodeNormalized, isActive])
 }
 
 model PlatformBillingContract {
@@ -989,6 +1060,7 @@ model GuestStay {
   localPartnerInteractionLogs LocalPartnerInteractionLog[]
   marketplaceOrders           MarketplaceOrder[]
   guestCarts                  GuestCart[]
+  kbttGuestDeclarations       KbttGuestDeclaration[]
 
   @@index([hotelId, status])
   @@index([roomId, status])
@@ -997,21 +1069,23 @@ model GuestStay {
 }
 
 model GuestStayOccupant {
-  id             String         @id @default(cuid())
-  stayId         String
-  hotelId        String
-  fullName       String         @db.VarChar(120)
-  phone          String?        @db.VarChar(40)
-  identityNumber String?        @db.VarChar(32)
-  dateOfBirth    String?        @db.VarChar(20)
-  gender         String?        @db.VarChar(20)
-  nationality    String?        @db.VarChar(80)
-  residencePlace String?        @db.VarChar(500)
-  isPrimary      Boolean        @default(false)
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  stay           GuestStay      @relation(fields: [stayId], references: [id], onDelete: Cascade)
-  guestSessions  GuestSession[]
+  id                    String                 @id @default(cuid())
+  stayId                String
+  hotelId               String
+  fullName              String                 @db.VarChar(120)
+  phone                 String?                @db.VarChar(40)
+  identityNumber        String?                @db.VarChar(32)
+  dateOfBirth           String?                @db.VarChar(20)
+  gender                String?                @db.VarChar(20)
+  nationality           String?                @db.VarChar(80)
+  residencePlace        String?                @db.VarChar(500)
+  isPrimary             Boolean                @default(false)
+  citizenshipKind       CitizenshipKind?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  stay                  GuestStay              @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  guestSessions         GuestSession[]
+  kbttGuestDeclarations KbttGuestDeclaration[]
 
   @@index([stayId])
   @@index([hotelId])
