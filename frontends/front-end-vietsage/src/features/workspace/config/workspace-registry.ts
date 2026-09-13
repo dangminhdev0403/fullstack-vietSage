@@ -184,10 +184,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     icon: "payments",
     order: 50,
     section: "ADMINISTRATION",
-    anyCapabilities: [
-      "platform.billing.view",
-      "platform.billing.manage",
-    ],
+    anyCapabilities: ["platform.billing.view", "platform.billing.manage"],
   },
   {
     key: "admin.marketplace",
@@ -197,7 +194,10 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     icon: "storefront",
     order: 25,
     section: "OPERATIONS",
-    anyCapabilities: ["platform.marketplace.view", "platform.marketplace.manage"],
+    anyCapabilities: [
+      "platform.marketplace.view",
+      "platform.marketplace.manage",
+    ],
   },
 
   {
@@ -253,7 +253,10 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     order: 106,
     section: "ADMINISTRATION",
     requiresHotel: true,
-    anyCapabilities: ["hotel.kbtt.view", "hotel.kbtt.manage", "hotel.dashboard.view"],
+    anyCapabilities: [
+      "hotel.kbtt.declarations.view",
+      "hotel.kbtt.declarations.manage",
+    ],
   },
   {
     key: "owner.hotel.services",
@@ -275,7 +278,10 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     order: 115,
     section: "OPERATIONS",
     requiresHotel: true,
-    anyCapabilities: ["hotel.local-partners.view", "hotel.local-partners.manage"],
+    anyCapabilities: [
+      "hotel.local-partners.view",
+      "hotel.local-partners.manage",
+    ],
   },
 
   // Xử lý / Vận hành (Operations & Processing)
@@ -390,7 +396,10 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     order: 45,
     section: "OPERATIONS",
     requiresHotel: true,
-    anyCapabilities: ["hotel.kbtt.declarations.view", "hotel.kbtt.declarations.manage"],
+    anyCapabilities: [
+      "hotel.kbtt.declarations.view",
+      "hotel.kbtt.declarations.manage",
+    ],
   },
   {
     key: "staff.billing",
@@ -438,7 +447,10 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     order: 80,
     section: "OPERATIONS",
     requiresHotel: true,
-    anyCapabilities: ["hotel.local-partners.view", "hotel.local-partners.manage"],
+    anyCapabilities: [
+      "hotel.local-partners.view",
+      "hotel.local-partners.manage",
+    ],
   },
   {
     key: "service.dashboard",

@@ -2,10 +2,24 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { auth } from "./auth";
 import { createRequestRedirectUrl } from "./features/auth/utils/redirect-isolation-core";
-import { LEGACY_LOGIN_PATH, LOGIN_PATH } from "./features/auth/utils/login-route";
-import { canAccessPathByRoles, getDefaultPathForRoles, sanitizeInternalCallbackUrl } from "./libs/rbac";
+import {
+  LEGACY_LOGIN_PATH,
+  LOGIN_PATH,
+} from "./features/auth/utils/login-route";
+import {
+  canAccessPathByRoles,
+  getDefaultPathForRoles,
+  resolveCrossWorkspaceEquivalent,
+  sanitizeInternalCallbackUrl,
+} from "./libs/rbac";
 
-const protectedPrefixes = ["/admin", "/owner", "/staff", "/hotels", "/service"] as const;
+const protectedPrefixes = [
+  "/admin",
+  "/owner",
+  "/staff",
+  "/hotels",
+  "/service",
+] as const;
 const authRoutes = new Set([LOGIN_PATH, LEGACY_LOGIN_PATH, "/register"]);
 const nextAuthCookiePrefixes = [
   "next-auth.",
@@ -29,14 +43,18 @@ function isNextAuthCookie(cookieName: string): boolean {
   return nextAuthCookiePrefixes.some((prefix) => cookieName.startsWith(prefix));
 }
 
-function clearNextAuthCookies(request: NextRequest, response: NextResponse): NextResponse {
+function clearNextAuthCookies(
+  request: NextRequest,
+  response: NextResponse,
+): NextResponse {
   const nextAuthCookieNames = request.cookies
     .getAll()
     .map((cookie) => cookie.name)
     .filter((cookieName) => isNextAuthCookie(cookieName));
 
   for (const cookieName of nextAuthCookieNames) {
-    const requiresSecureFlag = cookieName.startsWith("__Secure-") || cookieName.startsWith("__Host-");
+    const requiresSecureFlag =
+      cookieName.startsWith("__Secure-") || cookieName.startsWith("__Host-");
 
     response.cookies.set({
       name: cookieName,
@@ -58,7 +76,9 @@ function buildLoginRedirect(request: NextRequest): NextResponse {
   // Prevent callbackUrl nesting growth when a protected URL already carries callbackUrl
   callbackSource.searchParams.delete("callbackUrl");
 
-  const callbackUrl = sanitizeInternalCallbackUrl(`${callbackSource.pathname}${callbackSource.search}`);
+  const callbackUrl = sanitizeInternalCallbackUrl(
+    `${callbackSource.pathname}${callbackSource.search}`,
+  );
 
   loginUrl.searchParams.set("callbackUrl", callbackUrl);
   loginUrl.searchParams.set("reauth", "1");
@@ -87,13 +107,18 @@ function getNumberTokenField(token: unknown, field: string): number | null {
 }
 
 function buildRefreshSessionRedirect(request: NextRequest): NextResponse {
-  const refreshUrl = createRequestRedirectUrl("/api/auth/refresh-session", request);
+  const refreshUrl = createRequestRedirectUrl(
+    "/api/auth/refresh-session",
+    request,
+  );
   const callbackSource = request.nextUrl.clone();
 
   callbackSource.searchParams.delete("callbackUrl");
   refreshUrl.searchParams.set(
     "callbackUrl",
-    sanitizeInternalCallbackUrl(`${callbackSource.pathname}${callbackSource.search}`),
+    sanitizeInternalCallbackUrl(
+      `${callbackSource.pathname}${callbackSource.search}`,
+    ),
   );
 
   return NextResponse.redirect(refreshUrl);
@@ -101,7 +126,9 @@ function buildRefreshSessionRedirect(request: NextRequest): NextResponse {
 
 export const proxy = auth((request) => {
   const { pathname } = request.nextUrl;
-  const isProtectedRoute = protectedPrefixes.some((prefix) => matchesPrefix(pathname, prefix));
+  const isProtectedRoute = protectedPrefixes.some((prefix) =>
+    matchesPrefix(pathname, prefix),
+  );
   const isAuthRoute = authRoutes.has(pathname);
 
   if (!isProtectedRoute && !isAuthRoute) {
@@ -120,9 +147,13 @@ export const proxy = auth((request) => {
   }
 
   const authError = session ? getStringTokenField(session, "authError") : null;
-  const activeRoleCode = session ? getStringTokenField(session, "activeRoleCode") : null;
+  const activeRoleCode = session
+    ? getStringTokenField(session, "activeRoleCode")
+    : null;
   const canRefresh = session?.canRefresh === true;
-  const accessTokenExpiresAt = session ? getNumberTokenField(session, "accessTokenExpiresAt") : null;
+  const accessTokenExpiresAt = session
+    ? getNumberTokenField(session, "accessTokenExpiresAt")
+    : null;
 
   if (isProtectedRoute && authError) {
     console.info("[AUTH_PROXY_REDIRECT_AUTH_ERROR]", { pathname, authError });
@@ -159,21 +190,34 @@ export const proxy = auth((request) => {
   }
 
   if (isAuthRoute && session && !authError && canRefresh && activeRoleCode) {
-    const redirectUrl = createRequestRedirectUrl(getDefaultPathForRoles([activeRoleCode]), request);
+    const redirectUrl = createRequestRedirectUrl(
+      getDefaultPathForRoles([activeRoleCode]),
+      request,
+    );
 
     return NextResponse.redirect(redirectUrl);
   }
 
   // Cross-workspace guard: if the user's role cannot access this protected prefix,
   // redirect to their correct dashboard instead of letting the layout return notFound().
-  if (isProtectedRoute && activeRoleCode && !canAccessPathByRoles([activeRoleCode], pathname)) {
-    const correctPath = getDefaultPathForRoles([activeRoleCode]);
+  if (
+    isProtectedRoute &&
+    activeRoleCode &&
+    !canAccessPathByRoles([activeRoleCode], pathname)
+  ) {
+    const correctPath =
+      resolveCrossWorkspaceEquivalent(
+        [activeRoleCode],
+        `${pathname}${request.nextUrl.search}`,
+      ) ?? getDefaultPathForRoles([activeRoleCode]);
     console.info("[AUTH_PROXY_CROSS_WORKSPACE_REDIRECT]", {
       pathname,
       activeRoleCode,
       correctPath,
     });
-    return NextResponse.redirect(createRequestRedirectUrl(correctPath, request));
+    return NextResponse.redirect(
+      createRequestRedirectUrl(correctPath, request),
+    );
   }
 
   return NextResponse.next();

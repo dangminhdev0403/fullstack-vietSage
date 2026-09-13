@@ -2,6 +2,7 @@ import { getPrimaryAppRole, hasAppRole } from "@/features/auth/utils/auth-role";
 import { getWorkspaceDefinition } from "@/features/workspace/config/workspace-registry";
 import { resolveWorkspacePersona } from "@/features/workspace/utils/workspace-context";
 import { type UserRole } from "@/libs/auth";
+import { resolveTenantOwnerKbttEquivalent } from "@/features/auth/utils/cross-workspace-equivalent";
 
 export type RoutePolicy = {
   prefix: `/${string}`;
@@ -29,7 +30,12 @@ const roleDefaultPaths: RoleDefaultPathMap = {
 };
 
 export function isUserRole(role: unknown): role is UserRole {
-  return role === "admin" || role === "tenant_owner" || role === "staff" || role === "guest";
+  return (
+    role === "admin" ||
+    role === "tenant_owner" ||
+    role === "staff" ||
+    role === "guest"
+  );
 }
 
 function matchesPrefix(pathname: string, prefix: string): boolean {
@@ -37,7 +43,10 @@ function matchesPrefix(pathname: string, prefix: string): boolean {
 }
 
 function isKnownRedirectPath(pathname: string): boolean {
-  return pathname === "/" || routePolicies.some((policy) => matchesPrefix(pathname, policy.prefix));
+  return (
+    pathname === "/" ||
+    routePolicies.some((policy) => matchesPrefix(pathname, policy.prefix))
+  );
 }
 
 function normalizeInternalPath(path: string): string | null {
@@ -72,9 +81,13 @@ export function getDefaultPathForRole(role: UserRole): `/${string}` {
   return roleDefaultPaths[role];
 }
 
-export function getDefaultPathForRoles(roles: readonly string[] | null | undefined): `/${string}` {
+export function getDefaultPathForRoles(
+  roles: readonly string[] | null | undefined,
+): `/${string}` {
   const activeRoleCode = roles?.[0];
-  const persona = activeRoleCode ? resolveWorkspacePersona(activeRoleCode) : null;
+  const persona = activeRoleCode
+    ? resolveWorkspacePersona(activeRoleCode)
+    : null;
   if (persona) {
     return getWorkspaceDefinition(persona).homePath;
   }
@@ -86,14 +99,19 @@ export function canAccessPath(role: UserRole, path: string): boolean {
   return canAccessPathByRoles([role], path);
 }
 
-export function canAccessPathByRoles(roles: readonly string[] | null | undefined, path: string): boolean {
+export function canAccessPathByRoles(
+  roles: readonly string[] | null | undefined,
+  path: string,
+): boolean {
   const normalized = normalizeInternalPath(path);
   if (!normalized) {
     return false;
   }
 
   const pathname = normalized.split("?")[0] ?? normalized;
-  const matchedPolicy = routePolicies.find((policy) => matchesPrefix(pathname, policy.prefix));
+  const matchedPolicy = routePolicies.find((policy) =>
+    matchesPrefix(pathname, policy.prefix),
+  );
 
   if (!matchedPolicy) {
     return true;
@@ -102,11 +120,30 @@ export function canAccessPathByRoles(roles: readonly string[] | null | undefined
   return matchedPolicy.roles.some((role) => hasAppRole(roles, role));
 }
 
-export function resolveSafeRedirect(role: UserRole | null | undefined, callbackUrl?: string | null): string {
-  return resolveSafeRedirectByRoles(role && isUserRole(role) ? [role] : [], callbackUrl);
+export function resolveCrossWorkspaceEquivalent(
+  roles: readonly string[] | null | undefined,
+  path: string,
+): `/${string}` | null {
+  if (!hasAppRole(roles, "tenant_owner")) return null;
+  const normalized = normalizeInternalPath(path);
+  if (!normalized) return null;
+  return resolveTenantOwnerKbttEquivalent(normalized);
 }
 
-export function resolveSafeRedirectByRoles(roles: readonly string[] | null | undefined, callbackUrl?: string | null): string {
+export function resolveSafeRedirect(
+  role: UserRole | null | undefined,
+  callbackUrl?: string | null,
+): string {
+  return resolveSafeRedirectByRoles(
+    role && isUserRole(role) ? [role] : [],
+    callbackUrl,
+  );
+}
+
+export function resolveSafeRedirectByRoles(
+  roles: readonly string[] | null | undefined,
+  callbackUrl?: string | null,
+): string {
   const fallbackPath = getDefaultPathForRoles(roles);
 
   if (!callbackUrl) {
@@ -118,12 +155,15 @@ export function resolveSafeRedirectByRoles(roles: readonly string[] | null | und
     return fallbackPath;
   }
 
-  const callbackPathname = normalizedCallback.split("?")[0] ?? normalizedCallback;
+  const callbackPathname =
+    normalizedCallback.split("?")[0] ?? normalizedCallback;
   if (!isKnownRedirectPath(callbackPathname)) {
     return fallbackPath;
   }
 
-  return canAccessPathByRoles(roles, normalizedCallback) ? normalizedCallback : fallbackPath;
+  return canAccessPathByRoles(roles, normalizedCallback)
+    ? normalizedCallback
+    : fallbackPath;
 }
 
 export function sanitizeInternalCallbackUrl(
@@ -135,7 +175,9 @@ export function sanitizeInternalCallbackUrl(
   }
 
   const normalizedCallback = normalizeInternalPath(callbackUrl);
-  return normalizedCallback ? (normalizedCallback as `/${string}`) : fallbackPath;
+  return normalizedCallback
+    ? (normalizedCallback as `/${string}`)
+    : fallbackPath;
 }
 
 export { getPrimaryAppRole, hasAppRole };
