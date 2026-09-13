@@ -384,3 +384,50 @@ export function kbttErrorCode(payload: unknown): string | null {
   }
   return null;
 }
+
+export function canSubmitDeclaration(
+  status: string | null | undefined,
+  canManage: boolean,
+): boolean {
+  if (!canManage || !status) return false;
+  return status === "READY";
+}
+
+export function canRetryDeclaration(
+  status: string | null | undefined,
+  canManage: boolean,
+): boolean {
+  if (!canManage || !status) return false;
+  if (
+    status === "UNKNOWN" ||
+    status === "SUBMITTED" ||
+    status === "SENDING" ||
+    status === "READY" ||
+    status === "DRAFT" ||
+    status === "MISSING_PROFILE" ||
+    status === "CANCELLED"
+  ) {
+    return false;
+  }
+  return status === "FAILED";
+}
+
+export function sanitizeErrorMessage(codeOrMessage: string | null | undefined): string {
+  if (!codeOrMessage) {
+    return "Không thể xử lý yêu cầu khai báo. Vui lòng thử lại hoặc liên hệ hỗ trợ.";
+  }
+  const lower = codeOrMessage.toLowerCase();
+  if (
+    lower.includes("token") ||
+    lower.includes("password") ||
+    lower.includes("secret") ||
+    lower.includes("bearer") ||
+    lower.includes("providerresponse") ||
+    lower.includes("submittedpayload") ||
+    lower.trim().startsWith("{") ||
+    lower.trim().startsWith("[")
+  ) {
+    return "Không thể xử lý yêu cầu khai báo. Vui lòng thử lại hoặc liên hệ hỗ trợ.";
+  }
+  return kbttErrorMessage(codeOrMessage);
+}

@@ -9,6 +9,11 @@ import { kbttUnavailable, loadKbttConfig } from "./kbtt.config";
 export const KBTT_AUTH_FAILED_MESSAGE =
   "Không thể xác thực tài khoản KBTT. Kiểm tra tài khoản, quyền tích hợp hoặc thử lại sau.";
 
+export type KbttSubmitOutcome =
+  | { outcome: "SUCCESS"; code: string; message: string; data?: unknown }
+  | { outcome: "BUSINESS_REJECTION"; code: string; message: string; data?: unknown }
+  | { outcome: "AMBIGUOUS"; code: string; message: string; data?: unknown };
+
 export function kbttAuthFailed() {
   return new HttpException({ code: "KBTT_AUTH_FAILED", message: KBTT_AUTH_FAILED_MESSAGE }, 422);
 }
@@ -69,6 +74,132 @@ export class KbttProviderClient {
       query.trucThuocTinh = parentCode.trim();
     }
     return this.requestPublic(path, query);
+  }
+
+  async submitDeclaration(
+    declarationKind: "VIETNAMESE" | "FOREIGN",
+    payload: unknown[],
+    accessToken: string,
+  ): Promise<KbttSubmitOutcome> {
+    const path =
+      declarationKind === "FOREIGN"
+        ? "/client-service/kbtt/kbtt-3th"
+        : "/client-service/kbtt-vn/kbtt-3th";
+    if (!this.config.KBTT_BASE_URL) throw kbttUnavailable();
+    const url = new URL(`${this.config.KBTT_BASE_URL}${path}`);
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + accessToken,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "User-Agent": "Mozilla/5.0",
+        },
+        body: JSON.stringify(payload),
+        redirect: "error",
+        signal: AbortSignal.timeout(10_000),
+      });
+    } catch (networkError: any) {
+      const isTimeout =
+        networkError?.name === "TimeoutError" ||
+        networkError?.name === "AbortError" ||
+        String(networkError?.message).toLowerCase().includes("timeout");
+      return {
+        outcome: "AMBIGUOUS",
+        code: isTimeout ? "TIMEOUT" : "NETWORK_ERROR",
+        message: isTimeout
+          ? "Quá thời gian chờ phản hồi từ cơ quan quản lý (10s)."
+          : "Lỗi kết nối mạng khi gửi hồ sơ khai báo đến cơ quan quản lý.",
+      };
+    }
+
+    if (!response.body) {
+      return {
+        outcome: "AMBIGUOUS",
+        code: `HTTP_${response.status}`,
+        message: "Cơ quan quản lý không trả về nội dung phản hồi.",
+      };
+    }
+
+    try {
+      const reader = response.body.getReader();
+      const chunks: Uint8Array[] = [];
+      let size = 0;
+      try {
+        for (;;) {
+          const chunk = await reader.read();
+          if (chunk.done) break;
+          size += chunk.value.byteLength;
+          if (size > 65_536) {
+            return {
+              outcome: "AMBIGUOUS",
+              code: "RESPONSE_OVERSIZED",
+              message: "Phản hồi từ cơ quan quản lý vượt quá dung lượng cho phép.",
+            };
+          }
+          chunks.push(chunk.value);
+        }
+      } finally {
+        await reader.cancel();
+      }
+
+      const raw = Buffer.concat(chunks).toString("utf8");
+      let envelope: any;
+      try {
+        envelope = JSON.parse(raw);
+      } catch {
+        return {
+          outcome: "AMBIGUOUS",
+          code: `HTTP_${response.status}`,
+          message: "Phản hồi từ cơ quan quản lý không đúng định dạng JSON.",
+        };
+      }
+
+      if (!envelope || typeof envelope !== "object" || !("code" in envelope)) {
+        return {
+          outcome: "AMBIGUOUS",
+          code: `HTTP_${response.status}`,
+          message: "Phản hồi không chứa mã kết quả hợp lệ.",
+        };
+      }
+
+      const codeStr = String(envelope.code);
+      const messageStr =
+        typeof envelope.message === "string" ? envelope.message : "";
+
+      if (response.ok && codeStr === "200") {
+        return {
+          outcome: "SUCCESS",
+          code: "200",
+          message: messageStr || "Thành công",
+          data: envelope.data ?? null,
+        };
+      }
+
+      if (response.status >= 500 || codeStr.startsWith("5")) {
+        return {
+          outcome: "AMBIGUOUS",
+          code: codeStr,
+          message: messageStr || "Hệ thống đối tác gặp sự cố nội bộ.",
+          data: envelope.data ?? null,
+        };
+      }
+
+      return {
+        outcome: "BUSINESS_REJECTION",
+        code: codeStr,
+        message: messageStr || "Bị từ chối bởi cơ quan quản lý",
+        data: envelope.data ?? null,
+      };
+    } catch {
+      return {
+        outcome: "AMBIGUOUS",
+        code: "STREAM_READ_ERROR",
+        message: "Lỗi trong quá trình nhận dữ liệu phản hồi từ cơ quan quản lý.",
+      };
+    }
   }
 
   private session(data: unknown) {

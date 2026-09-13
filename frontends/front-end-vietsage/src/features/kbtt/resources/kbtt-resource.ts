@@ -109,5 +109,14 @@ export const kbttResource = createResource<HotelScope>()({
         kbttRepository.markReady(scope.hotelId, variables.occupantId),
       invalidates: declarationInvalidates,
     }),
+    submit: defineMutation({
+      defaults: { retry: false, networkMode: "always" },
+      mutationFn: ({
+        scope,
+        variables,
+      }: ResourceMutationContext<HotelScope, { occupantId: string }>): Promise<KbttDeclarationRecord> =>
+        kbttRepository.submit(scope.hotelId, variables.occupantId),
+      invalidates: declarationInvalidates,
+    }),
   },
 });

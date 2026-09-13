@@ -1,10 +1,12 @@
 import {
   BadRequestException,
+  HttpException,
   Injectable,
   NotFoundException,
   type OnModuleDestroy,
 } from "@nestjs/common";
-import type {
+import { createHash } from "node:crypto";
+import {
   CitizenshipKind,
   KbttDeclarationStatus,
   KbttGuestDeclaration,
@@ -60,6 +62,42 @@ function formatVietnamDateTime(date: Date | string): string {
     map[part.type] = part.value;
   }
   return `${map.year}-${map.month}-${map.day} ${map.hour}:${map.minute}:${map.second}`;
+}
+
+function sanitizeProviderText(text: string): string {
+  if (!text) return "";
+  return text
+    .replace(/bearer\s+[A-Za-z0-9._~+/-]+=*/gi, "bearer [REDACTED]")
+    .replace(/basic\s+[A-Za-z0-9+/=]+/gi, "basic [REDACTED]")
+    .replace(
+      /(?:password|token|secret|access_token|refresh_token)\s*[:=]\s*["']?[^"'\s,]+["']?/gi,
+      "$1=[REDACTED]",
+    )
+    .slice(0, 500);
+}
+
+function sanitizeProviderData(data: unknown): unknown {
+  if (!data || typeof data !== "object") return data;
+  if (Array.isArray(data)) return data.map(sanitizeProviderData);
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
+    const lowerKey = key.toLowerCase();
+    if (
+      lowerKey.includes("token") ||
+      lowerKey.includes("password") ||
+      lowerKey.includes("secret") ||
+      lowerKey.includes("authorization")
+    ) {
+      result[key] = "[REDACTED]";
+    } else if (typeof value === "object" && value !== null) {
+      result[key] = sanitizeProviderData(value);
+    } else if (typeof value === "string") {
+      result[key] = sanitizeProviderText(value);
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
 }
 
 @Injectable()
@@ -397,7 +435,17 @@ export class KbttService implements OnModuleDestroy {
     }
 
     let savedDeclaration: KbttGuestDeclaration;
-    if (existing) {
+    if (existing?.status === "FAILED") {
+      savedDeclaration = await this.repository.createDeclaration({
+        hotelId,
+        stayId: occupant.stayId,
+        occupantId,
+        declarationKind: citizenshipKind,
+        revision: existing.revision + 1,
+        status: "DRAFT",
+        draftPayloadJson: draftData as Prisma.InputJsonValue,
+      });
+    } else if (existing) {
       savedDeclaration = await this.repository.updateDeclaration({
         id: existing.id,
         hotelId,
@@ -489,6 +537,218 @@ export class KbttService implements OnModuleDestroy {
     });
 
     return this.viewDeclaration(updated);
+  }
+
+  private async getOrRefreshSession(
+    hotelId: string,
+    connection: KbttHotelConnection,
+  ): Promise<KbttSession> {
+    const cached = this.sessions.get(hotelId);
+    let session: KbttSession;
+
+    if (
+      cached?.ciphertext === connection.ciphertext &&
+      cached.session.Exp * 1000 > Date.now() + 60_000
+    ) {
+      return cached.session;
+    }
+
+    if (
+      cached?.ciphertext === connection.ciphertext &&
+      cached.session.Exp * 1000 <= Date.now() + 60_000
+    ) {
+      try {
+        session = await this.provider.refresh(cached.session.RefreshToken);
+      } catch {
+        session = await this.provider.login(await this.cipher.decrypt(hotelId, connection));
+      }
+    } else {
+      session = await this.provider.login(await this.cipher.decrypt(hotelId, connection));
+    }
+
+    this.sessions.set(hotelId, { ciphertext: connection.ciphertext, session });
+    if (cached && cached.session.AccessToken !== session.AccessToken) {
+      await this.revoke(cached.session.AccessToken);
+    }
+    return session;
+  }
+
+  async submit(userId: string, roleId: string, hotelId: string, occupantId: string) {
+    await this.access.assertHotelAccess(userId, roleId, hotelId);
+    return this.serialize(hotelId, async () => {
+      const occupant = await this.repository.findOccupant(hotelId, occupantId);
+      if (!occupant) {
+        throw new NotFoundException("Khách lưu trú không tồn tại trong khách sạn này.");
+      }
+
+      const decl = await this.repository.findLatestDeclaration(hotelId, occupantId);
+      if (!decl) {
+        throw new NotFoundException("Chưa có hồ sơ khai báo để gửi.");
+      }
+
+      if (decl.status === "SUBMITTED") {
+        throw new BadRequestException(
+          "Hồ sơ đã được gửi thành công đến cơ quan quản lý (SUBMITTED), không thể gửi lại.",
+        );
+      }
+      if (decl.status === "SENDING") {
+        throw new BadRequestException(
+          "Hồ sơ đang trong quá trình gửi (SENDING), vui lòng đợi hoàn tất.",
+        );
+      }
+      if (decl.status === "UNKNOWN") {
+        throw new BadRequestException(
+          "Hồ sơ ở trạng thái không xác định (UNKNOWN), không thể tự động gửi lại.",
+        );
+      }
+      if (decl.status === "CANCELLED") {
+        throw new BadRequestException(
+          "Hồ sơ đã bị hủy (CANCELLED), không thể gửi.",
+        );
+      }
+      if (decl.status !== "READY" && decl.status !== "FAILED") {
+        throw new BadRequestException(
+          `Chỉ hồ sơ ở trạng thái READY hoặc FAILED mới có thể gửi (trạng thái hiện tại: ${decl.status}).`,
+        );
+      }
+
+      let payload: unknown[];
+      if (decl.status === "FAILED") {
+        if (!Array.isArray(decl.submittedPayloadJson) || decl.submittedPayloadJson.length !== 1) {
+          throw new BadRequestException("Hồ sơ lỗi không có snapshot an toàn để gửi lại.");
+        }
+        payload = decl.submittedPayloadJson;
+      } else {
+        const draft = (decl.draftPayloadJson ?? {}) as Record<string, unknown>;
+        const result = decl.declarationKind === "VIETNAMESE"
+          ? kbttVietnameseReadySchema.safeParse(draft)
+          : kbttForeignReadySchema.safeParse(draft);
+        if (!result.success) {
+          const errors = result.error.issues
+            .map((i) => `${i.path.join(".")}: ${i.message}`)
+            .join("; ");
+          throw new BadRequestException(`Hồ sơ chưa đủ điều kiện gửi: ${errors}`);
+        }
+        payload = [result.data];
+      }
+
+      const connection = await this.repository.find(hotelId);
+      if (!connection) {
+        throw new NotFoundException({
+          code: "KBTT_NOT_CONFIGURED",
+          message: "Khách sạn chưa cấu hình kết nối KBTT.",
+        });
+      }
+
+      const payloadString = JSON.stringify(payload);
+      const fingerprint = createHash("sha256").update(payloadString).digest("hex");
+      if (
+        decl.status === "FAILED" &&
+        (!decl.submittedPayloadFingerprint || decl.submittedPayloadFingerprint !== fingerprint)
+      ) {
+        throw new BadRequestException("Snapshot gửi lại không khớp dấu vân tay đã lưu.");
+      }
+
+      const sendingDecl = await this.repository.updateDeclaration({
+        id: decl.id,
+        hotelId,
+        expectedVersion: decl.version,
+        allowedStatuses: ["READY", "FAILED"],
+        data: {
+          status: "SENDING",
+          submittedPayloadJson: payload as unknown as Prisma.InputJsonValue,
+          submittedPayloadFingerprint: fingerprint,
+        },
+      });
+
+      let session: KbttSession;
+      try {
+        session = await this.getOrRefreshSession(hotelId, connection);
+      } catch (authError) {
+        await this.repository.updateDeclaration({
+          id: sendingDecl.id,
+          hotelId,
+          expectedVersion: sendingDecl.version,
+          allowedStatuses: ["SENDING"],
+          data: {
+            status: "FAILED",
+            providerCode: "KBTT_AUTH_FAILED",
+            providerMessage: sanitizeProviderText(KBTT_AUTH_FAILED_MESSAGE),
+          },
+        });
+        throw authError;
+      }
+
+      const submitResult = await this.provider.submitDeclaration(
+        decl.declarationKind,
+        payload,
+        session.AccessToken,
+      );
+
+      if (submitResult.outcome === "SUCCESS") {
+        const updated = await this.repository.updateDeclaration({
+          id: sendingDecl.id,
+          hotelId,
+          expectedVersion: sendingDecl.version,
+          allowedStatuses: ["SENDING"],
+          data: {
+            status: "SUBMITTED",
+            providerCode: "200",
+            providerMessage: sanitizeProviderText(submitResult.message || "Thành công"),
+            submittedAt: new Date(),
+            providerResponseJson: submitResult.data
+                          ? (sanitizeProviderData(submitResult.data) as Prisma.InputJsonValue)
+                          : Prisma.JsonNull,
+          },
+        });
+        return this.viewDeclaration(updated);
+      }
+
+      if (submitResult.outcome === "BUSINESS_REJECTION") {
+        const code = submitResult.code.slice(0, 32);
+        const message = sanitizeProviderText(
+          submitResult.message || "Bị từ chối bởi cơ quan quản lý",
+        );
+        await this.repository.updateDeclaration({
+          id: sendingDecl.id,
+          hotelId,
+          expectedVersion: sendingDecl.version,
+          allowedStatuses: ["SENDING"],
+          data: {
+            status: "FAILED",
+            providerCode: code,
+            providerMessage: message,
+            submittedAt: null,
+            providerResponseJson: submitResult.data
+                          ? (sanitizeProviderData(submitResult.data) as Prisma.InputJsonValue)
+                          : Prisma.JsonNull,
+          },
+        });
+        throw new HttpException({ code, message }, 422);
+      }
+
+      // AMBIGUOUS outcome (timeout or network error)
+      const code = submitResult.code.slice(0, 32);
+      const message = sanitizeProviderText(
+        submitResult.message || "Không xác định được kết quả gửi từ cơ quan quản lý",
+      );
+      await this.repository.updateDeclaration({
+        id: sendingDecl.id,
+        hotelId,
+        expectedVersion: sendingDecl.version,
+        allowedStatuses: ["SENDING"],
+        data: {
+          status: "UNKNOWN",
+          providerCode: code,
+          providerMessage: message,
+          submittedAt: null,
+          providerResponseJson: submitResult.data
+                        ? (sanitizeProviderData(submitResult.data) as Prisma.InputJsonValue)
+                        : Prisma.JsonNull,
+        },
+      });
+      throw new HttpException({ code, message }, 409);
+    });
   }
 
   private viewDeclaration(decl: KbttGuestDeclaration) {

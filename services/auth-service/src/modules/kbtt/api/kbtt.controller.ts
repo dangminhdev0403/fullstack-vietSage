@@ -245,6 +245,25 @@ export class KbttController {
     );
   }
 
+  @Post("declarations/:occupantId/submit")
+  @HttpCode(200)
+  @Header("Cache-Control", "no-store")
+  @ApiParam({ name: "occupantId", type: String })
+  @RequirePermission("hotel.kbtt.declarations.manage")
+  @ApiOperation({ summary: "Submit validated declaration to KBTT provider (API 4/5)" })
+  submit(
+    @Req() request: RequestWithRequiredUser,
+    @Param("hotelId") hotelId: string,
+    @Param("occupantId") occupantId: string,
+  ) {
+    return this.service.submit(
+      request.user.userId,
+      request.user.roleId,
+      parseWithZod(hotelIdParamSchema, hotelId),
+      parseWithZod(occupantIdParamSchema, occupantId),
+    );
+  }
+
   @Get("catalogs")
   @Header("Cache-Control", "no-store")
   @RequirePermission("hotel.kbtt.declarations.view")

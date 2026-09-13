@@ -8,9 +8,11 @@ import { showConfirmDialog, showErrorAlert, showSuccessAlert } from "@/libs/swal
 
 import { kbttResource } from "../resources/kbtt-resource";
 import {
+  canRetryDeclaration,
+  canSubmitDeclaration,
   getRowPartitionTab,
   kbttErrorCode,
-  kbttErrorMessage,
+  sanitizeErrorMessage,
   type CitizenshipKind,
   type KbttDeclarationListItem,
   type KbttTabKey,
@@ -26,21 +28,21 @@ const selectClass =
 function errorText(error: unknown): string {
   if (error instanceof HttpError) {
     const code = kbttErrorCode(error.data);
-    if (code) return kbttErrorMessage(code);
+    if (code) return sanitizeErrorMessage(code);
     if (error.data && typeof error.data === "object") {
       const dataObj = error.data as Record<string, unknown>;
-      if (typeof dataObj.detail === "string") return dataObj.detail;
-      if (typeof dataObj.message === "string") return dataObj.message;
+      if (typeof dataObj.detail === "string") return sanitizeErrorMessage(dataObj.detail);
+      if (typeof dataObj.message === "string") return sanitizeErrorMessage(dataObj.message);
     }
     if (error.status === 400) return "Dữ liệu khai báo không hợp lệ.";
     if (error.status === 403) return "Bạn không có quyền thực hiện thao tác này.";
     if (error.status === 404) return "Không tìm thấy hồ sơ khách lưu trú.";
-    return kbttErrorMessage(kbttErrorCode(error.data));
+    return sanitizeErrorMessage(kbttErrorCode(error.data));
   }
   if (error instanceof Error) {
-    return error.message;
+    return sanitizeErrorMessage(error.message);
   }
-  return kbttErrorMessage(null);
+  return sanitizeErrorMessage(null);
 }
 
 function formatDisplayDate(dateStr: string | null): string {
@@ -188,6 +190,39 @@ export function KbttDeclarationsPage({
       queryKey: boundResource.key,
     });
   }, [boundResource, queryClient]);
+
+  const submitMutation = useMutation(boundResource.mutations.submit.options());
+  const [submittingOccupantId, setSubmittingOccupantId] = useState<string | null>(null);
+
+  const handleSubmitFromList = useCallback(
+    async (occupant: KbttDeclarationListItem) => {
+      if (!canManage || occupant.derivedStatus !== "READY") return;
+
+      const confirm = await showConfirmDialog({
+        title: "Gửi khai báo tạm trú lên Bộ Công an?",
+        text: "Thao tác này sẽ gửi dữ liệu thực của khách lưu trú đến Bộ Công an demo/provider. Dữ liệu sau khi gửi thành công sẽ không thể chỉnh sửa trực tiếp.",
+        confirmText: "Gửi Bộ Công an",
+        cancelText: "Hủy",
+        icon: "warning",
+      });
+      if (!confirm.isConfirmed) return;
+
+      try {
+        setSubmittingOccupantId(occupant.occupantId);
+        await submitMutation.mutateAsync({ occupantId: occupant.occupantId });
+        await showSuccessAlert(
+          "Khai báo tạm trú",
+          "Đã gửi khai báo tạm trú lên Bộ Công an thành công.",
+        );
+        handleRefresh();
+      } catch (error) {
+        await showErrorAlert("Gửi Bộ Công an thất bại", errorText(error));
+      } finally {
+        setSubmittingOccupantId(null);
+      }
+    },
+    [canManage, handleRefresh, submitMutation],
+  );
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 pb-16 pt-2 text-slate-900" aria-labelledby="declarations-title">
@@ -494,11 +529,11 @@ export function KbttDeclarationsPage({
                     </div>
                   </div>
 
-                  <div className="mt-4 pt-3 border-t border-slate-100">
+                  <div className="mt-4 pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                     <button
                       type="button"
                       onClick={() => setSelectedOccupant(occupant)}
-                      className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#064e3b] px-4 py-2.5 text-base font-semibold text-white shadow-xs transition-all hover:bg-[#043327] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#064e3b]"
+                      className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#064e3b] px-4 py-2.5 text-base font-semibold text-white shadow-xs transition-all hover:bg-[#043327] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#064e3b]"
                     >
                       <span>
                         {occupant.derivedStatus === "MISSING_PROFILE"
@@ -508,6 +543,22 @@ export function KbttDeclarationsPage({
                             : "Chỉnh sửa bản nháp"}
                       </span>
                     </button>
+                    {canSubmitDeclaration(occupant.derivedStatus, canManage) && (
+                      <button
+                        type="button"
+                        disabled={submittingOccupantId === occupant.occupantId}
+                        onClick={() => handleSubmitFromList(occupant)}
+                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-base font-bold text-white shadow-xs transition-all hover:bg-emerald-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 disabled:opacity-50"
+                      >
+                        {submittingOccupantId === occupant.occupantId && (
+                          <svg className="h-4 w-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                          </svg>
+                        )}
+                        Gửi BCA
+                      </button>
+                    )}
                   </div>
                 </article>
               );
@@ -582,6 +633,7 @@ function DeclarationModal({
 
   const saveMutation = useMutation(boundResource.mutations.saveDraft.options());
   const readyMutation = useMutation(boundResource.mutations.markReady.options());
+  const submitMutation = useMutation(boundResource.mutations.submit.options());
 
   const initialKind =
     detailQuery.data?.declaration?.declarationKind ??
@@ -713,7 +765,35 @@ function DeclarationModal({
     }
   };
 
-  const isBusy = saveMutation.isPending || readyMutation.isPending;
+  const handleSubmit = async () => {
+    if (!canManage) return;
+    if (!canSubmitDeclaration(declStatus, canManage) && !canRetryDeclaration(declStatus, canManage)) {
+      return;
+    }
+
+    const confirm = await showConfirmDialog({
+      title: "Gửi khai báo tạm trú lên Bộ Công an?",
+      text: "Thao tác này sẽ gửi dữ liệu thực của khách lưu trú đến Bộ Công an demo/provider. Dữ liệu sau khi gửi thành công sẽ không thể chỉnh sửa trực tiếp.",
+      confirmText: "Gửi Bộ Công an",
+      cancelText: "Hủy",
+      icon: "warning",
+    });
+    if (!confirm.isConfirmed) return;
+
+    try {
+      await submitMutation.mutateAsync({ occupantId });
+      await showSuccessAlert(
+        "Khai báo tạm trú",
+        "Đã gửi khai báo tạm trú lên Bộ Công an thành công.",
+      );
+      onUpdated();
+      onClose();
+    } catch (error) {
+      await showErrorAlert("Gửi Bộ Công an thất bại", errorText(error));
+    }
+  };
+
+  const isBusy = saveMutation.isPending || readyMutation.isPending || submitMutation.isPending;
   const declStatus = detailQuery.data?.declaration?.status ?? occupantSummary.derivedStatus;
   const isEditable = ["DRAFT", "READY", "FAILED", "MISSING_PROFILE"].includes(declStatus);
 
@@ -781,6 +861,23 @@ function DeclarationModal({
         {/* Form Body */}
         {!detailQuery.isPending && !detailQuery.isError && (
           <form onSubmit={handleSaveDraft} className="space-y-6">
+            {declStatus === "UNKNOWN" && (
+              <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-900">
+                <p className="font-semibold">Hồ sơ đang ở trạng thái chưa rõ kết quả (UNKNOWN)</p>
+                <p className="mt-1 text-sm text-amber-800">
+                  Hệ thống không thể xác định kết quả từ phía Bộ Công an. Vì lý do an toàn dữ liệu, hồ sơ không thể gửi lại hoặc sửa đổi trực tiếp. Vui lòng liên hệ hỗ trợ kỹ thuật hoặc đối soát với cơ quan quản lý.
+                </p>
+              </div>
+            )}
+            {declStatus === "SUBMITTED" && (
+              <div className="rounded-2xl border border-emerald-300 bg-emerald-50 p-4 text-emerald-900">
+                <p className="font-semibold">Hồ sơ đã được gửi thành công lên Bộ Công an</p>
+                <p className="mt-1 text-sm text-emerald-800">
+                  Thời gian gửi: {formatDisplayDateTime(detailQuery.data?.declaration?.submittedAt ?? null)}. Hồ sơ ở trạng thái ĐÃ GỬI không thể sửa đổi trực tiếp.
+                </p>
+              </div>
+            )}
+
             {/* Citizenship selection */}
             <div>
               <label htmlFor="citizenship-kind-select" className="block text-sm font-semibold text-slate-700 mb-1">
@@ -1301,6 +1398,40 @@ function DeclarationModal({
                     )}
                     Đánh dấu sẵn sàng
                   </button>
+
+                  {canSubmitDeclaration(declStatus, canManage) && (
+                    <button
+                      type="button"
+                      disabled={isBusy}
+                      onClick={handleSubmit}
+                      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-6 py-3 text-base font-bold text-white shadow-md transition-all hover:bg-emerald-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 disabled:opacity-50"
+                    >
+                      {submitMutation.isPending && (
+                        <svg className="h-4 w-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                        </svg>
+                      )}
+                      Gửi BCA
+                    </button>
+                  )}
+
+                  {canRetryDeclaration(declStatus, canManage) && (
+                    <button
+                      type="button"
+                      disabled={isBusy}
+                      onClick={handleSubmit}
+                      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-amber-600 px-6 py-3 text-base font-bold text-white shadow-md transition-all hover:bg-amber-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 disabled:opacity-50"
+                    >
+                      {submitMutation.isPending && (
+                        <svg className="h-4 w-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                        </svg>
+                      )}
+                      Thử lại gửi BCA
+                    </button>
+                  )}
                 </div>
               )}
             </div>
