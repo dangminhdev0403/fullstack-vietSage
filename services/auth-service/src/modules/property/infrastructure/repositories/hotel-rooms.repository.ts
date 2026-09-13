@@ -15,6 +15,7 @@ import {
   closePlatformUsageAtCheckout,
   recordPlatformUsageAtCheckIn,
 } from "../../../platform-billing/application/platform-billing.service";
+import { inferCitizenshipKind } from "../../domain/infer-citizenship-kind";
 import { roomListInclude, type RoomListRow } from "./hotel-repository.types";
 
 @Injectable()
@@ -223,6 +224,10 @@ export class HotelRoomsRepository {
                 gender: input.guestGender,
                 nationality: input.guestNationality,
                 residencePlace: input.guestResidencePlace,
+                citizenshipKind: inferCitizenshipKind({
+                  identityNumber: input.guestIdentityNumber,
+                  nationality: input.guestNationality,
+                }),
                 isPrimary: true,
               },
               ...(input.occupants ?? [])
@@ -244,6 +249,7 @@ export class HotelRoomsRepository {
                   gender: occ.gender?.trim(),
                   nationality: occ.nationality?.trim(),
                   residencePlace: occ.residencePlace?.trim(),
+                  citizenshipKind: inferCitizenshipKind(occ),
                   isPrimary: false,
                 })),
             ],
@@ -397,6 +403,24 @@ export class HotelRoomsRepository {
 
       if (guardedRoomUpdate.count !== 1) {
         throw new ConflictException("Phòng đang được check-in bởi yêu cầu khác");
+      }
+
+      const unclassifiedOccupants = await tx.guestStayOccupant.findMany({
+        where: {
+          hotelId: input.hotelId,
+          stayId: input.stayId,
+          citizenshipKind: null,
+        },
+        select: { id: true, identityNumber: true, nationality: true },
+      });
+      for (const occupant of unclassifiedOccupants) {
+        const citizenshipKind = inferCitizenshipKind(occupant);
+        if (citizenshipKind) {
+          await tx.guestStayOccupant.update({
+            where: { id: occupant.id },
+            data: { citizenshipKind },
+          });
+        }
       }
 
       const stay = await tx.guestStay.update({
@@ -620,6 +644,10 @@ export class HotelRoomsRepository {
                 gender: input.guestGender,
                 nationality: input.guestNationality,
                 residencePlace: input.guestResidencePlace,
+                citizenshipKind: inferCitizenshipKind({
+                  identityNumber: input.guestIdentityNumber,
+                  nationality: input.guestNationality,
+                }),
                 isPrimary: true,
               },
               ...(input.occupants ?? [])
@@ -641,6 +669,7 @@ export class HotelRoomsRepository {
                   gender: occ.gender?.trim(),
                   nationality: occ.nationality?.trim(),
                   residencePlace: occ.residencePlace?.trim(),
+                  citizenshipKind: inferCitizenshipKind(occ),
                   isPrimary: false,
                 })),
             ],

@@ -110,4 +110,13 @@ describe("env config", () => {
       }),
     ).toThrow("REQUEST_REALTIME_TICKET_TTL_SECONDS");
   });
+
+  it("validates an optional HTTPS KBTT base URL", () => {
+    expect(() =>
+      loadAppConfig({ ...baseEnv, KBTT_BASE_URL: "https://api-kbtt.ai-vlab.com" }),
+    ).not.toThrow();
+    expect(() =>
+      loadAppConfig({ ...baseEnv, KBTT_BASE_URL: "http://api-kbtt.ai-vlab.com" }),
+    ).toThrow("Invalid environment variables");
+  });
 });

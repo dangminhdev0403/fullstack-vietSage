@@ -96,7 +96,9 @@ export const kbttDeclarationSummarySchema = z.object({
   createdAt: z.string(),
   updatedAt: z.string(),
 });
-export type KbttDeclarationSummary = z.infer<typeof kbttDeclarationSummarySchema>;
+export type KbttDeclarationSummary = z.infer<
+  typeof kbttDeclarationSummarySchema
+>;
 
 export const kbttDeclarationListItemSchema = z.object({
   occupantId: z.string(),
@@ -121,7 +123,9 @@ export const kbttDeclarationListItemSchema = z.object({
   plannedCheckOutAt: z.string(),
   declaration: kbttDeclarationSummarySchema.nullable(),
 });
-export type KbttDeclarationListItem = z.infer<typeof kbttDeclarationListItemSchema>;
+export type KbttDeclarationListItem = z.infer<
+  typeof kbttDeclarationListItemSchema
+>;
 export const kbttDeclarationListSchema = z.array(kbttDeclarationListItemSchema);
 
 export const kbttOccupantDetailSchema = z.object({
@@ -158,12 +162,27 @@ export const kbttDeclarationRecordSchema = z.object({
 });
 export type KbttDeclarationRecord = z.infer<typeof kbttDeclarationRecordSchema>;
 
+export const kbttStaySubmissionResultSchema = z.object({
+  stayId: z.string(),
+  roomId: z.string(),
+  roomNumber: z.string(),
+  totalGuests: z.number().int().nonnegative(),
+  submittedCount: z.number().int().nonnegative(),
+  alreadySubmittedCount: z.number().int().nonnegative(),
+  declarations: z.array(kbttDeclarationRecordSchema),
+});
+export type KbttStaySubmissionResult = z.infer<
+  typeof kbttStaySubmissionResultSchema
+>;
+
 export const kbttOccupantDeclarationDetailSchema = z.object({
   occupant: kbttOccupantDetailSchema,
   declaration: kbttDeclarationRecordSchema.nullable(),
   derivedStatus: kbttDerivedStatusSchema,
 });
-export type KbttOccupantDeclarationDetail = z.infer<typeof kbttOccupantDeclarationDetailSchema>;
+export type KbttOccupantDeclarationDetail = z.infer<
+  typeof kbttOccupantDeclarationDetailSchema
+>;
 
 export const KBTT_FORBIDDEN_KEYS = [
   "AccessToken",
@@ -223,12 +242,17 @@ export const kbttVietnameseDraftDataSchema = z
     soGiayTo: z
       .string()
       .trim()
-      .regex(/^[A-Za-z0-9]+$/, "Số giấy tờ không được chứa khoảng trắng hoặc ký tự đặc biệt")
+      .regex(
+        /^[A-Za-z0-9]+$/,
+        "Số giấy tờ không được chứa khoảng trắng hoặc ký tự đặc biệt",
+      )
       .max(32)
       .optional(),
   })
   .strict();
-export type KbttVietnameseDraftData = z.infer<typeof kbttVietnameseDraftDataSchema>;
+export type KbttVietnameseDraftData = z.infer<
+  typeof kbttVietnameseDraftDataSchema
+>;
 
 export const kbttForeignDraftDataSchema = z
   .object({
@@ -237,7 +261,10 @@ export const kbttForeignDraftDataSchema = z
     soHoChieu: z
       .string()
       .trim()
-      .regex(/^[A-Za-z0-9]+$/, "Số hộ chiếu không được chứa khoảng trắng hoặc ký tự đặc biệt")
+      .regex(
+        /^[A-Za-z0-9]+$/,
+        "Số hộ chiếu không được chứa khoảng trắng hoặc ký tự đặc biệt",
+      )
       .max(32)
       .optional(),
     gioiTinh: z.enum(["M", "F"]).optional(),
@@ -315,9 +342,12 @@ export const saveKbttDraftPayloadSchema = z
   });
 export type SaveKbttDraftPayload = z.infer<typeof saveKbttDraftPayloadSchema>;
 
-export type KbttTabKey = "vietnamese" | "foreign" | "needs_completion" | "submitted_or_error";
+export type KbttTabKey =
+  "vietnamese" | "foreign" | "needs_completion" | "submitted_or_error";
 
-export function getRowPartitionTab(row: Pick<KbttDeclarationListItem, "derivedStatus" | "citizenshipKind">): KbttTabKey {
+export function getRowPartitionTab(
+  row: Pick<KbttDeclarationListItem, "derivedStatus" | "citizenshipKind">,
+): KbttTabKey {
   if (
     row.derivedStatus === "SUBMITTED" ||
     row.derivedStatus === "FAILED" ||
@@ -338,11 +368,15 @@ export function getRowPartitionTab(row: Pick<KbttDeclarationListItem, "derivedSt
 
 const errorMessages: Record<string, string> = {
   KBTT_NOT_CONFIGURED: "Chưa cấu hình tài khoản khai báo tạm trú.",
-  KBTT_AUTH_FAILED: "Tài khoản hoặc mật khẩu không đúng. Vui lòng đăng nhập lại.",
+  KBTT_AUTH_FAILED:
+    "Tài khoản hoặc mật khẩu không đúng. Vui lòng đăng nhập lại.",
   KBTT_MISSING_AUTHORITY: "Tài khoản chưa được cấp quyền khai báo tạm trú.",
-  KBTT_PROVIDER_UNAVAILABLE: "Không thể kết nối hệ thống Bộ Công an. Vui lòng thử lại.",
-  KBTT_PROVIDER_INVALID_RESPONSE: "Không thể kiểm tra kết nối. Vui lòng liên hệ hỗ trợ.",
-  KBTT_CREDENTIAL_DECRYPT_FAILED: "Không thể kiểm tra kết nối. Vui lòng liên hệ hỗ trợ.",
+  KBTT_PROVIDER_UNAVAILABLE:
+    "Không thể kết nối hệ thống Bộ Công an. Vui lòng thử lại.",
+  KBTT_PROVIDER_INVALID_RESPONSE:
+    "Không thể kiểm tra kết nối. Vui lòng liên hệ hỗ trợ.",
+  KBTT_CREDENTIAL_DECRYPT_FAILED:
+    "Không thể kiểm tra kết nối. Vui lòng liên hệ hỗ trợ.",
   KBTT_UNAVAILABLE: "Không thể kết nối dịch vụ KBTT. Vui lòng thử lại sau.",
 };
 
@@ -373,16 +407,37 @@ export function kbttErrorCode(payload: unknown): string | null {
   if (!payload || typeof payload !== "object") return null;
   const record = payload as Record<string, unknown>;
   for (const candidate of [record.code, record.message, record.error]) {
-    if (typeof candidate === "string" && Object.hasOwn(errorMessages, candidate)) return candidate;
+    if (
+      typeof candidate === "string" &&
+      Object.hasOwn(errorMessages, candidate)
+    )
+      return candidate;
   }
   for (const candidate of [record.data, record.error]) {
     if (!candidate || typeof candidate !== "object") continue;
     const detail = candidate as Record<string, unknown>;
     for (const code of [detail.code, detail.message]) {
-      if (typeof code === "string" && Object.hasOwn(errorMessages, code)) return code;
+      if (typeof code === "string" && Object.hasOwn(errorMessages, code))
+        return code;
     }
   }
   return null;
+}
+
+export function canSubmitStay(
+  rows: ReadonlyArray<Pick<KbttDeclarationListItem, "derivedStatus">>,
+  canManage: boolean,
+): boolean {
+  return (
+    canManage &&
+    rows.length > 0 &&
+    rows.some(
+      (row) => row.derivedStatus === "READY" || row.derivedStatus === "FAILED",
+    ) &&
+    rows.every((row) =>
+      ["READY", "FAILED", "SUBMITTED"].includes(row.derivedStatus),
+    )
+  );
 }
 
 export function canSubmitDeclaration(
@@ -412,7 +467,9 @@ export function canRetryDeclaration(
   return status === "FAILED";
 }
 
-export function sanitizeErrorMessage(codeOrMessage: string | null | undefined): string {
+export function sanitizeErrorMessage(
+  codeOrMessage: string | null | undefined,
+): string {
   if (!codeOrMessage) {
     return "Không thể xử lý yêu cầu khai báo. Vui lòng thử lại hoặc liên hệ hỗ trợ.";
   }

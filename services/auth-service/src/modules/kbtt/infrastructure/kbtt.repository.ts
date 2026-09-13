@@ -1,10 +1,10 @@
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
-import type {
-  CitizenshipKind,
-  KbttDeclarationStatus,
-  KbttGuestDeclaration,
-  KbttHotelConnection,
+import {
   Prisma,
+  type CitizenshipKind,
+  type KbttDeclarationStatus,
+  type KbttGuestDeclaration,
+  type KbttHotelConnection,
 } from "@prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
 import type { KbttCatalogKind } from "../domain/schemas/kbtt.schema";
@@ -107,6 +107,110 @@ export class KbttRepository {
         },
       });
     } catch {
+      throw kbttUnavailable();
+    }
+  }
+
+  async prepareStaySubmissionBatch(params: {
+    hotelId: string;
+    stayId: string;
+    expectedOccupantIds: string[];
+    declarations: Array<{
+      id: string;
+      expectedVersion: number;
+      allowedStatuses: KbttDeclarationStatus[];
+      submittedPayloadJson: Prisma.InputJsonValue;
+      submittedPayloadFingerprint: string;
+    }>;
+  }): Promise<KbttGuestDeclaration[]> {
+    try {
+      return await this.prisma.$transaction(
+        async (tx) => {
+          const stay = await tx.guestStay.findFirst({
+            where: {
+              id: params.stayId,
+              hotelId: params.hotelId,
+              status: { in: ["ACTIVE", "CHECKED_IN"] },
+            },
+            select: { occupants: { select: { id: true } } },
+          });
+          const actualIds = (stay?.occupants ?? []).map((item) => item.id).sort();
+          const expectedIds = [...params.expectedOccupantIds].sort();
+          if (!stay || actualIds.join("\0") !== expectedIds.join("\0")) {
+            throw new ConflictException({
+              code: "DECLARATION_BATCH_CHANGED",
+              message: "Danh sách khách trong phòng đã thay đổi. Vui lòng tải lại trước khi gửi.",
+            });
+          }
+
+          for (const declaration of params.declarations) {
+            const result = await tx.kbttGuestDeclaration.updateMany({
+              where: {
+                id: declaration.id,
+                hotelId: params.hotelId,
+                stayId: params.stayId,
+                version: declaration.expectedVersion,
+                status: { in: declaration.allowedStatuses },
+              },
+              data: {
+                status: "SENDING",
+                submittedPayloadJson: declaration.submittedPayloadJson,
+                submittedPayloadFingerprint: declaration.submittedPayloadFingerprint,
+                version: declaration.expectedVersion + 1,
+              },
+            });
+            if (result.count !== 1) {
+              throw new ConflictException({
+                code: "DECLARATION_CONFLICT",
+                message: "Một hồ sơ đã thay đổi. Không có dữ liệu nào được gửi.",
+              });
+            }
+          }
+
+          return tx.kbttGuestDeclaration.findMany({
+            where: { id: { in: params.declarations.map((item) => item.id) } },
+            orderBy: { occupantId: "asc" },
+          });
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+    } catch (error) {
+      if (error instanceof ConflictException) throw error;
+      throw kbttUnavailable();
+    }
+  }
+
+  async finalizeSubmissionBatch(params: {
+    hotelId: string;
+    declarations: Array<{ id: string; expectedVersion: number }>;
+    data: Prisma.KbttGuestDeclarationUpdateManyMutationInput;
+  }): Promise<KbttGuestDeclaration[]> {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        for (const declaration of params.declarations) {
+          const result = await tx.kbttGuestDeclaration.updateMany({
+            where: {
+              id: declaration.id,
+              hotelId: params.hotelId,
+              version: declaration.expectedVersion,
+              status: "SENDING",
+            },
+            data: { ...params.data, version: declaration.expectedVersion + 1 },
+          });
+          if (result.count !== 1) {
+            throw new ConflictException({
+              code: "DECLARATION_CONFLICT",
+              message: "Không thể ghi nhận đồng bộ kết quả gửi khai báo.",
+            });
+          }
+        }
+        return tx.kbttGuestDeclaration.findMany({
+          where: { id: { in: params.declarations.map((item) => item.id) } },
+          orderBy: { occupantId: "asc" },
+        });
+      });
+    } catch (error) {
+      if (error instanceof ConflictException) throw error;
       throw kbttUnavailable();
     }
   }

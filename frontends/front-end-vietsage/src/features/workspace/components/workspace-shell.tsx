@@ -36,10 +36,10 @@ export function WorkspaceShell({
 }: Readonly<WorkspaceShellProps>) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const queryString = searchParams?.toString();
+  const tab = searchParams?.get("tab");
   const activePath =
     explicitActivePath ??
-    (queryString ? `${pathname ?? ""}?${queryString}` : pathname ?? "");
+    (tab ? `${pathname ?? ""}?tab=${tab}` : pathname ?? "");
   const inheritedProfile = useWorkspaceProfile();
   const resolvedProfileName = profileName ?? inheritedProfile.profileName;
 
@@ -104,11 +104,16 @@ export function WorkspaceShell({
         <VsTopBar
           title="VietSage"
           brandLockup={false}
-          titleClassName="text-[30px] font-semibold leading-none tracking-[-0.04em] text-[#17201b]"
+          titleClassName="text-[30px] font-semibold leading-none tracking-[-0.04em] text-[#17201b] md:hidden"
           showLeftControl={false}
           rightMode="profile"
           rightLabel={resolvedProfileName ?? definition.profileLabel}
           subtitle={contextLabel ?? definition.profileLabel}
+          headerClassName={`transition-all duration-300 ${
+            isCollapsed
+              ? "md:left-20 md:w-[calc(100%-5rem)]"
+              : "md:left-72 2xl:left-80 md:w-[calc(100%-18rem)] 2xl:w-[calc(100%-20rem)]"
+          }`}
         />
         <VsDashboardSidebar
           activePath={activePath}

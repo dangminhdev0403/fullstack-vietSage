@@ -70,7 +70,7 @@ export function VsDashboardSidebar({
 
   return (
     <aside
-      className={`fixed left-0 top-0 z-40 hidden h-full flex-col border-r border-[#1f3d35]/15 bg-[#17201b] pt-20 text-[#f8f1e6] shadow-[18px_0_60px_rgba(23,32,27,0.18)] transition-all duration-300 md:flex ${
+      className={`fixed left-0 top-0 z-50 hidden h-full flex-col border-r border-[#1f3d35]/15 bg-[#17201b] pt-5 text-[#f8f1e6] shadow-[18px_0_60px_rgba(23,32,27,0.18)] transition-all duration-300 md:flex ${
         isCollapsed ? "w-20" : "w-72 2xl:w-80"
       }`}
     >
@@ -81,7 +81,7 @@ export function VsDashboardSidebar({
         <button
           type="button"
           onClick={onToggleCollapse}
-          className="group absolute -right-3.5 top-22 z-50 flex h-7 w-7 items-center justify-center rounded-full border border-[#e8b363]/40 bg-[#17201b] text-[#e8b363] shadow-[0_2px_10px_rgba(0,0,0,0.35),0_0_0_1px_rgba(232,179,99,0.12)] transition-all duration-200 hover:scale-110 hover:border-[#e8b363] hover:bg-[#23352a] hover:text-[#fff8e8] hover:shadow-[0_4px_16px_rgba(232,179,99,0.35)] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363] focus-visible:ring-offset-2 focus-visible:ring-offset-[#17201b] cursor-pointer"
+          className="group absolute -right-3.5 top-6 z-50 flex h-7 w-7 items-center justify-center rounded-full border border-[#e8b363]/40 bg-[#17201b] text-[#e8b363] shadow-[0_2px_10px_rgba(0,0,0,0.35),0_0_0_1px_rgba(232,179,99,0.12)] transition-all duration-200 hover:scale-110 hover:border-[#e8b363] hover:bg-[#23352a] hover:text-[#fff8e8] hover:shadow-[0_4px_16px_rgba(232,179,99,0.35)] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363] focus-visible:ring-offset-2 focus-visible:ring-offset-[#17201b] cursor-pointer"
           title={isCollapsed ? "Mở rộng thanh điều hướng" : "Thu gọn thanh điều hướng"}
           aria-label={isCollapsed ? "Mở rộng thanh điều hướng" : "Thu gọn thanh điều hướng"}
         >

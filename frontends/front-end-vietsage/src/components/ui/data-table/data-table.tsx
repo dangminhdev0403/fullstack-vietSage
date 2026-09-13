@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import type {
   DataTableColumnAlign,
   DataTableColumnType,
@@ -105,9 +106,9 @@ function PaginationButton({
 
   if (href) {
     return (
-      <a href={href} className={`${baseClass} hover:bg-slate-100 hover:text-slate-900 cursor-pointer`}>
+      <Link href={href} scroll={false} className={`${baseClass} hover:bg-slate-100 hover:text-slate-900 cursor-pointer`}>
         {children}
-      </a>
+      </Link>
     );
   }
 
@@ -237,9 +238,9 @@ export function DataTable<TData>({
                     className={`${headerPyClass} ${alignClass} ${widthClass} overflow-hidden min-w-0 ${column.headerClassName ?? ""}`}
                   >
                     {column.sortable && sort?.getSortHref ? (
-                      <a href={sort.getSortHref(colId, nextDirection)} className="inline-flex cursor-pointer">
+                      <Link href={sort.getSortHref(colId, nextDirection)} scroll={false} className="inline-flex cursor-pointer">
                         {headerContent}
-                      </a>
+                      </Link>
                     ) : column.sortable && sort?.onSortChange ? (
                       <button
                         type="button"

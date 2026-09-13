@@ -65,6 +65,7 @@ export function kbttMetadata(session: KbttSession) {
 }
 
 export const occupantIdParamSchema = z.string().trim().min(1).max(128);
+export const stayIdParamSchema = z.string().trim().min(1).max(128);
 
 export const kbttPaginationQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -77,11 +78,7 @@ export function isValidCalendarDate(str: string): boolean {
   const [y, m, d] = str.split("-").map(Number);
   if (m < 1 || m > 12 || d < 1 || d > 31) return false;
   const date = new Date(Date.UTC(y, m - 1, d));
-  return (
-    date.getUTCFullYear() === y &&
-    date.getUTCMonth() === m - 1 &&
-    date.getUTCDate() === d
-  );
+  return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d;
 }
 
 export function isValidCalendarDateTime(str: string): boolean {
@@ -113,7 +110,6 @@ export function getVietnamTodayStartStr(): string {
   for (const part of parts) map[part.type] = part.value;
   return `${map.year}-${map.month}-${map.day} 00:00:00`;
 }
-
 
 export const citizenshipKindSchema = z.enum(["VIETNAMESE", "FOREIGN"]);
 export type CitizenshipKind = z.infer<typeof citizenshipKindSchema>;
@@ -232,10 +228,7 @@ export const kbttForeignDraftDataSchema = z
 
 export const kbttVietnameseReadySchema = z
   .object({
-    hoTen: z
-      .string({ message: "Họ tên là bắt buộc" })
-      .trim()
-      .min(1, "Họ tên là bắt buộc"),
+    hoTen: z.string({ message: "Họ tên là bắt buộc" }).trim().min(1, "Họ tên là bắt buộc"),
     gioiTinh: z.enum(["M", "F"], { message: "Giới tính phải là M hoặc F" }),
     soDienThoai: z.string().trim().max(40).optional().nullable(),
     ngayThangNamSinhStr: z
@@ -358,10 +351,7 @@ export const kbttVietnameseReadySchema = z
 
 export const kbttForeignReadySchema = z
   .object({
-    hoTen: z
-      .string({ message: "Họ tên là bắt buộc" })
-      .trim()
-      .min(1, "Họ tên là bắt buộc"),
+    hoTen: z.string({ message: "Họ tên là bắt buộc" }).trim().min(1, "Họ tên là bắt buộc"),
     quocTich: z
       .string({ message: "Quốc tịch là bắt buộc" })
       .trim()
@@ -456,7 +446,10 @@ export const kbttForeignReadySchema = z
         path: ["thoiHanTamTruStr"],
       });
     } else {
-      if (isValidCalendarDateTime(val.ngayDenCsltStr) && val.thoiHanTamTruStr < val.ngayDenCsltStr) {
+      if (
+        isValidCalendarDateTime(val.ngayDenCsltStr) &&
+        val.thoiHanTamTruStr < val.ngayDenCsltStr
+      ) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: "Thời hạn tạm trú không được trước ngày đến",
@@ -525,7 +518,7 @@ export function parseDraftPayload(body: unknown): {
       "Loại quốc tịch (citizenshipKind) là bắt buộc và phải là VIETNAMESE hoặc FOREIGN",
     );
   }
-  const citizenshipKind = citizenshipKindRaw as CitizenshipKind;
+  const citizenshipKind = citizenshipKindRaw;
 
   const { citizenshipKind: _, data: nestedData, ...flatData } = raw;
   const targetData: Record<string, unknown> =
@@ -575,14 +568,24 @@ export type KbttCatalogQuery = z.infer<typeof kbttCatalogQuerySchema>;
 export const kbttProviderCountrySchema = z.object({
   maQT: z.string().trim().min(1),
   tenQT: z.string().trim().min(1),
-  tenQTEn: z.string().trim().optional().nullable().transform((v) => v || null),
+  tenQTEn: z
+    .string()
+    .trim()
+    .optional()
+    .nullable()
+    .transform((v) => v || null),
 });
 export type KbttProviderCountry = z.infer<typeof kbttProviderCountrySchema>;
 
 export const kbttProviderProvinceSchema = z.object({
   maTT: z.string().trim().min(1),
   tenTT: z.string().trim().min(1),
-  tenTTEn: z.string().trim().optional().nullable().transform((v) => v || null),
+  tenTTEn: z
+    .string()
+    .trim()
+    .optional()
+    .nullable()
+    .transform((v) => v || null),
   maTTChu: z.string().trim().optional().nullable(),
 });
 export type KbttProviderProvince = z.infer<typeof kbttProviderProvinceSchema>;
@@ -590,7 +593,12 @@ export type KbttProviderProvince = z.infer<typeof kbttProviderProvinceSchema>;
 export const kbttProviderWardSchema = z.object({
   maPhuongXa: z.string().trim().min(1),
   tenPhuongXa: z.string().trim().min(1),
-  tenPhuongXaEn: z.string().trim().optional().nullable().transform((v) => v || null),
+  tenPhuongXaEn: z
+    .string()
+    .trim()
+    .optional()
+    .nullable()
+    .transform((v) => v || null),
   trucThuocTinh: z.string().trim().optional().nullable(),
 });
 export type KbttProviderWard = z.infer<typeof kbttProviderWardSchema>;

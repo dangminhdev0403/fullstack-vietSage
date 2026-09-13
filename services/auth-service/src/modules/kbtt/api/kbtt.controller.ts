@@ -33,7 +33,7 @@ import {
   kbttCredentialsSchema,
   kbttPaginationQuerySchema,
   occupantIdParamSchema,
-  type KbttCatalogKind,
+  stayIdParamSchema,
   type KbttCredentials,
 } from "../domain/schemas/kbtt.schema";
 
@@ -264,6 +264,27 @@ export class KbttController {
     );
   }
 
+  @Post("stays/:stayId/submit")
+  @HttpCode(200)
+  @Header("Cache-Control", "no-store")
+  @ApiParam({ name: "stayId", type: String })
+  @RequirePermission("hotel.kbtt.declarations.manage")
+  @ApiOperation({
+    summary: "Submit every checked-in guest in a room, grouped into provider API 4/5 batches",
+  })
+  submitStay(
+    @Req() request: RequestWithRequiredUser,
+    @Param("hotelId") hotelId: string,
+    @Param("stayId") stayId: string,
+  ) {
+    return this.service.submitStay(
+      request.user.userId,
+      request.user.roleId,
+      parseWithZod(hotelIdParamSchema, hotelId),
+      parseWithZod(stayIdParamSchema, stayId),
+    );
+  }
+
   @Get("catalogs")
   @Header("Cache-Control", "no-store")
   @RequirePermission("hotel.kbtt.declarations.view")
@@ -287,7 +308,10 @@ export class KbttController {
 
   @Get("catalogs/:kind")
   @Header("Cache-Control", "no-store")
-  @ApiParam({ name: "kind", enum: ["NATIONALITY", "PROVINCE", "WARD", "STAY_REASON", "DOCUMENT_TYPE", "RESIDENCE_PLACE"] })
+  @ApiParam({
+    name: "kind",
+    enum: ["NATIONALITY", "PROVINCE", "WARD", "STAY_REASON", "DOCUMENT_TYPE", "RESIDENCE_PLACE"],
+  })
   @RequirePermission("hotel.kbtt.declarations.view")
   @ApiOperation({ summary: "List cached KBTT reference catalog items" })
   listCatalog(
@@ -311,7 +335,9 @@ export class KbttController {
   @HttpCode(200)
   @Header("Cache-Control", "no-store")
   @RequirePermission("hotel.kbtt.declarations.manage")
-  @ApiOperation({ summary: "Manually synchronize a reference catalog from provider into local cache by payload" })
+  @ApiOperation({
+    summary: "Manually synchronize a reference catalog from provider into local cache by payload",
+  })
   syncCatalogByBody(
     @Req() request: RequestWithRequiredUser,
     @Param("hotelId") hotelId: string,
@@ -319,7 +345,10 @@ export class KbttController {
     @Query() query?: unknown,
   ) {
     const parsedBody = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
-    const parsedQuery = (query && typeof query === "object" ? query : {}) as Record<string, unknown>;
+    const parsedQuery = (query && typeof query === "object" ? query : {}) as Record<
+      string,
+      unknown
+    >;
     const kind = (parsedBody.kind || parsedQuery.kind) as string;
     const validKind = parseWithZod(kbttCatalogKindSchema, kind);
     const provinceCode = (
@@ -343,9 +372,14 @@ export class KbttController {
   @Post("catalogs/:kind/sync")
   @HttpCode(200)
   @Header("Cache-Control", "no-store")
-  @ApiParam({ name: "kind", enum: ["NATIONALITY", "PROVINCE", "WARD", "STAY_REASON", "DOCUMENT_TYPE", "RESIDENCE_PLACE"] })
+  @ApiParam({
+    name: "kind",
+    enum: ["NATIONALITY", "PROVINCE", "WARD", "STAY_REASON", "DOCUMENT_TYPE", "RESIDENCE_PLACE"],
+  })
   @RequirePermission("hotel.kbtt.declarations.manage")
-  @ApiOperation({ summary: "Manually synchronize a reference catalog from provider into local cache" })
+  @ApiOperation({
+    summary: "Manually synchronize a reference catalog from provider into local cache",
+  })
   syncCatalog(
     @Req() request: RequestWithRequiredUser,
     @Param("hotelId") hotelId: string,
@@ -355,7 +389,10 @@ export class KbttController {
   ) {
     const validKind = parseWithZod(kbttCatalogKindSchema, kind);
     const parsedBody = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
-    const parsedQuery = (query && typeof query === "object" ? query : {}) as Record<string, unknown>;
+    const parsedQuery = (query && typeof query === "object" ? query : {}) as Record<
+      string,
+      unknown
+    >;
     const provinceCode = (
       (parsedBody.provinceCode ||
         parsedBody.parentCode ||

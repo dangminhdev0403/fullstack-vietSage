@@ -79,6 +79,51 @@ function fixture() {
       if (occ && occ.hotelId === hotelId) return occ;
       return null;
     }),
+    prepareStaySubmissionBatch: jest.fn(async (params: any) => {
+      const actualIds = [...occupants.values()]
+        .filter(
+          (occupant) => occupant.hotelId === params.hotelId && occupant.stayId === params.stayId,
+        )
+        .map((occupant) => occupant.id)
+        .sort();
+      if (actualIds.join("\0") !== [...params.expectedOccupantIds].sort().join("\0")) {
+        throw new ConflictException("Danh sách khách đã thay đổi");
+      }
+      return params.declarations.map((item: any) => {
+        const existing = declarations.get(item.id);
+        if (
+          !existing ||
+          existing.version !== item.expectedVersion ||
+          !item.allowedStatuses.includes(existing.status)
+        ) {
+          throw new ConflictException("CAS conflict");
+        }
+        const updated = {
+          ...existing,
+          status: "SENDING",
+          submittedPayloadJson: item.submittedPayloadJson,
+          submittedPayloadFingerprint: item.submittedPayloadFingerprint,
+          version: existing.version + 1,
+        };
+        declarations.set(item.id, updated);
+        return updated;
+      });
+    }),
+    finalizeSubmissionBatch: jest.fn(async (params: any) =>
+      params.declarations.map((item: any) => {
+        const existing = declarations.get(item.id);
+        if (
+          !existing ||
+          existing.version !== item.expectedVersion ||
+          existing.status !== "SENDING"
+        ) {
+          throw new ConflictException("CAS conflict");
+        }
+        const updated = { ...existing, ...params.data, version: existing.version + 1 };
+        declarations.set(item.id, updated);
+        return updated;
+      }),
+    ),
     createDeclaration: jest.fn(async (data: any) => {
       const revision = data.revision ?? 1;
       const duplicate = [...declarations.values()].find(
@@ -550,9 +595,9 @@ describe("KBTT Phase 1 declaration ledger and API contract", () => {
     occupants.set("occ-1", primaryOccupant);
 
     access.assertHotelAccess.mockRejectedValueOnce(new Error("Hotel access denied"));
-    await expect(
-      service.listDeclarations("user-1", "role-1", "hotel-foreign"),
-    ).rejects.toThrow("Hotel access denied");
+    await expect(service.listDeclarations("user-1", "role-1", "hotel-foreign")).rejects.toThrow(
+      "Hotel access denied",
+    );
 
     access.assertHotelAccess.mockRejectedValueOnce(new Error("Hotel access denied"));
     await expect(
@@ -568,9 +613,9 @@ describe("KBTT Phase 1 declaration ledger and API contract", () => {
     ).rejects.toThrow("Hotel access denied");
 
     access.assertHotelAccess.mockRejectedValueOnce(new Error("Hotel access denied"));
-    await expect(
-      service.markReady("user-1", "role-1", "hotel-foreign", "occ-1"),
-    ).rejects.toThrow("Hotel access denied");
+    await expect(service.markReady("user-1", "role-1", "hotel-foreign", "occ-1")).rejects.toThrow(
+      "Hotel access denied",
+    );
 
     await expect(
       service.getDeclaration("user-1", "role-1", "hotel-1", "non-existent-occupant"),
@@ -792,9 +837,7 @@ describe("KBTT Phase 1 declaration ledger and API contract", () => {
     const declView = BUSINESS_PERMISSIONS.find((p) => p.key === "hotel.kbtt.declarations.view");
     expect(declView?.risk).toBe("LOW");
 
-    const declManage = BUSINESS_PERMISSIONS.find(
-      (p) => p.key === "hotel.kbtt.declarations.manage",
-    );
+    const declManage = BUSINESS_PERMISSIONS.find((p) => p.key === "hotel.kbtt.declarations.manage");
     expect(declManage?.risk).toBe("HIGH");
   });
 
@@ -1089,29 +1132,30 @@ describe("KBTT Phase 1 declaration ledger and API contract", () => {
     );
   });
 
-  it("bounds list query with pagination, slicing active occupants and querying only declaration rows for the slice", async () => {
+  it("paginates by stay so every checked-in guest in a room remains on the same page", async () => {
     const { service, occupants, repository } = fixture();
     occupants.set("occ-1", { ...primaryOccupant, id: "occ-1" });
     occupants.set("occ-2", { ...primaryOccupant, id: "occ-2" });
-    occupants.set("occ-3", { ...primaryOccupant, id: "occ-3" });
+    occupants.set("occ-3", {
+      ...primaryOccupant,
+      id: "occ-3",
+      stayId: "stay-2",
+      roomId: "room-2",
+      roomNumber: "102",
+    });
 
-    // Page 1, limit 2
     const page1 = await service.listDeclarations("user-1", "role-1", "hotel-1", {
       page: 1,
-      limit: 2,
+      limit: 1,
     });
-    expect(page1).toHaveLength(2);
-    expect(page1[0].occupantId).toBe("occ-1");
-    expect(page1[1].occupantId).toBe("occ-2");
+    expect(page1.map((row) => row.occupantId)).toEqual(["occ-1", "occ-2"]);
     expect(repository.findDeclarationsByHotel).toHaveBeenCalledWith("hotel-1", ["occ-1", "occ-2"]);
 
-    // Page 2, limit 2
     const page2 = await service.listDeclarations("user-1", "role-1", "hotel-1", {
       page: 2,
-      limit: 2,
+      limit: 1,
     });
-    expect(page2).toHaveLength(1);
-    expect(page2[0].occupantId).toBe("occ-3");
+    expect(page2.map((row) => row.occupantId)).toEqual(["occ-3"]);
     expect(repository.findDeclarationsByHotel).toHaveBeenCalledWith("hotel-1", ["occ-3"]);
   });
 
@@ -1137,7 +1181,13 @@ describe("KBTT Catalog Cache (AGY-50)", () => {
     expect(natSync.kind).toBe("NATIONALITY");
     expect(natSync.totalFetched).toBe(2);
 
-    const nationalities = await f.service.listCatalog("user-1", "role-1", "hotel-1", "NATIONALITY", {});
+    const nationalities = await f.service.listCatalog(
+      "user-1",
+      "role-1",
+      "hotel-1",
+      "NATIONALITY",
+      {},
+    );
     expect(nationalities).toHaveLength(2);
     expect(nationalities.find((n) => n.code === "VNM")).toMatchObject({
       kind: "NATIONALITY",
@@ -1169,14 +1219,23 @@ describe("KBTT Catalog Cache (AGY-50)", () => {
 
     // 3. WARD
     f.provider.fetchCatalog.mockResolvedValueOnce([
-      { maPhuongXa: "10101", tenPhuongXa: "Phúc Xá", tenPhuongXaEn: "Phuc Xa", trucThuocTinh: "101" },
+      {
+        maPhuongXa: "10101",
+        tenPhuongXa: "Phúc Xá",
+        tenPhuongXaEn: "Phuc Xa",
+        trucThuocTinh: "101",
+      },
     ]);
-    const wardSync = await f.service.syncCatalog("user-1", "role-1", "hotel-1", "WARD", { provinceCode: "101" });
+    const wardSync = await f.service.syncCatalog("user-1", "role-1", "hotel-1", "WARD", {
+      provinceCode: "101",
+    });
     expect(wardSync.kind).toBe("WARD");
     expect(wardSync.parentCode).toBe("101");
     expect(wardSync.totalFetched).toBe(1);
 
-    const wards = await f.service.listCatalog("user-1", "role-1", "hotel-1", "WARD", { parentCode: "101" });
+    const wards = await f.service.listCatalog("user-1", "role-1", "hotel-1", "WARD", {
+      parentCode: "101",
+    });
     expect(wards).toHaveLength(1);
     expect(wards[0]).toMatchObject({
       kind: "WARD",
@@ -1228,14 +1287,18 @@ describe("KBTT Catalog Cache (AGY-50)", () => {
     });
 
     // 6. RESIDENCE_PLACE
-    f.provider.fetchCatalog.mockResolvedValueOnce([
-      { id: 1, name: "Khách sạn" },
-    ]);
+    f.provider.fetchCatalog.mockResolvedValueOnce([{ id: 1, name: "Khách sạn" }]);
     const placeSync = await f.service.syncCatalog("user-1", "role-1", "hotel-1", "RESIDENCE_PLACE");
     expect(placeSync.kind).toBe("RESIDENCE_PLACE");
     expect(placeSync.totalFetched).toBe(1);
 
-    const places = await f.service.listCatalog("user-1", "role-1", "hotel-1", "RESIDENCE_PLACE", {});
+    const places = await f.service.listCatalog(
+      "user-1",
+      "role-1",
+      "hotel-1",
+      "RESIDENCE_PLACE",
+      {},
+    );
     expect(places).toHaveLength(1);
     expect(places[0]).toMatchObject({
       kind: "RESIDENCE_PLACE",
@@ -1256,7 +1319,9 @@ describe("KBTT Catalog Cache (AGY-50)", () => {
       { maQT: "LAO", tenQT: "Lào", tenQTEn: "Laos" },
     ]);
     await f.service.syncCatalog("user-1", "role-1", "hotel-1", "NATIONALITY");
-    expect(await f.service.listCatalog("user-1", "role-1", "hotel-1", "NATIONALITY", {})).toHaveLength(2);
+    expect(
+      await f.service.listCatalog("user-1", "role-1", "hotel-1", "NATIONALITY", {}),
+    ).toHaveLength(2);
 
     // 1. Network / provider failure
     f.provider.fetchCatalog.mockRejectedValueOnce(
@@ -1307,7 +1372,13 @@ describe("KBTT Catalog Cache (AGY-50)", () => {
     await f.service.syncCatalog("user-1", "role-1", "hotel-1", "STAY_REASON");
 
     // Active by default: returns 20 and 30
-    const activeList = await f.service.listCatalog("user-1", "role-1", "hotel-1", "STAY_REASON", {});
+    const activeList = await f.service.listCatalog(
+      "user-1",
+      "role-1",
+      "hotel-1",
+      "STAY_REASON",
+      {},
+    );
     expect(activeList).toHaveLength(2);
     expect(activeList.map((i) => i.code).sort()).toEqual(["20", "30"]);
     expect(activeList.find((i) => i.code === "20")?.nameVi).toBe("Lý do 20 (Cập nhật)");
@@ -1326,9 +1397,9 @@ describe("KBTT Catalog Cache (AGY-50)", () => {
     const f = fixture();
 
     // Sync without province code must fail
-    await expect(
-      f.service.syncCatalog("user-1", "role-1", "hotel-1", "WARD", {}),
-    ).rejects.toThrow(BadRequestException);
+    await expect(f.service.syncCatalog("user-1", "role-1", "hotel-1", "WARD", {})).rejects.toThrow(
+      BadRequestException,
+    );
     await expect(
       f.service.syncCatalog("user-1", "role-1", "hotel-1", "WARD", { provinceCode: "" }),
     ).rejects.toThrow(BadRequestException);
@@ -1347,11 +1418,15 @@ describe("KBTT Catalog Cache (AGY-50)", () => {
     await f.service.syncCatalog("user-1", "role-1", "hotel-1", "WARD", { provinceCode: "202" });
 
     // Wards for 101 are not deactivated by syncing 202
-    const wards101 = await f.service.listCatalog("user-1", "role-1", "hotel-1", "WARD", { parentCode: "101" });
+    const wards101 = await f.service.listCatalog("user-1", "role-1", "hotel-1", "WARD", {
+      parentCode: "101",
+    });
     expect(wards101).toHaveLength(2);
     expect(wards101.every((w) => w.parentCode === "101" && w.isActive)).toBe(true);
 
-    const wards202 = await f.service.listCatalog("user-1", "role-1", "hotel-1", "WARD", { parentCode: "202" });
+    const wards202 = await f.service.listCatalog("user-1", "role-1", "hotel-1", "WARD", {
+      parentCode: "202",
+    });
     expect(wards202).toHaveLength(1);
     expect(wards202[0].code).toBe("20201");
     expect(wards202[0].parentCode).toBe("202");
@@ -1369,7 +1444,11 @@ describe("KBTT Catalog Cache (AGY-50)", () => {
     }> = [
       { kind: "NATIONALITY", expectedPath: "/cms-backend/public/dm-qt/3th/get-all" },
       { kind: "PROVINCE", expectedPath: "/cms-backend/public/dm-tinh-tp/get-all" },
-      { kind: "WARD", parentCode: "101", expectedPath: "/cms-backend/public/dm-phuong-xa?trucThuocTinh=101" },
+      {
+        kind: "WARD",
+        parentCode: "101",
+        expectedPath: "/cms-backend/public/dm-phuong-xa?trucThuocTinh=101",
+      },
       { kind: "STAY_REASON", expectedPath: "/cms-backend/public/ly-do-cu-tru/get-all" },
       { kind: "DOCUMENT_TYPE", expectedPath: "/cms-backend/public/loai-giay-to/get-all" },
       { kind: "RESIDENCE_PLACE", expectedPath: "/cms-backend/public/noi-cu-tru/get-all" },
@@ -1389,7 +1468,9 @@ describe("KBTT Catalog Cache (AGY-50)", () => {
     }
 
     // Body code !== "200" throws 502
-    fetchMock.mockResolvedValueOnce(Response.json({ code: "400", message: "Internal business error", data: null }));
+    fetchMock.mockResolvedValueOnce(
+      Response.json({ code: "400", message: "Internal business error", data: null }),
+    );
     await expect(provider.fetchCatalog("NATIONALITY")).rejects.toMatchObject({
       status: 502,
       response: { code: "KBTT_PROVIDER_INVALID_RESPONSE" },
@@ -1440,7 +1521,9 @@ describe("KBTT Catalog Cache (AGY-50)", () => {
       });
     }
 
-    const items = await f.service.listCatalog("user-1", "role-1", "hotel-1", "DOCUMENT_TYPE", { limit: 2 });
+    const items = await f.service.listCatalog("user-1", "role-1", "hotel-1", "DOCUMENT_TYPE", {
+      limit: 2,
+    });
     expect(items).toHaveLength(2);
     expect(global.fetch).not.toHaveBeenCalled();
 
@@ -1460,17 +1543,13 @@ describe("KBTT Catalog Cache (AGY-50)", () => {
     const controller = new KbttController(f.service);
     const req = { user: { userId: "user-1", roleId: "role-1" } } as any;
 
-    f.provider.fetchCatalog.mockResolvedValueOnce([
-      { id: 1, name: "Thẻ CCCD" },
-    ]);
+    f.provider.fetchCatalog.mockResolvedValueOnce([{ id: 1, name: "Thẻ CCCD" }]);
 
     // Test controller syncCatalog and syncCatalogByBody
     const syncRes1 = await controller.syncCatalog(req, "hotel-1", "DOCUMENT_TYPE");
     expect(syncRes1.kind).toBe("DOCUMENT_TYPE");
 
-    f.provider.fetchCatalog.mockResolvedValueOnce([
-      { id: 1, name: "Du lịch" },
-    ]);
+    f.provider.fetchCatalog.mockResolvedValueOnce([{ id: 1, name: "Du lịch" }]);
     const syncRes2 = await controller.syncCatalogByBody(req, "hotel-1", { kind: "STAY_REASON" });
     expect(syncRes2.kind).toBe("STAY_REASON");
 
@@ -1731,9 +1810,9 @@ describe("KBTT Declaration Submission API 4/5", () => {
       data: null,
     });
 
-    await expect(
-      f.service.submit("user-1", "role-1", "hotel-1", "occ-vn"),
-    ).rejects.toMatchObject({ status: 422 });
+    await expect(f.service.submit("user-1", "role-1", "hotel-1", "occ-vn")).rejects.toMatchObject({
+      status: 422,
+    });
 
     const stored = await f.repository.findLatestDeclaration("hotel-1", "occ-vn");
     expect(stored?.status).toBe("FAILED");
@@ -1774,9 +1853,9 @@ describe("KBTT Declaration Submission API 4/5", () => {
       message: "Quá thời gian chờ phản hồi từ cơ quan quản lý (10s).",
     });
 
-    await expect(
-      f.service.submit("user-1", "role-1", "hotel-1", "occ-vn"),
-    ).rejects.toMatchObject({ status: 409 });
+    await expect(f.service.submit("user-1", "role-1", "hotel-1", "occ-vn")).rejects.toMatchObject({
+      status: 409,
+    });
 
     const stored = await f.repository.findLatestDeclaration("hotel-1", "occ-vn");
     expect(stored?.status).toBe("UNKNOWN");
@@ -1785,6 +1864,72 @@ describe("KBTT Declaration Submission API 4/5", () => {
     await expect(f.service.submit("user-1", "role-1", "hotel-1", "occ-vn")).rejects.toThrow(
       "UNKNOWN",
     );
+  });
+
+  it("submits every checked-in guest in a room as Vietnamese and foreign batches", async () => {
+    const f = fixture();
+    f.occupants.set("occ-vn", primaryOccupant);
+    f.occupants.set("occ-foreign", foreignOccupant);
+    await f.service.connect("user-1", "role-1", "hotel-1", credentials);
+
+    await f.service.saveDraft("user-1", "role-1", "hotel-1", "occ-vn", {
+      citizenshipKind: "VIETNAMESE",
+      data: { lyDoCuTru: 1, loaiGiayTo: 1, soGiayTo: "001090012345" },
+    });
+    await f.service.markReady("user-1", "role-1", "hotel-1", "occ-vn");
+    await f.service.saveDraft("user-1", "role-1", "hotel-1", "occ-foreign", {
+      citizenshipKind: "FOREIGN",
+      data: {
+        quocTich: "204",
+        soHoChieu: "P98765432",
+        loaiNgayThangNamSinh: "D",
+        thoiHanTamTruStr: "2026-09-16 12:00:00",
+      },
+    });
+    await f.service.markReady("user-1", "role-1", "hotel-1", "occ-foreign");
+
+    f.provider.submitDeclaration.mockClear();
+    const result = await f.service.submitStay("user-1", "role-1", "hotel-1", "stay-1");
+    expect(result).toMatchObject({
+      stayId: "stay-1",
+      roomId: "room-1",
+      roomNumber: "101",
+      totalGuests: 2,
+      submittedCount: 2,
+      alreadySubmittedCount: 0,
+    });
+    expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(2);
+    expect(f.provider.submitDeclaration.mock.calls.map((call: any[]) => call[0])).toEqual([
+      "VIETNAMESE",
+      "FOREIGN",
+    ]);
+    expect(f.provider.submitDeclaration.mock.calls[0][1]).toHaveLength(1);
+    expect(f.provider.submitDeclaration.mock.calls[1][1]).toHaveLength(1);
+    expect((await f.repository.findLatestDeclaration("hotel-1", "occ-vn"))?.status).toBe(
+      "SUBMITTED",
+    );
+    expect((await f.repository.findLatestDeclaration("hotel-1", "occ-foreign"))?.status).toBe(
+      "SUBMITTED",
+    );
+  });
+
+  it("blocks the whole room before provider calls when any guest is not ready", async () => {
+    const f = fixture();
+    f.occupants.set("occ-vn", primaryOccupant);
+    f.occupants.set("occ-foreign", foreignOccupant);
+    await f.service.connect("user-1", "role-1", "hotel-1", credentials);
+    await f.service.saveDraft("user-1", "role-1", "hotel-1", "occ-vn", {
+      citizenshipKind: "VIETNAMESE",
+      data: { lyDoCuTru: 1, loaiGiayTo: 1, soGiayTo: "001090012345" },
+    });
+    await f.service.markReady("user-1", "role-1", "hotel-1", "occ-vn");
+
+    f.provider.submitDeclaration.mockClear();
+    await expect(
+      f.service.submitStay("user-1", "role-1", "hotel-1", "stay-1"),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+    expect(f.repository.prepareStaySubmissionBatch).not.toHaveBeenCalled();
   });
 
   it("verifies KbttProviderClient wire protocol: correct HTTP POST URLs for API 4 and API 5, Bearer header, bounded envelope, timeout handling", async () => {
@@ -1812,7 +1957,9 @@ describe("KBTT Declaration Submission API 4/5", () => {
     expect(JSON.parse(foreignOpts.body as string)).toEqual([{ hoTen: "John Doe" }]);
 
     // 2. API 5 Vietnamese wire check
-    fetchMock.mockResolvedValueOnce(Response.json({ code: "200", message: "Success VN", data: null }));
+    fetchMock.mockResolvedValueOnce(
+      Response.json({ code: "200", message: "Success VN", data: null }),
+    );
     const vnRes = await client.submitDeclaration(
       "VIETNAMESE",
       [{ hoTen: "Nguyen Van A" }],
@@ -1877,6 +2024,19 @@ describe("KBTT Declaration Submission API 4/5", () => {
     const res = await controller.submit(req, "hotel-1", "occ-vn");
     expect(res.status).toBe("SUBMITTED");
     expect(submitSpy).toHaveBeenCalledWith("user-1", "role-1", "hotel-1", "occ-vn");
+
+    const submitStaySpy = jest.spyOn(f.service, "submitStay").mockResolvedValueOnce({
+      stayId: "stay-1",
+      roomId: "room-1",
+      roomNumber: "101",
+      totalGuests: 2,
+      submittedCount: 2,
+      alreadySubmittedCount: 0,
+      declarations: [],
+    });
+    const stayResult = await controller.submitStay(req, "hotel-1", "stay-1");
+    expect(stayResult.submittedCount).toBe(2);
+    expect(submitStaySpy).toHaveBeenCalledWith("user-1", "role-1", "hotel-1", "stay-1");
 
     // Cross hotel denial
     f.access.assertHotelAccess.mockRejectedValueOnce(new NotFoundException("Denied"));

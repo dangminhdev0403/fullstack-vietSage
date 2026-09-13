@@ -48,6 +48,10 @@ const ConfigSchema = z.object({
   REQUEST_REALTIME_ENABLED: z.string().optional(),
   REQUEST_REALTIME_TICKET_SECRET: z.string().optional(),
   REQUEST_REALTIME_TICKET_TTL_SECONDS: z.string().optional(),
+  KBTT_BASE_URL: z
+    .url("KBTT_BASE_URL must be a valid URL")
+    .refine((value) => new URL(value).protocol === "https:", "KBTT_BASE_URL must use HTTPS")
+    .optional(),
 });
 
 export type EnvConfig = z.infer<typeof ConfigSchema>;

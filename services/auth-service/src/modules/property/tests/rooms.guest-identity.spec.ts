@@ -1,5 +1,6 @@
 import { createStayBodySchema } from "../domain/schemas/rooms.schema";
 import { HotelRoomsRepository } from "../infrastructure/repositories/hotel-rooms.repository";
+import { inferCitizenshipKind } from "../domain/infer-citizenship-kind";
 
 const stayInput = {
   roomId: "room-1",
@@ -9,6 +10,20 @@ const stayInput = {
 };
 
 describe("guest stay CCCD identity", () => {
+  it("infers citizenship from reliable check-in data and fails closed on ambiguity", () => {
+    expect(inferCitizenshipKind({ identityNumber: "034205005951" })).toBe("VIETNAMESE");
+    expect(inferCitizenshipKind({ nationality: "VNM", identityNumber: "P1234567" })).toBe(
+      "VIETNAMESE",
+    );
+    expect(inferCitizenshipKind({ nationality: "Hàn Quốc", identityNumber: "M1234567" })).toBe(
+      "FOREIGN",
+    );
+    expect(inferCitizenshipKind({ identityNumber: "P1234567" })).toBeNull();
+    expect(
+      inferCitizenshipKind({ nationality: "Hoa Kỳ", identityNumber: "034205005951" }),
+    ).toBeNull();
+  });
+
   it.each(["123456789", " 034205005951 "])(
     "accepts and trims a valid identity number: %s",
     (value) => {
@@ -216,18 +231,21 @@ describe("guest stay CCCD identity", () => {
         isPrimary: true,
         nationality: "Việt Nam",
         residencePlace: "Lào Cai",
+        citizenshipKind: "VIETNAMESE",
       }),
       expect.objectContaining({
         fullName: "Tran Thi B",
         isPrimary: false,
         nationality: "Việt Nam",
         residencePlace: "Hà Nội",
+        citizenshipKind: "VIETNAMESE",
       }),
       expect.objectContaining({
         fullName: "Le Van C",
         isPrimary: false,
         nationality: "Việt Nam",
         residencePlace: "Đà Nẵng",
+        citizenshipKind: "VIETNAMESE",
       }),
     ]);
   });
