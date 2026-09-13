@@ -309,9 +309,16 @@ export class AuthService {
     const menus = new Set<string>([DEFAULT_NAVIGATION_MENU]);
     const permissions = new Set<string>();
     const activeTenantIds = new Set(user.tenantUsers.map((entry) => entry.tenantId));
-    const accessibleHotels = user.hotelAssignments
-      .map((entry) => entry.hotel)
-      .filter((hotel) => activeTenantIds.has(hotel.tenantId))
+    const isTenantOwner = [activeUserRole.role.code, activeUserRole.role.baseRole?.code].some(
+      (code) => code === "TENANT_OWNER" || code === "HOTEL_OWNER",
+    );
+    const accessibleHotels = (
+      isTenantOwner
+        ? user.tenantUsers.flatMap((entry) => entry.tenant.hotel ?? [])
+        : user.hotelAssignments
+            .map((entry) => entry.hotel)
+            .filter((hotel) => activeTenantIds.has(hotel.tenantId))
+    )
       .map((hotel) => ({
         id: hotel.id,
         tenantId: hotel.tenantId,

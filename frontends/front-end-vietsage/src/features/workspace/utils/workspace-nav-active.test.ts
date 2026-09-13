@@ -65,7 +65,7 @@ test("buildWorkspaceNavigation produces governance and monitoring items for owne
   });
   const keys = ownerItems.map((item) => item.key);
   assert.ok(keys.includes("owner.home"));
-  assert.ok(keys.includes("owner.hotels"));
+  assert.equal(keys.includes("owner.hotels"), false);
   assert.ok(keys.includes("owner.staff"));
   assert.ok(keys.includes("owner.hotel.overview"));
   assert.ok(keys.includes("owner.hotel.services"));

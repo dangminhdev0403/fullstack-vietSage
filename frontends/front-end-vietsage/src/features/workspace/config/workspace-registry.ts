@@ -34,10 +34,9 @@ const WORKSPACE_DEFINITIONS: Record<WorkspacePersona, WorkspaceDefinition> = {
   },
   owner: {
     persona: "owner",
-    eyebrow: "Điều hành tổng",
-    title: "Điều hành danh mục khách sạn",
-    description:
-      "Hiệu suất, doanh thu và vận hành toàn bộ khách sạn thuộc tenant.",
+    eyebrow: "Điều hành khách sạn",
+    title: "Điều hành khách sạn",
+    description: "Hiệu suất, doanh thu và vận hành khách sạn.",
     profileLabel: "Chủ khách sạn",
     homePath: "/owner/dashboard",
   },
@@ -210,15 +209,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     order: 10,
     section: "OVERVIEW",
   },
-  {
-    key: "owner.hotels",
-    personas: ["owner"],
-    href: "/owner/hotels",
-    label: "Khách sạn",
-    icon: "hotel",
-    order: 20,
-    section: "OPERATIONS",
-  },
+
   {
     key: "owner.staff",
     personas: ["owner"],

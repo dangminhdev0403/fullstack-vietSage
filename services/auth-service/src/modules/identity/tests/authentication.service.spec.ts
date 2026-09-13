@@ -136,6 +136,42 @@ describe("AuthService", () => {
     await expect(service.getMe("u1", "revoked-role")).rejects.toThrow(UnauthorizedException);
   });
 
+  it("returns the tenant hotel to TENANT_OWNER without a staff assignment", async () => {
+    repository.findUserProfileWithRelations.mockResolvedValue({
+      id: "owner-1",
+      email: "owner@vietsage.local",
+      fullName: "Owner",
+      status: UserStatus.ACTIVE,
+      userRoles: [
+        {
+          role: {
+            id: "role-owner",
+            code: "TENANT_OWNER",
+            name: "Tenant Owner",
+            baseRole: null,
+            rolePermissions: [{ permission: { path: "hotel.dashboard.view" } }],
+          },
+        },
+      ],
+      tenantUsers: [
+        {
+          tenantId: "tenant-1",
+          tenant: {
+            id: "tenant-1",
+            code: "T1",
+            name: "Tenant 1",
+            hotel: { id: "hotel-1", tenantId: "tenant-1", code: "H1", name: "Hotel 1" },
+          },
+        },
+      ],
+      hotelAssignments: [],
+    });
+
+    await expect(service.getMe("owner-1", "role-owner")).resolves.toMatchObject({
+      accessibleHotels: [{ id: "hotel-1", tenantId: "tenant-1", code: "H1", name: "Hotel 1" }],
+    });
+  });
+
   it("validates an active user and upgrades a legacy password hash", async () => {
     repository.findUserByEmail.mockResolvedValue({
       id: "u1",

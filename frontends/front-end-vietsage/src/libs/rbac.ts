@@ -23,7 +23,7 @@ const routePolicies: readonly RoutePolicy[] = [
 
 const roleDefaultPaths: RoleDefaultPathMap = {
   admin: "/admin/dashboard",
-  tenant_owner: "/owner/hotels",
+  tenant_owner: "/owner/dashboard",
   staff: "/staff",
   guest: "/",
 };

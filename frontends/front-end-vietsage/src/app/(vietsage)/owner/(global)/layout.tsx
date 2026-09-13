@@ -11,7 +11,10 @@ export default async function OwnerGlobalLayout({
 }>) {
   const callbackUrl = "/owner/dashboard" as const;
   const context = await loadServerWorkspaceContext(callbackUrl);
-  const sidebarItems = buildWorkspaceNavigationForContext(context);
+  const sidebarItems = buildWorkspaceNavigationForContext({
+    ...context,
+    hotelId: context.accessibleHotels[0]?.id,
+  });
 
   return (
     <WorkspaceProfileProvider profileName={context.fullName}>

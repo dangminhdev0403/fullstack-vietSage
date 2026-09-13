@@ -415,6 +415,7 @@ export class AuthRepository {
           include: {
             role: {
               include: {
+                baseRole: true,
                 rolePermissions: {
                   include: {
                     permission: true,
@@ -427,7 +428,7 @@ export class AuthRepository {
         tenantUsers: {
           where: { status: TenantUserStatus.ACTIVE },
           include: {
-            tenant: true,
+            tenant: { include: { hotel: true } },
           },
         },
         hotelAssignments: {

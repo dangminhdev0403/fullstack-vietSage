@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 
 import { auth } from "@/auth";
 import { resolveWorkspacePersona } from "@/features/workspace/config/workspace-registry";
-import { adminService } from "@/features/admin/service/admin-service-instance";
+
 import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
 import { ownerAttentionRoute } from "@/features/hotel-ops/utils/owner-attention-route";
 import { servicePortalClient } from "@/features/service-portal/service-client";
@@ -180,13 +180,7 @@ export default async function OwnerDashboardPage() {
   const persona = resolveWorkspacePersona(workspaceContext.activeRole.code);
   if (persona !== "owner") notFound();
 
-  const hotelsPage = await authorizedApi("list owner hotels", (accessToken) =>
-    adminService.listHotels({ query: { page: 1, limit: 100 }, accessToken }),
-  );
-
-  const hotel =
-    hotelsPage.items.find((item) => item.status !== "DISABLED") ??
-    hotelsPage.items[0];
+  const hotel = workspaceContext.accessibleHotels[0];
   const dashboard = hotel
     ? ((await authorizedApi("get hotel dashboard", (accessToken) =>
         hotelOpsService.getDashboard(hotel.id, {
