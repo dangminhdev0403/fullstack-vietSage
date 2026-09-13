@@ -94,11 +94,6 @@ async function fetchInternalApi<TData, TBody>(
 
   if (!response.ok) {
     const message = readInternalApiErrorMessage(payload, response.status);
-    console.error(`[INTERNAL_API_ERROR ${response.status}] ${options.method} ${path}:`, {
-      status: response.status,
-      message,
-      payload,
-    });
     throw new HttpError({
       message,
       status: response.status,

@@ -6,5 +6,6 @@ const source = readFileSync(new URL("../src/core/http/internal-api-client.ts", i
 
 test("internal API errors prefer a safe backend detail over the transport status", () => {
   assert.match(source, /readInternalApiErrorMessage\(payload, response\.status\)/);
-  assert.match(source, /const detail = \(data as \{ detail\?: unknown \}\)\.detail/);
+  assert.match(source, /const detail = \(p\.data as \{ detail\?: unknown \}\)\.detail/);
+  assert.doesNotMatch(source, /console\.error/);
 });
