@@ -28,7 +28,7 @@ type RouteContext = {
 const routeParamsSchema = z.object({
   hotelId: z.string().trim().min(1, "Mã khách sạn không hợp lệ."),
   occupantId: z.string().trim().min(1, "Mã khách lưu trú không hợp lệ."),
-  action: z.enum(["draft", "ready", "detail"]),
+  action: z.enum(["draft", "ready", "submit", "detail"]),
 });
 
 function getRawData(response: unknown): unknown {
@@ -146,15 +146,18 @@ export async function POST(_request: Request, context: RouteContext) {
   }
   const { hotelId, occupantId, action } = parsed.data;
 
-  if (action !== "ready") {
-    return validationErrorResponse("Chỉ hỗ trợ chuyển trạng thái READY qua hành động ready.");
+  if (action !== "ready" && action !== "submit") {
+    return validationErrorResponse("Thao tác POST không hợp lệ cho hành động này.");
   }
 
+  const operation = action === "submit" ? "submit kbtt declaration" : "mark kbtt ready";
+  const backendPath = `/hotels/${encodeURIComponent(hotelId)}/kbtt/declarations/${encodeURIComponent(occupantId)}/${action}`;
+
   try {
-    const result = await executeHotelOpsBackendRequest("mark kbtt ready", async (accessToken) => {
+    const result = await executeHotelOpsBackendRequest(operation, async (accessToken) => {
       const response = await httpServer.request<unknown>(
         "POST",
-        `/hotels/${encodeURIComponent(hotelId)}/kbtt/declarations/${encodeURIComponent(occupantId)}/ready`,
+        backendPath,
         undefined,
         { accessToken, headers: { "Cache-Control": "no-store" } },
       );

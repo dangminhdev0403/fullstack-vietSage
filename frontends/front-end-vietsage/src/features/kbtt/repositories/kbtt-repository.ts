@@ -121,4 +121,14 @@ export const kbttRepository = {
     });
     return kbttDeclarationRecordSchema.parse(payload.data);
   },
+  async submit(
+    hotelId: string,
+    occupantId: string,
+  ): Promise<KbttDeclarationRecord> {
+    const url = `${declarationsPath(hotelId)}/${encodeURIComponent(occupantId)}/submit`;
+    const payload = await requestInternalApiEnvelope<unknown>(url, {
+      method: "POST",
+    });
+    return kbttDeclarationRecordSchema.parse(payload.data);
+  },
 };
