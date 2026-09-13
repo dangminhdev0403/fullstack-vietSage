@@ -5,6 +5,7 @@ import {
   kbttDeclarationListSchema,
   kbttDeclarationRecordSchema,
   kbttOccupantDeclarationDetailSchema,
+  kbttStaySubmissionResultSchema,
   saveKbttDraftPayloadSchema,
   type KbttCatalogItem,
   type KbttCatalogKind,
@@ -12,6 +13,7 @@ import {
   type KbttCredentials,
   type KbttDeclarationListItem,
   type KbttDeclarationRecord,
+  type KbttStaySubmissionResult,
   type KbttOccupantDeclarationDetail,
   type SaveKbttDraftPayload,
 } from "../types/kbtt-contract";
@@ -24,40 +26,60 @@ function declarationsPath(hotelId: string) {
   return `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/kbtt/declarations`;
 }
 
-function catalogPath(hotelId: string, kind: KbttCatalogKind, parentCode?: string) {
-  const path = `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/kbtt/catalogs/${kind}`;
-  return parentCode ? `${path}?parentCode=${encodeURIComponent(parentCode)}` : path;
+function catalogPath(kind: KbttCatalogKind, parentCode?: string) {
+  const path = `/api/hotel-ops/kbtt/catalogs/${kind}`;
+  return parentCode
+    ? `${path}?parentCode=${encodeURIComponent(parentCode)}`
+    : path;
 }
 
 export const kbttRepository = {
-  async connection(hotelId: string, signal?: AbortSignal): Promise<KbttConnection> {
-    const payload = await requestInternalApiEnvelope<unknown>(connectionPath(hotelId), {
-      method: "GET",
-      signal,
-    });
+  async connection(
+    hotelId: string,
+    signal?: AbortSignal,
+  ): Promise<KbttConnection> {
+    const payload = await requestInternalApiEnvelope<unknown>(
+      connectionPath(hotelId),
+      {
+        method: "GET",
+        signal,
+      },
+    );
     return kbttConnectionSchema.parse(payload.data);
   },
-  async connect(hotelId: string, credentials: KbttCredentials): Promise<KbttConnection> {
+  async connect(
+    hotelId: string,
+    credentials: KbttCredentials,
+  ): Promise<KbttConnection> {
     try {
-      const payload = await requestInternalApiEnvelope<unknown>(connectionPath(hotelId), {
-        method: "PUT",
-        body: credentials,
-      });
+      const payload = await requestInternalApiEnvelope<unknown>(
+        connectionPath(hotelId),
+        {
+          method: "PUT",
+          body: credentials,
+        },
+      );
       return kbttConnectionSchema.parse(payload.data);
     } finally {
       credentials.password = "";
     }
   },
   async check(hotelId: string): Promise<KbttConnection> {
-    const payload = await requestInternalApiEnvelope<unknown>(`${connectionPath(hotelId)}/check`, {
-      method: "POST",
-    });
+    const payload = await requestInternalApiEnvelope<unknown>(
+      `${connectionPath(hotelId)}/check`,
+      {
+        method: "POST",
+      },
+    );
     return kbttConnectionSchema.parse(payload.data);
   },
   async disconnect(hotelId: string): Promise<KbttConnection> {
-    const payload = await requestInternalApiEnvelope<unknown>(connectionPath(hotelId), {
-      method: "DELETE",
-    });
+    const payload = await requestInternalApiEnvelope<unknown>(
+      connectionPath(hotelId),
+      {
+        method: "DELETE",
+      },
+    );
     return kbttConnectionSchema.parse(payload.data);
   },
   async listDeclarations(
@@ -87,15 +109,17 @@ export const kbttRepository = {
     return kbttOccupantDeclarationDetailSchema.parse(payload.data);
   },
   async listCatalog(
-    hotelId: string,
     kind: KbttCatalogKind,
     parentCode?: string,
     signal?: AbortSignal,
   ): Promise<KbttCatalogItem[]> {
-    const payload = await requestInternalApiEnvelope<unknown>(catalogPath(hotelId, kind, parentCode), {
-      method: "GET",
-      signal,
-    });
+    const payload = await requestInternalApiEnvelope<unknown>(
+      catalogPath(kind, parentCode),
+      {
+        method: "GET",
+        signal,
+      },
+    );
     return kbttCatalogListSchema.parse(payload.data);
   },
   async saveDraft(
@@ -130,5 +154,15 @@ export const kbttRepository = {
       method: "POST",
     });
     return kbttDeclarationRecordSchema.parse(payload.data);
+  },
+  async submitStay(
+    hotelId: string,
+    stayId: string,
+  ): Promise<KbttStaySubmissionResult> {
+    const payload = await requestInternalApiEnvelope<unknown>(
+      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/kbtt/stays/${encodeURIComponent(stayId)}/submit`,
+      { method: "POST" },
+    );
+    return kbttStaySubmissionResultSchema.parse(payload.data);
   },
 };

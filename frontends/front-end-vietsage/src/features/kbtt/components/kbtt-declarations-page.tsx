@@ -1,21 +1,29 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+} from "react";
 
 import { HttpError } from "@/core/http/http-error";
-import { showConfirmDialog, showErrorAlert, showSuccessAlert } from "@/libs/swal";
+import {
+  showConfirmDialog,
+  showErrorAlert,
+  showSuccessAlert,
+} from "@/libs/swal";
 
 import { kbttResource } from "../resources/kbtt-resource";
 import {
-  canRetryDeclaration,
-  canSubmitDeclaration,
-  getRowPartitionTab,
+  canSubmitStay,
   kbttErrorCode,
   sanitizeErrorMessage,
   type CitizenshipKind,
+  type KbttCatalogItem,
   type KbttDeclarationListItem,
-  type KbttTabKey,
   type SaveKbttDraftPayload,
 } from "../types/kbtt-contract";
 
@@ -25,17 +33,81 @@ const inputClass =
 const selectClass =
   "min-h-12 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 outline-none transition-all focus:border-[#064e3b] focus:outline-none focus:ring-2 focus:ring-[#064e3b]/15 focus-visible:outline-none disabled:bg-slate-50 disabled:text-slate-400";
 
+function normalizeCatalogText(value: string | null | undefined): string {
+  return (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .replace(/[^A-Za-z0-9]+/g, " ")
+    .trim()
+    .toUpperCase();
+}
+
+function uniqueCatalogMatch(
+  items: readonly KbttCatalogItem[],
+  rawValue: string | null | undefined,
+): string | undefined {
+  const value = normalizeCatalogText(rawValue);
+  if (!value) return undefined;
+  const exact = items.filter((item) =>
+    [item.code, item.nameVi, item.nameEn].some(
+      (candidate) => normalizeCatalogText(candidate) === value,
+    ),
+  );
+  if (exact.length === 1) return exact[0].code;
+
+  const padded = ` ${value} `;
+  const contained = items.filter((item) => {
+    const name = normalizeCatalogText(item.nameVi);
+    return name.length >= 3 && padded.includes(` ${name} `);
+  });
+  const longest = Math.max(
+    0,
+    ...contained.map((item) => normalizeCatalogText(item.nameVi).length),
+  );
+  const best = contained.filter(
+    (item) => normalizeCatalogText(item.nameVi).length === longest,
+  );
+  return best.length === 1 ? best[0].code : undefined;
+}
+
+function inferDocumentTypeCode(
+  items: readonly KbttCatalogItem[],
+  identityNumber: string | null | undefined,
+): string | undefined {
+  const identity = (identityNumber ?? "").trim();
+  const marker = /^\d{12}$/.test(identity)
+    ? /\bCCCD\b|CAN CUOC/
+    : /^\d{9}$/.test(identity)
+      ? /\bCMND\b|CHUNG MINH/
+      : null;
+  if (!marker) return undefined;
+  const matches = items.filter((item) =>
+    marker.test(normalizeCatalogText(item.nameVi)),
+  );
+  const cccdExact = matches.filter((item) =>
+    /\bCCCD\b/.test(normalizeCatalogText(item.nameVi)),
+  );
+  if (/^\d{12}$/.test(identity) && cccdExact.length === 1)
+    return cccdExact[0].code;
+  return matches.length === 1 ? matches[0].code : undefined;
+}
+
 function errorText(error: unknown): string {
   if (error instanceof HttpError) {
     const code = kbttErrorCode(error.data);
     if (code) return sanitizeErrorMessage(code);
     if (error.data && typeof error.data === "object") {
       const dataObj = error.data as Record<string, unknown>;
-      if (typeof dataObj.detail === "string") return sanitizeErrorMessage(dataObj.detail);
-      if (typeof dataObj.message === "string") return sanitizeErrorMessage(dataObj.message);
+      if (typeof dataObj.detail === "string")
+        return sanitizeErrorMessage(dataObj.detail);
+      if (typeof dataObj.message === "string")
+        return sanitizeErrorMessage(dataObj.message);
     }
     if (error.status === 400) return "Dữ liệu khai báo không hợp lệ.";
-    if (error.status === 403) return "Bạn không có quyền thực hiện thao tác này.";
+    if (error.status === 403)
+      return "Bạn không có quyền thực hiện thao tác này.";
     if (error.status === 404) return "Không tìm thấy hồ sơ khách lưu trú.";
     return sanitizeErrorMessage(kbttErrorCode(error.data));
   }
@@ -43,18 +115,6 @@ function errorText(error: unknown): string {
     return sanitizeErrorMessage(error.message);
   }
   return sanitizeErrorMessage(null);
-}
-
-function formatDisplayDate(dateStr: string | null): string {
-  if (!dateStr) return "Chưa cập nhật";
-  const d = new Date(dateStr);
-  if (Number.isNaN(d.getTime())) return dateStr;
-  return d.toLocaleDateString("vi-VN", {
-    timeZone: "Asia/Ho_Chi_Minh",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
 }
 
 function formatDisplayDateTime(dateTimeStr: string | null): string {
@@ -148,449 +208,270 @@ export function KbttDeclarationsPage({
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const limit = 50;
-  const [activeTab, setActiveTab] = useState<KbttTabKey>("vietnamese");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedOccupant, setSelectedOccupant] = useState<KbttDeclarationListItem | null>(null);
-  const boundResource = useMemo(() => kbttResource.bind({ hotelId }), [hotelId]);
-
-  const declarationsResource = useMemo(
-    () => boundResource.queries.declarations.options({ page, limit }),
-    [boundResource, page],
+  const [selectedOccupant, setSelectedOccupant] =
+    useState<KbttDeclarationListItem | null>(null);
+  const [submittingStayId, setSubmittingStayId] = useState<string | null>(null);
+  const boundResource = useMemo(
+    () => kbttResource.bind({ hotelId }),
+    [hotelId],
   );
-  const declarationsQuery = useQuery(declarationsResource);
-
-  const allRows = useMemo(() => declarationsQuery.data ?? [], [declarationsQuery.data]);
-
-  const counts = useMemo(() => {
-    return {
-      vietnamese: allRows.filter((r) => getRowPartitionTab(r) === "vietnamese").length,
-      foreign: allRows.filter((r) => getRowPartitionTab(r) === "foreign").length,
-      needs_completion: allRows.filter((r) => getRowPartitionTab(r) === "needs_completion").length,
-      submitted_or_error: allRows.filter((r) => getRowPartitionTab(r) === "submitted_or_error").length,
-    };
-  }, [allRows]);
-
-  const tabRows = useMemo(() => {
-    return allRows.filter((r) => getRowPartitionTab(r) === activeTab);
-  }, [allRows, activeTab]);
-
-  const filteredRows = useMemo(() => {
+  const declarationsQuery = useQuery(
+    useMemo(
+      () => boundResource.queries.declarations.options({ page, limit }),
+      [boundResource, page],
+    ),
+  );
+  const submitStayMutation = useMutation(
+    boundResource.mutations.submitStay.options(),
+  );
+  const allRows = useMemo(
+    () => declarationsQuery.data ?? [],
+    [declarationsQuery.data],
+  );
+  const pageStayCount = useMemo(
+    () => new Set(allRows.map((row) => row.stayId)).size,
+    [allRows],
+  );
+  const roomGroups = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return tabRows;
-    return tabRows.filter(
-      (r) =>
-        r.fullName.toLowerCase().includes(q) ||
-        (r.roomNumber && r.roomNumber.toLowerCase().includes(q)) ||
-        (r.identityNumber && r.identityNumber.toLowerCase().includes(q)),
-    );
-  }, [tabRows, searchQuery]);
+    const grouped = new Map<string, KbttDeclarationListItem[]>();
+    for (const row of allRows) {
+      const haystack =
+        `${row.roomNumber ?? ""} ${row.fullName} ${row.identityNumber ?? ""}`.toLowerCase();
+      if (q && !haystack.includes(q)) continue;
+      const guests = grouped.get(row.stayId) ?? [];
+      guests.push(row);
+      grouped.set(row.stayId, guests);
+    }
+    return [...grouped.entries()].map(([stayId, guests]) => ({
+      stayId,
+      roomNumber: guests[0]?.roomNumber ?? null,
+      guests,
+    }));
+  }, [allRows, searchQuery]);
 
   const handleRefresh = useCallback(() => {
-    void queryClient.invalidateQueries({
-      queryKey: boundResource.key,
-    });
+    void queryClient.invalidateQueries({ queryKey: boundResource.key });
   }, [boundResource, queryClient]);
 
-  const submitMutation = useMutation(boundResource.mutations.submit.options());
-  const [submittingOccupantId, setSubmittingOccupantId] = useState<string | null>(null);
-
-  const handleSubmitFromList = useCallback(
-    async (occupant: KbttDeclarationListItem) => {
-      if (!canManage || occupant.derivedStatus !== "READY") return;
-
+  const handleSubmitStay = useCallback(
+    async (
+      stayId: string,
+      roomNumber: string | null,
+      guests: KbttDeclarationListItem[],
+    ) => {
+      if (!canSubmitStay(guests, canManage)) return;
       const confirm = await showConfirmDialog({
-        title: "Gửi khai báo tạm trú lên Bộ Công an?",
-        text: "Thao tác này sẽ gửi dữ liệu thực của khách lưu trú đến Bộ Công an demo/provider. Dữ liệu sau khi gửi thành công sẽ không thể chỉnh sửa trực tiếp.",
-        confirmText: "Gửi Bộ Công an",
+        title: `Gửi toàn bộ ${guests.length} khách phòng ${roomNumber ?? "chưa xếp"}?`,
+        text: "Hệ thống sẽ gửi toàn bộ danh sách khách đang check-in trong phòng và tự phân tuyến API 4/5 theo quốc tịch. Hồ sơ chưa sẵn sàng hoặc chưa rõ kết quả sẽ chặn toàn bộ thao tác.",
+        confirmText: "Gửi toàn bộ khách",
         cancelText: "Hủy",
         icon: "warning",
       });
       if (!confirm.isConfirmed) return;
-
       try {
-        setSubmittingOccupantId(occupant.occupantId);
-        await submitMutation.mutateAsync({ occupantId: occupant.occupantId });
+        setSubmittingStayId(stayId);
+        const result = await submitStayMutation.mutateAsync({ stayId });
         await showSuccessAlert(
           "Khai báo tạm trú",
-          "Đã gửi khai báo tạm trú lên Bộ Công an thành công.",
+          `Đã gửi ${result.submittedCount} khách phòng ${roomNumber ?? ""} thành công.`,
         );
         handleRefresh();
       } catch (error) {
-        await showErrorAlert("Gửi Bộ Công an thất bại", errorText(error));
+        await showErrorAlert("Gửi danh sách phòng thất bại", errorText(error));
+        handleRefresh();
       } finally {
-        setSubmittingOccupantId(null);
+        setSubmittingStayId(null);
       }
     },
-    [canManage, handleRefresh, submitMutation],
+    [canManage, handleRefresh, submitStayMutation],
   );
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 pb-16 pt-2 text-slate-900" aria-labelledby="declarations-title">
+    <div
+      className="mx-auto max-w-7xl space-y-6 pb-16 pt-2 text-slate-900"
+      aria-labelledby="declarations-title"
+    >
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-wider text-emerald-800">
-            HỒ SƠ KHÁCH LƯU TRÚ
+            KHÁCH ĐANG CHECK-IN
           </p>
-          <h1 id="declarations-title" className="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            Khai báo tạm trú lưu trú
+          <h1
+            id="declarations-title"
+            className="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl"
+          >
+            Khai báo tạm trú theo phòng
           </h1>
           <p className="mt-1 text-base text-slate-600">
-            Quản lý hồ sơ khai báo của khách đang lưu trú, hoàn thiện bản nháp và đánh dấu sẵn sàng gửi.
+            Mỗi phòng hiển thị toàn bộ khách đang lưu trú. Hoàn thiện từng hồ
+            sơ, sau đó gửi cả phòng một lần.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={handleRefresh}
-            disabled={declarationsQuery.isFetching}
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-base font-semibold text-slate-700 shadow-xs transition-all hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#064e3b] disabled:opacity-60"
-          >
-            <svg
-              className={`h-5 w-5 ${declarationsQuery.isFetching ? "animate-spin text-emerald-600" : "text-slate-500"}`}
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-              />
-            </svg>
-            Làm mới
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={handleRefresh}
+          disabled={declarationsQuery.isFetching}
+          className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-base font-semibold text-slate-700 shadow-xs hover:bg-slate-50 disabled:opacity-60"
+        >
+          {declarationsQuery.isFetching ? "Đang tải…" : "Làm mới"}
+        </button>
       </header>
 
-      {/* Tabs */}
-      <nav
-        aria-label="Phân loại hồ sơ khai báo"
-        className="flex flex-wrap gap-2 border-b border-slate-200 pb-2"
-        role="tablist"
-      >
-        <button
-          type="button"
-          role="tab"
-          id="tab-vietnamese"
-          aria-selected={activeTab === "vietnamese"}
-          aria-controls="panel-vietnamese"
-          onClick={() => setActiveTab("vietnamese")}
-          className={`inline-flex min-h-11 items-center gap-2 rounded-xl px-4 py-2.5 text-base font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#064e3b] ${
-            activeTab === "vietnamese"
-              ? "bg-[#064e3b] text-white shadow-xs"
-              : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-          }`}
-        >
-          <span>Người Việt Nam</span>
-          <span
-            className={`rounded-full px-2 py-0.5 text-xs font-bold ${
-              activeTab === "vietnamese" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700"
-            }`}
-          >
-            {counts.vietnamese}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <label className="w-full sm:max-w-md">
+          <span className="sr-only">
+            Tìm theo phòng, tên khách hoặc giấy tờ
           </span>
-        </button>
-
-        <button
-          type="button"
-          role="tab"
-          id="tab-foreign"
-          aria-selected={activeTab === "foreign"}
-          aria-controls="panel-foreign"
-          onClick={() => setActiveTab("foreign")}
-          className={`inline-flex min-h-11 items-center gap-2 rounded-xl px-4 py-2.5 text-base font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#064e3b] ${
-            activeTab === "foreign"
-              ? "bg-[#064e3b] text-white shadow-xs"
-              : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-          }`}
-        >
-          <span>Người nước ngoài</span>
-          <span
-            className={`rounded-full px-2 py-0.5 text-xs font-bold ${
-              activeTab === "foreign" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700"
-            }`}
-          >
-            {counts.foreign}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          role="tab"
-          id="tab-needs-completion"
-          aria-selected={activeTab === "needs_completion"}
-          aria-controls="panel-needs-completion"
-          onClick={() => setActiveTab("needs_completion")}
-          className={`inline-flex min-h-11 items-center gap-2 rounded-xl px-4 py-2.5 text-base font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#064e3b] ${
-            activeTab === "needs_completion"
-              ? "bg-[#064e3b] text-white shadow-xs"
-              : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-          }`}
-        >
-          <span>Cần bổ sung</span>
-          <span
-            className={`rounded-full px-2 py-0.5 text-xs font-bold ${
-              activeTab === "needs_completion" ? "bg-white/20 text-white" : "bg-amber-200 text-amber-900"
-            }`}
-          >
-            {counts.needs_completion}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          role="tab"
-          id="tab-submitted-error"
-          aria-selected={activeTab === "submitted_or_error"}
-          aria-controls="panel-submitted-error"
-          onClick={() => setActiveTab("submitted_or_error")}
-          className={`inline-flex min-h-11 items-center gap-2 rounded-xl px-4 py-2.5 text-base font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#064e3b] ${
-            activeTab === "submitted_or_error"
-              ? "bg-[#064e3b] text-white shadow-xs"
-              : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-          }`}
-        >
-          <span>Đã gửi / Lỗi</span>
-          <span
-            className={`rounded-full px-2 py-0.5 text-xs font-bold ${
-              activeTab === "submitted_or_error" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700"
-            }`}
-          >
-            {counts.submitted_or_error}
-          </span>
-        </button>
-      </nav>
-
-      {/* Filter / Search */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full sm:max-w-md">
-          <label htmlFor="kbtt-search" className="sr-only">
-            Tìm kiếm theo tên khách, số phòng, số giấy tờ
-          </label>
           <input
-            id="kbtt-search"
             type="search"
-            placeholder="Tìm theo tên khách, số phòng, số giấy tờ..."
+            placeholder="Tìm theo phòng, tên khách hoặc giấy tờ..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="min-h-11 w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-base text-slate-900 outline-none transition-all focus:border-[#064e3b] focus:ring-2 focus:ring-[#064e3b]/15"
+            onChange={(event) => setSearchQuery(event.target.value)}
+            className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-base outline-none focus:border-[#064e3b] focus:ring-2 focus:ring-[#064e3b]/15"
           />
-          <svg
-            className="pointer-events-none absolute left-3 top-3 h-5 w-5 text-slate-400"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-        </div>
+        </label>
         <p className="text-sm font-medium text-slate-500">
-          Hiển thị {filteredRows.length} / {tabRows.length} hồ sơ trong mục này
+          {roomGroups.length} phòng · {allRows.length} khách
         </p>
       </div>
 
-      {/* List / Table Area */}
-      <div
-        role="tabpanel"
-        id={`panel-${activeTab}`}
-        aria-labelledby={`tab-${activeTab}`}
-        className="space-y-4"
-      >
-        {declarationsQuery.isPending ? (
-          <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-slate-100 bg-white py-16 text-slate-500 shadow-xs">
-            <svg className="h-8 w-8 animate-spin text-[#064e3b]" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-            </svg>
-            <p className="text-base font-medium">Đang tải danh sách hồ sơ khai báo tạm trú…</p>
-          </div>
-        ) : declarationsQuery.isError ? (
-          <div className="rounded-2xl border border-red-200 bg-red-50/80 p-6 text-red-900 shadow-xs">
-            <div className="flex items-center gap-3">
-              <svg className="h-6 w-6 shrink-0 text-red-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-              </svg>
-              <h3 className="text-lg font-bold">Không thể tải danh sách khai báo tạm trú</h3>
-            </div>
-            <p className="mt-2 text-base text-red-700">{errorText(declarationsQuery.error)}</p>
-            <button
-              type="button"
-              onClick={handleRefresh}
-              className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-red-600 px-5 py-2.5 text-base font-semibold text-white transition-all hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
-            >
-              Thử lại
-            </button>
-          </div>
-        ) : filteredRows.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center text-slate-500 shadow-xs">
-            <svg className="h-12 w-12 text-slate-300" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-            </svg>
-            <p className="text-lg font-semibold text-slate-700">
-              {searchQuery ? "Không tìm thấy khách lưu trú phù hợp từ khóa" : "Chưa có hồ sơ nào trong mục này"}
-            </p>
-            <p className="max-w-md text-base text-slate-500">
-              {activeTab === "vietnamese"
-                ? "Không có khách lưu trú người Việt Nam nào cần xử lý tại trang này."
-                : activeTab === "foreign"
-                  ? "Không có khách lưu trú người nước ngoài nào cần xử lý tại trang này."
-                  : activeTab === "needs_completion"
-                    ? "Tất cả khách lưu trú đã có đầy đủ hồ sơ khởi tạo."
-                    : "Chưa có hồ sơ nào đã được gửi hoặc phát sinh lỗi."}
-            </p>
-          </div>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {filteredRows.map((occupant) => {
-              const isVietnamese = occupant.citizenshipKind === "VIETNAMESE";
-              const isForeign = occupant.citizenshipKind === "FOREIGN";
-
-              return (
-                <article
-                  key={occupant.occupantId}
-                  className="flex flex-col justify-between rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs transition-all hover:border-slate-300 hover:shadow-md"
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="inline-flex h-9 items-center justify-center rounded-lg bg-slate-100 px-2.5 text-base font-bold text-slate-800">
-                          {occupant.roomNumber ? `P.${occupant.roomNumber}` : "Chưa xếp"}
-                        </span>
-                        <span
-                          className={`rounded-md px-2 py-0.5 text-xs font-semibold ${
-                            occupant.isPrimary ? "bg-emerald-50 text-emerald-800" : "bg-slate-100 text-slate-600"
-                          }`}
-                        >
-                          {occupant.isPrimary ? "Khách chính" : "Khách đi cùng"}
-                        </span>
-                      </div>
-                      <StatusBadge status={occupant.derivedStatus} />
-                    </div>
-
-                    <div>
-                      <h2 className="text-lg font-bold text-slate-900 leading-snug">{occupant.fullName}</h2>
-                      <p className="mt-0.5 text-sm text-slate-500">
-                        {isForeign
-                          ? `Khách nước ngoài${occupant.nationality ? ` (${occupant.nationality})` : ""}`
-                          : isVietnamese
-                            ? "Khách Việt Nam"
-                            : "Chưa phân loại quốc tịch"}
-                      </p>
-                    </div>
-
-                    <div className="space-y-1.5 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">Giấy tờ:</span>
-                        <span className="font-medium text-slate-900">
-                          {occupant.identityNumber || "Chưa có"}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">Ngày sinh:</span>
-                        <span className="font-medium text-slate-900">
-                          {formatDisplayDate(occupant.dateOfBirth)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">Lưu trú:</span>
-                        <span className="font-medium text-slate-900">
-                          {formatDisplayDateTime(occupant.checkedInAt || occupant.plannedCheckInAt)}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Missing work / status message */}
-                    <div className="text-sm">
-                      {occupant.derivedStatus === "MISSING_PROFILE" && (
-                        <p className="flex items-center gap-1.5 font-medium text-amber-700">
-                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                          Cần chọn loại quốc tịch và khởi tạo bản nháp.
-                        </p>
-                      )}
-                      {occupant.derivedStatus === "DRAFT" && (
-                        <p className="flex items-center gap-1.5 font-medium text-blue-700">
-                          <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
-                          Cần rà soát và nhấn &ldquo;Đánh dấu sẵn sàng&rdquo;.
-                        </p>
-                      )}
-                      {occupant.derivedStatus === "READY" && (
-                        <p className="flex items-center gap-1.5 font-medium text-emerald-700">
-                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                          Hồ sơ đã hợp lệ, sẵn sàng kết xuất báo cáo.
-                        </p>
-                      )}
-                      {occupant.derivedStatus === "FAILED" && (
-                        <p className="text-red-700">
-                          {occupant.declaration?.providerMessage || "Hồ sơ bị từ chối, cần chỉnh sửa lại."}
-                        </p>
-                      )}
-                    </div>
+      {declarationsQuery.isPending ? (
+        <div className="rounded-2xl border border-slate-100 bg-white py-16 text-center text-slate-500 shadow-xs">
+          Đang tải danh sách khách…
+        </div>
+      ) : declarationsQuery.isError ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-900">
+          <p className="font-semibold">
+            Không thể tải danh sách khai báo tạm trú
+          </p>
+          <p className="mt-2">{errorText(declarationsQuery.error)}</p>
+          <button
+            type="button"
+            onClick={handleRefresh}
+            className="mt-4 min-h-11 rounded-xl bg-red-600 px-5 text-white"
+          >
+            Thử lại
+          </button>
+        </div>
+      ) : roomGroups.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center text-slate-500">
+          {searchQuery
+            ? "Không tìm thấy phòng hoặc khách phù hợp."
+            : "Chưa có khách đang check-in."}
+        </div>
+      ) : (
+        <div className="space-y-5">
+          {roomGroups.map(({ stayId, roomNumber, guests }) => {
+            const readyToSubmit = canSubmitStay(guests, canManage);
+            const unresolved = guests.filter((guest) =>
+              [
+                "MISSING_PROFILE",
+                "DRAFT",
+                "SENDING",
+                "UNKNOWN",
+                "CANCELLED",
+              ].includes(guest.derivedStatus),
+            ).length;
+            return (
+              <section
+                key={stayId}
+                className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs"
+              >
+                <header className="flex flex-col gap-3 border-b border-slate-100 bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-900">
+                      Phòng {roomNumber ?? "chưa xếp"}
+                    </h2>
+                    <p className="text-sm text-slate-500">
+                      {guests.length} khách đang check-in
+                    </p>
                   </div>
-
-                  <div className="mt-4 pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                  {canManage && (
                     <button
                       type="button"
-                      onClick={() => setSelectedOccupant(occupant)}
-                      className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#064e3b] px-4 py-2.5 text-base font-semibold text-white shadow-xs transition-all hover:bg-[#043327] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#064e3b]"
+                      disabled={!readyToSubmit || submittingStayId === stayId}
+                      onClick={() =>
+                        handleSubmitStay(stayId, roomNumber, guests)
+                      }
+                      className="min-h-11 rounded-xl bg-emerald-700 px-5 text-base font-bold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
                     >
-                      <span>
-                        {occupant.derivedStatus === "MISSING_PROFILE"
-                          ? "Khai báo thông tin"
-                          : occupant.derivedStatus === "READY"
-                            ? "Xem / Chỉnh sửa hồ sơ"
-                            : "Chỉnh sửa bản nháp"}
-                      </span>
+                      {submittingStayId === stayId
+                        ? "Đang gửi…"
+                        : `Gửi toàn bộ ${guests.length} khách`}
                     </button>
-                    {canSubmitDeclaration(occupant.derivedStatus, canManage) && (
+                  )}
+                  {!readyToSubmit && unresolved > 0 && (
+                    <p className="text-sm font-medium text-amber-700">
+                      Còn {unresolved} hồ sơ cần hoàn thiện hoặc đối soát.
+                    </p>
+                  )}
+                </header>
+                <ul className="divide-y divide-slate-100">
+                  {guests.map((guest) => (
+                    <li
+                      key={guest.occupantId}
+                      className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="font-bold text-slate-900">
+                            {guest.fullName}
+                          </h3>
+                          <StatusBadge status={guest.derivedStatus} />
+                        </div>
+                        <p className="mt-1 text-sm text-slate-500">
+                          {guest.citizenshipKind === "FOREIGN"
+                            ? `Nước ngoài${guest.nationality ? ` · ${guest.nationality}` : ""}`
+                            : guest.citizenshipKind === "VIETNAMESE"
+                              ? "Việt Nam"
+                              : "Chưa phân loại quốc tịch"}
+                          {guest.identityNumber
+                            ? ` · ${guest.identityNumber}`
+                            : " · Chưa có giấy tờ"}
+                        </p>
+                      </div>
                       <button
                         type="button"
-                        disabled={submittingOccupantId === occupant.occupantId}
-                        onClick={() => handleSubmitFromList(occupant)}
-                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-base font-bold text-white shadow-xs transition-all hover:bg-emerald-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 disabled:opacity-50"
+                        onClick={() => setSelectedOccupant(guest)}
+                        className="min-h-11 shrink-0 rounded-xl bg-[#064e3b] px-4 text-base font-semibold text-white hover:bg-[#043327]"
                       >
-                        {submittingOccupantId === occupant.occupantId && (
-                          <svg className="h-4 w-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-                          </svg>
-                        )}
-                        Gửi BCA
+                        {guest.derivedStatus === "MISSING_PROFILE"
+                          ? "Khai báo thông tin"
+                          : "Xem / Chỉnh sửa hồ sơ"}
                       </button>
-                    )}
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        )}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            );
+          })}
+        </div>
+      )}
 
-        {/* Pagination Controls */}
-        <footer className="mt-6 flex items-center justify-between border-t border-slate-200 pt-4">
-          <p className="text-base text-slate-600">Trang {page}</p>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              disabled={page <= 1 || declarationsQuery.isFetching}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-slate-200 bg-white px-4 py-2 text-base font-semibold text-slate-700 shadow-xs transition-all hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#064e3b] disabled:opacity-50"
-            >
-              Trang trước
-            </button>
-            <button
-              type="button"
-              disabled={allRows.length < limit || declarationsQuery.isFetching}
-              onClick={() => setPage((p) => p + 1)}
-              className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-slate-200 bg-white px-4 py-2 text-base font-semibold text-slate-700 shadow-xs transition-all hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#064e3b] disabled:opacity-50"
-            >
-              Trang sau
-            </button>
-          </div>
-        </footer>
-      </div>
+      <footer className="flex items-center justify-between border-t border-slate-200 pt-4">
+        <p className="text-base text-slate-600">Trang {page}</p>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            disabled={page <= 1 || declarationsQuery.isFetching}
+            onClick={() => setPage((value) => Math.max(1, value - 1))}
+            className="min-h-11 rounded-xl border bg-white px-4 disabled:opacity-50"
+          >
+            Trang trước
+          </button>
+          <button
+            type="button"
+            disabled={pageStayCount < limit || declarationsQuery.isFetching}
+            onClick={() => setPage((value) => value + 1)}
+            className="min-h-11 rounded-xl border bg-white px-4 disabled:opacity-50"
+          >
+            Trang sau
+          </button>
+        </div>
+      </footer>
 
-      {/* Detail & Draft Form Modal */}
       {selectedOccupant && (
         <DeclarationModal
           hotelId={hotelId}
@@ -598,11 +479,7 @@ export function KbttDeclarationsPage({
           occupantSummary={selectedOccupant}
           canManage={canManage}
           onClose={() => setSelectedOccupant(null)}
-          onUpdated={() => {
-            void queryClient.invalidateQueries({
-              queryKey: boundResource.key,
-            });
-          }}
+          onUpdated={handleRefresh}
         />
       )}
     </div>
@@ -624,7 +501,10 @@ function DeclarationModal({
   onClose: () => void;
   onUpdated: () => void;
 }) {
-  const boundResource = useMemo(() => kbttResource.bind({ hotelId }), [hotelId]);
+  const boundResource = useMemo(
+    () => kbttResource.bind({ hotelId }),
+    [hotelId],
+  );
   const detailResource = useMemo(
     () => boundResource.queries.declarationDetail.options({ occupantId }),
     [boundResource, occupantId],
@@ -632,24 +512,31 @@ function DeclarationModal({
   const detailQuery = useQuery(detailResource);
 
   const saveMutation = useMutation(boundResource.mutations.saveDraft.options());
-  const readyMutation = useMutation(boundResource.mutations.markReady.options());
-  const submitMutation = useMutation(boundResource.mutations.submit.options());
+  const readyMutation = useMutation(
+    boundResource.mutations.markReady.options(),
+  );
 
   const initialKind =
     detailQuery.data?.declaration?.declarationKind ??
     detailQuery.data?.occupant.citizenshipKind ??
     occupantSummary.citizenshipKind ??
-    "VIETNAMESE";
-  const [citizenshipOverride, setCitizenshipOverride] = useState<CitizenshipKind | null>(null);
+    null;
+  const [citizenshipOverride, setCitizenshipOverride] =
+    useState<CitizenshipKind | null>(null);
+  const [manualClassification, setManualClassification] = useState(false);
   const citizenshipKind = citizenshipOverride ?? initialKind;
   const initialFormData = useMemo(() => {
     if (!detailQuery.data) return {};
     const occupant = detailQuery.data.occupant;
     const initial: Record<string, unknown> = {
-      ...((detailQuery.data.declaration?.draftPayload ?? {}) as Record<string, unknown>),
+      ...((detailQuery.data.declaration?.draftPayload ?? {}) as Record<
+        string,
+        unknown
+      >),
     };
     if (!initial.hoTen && occupant.fullName) initial.hoTen = occupant.fullName;
-    if (!initial.soPhong && occupantSummary.roomNumber) initial.soPhong = occupantSummary.roomNumber;
+    if (!initial.soPhong && occupantSummary.roomNumber)
+      initial.soPhong = occupantSummary.roomNumber;
     if (!initial.ngayThangNamSinhStr && occupant.dateOfBirth) {
       initial.ngayThangNamSinhStr = occupant.dateOfBirth;
     }
@@ -658,19 +545,26 @@ function DeclarationModal({
       if (["M", "MALE", "NAM"].includes(gender)) initial.gioiTinh = "M";
       if (["F", "FEMALE", "NỮ", "NU"].includes(gender)) initial.gioiTinh = "F";
     }
-    if (initialKind === "VIETNAMESE" && !initial.soGiayTo && occupant.identityNumber) {
+    if (
+      initialKind === "VIETNAMESE" &&
+      !initial.soGiayTo &&
+      occupant.identityNumber
+    ) {
       initial.soGiayTo = occupant.identityNumber;
     }
     if (initialKind === "FOREIGN") {
-      if (!initial.soHoChieu && occupant.identityNumber) initial.soHoChieu = occupant.identityNumber;
+      if (!initial.soHoChieu && occupant.identityNumber)
+        initial.soHoChieu = occupant.identityNumber;
       if (!initial.loaiNgayThangNamSinh) initial.loaiNgayThangNamSinh = "D";
     }
     return initial;
   }, [detailQuery.data, initialKind, occupantSummary.roomNumber]);
   const [formEdits, setFormEdits] = useState<Record<string, unknown>>({});
-  const formData = useMemo(
+  const baseFormData = useMemo(
     () => ({
-      ...(citizenshipOverride && citizenshipOverride !== initialKind ? {} : initialFormData),
+      ...(citizenshipOverride && citizenshipOverride !== initialKind
+        ? {}
+        : initialFormData),
       ...formEdits,
     }),
     [citizenshipOverride, formEdits, initialFormData, initialKind],
@@ -687,9 +581,19 @@ function DeclarationModal({
     ...boundResource.queries.catalog.options({ kind: "PROVINCE" }),
     enabled: citizenshipKind === "VIETNAMESE",
   });
-  const provinceCode = typeof formData.maTT === "string" ? formData.maTT : undefined;
+  const inferredProvinceCode = uniqueCatalogMatch(
+    provincesQuery.data ?? [],
+    detailQuery.data?.occupant.residencePlace,
+  );
+  const provinceCode =
+    typeof baseFormData.maTT === "string"
+      ? baseFormData.maTT
+      : inferredProvinceCode;
   const wardsQuery = useQuery({
-    ...boundResource.queries.catalog.options({ kind: "WARD", parentCode: provinceCode }),
+    ...boundResource.queries.catalog.options({
+      kind: "WARD",
+      parentCode: provinceCode,
+    }),
     enabled: citizenshipKind === "VIETNAMESE" && Boolean(provinceCode),
   });
   const residencePlacesQuery = useQuery({
@@ -700,7 +604,62 @@ function DeclarationModal({
     ...boundResource.queries.catalog.options({ kind: "NATIONALITY" }),
     enabled: citizenshipKind === "FOREIGN",
   });
-
+  const inferredDocumentType = inferDocumentTypeCode(
+    documentTypesQuery.data ?? [],
+    detailQuery.data?.occupant.identityNumber,
+  );
+  const inferredStayReasonCode = uniqueCatalogMatch(
+    stayReasonsQuery.data ?? [],
+    "Du lịch",
+  );
+  const inferredStayReason =
+    inferredStayReasonCode && /^\d+$/.test(inferredStayReasonCode)
+      ? Number(inferredStayReasonCode)
+      : undefined;
+  const inferredWardCode = uniqueCatalogMatch(
+    wardsQuery.data ?? [],
+    detailQuery.data?.occupant.residencePlace,
+  );
+  const inferredResidencePlace = uniqueCatalogMatch(
+    residencePlacesQuery.data ?? [],
+    "Tạm trú",
+  );
+  const inferredNationalityCode = uniqueCatalogMatch(
+    nationalitiesQuery.data ?? [],
+    detailQuery.data?.occupant.nationality,
+  );
+  const formData = useMemo<Record<string, unknown>>(
+    () => ({
+      ...baseFormData,
+      ...(baseFormData.loaiGiayTo === undefined && inferredDocumentType
+        ? { loaiGiayTo: Number(inferredDocumentType) }
+        : {}),
+      ...(baseFormData.lyDoCuTru === undefined && inferredStayReason
+        ? { lyDoCuTru: Number(inferredStayReason) }
+        : {}),
+      ...(baseFormData.maTT === undefined && inferredProvinceCode
+        ? { maTT: inferredProvinceCode }
+        : {}),
+      ...(baseFormData.maPX === undefined && inferredWardCode
+        ? { maPX: inferredWardCode }
+        : {}),
+      ...(baseFormData.noiCuTru === undefined && inferredResidencePlace
+        ? { noiCuTru: Number(inferredResidencePlace) }
+        : {}),
+      ...(baseFormData.quocTich === undefined && inferredNationalityCode
+        ? { quocTich: inferredNationalityCode }
+        : {}),
+    }),
+    [
+      baseFormData,
+      inferredDocumentType,
+      inferredStayReason,
+      inferredNationalityCode,
+      inferredProvinceCode,
+      inferredResidencePlace,
+      inferredWardCode,
+    ],
+  );
 
   // Handle ESC key to close modal
   useEffect(() => {
@@ -718,6 +677,13 @@ function DeclarationModal({
   const handleSaveDraft = async (e?: FormEvent) => {
     if (e) e.preventDefault();
     if (!canManage) return;
+    if (!citizenshipKind) {
+      await showErrorAlert(
+        "Chưa xác định quốc tịch",
+        "Giấy tờ chưa đủ dữ liệu để tự phân loại. Vui lòng chọn loại quốc tịch.",
+      );
+      return;
+    }
 
     try {
       const payload: SaveKbttDraftPayload = {
@@ -734,6 +700,13 @@ function DeclarationModal({
 
   const handleMarkReady = async () => {
     if (!canManage) return;
+    if (!citizenshipKind) {
+      await showErrorAlert(
+        "Chưa xác định quốc tịch",
+        "Giấy tờ chưa đủ dữ liệu để tự phân loại. Vui lòng chọn loại quốc tịch.",
+      );
+      return;
+    }
 
     const confirm = await showConfirmDialog({
       title: "Đánh dấu hồ sơ sẵn sàng?",
@@ -765,37 +738,12 @@ function DeclarationModal({
     }
   };
 
-  const handleSubmit = async () => {
-    if (!canManage) return;
-    if (!canSubmitDeclaration(declStatus, canManage) && !canRetryDeclaration(declStatus, canManage)) {
-      return;
-    }
-
-    const confirm = await showConfirmDialog({
-      title: "Gửi khai báo tạm trú lên Bộ Công an?",
-      text: "Thao tác này sẽ gửi dữ liệu thực của khách lưu trú đến Bộ Công an demo/provider. Dữ liệu sau khi gửi thành công sẽ không thể chỉnh sửa trực tiếp.",
-      confirmText: "Gửi Bộ Công an",
-      cancelText: "Hủy",
-      icon: "warning",
-    });
-    if (!confirm.isConfirmed) return;
-
-    try {
-      await submitMutation.mutateAsync({ occupantId });
-      await showSuccessAlert(
-        "Khai báo tạm trú",
-        "Đã gửi khai báo tạm trú lên Bộ Công an thành công.",
-      );
-      onUpdated();
-      onClose();
-    } catch (error) {
-      await showErrorAlert("Gửi Bộ Công an thất bại", errorText(error));
-    }
-  };
-
-  const isBusy = saveMutation.isPending || readyMutation.isPending || submitMutation.isPending;
-  const declStatus = detailQuery.data?.declaration?.status ?? occupantSummary.derivedStatus;
-  const isEditable = ["DRAFT", "READY", "FAILED", "MISSING_PROFILE"].includes(declStatus);
+  const isBusy = saveMutation.isPending || readyMutation.isPending;
+  const declStatus =
+    detailQuery.data?.declaration?.status ?? occupantSummary.derivedStatus;
+  const isEditable = ["DRAFT", "READY", "FAILED", "MISSING_PROFILE"].includes(
+    declStatus,
+  );
 
   return (
     <div
@@ -810,15 +758,20 @@ function DeclarationModal({
           <div>
             <div className="flex items-center gap-2">
               <span className="rounded-lg bg-emerald-50 px-2.5 py-1 text-sm font-bold text-emerald-800">
-                {occupantSummary.roomNumber ? `Phòng ${occupantSummary.roomNumber}` : "Chưa xếp phòng"}
+                {occupantSummary.roomNumber
+                  ? `Phòng ${occupantSummary.roomNumber}`
+                  : "Chưa xếp phòng"}
               </span>
               <StatusBadge status={declStatus} />
             </div>
-            <h2 id="modal-decl-title" className="mt-2 text-2xl font-bold text-slate-900">
+            <h2
+              id="modal-decl-title"
+              className="mt-2 text-2xl font-bold text-slate-900"
+            >
               Hồ sơ khai báo: {occupantSummary.fullName}
             </h2>
             <p className="mt-0.5 text-base text-slate-500">
-              Mã khách: {occupantId} | {occupantSummary.isPrimary ? "Khách chính" : "Khách đi cùng"}
+              Mã khách: {occupantId}
             </p>
           </div>
           <button
@@ -827,20 +780,50 @@ function DeclarationModal({
             aria-label="Đóng hộp thoại"
             className="rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#064e3b]"
           >
-            <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            <svg
+              className="h-6 w-6"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
 
         {/* Loading state */}
         {detailQuery.isPending && (
-          <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-500" role="status">
-            <svg className="h-8 w-8 animate-spin text-[#064e3b]" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+          <div
+            className="flex flex-col items-center justify-center gap-3 py-16 text-slate-500"
+            role="status"
+          >
+            <svg
+              className="h-8 w-8 animate-spin text-[#064e3b]"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+              />
             </svg>
-            <p className="text-base font-medium">Đang tải chi tiết hồ sơ khai báo…</p>
+            <p className="text-base font-medium">
+              Đang tải chi tiết hồ sơ khai báo…
+            </p>
           </div>
         )}
 
@@ -863,47 +846,93 @@ function DeclarationModal({
           <form onSubmit={handleSaveDraft} className="space-y-6">
             {declStatus === "UNKNOWN" && (
               <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-900">
-                <p className="font-semibold">Hồ sơ đang ở trạng thái chưa rõ kết quả (UNKNOWN)</p>
+                <p className="font-semibold">
+                  Hồ sơ đang ở trạng thái chưa rõ kết quả (UNKNOWN)
+                </p>
                 <p className="mt-1 text-sm text-amber-800">
-                  Hệ thống không thể xác định kết quả từ phía Bộ Công an. Vì lý do an toàn dữ liệu, hồ sơ không thể gửi lại hoặc sửa đổi trực tiếp. Vui lòng liên hệ hỗ trợ kỹ thuật hoặc đối soát với cơ quan quản lý.
+                  Hệ thống không thể xác định kết quả từ phía Bộ Công an. Vì lý
+                  do an toàn dữ liệu, hồ sơ không thể gửi lại hoặc sửa đổi trực
+                  tiếp. Vui lòng liên hệ hỗ trợ kỹ thuật hoặc đối soát với cơ
+                  quan quản lý.
                 </p>
               </div>
             )}
             {declStatus === "SUBMITTED" && (
               <div className="rounded-2xl border border-emerald-300 bg-emerald-50 p-4 text-emerald-900">
-                <p className="font-semibold">Hồ sơ đã được gửi thành công lên Bộ Công an</p>
+                <p className="font-semibold">
+                  Hồ sơ đã được gửi thành công lên Bộ Công an
+                </p>
                 <p className="mt-1 text-sm text-emerald-800">
-                  Thời gian gửi: {formatDisplayDateTime(detailQuery.data?.declaration?.submittedAt ?? null)}. Hồ sơ ở trạng thái ĐÃ GỬI không thể sửa đổi trực tiếp.
+                  Thời gian gửi:{" "}
+                  {formatDisplayDateTime(
+                    detailQuery.data?.declaration?.submittedAt ?? null,
+                  )}
+                  . Hồ sơ ở trạng thái ĐÃ GỬI không thể sửa đổi trực tiếp.
                 </p>
               </div>
             )}
 
-            {/* Citizenship selection */}
-            <div>
-              <label htmlFor="citizenship-kind-select" className="block text-sm font-semibold text-slate-700 mb-1">
-                Loại quốc tịch khai báo
-              </label>
-              <select
-                id="citizenship-kind-select"
-                value={citizenshipKind}
-                disabled={!isEditable || !canManage}
-                onChange={(e) => {
-                  setCitizenshipOverride(e.target.value as CitizenshipKind);
-                  setFormEdits({});
-                }}
-                className={selectClass}
-              >
-                <option value="VIETNAMESE">Người Việt Nam (API 5 - Báo cáo lưu trú nội địa)</option>
-                <option value="FOREIGN">Người nước ngoài (API 4 - Báo cáo tạm trú người nước ngoài)</option>
-              </select>
-            </div>
+            {/* Citizenship is inferred from scanned check-in data. Manual selection is fallback-only. */}
+            {citizenshipKind && !manualClassification ? (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                <div>
+                  <p className="text-sm font-semibold text-emerald-900">
+                    Đã tự xác định từ dữ liệu check-in
+                  </p>
+                  <p className="mt-1 text-sm text-emerald-800">
+                    {citizenshipKind === "VIETNAMESE"
+                      ? "Người Việt Nam · API 5"
+                      : "Người nước ngoài · API 4"}
+                  </p>
+                </div>
+                {isEditable && canManage ? (
+                  <button
+                    type="button"
+                    onClick={() => setManualClassification(true)}
+                    className="min-h-11 rounded-xl border border-emerald-300 bg-white px-4 py-2 text-sm font-semibold text-emerald-900 hover:bg-emerald-100"
+                  >
+                    Phân loại sai? Chọn lại
+                  </button>
+                ) : null}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <label
+                  htmlFor="citizenship-kind-select"
+                  className="block text-sm font-semibold text-amber-900 mb-1"
+                >
+                  Giấy tờ chưa đủ dữ liệu — chọn loại quốc tịch
+                </label>
+                <select
+                  id="citizenship-kind-select"
+                  value={citizenshipKind ?? ""}
+                  disabled={!isEditable || !canManage}
+                  onChange={(e) => {
+                    setCitizenshipOverride(e.target.value as CitizenshipKind);
+                    setFormEdits({});
+                  }}
+                  className={selectClass}
+                >
+                  <option value="">-- Chọn thủ công --</option>
+                  <option value="VIETNAMESE">
+                    Người Việt Nam (API 5 - Báo cáo lưu trú nội địa)
+                  </option>
+                  <option value="FOREIGN">
+                    Người nước ngoài (API 4 - Báo cáo tạm trú người nước ngoài)
+                  </option>
+                </select>
+              </div>
+            )}
 
             {/* Vietnamese Form */}
             {citizenshipKind === "VIETNAMESE" ? (
               <div className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label htmlFor="hoTen" className="block text-sm font-semibold text-slate-700 mb-1">
+                    <label
+                      htmlFor="hoTen"
+                      className="block text-sm font-semibold text-slate-700 mb-1"
+                    >
                       Họ và tên <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -919,7 +948,10 @@ function DeclarationModal({
                   </div>
 
                   <div>
-                    <label htmlFor="gioiTinh" className="block text-sm font-semibold text-slate-700 mb-1">
+                    <label
+                      htmlFor="gioiTinh"
+                      className="block text-sm font-semibold text-slate-700 mb-1"
+                    >
                       Giới tính <span className="text-red-500">*</span>
                     </label>
                     <select
@@ -937,8 +969,12 @@ function DeclarationModal({
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label htmlFor="ngayThangNamSinhStr" className="block text-sm font-semibold text-slate-700 mb-1">
-                      Ngày sinh (YYYY-MM-DD) <span className="text-red-500">*</span>
+                    <label
+                      htmlFor="ngayThangNamSinhStr"
+                      className="block text-sm font-semibold text-slate-700 mb-1"
+                    >
+                      Ngày sinh (YYYY-MM-DD){" "}
+                      <span className="text-red-500">*</span>
                     </label>
                     <input
                       id="ngayThangNamSinhStr"
@@ -947,13 +983,18 @@ function DeclarationModal({
                       placeholder="1990-01-15"
                       value={String(formData.ngayThangNamSinhStr ?? "")}
                       disabled={!isEditable || !canManage}
-                      onChange={(e) => updateField("ngayThangNamSinhStr", e.target.value)}
+                      onChange={(e) =>
+                        updateField("ngayThangNamSinhStr", e.target.value)
+                      }
                       className={inputClass}
                     />
                   </div>
 
                   <div>
-                    <label htmlFor="soDienThoai" className="block text-sm font-semibold text-slate-700 mb-1">
+                    <label
+                      htmlFor="soDienThoai"
+                      className="block text-sm font-semibold text-slate-700 mb-1"
+                    >
                       Số điện thoại
                     </label>
                     <input
@@ -961,7 +1002,9 @@ function DeclarationModal({
                       type="tel"
                       value={String(formData.soDienThoai ?? "")}
                       disabled={!isEditable || !canManage}
-                      onChange={(e) => updateField("soDienThoai", e.target.value || null)}
+                      onChange={(e) =>
+                        updateField("soDienThoai", e.target.value || null)
+                      }
                       className={inputClass}
                       placeholder="0912345678"
                     />
@@ -970,26 +1013,43 @@ function DeclarationModal({
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label htmlFor="loaiGiayTo" className="block text-sm font-semibold text-slate-700 mb-1">
+                    <label
+                      htmlFor="loaiGiayTo"
+                      className="block text-sm font-semibold text-slate-700 mb-1"
+                    >
                       Loại giấy tờ <span className="text-red-500">*</span>
                     </label>
                     <select
                       id="loaiGiayTo"
                       required
-                      value={formData.loaiGiayTo === undefined ? "" : String(formData.loaiGiayTo)}
+                      value={
+                        formData.loaiGiayTo === undefined
+                          ? ""
+                          : String(formData.loaiGiayTo)
+                      }
                       disabled={!isEditable || !canManage}
-                      onChange={(e) => updateField("loaiGiayTo", e.target.value ? Number(e.target.value) : undefined)}
+                      onChange={(e) =>
+                        updateField(
+                          "loaiGiayTo",
+                          e.target.value ? Number(e.target.value) : undefined,
+                        )
+                      }
                       className={selectClass}
                     >
                       <option value="">Chọn loại giấy tờ</option>
                       {(documentTypesQuery.data ?? []).map((item) => (
-                        <option key={item.id} value={item.code}>{item.nameVi}</option>
+                        <option key={item.id} value={item.code}>
+                          {item.nameVi}
+                        </option>
                       ))}
                     </select>
                   </div>
 
                   <div>
-                    <label htmlFor="soGiayTo" className="block text-sm font-semibold text-slate-700 mb-1">
+                    <label
+                      htmlFor="soGiayTo"
+                      className="block text-sm font-semibold text-slate-700 mb-1"
+                    >
                       Số giấy tờ <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -998,7 +1058,12 @@ function DeclarationModal({
                       required
                       value={String(formData.soGiayTo ?? "")}
                       disabled={!isEditable || !canManage}
-                      onChange={(e) => updateField("soGiayTo", e.target.value.replace(/[^A-Za-z0-9]/g, ""))}
+                      onChange={(e) =>
+                        updateField(
+                          "soGiayTo",
+                          e.target.value.replace(/[^A-Za-z0-9]/g, ""),
+                        )
+                      }
                       className={inputClass}
                       placeholder="Không chứa dấu cách hoặc ký tự đặc biệt"
                     />
@@ -1007,26 +1072,44 @@ function DeclarationModal({
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label htmlFor="lyDoCuTru" className="block text-sm font-semibold text-slate-700 mb-1">
-                      Lý do cư trú (Mã BCA) <span className="text-red-500">*</span>
+                    <label
+                      htmlFor="lyDoCuTru"
+                      className="block text-sm font-semibold text-slate-700 mb-1"
+                    >
+                      Lý do cư trú (Mã BCA){" "}
+                      <span className="text-red-500">*</span>
                     </label>
                     <select
                       id="lyDoCuTru"
                       required
-                      value={formData.lyDoCuTru === undefined ? "" : String(formData.lyDoCuTru)}
+                      value={
+                        formData.lyDoCuTru === undefined
+                          ? ""
+                          : String(formData.lyDoCuTru)
+                      }
                       disabled={!isEditable || !canManage}
-                      onChange={(e) => updateField("lyDoCuTru", e.target.value ? Number(e.target.value) : undefined)}
+                      onChange={(e) =>
+                        updateField(
+                          "lyDoCuTru",
+                          e.target.value ? Number(e.target.value) : undefined,
+                        )
+                      }
                       className={selectClass}
                     >
                       <option value="">Chọn lý do cư trú</option>
                       {(stayReasonsQuery.data ?? []).map((item) => (
-                        <option key={item.id} value={item.code}>{item.nameVi}</option>
+                        <option key={item.id} value={item.code}>
+                          {item.nameVi}
+                        </option>
                       ))}
                     </select>
                   </div>
 
                   <div>
-                    <label htmlFor="lyDoChiTiet" className="block text-sm font-semibold text-slate-700 mb-1">
+                    <label
+                      htmlFor="lyDoChiTiet"
+                      className="block text-sm font-semibold text-slate-700 mb-1"
+                    >
                       Lý do chi tiết (bắt buộc khi lý do là 20)
                     </label>
                     <input
@@ -1034,7 +1117,9 @@ function DeclarationModal({
                       type="text"
                       value={String(formData.lyDoChiTiet ?? "")}
                       disabled={!isEditable || !canManage}
-                      onChange={(e) => updateField("lyDoChiTiet", e.target.value || null)}
+                      onChange={(e) =>
+                        updateField("lyDoChiTiet", e.target.value || null)
+                      }
                       className={inputClass}
                       placeholder="Nêu rõ mục đích cư trú"
                     />
@@ -1043,7 +1128,10 @@ function DeclarationModal({
 
                 <div className="grid gap-4 sm:grid-cols-3">
                   <div>
-                    <label htmlFor="soPhong" className="block text-sm font-semibold text-slate-700 mb-1">
+                    <label
+                      htmlFor="soPhong"
+                      className="block text-sm font-semibold text-slate-700 mb-1"
+                    >
                       Số phòng <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -1059,7 +1147,10 @@ function DeclarationModal({
                   </div>
 
                   <div>
-                    <label htmlFor="ngayDenCsltStr" className="block text-sm font-semibold text-slate-700 mb-1">
+                    <label
+                      htmlFor="ngayDenCsltStr"
+                      className="block text-sm font-semibold text-slate-700 mb-1"
+                    >
                       Ngày đến <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -1069,13 +1160,18 @@ function DeclarationModal({
                       placeholder="YYYY-MM-DD HH:mm:ss"
                       value={String(formData.ngayDenCsltStr ?? "")}
                       disabled={!isEditable || !canManage}
-                      onChange={(e) => updateField("ngayDenCsltStr", e.target.value)}
+                      onChange={(e) =>
+                        updateField("ngayDenCsltStr", e.target.value)
+                      }
                       className={inputClass}
                     />
                   </div>
 
                   <div>
-                    <label htmlFor="ngayDiDuKienStr" className="block text-sm font-semibold text-slate-700 mb-1">
+                    <label
+                      htmlFor="ngayDiDuKienStr"
+                      className="block text-sm font-semibold text-slate-700 mb-1"
+                    >
                       Ngày đi dự kiến <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -1085,7 +1181,9 @@ function DeclarationModal({
                       placeholder="YYYY-MM-DD HH:mm:ss"
                       value={String(formData.ngayDiDuKienStr ?? "")}
                       disabled={!isEditable || !canManage}
-                      onChange={(e) => updateField("ngayDiDuKienStr", e.target.value)}
+                      onChange={(e) =>
+                        updateField("ngayDiDuKienStr", e.target.value)
+                      }
                       className={inputClass}
                     />
                   </div>
@@ -1093,7 +1191,10 @@ function DeclarationModal({
 
                 <div className="grid gap-4 sm:grid-cols-3">
                   <div>
-                    <label htmlFor="maTT" className="block text-sm font-semibold text-slate-700 mb-1">
+                    <label
+                      htmlFor="maTT"
+                      className="block text-sm font-semibold text-slate-700 mb-1"
+                    >
                       Mã tỉnh/TP (Mã BCA)
                     </label>
                     <select
@@ -1108,50 +1209,77 @@ function DeclarationModal({
                     >
                       <option value="">Chọn tỉnh/thành phố</option>
                       {(provincesQuery.data ?? []).map((item) => (
-                        <option key={item.id} value={item.code}>{item.nameVi}</option>
+                        <option key={item.id} value={item.code}>
+                          {item.nameVi}
+                        </option>
                       ))}
                     </select>
                   </div>
 
                   <div>
-                    <label htmlFor="maPX" className="block text-sm font-semibold text-slate-700 mb-1">
+                    <label
+                      htmlFor="maPX"
+                      className="block text-sm font-semibold text-slate-700 mb-1"
+                    >
                       Mã phường/xã (Mã BCA)
                     </label>
                     <select
                       id="maPX"
                       value={String(formData.maPX ?? "")}
                       disabled={!isEditable || !canManage || !provinceCode}
-                      onChange={(e) => updateField("maPX", e.target.value || null)}
+                      onChange={(e) =>
+                        updateField("maPX", e.target.value || null)
+                      }
                       className={selectClass}
                     >
                       <option value="">Chọn phường/xã</option>
                       {(wardsQuery.data ?? []).map((item) => (
-                        <option key={item.id} value={item.code}>{item.nameVi}</option>
+                        <option key={item.id} value={item.code}>
+                          {item.nameVi}
+                        </option>
                       ))}
                     </select>
                   </div>
 
                   <div>
-                    <label htmlFor="noiCuTru" className="block text-sm font-semibold text-slate-700 mb-1">
+                    <label
+                      htmlFor="noiCuTru"
+                      className="block text-sm font-semibold text-slate-700 mb-1"
+                    >
                       Nơi cư trú (Mã BCA)
                     </label>
                     <select
                       id="noiCuTru"
-                      value={formData.noiCuTru === undefined || formData.noiCuTru === null ? "" : String(formData.noiCuTru)}
+                      value={
+                        formData.noiCuTru === undefined ||
+                        formData.noiCuTru === null
+                          ? ""
+                          : String(formData.noiCuTru)
+                      }
                       disabled={!isEditable || !canManage}
-                      onChange={(e) => updateField("noiCuTru", e.target.value ? Number(e.target.value) : null)}
+                      onChange={(e) =>
+                        updateField(
+                          "noiCuTru",
+                          e.target.value ? Number(e.target.value) : null,
+                        )
+                      }
                       className={selectClass}
                     >
                       <option value="">Chọn nơi cư trú</option>
                       {(residencePlacesQuery.data ?? []).map((item) => (
-                        <option key={item.id} value={item.code}>{item.nameVi}</option>
+                        <option key={item.id} value={item.code}>
+                          {item.nameVi}
+                        </option>
                       ))}
                     </select>
                   </div>
                 </div>
 
                 <div>
-                  <label htmlFor="diaChi" className="block text-sm font-semibold text-slate-700 mb-1">
+                  <label
+                    htmlFor="diaChi"
+                    className="block text-sm font-semibold text-slate-700 mb-1"
+                  >
                     Địa chỉ chi tiết
                   </label>
                   <input
@@ -1159,14 +1287,19 @@ function DeclarationModal({
                     type="text"
                     value={String(formData.diaChi ?? "")}
                     disabled={!isEditable || !canManage}
-                    onChange={(e) => updateField("diaChi", e.target.value || null)}
+                    onChange={(e) =>
+                      updateField("diaChi", e.target.value || null)
+                    }
                     className={inputClass}
                     placeholder="Số nhà, đường phố..."
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="ghiChu" className="block text-sm font-semibold text-slate-700 mb-1">
+                  <label
+                    htmlFor="ghiChu"
+                    className="block text-sm font-semibold text-slate-700 mb-1"
+                  >
                     Ghi chú
                   </label>
                   <textarea
@@ -1174,18 +1307,23 @@ function DeclarationModal({
                     rows={2}
                     value={String(formData.ghiChu ?? "")}
                     disabled={!isEditable || !canManage}
-                    onChange={(e) => updateField("ghiChu", e.target.value || null)}
+                    onChange={(e) =>
+                      updateField("ghiChu", e.target.value || null)
+                    }
                     className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 outline-none transition-all focus:border-[#064e3b] focus:ring-2 focus:ring-[#064e3b]/15"
                     placeholder="Ghi chú thêm về khách lưu trú"
                   />
                 </div>
               </div>
-            ) : (
+            ) : citizenshipKind === "FOREIGN" ? (
               /* Foreign Form */
               <div className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label htmlFor="f-hoTen" className="block text-sm font-semibold text-slate-700 mb-1">
+                    <label
+                      htmlFor="f-hoTen"
+                      className="block text-sm font-semibold text-slate-700 mb-1"
+                    >
                       Họ và tên <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -1201,7 +1339,10 @@ function DeclarationModal({
                   </div>
 
                   <div>
-                    <label htmlFor="quocTich" className="block text-sm font-semibold text-slate-700 mb-1">
+                    <label
+                      htmlFor="quocTich"
+                      className="block text-sm font-semibold text-slate-700 mb-1"
+                    >
                       Mã quốc tịch BCA <span className="text-red-500">*</span>
                     </label>
                     <select
@@ -1214,7 +1355,9 @@ function DeclarationModal({
                     >
                       <option value="">Chọn quốc tịch</option>
                       {(nationalitiesQuery.data ?? []).map((item) => (
-                        <option key={item.id} value={item.code}>{item.nameVi}</option>
+                        <option key={item.id} value={item.code}>
+                          {item.nameVi}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -1222,7 +1365,10 @@ function DeclarationModal({
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label htmlFor="soHoChieu" className="block text-sm font-semibold text-slate-700 mb-1">
+                    <label
+                      htmlFor="soHoChieu"
+                      className="block text-sm font-semibold text-slate-700 mb-1"
+                    >
                       Số hộ chiếu <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -1231,14 +1377,22 @@ function DeclarationModal({
                       required
                       value={String(formData.soHoChieu ?? "")}
                       disabled={!isEditable || !canManage}
-                      onChange={(e) => updateField("soHoChieu", e.target.value.replace(/[^A-Za-z0-9]/g, ""))}
+                      onChange={(e) =>
+                        updateField(
+                          "soHoChieu",
+                          e.target.value.replace(/[^A-Za-z0-9]/g, ""),
+                        )
+                      }
                       className={inputClass}
                       placeholder="A12345678"
                     />
                   </div>
 
                   <div>
-                    <label htmlFor="f-gioiTinh" className="block text-sm font-semibold text-slate-700 mb-1">
+                    <label
+                      htmlFor="f-gioiTinh"
+                      className="block text-sm font-semibold text-slate-700 mb-1"
+                    >
                       Giới tính <span className="text-red-500">*</span>
                     </label>
                     <select
@@ -1256,33 +1410,50 @@ function DeclarationModal({
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label htmlFor="loaiNgayThangNamSinh" className="block text-sm font-semibold text-slate-700 mb-1">
+                    <label
+                      htmlFor="loaiNgayThangNamSinh"
+                      className="block text-sm font-semibold text-slate-700 mb-1"
+                    >
                       Loại ngày sinh <span className="text-red-500">*</span>
                     </label>
                     <select
                       id="loaiNgayThangNamSinh"
                       value={String(formData.loaiNgayThangNamSinh ?? "D")}
                       disabled={!isEditable || !canManage}
-                      onChange={(e) => updateField("loaiNgayThangNamSinh", e.target.value)}
+                      onChange={(e) =>
+                        updateField("loaiNgayThangNamSinh", e.target.value)
+                      }
                       className={selectClass}
                     >
                       <option value="D">D - Đầy đủ ngày/tháng/năm</option>
-                      <option value="Y">Y - Chỉ có năm sinh (YYYY-01-01)</option>
+                      <option value="Y">
+                        Y - Chỉ có năm sinh (YYYY-01-01)
+                      </option>
                     </select>
                   </div>
 
                   <div>
-                    <label htmlFor="f-ngayThangNamSinhStr" className="block text-sm font-semibold text-slate-700 mb-1">
-                      Ngày sinh (YYYY-MM-DD) <span className="text-red-500">*</span>
+                    <label
+                      htmlFor="f-ngayThangNamSinhStr"
+                      className="block text-sm font-semibold text-slate-700 mb-1"
+                    >
+                      Ngày sinh (YYYY-MM-DD){" "}
+                      <span className="text-red-500">*</span>
                     </label>
                     <input
                       id="f-ngayThangNamSinhStr"
                       type="text"
                       required
-                      placeholder={formData.loaiNgayThangNamSinh === "Y" ? "1985-01-01" : "1985-06-20"}
+                      placeholder={
+                        formData.loaiNgayThangNamSinh === "Y"
+                          ? "1985-01-01"
+                          : "1985-06-20"
+                      }
                       value={String(formData.ngayThangNamSinhStr ?? "")}
                       disabled={!isEditable || !canManage}
-                      onChange={(e) => updateField("ngayThangNamSinhStr", e.target.value)}
+                      onChange={(e) =>
+                        updateField("ngayThangNamSinhStr", e.target.value)
+                      }
                       className={inputClass}
                     />
                   </div>
@@ -1290,7 +1461,10 @@ function DeclarationModal({
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label htmlFor="f-soPhong" className="block text-sm font-semibold text-slate-700 mb-1">
+                    <label
+                      htmlFor="f-soPhong"
+                      className="block text-sm font-semibold text-slate-700 mb-1"
+                    >
                       Số phòng <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -1306,7 +1480,10 @@ function DeclarationModal({
                   </div>
 
                   <div>
-                    <label htmlFor="thoiHanTamTruStr" className="block text-sm font-semibold text-slate-700 mb-1">
+                    <label
+                      htmlFor="thoiHanTamTruStr"
+                      className="block text-sm font-semibold text-slate-700 mb-1"
+                    >
                       Thời hạn tạm trú <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -1316,7 +1493,9 @@ function DeclarationModal({
                       placeholder="YYYY-MM-DD HH:mm:ss"
                       value={String(formData.thoiHanTamTruStr ?? "")}
                       disabled={!isEditable || !canManage}
-                      onChange={(e) => updateField("thoiHanTamTruStr", e.target.value)}
+                      onChange={(e) =>
+                        updateField("thoiHanTamTruStr", e.target.value)
+                      }
                       className={inputClass}
                     />
                   </div>
@@ -1324,7 +1503,10 @@ function DeclarationModal({
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label htmlFor="f-ngayDenCsltStr" className="block text-sm font-semibold text-slate-700 mb-1">
+                    <label
+                      htmlFor="f-ngayDenCsltStr"
+                      className="block text-sm font-semibold text-slate-700 mb-1"
+                    >
                       Ngày đến <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -1334,13 +1516,18 @@ function DeclarationModal({
                       placeholder="YYYY-MM-DD HH:mm:ss"
                       value={String(formData.ngayDenCsltStr ?? "")}
                       disabled={!isEditable || !canManage}
-                      onChange={(e) => updateField("ngayDenCsltStr", e.target.value)}
+                      onChange={(e) =>
+                        updateField("ngayDenCsltStr", e.target.value)
+                      }
                       className={inputClass}
                     />
                   </div>
 
                   <div>
-                    <label htmlFor="f-ngayDiDuKienStr" className="block text-sm font-semibold text-slate-700 mb-1">
+                    <label
+                      htmlFor="f-ngayDiDuKienStr"
+                      className="block text-sm font-semibold text-slate-700 mb-1"
+                    >
                       Ngày đi dự kiến <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -1350,13 +1537,15 @@ function DeclarationModal({
                       placeholder="YYYY-MM-DD HH:mm:ss"
                       value={String(formData.ngayDiDuKienStr ?? "")}
                       disabled={!isEditable || !canManage}
-                      onChange={(e) => updateField("ngayDiDuKienStr", e.target.value)}
+                      onChange={(e) =>
+                        updateField("ngayDiDuKienStr", e.target.value)
+                      }
                       className={inputClass}
                     />
                   </div>
                 </div>
               </div>
-            )}
+            ) : null}
 
             {/* Footer Buttons */}
             <div className="flex flex-col-reverse gap-3 pt-4 border-t border-slate-100 sm:flex-row sm:items-center sm:justify-between">
@@ -1376,9 +1565,24 @@ function DeclarationModal({
                     className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-6 py-3 text-base font-bold text-slate-800 shadow-xs transition-all hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#064e3b] disabled:opacity-50"
                   >
                     {saveMutation.isPending && (
-                      <svg className="h-4 w-4 animate-spin text-slate-600" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                      <svg
+                        className="h-4 w-4 animate-spin text-slate-600"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                        />
                       </svg>
                     )}
                     Lưu bản nháp
@@ -1391,47 +1595,28 @@ function DeclarationModal({
                     className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#064e3b] px-6 py-3 text-base font-bold text-white shadow-md transition-all hover:bg-[#043327] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#064e3b] disabled:opacity-50"
                   >
                     {readyMutation.isPending && (
-                      <svg className="h-4 w-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                      <svg
+                        className="h-4 w-4 animate-spin text-white"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                        />
                       </svg>
                     )}
                     Đánh dấu sẵn sàng
                   </button>
-
-                  {canSubmitDeclaration(declStatus, canManage) && (
-                    <button
-                      type="button"
-                      disabled={isBusy}
-                      onClick={handleSubmit}
-                      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-6 py-3 text-base font-bold text-white shadow-md transition-all hover:bg-emerald-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 disabled:opacity-50"
-                    >
-                      {submitMutation.isPending && (
-                        <svg className="h-4 w-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-                        </svg>
-                      )}
-                      Gửi BCA
-                    </button>
-                  )}
-
-                  {canRetryDeclaration(declStatus, canManage) && (
-                    <button
-                      type="button"
-                      disabled={isBusy}
-                      onClick={handleSubmit}
-                      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-amber-600 px-6 py-3 text-base font-bold text-white shadow-md transition-all hover:bg-amber-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 disabled:opacity-50"
-                    >
-                      {submitMutation.isPending && (
-                        <svg className="h-4 w-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-                        </svg>
-                      )}
-                      Thử lại gửi BCA
-                    </button>
-                  )}
                 </div>
               )}
             </div>
