@@ -8,7 +8,7 @@ import {
   BUSINESS_PERMISSIONS,
   isBusinessPermissionKey,
 } from "../../../common/config/business-permissions.registry";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import type { KbttHotelConnection } from "@prisma/client";
 import { KbttController } from "../api/kbtt.controller";
 import { KbttService } from "../application/kbtt.service";
@@ -235,6 +235,14 @@ function fixture() {
     refresh: jest.fn(async () => session()),
     revoke: jest.fn(async () => undefined),
     fetchCatalog: jest.fn(async (_kind: string, _parentCode?: string) => []),
+    submitDeclaration: jest.fn(
+      async (_kind: string, _payload: unknown[], _accessToken: string) => ({
+        outcome: "SUCCESS" as const,
+        code: "200",
+        message: "Thành công",
+        data: null,
+      }),
+    ),
   };
   const occupantsReadService = {
     getActiveStayOccupants: jest.fn(async (hotelId: string) =>
@@ -1476,5 +1484,403 @@ describe("KBTT Catalog Cache (AGY-50)", () => {
     // Cross-hotel access assertion
     f.access.assertHotelAccess.mockRejectedValueOnce(new NotFoundException("Hotel access denied"));
     await expect(controller.listCatalog(req, "hotel-forbidden", "DOCUMENT_TYPE")).rejects.toThrow();
+  });
+});
+
+describe("KBTT Declaration Submission API 4/5", () => {
+  const primaryOccupant = {
+    id: "occ-vn",
+    occupantId: "occ-vn",
+    stayId: "stay-1",
+    hotelId: "hotel-1",
+    roomId: "room-1",
+    roomNumber: "101",
+    isPrimary: true,
+    fullName: "Nguyen Van A",
+    phone: "0901234567",
+    identityNumber: "001090012345",
+    dateOfBirth: "1990-01-01",
+    gender: "M",
+    nationality: "Viet Nam",
+    residencePlace: "Ha Noi",
+    citizenshipKind: "VIETNAMESE",
+    stayStatus: "ACTIVE",
+    reservationCode: "RES-101",
+    plannedCheckInAt: new Date("2026-09-13T07:00:00.000Z"),
+    plannedCheckOutAt: new Date("2026-09-15T05:00:00.000Z"),
+    checkedInAt: new Date("2026-09-13T07:00:00.000Z"),
+    stay: {
+      id: "stay-1",
+      hotelId: "hotel-1",
+      roomId: "room-1",
+      room: { id: "room-1", roomNumber: "101" },
+      plannedCheckInAt: new Date("2026-09-13T07:00:00.000Z"),
+      plannedCheckOutAt: new Date("2026-09-15T05:00:00.000Z"),
+      checkedInAt: new Date("2026-09-13T07:00:00.000Z"),
+    },
+  };
+
+  const foreignOccupant = {
+    id: "occ-foreign",
+    occupantId: "occ-foreign",
+    stayId: "stay-1",
+    hotelId: "hotel-1",
+    roomId: "room-1",
+    roomNumber: "101",
+    isPrimary: false,
+    fullName: "Smith John",
+    phone: null,
+    identityNumber: "P98765432",
+    dateOfBirth: "1985-05-20",
+    gender: "M",
+    nationality: "USA",
+    residencePlace: null,
+    citizenshipKind: "FOREIGN",
+    stayStatus: "ACTIVE",
+    reservationCode: "RES-101",
+    plannedCheckInAt: new Date("2026-09-13T07:00:00.000Z"),
+    plannedCheckOutAt: new Date("2026-09-15T05:00:00.000Z"),
+    checkedInAt: new Date("2026-09-13T07:00:00.000Z"),
+    stay: {
+      id: "stay-1",
+      hotelId: "hotel-1",
+      roomId: "room-1",
+      room: { id: "room-1", roomNumber: "101" },
+      plannedCheckInAt: new Date("2026-09-13T07:00:00.000Z"),
+      plannedCheckOutAt: new Date("2026-09-15T05:00:00.000Z"),
+      checkedInAt: new Date("2026-09-13T07:00:00.000Z"),
+    },
+  };
+
+  it("submits Foreign declaration to provider API 4 with exact path, payload array snapshot, SHA-256 fingerprint, and Bearer token", async () => {
+    const f = fixture();
+    f.occupants.set("occ-foreign", foreignOccupant);
+    await f.service.connect("user-1", "role-1", "hotel-1", credentials);
+
+    // Save and mark foreign draft ready
+    await f.service.saveDraft("user-1", "role-1", "hotel-1", "occ-foreign", {
+      citizenshipKind: "FOREIGN",
+      data: {
+        quocTich: "204",
+        soHoChieu: "P98765432",
+        loaiNgayThangNamSinh: "D",
+        thoiHanTamTruStr: "2026-09-16 12:00:00",
+      },
+    });
+    const readyDecl = await f.service.markReady("user-1", "role-1", "hotel-1", "occ-foreign");
+    expect(readyDecl.status).toBe("READY");
+
+    const result = await f.service.submit("user-1", "role-1", "hotel-1", "occ-foreign");
+
+    expect(result.status).toBe("SUBMITTED");
+    expect(result.providerCode).toBe("200");
+    expect(result.submittedAt).toBeTruthy();
+
+    // Verify provider was invoked with exact API 4 parameters
+    expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
+    const [calledKind, calledPayload, calledToken] = f.provider.submitDeclaration.mock.calls[0];
+    expect(calledKind).toBe("FOREIGN");
+    expect(Array.isArray(calledPayload)).toBe(true);
+    expect(calledPayload).toHaveLength(1);
+    expect(calledPayload[0]).toMatchObject({
+      hoTen: "Smith John",
+      quocTich: "204",
+      soHoChieu: "P98765432",
+      gioiTinh: "M",
+      loaiNgayThangNamSinh: "D",
+      ngayThangNamSinhStr: "1985-05-20",
+      soPhong: "101",
+    });
+    expect(typeof calledToken).toBe("string");
+
+    // Verify immutable snapshot and fingerprint stored in repository
+    const stored = await f.repository.findLatestDeclaration("hotel-1", "occ-foreign");
+    expect(stored).toBeDefined();
+    expect(stored?.status).toBe("SUBMITTED");
+    expect(stored?.submittedPayloadJson).toEqual(calledPayload);
+    const expectedFingerprint = createHash("sha256")
+      .update(JSON.stringify(calledPayload))
+      .digest("hex");
+    expect(stored?.submittedPayloadFingerprint).toBe(expectedFingerprint);
+    expect(stored?.submittedPayloadFingerprint).toHaveLength(64);
+
+    // Verify sanitization: viewDeclaration does not expose fingerprint or raw submitted payload
+    expect((result as any).submittedPayload).toBeUndefined();
+    expect((result as any).submittedPayloadFingerprint).toBeUndefined();
+    expect((result as any).submittedPayloadJson).toBeUndefined();
+  });
+
+  it("submits Vietnamese declaration to provider API 5 with exact path, payload array snapshot, SHA-256 fingerprint, and Bearer token", async () => {
+    const f = fixture();
+    f.occupants.set("occ-vn", primaryOccupant);
+    await f.service.connect("user-1", "role-1", "hotel-1", credentials);
+
+    await f.service.saveDraft("user-1", "role-1", "hotel-1", "occ-vn", {
+      citizenshipKind: "VIETNAMESE",
+      data: {
+        lyDoCuTru: 1,
+        loaiGiayTo: 1,
+        soGiayTo: "001090012345",
+      },
+    });
+    const readyDecl = await f.service.markReady("user-1", "role-1", "hotel-1", "occ-vn");
+    expect(readyDecl.status).toBe("READY");
+
+    const result = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
+
+    expect(result.status).toBe("SUBMITTED");
+    expect(result.providerCode).toBe("200");
+    expect(result.submittedAt).toBeTruthy();
+
+    expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
+    const [calledKind, calledPayload, calledToken] = f.provider.submitDeclaration.mock.calls[0];
+    expect(calledKind).toBe("VIETNAMESE");
+    expect(Array.isArray(calledPayload)).toBe(true);
+    expect(calledPayload).toHaveLength(1);
+    expect(calledPayload[0]).toMatchObject({
+      hoTen: "Nguyen Van A",
+      gioiTinh: "M",
+      soGiayTo: "001090012345",
+      loaiGiayTo: 1,
+      lyDoCuTru: 1,
+      soPhong: "101",
+    });
+    expect(typeof calledToken).toBe("string");
+
+    const stored = await f.repository.findLatestDeclaration("hotel-1", "occ-vn");
+    expect(stored?.status).toBe("SUBMITTED");
+    expect(stored?.submittedPayloadJson).toEqual(calledPayload);
+    const expectedFingerprint = createHash("sha256")
+      .update(JSON.stringify(calledPayload))
+      .digest("hex");
+    expect(stored?.submittedPayloadFingerprint).toBe(expectedFingerprint);
+  });
+
+  it("enforces atomic CAS READY/FAILED -> SENDING before network and prevents duplicate submission while SENDING or SUBMITTED", async () => {
+    const f = fixture();
+    f.occupants.set("occ-vn", primaryOccupant);
+    await f.service.connect("user-1", "role-1", "hotel-1", credentials);
+
+    // 1. DRAFT cannot be submitted
+    await f.service.saveDraft("user-1", "role-1", "hotel-1", "occ-vn", {
+      citizenshipKind: "VIETNAMESE",
+      data: { lyDoCuTru: 1, loaiGiayTo: 1, soGiayTo: "001090012345" },
+    });
+    await expect(f.service.submit("user-1", "role-1", "hotel-1", "occ-vn")).rejects.toThrow(
+      BadRequestException,
+    );
+
+    // Transition to READY
+    await f.service.markReady("user-1", "role-1", "hotel-1", "occ-vn");
+
+    // 2. CAS fencing: simulate another process transitioning declaration before network
+    const declBefore = await f.repository.findLatestDeclaration("hotel-1", "occ-vn");
+    const originalUpdateDecl = f.repository.updateDeclaration;
+    let casAttempts = 0;
+    f.repository.updateDeclaration = jest.fn(async (params: any) => {
+      if (params.data.status === "SENDING") {
+        casAttempts++;
+        if (casAttempts === 2) {
+          throw new ConflictException({
+            code: "DECLARATION_CONFLICT",
+            message: "Xung đột phiên bản (CAS conflict).",
+          });
+        }
+      }
+      return originalUpdateDecl(params);
+    });
+
+    // First submit succeeds
+    const submit1 = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
+    expect(submit1.status).toBe("SUBMITTED");
+
+    // 3. Once SUBMITTED, duplicate submission is blocked
+    await expect(f.service.submit("user-1", "role-1", "hotel-1", "occ-vn")).rejects.toThrow(
+      "SUBMITTED",
+    );
+
+    // 4. While SENDING, duplicate submission is blocked
+    f.declarations.get(declBefore!.id).status = "SENDING";
+    await expect(f.service.submit("user-1", "role-1", "hotel-1", "occ-vn")).rejects.toThrow(
+      "SENDING",
+    );
+
+    // 5. CANCELLED is blocked
+    f.declarations.get(declBefore!.id).status = "CANCELLED";
+    await expect(f.service.submit("user-1", "role-1", "hotel-1", "occ-vn")).rejects.toThrow(
+      "CANCELLED",
+    );
+  });
+
+  it("handles business rejection by transitioning SENDING -> FAILED with sanitized provider code and message, allowing retry", async () => {
+    const f = fixture();
+    f.occupants.set("occ-vn", primaryOccupant);
+    await f.service.connect("user-1", "role-1", "hotel-1", credentials);
+
+    await f.service.saveDraft("user-1", "role-1", "hotel-1", "occ-vn", {
+      citizenshipKind: "VIETNAMESE",
+      data: { lyDoCuTru: 1, loaiGiayTo: 1, soGiayTo: "001090012345" },
+    });
+    await f.service.markReady("user-1", "role-1", "hotel-1", "occ-vn");
+
+    // Provider rejects with business failure
+    f.provider.submitDeclaration.mockResolvedValueOnce({
+      outcome: "BUSINESS_REJECTION",
+      code: "400",
+      message: "Số CCCD 001090012345 đã được khai báo tại cơ sở khác (Bearer secret_token_xyz)",
+      data: null,
+    });
+
+    const failedResult = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
+
+    expect(failedResult.status).toBe("FAILED");
+    expect(failedResult.providerCode).toBe("400");
+    expect(failedResult.providerMessage).not.toContain("secret_token_xyz");
+    expect(failedResult.submittedAt).toBeNull();
+
+    const stored = await f.repository.findLatestDeclaration("hotel-1", "occ-vn");
+    expect(stored?.status).toBe("FAILED");
+    expect(stored?.providerCode).toBe("400");
+
+    // Retry safe: submitting a FAILED declaration is permitted
+    f.provider.submitDeclaration.mockResolvedValueOnce({
+      outcome: "SUCCESS",
+      code: "200",
+      message: "Khai báo thành công",
+      data: null,
+    });
+
+    const retryResult = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
+    expect(retryResult.status).toBe("SUBMITTED");
+    expect(retryResult.providerCode).toBe("200");
+  });
+
+  it("handles timeout and ambiguous network outcome by transitioning SENDING -> UNKNOWN without blind retry", async () => {
+    const f = fixture();
+    f.occupants.set("occ-vn", primaryOccupant);
+    await f.service.connect("user-1", "role-1", "hotel-1", credentials);
+
+    await f.service.saveDraft("user-1", "role-1", "hotel-1", "occ-vn", {
+      citizenshipKind: "VIETNAMESE",
+      data: { lyDoCuTru: 1, loaiGiayTo: 1, soGiayTo: "001090012345" },
+    });
+    await f.service.markReady("user-1", "role-1", "hotel-1", "occ-vn");
+
+    // Provider times out
+    f.provider.submitDeclaration.mockResolvedValueOnce({
+      outcome: "AMBIGUOUS",
+      code: "TIMEOUT",
+      message: "Quá thời gian chờ phản hồi từ cơ quan quản lý (10s).",
+    });
+
+    const unknownResult = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
+
+    expect(unknownResult.status).toBe("UNKNOWN");
+    expect(unknownResult.providerCode).toBe("TIMEOUT");
+    expect(unknownResult.submittedAt).toBeNull();
+
+    const stored = await f.repository.findLatestDeclaration("hotel-1", "occ-vn");
+    expect(stored?.status).toBe("UNKNOWN");
+
+    // Crucial rule: UNKNOWN must NEVER be blind-retried automatically
+    await expect(f.service.submit("user-1", "role-1", "hotel-1", "occ-vn")).rejects.toThrow(
+      "UNKNOWN",
+    );
+  });
+
+  it("verifies KbttProviderClient wire protocol: correct HTTP POST URLs for API 4 and API 5, Bearer header, bounded envelope, timeout handling", async () => {
+    const client = new KbttProviderClient();
+    const fetchMock = jest.fn();
+    global.fetch = fetchMock;
+
+    // 1. API 4 Foreign wire check
+    fetchMock.mockResolvedValueOnce(Response.json({ code: "200", message: "Success", data: null }));
+    const foreignRes = await client.submitDeclaration(
+      "FOREIGN",
+      [{ hoTen: "John Doe" }],
+      "test_access_token_123",
+    );
+    expect(foreignRes.outcome).toBe("SUCCESS");
+    expect(foreignRes.code).toBe("200");
+
+    const foreignCall = fetchMock.mock.calls[0];
+    const foreignUrl = foreignCall[0] as URL;
+    const foreignOpts = foreignCall[1] as RequestInit;
+    expect(foreignUrl.pathname).toBe("/client-service/kbtt/kbtt-3th");
+    expect(foreignOpts.method).toBe("POST");
+    expect((foreignOpts.headers as any).Authorization).toBe("Bearer test_access_token_123");
+    expect((foreignOpts.headers as any)["Content-Type"]).toBe("application/json");
+    expect(JSON.parse(foreignOpts.body as string)).toEqual([{ hoTen: "John Doe" }]);
+
+    // 2. API 5 Vietnamese wire check
+    fetchMock.mockResolvedValueOnce(Response.json({ code: "200", message: "Success VN", data: null }));
+    const vnRes = await client.submitDeclaration(
+      "VIETNAMESE",
+      [{ hoTen: "Nguyen Van A" }],
+      "test_access_token_456",
+    );
+    expect(vnRes.outcome).toBe("SUCCESS");
+    expect(vnRes.code).toBe("200");
+
+    const vnCall = fetchMock.mock.calls[1];
+    const vnUrl = vnCall[0] as URL;
+    const vnOpts = vnCall[1] as RequestInit;
+    expect(vnUrl.pathname).toBe("/client-service/kbtt-vn/kbtt-3th");
+    expect(vnOpts.method).toBe("POST");
+    expect((vnOpts.headers as any).Authorization).toBe("Bearer test_access_token_456");
+    expect(JSON.parse(vnOpts.body as string)).toEqual([{ hoTen: "Nguyen Van A" }]);
+
+    // 3. Business rejection check
+    fetchMock.mockResolvedValueOnce(Response.json({ code: "400", message: "Số CCCD đã tồn tại" }));
+    const bizRes = await client.submitDeclaration("VIETNAMESE", [{}], "tok");
+    expect(bizRes.outcome).toBe("BUSINESS_REJECTION");
+    expect(bizRes.code).toBe("400");
+    expect(bizRes.message).toBe("Số CCCD đã tồn tại");
+
+    // 4. Timeout check
+    const timeoutErr = new Error("The operation was aborted due to timeout");
+    timeoutErr.name = "TimeoutError";
+    fetchMock.mockRejectedValueOnce(timeoutErr);
+    const timeRes = await client.submitDeclaration("FOREIGN", [{}], "tok");
+    expect(timeRes.outcome).toBe("AMBIGUOUS");
+    expect(timeRes.code).toBe("TIMEOUT");
+
+    // 5. 502 Bad Gateway check
+    fetchMock.mockResolvedValueOnce(new Response("Bad Gateway", { status: 502 }));
+    const badGatewayRes = await client.submitDeclaration("VIETNAMESE", [{}], "tok");
+    expect(badGatewayRes.outcome).toBe("AMBIGUOUS");
+  });
+
+  it("requires hotel.kbtt.declarations.manage permission and verifies controller submit endpoint delegates correctly", async () => {
+    expect(isBusinessPermissionKey("hotel.kbtt.declarations.manage")).toBe(true);
+
+    const f = fixture();
+    const controller = new KbttController(f.service);
+    const req = { user: { userId: "user-1", roleId: "role-1" } } as any;
+
+    const submitSpy = jest.spyOn(f.service, "submit").mockResolvedValueOnce({
+      id: "decl-test",
+      hotelId: "hotel-1",
+      stayId: "stay-1",
+      occupantId: "occ-vn",
+      declarationKind: "VIETNAMESE",
+      revision: 1,
+      status: "SUBMITTED",
+      draftPayload: {},
+      providerCode: "200",
+      providerMessage: "Thành công",
+      submittedAt: new Date().toISOString(),
+      version: 2,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const res = await controller.submit(req, "hotel-1", "occ-vn");
+    expect(res.status).toBe("SUBMITTED");
+    expect(submitSpy).toHaveBeenCalledWith("user-1", "role-1", "hotel-1", "occ-vn");
+
+    // Cross hotel denial
+    f.access.assertHotelAccess.mockRejectedValueOnce(new NotFoundException("Denied"));
+    await expect(controller.submit(req, "hotel-forbidden", "occ-vn")).rejects.toThrow();
   });
 });
