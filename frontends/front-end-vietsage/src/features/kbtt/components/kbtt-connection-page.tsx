@@ -13,6 +13,7 @@ function errorText(error: unknown): string {
   if (error instanceof HttpError) {
     const code = kbttErrorCode(error.data);
     if (code) return kbttErrorMessage(code);
+    if (error.status === 400) return "Mã khách sạn hoặc dữ liệu kết nối không hợp lệ.";
     if (error.status === 403) return "Bạn không có quyền thực hiện thao tác này.";
     if (error.status === 404) return "Không tìm thấy khách sạn hoặc bạn không có quyền truy cập.";
     return kbttErrorMessage(kbttErrorCode(error.data));

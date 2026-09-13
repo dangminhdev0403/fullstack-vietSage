@@ -20,7 +20,7 @@ export async function handleKbttRequest(
   method: "GET" | "PUT" | "POST" | "DELETE",
 ) {
   const { hotelId } = await context.params;
-  if (!z.string().uuid().safeParse(hotelId).success) {
+  if (!z.string().trim().min(1).safeParse(hotelId).success) {
     return validationErrorResponse("Khách sạn không hợp lệ.");
   }
 
