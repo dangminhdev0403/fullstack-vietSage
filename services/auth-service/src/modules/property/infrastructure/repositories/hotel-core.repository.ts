@@ -63,6 +63,10 @@ export class HotelCoreRepository {
     return this.prisma.tenant.findUnique({ where: { id: tenantId }, select: { id: true } });
   }
 
+  async findHotelByTenantId(tenantId: string) {
+    return this.prisma.hotel.findFirst({ where: { tenantId }, select: { id: true, name: true } });
+  }
+
   async createHotel(data: Prisma.HotelCreateInput) {
     return this.prisma.hotel.create({ data, include: hotelDetailInclude });
   }

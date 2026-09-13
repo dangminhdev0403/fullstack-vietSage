@@ -35,6 +35,10 @@ export class HotelsService {
 
     const tenantId = await this.hotelAccessService.resolveTenantId(actor, dto.tenantId);
     await this.hotelAccessService.assertTenantExists(tenantId);
+    const tenantHotel = await this.hotelCoreRepository.findHotelByTenantId(tenantId);
+    if (tenantHotel) {
+      throw new ConflictException(`Tenant đã có khách sạn ${tenantHotel.name}`);
+    }
 
     if (dto.googleSheetUrl) {
       if (!actor.isSuperAdmin) {
@@ -55,15 +59,27 @@ export class HotelsService {
 
     const hotelCode = await this.codesService.generateEntityCode("HOTEL");
 
-    const hotel = await this.hotelCoreRepository.createHotel({
-      tenant: { connect: { id: tenantId } },
-      name: dto.name.trim(),
-      code: hotelCode,
-      timezone: dto.timezone?.trim() || "Asia/Ho_Chi_Minh",
-      brandSettings: dto.brandSettings as Prisma.InputJsonValue | undefined,
-      googleSheetId: dto.googleSheetUrl,
-      status: HotelStatus.ACTIVE,
-    });
+    let hotel: HotelDetailRow;
+    try {
+      hotel = await this.hotelCoreRepository.createHotel({
+        tenant: { connect: { id: tenantId } },
+        name: dto.name.trim(),
+        code: hotelCode,
+        timezone: dto.timezone?.trim() || "Asia/Ho_Chi_Minh",
+        brandSettings: dto.brandSettings as Prisma.InputJsonValue | undefined,
+        googleSheetId: dto.googleSheetUrl,
+        status: HotelStatus.ACTIVE,
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002" &&
+        String(error.meta?.target).includes("tenantId")
+      ) {
+        throw new ConflictException("Tenant đã có khách sạn");
+      }
+      throw error;
+    }
 
     this.logBusinessEvent("Hotel created", "HOTEL_CREATED", "createHotel", {
       actorUserId,

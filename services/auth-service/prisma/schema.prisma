@@ -536,7 +536,7 @@ model Tenant {
   updatedAt           DateTime             @updatedAt
   tenantUsers         TenantUser[]
   auditLogs           AuditLog[]
-  hotels              Hotel[]
+  hotel               Hotel?
   emergencyLocations  EmergencyLocation[]
   emergencyCallEvents EmergencyCallEvent[]
   emergencyIncidents  EmergencyIncident[]
@@ -579,7 +579,7 @@ model AuditLog {
 
 model Hotel {
   id                       String                        @id @default(cuid())
-  tenantId                 String
+  tenantId                 String                        @unique
   name                     String                        @db.VarChar(160)
   code                     String                        @db.VarChar(80)
   brandSettings            Json?
@@ -631,8 +631,6 @@ model Hotel {
   guestCarts                    GuestCart[]
   kbttConnection                KbttHotelConnection?
 
-  @@unique([tenantId, code])
-  @@index([tenantId, status])
 }
 
 model KbttHotelConnection {

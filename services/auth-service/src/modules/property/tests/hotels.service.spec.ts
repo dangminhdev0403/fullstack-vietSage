@@ -34,6 +34,7 @@ function createRepository(overrides: Record<string, jest.Mock> = {}) {
     getServiceCategoryTelegramGroup: jest.fn().mockResolvedValue(null),
     findServiceItemInHotel: jest.fn().mockResolvedValue({ id: "item-1" }),
     findTenantById: jest.fn().mockResolvedValue({ id: "tenant-1" }),
+    findHotelByTenantId: jest.fn().mockResolvedValue(null),
     createHotel: jest.fn().mockImplementation((input) => ({
       id: "hotel-1",
       tenantId: input.tenant.connect.id,
@@ -366,6 +367,24 @@ describe("HotelsService", () => {
         name: "Riverside Hotel",
       }),
     ).rejects.toThrow(ForbiddenException);
+    expect(repository.createHotel).not.toHaveBeenCalled();
+  });
+
+  it("từ chối tạo khách sạn thứ hai cho cùng tenant", async () => {
+    const repository = createRepository({
+      findHotelByTenantId: jest.fn().mockResolvedValue({
+        id: "hotel-existing",
+        name: "Hotel hiện tại",
+      }),
+    });
+    const service = createService(repository, createCodesService());
+
+    await expect(
+      service.createHotel("actor-1", "active-role", {
+        tenantId: "tenant-1",
+        name: "Hotel thứ hai",
+      }),
+    ).rejects.toThrow("Tenant đã có khách sạn Hotel hiện tại");
     expect(repository.createHotel).not.toHaveBeenCalled();
   });
 
