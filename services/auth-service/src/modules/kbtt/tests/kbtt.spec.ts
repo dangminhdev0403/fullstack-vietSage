@@ -546,7 +546,7 @@ describe("KBTT edit and submit", () => {
       status: 422,
       response: {
         code: "400",
-        detail: "Bản khai báo 1: Khách đang tạm trú tại CSLT.",
+        message: "Bản khai báo 1: Khách đang tạm trú tại CSLT.",
       },
     });
     const stored = await f.repository.findLatestDeclaration("hotel-1", "occ-vn");

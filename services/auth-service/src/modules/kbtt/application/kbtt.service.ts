@@ -562,8 +562,7 @@ export class KbttService implements OnModuleDestroy {
       throw new HttpException(
         {
           code: providerCode,
-          message: "Bộ Công an từ chối hoặc không thể xử lý hồ sơ.",
-          detail: providerMessage,
+          message: providerMessage,
         },
         result.outcome === "BUSINESS_REJECTION" ? 422 : 502,
       );
