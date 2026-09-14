@@ -372,6 +372,10 @@ test("KBTT UI exposes one edit-to-submit action and no local status workflow", (
   assert.match(pageSource, /saveMutation\.mutateAsync/);
   assert.match(pageSource, /submitMutation\.mutateAsync/);
   assert.match(pageSource, /Gửi lên Bộ Công an/);
+  assert.match(pageSource, /Hồ sơ của lần lưu trú này đã gửi BCA/);
+  assert.match(pageSource, /Xem chi tiết/);
+  assert.match(pageSource, /disabled=\{!isSelectable \|\| isSubmittingBatch\}/);
+  assert.match(pageSource, /formatStayDateTimeForForm/);
   assert.match(pageSource, /HH:mm:ss DD\/MM\/YYYY/);
   assert.doesNotMatch(pageSource, /placeholder="YYYY-MM-DD HH:mm:ss"/);
   assert.doesNotMatch(

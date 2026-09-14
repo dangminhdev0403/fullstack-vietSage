@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   HttpException,
   Injectable,
   NotFoundException,
@@ -90,6 +91,39 @@ function sanitizeProviderData(data: unknown): unknown {
   return result;
 }
 
+const KBTT_FIELD_LABELS: Record<string, string> = {
+  hoTen: "Họ và tên",
+  gioiTinh: "Giới tính",
+  ngayThangNamSinhStr: "Ngày sinh",
+  noiCuTru: "Nơi cư trú",
+  maTT: "Tỉnh/thành phố",
+  maPX: "Phường/xã",
+  diaChi: "Địa chỉ",
+  ngayDenCsltStr: "Ngày check-in",
+  ngayDiDuKienStr: "Ngày check-out dự kiến",
+  soPhong: "Số phòng",
+  lyDoCuTru: "Lý do cư trú",
+  lyDoChiTiet: "Lý do chi tiết",
+  loaiGiayTo: "Loại giấy tờ",
+  soGiayTo: "Số giấy tờ",
+  quocTich: "Quốc tịch",
+  soHoChieu: "Số hộ chiếu",
+  loaiNgayThangNamSinh: "Loại ngày sinh",
+  thoiHanTamTruStr: "Thời hạn tạm trú",
+};
+
+function formatValidationIssues(issues: z.ZodIssue[]): string {
+  return issues
+    .map((issue) => {
+      const key = String(issue.path[0] ?? "");
+      const label = (KBTT_FIELD_LABELS[key] ?? key) || "Dữ liệu";
+      return issue.message.toLocaleLowerCase("vi").includes(label.toLocaleLowerCase("vi"))
+        ? issue.message
+        : `${label}: ${issue.message}`;
+    })
+    .join("; ");
+}
+
 @Injectable()
 export class KbttService implements OnModuleDestroy {
   private readonly sessions = new Map<string, { ciphertext: string; session: KbttSession }>();
@@ -102,6 +136,63 @@ export class KbttService implements OnModuleDestroy {
     private readonly provider: KbttProviderClient,
     private readonly occupantsReadService?: HotelStayOccupantsReadService,
   ) {}
+
+  private withOccupantDefaults(
+    citizenshipKind: "VIETNAMESE" | "FOREIGN",
+    data: Record<string, unknown>,
+    occupant: NonNullable<Awaited<ReturnType<KbttRepository["findOccupant"]>>>,
+  ): Record<string, unknown> {
+    const draft = { ...data };
+    if (!draft.hoTen && occupant.fullName) draft.hoTen = occupant.fullName;
+    if (!draft.soPhong && occupant.stay?.room?.roomNumber) {
+      draft.soPhong = occupant.stay.room.roomNumber;
+    }
+    if (!draft.ngayDenCsltStr && (occupant.stay?.checkedInAt || occupant.stay?.plannedCheckInAt)) {
+      draft.ngayDenCsltStr = formatVietnamDateTime(
+        occupant.stay.checkedInAt || occupant.stay.plannedCheckInAt,
+      );
+    }
+    if (!draft.ngayDiDuKienStr && occupant.stay?.plannedCheckOutAt) {
+      draft.ngayDiDuKienStr = formatVietnamDateTime(occupant.stay.plannedCheckOutAt);
+    }
+    if (
+      !draft.ngayThangNamSinhStr &&
+      occupant.dateOfBirth &&
+      isValidCalendarDate(occupant.dateOfBirth)
+    ) {
+      draft.ngayThangNamSinhStr = occupant.dateOfBirth;
+    }
+    if (!draft.gioiTinh && occupant.gender) {
+      const gender = occupant.gender.trim().toUpperCase();
+      if (["M", "MALE", "NAM"].includes(gender)) draft.gioiTinh = "M";
+      if (["F", "FEMALE", "NỮ", "NU"].includes(gender)) draft.gioiTinh = "F";
+    }
+
+    const identityNumber = occupant.identityNumber?.trim();
+    if (citizenshipKind === "VIETNAMESE") {
+      if (!draft.soGiayTo && identityNumber && /^[A-Za-z0-9]{1,32}$/.test(identityNumber)) {
+        draft.soGiayTo = identityNumber;
+      }
+    } else {
+      if (!draft.soHoChieu && identityNumber && /^[A-Za-z0-9]{1,32}$/.test(identityNumber)) {
+        draft.soHoChieu = identityNumber;
+      }
+      if (!draft.thoiHanTamTruStr && occupant.stay?.plannedCheckOutAt) {
+        draft.thoiHanTamTruStr = formatVietnamDateTime(occupant.stay.plannedCheckOutAt);
+      }
+      if (!draft.loaiNgayThangNamSinh && draft.ngayThangNamSinhStr) {
+        draft.loaiNgayThangNamSinh = "D";
+      }
+      if (
+        !draft.quocTich &&
+        occupant.nationality &&
+        /^[A-Z]{3}$/.test(occupant.nationality.trim().toUpperCase())
+      ) {
+        draft.quocTich = occupant.nationality.trim().toUpperCase();
+      }
+    }
+    return draft;
+  }
 
   async get(userId: string, roleId: string, hotelId: string) {
     await this.access.assertHotelAccess(userId, roleId, hotelId);
@@ -366,50 +457,14 @@ export class KbttService implements OnModuleDestroy {
 
     const existing = await this.repository.findLatestDeclaration(hotelId, occupantId);
 
-    const draftData = { ...data };
-    if (!draftData.hoTen && occupant.fullName) draftData.hoTen = occupant.fullName;
-    if (!draftData.soPhong && occupant.stay?.room?.roomNumber) {
-      draftData.soPhong = occupant.stay.room.roomNumber;
-    }
-    if (
-      !draftData.ngayDenCsltStr &&
-      (occupant.stay?.checkedInAt || occupant.stay?.plannedCheckInAt)
-    ) {
-      draftData.ngayDenCsltStr = formatVietnamDateTime(
-        occupant.stay.checkedInAt || occupant.stay.plannedCheckInAt,
-      );
-    }
-    if (!draftData.ngayDiDuKienStr && occupant.stay?.plannedCheckOutAt) {
-      draftData.ngayDiDuKienStr = formatVietnamDateTime(occupant.stay.plannedCheckOutAt);
-    }
-    if (
-      !draftData.ngayThangNamSinhStr &&
-      occupant.dateOfBirth &&
-      isValidCalendarDate(occupant.dateOfBirth)
-    ) {
-      draftData.ngayThangNamSinhStr = occupant.dateOfBirth;
-    }
-    if (!draftData.gioiTinh && occupant.gender) {
-      const g = occupant.gender.trim().toUpperCase();
-      if (g === "M" || g === "MALE" || g === "NAM") draftData.gioiTinh = "M";
-      else if (g === "F" || g === "FEMALE" || g === "NỮ" || g === "NU") draftData.gioiTinh = "F";
+    if (existing?.status === "SUBMITTED") {
+      throw new ConflictException({
+        code: "KBTT_ALREADY_SUBMITTED",
+        message: "Hồ sơ của lần lưu trú này đã gửi BCA và tạm thời không thể chỉnh sửa.",
+      });
     }
 
-    if (citizenshipKind === "VIETNAMESE") {
-      if (!draftData.soGiayTo && occupant.identityNumber) {
-        const rawId = occupant.identityNumber.trim();
-        if (/^[A-Za-z0-9]{1,32}$/.test(rawId)) {
-          draftData.soGiayTo = rawId;
-        }
-      }
-    } else {
-      if (!draftData.soHoChieu && occupant.identityNumber) {
-        const rawId = occupant.identityNumber.trim();
-        if (/^[A-Za-z0-9]{1,32}$/.test(rawId)) {
-          draftData.soHoChieu = rawId;
-        }
-      }
-    }
+    const draftData = this.withOccupantDefaults(citizenshipKind, data, occupant);
 
     let savedDeclaration: KbttGuestDeclaration;
     if (existing) {
@@ -489,25 +544,51 @@ export class KbttService implements OnModuleDestroy {
       }
 
       const declaration = await this.repository.findLatestDeclaration(hotelId, occupantId);
-      if (!declaration) {
-        throw new NotFoundException("Chưa có thông tin khai báo để gửi.");
+      if (declaration?.status === "SUBMITTED") {
+        throw new ConflictException({
+          code: "KBTT_ALREADY_SUBMITTED",
+          message: "Hồ sơ của lần lưu trú này đã gửi BCA và tạm thời không thể gửi lại.",
+        });
       }
 
-      const draft = (declaration.draftPayloadJson ?? {}) as Record<string, unknown>;
+      const declarationKind = declaration?.declarationKind ?? occupant.citizenshipKind;
+      if (!declarationKind) {
+        throw new BadRequestException({
+          code: "KBTT_PAYLOAD_INVALID",
+          message: "Phân loại quốc tịch: chưa xác định khách Việt Nam hay người nước ngoài.",
+        });
+      }
+
+      const draft = this.withOccupantDefaults(
+        declarationKind,
+        (declaration?.draftPayloadJson ?? {}) as Record<string, unknown>,
+        occupant,
+      );
       const parsed =
-        declaration.declarationKind === "VIETNAMESE"
+        declarationKind === "VIETNAMESE"
           ? kbttVietnameseReadySchema.safeParse(draft)
           : kbttForeignReadySchema.safeParse(draft);
       if (!parsed.success) {
-        const detail = parsed.error.issues
-          .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
-          .join("; ");
         throw new BadRequestException({
           code: "KBTT_PAYLOAD_INVALID",
-          message: "Dữ liệu chưa đúng định dạng Bộ Công an.",
-          detail,
+          message: formatValidationIssues(parsed.error.issues),
         });
       }
+      const preparedDeclaration = declaration
+        ? await this.repository.updateDeclaration({
+            id: declaration.id,
+            hotelId,
+            expectedVersion: declaration.version,
+            data: { draftPayloadJson: parsed.data },
+          })
+        : await this.repository.createDeclaration({
+            hotelId,
+            stayId: occupant.stayId,
+            occupantId,
+            declarationKind,
+            status: "DRAFT",
+            draftPayloadJson: parsed.data,
+          });
 
       const connection = await this.repository.find(hotelId);
       if (!connection) {
@@ -520,7 +601,7 @@ export class KbttService implements OnModuleDestroy {
       const session = await this.getOrRefreshSession(hotelId, connection);
       const payload = [parsed.data];
       const result = await this.provider.submitDeclaration(
-        declaration.declarationKind,
+        declarationKind,
         payload,
         session.AccessToken,
       );
@@ -532,11 +613,12 @@ export class KbttService implements OnModuleDestroy {
 
       if (result.outcome === "SUCCESS") {
         const updated = await this.repository.updateDeclaration({
-          id: declaration.id,
+          id: preparedDeclaration.id,
           hotelId,
-          expectedVersion: declaration.version,
+          expectedVersion: preparedDeclaration.version,
           data: {
             status: "SUBMITTED",
+            draftPayloadJson: parsed.data,
             submittedPayloadJson: payload,
             providerCode,
             providerMessage,
@@ -548,9 +630,9 @@ export class KbttService implements OnModuleDestroy {
       }
 
       await this.repository.updateDeclaration({
-        id: declaration.id,
+        id: preparedDeclaration.id,
         hotelId,
-        expectedVersion: declaration.version,
+        expectedVersion: preparedDeclaration.version,
         data: {
           status: "DRAFT",
           providerCode,

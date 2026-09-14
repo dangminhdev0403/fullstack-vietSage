@@ -527,6 +527,82 @@ describe("KBTT edit and submit", () => {
     );
   });
 
+  it("creates a missing draft and fills stay timestamps before bulk-style submit", async () => {
+    const f = fixture();
+    const foreignOccupant = {
+      ...primaryOccupant,
+      id: "occ-foreign",
+      citizenshipKind: "FOREIGN",
+      nationality: "KOR",
+      identityNumber: "TESTPASSPORT1",
+    };
+    f.occupants.set(foreignOccupant.id, foreignOccupant);
+    await f.service.connect("user-1", "role-1", "hotel-1", credentials);
+    await f.service.submit("user-1", "role-1", "hotel-1", foreignOccupant.id);
+
+    expect(f.provider.submitDeclaration).toHaveBeenCalledWith(
+      "FOREIGN",
+      [
+        expect.objectContaining({
+          ngayDenCsltStr: "2026-09-14 10:00:00",
+          ngayDiDuKienStr: "2026-09-15 12:00:00",
+          thoiHanTamTruStr: "2026-09-15 12:00:00",
+        }),
+      ],
+      expect.any(String),
+    );
+  });
+
+  it("reports missing fields by Vietnamese label without calling BCA", async () => {
+    const f = fixture();
+    const incomplete = {
+      ...primaryOccupant,
+      id: "occ-incomplete",
+      citizenshipKind: "FOREIGN",
+      nationality: null,
+      identityNumber: null,
+      dateOfBirth: null,
+      gender: null,
+    };
+    f.occupants.set(incomplete.id, incomplete);
+    await expect(
+      f.service.submit("user-1", "role-1", "hotel-1", incomplete.id),
+    ).rejects.toMatchObject({
+      status: 400,
+      response: {
+        code: "KBTT_PAYLOAD_INVALID",
+        message: expect.stringMatching(/Quốc tịch.*Số hộ chiếu.*Giới tính.*Ngày sinh/),
+      },
+    });
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+  });
+
+  it("blocks editing and resubmitting a submitted stay declaration", async () => {
+    const f = fixture();
+    f.occupants.set("occ-vn", primaryOccupant);
+    const saved = await f.service.saveDraft("user-1", "role-1", "hotel-1", "occ-vn", {
+      citizenshipKind: "VIETNAMESE",
+      data: { lyDoCuTru: 1, loaiGiayTo: 1, soGiayTo: "001090012345" },
+    });
+    await f.repository.updateDeclaration({
+      id: saved.id,
+      hotelId: "hotel-1",
+      expectedVersion: saved.version,
+      data: { status: "SUBMITTED" },
+    });
+
+    await expect(
+      f.service.saveDraft("user-1", "role-1", "hotel-1", "occ-vn", {
+        citizenshipKind: "VIETNAMESE",
+        data: { hoTen: "Changed" },
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+    await expect(f.service.submit("user-1", "role-1", "hotel-1", "occ-vn")).rejects.toMatchObject({
+      status: 409,
+    });
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+  });
+
   it("keeps the form editable and returns provider code/message when BCA rejects it", async () => {
     const f = fixture();
     f.occupants.set("occ-vn", primaryOccupant);

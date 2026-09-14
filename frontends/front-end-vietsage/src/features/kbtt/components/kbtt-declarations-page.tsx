@@ -155,6 +155,28 @@ function formatDateVi(dateStr: string | null | undefined): string {
   }
 }
 
+function formatStayDateTimeForForm(
+  dateStr: string | null | undefined,
+): string | undefined {
+  if (!dateStr) return undefined;
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return undefined;
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const values = Object.fromEntries(
+    parts.map((part) => [part.type, part.value]),
+  );
+  return `${values.hour}:${values.minute}:${values.second} ${values.day}/${values.month}/${values.year}`;
+}
+
 function formatNationality(row: KbttDeclarationListItem): string {
   if (row.citizenshipKind === "VIETNAMESE" || row.nationality === "VNM") {
     return "VNM (Việt Nam)";
@@ -401,7 +423,9 @@ function RowActionMenu({
             className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-base font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors"
           >
             <PencilIcon className="h-4 w-4 text-slate-500" />
-            Chỉnh sửa chi tiết
+            {statusInfo.key === "SUBMITTED"
+              ? "Xem chi tiết"
+              : "Chỉnh sửa chi tiết"}
           </button>
           {statusInfo.key !== "SUBMITTED" ? (
             <button
@@ -1062,7 +1086,11 @@ export function KbttDeclarationsPage({
                     <td className="px-3 py-3">
                       <div
                         onClick={() => setSelectedOccupant(row)}
-                        title="Bấm để chỉnh sửa chi tiết"
+                        title={
+                          isSelectable
+                            ? "Bấm để chỉnh sửa chi tiết"
+                            : "Bấm để xem hồ sơ đã gửi"
+                        }
                         className="flex min-h-10 cursor-pointer items-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-base font-medium text-slate-900 transition-colors hover:border-[#064e3b] hover:bg-slate-50/50"
                       >
                         <span className="truncate">{row.fullName}</span>
@@ -1232,6 +1260,19 @@ function DeclarationModal({
     if (!initial.hoTen && occupant.fullName) initial.hoTen = occupant.fullName;
     if (!initial.soPhong && occupantSummary.roomNumber)
       initial.soPhong = occupantSummary.roomNumber;
+    if (!initial.ngayDenCsltStr) {
+      initial.ngayDenCsltStr = formatStayDateTimeForForm(
+        occupantSummary.checkedInAt ?? occupantSummary.plannedCheckInAt,
+      );
+    }
+    if (!initial.ngayDiDuKienStr) {
+      initial.ngayDiDuKienStr = formatStayDateTimeForForm(
+        occupantSummary.plannedCheckOutAt,
+      );
+    }
+    if (initialKind === "FOREIGN" && !initial.thoiHanTamTruStr) {
+      initial.thoiHanTamTruStr = initial.ngayDiDuKienStr;
+    }
     if (!initial.ngayThangNamSinhStr && occupant.dateOfBirth) {
       initial.ngayThangNamSinhStr = occupant.dateOfBirth;
     }
@@ -1253,7 +1294,14 @@ function DeclarationModal({
       if (!initial.loaiNgayThangNamSinh) initial.loaiNgayThangNamSinh = "D";
     }
     return formatKbttDraftForDisplay(initial);
-  }, [detailQuery.data, initialKind, occupantSummary.roomNumber]);
+  }, [
+    detailQuery.data,
+    initialKind,
+    occupantSummary.checkedInAt,
+    occupantSummary.plannedCheckInAt,
+    occupantSummary.plannedCheckOutAt,
+    occupantSummary.roomNumber,
+  ]);
   const [formEdits, setFormEdits] = useState<Record<string, unknown>>({});
   const baseFormData = useMemo(
     () => ({
@@ -1531,7 +1579,7 @@ function DeclarationModal({
                       : "Người nước ngoài · API 4"}
                   </p>
                 </div>
-                {canManage ? (
+                {canManage && !isAlreadySubmitted ? (
                   <button
                     type="button"
                     onClick={() => setManualClassification(true)}
@@ -1552,7 +1600,7 @@ function DeclarationModal({
                 <select
                   id="citizenship-kind-select"
                   value={citizenshipKind ?? ""}
-                  disabled={!canManage}
+                  disabled={!canManage || isAlreadySubmitted}
                   onChange={(e) => {
                     setCitizenshipOverride(e.target.value as CitizenshipKind);
                     setFormEdits({});
@@ -1586,7 +1634,7 @@ function DeclarationModal({
                       type="text"
                       required
                       value={String(formData.hoTen ?? "")}
-                      disabled={!canManage}
+                      disabled={!canManage || isAlreadySubmitted}
                       onChange={(e) => updateField("hoTen", e.target.value)}
                       className={inputClass}
                       placeholder="NGUYEN VAN A"
@@ -1603,7 +1651,7 @@ function DeclarationModal({
                     <select
                       id="gioiTinh"
                       value={String(formData.gioiTinh ?? "M")}
-                      disabled={!canManage}
+                      disabled={!canManage || isAlreadySubmitted}
                       onChange={(e) => updateField("gioiTinh", e.target.value)}
                       className={selectClass}
                     >
@@ -1628,7 +1676,7 @@ function DeclarationModal({
                       required
                       placeholder="15/01/1990"
                       value={String(formData.ngayThangNamSinhStr ?? "")}
-                      disabled={!canManage}
+                      disabled={!canManage || isAlreadySubmitted}
                       onChange={(e) =>
                         updateField("ngayThangNamSinhStr", e.target.value)
                       }
@@ -1647,7 +1695,7 @@ function DeclarationModal({
                       id="soDienThoai"
                       type="tel"
                       value={String(formData.soDienThoai ?? "")}
-                      disabled={!canManage}
+                      disabled={!canManage || isAlreadySubmitted}
                       onChange={(e) =>
                         updateField("soDienThoai", e.target.value || null)
                       }
@@ -1673,7 +1721,7 @@ function DeclarationModal({
                           ? ""
                           : String(formData.loaiGiayTo)
                       }
-                      disabled={!canManage}
+                      disabled={!canManage || isAlreadySubmitted}
                       onChange={(e) =>
                         updateField(
                           "loaiGiayTo",
@@ -1703,7 +1751,7 @@ function DeclarationModal({
                       type="text"
                       required
                       value={String(formData.soGiayTo ?? "")}
-                      disabled={!canManage}
+                      disabled={!canManage || isAlreadySubmitted}
                       onChange={(e) =>
                         updateField(
                           "soGiayTo",
@@ -1733,7 +1781,7 @@ function DeclarationModal({
                           ? ""
                           : String(formData.lyDoCuTru)
                       }
-                      disabled={!canManage}
+                      disabled={!canManage || isAlreadySubmitted}
                       onChange={(e) =>
                         updateField(
                           "lyDoCuTru",
@@ -1762,7 +1810,7 @@ function DeclarationModal({
                       id="lyDoChiTiet"
                       type="text"
                       value={String(formData.lyDoChiTiet ?? "")}
-                      disabled={!canManage}
+                      disabled={!canManage || isAlreadySubmitted}
                       onChange={(e) =>
                         updateField("lyDoChiTiet", e.target.value || null)
                       }
@@ -1785,7 +1833,7 @@ function DeclarationModal({
                       type="text"
                       required
                       value={String(formData.soPhong ?? "")}
-                      disabled={!canManage}
+                      disabled={!canManage || isAlreadySubmitted}
                       onChange={(e) => updateField("soPhong", e.target.value)}
                       className={inputClass}
                       placeholder="101"
@@ -1805,7 +1853,7 @@ function DeclarationModal({
                       required
                       placeholder="HH:mm:ss DD/MM/YYYY"
                       value={String(formData.ngayDenCsltStr ?? "")}
-                      disabled={!canManage}
+                      disabled={!canManage || isAlreadySubmitted}
                       onChange={(e) =>
                         updateField("ngayDenCsltStr", e.target.value)
                       }
@@ -1826,7 +1874,7 @@ function DeclarationModal({
                       required
                       placeholder="HH:mm:ss DD/MM/YYYY"
                       value={String(formData.ngayDiDuKienStr ?? "")}
-                      disabled={!canManage}
+                      disabled={!canManage || isAlreadySubmitted}
                       onChange={(e) =>
                         updateField("ngayDiDuKienStr", e.target.value)
                       }
@@ -1846,7 +1894,7 @@ function DeclarationModal({
                     <select
                       id="maTT"
                       value={String(formData.maTT ?? "")}
-                      disabled={!canManage}
+                      disabled={!canManage || isAlreadySubmitted}
                       onChange={(e) => {
                         updateField("maTT", e.target.value || null);
                         updateField("maPX", null);
@@ -1872,7 +1920,9 @@ function DeclarationModal({
                     <select
                       id="maPX"
                       value={String(formData.maPX ?? "")}
-                      disabled={!canManage || !provinceCode}
+                      disabled={
+                        !canManage || isAlreadySubmitted || !provinceCode
+                      }
                       onChange={(e) =>
                         updateField("maPX", e.target.value || null)
                       }
@@ -1902,7 +1952,7 @@ function DeclarationModal({
                           ? ""
                           : String(formData.noiCuTru)
                       }
-                      disabled={!canManage}
+                      disabled={!canManage || isAlreadySubmitted}
                       onChange={(e) =>
                         updateField(
                           "noiCuTru",
@@ -1932,7 +1982,7 @@ function DeclarationModal({
                     id="diaChi"
                     type="text"
                     value={String(formData.diaChi ?? "")}
-                    disabled={!canManage}
+                    disabled={!canManage || isAlreadySubmitted}
                     onChange={(e) =>
                       updateField("diaChi", e.target.value || null)
                     }
@@ -1952,7 +2002,7 @@ function DeclarationModal({
                     id="ghiChu"
                     rows={2}
                     value={String(formData.ghiChu ?? "")}
-                    disabled={!canManage}
+                    disabled={!canManage || isAlreadySubmitted}
                     onChange={(e) =>
                       updateField("ghiChu", e.target.value || null)
                     }
@@ -1977,7 +2027,7 @@ function DeclarationModal({
                       type="text"
                       required
                       value={String(formData.hoTen ?? "")}
-                      disabled={!canManage}
+                      disabled={!canManage || isAlreadySubmitted}
                       onChange={(e) => updateField("hoTen", e.target.value)}
                       className={inputClass}
                       placeholder="JOHN DOE"
@@ -1995,7 +2045,7 @@ function DeclarationModal({
                       id="quocTich"
                       required
                       value={String(formData.quocTich ?? "")}
-                      disabled={!canManage}
+                      disabled={!canManage || isAlreadySubmitted}
                       onChange={(e) => updateField("quocTich", e.target.value)}
                       className={selectClass}
                     >
@@ -2022,7 +2072,7 @@ function DeclarationModal({
                       type="text"
                       required
                       value={String(formData.soHoChieu ?? "")}
-                      disabled={!canManage}
+                      disabled={!canManage || isAlreadySubmitted}
                       onChange={(e) =>
                         updateField(
                           "soHoChieu",
@@ -2044,7 +2094,7 @@ function DeclarationModal({
                     <select
                       id="f-gioiTinh"
                       value={String(formData.gioiTinh ?? "M")}
-                      disabled={!canManage}
+                      disabled={!canManage || isAlreadySubmitted}
                       onChange={(e) => updateField("gioiTinh", e.target.value)}
                       className={selectClass}
                     >
@@ -2065,7 +2115,7 @@ function DeclarationModal({
                     <select
                       id="loaiNgayThangNamSinh"
                       value={String(formData.loaiNgayThangNamSinh ?? "D")}
-                      disabled={!canManage}
+                      disabled={!canManage || isAlreadySubmitted}
                       onChange={(e) =>
                         updateField("loaiNgayThangNamSinh", e.target.value)
                       }
@@ -2096,7 +2146,7 @@ function DeclarationModal({
                           : "20/06/1985"
                       }
                       value={String(formData.ngayThangNamSinhStr ?? "")}
-                      disabled={!canManage}
+                      disabled={!canManage || isAlreadySubmitted}
                       onChange={(e) =>
                         updateField("ngayThangNamSinhStr", e.target.value)
                       }
@@ -2118,7 +2168,7 @@ function DeclarationModal({
                       type="text"
                       required
                       value={String(formData.soPhong ?? "")}
-                      disabled={!canManage}
+                      disabled={!canManage || isAlreadySubmitted}
                       onChange={(e) => updateField("soPhong", e.target.value)}
                       className={inputClass}
                       placeholder="201"
@@ -2138,7 +2188,7 @@ function DeclarationModal({
                       required
                       placeholder="HH:mm:ss DD/MM/YYYY"
                       value={String(formData.thoiHanTamTruStr ?? "")}
-                      disabled={!canManage}
+                      disabled={!canManage || isAlreadySubmitted}
                       onChange={(e) =>
                         updateField("thoiHanTamTruStr", e.target.value)
                       }
@@ -2161,7 +2211,7 @@ function DeclarationModal({
                       required
                       placeholder="HH:mm:ss DD/MM/YYYY"
                       value={String(formData.ngayDenCsltStr ?? "")}
-                      disabled={!canManage}
+                      disabled={!canManage || isAlreadySubmitted}
                       onChange={(e) =>
                         updateField("ngayDenCsltStr", e.target.value)
                       }
@@ -2182,7 +2232,7 @@ function DeclarationModal({
                       required
                       placeholder="HH:mm:ss DD/MM/YYYY"
                       value={String(formData.ngayDiDuKienStr ?? "")}
-                      disabled={!canManage}
+                      disabled={!canManage || isAlreadySubmitted}
                       onChange={(e) =>
                         updateField("ngayDiDuKienStr", e.target.value)
                       }
