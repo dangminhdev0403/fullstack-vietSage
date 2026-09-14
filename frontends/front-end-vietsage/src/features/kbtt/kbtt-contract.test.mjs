@@ -369,11 +369,28 @@ test("KBTT UI exposes one edit-to-submit action and no local status workflow", (
     new URL("./components/kbtt-declarations-page.tsx", import.meta.url),
     "utf8",
   );
-  assert.match(pageSource, /saveMutation\.mutateAsync/);
-  assert.match(pageSource, /submitMutation\.mutateAsync/);
+  assert.match(pageSource, /saveInlineRow/);
+  assert.match(
+    pageSource,
+    /await saveInlineRow\(row\);[\s\S]*submitMutation\.mutateAsync/,
+  );
+  assert.match(pageSource, /aria-label="Giới tính bắt buộc"/);
+  assert.match(pageSource, /aria-label="Ngày sinh bắt buộc"/);
+  assert.match(pageSource, /aria-label="Loại giấy tờ bắt buộc"/);
+  assert.match(pageSource, /Tên khách phòng/);
+  assert.doesNotMatch(pageSource, /Trường bắt buộc để gửi BCA/);
+  assert.doesNotMatch(
+    pageSource,
+    />Sửa<|Chỉnh sửa hàng loạt|Bấm để chỉnh sửa chi tiết/,
+  );
   assert.match(pageSource, /Gửi lên Bộ Công an/);
   assert.match(pageSource, /Hồ sơ của lần lưu trú này đã gửi BCA/);
   assert.match(pageSource, /[" >]Xem(?: chi tiết)?[" <]/);
+  assert.match(pageSource, /handleSubmitAll/);
+  assert.doesNotMatch(
+    pageSource,
+    /type="checkbox"|selectedOccupantIds|handleSubmitSelected|Upload BCA đã chọn/,
+  );
   assert.match(pageSource, /disabled=\{!isSelectable \|\| isSubmittingBatch\}/);
   assert.match(pageSource, /formatStayDateTimeForForm/);
   assert.match(pageSource, /HH:mm:ss DD\/MM\/YYYY/);

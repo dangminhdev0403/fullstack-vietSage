@@ -510,6 +510,24 @@ describe("KBTT edit and submit", () => {
     expect(saved.status).toBe("DRAFT");
   });
 
+  it("infers Vietnamese passport, CCCD defaults and normalizes gender", async () => {
+    const f = fixture();
+    const vietnamesePassport = {
+      ...primaryOccupant,
+      id: "occ-vn-passport",
+      identityNumber: "C1234567",
+      gender: "Female [F]",
+    };
+    f.occupants.set(vietnamesePassport.id, vietnamesePassport);
+    await f.service.connect("user-1", "role-1", "hotel-1", credentials);
+    await f.service.submit("user-1", "role-1", "hotel-1", vietnamesePassport.id);
+    expect(f.provider.submitDeclaration).toHaveBeenCalledWith(
+      "VIETNAMESE",
+      [expect.objectContaining({ loaiGiayTo: 4, lyDoCuTru: 1, gioiTinh: "F" })],
+      expect.any(String),
+    );
+  });
+
   it("validates the current draft then submits directly to provider API 5", async () => {
     const f = fixture();
     f.occupants.set("occ-vn", primaryOccupant);
@@ -523,7 +541,7 @@ describe("KBTT edit and submit", () => {
     expect(result.status).toBe("SUBMITTED");
     expect(f.provider.submitDeclaration).toHaveBeenCalledWith(
       "VIETNAMESE",
-      expect.any(Array),
+      [expect.objectContaining({ loaiGiayTo: 1, lyDoCuTru: 1 })],
       expect.any(String),
     );
   });
@@ -581,6 +599,10 @@ describe("KBTT edit and submit", () => {
   it("blocks a duplicate active identity before calling BCA", async () => {
     const f = fixture();
     f.occupants.set("occ-vn", primaryOccupant);
+    await f.service.saveDraft("user-1", "role-1", "hotel-1", "occ-vn", {
+      citizenshipKind: "VIETNAMESE",
+      data: { lyDoCuTru: 1, loaiGiayTo: 1, soGiayTo: "001090012345" },
+    });
     f.repository.findActiveSubmittedOccupantByIdentity.mockResolvedValueOnce({
       stay: { room: { roomNumber: "202" } },
     });

@@ -100,6 +100,7 @@ export const kbttDeclarationListItemSchema = z.object({
   dateOfBirth: z.string().nullable(),
   gender: z.string().nullable(),
   nationality: z.string().nullable(),
+  documentType: z.number().nullable().optional(),
   residencePlace: z.string().nullable(),
   citizenshipKind: citizenshipKindSchema.nullable(),
   derivedStatus: kbttDerivedStatusSchema,

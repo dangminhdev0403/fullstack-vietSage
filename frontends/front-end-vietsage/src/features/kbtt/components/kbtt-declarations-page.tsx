@@ -334,34 +334,43 @@ function AlertCircleIcon({ className = "h-4 w-4" }: { className?: string }) {
 
 function RowActionMenu({
   statusInfo,
-  onEdit,
+  onView,
+  onSave,
   onSubmit,
   onViewError,
+  dirty,
   disabled,
 }: {
   statusInfo: { key: string; label: string };
-  onEdit: () => void;
+  onView: () => void;
+  onSave: () => void;
   onSubmit: () => void;
   onViewError: () => void;
+  dirty: boolean;
   disabled?: boolean;
 }) {
   return (
     <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
-      {/* Sửa chi tiết */}
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={onEdit}
-        title={
-          statusInfo.key === "SUBMITTED"
-            ? "Xem hồ sơ đã gửi"
-            : "Chỉnh sửa chi tiết hồ sơ"
-        }
-        className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-sm font-semibold text-slate-700 shadow-2xs hover:border-[#064e3b] hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 transition-colors"
-      >
-        <PencilIcon className="h-3.5 w-3.5 text-slate-500" />
-        <span>{statusInfo.key === "SUBMITTED" ? "Xem" : "Sửa"}</span>
-      </button>
+      {statusInfo.key === "SUBMITTED" ? (
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={onView}
+          title="Xem hồ sơ đã gửi"
+          className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-sm font-semibold text-slate-700 shadow-2xs hover:border-[#064e3b] hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 transition-colors"
+        >
+          Xem
+        </button>
+      ) : dirty ? (
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={onSave}
+          className="inline-flex min-h-9 items-center rounded-lg border border-emerald-600 bg-white px-2.5 py-1 text-sm font-semibold text-emerald-800 disabled:opacity-40"
+        >
+          Lưu
+        </button>
+      ) : null}
 
       {/* Gửi BCA ngay (chưa gửi hoặc bị từ chối) */}
       {statusInfo.key !== "SUBMITTED" && (
@@ -418,10 +427,6 @@ export function KbttDeclarationsPage({
   const [nationalityFilter, setNationalityFilter] = useState<string>("ALL");
   const [checkInDateFilter, setCheckInDateFilter] = useState<string>("");
 
-  // Selection state
-  const [selectedOccupantIds, setSelectedOccupantIds] = useState<Set<string>>(
-    new Set(),
-  );
   const [isSubmittingBatch, setIsSubmittingBatch] = useState(false);
 
   // Modal edit state
@@ -440,7 +445,29 @@ export function KbttDeclarationsPage({
     ),
   );
 
+  const saveMutation = useMutation(boundResource.mutations.saveDraft.options());
   const submitMutation = useMutation(boundResource.mutations.submit.options());
+  const nationalitiesQuery = useQuery(
+    boundResource.queries.catalog.options({ kind: "NATIONALITY" }),
+  );
+  const documentTypesQuery = useQuery(
+    boundResource.queries.catalog.options({ kind: "DOCUMENT_TYPE" }),
+  );
+  const nationalities = nationalitiesQuery.data ?? [];
+  const documentTypes = documentTypesQuery.data ?? [];
+  const [inlineEdits, setInlineEdits] = useState<
+    Record<
+      string,
+      {
+        fullName?: string;
+        identityNumber?: string;
+        nationality?: string;
+        gender?: string;
+        dateOfBirth?: string;
+        documentType?: string;
+      }
+    >
+  >({});
 
   const allRows = useMemo(
     () => declarationsQuery.data ?? [],
@@ -495,33 +522,6 @@ export function KbttDeclarationsPage({
     () => filteredRows.filter(canSelectKbttDeclaration),
     [filteredRows],
   );
-  const selectedCount = selectableRows.filter((row) =>
-    selectedOccupantIds.has(row.occupantId),
-  ).length;
-  const isAllSelected =
-    selectableRows.length > 0 && selectedCount === selectableRows.length;
-
-  const handleToggleSelectAll = useCallback(() => {
-    if (isAllSelected) {
-      setSelectedOccupantIds(new Set());
-    } else {
-      setSelectedOccupantIds(new Set(selectableRows.map((r) => r.occupantId)));
-    }
-  }, [isAllSelected, selectableRows]);
-
-  const handleToggleRow = useCallback((row: KbttDeclarationListItem) => {
-    if (!canSelectKbttDeclaration(row)) return;
-    setSelectedOccupantIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(row.occupantId)) {
-        next.delete(row.occupantId);
-      } else {
-        next.add(row.occupantId);
-      }
-      return next;
-    });
-  }, []);
-
   const unsubmittedCount = selectableRows.length;
 
   const handleRefresh = useCallback(() => {
@@ -541,85 +541,91 @@ export function KbttDeclarationsPage({
     }
   }, []);
 
-  const handleBulkEdit = useCallback(() => {
-    if (selectedCount === 0) {
-      void showErrorAlert(
-        "Thông báo",
-        "Vui lòng chọn ít nhất một phòng để chỉnh sửa.",
-      );
-      return;
-    }
-    const firstSelected = selectableRows.find((r) =>
-      selectedOccupantIds.has(r.occupantId),
-    );
-    if (firstSelected) {
-      setSelectedOccupant(firstSelected);
-    }
-  }, [selectedCount, selectedOccupantIds, selectableRows]);
+  const updateInlineField = useCallback(
+    (
+      occupantId: string,
+      key:
+        | "fullName"
+        | "identityNumber"
+        | "nationality"
+        | "gender"
+        | "dateOfBirth"
+        | "documentType",
+      value: string,
+    ) => {
+      setInlineEdits((current) => ({
+        ...current,
+        [occupantId]: { ...current[occupantId], [key]: value },
+      }));
+    },
+    [],
+  );
 
-  const handleSubmitSelected = useCallback(async () => {
-    if (selectedCount === 0) {
-      await showErrorAlert(
-        "Thông báo",
-        "Vui lòng chọn ít nhất một phòng/khách để gửi BCA.",
-      );
-      return;
-    }
+  const saveInlineRow = useCallback(
+    async (row: KbttDeclarationListItem) => {
+      const edits = inlineEdits[row.occupantId];
+      if (!edits) return;
+      const nationality = (edits.nationality ?? row.nationality ?? "").trim();
+      if (!nationality) throw new Error("Quốc tịch là bắt buộc.");
+      const citizenshipKind: CitizenshipKind =
+        nationality === "VNM" ? "VIETNAMESE" : "FOREIGN";
+      const identityNumber = (
+        edits.identityNumber ??
+        row.identityNumber ??
+        ""
+      ).trim();
+      const inferredDocumentType = /^\d{12}$/.test(identityNumber)
+        ? 1
+        : /^\d{9}$/.test(identityNumber)
+          ? 2
+          : /^(?=.*[A-Za-z])[A-Za-z0-9]{1,10}$/.test(identityNumber)
+            ? 4
+            : 0;
+      const data: Record<string, unknown> = {
+        hoTen: (edits.fullName ?? row.fullName).trim(),
+        gioiTinh: (edits.gender ?? row.gender ?? "").trim(),
+        ngayThangNamSinhStr: (
+          edits.dateOfBirth ??
+          row.dateOfBirth ??
+          ""
+        ).trim(),
+        ...(citizenshipKind === "VIETNAMESE"
+          ? {
+              soGiayTo: identityNumber,
+              loaiGiayTo: Number(
+                edits.documentType ?? row.documentType ?? inferredDocumentType,
+              ),
+            }
+          : {
+              soHoChieu: identityNumber,
+              quocTich: nationality,
+              loaiNgayThangNamSinh: "D",
+            }),
+      };
+      await saveMutation.mutateAsync({
+        occupantId: row.occupantId,
+        body: { citizenshipKind, data },
+      });
+      setInlineEdits((current) => {
+        const next = { ...current };
+        delete next[row.occupantId];
+        return next;
+      });
+    },
+    [inlineEdits, saveMutation],
+  );
 
-    const selectedRows = selectableRows.filter((r) =>
-      selectedOccupantIds.has(r.occupantId),
-    );
-    if (selectedRows.length === 0) {
-      await showErrorAlert(
-        "Thông báo",
-        "Không còn hồ sơ chưa gửi trong lựa chọn.",
-      );
-      return;
-    }
-    const confirmResult = await showConfirmDialog({
-      title: "Upload BCA đã chọn",
-      text: `Bạn có chắc muốn gửi khai báo tạm trú cho ${selectedRows.length} khách đã chọn lên Cổng dịch vụ công Bộ Công an không?`,
-      confirmText: "Gửi ngay",
-      cancelText: "Hủy",
-    });
-    if (!confirmResult.isConfirmed) return;
-
-    setIsSubmittingBatch(true);
-    let successCount = 0;
-    const errors: string[] = [];
-
-    for (const row of selectedRows) {
+  const handleSaveInlineRow = useCallback(
+    async (row: KbttDeclarationListItem) => {
       try {
-        await submitMutation.mutateAsync({ occupantId: row.occupantId });
-        successCount++;
-      } catch (err) {
-        const msg = errorText(err);
-        errors.push(`Phòng ${row.roomNumber ?? "—"} (${row.fullName}): ${msg}`);
+        await saveInlineRow(row);
+        handleRefresh();
+      } catch (error) {
+        await showErrorAlert("Không thể lưu hồ sơ", errorText(error));
       }
-    }
-
-    setIsSubmittingBatch(false);
-    handleRefresh();
-
-    if (errors.length === 0) {
-      await showSuccessAlert(
-        "Gửi BCA thành công",
-        `Đã gửi thành công khai báo tạm trú cho ${successCount} khách lên Bộ Công an.`,
-      );
-      setSelectedOccupantIds(new Set());
-    } else {
-      await showErrorAlert(
-        "Kết quả gửi BCA",
-        `Thành công: ${successCount}/${selectedRows.length} khách.\n\nLỗi:\n${errors.join("\n")}`,
-      );
-    }
-  }, [
-    selectedCount,
-    selectedOccupantIds,
-    selectableRows,
-    submitMutation,
-    handleRefresh,
-  ]);
+    },
+    [handleRefresh, saveInlineRow],
+  );
 
   const handleSubmitAll = useCallback(async () => {
     const unsubmittedRows = selectableRows;
@@ -643,6 +649,7 @@ export function KbttDeclarationsPage({
 
     for (const row of unsubmittedRows) {
       try {
+        await saveInlineRow(row);
         await submitMutation.mutateAsync({ occupantId: row.occupantId });
         successCount++;
       } catch (err) {
@@ -659,14 +666,13 @@ export function KbttDeclarationsPage({
         "Gửi BCA thành công",
         `Đã gửi thành công khai báo tạm trú cho toàn bộ ${successCount} khách lên Bộ Công an.`,
       );
-      setSelectedOccupantIds(new Set());
     } else {
       await showErrorAlert(
         "Kết quả gửi BCA",
         `Thành công: ${successCount}/${unsubmittedRows.length} khách.\n\nLỗi:\n${errors.join("\n")}`,
       );
     }
-  }, [selectableRows, submitMutation, handleRefresh]);
+  }, [selectableRows, saveInlineRow, submitMutation, handleRefresh]);
 
   const handleSubmitSingle = useCallback(
     async (row: KbttDeclarationListItem) => {
@@ -680,6 +686,7 @@ export function KbttDeclarationsPage({
       if (!confirmResult.isConfirmed) return;
 
       try {
+        await saveInlineRow(row);
         await submitMutation.mutateAsync({ occupantId: row.occupantId });
         handleRefresh();
         await showSuccessAlert(
@@ -690,7 +697,7 @@ export function KbttDeclarationsPage({
         await showErrorAlert("Lỗi gửi BCA", errorText(err));
       }
     },
-    [submitMutation, handleRefresh],
+    [saveInlineRow, submitMutation, handleRefresh],
   );
 
   const handleViewError = useCallback(async (row: KbttDeclarationListItem) => {
@@ -847,59 +854,22 @@ export function KbttDeclarationsPage({
         </button>
       </div>
 
-      {/* Batch Actions Bar */}
-      <div className="flex flex-col gap-4 rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <input
-            type="checkbox"
-            checked={isAllSelected}
-            onChange={handleToggleSelectAll}
-            disabled={selectableRows.length === 0 || isSubmittingBatch}
-            className="h-5 w-5 rounded border-slate-300 text-[#064e3b] focus:ring-[#064e3b] disabled:cursor-not-allowed disabled:opacity-30"
-            aria-label="Chọn tất cả hồ sơ chưa gửi"
-          />
-          <div>
-            <p className="text-base font-semibold text-slate-800">
-              Đã chọn {selectedCount}/{selectableRows.length} phòng chưa gửi
-            </p>
-            {filteredRows.length > selectableRows.length && (
-              <p className="text-xs text-slate-500">
-                {filteredRows.length - selectableRows.length} phòng đã gửi BCA
-                hoàn tất
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={handleBulkEdit}
-            disabled={selectedCount === 0}
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-emerald-600 bg-white px-4 py-2 text-base font-semibold text-emerald-800 shadow-xs hover:bg-emerald-50 disabled:opacity-40 transition-colors"
-          >
-            <PencilIcon className="h-4 w-4" />
-            Chỉnh sửa hàng loạt
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmitSelected}
-            disabled={selectedCount === 0 || isSubmittingBatch}
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-emerald-600 bg-white px-4 py-2 text-base font-semibold text-emerald-800 shadow-xs hover:bg-emerald-50 disabled:opacity-40 transition-colors"
-          >
-            <CloudUploadIcon className="h-4 w-4" />
-            {isSubmittingBatch ? "Đang gửi..." : "Upload BCA đã chọn"}
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmitAll}
-            disabled={unsubmittedCount === 0 || isSubmittingBatch}
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#064e3b] px-5 py-2 text-base font-semibold text-white shadow-xs hover:bg-[#043327] disabled:opacity-40 transition-colors"
-          >
-            <CloudUploadIcon className="h-4 w-4" />
-            Upload tất cả ({unsubmittedCount})
-          </button>
-        </div>
+      {/* Upload all is the only submission workflow. */}
+      <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4">
+        <p className="text-sm text-slate-600">
+          {unsubmittedCount} hồ sơ chưa gửi · các hồ sơ đã gửi được khóa
+        </p>
+        <button
+          type="button"
+          onClick={handleSubmitAll}
+          disabled={unsubmittedCount === 0 || isSubmittingBatch}
+          className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl bg-[#064e3b] px-5 py-2 text-base font-semibold text-white shadow-xs hover:bg-[#043327] disabled:opacity-40 transition-colors"
+        >
+          <CloudUploadIcon className="h-4 w-4" />
+          {isSubmittingBatch
+            ? "Đang gửi..."
+            : `Upload tất cả (${unsubmittedCount})`}
+        </button>
       </div>
 
       {/* Table Data View */}
@@ -937,19 +907,6 @@ export function KbttDeclarationsPage({
               <tr className="border-b border-slate-200 bg-slate-50/70 text-sm font-semibold text-slate-700">
                 <th
                   scope="col"
-                  className="w-12 px-4 py-3.5 text-center whitespace-nowrap"
-                >
-                  <input
-                    type="checkbox"
-                    checked={isAllSelected}
-                    onChange={handleToggleSelectAll}
-                    disabled={selectableRows.length === 0 || isSubmittingBatch}
-                    className="h-5 w-5 rounded border-slate-300 text-[#064e3b] focus:ring-[#064e3b] disabled:cursor-not-allowed disabled:opacity-30"
-                    aria-label="Chọn tất cả hồ sơ chưa gửi"
-                  />
-                </th>
-                <th
-                  scope="col"
                   className="w-14 px-3 py-3.5 text-center whitespace-nowrap"
                 >
                   STT
@@ -959,7 +916,7 @@ export function KbttDeclarationsPage({
                 </th>
                 <th
                   scope="col"
-                  className="min-w-[200px] px-3 py-3.5 whitespace-nowrap"
+                  className="w-40 min-w-[150px] px-3 py-3.5 whitespace-nowrap"
                 >
                   Tên khách
                 </th>
@@ -968,6 +925,15 @@ export function KbttDeclarationsPage({
                 </th>
                 <th scope="col" className="w-44 px-3 py-3.5 whitespace-nowrap">
                   Số giấy tờ
+                </th>
+                <th scope="col" className="w-36 px-3 py-3.5 whitespace-nowrap">
+                  Loại giấy tờ
+                </th>
+                <th scope="col" className="w-40 px-3 py-3.5 whitespace-nowrap">
+                  Ngày sinh
+                </th>
+                <th scope="col" className="w-28 px-3 py-3.5 whitespace-nowrap">
+                  Giới tính
                 </th>
                 <th
                   scope="col"
@@ -987,41 +953,14 @@ export function KbttDeclarationsPage({
               {filteredRows.map((row, idx) => {
                 const statusInfo = getDeclarationStatus(row);
                 const isSelectable = canSelectKbttDeclaration(row);
-                const isChecked =
-                  isSelectable && selectedOccupantIds.has(row.occupantId);
-
+                const edits = inlineEdits[row.occupantId] ?? {};
                 return (
                   <tr
                     key={row.occupantId}
-                    className={`transition-colors ${
-                      isChecked
-                        ? "bg-emerald-50/40"
-                        : isSelectable
-                          ? "hover:bg-slate-50/80"
-                          : "bg-slate-50/70"
-                    }`}
+                    className={
+                      isSelectable ? "hover:bg-slate-50/80" : "bg-slate-50/70"
+                    }
                   >
-                    {/* Checkbox */}
-                    <td className="px-4 py-3 text-center">
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => handleToggleRow(row)}
-                        disabled={!isSelectable || isSubmittingBatch}
-                        title={
-                          isSelectable
-                            ? "Chọn hồ sơ của lần lưu trú này"
-                            : "Hồ sơ của lần lưu trú này đã gửi BCA"
-                        }
-                        className="h-5 w-5 rounded border-slate-300 text-[#064e3b] focus:ring-[#064e3b] disabled:cursor-not-allowed disabled:opacity-25"
-                        aria-label={
-                          isSelectable
-                            ? `Chọn phòng ${row.roomNumber ?? "—"}`
-                            : `Phòng ${row.roomNumber ?? "—"} đã gửi BCA`
-                        }
-                      />
-                    </td>
-
                     {/* STT */}
                     <td className="px-3 py-3 text-center text-slate-500 font-medium">
                       {(page - 1) * limit + idx + 1}
@@ -1036,38 +975,147 @@ export function KbttDeclarationsPage({
 
                     {/* Tên khách */}
                     <td className="px-3 py-3">
-                      <div
-                        onClick={() => setSelectedOccupant(row)}
-                        title={
-                          isSelectable
-                            ? "Bấm để chỉnh sửa chi tiết"
-                            : "Bấm để xem hồ sơ đã gửi"
+                      <input
+                        value={edits.fullName ?? row.fullName}
+                        disabled={!isSelectable || isSubmittingBatch}
+                        onChange={(event) =>
+                          updateInlineField(
+                            row.occupantId,
+                            "fullName",
+                            event.target.value,
+                          )
                         }
-                        className="flex min-h-10 cursor-pointer items-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-base font-medium text-slate-900 transition-colors hover:border-[#064e3b] hover:bg-slate-50/50"
-                      >
-                        <span className="truncate">{row.fullName}</span>
-                      </div>
+                        className="min-h-10 w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-base font-medium text-slate-900 disabled:bg-slate-50"
+                        aria-label={`Tên khách phòng ${row.roomNumber ?? "—"}`}
+                      />
                     </td>
 
                     {/* Quốc tịch */}
                     <td className="px-3 py-3">
-                      <div className="flex min-h-10 items-center justify-between gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-base text-slate-800">
-                        <span className="truncate">
-                          {formatNationality(row)}
-                        </span>
-                        <ChevronDownIcon className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                      </div>
+                      <select
+                        value={edits.nationality ?? row.nationality ?? ""}
+                        disabled={!isSelectable || isSubmittingBatch}
+                        onChange={(event) =>
+                          updateInlineField(
+                            row.occupantId,
+                            "nationality",
+                            event.target.value,
+                          )
+                        }
+                        className="min-h-10 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-base text-slate-800 disabled:bg-slate-50"
+                        aria-label={`Quốc tịch phòng ${row.roomNumber ?? "—"}`}
+                      >
+                        <option value="">Chọn quốc tịch</option>
+                        {nationalities.map((item) => (
+                          <option key={item.code} value={item.code}>
+                            {item.code} ({item.nameVi})
+                          </option>
+                        ))}
+                      </select>
                     </td>
 
                     {/* Số giấy tờ */}
                     <td className="px-3 py-3">
-                      <div className="flex min-h-10 items-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-mono text-base text-slate-800">
-                        <span className="truncate">
-                          {row.identityNumber || "—"}
-                        </span>
-                      </div>
+                      <input
+                        value={edits.identityNumber ?? row.identityNumber ?? ""}
+                        disabled={!isSelectable || isSubmittingBatch}
+                        onChange={(event) =>
+                          updateInlineField(
+                            row.occupantId,
+                            "identityNumber",
+                            event.target.value,
+                          )
+                        }
+                        className="min-h-10 w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-mono text-base text-slate-800 disabled:bg-slate-50"
+                        aria-label={`Số giấy tờ phòng ${row.roomNumber ?? "—"}`}
+                      />
                     </td>
 
+                    {/* Ngày sinh */}
+                    <td className="px-3 py-3">
+                      <select
+                        value={String(
+                          edits.documentType ??
+                            row.documentType ??
+                            (row.citizenshipKind === "FOREIGN"
+                              ? 4
+                              : /^\d{12}$/.test(
+                                    edits.identityNumber ??
+                                      row.identityNumber ??
+                                      "",
+                                  )
+                                ? 1
+                                : /^\d{9}$/.test(
+                                      edits.identityNumber ??
+                                        row.identityNumber ??
+                                        "",
+                                    )
+                                  ? 2
+                                  : /[A-Za-z]/.test(
+                                        edits.identityNumber ??
+                                          row.identityNumber ??
+                                          "",
+                                      )
+                                    ? 4
+                                    : ""),
+                        )}
+                        disabled={!isSelectable || isSubmittingBatch}
+                        onChange={(event) =>
+                          updateInlineField(
+                            row.occupantId,
+                            "documentType",
+                            event.target.value,
+                          )
+                        }
+                        className="min-h-10 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm disabled:bg-slate-50"
+                        aria-label="Loại giấy tờ bắt buộc"
+                      >
+                        <option value="">Chọn *</option>
+                        {documentTypes.map((item) => (
+                          <option key={item.code} value={item.code}>
+                            {item.nameVi}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+
+                    {/* Ngày sinh */}
+                    <td className="px-3 py-3">
+                      <input
+                        type="date"
+                        value={edits.dateOfBirth ?? row.dateOfBirth ?? ""}
+                        disabled={!isSelectable || isSubmittingBatch}
+                        onChange={(event) =>
+                          updateInlineField(
+                            row.occupantId,
+                            "dateOfBirth",
+                            event.target.value,
+                          )
+                        }
+                        className="min-h-10 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm disabled:bg-slate-50"
+                        aria-label="Ngày sinh bắt buộc"
+                      />
+                    </td>
+                    {/* Giới tính */}
+                    <td className="px-3 py-3">
+                      <select
+                        value={edits.gender ?? row.gender ?? ""}
+                        disabled={!isSelectable || isSubmittingBatch}
+                        onChange={(event) =>
+                          updateInlineField(
+                            row.occupantId,
+                            "gender",
+                            event.target.value,
+                          )
+                        }
+                        className="min-h-10 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm disabled:bg-slate-50"
+                        aria-label="Giới tính bắt buộc"
+                      >
+                        <option value="">Chọn *</option>
+                        <option value="M">Nam</option>
+                        <option value="F">Nữ</option>
+                      </select>
+                    </td>
                     {/* Trạng thái */}
                     <td className="px-3 py-3 text-center">
                       <span
@@ -1084,9 +1132,11 @@ export function KbttDeclarationsPage({
                     <td className="px-3 py-3 text-center whitespace-nowrap">
                       <RowActionMenu
                         statusInfo={statusInfo}
-                        onEdit={() => setSelectedOccupant(row)}
+                        onView={() => setSelectedOccupant(row)}
+                        onSave={() => void handleSaveInlineRow(row)}
                         onSubmit={() => handleSubmitSingle(row)}
                         onViewError={() => handleViewError(row)}
+                        dirty={Boolean(inlineEdits[row.occupantId])}
                         disabled={isSubmittingBatch}
                       />
                     </td>

@@ -164,8 +164,10 @@ export class KbttService implements OnModuleDestroy {
     }
     if (!draft.gioiTinh && occupant.gender) {
       const gender = occupant.gender.trim().toUpperCase();
-      if (["M", "MALE", "NAM"].includes(gender)) draft.gioiTinh = "M";
-      if (["F", "FEMALE", "NỮ", "NU"].includes(gender)) draft.gioiTinh = "F";
+      if (["M", "MALE", "NAM", "MALE [M]"].includes(gender)) draft.gioiTinh = "M";
+      if (["F", "FEMALE", "NỮ", "NU", "FEMALE [F]"].includes(gender)) {
+        draft.gioiTinh = "F";
+      }
     }
 
     const identityNumber = occupant.identityNumber?.trim();
@@ -173,6 +175,14 @@ export class KbttService implements OnModuleDestroy {
       if (!draft.soGiayTo && identityNumber && /^[A-Za-z0-9]{1,32}$/.test(identityNumber)) {
         draft.soGiayTo = identityNumber;
       }
+      if (!draft.loaiGiayTo && typeof draft.soGiayTo === "string") {
+        if (/^\d{12}$/.test(draft.soGiayTo)) draft.loaiGiayTo = 1;
+        else if (/^\d{9}$/.test(draft.soGiayTo)) draft.loaiGiayTo = 2;
+        else if (/^(?=.*[A-Za-z])[A-Za-z0-9]{1,10}$/.test(draft.soGiayTo)) {
+          draft.loaiGiayTo = 4;
+        }
+      }
+      if (!draft.lyDoCuTru) draft.lyDoCuTru = 1;
     } else {
       if (!draft.soHoChieu && identityNumber && /^[A-Za-z0-9]{1,32}$/.test(identityNumber)) {
         draft.soHoChieu = identityNumber;
@@ -364,6 +374,7 @@ export class KbttService implements OnModuleDestroy {
 
     return pagedOccupants.map((occupant) => {
       const decl = declarationsByOccupant.get(occupant.id) ?? null;
+      const draft = (decl?.draftPayloadJson ?? {}) as Record<string, unknown>;
       const classification = decl?.declarationKind ?? occupant.citizenshipKind ?? null;
       const derivedStatus: KbttDerivedStatus = decl
         ? decl.status === "SUBMITTED"
@@ -378,12 +389,47 @@ export class KbttService implements OnModuleDestroy {
         roomId: occupant.roomId,
         roomNumber: occupant.roomNumber,
         isPrimary: occupant.isPrimary,
-        fullName: occupant.fullName,
+        fullName: typeof draft.hoTen === "string" ? draft.hoTen : occupant.fullName,
         phone: occupant.phone,
-        identityNumber: occupant.identityNumber,
-        dateOfBirth: occupant.dateOfBirth,
-        gender: occupant.gender,
-        nationality: occupant.nationality,
+        identityNumber:
+          typeof draft.soGiayTo === "string"
+            ? draft.soGiayTo
+            : typeof draft.soHoChieu === "string"
+              ? draft.soHoChieu
+              : occupant.identityNumber,
+        dateOfBirth:
+          typeof draft.ngayThangNamSinhStr === "string"
+            ? draft.ngayThangNamSinhStr
+            : occupant.dateOfBirth,
+        gender:
+          draft.gioiTinh === "M" || draft.gioiTinh === "F"
+            ? draft.gioiTinh
+            : ["M", "MALE", "NAM", "MALE [M]"].includes(occupant.gender?.trim().toUpperCase() ?? "")
+              ? "M"
+              : ["F", "FEMALE", "NỮ", "NU", "FEMALE [F]"].includes(
+                    occupant.gender?.trim().toUpperCase() ?? "",
+                  )
+                ? "F"
+                : null,
+        nationality:
+          classification === "VIETNAMESE"
+            ? "VNM"
+            : typeof draft.quocTich === "string"
+              ? draft.quocTich
+              : occupant.nationality,
+        documentType:
+          classification === "FOREIGN"
+            ? 4
+            : typeof draft.loaiGiayTo === "number"
+              ? draft.loaiGiayTo
+              : typeof draft.soGiayTo === "string" && /^\d{12}$/.test(draft.soGiayTo)
+                ? 1
+                : typeof draft.soGiayTo === "string" && /^\d{9}$/.test(draft.soGiayTo)
+                  ? 2
+                  : typeof draft.soGiayTo === "string" &&
+                      /^(?=.*[A-Za-z])[A-Za-z0-9]{1,10}$/.test(draft.soGiayTo)
+                    ? 4
+                    : null,
         residencePlace: occupant.residencePlace,
         citizenshipKind: classification,
         derivedStatus,
@@ -464,7 +510,18 @@ export class KbttService implements OnModuleDestroy {
       });
     }
 
-    const draftData = this.withOccupantDefaults(citizenshipKind, data, occupant);
+    const previousData =
+      existing?.declarationKind === citizenshipKind &&
+      existing.draftPayloadJson &&
+      typeof existing.draftPayloadJson === "object" &&
+      !Array.isArray(existing.draftPayloadJson)
+        ? (existing.draftPayloadJson as Record<string, unknown>)
+        : {};
+    const draftData = this.withOccupantDefaults(
+      citizenshipKind,
+      { ...previousData, ...data },
+      occupant,
+    );
 
     let savedDeclaration: KbttGuestDeclaration;
     if (existing) {
@@ -551,21 +608,6 @@ export class KbttService implements OnModuleDestroy {
         });
       }
 
-      const identityNumber = occupant.identityNumber?.trim();
-      if (identityNumber) {
-        const conflict = await this.repository.findActiveSubmittedOccupantByIdentity(
-          hotelId,
-          identityNumber,
-          occupantId,
-        );
-        if (conflict) {
-          throw new ConflictException({
-            code: "KBTT_ACTIVE_IDENTITY_CONFLICT",
-            message: `Số giấy tờ này đã có hồ sơ gửi BCA đang lưu trú tại phòng ${conflict.stay.room.roomNumber}. Checkout hồ sơ cũ trước khi gửi khách này.`,
-          });
-        }
-      }
-
       const declarationKind = declaration?.declarationKind ?? occupant.citizenshipKind;
       if (!declarationKind) {
         throw new BadRequestException({
@@ -587,6 +629,19 @@ export class KbttService implements OnModuleDestroy {
         throw new BadRequestException({
           code: "KBTT_PAYLOAD_INVALID",
           message: formatValidationIssues(parsed.error.issues),
+        });
+      }
+      const identityNumber =
+        "soGiayTo" in parsed.data ? parsed.data.soGiayTo : parsed.data.soHoChieu;
+      const conflict = await this.repository.findActiveSubmittedOccupantByIdentity(
+        hotelId,
+        identityNumber,
+        occupantId,
+      );
+      if (conflict) {
+        throw new ConflictException({
+          code: "KBTT_ACTIVE_IDENTITY_CONFLICT",
+          message: `Số giấy tờ này đã có hồ sơ gửi BCA đang lưu trú tại phòng ${conflict.stay.room.roomNumber}. Checkout hồ sơ cũ trước khi gửi khách này.`,
         });
       }
       const preparedDeclaration = declaration
