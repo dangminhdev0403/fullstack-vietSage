@@ -14,6 +14,8 @@ import { showErrorAlert, showSuccessAlert } from "@/libs/swal";
 
 import { kbttResource } from "../resources/kbtt-resource";
 import {
+  formatKbttDraftForDisplay,
+  formatKbttDraftForProvider,
   kbttErrorCode,
   sanitizeErrorMessage,
   sanitizeProviderDetail,
@@ -400,7 +402,7 @@ function DeclarationModal({
         initial.soHoChieu = occupant.identityNumber;
       if (!initial.loaiNgayThangNamSinh) initial.loaiNgayThangNamSinh = "D";
     }
-    return initial;
+    return formatKbttDraftForDisplay(initial);
   }, [detailQuery.data, initialKind, occupantSummary.roomNumber]);
   const [formEdits, setFormEdits] = useState<Record<string, unknown>>({});
   const baseFormData = useMemo(
@@ -530,7 +532,7 @@ function DeclarationModal({
     try {
       await saveMutation.mutateAsync({
         occupantId,
-        body: { citizenshipKind, data: formData },
+        body: { citizenshipKind, data: formatKbttDraftForProvider(formData) },
       });
       await submitMutation.mutateAsync({ occupantId });
       await showSuccessAlert(
@@ -554,44 +556,11 @@ function DeclarationModal({
       aria-modal="true"
       aria-labelledby="modal-decl-title"
     >
-      <div className="relative my-8 w-full max-w-3xl rounded-3xl bg-white p-6 shadow-2xl sm:p-8 space-y-6">
-        {/* Header */}
-        <div className="flex items-start justify-between border-b border-slate-100 pb-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="rounded-lg bg-emerald-50 px-2.5 py-1 text-sm font-bold text-emerald-800">
-                {occupantSummary.roomNumber
-                  ? `Phòng ${occupantSummary.roomNumber}`
-                  : "Chưa xếp phòng"}
-              </span>
-            </div>
-            <h2
-              id="modal-decl-title"
-              className="mt-2 text-2xl font-bold text-slate-900"
-            >
-              Hồ sơ khai báo: {occupantSummary.fullName}
-            </h2>
-            <p className="mt-0.5 text-base text-slate-500">
-              Mã khách: {occupantId}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Đóng hộp thoại"
-            className="rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#064e3b]"
-          >
-            <svg
-              className="h-6 w-6"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M6 18L18 6M6 6l12 12"
+      <
+
+... [OUTPUT TRUNCATED - 1538 chars omitted out of 51538 total] ...
+
+12 12"
               />
             </svg>
           </button>
@@ -745,14 +714,14 @@ function DeclarationModal({
                       htmlFor="ngayThangNamSinhStr"
                       className="block text-sm font-semibold text-slate-700 mb-1"
                     >
-                      Ngày sinh (YYYY-MM-DD){" "}
+                      Ngày sinh (DD/MM/YYYY){" "}
                       <span className="text-red-500">*</span>
                     </label>
                     <input
                       id="ngayThangNamSinhStr"
                       type="text"
                       required
-                      placeholder="1990-01-15"
+                      placeholder="15/01/1990"
                       value={String(formData.ngayThangNamSinhStr ?? "")}
                       disabled={!canManage}
                       onChange={(e) =>
@@ -929,7 +898,7 @@ function DeclarationModal({
                       id="ngayDenCsltStr"
                       type="text"
                       required
-                      placeholder="YYYY-MM-DD HH:mm:ss"
+                      placeholder="HH:mm:ss DD/MM/YYYY"
                       value={String(formData.ngayDenCsltStr ?? "")}
                       disabled={!canManage}
                       onChange={(e) =>
@@ -950,7 +919,7 @@ function DeclarationModal({
                       id="ngayDiDuKienStr"
                       type="text"
                       required
-                      placeholder="YYYY-MM-DD HH:mm:ss"
+                      placeholder="HH:mm:ss DD/MM/YYYY"
                       value={String(formData.ngayDiDuKienStr ?? "")}
                       disabled={!canManage}
                       onChange={(e) =>
@@ -1199,7 +1168,7 @@ function DeclarationModal({
                     >
                       <option value="D">D - Đầy đủ ngày/tháng/năm</option>
                       <option value="Y">
-                        Y - Chỉ có năm sinh (YYYY-01-01)
+                        Y - Chỉ có năm sinh (01/01/YYYY)
                       </option>
                     </select>
                   </div>
@@ -1209,7 +1178,7 @@ function DeclarationModal({
                       htmlFor="f-ngayThangNamSinhStr"
                       className="block text-sm font-semibold text-slate-700 mb-1"
                     >
-                      Ngày sinh (YYYY-MM-DD){" "}
+                      Ngày sinh (DD/MM/YYYY){" "}
                       <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -1218,8 +1187,8 @@ function DeclarationModal({
                       required
                       placeholder={
                         formData.loaiNgayThangNamSinh === "Y"
-                          ? "1985-01-01"
-                          : "1985-06-20"
+                          ? "01/01/1985"
+                          : "20/06/1985"
                       }
                       value={String(formData.ngayThangNamSinhStr ?? "")}
                       disabled={!canManage}
@@ -1262,7 +1231,7 @@ function DeclarationModal({
                       id="thoiHanTamTruStr"
                       type="text"
                       required
-                      placeholder="YYYY-MM-DD HH:mm:ss"
+                      placeholder="HH:mm:ss DD/MM/YYYY"
                       value={String(formData.thoiHanTamTruStr ?? "")}
                       disabled={!canManage}
                       onChange={(e) =>
@@ -1285,7 +1254,7 @@ function DeclarationModal({
                       id="f-ngayDenCsltStr"
                       type="text"
                       required
-                      placeholder="YYYY-MM-DD HH:mm:ss"
+                      placeholder="HH:mm:ss DD/MM/YYYY"
                       value={String(formData.ngayDenCsltStr ?? "")}
                       disabled={!canManage}
                       onChange={(e) =>
@@ -1306,7 +1275,7 @@ function DeclarationModal({
                       id="f-ngayDiDuKienStr"
                       type="text"
                       required
-                      placeholder="YYYY-MM-DD HH:mm:ss"
+                      placeholder="HH:mm:ss DD/MM/YYYY"
                       value={String(formData.ngayDiDuKienStr ?? "")}
                       disabled={!canManage}
                       onChange={(e) =>

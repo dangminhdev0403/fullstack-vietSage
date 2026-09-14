@@ -316,6 +316,61 @@ export const saveKbttDraftPayloadSchema = z
   });
 export type SaveKbttDraftPayload = z.infer<typeof saveKbttDraftPayloadSchema>;
 
+const KBTT_DATE_FIELDS = ["ngayThangNamSinhStr"] as const;
+const KBTT_DATE_TIME_FIELDS = [
+  "ngayDenCsltStr",
+  "ngayDiDuKienStr",
+  "thoiHanTamTruStr",
+] as const;
+
+export function formatKbttDraftForDisplay(
+  data: Record<string, unknown>,
+): Record<string, unknown> {
+  const formatted = { ...data };
+  for (const field of KBTT_DATE_FIELDS) {
+    const match =
+      typeof formatted[field] === "string"
+        ? formatted[field].match(/^(\d{4})-(\d{2})-(\d{2})$/)
+        : null;
+    if (match) formatted[field] = `${match[3]}/${match[2]}/${match[1]}`;
+  }
+  for (const field of KBTT_DATE_TIME_FIELDS) {
+    const match =
+      typeof formatted[field] === "string"
+        ? formatted[field].match(
+            /^(\d{4})-(\d{2})-(\d{2}) (\d{2}:\d{2}:\d{2})$/,
+          )
+        : null;
+    if (match)
+      formatted[field] = `${match[4]} ${match[3]}/${match[2]}/${match[1]}`;
+  }
+  return formatted;
+}
+
+export function formatKbttDraftForProvider(
+  data: Record<string, unknown>,
+): Record<string, unknown> {
+  const formatted = { ...data };
+  for (const field of KBTT_DATE_FIELDS) {
+    const match =
+      typeof formatted[field] === "string"
+        ? formatted[field].match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+        : null;
+    if (match) formatted[field] = `${match[3]}-${match[2]}-${match[1]}`;
+  }
+  for (const field of KBTT_DATE_TIME_FIELDS) {
+    const match =
+      typeof formatted[field] === "string"
+        ? formatted[field].match(
+            /^(\d{2}:\d{2}:\d{2}) (\d{2})\/(\d{2})\/(\d{4})$/,
+          )
+        : null;
+    if (match)
+      formatted[field] = `${match[4]}-${match[3]}-${match[2]} ${match[1]}`;
+  }
+  return formatted;
+}
+
 export type KbttTabKey =
   "vietnamese" | "foreign" | "needs_completion" | "submitted_or_error";
 

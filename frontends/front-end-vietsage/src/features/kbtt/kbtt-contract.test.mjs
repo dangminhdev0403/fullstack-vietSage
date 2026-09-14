@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
+  formatKbttDraftForDisplay,
+  formatKbttDraftForProvider,
   getRowPartitionTab,
   KBTT_FORBIDDEN_KEYS,
   kbttConnectionSchema,
@@ -324,6 +326,23 @@ test("KBTT operational declarations contract validates list rows, fails closed o
 });
 
 test("KBTT UI exposes one edit-to-submit action and no local status workflow", () => {
+  const providerDates = {
+    hoTen: "John Doe",
+    ngayThangNamSinhStr: "1988-05-20",
+    ngayDenCsltStr: "2026-09-14 10:00:00",
+    ngayDiDuKienStr: "2026-09-14 21:00:00",
+    thoiHanTamTruStr: "2026-09-14 21:00:00",
+  };
+  const displayDates = formatKbttDraftForDisplay(providerDates);
+  assert.deepEqual(displayDates, {
+    hoTen: "John Doe",
+    ngayThangNamSinhStr: "20/05/1988",
+    ngayDenCsltStr: "10:00:00 14/09/2026",
+    ngayDiDuKienStr: "21:00:00 14/09/2026",
+    thoiHanTamTruStr: "21:00:00 14/09/2026",
+  });
+  assert.deepEqual(formatKbttDraftForProvider(displayDates), providerDates);
+
   assert.equal(
     sanitizeProviderDetail("Bản khai báo 1: Khách đang tạm trú tại CSLT."),
     "Bản khai báo 1: Khách đang tạm trú tại CSLT.",
@@ -345,6 +364,8 @@ test("KBTT UI exposes one edit-to-submit action and no local status workflow", (
   assert.match(pageSource, /saveMutation\.mutateAsync/);
   assert.match(pageSource, /submitMutation\.mutateAsync/);
   assert.match(pageSource, /Gửi lên Bộ Công an/);
+  assert.match(pageSource, /HH:mm:ss DD\/MM\/YYYY/);
+  assert.doesNotMatch(pageSource, /placeholder="YYYY-MM-DD HH:mm:ss"/);
   assert.doesNotMatch(
     pageSource,
     /Đánh dấu sẵn sàng|Lưu bản nháp|StatusBadge|submitStay/,
