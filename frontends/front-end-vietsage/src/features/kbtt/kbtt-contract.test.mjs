@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
+  canSelectKbttDeclaration,
   formatKbttDraftForDisplay,
   formatKbttDraftForProvider,
   getRowPartitionTab,
@@ -326,6 +327,13 @@ test("KBTT operational declarations contract validates list rows, fails closed o
 });
 
 test("KBTT UI exposes one edit-to-submit action and no local status workflow", () => {
+  assert.equal(canSelectKbttDeclaration({ derivedStatus: "SUBMITTED" }), false);
+  assert.equal(canSelectKbttDeclaration({ derivedStatus: "DRAFT" }), true);
+  assert.equal(
+    canSelectKbttDeclaration({ derivedStatus: "MISSING_PROFILE" }),
+    true,
+  );
+
   const providerDates = {
     hoTen: "John Doe",
     ngayThangNamSinhStr: "1988-05-20",

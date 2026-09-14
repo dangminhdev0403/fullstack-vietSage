@@ -5,15 +5,23 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
 } from "react";
 
 import { HttpError } from "@/core/http/http-error";
-import { showErrorAlert, showSuccessAlert } from "@/libs/swal";
+import {
+  formatAlertErrorMessage,
+  showConfirmDialog,
+  showErrorAlert,
+  showSuccessAlert,
+} from "@/libs/swal";
 
+import { KbttConnectionPage } from "./kbtt-connection-page";
 import { kbttResource } from "../resources/kbtt-resource";
 import {
+  canSelectKbttDeclaration,
   formatKbttDraftForDisplay,
   formatKbttDraftForProvider,
   kbttErrorCode,
@@ -114,64 +122,681 @@ function errorText(error: unknown): string {
   return sanitizeErrorMessage(null);
 }
 
+const COMMON_NATIONALITIES: Record<string, string> = {
+  VNM: "Việt Nam",
+  KOR: "Hàn Quốc",
+  CHN: "Trung Quốc",
+  JPN: "Nhật Bản",
+  USA: "Hoa Kỳ",
+  GBR: "Anh",
+  FRA: "Pháp",
+  DEU: "Đức",
+  RUS: "Nga",
+  AUS: "Úc",
+  THA: "Thái Lan",
+  SGP: "Singapore",
+  MYS: "Malaysia",
+  IDN: "Indonesia",
+  IND: "Ấn Độ",
+  TWN: "Đài Loan",
+};
+
+function formatDateVi(dateStr: string | null | undefined): string {
+  if (!dateStr) return "—";
+  try {
+    const d = new Date(dateStr);
+    if (Number.isNaN(d.getTime())) return dateStr;
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  } catch {
+    return dateStr;
+  }
+}
+
+function formatNationality(row: KbttDeclarationListItem): string {
+  if (row.citizenshipKind === "VIETNAMESE" || row.nationality === "VNM") {
+    return "VNM (Việt Nam)";
+  }
+  const nat = (row.nationality ?? "").toUpperCase().trim();
+  if (COMMON_NATIONALITIES[nat]) {
+    return `${nat} (${COMMON_NATIONALITIES[nat]})`;
+  }
+  if (nat) {
+    return nat;
+  }
+  if (row.citizenshipKind === "FOREIGN") {
+    return "Nước ngoài";
+  }
+  return "Chưa xác định";
+}
+
+function getDeclarationStatus(row: KbttDeclarationListItem): {
+  key: "UNSENT" | "SUBMITTED" | "REJECTED";
+  label: string;
+  dotColor: string;
+  badgeClass: string;
+} {
+  const dec = row.declaration;
+  if (dec) {
+    if (
+      dec.status === "FAILED" ||
+      dec.status === "REJECTED" ||
+      (dec.providerMessage && dec.status !== "SUBMITTED")
+    ) {
+      return {
+        key: "REJECTED",
+        label: "Bị từ chối",
+        dotColor: "bg-rose-500",
+        badgeClass: "border-rose-200 bg-rose-50 text-rose-800",
+      };
+    }
+    if (dec.status === "SUBMITTED") {
+      return {
+        key: "SUBMITTED",
+        label: "Đã gửi BCA",
+        dotColor: "bg-emerald-500",
+        badgeClass: "border-emerald-200 bg-emerald-50 text-emerald-800",
+      };
+    }
+  }
+  if (row.derivedStatus === "SUBMITTED") {
+    return {
+      key: "SUBMITTED",
+      label: "Đã gửi BCA",
+      dotColor: "bg-emerald-500",
+      badgeClass: "border-emerald-200 bg-emerald-50 text-emerald-800",
+    };
+  }
+  return {
+    key: "UNSENT",
+    label: "Chưa gửi",
+    dotColor: "bg-amber-500",
+    badgeClass: "border-amber-200 bg-amber-50 text-amber-800",
+  };
+}
+
+function SearchIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
+      />
+    </svg>
+  );
+}
+
+function RefreshIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"
+      />
+    </svg>
+  );
+}
+
+function PencilIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"
+      />
+    </svg>
+  );
+}
+
+function CloudUploadIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.233-2.33 3 3 0 0 1 3.758 3.848A3.752 3.752 0 0 1 18 19.5H6.75Z"
+      />
+    </svg>
+  );
+}
+
+function CalendarIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M6.75 3v2.25M17.25 3v2.253M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 9v7.5"
+      />
+    </svg>
+  );
+}
+
+function ChevronDownIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="m19.5 8.25-7.5 7.5-7.5-7.5"
+      />
+    </svg>
+  );
+}
+
+function DotsVerticalIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="currentColor" viewBox="0 0 20 20">
+      <path d="M10 6a2 2 0 1 1 0-4 2 2 0 0 1 0 4ZM10 12a2 2 0 1 1 0-4 2 2 0 0 1 0 4ZM10 18a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z" />
+    </svg>
+  );
+}
+
+function AlertCircleIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"
+      />
+    </svg>
+  );
+}
+
+function RowActionMenu({
+  statusInfo,
+  onEdit,
+  onSubmit,
+  onViewError,
+  disabled,
+}: {
+  statusInfo: { key: string; label: string };
+  onEdit: () => void;
+  onSubmit: () => void;
+  onViewError: () => void;
+  disabled?: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isOpen]);
+
+  return (
+    <div className="relative inline-block text-left" ref={menuRef}>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setIsOpen((prev) => !prev)}
+        className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-xs hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 transition-colors"
+        aria-label="Thao tác"
+      >
+        <DotsVerticalIcon className="h-5 w-5" />
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 z-20 mt-1.5 w-56 origin-top-right rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg ring-1 ring-black/5 focus:outline-none">
+          <button
+            type="button"
+            onClick={() => {
+              setIsOpen(false);
+              onEdit();
+            }}
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-base font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+          >
+            <PencilIcon className="h-4 w-4 text-slate-500" />
+            Chỉnh sửa chi tiết
+          </button>
+          {statusInfo.key !== "SUBMITTED" ? (
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                onSubmit();
+              }}
+              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-base font-medium text-emerald-800 hover:bg-emerald-50 transition-colors"
+            >
+              <CloudUploadIcon className="h-4 w-4 text-emerald-600" />
+              Gửi BCA ngay
+            </button>
+          ) : (
+            <p className="px-3 py-2 text-sm font-medium text-slate-500">
+              Hồ sơ của lần lưu trú này đã gửi
+            </p>
+          )}
+          {statusInfo.key === "REJECTED" && (
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                onViewError();
+              }}
+              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-base font-medium text-rose-700 hover:bg-rose-50 transition-colors"
+            >
+              <AlertCircleIcon className="h-4 w-4 text-rose-500" />
+              Xem lý do từ chối
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function KbttDeclarationsPage({
   hotelId,
   canManage,
+  canConfigure = false,
+  initialTab = "declarations",
 }: {
   hotelId: string;
   canManage: boolean;
+  canConfigure?: boolean;
+  initialTab?: "declarations" | "connection";
 }) {
   const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState<"declarations" | "connection">(
+    initialTab,
+  );
   const [page, setPage] = useState(1);
   const limit = 50;
+
+  // Filter states
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [nationalityFilter, setNationalityFilter] = useState<string>("ALL");
+  const [checkInDateFilter, setCheckInDateFilter] = useState<string>("");
+
+  // Selection state
+  const [selectedOccupantIds, setSelectedOccupantIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [isSubmittingBatch, setIsSubmittingBatch] = useState(false);
+
+  // Modal edit state
   const [selectedOccupant, setSelectedOccupant] =
     useState<KbttDeclarationListItem | null>(null);
+
   const boundResource = useMemo(
     () => kbttResource.bind({ hotelId }),
     [hotelId],
   );
+
   const declarationsQuery = useQuery(
     useMemo(
       () => boundResource.queries.declarations.options({ page, limit }),
       [boundResource, page],
     ),
   );
+
+  const submitMutation = useMutation(boundResource.mutations.submit.options());
+
   const allRows = useMemo(
     () => declarationsQuery.data ?? [],
     [declarationsQuery.data],
   );
-  const pageStayCount = useMemo(
-    () => new Set(allRows.map((row) => row.stayId)).size,
-    [allRows],
+
+  const filteredRows = useMemo(() => {
+    return allRows.filter((row) => {
+      // 1. Search query
+      const q = searchQuery.trim().toLowerCase();
+      if (q) {
+        const haystack =
+          `${row.roomNumber ?? ""} ${row.fullName} ${row.identityNumber ?? ""}`.toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+
+      // 2. Status filter
+      if (statusFilter !== "ALL") {
+        const status = getDeclarationStatus(row);
+        if (status.key !== statusFilter) return false;
+      }
+
+      // 3. Nationality filter
+      if (nationalityFilter === "VNM") {
+        if (row.citizenshipKind !== "VIETNAMESE" && row.nationality !== "VNM")
+          return false;
+      } else if (nationalityFilter === "FOREIGN") {
+        if (
+          row.citizenshipKind !== "FOREIGN" &&
+          (row.citizenshipKind === "VIETNAMESE" || row.nationality === "VNM")
+        )
+          return false;
+      }
+
+      // 4. Check-in date filter
+      if (checkInDateFilter) {
+        const rowDate = row.checkedInAt || row.plannedCheckInAt;
+        if (!rowDate || !rowDate.startsWith(checkInDateFilter)) return false;
+      }
+
+      return true;
+    });
+  }, [
+    allRows,
+    searchQuery,
+    statusFilter,
+    nationalityFilter,
+    checkInDateFilter,
+  ]);
+
+  const selectableRows = useMemo(
+    () => filteredRows.filter(canSelectKbttDeclaration),
+    [filteredRows],
   );
-  const roomGroups = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    const grouped = new Map<string, KbttDeclarationListItem[]>();
-    for (const row of allRows) {
-      const haystack =
-        `${row.roomNumber ?? ""} ${row.fullName} ${row.identityNumber ?? ""}`.toLowerCase();
-      if (q && !haystack.includes(q)) continue;
-      const guests = grouped.get(row.stayId) ?? [];
-      guests.push(row);
-      grouped.set(row.stayId, guests);
+  const selectedCount = selectableRows.filter((row) =>
+    selectedOccupantIds.has(row.occupantId),
+  ).length;
+  const isAllSelected =
+    selectableRows.length > 0 && selectedCount === selectableRows.length;
+
+  const handleToggleSelectAll = useCallback(() => {
+    if (isAllSelected) {
+      setSelectedOccupantIds(new Set());
+    } else {
+      setSelectedOccupantIds(new Set(selectableRows.map((r) => r.occupantId)));
     }
-    return [...grouped.entries()].map(([stayId, guests]) => ({
-      stayId,
-      roomNumber: guests[0]?.roomNumber ?? null,
-      guests,
-    }));
-  }, [allRows, searchQuery]);
+  }, [isAllSelected, selectableRows]);
+
+  const handleToggleRow = useCallback((row: KbttDeclarationListItem) => {
+    if (!canSelectKbttDeclaration(row)) return;
+    setSelectedOccupantIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(row.occupantId)) {
+        next.delete(row.occupantId);
+      } else {
+        next.add(row.occupantId);
+      }
+      return next;
+    });
+  }, []);
+
+  const unsubmittedCount = selectableRows.length;
 
   const handleRefresh = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: boundResource.key });
   }, [boundResource, queryClient]);
+
+  const handleSwitchTab = useCallback((tab: "declarations" | "connection") => {
+    setActiveTab(tab);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      if (tab === "connection") {
+        url.searchParams.set("tab", "connection");
+      } else {
+        url.searchParams.delete("tab");
+      }
+      window.history.replaceState(null, "", url.toString());
+    }
+  }, []);
+
+  const handleBulkEdit = useCallback(() => {
+    if (selectedCount === 0) {
+      void showErrorAlert(
+        "Thông báo",
+        "Vui lòng chọn ít nhất một phòng để chỉnh sửa.",
+      );
+      return;
+    }
+    const firstSelected = selectableRows.find((r) =>
+      selectedOccupantIds.has(r.occupantId),
+    );
+    if (firstSelected) {
+      setSelectedOccupant(firstSelected);
+    }
+  }, [selectedCount, selectedOccupantIds, selectableRows]);
+
+  const handleSubmitSelected = useCallback(async () => {
+    if (selectedCount === 0) {
+      await showErrorAlert(
+        "Thông báo",
+        "Vui lòng chọn ít nhất một phòng/khách để gửi BCA.",
+      );
+      return;
+    }
+
+    const selectedRows = selectableRows.filter((r) =>
+      selectedOccupantIds.has(r.occupantId),
+    );
+    if (selectedRows.length === 0) {
+      await showErrorAlert(
+        "Thông báo",
+        "Không còn hồ sơ chưa gửi trong lựa chọn.",
+      );
+      return;
+    }
+    const confirmResult = await showConfirmDialog({
+      title: "Upload BCA đã chọn",
+      text: `Bạn có chắc muốn gửi khai báo tạm trú cho ${selectedRows.length} khách đã chọn lên Cổng dịch vụ công Bộ Công an không?`,
+      confirmText: "Gửi ngay",
+      cancelText: "Hủy",
+    });
+    if (!confirmResult.isConfirmed) return;
+
+    setIsSubmittingBatch(true);
+    let successCount = 0;
+    const errors: string[] = [];
+
+    for (const row of selectedRows) {
+      try {
+        await submitMutation.mutateAsync({ occupantId: row.occupantId });
+        successCount++;
+      } catch (err) {
+        const msg = errorText(err);
+        errors.push(`Phòng ${row.roomNumber ?? "—"} (${row.fullName}): ${msg}`);
+      }
+    }
+
+    setIsSubmittingBatch(false);
+    handleRefresh();
+
+    if (errors.length === 0) {
+      await showSuccessAlert(
+        "Gửi BCA thành công",
+        `Đã gửi thành công khai báo tạm trú cho ${successCount} khách lên Bộ Công an.`,
+      );
+      setSelectedOccupantIds(new Set());
+    } else {
+      await showErrorAlert(
+        "Kết quả gửi BCA",
+        `Thành công: ${successCount}/${selectedRows.length} khách.\n\nLỗi:\n${errors.join("\n")}`,
+      );
+    }
+  }, [
+    selectedCount,
+    selectedOccupantIds,
+    selectableRows,
+    submitMutation,
+    handleRefresh,
+  ]);
+
+  const handleSubmitAll = useCallback(async () => {
+    const unsubmittedRows = selectableRows;
+
+    if (unsubmittedRows.length === 0) {
+      await showSuccessAlert("Thông báo", "Tất cả khách đều đã được gửi BCA.");
+      return;
+    }
+
+    const confirmResult = await showConfirmDialog({
+      title: "Upload tất cả lên BCA",
+      text: `Bạn có chắc muốn gửi khai báo tạm trú cho toàn bộ ${unsubmittedRows.length} khách chưa gửi lên Cổng dịch vụ công Bộ Công an không?`,
+      confirmText: "Gửi toàn bộ",
+      cancelText: "Hủy",
+    });
+    if (!confirmResult.isConfirmed) return;
+
+    setIsSubmittingBatch(true);
+    let successCount = 0;
+    const errors: string[] = [];
+
+    for (const row of unsubmittedRows) {
+      try {
+        await submitMutation.mutateAsync({ occupantId: row.occupantId });
+        successCount++;
+      } catch (err) {
+        const msg = errorText(err);
+        errors.push(`Phòng ${row.roomNumber ?? "—"} (${row.fullName}): ${msg}`);
+      }
+    }
+
+    setIsSubmittingBatch(false);
+    handleRefresh();
+
+    if (errors.length === 0) {
+      await showSuccessAlert(
+        "Gửi BCA thành công",
+        `Đã gửi thành công khai báo tạm trú cho toàn bộ ${successCount} khách lên Bộ Công an.`,
+      );
+      setSelectedOccupantIds(new Set());
+    } else {
+      await showErrorAlert(
+        "Kết quả gửi BCA",
+        `Thành công: ${successCount}/${unsubmittedRows.length} khách.\n\nLỗi:\n${errors.join("\n")}`,
+      );
+    }
+  }, [selectableRows, submitMutation, handleRefresh]);
+
+  const handleSubmitSingle = useCallback(
+    async (row: KbttDeclarationListItem) => {
+      if (!canSelectKbttDeclaration(row)) return;
+      const confirmResult = await showConfirmDialog({
+        title: "Gửi khai báo BCA",
+        text: `Gửi khai báo tạm trú cho khách ${row.fullName} (Phòng ${row.roomNumber ?? "—"}) lên Cổng dịch vụ công Bộ Công an?`,
+        confirmText: "Gửi ngay",
+        cancelText: "Hủy",
+      });
+      if (!confirmResult.isConfirmed) return;
+
+      try {
+        await submitMutation.mutateAsync({ occupantId: row.occupantId });
+        handleRefresh();
+        await showSuccessAlert(
+          "Gửi BCA thành công",
+          `Đã gửi khai báo cho khách ${row.fullName}.`,
+        );
+      } catch (err) {
+        await showErrorAlert("Lỗi gửi BCA", errorText(err));
+      }
+    },
+    [submitMutation, handleRefresh],
+  );
+
+  const handleViewError = useCallback(async (row: KbttDeclarationListItem) => {
+    const message =
+      row.declaration?.providerMessage ||
+      "Chưa có thông tin chi tiết về phản hồi từ Cổng dịch vụ công Bộ Công an.";
+    await showErrorAlert(
+      `Lý do từ chối - Phòng ${row.roomNumber ?? "—"}`,
+      message,
+    );
+  }, []);
+
+  if (activeTab === "connection" && canConfigure) {
+    return (
+      <div className="mx-auto max-w-7xl space-y-6 pb-16 pt-2 text-slate-900">
+        <div className="flex border-b border-slate-200">
+          <button
+            type="button"
+            onClick={() => handleSwitchTab("declarations")}
+            className="inline-flex items-center gap-2 border-b-2 border-transparent px-5 py-3 text-base font-semibold text-slate-500 hover:border-slate-300 hover:text-slate-700 transition-colors"
+          >
+            Hồ sơ khai báo
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSwitchTab("connection")}
+            className="inline-flex items-center gap-2 border-b-2 border-[#064e3b] px-5 py-3 text-base font-semibold text-[#064e3b] transition-colors"
+          >
+            Cấu hình kết nối BCA
+          </button>
+        </div>
+        <KbttConnectionPage hotelId={hotelId} canManage={canManage} />
+      </div>
+    );
+  }
 
   return (
     <div
       className="mx-auto max-w-7xl space-y-6 pb-16 pt-2 text-slate-900"
       aria-labelledby="declarations-title"
     >
+      {canConfigure && (
+        <div className="flex border-b border-slate-200">
+          <button
+            type="button"
+            onClick={() => handleSwitchTab("declarations")}
+            className="inline-flex items-center gap-2 border-b-2 border-[#064e3b] px-5 py-3 text-base font-semibold text-[#064e3b] transition-colors"
+          >
+            Hồ sơ khai báo
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSwitchTab("connection")}
+            className="inline-flex items-center gap-2 border-b-2 border-transparent px-5 py-3 text-base font-semibold text-slate-500 hover:border-slate-300 hover:text-slate-700 transition-colors"
+          >
+            Cấu hình kết nối BCA
+          </button>
+        </div>
+      )}
+
+      {/* Header */}
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-wider text-emerald-800">
@@ -181,44 +806,139 @@ export function KbttDeclarationsPage({
             id="declarations-title"
             className="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl"
           >
-            Khai báo tạm trú theo phòng
+            Chỉnh sửa & gửi BCA theo danh sách
           </h1>
           <p className="mt-1 text-base text-slate-600">
-            Mỗi phòng hiển thị toàn bộ khách đang lưu trú. Hoàn thiện từng hồ
-            sơ, sau đó gửi cả phòng một lần.
+            Chỉnh sửa thông tin nhiều phòng cùng lúc và gửi BCA hàng loạt. Mỗi
+            dòng là một phòng đang lưu trú.
           </p>
         </div>
+        <div className="flex items-center gap-3">
+          {canConfigure && (
+            <button
+              type="button"
+              onClick={() => handleSwitchTab("connection")}
+              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-base font-semibold text-slate-700 shadow-xs hover:bg-slate-50 transition-colors"
+            >
+              Cấu hình kết nối BCA
+            </button>
+          )}
+        </div>
+      </header>
+
+      {/* Filter Toolbar */}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+        {/* Search */}
+        <div className="relative flex-1 min-w-[240px]">
+          <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+          <input
+            type="search"
+            placeholder="Tìm theo số phòng, tên khách hoặc giấy tờ..."
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            className="min-h-11 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-4 py-2.5 text-base text-slate-900 outline-none transition-all focus:border-[#064e3b] focus:ring-2 focus:ring-[#064e3b]/15"
+          />
+        </div>
+
+        {/* Status Dropdown */}
+        <div className="w-full sm:w-auto">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-base text-slate-700 outline-none transition-all focus:border-[#064e3b] focus:ring-2 focus:ring-[#064e3b]/15"
+          >
+            <option value="ALL">Tất cả trạng thái</option>
+            <option value="UNSENT">Chưa gửi</option>
+            <option value="SUBMITTED">Đã gửi BCA</option>
+            <option value="REJECTED">Bị từ chối</option>
+          </select>
+        </div>
+
+        {/* Nationality Dropdown */}
+        <div className="w-full sm:w-auto">
+          <select
+            value={nationalityFilter}
+            onChange={(e) => setNationalityFilter(e.target.value)}
+            className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-base text-slate-700 outline-none transition-all focus:border-[#064e3b] focus:ring-2 focus:ring-[#064e3b]/15"
+          >
+            <option value="ALL">Tất cả quốc tịch</option>
+            <option value="VNM">Việt Nam</option>
+            <option value="FOREIGN">Nước ngoài</option>
+          </select>
+        </div>
+
+        {/* Check-in Date Filter */}
+        <div className="w-full sm:w-auto">
+          <input
+            type="date"
+            value={checkInDateFilter}
+            onChange={(e) => setCheckInDateFilter(e.target.value)}
+            title="Lọc theo ngày check-in"
+            className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-base text-slate-700 outline-none transition-all focus:border-[#064e3b] focus:ring-2 focus:ring-[#064e3b]/15"
+          />
+        </div>
+
+        {/* Refresh Button */}
         <button
           type="button"
           onClick={handleRefresh}
           disabled={declarationsQuery.isFetching}
-          className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-base font-semibold text-slate-700 shadow-xs hover:bg-slate-50 disabled:opacity-60"
+          className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-base font-semibold text-slate-700 shadow-xs hover:bg-slate-50 disabled:opacity-60 transition-colors"
         >
-          {declarationsQuery.isFetching ? "Đang tải…" : "Làm mới"}
-        </button>
-      </header>
-
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <label className="w-full sm:max-w-md">
-          <span className="sr-only">
-            Tìm theo phòng, tên khách hoặc giấy tờ
-          </span>
-          <input
-            type="search"
-            placeholder="Tìm theo phòng, tên khách hoặc giấy tờ..."
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-base outline-none focus:border-[#064e3b] focus:ring-2 focus:ring-[#064e3b]/15"
+          <RefreshIcon
+            className={`h-4 w-4 ${declarationsQuery.isFetching ? "animate-spin" : ""}`}
           />
-        </label>
-        <p className="text-sm font-medium text-slate-500">
-          {roomGroups.length} phòng · {allRows.length} khách
-        </p>
+          Làm mới
+        </button>
       </div>
 
+      {/* Batch Actions Bar */}
+      <div className="flex flex-col gap-4 rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-base font-semibold text-slate-800">
+            Đã chọn {selectedCount}/{selectableRows.length} hồ sơ chưa gửi
+          </p>
+          <p className="mt-1 text-sm text-slate-500">
+            {filteredRows.length - selectableRows.length} hồ sơ đã gửi được khóa
+            chọn
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={handleBulkEdit}
+            disabled={selectedCount === 0}
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-emerald-600 bg-white px-4 py-2 text-base font-semibold text-emerald-800 shadow-xs hover:bg-emerald-50 disabled:opacity-40 transition-colors"
+          >
+            <PencilIcon className="h-4 w-4" />
+            Chỉnh sửa hàng loạt
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmitSelected}
+            disabled={selectedCount === 0 || isSubmittingBatch}
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-emerald-600 bg-white px-4 py-2 text-base font-semibold text-emerald-800 shadow-xs hover:bg-emerald-50 disabled:opacity-40 transition-colors"
+          >
+            <CloudUploadIcon className="h-4 w-4" />
+            {isSubmittingBatch ? "Đang gửi..." : "Upload BCA đã chọn"}
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmitAll}
+            disabled={unsubmittedCount === 0 || isSubmittingBatch}
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#064e3b] px-5 py-2 text-base font-semibold text-white shadow-xs hover:bg-[#043327] disabled:opacity-40 transition-colors"
+          >
+            <CloudUploadIcon className="h-4 w-4" />
+            Upload tất cả ({unsubmittedCount})
+          </button>
+        </div>
+      </div>
+
+      {/* Table Data View */}
       {declarationsQuery.isPending ? (
         <div className="rounded-2xl border border-slate-100 bg-white py-16 text-center text-slate-500 shadow-xs">
-          Đang tải danh sách khách…
+          Đang tải danh sách khách lưu trú…
         </div>
       ) : declarationsQuery.isError ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-900">
@@ -234,91 +954,221 @@ export function KbttDeclarationsPage({
             Thử lại
           </button>
         </div>
-      ) : roomGroups.length === 0 ? (
+      ) : filteredRows.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center text-slate-500">
-          {searchQuery
-            ? "Không tìm thấy phòng hoặc khách phù hợp."
+          {searchQuery ||
+          statusFilter !== "ALL" ||
+          nationalityFilter !== "ALL" ||
+          checkInDateFilter
+            ? "Không tìm thấy phòng hoặc khách phù hợp với bộ lọc."
             : "Chưa có khách đang check-in."}
         </div>
       ) : (
-        <div className="space-y-5">
-          {roomGroups.map(({ stayId, roomNumber, guests }) => {
-            return (
-              <section
-                key={stayId}
-                className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs"
-              >
-                <header className="flex flex-col gap-3 border-b border-slate-100 bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <h2 className="text-xl font-bold text-slate-900">
-                      Phòng {roomNumber ?? "chưa xếp"}
-                    </h2>
-                    <p className="text-sm text-slate-500">
-                      {guests.length} khách đang check-in
-                    </p>
-                  </div>
-                </header>
-                <ul className="divide-y divide-slate-100">
-                  {guests.map((guest) => (
-                    <li
-                      key={guest.occupantId}
-                      className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="font-bold text-slate-900">
-                            {guest.fullName}
-                          </h3>
-                        </div>
-                        <p className="mt-1 text-sm text-slate-500">
-                          {guest.citizenshipKind === "FOREIGN"
-                            ? `Nước ngoài${guest.nationality ? ` · ${guest.nationality}` : ""}`
-                            : guest.citizenshipKind === "VIETNAMESE"
-                              ? "Việt Nam"
-                              : "Chưa phân loại quốc tịch"}
-                          {guest.identityNumber
-                            ? ` · ${guest.identityNumber}`
-                            : " · Chưa có giấy tờ"}
-                        </p>
+        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-xs">
+          <table className="w-full min-w-[960px] border-collapse text-left">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50/70 text-sm font-semibold text-slate-700">
+                <th scope="col" className="w-12 px-4 py-3.5 text-center">
+                  <input
+                    type="checkbox"
+                    checked={isAllSelected}
+                    onChange={handleToggleSelectAll}
+                    disabled={selectableRows.length === 0 || isSubmittingBatch}
+                    className="h-5 w-5 rounded border-slate-300 text-[#064e3b] focus:ring-[#064e3b] disabled:cursor-not-allowed disabled:opacity-30"
+                    aria-label="Chọn tất cả hồ sơ chưa gửi"
+                  />
+                </th>
+                <th scope="col" className="w-14 px-3 py-3.5 text-center">
+                  STT
+                </th>
+                <th scope="col" className="w-28 px-3 py-3.5">
+                  Số phòng
+                </th>
+                <th scope="col" className="min-w-[200px] px-3 py-3.5">
+                  Tên khách
+                </th>
+                <th scope="col" className="w-44 px-3 py-3.5">
+                  Quốc tịch
+                </th>
+                <th scope="col" className="w-40 px-3 py-3.5">
+                  Số giấy tờ
+                </th>
+                <th scope="col" className="w-36 px-3 py-3.5">
+                  Ngày check-in
+                </th>
+                <th scope="col" className="w-36 px-3 py-3.5">
+                  Ngày check-out
+                </th>
+                <th scope="col" className="w-36 px-3 py-3.5 text-center">
+                  Trạng thái
+                </th>
+                <th scope="col" className="w-24 px-3 py-3.5 text-center">
+                  Thao tác
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 text-base">
+              {filteredRows.map((row, idx) => {
+                const statusInfo = getDeclarationStatus(row);
+                const isSelectable = canSelectKbttDeclaration(row);
+                const isChecked =
+                  isSelectable && selectedOccupantIds.has(row.occupantId);
+
+                return (
+                  <tr
+                    key={row.occupantId}
+                    className={`transition-colors ${
+                      isChecked
+                        ? "bg-emerald-50/40"
+                        : isSelectable
+                          ? "hover:bg-slate-50/80"
+                          : "bg-slate-50/70"
+                    }`}
+                  >
+                    {/* Checkbox */}
+                    <td className="px-4 py-3 text-center">
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => handleToggleRow(row)}
+                        disabled={!isSelectable || isSubmittingBatch}
+                        title={
+                          isSelectable
+                            ? "Chọn hồ sơ của lần lưu trú này"
+                            : "Hồ sơ của lần lưu trú này đã gửi BCA"
+                        }
+                        className="h-5 w-5 rounded border-slate-300 text-[#064e3b] focus:ring-[#064e3b] disabled:cursor-not-allowed disabled:opacity-25"
+                        aria-label={
+                          isSelectable
+                            ? `Chọn phòng ${row.roomNumber ?? "—"}`
+                            : `Phòng ${row.roomNumber ?? "—"} đã gửi BCA`
+                        }
+                      />
+                    </td>
+
+                    {/* STT */}
+                    <td className="px-3 py-3 text-center text-slate-500 font-medium">
+                      {(page - 1) * limit + idx + 1}
+                    </td>
+
+                    {/* Số phòng */}
+                    <td className="px-3 py-3">
+                      <div className="flex min-h-10 items-center justify-center rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-1.5 text-center text-base font-semibold text-slate-800">
+                        {row.roomNumber ?? "—"}
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedOccupant(guest)}
-                        className="min-h-11 shrink-0 rounded-xl bg-[#064e3b] px-4 text-base font-semibold text-white hover:bg-[#043327]"
+                    </td>
+
+                    {/* Tên khách */}
+                    <td className="px-3 py-3">
+                      <div
+                        onClick={() => setSelectedOccupant(row)}
+                        title="Bấm để chỉnh sửa chi tiết"
+                        className="flex min-h-10 cursor-pointer items-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-base font-medium text-slate-900 transition-colors hover:border-[#064e3b] hover:bg-slate-50/50"
                       >
-                        Chỉnh sửa / Gửi BCA
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            );
-          })}
+                        <span className="truncate">{row.fullName}</span>
+                      </div>
+                    </td>
+
+                    {/* Quốc tịch */}
+                    <td className="px-3 py-3">
+                      <div className="flex min-h-10 items-center justify-between gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-base text-slate-800">
+                        <span className="truncate">
+                          {formatNationality(row)}
+                        </span>
+                        <ChevronDownIcon className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                      </div>
+                    </td>
+
+                    {/* Số giấy tờ */}
+                    <td className="px-3 py-3">
+                      <div className="flex min-h-10 items-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-mono text-base text-slate-800">
+                        <span className="truncate">
+                          {row.identityNumber || "—"}
+                        </span>
+                      </div>
+                    </td>
+
+                    {/* Ngày check-in */}
+                    <td className="px-3 py-3">
+                      <div className="flex min-h-10 items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-base text-slate-700">
+                        <span>
+                          {formatDateVi(
+                            row.checkedInAt || row.plannedCheckInAt,
+                          )}
+                        </span>
+                        <CalendarIcon className="h-4 w-4 shrink-0 text-slate-400" />
+                      </div>
+                    </td>
+
+                    {/* Ngày check-out */}
+                    <td className="px-3 py-3">
+                      <div className="flex min-h-10 items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-base text-slate-700">
+                        <span>{formatDateVi(row.plannedCheckOutAt)}</span>
+                        <CalendarIcon className="h-4 w-4 shrink-0 text-slate-400" />
+                      </div>
+                    </td>
+
+                    {/* Trạng thái */}
+                    <td className="px-3 py-3 text-center">
+                      <span
+                        className={`inline-flex whitespace-nowrap items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-semibold shadow-2xs ${statusInfo.badgeClass}`}
+                      >
+                        <span
+                          className={`h-2 w-2 rounded-full ${statusInfo.dotColor}`}
+                        />
+                        {statusInfo.label}
+                      </span>
+                    </td>
+
+                    {/* Thao tác */}
+                    <td className="px-3 py-3 text-center">
+                      <RowActionMenu
+                        statusInfo={statusInfo}
+                        onEdit={() => setSelectedOccupant(row)}
+                        onSubmit={() => handleSubmitSingle(row)}
+                        onViewError={() => handleViewError(row)}
+                        disabled={isSubmittingBatch}
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 
-      <footer className="flex items-center justify-between border-t border-slate-200 pt-4">
-        <p className="text-base text-slate-600">Trang {page}</p>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            disabled={page <= 1 || declarationsQuery.isFetching}
-            onClick={() => setPage((value) => Math.max(1, value - 1))}
-            className="min-h-11 rounded-xl border bg-white px-4 disabled:opacity-50"
-          >
-            Trang trước
-          </button>
-          <button
-            type="button"
-            disabled={pageStayCount < limit || declarationsQuery.isFetching}
-            onClick={() => setPage((value) => value + 1)}
-            className="min-h-11 rounded-xl border bg-white px-4 disabled:opacity-50"
-          >
-            Trang sau
-          </button>
+      {/* Footer */}
+      <footer className="flex flex-col gap-4 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-base text-slate-600">
+          Hiển thị {filteredRows.length} / {allRows.length} phòng
+        </p>
+        <div className="flex items-center gap-3">
+          <span className="text-base text-slate-600">Trang {page}</span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={page <= 1 || declarationsQuery.isFetching}
+              onClick={() => setPage((value) => Math.max(1, value - 1))}
+              className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-xs hover:bg-slate-50 disabled:opacity-40 transition-colors"
+              aria-label="Trang trước"
+            >
+              &lt;
+            </button>
+            <button
+              type="button"
+              disabled={allRows.length < limit || declarationsQuery.isFetching}
+              onClick={() => setPage((value) => value + 1)}
+              className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-xs hover:bg-slate-50 disabled:opacity-40 transition-colors"
+              aria-label="Trang sau"
+            >
+              &gt;
+            </button>
+          </div>
         </div>
       </footer>
 
+      {/* Detail Edit Modal */}
       {selectedOccupant && (
         <DeclarationModal
           hotelId={hotelId}
@@ -522,6 +1372,7 @@ function DeclarationModal({
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     if (!canManage) return;
+    if (detailQuery.data?.declaration?.status === "SUBMITTED") return;
     if (!citizenshipKind) {
       await showErrorAlert(
         "Chưa xác định quốc tịch",
@@ -548,6 +1399,8 @@ function DeclarationModal({
   };
 
   const isBusy = saveMutation.isPending || submitMutation.isPending;
+  const isAlreadySubmitted =
+    detailQuery.data?.declaration?.status === "SUBMITTED";
 
   return (
     <div
@@ -556,11 +1409,44 @@ function DeclarationModal({
       aria-modal="true"
       aria-labelledby="modal-decl-title"
     >
-      <
-
-... [OUTPUT TRUNCATED - 1538 chars omitted out of 51538 total] ...
-
-12 12"
+      <div className="relative my-8 w-full max-w-3xl rounded-3xl bg-white p-6 shadow-2xl sm:p-8 space-y-6">
+        {/* Header */}
+        <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="rounded-lg bg-emerald-50 px-2.5 py-1 text-sm font-bold text-emerald-800">
+                {occupantSummary.roomNumber
+                  ? `Phòng ${occupantSummary.roomNumber}`
+                  : "Chưa xếp phòng"}
+              </span>
+            </div>
+            <h2
+              id="modal-decl-title"
+              className="mt-2 text-2xl font-bold text-slate-900"
+            >
+              Hồ sơ khai báo: {occupantSummary.fullName}
+            </h2>
+            <p className="mt-0.5 text-base text-slate-500">
+              Mã khách: {occupantId}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Đóng hộp thoại"
+            className="rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#064e3b]"
+          >
+            <svg
+              className="h-6 w-6"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M6 18L18 6M6 6l12 12"
               />
             </svg>
           </button>
@@ -614,6 +1500,25 @@ function DeclarationModal({
         {/* Form Body */}
         {!detailQuery.isPending && !detailQuery.isError && (
           <form onSubmit={handleSubmit} className="space-y-6">
+            {detailQuery.data?.declaration?.status === "DRAFT" &&
+              detailQuery.data.declaration.providerMessage && (
+                <div className="rounded-2xl border border-red-200/90 bg-red-50/50 p-4 shadow-2xs space-y-2.5">
+                  <div className="flex items-center gap-2 font-bold text-red-900 text-sm sm:text-base">
+                    <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-200 text-red-800 text-xs font-black">
+                      !
+                    </span>
+                    <span>Lần gửi trước bị Bộ Công an từ chối</span>
+                  </div>
+                  <div
+                    dangerouslySetInnerHTML={{
+                      __html: formatAlertErrorMessage(
+                        detailQuery.data.declaration.providerMessage,
+                      ),
+                    }}
+                  />
+                </div>
+              )}
+
             {citizenshipKind && !manualClassification ? (
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
                 <div>
@@ -1298,7 +2203,7 @@ function DeclarationModal({
                 Đóng
               </button>
 
-              {canManage && (
+              {canManage && !isAlreadySubmitted ? (
                 <button
                   type="submit"
                   disabled={isBusy}
@@ -1306,7 +2211,11 @@ function DeclarationModal({
                 >
                   {isBusy ? "Đang gửi…" : "Gửi lên Bộ Công an"}
                 </button>
-              )}
+              ) : isAlreadySubmitted ? (
+                <span className="inline-flex min-h-12 items-center rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-base font-semibold text-emerald-800">
+                  Hồ sơ của lần lưu trú này đã gửi BCA
+                </span>
+              ) : null}
             </div>
           </form>
         )}

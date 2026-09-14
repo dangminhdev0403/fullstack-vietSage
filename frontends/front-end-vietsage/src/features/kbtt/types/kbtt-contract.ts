@@ -374,6 +374,12 @@ export function formatKbttDraftForProvider(
 export type KbttTabKey =
   "vietnamese" | "foreign" | "needs_completion" | "submitted_or_error";
 
+export function canSelectKbttDeclaration(
+  row: Pick<KbttDeclarationListItem, "derivedStatus">,
+): boolean {
+  return row.derivedStatus !== "SUBMITTED";
+}
+
 export function getRowPartitionTab(
   row: Pick<KbttDeclarationListItem, "derivedStatus" | "citizenshipKind">,
 ): KbttTabKey {
