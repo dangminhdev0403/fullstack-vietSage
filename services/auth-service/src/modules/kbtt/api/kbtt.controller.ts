@@ -226,25 +226,6 @@ export class KbttController {
     );
   }
 
-  @Post("declarations/:occupantId/ready")
-  @HttpCode(200)
-  @Header("Cache-Control", "no-store")
-  @ApiParam({ name: "occupantId", type: String })
-  @RequirePermission("hotel.kbtt.declarations.manage")
-  @ApiOperation({ summary: "Validate all required provider fields and transition draft to READY" })
-  markReady(
-    @Req() request: RequestWithRequiredUser,
-    @Param("hotelId") hotelId: string,
-    @Param("occupantId") occupantId: string,
-  ) {
-    return this.service.markReady(
-      request.user.userId,
-      request.user.roleId,
-      parseWithZod(hotelIdParamSchema, hotelId),
-      parseWithZod(occupantIdParamSchema, occupantId),
-    );
-  }
-
   @Post("declarations/:occupantId/submit")
   @HttpCode(200)
   @Header("Cache-Control", "no-store")
@@ -261,27 +242,6 @@ export class KbttController {
       request.user.roleId,
       parseWithZod(hotelIdParamSchema, hotelId),
       parseWithZod(occupantIdParamSchema, occupantId),
-    );
-  }
-
-  @Post("stays/:stayId/submit")
-  @HttpCode(200)
-  @Header("Cache-Control", "no-store")
-  @ApiParam({ name: "stayId", type: String })
-  @RequirePermission("hotel.kbtt.declarations.manage")
-  @ApiOperation({
-    summary: "Submit every checked-in guest in a room, grouped into provider API 4/5 batches",
-  })
-  submitStay(
-    @Req() request: RequestWithRequiredUser,
-    @Param("hotelId") hotelId: string,
-    @Param("stayId") stayId: string,
-  ) {
-    return this.service.submitStay(
-      request.user.userId,
-      request.user.roleId,
-      parseWithZod(hotelIdParamSchema, hotelId),
-      parseWithZod(stayIdParamSchema, stayId),
     );
   }
 

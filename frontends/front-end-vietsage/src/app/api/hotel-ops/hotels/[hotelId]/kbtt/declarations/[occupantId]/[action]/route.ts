@@ -28,7 +28,7 @@ type RouteContext = {
 const routeParamsSchema = z.object({
   hotelId: z.string().trim().min(1, "Mã khách sạn không hợp lệ."),
   occupantId: z.string().trim().min(1, "Mã khách lưu trú không hợp lệ."),
-  action: z.enum(["draft", "ready", "submit", "detail"]),
+  action: z.enum(["draft", "submit", "detail"]),
 });
 
 function getRawData(response: unknown): unknown {
@@ -41,24 +41,31 @@ export async function GET(_request: Request, context: RouteContext) {
   const resolved = await context.params;
   const parsed = routeParamsSchema.safeParse(resolved);
   if (!parsed.success) {
-    return validationErrorResponse(parsed.error.issues[0]?.message ?? "Tham số không hợp lệ.");
+    return validationErrorResponse(
+      parsed.error.issues[0]?.message ?? "Tham số không hợp lệ.",
+    );
   }
   const { hotelId, occupantId, action } = parsed.data;
 
   if (action !== "draft" && action !== "detail") {
-    return validationErrorResponse("Thao tác GET không hợp lệ cho hành động này.");
+    return validationErrorResponse(
+      "Thao tác GET không hợp lệ cho hành động này.",
+    );
   }
 
   try {
-    const result = await executeHotelOpsBackendRequest("get kbtt declaration detail", async (accessToken) => {
-      const response = await httpServer.request<unknown>(
-        "GET",
-        `/hotels/${encodeURIComponent(hotelId)}/kbtt/declarations/${encodeURIComponent(occupantId)}`,
-        undefined,
-        { accessToken, headers: { "Cache-Control": "no-store" } },
-      );
-      return kbttOccupantDeclarationDetailSchema.parse(getRawData(response));
-    });
+    const result = await executeHotelOpsBackendRequest(
+      "get kbtt declaration detail",
+      async (accessToken) => {
+        const response = await httpServer.request<unknown>(
+          "GET",
+          `/hotels/${encodeURIComponent(hotelId)}/kbtt/declarations/${encodeURIComponent(occupantId)}`,
+          undefined,
+          { accessToken, headers: { "Cache-Control": "no-store" } },
+        );
+        return kbttOccupantDeclarationDetailSchema.parse(getRawData(response));
+      },
+    );
 
     if (result instanceof Response) {
       result.headers.set("Cache-Control", "no-store");
@@ -85,37 +92,48 @@ export async function PUT(request: Request, context: RouteContext) {
   const resolved = await context.params;
   const parsed = routeParamsSchema.safeParse(resolved);
   if (!parsed.success) {
-    return validationErrorResponse(parsed.error.issues[0]?.message ?? "Tham số không hợp lệ.");
+    return validationErrorResponse(
+      parsed.error.issues[0]?.message ?? "Tham số không hợp lệ.",
+    );
   }
   const { hotelId, occupantId, action } = parsed.data;
 
   if (action !== "draft") {
-    return validationErrorResponse("Chỉ hỗ trợ lưu bản nháp qua hành động draft.");
+    return validationErrorResponse(
+      "Chỉ hỗ trợ lưu bản nháp qua hành động draft.",
+    );
   }
 
   let rawBody: unknown;
   try {
     rawBody = await request.json();
   } catch {
-    return validationErrorResponse("Dữ liệu gửi lên không đúng định dạng JSON.");
+    return validationErrorResponse(
+      "Dữ liệu gửi lên không đúng định dạng JSON.",
+    );
   }
 
   const bodyResult = saveKbttDraftPayloadSchema.safeParse(rawBody);
   if (!bodyResult.success) {
-    const issues = bodyResult.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+    const issues = bodyResult.error.issues
+      .map((i) => `${i.path.join(".")}: ${i.message}`)
+      .join("; ");
     return validationErrorResponse(`Dữ liệu bản nháp không hợp lệ: ${issues}`);
   }
 
   try {
-    const result = await executeHotelOpsBackendRequest("save kbtt draft", async (accessToken) => {
-      const response = await httpServer.request<unknown>(
-        "PUT",
-        `/hotels/${encodeURIComponent(hotelId)}/kbtt/declarations/${encodeURIComponent(occupantId)}/draft`,
-        bodyResult.data,
-        { accessToken, headers: { "Cache-Control": "no-store" } },
-      );
-      return kbttDeclarationRecordSchema.parse(getRawData(response));
-    });
+    const result = await executeHotelOpsBackendRequest(
+      "save kbtt draft",
+      async (accessToken) => {
+        const response = await httpServer.request<unknown>(
+          "PUT",
+          `/hotels/${encodeURIComponent(hotelId)}/kbtt/declarations/${encodeURIComponent(occupantId)}/draft`,
+          bodyResult.data,
+          { accessToken, headers: { "Cache-Control": "no-store" } },
+        );
+        return kbttDeclarationRecordSchema.parse(getRawData(response));
+      },
+    );
 
     if (result instanceof Response) {
       result.headers.set("Cache-Control", "no-store");
@@ -142,27 +160,34 @@ export async function POST(_request: Request, context: RouteContext) {
   const resolved = await context.params;
   const parsed = routeParamsSchema.safeParse(resolved);
   if (!parsed.success) {
-    return validationErrorResponse(parsed.error.issues[0]?.message ?? "Tham số không hợp lệ.");
+    return validationErrorResponse(
+      parsed.error.issues[0]?.message ?? "Tham số không hợp lệ.",
+    );
   }
   const { hotelId, occupantId, action } = parsed.data;
 
-  if (action !== "ready" && action !== "submit") {
-    return validationErrorResponse("Thao tác POST không hợp lệ cho hành động này.");
+  if (action !== "submit") {
+    return validationErrorResponse(
+      "Chỉ hỗ trợ gửi hồ sơ qua hành động submit.",
+    );
   }
 
-  const operation = action === "submit" ? "submit kbtt declaration" : "mark kbtt ready";
+  const operation = "submit kbtt declaration";
   const backendPath = `/hotels/${encodeURIComponent(hotelId)}/kbtt/declarations/${encodeURIComponent(occupantId)}/${action}`;
 
   try {
-    const result = await executeHotelOpsBackendRequest(operation, async (accessToken) => {
-      const response = await httpServer.request<unknown>(
-        "POST",
-        backendPath,
-        undefined,
-        { accessToken, headers: { "Cache-Control": "no-store" } },
-      );
-      return kbttDeclarationRecordSchema.parse(getRawData(response));
-    });
+    const result = await executeHotelOpsBackendRequest(
+      operation,
+      async (accessToken) => {
+        const response = await httpServer.request<unknown>(
+          "POST",
+          backendPath,
+          undefined,
+          { accessToken, headers: { "Cache-Control": "no-store" } },
+        );
+        return kbttDeclarationRecordSchema.parse(getRawData(response));
+      },
+    );
 
     if (result instanceof Response) {
       result.headers.set("Cache-Control", "no-store");

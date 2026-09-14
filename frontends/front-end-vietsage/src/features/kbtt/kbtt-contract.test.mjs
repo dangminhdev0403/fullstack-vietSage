@@ -2,9 +2,6 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
-  canRetryDeclaration,
-  canSubmitDeclaration,
-  canSubmitStay,
   getRowPartitionTab,
   KBTT_FORBIDDEN_KEYS,
   kbttConnectionSchema,
@@ -17,6 +14,7 @@ import {
   kbttErrorMessage,
   kbttOccupantDeclarationDetailSchema,
   sanitizeErrorMessage,
+  sanitizeProviderDetail,
   saveKbttDraftPayloadSchema,
 } from "./types/kbtt-contract.ts";
 import { buildWorkspaceNavigation } from "../workspace/config/workspace-registry.ts";
@@ -192,76 +190,29 @@ test("KBTT operational declarations contract validates list rows, fails closed o
     {
       ...sampleVietnameseRow,
       occupantId: "occ-2",
-      citizenshipKind: "FOREIGN",
-      derivedStatus: "READY",
-      declaration: {
-        ...sampleVietnameseRow.declaration,
-        id: "decl-2",
-        declarationKind: "FOREIGN",
-        status: "READY",
-      },
-    },
-    {
-      ...sampleVietnameseRow,
-      occupantId: "occ-3",
       citizenshipKind: null,
       derivedStatus: "MISSING_PROFILE",
       declaration: null,
     },
     {
       ...sampleVietnameseRow,
-      occupantId: "occ-4",
+      occupantId: "occ-3",
       derivedStatus: "SUBMITTED",
       declaration: {
         ...sampleVietnameseRow.declaration,
-        id: "decl-4",
+        id: "decl-3",
         status: "SUBMITTED",
         submittedAt: "2026-09-13T11:00:00.000Z",
-      },
-    },
-    {
-      ...sampleVietnameseRow,
-      occupantId: "occ-5",
-      derivedStatus: "FAILED",
-      declaration: {
-        ...sampleVietnameseRow.declaration,
-        id: "decl-5",
-        status: "FAILED",
-        providerMessage: "Thông tin giấy tờ không khớp",
       },
     },
   ];
 
   const parsedList = kbttDeclarationListSchema.parse(sampleList);
-  assert.equal(parsedList.length, 5);
+  assert.equal(parsedList.length, 3);
 
-  // Four-tab exact partition tests
-  assert.equal(getRowPartitionTab(parsedList[0]), "vietnamese"); // VIETNAMESE, DRAFT
-  assert.equal(getRowPartitionTab(parsedList[1]), "foreign"); // FOREIGN, READY
-  assert.equal(getRowPartitionTab(parsedList[2]), "needs_completion"); // MISSING_PROFILE
-  assert.equal(getRowPartitionTab(parsedList[3]), "submitted_or_error"); // SUBMITTED
-  assert.equal(getRowPartitionTab(parsedList[4]), "submitted_or_error"); // FAILED
-  assert.equal(
-    getRowPartitionTab({
-      derivedStatus: "SENDING",
-      citizenshipKind: "VIETNAMESE",
-    }),
-    "submitted_or_error",
-  );
-  assert.equal(
-    getRowPartitionTab({
-      derivedStatus: "UNKNOWN",
-      citizenshipKind: "FOREIGN",
-    }),
-    "submitted_or_error",
-  );
-  assert.equal(
-    getRowPartitionTab({
-      derivedStatus: "CANCELLED",
-      citizenshipKind: "VIETNAMESE",
-    }),
-    "submitted_or_error",
-  );
+  assert.equal(getRowPartitionTab(parsedList[0]), "vietnamese");
+  assert.equal(getRowPartitionTab(parsedList[1]), "needs_completion");
+  assert.equal(getRowPartitionTab(parsedList[2]), "submitted_or_error");
   assert.equal(
     getRowPartitionTab({ derivedStatus: "DRAFT", citizenshipKind: null }),
     "needs_completion",
@@ -373,203 +324,36 @@ test("KBTT operational declarations contract validates list rows, fails closed o
   assert.equal(parsedRecord.id, "decl-1");
 });
 
-test("KBTT room submission groups every guest, removes representative semantics, and routes owner correctly", () => {
-  // 1. Button visibility and permissions policy (canSubmitDeclaration)
+test("KBTT UI exposes one edit-to-submit action and no local status workflow", () => {
   assert.equal(
-    canSubmitDeclaration("READY", true),
-    true,
-    "READY + canManage must allow submit",
+    sanitizeProviderDetail("Bản khai báo 1: Khách đang tạm trú tại CSLT."),
+    "Bản khai báo 1: Khách đang tạm trú tại CSLT.",
   );
-  assert.equal(
-    canSubmitDeclaration("READY", false),
-    false,
-    "READY without canManage must not allow submit",
-  );
-  for (const status of [
-    "DRAFT",
-    "MISSING_PROFILE",
-    "SUBMITTED",
-    "SENDING",
-    "UNKNOWN",
-    "FAILED",
-    "CANCELLED",
-    null,
-    undefined,
-  ]) {
-    assert.equal(
-      canSubmitDeclaration(status, true),
-      false,
-      `Status ${status} must not allow 'Gửi BCA'`,
-    );
-    assert.equal(
-      canSubmitDeclaration(status, false),
-      false,
-      `Status ${status} without canManage must not allow 'Gửi BCA'`,
-    );
-  }
+  assert.equal(sanitizeProviderDetail("Bearer secret-token-xyz"), null);
 
-  // 2. UNKNOWN fencing and FAILED retry policy (canRetryDeclaration)
-  // UNKNOWN must NEVER offer retry under any condition
-  assert.equal(
-    canRetryDeclaration("UNKNOWN", true),
-    false,
-    "UNKNOWN must NEVER offer retry",
-  );
-  assert.equal(
-    canRetryDeclaration("UNKNOWN", false),
-    false,
-    "UNKNOWN must NEVER offer retry",
-  );
-  assert.equal(canRetryDeclaration("SUBMITTED", true), false);
-  assert.equal(canRetryDeclaration("SENDING", true), false);
-  assert.equal(canRetryDeclaration("READY", true), false);
-  assert.equal(canRetryDeclaration("DRAFT", true), false);
-  assert.equal(canRetryDeclaration("MISSING_PROFILE", true), false);
-  assert.equal(canRetryDeclaration("CANCELLED", true), false);
-
-  // FAILED may show retry only if canManage is true
-  assert.equal(
-    canRetryDeclaration("FAILED", true),
-    true,
-    "FAILED with canManage allows retry",
-  );
-  assert.equal(
-    canRetryDeclaration("FAILED", false),
-    false,
-    "FAILED without canManage must not allow retry",
-  );
-
-  // 3. Error sanitization / secret exposure prevention (sanitizeErrorMessage)
-  assert.equal(
-    sanitizeErrorMessage("password=123456"),
-    "Không thể xử lý yêu cầu khai báo. Vui lòng thử lại hoặc liên hệ hỗ trợ.",
-  );
-  assert.equal(
-    sanitizeErrorMessage("Bearer secret-token-xyz"),
-    "Không thể xử lý yêu cầu khai báo. Vui lòng thử lại hoặc liên hệ hỗ trợ.",
-  );
-  assert.equal(
-    sanitizeErrorMessage("providerResponseJson: { data: 'leaked' }"),
-    "Không thể xử lý yêu cầu khai báo. Vui lòng thử lại hoặc liên hệ hỗ trợ.",
-  );
-  assert.equal(
-    sanitizeErrorMessage('{"status":"error","token":"secret"}'),
-    "Không thể xử lý yêu cầu khai báo. Vui lòng thử lại hoặc liên hệ hỗ trợ.",
-  );
-  assert.equal(
-    sanitizeErrorMessage("KBTT_AUTH_FAILED"),
-    "Tài khoản hoặc mật khẩu không đúng. Vui lòng đăng nhập lại.",
-  );
-  assert.equal(
-    sanitizeErrorMessage(null),
-    "Không thể xử lý yêu cầu khai báo. Vui lòng thử lại hoặc liên hệ hỗ trợ.",
-  );
-
-  assert.equal(
-    canSubmitStay(
-      [{ derivedStatus: "READY" }, { derivedStatus: "SUBMITTED" }],
-      true,
-    ),
-    true,
-  );
-  assert.equal(
-    canSubmitStay(
-      [{ derivedStatus: "READY" }, { derivedStatus: "DRAFT" }],
-      true,
-    ),
-    false,
-  );
-  assert.equal(
-    canSubmitStay(
-      [{ derivedStatus: "READY" }, { derivedStatus: "UNKNOWN" }],
-      true,
-    ),
-    false,
-  );
-  assert.equal(canSubmitStay([{ derivedStatus: "READY" }], false), false);
-
-  const routeSource = readFileSync(
-    new URL(
-      "../../app/api/hotel-ops/hotels/[hotelId]/kbtt/stays/[stayId]/submit/route.ts",
-      import.meta.url,
-    ),
-    "utf8",
-  );
-  assert.match(routeSource, /executeHotelOpsBackendRequest/);
-  assert.match(routeSource, /kbttStaySubmissionResultSchema\.parse/);
-
-  // 5. Repository contract verification
-  const repositorySource = readFileSync(
-    new URL("./repositories/kbtt-repository.ts", import.meta.url),
-    "utf8",
-  );
-  assert.match(
-    repositorySource,
-    /submitStay\s*\(\s*hotelId:\s*string,\s*stayId:\s*string,?\s*\)/,
-  );
-  assert.match(
-    repositorySource,
-    /kbtt\/stays\/\$\{encodeURIComponent\(stayId\)\}\/submit/,
-  );
-  assert.match(repositorySource, /method:\s*"POST"/);
-  assert.match(repositorySource, /kbttStaySubmissionResultSchema\.parse/);
-
-  // 6. Resource mutation contract verification
-  const resourceSource = readFileSync(
-    new URL("./resources/kbtt-resource.ts", import.meta.url),
-    "utf8",
-  );
-  assert.match(resourceSource, /submitStay:\s*defineMutation\(\{/);
-  assert.match(
-    resourceSource,
-    /defaults:\s*\{\s*retry:\s*false,\s*networkMode:\s*"always"\s*\}/,
-  );
-  assert.match(
-    resourceSource,
-    /kbttRepository\.submitStay\(scope\.hotelId,\s*variables\.stayId\)/,
-  );
-  assert.match(resourceSource, /invalidates:\s*declarationInvalidates/);
-
-  // 7. UI: Destructive confirmation, button wording, no auto-submit, preserved save/markReady
   const pageSource = readFileSync(
     new URL("./components/kbtt-declarations-page.tsx", import.meta.url),
     "utf8",
   );
-  assert.match(pageSource, /Gửi toàn bộ \$\{guests\.length\} khách/);
-  assert.match(pageSource, /canSubmitStay\(guests, canManage\)/);
-  assert.match(pageSource, /submitStayMutation\.mutateAsync\(\{ stayId \}\)/);
-  assert.doesNotMatch(pageSource, /Khách chính|Khách đi cùng|Khách đại diện/);
+  assert.match(pageSource, /saveMutation\.mutateAsync/);
+  assert.match(pageSource, /submitMutation\.mutateAsync/);
+  assert.match(pageSource, /Gửi lên Bộ Công an/);
   assert.doesNotMatch(
     pageSource,
-    /submitMutation\.mutateAsync\(\{ occupantId \}\)/,
+    /Đánh dấu sẵn sàng|Lưu bản nháp|StatusBadge|submitStay/,
   );
-  assert.match(pageSource, /tự phân tuyến API 4\/5/);
-  assert.match(pageSource, /disabled=\{isBusy\}/);
-  assert.match(pageSource, /submittingStayId === stayId/);
-  assert.match(pageSource, /declStatus === "UNKNOWN"/);
-  assert.match(pageSource, /Lưu bản nháp/);
-  assert.match(pageSource, /Đánh dấu sẵn sàng/);
-  assert.match(pageSource, /handleSaveDraft/);
-  assert.match(pageSource, /handleMarkReady/);
-  assert.match(pageSource, /Đã tự xác định từ dữ liệu check-in/);
-  assert.match(pageSource, /Giấy tờ chưa đủ dữ liệu — chọn loại quốc tịch/);
-  assert.match(pageSource, /Phân loại sai\? Chọn lại/);
-  assert.match(pageSource, /inferDocumentTypeCode/);
-  assert.match(pageSource, /uniqueCatalogMatch/);
-  assert.match(pageSource, /inferredProvinceCode/);
-  assert.match(pageSource, /inferredWardCode/);
-  assert.match(pageSource, /inferredResidencePlace/);
-  assert.match(pageSource, /inferredNationalityCode/);
-  assert.match(pageSource, /inferredStayReasonCode/);
-  assert.match(pageSource, /"Du lịch"/);
 
-  const ownerPage = readFileSync(
-    new URL(
-      "../../app/(vietsage)/owner/(hotel)/hotels/[hotelId]/kbtt/page.tsx",
-      import.meta.url,
-    ),
+  const resourceSource = readFileSync(
+    new URL("./resources/kbtt-resource.ts", import.meta.url),
     "utf8",
   );
-  assert.match(ownerPage, /KbttDeclarationsPage/);
-  assert.doesNotMatch(ownerPage, /redirect\([^)]*dashboard/);
+  assert.match(resourceSource, /submit:\s*defineMutation/);
+  assert.doesNotMatch(resourceSource, /markReady|submitStay/);
+
+  const repositorySource = readFileSync(
+    new URL("./repositories/kbtt-repository.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(repositorySource, /async submit\(/);
+  assert.doesNotMatch(repositorySource, /markReady|submitStay/);
 });

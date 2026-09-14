@@ -5,7 +5,6 @@ import {
   kbttDeclarationListSchema,
   kbttDeclarationRecordSchema,
   kbttOccupantDeclarationDetailSchema,
-  kbttStaySubmissionResultSchema,
   saveKbttDraftPayloadSchema,
   type KbttCatalogItem,
   type KbttCatalogKind,
@@ -13,7 +12,6 @@ import {
   type KbttCredentials,
   type KbttDeclarationListItem,
   type KbttDeclarationRecord,
-  type KbttStaySubmissionResult,
   type KbttOccupantDeclarationDetail,
   type SaveKbttDraftPayload,
 } from "../types/kbtt-contract";
@@ -135,16 +133,6 @@ export const kbttRepository = {
     });
     return kbttDeclarationRecordSchema.parse(payload.data);
   },
-  async markReady(
-    hotelId: string,
-    occupantId: string,
-  ): Promise<KbttDeclarationRecord> {
-    const url = `${declarationsPath(hotelId)}/${encodeURIComponent(occupantId)}/ready`;
-    const payload = await requestInternalApiEnvelope<unknown>(url, {
-      method: "POST",
-    });
-    return kbttDeclarationRecordSchema.parse(payload.data);
-  },
   async submit(
     hotelId: string,
     occupantId: string,
@@ -154,15 +142,5 @@ export const kbttRepository = {
       method: "POST",
     });
     return kbttDeclarationRecordSchema.parse(payload.data);
-  },
-  async submitStay(
-    hotelId: string,
-    stayId: string,
-  ): Promise<KbttStaySubmissionResult> {
-    const payload = await requestInternalApiEnvelope<unknown>(
-      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/kbtt/stays/${encodeURIComponent(stayId)}/submit`,
-      { method: "POST" },
-    );
-    return kbttStaySubmissionResultSchema.parse(payload.data);
   },
 };

@@ -18,9 +18,9 @@ import {
 
 import { kbttResource } from "../resources/kbtt-resource";
 import {
-  canSubmitStay,
   kbttErrorCode,
   sanitizeErrorMessage,
+  sanitizeProviderDetail,
   type CitizenshipKind,
   type KbttCatalogItem,
   type KbttDeclarationListItem,
@@ -96,15 +96,15 @@ function inferDocumentTypeCode(
 
 function errorText(error: unknown): string {
   if (error instanceof HttpError) {
-    const code = kbttErrorCode(error.data);
-    if (code) return sanitizeErrorMessage(code);
     if (error.data && typeof error.data === "object") {
       const dataObj = error.data as Record<string, unknown>;
-      if (typeof dataObj.detail === "string")
-        return sanitizeErrorMessage(dataObj.detail);
+      const providerDetail = sanitizeProviderDetail(dataObj.detail);
+      if (providerDetail) return providerDetail;
       if (typeof dataObj.message === "string")
         return sanitizeErrorMessage(dataObj.message);
     }
+    const code = kbttErrorCode(error.data);
+    if (code) return sanitizeErrorMessage(code);
     if (error.status === 400) return "Dữ liệu khai báo không hợp lệ.";
     if (error.status === 403)
       return "Bạn không có quyền thực hiện thao tác này.";
@@ -136,68 +136,6 @@ function formatDisplayDateTime(dateTimeStr: string | null): string {
   return `${time} ${date}`;
 }
 
-function StatusBadge({ status }: { status: string }) {
-  switch (status) {
-    case "READY":
-      return (
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-800">
-          <span className="h-2 w-2 rounded-full bg-emerald-500" />
-          Sẵn sàng gửi
-        </span>
-      );
-    case "DRAFT":
-      return (
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-800">
-          <span className="h-2 w-2 rounded-full bg-blue-500" />
-          Bản nháp
-        </span>
-      );
-    case "SUBMITTED":
-      return (
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400 bg-emerald-100 px-3 py-1 text-sm font-bold text-emerald-900">
-          <span className="h-2 w-2 rounded-full bg-emerald-600" />
-          Đã gửi BCA
-        </span>
-      );
-    case "SENDING":
-      return (
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-sm font-semibold text-indigo-800">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-indigo-500" />
-          Đang gửi
-        </span>
-      );
-    case "FAILED":
-      return (
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-sm font-semibold text-red-800">
-          <span className="h-2 w-2 rounded-full bg-red-500" />
-          Lỗi khai báo
-        </span>
-      );
-    case "UNKNOWN":
-      return (
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-800">
-          <span className="h-2 w-2 rounded-full bg-amber-500" />
-          Chưa rõ kết quả
-        </span>
-      );
-    case "CANCELLED":
-      return (
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">
-          <span className="h-2 w-2 rounded-full bg-slate-400" />
-          Đã hủy
-        </span>
-      );
-    case "MISSING_PROFILE":
-    default:
-      return (
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-600">
-          <span className="h-2 w-2 rounded-full bg-slate-400" />
-          Chưa tạo bản nháp
-        </span>
-      );
-  }
-}
-
 export function KbttDeclarationsPage({
   hotelId,
   canManage,
@@ -211,7 +149,6 @@ export function KbttDeclarationsPage({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedOccupant, setSelectedOccupant] =
     useState<KbttDeclarationListItem | null>(null);
-  const [submittingStayId, setSubmittingStayId] = useState<string | null>(null);
   const boundResource = useMemo(
     () => kbttResource.bind({ hotelId }),
     [hotelId],
@@ -221,9 +158,6 @@ export function KbttDeclarationsPage({
       () => boundResource.queries.declarations.options({ page, limit }),
       [boundResource, page],
     ),
-  );
-  const submitStayMutation = useMutation(
-    boundResource.mutations.submitStay.options(),
   );
   const allRows = useMemo(
     () => declarationsQuery.data ?? [],
@@ -254,39 +188,6 @@ export function KbttDeclarationsPage({
   const handleRefresh = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: boundResource.key });
   }, [boundResource, queryClient]);
-
-  const handleSubmitStay = useCallback(
-    async (
-      stayId: string,
-      roomNumber: string | null,
-      guests: KbttDeclarationListItem[],
-    ) => {
-      if (!canSubmitStay(guests, canManage)) return;
-      const confirm = await showConfirmDialog({
-        title: `Gửi toàn bộ ${guests.length} khách phòng ${roomNumber ?? "chưa xếp"}?`,
-        text: "Hệ thống sẽ gửi toàn bộ danh sách khách đang check-in trong phòng và tự phân tuyến API 4/5 theo quốc tịch. Hồ sơ chưa sẵn sàng hoặc chưa rõ kết quả sẽ chặn toàn bộ thao tác.",
-        confirmText: "Gửi toàn bộ khách",
-        cancelText: "Hủy",
-        icon: "warning",
-      });
-      if (!confirm.isConfirmed) return;
-      try {
-        setSubmittingStayId(stayId);
-        const result = await submitStayMutation.mutateAsync({ stayId });
-        await showSuccessAlert(
-          "Khai báo tạm trú",
-          `Đã gửi ${result.submittedCount} khách phòng ${roomNumber ?? ""} thành công.`,
-        );
-        handleRefresh();
-      } catch (error) {
-        await showErrorAlert("Gửi danh sách phòng thất bại", errorText(error));
-        handleRefresh();
-      } finally {
-        setSubmittingStayId(null);
-      }
-    },
-    [canManage, handleRefresh, submitStayMutation],
-  );
 
   return (
     <div
@@ -364,16 +265,6 @@ export function KbttDeclarationsPage({
       ) : (
         <div className="space-y-5">
           {roomGroups.map(({ stayId, roomNumber, guests }) => {
-            const readyToSubmit = canSubmitStay(guests, canManage);
-            const unresolved = guests.filter((guest) =>
-              [
-                "MISSING_PROFILE",
-                "DRAFT",
-                "SENDING",
-                "UNKNOWN",
-                "CANCELLED",
-              ].includes(guest.derivedStatus),
-            ).length;
             return (
               <section
                 key={stayId}
@@ -388,25 +279,6 @@ export function KbttDeclarationsPage({
                       {guests.length} khách đang check-in
                     </p>
                   </div>
-                  {canManage && (
-                    <button
-                      type="button"
-                      disabled={!readyToSubmit || submittingStayId === stayId}
-                      onClick={() =>
-                        handleSubmitStay(stayId, roomNumber, guests)
-                      }
-                      className="min-h-11 rounded-xl bg-emerald-700 px-5 text-base font-bold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-                    >
-                      {submittingStayId === stayId
-                        ? "Đang gửi…"
-                        : `Gửi toàn bộ ${guests.length} khách`}
-                    </button>
-                  )}
-                  {!readyToSubmit && unresolved > 0 && (
-                    <p className="text-sm font-medium text-amber-700">
-                      Còn {unresolved} hồ sơ cần hoàn thiện hoặc đối soát.
-                    </p>
-                  )}
                 </header>
                 <ul className="divide-y divide-slate-100">
                   {guests.map((guest) => (
@@ -419,7 +291,6 @@ export function KbttDeclarationsPage({
                           <h3 className="font-bold text-slate-900">
                             {guest.fullName}
                           </h3>
-                          <StatusBadge status={guest.derivedStatus} />
                         </div>
                         <p className="mt-1 text-sm text-slate-500">
                           {guest.citizenshipKind === "FOREIGN"
@@ -437,9 +308,7 @@ export function KbttDeclarationsPage({
                         onClick={() => setSelectedOccupant(guest)}
                         className="min-h-11 shrink-0 rounded-xl bg-[#064e3b] px-4 text-base font-semibold text-white hover:bg-[#043327]"
                       >
-                        {guest.derivedStatus === "MISSING_PROFILE"
-                          ? "Khai báo thông tin"
-                          : "Xem / Chỉnh sửa hồ sơ"}
+                        Chỉnh sửa / Gửi BCA
                       </button>
                     </li>
                   ))}
@@ -512,9 +381,7 @@ function DeclarationModal({
   const detailQuery = useQuery(detailResource);
 
   const saveMutation = useMutation(boundResource.mutations.saveDraft.options());
-  const readyMutation = useMutation(
-    boundResource.mutations.markReady.options(),
-  );
+  const submitMutation = useMutation(boundResource.mutations.submit.options());
 
   const initialKind =
     detailQuery.data?.declaration?.declarationKind ??
@@ -674,8 +541,8 @@ function DeclarationModal({
     setFormEdits((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleSaveDraft = async (e?: FormEvent) => {
-    if (e) e.preventDefault();
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault();
     if (!canManage) return;
     if (!citizenshipKind) {
       await showErrorAlert(
@@ -684,66 +551,25 @@ function DeclarationModal({
       );
       return;
     }
-
     try {
-      const payload: SaveKbttDraftPayload = {
-        citizenshipKind,
-        data: formData,
-      };
-      await saveMutation.mutateAsync({ occupantId, body: payload });
-      await showSuccessAlert("Khai báo tạm trú", "Đã lưu bản nháp thành công.");
-      onUpdated();
-    } catch (error) {
-      await showErrorAlert("Lưu bản nháp thất bại", errorText(error));
-    }
-  };
-
-  const handleMarkReady = async () => {
-    if (!canManage) return;
-    if (!citizenshipKind) {
-      await showErrorAlert(
-        "Chưa xác định quốc tịch",
-        "Giấy tờ chưa đủ dữ liệu để tự phân loại. Vui lòng chọn loại quốc tịch.",
-      );
-      return;
-    }
-
-    const confirm = await showConfirmDialog({
-      title: "Đánh dấu hồ sơ sẵn sàng?",
-      text: "Hệ thống sẽ kiểm tra toàn bộ các trường bắt buộc của Bộ Công an. Sau khi sẵn sàng, hồ sơ đủ điều kiện để kết xuất gửi cơ quan quản lý.",
-      confirmText: "Đánh dấu sẵn sàng",
-      cancelText: "Hủy",
-      icon: "question",
-    });
-    if (!confirm.isConfirmed) return;
-
-    try {
-      // First save any recent changes
-      const payload: SaveKbttDraftPayload = {
-        citizenshipKind,
-        data: formData,
-      };
-      await saveMutation.mutateAsync({ occupantId, body: payload });
-
-      // Then mark ready
-      await readyMutation.mutateAsync({ occupantId });
+      await saveMutation.mutateAsync({
+        occupantId,
+        body: { citizenshipKind, data: formData },
+      });
+      await submitMutation.mutateAsync({ occupantId });
       await showSuccessAlert(
         "Khai báo tạm trú",
-        "Hồ sơ đã được kiểm tra hợp lệ và chuyển sang trạng thái SẴN SÀNG.",
+        "Bộ Công an đã tiếp nhận hồ sơ.",
       );
       onUpdated();
       onClose();
     } catch (error) {
-      await showErrorAlert("Chưa đủ điều kiện sẵn sàng", errorText(error));
+      await showErrorAlert("Bộ Công an từ chối hồ sơ", errorText(error));
+      onUpdated();
     }
   };
 
-  const isBusy = saveMutation.isPending || readyMutation.isPending;
-  const declStatus =
-    detailQuery.data?.declaration?.status ?? occupantSummary.derivedStatus;
-  const isEditable = ["DRAFT", "READY", "FAILED", "MISSING_PROFILE"].includes(
-    declStatus,
-  );
+  const isBusy = saveMutation.isPending || submitMutation.isPending;
 
   return (
     <div
@@ -762,7 +588,6 @@ function DeclarationModal({
                   ? `Phòng ${occupantSummary.roomNumber}`
                   : "Chưa xếp phòng"}
               </span>
-              <StatusBadge status={declStatus} />
             </div>
             <h2
               id="modal-decl-title"
@@ -843,36 +668,7 @@ function DeclarationModal({
 
         {/* Form Body */}
         {!detailQuery.isPending && !detailQuery.isError && (
-          <form onSubmit={handleSaveDraft} className="space-y-6">
-            {declStatus === "UNKNOWN" && (
-              <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-900">
-                <p className="font-semibold">
-                  Hồ sơ đang ở trạng thái chưa rõ kết quả (UNKNOWN)
-                </p>
-                <p className="mt-1 text-sm text-amber-800">
-                  Hệ thống không thể xác định kết quả từ phía Bộ Công an. Vì lý
-                  do an toàn dữ liệu, hồ sơ không thể gửi lại hoặc sửa đổi trực
-                  tiếp. Vui lòng liên hệ hỗ trợ kỹ thuật hoặc đối soát với cơ
-                  quan quản lý.
-                </p>
-              </div>
-            )}
-            {declStatus === "SUBMITTED" && (
-              <div className="rounded-2xl border border-emerald-300 bg-emerald-50 p-4 text-emerald-900">
-                <p className="font-semibold">
-                  Hồ sơ đã được gửi thành công lên Bộ Công an
-                </p>
-                <p className="mt-1 text-sm text-emerald-800">
-                  Thời gian gửi:{" "}
-                  {formatDisplayDateTime(
-                    detailQuery.data?.declaration?.submittedAt ?? null,
-                  )}
-                  . Hồ sơ ở trạng thái ĐÃ GỬI không thể sửa đổi trực tiếp.
-                </p>
-              </div>
-            )}
-
-            {/* Citizenship is inferred from scanned check-in data. Manual selection is fallback-only. */}
+          <form onSubmit={handleSubmit} className="space-y-6">
             {citizenshipKind && !manualClassification ? (
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
                 <div>
@@ -885,7 +681,7 @@ function DeclarationModal({
                       : "Người nước ngoài · API 4"}
                   </p>
                 </div>
-                {isEditable && canManage ? (
+                {canManage ? (
                   <button
                     type="button"
                     onClick={() => setManualClassification(true)}
@@ -906,7 +702,7 @@ function DeclarationModal({
                 <select
                   id="citizenship-kind-select"
                   value={citizenshipKind ?? ""}
-                  disabled={!isEditable || !canManage}
+                  disabled={!canManage}
                   onChange={(e) => {
                     setCitizenshipOverride(e.target.value as CitizenshipKind);
                     setFormEdits({});
@@ -940,7 +736,7 @@ function DeclarationModal({
                       type="text"
                       required
                       value={String(formData.hoTen ?? "")}
-                      disabled={!isEditable || !canManage}
+                      disabled={!canManage}
                       onChange={(e) => updateField("hoTen", e.target.value)}
                       className={inputClass}
                       placeholder="NGUYEN VAN A"
@@ -957,7 +753,7 @@ function DeclarationModal({
                     <select
                       id="gioiTinh"
                       value={String(formData.gioiTinh ?? "M")}
-                      disabled={!isEditable || !canManage}
+                      disabled={!canManage}
                       onChange={(e) => updateField("gioiTinh", e.target.value)}
                       className={selectClass}
                     >
@@ -982,7 +778,7 @@ function DeclarationModal({
                       required
                       placeholder="1990-01-15"
                       value={String(formData.ngayThangNamSinhStr ?? "")}
-                      disabled={!isEditable || !canManage}
+                      disabled={!canManage}
                       onChange={(e) =>
                         updateField("ngayThangNamSinhStr", e.target.value)
                       }
@@ -1001,7 +797,7 @@ function DeclarationModal({
                       id="soDienThoai"
                       type="tel"
                       value={String(formData.soDienThoai ?? "")}
-                      disabled={!isEditable || !canManage}
+                      disabled={!canManage}
                       onChange={(e) =>
                         updateField("soDienThoai", e.target.value || null)
                       }
@@ -1027,7 +823,7 @@ function DeclarationModal({
                           ? ""
                           : String(formData.loaiGiayTo)
                       }
-                      disabled={!isEditable || !canManage}
+                      disabled={!canManage}
                       onChange={(e) =>
                         updateField(
                           "loaiGiayTo",
@@ -1057,7 +853,7 @@ function DeclarationModal({
                       type="text"
                       required
                       value={String(formData.soGiayTo ?? "")}
-                      disabled={!isEditable || !canManage}
+                      disabled={!canManage}
                       onChange={(e) =>
                         updateField(
                           "soGiayTo",
@@ -1087,7 +883,7 @@ function DeclarationModal({
                           ? ""
                           : String(formData.lyDoCuTru)
                       }
-                      disabled={!isEditable || !canManage}
+                      disabled={!canManage}
                       onChange={(e) =>
                         updateField(
                           "lyDoCuTru",
@@ -1116,7 +912,7 @@ function DeclarationModal({
                       id="lyDoChiTiet"
                       type="text"
                       value={String(formData.lyDoChiTiet ?? "")}
-                      disabled={!isEditable || !canManage}
+                      disabled={!canManage}
                       onChange={(e) =>
                         updateField("lyDoChiTiet", e.target.value || null)
                       }
@@ -1139,7 +935,7 @@ function DeclarationModal({
                       type="text"
                       required
                       value={String(formData.soPhong ?? "")}
-                      disabled={!isEditable || !canManage}
+                      disabled={!canManage}
                       onChange={(e) => updateField("soPhong", e.target.value)}
                       className={inputClass}
                       placeholder="101"
@@ -1159,7 +955,7 @@ function DeclarationModal({
                       required
                       placeholder="YYYY-MM-DD HH:mm:ss"
                       value={String(formData.ngayDenCsltStr ?? "")}
-                      disabled={!isEditable || !canManage}
+                      disabled={!canManage}
                       onChange={(e) =>
                         updateField("ngayDenCsltStr", e.target.value)
                       }
@@ -1180,7 +976,7 @@ function DeclarationModal({
                       required
                       placeholder="YYYY-MM-DD HH:mm:ss"
                       value={String(formData.ngayDiDuKienStr ?? "")}
-                      disabled={!isEditable || !canManage}
+                      disabled={!canManage}
                       onChange={(e) =>
                         updateField("ngayDiDuKienStr", e.target.value)
                       }
@@ -1200,7 +996,7 @@ function DeclarationModal({
                     <select
                       id="maTT"
                       value={String(formData.maTT ?? "")}
-                      disabled={!isEditable || !canManage}
+                      disabled={!canManage}
                       onChange={(e) => {
                         updateField("maTT", e.target.value || null);
                         updateField("maPX", null);
@@ -1226,7 +1022,7 @@ function DeclarationModal({
                     <select
                       id="maPX"
                       value={String(formData.maPX ?? "")}
-                      disabled={!isEditable || !canManage || !provinceCode}
+                      disabled={!canManage || !provinceCode}
                       onChange={(e) =>
                         updateField("maPX", e.target.value || null)
                       }
@@ -1256,7 +1052,7 @@ function DeclarationModal({
                           ? ""
                           : String(formData.noiCuTru)
                       }
-                      disabled={!isEditable || !canManage}
+                      disabled={!canManage}
                       onChange={(e) =>
                         updateField(
                           "noiCuTru",
@@ -1286,7 +1082,7 @@ function DeclarationModal({
                     id="diaChi"
                     type="text"
                     value={String(formData.diaChi ?? "")}
-                    disabled={!isEditable || !canManage}
+                    disabled={!canManage}
                     onChange={(e) =>
                       updateField("diaChi", e.target.value || null)
                     }
@@ -1306,7 +1102,7 @@ function DeclarationModal({
                     id="ghiChu"
                     rows={2}
                     value={String(formData.ghiChu ?? "")}
-                    disabled={!isEditable || !canManage}
+                    disabled={!canManage}
                     onChange={(e) =>
                       updateField("ghiChu", e.target.value || null)
                     }
@@ -1331,7 +1127,7 @@ function DeclarationModal({
                       type="text"
                       required
                       value={String(formData.hoTen ?? "")}
-                      disabled={!isEditable || !canManage}
+                      disabled={!canManage}
                       onChange={(e) => updateField("hoTen", e.target.value)}
                       className={inputClass}
                       placeholder="JOHN DOE"
@@ -1349,7 +1145,7 @@ function DeclarationModal({
                       id="quocTich"
                       required
                       value={String(formData.quocTich ?? "")}
-                      disabled={!isEditable || !canManage}
+                      disabled={!canManage}
                       onChange={(e) => updateField("quocTich", e.target.value)}
                       className={selectClass}
                     >
@@ -1376,7 +1172,7 @@ function DeclarationModal({
                       type="text"
                       required
                       value={String(formData.soHoChieu ?? "")}
-                      disabled={!isEditable || !canManage}
+                      disabled={!canManage}
                       onChange={(e) =>
                         updateField(
                           "soHoChieu",
@@ -1398,7 +1194,7 @@ function DeclarationModal({
                     <select
                       id="f-gioiTinh"
                       value={String(formData.gioiTinh ?? "M")}
-                      disabled={!isEditable || !canManage}
+                      disabled={!canManage}
                       onChange={(e) => updateField("gioiTinh", e.target.value)}
                       className={selectClass}
                     >
@@ -1419,7 +1215,7 @@ function DeclarationModal({
                     <select
                       id="loaiNgayThangNamSinh"
                       value={String(formData.loaiNgayThangNamSinh ?? "D")}
-                      disabled={!isEditable || !canManage}
+                      disabled={!canManage}
                       onChange={(e) =>
                         updateField("loaiNgayThangNamSinh", e.target.value)
                       }
@@ -1450,7 +1246,7 @@ function DeclarationModal({
                           : "1985-06-20"
                       }
                       value={String(formData.ngayThangNamSinhStr ?? "")}
-                      disabled={!isEditable || !canManage}
+                      disabled={!canManage}
                       onChange={(e) =>
                         updateField("ngayThangNamSinhStr", e.target.value)
                       }
@@ -1472,7 +1268,7 @@ function DeclarationModal({
                       type="text"
                       required
                       value={String(formData.soPhong ?? "")}
-                      disabled={!isEditable || !canManage}
+                      disabled={!canManage}
                       onChange={(e) => updateField("soPhong", e.target.value)}
                       className={inputClass}
                       placeholder="201"
@@ -1492,7 +1288,7 @@ function DeclarationModal({
                       required
                       placeholder="YYYY-MM-DD HH:mm:ss"
                       value={String(formData.thoiHanTamTruStr ?? "")}
-                      disabled={!isEditable || !canManage}
+                      disabled={!canManage}
                       onChange={(e) =>
                         updateField("thoiHanTamTruStr", e.target.value)
                       }
@@ -1515,7 +1311,7 @@ function DeclarationModal({
                       required
                       placeholder="YYYY-MM-DD HH:mm:ss"
                       value={String(formData.ngayDenCsltStr ?? "")}
-                      disabled={!isEditable || !canManage}
+                      disabled={!canManage}
                       onChange={(e) =>
                         updateField("ngayDenCsltStr", e.target.value)
                       }
@@ -1536,7 +1332,7 @@ function DeclarationModal({
                       required
                       placeholder="YYYY-MM-DD HH:mm:ss"
                       value={String(formData.ngayDiDuKienStr ?? "")}
-                      disabled={!isEditable || !canManage}
+                      disabled={!canManage}
                       onChange={(e) =>
                         updateField("ngayDiDuKienStr", e.target.value)
                       }
@@ -1557,67 +1353,14 @@ function DeclarationModal({
                 Đóng
               </button>
 
-              {canManage && isEditable && (
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <button
-                    type="submit"
-                    disabled={isBusy}
-                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-6 py-3 text-base font-bold text-slate-800 shadow-xs transition-all hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#064e3b] disabled:opacity-50"
-                  >
-                    {saveMutation.isPending && (
-                      <svg
-                        className="h-4 w-4 animate-spin text-slate-600"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        />
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                        />
-                      </svg>
-                    )}
-                    Lưu bản nháp
-                  </button>
-
-                  <button
-                    type="button"
-                    disabled={isBusy}
-                    onClick={handleMarkReady}
-                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#064e3b] px-6 py-3 text-base font-bold text-white shadow-md transition-all hover:bg-[#043327] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#064e3b] disabled:opacity-50"
-                  >
-                    {readyMutation.isPending && (
-                      <svg
-                        className="h-4 w-4 animate-spin text-white"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        />
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                        />
-                      </svg>
-                    )}
-                    Đánh dấu sẵn sàng
-                  </button>
-                </div>
+              {canManage && (
+                <button
+                  type="submit"
+                  disabled={isBusy}
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#064e3b] px-6 py-3 text-base font-bold text-white shadow-md transition-all hover:bg-[#043327] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#064e3b] disabled:opacity-50"
+                >
+                  {isBusy ? "Đang gửi…" : "Gửi lên Bộ Công an"}
+                </button>
               )}
             </div>
           </form>

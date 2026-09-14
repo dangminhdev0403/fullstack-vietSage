@@ -56,26 +56,13 @@ export type KbttCatalogItem = z.infer<typeof kbttCatalogItemSchema>;
 export const citizenshipKindSchema = z.enum(["VIETNAMESE", "FOREIGN"]);
 export type CitizenshipKind = z.infer<typeof citizenshipKindSchema>;
 
-export const kbttDeclarationStatusSchema = z.enum([
-  "DRAFT",
-  "READY",
-  "SENDING",
-  "SUBMITTED",
-  "FAILED",
-  "UNKNOWN",
-  "CANCELLED",
-]);
+export const kbttDeclarationStatusSchema = z.enum(["DRAFT", "SUBMITTED"]);
 export type KbttDeclarationStatus = z.infer<typeof kbttDeclarationStatusSchema>;
 
 export const kbttDerivedStatusSchema = z.enum([
   "MISSING_PROFILE",
   "DRAFT",
-  "READY",
-  "SENDING",
   "SUBMITTED",
-  "FAILED",
-  "UNKNOWN",
-  "CANCELLED",
 ]);
 export type KbttDerivedStatus = z.infer<typeof kbttDerivedStatusSchema>;
 
@@ -161,19 +148,6 @@ export const kbttDeclarationRecordSchema = z.object({
   updatedAt: z.string(),
 });
 export type KbttDeclarationRecord = z.infer<typeof kbttDeclarationRecordSchema>;
-
-export const kbttStaySubmissionResultSchema = z.object({
-  stayId: z.string(),
-  roomId: z.string(),
-  roomNumber: z.string(),
-  totalGuests: z.number().int().nonnegative(),
-  submittedCount: z.number().int().nonnegative(),
-  alreadySubmittedCount: z.number().int().nonnegative(),
-  declarations: z.array(kbttDeclarationRecordSchema),
-});
-export type KbttStaySubmissionResult = z.infer<
-  typeof kbttStaySubmissionResultSchema
->;
 
 export const kbttOccupantDeclarationDetailSchema = z.object({
   occupant: kbttOccupantDetailSchema,
@@ -348,13 +322,7 @@ export type KbttTabKey =
 export function getRowPartitionTab(
   row: Pick<KbttDeclarationListItem, "derivedStatus" | "citizenshipKind">,
 ): KbttTabKey {
-  if (
-    row.derivedStatus === "SUBMITTED" ||
-    row.derivedStatus === "FAILED" ||
-    row.derivedStatus === "UNKNOWN" ||
-    row.derivedStatus === "CANCELLED" ||
-    row.derivedStatus === "SENDING"
-  ) {
+  if (row.derivedStatus === "SUBMITTED") {
     return "submitted_or_error";
   }
   if (row.derivedStatus === "MISSING_PROFILE" || !row.citizenshipKind) {
@@ -388,11 +356,7 @@ export function kbttErrorMessage(codeOrMessage: string | null): string {
     return errorMessages[codeOrMessage];
   }
   if (
-    codeOrMessage.includes("READY") ||
     codeOrMessage.includes("SUBMITTED") ||
-    codeOrMessage.includes("SENDING") ||
-    codeOrMessage.includes("UNKNOWN") ||
-    codeOrMessage.includes("CANCELLED") ||
     codeOrMessage.includes("bản nháp") ||
     codeOrMessage.includes("hồ sơ") ||
     codeOrMessage.includes("khách lưu trú") ||
@@ -424,49 +388,6 @@ export function kbttErrorCode(payload: unknown): string | null {
   return null;
 }
 
-export function canSubmitStay(
-  rows: ReadonlyArray<Pick<KbttDeclarationListItem, "derivedStatus">>,
-  canManage: boolean,
-): boolean {
-  return (
-    canManage &&
-    rows.length > 0 &&
-    rows.some(
-      (row) => row.derivedStatus === "READY" || row.derivedStatus === "FAILED",
-    ) &&
-    rows.every((row) =>
-      ["READY", "FAILED", "SUBMITTED"].includes(row.derivedStatus),
-    )
-  );
-}
-
-export function canSubmitDeclaration(
-  status: string | null | undefined,
-  canManage: boolean,
-): boolean {
-  if (!canManage || !status) return false;
-  return status === "READY";
-}
-
-export function canRetryDeclaration(
-  status: string | null | undefined,
-  canManage: boolean,
-): boolean {
-  if (!canManage || !status) return false;
-  if (
-    status === "UNKNOWN" ||
-    status === "SUBMITTED" ||
-    status === "SENDING" ||
-    status === "READY" ||
-    status === "DRAFT" ||
-    status === "MISSING_PROFILE" ||
-    status === "CANCELLED"
-  ) {
-    return false;
-  }
-  return status === "FAILED";
-}
-
 export function sanitizeErrorMessage(
   codeOrMessage: string | null | undefined,
 ): string {
@@ -487,4 +408,22 @@ export function sanitizeErrorMessage(
     return "Không thể xử lý yêu cầu khai báo. Vui lòng thử lại hoặc liên hệ hỗ trợ.";
   }
   return kbttErrorMessage(codeOrMessage);
+}
+
+export function sanitizeProviderDetail(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const text = value.trim().slice(0, 500);
+  if (!text) return null;
+  const lower = text.toLowerCase();
+  if (
+    lower.includes("token") ||
+    lower.includes("password") ||
+    lower.includes("secret") ||
+    lower.includes("bearer") ||
+    text.startsWith("{") ||
+    text.startsWith("[")
+  ) {
+    return null;
+  }
+  return text;
 }

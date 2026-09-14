@@ -14,7 +14,6 @@ import type {
   KbttDeclarationListItem,
   KbttDeclarationRecord,
   KbttOccupantDeclarationDetail,
-  KbttStaySubmissionResult,
   SaveKbttDraftPayload,
 } from "../types/kbtt-contract";
 
@@ -130,18 +129,6 @@ export const kbttResource = createResource<HotelScope>()({
         ),
       invalidates: declarationInvalidates,
     }),
-    markReady: defineMutation({
-      defaults: { retry: false, networkMode: "always" },
-      mutationFn: ({
-        scope,
-        variables,
-      }: ResourceMutationContext<
-        HotelScope,
-        { occupantId: string }
-      >): Promise<KbttDeclarationRecord> =>
-        kbttRepository.markReady(scope.hotelId, variables.occupantId),
-      invalidates: declarationInvalidates,
-    }),
     submit: defineMutation({
       defaults: { retry: false, networkMode: "always" },
       mutationFn: ({
@@ -152,18 +139,6 @@ export const kbttResource = createResource<HotelScope>()({
         { occupantId: string }
       >): Promise<KbttDeclarationRecord> =>
         kbttRepository.submit(scope.hotelId, variables.occupantId),
-      invalidates: declarationInvalidates,
-    }),
-    submitStay: defineMutation({
-      defaults: { retry: false, networkMode: "always" },
-      mutationFn: ({
-        scope,
-        variables,
-      }: ResourceMutationContext<
-        HotelScope,
-        { stayId: string }
-      >): Promise<KbttStaySubmissionResult> =>
-        kbttRepository.submitStay(scope.hotelId, variables.stayId),
       invalidates: declarationInvalidates,
     }),
   },
