@@ -56,11 +56,71 @@ export const CODE_TO_TEXT_NATIONALITY: Record<string, string> = {
   MMR: "Myanmar",
 };
 
+export function matchBcaNationalityCode(
+  value: string | null | undefined,
+  items: readonly {
+    code: string;
+    nameVi: string;
+    nameEn: string | null;
+  }[],
+): string {
+  const raw = value?.trim();
+  if (!raw) return "";
+  const bracketCode = /\[([A-Z]{3})\]\s*$/i.exec(raw)?.[1];
+  const normalized = (bracketCode ?? raw)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+  const aliasCode = Object.entries(CODE_TO_TEXT_NATIONALITY).find(
+    ([code, name]) =>
+      /^[A-Z]{3}$/.test(code) &&
+      name
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toUpperCase() === normalized,
+  )?.[0];
+  const matches = items.filter(
+    (item) =>
+      item.code === aliasCode ||
+      [item.code, item.nameVi, item.nameEn]
+        .filter((candidate): candidate is string => Boolean(candidate))
+        .some(
+          (candidate) =>
+            candidate
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f]/g, "")
+              .toUpperCase() === normalized,
+        ),
+  );
+  return matches.length === 1 ? matches[0].code : "";
+}
+
 export function normalizeNationalityToText(value?: string | null): string {
   if (!value) return "Việt Nam";
   const trimmed = value.trim();
   const upper = trimmed.toUpperCase();
   return CODE_TO_TEXT_NATIONALITY[upper] || trimmed;
+}
+
+function normalizeIdentityDate(value: string | undefined): string | undefined {
+  const raw = value?.trim();
+  if (!raw) return undefined;
+  const match =
+    /^(?:(\d{4})-(\d{2})-(\d{2})|(\d{2})\/?(\d{2})\/?(\d{4}))$/.exec(raw);
+  if (!match) throw new Error("Phản hồi OpenMRZ có ngày sinh không hợp lệ");
+  const [, isoYear, isoMonth, isoDay, day, month, year] = match;
+  const y = Number(isoYear ?? year);
+  const m = Number(isoMonth ?? month);
+  const d = Number(isoDay ?? day);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  if (
+    date.getUTCFullYear() !== y ||
+    date.getUTCMonth() !== m - 1 ||
+    date.getUTCDate() !== d
+  ) {
+    throw new Error("Phản hồi OpenMRZ có ngày sinh không hợp lệ");
+  }
+  return `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
 export function parseLocalMrzResult(value: unknown): IdentityDocumentOcrResult {
@@ -76,6 +136,7 @@ export function parseLocalMrzResult(value: unknown): IdentityDocumentOcrResult {
   const optional = (key: string) => typeof result[key] === "string" ? result[key] as string : undefined;
   const rawNat = optional("nationality") || optional("guestNationality");
   const natText = rawNat ? normalizeNationalityToText(rawNat) : undefined;
+  const dateOfBirth = normalizeIdentityDate(optional("dateOfBirth"));
   const resPlace = optional("residencePlace") || optional("guestResidencePlace");
   return {
     documentKind: result.documentKind,
@@ -83,14 +144,14 @@ export function parseLocalMrzResult(value: unknown): IdentityDocumentOcrResult {
     mrzValid: typeof result.mrzValid === "boolean" ? result.mrzValid : undefined,
     identityNumber: result.identityNumber,
     fullName: result.fullName.trim(),
-    dateOfBirth: optional("dateOfBirth"),
+    dateOfBirth,
     gender: optional("gender"),
     nationality: natText,
     residencePlace: resPlace,
     expiryDate: optional("expiryDate"),
     guestDisplayName: result.fullName.trim(),
     guestIdentityNumber: result.identityNumber,
-    guestDateOfBirth: optional("dateOfBirth"),
+    guestDateOfBirth: dateOfBirth,
     guestGender: optional("gender"),
     guestNationality: natText,
     guestResidencePlace: resPlace,

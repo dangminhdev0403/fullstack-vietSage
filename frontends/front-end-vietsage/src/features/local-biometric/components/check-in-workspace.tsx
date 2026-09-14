@@ -1,5 +1,6 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import React, {
   useCallback,
   useEffect,
@@ -9,6 +10,8 @@ import React, {
 } from "react";
 import Swal from "sweetalert2";
 import { filterExtraOccupants } from "@/features/hotel-ops/utils/hotel-ops-display";
+import { kbttResource } from "@/features/kbtt/resources/kbtt-resource";
+import { matchBcaNationalityCode } from "../utils/identity-document-ocr";
 import type {
   CheckInWorkspaceProps,
   CheckInStayFields,
@@ -183,6 +186,12 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
     onSubmit,
     onClose,
   } = props;
+  const kbtt = useMemo(() => kbttResource.bind({ hotelId }), [hotelId]);
+  const nationalitiesQuery = useQuery({
+    ...kbtt.queries.catalog.options({ kind: "NATIONALITY" }),
+    enabled: open,
+  });
+  const nationalities = nationalitiesQuery.data ?? [];
   const [fields, setFields] = useState<CheckInStayFields>({
     guestDisplayName: initialStayFields?.guestDisplayName || "",
     guestPhone: initialStayFields?.guestPhone || "",
@@ -1006,9 +1015,38 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
             id="ciw-form"
             onSubmit={(event) => {
               event.preventDefault();
+              const guestNationality = matchBcaNationalityCode(
+                fields.guestNationality,
+                nationalities,
+              );
+              const normalizedOccupants = filterExtraOccupants(
+                occupants,
+                fields,
+              ).map((occupant) => ({
+                ...occupant,
+                nationality: matchBcaNationalityCode(
+                  occupant.nationality,
+                  nationalities,
+                ),
+              }));
+              const missingNationality = normalizedOccupants.findIndex(
+                (occupant) => !occupant.nationality,
+              );
+              if (!guestNationality || missingNationality >= 0) {
+                void Swal.fire({
+                  icon: "error",
+                  title: "Chưa xác định quốc tịch",
+                  text: !guestNationality
+                    ? "Vui lòng chọn quốc tịch BCA cho khách 1."
+                    : `Vui lòng chọn quốc tịch BCA cho khách ${missingNationality + 2}.`,
+                  confirmButtonText: "Đã hiểu",
+                });
+                return;
+              }
               onSubmit({
                 ...fields,
-                occupants: filterExtraOccupants(occupants, fields),
+                guestNationality,
+                occupants: normalizedOccupants,
               });
             }}
             className="space-y-2.5"
@@ -1169,19 +1207,35 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                         />
                       </td>
                       <td className="px-2 py-2">
-                        <input
+                        <select
                           id="ciw-nationality"
-                          type="text"
-                          value={fields.guestNationality || ""}
+                          required
+                          value={matchBcaNationalityCode(
+                            fields.guestNationality,
+                            nationalities,
+                          )}
                           onChange={(e) =>
                             setFields({
                               ...fields,
                               guestNationality: e.target.value,
                             })
                           }
-                          className={cellInputClass}
-                          placeholder="Việt Nam"
-                        />
+                          className={cellSelectClass}
+                          disabled={nationalitiesQuery.isPending}
+                        >
+                          <option value="">
+                            {nationalitiesQuery.isError
+                              ? "Không tải được quốc tịch BCA"
+                              : nationalitiesQuery.isPending
+                                ? "Đang tải quốc tịch BCA..."
+                                : "Chọn quốc tịch BCA"}
+                          </option>
+                          {nationalities.map((item) => (
+                            <option key={item.code} value={item.code}>
+                              {item.nameVi} ({item.code})
+                            </option>
+                          ))}
+                        </select>
                       </td>
                       <td className="px-2 py-2">
                         <input
@@ -1334,10 +1388,13 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                           />
                         </td>
                         <td className="px-2 py-2">
-                          <input
+                          <select
                             id={`occ-nationality-${slotIdx}`}
-                            type="text"
-                            value={occ.nationality || ""}
+                            required
+                            value={matchBcaNationalityCode(
+                              occ.nationality,
+                              nationalities,
+                            )}
                             onChange={(e) =>
                               handleOccupantChange(
                                 occIdx,
@@ -1345,9 +1402,22 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                                 e.target.value,
                               )
                             }
-                            className={cellInputClass}
-                            placeholder="Việt Nam"
-                          />
+                            className={cellSelectClass}
+                            disabled={nationalitiesQuery.isPending}
+                          >
+                            <option value="">
+                              {nationalitiesQuery.isError
+                                ? "Không tải được"
+                                : nationalitiesQuery.isPending
+                                  ? "Đang tải..."
+                                  : "Chọn quốc tịch"}
+                            </option>
+                            {nationalities.map((item) => (
+                              <option key={item.code} value={item.code}>
+                                {item.nameVi} ({item.code})
+                              </option>
+                            ))}
+                          </select>
                         </td>
                         <td className="px-2 py-2">
                           <input
@@ -1451,7 +1521,12 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
             <button
               type="submit"
               form="ciw-form"
-              disabled={!canManageStays || submitState === "submitting"}
+              disabled={
+                !canManageStays ||
+                submitState === "submitting" ||
+                nationalitiesQuery.isPending ||
+                nationalitiesQuery.isError
+              }
               className="min-h-[46px] w-full rounded-xl bg-blue-700 px-7 py-2.5 text-base font-bold text-white shadow-sm transition hover:bg-blue-800 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
             >
               {submitState === "submitting"
