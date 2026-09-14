@@ -141,20 +141,6 @@ const COMMON_NATIONALITIES: Record<string, string> = {
   TWN: "Đài Loan",
 };
 
-function formatDateVi(dateStr: string | null | undefined): string {
-  if (!dateStr) return "—";
-  try {
-    const d = new Date(dateStr);
-    if (Number.isNaN(d.getTime())) return dateStr;
-    const day = String(d.getDate()).padStart(2, "0");
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    const year = d.getFullYear();
-    return `${day}/${month}/${year}`;
-  } catch {
-    return dateStr;
-  }
-}
-
 function formatStayDateTimeForForm(
   dateStr: string | null | undefined,
 ): string | undefined {
@@ -306,24 +292,6 @@ function CloudUploadIcon({ className = "h-4 w-4" }: { className?: string }) {
         strokeLinecap="round"
         strokeLinejoin="round"
         d="M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.233-2.33 3 3 0 0 1 3.758 3.848A3.752 3.752 0 0 1 18 19.5H6.75Z"
-      />
-    </svg>
-  );
-}
-
-function CalendarIcon({ className = "h-4 w-4" }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={2}
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M6.75 3v2.25M17.25 3v2.253M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 9v7.5"
       />
     </svg>
   );
@@ -1017,12 +985,6 @@ export function KbttDeclarationsPage({
                 <th scope="col" className="w-40 px-3 py-3.5">
                   Số giấy tờ
                 </th>
-                <th scope="col" className="w-36 px-3 py-3.5">
-                  Ngày check-in
-                </th>
-                <th scope="col" className="w-36 px-3 py-3.5">
-                  Ngày check-out
-                </th>
                 <th scope="col" className="w-36 px-3 py-3.5 text-center">
                   Trạng thái
                 </th>
@@ -1113,26 +1075,6 @@ export function KbttDeclarationsPage({
                         <span className="truncate">
                           {row.identityNumber || "—"}
                         </span>
-                      </div>
-                    </td>
-
-                    {/* Ngày check-in */}
-                    <td className="px-3 py-3">
-                      <div className="flex min-h-10 items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-base text-slate-700">
-                        <span>
-                          {formatDateVi(
-                            row.checkedInAt || row.plannedCheckInAt,
-                          )}
-                        </span>
-                        <CalendarIcon className="h-4 w-4 shrink-0 text-slate-400" />
-                      </div>
-                    </td>
-
-                    {/* Ngày check-out */}
-                    <td className="px-3 py-3">
-                      <div className="flex min-h-10 items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-base text-slate-700">
-                        <span>{formatDateVi(row.plannedCheckOutAt)}</span>
-                        <CalendarIcon className="h-4 w-4 shrink-0 text-slate-400" />
                       </div>
                     </td>
 
