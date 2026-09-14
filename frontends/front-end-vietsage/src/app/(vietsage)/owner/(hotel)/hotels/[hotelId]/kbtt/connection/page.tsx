@@ -1,6 +1,5 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
-import { KbttConnectionPage } from "@/features/kbtt/components/kbtt-connection-page";
 import { canUseHotelId } from "@/features/hotel-ops/utils/hotel-route-auth";
 import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 
@@ -19,7 +18,6 @@ export default async function OwnerKbttConnectionPage({
   const canManage = context.permissions.includes("hotel.kbtt.manage");
   if (!canManage && !context.permissions.includes("hotel.kbtt.view"))
     notFound();
-  return (
-    <KbttConnectionPage key={hotelId} hotelId={hotelId} canManage={canManage} />
-  );
+
+  redirect(`/owner/hotels/${encodeURIComponent(hotelId)}/kbtt?tab=connection`);
 }

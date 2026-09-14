@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { KbttDeclarationsPage } from "@/features/kbtt/components/kbtt-declarations-page";
@@ -9,10 +8,14 @@ export const dynamic = "force-dynamic";
 
 export default async function OwnerKbttPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ hotelId: string }>;
+  searchParams?: Promise<{ tab?: string }>;
 }) {
   const { hotelId } = await params;
+  const sp = searchParams ? await searchParams : {};
+  const initialTab = sp.tab === "connection" ? "connection" : "declarations";
   const callbackUrl =
     `/owner/hotels/${encodeURIComponent(hotelId)}/kbtt` as const;
   const context = await loadServerWorkspaceContext(callbackUrl);
@@ -31,18 +34,11 @@ export default async function OwnerKbttPage({
   );
 
   return (
-    <div className="space-y-4">
-      {canConfigure && (
-        <div className="flex justify-end">
-          <Link
-            href={`/owner/hotels/${encodeURIComponent(hotelId)}/kbtt/connection`}
-            className="inline-flex min-h-11 items-center rounded-xl border border-slate-200 bg-white px-4 font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            Cấu hình kết nối BCA
-          </Link>
-        </div>
-      )}
-      <KbttDeclarationsPage hotelId={hotelId} canManage={canManage} />
-    </div>
+    <KbttDeclarationsPage
+      hotelId={hotelId}
+      canManage={canManage}
+      canConfigure={canConfigure}
+      initialTab={initialTab}
+    />
   );
 }

@@ -389,7 +389,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
   },
   {
     key: "staff.kbtt",
-    personas: ["owner", "manager", "front_desk"],
+    personas: ["manager", "front_desk"],
     href: "/hotels/{hotelId}/kbtt",
     label: "Khai báo tạm trú",
     icon: "verified_user",

@@ -5,7 +5,6 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type FormEvent,
 } from "react";
@@ -315,14 +314,6 @@ function ChevronDownIcon({ className = "h-4 w-4" }: { className?: string }) {
   );
 }
 
-function DotsVerticalIcon({ className = "h-5 w-5" }: { className?: string }) {
-  return (
-    <svg className={className} fill="currentColor" viewBox="0 0 20 20">
-      <path d="M10 6a2 2 0 1 1 0-4 2 2 0 0 1 0 4ZM10 12a2 2 0 1 1 0-4 2 2 0 0 1 0 4ZM10 18a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z" />
-    </svg>
-  );
-}
-
 function AlertCircleIcon({ className = "h-4 w-4" }: { className?: string }) {
   return (
     <svg
@@ -354,78 +345,50 @@ function RowActionMenu({
   onViewError: () => void;
   disabled?: boolean;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isOpen]);
-
   return (
-    <div className="relative inline-block text-left" ref={menuRef}>
+    <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
+      {/* Sửa chi tiết */}
       <button
         type="button"
         disabled={disabled}
-        onClick={() => setIsOpen((prev) => !prev)}
-        className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-xs hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 transition-colors"
-        aria-label="Thao tác"
+        onClick={onEdit}
+        title={
+          statusInfo.key === "SUBMITTED"
+            ? "Xem hồ sơ đã gửi"
+            : "Chỉnh sửa chi tiết hồ sơ"
+        }
+        className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-sm font-semibold text-slate-700 shadow-2xs hover:border-[#064e3b] hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 transition-colors"
       >
-        <DotsVerticalIcon className="h-5 w-5" />
+        <PencilIcon className="h-3.5 w-3.5 text-slate-500" />
+        <span>{statusInfo.key === "SUBMITTED" ? "Xem" : "Sửa"}</span>
       </button>
 
-      {isOpen && (
-        <div className="absolute right-0 z-20 mt-1.5 w-56 origin-top-right rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg ring-1 ring-black/5 focus:outline-none">
-          <button
-            type="button"
-            onClick={() => {
-              setIsOpen(false);
-              onEdit();
-            }}
-            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-base font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors"
-          >
-            <PencilIcon className="h-4 w-4 text-slate-500" />
-            {statusInfo.key === "SUBMITTED"
-              ? "Xem chi tiết"
-              : "Chỉnh sửa chi tiết"}
-          </button>
-          {statusInfo.key !== "SUBMITTED" ? (
-            <button
-              type="button"
-              onClick={() => {
-                setIsOpen(false);
-                onSubmit();
-              }}
-              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-base font-medium text-emerald-800 hover:bg-emerald-50 transition-colors"
-            >
-              <CloudUploadIcon className="h-4 w-4 text-emerald-600" />
-              Gửi BCA ngay
-            </button>
-          ) : (
-            <p className="px-3 py-2 text-sm font-medium text-slate-500">
-              Hồ sơ của lần lưu trú này đã gửi
-            </p>
-          )}
-          {statusInfo.key === "REJECTED" && (
-            <button
-              type="button"
-              onClick={() => {
-                setIsOpen(false);
-                onViewError();
-              }}
-              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-base font-medium text-rose-700 hover:bg-rose-50 transition-colors"
-            >
-              <AlertCircleIcon className="h-4 w-4 text-rose-500" />
-              Xem lý do từ chối
-            </button>
-          )}
-        </div>
+      {/* Gửi BCA ngay (chưa gửi hoặc bị từ chối) */}
+      {statusInfo.key !== "SUBMITTED" && (
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={onSubmit}
+          title="Gửi hồ sơ phòng này lên BCA ngay"
+          className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-[#064e3b] px-2.5 py-1 text-sm font-semibold text-white shadow-2xs hover:bg-[#043327] disabled:opacity-40 transition-colors"
+        >
+          <CloudUploadIcon className="h-3.5 w-3.5 text-emerald-200" />
+          <span>Gửi BCA</span>
+        </button>
+      )}
+
+      {/* Xem lý do từ chối (nếu bị từ chối) */}
+      {statusInfo.key === "REJECTED" && (
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={onViewError}
+          title="Xem lý do BCA từ chối"
+          className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-sm font-semibold text-rose-700 shadow-2xs hover:bg-rose-100 disabled:opacity-40 transition-colors"
+        >
+          <AlertCircleIcon className="h-3.5 w-3.5 text-rose-500" />
+          <span>Lý do</span>
+        </button>
       )}
     </div>
   );
@@ -742,7 +705,7 @@ export function KbttDeclarationsPage({
 
   if (activeTab === "connection" && canConfigure) {
     return (
-      <div className="mx-auto max-w-7xl space-y-6 pb-16 pt-2 text-slate-900">
+      <div className="w-full space-y-6 pb-16 pt-1 text-slate-900">
         <div className="flex border-b border-slate-200">
           <button
             type="button"
@@ -766,7 +729,7 @@ export function KbttDeclarationsPage({
 
   return (
     <div
-      className="mx-auto max-w-7xl space-y-6 pb-16 pt-2 text-slate-900"
+      className="w-full space-y-6 pb-16 pt-1 text-slate-900"
       aria-labelledby="declarations-title"
     >
       {canConfigure && (
@@ -821,7 +784,7 @@ export function KbttDeclarationsPage({
       {/* Filter Toolbar */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
         {/* Search */}
-        <div className="relative flex-1 min-w-[240px]">
+        <div className="relative flex-1 min-w-[260px]">
           <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
           <input
             type="search"
@@ -886,14 +849,26 @@ export function KbttDeclarationsPage({
 
       {/* Batch Actions Bar */}
       <div className="flex flex-col gap-4 rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-base font-semibold text-slate-800">
-            Đã chọn {selectedCount}/{selectableRows.length} hồ sơ chưa gửi
-          </p>
-          <p className="mt-1 text-sm text-slate-500">
-            {filteredRows.length - selectableRows.length} hồ sơ đã gửi được khóa
-            chọn
-          </p>
+        <div className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            checked={isAllSelected}
+            onChange={handleToggleSelectAll}
+            disabled={selectableRows.length === 0 || isSubmittingBatch}
+            className="h-5 w-5 rounded border-slate-300 text-[#064e3b] focus:ring-[#064e3b] disabled:cursor-not-allowed disabled:opacity-30"
+            aria-label="Chọn tất cả hồ sơ chưa gửi"
+          />
+          <div>
+            <p className="text-base font-semibold text-slate-800">
+              Đã chọn {selectedCount}/{selectableRows.length} phòng chưa gửi
+            </p>
+            {filteredRows.length > selectableRows.length && (
+              <p className="text-xs text-slate-500">
+                {filteredRows.length - selectableRows.length} phòng đã gửi BCA
+                hoàn tất
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -956,11 +931,14 @@ export function KbttDeclarationsPage({
             : "Chưa có khách đang check-in."}
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-xs">
-          <table className="w-full min-w-[960px] border-collapse text-left">
+        <div className="w-full overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-xs">
+          <table className="w-full border-collapse text-left">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/70 text-sm font-semibold text-slate-700">
-                <th scope="col" className="w-12 px-4 py-3.5 text-center">
+                <th
+                  scope="col"
+                  className="w-12 px-4 py-3.5 text-center whitespace-nowrap"
+                >
                   <input
                     type="checkbox"
                     checked={isAllSelected}
@@ -970,25 +948,37 @@ export function KbttDeclarationsPage({
                     aria-label="Chọn tất cả hồ sơ chưa gửi"
                   />
                 </th>
-                <th scope="col" className="w-14 px-3 py-3.5 text-center">
+                <th
+                  scope="col"
+                  className="w-14 px-3 py-3.5 text-center whitespace-nowrap"
+                >
                   STT
                 </th>
-                <th scope="col" className="w-28 px-3 py-3.5">
+                <th scope="col" className="w-28 px-3 py-3.5 whitespace-nowrap">
                   Số phòng
                 </th>
-                <th scope="col" className="min-w-[200px] px-3 py-3.5">
+                <th
+                  scope="col"
+                  className="min-w-[200px] px-3 py-3.5 whitespace-nowrap"
+                >
                   Tên khách
                 </th>
-                <th scope="col" className="w-44 px-3 py-3.5">
+                <th scope="col" className="w-48 px-3 py-3.5 whitespace-nowrap">
                   Quốc tịch
                 </th>
-                <th scope="col" className="w-40 px-3 py-3.5">
+                <th scope="col" className="w-44 px-3 py-3.5 whitespace-nowrap">
                   Số giấy tờ
                 </th>
-                <th scope="col" className="w-36 px-3 py-3.5 text-center">
+                <th
+                  scope="col"
+                  className="w-36 px-3 py-3.5 text-center whitespace-nowrap"
+                >
                   Trạng thái
                 </th>
-                <th scope="col" className="w-24 px-3 py-3.5 text-center">
+                <th
+                  scope="col"
+                  className="w-48 min-w-[160px] px-3 py-3.5 text-center whitespace-nowrap"
+                >
                   Thao tác
                 </th>
               </tr>
@@ -1091,7 +1081,7 @@ export function KbttDeclarationsPage({
                     </td>
 
                     {/* Thao tác */}
-                    <td className="px-3 py-3 text-center">
+                    <td className="px-3 py-3 text-center whitespace-nowrap">
                       <RowActionMenu
                         statusInfo={statusInfo}
                         onEdit={() => setSelectedOccupant(row)}

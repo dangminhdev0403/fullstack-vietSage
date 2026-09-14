@@ -126,14 +126,14 @@ export function WorkspaceShell({
         />
       </div>
       <main
-        className={`min-h-screen px-4 pb-24 pt-24 transition-all duration-300 print:p-0 ${
+        className={`min-h-screen px-4 pb-20 pt-20 transition-all duration-300 print:p-0 ${
           isCollapsed ? "md:ml-20" : "md:ml-72 2xl:ml-80"
-        } sm:px-6 lg:px-8 2xl:px-10 print:md:ml-0 ${
+        } sm:px-6 lg:px-8 print:md:ml-0 ${
           printFriendly ? "owner-shell-main" : ""
         }`}
       >
         <div
-          className={`mx-auto max-w-[1680px] space-y-8 ${
+          className={`w-full space-y-8 ${
             printFriendly ? "owner-shell-content" : ""
           }`}
         >
