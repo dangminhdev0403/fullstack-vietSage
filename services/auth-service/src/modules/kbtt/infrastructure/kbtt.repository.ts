@@ -111,6 +111,32 @@ export class KbttRepository {
     }
   }
 
+  async findActiveSubmittedOccupantByIdentity(
+    hotelId: string,
+    identityNumber: string,
+    excludeOccupantId: string,
+  ) {
+    try {
+      return await this.prisma.guestStayOccupant.findFirst({
+        where: {
+          hotelId,
+          identityNumber,
+          id: { not: excludeOccupantId },
+          stay: {
+            status: { in: ["ACTIVE", "CHECKED_IN", "CHECKOUT_PENDING"] },
+            checkedOutAt: null,
+          },
+          kbttGuestDeclarations: { some: { status: "SUBMITTED" } },
+        },
+        select: {
+          stay: { select: { room: { select: { roomNumber: true } } } },
+        },
+      });
+    } catch {
+      throw kbttUnavailable();
+    }
+  }
+
   async createDeclaration(data: {
     hotelId: string;
     stayId: string;

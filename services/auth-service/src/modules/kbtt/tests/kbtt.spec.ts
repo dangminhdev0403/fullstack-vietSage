@@ -106,6 +106,7 @@ function fixture() {
       if (occ && occ.hotelId === hotelId) return occ;
       return null;
     }),
+    findActiveSubmittedOccupantByIdentity: jest.fn(async () => null),
     prepareStaySubmissionBatch: jest.fn(async (params: any) => {
       const actualIds = [...occupants.values()]
         .filter(
@@ -572,6 +573,23 @@ describe("KBTT edit and submit", () => {
       response: {
         code: "KBTT_PAYLOAD_INVALID",
         message: expect.stringMatching(/Quốc tịch.*Số hộ chiếu.*Giới tính.*Ngày sinh/),
+      },
+    });
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+  });
+
+  it("blocks a duplicate active identity before calling BCA", async () => {
+    const f = fixture();
+    f.occupants.set("occ-vn", primaryOccupant);
+    f.repository.findActiveSubmittedOccupantByIdentity.mockResolvedValueOnce({
+      stay: { room: { roomNumber: "202" } },
+    });
+
+    await expect(f.service.submit("user-1", "role-1", "hotel-1", "occ-vn")).rejects.toMatchObject({
+      status: 409,
+      response: {
+        code: "KBTT_ACTIVE_IDENTITY_CONFLICT",
+        message: expect.stringContaining("phòng 202"),
       },
     });
     expect(f.provider.submitDeclaration).not.toHaveBeenCalled();

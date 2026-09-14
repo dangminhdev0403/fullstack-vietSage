@@ -551,6 +551,21 @@ export class KbttService implements OnModuleDestroy {
         });
       }
 
+      const identityNumber = occupant.identityNumber?.trim();
+      if (identityNumber) {
+        const conflict = await this.repository.findActiveSubmittedOccupantByIdentity(
+          hotelId,
+          identityNumber,
+          occupantId,
+        );
+        if (conflict) {
+          throw new ConflictException({
+            code: "KBTT_ACTIVE_IDENTITY_CONFLICT",
+            message: `Số giấy tờ này đã có hồ sơ gửi BCA đang lưu trú tại phòng ${conflict.stay.room.roomNumber}. Checkout hồ sơ cũ trước khi gửi khách này.`,
+          });
+        }
+      }
+
       const declarationKind = declaration?.declarationKind ?? occupant.citizenshipKind;
       if (!declarationKind) {
         throw new BadRequestException({
