@@ -10,11 +10,7 @@ import {
 } from "react";
 
 import { HttpError } from "@/core/http/http-error";
-import {
-  showConfirmDialog,
-  showErrorAlert,
-  showSuccessAlert,
-} from "@/libs/swal";
+import { showErrorAlert, showSuccessAlert } from "@/libs/swal";
 
 import { kbttResource } from "../resources/kbtt-resource";
 import {
@@ -24,7 +20,6 @@ import {
   type CitizenshipKind,
   type KbttCatalogItem,
   type KbttDeclarationListItem,
-  type SaveKbttDraftPayload,
 } from "../types/kbtt-contract";
 
 const inputClass =
@@ -115,25 +110,6 @@ function errorText(error: unknown): string {
     return sanitizeErrorMessage(error.message);
   }
   return sanitizeErrorMessage(null);
-}
-
-function formatDisplayDateTime(dateTimeStr: string | null): string {
-  if (!dateTimeStr) return "Chưa cập nhật";
-  const d = new Date(dateTimeStr);
-  if (Number.isNaN(d.getTime())) return dateTimeStr;
-  const time = d.toLocaleTimeString("vi-VN", {
-    timeZone: "Asia/Ho_Chi_Minh",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-  const date = d.toLocaleDateString("vi-VN", {
-    timeZone: "Asia/Ho_Chi_Minh",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-  return `${time} ${date}`;
 }
 
 export function KbttDeclarationsPage({

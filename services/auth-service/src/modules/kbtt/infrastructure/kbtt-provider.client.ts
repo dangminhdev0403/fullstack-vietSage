@@ -69,7 +69,9 @@ export class KbttProviderClient {
     const query: Record<string, string> = {};
     if (kind === "WARD") {
       if (!parentCode || !parentCode.trim()) {
-        throw new BadRequestException("Mã tỉnh/thành phố (trucThuocTinh) là bắt buộc để tải danh mục phường xã.");
+        throw new BadRequestException(
+          "Mã tỉnh/thành phố (trucThuocTinh) là bắt buộc để tải danh mục phường xã.",
+        );
       }
       query.trucThuocTinh = parentCode.trim();
     }
@@ -166,8 +168,7 @@ export class KbttProviderClient {
       }
 
       const codeStr = String(envelope.code);
-      const messageStr =
-        typeof envelope.message === "string" ? envelope.message : "";
+      const messageStr = typeof envelope.message === "string" ? envelope.message : "";
 
       if (response.ok && codeStr === "200") {
         return {
@@ -278,10 +279,7 @@ export class KbttProviderClient {
     }
   }
 
-  private async requestPublic(
-    path: string,
-    query?: Record<string, string>,
-  ): Promise<unknown> {
+  private async requestPublic(path: string, query?: Record<string, string>): Promise<unknown> {
     if (!this.config.KBTT_BASE_URL) throw kbttUnavailable();
     const url = new URL(`${this.config.KBTT_BASE_URL}${path}`);
     if (query && Object.keys(query).length > 0) {

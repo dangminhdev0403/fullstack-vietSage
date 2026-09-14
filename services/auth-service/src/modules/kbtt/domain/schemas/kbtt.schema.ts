@@ -534,14 +534,14 @@ export function parseDraftPayload(body: unknown): {
       const issues = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
       throw new BadRequestException(`Dữ liệu khai báo Việt Nam không hợp lệ: ${issues}`);
     }
-    return { citizenshipKind, data: parsed.data as Record<string, unknown> };
+    return { citizenshipKind, data: parsed.data };
   } else {
     const parsed = kbttForeignDraftDataSchema.safeParse(targetData);
     if (!parsed.success) {
       const issues = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
       throw new BadRequestException(`Dữ liệu khai báo người nước ngoài không hợp lệ: ${issues}`);
     }
-    return { citizenshipKind, data: parsed.data as Record<string, unknown> };
+    return { citizenshipKind, data: parsed.data };
   }
 }
 

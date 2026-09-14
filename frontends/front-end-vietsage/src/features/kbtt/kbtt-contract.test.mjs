@@ -13,7 +13,6 @@ import {
   kbttErrorCode,
   kbttErrorMessage,
   kbttOccupantDeclarationDetailSchema,
-  sanitizeErrorMessage,
   sanitizeProviderDetail,
   saveKbttDraftPayloadSchema,
 } from "./types/kbtt-contract.ts";
