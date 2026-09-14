@@ -411,6 +411,19 @@ export function sanitizeErrorMessage(
 }
 
 export function sanitizeProviderDetail(value: unknown): string | null {
+  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    const record = value as Record<string, unknown>;
+    for (const candidate of [
+      record.detail,
+      record.data,
+      record.error,
+      record.message,
+    ]) {
+      const detail = sanitizeProviderDetail(candidate);
+      if (detail) return detail;
+    }
+    return null;
+  }
   if (typeof value !== "string") return null;
   const text = value.trim().slice(0, 500);
   if (!text) return null;

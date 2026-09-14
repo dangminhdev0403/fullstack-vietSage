@@ -328,6 +328,14 @@ test("KBTT UI exposes one edit-to-submit action and no local status workflow", (
     sanitizeProviderDetail("Bản khai báo 1: Khách đang tạm trú tại CSLT."),
     "Bản khai báo 1: Khách đang tạm trú tại CSLT.",
   );
+  assert.equal(
+    sanitizeProviderDetail({
+      status: 422,
+      message: "400",
+      data: { detail: "Bản khai báo 1: Số hộ chiếu đang tạm trú tại CSLT." },
+    }),
+    "Bản khai báo 1: Số hộ chiếu đang tạm trú tại CSLT.",
+  );
   assert.equal(sanitizeProviderDetail("Bearer secret-token-xyz"), null);
 
   const pageSource = readFileSync(

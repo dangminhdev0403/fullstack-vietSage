@@ -93,7 +93,7 @@ function errorText(error: unknown): string {
   if (error instanceof HttpError) {
     if (error.data && typeof error.data === "object") {
       const dataObj = error.data as Record<string, unknown>;
-      const providerDetail = sanitizeProviderDetail(dataObj.detail);
+      const providerDetail = sanitizeProviderDetail(error.data);
       if (providerDetail) return providerDetail;
       if (typeof dataObj.message === "string")
         return sanitizeErrorMessage(dataObj.message);
