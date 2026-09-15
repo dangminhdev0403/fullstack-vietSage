@@ -73,3 +73,51 @@ export async function handleKbttRequest(
     if (credentials) credentials.password = "";
   }
 }
+
+export async function handleKbttAutoSubmitRequest(
+  request: Request,
+  context: KbttRouteContext,
+  method: "GET" | "PUT" | "POST",
+) {
+  const { hotelId } = await context.params;
+  if (!z.string().trim().min(1).safeParse(hotelId).success) {
+    return validationErrorResponse("Khách sạn không hợp lệ.");
+  }
+
+  let body: unknown;
+  if (method === "PUT") {
+    body = await request.json().catch(() => null);
+  }
+
+  const url = new URL(request.url);
+  const dryRun = url.searchParams.get("dryRun");
+  const queryParam = method === "POST" && dryRun ? `?dryRun=${encodeURIComponent(dryRun)}` : "";
+
+  try {
+    const result = await executeOwnerBackendRequest(`kbtt auto-submit ${method}`, async (accessToken) => {
+      const payload = await httpServer.request<{ data: unknown }>(
+        method,
+        `/hotels/${encodeURIComponent(hotelId)}/kbtt/auto-submit${method === "POST" ? `/test${queryParam}` : ""}`,
+        body,
+        { accessToken, headers: { "Cache-Control": "no-store" } },
+      );
+      return payload?.data;
+    });
+    if (result instanceof Response) {
+      result.headers.set("Cache-Control", "no-store");
+      return result;
+    }
+    return NextResponse.json(
+      { status: 200, error: null, message: "OK", data: result },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  } catch (error) {
+    const status = error instanceof HttpError && error.status >= 400 && error.status <= 599 ? error.status : 502;
+    const detail = error instanceof HttpError ? error.message : "Lỗi xử lý yêu cầu nộp tự động.";
+    return NextResponse.json(
+      { status, message: "KBTT_AUTO_SUBMIT_ERROR", data: { detail } },
+      { status, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+}
+

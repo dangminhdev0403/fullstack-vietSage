@@ -1,11 +1,17 @@
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import {
+  kbttAutoSubmitConfigSchema,
+  kbttAutoSubmitRunSummarySchema,
+  kbttAutoSubmitStateSchema,
   kbttCatalogListSchema,
   kbttConnectionSchema,
   kbttDeclarationListSchema,
   kbttDeclarationRecordSchema,
   kbttOccupantDeclarationDetailSchema,
   saveKbttDraftPayloadSchema,
+  type KbttAutoSubmitConfig,
+  type KbttAutoSubmitRunSummary,
+  type KbttAutoSubmitState,
   type KbttCatalogItem,
   type KbttCatalogKind,
   type KbttConnection,
@@ -18,6 +24,10 @@ import {
 
 function connectionPath(hotelId: string) {
   return `/api/owner/hotels/${encodeURIComponent(hotelId)}/kbtt/connection`;
+}
+
+function autoSubmitPath(hotelId: string) {
+  return `/api/owner/hotels/${encodeURIComponent(hotelId)}/kbtt/auto-submit`;
 }
 
 function declarationsPath(hotelId: string) {
@@ -143,4 +153,42 @@ export const kbttRepository = {
     });
     return kbttDeclarationRecordSchema.parse(payload.data);
   },
+  async getAutoSubmitConfig(
+    hotelId: string,
+    signal?: AbortSignal,
+  ): Promise<KbttAutoSubmitState> {
+    const payload = await requestInternalApiEnvelope<unknown>(
+      autoSubmitPath(hotelId),
+      {
+        method: "GET",
+        signal,
+      },
+    );
+    return kbttAutoSubmitStateSchema.parse(payload.data);
+  },
+  async updateAutoSubmitConfig(
+    hotelId: string,
+    config: KbttAutoSubmitConfig,
+  ): Promise<{ autoSubmitEnabled: boolean; autoSubmitTime: string | null }> {
+    const validated = kbttAutoSubmitConfigSchema.parse(config);
+    const payload = await requestInternalApiEnvelope<unknown>(
+      autoSubmitPath(hotelId),
+      {
+        method: "PUT",
+        body: validated,
+      },
+    );
+    return payload.data as { autoSubmitEnabled: boolean; autoSubmitTime: string | null };
+  },
+  async testAutoSubmit(
+    hotelId: string,
+    dryRun = true,
+  ): Promise<KbttAutoSubmitRunSummary> {
+    const url = `${autoSubmitPath(hotelId)}?dryRun=${dryRun}`;
+    const payload = await requestInternalApiEnvelope<unknown>(url, {
+      method: "POST",
+    });
+    return kbttAutoSubmitRunSummarySchema.parse(payload.data);
+  },
 };
+

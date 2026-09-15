@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { HttpError } from "@/core/http/http-error";
 import { showConfirmDialog, showErrorAlert, showSuccessAlert } from "@/libs/swal";
 import { useKbttConnection } from "../hooks/use-kbtt-connection";
+import { useKbttAutoSubmit } from "../hooks/use-kbtt-auto-submit";
 import { kbttCredentialsSchema, kbttErrorCode, kbttErrorMessage, type KbttConnection } from "../types/kbtt-contract";
 
 function errorText(error: unknown): string {
@@ -480,7 +481,211 @@ export function KbttConnectionPage({ hotelId, canManage }: { hotelId: string; ca
             </div>
           </div>
         ) : null}
+
+        {data && isConfigured ? (
+          <KbttAutoSubmitSection hotelId={hotelId} canManage={canManage} isConnected={isConnected} />
+        ) : null}
       </div>
     </section>
   );
 }
+
+function KbttAutoSubmitSection({
+  hotelId,
+  canManage,
+  isConnected,
+}: {
+  hotelId: string;
+  canManage: boolean;
+  isConnected: boolean;
+}) {
+  const { autoSubmit, updating, testing, updateConfig, testDryRun } = useKbttAutoSubmit(hotelId);
+  const data = autoSubmit.data;
+
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+  const [time, setTime] = useState<string | null>(null);
+
+  const isEnabled = enabled ?? (data?.autoSubmitEnabled ?? false);
+  const currentTime = time ?? (data?.autoSubmitTime ?? "04:30");
+
+  const isSaving = updating || testing || autoSubmit.isFetching;
+
+  async function handleSaveConfig() {
+    if (!canManage || isSaving) return;
+    try {
+      await updateConfig({
+        autoSubmitEnabled: isEnabled,
+        autoSubmitTime: isEnabled ? currentTime : null,
+      });
+      await showSuccessAlert(
+        "Lịch nộp tự động",
+        `Đã lưu cấu hình: ${isEnabled ? `Tự động nộp lúc ${currentTime} hàng ngày.` : "Đã tắt tự động nộp."}`,
+      );
+    } catch (error) {
+      await autoSubmit.refetch();
+      await showErrorAlert("Không thể lưu cấu hình", errorText(error));
+    }
+  }
+
+  async function handleTestDryRun() {
+    if (!canManage || isSaving) return;
+    try {
+      const run = await testDryRun(true);
+      await showSuccessAlert(
+        "Chạy thử nghiệm hoàn tất (Dry Run)",
+        `Tổng hồ sơ đủ điều kiện: ${run.totalEligible}\nThành công giả lập: ${run.successCount}\nLỗi/Timeout: ${run.failureCount + run.unknownCount}`,
+      );
+    } catch (error) {
+      await autoSubmit.refetch();
+      await showErrorAlert("Thử nghiệm thất bại", errorText(error));
+    }
+  }
+
+  return (
+    <div className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-xs sm:p-8 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-teal-50 text-teal-700">
+            <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div>
+            <h2 className="text-xl font-black text-slate-900 sm:text-2xl">
+              Tự động nộp hồ sơ định kỳ (KBTT Auto-Submit)
+            </h2>
+            <p className="mt-1 text-sm text-slate-600 sm:text-base">
+              Hệ thống tự động quét và nộp các hồ sơ khách có trạng thái SẴN SÀNG theo lịch mỗi ngày.
+            </p>
+          </div>
+        </div>
+
+        <div>
+          {isEnabled ? (
+            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-sm font-bold text-emerald-800">
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+              Đang bật • {currentTime} (UTC+7)
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-100 px-4 py-1.5 text-sm font-bold text-slate-700">
+              <span className="h-2 w-2 rounded-full bg-slate-400" />
+              Đang tắt
+            </span>
+          )}
+        </div>
+      </div>
+
+      {!isConnected ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-5 text-sm text-amber-900">
+          Khách sạn chưa kết nối tài khoản C06 thành công. Hãy đăng nhập tài khoản ở trên trước khi kích hoạt nộp tự động.
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-slate-50/70 rounded-2xl p-5 border border-slate-100">
+            <div className="flex items-center justify-between gap-4 p-2">
+              <div>
+                <label className="text-base font-bold text-slate-900">Bật tự động nộp hồ sơ</label>
+                <p className="text-sm text-slate-600">Kích hoạt tác vụ cron quét hồ sơ mỗi ngày</p>
+              </div>
+              <input
+                type="checkbox"
+                disabled={!canManage || isSaving}
+                checked={isEnabled}
+                onChange={(e) => setEnabled(e.target.checked)}
+                className="h-6 w-6 rounded border-slate-300 text-[#0f6756] focus:ring-[#0f6756]"
+              />
+            </div>
+
+            <div className="p-2">
+              <label className="block text-base font-bold text-slate-900 mb-1.5">
+                Giờ nộp định kỳ (Giờ Việt Nam)
+              </label>
+              <input
+                type="time"
+                disabled={!canManage || !isEnabled || isSaving}
+                value={currentTime}
+                onChange={(e) => setTime(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-base font-semibold text-slate-900 focus:border-[#0f6756] focus:ring-2 focus:ring-[#0f6756]/20 disabled:bg-slate-100 disabled:text-slate-400"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              {canManage && (
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={() => void handleTestDryRun()}
+                  className="flex min-h-[44px] items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-100 disabled:opacity-50"
+                >
+                  <svg className="h-4 w-4 text-teal-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  {testing ? "Đang thử nghiệm..." : "Thử nghiệm nộp (Dry Run)"}
+                </button>
+              )}
+            </div>
+
+            {canManage && (
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={() => void handleSaveConfig()}
+                className="flex min-h-[44px] items-center gap-2 rounded-xl bg-[#0f6756] px-6 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#0c5245] disabled:opacity-50"
+              >
+                {updating ? "Đang lưu..." : "Lưu cấu hình nộp tự động"}
+              </button>
+            )}
+          </div>
+
+          {/* Recent Runs Table */}
+          {data?.recentRuns && data.recentRuns.length > 0 && (
+            <div className="pt-4 border-t border-slate-100">
+              <h3 className="text-base font-bold text-slate-900 mb-3">Lịch sử các phiên nộp tự động gần nhất</h3>
+              <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <table className="w-full text-left text-sm text-slate-700">
+                  <thead className="bg-slate-50 text-xs font-bold uppercase text-slate-500 border-b border-slate-200">
+                    <tr>
+                      <th className="px-4 py-3">Thời gian</th>
+                      <th className="px-4 py-3">Trạng thái</th>
+                      <th className="px-4 py-3">Tổng hồ sơ</th>
+                      <th className="px-4 py-3">Thành công</th>
+                      <th className="px-4 py-3">Thất bại</th>
+                      <th className="px-4 py-3">Ghi chú</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {data.recentRuns.map((run) => (
+                      <tr key={run.id} className="hover:bg-slate-50/50">
+                        <td className="px-4 py-3 font-medium text-slate-900 whitespace-nowrap">
+                          {formatDateTime(run.scheduledFor)}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                            run.status === "COMPLETED"
+                              ? "bg-emerald-100 text-emerald-800"
+                              : run.status === "SKIPPED"
+                              ? "bg-slate-100 text-slate-700"
+                              : "bg-red-100 text-red-800"
+                          }`}>
+                            {run.status === "COMPLETED" ? "Thành công" : run.status === "SKIPPED" ? "Bỏ qua (0 hồ sơ)" : "Lỗi"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 font-semibold">{run.totalEligible}</td>
+                        <td className="px-4 py-3 text-emerald-600 font-semibold">{run.successCount}</td>
+                        <td className="px-4 py-3 text-red-600 font-semibold">{run.failureCount + run.unknownCount}</td>
+                        <td className="px-4 py-3 text-xs text-slate-500 max-w-xs truncate">{run.errorMessage || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+

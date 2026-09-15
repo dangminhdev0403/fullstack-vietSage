@@ -7,6 +7,9 @@ import {
   formatKbttDraftForProvider,
   getRowPartitionTab,
   KBTT_FORBIDDEN_KEYS,
+  kbttAutoSubmitConfigSchema,
+  kbttAutoSubmitRunSummarySchema,
+  kbttAutoSubmitStateSchema,
   kbttConnectionSchema,
   kbttCatalogListSchema,
   kbttCredentialsSchema,
@@ -419,3 +422,61 @@ test("KBTT UI exposes one edit-to-submit action and no local status workflow", (
   assert.match(repositorySource, /async submit\(/);
   assert.doesNotMatch(repositorySource, /markReady|submitStay/);
 });
+
+test("KBTT auto-submit contract validates schedule config, run summaries, and state schemas", () => {
+  // Valid config
+  const validConfig = kbttAutoSubmitConfigSchema.parse({
+    autoSubmitEnabled: true,
+    autoSubmitTime: "04:30",
+  });
+  assert.deepEqual(validConfig, {
+    autoSubmitEnabled: true,
+    autoSubmitTime: "04:30",
+  });
+
+  // Disabled config with null time
+  const disabledConfig = kbttAutoSubmitConfigSchema.parse({
+    autoSubmitEnabled: false,
+    autoSubmitTime: null,
+  });
+  assert.deepEqual(disabledConfig, {
+    autoSubmitEnabled: false,
+    autoSubmitTime: null,
+  });
+
+  // Rejects invalid time format
+  assert.equal(
+    kbttAutoSubmitConfigSchema.safeParse({
+      autoSubmitEnabled: true,
+      autoSubmitTime: "24:00",
+    }).success,
+    false,
+  );
+
+  // Valid run summary
+  const summary = kbttAutoSubmitRunSummarySchema.parse({
+    id: "run-1",
+    hotelId: "hotel-1",
+    scheduledFor: "2026-09-15 04:30:00",
+    startedAt: "2026-09-15 04:30:01",
+    finishedAt: "2026-09-15 04:30:05",
+    status: "COMPLETED",
+    totalEligible: 3,
+    successCount: 3,
+    failureCount: 0,
+    unknownCount: 0,
+    errorMessage: null,
+  });
+  assert.equal(summary.status, "COMPLETED");
+  assert.equal(summary.totalEligible, 3);
+
+  // State schema with recent runs
+  const state = kbttAutoSubmitStateSchema.parse({
+    autoSubmitEnabled: true,
+    autoSubmitTime: "04:30",
+    recentRuns: [summary],
+  });
+  assert.equal(state.autoSubmitEnabled, true);
+  assert.equal(state.recentRuns.length, 1);
+});
+

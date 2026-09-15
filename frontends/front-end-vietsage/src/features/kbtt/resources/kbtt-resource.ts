@@ -7,6 +7,9 @@ import {
 } from "@dangminhdev04032005/query-resource";
 import { kbttRepository } from "../repositories/kbtt-repository";
 import type {
+  KbttAutoSubmitConfig,
+  KbttAutoSubmitRunSummary,
+  KbttAutoSubmitState,
   KbttCatalogItem,
   KbttCatalogKind,
   KbttConnection,
@@ -83,6 +86,14 @@ export const kbttResource = createResource<HotelScope>()({
       >): Promise<KbttCatalogItem[]> =>
         kbttRepository.listCatalog(input.kind, input.parentCode, signal),
     }),
+    autoSubmitConfig: defineQuery({
+      inputKey: () => [],
+      queryFn: ({
+        scope,
+        signal,
+      }: ResourceQueryContext<HotelScope, void>): Promise<KbttAutoSubmitState> =>
+        kbttRepository.getAutoSubmitConfig(scope.hotelId, signal),
+    }),
   },
   mutations: {
     connect: defineMutation({
@@ -140,6 +151,27 @@ export const kbttResource = createResource<HotelScope>()({
       >): Promise<KbttDeclarationRecord> =>
         kbttRepository.submit(scope.hotelId, variables.occupantId),
       invalidates: declarationInvalidates,
+    }),
+    updateAutoSubmitConfig: defineMutation({
+      defaults: { retry: false, networkMode: "always" },
+      mutationFn: ({
+        scope,
+        variables,
+      }: ResourceMutationContext<HotelScope, KbttAutoSubmitConfig>) =>
+        kbttRepository.updateAutoSubmitConfig(scope.hotelId, variables),
+      invalidates: [{ type: "query", operation: "autoSubmitConfig" }],
+    }),
+    testAutoSubmit: defineMutation({
+      defaults: { retry: false, networkMode: "always" },
+      mutationFn: ({
+        scope,
+        variables,
+      }: ResourceMutationContext<HotelScope, { dryRun?: boolean } | void>) =>
+        kbttRepository.testAutoSubmit(scope.hotelId, variables?.dryRun ?? true),
+      invalidates: [
+        { type: "query", operation: "autoSubmitConfig" },
+        { type: "query", operation: "declarations" },
+      ],
     }),
   },
 });

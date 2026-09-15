@@ -502,3 +502,45 @@ export function sanitizeProviderDetail(value: unknown): string | null {
   }
   return text;
 }
+
+export const kbttAutoSubmitConfigSchema = z.object({
+  autoSubmitEnabled: z.boolean(),
+  autoSubmitTime: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Giờ nộp tự động phải có định dạng HH:mm (00:00 - 23:59)")
+    .nullable()
+    .optional(),
+});
+export type KbttAutoSubmitConfig = z.infer<typeof kbttAutoSubmitConfigSchema>;
+
+export const kbttAutoSubmitRunStatusSchema = z.enum([
+  "RUNNING",
+  "COMPLETED",
+  "FAILED",
+  "CANCELLED",
+  "SKIPPED",
+]);
+export type KbttAutoSubmitRunStatus = z.infer<typeof kbttAutoSubmitRunStatusSchema>;
+
+export const kbttAutoSubmitRunSummarySchema = z.object({
+  id: z.string(),
+  hotelId: z.string(),
+  scheduledFor: z.string(),
+  startedAt: z.string(),
+  finishedAt: z.string().nullable().optional(),
+  status: kbttAutoSubmitRunStatusSchema,
+  totalEligible: z.number().int().nonnegative(),
+  successCount: z.number().int().nonnegative(),
+  failureCount: z.number().int().nonnegative(),
+  unknownCount: z.number().int().nonnegative(),
+  errorMessage: z.string().nullable().optional(),
+});
+export type KbttAutoSubmitRunSummary = z.infer<typeof kbttAutoSubmitRunSummarySchema>;
+
+export const kbttAutoSubmitStateSchema = z.object({
+  autoSubmitEnabled: z.boolean(),
+  autoSubmitTime: z.string().nullable().optional(),
+  recentRuns: z.array(kbttAutoSubmitRunSummarySchema).default([]),
+});
+export type KbttAutoSubmitState = z.infer<typeof kbttAutoSubmitStateSchema>;
+
