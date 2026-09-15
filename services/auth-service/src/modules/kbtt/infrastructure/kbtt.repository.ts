@@ -5,6 +5,8 @@ import {
   type KbttDeclarationStatus,
   type KbttGuestDeclaration,
   type KbttHotelConnection,
+  type KbttAutoSubmitRun,
+  type KbttAutoSubmitRunStatus,
 } from "@prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
 import type { KbttCatalogKind } from "../domain/schemas/kbtt.schema";
@@ -320,4 +322,131 @@ export class KbttRepository {
       throw kbttUnavailable();
     }
   }
+
+  async findDueHotelsForAutoSubmit(currentHHmm: string) {
+    try {
+      return await this.prisma.kbttHotelConnection.findMany({
+        where: {
+          autoSubmitEnabled: true,
+          autoSubmitTime: currentHHmm,
+        },
+        select: {
+          hotelId: true,
+          autoSubmitTime: true,
+          hotel: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      });
+    } catch {
+      throw kbttUnavailable();
+    }
+  }
+
+  async claimAutoSubmitRunLease(
+    hotelId: string,
+    scheduledForDate: Date,
+    leaseTimeoutMinutes = 10,
+  ): Promise<KbttAutoSubmitRun | null> {
+    try {
+      const existing = await this.prisma.kbttAutoSubmitRun.findUnique({
+        where: {
+          hotelId_scheduledFor: {
+            hotelId,
+            scheduledFor: scheduledForDate,
+          },
+        },
+      });
+
+      if (existing) {
+        if (existing.status !== "RUNNING") {
+          return null;
+        }
+        const leaseThreshold = new Date(Date.now() - leaseTimeoutMinutes * 60 * 1000);
+        if (existing.startedAt > leaseThreshold) {
+          return null;
+        }
+        return await this.prisma.kbttAutoSubmitRun.update({
+          where: { id: existing.id },
+          data: {
+            startedAt: new Date(),
+            errorMessage: "Lease reclaimed after timeout",
+          },
+        });
+      }
+
+      return await this.prisma.kbttAutoSubmitRun.create({
+        data: {
+          hotelId,
+          scheduledFor: scheduledForDate,
+          status: "RUNNING",
+          startedAt: new Date(),
+        },
+      });
+    } catch (error: any) {
+      if (error?.code === "P2002") {
+        return null;
+      }
+      throw kbttUnavailable();
+    }
+  }
+
+  async finalizeAutoSubmitRun(
+    runId: string,
+    data: {
+      status: KbttAutoSubmitRunStatus;
+      totalEligible: number;
+      successCount: number;
+      failureCount: number;
+      unknownCount: number;
+      errorMessage?: string | null;
+    },
+  ): Promise<KbttAutoSubmitRun> {
+    try {
+      return await this.prisma.kbttAutoSubmitRun.update({
+        where: { id: runId },
+        data: {
+          status: data.status,
+          totalEligible: data.totalEligible,
+          successCount: data.successCount,
+          failureCount: data.failureCount,
+          unknownCount: data.unknownCount,
+          errorMessage: data.errorMessage ?? null,
+          finishedAt: new Date(),
+        },
+      });
+    } catch {
+      throw kbttUnavailable();
+    }
+  }
+
+  async getAutoSubmitRunHistory(hotelId: string, limit = 20): Promise<KbttAutoSubmitRun[]> {
+    try {
+      return await this.prisma.kbttAutoSubmitRun.findMany({
+        where: { hotelId },
+        orderBy: { scheduledFor: "desc" },
+        take: Math.min(100, Math.max(1, limit)),
+      });
+    } catch {
+      throw kbttUnavailable();
+    }
+  }
+
+  async findReadyDeclarationsForHotel(hotelId: string): Promise<KbttGuestDeclaration[]> {
+    try {
+      return await this.prisma.kbttGuestDeclaration.findMany({
+        where: {
+          hotelId,
+          status: "READY",
+        },
+        orderBy: { createdAt: "asc" },
+      });
+    } catch {
+      throw kbttUnavailable();
+    }
+  }
 }
+

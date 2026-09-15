@@ -8,6 +8,7 @@ import {
 } from "@nestjs/common";
 import { KbttGuestDeclaration, KbttHotelConnection, Prisma } from "@prisma/client";
 import { HotelAccessService, HotelStayOccupantsReadService } from "../../property/property-public";
+import { TelegramNotificationService } from "../../notifications/notifications-public";
 import { z } from "zod";
 import {
   isValidCalendarDate,
@@ -19,6 +20,7 @@ import {
   kbttProviderWardSchema,
   kbttVietnameseReadySchema,
   parseDraftPayload,
+  type KbttAutoSubmitConfig,
   type KbttCatalogItemView,
   type KbttCatalogKind,
   type KbttCatalogQuery,
@@ -135,6 +137,7 @@ export class KbttService implements OnModuleDestroy {
     private readonly cipher: KbttCredentialCipher,
     private readonly provider: KbttProviderClient,
     private readonly occupantsReadService?: HotelStayOccupantsReadService,
+    private readonly telegramNotificationService?: TelegramNotificationService,
   ) {}
 
   private withOccupantDefaults(
@@ -923,4 +926,258 @@ export class KbttService implements OnModuleDestroy {
       syncedAt: result.syncedAt.toISOString(),
     };
   }
+
+  async getAutoSubmitConfig(userId: string, roleId: string, hotelId: string) {
+    await this.access.assertHotelAccess(userId, roleId, hotelId);
+    const connection = await this.repository.find(hotelId);
+    if (!connection) {
+      throw new NotFoundException({
+        code: "KBTT_NOT_CONFIGURED",
+        message: "Khách sạn chưa cấu hình kết nối KBTT.",
+      });
+    }
+    const runs = await this.repository.getAutoSubmitRunHistory(hotelId, 10);
+    return {
+      autoSubmitEnabled: connection.autoSubmitEnabled,
+      autoSubmitTime: connection.autoSubmitTime,
+      recentRuns: runs.map((r) => ({
+        id: r.id,
+        hotelId: r.hotelId,
+        scheduledFor: r.scheduledFor.toISOString(),
+        startedAt: r.startedAt.toISOString(),
+        finishedAt: r.finishedAt?.toISOString() ?? null,
+        status: r.status,
+        totalEligible: r.totalEligible,
+        successCount: r.successCount,
+        failureCount: r.failureCount,
+        unknownCount: r.unknownCount,
+        errorMessage: r.errorMessage,
+      })),
+    };
+  }
+
+  async updateAutoSubmitConfig(
+    userId: string,
+    roleId: string,
+    hotelId: string,
+    body: KbttAutoSubmitConfig,
+  ) {
+    await this.access.assertHotelAccess(userId, roleId, hotelId);
+    const connection = await this.repository.find(hotelId);
+    if (!connection) {
+      throw new NotFoundException({
+        code: "KBTT_NOT_CONFIGURED",
+        message: "Khách sạn chưa cấu hình kết nối KBTT.",
+      });
+    }
+    const updated = await this.repository.update(connection, {
+      autoSubmitEnabled: body.autoSubmitEnabled,
+      autoSubmitTime: body.autoSubmitTime ?? null,
+    });
+    return {
+      autoSubmitEnabled: updated.autoSubmitEnabled,
+      autoSubmitTime: updated.autoSubmitTime,
+    };
+  }
+
+  async submitDeclarationInternal(
+    hotelId: string,
+    declaration: KbttGuestDeclaration,
+    session: KbttSession | null,
+    isDryRun: boolean,
+  ): Promise<{ status: "SUBMITTED" | "FAILED" | "UNKNOWN"; error?: string }> {
+    if (isDryRun) {
+      return { status: "SUBMITTED" };
+    }
+
+    // CAS transition to SENDING
+    let sendingDecl: KbttGuestDeclaration;
+    try {
+      sendingDecl = await this.repository.updateDeclaration({
+        id: declaration.id,
+        hotelId,
+        expectedVersion: declaration.version,
+        data: {
+          status: "SENDING",
+        },
+      });
+    } catch {
+      return { status: "UNKNOWN", error: "CAS conflict setting SENDING" };
+    }
+
+    try {
+      const payload = [sendingDecl.draftPayloadJson];
+      const result = await this.provider.submitDeclaration(
+        sendingDecl.declarationKind,
+        payload,
+        session!.AccessToken,
+      );
+      const providerCode = result.code.slice(0, 32);
+      const providerMessage = sanitizeProviderText(result.message || "Không có thông báo");
+      const providerResponseJson = result.data
+        ? (sanitizeProviderData(result.data) as Prisma.InputJsonValue)
+        : Prisma.JsonNull;
+
+      if (result.outcome === "SUCCESS") {
+        await this.repository.updateDeclaration({
+          id: sendingDecl.id,
+          hotelId,
+          expectedVersion: sendingDecl.version,
+          data: {
+            status: "SUBMITTED",
+            draftPayloadJson: sendingDecl.draftPayloadJson ?? Prisma.JsonNull,
+            submittedPayloadJson: payload,
+            providerCode,
+            providerMessage,
+            providerResponseJson,
+            submittedAt: new Date(),
+          },
+        });
+        return { status: "SUBMITTED" };
+      }
+
+      await this.repository.updateDeclaration({
+        id: sendingDecl.id,
+        hotelId,
+        expectedVersion: sendingDecl.version,
+        data: {
+          status: "FAILED",
+          providerCode,
+          providerMessage,
+          providerResponseJson,
+          submittedAt: null,
+        },
+      });
+      return { status: "FAILED", error: providerMessage };
+    } catch (error: any) {
+      const errorMsg = sanitizeProviderText(error?.message || "Lỗi kết nối nhà cung cấp C06");
+      try {
+        await this.repository.updateDeclaration({
+          id: sendingDecl.id,
+          hotelId,
+          expectedVersion: sendingDecl.version,
+          data: {
+            status: "UNKNOWN",
+            providerCode: "PROVIDER_TIMEOUT",
+            providerMessage: errorMsg,
+            submittedAt: null,
+          },
+        });
+      } catch {
+        // secondary CAS error ignored
+      }
+      return { status: "UNKNOWN", error: errorMsg };
+    }
+  }
+
+  async executeAutoSubmitForHotel(
+    hotelId: string,
+    scheduledForDate: Date,
+    isDryRun: boolean,
+  ) {
+    return this.serialize(hotelId, async () => {
+      const run = await this.repository.claimAutoSubmitRunLease(hotelId, scheduledForDate);
+      if (!run) {
+        return null;
+      }
+
+      const declarations = await this.repository.findReadyDeclarationsForHotel(hotelId);
+      if (declarations.length === 0) {
+        return await this.repository.finalizeAutoSubmitRun(run.id, {
+          status: "SKIPPED",
+          totalEligible: 0,
+          successCount: 0,
+          failureCount: 0,
+          unknownCount: 0,
+        });
+      }
+
+      const connection = await this.repository.find(hotelId);
+      if (!connection) {
+        return await this.repository.finalizeAutoSubmitRun(run.id, {
+          status: "FAILED",
+          totalEligible: declarations.length,
+          successCount: 0,
+          failureCount: 0,
+          unknownCount: 0,
+          errorMessage: "Khách sạn chưa cấu hình kết nối KBTT.",
+        });
+      }
+
+      let session: KbttSession | null = null;
+      if (!isDryRun) {
+        try {
+          session = await this.getOrRefreshSession(hotelId, connection);
+        } catch (authError: any) {
+          return await this.repository.finalizeAutoSubmitRun(run.id, {
+            status: "FAILED",
+            totalEligible: declarations.length,
+            successCount: 0,
+            failureCount: 0,
+            unknownCount: 0,
+            errorMessage: `Xác thực C06 thất bại: ${authError?.message || ""}`,
+          });
+        }
+      }
+
+      let successCount = 0;
+      let failureCount = 0;
+      let unknownCount = 0;
+
+      for (let i = 0; i < declarations.length; i++) {
+        const decl = declarations[i];
+        if (i > 0 && !isDryRun) {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+
+        const res = await this.submitDeclarationInternal(
+          hotelId,
+          decl,
+          session,
+          isDryRun,
+        );
+
+        if (res.status === "SUBMITTED") successCount++;
+        else if (res.status === "FAILED") failureCount++;
+        else unknownCount++;
+      }
+
+      const finalRun = await this.repository.finalizeAutoSubmitRun(run.id, {
+        status: "COMPLETED",
+        totalEligible: declarations.length,
+        successCount,
+        failureCount,
+        unknownCount,
+      });
+
+      if (this.telegramNotificationService && (this.telegramNotificationService as any).sendKbttAutoSubmitSummary) {
+        try {
+          await (this.telegramNotificationService as any).sendKbttAutoSubmitSummary(hotelId, {
+            hotelName: (connection as any).hotel?.name || hotelId,
+            scheduledTime: formatVietnamDateTime(scheduledForDate),
+            totalEligible: declarations.length,
+            successCount,
+            failureCount,
+            unknownCount,
+            isDryRun,
+          });
+        } catch {
+          // non-blocking
+        }
+      }
+
+      return finalRun;
+    });
+  }
+
+  async testAutoSubmit(
+    userId: string,
+    roleId: string,
+    hotelId: string,
+    dryRun = true,
+  ) {
+    await this.access.assertHotelAccess(userId, roleId, hotelId);
+    return await this.executeAutoSubmitForHotel(hotelId, new Date(), dryRun);
+  }
 }
+

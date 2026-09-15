@@ -28,6 +28,8 @@ import type { RequestWithRequiredUser } from "../../../shared/security/request-w
 import { KbttService } from "../application/kbtt.service";
 import {
   hotelIdParamSchema,
+  kbttAutoSubmitConfigSchema,
+  kbttAutoSubmitTestQuerySchema,
   kbttCatalogKindSchema,
   kbttCatalogQuerySchema,
   kbttCredentialsSchema,
@@ -370,4 +372,59 @@ export class KbttController {
       { provinceCode: provinceCode || undefined },
     );
   }
+
+  @Get("auto-submit")
+  @RequirePermission("hotel.kbtt.connections.manage")
+  @ApiOperation({
+    summary: "Get KBTT auto-submit schedule configuration and recent runs",
+  })
+  getAutoSubmitConfig(
+    @Req() request: RequestWithRequiredUser,
+    @Param("hotelId") hotelId: string,
+  ) {
+    return this.service.getAutoSubmitConfig(
+      request.user.userId,
+      request.user.roleId,
+      parseWithZod(hotelIdParamSchema, hotelId),
+    );
+  }
+
+  @Put("auto-submit")
+  @RequirePermission("hotel.kbtt.connections.manage")
+  @ApiOperation({
+    summary: "Update KBTT auto-submit schedule configuration",
+  })
+  updateAutoSubmitConfig(
+    @Req() request: RequestWithRequiredUser,
+    @Param("hotelId") hotelId: string,
+    @Body() body: unknown,
+  ) {
+    const validConfig = parseWithZod(kbttAutoSubmitConfigSchema, body);
+    return this.service.updateAutoSubmitConfig(
+      request.user.userId,
+      request.user.roleId,
+      parseWithZod(hotelIdParamSchema, hotelId),
+      validConfig,
+    );
+  }
+
+  @Post("auto-submit/test")
+  @RequirePermission("hotel.kbtt.declarations.manage")
+  @ApiOperation({
+    summary: "Trigger a test execution of KBTT auto-submit (defaults to dryRun=true)",
+  })
+  testAutoSubmit(
+    @Req() request: RequestWithRequiredUser,
+    @Param("hotelId") hotelId: string,
+    @Query() query: unknown,
+  ) {
+    const validQuery = parseWithZod(kbttAutoSubmitTestQuerySchema, query);
+    return this.service.testAutoSubmit(
+      request.user.userId,
+      request.user.roleId,
+      parseWithZod(hotelIdParamSchema, hotelId),
+      validQuery.dryRun,
+    );
+  }
 }
+
