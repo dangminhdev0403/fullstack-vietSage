@@ -117,6 +117,13 @@ enum KbttDeclarationStatus {
   CANCELLED
 }
 
+enum KbttAutoSubmitRunStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
 enum KbttCatalogKind {
   NATIONALITY
   PROVINCE
@@ -170,6 +177,11 @@ enum GuestRequestActorType {
 
 enum NotificationProvider {
   TELEGRAM
+}
+
+enum NotificationRoutePurpose {
+  SERVICE_REQUEST
+  KBTT_AUTO_SUBMIT
 }
 
 enum GuestRequestNotificationStatus {
@@ -655,6 +667,7 @@ model Hotel {
   guestCarts                    GuestCart[]
   kbttConnection                KbttHotelConnection?
   kbttGuestDeclarations         KbttGuestDeclaration[]
+  kbttAutoSubmitRuns            KbttAutoSubmitRun[]
 
 }
 
@@ -675,6 +688,8 @@ model KbttHotelConnection {
   lastConnectedAt    DateTime
   lastErrorCode      String?  @db.VarChar(40)
   lastErrorMessage   String?  @db.VarChar(200)
+  autoSubmitEnabled  Boolean  @default(false)
+  autoSubmitTime     String?  @db.VarChar(8)
   hotel              Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
 }
 
@@ -705,6 +720,30 @@ model KbttGuestDeclaration {
   @@index([hotelId, status])
   @@index([occupantId])
   @@index([stayId])
+}
+
+model KbttAutoSubmitRun {
+  id                 String                   @id @default(cuid())
+  hotelId            String
+  scheduledFor       DateTime
+  status             KbttAutoSubmitRunStatus  @default(RUNNING)
+  leaseExpiresAt     DateTime
+  dryRun             Boolean                  @default(true)
+  totalCount         Int                      @default(0)
+  successCount       Int                      @default(0)
+  failedCount        Int                      @default(0)
+  unknownCount       Int                      @default(0)
+  telegramSent       Boolean                  @default(false)
+  telegramMessageId  String?                  @db.VarChar(64)
+  summaryJson        Json?
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+
+  hotel              Hotel                    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@unique([hotelId, scheduledFor])
+  @@index([hotelId, createdAt])
+  @@index([status, leaseExpiresAt])
 }
 
 model KbttCatalogItem {
@@ -1248,6 +1287,7 @@ model HotelServiceItemTranslation {
 model NotificationRoute {
   id                String                     @id @default(cuid())
   hotelId           String
+  purpose           NotificationRoutePurpose   @default(SERVICE_REQUEST)
   serviceCategoryId String?
   telegramChatId    String                     @db.VarChar(128)
   isActive          Boolean                    @default(true)
@@ -1258,6 +1298,7 @@ model NotificationRoute {
   notifications     GuestRequestNotification[]
 
   @@index([hotelId, serviceCategoryId, isActive])
+  @@index([hotelId, purpose, isActive])
 }
 
 model GuestRequestNotification {
