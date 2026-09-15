@@ -1,10 +1,11 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
+import { type NotificationRoutePurpose, Prisma } from "@prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { HotelAccessService } from "../../property/property-public";
 
 type RouteInput = {
   serviceCategoryId?: string | null;
+  purpose?: NotificationRoutePurpose;
   telegramChatId?: string;
   isActive?: boolean;
 };
@@ -36,6 +37,7 @@ export class HotelNotificationRoutesService {
     return this.prisma.notificationRoute.create({
       data: {
         hotelId,
+        purpose: input.purpose ?? "SERVICE_REQUEST",
         serviceCategoryId: input.serviceCategoryId ?? null,
         telegramChatId: input.telegramChatId.trim(),
         isActive: input.isActive ?? true,
@@ -57,6 +59,7 @@ export class HotelNotificationRoutesService {
     if (!route) throw new NotFoundException("Không tìm thấy cấu hình Telegram");
 
     const next = {
+      purpose: input.purpose === undefined ? route.purpose : input.purpose,
       serviceCategoryId:
         input.serviceCategoryId === undefined ? route.serviceCategoryId : input.serviceCategoryId,
       telegramChatId:
@@ -69,6 +72,7 @@ export class HotelNotificationRoutesService {
     return this.prisma.notificationRoute.update({
       where: { id: routeId },
       data: {
+        purpose: next.purpose,
         serviceCategoryId: next.serviceCategoryId ?? null,
         telegramChatId: next.telegramChatId,
         isActive: next.isActive,
@@ -95,6 +99,7 @@ export class HotelNotificationRoutesService {
       hotelId,
       isActive: true,
       id: excludeId ? { not: excludeId } : undefined,
+      purpose: input.purpose ?? "SERVICE_REQUEST",
       serviceCategoryId: input.serviceCategoryId ?? null,
     };
     const duplicate = await this.prisma.notificationRoute.findFirst({

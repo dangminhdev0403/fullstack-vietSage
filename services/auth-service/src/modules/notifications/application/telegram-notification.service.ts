@@ -402,4 +402,95 @@ export class TelegramNotificationService {
   private errorMessage(error: unknown): string {
     return error instanceof Error ? error.message.slice(0, 1000) : "Unknown Telegram error";
   }
+
+  escapeHtml(text: string): string {
+    return String(text)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  formatKbttSummaryMessage(summary: {
+    hotelName: string;
+    scheduledTime: string;
+    totalEligible: number;
+    successCount: number;
+    failureCount: number;
+    unknownCount: number;
+    isDryRun: boolean;
+  }): string {
+    const badge = summary.isDryRun ? "🧪 [DRY RUN - THỬ NGHIỆM]" : "🚀 [TỰ ĐỘNG NỘP C06 BCA]";
+    return [
+      `<b>${badge} - BÁO CÁO KHAI BÁO TẠM TRÚ</b>`,
+      `🏢 <b>Khách sạn:</b> ${this.escapeHtml(summary.hotelName)}`,
+      `⏰ <b>Thời điểm nộp:</b> ${this.escapeHtml(summary.scheduledTime)}`,
+      ``,
+      `📊 <b>Kết quả tổng hợp:</b>`,
+      `• Tổng số hồ sơ đủ điều kiện: <b>${summary.totalEligible}</b>`,
+      `• Thành công: <b>${summary.successCount}</b> ✅`,
+      `• Thất bại / Lỗi nghiệp vụ: <b>${summary.failureCount}</b> ❌`,
+      `• Chưa rõ trạng thái (Timeout): <b>${summary.unknownCount}</b> ⚠️`,
+      ``,
+      summary.isDryRun
+        ? `<i>(Đây là phiên chạy thử nghiệm, chưa gửi dữ liệu thật tới hệ thống BCA)</i>`
+        : `<i>(Hồ sơ timeout cần nhân viên lễ tân kiểm tra lại trước khi gửi thủ công)</i>`,
+    ].join("\n");
+  }
+
+  async sendKbttAutoSubmitSummary(
+    hotelId: string,
+    summary: {
+      hotelName: string;
+      scheduledTime: string;
+      totalEligible: number;
+      successCount: number;
+      failureCount: number;
+      unknownCount: number;
+      isDryRun: boolean;
+    },
+  ): Promise<boolean> {
+    try {
+      let route = await this.prisma.notificationRoute.findFirst({
+        where: { hotelId, isActive: true, purpose: "KBTT_AUTO_SUBMIT" },
+      });
+      if (!route) {
+        route = await this.prisma.notificationRoute.findFirst({
+          where: { hotelId, isActive: true },
+        });
+      }
+
+      if (!route) {
+        this.logger.warn("Telegram route for KBTT auto-submit not found", {
+          module: "telegram",
+          service: TelegramNotificationService.name,
+          event: "KBTT_TELEGRAM_ROUTE_NOT_FOUND",
+          hotelId,
+        });
+        return false;
+      }
+
+      const text = this.formatKbttSummaryMessage(summary);
+      await this.callTelegram("sendMessage", {
+        chat_id: route.telegramChatId,
+        text,
+        parse_mode: "HTML",
+      });
+
+      this.logger.info("Telegram KBTT summary sent successfully", {
+        module: "telegram",
+        service: TelegramNotificationService.name,
+        event: "KBTT_TELEGRAM_SUMMARY_SENT",
+        hotelId,
+        chatId: route.telegramChatId,
+      });
+      return true;
+    } catch (error: any) {
+      this.logger.error(
+        `Failed to send Telegram KBTT summary for hotel ${hotelId}: ${this.errorMessage(error)}`,
+        error?.stack,
+      );
+      return false;
+    }
+  }
 }
+
