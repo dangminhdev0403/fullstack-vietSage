@@ -349,6 +349,7 @@ export class KbttRepository {
   async claimAutoSubmitRunLease(
     hotelId: string,
     scheduledForDate: Date,
+    dryRun = true,
     leaseTimeoutMinutes = 10,
   ): Promise<KbttAutoSubmitRun | null> {
     try {
@@ -361,19 +362,21 @@ export class KbttRepository {
         },
       });
 
+      const now = new Date();
+      const leaseExpiresAt = new Date(now.getTime() + leaseTimeoutMinutes * 60 * 1000);
+
       if (existing) {
         if (existing.status !== "RUNNING") {
           return null;
         }
-        const leaseThreshold = new Date(Date.now() - leaseTimeoutMinutes * 60 * 1000);
-        if (existing.startedAt > leaseThreshold) {
+        if (existing.leaseExpiresAt > now) {
           return null;
         }
         return await this.prisma.kbttAutoSubmitRun.update({
           where: { id: existing.id },
           data: {
-            startedAt: new Date(),
-            errorMessage: "Lease reclaimed after timeout",
+            leaseExpiresAt,
+            dryRun,
           },
         });
       }
@@ -383,7 +386,8 @@ export class KbttRepository {
           hotelId,
           scheduledFor: scheduledForDate,
           status: "RUNNING",
-          startedAt: new Date(),
+          leaseExpiresAt,
+          dryRun,
         },
       });
     } catch (error: any) {
@@ -398,11 +402,12 @@ export class KbttRepository {
     runId: string,
     data: {
       status: KbttAutoSubmitRunStatus;
-      totalEligible: number;
+      totalCount: number;
       successCount: number;
-      failureCount: number;
+      failedCount: number;
       unknownCount: number;
-      errorMessage?: string | null;
+      telegramSent?: boolean;
+      summaryJson?: Prisma.InputJsonValue;
     },
   ): Promise<KbttAutoSubmitRun> {
     try {
@@ -410,12 +415,12 @@ export class KbttRepository {
         where: { id: runId },
         data: {
           status: data.status,
-          totalEligible: data.totalEligible,
+          totalCount: data.totalCount,
           successCount: data.successCount,
-          failureCount: data.failureCount,
+          failedCount: data.failedCount,
           unknownCount: data.unknownCount,
-          errorMessage: data.errorMessage ?? null,
-          finishedAt: new Date(),
+          telegramSent: data.telegramSent ?? false,
+          summaryJson: data.summaryJson ?? Prisma.JsonNull,
         },
       });
     } catch {

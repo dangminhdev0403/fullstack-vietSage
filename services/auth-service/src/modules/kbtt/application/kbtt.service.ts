@@ -6,6 +6,7 @@ import {
   NotFoundException,
   type OnModuleDestroy,
 } from "@nestjs/common";
+import { createHash } from "crypto";
 import { KbttGuestDeclaration, KbttHotelConnection, Prisma } from "@prisma/client";
 import { HotelAccessService, HotelStayOccupantsReadService } from "../../property/property-public";
 import { TelegramNotificationService } from "../../notifications/notifications-public";
@@ -944,14 +945,17 @@ export class KbttService implements OnModuleDestroy {
         id: r.id,
         hotelId: r.hotelId,
         scheduledFor: r.scheduledFor.toISOString(),
-        startedAt: r.startedAt.toISOString(),
-        finishedAt: r.finishedAt?.toISOString() ?? null,
         status: r.status,
-        totalEligible: r.totalEligible,
+        dryRun: r.dryRun,
+        totalCount: r.totalCount,
+        totalEligible: r.totalCount,
         successCount: r.successCount,
-        failureCount: r.failureCount,
+        failedCount: r.failedCount,
+        failureCount: r.failedCount,
         unknownCount: r.unknownCount,
-        errorMessage: r.errorMessage,
+        telegramSent: r.telegramSent,
+        errorMessage: (r.summaryJson as any)?.error ?? null,
+        createdAt: r.createdAt.toISOString(),
       })),
     };
   }
@@ -1007,6 +1011,8 @@ export class KbttService implements OnModuleDestroy {
 
     try {
       const payload = [sendingDecl.draftPayloadJson];
+      const payloadStr = JSON.stringify(payload);
+      const submittedPayloadFingerprint = createHash("sha256").update(payloadStr).digest("hex");
       const result = await this.provider.submitDeclaration(
         sendingDecl.declarationKind,
         payload,
@@ -1027,6 +1033,7 @@ export class KbttService implements OnModuleDestroy {
             status: "SUBMITTED",
             draftPayloadJson: sendingDecl.draftPayloadJson ?? Prisma.JsonNull,
             submittedPayloadJson: payload,
+            submittedPayloadFingerprint,
             providerCode,
             providerMessage,
             providerResponseJson,
@@ -1076,7 +1083,7 @@ export class KbttService implements OnModuleDestroy {
     isDryRun: boolean,
   ) {
     return this.serialize(hotelId, async () => {
-      const run = await this.repository.claimAutoSubmitRunLease(hotelId, scheduledForDate);
+      const run = await this.repository.claimAutoSubmitRunLease(hotelId, scheduledForDate, isDryRun);
       if (!run) {
         return null;
       }
@@ -1084,11 +1091,12 @@ export class KbttService implements OnModuleDestroy {
       const declarations = await this.repository.findReadyDeclarationsForHotel(hotelId);
       if (declarations.length === 0) {
         return await this.repository.finalizeAutoSubmitRun(run.id, {
-          status: "SKIPPED",
-          totalEligible: 0,
+          status: "COMPLETED",
+          totalCount: 0,
           successCount: 0,
-          failureCount: 0,
+          failedCount: 0,
           unknownCount: 0,
+          telegramSent: false,
         });
       }
 
@@ -1096,11 +1104,12 @@ export class KbttService implements OnModuleDestroy {
       if (!connection) {
         return await this.repository.finalizeAutoSubmitRun(run.id, {
           status: "FAILED",
-          totalEligible: declarations.length,
+          totalCount: declarations.length,
           successCount: 0,
-          failureCount: 0,
+          failedCount: 0,
           unknownCount: 0,
-          errorMessage: "Khách sạn chưa cấu hình kết nối KBTT.",
+          telegramSent: false,
+          summaryJson: { error: "Khách sạn chưa cấu hình kết nối KBTT." },
         });
       }
 
@@ -1111,17 +1120,18 @@ export class KbttService implements OnModuleDestroy {
         } catch (authError: any) {
           return await this.repository.finalizeAutoSubmitRun(run.id, {
             status: "FAILED",
-            totalEligible: declarations.length,
+            totalCount: declarations.length,
             successCount: 0,
-            failureCount: 0,
+            failedCount: 0,
             unknownCount: 0,
-            errorMessage: `Xác thực C06 thất bại: ${authError?.message || ""}`,
+            telegramSent: false,
+            summaryJson: { error: `Xác thực C06 thất bại: ${authError?.message || ""}` },
           });
         }
       }
 
       let successCount = 0;
-      let failureCount = 0;
+      let failedCount = 0;
       let unknownCount = 0;
 
       for (let i = 0; i < declarations.length; i++) {
@@ -1138,26 +1148,19 @@ export class KbttService implements OnModuleDestroy {
         );
 
         if (res.status === "SUBMITTED") successCount++;
-        else if (res.status === "FAILED") failureCount++;
+        else if (res.status === "FAILED") failedCount++;
         else unknownCount++;
       }
 
-      const finalRun = await this.repository.finalizeAutoSubmitRun(run.id, {
-        status: "COMPLETED",
-        totalEligible: declarations.length,
-        successCount,
-        failureCount,
-        unknownCount,
-      });
-
+      let telegramSent = false;
       if (this.telegramNotificationService && (this.telegramNotificationService as any).sendKbttAutoSubmitSummary) {
         try {
-          await (this.telegramNotificationService as any).sendKbttAutoSubmitSummary(hotelId, {
+          telegramSent = await (this.telegramNotificationService as any).sendKbttAutoSubmitSummary(hotelId, {
             hotelName: (connection as any).hotel?.name || hotelId,
             scheduledTime: formatVietnamDateTime(scheduledForDate),
             totalEligible: declarations.length,
             successCount,
-            failureCount,
+            failureCount: failedCount,
             unknownCount,
             isDryRun,
           });
@@ -1165,6 +1168,15 @@ export class KbttService implements OnModuleDestroy {
           // non-blocking
         }
       }
+
+      const finalRun = await this.repository.finalizeAutoSubmitRun(run.id, {
+        status: "COMPLETED",
+        totalCount: declarations.length,
+        successCount,
+        failedCount,
+        unknownCount,
+        telegramSent,
+      });
 
       return finalRun;
     });
@@ -1177,7 +1189,27 @@ export class KbttService implements OnModuleDestroy {
     dryRun = true,
   ) {
     await this.access.assertHotelAccess(userId, roleId, hotelId);
-    return await this.executeAutoSubmitForHotel(hotelId, new Date(), dryRun);
+    const run = await this.executeAutoSubmitForHotel(hotelId, new Date(), dryRun);
+    if (!run) {
+      throw new BadRequestException("Không thể khởi tạo phiên nộp tự động hoặc đang có phiên khác đang chạy.");
+    }
+    return {
+      id: run.id,
+      hotelId: run.hotelId,
+      scheduledFor: run.scheduledFor.toISOString(),
+      status: run.status,
+      dryRun: run.dryRun,
+      totalCount: run.totalCount,
+      totalEligible: run.totalCount,
+      successCount: run.successCount,
+      failedCount: run.failedCount,
+      failureCount: run.failedCount,
+      unknownCount: run.unknownCount,
+      telegramSent: run.telegramSent,
+      errorMessage: (run.summaryJson as any)?.error ?? null,
+      createdAt: run.createdAt.toISOString(),
+    };
   }
 }
+
 

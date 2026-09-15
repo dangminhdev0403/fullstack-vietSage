@@ -526,14 +526,19 @@ export const kbttAutoSubmitRunSummarySchema = z.object({
   id: z.string(),
   hotelId: z.string(),
   scheduledFor: z.string(),
-  startedAt: z.string(),
+  startedAt: z.string().optional().nullable(),
   finishedAt: z.string().nullable().optional(),
   status: kbttAutoSubmitRunStatusSchema,
-  totalEligible: z.number().int().nonnegative(),
+  dryRun: z.boolean().optional(),
+  totalCount: z.number().int().nonnegative().optional(),
+  totalEligible: z.number().int().nonnegative().optional(),
   successCount: z.number().int().nonnegative(),
-  failureCount: z.number().int().nonnegative(),
+  failedCount: z.number().int().nonnegative().optional(),
+  failureCount: z.number().int().nonnegative().optional(),
   unknownCount: z.number().int().nonnegative(),
+  telegramSent: z.boolean().optional(),
   errorMessage: z.string().nullable().optional(),
+  createdAt: z.string().optional(),
 });
 export type KbttAutoSubmitRunSummary = z.infer<typeof kbttAutoSubmitRunSummarySchema>;
 

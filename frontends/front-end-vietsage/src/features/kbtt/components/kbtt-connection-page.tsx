@@ -531,9 +531,11 @@ function KbttAutoSubmitSection({
     if (!canManage || isSaving) return;
     try {
       const run = await testDryRun(true);
+      const total = run.totalEligible ?? run.totalCount ?? 0;
+      const failed = (run.failureCount ?? run.failedCount ?? 0) + (run.unknownCount ?? 0);
       await showSuccessAlert(
         "Chạy thử nghiệm hoàn tất (Dry Run)",
-        `Tổng hồ sơ đủ điều kiện: ${run.totalEligible}\nThành công giả lập: ${run.successCount}\nLỗi/Timeout: ${run.failureCount + run.unknownCount}`,
+        `Tổng hồ sơ đủ điều kiện: ${total}\nThành công giả lập: ${run.successCount}\nLỗi/Timeout: ${failed}`,
       );
     } catch (error) {
       await autoSubmit.refetch();
@@ -672,9 +674,9 @@ function KbttAutoSubmitSection({
                             {run.status === "COMPLETED" ? "Thành công" : run.status === "SKIPPED" ? "Bỏ qua (0 hồ sơ)" : "Lỗi"}
                           </span>
                         </td>
-                        <td className="px-4 py-3 font-semibold">{run.totalEligible}</td>
+                        <td className="px-4 py-3 font-semibold">{run.totalEligible ?? run.totalCount ?? 0}</td>
                         <td className="px-4 py-3 text-emerald-600 font-semibold">{run.successCount}</td>
-                        <td className="px-4 py-3 text-red-600 font-semibold">{run.failureCount + run.unknownCount}</td>
+                        <td className="px-4 py-3 text-red-600 font-semibold">{(run.failureCount ?? run.failedCount ?? 0) + (run.unknownCount ?? 0)}</td>
                         <td className="px-4 py-3 text-xs text-slate-500 max-w-xs truncate">{run.errorMessage || "—"}</td>
                       </tr>
                     ))}
