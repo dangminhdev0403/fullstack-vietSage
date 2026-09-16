@@ -273,5 +273,172 @@ describe("TelegramNotificationService request acknowledgement", () => {
       expect(logger.warn).toHaveBeenCalled();
     });
   });
+
+  describe("KBTT single submit notification", () => {
+    const originalEnv = process.env;
+
+    beforeEach(() => {
+      process.env = { ...originalEnv };
+      delete process.env.TELEGRAM_KBTT_AGGREGATE_CHAT_ID;
+    });
+
+    afterAll(() => {
+      process.env = originalEnv;
+    });
+
+    it("sends single submit notification to hotel telegram route when configured", async () => {
+      const prisma = {
+        notificationRoute: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: "route-kbtt",
+            telegramChatId: "-100987654321",
+            purpose: "KBTT_AUTO_SUBMIT",
+          }),
+        },
+      };
+      const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
+      const service = new TelegramNotificationService(prisma as never, logger as never);
+      const callTelegramSpy = jest.spyOn(service as any, "callTelegram").mockResolvedValue({ ok: true });
+
+      const sent = await service.sendKbttSingleSubmitNotification({
+        hotelId: "hotel-1",
+        hotelName: "Khách sạn Sài Gòn",
+        roomNumber: "302",
+        fullName: "Nguyễn Văn A",
+        identityNumber: "012345678901",
+        stayPeriod: "2026-09-15 ➔ 2026-09-17",
+        status: "SUBMITTED",
+      });
+
+      expect(sent).toBe(true);
+      expect(prisma.notificationRoute.findFirst).toHaveBeenCalledWith({
+        where: { hotelId: "hotel-1", isActive: true, purpose: "KBTT_AUTO_SUBMIT" },
+      });
+      expect(callTelegramSpy).toHaveBeenCalledWith("sendMessage", {
+        chat_id: "-100987654321",
+        text: expect.stringContaining("Khách sạn Sài Gòn"),
+        parse_mode: "HTML",
+      });
+      expect(callTelegramSpy.mock.calls[0][1].text).toContain("Phòng <b>302</b>");
+      expect(callTelegramSpy.mock.calls[0][1].text).toContain("Nguyễn Văn A");
+      expect(callTelegramSpy.mock.calls[0][1].text).toContain("ĐÃ GỬI BCA THÀNH CÔNG");
+    });
+
+    it("sends single submit notification to both hotel route and aggregate chat if both configured", async () => {
+      process.env.TELEGRAM_KBTT_AGGREGATE_CHAT_ID = "-100999999999";
+      const prisma = {
+        notificationRoute: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: "route-kbtt",
+            telegramChatId: "-100123456789",
+            purpose: "KBTT_AUTO_SUBMIT",
+          }),
+        },
+      };
+      const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
+      const service = new TelegramNotificationService(prisma as never, logger as never);
+      const callTelegramSpy = jest.spyOn(service as any, "callTelegram").mockResolvedValue({ ok: true });
+
+      const sent = await service.sendKbttSingleSubmitNotification({
+        hotelId: "hotel-1",
+        hotelName: "Grand Hotel",
+        fullName: "Trần Thị B",
+        status: "SUBMITTED",
+        isReconciled: true,
+      });
+
+      expect(sent).toBe(true);
+      expect(callTelegramSpy).toHaveBeenCalledTimes(2);
+      expect(callTelegramSpy).toHaveBeenCalledWith("sendMessage", expect.objectContaining({
+        chat_id: "-100123456789",
+      }));
+      expect(callTelegramSpy).toHaveBeenCalledWith("sendMessage", expect.objectContaining({
+        chat_id: "-100999999999",
+      }));
+      expect(callTelegramSpy.mock.calls[0][1].text).toContain("ĐÃ GỬI BCA (TỰ ĐỘNG ĐỐI SOÁT)");
+    });
+
+    it("returns false and does not call Telegram when hotel has no route and no aggregate chat", async () => {
+      const prisma = {
+        notificationRoute: {
+          findFirst: jest.fn().mockResolvedValue(null),
+        },
+      };
+      const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
+      const service = new TelegramNotificationService(prisma as never, logger as never);
+      const callTelegramSpy = jest.spyOn(service as any, "callTelegram").mockResolvedValue({ ok: true });
+
+      const sent = await service.sendKbttSingleSubmitNotification({
+        hotelId: "hotel-no-tele",
+        hotelName: "Khách sạn Không Tele",
+        fullName: "Lê Văn C",
+        status: "SUBMITTED",
+      });
+
+      expect(sent).toBe(false);
+      expect(callTelegramSpy).not.toHaveBeenCalled();
+    });
+
+    it("formats failed submit message with error details", async () => {
+      const prisma = {
+        notificationRoute: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: "route-kbtt",
+            telegramChatId: "-100123456789",
+            purpose: "KBTT_AUTO_SUBMIT",
+          }),
+        },
+      };
+      const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
+      const service = new TelegramNotificationService(prisma as never, logger as never);
+      const callTelegramSpy = jest.spyOn(service as any, "callTelegram").mockResolvedValue({ ok: true });
+
+      const sent = await service.sendKbttSingleSubmitNotification({
+        hotelId: "hotel-1",
+        hotelName: "Khách sạn Sài Gòn",
+        fullName: "Phạm Văn D",
+        status: "FAILED",
+        errorMessage: "Số định danh cá nhân không hợp lệ",
+      });
+
+      expect(sent).toBe(true);
+      expect(callTelegramSpy.mock.calls[0][1].text).toContain("GỬI BCA THẤT BẠI");
+      expect(callTelegramSpy.mock.calls[0][1].text).toContain("Số định danh cá nhân không hợp lệ");
+    });
+
+    it("falls back to database hotel name if hotelName is not provided", async () => {
+      const prisma = {
+        notificationRoute: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: "route-kbtt",
+            telegramChatId: "-100123456789",
+            purpose: "KBTT_AUTO_SUBMIT",
+          }),
+        },
+        hotel: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: "hotel-uuid",
+            name: "Khách sạn Hạ Long",
+          }),
+        },
+      };
+      const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
+      const service = new TelegramNotificationService(prisma as never, logger as never);
+      const callTelegramSpy = jest.spyOn(service as any, "callTelegram").mockResolvedValue({ ok: true });
+
+      const sent = await service.sendKbttSingleSubmitNotification({
+        hotelId: "hotel-uuid",
+        fullName: "Hoàng Văn E",
+        status: "SUBMITTED",
+      });
+
+      expect(sent).toBe(true);
+      expect(prisma.hotel.findUnique).toHaveBeenCalledWith({
+        where: { id: "hotel-uuid" },
+        select: { name: true },
+      });
+      expect(callTelegramSpy.mock.calls[0][1].text).toContain("Khách sạn Hạ Long");
+    });
+  });
 });
 
