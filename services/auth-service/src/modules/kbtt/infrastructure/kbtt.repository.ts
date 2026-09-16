@@ -583,6 +583,7 @@ export class KbttRepository {
       gender?: string;
       dateOfBirth?: string;
       nationality?: string;
+      residencePlace?: string;
     },
   ): Promise<void> {
     try {
@@ -592,6 +593,7 @@ export class KbttRepository {
       if (data.gender !== undefined) updateData.gender = data.gender;
       if (data.dateOfBirth !== undefined) updateData.dateOfBirth = data.dateOfBirth;
       if (data.nationality !== undefined) updateData.nationality = data.nationality;
+      if (data.residencePlace !== undefined) updateData.residencePlace = data.residencePlace;
 
       if (Object.keys(updateData).length > 0) {
         await this.prisma.guestStayOccupant.updateMany({

@@ -17,7 +17,7 @@ export type HttpServerRequestConfig = {
   isAuth?: boolean;
   isPublic?: boolean;
   signal?: AbortSignal;
-  timeoutMs?: number;
+  timeoutMs?: number | false;
 };
 
 const DEFAULT_TIMEOUT_MS = 10_000;
@@ -134,10 +134,11 @@ export async function request<TResponse, TBody = unknown>(
   const url = new URL(path, options.baseUrl ?? getBackendApiBaseUrl());
   appendQuery(url, options.query);
 
-  const timeout = createTimeoutController(
-    options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
-  );
-  const signals = [timeout.controller.signal, options.signal].filter(
+  const timeout =
+    options.timeoutMs === false
+      ? null
+      : createTimeoutController(options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+  const signals = [timeout?.controller.signal, options.signal].filter(
     Boolean,
   ) as AbortSignal[];
   const requestSignal =
@@ -198,7 +199,7 @@ export async function request<TResponse, TBody = unknown>(
       data: null,
     });
   } finally {
-    timeout.clear();
+    timeout?.clear();
   }
 }
 

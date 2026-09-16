@@ -9,7 +9,11 @@ import {
 } from "@nestjs/common";
 import { createHash } from "crypto";
 import { KbttAutoSubmitRun, KbttGuestDeclaration, KbttHotelConnection, Prisma } from "@prisma/client";
-import { HotelAccessService, HotelStayOccupantsReadService } from "../../property/property-public";
+import {
+  HotelAccessService,
+  HotelStayOccupantsReadService,
+  type ActiveStayOccupantRow,
+} from "../../property/property-public";
 import { TelegramNotificationService } from "../../notifications/notifications-public";
 import { z } from "zod";
 import {
@@ -36,6 +40,7 @@ import {
   kbttAuthFailed,
   kbttProviderError,
   KBTT_AUTH_FAILED_MESSAGE,
+  type KbttSubmitOutcome,
 } from "../infrastructure/kbtt-provider.client";
 import { KbttRepository } from "../infrastructure/kbtt.repository";
 
@@ -183,7 +188,9 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
   private withOccupantDefaults(
     citizenshipKind: "VIETNAMESE" | "FOREIGN",
     data: Record<string, unknown>,
-    occupant: NonNullable<Awaited<ReturnType<KbttRepository["findOccupant"]>>> | Awaited<ReturnType<HotelStayOccupantsReadService["getActiveStayOccupants"]>>[number],
+    occupant:
+      | NonNullable<Awaited<ReturnType<KbttRepository["findOccupant"]>>>
+      | ActiveStayOccupantRow,
   ): Record<string, unknown> {
     const draft = { ...data };
     if (!draft.hoTen && occupant.fullName) draft.hoTen = occupant.fullName;
@@ -661,6 +668,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       gender: typeof draftData.gioiTinh === "string" ? draftData.gioiTinh : undefined,
       dateOfBirth: typeof draftData.ngayThangNamSinhStr === "string" ? draftData.ngayThangNamSinhStr : undefined,
       nationality: typeof draftData.quocTich === "string" ? draftData.quocTich : undefined,
+      residencePlace: typeof draftData.diaChi === "string" ? draftData.diaChi : undefined,
     });
 
     if (occupant.citizenshipKind !== citizenshipKind) {
@@ -810,7 +818,6 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
             declarationKind,
             payload,
             session.AccessToken,
-            12_000,
           );
           if (
             probeResult.outcome === "SUCCESS" ||
@@ -1175,176 +1182,88 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     };
   }
 
-  async submitDeclarationInternal(
+  private async persistDeclarationSubmitted(
     hotelId: string,
     declaration: KbttGuestDeclaration,
-    session: KbttSession | null,
-    isDryRun: boolean,
-  ): Promise<{
-    status: "SUBMITTED" | "FAILED" | "UNKNOWN";
-    isReconciled?: boolean;
-    isBusinessRejection?: boolean;
-    error?: string;
-  }> {
-    if (isDryRun) {
-      return { status: "SUBMITTED" };
-    }
+    payload: unknown[],
+    fingerprint: string,
+    outcome: KbttSubmitOutcome,
+    isConflictSuccess: boolean,
+  ) {
+    const providerCode = isConflictSuccess ? "200" : outcome.code.slice(0, 32);
+    const providerMessage = isConflictSuccess
+      ? "Đã xác nhận khai báo trên hệ thống Bộ Công An (Tự động đối soát)"
+      : sanitizeProviderText(outcome.message || "Không có thông báo");
+    const providerResponseJson = outcome.data
+      ? (sanitizeProviderData(outcome.data) as Prisma.InputJsonValue)
+      : Prisma.JsonNull;
 
-    // CAS transition to SENDING
-    let sendingDecl: KbttGuestDeclaration;
+    await this.repository.updateDeclaration({
+      id: declaration.id,
+      hotelId,
+      expectedVersion: declaration.version,
+      data: {
+        status: "SUBMITTED",
+        draftPayloadJson: declaration.draftPayloadJson ?? Prisma.JsonNull,
+        submittedPayloadJson: payload as Prisma.InputJsonValue,
+        submittedPayloadFingerprint: fingerprint,
+        providerCode,
+        providerMessage,
+        providerResponseJson,
+        submittedAt: new Date(),
+      },
+    });
+  }
+
+  private async persistDeclarationFailed(
+    hotelId: string,
+    declaration: KbttGuestDeclaration,
+    fingerprint: string,
+    outcome: KbttSubmitOutcome,
+  ) {
+    const providerCode = outcome.code.slice(0, 32);
+    const providerMessage = sanitizeProviderText(outcome.message || "Không có thông báo");
+    const providerResponseJson = outcome.data
+      ? (sanitizeProviderData(outcome.data) as Prisma.InputJsonValue)
+      : Prisma.JsonNull;
+
+    await this.repository.updateDeclaration({
+      id: declaration.id,
+      hotelId,
+      expectedVersion: declaration.version,
+      data: {
+        status: "FAILED",
+        submittedPayloadFingerprint: fingerprint,
+        providerCode,
+        providerMessage,
+        providerResponseJson,
+        submittedAt: null,
+      },
+    });
+  }
+
+  private async persistDeclarationUnknown(
+    hotelId: string,
+    declaration: KbttGuestDeclaration,
+    fingerprint: string,
+    message: string,
+  ) {
     try {
-      sendingDecl = await this.repository.updateDeclaration({
+      await this.repository.updateDeclaration({
         id: declaration.id,
         hotelId,
         expectedVersion: declaration.version,
         data: {
-          status: "SENDING",
-        },
-      });
-    } catch {
-      return { status: "UNKNOWN", error: "CAS conflict setting SENDING" };
-    }
-
-    const payload = [sendingDecl.draftPayloadJson];
-    const payloadStr = JSON.stringify(payload);
-    const submittedPayloadFingerprint = createHash("sha256").update(payloadStr).digest("hex");
-    const draftData = (sendingDecl.draftPayloadJson ?? {}) as Record<string, unknown>;
-
-    let attempt = 0;
-    const maxAttempts = 3;
-    let finalOutcome: KbttSubmitOutcome | null = null;
-    let lastTransientError = "";
-
-    while (attempt < maxAttempts) {
-      attempt++;
-      try {
-        const timeoutMs = attempt > 1 ? 12_000 : undefined;
-        const res = await this.provider.submitDeclaration(
-          sendingDecl.declarationKind,
-          payload,
-          session!.AccessToken,
-          timeoutMs,
-        );
-        finalOutcome = res;
-
-        // If duplicate conflict on BUSINESS_REJECTION: reconcile to SUCCESS
-        if (
-          res.outcome === "BUSINESS_REJECTION" &&
-          isBcaDuplicateConflict(res.message, draftData)
-        ) {
-          break;
-        }
-
-        // If token expired or rejected (401/403), evict cached session and try to re-authenticate once
-        if ((res.code === "HTTP_401" || res.code === "HTTP_403") && attempt === 1) {
-          this.sessions.delete(hotelId);
-          const conn = await this.repository.find(hotelId);
-          if (conn) {
-            try {
-              session = await this.provider.login(this.cipher.decrypt(hotelId, conn));
-              this.sessions.set(hotelId, { ciphertext: conn.ciphertext, session });
-              continue;
-            } catch {
-              // re-login failed, stop retry
-              break;
-            }
-          }
-        }
-
-        // If SUCCESS or regular BUSINESS_REJECTION (not transient), do not retry
-        if (res.outcome === "SUCCESS" || res.outcome === "BUSINESS_REJECTION") {
-          break;
-        }
-
-        // Outcome is AMBIGUOUS (transient)
-        lastTransientError = res.message || "Lỗi tạm thời từ hệ thống C06";
-      } catch (err: any) {
-        lastTransientError = err?.message || "Lỗi kết nối nhà cung cấp C06";
-        finalOutcome = {
-          outcome: "AMBIGUOUS",
-          code: "PROVIDER_TIMEOUT",
-          message: lastTransientError,
-        };
-      }
-    }
-
-    const isConflictSuccess =
-      finalOutcome?.outcome === "BUSINESS_REJECTION" &&
-      isBcaDuplicateConflict(finalOutcome.message, draftData);
-
-    if (finalOutcome?.outcome === "SUCCESS" || isConflictSuccess) {
-      const providerCode = isConflictSuccess ? "200" : finalOutcome!.code.slice(0, 32);
-      const providerMessage = isConflictSuccess
-        ? "Đã xác nhận khai báo trên hệ thống Bộ Công An (Tự động đối soát)"
-        : sanitizeProviderText(finalOutcome!.message || "Không có thông báo");
-      const providerResponseJson = finalOutcome!.data
-        ? (sanitizeProviderData(finalOutcome!.data) as Prisma.InputJsonValue)
-        : Prisma.JsonNull;
-
-      await this.repository.updateDeclaration({
-        id: sendingDecl.id,
-        hotelId,
-        expectedVersion: sendingDecl.version,
-        data: {
-          status: "SUBMITTED",
-          draftPayloadJson: sendingDecl.draftPayloadJson ?? Prisma.JsonNull,
-          submittedPayloadJson: payload,
-          submittedPayloadFingerprint,
-          providerCode,
-          providerMessage,
-          providerResponseJson,
-          submittedAt: new Date(),
-        },
-      });
-      return { status: "SUBMITTED", isReconciled: isConflictSuccess };
-    }
-
-    if (finalOutcome?.outcome === "BUSINESS_REJECTION") {
-      const providerCode = finalOutcome.code.slice(0, 32);
-      const providerMessage = sanitizeProviderText(finalOutcome.message || "Không có thông báo");
-      const providerResponseJson = finalOutcome.data
-        ? (sanitizeProviderData(finalOutcome.data) as Prisma.InputJsonValue)
-        : Prisma.JsonNull;
-
-      await this.repository.updateDeclaration({
-        id: sendingDecl.id,
-        hotelId,
-        expectedVersion: sendingDecl.version,
-        data: {
-          status: "FAILED",
-          submittedPayloadFingerprint,
-          providerCode,
-          providerMessage,
-          providerResponseJson,
-          submittedAt: null,
-        },
-      });
-      return { status: "FAILED", isBusinessRejection: true, error: providerMessage };
-    }
-
-    // Transient failure exhausted 3 attempts -> UNKNOWN
-    const providerCode = finalOutcome?.code?.slice(0, 32) || "PROVIDER_TIMEOUT";
-    const providerMessage = sanitizeProviderText(
-      finalOutcome?.message || lastTransientError || "Hết lượt thử lại khi kết nối C06",
-    );
-
-    try {
-      await this.repository.updateDeclaration({
-        id: sendingDecl.id,
-        hotelId,
-        expectedVersion: sendingDecl.version,
-        data: {
           status: "UNKNOWN",
-          submittedPayloadFingerprint,
-          providerCode,
-          providerMessage,
+          submittedPayloadFingerprint: fingerprint,
+          providerCode: "PROVIDER_TIMEOUT",
+          providerMessage: sanitizeProviderText(message),
           submittedAt: null,
         },
       });
     } catch {
       // secondary CAS error ignored
     }
-    return { status: "UNKNOWN", error: providerMessage };
   }
 
   async executeAutoSubmitForHotel(
@@ -1390,7 +1309,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
 
       let cursor: string | undefined = undefined;
       let hasMorePages = true;
-      const PAGE_SIZE = 10;
+      const PAGE_SIZE = 100;
       let totalEligibleCount = 0;
       let directSuccessCount = 0;
       let reconciledSuccessCount = 0;
@@ -1516,125 +1435,222 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
           continue;
         }
 
-        const occupantById = new Map(occupants.map((occupant) => [occupant.id, occupant]));
+        const occupantById = new Map<string, ActiveStayOccupantRow>();
+        for (const occupant of occupants) {
+          occupantById.set(occupant.id, occupant);
+        }
 
-        const chunkResults = await Promise.allSettled(
-          declarations.map(async (decl) => {
-            const occupant = occupantById.get(decl.occupantId);
-            const draft = occupant
-              ? this.withOccupantDefaults(
-                  decl.declarationKind,
-                  (decl.draftPayloadJson ?? {}) as Record<string, unknown>,
-                  occupant,
-                )
-              : decl.draftPayloadJson;
-            const schema =
-              decl.declarationKind === "VIETNAMESE"
-                ? kbttVietnameseReadySchema
-                : kbttForeignReadySchema;
-            const validated = schema.safeParse(draft);
-            if (!validated.success) {
-              if (!isDryRun) {
-                const error = formatValidationIssues(validated.error.issues);
-                const draftFp = createHash("sha256")
-                  .update(JSON.stringify([draft]))
-                  .digest("hex");
-                if (decl.id.startsWith("pending:")) {
-                  await this.repository.createDeclaration({
-                    hotelId,
-                    stayId: decl.stayId,
-                    occupantId: decl.occupantId,
-                    declarationKind: decl.declarationKind,
+        const validItems: Array<{
+          declaration: KbttGuestDeclaration;
+          payload: unknown[];
+          draftData: Record<string, unknown>;
+          fingerprint: string;
+        }> = [];
+
+        for (const decl of declarations) {
+          const occupant = occupantById.get(decl.occupantId);
+          const draft = occupant
+            ? this.withOccupantDefaults(
+                decl.declarationKind,
+                (decl.draftPayloadJson ?? {}) as Record<string, unknown>,
+                occupant,
+              )
+            : decl.draftPayloadJson;
+          const schema =
+            decl.declarationKind === "VIETNAMESE"
+              ? kbttVietnameseReadySchema
+              : kbttForeignReadySchema;
+          const validated = schema.safeParse(draft);
+          if (!validated.success) {
+            if (!isDryRun) {
+              const error = formatValidationIssues(validated.error.issues);
+              const draftFp = createHash("sha256")
+                .update(JSON.stringify([draft]))
+                .digest("hex");
+              if (decl.id.startsWith("pending:")) {
+                await this.repository.createDeclaration({
+                  hotelId,
+                  stayId: decl.stayId,
+                  occupantId: decl.occupantId,
+                  declarationKind: decl.declarationKind,
+                  status: "FAILED",
+                  draftPayloadJson: draft as Prisma.InputJsonValue,
+                  submittedPayloadFingerprint: draftFp,
+                  providerCode: "LOCAL_VALIDATION",
+                  providerMessage: error,
+                });
+              } else {
+                await this.repository.updateDeclaration({
+                  id: decl.id,
+                  hotelId,
+                  expectedVersion: decl.version,
+                  data: {
                     status: "FAILED",
-                    draftPayloadJson: draft as Prisma.InputJsonValue,
                     submittedPayloadFingerprint: draftFp,
                     providerCode: "LOCAL_VALIDATION",
                     providerMessage: error,
-                  });
-                } else {
-                  await this.repository.updateDeclaration({
-                    id: decl.id,
-                    hotelId,
-                    expectedVersion: decl.version,
-                    data: {
-                      status: "FAILED",
-                      submittedPayloadFingerprint: draftFp,
-                      providerCode: "LOCAL_VALIDATION",
-                      providerMessage: error,
-                      submittedAt: null,
-                    },
-                  });
-                }
+                    submittedAt: null,
+                  },
+                });
               }
-              return {
-                status: "FAILED" as const,
-                category: "VALIDATION_FAILURE" as const,
-              };
             }
-
-            let submitDeclaration = decl;
-            if (!isDryRun && decl.id.startsWith("pending:")) {
-              submitDeclaration = await this.repository.createDeclaration({
-                hotelId,
-                stayId: decl.stayId,
-                occupantId: decl.occupantId,
-                declarationKind: decl.declarationKind,
-                status: "READY",
-                draftPayloadJson: validated.data as Prisma.InputJsonValue,
-              });
-            } else if (!isDryRun && occupant) {
-              submitDeclaration = await this.repository.updateDeclaration({
-                id: decl.id,
-                hotelId,
-                expectedVersion: decl.version,
-                data: { draftPayloadJson: validated.data as Prisma.InputJsonValue },
-              });
-            }
-
-            const result = await this.submitDeclarationInternal(
-              hotelId,
-              submitDeclaration,
-              session,
-              isDryRun,
-            );
-
-            let category:
-              | "DIRECT_SUCCESS"
-              | "RECONCILED_SUCCESS"
-              | "BCA_REJECTION"
-              | "TRANSIENT_EXHAUSTED";
-            if (result.status === "SUBMITTED") {
-              category = result.isReconciled ? "RECONCILED_SUCCESS" : "DIRECT_SUCCESS";
-            } else if (result.status === "FAILED") {
-              category = "BCA_REJECTION";
-            } else {
-              category = "TRANSIENT_EXHAUSTED";
-            }
-            return {
-              status: result.status,
-              category,
-              error: result.error,
-            };
-          }),
-        );
-
-        for (const r of chunkResults) {
-          const category =
-            r.status === "fulfilled"
-              ? r.value.category
-              : "TRANSIENT_EXHAUSTED";
-
-          if (category === "DIRECT_SUCCESS") {
-            directSuccessCount++;
-          } else if (category === "RECONCILED_SUCCESS") {
-            reconciledSuccessCount++;
-          } else if (category === "VALIDATION_FAILURE") {
             validationFailureCount++;
-          } else if (category === "BCA_REJECTION") {
-            bcaRejectionCount++;
-          } else {
+            continue;
+          }
+
+          let submitDeclaration = decl;
+          if (!isDryRun && decl.id.startsWith("pending:")) {
+            submitDeclaration = await this.repository.createDeclaration({
+              hotelId,
+              stayId: decl.stayId,
+              occupantId: decl.occupantId,
+              declarationKind: decl.declarationKind,
+              status: "READY",
+              draftPayloadJson: validated.data as Prisma.InputJsonValue,
+            });
+          } else if (!isDryRun && occupant) {
+            submitDeclaration = await this.repository.updateDeclaration({
+              id: decl.id,
+              hotelId,
+              expectedVersion: decl.version,
+              data: { draftPayloadJson: validated.data as Prisma.InputJsonValue },
+            });
+          }
+
+          const payload = [validated.data];
+          const fingerprint = createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+          validItems.push({
+            declaration: submitDeclaration,
+            payload,
+            draftData: (validated.data ?? {}) as Record<string, unknown>,
+            fingerprint,
+          });
+        }
+
+        if (validItems.length === 0) {
+          continue;
+        }
+
+        if (isDryRun) {
+          directSuccessCount += validItems.length;
+          continue;
+        }
+
+        // Transition items to SENDING via CAS before provider dispatch
+        const sendingItems: typeof validItems = [];
+        for (const item of validItems) {
+          try {
+            const sendingDecl = await this.repository.updateDeclaration({
+              id: item.declaration.id,
+              hotelId,
+              expectedVersion: item.declaration.version,
+              data: { status: "SENDING" },
+            });
+            sendingItems.push({ ...item, declaration: sendingDecl });
+          } catch {
             transientExhaustedCount++;
           }
+        }
+
+        // Logical bulk waves (up to 3 waves) for this bounded page
+        let currentWaveItems = [...sendingItems];
+        const MAX_WAVES = 3;
+
+        for (let wave = 1; wave <= MAX_WAVES && currentWaveItems.length > 0; wave++) {
+          const settled = await Promise.allSettled(
+            currentWaveItems.map(async (item) => {
+              const outcome = await this.provider.submitDeclaration(
+                item.declaration.declarationKind,
+                item.payload,
+                session!.AccessToken,
+              );
+              return { item, outcome };
+            }),
+          );
+
+          const remainingTransient: typeof currentWaveItems = [];
+
+          for (let i = 0; i < settled.length; i++) {
+            const res = settled[i];
+            const item = currentWaveItems[i];
+
+            if (res.status === "rejected") {
+              if (wave < MAX_WAVES) {
+                remainingTransient.push(item);
+              } else {
+                await this.persistDeclarationUnknown(
+                  hotelId,
+                  item.declaration,
+                  item.fingerprint,
+                  res.reason?.message || "Lỗi kết nối C06",
+                );
+                transientExhaustedCount++;
+              }
+              continue;
+            }
+
+            const { outcome } = res.value;
+
+            const isConflictSuccess =
+              outcome.outcome === "BUSINESS_REJECTION" &&
+              isBcaDuplicateConflict(outcome.message, item.draftData);
+
+            if (outcome.outcome === "SUCCESS" || isConflictSuccess) {
+              await this.persistDeclarationSubmitted(
+                hotelId,
+                item.declaration,
+                item.payload,
+                item.fingerprint,
+                outcome,
+                isConflictSuccess,
+              );
+              if (isConflictSuccess) {
+                reconciledSuccessCount++;
+              } else {
+                directSuccessCount++;
+              }
+              continue;
+            }
+
+            if (outcome.outcome === "BUSINESS_REJECTION") {
+              await this.persistDeclarationFailed(
+                hotelId,
+                item.declaration,
+                item.fingerprint,
+                outcome,
+              );
+              bcaRejectionCount++;
+              continue;
+            }
+
+            // Outcome is AMBIGUOUS
+            if ((outcome.code === "HTTP_401" || outcome.code === "HTTP_403") && wave === 1) {
+              this.sessions.delete(hotelId);
+              const conn = await this.repository.find(hotelId);
+              if (conn) {
+                try {
+                  session = await this.provider.login(this.cipher.decrypt(hotelId, conn));
+                  this.sessions.set(hotelId, { ciphertext: conn.ciphertext, session });
+                } catch {
+                  // re-login failed
+                }
+              }
+            }
+
+            if (wave < MAX_WAVES) {
+              remainingTransient.push(item);
+            } else {
+              await this.persistDeclarationUnknown(
+                hotelId,
+                item.declaration,
+                item.fingerprint,
+                outcome.message || "Lỗi tạm thời từ hệ thống C06",
+              );
+              transientExhaustedCount++;
+            }
+          }
+
+          currentWaveItems = remainingTransient;
         }
       }
 

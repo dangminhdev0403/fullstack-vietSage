@@ -183,7 +183,7 @@ export async function POST(_request: Request, context: RouteContext) {
           "POST",
           backendPath,
           undefined,
-          { accessToken, headers: { "Cache-Control": "no-store" } },
+          { accessToken, headers: { "Cache-Control": "no-store" }, timeoutMs: false },
         );
         return kbttDeclarationRecordSchema.parse(getRawData(response));
       },

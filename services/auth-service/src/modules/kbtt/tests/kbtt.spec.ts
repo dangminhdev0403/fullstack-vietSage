@@ -1291,10 +1291,13 @@ describe("KBTT Catalog Cache (AGY-50)", () => {
 });
 
 describe("KBTT provider API 4/5 wire contract", () => {
-  it("verifies KbttProviderClient wire protocol: correct HTTP POST URLs for API 4 and API 5, Bearer header, bounded envelope, timeout handling", async () => {
+  it("verifies KbttProviderClient wire protocol: correct HTTP POST URLs for API 4 and API 5, Bearer header, bounded envelope, no AbortSignal timeout, and network error classification", async () => {
     const client = new KbttProviderClient();
     const fetchMock = jest.fn();
     global.fetch = fetchMock;
+
+    // Arity check: submitDeclaration takes exactly 3 arguments (declarationKind, payload, accessToken)
+    expect(client.submitDeclaration.length).toBe(3);
 
     // 1. API 4 Foreign wire check
     fetchMock.mockResolvedValueOnce(Response.json({ code: "200", message: "Success", data: null }));
@@ -1314,6 +1317,7 @@ describe("KBTT provider API 4/5 wire contract", () => {
     expect((foreignOpts.headers as any).Authorization).toBe("Bearer test_access_token_123");
     expect((foreignOpts.headers as any)["Content-Type"]).toBe("application/json");
     expect(JSON.parse(foreignOpts.body as string)).toEqual([{ hoTen: "John Doe" }]);
+    expect(foreignOpts.signal).toBeUndefined();
 
     // 2. API 5 Vietnamese wire check
     fetchMock.mockResolvedValueOnce(
@@ -1334,6 +1338,7 @@ describe("KBTT provider API 4/5 wire contract", () => {
     expect(vnOpts.method).toBe("POST");
     expect((vnOpts.headers as any).Authorization).toBe("Bearer test_access_token_456");
     expect(JSON.parse(vnOpts.body as string)).toEqual([{ hoTen: "Nguyen Van A" }]);
+    expect(vnOpts.signal).toBeUndefined();
 
     // 3. Business rejection check
     fetchMock.mockResolvedValueOnce(Response.json({ code: "400", message: "Số CCCD đã tồn tại" }));
@@ -1342,13 +1347,15 @@ describe("KBTT provider API 4/5 wire contract", () => {
     expect(bizRes.code).toBe("400");
     expect(bizRes.message).toBe("Số CCCD đã tồn tại");
 
-    // 4. Timeout check
+    // 4. Network error check - must never classify as local TIMEOUT
     const timeoutErr = new Error("The operation was aborted due to timeout");
     timeoutErr.name = "TimeoutError";
     fetchMock.mockRejectedValueOnce(timeoutErr);
     const timeRes = await client.submitDeclaration("FOREIGN", [{}], "tok");
     expect(timeRes.outcome).toBe("AMBIGUOUS");
-    expect(timeRes.code).toBe("TIMEOUT");
+    expect(timeRes.code).toBe("NETWORK_ERROR");
+    expect(timeRes.code).not.toBe("TIMEOUT");
+    expect(timeRes.message).toBe("Lỗi kết nối mạng khi gửi hồ sơ khai báo đến cơ quan quản lý.");
 
     // 5. 502 Bad Gateway check
     fetchMock.mockResolvedValueOnce(new Response("Bad Gateway", { status: 502 }));
@@ -2019,6 +2026,131 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
       // Run 2: same unchanged occupant should be skipped
       await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
       expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+    });
+
+    it("processes bulk declarations in parallel waves, retries only transient failures up to 3 waves, and never retries permanent errors", async () => {
+      const f = fixture();
+      const occ1 = { ...primaryOccupant, id: "occ-1", fullName: "Guest One", identityNumber: "001090000001" };
+      const occ2 = { ...primaryOccupant, id: "occ-2", fullName: "Guest Two", identityNumber: "001090000002" };
+      const occ3 = { ...primaryOccupant, id: "occ-3", fullName: "Guest Three", identityNumber: "001090000003" };
+      f.occupants.set(occ1.id, occ1);
+      f.occupants.set(occ2.id, occ2);
+      f.occupants.set(occ3.id, occ3);
+      await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+
+      const pagedMock = jest.fn().mockResolvedValue({
+        items: [occ1, occ2, occ3],
+        nextCursor: null,
+      });
+      (f.occupantsReadService as any).getActiveStayOccupantsPaged = pagedMock;
+
+      const callsPerOccupant: Record<string, number> = { "occ-1": 0, "occ-2": 0, "occ-3": 0 };
+      let initialCallsCount = 0;
+      let wave1Completed = false;
+
+      f.provider.submitDeclaration.mockImplementation(async (_kind, payload, _token, timeoutOverride) => {
+        const item = (payload as any[])[0];
+        const occId =
+          item.hoTen === "Guest One" ? "occ-1" : item.hoTen === "Guest Two" ? "occ-2" : "occ-3";
+        callsPerOccupant[occId]++;
+
+        // Check wave boundary: retries must only happen after wave 1 finished for all declarations
+        if (callsPerOccupant[occId] > 1 && !wave1Completed) {
+          throw new Error("Violation: retry initiated before Wave 1 completed for all declarations in the page");
+        }
+
+        // Simulate small delay on initial wave to test concurrent wave barrier
+        if (callsPerOccupant[occId] === 1) {
+          await new Promise((r) => setTimeout(r, 20));
+          initialCallsCount++;
+          if (initialCallsCount === 3) {
+            wave1Completed = true;
+          }
+        }
+
+        if (occId === "occ-1") {
+          return { outcome: "SUCCESS", code: "200", message: "Thành công" };
+        }
+        if (occId === "occ-2") {
+          return { outcome: "BUSINESS_REJECTION", code: "400", message: "Sai định dạng số giấy tờ" };
+        }
+        // occ-3: transient on attempts 1 and 2, succeeds on attempt 3
+        if (callsPerOccupant["occ-3"] < 3) {
+          return { outcome: "AMBIGUOUS", code: "HTTP_504", message: "Gateway Timeout" };
+        }
+        return { outcome: "SUCCESS", code: "200", message: "Thành công" };
+      });
+
+      await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
+
+      // Verify wave call counts
+      expect(callsPerOccupant["occ-1"]).toBe(1);
+      expect(callsPerOccupant["occ-2"]).toBe(1);
+      expect(callsPerOccupant["occ-3"]).toBe(3);
+      expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(5);
+
+      // Verify no attempt-specific caller timeout overrides were passed
+      for (const call of f.provider.submitDeclaration.mock.calls) {
+        expect(call[3]).toBeUndefined();
+      }
+
+      expect(f.repository.finalizeAutoSubmitRun).toHaveBeenCalledWith(
+        "run-auto-1",
+        expect.objectContaining({
+          status: "COMPLETED",
+          totalCount: 3,
+          successCount: 2,
+          failedCount: 1,
+          unknownCount: 0,
+        }),
+      );
+    });
+
+    it("sends final Telegram summary exactly once after all pages and waves, never per wave", async () => {
+      const f = fixture();
+      const sendTelegramMock = jest.fn().mockResolvedValue(true);
+      (f.service as any).telegramNotificationService = {
+        sendKbttAutoSubmitSummary: sendTelegramMock,
+      };
+
+      const occ1 = { ...primaryOccupant, id: "occ-1", fullName: "Guest One", identityNumber: "001090000001" };
+      const occ2 = { ...primaryOccupant, id: "occ-2", fullName: "Guest Two", identityNumber: "001090000002" };
+      f.occupants.set(occ1.id, occ1);
+      f.occupants.set(occ2.id, occ2);
+      await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+
+      const pagedMock = jest.fn().mockResolvedValue({
+        items: [occ1, occ2],
+        nextCursor: null,
+      });
+      (f.occupantsReadService as any).getActiveStayOccupantsPaged = pagedMock;
+
+      let occ2Calls = 0;
+      f.provider.submitDeclaration.mockImplementation(async (_kind, payload) => {
+        const item = (payload as any[])[0];
+        if (item.hoTen === "Guest One") {
+          return { outcome: "SUCCESS", code: "200", message: "Thành công" };
+        }
+        occ2Calls++;
+        if (occ2Calls === 1) {
+          return { outcome: "AMBIGUOUS", code: "HTTP_504", message: "Gateway Timeout" };
+        }
+        return { outcome: "SUCCESS", code: "200", message: "Thành công" };
+      });
+
+      await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
+
+      expect(sendTelegramMock).toHaveBeenCalledTimes(1);
+      expect(sendTelegramMock).toHaveBeenCalledWith(
+        "hotel-1",
+        expect.objectContaining({
+          totalEligible: 2,
+          successCount: 2,
+          failureCount: 0,
+          unknownCount: 0,
+          directSuccessCount: 2,
+        }),
+      );
     });
   });
 });

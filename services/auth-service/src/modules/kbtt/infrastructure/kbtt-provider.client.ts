@@ -82,7 +82,6 @@ export class KbttProviderClient {
     declarationKind: "VIETNAMESE" | "FOREIGN",
     payload: unknown[],
     accessToken: string,
-    timeoutMs = 25_000,
   ): Promise<KbttSubmitOutcome> {
     const path =
       declarationKind === "FOREIGN"
@@ -102,20 +101,12 @@ export class KbttProviderClient {
         },
         body: JSON.stringify(payload),
         redirect: "error",
-        signal: AbortSignal.timeout(timeoutMs),
       });
-    } catch (networkError: any) {
-      const isTimeout =
-        networkError?.name === "TimeoutError" ||
-        networkError?.name === "AbortError" ||
-        String(networkError?.message).toLowerCase().includes("timeout");
-      const seconds = Math.round(timeoutMs / 1000);
+    } catch (_networkError: any) {
       return {
         outcome: "AMBIGUOUS",
-        code: isTimeout ? "TIMEOUT" : "NETWORK_ERROR",
-        message: isTimeout
-          ? `Quá thời gian chờ phản hồi từ cơ quan quản lý (${seconds}s).`
-          : "Lỗi kết nối mạng khi gửi hồ sơ khai báo đến cơ quan quản lý.",
+        code: "NETWORK_ERROR",
+        message: "Lỗi kết nối mạng khi gửi hồ sơ khai báo đến cơ quan quản lý.",
       };
     }
 

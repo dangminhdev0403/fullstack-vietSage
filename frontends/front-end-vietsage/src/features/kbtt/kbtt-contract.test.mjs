@@ -384,7 +384,7 @@ test("KBTT UI exposes one edit-to-submit action and no local status workflow", (
   assert.doesNotMatch(pageSource, /Trường bắt buộc để gửi BCA/);
   assert.doesNotMatch(
     pageSource,
-    />Sửa<|Chỉnh sửa hàng loạt|Bấm để chỉnh sửa chi tiết/,
+    /Chỉnh sửa hàng loạt|Bấm để chỉnh sửa chi tiết/,
   );
   assert.match(pageSource, /Gửi lên Bộ Công an/);
   assert.match(pageSource, /Hồ sơ của lần lưu trú này đã gửi BCA/);
@@ -511,5 +511,130 @@ test("KBTT auto-submit contract validates schedule config, run summaries, and st
     recentRuns: [runningSummary],
   });
   assert.equal(stateWithRunning.activeRun?.status, "RUNNING");
+});
+
+test("KBTT BFF submit route delegates timeout to backend/provider via timeoutMs: false without retry, while global default remains 10s", () => {
+  const routeSrc = readFileSync(
+    new URL(
+      "../../app/api/hotel-ops/hotels/[hotelId]/kbtt/declarations/[occupantId]/[action]/route.ts",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const httpServerSrc = readFileSync(
+    new URL("../../core/http/http-server.ts", import.meta.url),
+    "utf8",
+  );
+
+  // Global DEFAULT_TIMEOUT_MS in http-server.ts must remain 10_000ms
+  assert.match(httpServerSrc, /const DEFAULT_TIMEOUT_MS = 10_000;/);
+
+  // HttpServerRequestConfig must support timeoutMs?: number | false
+  assert.match(
+    httpServerSrc,
+    /timeoutMs\?:\s*number\s*\|\s*false;/,
+    "HttpServerRequestConfig must support boolean false to disable timeout",
+  );
+
+  // When timeoutMs is false, no timeout controller is created
+  assert.match(
+    httpServerSrc,
+    /options\.timeoutMs === false\s*\?\s*null\s*:\s*createTimeoutController/,
+    "httpServer.request must not create timeout controller when timeoutMs is false",
+  );
+
+  // BFF submit route passes timeoutMs: false to delegate timeout to backend/provider
+  assert.match(
+    routeSrc,
+    /timeoutMs:\s*false/,
+    "Submit route must pass timeoutMs: false to delegate timeout to provider",
+  );
+
+  // BFF route must NOT have a custom numeric timeout constant
+  assert.doesNotMatch(
+    routeSrc,
+    /KBTT_SUBMIT_TIMEOUT_MS/,
+    "Submit route must not define custom timeout constant",
+  );
+
+  // Must not introduce retries at BFF layer to avoid duplicated provider side effects
+  assert.doesNotMatch(
+    routeSrc,
+    /\b(retry|retries|maxAttempts)\b/i,
+    "BFF route must not add retries",
+  );
+});
+
+test("KBTT declarations page Upload tất cả executes concurrent Promise.allSettled and aggregates results", () => {
+  const pageSrc = readFileSync(
+    new URL("./components/kbtt-declarations-page.tsx", import.meta.url),
+    "utf8",
+  );
+
+  // Must use Promise.allSettled for concurrent row submissions
+  assert.match(
+    pageSrc,
+    /Promise\.allSettled\s*\(/,
+    "handleSubmitAll must execute via Promise.allSettled",
+  );
+
+  // Must not loop sequentially with for...of in handleSubmitAll
+  const handleSubmitAllBlock = pageSrc.match(
+    /const handleSubmitAll = useCallback\(async \(\) => {([\s\S]*?)},\s*\[/,
+  )?.[1];
+  assert.ok(handleSubmitAllBlock, "handleSubmitAll function must exist");
+
+  assert.doesNotMatch(
+    handleSubmitAllBlock,
+    /for\s*\(\s*const\s+\w+\s+of\s+unsubmittedRows\s*\)\s*{[\s\S]*?await\s+submitMutation/,
+    "handleSubmitAll must not sequentially await row submit in a for...of loop",
+  );
+
+  // Must preserve error formatting and final summary modal
+  assert.match(
+    handleSubmitAllBlock,
+    /status === "fulfilled"/,
+    "Must count fulfilled items",
+  );
+  assert.match(
+    handleSubmitAllBlock,
+    /errorText\(/,
+    "Must extract error text for rejected items",
+  );
+});
+
+test("KBTT declarations table provides Sửa button to open DeclarationModal for detail editing, and modal supports saving to DB with Tỉnh/Xã", () => {
+  const pageSource = readFileSync(
+    new URL("./components/kbtt-declarations-page.tsx", import.meta.url),
+    "utf8",
+  );
+
+  // RowActionMenu must render Sửa button when status is not SUBMITTED
+  assert.match(
+    pageSource,
+    /title="[^"]*chỉnh chi tiết[^"]*"[\s\S]*?>Sửa<\/span>/i,
+    "RowActionMenu must provide a Sửa button to open detail modal",
+  );
+
+  // DeclarationModal must provide a Lưu vào DB button to persist edits
+  assert.match(
+    pageSource,
+    /Lưu vào (?:CSDL|DB)/,
+    "DeclarationModal must provide a button to save to DB without submitting",
+  );
+
+  // DeclarationModal must support isDevMode to allow editing submitted declarations
+  assert.match(
+    pageSource,
+    /isDevMode=\{isDevMode\}/,
+    "DeclarationModal must receive isDevMode prop",
+  );
+
+  // Vietnamese form in DeclarationModal must support maTT (Tỉnh) and maPX (Xã)
+  assert.match(
+    pageSource,
+    /id="maTT"[\s\S]*?id="maPX"/,
+    "DeclarationModal must render maTT and maPX for Vietnamese occupants",
+  );
 });
 

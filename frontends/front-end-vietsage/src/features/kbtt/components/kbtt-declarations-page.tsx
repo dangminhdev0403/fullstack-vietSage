@@ -438,16 +438,30 @@ function RowActionMenu({
         >
           Lưu
         </button>
-      ) : statusInfo.key === "SUBMITTED" ? (
+      ) : null}
+
+      {/* Sửa chi tiết hoặc Xem hồ sơ */}
+      {statusInfo.key === "SUBMITTED" ? (
         <div className="flex items-center justify-center gap-1.5">
           <button
             type="button"
             disabled={disabled}
             onClick={onView}
-            title="Xem hồ sơ đã gửi"
+            title={
+              isDevMode
+                ? "Mở box chỉnh chi tiết hồ sơ (Dev Mode)"
+                : "Xem hồ sơ đã gửi"
+            }
             className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-sm font-semibold text-slate-700 shadow-2xs hover:border-[#064e3b] hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 transition-colors"
           >
-            Xem
+            {isDevMode ? (
+              <>
+                <PencilIcon className="h-3.5 w-3.5 text-slate-500" />
+                <span>Sửa</span>
+              </>
+            ) : (
+              <span>Xem</span>
+            )}
           </button>
           {isDevMode && onDevResetSingle && (
             <button
@@ -461,7 +475,18 @@ function RowActionMenu({
             </button>
           )}
         </div>
-      ) : null}
+      ) : (
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={onView}
+          title="Mở box chỉnh chi tiết hồ sơ (Tỉnh, Phường/Xã, địa chỉ...)"
+          className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-sm font-semibold text-slate-700 shadow-2xs hover:border-[#064e3b] hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 transition-colors"
+        >
+          <PencilIcon className="h-3.5 w-3.5 text-slate-500" />
+          <span>Sửa</span>
+        </button>
+      )}
 
       {/* Gửi BCA ngay (chưa gửi hoặc bị từ chối) */}
       {statusInfo.key !== "SUBMITTED" && (
@@ -995,13 +1020,21 @@ export function KbttDeclarationsPage({
     let successCount = 0;
     const errors: string[] = [];
 
-    for (const row of unsubmittedRows) {
-      try {
+    const settledResults = await Promise.allSettled(
+      unsubmittedRows.map(async (row) => {
         await saveInlineRow(row);
         await submitMutation.mutateAsync({ occupantId: row.occupantId });
+        return row;
+      }),
+    );
+
+    for (let i = 0; i < settledResults.length; i++) {
+      const res = settledResults[i];
+      const row = unsubmittedRows[i];
+      if (res.status === "fulfilled") {
         successCount++;
-      } catch (err) {
-        const msg = errorText(err);
+      } else {
+        const msg = errorText(res.reason);
         errors.push(`Phòng ${row.roomNumber ?? "—"} (${row.fullName}): ${msg}`);
       }
     }
@@ -1350,7 +1383,7 @@ export function KbttDeclarationsPage({
                 </th>
                 <th
                   scope="col"
-                  className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-xs w-48 min-w-[160px] px-3 py-3.5 text-center whitespace-nowrap"
+                  className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-xs w-48 min-w-[200px] px-3 py-3.5 text-center whitespace-nowrap"
                 >
                   Thao tác
                 </th>
@@ -1709,6 +1742,7 @@ export function KbttDeclarationsPage({
           occupantId={selectedOccupant.occupantId}
           occupantSummary={selectedOccupant}
           canManage={canManage}
+          isDevMode={isDevMode}
           onClose={() => setSelectedOccupant(null)}
           onUpdated={handleRefresh}
         />
@@ -1741,6 +1775,7 @@ function DeclarationModal({
   occupantId,
   occupantSummary,
   canManage,
+  isDevMode = false,
   onClose,
   onUpdated,
 }: {
@@ -1748,6 +1783,7 @@ function DeclarationModal({
   occupantId: string;
   occupantSummary: KbttDeclarationListItem;
   canManage: boolean;
+  isDevMode?: boolean;
   onClose: () => void;
   onUpdated: () => void;
 }) {
@@ -1854,8 +1890,10 @@ function DeclarationModal({
     detailQuery.data?.occupant.residencePlace,
   );
   const provinceCode =
-    typeof baseFormData.maTT === "string"
-      ? baseFormData.maTT
+    baseFormData.maTT !== undefined &&
+    baseFormData.maTT !== null &&
+    String(baseFormData.maTT).trim() !== ""
+      ? String(baseFormData.maTT).trim()
       : inferredProvinceCode;
   const wardsQuery = useQuery({
     ...boundResource.queries.catalog.options({
@@ -1942,10 +1980,48 @@ function DeclarationModal({
     setFormEdits((prev) => ({ ...prev, [key]: value }));
   };
 
+  const isActuallySubmitted =
+    detailQuery.data?.declaration?.status === "SUBMITTED";
+  const isAlreadySubmitted = isActuallySubmitted && !isDevMode;
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+
+  const handleSaveDraft = async () => {
+    if (!canManage) return;
+    if (isActuallySubmitted && !isDevMode) return;
+    if (!citizenshipKind) {
+      await showErrorAlert(
+        "Chưa xác định quốc tịch",
+        "Vui lòng chọn loại quốc tịch trước khi lưu.",
+      );
+      return;
+    }
+    try {
+      setIsSavingDraft(true);
+      await saveMutation.mutateAsync({
+        occupantId,
+        body: {
+          citizenshipKind,
+          data: formatKbttDraftForProvider(formData),
+          allowSubmittedEdit: true,
+        },
+      });
+      await showSuccessAlert(
+        "Đã lưu vào CSDL",
+        "Đã lưu thông tin chi tiết (Tỉnh/Xã, địa chỉ...) vào CSDL thành công.",
+      );
+      onUpdated();
+      onClose();
+    } catch (error) {
+      await showErrorAlert("Không thể lưu vào CSDL", errorText(error));
+    } finally {
+      setIsSavingDraft(false);
+    }
+  };
+
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     if (!canManage) return;
-    if (detailQuery.data?.declaration?.status === "SUBMITTED") return;
+    if (isActuallySubmitted && !isDevMode) return;
     if (!citizenshipKind) {
       await showErrorAlert(
         "Chưa xác định quốc tịch",
@@ -1956,7 +2032,11 @@ function DeclarationModal({
     try {
       await saveMutation.mutateAsync({
         occupantId,
-        body: { citizenshipKind, data: formatKbttDraftForProvider(formData) },
+        body: {
+          citizenshipKind,
+          data: formatKbttDraftForProvider(formData),
+          allowSubmittedEdit: true,
+        },
       });
       await submitMutation.mutateAsync({ occupantId });
       await showSuccessAlert(
@@ -1971,9 +2051,8 @@ function DeclarationModal({
     }
   };
 
-  const isBusy = saveMutation.isPending || submitMutation.isPending;
-  const isAlreadySubmitted =
-    detailQuery.data?.declaration?.status === "SUBMITTED";
+  const isBusy =
+    saveMutation.isPending || submitMutation.isPending || isSavingDraft;
 
   return (
     <div
@@ -2427,9 +2506,17 @@ function DeclarationModal({
                       className={selectClass}
                     >
                       <option value="">Chọn tỉnh/thành phố</option>
+                      {Boolean(formData.maTT) &&
+                        !(provincesQuery.data ?? []).some(
+                          (item) => item.code === String(formData.maTT),
+                        ) && (
+                          <option value={String(formData.maTT)}>
+                            {String(formData.maTT)}
+                          </option>
+                        )}
                       {(provincesQuery.data ?? []).map((item) => (
                         <option key={item.id} value={item.code}>
-                          {item.nameVi}
+                          {item.code} - {item.nameVi}
                         </option>
                       ))}
                     </select>
@@ -2453,10 +2540,24 @@ function DeclarationModal({
                       }
                       className={selectClass}
                     >
-                      <option value="">Chọn phường/xã</option>
+                      <option value="">
+                        {!provinceCode
+                          ? "Vui lòng chọn Tỉnh/TP trước"
+                          : wardsQuery.isPending
+                            ? "Đang tải danh sách phường/xã..."
+                            : "Chọn phường/xã"}
+                      </option>
+                      {Boolean(formData.maPX) &&
+                        !(wardsQuery.data ?? []).some(
+                          (item) => item.code === String(formData.maPX),
+                        ) && (
+                          <option value={String(formData.maPX)}>
+                            {String(formData.maPX)}
+                          </option>
+                        )}
                       {(wardsQuery.data ?? []).map((item) => (
                         <option key={item.id} value={item.code}>
-                          {item.nameVi}
+                          {item.code} - {item.nameVi}
                         </option>
                       ))}
                     </select>
@@ -2778,19 +2879,32 @@ function DeclarationModal({
                 Đóng
               </button>
 
-              {canManage && !isAlreadySubmitted ? (
-                <button
-                  type="submit"
-                  disabled={isBusy}
-                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#064e3b] px-6 py-3 text-base font-bold text-white shadow-md transition-all hover:bg-[#043327] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#064e3b] disabled:opacity-50"
-                >
-                  {isBusy ? "Đang gửi…" : "Gửi lên Bộ Công an"}
-                </button>
-              ) : isAlreadySubmitted ? (
-                <span className="inline-flex min-h-12 items-center rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-base font-semibold text-emerald-800">
-                  Hồ sơ của lần lưu trú này đã gửi BCA
-                </span>
-              ) : null}
+              <div className="flex flex-wrap items-center gap-3">
+                {canManage && (!isAlreadySubmitted || isDevMode) && (
+                  <button
+                    type="button"
+                    disabled={isBusy}
+                    onClick={() => void handleSaveDraft()}
+                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-emerald-600 bg-white px-5 py-3 text-base font-bold text-emerald-800 shadow-xs transition-all hover:bg-emerald-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 disabled:opacity-50"
+                  >
+                    {isSavingDraft ? "Đang lưu CSDL…" : "💾 Lưu vào DB"}
+                  </button>
+                )}
+
+                {canManage && !isActuallySubmitted ? (
+                  <button
+                    type="submit"
+                    disabled={isBusy}
+                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#064e3b] px-6 py-3 text-base font-bold text-white shadow-md transition-all hover:bg-[#043327] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#064e3b] disabled:opacity-50"
+                  >
+                    {submitMutation.isPending ? "Đang gửi…" : "Gửi lên Bộ Công an"}
+                  </button>
+                ) : isActuallySubmitted && !isDevMode ? (
+                  <span className="inline-flex min-h-12 items-center rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-base font-semibold text-emerald-800">
+                    Hồ sơ của lần lưu trú này đã gửi BCA
+                  </span>
+                ) : null}
+              </div>
             </div>
           </form>
         )}
