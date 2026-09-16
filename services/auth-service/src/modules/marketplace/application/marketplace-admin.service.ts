@@ -470,36 +470,54 @@ export class MarketplaceAdminService {
             );
           }
 
-          let user = await tx.user.findFirst({
+          const existingUser = await tx.user.findFirst({
             where: { email },
+            include: {
+              tenantUsers: {
+                where: { status: TenantUserStatus.ACTIVE },
+                select: { tenant: { select: { type: true } } },
+              },
+              userRoles: {
+                where: { status: UserRoleStatus.ACTIVE },
+                select: { role: { select: { code: true } } },
+              },
+            },
           });
 
-          if (user) {
-            user = await tx.user.update({
-              where: { id: user.id },
-              data: {
-                fullName,
-                ...(body.owner.password && body.owner.password.trim().length >= 8
-                  ? { passwordHash: await argon2.hash(body.owner.password) }
-                  : {}),
-              },
-            });
-          } else {
-            const password =
-              body.owner.password && body.owner.password.trim().length >= 8
-                ? body.owner.password
-                : "VietSage@2026";
-            const passwordHash = await argon2.hash(password);
-            user = await tx.user.create({
-              data: {
-                email,
-                fullName,
-                passwordHash,
-                status: UserStatus.ACTIVE,
-                userType: UserType.PARTNER,
-              },
-            });
+          if (
+            existingUser &&
+            (existingUser.userType !== UserType.PARTNER ||
+              existingUser.tenantUsers.some(({ tenant }) => tenant.type !== TenantType.SERVICE) ||
+              existingUser.userRoles.some(({ role }) => role.code !== "SERVICE_STAFF"))
+          ) {
+            throw new ConflictException(
+              "Tài khoản khách sạn không thể đồng thời quản lý Marketplace",
+            );
           }
+
+          const user = existingUser
+            ? await tx.user.update({
+                where: { id: existingUser.id },
+                data: {
+                  fullName,
+                  ...(body.owner.password && body.owner.password.trim().length >= 8
+                    ? { passwordHash: await argon2.hash(body.owner.password) }
+                    : {}),
+                },
+              })
+            : await tx.user.create({
+                data: {
+                  email,
+                  fullName,
+                  passwordHash: await argon2.hash(
+                    body.owner.password && body.owner.password.trim().length >= 8
+                      ? body.owner.password
+                      : "VietSage@2026",
+                  ),
+                  status: UserStatus.ACTIVE,
+                  userType: UserType.PARTNER,
+                },
+              });
 
           await tx.tenantUser.create({
             data: {

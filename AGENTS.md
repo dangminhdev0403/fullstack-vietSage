@@ -20,12 +20,13 @@ Rules:
 - Dirty graphify-out/ files are expected after hooks or incremental updates; dirty graph files are not a reason to skip graphify. Only skip graphify if the task is about stale or incorrect graph output, or the user explicitly says not to use it.
 - If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
-- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+- Run `graphify update . --force` only after completing an entire feature/module or major refactor. For routine/minor edits (chỉnh UI nhẹ, đổi tên, text/copy, styling tweaks), do NOT run graphify update.
 
 ## AGY / Ponytail execution policy
 
 - `PONYTAIL.md` is mandatory for every coding agent and corrective run. Read it before editing; Ponytail `full` remains active unless the user explicitly disables it.
-- AGY runs exactly one focused check covering its changed behavior. AGY must not run full lint, the full test suite, or a full build.
+- **Thao tác chỉnh sửa thông thường (Minor Edits):** Đối với các thay đổi không quá lớn như chỉnh UI nhẹ, đổi tên, text/copy, css/spacing: **KHÔNG cần run test** và **KHÔNG run graphify**.
+- Với thay đổi logic nghiệp vụ, AGY chạy tối đa một focused check duy nhất bao phủ hành vi thay đổi. AGY không chạy full lint, full test suite, hoặc full build.
 - Host verification runs each slice's targeted gate in parallel.
 - Integration cherry-picks accepted slices without rerunning module-wide gates after every commit.
 - After all slices integrate, run affected/module lint, tests, and build once via the orchestrator final gate. Run the full merge gate once before PR/merge when required.

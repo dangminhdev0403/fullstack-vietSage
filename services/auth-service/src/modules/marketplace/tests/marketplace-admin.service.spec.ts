@@ -266,6 +266,47 @@ describe("Marketplace admin", () => {
     );
   });
 
+  it("rejects attaching a hotel identity to a SERVICE tenant", async () => {
+    const tx = {
+      tenant: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValueOnce({ name: "Spa" })
+          .mockResolvedValueOnce({ tenantUsers: [], serviceProfile: {} }),
+        update: jest.fn().mockResolvedValue({ tenantUsers: [], serviceProfile: {} }),
+      },
+      user: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: "frontdesk-1",
+          email: "frontdesk@example.com",
+          fullName: "Front Desk",
+          userType: "HOTEL_STAFF",
+          tenantUsers: [{ tenant: { type: "HOTEL" } }],
+          userRoles: [{ role: { code: "HOTEL_FRONTDESK" } }],
+        }),
+        update: jest.fn(),
+      },
+      tenantUser: { create: jest.fn() },
+      userRole: { create: jest.fn() },
+      auditLog: { create: jest.fn() },
+    };
+    const service = new MarketplaceAdminService(
+      {
+        tenant: { findFirst: jest.fn().mockResolvedValue({ id: "service-1" }) },
+        $transaction: (fn: (value: unknown) => unknown) => fn(tx),
+      } as never,
+      {} as never,
+    );
+
+    await expect(
+      service.updateServiceTenant("admin-1", "service-1", {
+        owner: { email: "frontdesk@example.com", fullName: "Front Desk" },
+      }),
+    ).rejects.toThrow("Tài khoản khách sạn không thể đồng thời quản lý Marketplace");
+    expect(tx.tenantUser.create).not.toHaveBeenCalled();
+    expect(tx.userRole.create).not.toHaveBeenCalled();
+  });
+
   it("rejects mapping to a HOTEL tenant", async () => {
     const prisma = {
       hotel: { findUnique: jest.fn().mockResolvedValue({ id: "hotel-1" }) },

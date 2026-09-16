@@ -282,6 +282,7 @@ export const saveKbttDraftPayloadSchema = z
   .object({
     citizenshipKind: citizenshipKindSchema,
     data: z.record(z.string(), z.unknown()),
+    allowSubmittedEdit: z.boolean().optional(),
   })
   .superRefine((val, ctx) => {
     for (const key of Object.keys(val.data)) {
@@ -545,7 +546,32 @@ export type KbttAutoSubmitRunSummary = z.infer<typeof kbttAutoSubmitRunSummarySc
 export const kbttAutoSubmitStateSchema = z.object({
   autoSubmitEnabled: z.boolean(),
   autoSubmitTime: z.string().nullable().optional(),
+  activeRun: kbttAutoSubmitRunSummarySchema.nullable().optional(),
+  pendingSchedule: kbttAutoSubmitRunSummarySchema.nullable().optional(),
   recentRuns: z.array(kbttAutoSubmitRunSummarySchema).default([]),
 });
 export type KbttAutoSubmitState = z.infer<typeof kbttAutoSubmitStateSchema>;
+
+export const kbttDevResetSchema = z.object({
+  generateNewIdentityNumbers: z.boolean().optional().default(false),
+});
+export type KbttDevReset = z.infer<typeof kbttDevResetSchema>;
+
+export const kbttDevOccupantUpdateItemSchema = z.object({
+  occupantId: z.string().trim().min(1),
+  identityNumber: z.string().trim().optional(),
+  fullName: z.string().trim().optional(),
+  nationality: z.string().trim().optional(),
+  dateOfBirth: z.string().trim().optional(),
+  gender: z.string().trim().optional(),
+  resetToDraft: z.boolean().optional().default(true),
+});
+export type KbttDevOccupantUpdateItem = z.infer<
+  typeof kbttDevOccupantUpdateItemSchema
+>;
+
+export const kbttDevUpdateOccupantsSchema = z.object({
+  occupants: z.array(kbttDevOccupantUpdateItemSchema).min(1),
+});
+export type KbttDevUpdateOccupants = z.infer<typeof kbttDevUpdateOccupantsSchema>;
 

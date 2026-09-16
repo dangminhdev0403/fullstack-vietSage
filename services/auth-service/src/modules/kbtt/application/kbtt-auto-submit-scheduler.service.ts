@@ -1,7 +1,21 @@
-﻿import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { KbttService } from "./kbtt.service";
 import { KbttRepository } from "../infrastructure/kbtt.repository";
+
+function scheduledVietnamDate(now: Date, hhmm: string): Date {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  const [hour, minute] = hhmm.split(":").map(Number);
+  return new Date(
+    Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day), hour - 7, minute),
+  );
+}
 
 @Injectable()
 export class KbttAutoSubmitSchedulerService {
@@ -40,16 +54,32 @@ export class KbttAutoSubmitSchedulerService {
         `Found ${dueHotels.length} hotels due for KBTT auto-submit at ${currentHHmm} (dryRun=${isDryRun}).`,
       );
 
-      for (const item of dueHotels) {
-        try {
-          await this.kbttService.executeAutoSubmitForHotel(item.hotelId, now, isDryRun);
-        } catch (hotelError: any) {
-          this.logger.error(
-            `Failed auto-submit execution for hotel ${item.hotelId}: ${hotelError?.message}`,
-            hotelError?.stack,
-          );
+      const validHotels = dueHotels.filter((item) => Boolean(item.autoSubmitTime));
+
+      const executing = new Set<Promise<void>>();
+      for (const item of validHotels) {
+        const p: Promise<void> = Promise.resolve().then(async () => {
+          try {
+            await this.kbttService.executeAutoSubmitForHotel(
+              item.hotelId,
+              scheduledVietnamDate(now, item.autoSubmitTime!),
+              isDryRun,
+            );
+          } catch (hotelError: any) {
+            this.logger.error(
+              `Failed auto-submit execution for hotel ${item.hotelId}: ${hotelError?.message}`,
+              hotelError?.stack,
+            );
+          }
+        });
+        executing.add(p);
+        const clean = () => executing.delete(p);
+        p.then(clean, clean);
+        if (executing.size >= 3) {
+          await Promise.race(executing);
         }
       }
+      await Promise.all(executing);
     } catch (error: any) {
       this.logger.error(`Error querying due hotels for KBTT auto-submit: ${error?.message}`, error?.stack);
     }

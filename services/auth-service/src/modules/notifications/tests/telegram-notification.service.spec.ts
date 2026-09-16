@@ -126,6 +126,33 @@ describe("TelegramNotificationService request acknowledgement", () => {
       expect(msg).toContain("Chưa rõ trạng thái (Timeout): <b>1</b> ⚠️");
     });
 
+    it("formats cumulative summary message distinguishing direct success, reconciled success, validation failures, BCA rejection, and transient errors", () => {
+      const service = new TelegramNotificationService(
+        {} as never,
+        { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as never,
+      );
+      const msg = service.formatKbttSummaryMessage({
+        hotelName: "Khách sạn Grand",
+        scheduledTime: "2026-09-16 04:30:00",
+        totalEligible: 10,
+        successCount: 7,
+        failureCount: 2,
+        unknownCount: 1,
+        isDryRun: false,
+        directSuccessCount: 5,
+        reconciledSuccessCount: 2,
+        validationFailureCount: 1,
+        bcaRejectionCount: 1,
+        transientExhaustedCount: 1,
+      });
+
+      expect(msg).toContain("Trực tiếp: <b>5</b>");
+      expect(msg).toContain("Đối soát tự động: <b>2</b>");
+      expect(msg).toContain("Lỗi dữ liệu/form: <b>1</b>");
+      expect(msg).toContain("BCA từ chối: <b>1</b>");
+      expect(msg).toContain("Cần kiểm tra: <b>1</b>");
+    });
+
     it("sends message to dedicated KBTT route if configured", async () => {
       const prisma = {
         notificationRoute: {
@@ -161,6 +188,67 @@ describe("TelegramNotificationService request acknowledgement", () => {
       });
     });
 
+    it("falls back to database hotel name if hotelName is equal to hotelId or empty", async () => {
+      const prisma = {
+        notificationRoute: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: "route-kbtt",
+            telegramChatId: "-100123456789",
+            purpose: "KBTT_AUTO_SUBMIT",
+          }),
+        },
+        hotel: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: "cmq2k2lm0003f2oui3ifqp808",
+            name: "Khách sạn Biển Đông",
+          }),
+        },
+      };
+      const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
+      const service = new TelegramNotificationService(prisma as never, logger as never);
+      const callTelegramSpy = jest.spyOn(service as any, "callTelegram").mockResolvedValue({ ok: true });
+
+      const sent = await service.sendKbttAutoSubmitSummary("cmq2k2lm0003f2oui3ifqp808", {
+        hotelName: "cmq2k2lm0003f2oui3ifqp808",
+        scheduledTime: "2026-09-15 04:30:00",
+        totalEligible: 5,
+        successCount: 5,
+        failureCount: 0,
+        unknownCount: 0,
+        isDryRun: false,
+      });
+
+      expect(sent).toBe(true);
+      expect(prisma.hotel.findUnique).toHaveBeenCalledWith({
+        where: { id: "cmq2k2lm0003f2oui3ifqp808" },
+        select: { name: true },
+      });
+      expect(callTelegramSpy).toHaveBeenCalledWith("sendMessage", {
+        chat_id: "-100123456789",
+        text: expect.stringContaining("Khách sạn:</b> Khách sạn Biển Đông"),
+        parse_mode: "HTML",
+      });
+    });
+
+    it("sends an explicit Telegram-only test without any declaration data", async () => {
+      const prisma = {
+        notificationRoute: {
+          findFirst: jest.fn().mockResolvedValue({ telegramChatId: "-100123456789" }),
+        },
+      };
+      const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
+      const service = new TelegramNotificationService(prisma as never, logger as never);
+      const callTelegramSpy = jest.spyOn(service as any, "callTelegram").mockResolvedValue({ ok: true });
+
+      await expect(service.sendKbttTestMessage("hotel-1")).resolves.toBe(true);
+      expect(callTelegramSpy).toHaveBeenCalledWith("sendMessage", {
+        chat_id: "-100123456789",
+        text: expect.stringContaining("KIỂM TRA KẾT NỐI TELEGRAM"),
+        parse_mode: "HTML",
+      });
+      expect(callTelegramSpy.mock.calls[0][1].text).not.toMatch(/CCCD|hộ chiếu|password|token/i);
+    });
+
     it("returns false and logs warning if no route exists", async () => {
       const prisma = {
         notificationRoute: {
@@ -181,6 +269,7 @@ describe("TelegramNotificationService request acknowledgement", () => {
       });
 
       expect(sent).toBe(false);
+      expect(prisma.notificationRoute.findFirst).toHaveBeenCalledTimes(1);
       expect(logger.warn).toHaveBeenCalled();
     });
   });

@@ -100,13 +100,14 @@ export function successResponse<T>(data: T, status = 200, message = "OK") {
 
 export function hotelOpsHttpErrorResponse(error: HttpError) {
   const headers = new Headers();
+  const status = Number.isInteger(error.status) && error.status >= 400 && error.status <= 599 ? error.status : 502;
   const retryAfter = error.headers?.get("retry-after");
   if (retryAfter) headers.set("Retry-After", retryAfter);
 
-  console.error(`[API_HOTEL_OPS_ERROR ${error.status}]`, {
+  console.error(`[API_HOTEL_OPS_ERROR ${status}]`, {
     url: error.requestUrl,
     message: error.message,
-    status: error.status,
+    status,
     data: error.data,
   });
 
@@ -125,8 +126,8 @@ export function hotelOpsHttpErrorResponse(error: HttpError) {
   }
 
   return NextResponse.json(
-    error.data ?? { status: error.status, message: error.message },
-    { status: error.status, headers },
+    error.data ?? { status, message: error.message },
+    { status, headers },
   );
 }
 

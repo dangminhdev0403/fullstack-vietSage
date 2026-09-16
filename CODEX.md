@@ -9,6 +9,6 @@ Minimum required flow:
 3. Read only the task-specific guide listed in `AGENTS.md`.
 4. Apply the task without changing unrelated files.
 5. Do not modify any `package.json` unless the user explicitly approved it.
-6. Run the smallest reliable validation command for the touched area.
+6. Run the smallest reliable validation command for the touched area (skip tests/graphify for minor edits like UI polish, renaming, or text/copy changes).
 7. For complex work, follow `docs/RULES.md` and update only the selected root `.hermes/plans/<timestamp>-<slug>.md`.
 8. Final report must include changed files and validation results.

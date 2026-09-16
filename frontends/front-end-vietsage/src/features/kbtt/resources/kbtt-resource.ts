@@ -16,6 +16,7 @@ import type {
   KbttCredentials,
   KbttDeclarationListItem,
   KbttDeclarationRecord,
+  KbttDevOccupantUpdateItem,
   KbttOccupantDeclarationDetail,
   SaveKbttDraftPayload,
 } from "../types/kbtt-contract";
@@ -171,7 +172,65 @@ export const kbttResource = createResource<HotelScope>()({
       invalidates: [
         { type: "query", operation: "autoSubmitConfig" },
         { type: "query", operation: "declarations" },
+        { type: "query", operation: "declarationDetail" },
       ],
+    }),
+    testTelegram: defineMutation({
+      defaults: { retry: false, networkMode: "always" },
+      mutationFn: ({ scope }: ResourceMutationContext<HotelScope, void>) =>
+        kbttRepository.testTelegram(scope.hotelId),
+    }),
+    scheduleAutoSubmit: defineMutation({
+      defaults: { retry: false, networkMode: "always" },
+      mutationFn: ({ scope, variables }: ResourceMutationContext<HotelScope, { mode: "dry-run" | "live" }>) =>
+        kbttRepository.scheduleAutoSubmit(scope.hotelId, variables.mode),
+      invalidates: [
+        { type: "query", operation: "autoSubmitConfig" },
+        { type: "query", operation: "declarations" },
+        { type: "query", operation: "declarationDetail" },
+      ],
+    }),
+    cancelScheduledAutoSubmit: defineMutation({
+      defaults: { retry: false, networkMode: "always" },
+      mutationFn: ({ scope }: ResourceMutationContext<HotelScope, void>) =>
+        kbttRepository.cancelScheduledAutoSubmit(scope.hotelId),
+      invalidates: [
+        { type: "query", operation: "autoSubmitConfig" },
+        { type: "query", operation: "declarations" },
+        { type: "query", operation: "declarationDetail" },
+      ],
+    }),
+    devResetDeclarations: defineMutation({
+      defaults: { retry: false, networkMode: "always" },
+      mutationFn: ({
+        scope,
+        variables,
+      }: ResourceMutationContext<
+        HotelScope,
+        { generateNewIdentityNumbers?: boolean } | void
+      >) =>
+        kbttRepository.devResetDeclarations(
+          scope.hotelId,
+          variables
+            ? {
+                generateNewIdentityNumbers:
+                  variables.generateNewIdentityNumbers,
+              }
+            : undefined,
+        ),
+      invalidates: declarationInvalidates,
+    }),
+    devUpdateOccupants: defineMutation({
+      defaults: { retry: false, networkMode: "always" },
+      mutationFn: ({
+        scope,
+        variables,
+      }: ResourceMutationContext<
+        HotelScope,
+        { occupants: KbttDevOccupantUpdateItem[] }
+      >) =>
+        kbttRepository.devUpdateOccupants(scope.hotelId, variables.occupants),
+      invalidates: declarationInvalidates,
     }),
   },
 });

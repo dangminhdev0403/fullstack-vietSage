@@ -89,14 +89,11 @@ describe("KBTT Auto-Submit Schemas", () => {
       expect(parsed.dryRun).toBe(true);
     });
 
-    it("should parse boolean false", () => {
-      const parsed = kbttAutoSubmitTestQuerySchema.parse({ dryRun: false });
-      expect(parsed.dryRun).toBe(false);
-    });
-
-    it("should parse string 'false'", () => {
-      const parsed = kbttAutoSubmitTestQuerySchema.parse({ dryRun: "false" });
-      expect(parsed.dryRun).toBe(false);
+    it("should allow explicit live mode only through the named mode", () => {
+      expect(kbttAutoSubmitTestQuerySchema.parse({ mode: "live" }).dryRun).toBe(false);
+      expect(kbttAutoSubmitTestQuerySchema.parse({ mode: "dry-run" }).dryRun).toBe(true);
+      expect(kbttAutoSubmitTestQuerySchema.safeParse({ dryRun: false }).success).toBe(false);
+      expect(kbttAutoSubmitTestQuerySchema.safeParse({ dryRun: "false" }).success).toBe(false);
     });
   });
 });

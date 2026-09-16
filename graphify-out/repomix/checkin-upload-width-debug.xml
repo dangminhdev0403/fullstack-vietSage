@@ -1,0 +1,255 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: frontends/front-end-vietsage/src/features/local-biometric/components/check-in-workspace.tsx, frontends/front-end-vietsage/src/features/local-biometric/components/check-in-workspace-layout.test.ts, frontends/front-end-vietsage/src/features/local-biometric/components/desktop-document-ocr-upload.tsx, frontends/front-end-vietsage/src/features/local-biometric/components/desktop-document-ocr-upload.test.ts, frontends/front-end-vietsage/src/features/local-biometric/utils/identity-document-ocr.ts, frontends/front-end-vietsage/src/features/local-biometric/utils/identity-document-ocr.test.ts, frontends/front-end-vietsage/src/features/local-biometric/intake/intake-contract.ts
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    src/
+      features/
+        local-biometric/
+          components/
+            check-in-workspace-layout.test.ts
+            check-in-workspace.tsx
+            desktop-document-ocr-upload.test.ts
+            desktop-document-ocr-upload.tsx
+          intake/
+            intake-contract.ts
+          utils/
+            identity-document-ocr.test.ts
+            identity-document-ocr.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/components/desktop-document-ocr-upload.test.ts">
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/components/desktop-document-ocr-upload.tsx">
+import React, { useRef, useState } from "react";
+import type { CccdCheckInCapture } from "./cccd-check-in-panel";
+import {
+  recognizeDesktopIdentityDocuments,
+  type IdentityDocumentOcrResult,
+} from "../utils/identity-document-ocr";
+⋮----
+export function convertMrzResultToCapture(result: IdentityDocumentOcrResult): CccdCheckInCapture
+⋮----
+export type DesktopDocumentOcrUploadProps = {
+  onCaptures: (captures: CccdCheckInCapture[]) => void;
+  disabled?: boolean;
+};
+⋮----
+const clearInput = (inputEl?: HTMLInputElement | null) =>
+⋮----
+const processFiles = async (rawFiles: File[], inputEl?: HTMLInputElement | null) =>
+⋮----
+const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) =>
+⋮----
+const handleDragOver = (e: React.DragEvent) =>
+⋮----
+const handleDragLeave = (e: React.DragEvent) =>
+⋮----
+const handleDrop = async (e: React.DragEvent) =>
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/intake/intake-contract.ts">
+import { z } from "zod";
+⋮----
+export const parseIntakePayload = (raw: unknown) =>
+⋮----
+export const omitBlankOptionals = <T extends Record<string, unknown>>(obj: T): Partial<T> =>
+⋮----
+export type IntakePayload = z.infer<typeof intakePayloadSchema>;
+export type IntakePayloadV2 = z.infer<typeof intakePayloadV2Schema>;
+⋮----
+export type IntakeSessionIssued = {
+  sessionId: string;
+  code: string;
+  expiresAt: number;
+};
+⋮----
+export type IntakeSessionStatus = {
+  sessionId: string;
+  hotelId: string;
+  expiresAt: number;
+  status: "waiting" | "received";
+  payload: IntakePayload | IntakePayloadV2 | null;
+};
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/utils/identity-document-ocr.test.ts">
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import test from "node:test";
+import { fileURLToPath } from "node:url";
+⋮----
+// @ts-expect-error Node strip-types requires explicit extension.
+import { parseLocalMrzBatch, parseLocalMrzResult, recognizeDesktopIdentityDocuments } from "./identity-document-ocr.ts";
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/utils/identity-document-ocr.ts">
+export type IdentityDocumentOcrResult = {
+  documentKind: "passport" | "visa";
+  format?: string;
+  mrzValid?: boolean;
+  identityNumber: string;
+  fullName: string;
+  dateOfBirth?: string;
+  gender?: string;
+  nationality?: string;
+  residencePlace?: string;
+  expiryDate?: string;
+  guestDisplayName: string;
+  guestIdentityNumber: string;
+  guestDateOfBirth?: string;
+  guestGender?: string;
+  guestNationality?: string;
+  guestResidencePlace?: string;
+};
+⋮----
+export type IdentityDocumentOcrFailure = {
+  success: false;
+  index?: number;
+  filename?: string;
+  code: string;
+  error: string;
+};
+⋮----
+export type IdentityDocumentBatchItem =
+  | ({ success: true; index?: number; filename?: string } & IdentityDocumentOcrResult)
+  | IdentityDocumentOcrFailure;
+⋮----
+export function normalizeNationalityToText(value?: string | null): string
+⋮----
+export function parseLocalMrzResult(value: unknown): IdentityDocumentOcrResult
+⋮----
+const optional = (key: string)
+⋮----
+export function parseLocalMrzBatch(value: unknown): IdentityDocumentBatchItem[]
+⋮----
+/**
+ * Try to decode a QR code from an image file using the browser's native
+ * BarcodeDetector API (Chromium ≥ 88). Returns the raw QR text or null.
+ * Silently returns null on unsupported browsers or if no QR is found.
+ */
+async function tryBrowserQrDecode(file: File): Promise<string | null>
+⋮----
+detect(src: ImageBitmap): Promise<
+⋮----
+// BarcodeDetector not supported or image unreadable — fall through
+⋮----
+/**
+ * Try to decode a QR code from a file, parse it as CCCD QR data, and
+ * convert it to an IdentityDocumentBatchItem. Returns null if no QR found
+ * or if the QR content isn't a valid CCCD QR.
+ */
+async function tryDecodeQrFromFile(
+  file: File,
+  index: number,
+): Promise<IdentityDocumentBatchItem | null>
+⋮----
+// Dynamic import avoids bundling cccd-qr-parser when QR is not used
+⋮----
+documentKind: "passport" as const,  // CCCD maps to the same guest structure
+⋮----
+// QR text was found but is not a valid CCCD QR → ignore
+⋮----
+export async function recognizeDesktopIdentityDocuments(files: readonly File[]): Promise<IdentityDocumentBatchItem[]>
+⋮----
+// Phase 1: Try QR decode for each file (browser BarcodeDetector)
+⋮----
+// Phase 2: Send remaining files to OpenMRZ for MRZ recognition
+⋮----
+// Map MRZ results back to original positions
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/components/check-in-workspace-layout.test.ts">
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/components/check-in-workspace.tsx">
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Swal from "sweetalert2";
+import { filterExtraOccupants } from "@/features/hotel-ops/utils/hotel-ops-display";
+import type { CheckInWorkspaceProps, CheckInStayFields } from "../types/check-in-workspace";
+import { buildCccdPreviewModel } from "../utils/cccd-preview";
+import type { CccdCheckInCapture } from "./cccd-check-in-panel";
+import { CccdPreview } from "./cccd-preview";
+import { MobileCccdScan } from "./mobile-cccd-scan";
+import { DesktopDocumentOcrUpload } from "./desktop-document-ocr-upload";
+⋮----
+function toDisplayVnDate(str?: string): string
+⋮----
+function toIsoDate(str?: string): string
+⋮----
+function VnDateInput({
+  id,
+  value,
+  onChange,
+  className,
+  placeholder = "ngày/tháng/năm",
+  required,
+}: {
+  id?: string;
+  value: string;
+onChange: (val: string)
+⋮----
+// Browser input text mirrors controlled OCR/manual updates after render.
+// eslint-disable-next-line react-hooks/set-state-in-effect
+⋮----
+const handleTextChange = (raw: string) =>
+⋮----
+const handleNativePickerChange = (isoVal: string) =>
+⋮----
+const openPicker = () =>
+</file>
+
+</files>

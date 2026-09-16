@@ -29,10 +29,13 @@ import { KbttService } from "../application/kbtt.service";
 import {
   hotelIdParamSchema,
   kbttAutoSubmitConfigSchema,
+  kbttAutoSubmitScheduleSchema,
   kbttAutoSubmitTestQuerySchema,
   kbttCatalogKindSchema,
   kbttCatalogQuerySchema,
   kbttCredentialsSchema,
+  kbttDevResetSchema,
+  kbttDevUpdateOccupantsSchema,
   kbttPaginationQuerySchema,
   occupantIdParamSchema,
   stayIdParamSchema,
@@ -374,7 +377,7 @@ export class KbttController {
   }
 
   @Get("auto-submit")
-  @RequirePermission("hotel.kbtt.connections.manage")
+  @RequirePermission("hotel.kbtt.manage")
   @ApiOperation({
     summary: "Get KBTT auto-submit schedule configuration and recent runs",
   })
@@ -390,7 +393,7 @@ export class KbttController {
   }
 
   @Put("auto-submit")
-  @RequirePermission("hotel.kbtt.connections.manage")
+  @RequirePermission("hotel.kbtt.manage")
   @ApiOperation({
     summary: "Update KBTT auto-submit schedule configuration",
   })
@@ -424,6 +427,93 @@ export class KbttController {
       request.user.roleId,
       parseWithZod(hotelIdParamSchema, hotelId),
       validQuery.dryRun,
+    );
+  }
+
+  @Post("auto-submit/telegram-test")
+  @RequirePermission("hotel.kbtt.manage")
+  @ApiOperation({ summary: "Send a Telegram-only KBTT connectivity test; never contacts C06" })
+  testTelegram(
+    @Req() request: RequestWithRequiredUser,
+    @Param("hotelId") hotelId: string,
+  ) {
+    return this.service.testTelegram(
+      request.user.userId,
+      request.user.roleId,
+      parseWithZod(hotelIdParamSchema, hotelId),
+    );
+  }
+
+  @Post("auto-submit/schedule")
+  @RequirePermission("hotel.kbtt.manage")
+  @ApiOperation({ summary: "Schedule one KBTT auto-submit in 15 seconds" })
+  scheduleAutoSubmit(
+    @Req() request: RequestWithRequiredUser,
+    @Param("hotelId") hotelId: string,
+    @Body() body: unknown,
+  ) {
+    const valid = parseWithZod(kbttAutoSubmitScheduleSchema, body);
+    return this.service.scheduleAutoSubmit(
+      request.user.userId,
+      request.user.roleId,
+      parseWithZod(hotelIdParamSchema, hotelId),
+      valid.mode === "dry-run",
+    );
+  }
+
+  @Delete("auto-submit/schedule")
+  @RequirePermission("hotel.kbtt.manage")
+  @ApiOperation({ summary: "Cancel the pending one-shot KBTT auto-submit" })
+  cancelScheduledAutoSubmit(
+    @Req() request: RequestWithRequiredUser,
+    @Param("hotelId") hotelId: string,
+  ) {
+    return this.service.cancelScheduledAutoSubmit(
+      request.user.userId,
+      request.user.roleId,
+      parseWithZod(hotelIdParamSchema, hotelId),
+    );
+  }
+
+  @Post("dev/reset-declarations")
+  @HttpCode(200)
+  @Header("Cache-Control", "no-store")
+  @RequirePermission("hotel.kbtt.declarations.manage")
+  @ApiOperation({
+    summary: "[DEV] Reset all hotel declarations to DRAFT and optionally generate new identity numbers",
+  })
+  devResetDeclarations(
+    @Req() request: RequestWithRequiredUser,
+    @Param("hotelId") hotelId: string,
+    @Body() body?: unknown,
+  ) {
+    const valid = parseWithZod(kbttDevResetSchema, body ?? {});
+    return this.service.devResetDeclarations(
+      request.user.userId,
+      request.user.roleId,
+      parseWithZod(hotelIdParamSchema, hotelId),
+      valid,
+    );
+  }
+
+  @Post("dev/update-occupants")
+  @HttpCode(200)
+  @Header("Cache-Control", "no-store")
+  @RequirePermission("hotel.kbtt.declarations.manage")
+  @ApiOperation({
+    summary: "[DEV] Intervene in DB to update occupant document numbers / details and optionally reset to DRAFT",
+  })
+  devUpdateOccupants(
+    @Req() request: RequestWithRequiredUser,
+    @Param("hotelId") hotelId: string,
+    @Body() body: unknown,
+  ) {
+    const valid = parseWithZod(kbttDevUpdateOccupantsSchema, body);
+    return this.service.devUpdateOccupants(
+      request.user.userId,
+      request.user.roleId,
+      parseWithZod(hotelIdParamSchema, hotelId),
+      valid.occupants,
     );
   }
 }

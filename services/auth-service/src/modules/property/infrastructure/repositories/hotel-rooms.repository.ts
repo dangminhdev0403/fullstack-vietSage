@@ -1132,7 +1132,11 @@ export class HotelRoomsRepository {
     return existingQr;
   }
 
-  async findActiveStayOccupantsByHotel(hotelId: string) {
+  async findActiveStayOccupantsByHotel(
+    hotelId: string,
+    options?: { cursor?: string; take?: number },
+  ) {
+    const take = options?.take ? Math.min(Math.max(options.take, 1), 500) : undefined;
     return this.prisma.guestStayOccupant.findMany({
       where: {
         hotelId,
@@ -1147,6 +1151,9 @@ export class HotelRoomsRepository {
           },
         },
       },
+      take,
+      skip: options?.cursor ? 1 : undefined,
+      cursor: options?.cursor ? { id: options.cursor } : undefined,
       include: {
         stay: {
           select: {
@@ -1167,13 +1174,15 @@ export class HotelRoomsRepository {
           },
         },
       },
-      orderBy: [
-        { stay: { room: { roomNumber: "asc" } } },
-        { stayId: "asc" },
-        { isPrimary: "desc" },
-        { createdAt: "asc" },
-        { id: "asc" },
-      ],
+      orderBy: options?.cursor || options?.take
+        ? [{ id: "asc" }]
+        : [
+            { stay: { room: { roomNumber: "asc" } } },
+            { stayId: "asc" },
+            { isPrimary: "desc" },
+            { createdAt: "asc" },
+            { id: "asc" },
+          ],
     });
   }
 }

@@ -139,7 +139,7 @@ export type KbttDerivedStatus = z.infer<typeof kbttDerivedStatusSchema>;
 
 export const kbttVietnameseDraftDataSchema = z
   .object({
-    hoTen: z.string().trim().min(1).max(160).optional(),
+    hoTen: z.string().trim().min(1).max(160).regex(/^[\p{L}]+(?:\s+[\p{L}]+)*$/u, "Họ tên chỉ được chứa chữ cái và khoảng trắng").optional(),
     gioiTinh: z.enum(["M", "F"]).optional(),
     soDienThoai: z.string().trim().max(40).optional().nullable(),
     ngayThangNamSinhStr: z
@@ -183,7 +183,7 @@ export const kbttVietnameseDraftDataSchema = z
 
 export const kbttForeignDraftDataSchema = z
   .object({
-    hoTen: z.string().trim().min(1).max(160).optional(),
+    hoTen: z.string().trim().min(1).max(160).regex(/^[\p{L}]+(?:\s+[\p{L}]+)*$/u, "Họ tên chỉ được chứa chữ cái và khoảng trắng").optional(),
     quocTich: z.string().trim().min(1).max(32).optional(),
     soHoChieu: z
       .string()
@@ -228,7 +228,7 @@ export const kbttForeignDraftDataSchema = z
 
 export const kbttVietnameseReadySchema = z
   .object({
-    hoTen: z.string({ message: "Họ tên là bắt buộc" }).trim().min(1, "Họ tên là bắt buộc"),
+    hoTen: z.string({ message: "Họ tên là bắt buộc" }).trim().min(1, "Họ tên là bắt buộc").regex(/^[\p{L}]+(?:\s+[\p{L}]+)*$/u, "Họ tên chỉ được chứa chữ cái và khoảng trắng"),
     gioiTinh: z.enum(["M", "F"], { message: "Giới tính phải là M hoặc F" }),
     soDienThoai: z.string().trim().max(40).optional().nullable(),
     ngayThangNamSinhStr: z
@@ -351,7 +351,7 @@ export const kbttVietnameseReadySchema = z
 
 export const kbttForeignReadySchema = z
   .object({
-    hoTen: z.string({ message: "Họ tên là bắt buộc" }).trim().min(1, "Họ tên là bắt buộc"),
+    hoTen: z.string({ message: "Họ tên là bắt buộc" }).trim().min(1, "Họ tên là bắt buộc").regex(/^[\p{L}]+(?:\s+[\p{L}]+)*$/u, "Họ tên chỉ được chứa chữ cái và khoảng trắng"),
     quocTich: z
       .string({ message: "Quốc tịch là bắt buộc" })
       .trim()
@@ -505,6 +505,7 @@ export const saveKbttDraftSchema = z
 export function parseDraftPayload(body: unknown): {
   citizenshipKind: CitizenshipKind;
   data: Record<string, unknown>;
+  allowSubmittedEdit?: boolean;
 } {
   if (!body || typeof body !== "object") {
     throw new BadRequestException("Dữ liệu bản nháp không hợp lệ");
@@ -519,8 +520,15 @@ export function parseDraftPayload(body: unknown): {
     );
   }
   const citizenshipKind = citizenshipKindRaw;
+  const allowSubmittedEdit = Boolean(raw.allowSubmittedEdit ?? raw.forceDevEdit);
 
-  const { citizenshipKind: _, data: nestedData, ...flatData } = raw;
+  const {
+    citizenshipKind: _,
+    allowSubmittedEdit: __,
+    forceDevEdit: ___,
+    data: nestedData,
+    ...flatData
+  } = raw;
   const targetData: Record<string, unknown> =
     nestedData && typeof nestedData === "object"
       ? { ...flatData, ...(nestedData as Record<string, unknown>) }
@@ -534,14 +542,14 @@ export function parseDraftPayload(body: unknown): {
       const issues = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
       throw new BadRequestException(`Dữ liệu khai báo Việt Nam không hợp lệ: ${issues}`);
     }
-    return { citizenshipKind, data: parsed.data };
+    return { citizenshipKind, data: parsed.data, allowSubmittedEdit };
   } else {
     const parsed = kbttForeignDraftDataSchema.safeParse(targetData);
     if (!parsed.success) {
       const issues = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
       throw new BadRequestException(`Dữ liệu khai báo người nước ngoài không hợp lệ: ${issues}`);
     }
-    return { citizenshipKind, data: parsed.data };
+    return { citizenshipKind, data: parsed.data, allowSubmittedEdit };
   }
 }
 
@@ -660,9 +668,36 @@ export const kbttAutoSubmitRunSummarySchema = z.object({
 export type KbttAutoSubmitRunSummary = z.infer<typeof kbttAutoSubmitRunSummarySchema>;
 
 export const kbttAutoSubmitTestQuerySchema = z.object({
+  mode: z.enum(["dry-run", "live"]).default("dry-run"),
   dryRun: z
-    .union([z.boolean(), z.string()])
+    .union([z.literal(true), z.literal("true"), z.literal("1")])
     .optional()
-    .transform((v) => v === undefined || v === true || v === "true" || v === "1"),
-});
+    .transform(() => true),
+}).transform(({ mode }) => ({ dryRun: mode !== "live" }));
 export type KbttAutoSubmitTestQuery = z.infer<typeof kbttAutoSubmitTestQuerySchema>;
+
+export const kbttAutoSubmitScheduleSchema = z.object({
+  mode: z.enum(["dry-run", "live"]).default("dry-run"),
+});
+export type KbttAutoSubmitSchedule = z.infer<typeof kbttAutoSubmitScheduleSchema>;
+
+export const kbttDevResetSchema = z.object({
+  generateNewIdentityNumbers: z.boolean().optional().default(false),
+});
+export type KbttDevReset = z.infer<typeof kbttDevResetSchema>;
+
+export const kbttDevOccupantUpdateItemSchema = z.object({
+  occupantId: z.string().trim().min(1),
+  identityNumber: z.string().trim().optional(),
+  fullName: z.string().trim().optional(),
+  nationality: z.string().trim().optional(),
+  dateOfBirth: z.string().trim().optional(),
+  gender: z.string().trim().optional(),
+  resetToDraft: z.boolean().optional().default(true),
+});
+export type KbttDevOccupantUpdateItem = z.infer<typeof kbttDevOccupantUpdateItemSchema>;
+
+export const kbttDevUpdateOccupantsSchema = z.object({
+  occupants: z.array(kbttDevOccupantUpdateItemSchema).min(1),
+});
+export type KbttDevUpdateOccupants = z.infer<typeof kbttDevUpdateOccupantsSchema>;

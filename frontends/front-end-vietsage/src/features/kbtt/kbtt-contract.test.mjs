@@ -470,13 +470,46 @@ test("KBTT auto-submit contract validates schedule config, run summaries, and st
   assert.equal(summary.status, "COMPLETED");
   assert.equal(summary.totalEligible, 3);
 
-  // State schema with recent runs
-  const state = kbttAutoSubmitStateSchema.parse({
+  // State schema with recent runs and pendingSchedule
+  const stateWithPending = kbttAutoSubmitStateSchema.parse({
     autoSubmitEnabled: true,
     autoSubmitTime: "04:30",
+    pendingSchedule: summary,
     recentRuns: [summary],
   });
-  assert.equal(state.autoSubmitEnabled, true);
-  assert.equal(state.recentRuns.length, 1);
+  assert.equal(stateWithPending.autoSubmitEnabled, true);
+  assert.equal(stateWithPending.pendingSchedule?.status, "COMPLETED");
+  assert.equal(stateWithPending.recentRuns.length, 1);
+
+  // Auto-submit resource invalidations verification
+  const resourceSrc = readFileSync(
+    new URL("./resources/kbtt-resource.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(resourceSrc, /testAutoSubmit:\s*defineMutation[\s\S]*?operation:\s*"autoSubmitConfig"[\s\S]*?operation:\s*"declarations"[\s\S]*?operation:\s*"declarationDetail"/);
+  assert.match(resourceSrc, /scheduleAutoSubmit:\s*defineMutation[\s\S]*?operation:\s*"autoSubmitConfig"[\s\S]*?operation:\s*"declarations"[\s\S]*?operation:\s*"declarationDetail"/);
+  assert.match(resourceSrc, /cancelScheduledAutoSubmit:\s*defineMutation[\s\S]*?operation:\s*"autoSubmitConfig"[\s\S]*?operation:\s*"declarations"[\s\S]*?operation:\s*"declarationDetail"/);
+
+  // Auto-submit hook polling and terminal invalidation contract verification
+  const hookSrc = readFileSync(
+    new URL("./hooks/use-kbtt-auto-submit.ts", import.meta.url),
+    "utf8",
+  );
+  // Must poll through active RUNNING runs even if pendingSchedule is expired or null
+  assert.match(hookSrc, /RUNNING/);
+  assert.match(hookSrc, /hasActiveRun[\s\S]*?recentRuns/);
+  assert.match(hookSrc, /declarations\.invalidateAll/);
+  assert.match(hookSrc, /declarationDetail\.invalidateAll/);
+  assert.match(hookSrc, /autoSubmitConfig\.invalidateAll/);
+
+  // State schema with activeRun or RUNNING status
+  const runningSummary = { ...summary, status: "RUNNING" };
+  const stateWithRunning = kbttAutoSubmitStateSchema.parse({
+    autoSubmitEnabled: true,
+    autoSubmitTime: "04:30",
+    activeRun: runningSummary,
+    recentRuns: [runningSummary],
+  });
+  assert.equal(stateWithRunning.activeRun?.status, "RUNNING");
 });
 

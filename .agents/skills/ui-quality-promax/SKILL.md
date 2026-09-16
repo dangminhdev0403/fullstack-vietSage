@@ -55,24 +55,11 @@ Before changing shared primitives, tokens, shell components, navigation componen
 
 Never use UI review as justification for broad repository scanning.
 
-## 4. Mandatory browser-first rule
+## 4. UI verification rule
 
-For web UI targets, final verification through the configured Chrome DevTools MCP is mandatory.
+Do NOT automatically invoke or require Chrome DevTools MCP. UI verification relies on code inspection, design contract adherence, automated component/unit tests, type checking, and user-provided screenshots.
 
-A UI task cannot PASS based on any combination of:
-
-- unit/component tests;
-- lint/typecheck;
-- production build;
-- source inspection;
-- DOM existence;
-- absence of compile/runtime errors;
-- a screenshot captured only before changes;
-- manual claims without browser evidence.
-
-If Chrome DevTools MCP is unavailable or cannot connect, mark the browser/visual gate `BLOCKED`.
-
-Screenshots are evidence, not decoration. The agent must visually inspect them and state what was observed.
+When user screenshots are provided, inspect them visually and address the identified flaws directly.
 
 ## 5. Required working loop
 
@@ -275,7 +262,7 @@ Do not accept a UI that works only with ideal demo strings.
 
 ## 12. Runtime and performance sanity
 
-Through Chrome DevTools MCP inspect:
+Inspect and verify:
 
 - Network requests and waterfalls;
 - Console errors, hydration warnings, failed resources, unhandled rejections;
@@ -388,10 +375,10 @@ Final report must include:
 - defects fixed and remaining P0/P1/P2/P3;
 - exact files changed;
 - automated validation commands/results;
-- Chrome DevTools MCP findings for DOM/Network/Console/accessibility/responsive behavior;
-- representative screenshot evidence;
+- Component states, responsive behavior, accessibility, and visual stability verification;
+- representative screenshot evidence (when provided);
 - scorecard;
 - what was verified vs not verified;
 - whether the target is stable for integration or still needs work.
 
-A UI PASS without rendered-browser evidence is invalid.
+Ensure the UI meets VietSage Design DNA standards before concluding.

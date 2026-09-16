@@ -8,10 +8,13 @@ import {
   BUSINESS_PERMISSIONS,
   isBusinessPermissionKey,
 } from "../../../common/config/business-permissions.registry";
+import { REQUIRED_PERMISSION_KEY } from "../../../shared/decorators/require-permission.decorator";
 import { createHash, randomBytes } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import type { KbttHotelConnection } from "@prisma/client";
 import { KbttController } from "../api/kbtt.controller";
-import { KbttService } from "../application/kbtt.service";
+import { KbttService, isBcaDuplicateConflict } from "../application/kbtt.service";
 import {
   kbttCatalogKindSchema,
   kbttCredentialsSchema,
@@ -81,8 +84,14 @@ function fixture() {
   const repository = {
     find: jest.fn(async (hotelId: string) => rows.get(hotelId) ?? null),
     save: jest.fn(async (connection: KbttHotelConnection) => {
-      rows.set(connection.hotelId, connection);
-      return connection;
+      const existing = rows.get(connection.hotelId);
+      const saved = {
+        ...connection,
+        autoSubmitEnabled: existing?.autoSubmitEnabled ?? connection.autoSubmitEnabled,
+        autoSubmitTime: existing?.autoSubmitTime ?? connection.autoSubmitTime,
+      } as KbttHotelConnection;
+      rows.set(connection.hotelId, saved);
+      return saved;
     }),
     update: jest.fn(async (connection: KbttHotelConnection, data: Partial<KbttHotelConnection>) => {
       const updated = { ...connection, ...data };
@@ -92,6 +101,7 @@ function fixture() {
     remove: jest.fn(async (hotelId: string) => {
       rows.delete(hotelId);
     }),
+    findPendingScheduledAutoSubmitRuns: jest.fn(async () => []),
     findDeclarationsByHotel: jest.fn(async (hotelId: string) => {
       return [...declarations.values()].filter((d) => d.hotelId === hotelId);
     }),
@@ -208,12 +218,74 @@ function fixture() {
         return updated;
       },
     ),
+    claimAutoSubmitRunLease: jest.fn(async (hotelId: string, scheduledFor: Date, dryRun: boolean) => ({
+      id: "run-auto-1",
+      hotelId,
+      scheduledFor,
+      status: "RUNNING",
+      leaseExpiresAt: new Date(scheduledFor.getTime() + 600_000),
+      dryRun,
+      totalCount: 0,
+      successCount: 0,
+      failedCount: 0,
+      unknownCount: 0,
+      telegramSent: false,
+      telegramMessageId: null,
+      summaryJson: null,
+      createdAt: scheduledFor,
+      updatedAt: scheduledFor,
+    })),
+    renewAutoSubmitRunLease: jest.fn(async () => true),
+    finalizeAutoSubmitRun: jest.fn(async (_runId: string, data: any) => ({
+      id: "run-auto-1",
+      hotelId: "hotel-1",
+      scheduledFor: new Date(),
+      status: data.status,
+      leaseExpiresAt: new Date(),
+      dryRun: true,
+      totalCount: data.totalCount,
+      successCount: data.successCount,
+      failedCount: data.failedCount,
+      unknownCount: data.unknownCount,
+      telegramSent: data.telegramSent ?? false,
+      telegramMessageId: null,
+      summaryJson: data.summaryJson ?? null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })),
     updateOccupantCitizenship: jest.fn(
       async (occupantId: string, hotelId: string, citizenshipKind: any) => {
         const occ = occupants.get(occupantId);
         if (occ && occ.hotelId === hotelId) occ.citizenshipKind = citizenshipKind;
       },
     ),
+    updateOccupantDetails: jest.fn(async (occupantId: string, hotelId: string, data: any) => {
+      const occ = occupants.get(occupantId);
+      if (occ && occ.hotelId === hotelId) Object.assign(occ, data);
+    }),
+    resetAllDeclarationsToDraft: jest.fn(async (hotelId: string) => {
+      let count = 0;
+      for (const d of declarations.values()) {
+        if (d.hotelId === hotelId) {
+          d.status = "DRAFT";
+          d.submittedAt = null;
+          d.providerCode = null;
+          d.providerMessage = null;
+          count++;
+        }
+      }
+      return count;
+    }),
+    resetSingleDeclarationToDraft: jest.fn(async (hotelId: string, occupantId: string) => {
+      for (const d of declarations.values()) {
+        if (d.hotelId === hotelId && d.occupantId === occupantId) {
+          d.status = "DRAFT";
+          d.submittedAt = null;
+          d.providerCode = null;
+          d.providerMessage = null;
+        }
+      }
+    }),
     listCatalogItems: jest.fn(
       async (params: {
         kind: any;
@@ -311,6 +383,25 @@ function fixture() {
   const occupantsReadService = {
     getActiveStayOccupants: jest.fn(async (hotelId: string) =>
       [...occupants.values()].filter((o) => o.hotelId === hotelId),
+    ),
+    getActiveStayOccupantsPaged: jest.fn(
+      async (hotelId: string, options: { cursor?: string; take?: number }) => {
+        const all = [...occupants.values()].filter((o) => o.hotelId === hotelId);
+        const take = options?.take ?? 10;
+        let startIndex = 0;
+        if (options?.cursor) {
+          const found = all.findIndex((o) => o.id === options.cursor);
+          if (found >= 0) {
+            startIndex = found + 1;
+          }
+        }
+        const page = all.slice(startIndex, startIndex + take);
+        const hasMore = startIndex + take < all.length;
+        return {
+          items: page,
+          nextCursor: hasMore && page.length > 0 ? page[page.length - 1].id : null,
+        };
+      },
     ),
   };
   const service = new KbttService(
@@ -448,7 +539,14 @@ describe("KBTT secure manual authentication", () => {
     await expect(service.connect("owner", "owner-role", "hotel-1", credentials)).rejects.toThrow();
     expect(repository.save).not.toHaveBeenCalled();
     const connected = await service.connect("owner", "owner-role", "hotel-1", credentials);
-    const stored = rows.get("hotel-1");
+    let stored = rows.get("hotel-1");
+    Object.assign(stored!, { autoSubmitEnabled: true, autoSubmitTime: "04:30" });
+    await service.connect("owner", "owner-role", "hotel-1", credentials);
+    expect(rows.get("hotel-1")).toMatchObject({
+      autoSubmitEnabled: true,
+      autoSubmitTime: "04:30",
+    });
+    stored = rows.get("hotel-1");
     provider.login.mockRejectedValueOnce(kbttAuthFailed());
     await expect(service.connect("owner", "owner-role", "hotel-1", credentials)).rejects.toThrow();
     expect(rows.get("hotel-1")).toEqual(stored);
@@ -462,6 +560,28 @@ describe("KBTT secure manual authentication", () => {
       expect(JSON.stringify(connected)).not.toContain(value);
     expect(stored).not.toHaveProperty("AccessToken");
     expect(stored).not.toHaveProperty("RefreshToken");
+  });
+
+  it("initializes auto-submit disabled and protects its settings with the existing KBTT manage permission", async () => {
+    const { service, repository } = fixture();
+
+    await service.connect("owner", "owner-role", "hotel-1", credentials);
+
+    expect(repository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ autoSubmitEnabled: false, autoSubmitTime: null }),
+    );
+    expect(
+      Reflect.getMetadata(
+        REQUIRED_PERMISSION_KEY,
+        KbttController.prototype.getAutoSubmitConfig,
+      ),
+    ).toBe("hotel.kbtt.manage");
+    expect(
+      Reflect.getMetadata(
+        REQUIRED_PERMISSION_KEY,
+        KbttController.prototype.updateAutoSubmitConfig,
+      ),
+    ).toBe("hotel.kbtt.manage");
   });
 
   it("keeps GET passive, preserves credentials on failed manual check and re-logins after restart", async () => {
@@ -496,6 +616,83 @@ describe("KBTT secure manual authentication", () => {
       status: "DISCONNECTED",
     });
     expect(rows.size).toBe(0);
+  });
+
+  it("keeps a one-shot dry run on the backend and executes it after 15 seconds", async () => {
+    jest.useFakeTimers();
+    const f = fixture();
+    const scheduledFor = new Date(Date.now() + 15_000);
+    const run = {
+      id: "run-delayed-1",
+      hotelId: "hotel-1",
+      scheduledFor,
+      status: "RUNNING",
+      leaseExpiresAt: new Date(scheduledFor.getTime() - 1),
+      dryRun: true,
+      totalCount: 0,
+      successCount: 0,
+      failedCount: 0,
+      unknownCount: 0,
+      telegramSent: false,
+      telegramMessageId: null,
+      summaryJson: { trigger: "MANUAL_DELAYED" },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    f.repository.findPendingScheduledAutoSubmitRuns = jest.fn().mockResolvedValue([]);
+    f.repository.createScheduledAutoSubmitRun = jest.fn().mockResolvedValue(run);
+    const execute = jest.spyOn(f.service, "executeAutoSubmitForHotel").mockResolvedValue({} as never);
+
+    const result = await f.service.scheduleAutoSubmit("owner", "owner-role", "hotel-1", true);
+    expect(result.scheduledFor).toBe(scheduledFor.toISOString());
+    await jest.advanceTimersByTimeAsync(14_999);
+    expect(execute).not.toHaveBeenCalled();
+    await jest.advanceTimersByTimeAsync(1);
+    expect(execute).toHaveBeenCalledWith("hotel-1", scheduledFor, true);
+    f.service.onModuleDestroy();
+    jest.useRealTimers();
+  });
+
+  it("does not call BCA or Telegram during auto-submit dry run", async () => {
+    const f = fixture();
+    f.occupants.set("occ-vn", primaryOccupant);
+    const telegram = { sendKbttAutoSubmitSummary: jest.fn() };
+    const service = new KbttService(
+      f.access as never,
+      f.repository as never,
+      f.cipher,
+      f.provider as never,
+      f.occupantsReadService as never,
+      telegram as never,
+    );
+    await service.connect("owner", "owner-role", "hotel-1", credentials);
+    f.declarations.set("decl-auto-1", {
+      id: "decl-auto-1",
+      hotelId: "hotel-1",
+      version: 1,
+      declarationKind: "VIETNAMESE",
+      draftPayloadJson: {
+        hoTen: "Nguyen Van A",
+        gioiTinh: "M",
+        ngayThangNamSinhStr: "1990-01-01",
+        ngayDenCsltStr: "2026-09-14 10:00:00",
+        ngayDiDuKienStr: "2026-09-15 12:00:00",
+        soPhong: "101",
+        lyDoCuTru: 1,
+        loaiGiayTo: 1,
+        soGiayTo: "001090012345",
+      },
+      status: "READY",
+    });
+
+    await service.executeAutoSubmitForHotel("hotel-1", new Date(), true);
+
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+    expect(telegram.sendKbttAutoSubmitSummary).not.toHaveBeenCalled();
+    expect(f.repository.finalizeAutoSubmitRun).toHaveBeenCalledWith(
+      "run-auto-1",
+      expect.objectContaining({ status: "COMPLETED", successCount: 1 }),
+    );
   });
 });
 
@@ -546,7 +743,31 @@ describe("KBTT edit and submit", () => {
     );
   });
 
+  it("reconciles BCA duplicate conflict rejection as SUBMITTED when identity or dates match", async () => {
+    const f = fixture();
+    f.occupants.set("occ-vn", primaryOccupant);
+    await f.service.connect("user-1", "role-1", "hotel-1", credentials);
+    await f.service.saveDraft("user-1", "role-1", "hotel-1", "occ-vn", {
+      citizenshipKind: "VIETNAMESE",
+      data: { lyDoCuTru: 1, loaiGiayTo: 1, soGiayTo: "001090012345" },
+    });
+
+    (f.provider.submitDeclaration as jest.Mock).mockResolvedValueOnce({
+      outcome: "BUSINESS_REJECTION",
+      code: "400",
+      message:
+        "Bản khai báo 1: Loại giấy tờ 'Thẻ CCCD' và Số giấy tờ '001090012345' đang tạm trú tại CSLT và chưa checkout, Bản khai báo 1: Khách đã có khai báo tạm trú từ 2026-09-14 đến 2026-09-15 tại cơ sở lưu trú này.",
+      data: null,
+    });
+
+    const result = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
+    expect(result.status).toBe("SUBMITTED");
+    expect(result.providerCode).toBe("200");
+    expect(result.providerMessage).toContain("Tự động đối soát");
+  });
+
   it("creates a missing draft and fills stay timestamps before bulk-style submit", async () => {
+    jest.useFakeTimers().setSystemTime(new Date("2026-09-15T03:00:00.000Z"));
     const f = fixture();
     const foreignOccupant = {
       ...primaryOccupant,
@@ -570,6 +791,7 @@ describe("KBTT edit and submit", () => {
       ],
       expect.any(String),
     );
+    jest.useRealTimers();
   });
 
   it("reports missing fields by Vietnamese label without calling BCA", async () => {
@@ -1132,5 +1354,671 @@ describe("KBTT provider API 4/5 wire contract", () => {
     fetchMock.mockResolvedValueOnce(new Response("Bad Gateway", { status: 502 }));
     const badGatewayRes = await client.submitDeclaration("VIETNAMESE", [{}], "tok");
     expect(badGatewayRes.outcome).toBe("AMBIGUOUS");
+  });
+});
+
+describe("KBTT submit response framing (BOM, whitespace, non-JSON)", () => {
+  it("parses BOM-prefixed JSON as SUCCESS", async () => {
+    const client = new KbttProviderClient();
+    const bom = "\uFEFF";
+    const body = bom + JSON.stringify({ code: "200", message: "OK", data: null });
+    global.fetch = jest.fn().mockResolvedValueOnce(new Response(body, { status: 200 }));
+    const res = await client.submitDeclaration("VIETNAMESE", [{}], "tok");
+    expect(res.outcome).toBe("SUCCESS");
+    expect(res.code).toBe("200");
+  });
+
+  it("parses whitespace-framed JSON as SUCCESS", async () => {
+    const client = new KbttProviderClient();
+    const body = "  \n" + JSON.stringify({ code: "200", message: "OK", data: null }) + "\n  ";
+    global.fetch = jest.fn().mockResolvedValueOnce(new Response(body, { status: 200 }));
+    const res = await client.submitDeclaration("VIETNAMESE", [{}], "tok");
+    expect(res.outcome).toBe("SUCCESS");
+    expect(res.code).toBe("200");
+  });
+
+  it("returns AMBIGUOUS for HTML error page without false SUBMITTED", async () => {
+    const client = new KbttProviderClient();
+    const html = "<html><body><h1>502 Bad Gateway</h1></body></html>";
+    global.fetch = jest.fn().mockResolvedValueOnce(new Response(html, { status: 502 }));
+    const res = await client.submitDeclaration("VIETNAMESE", [{}], "tok");
+    expect(res.outcome).toBe("AMBIGUOUS");
+    expect(res.code).toBe("HTTP_502");
+    expect(res.message).toContain("không đúng định dạng JSON");
+  });
+
+  it("returns BUSINESS_REJECTION and clear message for HTTP 403 Forbidden HTML or non-JSON", async () => {
+    const client = new KbttProviderClient();
+    const html = "<html><body><h1>403 Forbidden</h1></body></html>";
+    global.fetch = jest.fn().mockResolvedValueOnce(new Response(html, { status: 403 }));
+    const res = await client.submitDeclaration("VIETNAMESE", [{}], "tok");
+    expect(res.outcome).toBe("BUSINESS_REJECTION");
+    expect(res.code).toBe("HTTP_403");
+    expect(res.message).toContain("403 Forbidden");
+  });
+
+  it("returns AMBIGUOUS and clear message for HTTP 401 Unauthorized", async () => {
+    const client = new KbttProviderClient();
+    const html = "<html><body><h1>401 Unauthorized</h1></body></html>";
+    global.fetch = jest.fn().mockResolvedValueOnce(new Response(html, { status: 401 }));
+    const res = await client.submitDeclaration("VIETNAMESE", [{}], "tok");
+    expect(res.outcome).toBe("AMBIGUOUS");
+    expect(res.code).toBe("HTTP_401");
+    expect(res.message).toContain("401 Unauthorized");
+  });
+
+  it("returns AMBIGUOUS for empty body", async () => {
+    const client = new KbttProviderClient();
+    global.fetch = jest.fn().mockResolvedValueOnce(new Response(null, { status: 200 }));
+    const res = await client.submitDeclaration("VIETNAMESE", [{}], "tok");
+    expect(res.outcome).toBe("AMBIGUOUS");
+  });
+});
+
+describe("KBTT dev tools intervention", () => {
+  it("resets all submitted declarations back to DRAFT", async () => {
+    const { service, declarations } = fixture();
+    declarations.set("decl-sub-1", {
+      id: "decl-sub-1",
+      hotelId: "hotel-1",
+      stayId: "stay-1",
+      occupantId: "occ-1",
+      status: "SUBMITTED",
+      providerCode: "200",
+      providerMessage: "Thành công",
+      submittedAt: new Date(),
+      version: 1,
+    });
+
+    const res = await service.devResetDeclarations("user-1", "role-1", "hotel-1");
+    expect(res.success).toBe(true);
+    expect(res.resetCount).toBe(1);
+    expect(declarations.get("decl-sub-1")?.status).toBe("DRAFT");
+    expect(declarations.get("decl-sub-1")?.submittedAt).toBeNull();
+  });
+
+  it("updates occupant identity numbers directly in DB via devUpdateOccupants", async () => {
+    const { service, occupants, declarations } = fixture();
+    occupants.set("occ-test-1", {
+      id: "occ-test-1",
+      hotelId: "hotel-1",
+      stayId: "stay-1",
+      fullName: "Nguyễn Văn A",
+      identityNumber: "001095000001",
+      citizenshipKind: "VIETNAMESE",
+    });
+    declarations.set("decl-test-1", {
+      id: "decl-test-1",
+      hotelId: "hotel-1",
+      occupantId: "occ-test-1",
+      revision: 1,
+      version: 1,
+      status: "SUBMITTED",
+      draftPayloadJson: { hoTen: "Nguyễn Văn A", soGiayTo: "001095000001" },
+    });
+
+    const res = await service.devUpdateOccupants("user-1", "role-1", "hotel-1", [
+      {
+        occupantId: "occ-test-1",
+        identityNumber: "001095999999",
+        resetToDraft: true,
+      },
+    ]);
+
+    expect(res.success).toBe(true);
+    expect(res.updatedCount).toBe(1);
+    expect(occupants.get("occ-test-1")?.identityNumber).toBe("001095999999");
+    expect(declarations.get("decl-test-1")?.draftPayloadJson?.soGiayTo).toBe("001095999999");
+    expect(declarations.get("decl-test-1")?.status).toBe("DRAFT");
+  });
+
+  it("allows editing a SUBMITTED declaration when allowSubmittedEdit is true", async () => {
+    const { service, occupants, declarations } = fixture();
+    occupants.set("occ-sub-edit", {
+      id: "occ-sub-edit",
+      hotelId: "hotel-1",
+      stayId: "stay-1",
+      fullName: "Trần Văn B",
+      identityNumber: "001095111111",
+      citizenshipKind: "VIETNAMESE",
+    });
+    declarations.set("decl-sub-edit", {
+      id: "decl-sub-edit",
+      hotelId: "hotel-1",
+      occupantId: "occ-sub-edit",
+      revision: 1,
+      version: 1,
+      status: "SUBMITTED",
+      declarationKind: "VIETNAMESE",
+      draftPayloadJson: { hoTen: "Trần Văn B", soGiayTo: "001095111111" },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    // Without allowSubmittedEdit, throws conflict
+    await expect(
+      service.saveDraft("user-1", "role-1", "hotel-1", "occ-sub-edit", {
+        citizenshipKind: "VIETNAMESE",
+        soGiayTo: "001095222222",
+      }),
+    ).rejects.toThrow();
+
+    // With allowSubmittedEdit, succeeds and resets status to DRAFT
+    const saved = await service.saveDraft("user-1", "role-1", "hotel-1", "occ-sub-edit", {
+      citizenshipKind: "VIETNAMESE",
+      allowSubmittedEdit: true,
+      soGiayTo: "001095222222",
+    });
+
+    expect(saved.status).toBe("DRAFT");
+    expect(declarations.get("decl-sub-edit")?.status).toBe("DRAFT");
+    expect(occupants.get("occ-sub-edit")?.identityNumber).toBe("001095222222");
+  });
+});
+
+describe("KBTT Reliability Slice (2026-09-16)", () => {
+  describe("isBcaDuplicateConflict", () => {
+    it("reconciles when normalized identity and departure date match BCA message", () => {
+      const draft = {
+        soGiayTo: "001090012345",
+        ngayDiDuKienStr: "2026-09-15 12:00:00",
+      };
+      const message = "Bản khai báo 1: Số giấy tờ '001090012345' đang tạm trú tại CSLT đến 2026-09-15.";
+      expect(isBcaDuplicateConflict(message, draft)).toBe(true);
+    });
+
+    it("reconciles with no arrival-date requirement even if arrival date in message differs or is absent", () => {
+      const draft = {
+        soGiayTo: "001090012345",
+        ngayDenCsltStr: "2026-09-10 10:00:00",
+        ngayDiDuKienStr: "2026-09-15 12:00:00",
+      };
+      const message = "Khách đã có khai báo tạm trú từ 2026-09-14 đến 2026-09-15 tại cơ sở lưu trú này (Số giấy tờ: 001090012345).";
+      expect(isBcaDuplicateConflict(message, draft)).toBe(true);
+    });
+
+    it("fails closed if identity is missing or empty in draft", () => {
+      const draft = {
+        soGiayTo: "",
+        ngayDiDuKienStr: "2026-09-15 12:00:00",
+      };
+      const message = "Khách đã có khai báo tạm trú từ 2026-09-14 đến 2026-09-15.";
+      expect(isBcaDuplicateConflict(message, draft)).toBe(false);
+    });
+
+    it("fails closed if departure / stay expiry date is missing in draft", () => {
+      const draft = {
+        soGiayTo: "001090012345",
+      };
+      const message = "Số giấy tờ '001090012345' đang tạm trú tại CSLT.";
+      expect(isBcaDuplicateConflict(message, draft)).toBe(false);
+    });
+
+    it("fails closed if identity does not match in message", () => {
+      const draft = {
+        soGiayTo: "001090012345",
+        ngayDiDuKienStr: "2026-09-15 12:00:00",
+      };
+      const message = "Số giấy tờ '999999999999' đang tạm trú tại CSLT đến 2026-09-15.";
+      expect(isBcaDuplicateConflict(message, draft)).toBe(false);
+    });
+
+    it("fails closed if departure date does not match in message", () => {
+      const draft = {
+        soGiayTo: "001090012345",
+        ngayDiDuKienStr: "2026-09-15 12:00:00",
+      };
+      const message = "Số giấy tờ '001090012345' đang tạm trú tại CSLT đến 2026-09-20.";
+      expect(isBcaDuplicateConflict(message, draft)).toBe(false);
+    });
+
+    it("fails closed if no conflict keywords exist", () => {
+      const draft = {
+        soGiayTo: "001090012345",
+        ngayDiDuKienStr: "2026-09-15 12:00:00",
+      };
+      const message = "Lỗi định dạng họ tên cho giấy tờ 001090012345 ngày 2026-09-15.";
+      expect(isBcaDuplicateConflict(message, draft)).toBe(false);
+    });
+  });
+
+  describe("bulk auto-submit reliability and retries", () => {
+    it("retries transient outcome up to 3 attempts and succeeds on second attempt", async () => {
+      const f = fixture();
+      f.occupants.set("occ-vn", primaryOccupant);
+      await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+      f.declarations.set("decl-1", {
+        id: "decl-1",
+        hotelId: "hotel-1",
+        occupantId: "occ-vn",
+        version: 1,
+        declarationKind: "VIETNAMESE",
+        status: "DRAFT",
+        draftPayloadJson: {
+          hoTen: "Nguyen Van A",
+          gioiTinh: "M",
+          ngayThangNamSinhStr: "1990-01-01",
+          ngayDenCsltStr: "2026-09-14 10:00:00",
+          ngayDiDuKienStr: "2026-09-15 12:00:00",
+          soPhong: "101",
+          lyDoCuTru: 1,
+          loaiGiayTo: 1,
+          soGiayTo: "001090012345",
+        },
+      });
+
+      f.provider.submitDeclaration
+        .mockResolvedValueOnce({
+          outcome: "AMBIGUOUS",
+          code: "HTTP_504",
+          message: "Gateway Timeout",
+        })
+        .mockResolvedValueOnce({
+          outcome: "SUCCESS",
+          code: "200",
+          message: "Thành công",
+          data: { id: "bca-123" },
+        });
+
+      await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
+      expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(2);
+      expect(f.declarations.get("decl-1")?.status).toBe("SUBMITTED");
+      expect(f.repository.finalizeAutoSubmitRun).toHaveBeenCalledWith(
+        "run-auto-1",
+        expect.objectContaining({
+          status: "COMPLETED",
+          totalCount: 1,
+          successCount: 1,
+          failedCount: 0,
+          unknownCount: 0,
+        }),
+      );
+    });
+
+    it("reconciles duplicate conflict on retry attempt without double-counting", async () => {
+      const f = fixture();
+      f.occupants.set("occ-vn", primaryOccupant);
+      await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+      f.declarations.set("decl-1", {
+        id: "decl-1",
+        hotelId: "hotel-1",
+        occupantId: "occ-vn",
+        version: 1,
+        declarationKind: "VIETNAMESE",
+        status: "DRAFT",
+        draftPayloadJson: {
+          hoTen: "Nguyen Van A",
+          gioiTinh: "M",
+          ngayThangNamSinhStr: "1990-01-01",
+          ngayDenCsltStr: "2026-09-14 10:00:00",
+          ngayDiDuKienStr: "2026-09-15 12:00:00",
+          soPhong: "101",
+          lyDoCuTru: 1,
+          loaiGiayTo: 1,
+          soGiayTo: "001090012345",
+        },
+      });
+
+      f.provider.submitDeclaration
+        .mockResolvedValueOnce({
+          outcome: "AMBIGUOUS",
+          code: "HTTP_504",
+          message: "Gateway Timeout",
+        })
+        .mockResolvedValueOnce({
+          outcome: "BUSINESS_REJECTION",
+          code: "400",
+          message: "Bản khai báo 1: Số giấy tờ '001090012345' đang tạm trú tại CSLT đến 2026-09-15.",
+        });
+
+      await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
+      expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(2);
+      expect(f.declarations.get("decl-1")?.status).toBe("SUBMITTED");
+      expect(f.declarations.get("decl-1")?.providerCode).toBe("200");
+      expect(f.declarations.get("decl-1")?.providerMessage).toContain("Tự động đối soát");
+    });
+
+    it("stops after 3 transient attempts without calling a 4th time and marks UNKNOWN", async () => {
+      const f = fixture();
+      f.occupants.set("occ-vn", primaryOccupant);
+      await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+      f.declarations.set("decl-1", {
+        id: "decl-1",
+        hotelId: "hotel-1",
+        occupantId: "occ-vn",
+        version: 1,
+        declarationKind: "VIETNAMESE",
+        status: "DRAFT",
+        draftPayloadJson: {
+          hoTen: "Nguyen Van A",
+          gioiTinh: "M",
+          ngayThangNamSinhStr: "1990-01-01",
+          ngayDenCsltStr: "2026-09-14 10:00:00",
+          ngayDiDuKienStr: "2026-09-15 12:00:00",
+          soPhong: "101",
+          lyDoCuTru: 1,
+          loaiGiayTo: 1,
+          soGiayTo: "001090012345",
+        },
+      });
+
+      f.provider.submitDeclaration.mockResolvedValue({
+        outcome: "AMBIGUOUS",
+        code: "HTTP_500",
+        message: "Internal server error",
+      });
+
+      await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
+      expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(3);
+      expect(f.declarations.get("decl-1")?.status).toBe("UNKNOWN");
+      expect(f.repository.finalizeAutoSubmitRun).toHaveBeenCalledWith(
+        "run-auto-1",
+        expect.objectContaining({
+          status: "COMPLETED",
+          totalCount: 1,
+          successCount: 0,
+          failedCount: 0,
+          unknownCount: 1,
+        }),
+      );
+    });
+
+    it("does not retry permanent BUSINESS_REJECTION (attempt count is 1)", async () => {
+      const f = fixture();
+      f.occupants.set("occ-vn", primaryOccupant);
+      await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+      f.declarations.set("decl-1", {
+        id: "decl-1",
+        hotelId: "hotel-1",
+        occupantId: "occ-vn",
+        version: 1,
+        declarationKind: "VIETNAMESE",
+        status: "DRAFT",
+        draftPayloadJson: {
+          hoTen: "Nguyen Van A",
+          gioiTinh: "M",
+          ngayThangNamSinhStr: "1990-01-01",
+          ngayDenCsltStr: "2026-09-14 10:00:00",
+          ngayDiDuKienStr: "2026-09-15 12:00:00",
+          soPhong: "101",
+          lyDoCuTru: 1,
+          loaiGiayTo: 1,
+          soGiayTo: "001090012345",
+        },
+      });
+
+      f.provider.submitDeclaration.mockResolvedValueOnce({
+        outcome: "BUSINESS_REJECTION",
+        code: "400",
+        message: "Dữ liệu địa chỉ không tồn tại trong danh mục C06",
+      });
+
+      await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
+      expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
+      expect(f.declarations.get("decl-1")?.status).toBe("FAILED");
+      expect(f.repository.finalizeAutoSubmitRun).toHaveBeenCalledWith(
+        "run-auto-1",
+        expect.objectContaining({
+          successCount: 0,
+          failedCount: 1,
+          unknownCount: 0,
+        }),
+      );
+    });
+
+    it("skips previously SUBMITTED declarations and skips FAILED if fingerprint unchanged", async () => {
+      const f = fixture();
+      const occ1 = { ...primaryOccupant, id: "occ-1" };
+      const occ2 = { ...primaryOccupant, id: "occ-2" };
+      f.occupants.set(occ1.id, occ1);
+      f.occupants.set(occ2.id, occ2);
+      await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+
+      f.declarations.set("decl-1", {
+        id: "decl-1",
+        hotelId: "hotel-1",
+        occupantId: "occ-1",
+        status: "SUBMITTED",
+        declarationKind: "VIETNAMESE",
+      });
+
+      const draft2 = {
+        hoTen: "Nguyen Van A",
+        gioiTinh: "M",
+        ngayThangNamSinhStr: "1990-01-01",
+        ngayDenCsltStr: "2026-09-14 10:00:00",
+        ngayDiDuKienStr: "2026-09-15 12:00:00",
+        soPhong: "101",
+        lyDoCuTru: 1,
+        loaiGiayTo: 1,
+        soGiayTo: "001090012345",
+      };
+      const fp2 = createHash("sha256").update(JSON.stringify([draft2])).digest("hex");
+      f.declarations.set("decl-2", {
+        id: "decl-2",
+        hotelId: "hotel-1",
+        occupantId: "occ-2",
+        status: "FAILED",
+        declarationKind: "VIETNAMESE",
+        draftPayloadJson: draft2,
+        submittedPayloadFingerprint: fp2,
+        providerCode: "LOCAL_VALIDATION",
+      });
+
+      await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
+      expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+      expect(f.repository.finalizeAutoSubmitRun).toHaveBeenCalledWith(
+        "run-auto-1",
+        expect.objectContaining({
+          totalCount: 0,
+          successCount: 0,
+        }),
+      );
+    });
+
+    it("recovers stale SENDING declarations", async () => {
+      const f = fixture();
+      f.occupants.set("occ-vn", primaryOccupant);
+      await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+
+      f.declarations.set("decl-stale", {
+        id: "decl-stale",
+        hotelId: "hotel-1",
+        occupantId: "occ-vn",
+        version: 1,
+        status: "SENDING",
+        declarationKind: "VIETNAMESE",
+        draftPayloadJson: {
+          hoTen: "Nguyen Van A",
+          gioiTinh: "M",
+          ngayThangNamSinhStr: "1990-01-01",
+          ngayDenCsltStr: "2026-09-14 10:00:00",
+          ngayDiDuKienStr: "2026-09-15 12:00:00",
+          soPhong: "101",
+          lyDoCuTru: 1,
+          loaiGiayTo: 1,
+          soGiayTo: "001090012345",
+        },
+        updatedAt: new Date(Date.now() - 15 * 60 * 1000),
+      });
+
+      f.provider.submitDeclaration.mockResolvedValueOnce({
+        outcome: "SUCCESS",
+        code: "200",
+        message: "Thành công",
+      });
+
+      await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
+      expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
+      expect(f.declarations.get("decl-stale")?.status).toBe("SUBMITTED");
+    });
+
+    it("proves auto-submit reads occupants via bounded paged path and never calls unbounded getActiveStayOccupants", async () => {
+      const f = fixture();
+      const credentials = { username: "owner", password: "password" };
+      await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+
+      const pagedMock = jest.fn().mockResolvedValue({
+        items: [
+          {
+            id: "occ-page-1",
+            occupantId: "occ-page-1",
+            stayId: "stay-1",
+            hotelId: "hotel-1",
+            roomId: "room-1",
+            roomNumber: "101",
+            isPrimary: true,
+            fullName: "Nguyen Van A",
+            phone: null,
+            identityNumber: "001090012345",
+            dateOfBirth: "1990-01-01",
+            gender: "M",
+            nationality: "VNM",
+            residencePlace: null,
+            citizenshipKind: "VIETNAMESE",
+            plannedCheckInAt: new Date("2026-09-14T10:00:00Z"),
+            plannedCheckOutAt: new Date("2026-09-15T12:00:00Z"),
+            checkedInAt: new Date("2026-09-14T10:00:00Z"),
+            stayStatus: "ACTIVE",
+            reservationCode: "RES-01",
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        ],
+        nextCursor: null,
+      });
+      (f.occupantsReadService as any).getActiveStayOccupantsPaged = pagedMock;
+
+      f.provider.submitDeclaration.mockResolvedValueOnce({
+        outcome: "SUCCESS",
+        code: "200",
+        message: "Thành công",
+      });
+
+      await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
+
+      expect(pagedMock).toHaveBeenCalledWith("hotel-1", expect.objectContaining({ take: expect.any(Number) }));
+      expect(f.occupantsReadService.getActiveStayOccupants).not.toHaveBeenCalled();
+    });
+
+    it("renews lease between pages and halts BCA calls immediately if lease renewal fails", async () => {
+      const f = fixture();
+      const credentials = { username: "owner", password: "password" };
+      await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+
+      const pagedMock = jest.fn()
+        .mockResolvedValueOnce({
+          items: [
+            {
+              id: "occ-1",
+              stayId: "stay-1",
+              hotelId: "hotel-1",
+              roomNumber: "101",
+              isPrimary: true,
+              fullName: "Nguyen Van A",
+              identityNumber: "001090012345",
+              dateOfBirth: "1990-01-01",
+              gender: "M",
+              nationality: "VNM",
+              citizenshipKind: "VIETNAMESE",
+              plannedCheckInAt: new Date("2026-09-14T10:00:00Z"),
+              plannedCheckOutAt: new Date("2026-09-15T12:00:00Z"),
+              stayStatus: "ACTIVE",
+            },
+          ],
+          nextCursor: "occ-1",
+        })
+        .mockResolvedValueOnce({
+          items: [
+            {
+              id: "occ-2",
+              stayId: "stay-2",
+              hotelId: "hotel-1",
+              roomNumber: "102",
+              isPrimary: true,
+              fullName: "Nguyen Van B",
+              identityNumber: "001090012346",
+              dateOfBirth: "1991-01-01",
+              gender: "M",
+              nationality: "VNM",
+              citizenshipKind: "VIETNAMESE",
+              plannedCheckInAt: new Date("2026-09-14T10:00:00Z"),
+              plannedCheckOutAt: new Date("2026-09-15T12:00:00Z"),
+              stayStatus: "ACTIVE",
+            },
+          ],
+          nextCursor: null,
+        });
+      (f.occupantsReadService as any).getActiveStayOccupantsPaged = pagedMock;
+
+      let renewCount = 0;
+      (f.repository as any).renewAutoSubmitRunLease = jest.fn(async () => {
+        renewCount++;
+        return renewCount === 1; // fails on second page renewal
+      });
+
+      f.provider.submitDeclaration.mockResolvedValue({
+        outcome: "SUCCESS",
+        code: "200",
+        message: "Thành công",
+      });
+
+      await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
+
+      expect((f.repository as any).renewAutoSubmitRunLease).toHaveBeenCalled();
+      expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
+      expect(f.repository.finalizeAutoSubmitRun).not.toHaveBeenCalled();
+    });
+
+    it("proves aggregate counters are reduced per page/chunk and no settledResults array accumulates across the whole hotel", async () => {
+      const src = readFileSync(
+        resolve(__dirname, "../application/kbtt.service.ts"),
+        "utf8",
+      );
+      expect(src).not.toContain("settledResults");
+    });
+
+    it("persists fingerprint on newly created local-validation failure and skips it unchanged on next run", async () => {
+      const f = fixture();
+      const credentials = { username: "owner", password: "password" };
+      await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+
+      const invalidOccupant = {
+        id: "occ-invalid-new",
+        stayId: "stay-1",
+        hotelId: "hotel-1",
+        isPrimary: true,
+        fullName: "Missing Identity",
+        identityNumber: null,
+        dateOfBirth: "1990-01-01",
+        gender: "M",
+        nationality: "VNM",
+        citizenshipKind: "VIETNAMESE",
+        plannedCheckInAt: new Date("2026-09-14T10:00:00Z"),
+        plannedCheckOutAt: new Date("2026-09-15T12:00:00Z"),
+        stayStatus: "ACTIVE",
+      };
+
+      const pagedMock = jest.fn().mockResolvedValue({
+        items: [invalidOccupant],
+        nextCursor: null,
+      });
+      (f.occupantsReadService as any).getActiveStayOccupantsPaged = pagedMock;
+
+      // Run 1: occupant has no declaration yet
+      await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
+
+      expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+
+      const createdDecl = [...f.declarations.values()].find((d) => d.occupantId === "occ-invalid-new");
+      expect(createdDecl).toBeDefined();
+      expect(createdDecl.status).toBe("FAILED");
+      expect(createdDecl.providerCode).toBe("LOCAL_VALIDATION");
+      expect(createdDecl.submittedPayloadFingerprint).toBeTruthy();
+
+      // Run 2: same unchanged occupant should be skipped
+      await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
+      expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+    });
   });
 });

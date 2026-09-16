@@ -1,0 +1,369 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: frontends/front-end-vietsage/src/features/local-biometric/components/mobile-cccd-capture.tsx, frontends/front-end-vietsage/src/features/local-biometric/components/mobile-cccd-capture.test.ts, frontends/front-end-vietsage/src/features/local-biometric/utils/identity-document-ocr.ts, frontends/front-end-vietsage/src/features/local-biometric/utils/identity-document-ocr.test.ts, frontends/front-end-vietsage/src/features/local-biometric/utils/cccd-qr-parser.ts, frontends/front-end-vietsage/src/features/local-biometric/workstation/mobile-shift-store.ts, frontends/front-end-vietsage/src/features/local-biometric/workstation/mobile-shift-server.ts, frontends/front-end-vietsage/src/app/cccd-mobile/page.tsx
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    src/
+      app/
+        cccd-mobile/
+          page.tsx
+      features/
+        local-biometric/
+          components/
+            mobile-cccd-capture.test.ts
+            mobile-cccd-capture.tsx
+          utils/
+            cccd-qr-parser.ts
+            identity-document-ocr.test.ts
+            identity-document-ocr.ts
+          workstation/
+            mobile-shift-server.ts
+            mobile-shift-store.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/components/mobile-cccd-capture.test.ts">
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import test from "node:test";
+import { fileURLToPath } from "node:url";
+⋮----
+// Retained camera scanner and parser
+⋮----
+// No file input or upload branches
+⋮----
+// No jsQR
+⋮----
+// No manual textarea fallback
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/utils/identity-document-ocr.test.ts">
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import test from "node:test";
+import { fileURLToPath } from "node:url";
+⋮----
+// @ts-expect-error Node strip-types requires explicit extension.
+import { buildPassportMrzCropBoxes, parseTd3PassportMrz, parseCccdOcrText } from "./identity-document-ocr.ts";
+⋮----
+// Two-digit MRZ date without century guessing stays absent
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/utils/identity-document-ocr.ts">
+import { parse as parseMrz } from "mrz";
+⋮----
+export type IdentityDocumentKind = "cccd" | "passport";
+⋮----
+export type IdentityDocumentOcrResult = {
+  documentKind: IdentityDocumentKind;
+  identityNumber: string;
+  fullName: string;
+  dateOfBirth?: string;
+  gender?: string;
+  nationality?: string;
+  residencePlace?: string;
+  expiryDate?: string;
+  // Compatibility fields with CheckInStayFields / CccdCheckInCapture
+  guestDisplayName: string;
+  guestIdentityNumber: string;
+  guestDateOfBirth?: string;
+  guestGender?: string;
+  guestNationality?: string;
+  guestResidencePlace?: string;
+};
+⋮----
+// Compatibility fields with CheckInStayFields / CccdCheckInCapture
+⋮----
+/**
+ * Normalizes MRZ lines from raw string or array.
+ * Strips surrounding whitespace and whitespace inside lines without altering MRZ characters or check digits.
+ */
+function normalizeMrzLines(raw: string | readonly string[]): string[]
+⋮----
+/**
+ * Pure TD3 MRZ parser using mrz package with autocorrect disabled.
+ * Requires format === "TD3" and valid === true.
+ * If two-digit MRZ date requires century guessing, leaves it absent.
+ */
+export function parseTd3PassportMrz(raw: string | readonly string[]): IdentityDocumentOcrResult
+⋮----
+// Two-digit MRZ dates require century guessing; leave absent per specification
+⋮----
+function extractDate(val: string): string | undefined
+⋮----
+function cleanExtractedValue(val: string): string
+⋮----
+/**
+ * Pure CCCD OCR text parser.
+ * Requires 9- or 12-digit identity number and labeled full name.
+ * Optional labeled DOB, sex, nationality, residence, and expiry are parsed only when present.
+ * Never invents defaults.
+ */
+export function parseCccdOcrText(raw: string): IdentityDocumentOcrResult
+⋮----
+// 1. Required: Identity number (9 or 12 digits)
+⋮----
+// 2. Required: Labeled Vietnamese/English full name
+⋮----
+// 3. Optional: Labeled DOB
+⋮----
+// 4. Optional: Labeled Sex / Gender
+⋮----
+// 5. Optional: Labeled Nationality
+⋮----
+// 6. Optional: Labeled Residence
+⋮----
+// 7. Optional: Labeled Expiry
+⋮----
+// ponytail: calibrated for phone photos; tune only when real-device samples miss strict TD3 checksums.
+⋮----
+export function buildPassportMrzCropBoxes(imageWidth: number, imageHeight: number)
+⋮----
+function loadBrowserImage(src: string): Promise<HTMLImageElement>
+⋮----
+function buildPassportMrzCanvas(
+  image: HTMLImageElement,
+  box: ReturnType<typeof buildPassportMrzCropBoxes>[number],
+): HTMLCanvasElement
+⋮----
+/**
+ * Browser-only OCR runner.
+ * Dynamically imports Tesseract.js only when invoked.
+ * Uses strictly self-hosted local worker and traineddata assets.
+ * Terminates worker and revokes object URL in finally.
+ */
+export async function recognizeIdentityDocument(
+  file: File,
+  kind: IdentityDocumentKind
+): Promise<IdentityDocumentOcrResult>
+</file>
+
+<file path="frontends/front-end-vietsage/src/app/cccd-mobile/page.tsx">
+import Image from "next/image";
+import { MobileCccdCapture } from "@/features/local-biometric/components/mobile-cccd-capture";
+import { useMobilePhone } from "@/features/local-biometric/hooks/use-mobile-phone";
+⋮----
+{/* 1. Header with Authentic VietSage Logo */}
+⋮----
+{/* Live Status Pill */}
+⋮----
+{/* 2. Main Content */}
+⋮----
+{/* State: Initializing */}
+⋮----
+{/* State: Unconnected / No Session */}
+⋮----
+{/* State: Pending Comparison Code */}
+⋮----
+{/* PIN Digits Display */}
+⋮----
+{/* State: Active Shift Overview Strip */}
+⋮----
+{/* Error Alert */}
+⋮----
+{/* Active Shift Targets & Scanner Execution */}
+⋮----
+{/* Last scan receipt acknowledgement */}
+⋮----
+{/* Target Card or Standby */}
+⋮----
+{/* Target Room Header */}
+⋮----
+{/* Sub-component: Scanner or Status */}
+⋮----
+{/* Disconnect Action */}
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/utils/cccd-qr-parser.ts">
+export type CccdQrData = {
+  identityNumber: string;
+  displayName: string;
+  dateOfBirth: string;
+  gender: string;
+  residencePlace: string;
+  identityIssueDate: string;
+};
+⋮----
+function parseDate(value: string): string
+⋮----
+function parseMrz(lines: string[]): CccdQrData | null
+⋮----
+export function parseCccdQr(raw: string): CccdQrData
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/workstation/mobile-shift-server.ts">
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { auth } from "@/auth";
+import { httpServer } from "@/core/http/http-server";
+import { HttpError } from "@/core/http/http-error";
+import { unwrapApiEnvelope } from "@/core/http/api-envelope";
+import type { AuthProfileData } from "@/features/auth/types/auth-contract";
+import { readServerSessionTokens } from "@/libs/server-session-tokens";
+import { refreshAndSaveSessionTokens } from "@/libs/auth-session-refresh";
+import { MobileShiftStore, MobileShiftError } from "./mobile-shift-store";
+import { mobileShiftAvailable, sameOrigin } from "./mobile-shift-security";
+⋮----
+export const json = (body: unknown, status = 200) => NextResponse.json(body,
+export function guard(request: Request)
+export function failure(error: unknown)
+async function profile(accessToken: string, hotelId: string)
+⋮----
+// Existing owner authorization is enforced by the hotel rooms backend, not cached browser roles.
+⋮----
+// Decode only AFTER the backend has validated signature, live session and role.
+⋮----
+export async function desktopOwner(request: Request, hotelId: string, deskId: string)
+⋮----
+// Only desktop requests rotate its session; a phone can never prolong the parent login.
+⋮----
+export async function phoneToken(validate = true)
+⋮----
+// Preserve pairing on transient auth/token/network errors; never allow scan acceptance while unauthorized.
+⋮----
+export function setMobileCookie(response: NextResponse, request: Request, token: string, maxAge: number)
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/workstation/mobile-shift-store.ts">
+import { createHash, randomBytes, randomInt, randomUUID } from "node:crypto";
+import type { IntakePayloadV2 } from "../intake/intake-contract";
+⋮----
+type Owner = { hotelId: string; operatorId: string; parentId: string; deskId: string };
+type Receipt = { requestId: string; transferId: string; status: "received" | "acknowledged"; expiresAt: number };
+type Target = { requestId: string; key: string; label: string; expiresAt: number; status: "waiting" | "received" | "acknowledged"; transferId: string | null };
+export type MobileShiftView = {
+  sessionId: string; phase: "pairing" | "pending" | "active";
+  hotelLabel: string; operatorLabel: string; comparisonCode: string | null;
+  expiresAt: number; deskOnline: boolean; target: Target | null;
+  receipt: Receipt | null; payload?: IntakePayloadV2 | null;
+};
+type Shift = Owner & Omit<MobileShiftView, "deskOnline"> & {
+  exchangeHash: string | null; phoneHash: string | null; deskSeenAt: number;
+  accessToken: string; payload: IntakePayloadV2 | null; payloadHash: string | null;
+  usedTransfers: Set<string>;
+};
+export class MobileShiftError extends Error {
+⋮----
+constructor(code = "SESSION_EXPIRED", status = 404)
+⋮----
+const hash = (value: string)
+const matches = (s: Shift, o: Owner)
+⋮----
+// ponytail: single-process volatile relay; replace with shared atomic TTL store before enabling production.
+export class MobileShiftStore {
+⋮----
+constructor(now: () => number = Date.now, limit = 200)
+⋮----
+cleanup()
+private view(s: Shift, desktop = false): MobileShiftView
+private owned(o: Owner, id: string)
+private byPhone(token: string)
+create(o: Owner, labels: Pick<MobileShiftView, "hotelLabel" | "operatorLabel">, accessToken: string)
+claim(code: string)
+approve(o: Owner, id: string, code: string)
+desk(o: Owner, accessToken: string)
+phone(token: string)
+// Server-only authorization snapshot. Never serialize this method's return value to clients.
+parent(token: string)
+target(o: Owner, id: string, key: string, label: string)
+submit(token: string, requestId: string, payload: IntakePayloadV2)
+ack(o: Owner, id: string, requestId: string, transferId: string)
+discard(o: Owner, id: string, requestId: string)
+revoke(o: Owner, id: string)
+disconnect(token: string)
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/components/mobile-cccd-capture.tsx">
+import { useCallback, useEffect, useRef, useState } from "react";
+import QrScanner from "qr-scanner";
+import { parseCccdQr, type CccdQrData } from "../utils/cccd-qr-parser";
+import { safeRandomUuid } from "../utils/safe-uuid";
+import type { PhoneCommand } from "../workstation/mobile-shift-security";
+import type { ShiftResult } from "../repositories/mobile-shift-repository";
+⋮----
+type Props = { requestId: string; expiresAt: number; send: (body: PhoneCommand) => Promise<ShiftResult> };
+⋮----
+const pause = () =>
+⋮----
+// Don't stop camera during "starting", because on mobile OS, the browser's permission prompt triggers visibilitychange/document.hidden!
+⋮----
+const accept = (value: string) =>
+⋮----
+const start = async () =>
+⋮----
+// Allow DOM to unhide video container before starting camera/video playback
+⋮----
+const toggleFlash = async () =>
+⋮----
+const resetScan = () =>
+⋮----
+const submit = async () =>
+⋮----
+{/* 1. Pre-scan Actions */}
+⋮----
+{/* 2. Video Viewfinder with Luxury Targeting Reticle */}
+⋮----
+{/* Top Prompt */}
+⋮----
+{/* Reticle with 4 Corner Brackets */}
+⋮----
+{/* Bottom Guidance */}
+⋮----
+{/* Floating controls in camera view */}
+⋮----
+{/* 3. Simplified & Clear Guest Identity Card */}
+⋮----
+{/* Guest Identity Information - Large & Clear */}
+⋮----
+{/* Card Action Buttons */}
+⋮----
+{/* 5. Error Feedback Banner */}
+</file>
+
+</files>

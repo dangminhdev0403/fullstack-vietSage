@@ -1,0 +1,1033 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: services/auth-service/src/common/config/routes.config.ts, services/auth-service/src/common/config/business-permissions.registry.ts, services/auth-service/src/modules/identity/api/auth.controller.ts, services/auth-service/src/modules/identity/api/rbac.controller.ts, services/auth-service/src/modules/identity/api/hotel-users.controller.ts, services/auth-service/src/modules/organization/api/tenant-owners.controller.ts, services/auth-service/src/modules/property/api/hotels.controller.ts, services/auth-service/src/modules/property/api/hotel-services.controller.ts, services/auth-service/src/modules/marketplace/api/guest-marketplace.controller.ts, services/auth-service/src/modules/guest-operations/api/guest-os.controller.ts, services/auth-service/src/modules/notifications/api/hotel-notification-routes.controller.ts, services/auth-service/src/modules/local-partners/api/guest-local-partners.controller.ts, services/auth-service/src/modules/biometric-workstations/api/biometric-workstations.controller.ts, services/auth-service/src/modules/billing/api/payment.controller.ts, services/auth-service/src/modules/health/health.controller.ts, services/auth-service/src/modules/emergency/api/emergency.controller.ts
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+services/
+  auth-service/
+    src/
+      common/
+        config/
+          business-permissions.registry.ts
+          routes.config.ts
+      modules/
+        billing/
+          api/
+            payment.controller.ts
+        biometric-workstations/
+          api/
+            biometric-workstations.controller.ts
+        emergency/
+          api/
+            emergency.controller.ts
+        guest-operations/
+          api/
+            guest-os.controller.ts
+        health/
+          health.controller.ts
+        identity/
+          api/
+            auth.controller.ts
+            hotel-users.controller.ts
+            rbac.controller.ts
+        local-partners/
+          api/
+            guest-local-partners.controller.ts
+        marketplace/
+          api/
+            guest-marketplace.controller.ts
+        notifications/
+          api/
+            hotel-notification-routes.controller.ts
+        organization/
+          api/
+            tenant-owners.controller.ts
+        property/
+          api/
+            hotel-services.controller.ts
+            hotels.controller.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="services/auth-service/src/modules/billing/api/payment.controller.ts">
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  Headers,
+  Param,
+  Post,
+  Req,
+} from "@nestjs/common";
+import { ApiBody, ApiHeader, ApiOkResponse, ApiParam, ApiTags } from "@nestjs/swagger";
+import { PaymentProvider } from "@prisma/client";
+import type { Request } from "express";
+import { timingSafeEqual } from "node:crypto";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
+import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
+import type { AuthenticatedUser } from "../../../shared/security";
+import { BillingService } from "../application/billing.service";
+import {
+  billingIdParamSchema,
+  confirmManualPaymentBodySchema,
+  createPaymentSessionBodySchema,
+  paymentProviderParamSchema,
+  paymentWebhookBodySchema,
+} from "../domain/schemas/billing.schema";
+⋮----
+interface RequestWithUser extends Request {
+  user: AuthenticatedUser;
+}
+⋮----
+export class PaymentController {
+⋮----
+constructor(private readonly billingService: BillingService)
+⋮----
+async createPaymentSession(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("invoiceId") invoiceIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async confirmManualPayment(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("invoiceId") invoiceIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async getPaymentStatus(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("paymentId") paymentIdParam: string,
+)
+⋮----
+async processWebhook(
+    @Param("provider") providerParam: string,
+    @Headers("x-vietsage-payment-webhook-secret") secret: string | undefined,
+    @Body() body: unknown,
+)
+⋮----
+private assertWebhookSecret(actual: string | undefined): void
+</file>
+
+<file path="services/auth-service/src/modules/biometric-workstations/api/biometric-workstations.controller.ts">
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  Param,
+  Post,
+  Req,
+  UnauthorizedException,
+} from "@nestjs/common";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
+import type { Request } from "express";
+import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
+import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import type { AuthenticatedUser } from "../../../shared/security";
+import { HotelAccessService } from "../../property/application/hotel-access.service";
+import { BiometricWorkstationsService } from "../application/biometric-workstations.service";
+⋮----
+type RequestWithUser = Request & { user: AuthenticatedUser };
+⋮----
+function bearer(value: string | undefined)
+⋮----
+export class BiometricWorkstationsController
+⋮----
+constructor(
+⋮----
+pair(@Body() body:
+⋮----
+authenticate(@Headers("authorization") authorization?: string)
+⋮----
+async issuePairing(@Req() request: RequestWithUser, @Param("hotelId") hotelId: string)
+⋮----
+async status(@Req() request: RequestWithUser, @Param("hotelId") hotelId: string)
+⋮----
+async disconnect(@Req() request: RequestWithUser, @Param("hotelId") hotelId: string)
+</file>
+
+<file path="services/auth-service/src/modules/emergency/api/emergency.controller.ts">
+import { Body, Controller, Post, Req, UseGuards } from "@nestjs/common";
+import { ApiBody, ApiCreatedResponse, ApiTags } from "@nestjs/swagger";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
+import {
+  GuestSessionGuard,
+  type RequestWithGuestSession,
+} from "../../guest-operations/guest-operations-public";
+import { EmergencyService } from "../application/emergency.service";
+import { createEmergencyCallBodySchema } from "../domain/schemas/emergency.schema";
+⋮----
+export class EmergencyController {
+⋮----
+constructor(private readonly emergencyService: EmergencyService)
+⋮----
+async createGuestEmergencyCall(@Req() request: RequestWithGuestSession, @Body() body: unknown)
+</file>
+
+<file path="services/auth-service/src/modules/health/health.controller.ts">
+import { Controller, Get } from "@nestjs/common";
+import { ApiOkResponse, ApiTags } from "@nestjs/swagger";
+import { healthDataSchema, successEnvelopeSchema } from "../../common/openapi/contract-schemas";
+import { ApiDescript } from "../../shared/decorators/api-descript.decorator";
+import { SuccessMessage } from "../../shared/decorators/success-message.decorator";
+import { HealthService } from "./health.service";
+import type { HealthResponse } from "./health.service";
+⋮----
+export class HealthController {
+⋮----
+constructor(private readonly healthService: HealthService)
+⋮----
+getHealth(): HealthResponse
+</file>
+
+<file path="services/auth-service/src/modules/identity/api/auth.controller.ts">
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Headers,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Req,
+  UseGuards,
+} from "@nestjs/common";
+import { ApiBody, ApiCreatedResponse, ApiHeader, ApiOkResponse, ApiTags } from "@nestjs/swagger";
+import type { Request } from "express";
+import {
+  authLogoutDataSchema,
+  authMeDataSchema,
+  authTokensDataSchema,
+  loginBodySchema,
+  refreshTokenBodySchema as refreshTokenBodyOpenApiSchema,
+  successEnvelopeSchema,
+} from "../../../common/openapi/contract-schemas";
+import { AuthRateLimit } from "../../../common/security/auth-rate-limit.decorator";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { SkipAuthorization } from "../../../shared/decorators/skip-authorization.decorator";
+import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
+import { AuthService, type AuthTokensResponse } from "../application/authentication.service";
+import { LocalAuthGuard } from "../infrastructure/guards/local-auth.guard";
+import type { AuthenticatedUser } from "../domain/authenticated-user";
+import { changePasswordBodySchema, refreshTokenBodySchema } from "../domain/schemas/auth.schema";
+⋮----
+interface RequestWithUser extends Request {
+  user: AuthenticatedUser;
+}
+⋮----
+export class AuthController {
+⋮----
+constructor(private readonly authService: AuthService)
+⋮----
+async login(@Req() request: RequestWithUser): Promise<AuthTokensResponse>
+⋮----
+async refresh(
+    @Body() body: unknown,
+    @Headers("idempotency-key") idempotencyKey?: string,
+): Promise<AuthTokensResponse>
+⋮----
+async logout(@Req() request: RequestWithUser): Promise<
+⋮----
+async logoutAll(@Req() request: RequestWithUser): Promise<
+⋮----
+async changePassword(
+    @Req() request: RequestWithUser,
+    @Body() body: unknown,
+): Promise<
+⋮----
+async me(@Req() request: RequestWithUser)
+⋮----
+private normalizeIdempotencyKey(value?: string): string | undefined
+</file>
+
+<file path="services/auth-service/src/modules/identity/api/hotel-users.controller.ts">
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+  Res,
+} from "@nestjs/common";
+import {
+  ApiBody,
+  ApiCreatedResponse,
+  ApiHeader,
+  ApiOkResponse,
+  ApiParam,
+  ApiQuery,
+  ApiTags,
+} from "@nestjs/swagger";
+import type { Request, Response } from "express";
+import {
+  TENANT_USER_STATUS_ENUM,
+  assignHotelUserRolesBodySchema as assignHotelUserRolesBodyOpenApiSchema,
+  createHotelUserBodySchema as createHotelUserBodyOpenApiSchema,
+  listHotelUsersDataSchema,
+  managedHotelUserRoleArrayDataSchema,
+  revokeHotelUserRoleDataSchema,
+  successEnvelopeSchema,
+  tenantScopedHotelUserDataSchema,
+  updateHotelUserStatusBodySchema as updateHotelUserStatusBodyOpenApiSchema,
+} from "../../../common/openapi/contract-schemas";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
+import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
+import type { AuthenticatedUser } from "../../../shared/security";
+import { HotelUsersService } from "../application/hotel-users.service";
+import {
+  assignHotelUserRolesBodySchema as assignHotelUserRolesBodyZodSchema,
+  createHotelUserBodySchema as createHotelUserBodyZodSchema,
+  listHotelUsersQuerySchema as listHotelUsersQueryZodSchema,
+  resetHotelUserPasswordBodySchema,
+  roleIdParamSchema,
+  updateHotelUserStatusBodySchema as updateHotelUserStatusBodyZodSchema,
+  updateHotelUserBodySchema as updateHotelUserBodyZodSchema,
+  userIdParamSchema,
+} from "../domain/schemas/hotel-users.schema";
+⋮----
+interface RequestWithUser extends Request {
+  user: AuthenticatedUser;
+}
+⋮----
+export class HotelUsersController {
+⋮----
+constructor(private readonly hotelUsersService: HotelUsersService)
+⋮----
+async createHotelUser(
+    @Req() request: RequestWithUser,
+    @Body() body: unknown,
+    @Headers("x-tenant-id") tenantIdHeader?: string,
+)
+⋮----
+async listHotelUsers(
+    @Req() request: RequestWithUser,
+    @Query() query: unknown,
+    @Headers("x-tenant-id") tenantIdHeader?: string,
+)
+⋮----
+async listManagedRoles(
+    @Req() request: RequestWithUser,
+    @Headers("x-tenant-id") tenantIdHeader?: string,
+)
+⋮----
+async getHotelUser(
+    @Req() request: RequestWithUser,
+    @Param("id") userIdParam: string,
+    @Headers("x-tenant-id") tenantIdHeader?: string,
+)
+⋮----
+async updateHotelUserStatus(
+    @Req() request: RequestWithUser,
+    @Param("id") userIdParam: string,
+    @Body() body: unknown,
+    @Headers("x-tenant-id") tenantIdHeader?: string,
+)
+⋮----
+async updateHotelUser(
+    @Req() request: RequestWithUser,
+    @Param("id") userIdParam: string,
+    @Body() body: unknown,
+    @Headers("x-tenant-id") tenantIdHeader?: string,
+)
+⋮----
+async assignHotelUserRoles(
+    @Req() request: RequestWithUser,
+    @Param("id") userIdParam: string,
+    @Body() body: unknown,
+    @Headers("x-tenant-id") tenantIdHeader?: string,
+)
+⋮----
+async revokeHotelUserRole(
+    @Req() request: RequestWithUser,
+    @Param("id") userIdParam: string,
+    @Param("roleId") roleIdParam: string,
+    @Headers("x-tenant-id") tenantIdHeader?: string,
+)
+⋮----
+async resetPassword(
+    @Req() request: RequestWithUser,
+    @Param("id") userIdParam: string,
+    @Body() body: unknown,
+    @Headers("x-tenant-id") tenantIdHeader?: string,
+    @Res({ passthrough: true }) response?: Response,
+)
+⋮----
+private resolveTenantHint(
+    headerTenantId: string | undefined,
+    fallbackTenantId: string | undefined,
+): string | undefined
+</file>
+
+<file path="services/auth-service/src/modules/identity/api/rbac.controller.ts">
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Req } from "@nestjs/common";
+import {
+  ApiBody,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiParam,
+  ApiQuery,
+  ApiTags,
+} from "@nestjs/swagger";
+import type { Request } from "express";
+import {
+  createRoleBodySchema as createRoleBodyOpenApiSchema,
+  deletedDataSchema,
+  frontendNavigationRoleDataSchema,
+  HTTP_METHOD_ENUM,
+  permissionDataSchema,
+  permissionModuleLookupListDataSchema,
+  roleModulePermissionsBodySchema as roleModulePermissionsBodyOpenApiSchema,
+  roleMenusDataSchema,
+  rolePermissionModulePermissionsPageDataSchema,
+  rolePermissionModuleSummaryDataSchema,
+  rolePermissionModulePermissionsQuerySchema as rolePermissionModulePermissionsQueryOpenApiSchema,
+  replaceRolePermissionsBodySchema as replaceRolePermissionsBodyOpenApiSchema,
+  roleDataSchema,
+  roleWithRelationsDataSchema,
+  successEnvelopeSchema,
+  updateRoleBodySchema as updateRoleBodyOpenApiSchema,
+} from "../../../common/openapi/contract-schemas";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
+import { SkipAuthorization } from "../../../shared/decorators/skip-authorization.decorator";
+import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
+import type { AuthenticatedUser } from "../../../shared/security";
+import { RbacService } from "../application/rbac.service";
+import {
+  createRoleBodySchema as createRoleBodyZodSchema,
+  listRolePermissionModulePermissionsQuerySchema as listRolePermissionModulePermissionsQueryZodSchema,
+  listPermissionsQuerySchema as listPermissionsQueryZodSchema,
+  permissionModuleKeyParamSchema as permissionModuleKeyParamZodSchema,
+  roleModulePermissionsBodySchema as roleModulePermissionsBodyZodSchema,
+  replaceRolePermissionsBodySchema as replaceRolePermissionsBodyZodSchema,
+  updateRoleBodySchema as updateRoleBodyZodSchema,
+} from "../domain/schemas/rbac.schema";
+⋮----
+interface RequestWithUser extends Request {
+  user: AuthenticatedUser;
+}
+⋮----
+export class RolesController {
+⋮----
+constructor(private readonly rbacService: RbacService)
+⋮----
+async createRole(@Body() body: unknown)
+⋮----
+async listRoles()
+⋮----
+async getRoleByName(@Param("name") roleName: string)
+⋮----
+async getRoleMenus(@Req() request: RequestWithUser)
+⋮----
+async getRole(@Param("id") roleId: string)
+⋮----
+async updateRole(@Param("id") roleId: string, @Body() body: unknown)
+⋮----
+async disableRole(@Param("id") roleId: string)
+⋮----
+async deleteRole(@Param("id") roleId: string)
+⋮----
+async listRolePermissions(@Param("id") roleId: string)
+⋮----
+async listRolePermissionModules(@Req() request: RequestWithUser)
+⋮----
+async listRolePermissionModulePermissions(
+    @Req() request: RequestWithUser,
+    @Param() params: unknown,
+    @Query() query: unknown,
+)
+⋮----
+async listPermissionModulesForRole(@Param("id") roleId: string)
+⋮----
+async listPermissionModulePermissionsForRole(
+    @Param("id") roleId: string,
+    @Param("moduleKey") moduleKey: string,
+    @Query() query: unknown,
+)
+⋮----
+async grantRolePermissionModulePermissions(
+    @Req() request: RequestWithUser,
+    @Param() params: unknown,
+    @Body() body: unknown,
+)
+⋮----
+async revokeRolePermissionModulePermissions(
+    @Req() request: RequestWithUser,
+    @Param() params: unknown,
+    @Body() body: unknown,
+)
+⋮----
+async replacePermissions(
+    @Req() request: RequestWithUser,
+    @Param("id") roleId: string,
+    @Body() body: unknown,
+)
+⋮----
+export class PermissionsController {
+⋮----
+async listPermissions(@Query() query: unknown)
+⋮----
+async getPermission(@Param("id") permissionId: string)
+</file>
+
+<file path="services/auth-service/src/modules/notifications/api/hotel-notification-routes.controller.ts">
+import { Body, Controller, Get, Param, Patch, Post, Req } from "@nestjs/common";
+import { ApiParam, ApiTags } from "@nestjs/swagger";
+import type { Request } from "express";
+import { z } from "zod";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
+import type { AuthenticatedUser } from "../../../shared/security";
+import { hotelIdParamSchema } from "../../property/property-public";
+import { HotelNotificationRoutesService } from "../application/hotel-notification-routes.service";
+⋮----
+interface RequestWithUser extends Request {
+  user: AuthenticatedUser;
+}
+⋮----
+export class HotelNotificationRoutesController {
+⋮----
+constructor(private readonly routesService: HotelNotificationRoutesService)
+⋮----
+async list(@Req() request: RequestWithUser, @Param("hotelId") hotelIdParam: string)
+⋮----
+async create(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async update(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("routeId") routeId: string,
+    @Body() body: unknown,
+)
+</file>
+
+<file path="services/auth-service/src/modules/organization/api/tenant-owners.controller.ts">
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+  Res,
+} from "@nestjs/common";
+import {
+  ApiBody,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiParam,
+  ApiQuery,
+  ApiTags,
+} from "@nestjs/swagger";
+import type { Request, Response } from "express";
+import {
+  TENANT_USER_STATUS_ENUM,
+  USER_STATUS_ENUM,
+  createTenantOwnerBodySchema as createTenantOwnerBodyOpenApiSchema,
+  listTenantOwnersDataSchema,
+  successEnvelopeSchema,
+  tenantOwnerDataSchema,
+  updateTenantOwnerBodySchema as updateTenantOwnerBodyOpenApiSchema,
+} from "../../../common/openapi/contract-schemas";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
+import type { AuthenticatedUser } from "../../../shared/security";
+import {
+  createTenantOwnerBodySchema,
+  listTenantOwnersQuerySchema,
+  resetTenantOwnerPasswordBodySchema,
+  tenantOwnerIdParamSchema,
+  updateTenantOwnerBodySchema,
+} from "../domain/schemas/tenant-owners.schema";
+import { TenantOwnersService } from "../application/tenant-owners.service";
+⋮----
+interface RequestWithUser extends Request {
+  user: AuthenticatedUser;
+}
+⋮----
+export class TenantOwnersController {
+⋮----
+constructor(private readonly tenantOwnersService: TenantOwnersService)
+⋮----
+async listTenantOwners(@Req() request: RequestWithUser, @Query() query: unknown)
+⋮----
+async listTenantOptions(@Req() request: RequestWithUser)
+⋮----
+async getTenantOwner(@Req() request: RequestWithUser, @Param("id") idParam: string)
+⋮----
+async createTenantOwner(@Req() request: RequestWithUser, @Body() body: unknown)
+⋮----
+async updateTenantOwner(
+    @Req() request: RequestWithUser,
+    @Param("id") idParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async resetPassword(
+    @Req() request: RequestWithUser,
+    @Param("id") idParam: string,
+    @Body() body: unknown,
+    @Res({ passthrough: true }) response: Response,
+)
+</file>
+
+<file path="services/auth-service/src/modules/property/api/hotels.controller.ts">
+import { Body, Controller, Get, Headers, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import {
+  ApiBody,
+  ApiCreatedResponse,
+  ApiHeader,
+  ApiOkResponse,
+  ApiParam,
+  ApiQuery,
+  ApiTags,
+} from "@nestjs/swagger";
+import type { Request } from "express";
+import {
+  createHotelBodySchema as createHotelBodyOpenApiSchema,
+  hotelDataSchema,
+  listHotelsDataSchema,
+  successEnvelopeSchema,
+  updateHotelBodySchema as updateHotelBodyOpenApiSchema,
+} from "../../../common/openapi/contract-schemas";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
+import type { AuthenticatedUser } from "../../../shared/security";
+import { HotelsService } from "../application/hotels.service";
+import {
+  createHotelBodySchema,
+  listHotelsQuerySchema,
+  updateHotelBodySchema,
+} from "../domain/schemas/hotel.schema";
+import { hotelIdParamSchema } from "../domain/schemas/shared.schema";
+⋮----
+interface RequestWithUser extends Request {
+  user: AuthenticatedUser;
+}
+⋮----
+export class HotelsController {
+⋮----
+constructor(private readonly hotelsService: HotelsService)
+⋮----
+async createHotel(@Req() request: RequestWithUser, @Body() body: unknown)
+⋮----
+async listHotels(
+    @Req() request: RequestWithUser,
+    @Headers("x-tenant-id") tenantIdHeader: string | undefined,
+    @Query() query: unknown,
+)
+⋮----
+async getHotel(@Req() request: RequestWithUser, @Param("hotelId") hotelIdParam: string)
+⋮----
+async updateHotel(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Body() body: unknown,
+)
+</file>
+
+<file path="services/auth-service/src/modules/guest-operations/api/guest-os.controller.ts">
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
+import { ApiBody, ApiCreatedResponse, ApiOkResponse, ApiTags } from "@nestjs/swagger";
+import type { Request } from "express";
+import {
+  createGuestRequestBodySchema as createGuestRequestBodyOpenApiSchema,
+  guestRequestDataSchema,
+  guestServiceCatalogDataSchema,
+  listGuestCategoryServicesDataSchema,
+  listGuestRequestsDataSchema,
+  successEnvelopeSchema,
+} from "../../../common/openapi/contract-schemas";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
+import { GuestOsService } from "../application/guest-os.service";
+import { GuestMessagesService } from "../application/guest-messages.service";
+import {
+  GuestSessionGuard,
+  type RequestWithGuestSession,
+} from "../infrastructure/guards/guest-session.guard";
+import {
+  createGuestRequestBodySchema,
+  guestRequestIdParamSchema,
+  listGuestCategoryServicesQuerySchema,
+  listGuestRequestsQuerySchema,
+  guestMessageBodySchema,
+  markGuestMessageReadBodySchema,
+  listGuestMessagesQuerySchema,
+  scanQrBodyOpenApiSchema,
+  scanQrBodySchema,
+  serviceCategoryIdParamSchema,
+} from "../domain/schemas/guest-os.schema";
+⋮----
+export class GuestOsController {
+⋮----
+constructor(
+⋮----
+async scanQr(@Req() request: Request, @Body() body: unknown)
+⋮----
+async getCurrentSession(@Req() request: RequestWithGuestSession)
+⋮----
+async listServices(@Req() request: RequestWithGuestSession)
+⋮----
+async listCategoryServices(
+    @Req() request: RequestWithGuestSession,
+    @Param("categoryId") categoryId: string,
+    @Query() query: unknown,
+)
+⋮----
+async createRequest(@Req() request: RequestWithGuestSession, @Body() body: unknown)
+⋮----
+async listRequests(@Req() request: RequestWithGuestSession, @Query() query: unknown)
+⋮----
+async cancelRequest(
+    @Req() request: RequestWithGuestSession,
+    @Param("requestId") requestId: string,
+)
+⋮----
+async getUnreadSummary(@Req() request: RequestWithGuestSession)
+⋮----
+async listMessages(@Req() request: RequestWithGuestSession, @Query() query: unknown)
+⋮----
+async sendMessage(@Req() request: RequestWithGuestSession, @Body() body: unknown)
+⋮----
+async markMessagesRead(@Req() request: RequestWithGuestSession, @Body() body: unknown)
+⋮----
+async closeSession(@Req() request: RequestWithGuestSession)
+</file>
+
+<file path="services/auth-service/src/modules/local-partners/api/guest-local-partners.controller.ts">
+import { Controller, Get, Param, Query, Req, UseGuards } from "@nestjs/common";
+import { ApiTags } from "@nestjs/swagger";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import {
+  GuestSessionGuard,
+  type RequestWithGuestSession,
+} from "../../guest-operations/guest-operations-public";
+import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
+import { GuestLocalPartnersService } from "../application/guest-local-partners.service";
+import {
+  listGuestPartnersQuerySchema,
+  partnerIdParamSchema,
+} from "../domain/schemas/local-partners.schema";
+⋮----
+export class GuestLocalPartnersController
+⋮----
+constructor(private readonly service: GuestLocalPartnersService)
+⋮----
+getCategories()
+⋮----
+getPartners(@Req() request: RequestWithGuestSession, @Query() query: unknown)
+⋮----
+getPartner(@Req() request: RequestWithGuestSession, @Param("partnerId") partnerIdParam: string)
+</file>
+
+<file path="services/auth-service/src/common/config/business-permissions.registry.ts">
+export type BusinessPermissionKey =
+  | "platform.users.view"
+  | "platform.users.manage"
+  | "platform.roles.view"
+  | "platform.roles.manage"
+  | "platform.permissions.manage"
+  | "platform.hotels.view"
+  | "platform.hotels.manage"
+  | "platform.billing.view"
+  | "platform.billing.manage"
+  | "platform.marketplace.view"
+  | "platform.marketplace.manage"
+  | "service.marketplace.view"
+  | "service.marketplace.manage"
+  | "hotel.marketplace.view"
+  | "hotel.marketplace.revenue.view"
+  | "hotel.revenue-protection.view"
+  | "hotel.dashboard.view"
+  | "hotel.rooms.view"
+  | "hotel.rooms.manage"
+  | "hotel.rooms.qr.manage"
+  | "hotel.stays.view"
+  | "hotel.stays.manage"
+  | "hotel.reservations.view"
+  | "hotel.reservations.manage"
+  | "hotel.staff.view"
+  | "hotel.staff.manage"
+  | "hotel.requests.view"
+  | "hotel.requests.manage"
+  | "hotel.messages.view"
+  | "hotel.messages.manage"
+  | "hotel.billing.view"
+  | "hotel.billing.manage"
+  | "hotel.services.view"
+  | "hotel.services.manage"
+  | "hotel.local-partners.view"
+  | "hotel.local-partners.manage"
+  | "guest.experience.use"
+  | "system.health.view";
+⋮----
+export type BusinessPermissionDefinition = {
+  key: BusinessPermissionKey;
+  moduleKey: string;
+};
+⋮----
+export function isBusinessPermissionKey(value: string): value is BusinessPermissionKey
+</file>
+
+<file path="services/auth-service/src/common/config/routes.config.ts">
+import { PublicRouteMatcher } from "./public-route.matcher";
+⋮----
+// Keep this list minimal. Every route not listed here requires a valid access token.
+⋮----
+// Regex should be exceptional. Prefer exact paths in PUBLIC_PATTERNS.
+</file>
+
+<file path="services/auth-service/src/modules/property/api/hotel-services.controller.ts">
+import { Body, Controller, Get, Header, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import { ApiBody, ApiCreatedResponse, ApiOkResponse, ApiParam, ApiTags } from "@nestjs/swagger";
+import type { Request } from "express";
+import {
+  createServiceItemBodySchema as createServiceItemBodyOpenApiSchema,
+  hotelServiceItemDataSchema,
+  listHotelServiceItemsDataSchema,
+  successEnvelopeSchema,
+  updateServiceItemBodySchema as updateServiceItemBodyOpenApiSchema,
+} from "../../../common/openapi/contract-schemas";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
+import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
+import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
+import type { AuthenticatedUser } from "../../../shared/security";
+import { HotelServicesService } from "../application/hotel-services.service";
+import { GoogleSheetsServiceCatalogSyncService } from "../infrastructure/imports/google-sheets-service-catalog-sync.service";
+import { ImportTemplateService } from "../../../common/import/import-template.service";
+import { ServiceCatalogImportAdapter } from "../infrastructure/imports/service-catalog-import.adapter";
+import {
+  createServiceCategoryBodySchema,
+  createServiceItemBodySchema,
+  listServiceCategoriesQuerySchema,
+  listServiceItemsQuerySchema,
+  serviceCatalogImportCommitSchema,
+  serviceCatalogImportPreviewSchema,
+  updateServiceCategoryBodySchema,
+  updateServiceItemBodySchema,
+} from "../domain/schemas/service-catalog.schema";
+import {
+  hotelIdParamSchema,
+  serviceCategoryIdParamSchema,
+  serviceItemIdParamSchema,
+} from "../domain/schemas/shared.schema";
+⋮----
+interface RequestWithUser extends Request {
+  user: AuthenticatedUser;
+}
+⋮----
+export class HotelServicesController {
+⋮----
+constructor(
+⋮----
+async syncServiceCatalogFromGoogleSheets(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Body() body?: unknown,
+)
+⋮----
+async previewServiceCatalogImport(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async commitServiceCatalogImport(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+serviceCatalogImportTemplate()
+⋮----
+async listServiceCategories(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Query() query: unknown,
+)
+⋮----
+async createServiceCategory(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async updateServiceCategory(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("categoryId") categoryIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async listServiceItems(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Query() query: unknown,
+)
+⋮----
+async createServiceItem(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Body() body: unknown,
+)
+⋮----
+async updateServiceItem(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("itemId") itemIdParam: string,
+    @Body() body: unknown,
+)
+</file>
+
+<file path="services/auth-service/src/modules/marketplace/api/guest-marketplace.controller.ts">
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
+  Req,
+  UseGuards,
+} from "@nestjs/common";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
+import { I18nService } from "../../../common/i18n/i18n.service";
+import {
+  GuestSessionGuard,
+  type RequestWithGuestSession,
+} from "../../guest-operations/guest-operations-public";
+import { GuestMarketplaceService } from "../application/guest-marketplace.service";
+import {
+  addCartItemSchema,
+  cartItemIdSchema,
+  checkoutCartSchema,
+  guestMarketplaceIdSchema,
+  guestMarketplaceQuerySchema,
+  syncCartSchema,
+  updateCartItemSchema,
+} from "../domain/guest-marketplace.schema";
+import { MarketplaceOrderService } from "../application/marketplace-order.service";
+import {
+  createMarketplaceOrderSchema,
+  marketplaceOrderIdSchema,
+} from "../domain/marketplace-order.schema";
+⋮----
+export class GuestMarketplaceController {
+⋮----
+constructor(
+⋮----
+categories(@Req() req: RequestWithGuestSession)
+⋮----
+services(@Req() req: RequestWithGuestSession, @Query() query: unknown)
+⋮----
+detail(@Req() req: RequestWithGuestSession, @Param("serviceId") id: string)
+⋮----
+getCart(@Req() req: RequestWithGuestSession)
+⋮----
+addCartItem(@Req() req: RequestWithGuestSession, @Body() body: unknown)
+⋮----
+updateCartItem(
+    @Req() req: RequestWithGuestSession,
+    @Param("itemId") itemId: string,
+    @Body() body: unknown,
+)
+⋮----
+removeCartItem(@Req() req: RequestWithGuestSession, @Param("itemId") itemId: string)
+⋮----
+clearCart(@Req() req: RequestWithGuestSession)
+⋮----
+syncCart(@Req() req: RequestWithGuestSession, @Body() body: unknown)
+⋮----
+checkoutCart(@Req() req: RequestWithGuestSession, @Body() body: unknown)
+⋮----
+checkoutDirect(@Req() req: RequestWithGuestSession, @Body() body: unknown)
+⋮----
+createOrder(@Req() req: RequestWithGuestSession, @Body() body: unknown)
+⋮----
+ordersList(@Req() req: RequestWithGuestSession)
+⋮----
+order(@Req() req: RequestWithGuestSession, @Param("orderId") id: string)
+</file>
+
+</files>

@@ -77,7 +77,7 @@ export async function handleKbttRequest(
 export async function handleKbttAutoSubmitRequest(
   request: Request,
   context: KbttRouteContext,
-  method: "GET" | "PUT" | "POST",
+  method: "GET" | "PUT" | "POST" | "DELETE",
 ) {
   const { hotelId } = await context.params;
   if (!z.string().trim().min(1).safeParse(hotelId).success) {
@@ -85,19 +85,18 @@ export async function handleKbttAutoSubmitRequest(
   }
 
   let body: unknown;
-  if (method === "PUT") {
+  const url = new URL(request.url);
+  const mode = url.searchParams.get("mode");
+  if (method === "PUT" || (method === "POST" && mode === "schedule")) {
     body = await request.json().catch(() => null);
   }
-
-  const url = new URL(request.url);
-  const dryRun = url.searchParams.get("dryRun");
-  const queryParam = method === "POST" && dryRun ? `?dryRun=${encodeURIComponent(dryRun)}` : "";
+  const queryParam = method === "POST" && mode ? `?mode=${encodeURIComponent(mode)}` : "";
 
   try {
     const result = await executeOwnerBackendRequest(`kbtt auto-submit ${method}`, async (accessToken) => {
       const payload = await httpServer.request<{ data: unknown }>(
         method,
-        `/hotels/${encodeURIComponent(hotelId)}/kbtt/auto-submit${method === "POST" ? `/test${queryParam}` : ""}`,
+        `/hotels/${encodeURIComponent(hotelId)}/kbtt/auto-submit${method === "POST" ? (mode === "telegram-test" ? "/telegram-test" : mode === "schedule" ? "/schedule" : `/test${queryParam}`) : method === "DELETE" ? "/schedule" : ""}`,
         body,
         { accessToken, headers: { "Cache-Control": "no-store" } },
       );

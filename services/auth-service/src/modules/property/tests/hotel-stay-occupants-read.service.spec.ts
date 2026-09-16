@@ -195,6 +195,53 @@ describe("HotelStayOccupantsReadService & Repository (AGY-10/AGY-11 KBTT Foundat
       expect(result[0].nationality).toBe("Việt Nam");
     });
 
+    it("pages active occupants deterministically using cursor and bounded take", async () => {
+      const mockDbRows = Array.from({ length: 15 }, (_, i) => ({
+        id: `occ-${String(i + 1).padStart(2, "0")}`,
+        stayId: "stay-1",
+        hotelId: mockHotelId,
+        fullName: `Guest ${i + 1}`,
+        phone: null,
+        identityNumber: `0010900123${i}`,
+        dateOfBirth: "1990-01-01",
+        gender: "M",
+        nationality: "VNM",
+        residencePlace: null,
+        isPrimary: i === 0,
+        citizenshipKind: CitizenshipKind.VIETNAMESE,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        stay: {
+          id: "stay-1",
+          hotelId: mockHotelId,
+          roomId: "room-1",
+          reservationCode: "RES-1",
+          status: GuestStayStatus.ACTIVE,
+          plannedCheckInAt: checkInTime,
+          plannedCheckOutAt: checkOutTime,
+          checkedInAt: checkInTime,
+          room: { id: "room-1", roomNumber: "101" },
+        },
+      }));
+
+      (mockRepo.findActiveStayOccupantsByHotel as jest.Mock).mockImplementation((_hotelId, opts) => {
+        const take = opts?.take ?? 10;
+        const cursor = opts?.cursor;
+        const startIndex = cursor ? mockDbRows.findIndex((r) => r.id === cursor) + 1 : 0;
+        return Promise.resolve(mockDbRows.slice(startIndex, startIndex + take));
+      });
+
+      const page1 = await service.getActiveStayOccupantsPaged(mockHotelId, { take: 10 });
+      expect(page1.items.length).toBe(10);
+      expect(page1.nextCursor).toBe("occ-10");
+      expect(mockRepo.findActiveStayOccupantsByHotel).toHaveBeenCalledWith(mockHotelId, { cursor: undefined, take: 11 });
+
+      const page2 = await service.getActiveStayOccupantsPaged(mockHotelId, { cursor: page1.nextCursor!, take: 10 });
+      expect(page2.items.length).toBe(5);
+      expect(page2.nextCursor).toBeNull();
+      expect(mockRepo.findActiveStayOccupantsByHotel).toHaveBeenCalledWith(mockHotelId, { cursor: "occ-10", take: 11 });
+    });
+
     it("listActiveStayOccupants delegates to getActiveStayOccupants", async () => {
       const spy = jest.spyOn(service, "getActiveStayOccupants").mockResolvedValue([]);
       const res = await service.listActiveStayOccupants(mockHotelId);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { HttpError } from "@/core/http/http-error";
 import { showConfirmDialog, showErrorAlert, showSuccessAlert } from "@/libs/swal";
 import { useKbttConnection } from "../hooks/use-kbtt-connection";
@@ -499,14 +499,72 @@ function KbttAutoSubmitSection({
   canManage: boolean;
   isConnected: boolean;
 }) {
-  const { autoSubmit, updating, testing, updateConfig, testDryRun } = useKbttAutoSubmit(hotelId);
+  const {
+    autoSubmit,
+    updating,
+    testing,
+    testingTelegram,
+    updateConfig,
+    testDryRun,
+    testTelegram,
+    scheduleAutoSubmit,
+    cancelScheduledAutoSubmit,
+    scheduling,
+    cancellingSchedule,
+  } = useKbttAutoSubmit(hotelId);
   const data = autoSubmit.data;
 
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [time, setTime] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  async function scheduleRun(mode: "dry-run" | "live") {
+    if (!canManage || isSaving || scheduling || data?.pendingSchedule) return;
+    if (mode === "live") {
+      const confirmed = await showConfirmDialog({
+        title: "Hẹn chạy Live + Telegram?",
+        text: "Sau 15 giây hệ thống sẽ gửi hồ sơ thật tới C06 và gửi báo cáo Telegram.",
+        confirmText: "Hẹn Live",
+        cancelText: "Hủy",
+        icon: "warning",
+      });
+      if (!confirmed.isConfirmed) return;
+    }
+    try {
+      await scheduleAutoSubmit(mode);
+      await autoSubmit.refetch();
+    } catch (error) {
+      await showErrorAlert("Không thể hẹn phiên KBTT", errorText(error));
+    }
+  }
+
+  async function cancelScheduledRun() {
+    if (cancellingSchedule) return;
+    try {
+      await cancelScheduledAutoSubmit();
+      await autoSubmit.refetch();
+    } catch (error) {
+      await showErrorAlert("Không thể hủy phiên KBTT", errorText(error));
+    }
+  }
 
   const isEnabled = enabled ?? (data?.autoSubmitEnabled ?? false);
   const currentTime = time ?? (data?.autoSubmitTime ?? "04:30");
+  const pendingSchedule = data?.pendingSchedule ?? null;
+  const pendingSeconds = pendingSchedule
+    ? Math.max(0, Math.ceil((new Date(pendingSchedule.scheduledFor).getTime() - now) / 1000))
+    : 0;
+
+  useEffect(() => {
+    if (!pendingSchedule || pendingSeconds > 0) return;
+    const timer = window.setTimeout(() => void autoSubmit.refetch(), 1000);
+    return () => window.clearTimeout(timer);
+  }, [pendingSchedule, pendingSeconds, autoSubmit]);
 
   const isSaving = updating || testing || autoSubmit.isFetching;
 
@@ -540,6 +598,16 @@ function KbttAutoSubmitSection({
     } catch (error) {
       await autoSubmit.refetch();
       await showErrorAlert("Thử nghiệm thất bại", errorText(error));
+    }
+  }
+
+  async function handleTelegramTest() {
+    if (!canManage || isSaving || testingTelegram) return;
+    try {
+      await testTelegram();
+      await showSuccessAlert("Telegram hoạt động", "Đã gửi thông báo thử tới nhóm nhận báo cáo KBTT.");
+    } catch (error) {
+      await showErrorAlert("Không thể gửi Telegram thử", errorText(error));
     }
   }
 
@@ -615,17 +683,53 @@ function KbttAutoSubmitSection({
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               {canManage && (
-                <button
-                  type="button"
-                  disabled={isSaving}
-                  onClick={() => void handleTestDryRun()}
-                  className="flex min-h-[44px] items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-100 disabled:opacity-50"
-                >
-                  <svg className="h-4 w-4 text-teal-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                  {testing ? "Đang thử nghiệm..." : "Thử nghiệm nộp (Dry Run)"}
-                </button>
+                <>
+                  <button
+                    type="button"
+                    disabled={isSaving || Boolean(pendingSchedule)}
+                    onClick={() => void handleTestDryRun()}
+                    className="flex min-h-[44px] items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-100 disabled:opacity-50"
+                  >
+                    <svg className="h-4 w-4 text-teal-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    {testing ? "Đang thử nghiệm..." : "Thử nghiệm nộp (Dry Run)"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSaving || testingTelegram || Boolean(pendingSchedule)}
+                    onClick={() => void handleTelegramTest()}
+                    className="flex min-h-[44px] items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-5 py-2.5 text-sm font-bold text-sky-800 shadow-sm transition hover:bg-sky-100 disabled:opacity-50"
+                  >
+                    {testingTelegram ? "Đang gửi Telegram..." : "Gửi Telegram thử"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSaving || Boolean(pendingSchedule)}
+                    onClick={() => void scheduleRun("dry-run")}
+                    className="flex min-h-[44px] items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-5 py-2.5 text-sm font-bold text-teal-800 shadow-sm transition hover:bg-teal-100 disabled:opacity-50"
+                  >
+                    Hẹn Dry Run 15 giây
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSaving || Boolean(pendingSchedule)}
+                    onClick={() => void scheduleRun("live")}
+                    className="flex min-h-[44px] items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-5 py-2.5 text-sm font-bold text-amber-900 shadow-sm transition hover:bg-amber-100 disabled:opacity-50"
+                  >
+                    Hẹn Live + Telegram 15 giây
+                  </button>
+                  {pendingSchedule ? (
+                    <button
+                      type="button"
+                      disabled={cancellingSchedule}
+                      onClick={() => void cancelScheduledRun()}
+                      className="flex min-h-[44px] items-center rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700 hover:bg-red-100"
+                    >
+                      {cancellingSchedule ? "Đang hủy..." : `Hủy (${pendingSeconds}s)`}
+                    </button>
+                  ) : null}
+                </>
               )}
             </div>
 

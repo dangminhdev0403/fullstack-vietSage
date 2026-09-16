@@ -205,6 +205,12 @@ export class HotelUsersService {
     const roleIds = normalizeIds(dto.roleIds);
     const roles = await this.resolveAssignableRoles(roleIds);
 
+    if (await this.hotelUsersRepository.hasActiveMarketplaceIdentity(userId)) {
+      throw new ForbiddenException(
+        "Tài khoản Marketplace không thể đồng thời nhận vai trò HOTEL_FRONTDESK",
+      );
+    }
+
     await this.hotelUsersRepository.upsertActiveUserRoles(
       userId,
       roles.map((role) => role.id),

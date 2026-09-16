@@ -12,6 +12,8 @@ describe("HotelUsersService", () => {
     findTenantUserMembership: jest.Mock;
     findRolesByIds: jest.Mock;
     revokeActiveUserRole: jest.Mock;
+    upsertActiveUserRoles: jest.Mock;
+    hasActiveMarketplaceIdentity: jest.Mock;
   };
 
   beforeEach(() => {
@@ -21,6 +23,8 @@ describe("HotelUsersService", () => {
       findTenantUserMembership: jest.fn(),
       findRolesByIds: jest.fn(),
       revokeActiveUserRole: jest.fn(),
+      upsertActiveUserRoles: jest.fn(),
+      hasActiveMarketplaceIdentity: jest.fn().mockResolvedValue(false),
     };
 
     service = new HotelUsersService(
@@ -141,6 +145,29 @@ describe("HotelUsersService", () => {
         roleIds: ["role-manager"],
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("blocks assigning HOTEL_FRONTDESK to a user active in a SERVICE tenant", async () => {
+    hotelUsersRepository.findActorById.mockResolvedValue({
+      id: "owner-1",
+      userRoles: [{ role: { code: "TENANT_OWNER" } }],
+      tenantUsers: [{ tenantId: "hotel-tenant" }],
+    });
+    hotelUsersRepository.findTenantUserMembership.mockResolvedValue({
+      joinedAt: null,
+      user: { userType: UserType.HOTEL_STAFF },
+    });
+    hotelUsersRepository.findRolesByIds.mockResolvedValue([
+      { id: "role-frontdesk", code: "HOTEL_FRONTDESK", name: "Lễ tân" },
+    ]);
+    hotelUsersRepository.hasActiveMarketplaceIdentity = jest.fn().mockResolvedValue(true);
+
+    await expect(
+      service.assignHotelUserRoles("owner-1", "role-owner", "hotel-tenant", "partner-user", {
+        roleIds: ["role-frontdesk"],
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(hotelUsersRepository.upsertActiveUserRoles).not.toHaveBeenCalled();
   });
 
   it("revokes role by soft status transition", async () => {

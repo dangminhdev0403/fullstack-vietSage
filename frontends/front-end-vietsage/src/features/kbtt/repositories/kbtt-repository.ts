@@ -18,6 +18,7 @@ import {
   type KbttCredentials,
   type KbttDeclarationListItem,
   type KbttDeclarationRecord,
+  type KbttDevOccupantUpdateItem,
   type KbttOccupantDeclarationDetail,
   type SaveKbttDraftPayload,
 } from "../types/kbtt-contract";
@@ -102,7 +103,13 @@ export const kbttRepository = {
       method: "GET",
       signal,
     });
-    return kbttDeclarationListSchema.parse(payload.data);
+    const parsed = kbttDeclarationListSchema.parse(payload.data);
+    const total = typeof (payload as any).total === "number" ? (payload as any).total : undefined;
+    const totalPages = typeof (payload as any).totalPages === "number" ? (payload as any).totalPages : undefined;
+    if (total !== undefined || totalPages !== undefined) {
+      Object.assign(parsed, { total, totalPages, page, limit });
+    }
+    return parsed;
   },
   async getDeclaration(
     hotelId: string,
@@ -184,11 +191,59 @@ export const kbttRepository = {
     hotelId: string,
     dryRun = true,
   ): Promise<KbttAutoSubmitRunSummary> {
-    const url = `${autoSubmitPath(hotelId)}?dryRun=${dryRun}`;
+    const url = `${autoSubmitPath(hotelId)}?mode=${dryRun ? "dry-run" : "live"}`;
     const payload = await requestInternalApiEnvelope<unknown>(url, {
       method: "POST",
     });
     return kbttAutoSubmitRunSummarySchema.parse(payload.data);
+  },
+  async testTelegram(hotelId: string): Promise<{ sent: boolean }> {
+    const payload = await requestInternalApiEnvelope<{ sent: boolean }>(
+      `${autoSubmitPath(hotelId)}?mode=telegram-test`,
+      { method: "POST" },
+    );
+    return payload.data;
+  },
+  async scheduleAutoSubmit(hotelId: string, mode: "dry-run" | "live") {
+    const payload = await requestInternalApiEnvelope<unknown>(
+      `${autoSubmitPath(hotelId)}?mode=schedule`,
+      { method: "POST", body: { mode } },
+    );
+    return kbttAutoSubmitRunSummarySchema.parse(payload.data);
+  },
+  async cancelScheduledAutoSubmit(hotelId: string) {
+    const payload = await requestInternalApiEnvelope<{ cancelled: boolean }>(
+      `${autoSubmitPath(hotelId)}?mode=cancel`,
+      { method: "DELETE" },
+    );
+    return payload.data;
+  },
+  async devResetDeclarations(
+    hotelId: string,
+    options?: { generateNewIdentityNumbers?: boolean },
+  ): Promise<{
+    success: boolean;
+    message: string;
+    resetCount: number;
+    generatedCount?: number;
+  }> {
+    const url = `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/kbtt/dev?action=reset`;
+    const payload = await requestInternalApiEnvelope<any>(url, {
+      method: "POST",
+      body: options ?? {},
+    });
+    return payload.data;
+  },
+  async devUpdateOccupants(
+    hotelId: string,
+    occupants: KbttDevOccupantUpdateItem[],
+  ): Promise<{ success: boolean; message: string; updatedCount: number }> {
+    const url = `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/kbtt/dev?action=update-occupants`;
+    const payload = await requestInternalApiEnvelope<any>(url, {
+      method: "POST",
+      body: { occupants },
+    });
+    return payload.data;
   },
 };
 

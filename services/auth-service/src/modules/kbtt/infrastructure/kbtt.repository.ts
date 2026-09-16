@@ -18,18 +18,43 @@ export class KbttRepository {
 
   async find(hotelId: string) {
     try {
-      return await this.prisma.kbttHotelConnection.findUnique({ where: { hotelId } });
+      return await this.prisma.kbttHotelConnection.findUnique({
+        where: { hotelId },
+        include: { hotel: true },
+      });
     } catch {
       throw kbttUnavailable();
     }
   }
 
+  async findHotelName(hotelId: string): Promise<string | null> {
+    try {
+      const hotel = await this.prisma.hotel.findUnique({
+        where: { id: hotelId },
+        select: { name: true },
+      });
+      return hotel?.name ?? null;
+    } catch {
+      return null;
+    }
+  }
+
   async save(connection: KbttHotelConnection) {
     try {
+      const {
+        autoSubmitEnabled: _enabled,
+        autoSubmitTime: _time,
+        hotel: _hotel,
+        ...connectionData
+      } = connection as any;
       return await this.prisma.kbttHotelConnection.upsert({
         where: { hotelId: connection.hotelId },
-        create: connection,
-        update: connection,
+        create: {
+          ...connectionData,
+          autoSubmitEnabled: connection.autoSubmitEnabled,
+          autoSubmitTime: connection.autoSubmitTime,
+        },
+        update: connectionData,
       });
     } catch {
       throw kbttUnavailable();
@@ -147,6 +172,9 @@ export class KbttRepository {
     revision?: number;
     status?: KbttDeclarationStatus;
     draftPayloadJson: Prisma.InputJsonValue;
+    submittedPayloadFingerprint?: string | null;
+    providerCode?: string | null;
+    providerMessage?: string | null;
   }): Promise<KbttGuestDeclaration> {
     try {
       return await this.prisma.kbttGuestDeclaration.create({
@@ -158,6 +186,9 @@ export class KbttRepository {
           revision: data.revision ?? 1,
           status: data.status ?? "DRAFT",
           draftPayloadJson: data.draftPayloadJson,
+          submittedPayloadFingerprint: data.submittedPayloadFingerprint ?? null,
+          providerCode: data.providerCode ?? null,
+          providerMessage: data.providerMessage ?? null,
           version: 1,
         },
       });
@@ -329,6 +360,7 @@ export class KbttRepository {
         where: {
           autoSubmitEnabled: true,
           autoSubmitTime: currentHHmm,
+          status: "CONNECTED",
         },
         select: {
           hotelId: true,
@@ -372,12 +404,20 @@ export class KbttRepository {
         if (existing.leaseExpiresAt > now) {
           return null;
         }
-        return await this.prisma.kbttAutoSubmitRun.update({
-          where: { id: existing.id },
+        const claimed = await this.prisma.kbttAutoSubmitRun.updateMany({
+          where: {
+            id: existing.id,
+            status: "RUNNING",
+            leaseExpiresAt: { lte: now },
+          },
           data: {
             leaseExpiresAt,
             dryRun,
           },
+        });
+        if (claimed.count !== 1) return null;
+        return await this.prisma.kbttAutoSubmitRun.findUnique({
+          where: { id: existing.id },
         });
       }
 
@@ -394,6 +434,59 @@ export class KbttRepository {
       if (error?.code === "P2002") {
         return null;
       }
+      throw kbttUnavailable();
+    }
+  }
+
+  async renewAutoSubmitRunLease(
+    runId: string,
+    leaseTimeoutMinutes = 10,
+  ): Promise<boolean> {
+    try {
+      const now = new Date();
+      const leaseExpiresAt = new Date(now.getTime() + leaseTimeoutMinutes * 60 * 1000);
+      const res = await this.prisma.kbttAutoSubmitRun.updateMany({
+        where: {
+          id: runId,
+          status: "RUNNING",
+          leaseExpiresAt: { gt: now },
+        },
+        data: {
+          leaseExpiresAt,
+        },
+      });
+      return res.count === 1;
+    } catch {
+      return false;
+    }
+  }
+
+  async createScheduledAutoSubmitRun(hotelId: string, scheduledFor: Date, dryRun: boolean) {
+    try {
+      return await this.prisma.kbttAutoSubmitRun.create({
+        data: {
+          hotelId,
+          scheduledFor,
+          status: "RUNNING",
+          leaseExpiresAt: new Date(scheduledFor.getTime() - 1),
+          dryRun,
+          summaryJson: { trigger: "MANUAL_DELAYED" },
+        },
+      });
+    } catch (error: any) {
+      if (error?.code === "P2002") throw new ConflictException("Đã có một phiên KBTT đang được hẹn.");
+      throw kbttUnavailable();
+    }
+  }
+
+  async findPendingScheduledAutoSubmitRuns(hotelId?: string) {
+    try {
+      return await this.prisma.kbttAutoSubmitRun.findMany({
+        where: { ...(hotelId ? { hotelId } : {}), status: "RUNNING" },
+        orderBy: { scheduledFor: "asc" },
+        take: 100,
+      });
+    } catch {
       throw kbttUnavailable();
     }
   }
@@ -440,15 +533,72 @@ export class KbttRepository {
     }
   }
 
-  async findReadyDeclarationsForHotel(hotelId: string): Promise<KbttGuestDeclaration[]> {
+  async resetAllDeclarationsToDraft(hotelId: string): Promise<number> {
     try {
-      return await this.prisma.kbttGuestDeclaration.findMany({
-        where: {
-          hotelId,
-          status: "READY",
+      const result = await this.prisma.kbttGuestDeclaration.updateMany({
+        where: { hotelId },
+        data: {
+          status: "DRAFT",
+          submittedAt: null,
+          providerCode: null,
+          providerMessage: null,
+          submittedPayloadJson: Prisma.DbNull,
+          submittedPayloadFingerprint: null,
+          providerResponseJson: Prisma.DbNull,
+          version: { increment: 1 },
         },
-        orderBy: { createdAt: "asc" },
       });
+      return result.count;
+    } catch {
+      throw kbttUnavailable();
+    }
+  }
+
+  async resetSingleDeclarationToDraft(hotelId: string, occupantId: string): Promise<void> {
+    try {
+      await this.prisma.kbttGuestDeclaration.updateMany({
+        where: { hotelId, occupantId },
+        data: {
+          status: "DRAFT",
+          submittedAt: null,
+          providerCode: null,
+          providerMessage: null,
+          submittedPayloadJson: Prisma.DbNull,
+          submittedPayloadFingerprint: null,
+          providerResponseJson: Prisma.DbNull,
+          version: { increment: 1 },
+        },
+      });
+    } catch {
+      throw kbttUnavailable();
+    }
+  }
+
+  async updateOccupantDetails(
+    occupantId: string,
+    hotelId: string,
+    data: {
+      identityNumber?: string;
+      fullName?: string;
+      gender?: string;
+      dateOfBirth?: string;
+      nationality?: string;
+    },
+  ): Promise<void> {
+    try {
+      const updateData: any = {};
+      if (data.identityNumber !== undefined) updateData.identityNumber = data.identityNumber;
+      if (data.fullName !== undefined) updateData.fullName = data.fullName;
+      if (data.gender !== undefined) updateData.gender = data.gender;
+      if (data.dateOfBirth !== undefined) updateData.dateOfBirth = data.dateOfBirth;
+      if (data.nationality !== undefined) updateData.nationality = data.nationality;
+
+      if (Object.keys(updateData).length > 0) {
+        await this.prisma.guestStayOccupant.updateMany({
+          where: { id: occupantId, hotelId },
+          data: updateData,
+        });
+      }
     } catch {
       throw kbttUnavailable();
     }

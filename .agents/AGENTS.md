@@ -146,6 +146,9 @@ A "module completed" includes examples such as:
 
 **Do NOT** run Graphify after every file edit. Reuse the existing graph throughout implementation. Only refresh the graph once when the module is considered complete, so future tasks use the latest project structure.
 
+**Miễn trừ cho chỉnh sửa thông thường (Exemption for Minor Edits):**
+Đối với các thao tác chỉnh sửa thông thường, phạm vi nhỏ (như chỉnh UI nhẹ, đổi tên biến/hàm, sửa text/copy/label, css/spacing tweaks): **KHÔNG cần run test** và **KHÔNG run graphify update** để tối ưu tốc độ và tránh lãng phí tài nguyên.
+
 ---
 
 ## Required Reading Before Changes
@@ -224,8 +227,6 @@ For any task whose primary intent is UI inspection, UI repair, UX review, visual
 
 The UI Quality Pro-Max skill is mandatory even when the user does not name it explicitly. Natural-language requests such as `soi lại giao diện`, `fix UI`, `fix UX`, `polish`, `responsive`, `review giao diện`, `ổn định dashboard`, `kiểm tra UI`, or `redesign existing page` trigger it.
 
-For web UI work, final rendered-browser inspection through Chrome DevTools MCP is required. Tests/build do not substitute for UI verification. Screenshots are evidence, not decoration: the agent must visually inspect the rendered result after the final source change.
-
 When relevant local taste/design skills exist under `.agents/skills/`, they may be consulted only as supporting heuristics through UI Quality Pro-Max. Preserve VietSage's existing product identity, repository architecture, current design system, and security/business rules over taste-skill suggestions.
 
 UI Quality Pro-Max does not override the Graphify/Repomix navigation policy. Shared UI primitives, tokens, navigation shells, forms, tables, and feedback components require Graphify impact analysis before modification.
@@ -243,7 +244,8 @@ Report:
 ## AGY / Ponytail execution policy
 
 - `PONYTAIL.md` is mandatory for every coding agent and corrective run. Read it before editing; Ponytail `full` remains active unless the user explicitly disables it.
-- AGY runs exactly one focused check covering its changed behavior. AGY must not run full lint, the full test suite, or a full build.
+- **Thao tác chỉnh sửa thông thường (Minor Edits):** Đối với các thay đổi không quá lớn như chỉnh UI nhẹ, đổi tên, text/copy, css/spacing: **KHÔNG cần run test** và **KHÔNG run graphify**.
+- Với thay đổi logic nghiệp vụ, AGY chạy tối đa một focused check duy nhất bao phủ hành vi thay đổi. AGY không chạy full lint, full test suite, hoặc full build.
 - Host verification runs each slice's targeted gate in parallel.
 - Integration cherry-picks accepted slices without rerunning module-wide gates after every commit.
 - After all slices integrate, run affected/module lint, tests, and build once via the orchestrator final gate. Run the full merge gate once before PR/merge when required.

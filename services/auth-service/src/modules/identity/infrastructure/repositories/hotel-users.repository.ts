@@ -4,6 +4,7 @@ import {
   HotelStatus,
   Prisma,
   RoleStatus,
+  TenantType,
   TenantUserStatus,
   UserRoleStatus,
   UserStatus,
@@ -280,6 +281,34 @@ export class HotelUsersRepository {
         },
       },
     });
+  }
+
+  async hasActiveMarketplaceIdentity(userId: string) {
+    return (
+      (await this.prisma.user.count({
+        where: {
+          id: userId,
+          OR: [
+            {
+              tenantUsers: {
+                some: {
+                  status: TenantUserStatus.ACTIVE,
+                  tenant: { type: TenantType.SERVICE },
+                },
+              },
+            },
+            {
+              userRoles: {
+                some: {
+                  status: UserRoleStatus.ACTIVE,
+                  role: { code: "SERVICE_STAFF", status: RoleStatus.ACTIVE },
+                },
+              },
+            },
+          ],
+        },
+      })) > 0
+    );
   }
 
   async updateTenantUserStatus(

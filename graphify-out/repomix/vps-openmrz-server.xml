@@ -1,0 +1,576 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: frontends/front-end-vietsage/src/features/local-biometric/utils/identity-document-ocr.ts, frontends/front-end-vietsage/src/features/local-biometric/utils/identity-document-ocr.test.ts, frontends/front-end-vietsage/src/features/local-biometric/components/desktop-document-ocr-upload.tsx, frontends/front-end-vietsage/src/features/local-biometric/components/desktop-document-ocr-upload.test.ts, frontends/front-end-vietsage/src/features/local-biometric/hooks/use-mobile-cccd-scan.ts, frontends/front-end-vietsage/src/features/local-biometric/workstation/authorize-hotel-workstation.ts, docker-compose.prod.yml, scripts/verify-production-topology.py, tools/open-mrz/Dockerfile
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+frontends/
+  front-end-vietsage/
+    src/
+      features/
+        local-biometric/
+          components/
+            desktop-document-ocr-upload.test.ts
+            desktop-document-ocr-upload.tsx
+          hooks/
+            use-mobile-cccd-scan.ts
+          utils/
+            identity-document-ocr.test.ts
+            identity-document-ocr.ts
+          workstation/
+            authorize-hotel-workstation.ts
+scripts/
+  verify-production-topology.py
+tools/
+  open-mrz/
+    Dockerfile
+docker-compose.prod.yml
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/workstation/authorize-hotel-workstation.ts">
+import type { Session } from "next-auth";
+⋮----
+import { executeOwnerBackendRequest } from "@/app/api/owner/_utils";
+import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
+import { canUseHotelId } from "@/features/hotel-ops/utils/hotel-route-auth";
+import { resolveIntakeAuthorizationMode } from "../intake/intake-authorization";
+import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
+⋮----
+export async function authorizeHotelWorkstation(session: Session, hotelId: string): Promise<Response | null>
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/utils/identity-document-ocr.test.ts">
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import test from "node:test";
+import { fileURLToPath } from "node:url";
+⋮----
+// @ts-expect-error Node strip-types requires explicit extension.
+import { parseLocalMrzBatch, parseLocalMrzResult, recognizeDesktopIdentityDocuments } from "./identity-document-ocr.ts";
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/utils/identity-document-ocr.ts">
+export type IdentityDocumentOcrResult = {
+  documentKind: "passport" | "visa";
+  format?: string;
+  mrzValid?: boolean;
+  identityNumber: string;
+  fullName: string;
+  dateOfBirth?: string;
+  gender?: string;
+  nationality?: string;
+  residencePlace?: string;
+  expiryDate?: string;
+  guestDisplayName: string;
+  guestIdentityNumber: string;
+  guestDateOfBirth?: string;
+  guestGender?: string;
+  guestNationality?: string;
+  guestResidencePlace?: string;
+};
+⋮----
+export type IdentityDocumentOcrFailure = {
+  success: false;
+  index?: number;
+  filename?: string;
+  code: string;
+  error: string;
+};
+⋮----
+export type IdentityDocumentBatchItem =
+  | ({ success: true; index?: number; filename?: string } & IdentityDocumentOcrResult)
+  | IdentityDocumentOcrFailure;
+⋮----
+export function normalizeNationalityToText(value?: string | null): string
+⋮----
+export function parseLocalMrzResult(value: unknown): IdentityDocumentOcrResult
+⋮----
+const optional = (key: string)
+⋮----
+export function parseLocalMrzBatch(value: unknown): IdentityDocumentBatchItem[]
+⋮----
+/**
+ * Try to decode a QR code from an image file using the browser's native
+ * BarcodeDetector API (Chromium ≥ 88). Returns the raw QR text or null.
+ * Silently returns null on unsupported browsers or if no QR is found.
+ */
+async function tryBrowserQrDecode(file: File): Promise<string | null>
+⋮----
+detect(src: ImageBitmap): Promise<
+⋮----
+// BarcodeDetector not supported or image unreadable — fall through
+⋮----
+/**
+ * Try to decode a QR code from a file, parse it as CCCD QR data, and
+ * convert it to an IdentityDocumentBatchItem. Returns null if no QR found
+ * or if the QR content isn't a valid CCCD QR.
+ */
+async function tryDecodeQrFromFile(
+  file: File,
+  index: number,
+): Promise<IdentityDocumentBatchItem | null>
+⋮----
+// Dynamic import avoids bundling cccd-qr-parser when QR is not used
+⋮----
+documentKind: "passport" as const,  // CCCD maps to the same guest structure
+⋮----
+// QR text was found but is not a valid CCCD QR → ignore
+⋮----
+export async function recognizeDesktopIdentityDocuments(files: readonly File[]): Promise<IdentityDocumentBatchItem[]>
+⋮----
+// Phase 1: Try QR decode for each file (browser BarcodeDetector)
+⋮----
+// Phase 2: Send remaining files to OpenMRZ for MRZ recognition
+⋮----
+// Map MRZ results back to original positions
+</file>
+
+<file path="tools/open-mrz/Dockerfile">
+# ─── Open MRZ Server ──────────────────────────────────────────
+# Multi-stage build: Tesseract + Python deps → slim runtime image
+# Build : docker build -t open-mrz .
+# Run   : docker run -p 8787:8787 open-mrz
+# ──────────────────────────────────────────────────────────────
+
+FROM python:3.12-slim AS base
+
+# Tesseract OCR + shared libs for OpenCV headless
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tesseract-ocr \
+    libgl1 \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+RUN groupadd --gid 10001 openmrz \
+    && useradd --uid 10001 --gid openmrz --create-home openmrz
+
+# Python deps (cached layer)
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Application source (no .runtime, no __pycache__)
+COPY --chown=openmrz:openmrz server.py open_mrz_engine.py mrz_parser.py vietsage_adapter.py api.py ./
+COPY --chown=openmrz:openmrz assets/ ./assets/
+
+ENV PYTHONUNBUFFERED=1
+ENV TESSDATA_PREFIX=/app/assets/models
+
+EXPOSE 8787
+USER openmrz
+
+# --host 0.0.0.0 binds inside the container; Compose does not publish this port.
+CMD ["python", "server.py", "--port", "8787", "--host", "0.0.0.0"]
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/components/desktop-document-ocr-upload.test.ts">
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/components/desktop-document-ocr-upload.tsx">
+import React, { useRef, useState } from "react";
+import type { CccdCheckInCapture } from "./cccd-check-in-panel";
+import {
+  recognizeDesktopIdentityDocuments,
+  type IdentityDocumentOcrResult,
+} from "../utils/identity-document-ocr";
+⋮----
+export function convertMrzResultToCapture(result: IdentityDocumentOcrResult): CccdCheckInCapture
+⋮----
+export type DesktopDocumentOcrUploadProps = {
+  onCaptures: (captures: CccdCheckInCapture[]) => void;
+  disabled?: boolean;
+};
+⋮----
+const clearInput = (inputEl?: HTMLInputElement | null) =>
+⋮----
+const processFiles = async (rawFiles: File[], inputEl?: HTMLInputElement | null) =>
+⋮----
+const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) =>
+⋮----
+const handleDragOver = (e: React.DragEvent) =>
+⋮----
+const handleDragLeave = (e: React.DragEvent) =>
+⋮----
+const handleDrop = async (e: React.DragEvent) =>
+</file>
+
+<file path="scripts/verify-production-topology.py">
+#!/usr/bin/env python3
+"""Static regression checks for the production Docker Compose topology."""
+⋮----
+ROOT = Path(__file__).resolve().parents[1]
+COMPOSE_PATH = ROOT / "docker-compose.prod.yml"
+APP_SERVICES = ("auth-service", "frontend")
+⋮----
+def service_block(compose: str, service: str) -> str
+⋮----
+match = re.search(
+⋮----
+def _check_frontend_build(compose: str, failures: list[str]) -> None
+⋮----
+frontend = service_block(compose, "frontend")
+context_match = re.search(r"(?m)^      context: (.+)$", frontend)
+⋮----
+context = context_match.group(1).strip().strip('"\'')
+⋮----
+frontend_dockerfile = (ROOT / "frontends/front-end-vietsage/Dockerfile").read_text(encoding="utf-8")
+⋮----
+def _check_app_services(compose: str, failures: list[str]) -> None
+⋮----
+block = service_block(compose, service)
+⋮----
+volume_entries = re.findall(r'(?m)^ {6}- ["\']?([^"\'\n:]+)', block)
+⋮----
+def _check_auth_postgres_networks(compose: str, failures: list[str]) -> None
+⋮----
+auth = service_block(compose, "auth-service")
+credential_mount = (
+⋮----
+postgres = service_block(compose, "postgres")
+⋮----
+def main() -> int
+⋮----
+compose = COMPOSE_PATH.read_text(encoding="utf-8")
+failures: list[str] = []
+</file>
+
+<file path="docker-compose.prod.yml">
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: vietsage-postgres
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: "1.0"
+    pids_limit: 128
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    env_file:
+      - ./secrets/production/postgres.env
+    volumes:
+      - vietsage_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres} -d $${POSTGRES_DB:-vietsage_auth}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - backend
+
+  migrate:
+    image: "${AUTH_SERVICE_IMAGE:-vietsage-auth-service:prod}"
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    container_name: vietsage-migrate
+    restart: "no"
+    mem_limit: 512m
+    cpus: "1.0"
+    pids_limit: 128
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    env_file:
+      - ./secrets/production/auth-service.env
+    environment:
+      NODE_ENV: production
+    command: ["node_modules/.bin/prisma", "migrate", "deploy"]
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - backend
+
+  seed:
+    image: "${AUTH_SERVICE_IMAGE:-vietsage-auth-service:prod}"
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    container_name: vietsage-seed
+    restart: "no"
+    mem_limit: 512m
+    cpus: "1.0"
+    pids_limit: 128
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    env_file:
+      - ./secrets/production/auth-service.env
+    environment:
+      NODE_ENV: production
+    command: ["node_modules/.bin/prisma", "db", "seed"]
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - backend
+
+  auth-service:
+    image: "${AUTH_SERVICE_IMAGE:-vietsage-auth-service:prod}"
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    container_name: vietsage-auth-service
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: "1.5"
+    pids_limit: 128
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    env_file:
+      - ./secrets/production/auth-service.env
+    environment:
+      NODE_ENV: production
+      PORT: "8080"
+    volumes:
+      - "./secrets/production/google-service-account.json:/run/secrets/google-service-account.json:ro"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      seed:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks:
+      - edge
+      - backend
+
+
+  frontend:
+    image: "${FRONTEND_IMAGE:-vietsage-frontend:prod}"
+    build:
+      context: ./frontends/front-end-vietsage
+      dockerfile: Dockerfile
+      secrets:
+        - frontend_build_auth
+    container_name: vietsage-frontend
+    restart: unless-stopped
+    mem_limit: 384m
+    cpus: "1.0"
+    pids_limit: 128
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    env_file:
+      - ./secrets/production/frontend.env
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: 0.0.0.0
+      AUTH_API_BASE_URL: http://auth-service:8080
+
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/.next/cache
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    depends_on:
+      auth-service:
+        condition: service_healthy
+
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/icon.png').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks:
+      - edge
+
+  nginx:
+    image: nginxinc/nginx-unprivileged:1.28-alpine
+    container_name: vietsage-nginx
+    restart: unless-stopped
+    mem_limit: 128m
+    cpus: "0.5"
+    pids_limit: 64
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:8080"
+      - "${NGINX_HTTPS_PORT:-443}:8443"
+    volumes:
+      - "./deploy/nginx/${NGINX_CONFIG_FILE:-docker-vietsage.conf}:/etc/nginx/conf.d/default.conf:ro"
+      - certbot_webroot:/var/www/certbot:ro
+      - letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/nginx-health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks:
+      - edge
+
+  certbot:
+    image: certbot/certbot:v5.1.0
+    restart: "no"
+    mem_limit: 256m
+    cpus: "0.5"
+    pids_limit: 64
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/lib/letsencrypt
+      - /var/log/letsencrypt
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    profiles:
+      - tls-tools
+    volumes:
+      - certbot_webroot:/var/www/certbot
+      - letsencrypt:/etc/letsencrypt
+    networks:
+      - edge
+
+volumes:
+  vietsage_postgres_data:
+  certbot_webroot:
+  letsencrypt:
+
+networks:
+  edge:
+  backend:
+    internal: true
+
+secrets:
+  frontend_build_auth:
+    environment: FRONTEND_BUILD_AUTH_SECRET
+</file>
+
+<file path="frontends/front-end-vietsage/src/features/local-biometric/hooks/use-mobile-cccd-scan.ts">
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { mobileShiftResource } from "../resources/mobile-shift-resource";
+import { useMobileDesk } from "../store/mobile-desk-store";
+import { mayApplyMobile } from "../utils/mobile-scan-client";
+import type { DesktopCommand } from "../workstation/mobile-shift-security";
+import type { ShiftResult } from "../repositories/mobile-shift-repository";
+import type { CccdCheckInCapture } from "../components/cccd-check-in-panel";
+import { mobileShiftRepository } from "../repositories/mobile-shift-repository";
+import { recognizeDesktopIdentityDocuments } from "../utils/identity-document-ocr";
+⋮----
+type Props = { hotelId: string; targetContext: string; targetLabel: string; onCapture: (value: CccdCheckInCapture | null) => void };
+export function useMobileCccdScan(
+⋮----
+// Read incoming scan data and send ACK
+⋮----
+// This effect exclusively owns the target it creates, including pre-refetch cleanup.
+⋮----
+const perform = async (body: DesktopCommand) =>
+</file>
+
+</files>

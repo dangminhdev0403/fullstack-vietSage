@@ -13,3 +13,7 @@ export function PUT(request: Request, context: KbttRouteContext) {
 export function POST(request: Request, context: KbttRouteContext) {
   return handleKbttAutoSubmitRequest(request, context, "POST");
 }
+
+export function DELETE(request: Request, context: KbttRouteContext) {
+  return handleKbttAutoSubmitRequest(request, context, "DELETE");
+}

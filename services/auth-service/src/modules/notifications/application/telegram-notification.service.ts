@@ -418,9 +418,21 @@ export class TelegramNotificationService {
     failureCount: number;
     unknownCount: number;
     isDryRun: boolean;
+    directSuccessCount?: number;
+    reconciledSuccessCount?: number;
+    validationFailureCount?: number;
+    bcaRejectionCount?: number;
+    transientExhaustedCount?: number;
   }): string {
     const badge = summary.isDryRun ? "🧪 [DRY RUN - THỬ NGHIỆM]" : "🚀 [TỰ ĐỘNG NỘP C06 BCA]";
-    return [
+    const hasDetailedBreakdown =
+      summary.directSuccessCount !== undefined ||
+      summary.reconciledSuccessCount !== undefined ||
+      summary.validationFailureCount !== undefined ||
+      summary.bcaRejectionCount !== undefined ||
+      summary.transientExhaustedCount !== undefined;
+
+    const lines = [
       `<b>${badge} - BÁO CÁO KHAI BÁO TẠM TRÚ</b>`,
       `🏢 <b>Khách sạn:</b> ${this.escapeHtml(summary.hotelName)}`,
       `⏰ <b>Thời điểm nộp:</b> ${this.escapeHtml(summary.scheduledTime)}`,
@@ -428,13 +440,39 @@ export class TelegramNotificationService {
       `📊 <b>Kết quả tổng hợp:</b>`,
       `• Tổng số hồ sơ đủ điều kiện: <b>${summary.totalEligible}</b>`,
       `• Thành công: <b>${summary.successCount}</b> ✅`,
-      `• Thất bại / Lỗi nghiệp vụ: <b>${summary.failureCount}</b> ❌`,
-      `• Chưa rõ trạng thái (Timeout): <b>${summary.unknownCount}</b> ⚠️`,
-      ``,
+    ];
+
+    if (hasDetailedBreakdown) {
+      if ((summary.directSuccessCount ?? 0) > 0) {
+        lines.push(`  ├ Trực tiếp: <b>${summary.directSuccessCount ?? 0}</b>`);
+      }
+      if ((summary.reconciledSuccessCount ?? 0) > 0) {
+        lines.push(`  └ Đối soát tự động: <b>${summary.reconciledSuccessCount ?? 0}</b> ⚡`);
+      }
+      lines.push(`• Thất bại / Lỗi nghiệp vụ: <b>${summary.failureCount}</b> ❌`);
+      if ((summary.validationFailureCount ?? 0) > 0) {
+        lines.push(`  ├ Lỗi dữ liệu/form: <b>${summary.validationFailureCount ?? 0}</b>`);
+      }
+      if ((summary.bcaRejectionCount ?? 0) > 0) {
+        lines.push(`  └ BCA từ chối: <b>${summary.bcaRejectionCount ?? 0}</b>`);
+      }
+      lines.push(`• Chưa rõ trạng thái (Timeout): <b>${summary.unknownCount}</b> ⚠️`);
+      if ((summary.transientExhaustedCount ?? 0) > 0) {
+        lines.push(`  └ Cần kiểm tra: <b>${summary.transientExhaustedCount ?? 0}</b>`);
+      }
+    } else {
+      lines.push(`• Thất bại / Lỗi nghiệp vụ: <b>${summary.failureCount}</b> ❌`);
+      lines.push(`• Chưa rõ trạng thái (Timeout): <b>${summary.unknownCount}</b> ⚠️`);
+    }
+
+    lines.push(``);
+    lines.push(
       summary.isDryRun
         ? `<i>(Đây là phiên chạy thử nghiệm, chưa gửi dữ liệu thật tới hệ thống BCA)</i>`
         : `<i>(Hồ sơ timeout cần nhân viên lễ tân kiểm tra lại trước khi gửi thủ công)</i>`,
-    ].join("\n");
+    );
+
+    return lines.join("\n");
   }
 
   async sendKbttAutoSubmitSummary(
@@ -447,20 +485,25 @@ export class TelegramNotificationService {
       failureCount: number;
       unknownCount: number;
       isDryRun: boolean;
+      directSuccessCount?: number;
+      reconciledSuccessCount?: number;
+      validationFailureCount?: number;
+      bcaRejectionCount?: number;
+      transientExhaustedCount?: number;
     },
   ): Promise<boolean> {
     try {
-      let route = await this.prisma.notificationRoute.findFirst({
+      const route = await this.prisma.notificationRoute.findFirst({
         where: { hotelId, isActive: true, purpose: "KBTT_AUTO_SUBMIT" },
       });
-      if (!route) {
-        route = await this.prisma.notificationRoute.findFirst({
-          where: { hotelId, isActive: true },
-        });
-      }
 
-      if (!route) {
-        this.logger.warn("Telegram route for KBTT auto-submit not found", {
+      const targetChatIds = new Set<string>();
+      if (route?.telegramChatId) targetChatIds.add(route.telegramChatId);
+      const aggregateChatId = process.env.TELEGRAM_KBTT_AGGREGATE_CHAT_ID;
+      if (aggregateChatId) targetChatIds.add(aggregateChatId);
+
+      if (targetChatIds.size === 0) {
+        this.logger.warn("Telegram route for KBTT auto-submit not found and no aggregate chat configured", {
           module: "telegram",
           service: TelegramNotificationService.name,
           event: "KBTT_TELEGRAM_ROUTE_NOT_FOUND",
@@ -469,19 +512,36 @@ export class TelegramNotificationService {
         return false;
       }
 
-      const text = this.formatKbttSummaryMessage(summary);
-      await this.callTelegram("sendMessage", {
-        chat_id: route.telegramChatId,
-        text,
-        parse_mode: "HTML",
-      });
+      let hotelName = summary.hotelName;
+      if (!hotelName || hotelName === hotelId) {
+        try {
+          const hotel = await (this.prisma as any)?.hotel?.findUnique?.({
+            where: { id: hotelId },
+            select: { name: true },
+          });
+          if (hotel?.name) {
+            hotelName = hotel.name;
+          }
+        } catch {
+          // non-blocking fallback lookup
+        }
+      }
+
+      const text = this.formatKbttSummaryMessage({ ...summary, hotelName });
+      for (const chatId of targetChatIds) {
+        await this.callTelegram("sendMessage", {
+          chat_id: chatId,
+          text,
+          parse_mode: "HTML",
+        });
+      }
 
       this.logger.info("Telegram KBTT summary sent successfully", {
         module: "telegram",
         service: TelegramNotificationService.name,
         event: "KBTT_TELEGRAM_SUMMARY_SENT",
         hotelId,
-        chatId: route.telegramChatId,
+        recipientCount: targetChatIds.size,
       });
       return true;
     } catch (error: any) {
@@ -491,6 +551,63 @@ export class TelegramNotificationService {
       );
       return false;
     }
+  }
+
+  async sendKbttSingleSubmitNotification(data: {
+    hotelId: string;
+    hotelName?: string;
+    roomNumber?: string;
+    fullName: string;
+    identityNumber?: string;
+    stayPeriod?: string;
+    status: "SUBMITTED" | "FAILED";
+    isReconciled?: boolean;
+    errorMessage?: string;
+  }): Promise<boolean> {
+    try {
+      const aggregateChatId = process.env.TELEGRAM_KBTT_AGGREGATE_CHAT_ID;
+      if (!aggregateChatId) return false;
+
+      const icon = data.status === "SUBMITTED" ? (data.isReconciled ? "⚡" : "✅") : "❌";
+      const statusTitle = data.status === "SUBMITTED"
+        ? (data.isReconciled ? "ĐÃ GỬI BCA (TỰ ĐỘNG ĐỐI SOÁT)" : "ĐÃ GỬI BCA THÀNH CÔNG")
+        : "GỬI BCA THẤT BẠI";
+
+      const lines = [
+        `🏛️ <b>[${this.escapeHtml(data.hotelName || data.hotelId)}]</b> ${data.roomNumber ? `- Phòng <b>${this.escapeHtml(data.roomNumber)}</b>` : ""}`,
+        `👤 <b>Khách:</b> ${this.escapeHtml(data.fullName)} ${data.identityNumber ? `(<code>${this.escapeHtml(data.identityNumber)}</code>)` : ""}`,
+        data.stayPeriod ? `📅 <b>Lưu trú:</b> ${this.escapeHtml(data.stayPeriod)}` : "",
+        `${icon} <b>Trạng thái:</b> <b>${statusTitle}</b>`,
+        data.errorMessage ? `⚠️ <i>Lý do: ${this.escapeHtml(data.errorMessage)}</i>` : "",
+      ].filter(Boolean);
+
+      await this.callTelegram("sendMessage", {
+        chat_id: aggregateChatId,
+        text: lines.join("\n"),
+        parse_mode: "HTML",
+      });
+      return true;
+    } catch (error: any) {
+      this.logger.error(`Failed to send Telegram KBTT single submit: ${this.errorMessage(error)}`);
+      return false;
+    }
+  }
+
+  async sendKbttTestMessage(hotelId: string): Promise<boolean> {
+    const route = await this.prisma.notificationRoute.findFirst({
+      where: { hotelId, isActive: true, purpose: "KBTT_AUTO_SUBMIT" },
+    });
+    if (!route) return false;
+    await this.callTelegram("sendMessage", {
+      chat_id: route.telegramChatId,
+      text: [
+        "<b>🧪 KIỂM TRA KẾT NỐI TELEGRAM KBTT</b>",
+        "Kết nối bot và nhóm nhận báo cáo đang hoạt động.",
+        "<i>Thông báo thử — không gửi dữ liệu tới C06.</i>",
+      ].join("\n"),
+      parse_mode: "HTML",
+    });
+    return true;
   }
 }
 

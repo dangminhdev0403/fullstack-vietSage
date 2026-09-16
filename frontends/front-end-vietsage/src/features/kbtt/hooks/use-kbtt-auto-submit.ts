@@ -1,16 +1,26 @@
-﻿"use client";
+"use client";
 
-import { useCallback, useMemo } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { kbttResource } from "../resources/kbtt-resource";
 import type { KbttAutoSubmitConfig } from "../types/kbtt-contract";
 
 export function useKbttAutoSubmit(hotelId: string) {
+  const queryClient = useQueryClient();
   const resource = useMemo(() => kbttResource.bind({ hotelId }), [hotelId]);
   const autoSubmitOptions = useMemo(
     () => ({
       ...resource.queries.autoSubmitConfig.options(undefined),
       enabled: Boolean(hotelId),
+      refetchInterval: (query: any) => {
+        const data = query?.state?.data;
+        const isRunning =
+          Boolean(data?.pendingSchedule) ||
+          Boolean(data?.activeRun) ||
+          (Array.isArray(data?.recentRuns) &&
+            data.recentRuns.some((r: any) => r.status === "RUNNING"));
+        return isRunning ? 2000 : false;
+      },
       retry: false,
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
@@ -18,6 +28,23 @@ export function useKbttAutoSubmit(hotelId: string) {
     [resource, hotelId],
   );
   const autoSubmit = useQuery(autoSubmitOptions);
+
+  const hasActiveRun = Boolean(
+    autoSubmit.data?.pendingSchedule ||
+      autoSubmit.data?.activeRun ||
+      (Array.isArray(autoSubmit.data?.recentRuns) &&
+        autoSubmit.data.recentRuns.some((r) => r.status === "RUNNING")),
+  );
+  const prevActiveRunRef = useRef(false);
+
+  useEffect(() => {
+    if (prevActiveRunRef.current && !hasActiveRun) {
+      void resource.queries.declarations.invalidateAll(queryClient);
+      void resource.queries.declarationDetail.invalidateAll(queryClient);
+      void resource.queries.autoSubmitConfig.invalidateAll(queryClient);
+    }
+    prevActiveRunRef.current = hasActiveRun;
+  }, [hasActiveRun, queryClient, resource]);
 
   const updateMutationOptions = useMemo(
     () => resource.mutations.updateAutoSubmitConfig.options(),
@@ -27,9 +54,24 @@ export function useKbttAutoSubmit(hotelId: string) {
     () => resource.mutations.testAutoSubmit.options(),
     [resource],
   );
+  const telegramTestOptions = useMemo(
+    () => resource.mutations.testTelegram.options(),
+    [resource],
+  );
+  const scheduleOptions = useMemo(
+    () => resource.mutations.scheduleAutoSubmit.options(),
+    [resource],
+  );
+  const cancelScheduleOptions = useMemo(
+    () => resource.mutations.cancelScheduledAutoSubmit.options(),
+    [resource],
+  );
 
   const updateMutation = useMutation(updateMutationOptions);
   const testMutation = useMutation(testMutationOptions);
+  const telegramTestMutation = useMutation(telegramTestOptions);
+  const scheduleMutation = useMutation(scheduleOptions);
+  const cancelScheduleMutation = useMutation(cancelScheduleOptions);
 
   const updateConfig = useCallback(
     async (config: KbttAutoSubmitConfig) => {
@@ -49,7 +91,13 @@ export function useKbttAutoSubmit(hotelId: string) {
     autoSubmit,
     updating: updateMutation.isPending,
     testing: testMutation.isPending,
+    testingTelegram: telegramTestMutation.isPending,
+    scheduling: scheduleMutation.isPending,
+    cancellingSchedule: cancelScheduleMutation.isPending,
     updateConfig,
     testDryRun,
+    testTelegram: () => telegramTestMutation.mutateAsync(undefined),
+    scheduleAutoSubmit: (mode: "dry-run" | "live") => scheduleMutation.mutateAsync({ mode }),
+    cancelScheduledAutoSubmit: () => cancelScheduleMutation.mutateAsync(undefined),
   };
 }

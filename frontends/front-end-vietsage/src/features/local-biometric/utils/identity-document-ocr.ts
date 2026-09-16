@@ -26,7 +26,11 @@ export type IdentityDocumentOcrFailure = {
 };
 
 export type IdentityDocumentBatchItem =
-  | ({ success: true; index?: number; filename?: string } & IdentityDocumentOcrResult)
+  | ({
+      success: true;
+      index?: number;
+      filename?: string;
+    } & IdentityDocumentOcrResult)
   | IdentityDocumentOcrFailure;
 
 export const CODE_TO_TEXT_NATIONALITY: Record<string, string> = {
@@ -124,24 +128,29 @@ function normalizeIdentityDate(value: string | undefined): string | undefined {
 }
 
 export function parseLocalMrzResult(value: unknown): IdentityDocumentOcrResult {
-  if (!value || typeof value !== "object") throw new Error("Phản hồi OpenMRZ không hợp lệ");
+  if (!value || typeof value !== "object")
+    throw new Error("Phản hồi OpenMRZ không hợp lệ");
   const result = value as Record<string, unknown>;
   if (
-    (result.documentKind !== "passport" && result.documentKind !== "visa")
-    || typeof result.identityNumber !== "string"
-    || !/^[A-Z0-9]{1,32}$/.test(result.identityNumber)
-    || typeof result.fullName !== "string"
-    || !result.fullName.trim()
-  ) throw new Error("Phản hồi OpenMRZ không hợp lệ");
-  const optional = (key: string) => typeof result[key] === "string" ? result[key] as string : undefined;
+    (result.documentKind !== "passport" && result.documentKind !== "visa") ||
+    typeof result.identityNumber !== "string" ||
+    !/^[A-Z0-9]{1,32}$/.test(result.identityNumber) ||
+    typeof result.fullName !== "string" ||
+    !result.fullName.trim()
+  )
+    throw new Error("Phản hồi OpenMRZ không hợp lệ");
+  const optional = (key: string) =>
+    typeof result[key] === "string" ? (result[key] as string) : undefined;
   const rawNat = optional("nationality") || optional("guestNationality");
   const natText = rawNat ? normalizeNationalityToText(rawNat) : undefined;
   const dateOfBirth = normalizeIdentityDate(optional("dateOfBirth"));
-  const resPlace = optional("residencePlace") || optional("guestResidencePlace");
+  const resPlace =
+    optional("residencePlace") || optional("guestResidencePlace");
   return {
     documentKind: result.documentKind,
     format: optional("format"),
-    mrzValid: typeof result.mrzValid === "boolean" ? result.mrzValid : undefined,
+    mrzValid:
+      typeof result.mrzValid === "boolean" ? result.mrzValid : undefined,
     identityNumber: result.identityNumber,
     fullName: result.fullName.trim(),
     dateOfBirth,
@@ -158,20 +167,32 @@ export function parseLocalMrzResult(value: unknown): IdentityDocumentOcrResult {
   };
 }
 
-export function parseLocalMrzBatch(value: unknown): IdentityDocumentBatchItem[] {
-  if (!value || typeof value !== "object" || !Array.isArray((value as { results?: unknown }).results)) {
+export function parseLocalMrzBatch(
+  value: unknown,
+): IdentityDocumentBatchItem[] {
+  if (
+    !value ||
+    typeof value !== "object" ||
+    !Array.isArray((value as { results?: unknown }).results)
+  ) {
     throw new Error("Phản hồi OpenMRZ batch không hợp lệ");
   }
   return (value as { results: unknown[] }).results.map((item) => {
-    if (!item || typeof item !== "object") throw new Error("Phản hồi OpenMRZ batch không hợp lệ");
+    if (!item || typeof item !== "object")
+      throw new Error("Phản hồi OpenMRZ batch không hợp lệ");
     const raw = item as Record<string, unknown>;
-    if (raw.success === true) return {
-      success: true as const,
-      index: typeof raw.index === "number" ? raw.index : undefined,
-      filename: typeof raw.filename === "string" ? raw.filename : undefined,
-      ...parseLocalMrzResult(raw),
-    };
-    if (raw.success !== false || typeof raw.code !== "string" || typeof raw.error !== "string") {
+    if (raw.success === true)
+      return {
+        success: true as const,
+        index: typeof raw.index === "number" ? raw.index : undefined,
+        filename: typeof raw.filename === "string" ? raw.filename : undefined,
+        ...parseLocalMrzResult(raw),
+      };
+    if (
+      raw.success !== false ||
+      typeof raw.code !== "string" ||
+      typeof raw.error !== "string"
+    ) {
       throw new Error("Phản hồi OpenMRZ batch không hợp lệ");
     }
     return {
@@ -191,13 +212,15 @@ export function parseLocalMrzBatch(value: unknown): IdentityDocumentBatchItem[] 
  */
 async function tryBrowserQrDecode(file: File): Promise<string | null> {
   try {
-    const BarcodeDetectorCtor = (globalThis as unknown as {
-      BarcodeDetector?: {
-        new(opts: { formats: string[] }): {
-          detect(src: ImageBitmap): Promise<{ rawValue: string }[]>;
+    const BarcodeDetectorCtor = (
+      globalThis as unknown as {
+        BarcodeDetector?: {
+          new (opts: { formats: string[] }): {
+            detect(src: ImageBitmap): Promise<{ rawValue: string }[]>;
+          };
         };
-      };
-    }).BarcodeDetector;
+      }
+    ).BarcodeDetector;
     if (!BarcodeDetectorCtor) return null;
     const bitmap = await createImageBitmap(file);
     try {
@@ -234,7 +257,7 @@ async function tryDecodeQrFromFile(
       success: true,
       index,
       filename: file.name,
-      documentKind: "passport" as const,  // CCCD maps to the same guest structure
+      documentKind: "passport" as const, // CCCD maps to the same guest structure
       identityNumber: qr.identityNumber,
       fullName: qr.displayName,
       dateOfBirth: qr.dateOfBirth,
@@ -254,9 +277,14 @@ async function tryDecodeQrFromFile(
   }
 }
 
-export async function recognizeDesktopIdentityDocuments(files: readonly File[], hotelId: string): Promise<IdentityDocumentBatchItem[]> {
+export async function recognizeDesktopIdentityDocuments(
+  files: readonly File[],
+  hotelId: string,
+): Promise<IdentityDocumentBatchItem[]> {
   // Phase 1: Try QR decode for each file (browser BarcodeDetector)
-  const results: (IdentityDocumentBatchItem | null)[] = new Array(files.length).fill(null);
+  const results: (IdentityDocumentBatchItem | null)[] = new Array(
+    files.length,
+  ).fill(null);
   const mrzFiles: { file: File; originalIndex: number }[] = [];
 
   await Promise.all(
@@ -276,21 +304,35 @@ export async function recognizeDesktopIdentityDocuments(files: readonly File[], 
     body.append("files", file, file.name);
     let response: Response;
     try {
-      response = await fetch(`/api/cccd-mobile/hotels/${encodeURIComponent(hotelId)}/ocr`, {
-        method: "POST",
-        body,
-        signal: AbortSignal.timeout(120_000),
-      });
+      response = await fetch(
+        `/api/cccd-mobile/hotels/${encodeURIComponent(hotelId)}/ocr`,
+        {
+          method: "POST",
+          body,
+          signal: AbortSignal.timeout(120_000),
+        },
+      );
     } catch {
       throw new Error("Không kết nối được máy chủ OpenMRZ");
     }
 
-    const payload = await response.json().catch(() => null) as { error?: unknown } | null;
+    const payload = (await response.json().catch(() => null)) as {
+      error?: unknown;
+    } | null;
     if (!response.ok) {
-      throw new Error(typeof payload?.error === "string" ? payload.error : "Nhận diện MRZ không thành công");
+      throw new Error(
+        typeof payload?.error === "string"
+          ? payload.error
+          : "Nhận diện MRZ không thành công",
+      );
     }
     const item = parseLocalMrzBatch(payload)[0];
-    if (item) results[originalIndex] = { ...item, index: originalIndex + 1, filename: file.name };
+    if (item)
+      results[originalIndex] = {
+        ...item,
+        index: originalIndex + 1,
+        filename: file.name,
+      };
   }
 
   return results.filter((r): r is IdentityDocumentBatchItem => r !== null);

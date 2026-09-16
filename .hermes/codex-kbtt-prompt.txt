@@ -1,0 +1,5 @@
+Read C:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/PONYTAIL.md, then execute C:/Users/Dangminhdev0403/Desktop/workspace/fullstack-vietSage/.hermes/plans/2026-09-16_000003-kbtt-codex-reliability.md exactly.
+
+Preserve all pre-existing dirty and untracked work. Use strict TDD. Do not call live BCA or Telegram. Do not change package files or lockfiles. Do not apply migrations. Do not commit, push, or deploy.
+
+Final response must include: PONYTAIL_READ, Docs read, root cause/decisions, changed files, exact tests/checks, risks/blockers, and DONE or BLOCKED.

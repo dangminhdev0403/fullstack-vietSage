@@ -1,4 +1,4 @@
-﻿import { Test, TestingModule } from "@nestjs/testing";
+import { Test, TestingModule } from "@nestjs/testing";
 import { KbttAutoSubmitSchedulerService } from "../application/kbtt-auto-submit-scheduler.service";
 import { KbttService } from "../application/kbtt.service";
 import { KbttRepository } from "../infrastructure/kbtt.repository";
@@ -87,5 +87,104 @@ describe("KbttAutoSubmitSchedulerService", () => {
       expect.any(Date),
       true,
     );
+  });
+
+  it("queries only connected due hotels", async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const repository = new KbttRepository({
+      kbttHotelConnection: { findMany },
+    } as never);
+
+    await repository.findDueHotelsForAutoSubmit("04:30");
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          autoSubmitEnabled: true,
+          autoSubmitTime: "04:30",
+          status: "CONNECTED",
+        },
+      }),
+    );
+  });
+
+  it("takes over an expired lease atomically", async () => {
+    const expired = {
+      id: "run-1",
+      hotelId: "hotel-1",
+      scheduledFor: new Date("2026-09-15T21:30:00.000Z"),
+      status: "RUNNING",
+      leaseExpiresAt: new Date(0),
+    };
+    const updateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const findUnique = jest.fn().mockResolvedValueOnce(expired).mockResolvedValueOnce({
+      ...expired,
+      leaseExpiresAt: new Date("2026-09-15T21:40:00.000Z"),
+    });
+    const repository = new KbttRepository({
+      kbttAutoSubmitRun: { findUnique, updateMany },
+    } as never);
+
+    await expect(
+      repository.claimAutoSubmitRunLease("hotel-1", expired.scheduledFor, true),
+    ).resolves.toMatchObject({ id: "run-1" });
+    expect(updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: "run-1",
+          status: "RUNNING",
+          leaseExpiresAt: { lte: expect.any(Date) },
+        }),
+      }),
+    );
+  });
+
+  it("proves several due hotels execute with bounded concurrency so a slow hotel does not block others, while isolating failures", async () => {
+    const events: string[] = [];
+    let resolveHuge: () => void = () => {};
+    const hugePromise = new Promise<void>((resolve) => {
+      resolveHuge = resolve;
+    });
+
+    (repository.findDueHotelsForAutoSubmit as jest.Mock).mockResolvedValue([
+      { hotelId: "hotel-huge", autoSubmitTime: "04:30" },
+      { hotelId: "hotel-fast-1", autoSubmitTime: "04:30" },
+      { hotelId: "hotel-failing", autoSubmitTime: "04:30" },
+      { hotelId: "hotel-fast-2", autoSubmitTime: "04:30" },
+    ]);
+
+    (kbttService.executeAutoSubmitForHotel as jest.Mock).mockImplementation(async (hotelId: string) => {
+      events.push(`start:${hotelId}`);
+      if (hotelId === "hotel-huge") {
+        await hugePromise;
+        events.push("finish:hotel-huge");
+        return { id: "run-huge" };
+      }
+      if (hotelId === "hotel-failing") {
+        events.push("fail:hotel-failing");
+        throw new Error("Hotel failure");
+      }
+      events.push(`finish:${hotelId}`);
+      return { id: `run-${hotelId}` };
+    });
+
+    const cronPromise = scheduler.handleCron();
+
+    // Give microtasks time to start initial concurrent batch
+    await new Promise((r) => setImmediate(r));
+
+    // Because concurrency > 1, hotel-fast-1 must have started and finished even though hotel-huge is still running!
+    expect(events).toContain("start:hotel-huge");
+    expect(events).toContain("start:hotel-fast-1");
+    expect(events).toContain("finish:hotel-fast-1");
+
+    // Now resolve hotel-huge so handleCron can finish
+    resolveHuge();
+    await cronPromise;
+
+    expect(events).toContain("finish:hotel-huge");
+    expect(events).toContain("finish:hotel-fast-2");
+    expect(events).toContain("fail:hotel-failing");
+    expect(kbttService.executeAutoSubmitForHotel).toHaveBeenCalledTimes(4);
   });
 });

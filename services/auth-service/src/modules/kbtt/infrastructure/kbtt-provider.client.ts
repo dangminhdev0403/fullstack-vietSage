@@ -82,6 +82,7 @@ export class KbttProviderClient {
     declarationKind: "VIETNAMESE" | "FOREIGN",
     payload: unknown[],
     accessToken: string,
+    timeoutMs = 25_000,
   ): Promise<KbttSubmitOutcome> {
     const path =
       declarationKind === "FOREIGN"
@@ -101,18 +102,19 @@ export class KbttProviderClient {
         },
         body: JSON.stringify(payload),
         redirect: "error",
-        signal: AbortSignal.timeout(10_000),
+        signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (networkError: any) {
       const isTimeout =
         networkError?.name === "TimeoutError" ||
         networkError?.name === "AbortError" ||
         String(networkError?.message).toLowerCase().includes("timeout");
+      const seconds = Math.round(timeoutMs / 1000);
       return {
         outcome: "AMBIGUOUS",
         code: isTimeout ? "TIMEOUT" : "NETWORK_ERROR",
         message: isTimeout
-          ? "Quá thời gian chờ phản hồi từ cơ quan quản lý (10s)."
+          ? `Quá thời gian chờ phản hồi từ cơ quan quản lý (${seconds}s).`
           : "Lỗi kết nối mạng khi gửi hồ sơ khai báo đến cơ quan quản lý.",
       };
     }
@@ -147,23 +149,75 @@ export class KbttProviderClient {
         await reader.cancel();
       }
 
-      const raw = Buffer.concat(chunks).toString("utf8");
+      // ponytail: strip BOM + whitespace; government APIs commonly frame JSON with these
+      const raw = Buffer.concat(chunks).toString("utf8").replace(/^\uFEFF/, "").trim();
       let envelope: any;
       try {
         envelope = JSON.parse(raw);
       } catch {
+        if (response.status === 401) {
+          return {
+            outcome: "AMBIGUOUS",
+            code: "HTTP_401",
+            message: "Phiên đăng nhập kết nối BCA hết hạn hoặc không hợp lệ (HTTP 401 Unauthorized).",
+          };
+        }
+        if (response.status === 403) {
+          return {
+            outcome: "BUSINESS_REJECTION",
+            code: "HTTP_403",
+            message: "Tài khoản kết nối BCA bị từ chối quyền truy cập hoặc không có quyền gửi hồ sơ (HTTP 403 Forbidden).",
+          };
+        }
+        if (response.status === 404) {
+          return {
+            outcome: "AMBIGUOUS",
+            code: "HTTP_404",
+            message: "Không tìm thấy đường dẫn API khai báo tạm trú của cơ quan quản lý (HTTP 404 Not Found).",
+          };
+        }
         return {
           outcome: "AMBIGUOUS",
           code: `HTTP_${response.status}`,
-          message: "Phản hồi từ cơ quan quản lý không đúng định dạng JSON.",
+          message: `Phản hồi từ cơ quan quản lý không đúng định dạng JSON (HTTP ${response.status}).`,
         };
       }
 
       if (!envelope || typeof envelope !== "object" || !("code" in envelope)) {
+        const errorDetail =
+          typeof (envelope as any)?.message === "string" && (envelope as any).message
+            ? (envelope as any).message
+            : typeof (envelope as any)?.error_description === "string"
+              ? (envelope as any).error_description
+              : typeof (envelope as any)?.error === "string"
+                ? (envelope as any).error
+                : "";
+
+        if (response.status === 401) {
+          return {
+            outcome: "AMBIGUOUS",
+            code: "HTTP_401",
+            message: errorDetail
+              ? `Phiên đăng nhập BCA không hợp lệ: ${errorDetail} (HTTP 401)`
+              : "Phiên đăng nhập kết nối BCA hết hạn hoặc không hợp lệ (HTTP 401 Unauthorized).",
+          };
+        }
+        if (response.status === 403) {
+          return {
+            outcome: "BUSINESS_REJECTION",
+            code: "HTTP_403",
+            message: errorDetail
+              ? `Cổng BCA từ chối truy cập: ${errorDetail} (HTTP 403)`
+              : "Tài khoản kết nối BCA bị từ chối quyền truy cập hoặc không có quyền gửi hồ sơ (HTTP 403 Forbidden).",
+          };
+        }
+
         return {
           outcome: "AMBIGUOUS",
           code: `HTTP_${response.status}`,
-          message: "Phản hồi không chứa mã kết quả hợp lệ.",
+          message: errorDetail
+            ? `Cơ quan quản lý báo lỗi: ${errorDetail} (HTTP ${response.status})`
+            : "Phản hồi không chứa mã kết quả hợp lệ.",
         };
       }
 

@@ -24,6 +24,7 @@ Codex must follow repository-level instructions before making frontend changes.
 - Reuse existing UI/shared components before creating new ones.
 - Do not modify `package.json` unless explicitly approved by the user.
 - Do not change unrelated backend/shared files during frontend work.
+- For minor frontend tasks (UI polish, copy/text changes, renaming, styling adjustments): KHÔNG cần run test suite và KHÔNG run graphify update.
 
 ## Completion Report
 

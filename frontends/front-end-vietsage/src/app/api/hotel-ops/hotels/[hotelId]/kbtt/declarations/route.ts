@@ -50,7 +50,23 @@ export async function GET(request: Request, context: RouteContext) {
         response && typeof response === "object" && "data" in response
           ? (response as { data: unknown }).data
           : response;
-      return kbttDeclarationListSchema.parse(rawData);
+
+      let itemsData: unknown = rawData;
+      let total: number | undefined;
+      let totalPages: number | undefined;
+
+      if (rawData && typeof rawData === "object" && !Array.isArray(rawData) && "items" in rawData) {
+        itemsData = (rawData as { items: unknown }).items;
+        total = (rawData as { total?: number }).total;
+        totalPages = (rawData as { totalPages?: number }).totalPages;
+      }
+
+      const items = kbttDeclarationListSchema.parse(itemsData);
+      return {
+        items,
+        total: typeof total === "number" ? total : items.length,
+        totalPages: typeof totalPages === "number" ? totalPages : 1,
+      };
     });
 
     if (result instanceof Response) {
@@ -59,7 +75,14 @@ export async function GET(request: Request, context: RouteContext) {
     }
 
     return NextResponse.json(
-      { status: 200, error: null, message: "OK", data: result },
+      {
+        status: 200,
+        error: null,
+        message: "OK",
+        data: result.items,
+        total: result.total,
+        totalPages: result.totalPages,
+      },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {

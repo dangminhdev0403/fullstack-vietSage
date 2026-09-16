@@ -634,50 +634,6 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
     setActiveGuestIndex(0);
   };
 
-  const handleSetAsPrimary = useCallback(
-    (occIdx: number) => {
-      if (occIdx < 0 || occIdx >= occupants.length) return;
-      const targetOcc = occupants[occIdx];
-      const oldPrimary = {
-        fullName: fields.guestDisplayName,
-        phone: fields.guestPhone,
-        identityNumber: fields.guestIdentityNumber,
-        nationality: fields.guestNationality,
-        residencePlace: fields.guestResidencePlace,
-        dateOfBirth: fields.guestDateOfBirth,
-        gender: fields.guestGender,
-      };
-      setFields((prev) => ({
-        ...prev,
-        guestDisplayName: targetOcc.fullName || "",
-        guestIdentityNumber: targetOcc.identityNumber || "",
-        guestNationality: targetOcc.nationality || prev.guestNationality,
-        guestResidencePlace:
-          targetOcc.residencePlace || prev.guestResidencePlace,
-        guestDateOfBirth: targetOcc.dateOfBirth || prev.guestDateOfBirth,
-        guestGender: targetOcc.gender || prev.guestGender,
-      }));
-      setOccupants((prev) => {
-        const next = [...prev];
-        next[occIdx] = oldPrimary;
-        return next;
-      });
-      setCapturesByGuest((prev) => {
-        const cap0 = prev[0];
-        const capTarget = prev[occIdx + 1];
-        const next = { ...prev };
-        if (capTarget) next[0] = capTarget;
-        else delete next[0];
-        if (cap0) next[occIdx + 1] = cap0;
-        else delete next[occIdx + 1];
-        return next;
-      });
-      setSelectedOccupants(new Set());
-      setActiveGuestIndex(0);
-    },
-    [fields, occupants],
-  );
-
   if (!open) return null;
 
   const roomStatus = room.status === "ready" ? "Phòng sẵn sàng" : room.status;
@@ -765,43 +721,100 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
           {/* SLIM STAY SETTINGS BAR (No duplicate room name!) */}
           <section
             data-ui="room-summary"
-            className="flex flex-wrap items-center justify-between gap-2.5 rounded-xl border border-slate-200/90 bg-white px-3.5 py-2 sm:px-4 shadow-2xs"
+            className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-slate-200/90 bg-white p-3 sm:px-4 sm:py-2.5 shadow-2xs"
           >
-            <div className="flex items-center gap-2.5">
-              <span className="text-base sm:text-lg font-black text-slate-900">
-                Liên hệ & Hạn trả phòng
-              </span>
+            {/* Identity & Header */}
+            <div className="flex items-center gap-3 shrink-0">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 ring-1 ring-blue-500/10">
+                <svg
+                  className="h-4.5 w-4.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+              </div>
+              <div>
+                <span className="text-sm sm:text-base font-bold text-slate-900 block leading-tight">
+                  Liên hệ & Hạn trả phòng
+                </span>
+                <span className="text-xs text-slate-500 hidden md:block">
+                  Thông tin liên lạc và thời hạn lưu trú
+                </span>
+              </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2">
-                <label
-                  htmlFor="ciw-phone"
-                  className="text-base font-bold text-slate-800 whitespace-nowrap"
-                >
-                  SĐT khách:
-                </label>
-                <input
-                  id="ciw-phone"
-                  type="tel"
-                  inputMode="tel"
-                  value={fields.guestPhone}
-                  onChange={(event) =>
-                    setFields({ ...fields, guestPhone: event.target.value })
-                  }
-                  className="h-11 w-40 sm:w-48 rounded-lg border border-slate-300 bg-white px-3.5 text-base sm:text-lg font-bold text-slate-950 shadow-2xs outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
-                  placeholder="0901234567"
-                />
+            {/* Input Pills */}
+            <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+              {/* SĐT khách */}
+              <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-1.5 transition-all focus-within:border-blue-600 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-100">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-slate-400 shadow-2xs">
+                  <svg
+                    className="h-3.5 w-3.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+                    />
+                  </svg>
+                </div>
+                <div className="flex flex-col">
+                  <label
+                    htmlFor="ciw-phone"
+                    className="text-[10px] font-bold uppercase tracking-wider text-slate-500 leading-none"
+                  >
+                    SĐT khách
+                  </label>
+                  <input
+                    id="ciw-phone"
+                    type="tel"
+                    inputMode="tel"
+                    value={fields.guestPhone}
+                    onChange={(event) =>
+                      setFields({ ...fields, guestPhone: event.target.value })
+                    }
+                    placeholder="0901 234 567"
+                    className="w-28 sm:w-36 bg-transparent text-sm sm:text-base font-bold text-slate-900 placeholder:text-slate-400 placeholder:font-normal outline-none"
+                  />
+                </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <label
-                  htmlFor="ciw-checkout"
-                  className="text-base font-bold text-slate-800 whitespace-nowrap"
-                >
-                  Dự kiến trả phòng <span className="text-red-600">*</span>:
-                </label>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-44 sm:w-52 shrink-0">
+
+              {/* Dự kiến trả phòng */}
+              <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-1.5 transition-all focus-within:border-blue-600 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-100">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-slate-400 shadow-2xs">
+                  <svg
+                    className="h-3.5 w-3.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                </div>
+                <div className="flex flex-col">
+                  <label
+                    htmlFor="ciw-checkout"
+                    className="text-[10px] font-bold uppercase tracking-wider text-slate-500 leading-none"
+                  >
+                    Hạn trả phòng <span className="text-red-500">*</span>
+                  </label>
+                  <div className="w-32 sm:w-36">
                     <VnDateInput
                       id="ciw-checkout"
                       required
@@ -816,22 +829,10 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                           setFields({ ...fields, plannedCheckOutAt: "" });
                         }
                       }}
-                      className="h-11 rounded-lg border border-slate-300 bg-white px-3 text-base sm:text-lg font-bold text-slate-950 shadow-2xs outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                      className="w-full bg-transparent text-sm sm:text-base font-bold text-slate-900 placeholder:text-slate-400 placeholder:font-normal outline-none"
                       placeholder="ngày/tháng/năm"
                     />
                   </div>
-                  <input
-                    type="time"
-                    value={checkoutTime}
-                    onChange={(e) => {
-                      const newTime = e.target.value;
-                      setFields({
-                        ...fields,
-                        plannedCheckOutAt: `${checkoutDate || new Date().toISOString().slice(0, 10)}T${newTime}`,
-                      });
-                    }}
-                    className="h-11 w-24 shrink-0 rounded-lg border border-slate-300 bg-white px-2.5 text-base sm:text-lg font-bold text-slate-950 shadow-2xs outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 text-center"
-                  />
                 </div>
               </div>
             </div>
@@ -865,7 +866,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                   }`}
                   aria-pressed={activeGuestIndex === 0}
                 >
-                  <span>Khách 1 (Đại diện)</span>
+                  <span>Khách 1</span>
                   {fields.guestDisplayName ? (
                     <span
                       className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-white text-[10px] font-black text-emerald-600 shadow-2xs"
@@ -914,7 +915,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                   className="inline-flex items-center gap-1 rounded-lg border border-dashed border-blue-400 bg-blue-50/80 px-2.5 py-1.5 text-xs sm:text-sm font-bold text-blue-700 hover:bg-blue-100 transition-all"
                 >
                   <span className="text-base leading-none">+</span>
-                  <span>Thêm người ở cùng</span>
+                  <span>Thêm khách</span>
                 </button>
               </div>
 
@@ -1089,20 +1090,6 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                 >
                   <span>+ Thêm khách</span>
                 </button>
-                {selectedOccupants.size === 1 ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const [selectedIdx] = Array.from(selectedOccupants);
-                      handleSetAsPrimary(selectedIdx);
-                    }}
-                    className="inline-flex h-11 items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3.5 text-base font-bold text-amber-900 hover:bg-amber-100 transition-colors shadow-2xs"
-                    title="Đặt khách này làm khách đại diện"
-                  >
-                    <span className="text-amber-600">⭐</span>
-                    <span>Đặt làm đại diện</span>
-                  </button>
-                ) : null}
                 {selectedOccupants.size > 0 ? (
                   <button
                     type="button"
@@ -1169,12 +1156,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                       <td className="px-3 py-2 text-center text-slate-400">
                         —
                       </td>
-                      <td className="px-2 py-2 font-bold text-slate-700">
-                        1
-                        <span className="block text-[11px] font-bold text-blue-600">
-                          Đại diện
-                        </span>
-                      </td>
+                      <td className="px-2 py-2 font-bold text-slate-700">1</td>
                       <td className="px-2 py-2">
                         <input
                           id="ciw-name"
@@ -1284,18 +1266,48 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                       <td className="px-2 py-2 text-center">
                         <button
                           type="button"
-                          onClick={() =>
-                            setFields((f) => ({
-                              ...f,
-                              guestDisplayName: "",
-                              guestIdentityNumber: "",
-                              guestDateOfBirth: "",
-                              guestGender: "",
-                              guestResidencePlace: "",
-                            }))
-                          }
+                          onClick={() => {
+                            if (occupants.length > 0) {
+                              const [firstOcc, ...restOccs] = occupants;
+                              setFields((f) => ({
+                                ...f,
+                                guestDisplayName: firstOcc.fullName || "",
+                                guestIdentityNumber:
+                                  firstOcc.identityNumber || "",
+                                guestNationality:
+                                  firstOcc.nationality || f.guestNationality,
+                                guestResidencePlace:
+                                  firstOcc.residencePlace ||
+                                  f.guestResidencePlace,
+                                guestDateOfBirth:
+                                  firstOcc.dateOfBirth || f.guestDateOfBirth,
+                                guestGender: firstOcc.gender || f.guestGender,
+                              }));
+                              setOccupants(restOccs);
+                              setCapturesByGuest((prev) => {
+                                const next = { ...prev };
+                                if (next[1]) next[0] = next[1];
+                                else delete next[0];
+                                for (let i = 1; i < occupants.length; i++) {
+                                  if (next[i + 1]) next[i] = next[i + 1];
+                                  else delete next[i];
+                                }
+                                delete next[occupants.length];
+                                return next;
+                              });
+                            } else {
+                              setFields((f) => ({
+                                ...f,
+                                guestDisplayName: "",
+                                guestIdentityNumber: "",
+                                guestDateOfBirth: "",
+                                guestGender: "",
+                                guestResidencePlace: "",
+                              }));
+                            }
+                          }}
                           className="grid h-8 w-8 place-items-center mx-auto rounded-md text-slate-400 transition hover:bg-red-50 hover:text-red-600"
-                          title="Làm trống khách đại diện"
+                          title="Xóa khách 1"
                         >
                           <svg
                             className="h-4 w-4"
@@ -1341,18 +1353,8 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                             className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                           />
                         </td>
-                        <td className="px-2 py-2 font-bold text-slate-600">
-                          <div className="flex flex-col items-start gap-1">
-                            <span>{slotIdx + 1}</span>
-                            <button
-                              type="button"
-                              onClick={() => handleSetAsPrimary(occIdx)}
-                              className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100 transition-colors whitespace-nowrap"
-                              title="Đặt khách này làm khách đại diện"
-                            >
-                              <span>⭐ Đặt làm đại diện</span>
-                            </button>
-                          </div>
+                        <td className="px-2 py-2 font-bold text-slate-700">
+                          {slotIdx + 1}
                         </td>
                         <td className="px-2 py-2">
                           <input
