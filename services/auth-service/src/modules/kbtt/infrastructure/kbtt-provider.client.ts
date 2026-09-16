@@ -14,8 +14,8 @@ export type KbttSubmitOutcome =
   | { outcome: "BUSINESS_REJECTION"; code: string; message: string; data?: unknown }
   | { outcome: "AMBIGUOUS"; code: string; message: string; data?: unknown };
 
-export function kbttAuthFailed() {
-  return new HttpException({ code: "KBTT_AUTH_FAILED", message: KBTT_AUTH_FAILED_MESSAGE }, 422);
+export function kbttAuthFailed(customMessage?: string) {
+  return new HttpException({ code: "KBTT_AUTH_FAILED", message: customMessage || KBTT_AUTH_FAILED_MESSAGE }, 422);
 }
 
 export function kbttProviderError(
@@ -127,7 +127,7 @@ export class KbttProviderClient {
           const chunk = await reader.read();
           if (chunk.done) break;
           size += chunk.value.byteLength;
-          if (size > 65_536) {
+          if (size > 10 * 1024 * 1024) {
             return {
               outcome: "AMBIGUOUS",
               code: "RESPONSE_OVERSIZED",
@@ -213,14 +213,31 @@ export class KbttProviderClient {
       }
 
       const codeStr = String(envelope.code);
-      const messageStr = typeof envelope.message === "string" ? envelope.message : "";
+      const messageStr =
+        typeof envelope.message === "string" && envelope.message
+          ? envelope.message
+          : typeof envelope.msg === "string" && envelope.msg
+            ? envelope.msg
+            : typeof envelope.error === "string" && envelope.error
+              ? envelope.error
+              : typeof envelope.description === "string" && envelope.description
+                ? envelope.description
+                : "";
+      const responseData =
+        envelope.data !== undefined
+          ? envelope.data
+          : envelope.errors !== undefined
+            ? envelope.errors
+            : envelope.issues !== undefined
+              ? envelope.issues
+              : null;
 
       if (response.ok && codeStr === "200") {
         return {
           outcome: "SUCCESS",
           code: "200",
           message: messageStr || "Thành công",
-          data: envelope.data ?? null,
+          data: responseData,
         };
       }
 
@@ -229,7 +246,7 @@ export class KbttProviderClient {
           outcome: "AMBIGUOUS",
           code: codeStr,
           message: messageStr || "Hệ thống đối tác gặp sự cố nội bộ.",
-          data: envelope.data ?? null,
+          data: responseData,
         };
       }
 
@@ -237,7 +254,7 @@ export class KbttProviderClient {
         outcome: "BUSINESS_REJECTION",
         code: codeStr,
         message: messageStr || "Bị từ chối bởi cơ quan quản lý",
-        data: envelope.data ?? null,
+        data: responseData,
       };
     } catch {
       return {
@@ -287,7 +304,7 @@ export class KbttProviderClient {
         },
         body,
         redirect: "error",
-        signal: AbortSignal.timeout(10_000),
+        signal: AbortSignal.timeout(60_000),
       });
     } catch {
       throw kbttProviderError("KBTT_PROVIDER_UNAVAILABLE");
@@ -302,7 +319,7 @@ export class KbttProviderClient {
           const chunk = await reader.read();
           if (chunk.done) break;
           size += chunk.value.byteLength;
-          if (size > 65_536) throw kbttProviderError("KBTT_PROVIDER_INVALID_RESPONSE");
+          if (size > 10 * 1024 * 1024) throw kbttProviderError("KBTT_PROVIDER_INVALID_RESPONSE");
           chunks.push(chunk.value);
         }
       } finally {
@@ -316,7 +333,10 @@ export class KbttProviderClient {
         !("data" in envelope)
       )
         throw kbttProviderError("KBTT_PROVIDER_INVALID_RESPONSE");
-      if (envelope.code !== "200") throw kbttAuthFailed();
+      if (envelope.code !== "200") {
+        const msg = typeof (envelope as any)?.message === "string" ? (envelope as any).message : undefined;
+        throw kbttAuthFailed(msg);
+      }
       return envelope.data;
     } catch (error) {
       if (error instanceof HttpException) throw error;
@@ -339,7 +359,6 @@ export class KbttProviderClient {
           "User-Agent": "Mozilla/5.0",
         },
         redirect: "error",
-        signal: AbortSignal.timeout(10_000),
       });
     } catch {
       throw kbttProviderError("KBTT_PROVIDER_UNAVAILABLE");

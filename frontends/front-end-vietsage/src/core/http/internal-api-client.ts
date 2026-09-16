@@ -71,11 +71,21 @@ function readInternalApiErrorMessage(payload: unknown, status: number): string {
       if (typeof detail === "string" && detail.trim()) return detail.trim();
       const msg = (p.data as { message?: unknown }).message;
       if (typeof msg === "string" && msg.trim() && !/^[A-Z0-9_ -]+$/.test(msg.trim())) return msg.trim();
+      if (Array.isArray(msg) && msg.length > 0) return msg.map(String).join("; ");
     }
     if (typeof p.detail === "string" && p.detail.trim()) return p.detail.trim();
     if (typeof p.message === "string" && p.message.trim() && !/^[A-Z0-9_ -]+$/.test(p.message.trim())) {
       return p.message.trim();
     }
+    if (Array.isArray(p.message) && p.message.length > 0) {
+      return p.message.map(String).join("; ");
+    }
+    if (typeof p.error === "string" && p.error.trim() && !/^[A-Z0-9_ -]+$/.test(p.error.trim())) {
+      return p.error.trim();
+    }
+  }
+  if (typeof payload === "string" && payload.trim()) {
+    return payload.trim();
   }
   if (status === 409) return "Thông tin đối tác hoặc danh mục đã tồn tại trên hệ thống (Lỗi trùng lặp).";
   if (status === 400) return "Thông tin nhập chưa đúng hoặc không hợp lệ.";

@@ -21,9 +21,10 @@ export function useKbttAutoSubmit(hotelId: string) {
             data.recentRuns.some((r: any) => r.status === "RUNNING"));
         return isRunning ? 2000 : false;
       },
+      refetchIntervalInBackground: true,
       retry: false,
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: false,
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
     }),
     [resource, hotelId],
   );
@@ -36,6 +37,14 @@ export function useKbttAutoSubmit(hotelId: string) {
         autoSubmit.data.recentRuns.some((r) => r.status === "RUNNING")),
   );
   const prevActiveRunRef = useRef(false);
+
+  useEffect(() => {
+    if (!hasActiveRun) return;
+    const interval = window.setInterval(() => {
+      void autoSubmit.refetch();
+    }, 2500);
+    return () => window.clearInterval(interval);
+  }, [hasActiveRun, autoSubmit]);
 
   useEffect(() => {
     if (prevActiveRunRef.current && !hasActiveRun) {

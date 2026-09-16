@@ -236,6 +236,26 @@ function fixture() {
       updatedAt: scheduledFor,
     })),
     renewAutoSubmitRunLease: jest.fn(async () => true),
+    createScheduledAutoSubmitRun: jest.fn(
+      async (hotelId: string, scheduledFor: Date, dryRun: boolean, trigger = "MANUAL_DELAYED") => ({
+        id: "run-scheduled-" + Math.random().toString(36).substring(2, 9),
+        hotelId,
+        scheduledFor,
+        status: "RUNNING",
+        leaseExpiresAt: new Date(scheduledFor.getTime() - 1),
+        dryRun,
+        totalCount: 0,
+        successCount: 0,
+        failedCount: 0,
+        unknownCount: 0,
+        telegramSent: false,
+        telegramMessageId: null,
+        summaryJson: { trigger },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }),
+    ),
+    getAutoSubmitRunHistory: jest.fn(async () => []),
     finalizeAutoSubmitRun: jest.fn(async (_runId: string, data: any) => ({
       id: "run-auto-1",
       hotelId: "hotel-1",
@@ -2151,6 +2171,159 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
           directSuccessCount: 2,
         }),
       );
+    });
+
+    it("processes at most 100 eligible declarations in one run even when >100 exist (test 1)", async () => {
+      const f = fixture();
+      await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+
+      for (let i = 1; i <= 150; i++) {
+        const id = `occ-${i}`;
+        f.occupants.set(id, {
+          ...primaryOccupant,
+          id,
+          fullName: "Nguyen Van " + String.fromCharCode(65 + (i % 26)),
+          identityNumber: `001090${String(i).padStart(6, "0")}`,
+        });
+      }
+
+      await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), true);
+
+      expect(f.repository.finalizeAutoSubmitRun).toHaveBeenCalledWith(
+        "run-auto-1",
+        expect.objectContaining({
+          status: "COMPLETED",
+          totalCount: 100,
+          successCount: 100,
+        }),
+      );
+    });
+
+    it("scanner skips excluded occupants and continues keyset pages until it gathers 100 eligible or reaches EOF (test 2)", async () => {
+      const f = fixture();
+      await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+
+      for (let i = 1; i <= 100; i++) {
+        const id = `occ-p1-${i}`;
+        f.occupants.set(id, {
+          ...primaryOccupant,
+          id,
+          fullName: "Nguyen Van " + String.fromCharCode(65 + (i % 26)),
+          identityNumber: `001091${String(i).padStart(6, "0")}`,
+        });
+        if (i <= 80) {
+          f.declarations.set(`decl-p1-${i}`, {
+            id: `decl-p1-${i}`,
+            hotelId: "hotel-1",
+            occupantId: id,
+            status: "SUBMITTED",
+            declarationKind: "VIETNAMESE",
+            revision: 1,
+            version: 1,
+          });
+        }
+      }
+
+      for (let i = 1; i <= 50; i++) {
+        const id = `occ-p2-${i}`;
+        f.occupants.set(id, {
+          ...primaryOccupant,
+          id,
+          fullName: "Tran Van " + String.fromCharCode(65 + (i % 26)),
+          identityNumber: `001092${String(i).padStart(6, "0")}`,
+        });
+      }
+
+      await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), true);
+
+      expect(f.repository.finalizeAutoSubmitRun).toHaveBeenCalledWith(
+        "run-auto-1",
+        expect.objectContaining({
+          status: "COMPLETED",
+          totalCount: 70,
+          successCount: 70,
+        }),
+      );
+    });
+
+    it("completed daily batch with backlog creates exactly one persistent +30m continuation; no backlog creates none (test 3)", async () => {
+      const f = fixture();
+      await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+
+      for (let i = 1; i <= 120; i++) {
+        const id = `occ-cont-${i}`;
+        f.occupants.set(id, {
+          ...primaryOccupant,
+          id,
+          fullName: "Nguyen Thi " + String.fromCharCode(65 + (i % 26)),
+          identityNumber: `001093${String(i).padStart(6, "0")}`,
+        });
+      }
+
+      const scheduledDate = new Date("2026-09-16T04:30:00.000Z");
+      await f.service.executeAutoSubmitForHotel("hotel-1", scheduledDate, true);
+
+      expect(f.repository.createScheduledAutoSubmitRun).toHaveBeenCalledTimes(1);
+      expect(f.repository.createScheduledAutoSubmitRun).toHaveBeenCalledWith(
+        "hotel-1",
+        new Date("2026-09-16T05:00:00.000Z"),
+        true,
+        "CONTINUATION_30M",
+      );
+
+      // Part B: No backlog -> no continuation
+      (f.repository.createScheduledAutoSubmitRun as jest.Mock).mockClear();
+      for (let i = 1; i <= 100; i++) {
+        f.declarations.set(`decl-cont-${i}`, {
+          id: `decl-cont-${i}`,
+          hotelId: "hotel-1",
+          occupantId: `occ-cont-${i}`,
+          status: "SUBMITTED",
+          declarationKind: "VIETNAMESE",
+          revision: 1,
+          version: 1,
+        });
+      }
+
+      await f.service.executeAutoSubmitForHotel("hotel-1", new Date("2026-09-16T05:00:00.000Z"), true);
+      expect(f.repository.createScheduledAutoSubmitRun).not.toHaveBeenCalled();
+    });
+
+    it("manual 15s batch is capped at 100 and does not create an automatic 30m continuation even when backlog remains (test 5)", async () => {
+      const f = fixture();
+      await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+
+      for (let i = 1; i <= 120; i++) {
+        const id = `occ-man-${i}`;
+        f.occupants.set(id, {
+          ...primaryOccupant,
+          id,
+          fullName: "Le Van " + String.fromCharCode(65 + (i % 26)),
+          identityNumber: `001094${String(i).padStart(6, "0")}`,
+        });
+      }
+
+      (f.repository.claimAutoSubmitRunLease as jest.Mock).mockResolvedValueOnce({
+        id: "run-manual-15s",
+        hotelId: "hotel-1",
+        scheduledFor: new Date(),
+        status: "RUNNING",
+        leaseExpiresAt: new Date(Date.now() + 600_000),
+        dryRun: true,
+        summaryJson: { trigger: "MANUAL_DELAYED" },
+      });
+
+      await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), true);
+
+      expect(f.repository.finalizeAutoSubmitRun).toHaveBeenCalledWith(
+        "run-manual-15s",
+        expect.objectContaining({
+          status: "COMPLETED",
+          totalCount: 100,
+          successCount: 100,
+        }),
+      );
+      expect(f.repository.createScheduledAutoSubmitRun).not.toHaveBeenCalled();
     });
   });
 });

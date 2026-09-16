@@ -45,20 +45,29 @@ export class KbttAutoSubmitSchedulerService {
     }).format(now);
 
     try {
-      const dueHotels = await this.repository.findDueHotelsForAutoSubmit(currentHHmm);
-      if (!dueHotels || dueHotels.length === 0) {
+      const dueHotels = (await this.repository.findDueHotelsForAutoSubmit(currentHHmm)) ?? [];
+      const dueScheduledRuns = (await this.repository.findDueScheduledRuns(now)) ?? [];
+
+      if (dueHotels.length === 0 && dueScheduledRuns.length === 0) {
         return;
       }
 
-      this.logger.log(
-        `Found ${dueHotels.length} hotels due for KBTT auto-submit at ${currentHHmm} (dryRun=${isDryRun}).`,
-      );
+      if (dueHotels.length > 0) {
+        this.logger.log(
+          `Found ${dueHotels.length} hotels due for KBTT auto-submit at ${currentHHmm} (dryRun=${isDryRun}).`,
+        );
+      }
+      if (dueScheduledRuns.length > 0) {
+        this.logger.log(
+          `Found ${dueScheduledRuns.length} due scheduled/continuation KBTT runs.`,
+        );
+      }
 
-      const validHotels = dueHotels.filter((item) => Boolean(item.autoSubmitTime));
+      const tasks: Array<() => Promise<void>> = [];
 
-      const executing = new Set<Promise<void>>();
-      for (const item of validHotels) {
-        const p: Promise<void> = Promise.resolve().then(async () => {
+      for (const item of dueHotels) {
+        if (!item.autoSubmitTime) continue;
+        tasks.push(async () => {
           try {
             await this.kbttService.executeAutoSubmitForHotel(
               item.hotelId,
@@ -72,10 +81,35 @@ export class KbttAutoSubmitSchedulerService {
             );
           }
         });
+      }
+
+      for (const run of dueScheduledRuns) {
+        tasks.push(async () => {
+          try {
+            await this.kbttService.executeAutoSubmitForHotel(
+              run.hotelId,
+              run.scheduledFor,
+              run.dryRun,
+            );
+          } catch (runError: any) {
+            this.logger.error(
+              `Failed auto-submit scheduled run ${run.id} for hotel ${run.hotelId}: ${runError?.message}`,
+              runError?.stack,
+            );
+          }
+        });
+      }
+
+      const maxConcurrent = Number(
+        process.env.KBTT_MAX_CONCURRENT_HOTELS || (process.env.NODE_ENV === "test" ? 3 : 50),
+      );
+      const executing = new Set<Promise<void>>();
+      for (const task of tasks) {
+        const p: Promise<void> = Promise.resolve().then(task);
         executing.add(p);
         const clean = () => executing.delete(p);
         p.then(clean, clean);
-        if (executing.size >= 3) {
+        if (executing.size >= maxConcurrent) {
           await Promise.race(executing);
         }
       }

@@ -461,7 +461,12 @@ export class KbttRepository {
     }
   }
 
-  async createScheduledAutoSubmitRun(hotelId: string, scheduledFor: Date, dryRun: boolean) {
+  async createScheduledAutoSubmitRun(
+    hotelId: string,
+    scheduledFor: Date,
+    dryRun: boolean,
+    trigger = "MANUAL_DELAYED",
+  ) {
     try {
       return await this.prisma.kbttAutoSubmitRun.create({
         data: {
@@ -470,11 +475,27 @@ export class KbttRepository {
           status: "RUNNING",
           leaseExpiresAt: new Date(scheduledFor.getTime() - 1),
           dryRun,
-          summaryJson: { trigger: "MANUAL_DELAYED" },
+          summaryJson: { trigger },
         },
       });
     } catch (error: any) {
       if (error?.code === "P2002") throw new ConflictException("Đã có một phiên KBTT đang được hẹn.");
+      throw kbttUnavailable();
+    }
+  }
+
+  async findDueScheduledRuns(now: Date = new Date()) {
+    try {
+      return await this.prisma.kbttAutoSubmitRun.findMany({
+        where: {
+          status: "RUNNING",
+          scheduledFor: { lte: now },
+          leaseExpiresAt: { lte: now },
+        },
+        orderBy: { scheduledFor: "asc" },
+        take: 50,
+      });
+    } catch {
       throw kbttUnavailable();
     }
   }

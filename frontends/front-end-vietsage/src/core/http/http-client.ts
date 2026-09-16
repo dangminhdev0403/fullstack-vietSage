@@ -30,6 +30,7 @@ export type HttpRequestOptions<TBody = unknown> = {
   accessTokenExpiresAt?: number | null;
   isPublic?: boolean;
   signal?: AbortSignal;
+  timeoutMs?: number | false;
 };
 
 const DEFAULT_TIMEOUT_MS = 10_000;
@@ -236,7 +237,10 @@ export class HttpClient {
     const url = new URL(options.path, this.baseUrl);
     appendQuery(url, options.query);
 
-    const timeout = createTimeoutController(this.timeoutMs);
+    const timeout =
+      options.timeoutMs === false
+        ? null
+        : createTimeoutController(options.timeoutMs ?? this.timeoutMs);
     const headers = toHeaders(this.defaultHeaders);
     const requestStartedAt = Date.now();
 
@@ -272,7 +276,7 @@ export class HttpClient {
       headers.set("Authorization", `Bearer ${options.accessToken}`);
     }
 
-    const signals = [timeout.controller.signal, options.signal].filter(Boolean) as AbortSignal[];
+    const signals = [timeout?.controller.signal, options.signal].filter(Boolean) as AbortSignal[];
     const requestSignal = signals.length > 1 ? AbortSignal.any(signals) : signals[0];
 
     try {
@@ -368,7 +372,7 @@ export class HttpClient {
 
       throw networkError;
     } finally {
-      timeout.clear();
+      timeout?.clear();
     }
   }
 }

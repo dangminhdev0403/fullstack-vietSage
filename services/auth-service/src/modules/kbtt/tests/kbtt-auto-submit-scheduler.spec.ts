@@ -23,6 +23,7 @@ describe("KbttAutoSubmitSchedulerService", () => {
         { hotelId: "hotel-1", autoSubmitTime: "04:30" },
         { hotelId: "hotel-2", autoSubmitTime: "04:30" },
       ]),
+      findDueScheduledRuns: jest.fn().mockResolvedValue([]),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -186,5 +187,39 @@ describe("KbttAutoSubmitSchedulerService", () => {
     expect(events).toContain("finish:hotel-fast-2");
     expect(events).toContain("fail:hotel-failing");
     expect(kbttService.executeAutoSubmitForHotel).toHaveBeenCalledTimes(4);
+  });
+
+  it("due continuation executes when due and duplicate cron ticks cannot run it twice (test 4)", async () => {
+    const continuationRun = {
+      id: "run-cont-1",
+      hotelId: "hotel-cont",
+      scheduledFor: new Date(Date.now() - 1000),
+      status: "RUNNING",
+      leaseExpiresAt: new Date(Date.now() - 1001),
+      dryRun: true,
+      summaryJson: { trigger: "CONTINUATION_30M" },
+    };
+
+    (repository.findDueHotelsForAutoSubmit as jest.Mock).mockResolvedValue([]);
+    (repository.findDueScheduledRuns as jest.Mock) = jest.fn().mockResolvedValue([continuationRun]);
+
+    let executionCount = 0;
+    (kbttService.executeAutoSubmitForHotel as jest.Mock).mockImplementation(async () => {
+      executionCount++;
+      return { id: "run-cont-1" };
+    });
+
+    await scheduler.handleCron();
+    expect(kbttService.executeAutoSubmitForHotel).toHaveBeenCalledWith(
+      "hotel-cont",
+      continuationRun.scheduledFor,
+      true,
+    );
+    expect(executionCount).toBe(1);
+
+    // Second tick when already claimed or no longer due
+    (repository.findDueScheduledRuns as jest.Mock).mockResolvedValue([]);
+    await scheduler.handleCron();
+    expect(executionCount).toBe(1);
   });
 });

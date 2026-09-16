@@ -524,7 +524,7 @@ function KbttAutoSubmitSection({
   }, []);
 
   async function scheduleRun(mode: "dry-run" | "live") {
-    if (!canManage || isSaving || scheduling || data?.pendingSchedule) return;
+    if (!canManage || isSaving || scheduling || Boolean(data?.pendingSchedule || data?.activeRun)) return;
     if (mode === "live") {
       const confirmed = await showConfirmDialog({
         title: "Hẹn chạy Live + Telegram?",
@@ -556,6 +556,9 @@ function KbttAutoSubmitSection({
   const isEnabled = enabled ?? (data?.autoSubmitEnabled ?? false);
   const currentTime = time ?? (data?.autoSubmitTime ?? "04:30");
   const pendingSchedule = data?.pendingSchedule ?? null;
+  const activeRun = data?.activeRun ?? null;
+  const isRunning = Boolean(activeRun);
+  const hasOngoingAction = Boolean(pendingSchedule || isRunning);
   const pendingSeconds = pendingSchedule
     ? Math.max(0, Math.ceil((new Date(pendingSchedule.scheduledFor).getTime() - now) / 1000))
     : 0;
@@ -680,13 +683,64 @@ function KbttAutoSubmitSection({
             </div>
           </div>
 
+          {/* Active Running State Banner */}
+          {isRunning && (
+            <div className="flex items-center justify-between gap-4 rounded-2xl border border-blue-200 bg-blue-50/80 p-4 shadow-xs" role="status">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
+                  <div className="h-5 w-5 rounded-full border-2 border-blue-700 border-t-transparent animate-spin" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-blue-900">
+                    Đang thực thi phiên nộp tự động ({activeRun?.dryRun ? "Thử nghiệm Dry Run" : "Gửi thật Live + Telegram"})
+                  </p>
+                  <p className="text-xs text-blue-700">
+                    Hệ thống đang quét và nộp tất cả hồ sơ đủ điều kiện. Danh sách hồ sơ sẽ tự động làm mới khi kết thúc.
+                  </p>
+                </div>
+              </div>
+              <span className="inline-flex items-center rounded-full bg-blue-200 px-3 py-1 text-xs font-black text-blue-900 animate-pulse">
+                RUNNING
+              </span>
+            </div>
+          )}
+
+          {/* Pending Schedule Countdown Banner */}
+          {pendingSchedule && !isRunning && (
+            <div className="flex items-center justify-between gap-4 rounded-2xl border border-teal-200 bg-teal-50/80 p-4 shadow-xs" role="status">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-teal-700">
+                  <svg className="h-5 w-5 animate-pulse" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-teal-900">
+                    Đã hẹn phiên nộp tự động ({pendingSchedule.dryRun ? "Dry Run" : "Live + Telegram"})
+                  </p>
+                  <p className="text-xs text-teal-700">
+                    Sẽ bắt đầu sau <b>{pendingSeconds} giây</b>...
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={cancellingSchedule}
+                onClick={() => void cancelScheduledRun()}
+                className="flex min-h-[38px] items-center rounded-xl border border-red-200 bg-white px-3.5 py-1.5 text-xs font-bold text-red-700 hover:bg-red-50 shadow-xs"
+              >
+                {cancellingSchedule ? "Đang hủy..." : `Hủy hẹn (${pendingSeconds}s)`}
+              </button>
+            </div>
+          )}
+
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               {canManage && (
                 <>
                   <button
                     type="button"
-                    disabled={isSaving || Boolean(pendingSchedule)}
+                    disabled={isSaving || hasOngoingAction}
                     onClick={() => void handleTestDryRun()}
                     className="flex min-h-[44px] items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-100 disabled:opacity-50"
                   >
@@ -697,7 +751,7 @@ function KbttAutoSubmitSection({
                   </button>
                   <button
                     type="button"
-                    disabled={isSaving || testingTelegram || Boolean(pendingSchedule)}
+                    disabled={isSaving || testingTelegram || hasOngoingAction}
                     onClick={() => void handleTelegramTest()}
                     className="flex min-h-[44px] items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-5 py-2.5 text-sm font-bold text-sky-800 shadow-sm transition hover:bg-sky-100 disabled:opacity-50"
                   >
@@ -705,7 +759,7 @@ function KbttAutoSubmitSection({
                   </button>
                   <button
                     type="button"
-                    disabled={isSaving || Boolean(pendingSchedule)}
+                    disabled={isSaving || hasOngoingAction}
                     onClick={() => void scheduleRun("dry-run")}
                     className="flex min-h-[44px] items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-5 py-2.5 text-sm font-bold text-teal-800 shadow-sm transition hover:bg-teal-100 disabled:opacity-50"
                   >
@@ -713,7 +767,7 @@ function KbttAutoSubmitSection({
                   </button>
                   <button
                     type="button"
-                    disabled={isSaving || Boolean(pendingSchedule)}
+                    disabled={isSaving || hasOngoingAction}
                     onClick={() => void scheduleRun("live")}
                     className="flex min-h-[44px] items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-5 py-2.5 text-sm font-bold text-amber-900 shadow-sm transition hover:bg-amber-100 disabled:opacity-50"
                   >
@@ -773,9 +827,17 @@ function KbttAutoSubmitSection({
                               ? "bg-emerald-100 text-emerald-800"
                               : run.status === "SKIPPED"
                               ? "bg-slate-100 text-slate-700"
+                              : run.status === "RUNNING"
+                              ? "bg-blue-100 text-blue-800 animate-pulse"
                               : "bg-red-100 text-red-800"
                           }`}>
-                            {run.status === "COMPLETED" ? "Thành công" : run.status === "SKIPPED" ? "Bỏ qua (0 hồ sơ)" : "Lỗi"}
+                            {run.status === "COMPLETED"
+                              ? "Thành công"
+                              : run.status === "SKIPPED"
+                              ? "Bỏ qua (0 hồ sơ)"
+                              : run.status === "RUNNING"
+                              ? "Đang chạy..."
+                              : "Lỗi"}
                           </span>
                         </td>
                         <td className="px-4 py-3 font-semibold">{run.totalEligible ?? run.totalCount ?? 0}</td>

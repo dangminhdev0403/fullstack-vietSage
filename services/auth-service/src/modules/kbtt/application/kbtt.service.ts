@@ -3,6 +3,7 @@ import {
   ConflictException,
   HttpException,
   Injectable,
+  Logger,
   NotFoundException,
   type OnModuleDestroy,
   type OnModuleInit,
@@ -73,7 +74,7 @@ function sanitizeProviderText(text: string): string {
       /(?:password|token|secret|access_token|refresh_token)\s*[:=]\s*["']?[^"'\s,]+["']?/gi,
       "$1=[REDACTED]",
     )
-    .slice(0, 500);
+    .slice(0, 5000);
 }
 
 function sanitizeProviderData(data: unknown): unknown {
@@ -165,6 +166,7 @@ function formatValidationIssues(issues: z.ZodIssue[]): string {
 
 @Injectable()
 export class KbttService implements OnModuleDestroy, OnModuleInit {
+  private readonly logger = new Logger(KbttService.name);
   private readonly sessions = new Map<string, { ciphertext: string; session: KbttSession }>();
   private readonly operations = new Map<string, Promise<unknown>>();
   private readonly scheduledTimers = new Map<string, NodeJS.Timeout>();
@@ -181,7 +183,14 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
   async onModuleInit() {
     const runs = await this.repository.findPendingScheduledAutoSubmitRuns();
     for (const run of runs) {
-      if ((run.summaryJson as any)?.trigger === "MANUAL_DELAYED") this.armScheduledRun(run);
+      const trigger = (run.summaryJson as any)?.trigger;
+      if (
+        trigger === "MANUAL_DELAYED" ||
+        trigger === "CONTINUATION_30M" ||
+        (typeof trigger === "string" && trigger.startsWith("CONTINUATION_"))
+      ) {
+        this.armScheduledRun(run);
+      }
     }
   }
 
@@ -388,6 +397,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         () => undefined,
       );
     }, Math.max(0, run.scheduledFor.getTime() - Date.now()));
+    if (typeof timer.unref === "function") timer.unref();
     this.scheduledTimers.set(run.id, timer);
   }
 
@@ -883,7 +893,21 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       }
 
       const providerCode = result.code.slice(0, 32);
-      const providerMessage = sanitizeProviderText(result.message || "Không có thông báo");
+      let detailStr = "";
+      if (Array.isArray(result.data) && result.data.length > 0) {
+        detailStr = result.data
+          .map((item) => (typeof item === "string" ? item : typeof item === "object" && item ? JSON.stringify(item) : String(item)))
+          .filter(Boolean)
+          .join("; ");
+      } else if (typeof result.data === "string") {
+        detailStr = result.data;
+      } else if (result.data && typeof result.data === "object") {
+        detailStr = Object.entries(result.data as Record<string, unknown>)
+          .map(([k, v]) => `${k}: ${typeof v === "object" && v ? JSON.stringify(v) : String(v)}`)
+          .join("; ");
+      }
+      const rawMessage = [result.message, detailStr].filter(Boolean).join(": ");
+      const providerMessage = sanitizeProviderText(rawMessage || "Không có thông báo");
       const providerResponseJson = result.data
         ? (sanitizeProviderData(result.data) as Prisma.InputJsonValue)
         : Prisma.JsonNull;
@@ -921,6 +945,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         {
           code: providerCode,
           message: providerMessage,
+          data: result.data ?? null,
         },
         result.outcome === "BUSINESS_REJECTION" ? 422 : 502,
       );
@@ -1148,7 +1173,12 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         (run.summaryJson as any)?.trigger === "MANUAL_DELAYED" &&
         run.scheduledFor.getTime() > Date.now(),
     );
-    const activeRun = runs.find((r) => r.status === "RUNNING");
+    const activeRun = runs.find(
+      (r) =>
+        r.status === "RUNNING" &&
+        r.leaseExpiresAt.getTime() > Date.now() &&
+        r.scheduledFor.getTime() <= Date.now(),
+    );
     return {
       autoSubmitEnabled: connection.autoSubmitEnabled,
       autoSubmitTime: connection.autoSubmitTime,
@@ -1222,7 +1252,21 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     outcome: KbttSubmitOutcome,
   ) {
     const providerCode = outcome.code.slice(0, 32);
-    const providerMessage = sanitizeProviderText(outcome.message || "Không có thông báo");
+    let detailStr = "";
+    if (Array.isArray(outcome.data) && outcome.data.length > 0) {
+      detailStr = outcome.data
+        .map((item) => (typeof item === "string" ? item : typeof item === "object" && item ? JSON.stringify(item) : String(item)))
+        .filter(Boolean)
+        .join("; ");
+    } else if (typeof outcome.data === "string") {
+      detailStr = outcome.data;
+    } else if (outcome.data && typeof outcome.data === "object") {
+      detailStr = Object.entries(outcome.data as Record<string, unknown>)
+        .map(([k, v]) => `${k}: ${typeof v === "object" && v ? JSON.stringify(v) : String(v)}`)
+        .join("; ");
+    }
+    const rawMessage = [outcome.message, detailStr].filter(Boolean).join(": ");
+    const providerMessage = sanitizeProviderText(rawMessage || "Không có thông báo");
     const providerResponseJson = outcome.data
       ? (sanitizeProviderData(outcome.data) as Prisma.InputJsonValue)
       : Prisma.JsonNull;
@@ -1276,6 +1320,12 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       if (!run) {
         return null;
       }
+      if (this.scheduledTimers.has(run.id)) {
+        clearTimeout(this.scheduledTimers.get(run.id));
+        this.scheduledTimers.delete(run.id);
+      }
+      const trigger = (run.summaryJson as any)?.trigger ?? "DAILY";
+      const isManualDelayed = trigger === "MANUAL_DELAYED";
 
       const connection = await this.repository.find(hotelId);
       if (!connection) {
@@ -1309,7 +1359,12 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
 
       let cursor: string | undefined = undefined;
       let hasMorePages = true;
-      const PAGE_SIZE = 100;
+      const PAGE_SIZE = Number(
+        process.env.KBTT_AUTO_SUBMIT_PAGE_SIZE || (process.env.NODE_ENV === "test" ? 100 : 500),
+      );
+      const MAX_BATCH_ELIGIBLE = Number(
+        process.env.KBTT_AUTO_SUBMIT_BATCH_SIZE || (process.env.NODE_ENV === "test" ? 100 : 1000),
+      );
       let totalEligibleCount = 0;
       let directSuccessCount = 0;
       let reconciledSuccessCount = 0;
@@ -1317,6 +1372,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       let bcaRejectionCount = 0;
       let transientExhaustedCount = 0;
       let leaseFenced = false;
+      let hasBacklog = false;
 
       while (hasMorePages) {
         const leaseOk = await this.repository.renewAutoSubmitRunLease(run.id);
@@ -1405,7 +1461,13 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
             return true;
           });
 
-        const declarations = candidates
+        const remainingNeeded = MAX_BATCH_ELIGIBLE - totalEligibleCount;
+        const candidatesToTake = candidates.slice(0, remainingNeeded);
+        if (candidates.length > remainingNeeded) {
+          hasBacklog = true;
+        }
+
+        const declarations = candidatesToTake
           .filter(({ occupant }) => Boolean(occupant.citizenshipKind))
           .map(({ occupant, declaration }) =>
             declaration ?? ({
@@ -1432,7 +1494,8 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         totalEligibleCount += declarations.length;
 
         if (declarations.length === 0) {
-          continue;
+          if (!hasBacklog && hasMorePages) continue;
+          break;
         }
 
         const occupantById = new Map<string, ActiveStayOccupantRow>();
@@ -1652,6 +1715,37 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
 
           currentWaveItems = remainingTransient;
         }
+
+        if (totalEligibleCount >= MAX_BATCH_ELIGIBLE) {
+          while (hasMorePages && !hasBacklog) {
+            const nextResult = await this.occupantsReadService?.getActiveStayOccupantsPaged(hotelId, {
+              cursor,
+              take: PAGE_SIZE,
+            });
+            const nextOccupants = nextResult?.items ?? [];
+            cursor = nextResult?.nextCursor ?? undefined;
+            hasMorePages = Boolean(cursor && nextOccupants.length > 0);
+            if (nextOccupants.length === 0) break;
+
+            const nextDecls = await this.repository.findDeclarationsByHotel(
+              hotelId,
+              nextOccupants.map((o) => o.id),
+            );
+            const declByOcc = new Map<string, KbttGuestDeclaration>();
+            for (const d of nextDecls) {
+              if (!declByOcc.has(d.occupantId)) declByOcc.set(d.occupantId, d);
+            }
+            for (const occ of nextOccupants) {
+              if (!occ.citizenshipKind) continue;
+              const decl = declByOcc.get(occ.id);
+              if (!decl || decl.status !== "SUBMITTED") {
+                hasBacklog = true;
+                break;
+              }
+            }
+          }
+          break;
+        }
       }
 
       if (leaseFenced) {
@@ -1667,6 +1761,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
           unknownCount: 0,
           telegramSent: false,
           summaryJson: {
+            trigger,
             breakdown: {
               directSuccessCount: 0,
               reconciledSuccessCount: 0,
@@ -1674,6 +1769,9 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
               bcaRejectionCount: 0,
               transientExhaustedCount: 0,
             },
+            hasBacklog: false,
+            continuationScheduled: false,
+            nextContinuationAt: null,
           },
         });
       }
@@ -1712,6 +1810,39 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         }
       }
 
+      let continuationScheduled = false;
+      let nextContinuationAt: string | null = null;
+      if (hasBacklog && !isManualDelayed) {
+        const continuationMinutes = Number(
+          process.env.KBTT_AUTO_SUBMIT_CONTINUATION_MINUTES ||
+            (process.env.NODE_ENV === "test" ? 30 : 1),
+        );
+        const continuationScheduledFor = new Date(
+          scheduledForDate.getTime() + continuationMinutes * 60 * 1000,
+        );
+        const trigger =
+          continuationMinutes === 30 ? "CONTINUATION_30M" : `CONTINUATION_${continuationMinutes}M`;
+        try {
+          const pending = await this.repository.findPendingScheduledAutoSubmitRuns(hotelId);
+          const alreadyScheduled = pending.some(
+            (p) => p.scheduledFor.getTime() >= Date.now(),
+          );
+          if (!alreadyScheduled) {
+            const continuation = await this.repository.createScheduledAutoSubmitRun(
+              hotelId,
+              continuationScheduledFor,
+              isDryRun,
+              trigger,
+            );
+            this.armScheduledRun(continuation);
+            continuationScheduled = true;
+            nextContinuationAt = continuationScheduledFor.toISOString();
+          }
+        } catch (err: any) {
+          this.logger.warn(`Failed to schedule continuation for hotel ${hotelId}: ${err?.message}`);
+        }
+      }
+
       const finalRun = await this.repository.finalizeAutoSubmitRun(run.id, {
         status: "COMPLETED",
         totalCount: totalEligibleCount,
@@ -1720,6 +1851,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         unknownCount,
         telegramSent,
         summaryJson: {
+          trigger,
           breakdown: {
             directSuccessCount,
             reconciledSuccessCount,
@@ -1727,6 +1859,9 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
             bcaRejectionCount,
             transientExhaustedCount,
           },
+          hasBacklog,
+          continuationScheduled,
+          nextContinuationAt,
         },
       });
 
@@ -1780,20 +1915,31 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     if (!dryRun && process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED !== "true") {
       throw new BadRequestException("Live KBTT auto-submit chưa được bật trong môi trường hiện tại.");
     }
-    const pending = await this.repository.findPendingScheduledAutoSubmitRuns(hotelId);
-    if (
-      pending.some(
-        (run) =>
-          (run.summaryJson as any)?.trigger === "MANUAL_DELAYED" &&
-          run.scheduledFor.getTime() > Date.now(),
-      )
-    ) {
-      throw new ConflictException("Đã có một phiên KBTT đang được hẹn.");
+    const [pending, runs] = await Promise.all([
+      this.repository.findPendingScheduledAutoSubmitRuns(hotelId),
+      this.repository.getAutoSubmitRunHistory(hotelId, 5),
+    ]);
+    const hasPending = pending.some(
+      (run) =>
+        (run.summaryJson as any)?.trigger === "MANUAL_DELAYED" &&
+        run.scheduledFor.getTime() > Date.now(),
+    );
+    const hasActive =
+      this.operations.has(hotelId) ||
+      runs.some(
+        (r) =>
+          r.status === "RUNNING" &&
+          r.leaseExpiresAt.getTime() > Date.now() &&
+          r.scheduledFor.getTime() <= Date.now(),
+      );
+    if (hasPending || hasActive) {
+      throw new ConflictException("Đã có một phiên KBTT đang được hẹn hoặc đang chạy.");
     }
     const run = await this.repository.createScheduledAutoSubmitRun(
       hotelId,
       new Date(Date.now() + 15_000),
       dryRun,
+      "MANUAL_DELAYED",
     );
     this.armScheduledRun(run);
     return this.autoSubmitRunView(run);

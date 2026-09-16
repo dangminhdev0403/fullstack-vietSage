@@ -19,6 +19,7 @@ import {
   kbttErrorCode,
   kbttErrorMessage,
   kbttOccupantDeclarationDetailSchema,
+  sanitizeErrorMessage,
   sanitizeProviderDetail,
   saveKbttDraftPayloadSchema,
 } from "./types/kbtt-contract.ts";
@@ -367,6 +368,27 @@ test("KBTT UI exposes one edit-to-submit action and no local status workflow", (
     "Bản khai báo 1: Số hộ chiếu đang tạm trú tại CSLT.",
   );
   assert.equal(sanitizeProviderDetail("Bearer secret-token-xyz"), null);
+  assert.equal(
+    sanitizeProviderDetail({
+      status: 400,
+      message: "BAD_REQUEST",
+      data: {
+        detail: [
+          "Phường/xã: Mã phường xã là bắt buộc",
+          "Nơi cư trú: Nơi cư trú là bắt buộc",
+        ],
+      },
+    }),
+    "Phường/xã: Mã phường xã là bắt buộc; Nơi cư trú: Nơi cư trú là bắt buộc",
+  );
+  assert.equal(
+    sanitizeErrorMessage("Mã phường xã không thuộc tỉnh thành đã chọn"),
+    "Mã phường xã không thuộc tỉnh thành đã chọn",
+  );
+  assert.equal(
+    sanitizeErrorMessage("password=123456"),
+    kbttErrorMessage(null),
+  );
 
   const pageSource = readFileSync(
     new URL("./components/kbtt-declarations-page.tsx", import.meta.url),

@@ -409,25 +409,46 @@ const errorMessages: Record<string, string> = {
   KBTT_CREDENTIAL_DECRYPT_FAILED:
     "Không thể kiểm tra kết nối. Vui lòng liên hệ hỗ trợ.",
   KBTT_UNAVAILABLE: "Không thể kết nối dịch vụ KBTT. Vui lòng thử lại sau.",
+  KBTT_PAYLOAD_INVALID: "Dữ liệu khai báo không hợp lệ hoặc thiếu thông tin bắt buộc.",
+  KBTT_ALREADY_SUBMITTED: "Hồ sơ của khách này đã được gửi lên Bộ Công an.",
+  KBTT_ACTIVE_IDENTITY_CONFLICT: "Số giấy tờ này đang có hồ sơ lưu trú khác tại khách sạn.",
+  KBTT_RATE_LIMITED: "Yêu cầu gửi quá nhanh. Vui lòng chờ giây lát rồi thử lại.",
+  BUSINESS_REJECTION: "Cổng dịch vụ công Bộ Công an từ chối tiếp nhận hồ sơ.",
+  VALIDATION_ERROR: "Thông tin khai báo chưa hợp lệ.",
+  BAD_REQUEST: "Dữ liệu khai báo không hợp lệ.",
 };
 
 export function kbttErrorMessage(codeOrMessage: string | null): string {
   if (!codeOrMessage) {
     return "Không thể xử lý yêu cầu khai báo. Vui lòng thử lại hoặc liên hệ hỗ trợ.";
   }
-  if (Object.hasOwn(errorMessages, codeOrMessage)) {
-    return errorMessages[codeOrMessage];
-  }
+  const trimmed = codeOrMessage.trim();
+  const lower = trimmed.toLowerCase();
   if (
-    codeOrMessage.includes("SUBMITTED") ||
-    codeOrMessage.includes("bản nháp") ||
-    codeOrMessage.includes("hồ sơ") ||
-    codeOrMessage.includes("khách lưu trú") ||
-    codeOrMessage.includes("quyền")
+    lower.includes("token") ||
+    lower.includes("password") ||
+    lower.includes("secret") ||
+    lower.includes("bearer")
   ) {
-    return codeOrMessage;
+    return "Không thể xử lý yêu cầu khai báo. Vui lòng thử lại hoặc liên hệ hỗ trợ.";
   }
-  return "Không thể xử lý yêu cầu khai báo. Vui lòng thử lại hoặc liên hệ hỗ trợ.";
+  if (Object.hasOwn(errorMessages, trimmed)) {
+    return errorMessages[trimmed];
+  }
+  if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      const detail = sanitizeProviderDetail(parsed);
+      if (detail) return detail;
+    } catch {
+      // ignore json parse error
+    }
+  }
+  // Fallback to generic message only if it looks like an unmapped raw error code (e.g. KBTT_XXX, HTTP_500)
+  if (/^[A-Z0-9_]{3,}$/.test(trimmed)) {
+    return "Không thể xử lý yêu cầu khai báo. Vui lòng thử lại hoặc liên hệ hỗ trợ.";
+  }
+  return trimmed;
 }
 
 export function kbttErrorCode(payload: unknown): string | null {
@@ -454,51 +475,98 @@ export function kbttErrorCode(payload: unknown): string | null {
 export function sanitizeErrorMessage(
   codeOrMessage: string | null | undefined,
 ): string {
-  if (!codeOrMessage) {
-    return "Không thể xử lý yêu cầu khai báo. Vui lòng thử lại hoặc liên hệ hỗ trợ.";
-  }
+  if (!codeOrMessage) return kbttErrorMessage(null);
   const lower = codeOrMessage.toLowerCase();
   if (
     lower.includes("token") ||
     lower.includes("password") ||
     lower.includes("secret") ||
-    lower.includes("bearer") ||
-    lower.includes("providerresponse") ||
-    lower.includes("submittedpayload") ||
-    lower.trim().startsWith("{") ||
-    lower.trim().startsWith("[")
+    lower.includes("bearer")
   ) {
-    return "Không thể xử lý yêu cầu khai báo. Vui lòng thử lại hoặc liên hệ hỗ trợ.";
+    return kbttErrorMessage(null);
   }
   return kbttErrorMessage(codeOrMessage);
 }
 
+const GENERIC_HTTP_STATUS_TITLES = new Set([
+  "BAD_REQUEST",
+  "Bad Request",
+  "VALIDATION_ERROR",
+  "UNAUTHORIZED",
+  "Unauthorized",
+  "FORBIDDEN",
+  "Forbidden",
+  "NOT_FOUND",
+  "Not Found",
+  "CONFLICT",
+  "Conflict",
+  "INTERNAL_SERVER_ERROR",
+  "Internal Server Error",
+  "BUSINESS_REJECTION",
+  "REQUEST_FAILED",
+  "Request failed",
+  "OK",
+]);
+
+function isNonDescriptiveErrorText(text: string): boolean {
+  return /^\d+$/.test(text) || GENERIC_HTTP_STATUS_TITLES.has(text);
+}
+
 export function sanitizeProviderDetail(value: unknown): string | null {
-  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
-    const record = value as Record<string, unknown>;
-    for (const candidate of [
-      record.detail,
-      record.data,
-      record.error,
-      record.message,
-    ]) {
-      const detail = sanitizeProviderDetail(candidate);
-      if (detail) return detail;
+  if (value === null || value === undefined) return null;
+
+  if (Array.isArray(value)) {
+    const details = value
+      .map((item) => sanitizeProviderDetail(item))
+      .filter((item): item is string => item !== null && !isNonDescriptiveErrorText(item));
+    if (details.length > 0) {
+      return details.join("; ");
     }
     return null;
   }
+
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    let fallbackNonDescriptive: string | null = null;
+    for (const candidate of [
+      record.detail,
+      record.data,
+      record.errors,
+      record.issues,
+      record.message,
+      record.msg,
+      record.error,
+      record.description,
+    ]) {
+      const detail = sanitizeProviderDetail(candidate);
+      if (detail) {
+        if (!isNonDescriptiveErrorText(detail)) {
+          return detail;
+        }
+        if (!fallbackNonDescriptive) {
+          fallbackNonDescriptive = detail;
+        }
+      }
+    }
+    return fallbackNonDescriptive;
+  }
+
   if (typeof value !== "string") return null;
-  const text = value.trim().slice(0, 500);
+  const text = value.trim().slice(0, 5000);
   if (!text) return null;
+
+  if (text.startsWith("{") || text.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(text);
+      const detail = sanitizeProviderDetail(parsed);
+      if (detail) return detail;
+    } catch {
+      // not valid json
+    }
+  }
+
   const lower = text.toLowerCase();
-  if (
-    lower.includes("token") ||
-    lower.includes("password") ||
-    lower.includes("secret") ||
-    lower.includes("bearer") ||
-    text.startsWith("{") ||
-    text.startsWith("[")
-  ) {
+  if (lower.includes("bearer ") || lower.includes("password=")) {
     return null;
   }
   return text;

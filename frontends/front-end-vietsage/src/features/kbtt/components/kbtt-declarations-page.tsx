@@ -12,6 +12,7 @@ import {
 import { HttpError } from "@/core/http/http-error";
 import {
   formatAlertErrorMessage,
+  formatBatchResultHtml,
   showConfirmDialog,
   showErrorAlert,
   showSuccessAlert,
@@ -99,25 +100,69 @@ function inferDocumentTypeCode(
 }
 
 function errorText(error: unknown): string {
-  if (error instanceof HttpError) {
-    if (error.data && typeof error.data === "object") {
-      const dataObj = error.data as Record<string, unknown>;
-      const providerDetail = sanitizeProviderDetail(error.data);
-      if (providerDetail) return providerDetail;
-      if (typeof dataObj.message === "string")
-        return sanitizeErrorMessage(dataObj.message);
+  // 1. If error has .data (HttpError or duck-typed API error payload)
+  if (error && typeof error === "object" && "data" in error) {
+    const errorData = (error as { data?: unknown }).data;
+    const providerDetail = sanitizeProviderDetail(errorData);
+    if (providerDetail) return providerDetail;
+
+    if (typeof errorData === "string" && errorData.trim()) {
+      return errorData.trim();
     }
-    const code = kbttErrorCode(error.data);
+
+    if (errorData && typeof errorData === "object") {
+      const dataObj = errorData as Record<string, unknown>;
+      if (typeof dataObj.message === "string" && dataObj.message.trim()) {
+        return sanitizeErrorMessage(dataObj.message);
+      }
+      if (Array.isArray(dataObj.message) && dataObj.message.length > 0) {
+        return dataObj.message.map(String).join("; ");
+      }
+      if (typeof dataObj.error === "string" && dataObj.error.trim()) {
+        return sanitizeErrorMessage(dataObj.error);
+      }
+      if (typeof dataObj.detail === "string" && dataObj.detail.trim()) {
+        return dataObj.detail.trim();
+      }
+    }
+
+    const code = kbttErrorCode(errorData);
     if (code) return sanitizeErrorMessage(code);
-    if (error.status === 400) return "Dữ liệu khai báo không hợp lệ.";
-    if (error.status === 403)
-      return "Bạn không có quyền thực hiện thao tác này.";
-    if (error.status === 404) return "Không tìm thấy hồ sơ khách lưu trú.";
-    return sanitizeErrorMessage(kbttErrorCode(error.data));
   }
+
+  // 2. If error has .message (HttpError or standard Error)
+  if (error && typeof error === "object" && "message" in error) {
+    const rawMsg = (error as { message?: unknown }).message;
+    if (typeof rawMsg === "string" && rawMsg.trim()) {
+      return sanitizeErrorMessage(rawMsg);
+    }
+  }
+
+  // 3. Status code human-readable descriptions
+  if (error && typeof error === "object" && "status" in error) {
+    const status = (error as { status?: unknown }).status;
+    if (status === 400)
+      return "Dữ liệu khai báo không hợp lệ. Vui lòng kiểm tra lại các trường thông tin bắt buộc.";
+    if (status === 401)
+      return "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.";
+    if (status === 403)
+      return "Bạn không có quyền thực hiện thao tác này.";
+    if (status === 404)
+      return "Không tìm thấy hồ sơ khách lưu trú.";
+    if (status === 408 || status === 504)
+      return "Hệ thống phản hồi quá lâu. Vui lòng thử lại sau giây lát.";
+    if (status === 409)
+      return "Hồ sơ của khách lưu trú đã được gửi hoặc thông tin bị xung đột.";
+    if (status === 422)
+      return "Bộ Công an từ chối hồ sơ khai báo. Vui lòng kiểm tra lại thông tin khách lưu trú.";
+    if (status === 502 || status === 503)
+      return "Không thể kết nối đến hệ thống Bộ Công an hoặc máy chủ. Vui lòng thử lại sau.";
+  }
+
   if (error instanceof Error) {
     return sanitizeErrorMessage(error.message);
   }
+
   return sanitizeErrorMessage(null);
 }
 
@@ -1018,6 +1063,7 @@ export function KbttDeclarationsPage({
 
     setIsSubmittingBatch(true);
     let successCount = 0;
+    const errorItems: Array<{ room?: string; name?: string; message: string }> = [];
     const errors: string[] = [];
 
     const settledResults = await Promise.allSettled(
@@ -1035,6 +1081,11 @@ export function KbttDeclarationsPage({
         successCount++;
       } else {
         const msg = errorText(res.reason);
+        errorItems.push({
+          room: row.roomNumber ?? "—",
+          name: row.fullName,
+          message: msg,
+        });
         errors.push(`Phòng ${row.roomNumber ?? "—"} (${row.fullName}): ${msg}`);
       }
     }
@@ -1050,7 +1101,15 @@ export function KbttDeclarationsPage({
     } else {
       await showErrorAlert(
         "Kết quả gửi BCA",
-        `Thành công: ${successCount}/${unsubmittedRows.length} khách.\n\nLỗi:\n${errors.join("\n")}`,
+        formatBatchResultHtml({
+          total: unsubmittedRows.length,
+          success: successCount,
+          failed: errorItems.length,
+          errors: errorItems,
+          itemTypeLabel: "khách",
+          guidance:
+            "Vui lòng kiểm tra lại thông tin hồ sơ của các phòng bị lỗi hoặc chỉnh sửa thông tin chi tiết trước khi gửi lại.",
+        }),
       );
     }
   }, [selectableRows, saveInlineRow, submitMutation, handleRefresh]);
@@ -2045,6 +2104,12 @@ function DeclarationModal({
           allowSubmittedEdit: true,
         },
       });
+    } catch (saveError) {
+      await showErrorAlert("Dữ liệu khai báo chưa hợp lệ", errorText(saveError));
+      return;
+    }
+
+    try {
       await submitMutation.mutateAsync({ occupantId });
       await showSuccessAlert(
         "Khai báo tạm trú",
@@ -2052,8 +2117,16 @@ function DeclarationModal({
       );
       onUpdated();
       onClose();
-    } catch (error) {
-      await showErrorAlert("Bộ Công an từ chối hồ sơ", errorText(error));
+    } catch (submitError) {
+      const isValidation =
+        submitError &&
+        typeof submitError === "object" &&
+        "status" in submitError &&
+        (submitError as { status: unknown }).status === 400;
+      const title = isValidation
+        ? "Dữ liệu chưa đủ điều kiện gửi"
+        : "Bộ Công an từ chối hồ sơ";
+      await showErrorAlert(title, errorText(submitError));
       onUpdated();
     }
   };
