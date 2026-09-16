@@ -1763,6 +1763,7 @@ export function KbttDeclarationsPage({
           onSaveAllDevModalRows={handleSaveAllDevModalRows}
           onDevResetAll={handleDevResetAll}
           onClose={() => setIsDevModalOpen(false)}
+          onOpenDetail={(row) => setSelectedOccupant(row)}
           isDevLoading={isDevLoading}
         />
       )}
@@ -1848,6 +1849,12 @@ function DeclarationModal({
       occupant.identityNumber
     ) {
       initial.soGiayTo = occupant.identityNumber;
+    }
+    if (!initial.diaChi && occupant.residencePlace) {
+      initial.diaChi = occupant.residencePlace;
+    }
+    if (!initial.soDienThoai && occupant.phone) {
+      initial.soDienThoai = occupant.phone;
     }
     if (initialKind === "FOREIGN") {
       if (!initial.soHoChieu && occupant.identityNumber)
@@ -2505,7 +2512,11 @@ function DeclarationModal({
                       }}
                       className={selectClass}
                     >
-                      <option value="">Chọn tỉnh/thành phố</option>
+                      <option value="">
+                        {provincesQuery.isPending
+                          ? "Đang tải danh sách Tỉnh/TP..."
+                          : "Chọn tỉnh/thành phố"}
+                      </option>
                       {Boolean(formData.maTT) &&
                         !(provincesQuery.data ?? []).some(
                           (item) => item.code === String(formData.maTT),
@@ -2924,6 +2935,7 @@ function KbttDevInterventionModal({
   onSaveAllDevModalRows,
   onDevResetAll,
   onClose,
+  onOpenDetail,
   isDevLoading,
 }: {
   hotelId: string;
@@ -2939,6 +2951,7 @@ function KbttDevInterventionModal({
   onSaveAllDevModalRows: () => Promise<void>;
   onDevResetAll: (generateRandomIdentity?: boolean) => Promise<void>;
   onClose: () => void;
+  onOpenDetail?: (row: KbttDeclarationListItem) => void;
   isDevLoading: boolean;
 }) {
   const [search, setSearch] = useState("");
@@ -3222,14 +3235,30 @@ function KbttDevInterventionModal({
                         </div>
                       </td>
                       <td className="px-3.5 py-2.5 text-right">
-                        <button
-                          type="button"
-                          disabled={isDevLoading || !hasEdit}
-                          onClick={() => void onSaveDevModalRow(row)}
-                          className="inline-flex h-8 items-center gap-1 rounded-lg bg-amber-600 px-3 text-xs font-bold text-white shadow-2xs hover:bg-amber-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                        >
-                          <span>💾 Lưu vào DB</span>
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          {onOpenDetail && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onClose();
+                                onOpenDetail(row);
+                              }}
+                              title="Mở box chỉnh chi tiết hồ sơ (Tỉnh, Phường/Xã, địa chỉ...)"
+                              className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 shadow-2xs hover:border-[#064e3b] hover:bg-slate-50 transition-colors"
+                            >
+                              <PencilIcon className="h-3 w-3 text-slate-500" />
+                              <span>Sửa chi tiết</span>
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            disabled={isDevLoading || !hasEdit}
+                            onClick={() => void onSaveDevModalRow(row)}
+                            className="inline-flex h-8 items-center gap-1 rounded-lg bg-amber-600 px-3 text-xs font-bold text-white shadow-2xs hover:bg-amber-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                          >
+                            <span>💾 Lưu DB</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
