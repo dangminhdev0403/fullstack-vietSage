@@ -259,7 +259,7 @@ export class ReservationsRepository {
                 hotelId: input.hotelId,
                 fullName: reservation.guestDisplayName.trim(),
                 phone: reservation.guestPhone?.trim(),
-                citizenshipKind: inferCitizenshipKind({}),
+                citizenshipKind: "VIETNAMESE",
                 isPrimary: true,
               },
             ],

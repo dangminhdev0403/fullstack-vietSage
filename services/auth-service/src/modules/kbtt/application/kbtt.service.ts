@@ -266,15 +266,17 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       if (!draft.thoiHanTamTruStr && plannedCheckOutAt) {
         draft.thoiHanTamTruStr = formatVietnamDateTime(plannedCheckOutAt);
       }
+      if (!draft.thoiHanTamTruStr && draft.ngayDiDuKienStr) {
+        draft.thoiHanTamTruStr = String(draft.ngayDiDuKienStr);
+      }
       if (!draft.loaiNgayThangNamSinh && draft.ngayThangNamSinhStr) {
         draft.loaiNgayThangNamSinh = "D";
       }
-      if (
-        !draft.quocTich &&
-        occupant.nationality &&
-        /^[A-Z]{3}$/.test(occupant.nationality.trim().toUpperCase())
-      ) {
-        draft.quocTich = occupant.nationality.trim().toUpperCase();
+      if (!draft.quocTich && occupant.nationality) {
+        const nat = occupant.nationality.trim().toUpperCase();
+        if (/^[A-Z0-9_-]{2,32}$/.test(nat)) {
+          draft.quocTich = nat;
+        }
       }
     }
     return draft;
@@ -2124,10 +2126,19 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
           continue;
         }
 
-        const citizenshipKind =
+        const isForeign =
+          occupant.citizenshipKind === "FOREIGN" ||
+          (occupant.nationality &&
+            !["VN", "VNM", "VIET NAM", "VIETNAM"].includes(
+              occupant.nationality.trim().toUpperCase(),
+            )) ||
+          (/^(?=.*[A-Za-z])[A-Za-z0-9]{1,10}$/.test((occupant.identityNumber ?? "").trim()) &&
+            !/^\d{9,12}$/.test((occupant.identityNumber ?? "").trim()));
+
+        const citizenshipKind: "VIETNAMESE" | "FOREIGN" =
           existingDecl?.declarationKind ??
           occupant.citizenshipKind ??
-          (/^\d{9,12}$/.test((occupant.identityNumber ?? "").trim()) ? "VIETNAMESE" : "FOREIGN");
+          (isForeign ? "FOREIGN" : "VIETNAMESE");
 
         const previousData =
           existingDecl?.draftPayloadJson &&
