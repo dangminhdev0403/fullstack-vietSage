@@ -834,7 +834,8 @@ export function KbttDeclarationsPage({
 
   const handleRefresh = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: boundResource.key });
-  }, [boundResource, queryClient]);
+    void connectionQuery.refetch();
+  }, [boundResource, connectionQuery, queryClient]);
 
   const handleSwitchTab = useCallback((tab: "declarations" | "connection") => {
     setActiveTab(tab);

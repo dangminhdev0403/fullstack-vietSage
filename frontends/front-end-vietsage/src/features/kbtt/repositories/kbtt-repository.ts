@@ -26,7 +26,7 @@ import {
 } from "../types/kbtt-contract";
 
 function connectionPath(hotelId: string) {
-  return `/api/owner/hotels/${encodeURIComponent(hotelId)}/kbtt/connection`;
+  return `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/kbtt/connection`;
 }
 
 function autoSubmitPath(hotelId: string) {

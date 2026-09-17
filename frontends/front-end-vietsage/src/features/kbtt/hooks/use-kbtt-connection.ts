@@ -12,8 +12,9 @@ export function useKbttConnection(hotelId: string) {
       ...resource.queries.connection.options(undefined),
       enabled: Boolean(hotelId),
       retry: false,
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: false,
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+      refetchInterval: 15_000,
     }),
     [resource, hotelId],
   );

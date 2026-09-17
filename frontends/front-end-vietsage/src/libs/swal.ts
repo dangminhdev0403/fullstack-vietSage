@@ -235,7 +235,7 @@ export function formatAlertErrorMessage(raw: string): string {
   }
 
   // 1. Extract guidance / advice at the end
-  let guidance: string | null = null;
+  let guidance: string | undefined = undefined;
   const guidanceMatch = text.match(
     /(?:^|[.;,\n]\s*)(?:(?:\b(?:Vui lòng|Xin vui lòng|Lưu ý|Gợi ý|Hướng dẫn)\b[:\s]*))(.*)$/i,
   );
@@ -290,7 +290,7 @@ export function formatAlertErrorMessage(raw: string): string {
     const groups = new Map<string, string[]>();
     for (const chunk of chunks) {
       const match = chunk.match(
-        /^((?:Bản khai báo|Hồ sơ|Dòng|Lỗi|Mục)\s*(?:\d+|[A-Za-z0-9_-]+))\s*:\s*(.*)$/is,
+        /^((?:Bản khai báo|Hồ sơ|Dòng|Lỗi|Mục)\s*(?:\d+|[A-Za-z0-9_-]+))\s*:\s*([\s\S]*)$/i,
       );
       if (match) {
         const groupLabel = match[1].trim();

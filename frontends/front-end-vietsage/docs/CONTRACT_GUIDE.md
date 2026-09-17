@@ -58,8 +58,7 @@ Backend API
 
 ## KBTT Connection (Phase 1)
 
-- Owner page: `/owner/hotels/{hotelId}/kbtt`; navigation label: `Khai báo tạm trú Bộ Công an`.
-- BFF: `/api/owner/hotels/{hotelId}/kbtt/connection` supports GET, PUT, DELETE; POST uses `/connection/check`. Backend paths omit `/api/owner`.
+- BFF: `/api/hotel-ops/hotels/{hotelId}/kbtt/connection` supports GET, PUT, DELETE; POST uses `/connection/check` (with backwards-compatible `/api/owner` proxy). Backend paths omit `/api/hotel-ops` or `/api/owner`.
 - GET reads stored status only. Provider authentication/checks happen only after an explicit connect, check, or re-login action; no polling, background reconnect, or guest submission.
 - Read capability: `hotel.kbtt.view`; write capability: `hotel.kbtt.manage`. Navigation also accepts `hotel.dashboard.view` for active-session compatibility; this does not grant API access.
 - PUT accepts only username (trimmed, 1–120 characters) and password (1–256 characters, whitespace preserved). Password is never prefilled, persisted to browser storage, or returned; completed mutation variables are scrubbed.
