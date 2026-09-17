@@ -62,17 +62,9 @@ function session(overrides: Partial<KbttSession> = {}): KbttSession {
   return {
     AccessToken: randomBytes(24).toString("base64"),
     RefreshToken: randomBytes(24).toString("base64"),
-    TokenType: "bearer",
     Exp: Math.floor(Date.now() / 1000) + 300,
     Authorities: ["kbtt:create-3th"],
-    ClientId: 7,
-    LoaiTK: "CSLT",
     CsltId: "1000227",
-    CsltKhuVuc: 86,
-    CsltDonVi: 1332,
-    MaTTCuaCslt: "101",
-    MaPxCuaCslt: "101900256",
-    IsCsltChinh: true,
     ...overrides,
   };
 }

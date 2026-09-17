@@ -1,4 +1,4 @@
-import { BadRequestException, HttpException, Injectable } from "@nestjs/common";
+import { BadRequestException, HttpException, Injectable, Logger } from "@nestjs/common";
 import {
   kbttSessionSchema,
   type KbttCatalogKind,
@@ -268,6 +268,10 @@ export class KbttProviderClient {
   private session(data: unknown) {
     const parsed = kbttSessionSchema.safeParse(data);
     if (!parsed.success) {
+      Logger.warn(
+        `[KBTT] Parse session response failed: ${JSON.stringify(parsed.error.issues)}`,
+        "KbttProviderClient",
+      );
       const authorities =
         data && typeof data === "object" && "Authorities" in data ? data.Authorities : null;
       if (Array.isArray(authorities) && !authorities.includes("kbtt:create-3th"))

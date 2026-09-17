@@ -679,11 +679,6 @@ model KbttHotelConnection {
   keyVersion         Int      @default(1)
   status             String   @default("CONNECTED") @db.VarChar(20)
   csltId             String   @db.VarChar(32)
-  csltKhuVuc         Int
-  csltDonVi          Int
-  maTTCuaCslt        String   @db.VarChar(32)
-  maPxCuaCslt        String   @db.VarChar(32)
-  isCsltChinh        Boolean
   lastCheckedAt      DateTime
   lastConnectedAt    DateTime
   lastErrorCode      String?  @db.VarChar(40)
