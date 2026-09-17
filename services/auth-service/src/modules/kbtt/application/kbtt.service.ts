@@ -20,6 +20,7 @@ import { TelegramNotificationService } from "../../notifications/notifications-p
 import { StayCheckInEventBus } from "../../../shared/events";
 import { z } from "zod";
 import {
+  assertKbttDeclarationMutable,
   isValidCalendarDate,
   kbttForeignReadySchema,
   kbttMetadata,
@@ -630,6 +631,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     const { citizenshipKind, data, allowSubmittedEdit } = parseDraftPayload(body);
 
     const existing = await this.repository.findLatestDeclaration(hotelId, occupantId);
+    assertKbttDeclarationMutable(existing?.status);
 
     if (existing?.status === "SUBMITTED" && !allowSubmittedEdit) {
       throw new ConflictException({
@@ -743,6 +745,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       }
 
       const declaration = await this.repository.findLatestDeclaration(hotelId, occupantId);
+      assertKbttDeclarationMutable(declaration?.status);
       if (declaration?.status === "SUBMITTED") {
         throw new ConflictException({
           code: "KBTT_ALREADY_SUBMITTED",

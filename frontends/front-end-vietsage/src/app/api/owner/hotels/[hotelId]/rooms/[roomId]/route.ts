@@ -84,7 +84,27 @@ export async function PATCH(request: Request, context: Params) {
   }
 
   try {
-    const data = await executeOwnerBackendRequest("update owner room", (accessToken) => hotelOpsService.updateRoom(hotelId, roomId, updateRoomPayload, accessToken));
+    const data = await executeOwnerBackendRequest("update owner room", async (accessToken) => {
+      let result: unknown;
+      if (updateRoomPayload.status) {
+        result = await hotelOpsService.updateRoomStatus(
+          hotelId,
+          roomId,
+          updateRoomPayload.status,
+          accessToken,
+        );
+      }
+      const { status, ...metadata } = updateRoomPayload;
+      if (Object.keys(metadata).length > 0) {
+        result = await hotelOpsService.updateRoom(
+          hotelId,
+          roomId,
+          metadata,
+          accessToken,
+        );
+      }
+      return result;
+    });
     if (data instanceof Response) return data;
     return successResponse(data, 200, "Owner room updated successfully");
   } catch (error) {

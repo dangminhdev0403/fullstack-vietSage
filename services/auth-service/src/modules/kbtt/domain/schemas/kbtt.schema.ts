@@ -1,4 +1,4 @@
-import { BadRequestException } from "@nestjs/common";
+import { BadRequestException, ConflictException } from "@nestjs/common";
 import { z } from "zod";
 export { hotelIdParamSchema } from "../../../property/property-public";
 
@@ -124,6 +124,19 @@ export const kbttDeclarationStatusSchema = z.enum([
   "CANCELLED",
 ]);
 export type KbttDeclarationStatus = z.infer<typeof kbttDeclarationStatusSchema>;
+
+export function assertKbttDeclarationMutable(status: KbttDeclarationStatus | undefined) {
+  if (status && ["SENDING", "UNKNOWN", "CANCELLED"].includes(status)) {
+    throw new ConflictException({
+      code: "KBTT_DECLARATION_LOCKED",
+      message: status === "UNKNOWN"
+        ? "Chưa xác định kết quả gửi BCA. Cần đối soát trước khi sửa hoặc gửi lại hồ sơ."
+        : status === "SENDING"
+          ? "Hồ sơ đang gửi BCA. Vui lòng chờ kết quả trước khi thao tác tiếp."
+          : "Hồ sơ đã hủy; không thể sửa hoặc gửi lại.",
+    });
+  }
+}
 
 export const kbttDerivedStatusSchema = z.enum([
   "MISSING_PROFILE",

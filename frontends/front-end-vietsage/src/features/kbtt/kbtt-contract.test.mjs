@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { createRequire, stripTypeScriptTypes } from "node:module";
 import test from "node:test";
+import ts from "typescript";
 import {
   canSelectKbttDeclaration,
   formatKbttDraftForDisplay,
   formatKbttDraftForProvider,
+  getKbttListState,
   getRowPartitionTab,
   KBTT_FORBIDDEN_KEYS,
   kbttAutoSubmitConfigSchema,
@@ -16,6 +19,8 @@ import {
   kbttDeclarationListItemSchema,
   kbttDeclarationListSchema,
   kbttDeclarationRecordSchema,
+  kbttDeclarationStatusSchema,
+  kbttDerivedStatusSchema,
   kbttErrorCode,
   kbttErrorMessage,
   kbttOccupantDeclarationDetailSchema,
@@ -266,6 +271,38 @@ test("KBTT operational declarations contract validates list rows, fails closed o
   assert.equal(parsedDetail.occupant.fullName, "Nguyen Van A");
   assert.equal(parsedDetail.declaration?.status, "DRAFT");
 
+  const statusRows = kbttDeclarationStatusSchema.options.map((status) => ({
+    ...sampleVietnameseRow,
+    derivedStatus: status,
+    declaration: { ...sampleVietnameseRow.declaration, status },
+  }));
+  assert.deepEqual(
+    kbttDeclarationListSchema.parse(statusRows).map((row) => row.derivedStatus),
+    kbttDeclarationStatusSchema.options,
+  );
+  for (const status of kbttDeclarationStatusSchema.options) {
+    const detail = kbttOccupantDeclarationDetailSchema.parse({
+      ...detailData,
+      derivedStatus: status,
+      declaration: { ...detailData.declaration, status },
+    });
+    assert.equal(detail.declaration.status, status);
+    assert.equal(detail.derivedStatus, status);
+  }
+  for (const status of ["REJECTED", "INVALID", null, 1]) {
+    assert.equal(kbttDeclarationListSchema.safeParse([
+      ...sampleList, { ...sampleVietnameseRow, derivedStatus: status },
+    ]).success, false);
+    assert.equal(kbttDeclarationListSchema.safeParse([{
+      ...sampleVietnameseRow,
+      declaration: { ...sampleVietnameseRow.declaration, status },
+    }]).success, false);
+    assert.equal(kbttOccupantDeclarationDetailSchema.safeParse({
+      ...detailData,
+      declaration: { ...detailData.declaration, status },
+    }).success, false);
+  }
+
   // Fail-closed verification on forbidden keys
   for (const forbidden of KBTT_FORBIDDEN_KEYS) {
     const invalidPayload = {
@@ -328,6 +365,76 @@ test("KBTT operational declarations contract validates list rows, fails closed o
     detailData.declaration,
   );
   assert.equal(parsedRecord.id, "decl-1");
+});
+
+test("KBTT status contracts stay aligned and locked API states reject writes", () => {
+  const schemaUrl = new URL(
+    "../../../../../services/auth-service/src/modules/kbtt/domain/schemas/kbtt.schema.ts",
+    import.meta.url,
+  );
+  const source = readFileSync(schemaUrl, "utf8");
+  // Execute the pure status section without booting Nest or the property module.
+  const statusSource = source.slice(
+    source.indexOf("export const kbttDeclarationStatusSchema"),
+    source.indexOf("export const kbttVietnameseDraftDataSchema"),
+  );
+  assert.ok(statusSource.includes("assertKbttDeclarationMutable"));
+  const backendRequire = createRequire(schemaUrl);
+  const backend = new Function("z", "ConflictException",
+    stripTypeScriptTypes(statusSource).replaceAll("export ", "") +
+    "\nreturn { kbttDeclarationStatusSchema, kbttDerivedStatusSchema, assertKbttDeclarationMutable };",
+  )(backendRequire("zod").z, backendRequire("@nestjs/common").ConflictException);
+
+  assert.deepEqual(kbttDeclarationStatusSchema.options, [
+    "DRAFT", "READY", "SENDING", "SUBMITTED", "FAILED", "UNKNOWN", "CANCELLED",
+  ]);
+  assert.deepEqual(kbttDeclarationStatusSchema.options, backend.kbttDeclarationStatusSchema.options);
+  assert.deepEqual(kbttDerivedStatusSchema.options, backend.kbttDerivedStatusSchema.options);
+  for (const status of ["SENDING", "UNKNOWN", "CANCELLED"]) {
+    assert.throws(() => backend.assertKbttDeclarationMutable(status), (error) => {
+      assert.equal(error.getStatus(), 409);
+      assert.equal(error.getResponse().code, "KBTT_DECLARATION_LOCKED");
+      return true;
+    });
+  }
+  for (const status of [undefined, "DRAFT", "READY", "FAILED", "SUBMITTED"]) {
+    assert.doesNotThrow(() => backend.assertKbttDeclarationMutable(status));
+  }
+  const serviceSource = readFileSync(new URL("../../application/kbtt.service.ts", schemaUrl), "utf8");
+  for (const variable of ["existing", "declaration"]) {
+    assert.match(serviceSource, new RegExp(
+      String.raw`const ${variable} = await this\.repository\.findLatestDeclaration\(hotelId, occupantId\);\s+assertKbttDeclarationMutable\(${variable}\?\.status\);`,
+    ));
+  }
+  assert.equal(kbttErrorCode({ code: "KBTT_DECLARATION_LOCKED" }), "KBTT_DECLARATION_LOCKED");
+  assert.equal(kbttErrorMessage("INTERNAL_SERVER_ERROR"), "Không thể tải dữ liệu từ máy chủ. Vui lòng thử lại.");
+});
+
+test("KBTT list never infers submission success from errors, cached rows, empty filters or locked states", () => {
+  const submitted = [{ derivedStatus: "SUBMITTED" }];
+  assert.equal(getKbttListState(submitted, "pending"), "loading");
+  assert.equal(getKbttListState(submitted, "error"), "error");
+  assert.equal(getKbttListState([], "pending"), "loading");
+  assert.equal(getKbttListState([], "error"), "error");
+  assert.equal(getKbttListState([], "success"), "empty");
+  assert.equal(getKbttListState(submitted, "success"), "submitted");
+  for (const status of kbttDerivedStatusSchema.options.filter((value) => value !== "SUBMITTED")) {
+    const row = { derivedStatus: status };
+    assert.equal(getKbttListState([row], "success"), "pending", status);
+    assert.equal(getKbttListState([...submitted, row], "success"), "pending", status);
+  }
+  for (const status of kbttDerivedStatusSchema.options) {
+    assert.equal(canSelectKbttDeclaration({ derivedStatus: status }),
+      ["MISSING_PROFILE", "DRAFT", "READY", "FAILED"].includes(status), status);
+  }
+  const pageSource = readFileSync(new URL("./components/kbtt-declarations-page.tsx", import.meta.url), "utf8");
+  const parsedPage = ts.createSourceFile("kbtt-declarations-page.tsx", pageSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  assert.deepEqual(parsedPage.parseDiagnostics, [], "KBTT page must remain valid TSX");
+  assert.match(pageSource, /getKbttListState\(allRows, declarationsQuery\.status\)/);
+  assert.match(pageSource, /isListReady = declarationsQuery\.isSuccess && !declarationsQuery\.isFetching/);
+  assert.match(pageSource, /canEdit=\{isSelectable\}/);
+  assert.match(pageSource, /isReadOnly = !detailQuery\.isSuccess \|\| detailQuery\.isFetching \|\| !canSelectKbttDeclaration/);
+  assert.doesNotMatch(pageSource, /Toàn bộ hồ sơ đã gửi BCA thành công|Tất cả khách đều đã được gửi BCA/);
 });
 
 test("KBTT UI exposes one edit-to-submit action and no local status workflow", () => {
@@ -688,8 +795,8 @@ test("KBTT declarations page stops countdown and auto-push when hotel is not log
   // executeAutoSubmitNow must guard against execution when not connected
   assert.match(
     pageSource,
-    /const executeAutoSubmitNow = useCallback\(async \(\) => {[\s\S]*?if \(!isConnected\) return;/,
-    "executeAutoSubmitNow must bail out if not connected",
+    /const executeAutoSubmitNow = useCallback\(async \(\) => {[\s\S]*?if \(!isConnected \|\| !isListReady \|\| isSubmittingBatch\) return;/,
+    "executeAutoSubmitNow must stop while disconnected, fetching, failed or already submitting",
   );
 
   // Banner must render warning when not connected

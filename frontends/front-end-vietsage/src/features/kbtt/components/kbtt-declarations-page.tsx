@@ -24,6 +24,7 @@ import { kbttResource } from "../resources/kbtt-resource";
 import { useKbttConnection } from "../hooks/use-kbtt-connection";
 import {
   canSelectKbttDeclaration,
+  getKbttListState,
   formatKbttDraftForDisplay,
   formatKbttDraftForProvider,
   kbttErrorCode,
@@ -272,16 +273,24 @@ function formatNationality(row: KbttDeclarationListItem): string {
 }
 
 function getDeclarationStatus(row: KbttDeclarationListItem): {
-  key: "UNSENT" | "SUBMITTED" | "REJECTED";
+  key: "UNSENT" | "SUBMITTED" | "REJECTED" | "SENDING" | "UNKNOWN" | "CANCELLED";
   label: string;
   dotColor: string;
   badgeClass: string;
 } {
   const dec = row.declaration;
+  const status = dec?.status ?? row.derivedStatus;
+  if (status === "SENDING" || status === "UNKNOWN" || status === "CANCELLED") {
+    return {
+      key: status,
+      label: status === "SENDING" ? "Đang gửi" : status === "UNKNOWN" ? "Cần đối soát" : "Đã hủy",
+      dotColor: "bg-amber-500",
+      badgeClass: "border-amber-200 bg-amber-50 text-amber-900",
+    };
+  }
   if (dec) {
     if (
       dec.status === "FAILED" ||
-      dec.status === "REJECTED" ||
       (dec.providerMessage && dec.status !== "SUBMITTED")
     ) {
       return {
@@ -480,6 +489,7 @@ function ClockIcon({ className = "h-4 w-4" }: { className?: string }) {
 
 function RowActionMenu({
   statusInfo,
+  canEdit,
   onView,
   onSave,
   onSubmit,
@@ -490,6 +500,7 @@ function RowActionMenu({
   onDevResetSingle,
 }: {
   statusInfo: { key: string; label: string };
+  canEdit: boolean;
   onView: () => void;
   onSave: () => void;
   onSubmit: () => void;
@@ -501,7 +512,7 @@ function RowActionMenu({
 }) {
   return (
     <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
-      {dirty ? (
+      {dirty && canEdit ? (
         <button
           type="button"
           disabled={disabled}
@@ -514,12 +525,12 @@ function RowActionMenu({
       ) : null}
 
       {/* Sửa chi tiết hoặc Xem hồ sơ */}
-      {statusInfo.key === "SUBMITTED" ? (
+      {!canEdit ? (
         <button
           type="button"
           disabled={disabled}
           onClick={onView}
-          title="Xem hồ sơ đã gửi"
+          title="Xem hồ sơ"
           className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-sm font-semibold text-slate-700 shadow-2xs hover:border-[#064e3b] hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 transition-colors"
         >
           <span>Xem</span>
@@ -538,7 +549,7 @@ function RowActionMenu({
       )}
 
       {/* Gửi BCA ngay (chưa gửi hoặc bị từ chối) */}
-      {statusInfo.key !== "SUBMITTED" && (
+      {canEdit && (
         <button
           type="button"
           disabled={disabled}
@@ -552,12 +563,12 @@ function RowActionMenu({
       )}
 
       {/* Xem lý do từ chối (nếu bị từ chối) */}
-      {statusInfo.key === "REJECTED" && (
+      {(statusInfo.key === "REJECTED" || statusInfo.key === "UNKNOWN") && (
         <button
           type="button"
           disabled={disabled}
           onClick={onViewError}
-          title="Xem lý do BCA từ chối"
+          title="Xem phản hồi BCA"
           className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-sm font-semibold text-rose-700 shadow-2xs hover:bg-rose-100 disabled:opacity-40 transition-colors"
         >
           <AlertCircleIcon className="h-3.5 w-3.5 text-rose-500" />
@@ -745,6 +756,8 @@ export function KbttDeclarationsPage({
     () => declarationsQuery.data ?? [],
     [declarationsQuery.data],
   );
+  const listState = getKbttListState(allRows, declarationsQuery.status);
+  const isListReady = declarationsQuery.isSuccess && !declarationsQuery.isFetching;
 
   const totalPages = useMemo(() => {
     const data = declarationsQuery.data as any;
@@ -812,8 +825,8 @@ export function KbttDeclarationsPage({
   ]);
 
   const selectableRows = useMemo(
-    () => filteredRows.filter(canSelectKbttDeclaration),
-    [filteredRows],
+    () => declarationsQuery.isSuccess ? filteredRows.filter(canSelectKbttDeclaration) : [],
+    [filteredRows, declarationsQuery.isSuccess],
   );
   const unsubmittedCount = selectableRows.length;
 
@@ -858,6 +871,9 @@ export function KbttDeclarationsPage({
   const saveInlineRow = useCallback(
     async (row: KbttDeclarationListItem) => {
       const edits = inlineEdits[row.occupantId];
+      if (!isListReady || !canSelectKbttDeclaration(row)) {
+        throw new Error("Hồ sơ chưa sẵn sàng để chỉnh sửa. Vui lòng làm mới và kiểm tra trạng thái.");
+      }
       if (!edits) return;
       const identityNumber = (
         edits.identityNumber ??
@@ -912,7 +928,7 @@ export function KbttDeclarationsPage({
         return next;
       });
     },
-    [inlineEdits, saveMutation],
+    [inlineEdits, saveMutation, isListReady],
   );
 
   const handleSaveInlineRow = useCallback(
@@ -1067,6 +1083,7 @@ export function KbttDeclarationsPage({
   }, [devModalEdits, devUpdateOccupantsMutation, handleRefresh]);
 
   const handleSubmitAll = useCallback(async () => {
+    if (!isListReady || isSubmittingBatch) return;
     if (!isConnected) {
       await SwalVietSage.fire({
         title: "Chưa đăng nhập Cổng BCA",
@@ -1080,10 +1097,7 @@ export function KbttDeclarationsPage({
 
     const unsubmittedRows = selectableRows;
 
-    if (unsubmittedRows.length === 0) {
-      await showSuccessAlert("Thông báo", "Tất cả khách đều đã được gửi BCA.");
-      return;
-    }
+    if (unsubmittedRows.length === 0) return;
 
     const confirmResult = await showConfirmDialog({
       title: "Upload tất cả lên BCA",
@@ -1167,13 +1181,15 @@ export function KbttDeclarationsPage({
     submitMutation,
     sendBatchSummaryMutation,
     handleRefresh,
+    isListReady,
+    isSubmittingBatch,
   ]);
 
   const [isAutoPaused, setIsAutoPaused] = useState(false);
   const [countdownSeconds, setCountdownSeconds] = useState<number | null>(null);
 
   const executeAutoSubmitNow = useCallback(async () => {
-    if (!isConnected) return;
+    if (!isConnected || !isListReady || isSubmittingBatch) return;
     const unsubmittedRows = selectableRows;
     if (unsubmittedRows.length === 0) return;
 
@@ -1243,14 +1259,14 @@ export function KbttDeclarationsPage({
         }),
       );
     }
-  }, [selectableRows, saveInlineRow, submitMutation, sendBatchSummaryMutation, handleRefresh]);
+  }, [selectableRows, saveInlineRow, submitMutation, sendBatchSummaryMutation, handleRefresh, isConnected, isListReady, isSubmittingBatch]);
 
   // Synchronize countdown with unsubmittedCount and connection status:
   // - If !isConnected: STOP countdown immediately (set to null), do not auto-push
   // - If unsubmittedCount === 0: STOP countdown immediately (set to null)
   // - If isConnected && unsubmittedCount > 0 and countdown is null (and not currently submitting): initialize countdown
   useEffect(() => {
-    if (!IS_AUTO_SUBMIT_ENABLED || !isConnected) {
+    if (!IS_AUTO_SUBMIT_ENABLED || !isConnected || !declarationsQuery.isSuccess) {
       setCountdownSeconds(null);
       return;
     }
@@ -1259,12 +1275,13 @@ export function KbttDeclarationsPage({
     } else if (countdownSeconds === null && !isSubmittingBatch) {
       setCountdownSeconds(AUTO_SUBMIT_DELAY_SECONDS);
     }
-  }, [isConnected, unsubmittedCount, isSubmittingBatch, countdownSeconds]);
+  }, [isConnected, unsubmittedCount, isSubmittingBatch, countdownSeconds, declarationsQuery.isSuccess]);
 
   // Timer interval: ticks down each second when active
   useEffect(() => {
     if (
       !IS_AUTO_SUBMIT_ENABLED ||
+      !isListReady ||
       !isConnected ||
       isAutoPaused ||
       isSubmittingBatch ||
@@ -1292,11 +1309,12 @@ export function KbttDeclarationsPage({
     isSubmittingBatch,
     unsubmittedCount,
     executeAutoSubmitNow,
+    isListReady,
   ]);
 
   const handleSubmitSingle = useCallback(
     async (row: KbttDeclarationListItem) => {
-      if (!canSelectKbttDeclaration(row)) return;
+      if (!isListReady || !canSelectKbttDeclaration(row)) return;
       if (!isConnected) {
         await SwalVietSage.fire({
           title: "Chưa đăng nhập Cổng BCA",
@@ -1327,7 +1345,7 @@ export function KbttDeclarationsPage({
         await showErrorAlert("Lỗi gửi BCA", errorText(err));
       }
     },
-    [isConnected, saveInlineRow, submitMutation, handleRefresh],
+    [isConnected, saveInlineRow, submitMutation, handleRefresh, isListReady],
   );
 
   const handleViewError = useCallback(async (row: KbttDeclarationListItem) => {
@@ -1449,6 +1467,9 @@ export function KbttDeclarationsPage({
             <option value="UNSENT">Chưa gửi</option>
             <option value="SUBMITTED">Đã gửi BCA</option>
             <option value="REJECTED">Bị từ chối</option>
+            <option value="SENDING">Đang gửi</option>
+            <option value="UNKNOWN">Cần đối soát</option>
+            <option value="CANCELLED">Đã hủy</option>
           </select>
         </div>
 
@@ -1491,9 +1512,13 @@ export function KbttDeclarationsPage({
       </div>
 
       {/* Khối Tự động gửi BCA (Production Auto-Submit Engine) */}
-      {connectionQuery.isLoading ? (
-        <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:p-5 text-sm text-slate-600 shadow-2xs animate-pulse">
-          Đang kiểm tra trạng thái kết nối Cổng DVC Bộ Công An...
+      {listState === "loading" || declarationsQuery.isFetching || connectionQuery.isLoading ? (
+        <div role="status" className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:p-5 text-base text-slate-700">
+          Đang tải dữ liệu và kiểm tra trạng thái khai báo BCA...
+        </div>
+      ) : listState === "error" ? (
+        <div role="status" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:p-5 text-base text-amber-900">
+          Chưa xác định trạng thái hồ sơ vì tải dữ liệu thất bại. Tạm dừng gửi BCA; vui lòng thử lại bên dưới.
         </div>
       ) : !isConnected ? (
         <div className="rounded-2xl border border-amber-300/80 bg-gradient-to-r from-amber-50/90 via-orange-50/40 to-slate-50/80 p-4 sm:p-5 shadow-xs transition-all space-y-3">
@@ -1540,7 +1565,11 @@ export function KbttDeclarationsPage({
             </p>
           </div>
         </div>
-      ) : unsubmittedCount === 0 ? (
+      ) : listState === "empty" ? (
+        <div role="status" className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5 text-base text-slate-700">
+          Không có hồ sơ trên trang này. Chưa có dữ liệu để xác nhận kết quả gửi BCA.
+        </div>
+      ) : listState === "submitted" ? (
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 sm:p-5 text-sm text-emerald-900 shadow-2xs">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
@@ -1560,7 +1589,7 @@ export function KbttDeclarationsPage({
             </div>
             <div>
               <p className="font-bold text-base text-emerald-950">
-                Toàn bộ hồ sơ đã gửi BCA thành công
+                Hồ sơ trên trang này đã gửi BCA thành công
               </p>
               <p className="text-xs sm:text-sm text-emerald-800 mt-0.5">
                 Tự động gửi tạm dừng (sẽ tự động kích hoạt đếm ngược {AUTO_SUBMIT_DELAY_SECONDS}s khi có khách check-in mới).
@@ -1570,6 +1599,12 @@ export function KbttDeclarationsPage({
 
           <div className="flex flex-wrap items-center gap-2.5">
           </div>
+        </div>
+      ) : unsubmittedCount === 0 ? (
+        <div role="status" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:p-5 text-base text-amber-900">
+          {filteredRows.length === 0
+            ? "Không có hồ sơ phù hợp bộ lọc. Thử xóa bộ lọc để xem các hồ sơ còn lại."
+            : "Không có hồ sơ có thể gửi trong danh sách đang hiển thị. Các hồ sơ đang gửi, cần đối soát hoặc đã hủy không được gửi lại."}
         </div>
       ) : (
         <div className="rounded-2xl border border-emerald-900/15 bg-gradient-to-r from-emerald-50/90 via-teal-50/50 to-slate-50/80 p-4 sm:p-5 shadow-xs transition-all space-y-3">
@@ -1754,7 +1789,7 @@ export function KbttDeclarationsPage({
             <tbody className="divide-y divide-slate-100 text-base">
               {filteredRows.map((row, idx) => {
                 const statusInfo = getDeclarationStatus(row);
-                const isSelectable = canSelectKbttDeclaration(row);
+                const isSelectable = isListReady && canSelectKbttDeclaration(row);
                 const edits = inlineEdits[row.occupantId] ?? {};
                 const currentIdentity = (
                   edits.identityNumber ??
@@ -1978,12 +2013,13 @@ export function KbttDeclarationsPage({
                     <td className="px-3 py-3 text-center whitespace-nowrap">
                       <RowActionMenu
                         statusInfo={statusInfo}
+                        canEdit={isSelectable}
                         onView={() => setSelectedOccupant(row)}
                         onSave={() => void handleSaveInlineRow(row)}
                         onSubmit={() => handleSubmitSingle(row)}
                         onViewError={() => handleViewError(row)}
                         dirty={Boolean(inlineEdits[row.occupantId])}
-                        disabled={isSubmittingBatch || isDevLoading}
+                        disabled={!isListReady || isSubmittingBatch || isDevLoading || submitMutation.isPending}
                         isDevMode={isDevMode}
                         onDevResetSingle={() => void handleDevResetSingle(row)}
                       />
@@ -2361,12 +2397,14 @@ function DeclarationModal({
 
   const isActuallySubmitted =
     detailQuery.data?.declaration?.status === "SUBMITTED";
-  const isAlreadySubmitted = isActuallySubmitted;
+  const isReadOnly = !detailQuery.isSuccess || detailQuery.isFetching || !canSelectKbttDeclaration({
+    derivedStatus: detailQuery.data?.derivedStatus ?? occupantSummary.derivedStatus,
+  });
   const [isSavingDraft, setIsSavingDraft] = useState(false);
 
   const handleSaveDraft = async () => {
     if (!canManage) return;
-    if (isActuallySubmitted) return;
+    if (isReadOnly) return;
     if (!citizenshipKind) {
       await showErrorAlert(
         "Chưa xác định quốc tịch",
@@ -2400,7 +2438,7 @@ function DeclarationModal({
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     if (!canManage) return;
-    if (isActuallySubmitted) return;
+    if (isReadOnly) return;
     if (!isConnected) {
       await SwalVietSage.fire({
         title: "Chưa đăng nhập Cổng BCA",
@@ -2586,7 +2624,7 @@ function DeclarationModal({
                       : "Người nước ngoài · API 4"}
                   </p>
                 </div>
-                {canManage && !isAlreadySubmitted ? (
+                {canManage && !isReadOnly ? (
                   <button
                     type="button"
                     onClick={() => setManualClassification(true)}
@@ -2607,7 +2645,7 @@ function DeclarationModal({
                 <select
                   id="citizenship-kind-select"
                   value={citizenshipKind ?? ""}
-                  disabled={!canManage || isAlreadySubmitted}
+                  disabled={!canManage || isReadOnly}
                   onChange={(e) => {
                     setCitizenshipOverride(e.target.value as CitizenshipKind);
                     setFormEdits({});
@@ -2641,7 +2679,7 @@ function DeclarationModal({
                       type="text"
                       required
                       value={String(formData.hoTen ?? "")}
-                      disabled={!canManage || isAlreadySubmitted}
+                      disabled={!canManage || isReadOnly}
                       onChange={(e) => updateField("hoTen", e.target.value)}
                       className={inputClass}
                       placeholder="NGUYEN VAN A"
@@ -2658,7 +2696,7 @@ function DeclarationModal({
                     <select
                       id="gioiTinh"
                       value={String(formData.gioiTinh ?? "M")}
-                      disabled={!canManage || isAlreadySubmitted}
+                      disabled={!canManage || isReadOnly}
                       onChange={(e) => updateField("gioiTinh", e.target.value)}
                       className={selectClass}
                     >
@@ -2683,7 +2721,7 @@ function DeclarationModal({
                       required
                       placeholder="15/01/1990"
                       value={String(formData.ngayThangNamSinhStr ?? "")}
-                      disabled={!canManage || isAlreadySubmitted}
+                      disabled={!canManage || isReadOnly}
                       onChange={(e) =>
                         updateField("ngayThangNamSinhStr", e.target.value)
                       }
@@ -2702,7 +2740,7 @@ function DeclarationModal({
                       id="soDienThoai"
                       type="tel"
                       value={String(formData.soDienThoai ?? "")}
-                      disabled={!canManage || isAlreadySubmitted}
+                      disabled={!canManage || isReadOnly}
                       onChange={(e) =>
                         updateField("soDienThoai", e.target.value || null)
                       }
@@ -2728,7 +2766,7 @@ function DeclarationModal({
                           ? ""
                           : String(formData.loaiGiayTo)
                       }
-                      disabled={!canManage || isAlreadySubmitted}
+                      disabled={!canManage || isReadOnly}
                       onChange={(e) =>
                         updateField(
                           "loaiGiayTo",
@@ -2758,7 +2796,7 @@ function DeclarationModal({
                       type="text"
                       required
                       value={String(formData.soGiayTo ?? "")}
-                      disabled={!canManage || isAlreadySubmitted}
+                      disabled={!canManage || isReadOnly}
                       onChange={(e) =>
                         updateField(
                           "soGiayTo",
@@ -2788,7 +2826,7 @@ function DeclarationModal({
                           ? ""
                           : String(formData.lyDoCuTru)
                       }
-                      disabled={!canManage || isAlreadySubmitted}
+                      disabled={!canManage || isReadOnly}
                       onChange={(e) =>
                         updateField(
                           "lyDoCuTru",
@@ -2817,7 +2855,7 @@ function DeclarationModal({
                       id="lyDoChiTiet"
                       type="text"
                       value={String(formData.lyDoChiTiet ?? "")}
-                      disabled={!canManage || isAlreadySubmitted}
+                      disabled={!canManage || isReadOnly}
                       onChange={(e) =>
                         updateField("lyDoChiTiet", e.target.value || null)
                       }
@@ -2840,7 +2878,7 @@ function DeclarationModal({
                       type="text"
                       required
                       value={String(formData.soPhong ?? "")}
-                      disabled={!canManage || isAlreadySubmitted}
+                      disabled={!canManage || isReadOnly}
                       onChange={(e) => updateField("soPhong", e.target.value)}
                       className={inputClass}
                       placeholder="101"
@@ -2860,7 +2898,7 @@ function DeclarationModal({
                       required
                       placeholder="HH:mm:ss DD/MM/YYYY"
                       value={String(formData.ngayDenCsltStr ?? "")}
-                      disabled={!canManage || isAlreadySubmitted}
+                      disabled={!canManage || isReadOnly}
                       onChange={(e) =>
                         updateField("ngayDenCsltStr", e.target.value)
                       }
@@ -2881,7 +2919,7 @@ function DeclarationModal({
                       required
                       placeholder="HH:mm:ss DD/MM/YYYY"
                       value={String(formData.ngayDiDuKienStr ?? "")}
-                      disabled={!canManage || isAlreadySubmitted}
+                      disabled={!canManage || isReadOnly}
                       onChange={(e) =>
                         updateField("ngayDiDuKienStr", e.target.value)
                       }
@@ -2901,7 +2939,7 @@ function DeclarationModal({
                     <select
                       id="maTT"
                       value={String(formData.maTT ?? "")}
-                      disabled={!canManage || isAlreadySubmitted}
+                      disabled={!canManage || isReadOnly}
                       onChange={(e) => {
                         updateField("maTT", e.target.value || null);
                         updateField("maPX", null);
@@ -2940,7 +2978,7 @@ function DeclarationModal({
                       id="maPX"
                       value={String(formData.maPX ?? "")}
                       disabled={
-                        !canManage || isAlreadySubmitted || !provinceCode
+                        !canManage || isReadOnly || !provinceCode
                       }
                       onChange={(e) =>
                         updateField("maPX", e.target.value || null)
@@ -2985,7 +3023,7 @@ function DeclarationModal({
                           ? ""
                           : String(formData.noiCuTru)
                       }
-                      disabled={!canManage || isAlreadySubmitted}
+                      disabled={!canManage || isReadOnly}
                       onChange={(e) =>
                         updateField(
                           "noiCuTru",
@@ -3015,7 +3053,7 @@ function DeclarationModal({
                     id="diaChi"
                     type="text"
                     value={String(formData.diaChi ?? "")}
-                    disabled={!canManage || isAlreadySubmitted}
+                    disabled={!canManage || isReadOnly}
                     onChange={(e) =>
                       updateField("diaChi", e.target.value || null)
                     }
@@ -3035,7 +3073,7 @@ function DeclarationModal({
                     id="ghiChu"
                     rows={2}
                     value={String(formData.ghiChu ?? "")}
-                    disabled={!canManage || isAlreadySubmitted}
+                    disabled={!canManage || isReadOnly}
                     onChange={(e) =>
                       updateField("ghiChu", e.target.value || null)
                     }
@@ -3060,7 +3098,7 @@ function DeclarationModal({
                       type="text"
                       required
                       value={String(formData.hoTen ?? "")}
-                      disabled={!canManage || isAlreadySubmitted}
+                      disabled={!canManage || isReadOnly}
                       onChange={(e) => updateField("hoTen", e.target.value)}
                       className={inputClass}
                       placeholder="JOHN DOE"
@@ -3078,7 +3116,7 @@ function DeclarationModal({
                       id="quocTich"
                       required
                       value={String(formData.quocTich ?? "")}
-                      disabled={!canManage || isAlreadySubmitted}
+                      disabled={!canManage || isReadOnly}
                       onChange={(e) => updateField("quocTich", e.target.value)}
                       className={selectClass}
                     >
@@ -3105,7 +3143,7 @@ function DeclarationModal({
                       type="text"
                       required
                       value={String(formData.soHoChieu ?? "")}
-                      disabled={!canManage || isAlreadySubmitted}
+                      disabled={!canManage || isReadOnly}
                       onChange={(e) =>
                         updateField(
                           "soHoChieu",
@@ -3127,7 +3165,7 @@ function DeclarationModal({
                     <select
                       id="f-gioiTinh"
                       value={String(formData.gioiTinh ?? "M")}
-                      disabled={!canManage || isAlreadySubmitted}
+                      disabled={!canManage || isReadOnly}
                       onChange={(e) => updateField("gioiTinh", e.target.value)}
                       className={selectClass}
                     >
@@ -3148,7 +3186,7 @@ function DeclarationModal({
                     <select
                       id="loaiNgayThangNamSinh"
                       value={String(formData.loaiNgayThangNamSinh ?? "D")}
-                      disabled={!canManage || isAlreadySubmitted}
+                      disabled={!canManage || isReadOnly}
                       onChange={(e) =>
                         updateField("loaiNgayThangNamSinh", e.target.value)
                       }
@@ -3179,7 +3217,7 @@ function DeclarationModal({
                           : "20/06/1985"
                       }
                       value={String(formData.ngayThangNamSinhStr ?? "")}
-                      disabled={!canManage || isAlreadySubmitted}
+                      disabled={!canManage || isReadOnly}
                       onChange={(e) =>
                         updateField("ngayThangNamSinhStr", e.target.value)
                       }
@@ -3201,7 +3239,7 @@ function DeclarationModal({
                       type="text"
                       required
                       value={String(formData.soPhong ?? "")}
-                      disabled={!canManage || isAlreadySubmitted}
+                      disabled={!canManage || isReadOnly}
                       onChange={(e) => updateField("soPhong", e.target.value)}
                       className={inputClass}
                       placeholder="201"
@@ -3221,7 +3259,7 @@ function DeclarationModal({
                       required
                       placeholder="HH:mm:ss DD/MM/YYYY"
                       value={String(formData.thoiHanTamTruStr ?? "")}
-                      disabled={!canManage || isAlreadySubmitted}
+                      disabled={!canManage || isReadOnly}
                       onChange={(e) =>
                         updateField("thoiHanTamTruStr", e.target.value)
                       }
@@ -3244,7 +3282,7 @@ function DeclarationModal({
                       required
                       placeholder="HH:mm:ss DD/MM/YYYY"
                       value={String(formData.ngayDenCsltStr ?? "")}
-                      disabled={!canManage || isAlreadySubmitted}
+                      disabled={!canManage || isReadOnly}
                       onChange={(e) =>
                         updateField("ngayDenCsltStr", e.target.value)
                       }
@@ -3265,7 +3303,7 @@ function DeclarationModal({
                       required
                       placeholder="HH:mm:ss DD/MM/YYYY"
                       value={String(formData.ngayDiDuKienStr ?? "")}
-                      disabled={!canManage || isAlreadySubmitted}
+                      disabled={!canManage || isReadOnly}
                       onChange={(e) =>
                         updateField("ngayDiDuKienStr", e.target.value)
                       }
@@ -3287,7 +3325,7 @@ function DeclarationModal({
               </button>
 
               <div className="flex flex-wrap items-center gap-3">
-                {canManage && !isAlreadySubmitted && (
+                {canManage && !isReadOnly && (
                   <button
                     type="button"
                     disabled={isBusy}
@@ -3298,7 +3336,7 @@ function DeclarationModal({
                   </button>
                 )}
 
-                {canManage && !isActuallySubmitted ? (
+                {canManage && !isReadOnly ? (
                   <button
                     type="submit"
                     disabled={isBusy}
@@ -3309,6 +3347,10 @@ function DeclarationModal({
                 ) : isActuallySubmitted ? (
                   <span className="inline-flex min-h-12 items-center rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-base font-semibold text-emerald-800">
                     Hồ sơ của lần lưu trú này đã gửi BCA
+                  </span>
+                ) : isReadOnly && detailQuery.isSuccess ? (
+                  <span role="status" className="text-base text-amber-900">
+                    Hồ sơ đang gửi, cần đối soát hoặc đã hủy. Chỉ xem; không sửa hay gửi lại.
                   </span>
                 ) : null}
               </div>

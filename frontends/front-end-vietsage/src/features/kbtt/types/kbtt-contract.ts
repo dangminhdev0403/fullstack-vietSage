@@ -56,13 +56,20 @@ export type KbttCatalogItem = z.infer<typeof kbttCatalogItemSchema>;
 export const citizenshipKindSchema = z.enum(["VIETNAMESE", "FOREIGN"]);
 export type CitizenshipKind = z.infer<typeof citizenshipKindSchema>;
 
-export const kbttDeclarationStatusSchema = z.enum(["DRAFT", "SUBMITTED"]);
+export const kbttDeclarationStatusSchema = z.enum([
+  "DRAFT",
+  "READY",
+  "SENDING",
+  "SUBMITTED",
+  "FAILED",
+  "UNKNOWN",
+  "CANCELLED",
+]);
 export type KbttDeclarationStatus = z.infer<typeof kbttDeclarationStatusSchema>;
 
 export const kbttDerivedStatusSchema = z.enum([
   "MISSING_PROFILE",
-  "DRAFT",
-  "SUBMITTED",
+  ...kbttDeclarationStatusSchema.options,
 ]);
 export type KbttDerivedStatus = z.infer<typeof kbttDerivedStatusSchema>;
 
@@ -75,7 +82,7 @@ export type KbttPaginationQuery = z.infer<typeof kbttPaginationQuerySchema>;
 export const kbttDeclarationSummarySchema = z.object({
   id: z.string(),
   revision: z.number(),
-  status: z.string(),
+  status: kbttDeclarationStatusSchema,
   declarationKind: citizenshipKindSchema,
   providerCode: z.string().nullable(),
   providerMessage: z.string().nullable(),
@@ -379,7 +386,19 @@ export type KbttTabKey =
 export function canSelectKbttDeclaration(
   row: Pick<KbttDeclarationListItem, "derivedStatus">,
 ): boolean {
-  return row.derivedStatus !== "SUBMITTED";
+  return ["MISSING_PROFILE", "DRAFT", "READY", "FAILED"].includes(row.derivedStatus);
+}
+
+export function getKbttListState(
+  rows: readonly Pick<KbttDeclarationListItem, "derivedStatus">[],
+  queryStatus: "pending" | "error" | "success",
+) {
+  if (queryStatus === "pending") return "loading";
+  if (queryStatus === "error") return "error";
+  if (rows.length === 0) return "empty";
+  return rows.every((row) => row.derivedStatus === "SUBMITTED")
+    ? "submitted"
+    : "pending";
 }
 
 export function getRowPartitionTab(
@@ -398,6 +417,7 @@ export function getRowPartitionTab(
 }
 
 const errorMessages: Record<string, string> = {
+  INTERNAL_SERVER_ERROR: "Không thể tải dữ liệu từ máy chủ. Vui lòng thử lại.",
   KBTT_NOT_CONFIGURED: "Chưa cấu hình tài khoản khai báo tạm trú.",
   KBTT_AUTH_FAILED:
     "Tài khoản hoặc mật khẩu không đúng. Vui lòng đăng nhập lại.",
@@ -411,6 +431,7 @@ const errorMessages: Record<string, string> = {
   KBTT_UNAVAILABLE: "Không thể kết nối dịch vụ KBTT. Vui lòng thử lại sau.",
   KBTT_PAYLOAD_INVALID: "Dữ liệu khai báo không hợp lệ hoặc thiếu thông tin bắt buộc.",
   KBTT_ALREADY_SUBMITTED: "Hồ sơ của khách này đã được gửi lên Bộ Công an.",
+  KBTT_DECLARATION_LOCKED: "Hồ sơ đang gửi, cần đối soát hoặc đã hủy; không thể sửa hay gửi lại lúc này.",
   KBTT_ACTIVE_IDENTITY_CONFLICT: "Số giấy tờ này đang có hồ sơ lưu trú khác tại khách sạn.",
   KBTT_RATE_LIMITED: "Yêu cầu gửi quá nhanh. Vui lòng chờ giây lát rồi thử lại.",
   BUSINESS_REJECTION: "Cổng dịch vụ công Bộ Công an từ chối tiếp nhận hồ sơ.",

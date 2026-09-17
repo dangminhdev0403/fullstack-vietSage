@@ -65,6 +65,12 @@ Backend API
 - Responses contain only the confirmed KBTT status/CSLT metadata contract. Unknown fields are stripped; provider errors are translated through an allowlist; BFF responses use `Cache-Control: no-store`.
 - Focused contract check: `node --test src/features/kbtt/kbtt-contract.test.mjs`.
 
+## KBTT Declaration States
+
+- Declaration status preserves `DRAFT`, `READY`, `SENDING`, `SUBMITTED`, `FAILED`, `UNKNOWN`, and `CANCELLED`; derived status additionally supports `MISSING_PROFILE`. List and detail contracts must accept the same backend states without coercing failures into drafts or success.
+- Normal UI submission allows only missing profiles, drafts, ready declarations, or corrected failures. Public draft-save and submit operations reject `SENDING`, `UNKNOWN`, and `CANCELLED` with HTTP 409 / `KBTT_DECLARATION_LOCKED`, before changing data or contacting BCA. Unknown outcomes require reconciliation, not blind resubmission.
+- Loading, failed reads, empty pages, and empty filtered results never imply successful submission. Success banners describe only the loaded page and require every row on that page to be `SUBMITTED`; filters must not change that conclusion. Client submission pauses while list data is unavailable or refreshing.
+
 ## Anti-patterns
 
 - Raw `fetch` scattered in components.

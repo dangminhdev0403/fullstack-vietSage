@@ -67,9 +67,27 @@ export async function PATCH(request: Request, context: Params) {
   }
 
   try {
-    const data = await executeHotelOpsBackendRequest("update staff room", (accessToken) =>
-      hotelOpsService.updateRoom(hotelId, roomId, updateRoomPayload, accessToken),
-    );
+    const data = await executeHotelOpsBackendRequest("update staff room", async (accessToken) => {
+      let result: unknown;
+      if (updateRoomPayload.status) {
+        result = await hotelOpsService.updateRoomStatus(
+          hotelId,
+          roomId,
+          updateRoomPayload.status,
+          accessToken,
+        );
+      }
+      const { status, ...metadata } = updateRoomPayload;
+      if (Object.keys(metadata).length > 0) {
+        result = await hotelOpsService.updateRoom(
+          hotelId,
+          roomId,
+          metadata,
+          accessToken,
+        );
+      }
+      return result;
+    });
     if (data instanceof Response) return data;
     return successResponse(data, 200, "Cập nhật thông tin phòng thành công");
   } catch (error) {
