@@ -1,4 +1,4 @@
-﻿import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from "@nestjs/common";
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import type { Request } from "express";
 import { loadAppConfig } from "../../common/config/env.config";
@@ -64,7 +64,7 @@ export class AuthorizationGuard implements CanActivate {
     }
 
     const permissionKey = authorizationTargets.length
-      ? this.reflector.getAllAndOverride<string>(REQUIRED_PERMISSION_KEY, authorizationTargets)
+      ? this.reflector.getAllAndOverride<string | string[]>(REQUIRED_PERMISSION_KEY, authorizationTargets)
       : undefined;
     if (!permissionKey) {
       this.logger.warn("Authorization failed because business permission metadata is missing", {
@@ -79,12 +79,15 @@ export class AuthorizationGuard implements CanActivate {
       throw new ForbiddenException("Business permission metadata is required");
     }
 
-    const allowed = await this.authorizationService.checkUserBusinessPermission(
-      userId,
-      roleId,
-      permissionKey,
-    );
-    if (allowed) return true;
+    const permissionKeys = Array.isArray(permissionKey) ? permissionKey : [permissionKey];
+    for (const key of permissionKeys) {
+      const allowed = await this.authorizationService.checkUserBusinessPermission(
+        userId,
+        roleId,
+        key,
+      );
+      if (allowed) return true;
+    }
 
     this.logger.warn(
       "Authorization failed because the user lacks the required business permission",

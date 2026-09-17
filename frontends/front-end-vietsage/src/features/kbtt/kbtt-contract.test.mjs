@@ -660,3 +660,49 @@ test("KBTT declarations table provides Sửa button to open DeclarationModal for
   );
 });
 
+test("KBTT declarations page stops countdown and auto-push when hotel is not logged in to BCA", () => {
+  const pageSource = readFileSync(
+    new URL("./components/kbtt-declarations-page.tsx", import.meta.url),
+    "utf8",
+  );
+
+  // Must consume useKbttConnection and derive isConnected
+  assert.match(
+    pageSource,
+    /useKbttConnection\s*\(\s*hotelId\s*\)/,
+    "Must invoke useKbttConnection with hotelId",
+  );
+  assert.match(
+    pageSource,
+    /isConnected\s*=\s*connectionData\?\.status\s*===\s*"CONNECTED"/,
+    "Must derive isConnected from connection status",
+  );
+
+  // Countdown synchronization must reset/pause when not connected
+  assert.match(
+    pageSource,
+    /!IS_AUTO_SUBMIT_ENABLED\s*\|\|\s*!isConnected/,
+    "Countdown must reset when not connected",
+  );
+
+  // executeAutoSubmitNow must guard against execution when not connected
+  assert.match(
+    pageSource,
+    /const executeAutoSubmitNow = useCallback\(async \(\) => {[\s\S]*?if \(!isConnected\) return;/,
+    "executeAutoSubmitNow must bail out if not connected",
+  );
+
+  // Banner must render warning when not connected
+  assert.match(
+    pageSource,
+    /Chưa đăng nhập Cổng BCA/,
+    "Must render notice badge when not connected to BCA",
+  );
+  assert.match(
+    pageSource,
+    /Tự động gửi BCA đang tắt/,
+    "Must state auto-submit is turned off when not logged in",
+  );
+});
+
+

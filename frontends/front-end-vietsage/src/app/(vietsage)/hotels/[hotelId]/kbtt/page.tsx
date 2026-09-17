@@ -40,11 +40,15 @@ export default async function HotelKbttOperationalPage({ params }: PageProps) {
     notFound();
   }
 
+  const canConfigure = context.permissions.some((permission) =>
+    ["hotel.kbtt.view", "hotel.kbtt.manage"].includes(permission),
+  );
+
   return (
     <KbttDeclarationsPage
       hotelId={hotelId}
       canManage={canManageDeclarations}
-      canConfigure={false}
+      canConfigure={canConfigure}
     />
   );
 }

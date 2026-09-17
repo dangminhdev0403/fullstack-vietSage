@@ -101,7 +101,7 @@ export class KbttController {
 
   @Get("connection")
   @Header("Cache-Control", "no-store")
-  @RequirePermission("hotel.kbtt.view")
+  @RequirePermission(["hotel.kbtt.view", "hotel.kbtt.declarations.view"])
   @ApiOperation({ summary: "View saved hotel KBTT connection; never contacts provider" })
   @ApiOkResponse({ schema: connectionSchema })
   get(@Req() request: RequestWithRequiredUser, @Param("hotelId") hotelId: string) {

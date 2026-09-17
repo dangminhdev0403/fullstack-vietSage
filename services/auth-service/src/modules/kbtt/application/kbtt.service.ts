@@ -1340,7 +1340,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       const isManualDelayed = trigger === "MANUAL_DELAYED";
 
       const connection = await this.repository.find(hotelId);
-      if (!connection) {
+      if (!connection || connection.status !== "CONNECTED") {
         return await this.repository.finalizeAutoSubmitRun(run.id, {
           status: "FAILED",
           totalCount: 0,
@@ -1348,7 +1348,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
           failedCount: 0,
           unknownCount: 0,
           telegramSent: false,
-          summaryJson: { error: "Khách sạn chưa cấu hình kết nối KBTT." },
+          summaryJson: { error: "Khách sạn chưa đăng nhập hoặc chưa kết nối Cổng DVC Bộ Công An." },
         });
       }
 
@@ -2068,6 +2068,10 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
 
   private async scheduleErrorRetryRun(hotelId: string): Promise<void> {
     try {
+      const connection = await this.repository.find(hotelId);
+      if (!connection || connection.status !== "CONNECTED") {
+        return;
+      }
       const pending = await this.repository.findPendingScheduledAutoSubmitRuns(hotelId);
       const alreadyScheduled = pending.some(
         (p) =>

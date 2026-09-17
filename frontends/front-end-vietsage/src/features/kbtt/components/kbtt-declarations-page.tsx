@@ -16,10 +16,12 @@ import {
   showConfirmDialog,
   showErrorAlert,
   showSuccessAlert,
+  SwalVietSage,
 } from "@/libs/swal";
 
 import { KbttConnectionPage } from "./kbtt-connection-page";
 import { kbttResource } from "../resources/kbtt-resource";
+import { useKbttConnection } from "../hooks/use-kbtt-connection";
 import {
   canSelectKbttDeclaration,
   formatKbttDraftForDisplay,
@@ -637,6 +639,10 @@ export function KbttDeclarationsPage({
   initialTab?: "declarations" | "connection";
 }) {
   const queryClient = useQueryClient();
+  const { connection: connectionQuery } = useKbttConnection(hotelId);
+  const connectionData = connectionQuery.data;
+  const isConnected = connectionData?.status === "CONNECTED";
+
   const [activeTab, setActiveTab] = useState<"declarations" | "connection">(
     initialTab,
   );
@@ -1075,6 +1081,17 @@ export function KbttDeclarationsPage({
   }, [devModalEdits, devUpdateOccupantsMutation, handleRefresh]);
 
   const handleSubmitAll = useCallback(async () => {
+    if (!isConnected) {
+      await SwalVietSage.fire({
+        title: "Chưa đăng nhập Cổng BCA",
+        text: "Khách sạn chưa đăng nhập hoặc chưa kết nối thành công với Cổng dịch vụ công Bộ Công An. Vui lòng kết nối tài khoản trước khi gửi hồ sơ.",
+        icon: "warning",
+        showConfirmButton: true,
+        confirmButtonText: "OK",
+      });
+      return;
+    }
+
     const unsubmittedRows = selectableRows;
 
     if (unsubmittedRows.length === 0) {
@@ -1157,16 +1174,20 @@ export function KbttDeclarationsPage({
         }),
       );
     }
-  }, [selectableRows, saveInlineRow, submitMutation, sendBatchSummaryMutation, handleRefresh]);
+  }, [
+    isConnected,
+    selectableRows,
+    saveInlineRow,
+    submitMutation,
+    sendBatchSummaryMutation,
+    handleRefresh,
+  ]);
 
   const [isAutoPaused, setIsAutoPaused] = useState(false);
-  const [countdownSeconds, setCountdownSeconds] = useState<number | null>(() =>
-    IS_AUTO_SUBMIT_ENABLED && unsubmittedCount > 0
-      ? AUTO_SUBMIT_DELAY_SECONDS
-      : null,
-  );
+  const [countdownSeconds, setCountdownSeconds] = useState<number | null>(null);
 
   const executeAutoSubmitNow = useCallback(async () => {
+    if (!isConnected) return;
     const unsubmittedRows = selectableRows;
     if (unsubmittedRows.length === 0) return;
 
@@ -1238,11 +1259,12 @@ export function KbttDeclarationsPage({
     }
   }, [selectableRows, saveInlineRow, submitMutation, sendBatchSummaryMutation, handleRefresh]);
 
-  // Synchronize countdown with unsubmittedCount:
+  // Synchronize countdown with unsubmittedCount and connection status:
+  // - If !isConnected: STOP countdown immediately (set to null), do not auto-push
   // - If unsubmittedCount === 0: STOP countdown immediately (set to null)
-  // - If unsubmittedCount > 0 and countdown is null (and not currently submitting): initialize countdown
+  // - If isConnected && unsubmittedCount > 0 and countdown is null (and not currently submitting): initialize countdown
   useEffect(() => {
-    if (!IS_AUTO_SUBMIT_ENABLED) {
+    if (!IS_AUTO_SUBMIT_ENABLED || !isConnected) {
       setCountdownSeconds(null);
       return;
     }
@@ -1251,12 +1273,13 @@ export function KbttDeclarationsPage({
     } else if (countdownSeconds === null && !isSubmittingBatch) {
       setCountdownSeconds(AUTO_SUBMIT_DELAY_SECONDS);
     }
-  }, [unsubmittedCount, isSubmittingBatch, countdownSeconds]);
+  }, [isConnected, unsubmittedCount, isSubmittingBatch, countdownSeconds]);
 
   // Timer interval: ticks down each second when active
   useEffect(() => {
     if (
       !IS_AUTO_SUBMIT_ENABLED ||
+      !isConnected ||
       isAutoPaused ||
       isSubmittingBatch ||
       unsubmittedCount === 0 ||
@@ -1277,6 +1300,7 @@ export function KbttDeclarationsPage({
 
     return () => window.clearTimeout(timer);
   }, [
+    isConnected,
     countdownSeconds,
     isAutoPaused,
     isSubmittingBatch,
@@ -1287,6 +1311,16 @@ export function KbttDeclarationsPage({
   const handleSubmitSingle = useCallback(
     async (row: KbttDeclarationListItem) => {
       if (!canSelectKbttDeclaration(row)) return;
+      if (!isConnected) {
+        await SwalVietSage.fire({
+          title: "Chưa đăng nhập Cổng BCA",
+          text: "Khách sạn chưa đăng nhập hoặc chưa kết nối thành công với Cổng dịch vụ công Bộ Công An. Vui lòng kết nối tài khoản trước khi gửi hồ sơ.",
+          icon: "warning",
+          showConfirmButton: true,
+          confirmButtonText: "OK",
+        });
+        return;
+      }
       const confirmResult = await showConfirmDialog({
         title: "Gửi khai báo BCA",
         text: `Gửi khai báo tạm trú cho khách ${row.fullName} (Phòng ${row.roomNumber ?? "—"}) lên Cổng dịch vụ công Bộ Công an?`,
@@ -1307,7 +1341,7 @@ export function KbttDeclarationsPage({
         await showErrorAlert("Lỗi gửi BCA", errorText(err));
       }
     },
-    [saveInlineRow, submitMutation, handleRefresh],
+    [isConnected, saveInlineRow, submitMutation, handleRefresh],
   );
 
   const handleViewError = useCallback(async (row: KbttDeclarationListItem) => {
@@ -1471,7 +1505,79 @@ export function KbttDeclarationsPage({
       </div>
 
       {/* Khối Tự động gửi BCA (Production Auto-Submit Engine) */}
-      {unsubmittedCount === 0 ? (
+      {connectionQuery.isLoading ? (
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:p-5 text-sm text-slate-600 shadow-2xs animate-pulse">
+          Đang kiểm tra trạng thái kết nối Cổng DVC Bộ Công An...
+        </div>
+      ) : !isConnected ? (
+        <div className="rounded-2xl border border-amber-300/80 bg-gradient-to-r from-amber-50/90 via-orange-50/40 to-slate-50/80 p-4 sm:p-5 shadow-xs transition-all space-y-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-amber-900 shadow-2xs">
+                <span className="relative flex h-2 w-2">
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-600"></span>
+                </span>
+                Chưa đăng nhập Cổng BCA
+              </span>
+
+              <div className="flex items-center gap-2">
+                <span className="text-base font-bold text-slate-900">
+                  Tự động gửi BCA đang tắt
+                </span>
+                <span className="text-xs text-slate-600 font-medium hidden md:inline">
+                  · Đang có <strong>{unsubmittedCount}</strong> hồ sơ chưa gửi
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {canConfigure ? (
+                <button
+                  type="button"
+                  onClick={() => handleSwitchTab("connection")}
+                  className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-amber-800 px-4 py-1.5 text-sm font-semibold text-white shadow-xs hover:bg-amber-900 transition-colors"
+                >
+                  <WrenchIcon className="h-4 w-4 text-amber-200" />
+                  <span>Đăng nhập / Cấu hình kết nối BCA</span>
+                </button>
+              ) : (
+                <span className="text-xs font-medium text-amber-800 italic">
+                  Vui lòng liên hệ Quản lý / Chủ khách sạn kết nối tài khoản BCA
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600 pt-1 border-t border-amber-200/60">
+            <p>
+              Khách sạn chưa đăng nhập hoặc chưa kết nối thành công với Cổng dịch vụ công Bộ Công An. Hệ thống sẽ <strong>không tự động đẩy hồ sơ</strong> cho đến khi tài khoản được kết nối và xác thực thành công.
+            </p>
+            {isDevMode && (
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                  ⚡ Chế độ Dev
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsDevModalOpen(true)}
+                  className="text-amber-800 hover:underline font-semibold"
+                >
+                  Dev: Can thiệp DB
+                </button>
+                <span>·</span>
+                <button
+                  type="button"
+                  onClick={() => handleDevResetAll(false)}
+                  disabled={isDevLoading || isSubmittingBatch}
+                  className="text-slate-600 hover:underline"
+                >
+                  Reset Chưa gửi
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : unsubmittedCount === 0 ? (
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 sm:p-5 text-sm text-emerald-900 shadow-2xs">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
@@ -2096,6 +2202,7 @@ export function KbttDeclarationsPage({
           occupantId={selectedOccupant.occupantId}
           occupantSummary={selectedOccupant}
           canManage={canManage}
+          isConnected={isConnected}
           isDevMode={isDevMode}
           onClose={() => setSelectedOccupant(null)}
           onUpdated={handleRefresh}
@@ -2130,6 +2237,7 @@ function DeclarationModal({
   occupantId,
   occupantSummary,
   canManage,
+  isConnected = true,
   isDevMode = false,
   onClose,
   onUpdated,
@@ -2138,6 +2246,7 @@ function DeclarationModal({
   occupantId: string;
   occupantSummary: KbttDeclarationListItem;
   canManage: boolean;
+  isConnected?: boolean;
   isDevMode?: boolean;
   onClose: () => void;
   onUpdated: () => void;
@@ -2383,6 +2492,16 @@ function DeclarationModal({
     event.preventDefault();
     if (!canManage) return;
     if (isActuallySubmitted && !isDevMode) return;
+    if (!isConnected) {
+      await SwalVietSage.fire({
+        title: "Chưa đăng nhập Cổng BCA",
+        text: "Khách sạn chưa đăng nhập hoặc chưa kết nối thành công với Cổng dịch vụ công Bộ Công An. Vui lòng kết nối tài khoản trước khi gửi hồ sơ.",
+        icon: "warning",
+        showConfirmButton: true,
+        confirmButtonText: "OK",
+      });
+      return;
+    }
     if (!citizenshipKind) {
       await showErrorAlert(
         "Chưa xác định quốc tịch",
