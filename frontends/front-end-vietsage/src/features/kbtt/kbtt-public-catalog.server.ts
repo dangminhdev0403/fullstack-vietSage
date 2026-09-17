@@ -3,7 +3,7 @@ import "server-only";
 import type { KbttCatalogKind } from "./types/kbtt-contract";
 import { parseKbttPublicCatalog } from "./kbtt-public-catalog-contract";
 
-const DEFAULT_KBTT_BASE_URL = "https://api-kbtt.ai-vlab.com";
+const DEFAULT_KBTT_BASE_URL = "https://api-tbltkbtt.bocongan.gov.vn";
 const MAX_RESPONSE_BYTES = 5 * 1024 * 1024;
 const CACHE_SECONDS = 24 * 60 * 60;
 
