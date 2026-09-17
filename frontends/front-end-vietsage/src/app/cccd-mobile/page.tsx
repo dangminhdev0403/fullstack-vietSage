@@ -229,7 +229,7 @@ export default function CccdMobilePage() {
                       </div>
                       <p className="text-base font-bold text-blue-950">{view.target.status === "document" ? "Đã gửi ảnh hộ chiếu" : "Đã gửi dữ liệu"}</p>
                       <p className="text-sm text-blue-800">
-                        {view.target.status === "document" ? "Đang nhận dạng tại máy lễ tân." : "Đang chờ nhân viên lễ tân bấm nhận trên màn hình máy tính."}
+                        {view.target.status === "document" ? "Đang nhận dạng tại máy lễ tân." : "Máy lễ tân đang tự động nhận và nạp thông tin vào form check-in."}
                       </p>
                     </div>
                   ) : (
