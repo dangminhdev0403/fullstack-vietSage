@@ -506,7 +506,7 @@ function RowActionMenu({
           type="button"
           disabled={disabled}
           onClick={onSave}
-          title="Lưu thông tin vào DB"
+          title="Lưu thay đổi"
           className="inline-flex min-h-9 items-center rounded-lg border border-emerald-600 bg-white px-2.5 py-1 text-sm font-semibold text-emerald-800 hover:bg-emerald-50 disabled:opacity-40 transition-colors"
         >
           Lưu
@@ -515,39 +515,15 @@ function RowActionMenu({
 
       {/* Sửa chi tiết hoặc Xem hồ sơ */}
       {statusInfo.key === "SUBMITTED" ? (
-        <div className="flex items-center justify-center gap-1.5">
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={onView}
-            title={
-              isDevMode
-                ? "Mở box chỉnh chi tiết hồ sơ (Dev Mode)"
-                : "Xem hồ sơ đã gửi"
-            }
-            className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-sm font-semibold text-slate-700 shadow-2xs hover:border-[#064e3b] hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 transition-colors"
-          >
-            {isDevMode ? (
-              <>
-                <PencilIcon className="h-3.5 w-3.5 text-slate-500" />
-                <span>Sửa</span>
-              </>
-            ) : (
-              <span>Xem</span>
-            )}
-          </button>
-          {isDevMode && onDevResetSingle && (
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={onDevResetSingle}
-              title="[Dev] Đổi trạng thái khách này về Chưa gửi để test lại"
-              className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-amber-300 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-800 shadow-2xs hover:bg-amber-100 disabled:opacity-40 transition-colors"
-            >
-              Reset
-            </button>
-          )}
-        </div>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={onView}
+          title="Xem hồ sơ đã gửi"
+          className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-sm font-semibold text-slate-700 shadow-2xs hover:border-[#064e3b] hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 transition-colors"
+        >
+          <span>Xem</span>
+        </button>
       ) : (
         <button
           type="button"
@@ -719,7 +695,16 @@ export function KbttDeclarationsPage({
   );
 
   const [isDevModalOpen, setIsDevModalOpen] = useState(false);
-  const [isDevMode, setIsDevMode] = useState(true);
+  const [isDevMode, setIsDevMode] = useState(() => {
+    if (typeof window === "undefined") return false;
+    if (process.env.NODE_ENV === "production") return false;
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      return searchParams.get("dev") === "true";
+    } catch {
+      return false;
+    }
+  });
   const [devModalEdits, setDevModalEdits] = useState<Record<string, string>>({});
   const [isDevLoading, setIsDevLoading] = useState(false);
 
@@ -967,11 +952,11 @@ export function KbttDeclarationsPage({
         setDevModalEdits({});
         handleRefresh();
         await showSuccessAlert(
-          "Thành công (Chế độ Dev)",
+          "Thành công",
           res.message || "Đã cập nhật trạng thái trong cơ sở dữ liệu.",
         );
       } catch (err) {
-        await showErrorAlert("Lỗi thao tác Dev", errorText(err));
+        await showErrorAlert("Lỗi thao tác", errorText(err));
       } finally {
         setIsDevLoading(false);
       }
@@ -982,9 +967,9 @@ export function KbttDeclarationsPage({
   const handleDevResetSingle = useCallback(
     async (row: KbttDeclarationListItem) => {
       const confirm = await showConfirmDialog({
-        title: "Reset hồ sơ khách về Chưa gửi",
-        text: `Đổi trạng thái hồ sơ của khách ${row.fullName} (Phòng ${row.roomNumber ?? "—"}) về Chưa gửi (DRAFT) trong DB để test gửi lại?`,
-        confirmText: "Reset về Chưa gửi",
+        title: "Đặt lại hồ sơ khách về Chưa gửi",
+        text: `Đổi trạng thái hồ sơ của khách ${row.fullName} (Phòng ${row.roomNumber ?? "—"}) về Chưa gửi để gửi lại?`,
+        confirmText: "Đặt lại về Chưa gửi",
         cancelText: "Hủy",
       });
       if (!confirm.isConfirmed) return;
@@ -996,11 +981,11 @@ export function KbttDeclarationsPage({
         });
         handleRefresh();
         await showSuccessAlert(
-          "Thành công (Chế độ Dev)",
+          "Thành công",
           `Đã chuyển hồ sơ khách ${row.fullName} về Chưa gửi.`,
         );
       } catch (err) {
-        await showErrorAlert("Lỗi thao tác Dev", errorText(err));
+        await showErrorAlert("Lỗi thao tác", errorText(err));
       } finally {
         setIsDevLoading(false);
       }
@@ -1039,11 +1024,11 @@ export function KbttDeclarationsPage({
         });
         handleRefresh();
         await showSuccessAlert(
-          "Đã lưu vào DB",
+          "Đã lưu thông tin",
           `Đã cập nhật Số giấy tờ "${newIdentity}" cho khách ${row.fullName} và đổi trạng thái về Chưa gửi.`,
         );
       } catch (err) {
-        await showErrorAlert("Lỗi thao tác Dev", errorText(err));
+        await showErrorAlert("Lỗi thao tác", errorText(err));
       } finally {
         setIsDevLoading(false);
       }
@@ -1071,11 +1056,11 @@ export function KbttDeclarationsPage({
       setDevModalEdits({});
       handleRefresh();
       await showSuccessAlert(
-        "Đã lưu vào DB",
+        "Đã lưu thông tin",
         res.message || "Đã cập nhật Số giấy tờ cho các khách được chọn.",
       );
     } catch (err) {
-      await showErrorAlert("Lỗi thao tác Dev", errorText(err));
+      await showErrorAlert("Lỗi thao tác", errorText(err));
     } finally {
       setIsDevLoading(false);
     }
@@ -1553,29 +1538,6 @@ export function KbttDeclarationsPage({
             <p>
               Khách sạn chưa đăng nhập hoặc chưa kết nối thành công với Cổng dịch vụ công Bộ Công An. Hệ thống sẽ <strong>không tự động đẩy hồ sơ</strong> cho đến khi tài khoản được kết nối và xác thực thành công.
             </p>
-            {isDevMode && (
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
-                  ⚡ Chế độ Dev
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setIsDevModalOpen(true)}
-                  className="text-amber-800 hover:underline font-semibold"
-                >
-                  Dev: Can thiệp DB
-                </button>
-                <span>·</span>
-                <button
-                  type="button"
-                  onClick={() => handleDevResetAll(false)}
-                  disabled={isDevLoading || isSubmittingBatch}
-                  className="text-slate-600 hover:underline"
-                >
-                  Reset Chưa gửi
-                </button>
-              </div>
-            )}
           </div>
         </div>
       ) : unsubmittedCount === 0 ? (
@@ -1607,31 +1569,6 @@ export function KbttDeclarationsPage({
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
-            {isDevMode && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setIsDevModalOpen(true)}
-                  title="Mở bảng can thiệp DB: sửa Số giấy tờ và đổi trạng thái về Chưa gửi"
-                  className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3.5 py-1.5 text-sm font-semibold text-amber-900 shadow-xs hover:bg-amber-100 transition-colors"
-                >
-                  <WrenchIcon className="h-4 w-4 text-amber-700" />
-                  <span>Dev: Can thiệp DB</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDevResetAll(false)}
-                  disabled={isDevLoading || isSubmittingBatch}
-                  title="Đổi trạng thái toàn bộ hồ sơ về Chưa gửi (DRAFT) để test đẩy lại"
-                  className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-sm font-semibold text-slate-700 shadow-xs hover:bg-slate-50 disabled:opacity-50 transition-colors"
-                >
-                  <RefreshIcon
-                    className={`h-4 w-4 ${isDevLoading ? "animate-spin" : "text-amber-600"}`}
-                  />
-                  <span>Reset Chưa gửi</span>
-                </button>
-              </>
-            )}
           </div>
         </div>
       ) : (
@@ -1643,7 +1580,7 @@ export function KbttDeclarationsPage({
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600"></span>
                 </span>
-                Tự động đẩy BCA (Production)
+                Tự động đẩy BCA
               </span>
 
               <div className="flex items-center gap-2">
@@ -1715,29 +1652,6 @@ export function KbttDeclarationsPage({
             <p>
               Hệ thống tự động đồng bộ hồ sơ lên Cổng DVC Bộ Công An theo chu kỳ đã cấu hình ({AUTO_SUBMIT_DELAY_SECONDS}s). Khi toàn bộ hồ sơ được nộp xong, bộ đếm sẽ tự động dừng.
             </p>
-            <div className="flex items-center gap-2">
-              {isDevMode && (
-                <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
-                  ⚡ Chế độ Dev
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={() => setIsDevModalOpen(true)}
-                className="text-amber-800 hover:underline font-semibold"
-              >
-                Dev: Can thiệp DB
-              </button>
-              <span>·</span>
-              <button
-                type="button"
-                onClick={() => handleDevResetAll(false)}
-                disabled={isDevLoading || isSubmittingBatch}
-                className="text-slate-600 hover:underline"
-              >
-                Reset Chưa gửi
-              </button>
-            </div>
           </div>
         </div>
       )}
@@ -1945,9 +1859,7 @@ export function KbttDeclarationsPage({
                     <td className="px-3 py-3">
                       <input
                         value={edits.identityNumber ?? row.identityNumber ?? ""}
-                        disabled={
-                          (!isSelectable && !isDevMode) || isSubmittingBatch
-                        }
+                        disabled={!isSelectable || isSubmittingBatch}
                         onChange={(event) =>
                           updateInlineField(
                             row.occupantId,
@@ -1955,11 +1867,7 @@ export function KbttDeclarationsPage({
                             event.target.value,
                           )
                         }
-                        className={`min-h-10 w-full rounded-lg border px-3 py-1.5 font-mono text-base text-slate-800 disabled:bg-slate-50 ${
-                          !isSelectable && isDevMode
-                            ? "border-amber-300 bg-amber-50/40 text-amber-950 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
-                            : "border-slate-200 bg-white"
-                        }`}
+                        className="min-h-10 w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-mono text-base text-slate-800 disabled:bg-slate-50"
                         aria-label={`Số giấy tờ phòng ${row.roomNumber ?? "—"}`}
                       />
                     </td>
@@ -2453,12 +2361,12 @@ function DeclarationModal({
 
   const isActuallySubmitted =
     detailQuery.data?.declaration?.status === "SUBMITTED";
-  const isAlreadySubmitted = isActuallySubmitted && !isDevMode;
+  const isAlreadySubmitted = isActuallySubmitted;
   const [isSavingDraft, setIsSavingDraft] = useState(false);
 
   const handleSaveDraft = async () => {
     if (!canManage) return;
-    if (isActuallySubmitted && !isDevMode) return;
+    if (isActuallySubmitted) return;
     if (!citizenshipKind) {
       await showErrorAlert(
         "Chưa xác định quốc tịch",
@@ -2492,7 +2400,7 @@ function DeclarationModal({
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     if (!canManage) return;
-    if (isActuallySubmitted && !isDevMode) return;
+    if (isActuallySubmitted) return;
     if (!isConnected) {
       await SwalVietSage.fire({
         title: "Chưa đăng nhập Cổng BCA",
@@ -3379,7 +3287,7 @@ function DeclarationModal({
               </button>
 
               <div className="flex flex-wrap items-center gap-3">
-                {canManage && (!isAlreadySubmitted || isDevMode) && (
+                {canManage && !isAlreadySubmitted && (
                   <button
                     type="button"
                     disabled={isBusy}
@@ -3398,7 +3306,7 @@ function DeclarationModal({
                   >
                     {submitMutation.isPending ? "Đang gửi…" : "Gửi lên Bộ Công an"}
                   </button>
-                ) : isActuallySubmitted && !isDevMode ? (
+                ) : isActuallySubmitted ? (
                   <span className="inline-flex min-h-12 items-center rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-base font-semibold text-emerald-800">
                     Hồ sơ của lần lưu trú này đã gửi BCA
                   </span>
@@ -3509,19 +3417,14 @@ function KbttDevInterventionModal({
               <WrenchIcon className="h-5 w-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h2
-                  id="dev-modal-title"
-                  className="text-lg font-bold text-slate-900"
-                >
-                  Công cụ Dev: Can thiệp CSDL & Test Khai báo BCA
-                </h2>
-                <span className="rounded-full bg-amber-200/80 px-2.5 py-0.5 text-xs font-bold text-amber-900">
-                  DEV MODE
-                </span>
-              </div>
+              <h2
+                id="dev-modal-title"
+                className="text-lg font-bold text-slate-900"
+              >
+                Công cụ chỉnh số giấy tờ & đặt lại hồ sơ
+              </h2>
               <p className="text-xs text-slate-600">
-                Cho phép sửa trực tiếp Số giấy tờ vào DB (GuestStayOccupant) & reset trạng thái hồ sơ về Chưa gửi (DRAFT) để test đẩy.
+                Sửa số giấy tờ và đặt lại trạng thái hồ sơ về Chưa gửi để gửi lại lên Cổng BCA.
               </p>
             </div>
           </div>
@@ -3529,7 +3432,7 @@ function KbttDevInterventionModal({
             type="button"
             onClick={onClose}
             className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 hover:bg-amber-200/50 hover:text-slate-800 transition-colors"
-            aria-label="Đóng bảng công cụ Dev"
+            aria-label="Đóng bảng công cụ"
           >
             ✕
           </button>
@@ -3573,7 +3476,7 @@ function KbttDevInterventionModal({
                 </h3>
               </div>
               <p className="mt-1 text-xs text-slate-600 leading-relaxed">
-                Tự động sinh CCCD 12 số hợp lệ (VN) hoặc Passport (QT) cho <span className="font-semibold text-emerald-800">toàn bộ khách</span>, lưu vào DB và reset về DRAFT.
+                Tự động sinh CCCD 12 số hợp lệ (VN) hoặc Passport (QT) cho <span className="font-semibold text-emerald-800">toàn bộ khách</span>, lưu thông tin và đặt lại hồ sơ về Chưa gửi.
               </p>
             </div>
             <div className="mt-3.5 pt-2 border-t border-slate-100 flex items-center justify-end">
@@ -3590,7 +3493,7 @@ function KbttDevInterventionModal({
           </div>
         </div>
 
-        {/* Dev Mode toggle & search toolbar */}
+        {/* Cho phép chỉnh sửa & toolbar tìm kiếm */}
         <div className="flex flex-col gap-3 border-b border-slate-100 bg-white px-6 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2.5">
             <button
