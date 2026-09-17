@@ -194,11 +194,11 @@ export function ServiceCatalogView({ data }: Readonly<{ data: ServicePortalData 
               <VsIcon name="info" className="text-xl text-emerald-700" />
             </div>
             <div className="space-y-1">
-              <h2 className="text-lg md:text-xl font-black text-slate-900 flex items-center gap-2">
-                Quản lý & đồng bộ qua Google Sheets / Excel Online
+              <h2 className="text-lg md:text-xl font-semibold text-slate-900 flex items-center gap-2">
+                Quản lý & Đồng bộ qua Google Sheets / Excel Online
               </h2>
               <p className="text-sm text-slate-600 font-medium leading-relaxed">
-                Đồng bộ danh mục thực đơn, thông tin chi tiết & đa ngôn ngữ tự động từ file Google Sheets đối tác.
+                Đồng bộ danh mục thực đơn, thông tin chi tiết & Đa ngôn ngữ tự động từ file Google Sheets đối tác.
               </p>
             </div>
           </div>

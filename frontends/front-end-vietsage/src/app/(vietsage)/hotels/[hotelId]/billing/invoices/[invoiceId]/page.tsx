@@ -183,14 +183,14 @@ export default async function StaffInvoicePage({ params }: PageProps) {
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2 print:grid-cols-2">
             <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 text-xs print:border-slate-300 print:bg-white">
-              <div className="flex items-center justify-between font-black text-emerald-950">
+              <div className="flex items-center justify-between font-semibold text-emerald-950">
                 <span>🏨 Dịch vụ trong khách sạn</span>
                 <span className="text-sm tabular-nums">{formatMoney(hotelServicesTotal, invoice.currency)}</span>
               </div>
-              <p className="mt-1 text-[11px] text-emerald-700">Tiền phòng, dịch vụ nội bộ & phụ thu do KS cung cấp</p>
+              <p className="mt-1 text-[11px] text-emerald-700">Tiền phòng, dịch vụ nội bộ & Phụ thu do KS cung cấp</p>
             </div>
             <div className="rounded-xl border border-purple-200 bg-purple-50/60 p-3 text-xs print:border-slate-300 print:bg-white">
-              <div className="flex items-center justify-between font-black text-purple-950">
+              <div className="flex items-center justify-between font-semibold text-purple-950">
                 <span>🌐 Dịch vụ ngoài khách sạn (Đối tác)</span>
                 <span className="text-sm tabular-nums">{formatMoney(externalServicesTotal, invoice.currency)}</span>
               </div>

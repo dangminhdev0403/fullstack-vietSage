@@ -124,16 +124,16 @@ function roomStatusLabel(room: HotelRoomSummary): string {
 function roomTileClass(room: HotelRoomSummary): string {
   const availability = getRoomAvailability(room);
   if (availability === "overdue")
-    return "border-2 border-red-500 bg-red-950 text-white font-bold animate-pulse-subtle shadow-md shadow-red-900/40";
+    return "border-2 border-red-500 bg-red-950 text-white font-semibold animate-pulse-subtle shadow-md shadow-red-900/40";
   if (availability === "occupied")
-    return "border-blue-300 bg-blue-100 text-blue-900 font-bold hover:-translate-y-0.5 hover:shadow-md";
+    return "border-blue-300 bg-blue-100 text-blue-900 font-semibold hover:-translate-y-0.5 hover:shadow-md";
   if (availability === "processing")
-    return "border-amber-300 bg-amber-100 text-amber-900 font-bold hover:-translate-y-0.5 hover:shadow-md";
+    return "border-amber-300 bg-amber-100 text-amber-900 font-semibold hover:-translate-y-0.5 hover:shadow-md";
   if (availability === "maintenance")
-    return "border-rose-300 bg-rose-100 text-rose-900 font-bold hover:-translate-y-0.5 hover:shadow-md";
+    return "border-rose-300 bg-rose-100 text-rose-900 font-semibold hover:-translate-y-0.5 hover:shadow-md";
   if (availability === "blocked")
-    return "border-slate-400 bg-slate-200 text-slate-900 font-bold hover:-translate-y-0.5 hover:shadow-md";
-  return "border-emerald-300 bg-emerald-100 text-emerald-900 font-bold hover:-translate-y-0.5 hover:shadow-md";
+    return "border-slate-400 bg-slate-200 text-slate-900 font-semibold hover:-translate-y-0.5 hover:shadow-md";
+  return "border-emerald-300 bg-emerald-100 text-emerald-900 font-semibold hover:-translate-y-0.5 hover:shadow-md";
 }
 
 function isCheckInAllowed(room: HotelRoomSummary): boolean {
@@ -780,7 +780,7 @@ export function OwnerStayRoomGridClient({
               <button
                 type="button"
                 onClick={() => setDetailRoom(null)}
-                className="min-h-11 rounded-xl border border-[var(--outline-variant)] px-5 text-sm font-bold text-[var(--primary)] transition hover:bg-[var(--surface-container-low)]"
+                className="min-h-11 rounded-xl border border-[var(--outline-variant)] px-5 text-sm font-semibold text-[var(--primary)] transition hover:bg-[var(--surface-container-low)]"
               >
                 Đóng
               </button>
@@ -789,7 +789,7 @@ export function OwnerStayRoomGridClient({
                 <button
                   type="button"
                   onClick={() => void markRoomCleaned(detailRoom)}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-amber-700 px-4 text-sm font-bold text-white transition hover:bg-amber-800"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-amber-700 px-4 text-sm font-semibold text-white transition hover:bg-amber-800"
                 >
                   <VsIcon name="cleaning_services" />
                   Đã dọn xong → Chuyển TRỐNG
@@ -800,7 +800,7 @@ export function OwnerStayRoomGridClient({
                 <button
                   type="button"
                   onClick={() => void updateRoomStatus(detailRoom, "AVAILABLE")}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 text-sm font-bold text-white transition hover:bg-emerald-800"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 text-sm font-semibold text-white transition hover:bg-emerald-800"
                 >
                   <VsIcon name="build" />
                   Xong bảo trì → Chuyển TRỐNG
@@ -811,7 +811,7 @@ export function OwnerStayRoomGridClient({
                 <button
                   type="button"
                   onClick={() => void updateRoomStatus(detailRoom, "AVAILABLE")}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 text-sm font-bold text-white transition hover:bg-emerald-800"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 text-sm font-semibold text-white transition hover:bg-emerald-800"
                 >
                   <VsIcon name="lock_open" />
                   Mở khóa → Chuyển TRỐNG
@@ -821,7 +821,7 @@ export function OwnerStayRoomGridClient({
                   <button
                     type="button"
                     onClick={() => void updateRoomStatus(detailRoom, "BLOCKED")}
-                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-rose-700 px-4 text-sm font-bold text-white transition hover:bg-rose-800"
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-rose-700 px-4 text-sm font-semibold text-white transition hover:bg-rose-800"
                   >
                     <VsIcon name="block" />
                     Khóa phòng
@@ -834,7 +834,7 @@ export function OwnerStayRoomGridClient({
                   <button
                     type="button"
                     onClick={() => void updateRoomStatus(detailRoom, "PROCESSING")}
-                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 text-sm font-bold text-white transition hover:bg-amber-700"
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 text-sm font-semibold text-white transition hover:bg-amber-700"
                   >
                     <VsIcon name="cleaning_services" />
                     Chuyển CHỜ DỌN
@@ -842,7 +842,7 @@ export function OwnerStayRoomGridClient({
                   <button
                     type="button"
                     onClick={() => void updateRoomStatus(detailRoom, "MAINTENANCE")}
-                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-700 px-4 text-sm font-bold text-white transition hover:bg-slate-800"
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-700 px-4 text-sm font-semibold text-white transition hover:bg-slate-800"
                   >
                     <VsIcon name="build" />
                     Bảo trì
@@ -854,7 +854,7 @@ export function OwnerStayRoomGridClient({
                       setDetailRoom(null);
                       openCheckIn(room);
                     }}
-                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-5 text-sm font-bold text-white transition hover:opacity-90"
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-5 text-sm font-semibold text-white transition hover:opacity-90"
                   >
                     <VsIcon name="login" />
                     Check-in phòng

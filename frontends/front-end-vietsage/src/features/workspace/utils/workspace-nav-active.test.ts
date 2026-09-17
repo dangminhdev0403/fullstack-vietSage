@@ -12,7 +12,7 @@ const ownerHotelItems: readonly DashboardNavItem[] = [
   { key: "owner.hotels", href: "/owner/hotels", label: "Khách sạn", icon: "hotel" },
   { key: "owner.staff", href: "/owner/staff", label: "Nhân viên", icon: "group" },
   { key: "owner.hotel.overview", href: "/owner/hotels/hotel-1", label: "Thông tin khách sạn", icon: "hotel" },
-  { key: "owner.hotel.rooms", href: "/owner/hotels/hotel-1/rooms", label: "Phòng & lưu trú", icon: "bed" },
+  { key: "owner.hotel.rooms", href: "/owner/hotels/hotel-1/rooms", label: "Phòng & Lưu trú", icon: "bed" },
   { key: "owner.hotel.billing", href: "/owner/hotels/hotel-1/billing", label: "Thanh toán", icon: "inventory_2" },
 ];
 
@@ -42,7 +42,7 @@ test("isNavItemActive highlights admin roles and permissions navigation item cor
     persona: "platform_admin",
     permissions: ["platform.roles.view"],
   });
-  const accessItem = adminItems.find((item) => item.label === "Vai trò & quyền");
+  const accessItem = adminItems.find((item) => item.label === "Vai trò & Quyền");
   assert.ok(accessItem);
   assert.equal(accessItem.href, "/admin/permissions");
   assert.equal(isNavItemActive(accessItem.href, "/admin/permissions", adminItems), true);

@@ -241,14 +241,14 @@ function InvoiceDetailView({ detail }: { detail: InvoiceDetail }) {
         ) : (
           <div className="mt-4 grid gap-3 sm:grid-cols-2 print:grid-cols-2">
             <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5 text-xs print:border-slate-300 print:bg-white">
-              <div className="flex items-center justify-between font-black text-emerald-950">
+              <div className="flex items-center justify-between font-semibold text-emerald-950">
                 <span>🏨 Tổng dịch vụ trong khách sạn</span>
                 <span className="text-sm tabular-nums">{formatMoney(hotelServicesTotal, currency)}</span>
               </div>
-              <p className="mt-1 text-[11px] text-emerald-700">Bao gồm tiền phòng, dịch vụ nội bộ & các khoản thu trực tiếp từ KS</p>
+              <p className="mt-1 text-[11px] text-emerald-700">Bao gồm tiền phòng, dịch vụ nội bộ & Các khoản thu trực tiếp từ KS</p>
             </div>
             <div className="rounded-xl border border-purple-200 bg-purple-50/60 p-3.5 text-xs print:border-slate-300 print:bg-white">
-              <div className="flex items-center justify-between font-black text-purple-950">
+              <div className="flex items-center justify-between font-semibold text-purple-950">
                 <span>🌐 Tổng dịch vụ ngoài khách sạn (Đối tác)</span>
                 <span className="text-sm tabular-nums">{formatMoney(externalServicesTotal, currency)}</span>
               </div>

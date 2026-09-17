@@ -1418,23 +1418,23 @@ export function StaffBillingWorkspaceClient({
                 }
               }}
               disabled={!selectedFolioId}
-              className="mt-4 w-full inline-flex h-13 items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-[#fbbf24] via-[#f59e0b] to-[#d97706] px-4 text-base sm:text-lg font-black text-[#1c1204] shadow-xl shadow-amber-950/60 transition hover:from-[#f59e0b] hover:to-[#b45309] active:scale-[0.99] disabled:opacity-50 cursor-pointer"
+              className="mt-4 w-full inline-flex h-13 items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-[#fbbf24] via-[#f59e0b] to-[#d97706] px-4 text-base sm:text-lg font-semibold text-[#1c1204] shadow-xl shadow-amber-950/60 transition hover:from-[#f59e0b] hover:to-[#b45309] active:scale-[0.99] disabled:opacity-50 cursor-pointer"
             >
               <VsIcon name="description" className="text-xl" />
-              Xem & xuất hóa đơn
+              Xem & Xuất hóa đơn
             </button>
           ) : (
             <button
               type="button"
               onClick={() => void issueInvoiceAndCollect()}
               disabled={!selectedFolioId || !canManage || saving}
-              className="mt-4 w-full inline-flex h-13 items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-[#fbbf24] via-[#f59e0b] to-[#d97706] px-4 text-base sm:text-lg font-black text-[#1c1204] shadow-xl shadow-amber-950/60 transition hover:from-[#f59e0b] hover:to-[#b45309] active:scale-[0.99] disabled:opacity-50 cursor-pointer"
+              className="mt-4 w-full inline-flex h-13 items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-[#fbbf24] via-[#f59e0b] to-[#d97706] px-4 text-base sm:text-lg font-semibold text-[#1c1204] shadow-xl shadow-amber-950/60 transition hover:from-[#f59e0b] hover:to-[#b45309] active:scale-[0.99] disabled:opacity-50 cursor-pointer"
             >
               <VsIcon
                 name={saving ? "sync" : "payments"}
                 className={`text-xl ${saving ? "animate-spin" : ""}`}
               />
-              {saving ? "Đang xử lý checkout..." : "Phát hành & thu tiền"}
+              {saving ? "Đang xử lý checkout..." : "Phát hành & Thu tiền"}
             </button>
           )}
         </div>

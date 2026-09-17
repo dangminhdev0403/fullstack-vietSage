@@ -426,7 +426,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                   <span>Đang tạo...</span>
                 </>
               ) : (
-                "Tạo & phân công"
+                "Tạo & Phân công"
               )}
             </button>
           </div>

@@ -325,9 +325,9 @@ export default function GuestRequestsPage() {
                             ) : null}
                           </div>
                         ) : order.hotelCoordinationStatus === "ACKNOWLEDGED" ? (
-                          <div className="mt-3.5 flex items-center gap-2 rounded-2xl border border-blue-200 bg-blue-50/80 px-3.5 py-2.5 text-xs font-bold text-blue-800">
+                          <div className="mt-3.5 flex items-center gap-2 rounded-2xl border border-blue-200 bg-blue-50/80 px-3.5 py-2.5 text-xs font-semibold text-blue-800">
                             <VsIcon name="check_circle" className="text-base text-blue-600" />
-                            <span>Khách sạn đã tiếp nhận & đang tạo mã phiếu...</span>
+                            <span>Khách sạn đã tiếp nhận & Đang tạo mã phiếu...</span>
                           </div>
                         ) : null}
 

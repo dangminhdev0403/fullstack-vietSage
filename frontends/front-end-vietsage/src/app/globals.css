@@ -189,6 +189,9 @@ body {
   color: var(--foreground);
   font-family: var(--font-manrope), sans-serif;
   min-height: max(884px, 100dvh);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 button:not(:disabled),

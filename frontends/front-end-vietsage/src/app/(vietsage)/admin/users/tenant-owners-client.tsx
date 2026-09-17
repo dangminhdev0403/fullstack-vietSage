@@ -325,7 +325,7 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
               className="w-full rounded-xl border border-[#e2d7c5] bg-[#faf6ef] pl-11 pr-4 py-3 text-sm font-semibold text-[#17201b] outline-none transition-all focus:border-[#24473d] focus:bg-white focus:ring-2 focus:ring-[#24473d]/20"
             />
           </div>
-          <button type="button" onClick={openCreateDialog} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-[#24473d] px-5 py-3 text-sm font-bold text-[#fff8e8] shadow-md shadow-[#24473d]/20 transition-all hover:bg-[#1a352d] active:scale-98">
+          <button type="button" onClick={openCreateDialog} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-[#24473d] px-5 py-3 text-sm font-semibold text-[#fff8e8] shadow-md shadow-[#24473d]/20 transition-all hover:bg-[#1a352d] active:scale-98">
             <VsIcon name="person_add" className="text-lg text-[#e8b363]" />
             Tạo đối tác khách sạn
           </button>
@@ -340,11 +340,11 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
               header: "Chủ sở hữu",
               cell: (owner) => (
                 <div className="flex items-center gap-3">
-                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#24473d] font-extrabold text-[#e8b363] shadow-xs ring-2 ring-[#e8b363]/30">
+                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#24473d] font-semibold text-[#e8b363] shadow-xs ring-2 ring-[#e8b363]/30">
                     {owner.fullName.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <p className="font-extrabold text-[#17201b]">{owner.fullName}</p>
+                    <p className="font-semibold text-[#17201b]">{owner.fullName}</p>
                     <p className="text-xs font-medium text-[#69726b]">{owner.email}</p>
                   </div>
                 </div>
@@ -354,7 +354,7 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
               key: "tenant",
               header: "Tổ chức",
               cell: (owner) => (
-                <span className="inline-flex items-center gap-1.5 rounded-xl border border-[#e8dfd1] bg-[#fbf8f2] px-3 py-1.5 font-sans text-xs font-bold text-[#17201b]">
+                <span className="inline-flex items-center gap-1.5 rounded-xl border border-[#e8dfd1] bg-[#fbf8f2] px-3 py-1.5 font-sans text-xs font-medium text-[#17201b]">
                   <VsIcon name="domain" className="text-[#24473d]" />
                   {formatTenantDisplayName(owner.tenant.name, owner.tenant.code)}
                 </span>
@@ -399,7 +399,7 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
                   <button
                     type="button"
                     onClick={() => openEditDialog(owner)}
-                    className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-[#dcd1bf] bg-[#fffcf7] px-4 py-1.5 text-xs font-bold text-[#24473d] shadow-2xs transition-all hover:border-[#24473d] hover:bg-[#f5efe4]"
+                    className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-[#dcd1bf] bg-[#fffcf7] px-4 py-1.5 text-xs font-semibold text-[#24473d] shadow-2xs transition-all hover:border-[#24473d] hover:bg-[#f5efe4]"
                   >
                     <VsIcon name="edit" className="text-sm" />
                     Sửa
@@ -408,7 +408,7 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
                     type="button"
                     disabled={resetPassword.isPending}
                     onClick={() => resetOwnerPassword(owner)}
-                    className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-[#ebd6b7] bg-[#fffaf3] px-4 py-1.5 text-xs font-bold text-[#8c5e1a] shadow-2xs transition-all hover:bg-[#f9efe0] disabled:opacity-50"
+                    className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-[#ebd6b7] bg-[#fffaf3] px-4 py-1.5 text-xs font-semibold text-[#8c5e1a] shadow-2xs transition-all hover:bg-[#f9efe0] disabled:opacity-50"
                   >
                     <VsIcon name="key" className="text-sm text-[#c89b4f]" />
                     Cấp lại mật khẩu

@@ -1146,7 +1146,7 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--secondary)]">
-            Phòng & lưu trú
+            Phòng & Lưu trú
           </p>
           <h1 className="mt-3 text-4xl font-semibold leading-tight text-[var(--primary)]">
             Quản lý phòng và lưu trú

@@ -80,7 +80,7 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
     const confirmed = await SwalVietSage.fire({
       icon: "question",
       title: "Lưu thay đổi khách sạn?",
-      text: `Cập nhật thông tin & vị trí của ${form.name.trim()}.`,
+      text: `Cập nhật thông tin & Vị trí của ${form.name.trim()}.`,
       showCancelButton: true,
       confirmButtonText: "Đồng ý lưu",
       cancelButtonText: "Hủy",
@@ -114,7 +114,7 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
 
       await SwalVietSage.fire({
         icon: "success",
-        title: "Đã lưu thông tin & vị trí khách sạn",
+        title: "Đã lưu thông tin & Vị trí khách sạn",
         timer: 1400,
         showConfirmButton: true,
         confirmButtonText: "OK",
@@ -201,11 +201,11 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
       {/* Location Settings Card */}
       <div className="rounded-2xl border border-[#e5ddcd] bg-[#fffcf7] p-7 shadow-[0_4px_20px_rgba(23,32,27,0.04)] space-y-6">
         <div className="border-b border-[#eae3d5] pb-4">
-          <h2 className="text-xl font-extrabold text-[#17201b] flex items-center gap-2">
+          <h2 className="text-xl font-semibold text-[#17201b] flex items-center gap-2">
             <span>📍</span> Vị trí khách sạn trên nền tảng
           </h2>
           <p className="mt-1 text-sm font-medium text-[#5a6760]">
-            Cập nhật tọa độ GPS và liên kết Google Maps để đối tác & khách đặt phòng dễ dàng tìm thấy.
+            Cập nhật tọa độ GPS và liên kết Google Maps để đối tác & Khách đặt phòng dễ dàng tìm thấy.
           </p>
         </div>
 
@@ -217,7 +217,7 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
         <button
           type="submit"
           disabled={isSaving}
-          className="flex h-13 min-w-[240px] items-center justify-center gap-2.5 rounded-xl bg-[#17201b] px-8 text-base font-bold text-[#f8f1e6] shadow-md transition-all hover:bg-[#27352d] disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex h-13 min-w-[240px] items-center justify-center gap-2.5 rounded-xl bg-[#17201b] px-8 text-base font-semibold text-[#f8f1e6] shadow-md transition-all hover:bg-[#27352d] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isSaving ? (
             <>

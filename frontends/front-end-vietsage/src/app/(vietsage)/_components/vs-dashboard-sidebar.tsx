@@ -114,7 +114,7 @@ export function VsDashboardSidebar({
 
         {!isCollapsed ? (
           <div className="mt-3">
-            <p className="font-serif text-[1.95rem] font-bold leading-tight tracking-[-0.035em] text-[#fff8e8]">
+            <p className="font-serif text-[1.95rem] font-semibold leading-tight tracking-[-0.035em] text-[#fff8e8]">
               VietSage
             </p>
             <p className="mt-1.5 line-clamp-2 max-w-56 text-xs font-medium leading-5 text-[#d7cbb8]">
@@ -135,7 +135,7 @@ export function VsDashboardSidebar({
             {/* Section Header */}
             {!isCollapsed ? (
               <div className="px-3 pb-1 pt-2">
-                <span className="text-[10.5px] font-bold uppercase tracking-[0.18em] text-[#e8b363]/85">
+                <span className="text-[10.5px] font-semibold uppercase tracking-[0.18em] text-[#e8b363]/85">
                   {group.label}
                 </span>
               </div>
@@ -171,7 +171,7 @@ export function VsDashboardSidebar({
                         </span>
                         {badge > 0 ? (
                           <span
-                            className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#e8b363] px-1 text-[9px] font-bold text-[#17201b] shadow"
+                            className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#e8b363] px-1 text-[9px] font-semibold text-[#17201b] shadow"
                             aria-label={`${item.label}, ${badge} tin chưa đọc`}
                           >
                             {badge > 99 ? "99+" : badge}
@@ -183,7 +183,7 @@ export function VsDashboardSidebar({
                       <div className="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 z-50 hidden group-hover:flex items-center gap-2 rounded-xl border border-[#e8b363]/25 bg-[#17201b] px-3.5 py-2 text-xs font-semibold text-[#f8f1e6] shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-md whitespace-nowrap">
                         <span>{item.label}</span>
                         {badge > 0 ? (
-                          <span className="rounded-full bg-[#e8b363] px-1.5 py-0.5 text-[10px] font-bold text-[#17201b]">
+                          <span className="rounded-full bg-[#e8b363] px-1.5 py-0.5 text-[10px] font-semibold text-[#17201b]">
                             {badge > 99 ? "99+" : badge}
                           </span>
                         ) : null}
@@ -214,7 +214,7 @@ export function VsDashboardSidebar({
                     <span className="min-w-0 flex-1 truncate font-medium text-sm whitespace-nowrap">{item.label}</span>
                     {badge > 0 ? (
                       <span
-                        className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-[#e8b363] px-1.5 text-[11px] font-bold text-[#17201b] shadow-sm transition-all"
+                        className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-[#e8b363] px-1.5 text-[11px] font-semibold text-[#17201b] shadow-sm transition-all"
                         aria-label={`${item.label}, ${badge} tin chưa đọc`}
                       >
                         {badge > 99 ? "99+" : badge}

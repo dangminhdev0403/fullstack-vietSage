@@ -91,7 +91,7 @@ function TopBarRightControls({
     <div className="flex min-w-0 items-center gap-4">
       {showRightInfo ? (
         <div className="hidden min-w-0 max-w-[13rem] flex-col justify-center text-right leading-tight md:flex">
-          <span className="truncate text-sm font-bold text-[#17201b]">
+          <span className="truncate text-sm font-semibold text-[#17201b]">
             {rightLabel}
           </span>
           {subtitle ? (
@@ -103,7 +103,7 @@ function TopBarRightControls({
       ) : null}
 
       <ChangePasswordDialog />
-      <VsLogoutButton className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-full border border-[#24473d]/15 bg-white/50 px-3 py-2 text-xs font-bold tracking-[0.04em] text-[#24473d] transition-colors hover:bg-[#f8f1e6] disabled:cursor-not-allowed disabled:opacity-60" />
+      <VsLogoutButton className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-full border border-[#24473d]/15 bg-white/50 px-3 py-2 text-xs font-semibold tracking-[0.04em] text-[#24473d] transition-colors hover:bg-[#f8f1e6] disabled:cursor-not-allowed disabled:opacity-60" />
 
       <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#24473d]/15 bg-white p-0.5 shadow-[0_10px_24px_rgba(31,61,53,0.12)]">
         <Image

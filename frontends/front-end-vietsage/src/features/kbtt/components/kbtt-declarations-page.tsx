@@ -1420,9 +1420,9 @@ export function KbttDeclarationsPage({
           </p>
           <h1
             id="declarations-title"
-            className="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl"
+            className="mt-1 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl"
           >
-            Chỉnh sửa & gửi BCA theo danh sách
+            Chỉnh sửa & Gửi BCA theo danh sách
           </h1>
           <p className="mt-1 text-base text-slate-600">
             Chỉnh sửa thông tin nhiều khách cùng lúc và gửi BCA hàng loạt. Mỗi
@@ -3461,9 +3461,9 @@ function KbttDevInterventionModal({
             <div>
               <h2
                 id="dev-modal-title"
-                className="text-lg font-bold text-slate-900"
+                className="text-lg font-semibold text-slate-900"
               >
-                Công cụ chỉnh số giấy tờ & đặt lại hồ sơ
+                Công cụ chỉnh số giấy tờ & Đặt lại hồ sơ
               </h2>
               <p className="text-xs text-slate-600">
                 Sửa số giấy tờ và đặt lại trạng thái hồ sơ về Chưa gửi để gửi lại lên Cổng BCA.

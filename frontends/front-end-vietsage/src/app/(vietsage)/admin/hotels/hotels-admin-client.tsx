@@ -418,7 +418,7 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }:
             type="button"
             onClick={openCreateDialog}
             disabled={!hasTenantOptions || isSaving}
-            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-[#24473d] px-5 py-3 text-sm font-bold text-[#fff8e8] shadow-md shadow-[#24473d]/20 transition-all hover:bg-[#1a352d] active:scale-98 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-[#24473d] px-5 py-3 text-sm font-semibold text-[#fff8e8] shadow-md shadow-[#24473d]/20 transition-all hover:bg-[#1a352d] active:scale-98 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <VsIcon name="hotel" className="text-lg text-[#e8b363]" />
             Tạo khách sạn
@@ -429,14 +429,14 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }:
       <section className="overflow-hidden rounded-[1.6rem] border border-[#e8dfd1] bg-white/95 shadow-[0_16px_45px_rgba(23,32,27,0.06)] backdrop-blur-md">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[980px] text-left text-sm">
-            <thead className="border-b border-[#e5dcd0] bg-[#f6f1e7]/90 text-[11px] font-extrabold uppercase tracking-[0.1em] text-[#69726b]">
+            <thead className="border-b border-[#e5dcd0] bg-[#f6f1e7]/90 text-[11px] font-semibold uppercase tracking-[0.1em] text-[#69726b]">
               <tr>
-                <th className="px-6 py-4 font-extrabold">Khách sạn</th>
-                <th className="px-6 py-4 font-extrabold">Tổ chức</th>
-                <th className="px-6 py-4 font-extrabold">Trạng thái</th>
-                <th className="px-6 py-4 font-extrabold">Múi giờ</th>
-                <th className="px-6 py-4 font-extrabold">Cập nhật</th>
-                <th className="px-6 py-4 text-right font-extrabold">Thao tác</th>
+                <th className="px-6 py-4 font-semibold">Khách sạn</th>
+                <th className="px-6 py-4 font-semibold">Tổ chức</th>
+                <th className="px-6 py-4 font-semibold">Trạng thái</th>
+                <th className="px-6 py-4 font-semibold">Múi giờ</th>
+                <th className="px-6 py-4 font-semibold">Cập nhật</th>
+                <th className="px-6 py-4 text-right font-semibold">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#f2ebd9]">
@@ -448,32 +448,32 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }:
                         <VsIcon name="hotel" className="text-lg" />
                       </div>
                       <div>
-                        <p className="font-extrabold text-[#17201b]">{hotel.name}</p>
+                        <p className="font-semibold text-[#17201b]">{hotel.name}</p>
                         <p className="text-xs font-medium text-[#69726b]">{hotel.code ?? hotel.id}</p>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4.5 align-middle">
-                    <span className="inline-flex items-center gap-1.5 rounded-xl border border-[#e8dfd1] bg-[#fbf8f2] px-3 py-1.5 font-sans text-xs font-bold text-[#17201b]">
+                    <span className="inline-flex items-center gap-1.5 rounded-xl border border-[#e8dfd1] bg-[#fbf8f2] px-3 py-1.5 font-sans text-xs font-medium text-[#17201b]">
                       <VsIcon name="domain" className="text-[#24473d]" />
                       {hotel.tenant ? formatTenantDisplayName(hotel.tenant.name, hotel.tenant.code) : tenantLabel(hotel.tenantId, tenantOptions)}
                     </span>
                   </td>
                   <td className="px-6 py-4.5 align-middle">
                     {(hotel.status ?? "ACTIVE") === "ACTIVE" ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-full border border-[#cbe5d8] bg-[#ecf7f1] px-3.5 py-1 text-xs font-extrabold text-[#1a5d3f]">
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-[#cbe5d8] bg-[#ecf7f1] px-3.5 py-1 text-xs font-semibold text-[#1a5d3f]">
                         <span className="h-2 w-2 rounded-full bg-[#1a5d3f] animate-pulse"></span>
                         Hoạt động
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1.5 rounded-full border border-[#e2dad0] bg-[#f5efe8] px-3.5 py-1 text-xs font-extrabold text-[#6b6660]">
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-[#e2dad0] bg-[#f5efe8] px-3.5 py-1 text-xs font-semibold text-[#6b6660]">
                         <span className="h-2 w-2 rounded-full bg-[#8c857d]"></span>
                         Tạm ngưng
                       </span>
                     )}
                   </td>
                   <td className="px-6 py-4.5 align-middle font-medium text-[#69726b]">
-                    <span className="inline-flex items-center gap-1 font-mono text-xs font-bold text-[#17201b]">
+                    <span className="inline-flex items-center gap-1 font-mono text-xs font-medium text-[#17201b]">
                       <VsIcon name="schedule" className="text-[#8b948d]" />
                       {hotel.timezone === "Asia/Saigon" || !hotel.timezone ? "Asia/Ho_Chi_Minh" : hotel.timezone}
                     </span>
@@ -484,7 +484,7 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }:
                       type="button"
                       onClick={() => void openEditDialog(hotel)}
                       disabled={loadingHotelId === hotel.id || isSaving}
-                      className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-[#dcd1bf] bg-[#fffcf7] px-4 py-1.5 text-xs font-bold text-[#24473d] shadow-2xs transition-all hover:border-[#24473d] hover:bg-[#f5efe4] disabled:opacity-50"
+                      className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-[#dcd1bf] bg-[#fffcf7] px-4 py-1.5 text-xs font-semibold text-[#24473d] shadow-2xs transition-all hover:border-[#24473d] hover:bg-[#f5efe4] disabled:opacity-50"
                     >
                       <VsIcon name="edit" className="text-sm" />
                       {loadingHotelId === hotel.id ? "Đang tải..." : "Sửa"}
@@ -521,12 +521,12 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }:
 
             <div className="grid gap-5 md:grid-cols-2">
               {formMode === "create" ? (
-                <label className="space-y-2 text-sm font-bold text-slate-700 dark:text-slate-300 md:col-span-2">
+                <label className="space-y-2 text-sm font-medium text-slate-700 dark:text-slate-300 md:col-span-2">
                   Tổ chức sở hữu
                   <select
                     value={form.tenantId}
                     onChange={(event) => setForm((current) => ({ ...current, tenantId: event.target.value }))}
-                    className="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-emerald-600 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    className="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-4 py-3 text-sm font-medium text-slate-900 outline-none transition-all focus:border-emerald-600 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                   >
                     {tenantOptions.map((tenant) => (
                       <option key={tenant.id} value={tenant.id}>
@@ -537,24 +537,24 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }:
                 </label>
               ) : null}
 
-              <label className="space-y-2 text-sm font-bold text-slate-700 dark:text-slate-300">
+              <label className="space-y-2 text-sm font-medium text-slate-700 dark:text-slate-300">
                 Tên khách sạn
                 <input
                   value={form.name}
                   onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
                   placeholder="Ví dụ: Khách sạn Grand Saigon"
-                  className="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-900 outline-none transition-all focus:border-emerald-600 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                  className="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-4 py-3 text-sm font-medium text-slate-900 outline-none transition-all focus:border-emerald-600 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                 />
               </label>
 
 
               {formMode === "edit" ? (
-                <label className="space-y-2 text-sm font-bold text-slate-700 dark:text-slate-300">
+                <label className="space-y-2 text-sm font-medium text-slate-700 dark:text-slate-300">
                   Trạng thái hoạt động
                   <select
                     value={form.status}
                     onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as HotelFormState["status"] }))}
-                    className="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-emerald-600 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    className="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-4 py-3 text-sm font-medium text-slate-900 outline-none transition-all focus:border-emerald-600 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                   >
                     <option value="ACTIVE">Đang hoạt động (ACTIVE)</option>
                     <option value="DISABLED">Tạm ngưng (DISABLED)</option>
@@ -562,7 +562,7 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }:
                 </label>
               ) : null}
 
-              <label className="space-y-2 text-sm font-bold text-slate-700 dark:text-slate-300 md:col-span-2">
+              <label className="space-y-2 text-sm font-medium text-slate-700 dark:text-slate-300 md:col-span-2">
                 Google Sheets tích hợp (Không bắt buộc)
                 <input
                   type="url"
@@ -588,14 +588,14 @@ export function HotelsAdminClient({ initialHotels, initialTenantOwners, total }:
                 type="button"
                 onClick={closeDialog}
                 disabled={isSaving}
-                className="rounded-xl border border-slate-300 px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                className="rounded-xl border border-slate-300 px-5 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
               >
                 Hủy
               </button>
               <button
                 type="submit"
                 disabled={isSaving || (formMode === "create" && !hasTenantOptions)}
-                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-3 text-sm font-bold text-white shadow-md shadow-emerald-600/20 hover:bg-emerald-500 active:scale-98 disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-emerald-600/20 hover:bg-emerald-500 active:scale-98 disabled:opacity-50"
               >
                 {isSaving ? "Đang lưu..." : "Lưu thay đổi"}
               </button>

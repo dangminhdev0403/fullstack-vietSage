@@ -35,7 +35,7 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
   return (
     <>
       <header className="rounded-[2rem] border border-[#24473d]/10 bg-[#fffaf0]/85 p-6 shadow-[0_22px_70px_rgba(31,61,53,0.10)] md:p-9">
-        <p className="text-sm font-bold uppercase tracking-[0.22em] text-[#bf7836]">
+        <p className="text-sm font-semibold uppercase tracking-[0.22em] text-[#bf7836]">
           Platform administration
         </p>
         <h1 className="vs-display mt-3 text-4xl font-semibold tracking-[-0.04em] text-[#17201b] md:text-5xl">
@@ -76,9 +76,9 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
                   <span className="grid size-12 place-items-center rounded-2xl bg-[#e6efe9] text-[#24473d]">
                     <VsIcon name={widget.icon} className="text-2xl" />
                   </span>
-                  <h3 className="mt-5 text-xl font-bold text-[#17201b]">{widget.title}</h3>
+                  <h3 className="mt-5 text-xl font-semibold text-[#17201b]">{widget.title}</h3>
                   <p className="mt-2 text-sm leading-6 text-[#6d756e]">{widget.description}</p>
-                  <span className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-[#bf7836]">
+                  <span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#bf7836]">
                     Mở module
                     <VsIcon name="arrow_forward" className="transition-transform group-hover:translate-x-1" />
                   </span>

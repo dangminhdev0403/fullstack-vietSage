@@ -174,7 +174,7 @@ export default async function AdminPermissionsPage({
           <VsIcon name="arrow_back" className="text-[14px]" />
           <span>Vai trò & Quyền</span>
         </Link>
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+        <h1 className="text-2xl font-semibold tracking-tight text-gray-900 sm:text-3xl">
           Vai trò & Quyền
         </h1>
         <p className="text-xs text-gray-500">

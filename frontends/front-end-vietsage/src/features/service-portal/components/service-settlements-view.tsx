@@ -50,7 +50,7 @@ export function ServiceSettlementsView() {
     },
     {
       id: "serviceGuest",
-      header: "Dịch vụ & khách hàng",
+      header: "Dịch vụ & Khách hàng",
       type: "text",
       width: "w-56 min-w-[200px]",
       cell: (item) => {

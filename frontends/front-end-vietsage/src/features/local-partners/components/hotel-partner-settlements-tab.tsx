@@ -295,7 +295,7 @@ export function HotelPartnerSettlementsTab({
     },
     {
       id: "service",
-      header: "Dịch vụ & đối tác",
+      header: "Dịch vụ & Đối tác",
       type: "text",
       width: "w-56 min-w-[190px]",
       cell: (item) => {
@@ -317,7 +317,7 @@ export function HotelPartnerSettlementsTab({
     },
     {
       id: "roomGuest",
-      header: "Phòng & khách hàng",
+      header: "Phòng & Khách hàng",
       type: "text",
       width: "w-44 min-w-[160px]",
       cell: (item) => {
@@ -463,15 +463,15 @@ export function HotelPartnerSettlementsTab({
           </span>
           <div className="text-3xl font-black text-amber-900 tracking-tight">
             {unsettledItems.length}{" "}
-            <span className="text-base font-extrabold text-amber-800">đơn</span>
+            <span className="text-base font-semibold text-amber-800">đơn</span>
           </div>
           <p className="text-xs font-semibold text-amber-800/90">
-            Cần đối soát & chuyển khoản
+            Cần đối soát & Chuyển khoản
           </p>
         </div>
 
         <div className="rounded-2xl border border-emerald-300 bg-gradient-to-br from-emerald-50 to-teal-50/70 p-6 shadow-xs space-y-2 hover:shadow-md transition-all">
-          <span className="text-xs font-extrabold text-emerald-900 uppercase tracking-wider flex items-center gap-1.5">
+          <span className="text-xs font-semibold text-emerald-900 uppercase tracking-wider flex items-center gap-1.5">
             <span>✓</span> Đã quyết toán
           </span>
           <div className="text-3xl font-black text-emerald-900 tracking-tight">

@@ -192,9 +192,9 @@ export function MobileCccdConnectionPanel({ hotelId }: { hotelId: string }) {
               <div className="flex flex-wrap items-center gap-3 pt-2">
                 <a
                   href={`/hotels/${hotelId}/rooms`}
-                  className="inline-flex min-h-12 items-center gap-2.5 rounded-xl bg-[#000080] px-6 py-3 text-sm sm:text-base font-bold text-white shadow-2xs transition-colors hover:bg-[#000060]"
+                  className="inline-flex min-h-12 items-center gap-2.5 rounded-xl bg-[#000080] px-6 py-3 text-sm sm:text-base font-semibold text-white shadow-2xs transition-colors hover:bg-[#000060]"
                 >
-                  <span>Đi tới Phòng & check-in</span>
+                  <span>Đi tới Phòng & Check-in</span>
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                   </svg>

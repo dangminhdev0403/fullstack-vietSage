@@ -240,8 +240,8 @@ export function AdminBillingClient() {
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400">
               <VsIcon name="payments" className="text-2xl" />
             </span>
-            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-              Quản lý hợp đồng & phí VietSage SaaS
+            <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">
+              Quản lý hợp đồng & Phí VietSage SaaS
             </h1>
           </div>
           <p className="mt-2 text-base text-slate-600 dark:text-slate-400">
@@ -262,14 +262,14 @@ export function AdminBillingClient() {
         {/* Card 1: Hợp đồng Active */}
         <div className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Hợp đồng Active
             </p>
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400">
               <VsIcon name="description" className="text-xl" />
             </span>
           </div>
-          <p className="mt-3 text-3xl font-black tracking-tight text-slate-900 dark:text-white">
+          <p className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">
             {summary?.activeContracts ?? 0}
           </p>
           <p className="mt-1 text-xs text-slate-500">Đang được tính phí phòng/ngày</p>
@@ -278,15 +278,15 @@ export function AdminBillingClient() {
         {/* Card 2: Phí đã chốt */}
         <div className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Phí đã chốt
             </p>
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
               <VsIcon name="fact_check" className="text-xl" />
             </span>
           </div>
-          <p className="mt-3 text-3xl font-black tracking-tight text-indigo-600 dark:text-indigo-400">
-            {Number(summary?.finalizedAmount ?? 0).toLocaleString("vi-VN")} <span className="text-sm font-bold text-indigo-600/80">VND</span>
+          <p className="mt-3 text-3xl font-semibold tracking-tight text-indigo-600 dark:text-indigo-400">
+            {Number(summary?.finalizedAmount ?? 0).toLocaleString("vi-VN")} <span className="text-sm font-semibold text-indigo-600/80">VND</span>
           </p>
           <p className="mt-1 text-xs text-slate-500">Tổng phí đã nghiệm thu kỳ hóa đơn</p>
         </div>
@@ -294,15 +294,15 @@ export function AdminBillingClient() {
         {/* Card 3: Đã thu */}
         <div className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Đã thu
             </p>
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
               <VsIcon name="payments" className="text-xl" />
             </span>
           </div>
-          <p className="mt-3 text-3xl font-black tracking-tight text-emerald-600 dark:text-emerald-400">
-            {Number(summary?.collectedAmount ?? 0).toLocaleString("vi-VN")} <span className="text-sm font-bold text-emerald-600/80">VND</span>
+          <p className="mt-3 text-3xl font-semibold tracking-tight text-emerald-600 dark:text-emerald-400">
+            {Number(summary?.collectedAmount ?? 0).toLocaleString("vi-VN")} <span className="text-sm font-semibold text-emerald-600/80">VND</span>
           </p>
           <p className="mt-1 text-xs text-slate-500">Đã ghi nhận thanh toán thực tế</p>
         </div>
@@ -310,15 +310,15 @@ export function AdminBillingClient() {
         {/* Card 4: Công nợ còn lại */}
         <div className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Công nợ còn lại
             </p>
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400">
               <VsIcon name="pending_actions" className="text-xl" />
             </span>
           </div>
-          <p className="mt-3 text-3xl font-black tracking-tight text-amber-600 dark:text-amber-400">
-            {Number(summary?.outstandingAmount ?? 0).toLocaleString("vi-VN")} <span className="text-sm font-bold text-amber-600/80">VND</span>
+          <p className="mt-3 text-3xl font-semibold tracking-tight text-amber-600 dark:text-amber-400">
+            {Number(summary?.outstandingAmount ?? 0).toLocaleString("vi-VN")} <span className="text-sm font-semibold text-amber-600/80">VND</span>
           </p>
           <p className="mt-1 text-xs text-slate-500 font-medium">
             {summary?.overduePeriodCount ?? 0} Kỳ quá hạn cần thu hồi
@@ -331,7 +331,7 @@ export function AdminBillingClient() {
         <nav className="flex gap-8">
           <button
             onClick={() => setActiveTab("contracts")}
-            className={`flex items-center gap-2 border-b-2 py-3 text-base font-bold transition-all ${
+            className={`flex items-center gap-2 border-b-2 py-3 text-base font-semibold transition-all ${
               activeTab === "contracts"
                 ? "border-emerald-600 text-emerald-600 dark:border-emerald-400 dark:text-emerald-400"
                 : "border-transparent text-slate-500 hover:text-slate-700"
@@ -348,7 +348,7 @@ export function AdminBillingClient() {
         <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <div className="inline-flex h-12 w-12 animate-spin items-center justify-center rounded-full border-4 border-emerald-500 border-t-transparent text-emerald-500"></div>
           <p className="mt-4 text-base font-semibold text-slate-600 dark:text-slate-400">
-            Đang tải dữ liệu hợp đồng & kỳ hóa đơn...
+            Đang tải dữ liệu hợp đồng & Kỳ hóa đơn...
           </p>
         </div>
       ) : contracts.length === 0 ? (
@@ -426,13 +426,13 @@ export function AdminBillingClient() {
                   ) : (
                     <div className="overflow-x-auto rounded-xl border border-slate-200/80 dark:border-slate-800">
                       <table className="w-full min-w-[680px] text-left text-sm">
-                        <thead className="bg-slate-100/70 text-xs font-bold uppercase tracking-wider text-slate-600 dark:bg-slate-800/60 dark:text-slate-400">
+                        <thead className="bg-slate-100/70 text-xs font-semibold uppercase tracking-wider text-slate-600 dark:bg-slate-800/60 dark:text-slate-400">
                           <tr>
-                            <th className="px-5 py-3.5 font-bold">Từ ngày</th>
-                            <th className="px-5 py-3.5 font-bold">Đến ngày</th>
-                            <th className="px-5 py-3.5 font-bold">Trạng thái thanh toán</th>
-                            <th className="px-5 py-3.5 font-bold">Tổng tiền & Dư nợ</th>
-                            <th className="px-5 py-3.5 font-bold text-right">Thao tác</th>
+                            <th className="px-5 py-3.5 font-semibold">Từ ngày</th>
+                            <th className="px-5 py-3.5 font-semibold">Đến ngày</th>
+                            <th className="px-5 py-3.5 font-semibold">Trạng thái thanh toán</th>
+                            <th className="px-5 py-3.5 font-semibold">Tổng tiền & Dư nợ</th>
+                            <th className="px-5 py-3.5 font-semibold text-right">Thao tác</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200/80 dark:divide-slate-800">
