@@ -227,7 +227,7 @@ const DEFAULT_NATIONALITIES: readonly { code: string; nameVi: string }[] = [
 const AUTO_SUBMIT_DELAY_SECONDS =
   Number(process.env.NEXT_PUBLIC_KBTT_AUTO_SUBMIT_DELAY_SECONDS) > 0
     ? Number(process.env.NEXT_PUBLIC_KBTT_AUTO_SUBMIT_DELAY_SECONDS)
-    : 15;
+    : 1800;
 
 const IS_AUTO_SUBMIT_ENABLED =
   process.env.NEXT_PUBLIC_KBTT_AUTO_SUBMIT_ENABLED !== "false";
