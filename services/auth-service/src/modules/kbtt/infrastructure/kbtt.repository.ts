@@ -138,6 +138,81 @@ export class KbttRepository {
     }
   }
 
+  async findOccupantsByStay(hotelId: string, stayId: string) {
+    try {
+      return await this.prisma.guestStayOccupant.findMany({
+        where: { hotelId, stayId },
+        include: {
+          stay: {
+            include: {
+              room: true,
+            },
+          },
+        },
+        orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+      });
+    } catch {
+      throw kbttUnavailable();
+    }
+  }
+
+  async findStayForOccupantCreation(hotelId: string, stayId: string) {
+    try {
+      return await this.prisma.guestStay.findFirst({
+        where: { id: stayId, hotelId },
+        include: { room: true },
+      });
+    } catch {
+      throw kbttUnavailable();
+    }
+  }
+
+  async createDefaultStayOccupant(
+    hotelId: string,
+    stay: {
+      id: string;
+      guestDisplayName: string;
+      guestPhone?: string | null;
+      guestIdentityNumber?: string | null;
+      guestDateOfBirth?: string | null;
+      guestGender?: string | null;
+      guestNationality?: string | null;
+      guestResidencePlace?: string | null;
+      room?: { roomNumber: string } | null;
+    },
+  ) {
+    try {
+      const isVietnamese =
+        !stay.guestNationality ||
+        stay.guestNationality.trim().toUpperCase() === "VNM" ||
+        /^\d{9,12}$/.test((stay.guestIdentityNumber || "").trim());
+      return await this.prisma.guestStayOccupant.create({
+        data: {
+          hotelId,
+          stayId: stay.id,
+          fullName: stay.guestDisplayName.trim(),
+          phone: stay.guestPhone,
+          identityNumber: stay.guestIdentityNumber,
+          dateOfBirth: stay.guestDateOfBirth,
+          gender: stay.guestGender,
+          nationality: stay.guestNationality,
+          residencePlace: stay.guestResidencePlace,
+          citizenshipKind: isVietnamese ? "VIETNAMESE" : "FOREIGN",
+          isPrimary: true,
+        },
+        include: {
+          stay: {
+            include: {
+              room: true,
+            },
+          },
+        },
+      });
+    } catch {
+      throw kbttUnavailable();
+    }
+  }
+
   async findActiveSubmittedOccupantByIdentity(
     hotelId: string,
     identityNumber: string,
@@ -361,6 +436,39 @@ export class KbttRepository {
           autoSubmitEnabled: true,
           autoSubmitTime: currentHHmm,
           status: "CONNECTED",
+        },
+        select: {
+          hotelId: true,
+          autoSubmitTime: true,
+          hotel: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      });
+    } catch {
+      throw kbttUnavailable();
+    }
+  }
+
+  async findHotelsWithPendingErrorDeclarations() {
+    try {
+      return await this.prisma.kbttHotelConnection.findMany({
+        where: {
+          status: "CONNECTED",
+          hotel: {
+            kbttGuestDeclarations: {
+              some: {
+                status: { in: ["FAILED", "UNKNOWN"] },
+                stay: {
+                  status: { in: ["ACTIVE", "CHECKED_IN", "CHECKOUT_PENDING"] },
+                  checkedOutAt: null,
+                },
+              },
+            },
+          },
         },
         select: {
           hotelId: true,

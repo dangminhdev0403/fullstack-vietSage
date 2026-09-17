@@ -945,7 +945,7 @@ export function StaffRoomsClient({
       await Swal.fire({
         icon: "success",
         title: "Đã mở phòng",
-        text: `Mã GuestOS: ${result.data.accessCode}.`,
+        text: `Mã GuestOS: ${result.data.accessCode}. Hồ sơ khách đang được tự động chuyển sang Khai báo tạm trú (BCA).`,
         confirmButtonColor: "#00003c",
       });
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
@@ -1074,8 +1074,8 @@ export function StaffRoomsClient({
         icon: "success",
         title: "Check-in hoàn tất",
         text: result.data.accessCode
-          ? `Mã GuestOS: ${result.data.accessCode}`
-          : "QR phòng đã sẵn sàng.",
+          ? `Mã GuestOS: ${result.data.accessCode}. Hồ sơ khách đang được tự động chuyển sang Khai báo tạm trú (BCA).`
+          : "QR phòng đã sẵn sàng. Hồ sơ khách đang được tự động chuyển sang Khai báo tạm trú (BCA).",
         confirmButtonColor: "#00003c",
       });
       await invalidateHotelRealtimeQueries(queryClient, hotelId);

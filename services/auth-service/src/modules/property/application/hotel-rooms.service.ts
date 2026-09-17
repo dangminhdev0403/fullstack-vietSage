@@ -16,7 +16,9 @@ import { AppLogger } from "../../../common/logging/app-logger.service";
 import {
   GUEST_REQUEST_EVENT_PUBLISHER,
   NOOP_GUEST_REQUEST_EVENT_PUBLISHER,
+  STAY_CHECK_IN_EVENT_PUBLISHER,
   type GuestRequestEventPublisher,
+  type StayCheckInEventPublisher,
 } from "../../../shared/events";
 import { CodesService } from "../../codes/codes-public";
 import { HotelAccessService } from "./hotel-access.service";
@@ -53,6 +55,9 @@ export class HotelRoomsService {
     @Optional()
     @Inject(GUEST_REQUEST_EVENT_PUBLISHER)
     eventPublisher?: GuestRequestEventPublisher,
+    @Optional()
+    @Inject(STAY_CHECK_IN_EVENT_PUBLISHER)
+    private readonly stayCheckInPublisher?: StayCheckInEventPublisher,
   ) {
     this.eventPublisher = eventPublisher ?? NOOP_GUEST_REQUEST_EVENT_PUBLISHER;
   }
@@ -327,6 +332,12 @@ export class HotelRoomsService {
       generateFolioNumber: (tx) => this.codesService.generateEntityCode("FOLIO", tx),
     });
 
+    this.stayCheckInPublisher?.publishStayCheckedIn({
+      hotelId,
+      stayId: result.stay.id,
+      actorUserId,
+    });
+
     return {
       stay: this.toStayData(result.stay),
       roomQrCode: this.toQrData(result.roomQrCode),
@@ -399,6 +410,12 @@ export class HotelRoomsService {
       tenantId: hotel.tenantId,
       generateReservationCode: (tx) => this.codesService.generateEntityCode("RESERVATION", tx),
       generateFolioNumber: (tx) => this.codesService.generateEntityCode("FOLIO", tx),
+    });
+
+    this.stayCheckInPublisher?.publishStayCheckedIn({
+      hotelId,
+      stayId: result.stay.id,
+      actorUserId,
     });
 
     return {

@@ -547,7 +547,7 @@ export function OwnerStayRoomGridClient({
       await Swal.fire({
         icon: "success",
         title: "Đã mở phòng cho khách",
-        text: `Mã truy cập GuestOS: ${result.data.accessCode}. QR phòng đã được kích hoạt.`,
+        text: `Mã truy cập GuestOS: ${result.data.accessCode}. QR phòng đã được kích hoạt. Hồ sơ khách đang được tự động chuyển sang Khai báo tạm trú (BCA).`,
         confirmButtonText: "Hoàn tất",
         confirmButtonColor: "#00003c",
       });

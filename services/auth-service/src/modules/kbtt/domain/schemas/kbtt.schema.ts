@@ -701,3 +701,14 @@ export const kbttDevUpdateOccupantsSchema = z.object({
   occupants: z.array(kbttDevOccupantUpdateItemSchema).min(1),
 });
 export type KbttDevUpdateOccupants = z.infer<typeof kbttDevUpdateOccupantsSchema>;
+
+export const kbttBatchSubmitSummarySchema = z.object({
+  totalEligible: z.number().int().nonnegative(),
+  successCount: z.number().int().nonnegative(),
+  failureCount: z.number().int().nonnegative(),
+  unknownCount: z.number().int().nonnegative().optional().default(0),
+  isDryRun: z.boolean().optional().default(false),
+  scheduledTime: z.string().optional(),
+});
+export type KbttBatchSubmitSummary = z.infer<typeof kbttBatchSubmitSummarySchema>;
+

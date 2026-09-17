@@ -465,12 +465,13 @@ export class TelegramNotificationService {
       lines.push(`• Chưa rõ trạng thái (Timeout): <b>${summary.unknownCount}</b> ⚠️`);
     }
 
-    lines.push(``);
-    lines.push(
-      summary.isDryRun
-        ? `<i>(Đây là phiên chạy thử nghiệm, chưa gửi dữ liệu thật tới hệ thống BCA)</i>`
-        : `<i>(Hồ sơ timeout cần nhân viên lễ tân kiểm tra lại trước khi gửi thủ công)</i>`,
-    );
+    if (summary.isDryRun) {
+      lines.push(``);
+      lines.push(`<i>(Đây là phiên chạy thử nghiệm, chưa gửi dữ liệu thật tới hệ thống BCA)</i>`);
+    } else if (summary.unknownCount > 0) {
+      lines.push(``);
+      lines.push(`<i>(Hồ sơ timeout cần nhân viên lễ tân kiểm tra lại trước khi gửi thủ công)</i>`);
+    }
 
     return lines.join("\n");
   }
@@ -493,22 +494,28 @@ export class TelegramNotificationService {
     },
   ): Promise<boolean> {
     try {
-      const route = await this.prisma.notificationRoute.findFirst({
-        where: { hotelId, isActive: true, purpose: "KBTT_AUTO_SUBMIT" },
-      });
-
       const targetChatIds = new Set<string>();
-      if (route?.telegramChatId) targetChatIds.add(route.telegramChatId);
-      const aggregateChatId = process.env.TELEGRAM_KBTT_AGGREGATE_CHAT_ID;
-      if (aggregateChatId) targetChatIds.add(aggregateChatId);
+      const aggregateChatId =
+        process.env.TELEGRAM_KBTT_AGGREGATE_CHAT_ID?.trim() ||
+        process.env.TELEGRAM_KBTT_CHAT_ID?.trim() ||
+        process.env.TELEGRAM_AGGREGATE_CHAT_ID?.trim() ||
+        process.env.TELEGRAM_CHAT_ID?.trim() ||
+        process.env.TELEGRAM_DEFAULT_CHAT_ID?.trim();
+
+      if (aggregateChatId) {
+        targetChatIds.add(aggregateChatId);
+      }
 
       if (targetChatIds.size === 0) {
-        this.logger.warn("Telegram route for KBTT auto-submit not found and no aggregate chat configured", {
-          module: "telegram",
-          service: TelegramNotificationService.name,
-          event: "KBTT_TELEGRAM_ROUTE_NOT_FOUND",
-          hotelId,
-        });
+        this.logger.warn(
+          "Telegram aggregate chat ID is not configured in env (TELEGRAM_KBTT_AGGREGATE_CHAT_ID)",
+          {
+            module: "telegram",
+            service: TelegramNotificationService.name,
+            event: "KBTT_TELEGRAM_AGGREGATE_NOT_CONFIGURED",
+            hotelId,
+          },
+        );
         return false;
       }
 
@@ -528,22 +535,40 @@ export class TelegramNotificationService {
       }
 
       const text = this.formatKbttSummaryMessage({ ...summary, hotelName });
+      let sentCount = 0;
       for (const chatId of targetChatIds) {
-        await this.callTelegram("sendMessage", {
-          chat_id: chatId,
-          text,
-          parse_mode: "HTML",
-        });
+        try {
+          await this.callTelegram("sendMessage", {
+            chat_id: chatId,
+            text,
+            parse_mode: "HTML",
+          });
+          sentCount++;
+        } catch (sendError: any) {
+          this.logger.warn(
+            `Failed to send Telegram KBTT summary to chatId ${chatId}: ${this.errorMessage(sendError)}`,
+            {
+              module: "telegram",
+              service: TelegramNotificationService.name,
+              event: "KBTT_TELEGRAM_SUMMARY_PARTIAL_FAILURE",
+              hotelId,
+              chatId,
+            },
+          );
+        }
       }
 
-      this.logger.info("Telegram KBTT summary sent successfully", {
-        module: "telegram",
-        service: TelegramNotificationService.name,
-        event: "KBTT_TELEGRAM_SUMMARY_SENT",
-        hotelId,
-        recipientCount: targetChatIds.size,
-      });
-      return true;
+      if (sentCount > 0) {
+        this.logger.info("Telegram KBTT summary sent successfully", {
+          module: "telegram",
+          service: TelegramNotificationService.name,
+          event: "KBTT_TELEGRAM_SUMMARY_SENT",
+          hotelId,
+          recipientCount: sentCount,
+        });
+        return true;
+      }
+      return false;
     } catch (error: any) {
       this.logger.error(
         `Failed to send Telegram KBTT summary for hotel ${hotelId}: ${this.errorMessage(error)}`,
@@ -564,6 +589,11 @@ export class TelegramNotificationService {
     isReconciled?: boolean;
     errorMessage?: string;
   }): Promise<boolean> {
+    if (process.env.TELEGRAM_KBTT_ENABLE_SINGLE_NOTIFICATIONS !== "true") {
+      // Per user policy ("không gửi về tele riêng nữa, chỉ gửi tổng hợp sau khi hoàn tất"),
+      // single occupant telegram notifications are disabled by default.
+      return false;
+    }
     try {
       const route =
         (await this.prisma.notificationRoute.findFirst({
@@ -573,18 +603,11 @@ export class TelegramNotificationService {
           where: { hotelId: data.hotelId, isActive: true },
         }));
 
-      const targetChatIds = new Set<string>();
-      if (route?.telegramChatId?.trim()) {
-        targetChatIds.add(route.telegramChatId.trim());
-      }
-      const aggregateChatId = process.env.TELEGRAM_KBTT_AGGREGATE_CHAT_ID;
-      if (aggregateChatId?.trim()) {
-        targetChatIds.add(aggregateChatId.trim());
-      }
-
-      if (targetChatIds.size === 0) {
+      if (!route?.telegramChatId?.trim()) {
         return false;
       }
+
+      const targetChatId = route.telegramChatId.trim();
 
       let hotelName = data.hotelName;
       if (!hotelName || hotelName === data.hotelId) {
@@ -618,23 +641,13 @@ export class TelegramNotificationService {
       ].filter(Boolean);
 
       const text = lines.join("\n");
-      let sentCount = 0;
-      for (const chatId of targetChatIds) {
-        try {
-          await this.callTelegram("sendMessage", {
-            chat_id: chatId,
-            text,
-            parse_mode: "HTML",
-          });
-          sentCount++;
-        } catch (sendError: any) {
-          this.logger.warn(
-            `Failed to send Telegram KBTT single submit to chatId ${chatId}: ${this.errorMessage(sendError)}`,
-          );
-        }
-      }
+      await this.callTelegram("sendMessage", {
+        chat_id: targetChatId,
+        text,
+        parse_mode: "HTML",
+      });
 
-      return sentCount > 0;
+      return true;
     } catch (error: any) {
       this.logger.error(`Failed to send Telegram KBTT single submit: ${this.errorMessage(error)}`);
       return false;

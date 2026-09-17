@@ -24,6 +24,7 @@ describe("KbttAutoSubmitSchedulerService", () => {
         { hotelId: "hotel-2", autoSubmitTime: "04:30" },
       ]),
       findDueScheduledRuns: jest.fn().mockResolvedValue([]),
+      findHotelsWithPendingErrorDeclarations: jest.fn().mockResolvedValue([]),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -221,5 +222,43 @@ describe("KbttAutoSubmitSchedulerService", () => {
     (repository.findDueScheduledRuns as jest.Mock).mockResolvedValue([]);
     await scheduler.handleCron();
     expect(executionCount).toBe(1);
+  });
+
+  it("triggers error recovery for hotels with pending failed/unknown declarations when minute % 15 === 0", async () => {
+    (repository.findDueHotelsForAutoSubmit as jest.Mock).mockResolvedValue([]);
+    (repository.findDueScheduledRuns as jest.Mock).mockResolvedValue([]);
+    (repository.findHotelsWithPendingErrorDeclarations as jest.Mock).mockResolvedValue([
+      { hotelId: "hotel-err-1" },
+    ]);
+
+    // Mock Date so minute % 15 === 0
+    const originalDate = global.Date;
+    const mockNow = new Date("2026-09-17T03:00:00.000Z"); // 10:00 in Vietnam (+7), minute 0
+    // @ts-expect-error mock Date
+    global.Date = class extends originalDate {
+      constructor(...args: any[]) {
+        if (args.length === 0) {
+          super(mockNow.getTime());
+        } else {
+          // @ts-expect-error spread args
+          super(...args);
+        }
+      }
+      static now() {
+        return mockNow.getTime();
+      }
+    };
+
+    try {
+      await scheduler.handleCron();
+      expect(repository.findHotelsWithPendingErrorDeclarations).toHaveBeenCalled();
+      expect(kbttService.executeAutoSubmitForHotel).toHaveBeenCalledWith(
+        "hotel-err-1",
+        expect.any(Date),
+        true,
+      );
+    } finally {
+      global.Date = originalDate;
+    }
   });
 });

@@ -87,16 +87,28 @@ export async function handleKbttAutoSubmitRequest(
   let body: unknown;
   const url = new URL(request.url);
   const mode = url.searchParams.get("mode");
-  if (method === "PUT" || (method === "POST" && mode === "schedule")) {
+  if (method === "PUT" || (method === "POST" && (mode === "schedule" || mode === "summary"))) {
     body = await request.json().catch(() => null);
   }
   const queryParam = method === "POST" && mode ? `?mode=${encodeURIComponent(mode)}` : "";
 
   try {
     const result = await executeOwnerBackendRequest(`kbtt auto-submit ${method}`, async (accessToken) => {
+      const endpoint =
+        method === "POST"
+          ? mode === "telegram-test"
+            ? "/telegram-test"
+            : mode === "schedule"
+              ? "/schedule"
+              : mode === "summary"
+                ? "/summary"
+                : `/test${queryParam}`
+          : method === "DELETE"
+            ? "/schedule"
+            : "";
       const payload = await httpServer.request<{ data: unknown }>(
         method,
-        `/hotels/${encodeURIComponent(hotelId)}/kbtt/auto-submit${method === "POST" ? (mode === "telegram-test" ? "/telegram-test" : mode === "schedule" ? "/schedule" : `/test${queryParam}`) : method === "DELETE" ? "/schedule" : ""}`,
+        `/hotels/${encodeURIComponent(hotelId)}/kbtt/auto-submit${endpoint}`,
         body,
         { accessToken, headers: { "Cache-Control": "no-store" } },
       );

@@ -3,6 +3,7 @@ import {
   kbttAutoSubmitConfigSchema,
   kbttAutoSubmitRunSummarySchema,
   kbttAutoSubmitStateSchema,
+  kbttBatchSubmitSummarySchema,
   kbttCatalogListSchema,
   kbttConnectionSchema,
   kbttDeclarationListSchema,
@@ -12,6 +13,7 @@ import {
   type KbttAutoSubmitConfig,
   type KbttAutoSubmitRunSummary,
   type KbttAutoSubmitState,
+  type KbttBatchSubmitSummary,
   type KbttCatalogItem,
   type KbttCatalogKind,
   type KbttConnection,
@@ -201,6 +203,20 @@ export const kbttRepository = {
     const payload = await requestInternalApiEnvelope<{ sent: boolean }>(
       `${autoSubmitPath(hotelId)}?mode=telegram-test`,
       { method: "POST" },
+    );
+    return payload.data;
+  },
+  async sendBatchSummary(
+    hotelId: string,
+    summary: KbttBatchSubmitSummary,
+  ): Promise<{ sent: boolean }> {
+    const validated = kbttBatchSubmitSummarySchema.parse(summary);
+    const payload = await requestInternalApiEnvelope<{ sent: boolean }>(
+      `${autoSubmitPath(hotelId)}?mode=summary`,
+      {
+        method: "POST",
+        body: validated,
+      },
     );
     return payload.data;
   },

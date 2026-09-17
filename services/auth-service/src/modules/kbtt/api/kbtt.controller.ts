@@ -31,6 +31,7 @@ import {
   kbttAutoSubmitConfigSchema,
   kbttAutoSubmitScheduleSchema,
   kbttAutoSubmitTestQuerySchema,
+  kbttBatchSubmitSummarySchema,
   kbttCatalogKindSchema,
   kbttCatalogQuerySchema,
   kbttCredentialsSchema,
@@ -441,6 +442,42 @@ export class KbttController {
       request.user.userId,
       request.user.roleId,
       parseWithZod(hotelIdParamSchema, hotelId),
+    );
+  }
+
+  @Post("auto-submit/summary")
+  @HttpCode(200)
+  @RequirePermission("hotel.kbtt.declarations.manage")
+  @ApiOperation({ summary: "Send aggregated batch submission summary to Telegram aggregate channel" })
+  sendAutoSubmitSummary(
+    @Req() request: RequestWithRequiredUser,
+    @Param("hotelId") hotelId: string,
+    @Body() body: unknown,
+  ) {
+    const valid = parseWithZod(kbttBatchSubmitSummarySchema, body);
+    return this.service.sendBatchSummary(
+      request.user.userId,
+      request.user.roleId,
+      parseWithZod(hotelIdParamSchema, hotelId),
+      valid,
+    );
+  }
+
+  @Post("declarations/batch-summary")
+  @HttpCode(200)
+  @RequirePermission("hotel.kbtt.declarations.manage")
+  @ApiOperation({ summary: "Send aggregated batch submission summary to Telegram aggregate channel" })
+  sendDeclarationsBatchSummary(
+    @Req() request: RequestWithRequiredUser,
+    @Param("hotelId") hotelId: string,
+    @Body() body: unknown,
+  ) {
+    const valid = parseWithZod(kbttBatchSubmitSummarySchema, body);
+    return this.service.sendBatchSummary(
+      request.user.userId,
+      request.user.roleId,
+      parseWithZod(hotelIdParamSchema, hotelId),
+      valid,
     );
   }
 

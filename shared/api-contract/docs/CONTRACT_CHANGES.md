@@ -4,6 +4,25 @@
 
 ## Unreleased
 
+- **KBTT Telegram Centralized Batch Notification Policy**:
+  - Disabled per-guest individual submit notifications to Telegram by default (`TELEGRAM_KBTT_ENABLE_SINGLE_NOTIFICATIONS` defaults to `false`) to eliminate spamming Telegram groups during single or batch submissions.
+  - KBTT auto-submit and batch submission summaries are now routed exclusively to the centralized Telegram aggregate channel configured in environment variables (`TELEGRAM_KBTT_AGGREGATE_CHAT_ID`, with fallbacks to `TELEGRAM_CHAT_ID` / `TELEGRAM_KBTT_CHAT_ID`), completely bypassing hotel-specific individual telegram routes ("không gửi về tele riêng nữa, chỉ cần gửi về tele tổng đã lưu trong env").
+  - Added endpoints `POST /hotels/{hotelId}/kbtt/auto-submit/summary` and `POST /hotels/{hotelId}/kbtt/declarations/batch-summary` accepting `{ totalEligible, successCount, failureCount, unknownCount?, isDryRun?, scheduledTime? }` requiring `hotel.kbtt.declarations.manage`.
+  - Frontend batch execution ("Nộp tất cả" and automated countdown timer) automatically dispatches this summary after all row submissions complete, sending a single unified summary report to the central Telegram channel.
+
+- **Reception Check-in to KBTT (BCA) Auto-Push & Error Recovery**:
+  - When a guest is checked in at reception (`POST /hotels/{hotelId}/stays` or `POST /hotels/{hotelId}/reservations/{id}/check-in`), a decoupled, non-blocking event is emitted to `StayCheckInEventBus`.
+  - The check-in request to reception returns immediately with HTTP 200/201 without blocking or throwing errors to the front desk.
+  - In the background, `KbttService` runs `triggerCheckInBcaPush`:
+    - Finds or creates the stay occupant and defaults.
+    - Runs Zod validation (`kbttVietnameseReadySchema` / `kbttForeignReadySchema`).
+    - If validation fails (e.g. missing identity number or date of birth), creates/updates the declaration with `status: "FAILED"`, `providerCode: "LOCAL_VALIDATION"`, and user-facing error messages. The record surfaces immediately on the KBTT management page with "Bị từ chối" status for staff to review and update (handling identically to bulk check-in records).
+    - If valid and the hotel is connected, pushes the declaration to BCA C06. Successful push or detected stay duplicate reconciliation transitions status to `SUBMITTED`.
+    - If transient timeout / network error occurs, transitions status to `UNKNOWN` and schedules an `ERROR_RETRY` run in 15 minutes.
+    - `KbttAutoSubmitSchedulerService` periodically scans every 15 minutes for connected hotels with active `FAILED` or `UNKNOWN` declarations to retry eligible transient errors automatically.
+    - `listDeclarations`, `getDeclaration`, and `viewDeclaration` now expose actual declaration statuses (`FAILED`, `UNKNOWN`, etc.) without masking non-submitted items to `DRAFT`.
+
+
 - Added private hotel-scoped KBTT connection endpoints: `GET|PUT|DELETE /hotels/{hotelId}/kbtt/connection` and `POST /hotels/{hotelId}/kbtt/connection/check`. GET requires `hotel.kbtt.view`; mutations require `hotel.kbtt.manage`; every action validates active-role hotel access. Migration grants the capabilities to existing SUPER_ADMIN, TENANT_OWNER and HOTEL_OWNER templates only.
 - PUT accepts only `{username,password}` (write-only, maximum lengths 120/256). Authentication must succeed before encrypted credentials are inserted/replaced; failed replacement preserves the previous connection. Both HTTP success and provider `code === "200"` plus `kbtt:create-3th` authority are required.
 - Standard success-envelope data: `{configured,status,maskedUsername,csltId,csltKhuVuc,csltDonVi,maTTCuaCslt,maPxCuaCslt,isCsltChinh,lastCheckedAt,lastConnectedAt,lastErrorCode,lastErrorMessage}`. Status is `DISCONNECTED|CONNECTED|AUTH_FAILED`; absent values are null, timestamps ISO 8601, maskedUsername fully masked. No password, original username, ciphertext, keys or provider tokens are returned. Responses use `Cache-Control: no-store`.

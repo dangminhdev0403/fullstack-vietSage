@@ -1,10 +1,14 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Inject, Injectable, NotFoundException, Optional } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import {
   addHours,
   generateOpaqueToken,
   hashOpaqueToken,
 } from "../../../common/security/token-hash.util";
+import {
+  STAY_CHECK_IN_EVENT_PUBLISHER,
+  type StayCheckInEventPublisher,
+} from "../../../shared/events";
 import { CodesService } from "../../codes/codes-public";
 import type {
   AssignReservationRoomBodyInput,
@@ -20,6 +24,9 @@ export class ReservationsService {
     private readonly reservationsRepository: ReservationsRepository,
     private readonly codesService: CodesService,
     private readonly hotelAccessService: HotelAccessService,
+    @Optional()
+    @Inject(STAY_CHECK_IN_EVENT_PUBLISHER)
+    private readonly stayCheckInPublisher?: StayCheckInEventPublisher,
   ) {}
 
   async createReservation(
@@ -97,6 +104,15 @@ export class ReservationsService {
       generateFolioNumber: (tx: Prisma.TransactionClient) =>
         this.codesService.generateEntityCode("FOLIO", tx),
     });
+
+    if (!result.idempotent) {
+      this.stayCheckInPublisher?.publishStayCheckedIn({
+        hotelId,
+        stayId: result.stay.id,
+        actorUserId,
+      });
+    }
+
     return {
       idempotent: result.idempotent,
       accessCode: result.idempotent ? null : accessCode,

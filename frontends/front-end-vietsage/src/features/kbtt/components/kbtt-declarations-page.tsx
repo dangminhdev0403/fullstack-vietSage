@@ -222,6 +222,14 @@ const DEFAULT_NATIONALITIES: readonly { code: string; nameVi: string }[] = [
   { code: "ESP", nameVi: "Tây Ban Nha" },
 ];
 
+const AUTO_SUBMIT_DELAY_SECONDS =
+  Number(process.env.NEXT_PUBLIC_KBTT_AUTO_SUBMIT_DELAY_SECONDS) > 0
+    ? Number(process.env.NEXT_PUBLIC_KBTT_AUTO_SUBMIT_DELAY_SECONDS)
+    : 15;
+
+const IS_AUTO_SUBMIT_ENABLED =
+  process.env.NEXT_PUBLIC_KBTT_AUTO_SUBMIT_ENABLED !== "false";
+
 function formatStayDateTimeForForm(
   dateStr: string | null | undefined,
 ): string | undefined {
@@ -445,6 +453,24 @@ function SparklesIcon({ className = "h-4 w-4" }: { className?: string }) {
         strokeLinecap="round"
         strokeLinejoin="round"
         d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z"
+      />
+    </svg>
+  );
+}
+
+function ClockIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
       />
     </svg>
   );
@@ -676,6 +702,9 @@ export function KbttDeclarationsPage({
 
   const saveMutation = useMutation(boundResource.mutations.saveDraft.options());
   const submitMutation = useMutation(boundResource.mutations.submit.options());
+  const sendBatchSummaryMutation = useMutation(
+    boundResource.mutations.sendBatchSummary.options(),
+  );
   const devResetMutation = useMutation(
     boundResource.mutations.devResetDeclarations.options(),
   );
@@ -1090,6 +1119,22 @@ export function KbttDeclarationsPage({
       }
     }
 
+    const totalBatchCount = unsubmittedRows.length;
+    const failedBatchCount = errorItems.length;
+    if (totalBatchCount > 0) {
+      try {
+        await sendBatchSummaryMutation.mutateAsync({
+          totalEligible: totalBatchCount,
+          successCount,
+          failureCount: failedBatchCount,
+          unknownCount: 0,
+          isDryRun: false,
+        });
+      } catch {
+        // non-blocking
+      }
+    }
+
     setIsSubmittingBatch(false);
     handleRefresh();
 
@@ -1112,7 +1157,132 @@ export function KbttDeclarationsPage({
         }),
       );
     }
-  }, [selectableRows, saveInlineRow, submitMutation, handleRefresh]);
+  }, [selectableRows, saveInlineRow, submitMutation, sendBatchSummaryMutation, handleRefresh]);
+
+  const [isAutoPaused, setIsAutoPaused] = useState(false);
+  const [countdownSeconds, setCountdownSeconds] = useState<number | null>(() =>
+    IS_AUTO_SUBMIT_ENABLED && unsubmittedCount > 0
+      ? AUTO_SUBMIT_DELAY_SECONDS
+      : null,
+  );
+
+  const executeAutoSubmitNow = useCallback(async () => {
+    const unsubmittedRows = selectableRows;
+    if (unsubmittedRows.length === 0) return;
+
+    setIsSubmittingBatch(true);
+    let successCount = 0;
+    const errorItems: Array<{ room?: string; name?: string; message: string }> = [];
+
+    const settledResults = await Promise.allSettled(
+      unsubmittedRows.map(async (row) => {
+        await saveInlineRow(row);
+        await submitMutation.mutateAsync({ occupantId: row.occupantId });
+        return row;
+      }),
+    );
+
+    for (let i = 0; i < settledResults.length; i++) {
+      const res = settledResults[i];
+      const row = unsubmittedRows[i];
+      if (res.status === "fulfilled") {
+        successCount++;
+      } else {
+        const msg = errorText(res.reason);
+        errorItems.push({
+          room: row.roomNumber ?? "—",
+          name: row.fullName,
+          message: msg,
+        });
+      }
+    }
+
+    const totalBatchCount = unsubmittedRows.length;
+    const failedBatchCount = errorItems.length;
+    if (totalBatchCount > 0) {
+      try {
+        await sendBatchSummaryMutation.mutateAsync({
+          totalEligible: totalBatchCount,
+          successCount,
+          failureCount: failedBatchCount,
+          unknownCount: 0,
+          isDryRun: false,
+        });
+      } catch {
+        // non-blocking
+      }
+    }
+
+    setIsSubmittingBatch(false);
+    handleRefresh();
+
+    if (errorItems.length === 0) {
+      await showSuccessAlert(
+        "Tự động gửi BCA thành công",
+        `Hệ thống VietSage đã tự động đẩy thành công ${successCount} hồ sơ khách lên Cổng DVC Bộ Công An.`,
+      );
+    } else {
+      setCountdownSeconds(AUTO_SUBMIT_DELAY_SECONDS);
+      await showErrorAlert(
+        "Kết quả tự động gửi BCA",
+        formatBatchResultHtml({
+          total: unsubmittedRows.length,
+          success: successCount,
+          failed: errorItems.length,
+          errors: errorItems,
+          itemTypeLabel: "khách",
+          guidance:
+            "Vui lòng kiểm tra lại thông tin của các phòng bị từ chối trước khi hệ thống thực hiện lượt quét tự động tiếp theo.",
+        }),
+      );
+    }
+  }, [selectableRows, saveInlineRow, submitMutation, sendBatchSummaryMutation, handleRefresh]);
+
+  // Synchronize countdown with unsubmittedCount:
+  // - If unsubmittedCount === 0: STOP countdown immediately (set to null)
+  // - If unsubmittedCount > 0 and countdown is null (and not currently submitting): initialize countdown
+  useEffect(() => {
+    if (!IS_AUTO_SUBMIT_ENABLED) {
+      setCountdownSeconds(null);
+      return;
+    }
+    if (unsubmittedCount === 0) {
+      setCountdownSeconds(null);
+    } else if (countdownSeconds === null && !isSubmittingBatch) {
+      setCountdownSeconds(AUTO_SUBMIT_DELAY_SECONDS);
+    }
+  }, [unsubmittedCount, isSubmittingBatch, countdownSeconds]);
+
+  // Timer interval: ticks down each second when active
+  useEffect(() => {
+    if (
+      !IS_AUTO_SUBMIT_ENABLED ||
+      isAutoPaused ||
+      isSubmittingBatch ||
+      unsubmittedCount === 0 ||
+      countdownSeconds === null
+    ) {
+      return;
+    }
+
+    if (countdownSeconds <= 0) {
+      setCountdownSeconds(null);
+      void executeAutoSubmitNow();
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setCountdownSeconds((prev) => (prev !== null ? prev - 1 : null));
+    }, 1000);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    countdownSeconds,
+    isAutoPaused,
+    isSubmittingBatch,
+    unsubmittedCount,
+    executeAutoSubmitNow,
+  ]);
 
   const handleSubmitSingle = useCallback(
     async (row: KbttDeclarationListItem) => {
@@ -1300,58 +1470,170 @@ export function KbttDeclarationsPage({
         </button>
       </div>
 
-      {/* Upload all & Dev tools bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <p className="text-sm text-slate-600">
-            {unsubmittedCount} hồ sơ chưa gửi · các hồ sơ đã gửi được khóa
-          </p>
-          {isDevMode && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 border border-amber-300">
-              ⚡ Chế độ Dev: Mở khóa sửa Số giấy tờ
-            </span>
-          )}
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Dev Tools Modal Button */}
-          <button
-            type="button"
-            onClick={() => setIsDevModalOpen(true)}
-            title="Mở bảng can thiệp DB: sửa Số giấy tờ và đổi trạng thái về Chưa gửi"
-            className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-base font-semibold text-amber-900 shadow-xs hover:bg-amber-100 hover:border-amber-400 transition-colors"
-          >
-            <WrenchIcon className="h-4 w-4 text-amber-700" />
-            <span>Dev: Can thiệp DB</span>
-          </button>
+      {/* Khối Tự động gửi BCA (Production Auto-Submit Engine) */}
+      {unsubmittedCount === 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 sm:p-5 text-sm text-emerald-900 shadow-2xs">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+              <svg
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2.5}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="m4.5 12.75 6 6 9-13.5"
+                />
+              </svg>
+            </div>
+            <div>
+              <p className="font-bold text-base text-emerald-950">
+                Toàn bộ hồ sơ đã gửi BCA thành công
+              </p>
+              <p className="text-xs sm:text-sm text-emerald-800 mt-0.5">
+                Tự động gửi tạm dừng (sẽ tự động kích hoạt đếm ngược {AUTO_SUBMIT_DELAY_SECONDS}s khi có khách check-in mới).
+              </p>
+            </div>
+          </div>
 
-          {/* Quick 1-click Reset button */}
-          <button
-            type="button"
-            onClick={() => handleDevResetAll(false)}
-            disabled={isDevLoading || isSubmittingBatch}
-            title="Đổi trạng thái toàn bộ hồ sơ về Chưa gửi (DRAFT) để test đẩy lại"
-            className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-xs hover:bg-slate-50 disabled:opacity-50 transition-colors"
-          >
-            <RefreshIcon
-              className={`h-4 w-4 ${isDevLoading ? "animate-spin" : "text-amber-600"}`}
+          <div className="flex flex-wrap items-center gap-2.5">
+            {isDevMode && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setIsDevModalOpen(true)}
+                  title="Mở bảng can thiệp DB: sửa Số giấy tờ và đổi trạng thái về Chưa gửi"
+                  className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3.5 py-1.5 text-sm font-semibold text-amber-900 shadow-xs hover:bg-amber-100 transition-colors"
+                >
+                  <WrenchIcon className="h-4 w-4 text-amber-700" />
+                  <span>Dev: Can thiệp DB</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDevResetAll(false)}
+                  disabled={isDevLoading || isSubmittingBatch}
+                  title="Đổi trạng thái toàn bộ hồ sơ về Chưa gửi (DRAFT) để test đẩy lại"
+                  className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-sm font-semibold text-slate-700 shadow-xs hover:bg-slate-50 disabled:opacity-50 transition-colors"
+                >
+                  <RefreshIcon
+                    className={`h-4 w-4 ${isDevLoading ? "animate-spin" : "text-amber-600"}`}
+                  />
+                  <span>Reset Chưa gửi</span>
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-emerald-900/15 bg-gradient-to-r from-emerald-50/90 via-teal-50/50 to-slate-50/80 p-4 sm:p-5 shadow-xs transition-all space-y-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-emerald-900 shadow-2xs">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600"></span>
+                </span>
+                Tự động đẩy BCA (Production)
+              </span>
+
+              <div className="flex items-center gap-2">
+                <ClockIcon className="h-5 w-5 text-emerald-700 animate-pulse" />
+                <span className="text-base font-bold text-slate-900">
+                  {isAutoPaused ? (
+                    <>
+                      Tự động gửi đang tạm dừng (
+                      {countdownSeconds ?? AUTO_SUBMIT_DELAY_SECONDS}s)
+                    </>
+                  ) : (
+                    <>
+                      Tự động gửi BCA sau:{" "}
+                      <span className="text-emerald-800 font-extrabold text-lg">
+                        {countdownSeconds ?? AUTO_SUBMIT_DELAY_SECONDS}s
+                      </span>
+                    </>
+                  )}
+                </span>
+                <span className="text-xs text-slate-500 font-medium hidden md:inline">
+                  · Đang có <strong>{unsubmittedCount}</strong> hồ sơ sẵn sàng đẩy
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsAutoPaused((prev) => !prev)}
+                disabled={isSubmittingBatch}
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-sm font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 disabled:opacity-40 transition-colors"
+              >
+                {isAutoPaused ? "▶ Tiếp tục" : "⏸ Tạm dừng"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => void executeAutoSubmitNow()}
+                disabled={isSubmittingBatch}
+                className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#064e3b] px-4 py-1.5 text-sm font-semibold text-white shadow-xs hover:bg-[#043327] disabled:opacity-40 transition-colors"
+              >
+                <CloudUploadIcon className="h-4 w-4" />
+                {isSubmittingBatch
+                  ? "Đang gửi..."
+                  : `Gửi ngay (${unsubmittedCount})`}
+              </button>
+            </div>
+          </div>
+
+          {/* Progress bar visual */}
+          <div className="w-full bg-emerald-100/70 h-1.5 rounded-full overflow-hidden">
+            <div
+              className="bg-emerald-600 h-full transition-all duration-1000 ease-linear"
+              style={{
+                width: `${Math.max(
+                  0,
+                  Math.min(
+                    100,
+                    (((countdownSeconds ?? AUTO_SUBMIT_DELAY_SECONDS)) /
+                      AUTO_SUBMIT_DELAY_SECONDS) *
+                      100,
+                  ),
+                )}%`,
+              }}
             />
-            <span>Reset Chưa gửi</span>
-          </button>
+          </div>
 
-          {/* Upload all */}
-          <button
-            type="button"
-            onClick={handleSubmitAll}
-            disabled={unsubmittedCount === 0 || isSubmittingBatch}
-            className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl bg-[#064e3b] px-5 py-2 text-base font-semibold text-white shadow-xs hover:bg-[#043327] disabled:opacity-40 transition-colors"
-          >
-            <CloudUploadIcon className="h-4 w-4" />
-            {isSubmittingBatch
-              ? "Đang gửi..."
-              : `Upload tất cả (${unsubmittedCount})`}
-          </button>
+          <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 pt-1">
+            <p>
+              Hệ thống tự động đồng bộ hồ sơ lên Cổng DVC Bộ Công An theo chu kỳ đã cấu hình ({AUTO_SUBMIT_DELAY_SECONDS}s). Khi toàn bộ hồ sơ được nộp xong, bộ đếm sẽ tự động dừng.
+            </p>
+            <div className="flex items-center gap-2">
+              {isDevMode && (
+                <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                  ⚡ Chế độ Dev
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => setIsDevModalOpen(true)}
+                className="text-amber-800 hover:underline font-semibold"
+              >
+                Dev: Can thiệp DB
+              </button>
+              <span>·</span>
+              <button
+                type="button"
+                onClick={() => handleDevResetAll(false)}
+                disabled={isDevLoading || isSubmittingBatch}
+                className="text-slate-600 hover:underline"
+              >
+                Reset Chưa gửi
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Table Data View */}
       {declarationsQuery.isPending ? (
@@ -1654,14 +1936,27 @@ export function KbttDeclarationsPage({
                     </td>
                     {/* Trạng thái */}
                     <td className="px-3 py-3 text-center">
-                      <span
-                        className={`inline-flex whitespace-nowrap items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-semibold shadow-2xs ${statusInfo.badgeClass}`}
-                      >
+                      <div className="inline-flex flex-col items-center gap-1">
                         <span
-                          className={`h-2 w-2 rounded-full ${statusInfo.dotColor}`}
-                        />
-                        {statusInfo.label}
-                      </span>
+                          className={`inline-flex whitespace-nowrap items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-semibold shadow-2xs ${statusInfo.badgeClass}`}
+                        >
+                          <span
+                            className={`h-2 w-2 rounded-full ${statusInfo.dotColor}`}
+                          />
+                          {statusInfo.label}
+                        </span>
+                        {statusInfo.key === "UNSENT" && (
+                          <span
+                            className="inline-flex items-center gap-1 rounded-md border border-emerald-200/80 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-800 shadow-2xs"
+                            title="Hồ sơ sẽ được hệ thống tự động đẩy lên C06 Bộ Công An"
+                          >
+                            <ClockIcon className="h-3 w-3 text-emerald-600" />
+                            {isAutoPaused
+                              ? "Tạm dừng"
+                              : `Tự động gửi sau ${countdownSeconds ?? AUTO_SUBMIT_DELAY_SECONDS}s`}
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     {/* Thao tác */}

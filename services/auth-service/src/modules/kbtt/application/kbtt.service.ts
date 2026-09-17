@@ -5,6 +5,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
   type OnModuleDestroy,
   type OnModuleInit,
 } from "@nestjs/common";
@@ -16,6 +17,7 @@ import {
   type ActiveStayOccupantRow,
 } from "../../property/property-public";
 import { TelegramNotificationService } from "../../notifications/notifications-public";
+import { StayCheckInEventBus } from "../../../shared/events";
 import { z } from "zod";
 import {
   isValidCalendarDate,
@@ -176,17 +178,29 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     private readonly repository: KbttRepository,
     private readonly cipher: KbttCredentialCipher,
     private readonly provider: KbttProviderClient,
-    private readonly occupantsReadService?: HotelStayOccupantsReadService,
-    private readonly telegramNotificationService?: TelegramNotificationService,
+    @Optional() private readonly occupantsReadService?: HotelStayOccupantsReadService,
+    @Optional() private readonly telegramNotificationService?: TelegramNotificationService,
+    @Optional() private readonly stayCheckInEventBus?: StayCheckInEventBus,
   ) {}
 
   async onModuleInit() {
+    this.stayCheckInEventBus?.subscribe(async (event) => {
+      try {
+        await this.triggerCheckInBcaPush(event.hotelId, event.stayId);
+      } catch (err: any) {
+        this.logger.warn(
+          `Failed background BCA push for check-in stay ${event.stayId}: ${err?.message || err}`,
+        );
+      }
+    });
+
     const runs = await this.repository.findPendingScheduledAutoSubmitRuns();
     for (const run of runs) {
       const trigger = (run.summaryJson as any)?.trigger;
       if (
         trigger === "MANUAL_DELAYED" ||
         trigger === "CONTINUATION_30M" ||
+        trigger === "ERROR_RETRY" ||
         (typeof trigger === "string" && trigger.startsWith("CONTINUATION_"))
       ) {
         this.armScheduledRun(run);
@@ -453,9 +467,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       const draft = (decl?.draftPayloadJson ?? {}) as Record<string, unknown>;
       const classification = decl?.declarationKind ?? occupant.citizenshipKind ?? null;
       const derivedStatus: KbttDerivedStatus = decl
-        ? decl.status === "SUBMITTED"
-          ? "SUBMITTED"
-          : "DRAFT"
+        ? (decl.status as KbttDerivedStatus)
         : "MISSING_PROFILE";
 
       return {
@@ -550,7 +562,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
           ? {
               id: decl.id,
               revision: decl.revision,
-              status: decl.status === "SUBMITTED" ? "SUBMITTED" : "DRAFT",
+              status: decl.status,
               declarationKind: decl.declarationKind,
               providerCode: decl.providerCode,
               providerMessage: decl.providerMessage,
@@ -595,9 +607,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       },
       declaration: decl ? this.viewDeclaration(decl) : null,
       derivedStatus: decl
-        ? decl.status === "SUBMITTED"
-          ? "SUBMITTED"
-          : "DRAFT"
+        ? (decl.status as KbttDerivedStatus)
         : "MISSING_PROFILE",
     };
   }
@@ -960,7 +970,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       occupantId: decl.occupantId,
       declarationKind: decl.declarationKind,
       revision: decl.revision,
-      status: decl.status === "SUBMITTED" ? "SUBMITTED" : "DRAFT",
+      status: decl.status,
       draftPayload: decl.draftPayloadJson,
       providerCode: decl.providerCode,
       providerMessage: decl.providerMessage,
@@ -1432,11 +1442,15 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
             }
 
             // declaration.status === "FAILED"
+            const isErrorRetry =
+              trigger === "ERROR_RETRY" ||
+              (typeof trigger === "string" && trigger.startsWith("ERROR_"));
             const isTransientFailure =
               declaration.providerCode === "PROVIDER_TIMEOUT" ||
               declaration.providerCode?.startsWith("HTTP_5") ||
               declaration.providerCode?.startsWith("5") ||
-              declaration.providerCode === "STREAM_READ_ERROR";
+              declaration.providerCode === "STREAM_READ_ERROR" ||
+              (isErrorRetry && declaration.providerCode !== "LOCAL_VALIDATION");
             if (isTransientFailure) {
               return true;
             }
@@ -1910,6 +1924,33 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     return { sent: true };
   }
 
+  async sendBatchSummary(
+    userId: string,
+    roleId: string,
+    hotelId: string,
+    summary: {
+      totalEligible: number;
+      successCount: number;
+      failureCount: number;
+      unknownCount?: number;
+      isDryRun?: boolean;
+      scheduledTime?: string;
+    },
+  ) {
+    await this.access.assertHotelAccess(userId, roleId, hotelId);
+    const hotelName = (await this.repository.findHotelName?.(hotelId)) || hotelId;
+    const sent = await this.telegramNotificationService?.sendKbttAutoSubmitSummary(hotelId, {
+      hotelName,
+      scheduledTime: summary.scheduledTime || formatVietnamDateTime(new Date()),
+      totalEligible: summary.totalEligible,
+      successCount: summary.successCount,
+      failureCount: summary.failureCount,
+      unknownCount: summary.unknownCount ?? 0,
+      isDryRun: summary.isDryRun ?? false,
+    });
+    return { sent: Boolean(sent) };
+  }
+
   async scheduleAutoSubmit(userId: string, roleId: string, hotelId: string, dryRun: boolean) {
     await this.access.assertHotelAccess(userId, roleId, hotelId);
     if (!dryRun && process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED !== "true") {
@@ -2021,6 +2062,220 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
   private generateRandomPassport(): string {
     const randomSuffix = String(Math.floor(10000000 + Math.random() * 90000000));
     return `P${randomSuffix}`;
+  }
+
+  private async scheduleErrorRetryRun(hotelId: string): Promise<void> {
+    try {
+      const pending = await this.repository.findPendingScheduledAutoSubmitRuns(hotelId);
+      const alreadyScheduled = pending.some(
+        (p) =>
+          p.scheduledFor.getTime() >= Date.now() &&
+          p.scheduledFor.getTime() <= Date.now() + 16 * 60 * 1000,
+      );
+      if (!alreadyScheduled) {
+        const retryDate = new Date(Date.now() + 15 * 60 * 1000);
+        const retryRun = await this.repository.createScheduledAutoSubmitRun(
+          hotelId,
+          retryDate,
+          false,
+          "ERROR_RETRY",
+        );
+        this.armScheduledRun(retryRun);
+      }
+    } catch (err: any) {
+      this.logger.warn(
+        `Failed to schedule error retry run for hotel ${hotelId}: ${err?.message || err}`,
+      );
+    }
+  }
+
+  async triggerCheckInBcaPush(hotelId: string, stayId: string): Promise<void> {
+    try {
+      let occupants = (await this.repository.findOccupantsByStay(hotelId, stayId)) ?? [];
+      if (occupants.length === 0) {
+        const stay = await this.repository.findStayForOccupantCreation(hotelId, stayId);
+        if (stay) {
+          const createdOcc = await this.repository.createDefaultStayOccupant(hotelId, stay);
+          occupants = [createdOcc];
+        }
+      }
+
+      if (occupants.length === 0) {
+        return;
+      }
+
+      const connection = await this.repository.find(hotelId);
+      const isConnected = Boolean(connection && connection.status === "CONNECTED");
+
+      const existingDeclarations = await this.repository.findDeclarationsByHotel(
+        hotelId,
+        occupants.map((o) => o.id),
+      );
+      const declByOccupant = new Map<string, KbttGuestDeclaration>();
+      for (const d of existingDeclarations) {
+        if (!declByOccupant.has(d.occupantId)) {
+          declByOccupant.set(d.occupantId, d);
+        }
+      }
+
+      for (const occupant of occupants) {
+        const existingDecl = declByOccupant.get(occupant.id);
+        if (existingDecl && existingDecl.status === "SUBMITTED") {
+          continue;
+        }
+
+        const citizenshipKind =
+          existingDecl?.declarationKind ??
+          occupant.citizenshipKind ??
+          (/^\d{9,12}$/.test((occupant.identityNumber ?? "").trim()) ? "VIETNAMESE" : "FOREIGN");
+
+        const previousData =
+          existingDecl?.draftPayloadJson &&
+          typeof existingDecl.draftPayloadJson === "object" &&
+          !Array.isArray(existingDecl.draftPayloadJson)
+            ? (existingDecl.draftPayloadJson as Record<string, unknown>)
+            : {};
+
+        const draft = this.withOccupantDefaults(
+          citizenshipKind,
+          previousData,
+          occupant,
+        );
+
+        const schema =
+          citizenshipKind === "VIETNAMESE"
+            ? kbttVietnameseReadySchema
+            : kbttForeignReadySchema;
+        const validated = schema.safeParse(draft);
+
+        if (!validated.success) {
+          const error = formatValidationIssues(validated.error.issues);
+          const draftFp = createHash("sha256")
+            .update(JSON.stringify([draft]))
+            .digest("hex");
+
+          if (!existingDecl) {
+            await this.repository.createDeclaration({
+              hotelId,
+              stayId,
+              occupantId: occupant.id,
+              declarationKind: citizenshipKind,
+              status: "FAILED",
+              draftPayloadJson: draft as Prisma.InputJsonValue,
+              submittedPayloadFingerprint: draftFp,
+              providerCode: "LOCAL_VALIDATION",
+              providerMessage: error,
+            });
+          } else {
+            await this.repository.updateDeclaration({
+              id: existingDecl.id,
+              hotelId,
+              expectedVersion: existingDecl.version,
+              data: {
+                status: "FAILED",
+                draftPayloadJson: draft as Prisma.InputJsonValue,
+                submittedPayloadFingerprint: draftFp,
+                providerCode: "LOCAL_VALIDATION",
+                providerMessage: error,
+                submittedAt: null,
+              },
+            });
+          }
+          continue;
+        }
+
+        let submitDeclaration: KbttGuestDeclaration;
+        if (!existingDecl) {
+          submitDeclaration = await this.repository.createDeclaration({
+            hotelId,
+            stayId,
+            occupantId: occupant.id,
+            declarationKind: citizenshipKind,
+            status: "READY",
+            draftPayloadJson: validated.data as Prisma.InputJsonValue,
+          });
+        } else {
+          submitDeclaration = await this.repository.updateDeclaration({
+            id: existingDecl.id,
+            hotelId,
+            expectedVersion: existingDecl.version,
+            data: {
+              status: "READY",
+              draftPayloadJson: validated.data as Prisma.InputJsonValue,
+            },
+          });
+        }
+
+        if (!isConnected || !connection) {
+          continue;
+        }
+
+        await this.serialize(hotelId, async () => {
+          let sendingDecl: KbttGuestDeclaration | null = null;
+          const payload = [validated.data];
+          const fingerprint = createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+          try {
+            const session = await this.getOrRefreshSession(hotelId, connection);
+            sendingDecl = await this.repository.updateDeclaration({
+              id: submitDeclaration.id,
+              hotelId,
+              expectedVersion: submitDeclaration.version,
+              data: { status: "SENDING" },
+            });
+
+            const outcome = await this.provider.submitDeclaration(
+              citizenshipKind,
+              payload,
+              session.AccessToken,
+            );
+
+            const isConflictSuccess =
+              outcome.outcome === "BUSINESS_REJECTION" &&
+              isBcaDuplicateConflict(outcome.message, validated.data as Record<string, unknown>);
+
+            if (outcome.outcome === "SUCCESS" || isConflictSuccess) {
+              await this.persistDeclarationSubmitted(
+                hotelId,
+                sendingDecl,
+                payload,
+                fingerprint,
+                outcome,
+                isConflictSuccess,
+              );
+            } else if (outcome.outcome === "BUSINESS_REJECTION") {
+              await this.persistDeclarationFailed(
+                hotelId,
+                sendingDecl,
+                fingerprint,
+                outcome,
+              );
+            } else {
+              await this.persistDeclarationUnknown(
+                hotelId,
+                sendingDecl,
+                fingerprint,
+                outcome.message || "Lỗi tạm thời từ hệ thống C06",
+              );
+              await this.scheduleErrorRetryRun(hotelId);
+            }
+          } catch (err: any) {
+            this.logger.warn(`BCA push error for occupant ${occupant.id}: ${err?.message || err}`);
+            const declToUpdate = sendingDecl ?? submitDeclaration;
+            await this.persistDeclarationUnknown(
+              hotelId,
+              declToUpdate,
+              fingerprint,
+              err?.message || "Lỗi kết nối C06",
+            );
+            await this.scheduleErrorRetryRun(hotelId);
+          }
+        });
+      }
+    } catch (err: any) {
+      this.logger.error(
+        `Error in triggerCheckInBcaPush for hotel ${hotelId}, stay ${stayId}: ${err?.message || err}`,
+      );
+    }
   }
 
   async devResetDeclarations(

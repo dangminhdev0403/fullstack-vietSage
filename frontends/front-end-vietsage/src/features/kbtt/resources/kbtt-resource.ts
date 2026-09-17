@@ -10,6 +10,7 @@ import type {
   KbttAutoSubmitConfig,
   KbttAutoSubmitRunSummary,
   KbttAutoSubmitState,
+  KbttBatchSubmitSummary,
   KbttCatalogItem,
   KbttCatalogKind,
   KbttConnection,
@@ -179,6 +180,14 @@ export const kbttResource = createResource<HotelScope>()({
       defaults: { retry: false, networkMode: "always" },
       mutationFn: ({ scope }: ResourceMutationContext<HotelScope, void>) =>
         kbttRepository.testTelegram(scope.hotelId),
+    }),
+    sendBatchSummary: defineMutation({
+      defaults: { retry: false, networkMode: "always" },
+      mutationFn: ({
+        scope,
+        variables,
+      }: ResourceMutationContext<HotelScope, KbttBatchSubmitSummary>) =>
+        kbttRepository.sendBatchSummary(scope.hotelId, variables),
     }),
     scheduleAutoSubmit: defineMutation({
       defaults: { retry: false, networkMode: "always" },

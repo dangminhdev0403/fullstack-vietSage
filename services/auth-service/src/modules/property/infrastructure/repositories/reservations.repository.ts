@@ -15,6 +15,7 @@ import {
 } from "@prisma/client";
 import { PrismaService } from "../../../../prisma/prisma.service";
 import { recordPlatformUsageAtCheckIn } from "../../../platform-billing/application/platform-billing.service";
+import { inferCitizenshipKind } from "../../domain/infer-citizenship-kind";
 
 const ACTIVE_RESERVATION_STATUSES: ReservationStatus[] = [
   ReservationStatus.CONFIRMED,
@@ -252,6 +253,17 @@ export class ReservationsRepository {
           accessCodeHash: input.accessCodeHash,
           accessCodeExpiresAt: input.accessCodeExpiresAt,
           createdByUserId: input.actorUserId,
+          occupants: {
+            create: [
+              {
+                hotelId: input.hotelId,
+                fullName: reservation.guestDisplayName.trim(),
+                phone: reservation.guestPhone?.trim(),
+                citizenshipKind: inferCitizenshipKind({}),
+                isPrimary: true,
+              },
+            ],
+          },
         },
       });
       await recordPlatformUsageAtCheckIn(tx, {

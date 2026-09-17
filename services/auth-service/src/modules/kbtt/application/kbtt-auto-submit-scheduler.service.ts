@@ -48,7 +48,23 @@ export class KbttAutoSubmitSchedulerService {
       const dueHotels = (await this.repository.findDueHotelsForAutoSubmit(currentHHmm)) ?? [];
       const dueScheduledRuns = (await this.repository.findDueScheduledRuns(now)) ?? [];
 
-      if (dueHotels.length === 0 && dueScheduledRuns.length === 0) {
+      // Periodic error recovery: retry hotels with active FAILED/UNKNOWN declarations every 15 minutes
+      const minute = Number(currentHHmm.split(":")[1] || "0");
+      let errorRecoveryHotels: Array<{ hotelId: string }> = [];
+      if (minute % 15 === 0) {
+        const errConns = (await this.repository.findHotelsWithPendingErrorDeclarations()) ?? [];
+        const scheduledHotelIds = new Set([
+          ...dueHotels.map((h) => h.hotelId),
+          ...dueScheduledRuns.map((r) => r.hotelId),
+        ]);
+        errorRecoveryHotels = errConns.filter((c) => !scheduledHotelIds.has(c.hotelId));
+      }
+
+      if (
+        dueHotels.length === 0 &&
+        dueScheduledRuns.length === 0 &&
+        errorRecoveryHotels.length === 0
+      ) {
         return;
       }
 
@@ -60,6 +76,11 @@ export class KbttAutoSubmitSchedulerService {
       if (dueScheduledRuns.length > 0) {
         this.logger.log(
           `Found ${dueScheduledRuns.length} due scheduled/continuation KBTT runs.`,
+        );
+      }
+      if (errorRecoveryHotels.length > 0) {
+        this.logger.log(
+          `Found ${errorRecoveryHotels.length} hotels with pending error declarations for auto-retry.`,
         );
       }
 
@@ -95,6 +116,23 @@ export class KbttAutoSubmitSchedulerService {
             this.logger.error(
               `Failed auto-submit scheduled run ${run.id} for hotel ${run.hotelId}: ${runError?.message}`,
               runError?.stack,
+            );
+          }
+        });
+      }
+
+      for (const item of errorRecoveryHotels) {
+        tasks.push(async () => {
+          try {
+            await this.kbttService.executeAutoSubmitForHotel(
+              item.hotelId,
+              now,
+              isDryRun,
+            );
+          } catch (hotelError: any) {
+            this.logger.error(
+              `Failed auto-submit error recovery for hotel ${item.hotelId}: ${hotelError?.message}`,
+              hotelError?.stack,
             );
           }
         });
