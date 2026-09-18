@@ -249,4 +249,25 @@ describe("guest stay CCCD identity", () => {
       }),
     ]);
   });
+
+  it("normalizes diverse date of birth formats into standard YYYY-MM-DD", () => {
+    const parsed = createStayBodySchema.parse({
+      ...stayInput,
+      guestDateOfBirth: "15/05/1995",
+      occupants: [
+        {
+          fullName: "Tran Thi B",
+          dateOfBirth: "1/1/1990",
+        },
+        {
+          fullName: "Le Van C",
+          dateOfBirth: "2000-12-31",
+        },
+      ],
+    });
+
+    expect(parsed.guestDateOfBirth).toBe("1995-05-15");
+    expect(parsed.occupants?.[0].dateOfBirth).toBe("1990-01-01");
+    expect(parsed.occupants?.[1].dateOfBirth).toBe("2000-12-31");
+  });
 });

@@ -218,7 +218,6 @@ export default function CccdMobilePage() {
                       requestId={view.target.requestId}
                       expiresAt={view.target.expiresAt}
                       send={send}
-                      sendDocument={sendDocument}
                     />
                   ) : view.target.status === "received" || view.target.status === "document" ? (
                     <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-6 text-center space-y-2">
@@ -227,9 +226,9 @@ export default function CccdMobilePage() {
                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                         </svg>
                       </div>
-                      <p className="text-base font-bold text-blue-950">{view.target.status === "document" ? "Đã gửi ảnh hộ chiếu" : "Đã gửi dữ liệu"}</p>
+                      <p className="text-base font-bold text-blue-950">Đã gửi dữ liệu QR CCCD</p>
                       <p className="text-sm text-blue-800">
-                        {view.target.status === "document" ? "Đang nhận dạng tại máy lễ tân." : "Máy lễ tân đang tự động nhận và nạp thông tin vào form check-in."}
+                        Máy lễ tân đang tự động nhận và nạp thông tin vào form check-in.
                       </p>
                     </div>
                   ) : (

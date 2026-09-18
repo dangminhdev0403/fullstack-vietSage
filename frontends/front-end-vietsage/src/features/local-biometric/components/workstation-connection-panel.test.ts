@@ -8,10 +8,11 @@ const rooms = readFileSync(new URL("../../../app/(vietsage)/hotels/[hotelId]/roo
 const biometric = readFileSync(new URL("./biometric-owner-tabs.tsx", import.meta.url), "utf8");
 const route = readFileSync(new URL("../../../app/api/biometric-workstations/hotels/[hotelId]/pairing/route.ts", import.meta.url), "utf8");
 
-test("legacy HN-212 controls stay hidden while phone connection owns biometric setup", () => {
+test("workstation and phone controls are both available in biometric setup", () => {
   assert.doesNotMatch(dashboard, /WorkstationConnectionPanel/);
   assert.doesNotMatch(rooms, /WorkstationConnectionPanel/);
-  assert.doesNotMatch(biometric, /WorkstationConnectionPanel|WorkstationTestScanPanel/);
+  assert.match(biometric, /WorkstationConnectionPanel/);
+  assert.match(biometric, /WorkstationTestScanPanel/);
   assert.match(biometric, /MobileCccdConnectionPanel/);
 });
 

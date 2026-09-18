@@ -4,7 +4,7 @@ import test from "node:test";
 
 const panel = readFileSync(new URL("./face-id-notification-test.tsx", import.meta.url), "utf8");
 const tabs = readFileSync(new URL("./biometric-owner-tabs.tsx", import.meta.url), "utf8");
-const page = readFileSync(new URL("../../../app/(vietsage)/owner/(hotel)/hotels/[hotelId]/biometric/page.tsx", import.meta.url), "utf8");
+const page = readFileSync(new URL("../../../app/(vietsage)/hotels/[hotelId]/biometric/page.tsx", import.meta.url), "utf8");
 const registry = readFileSync(new URL("../../workspace/config/workspace-registry.ts", import.meta.url), "utf8");
 
 test("FaceID tab is hidden and CCCD device panels are rendered directly", () => {

@@ -14,17 +14,16 @@ type Props = {
   requestId: string;
   expiresAt: number;
   send: (body: PhoneCommand) => Promise<ShiftResult>;
-  sendDocument: (requestId: string, transferId: string, file: File) => Promise<ShiftResult>;
+  sendDocument?: (requestId: string, transferId: string, file: File) => Promise<ShiftResult>;
 };
 type CaptureData = ReturnType<typeof parseCccdQr> & { nationality?: string };
 
-export function MobileCccdCapture({ requestId, expiresAt, send, sendDocument }: Props) {
+export function MobileCccdCapture({ requestId, expiresAt, send }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const scannerRef = useRef<QrScanner | null>(null);
   const mounted = useRef(true);
   const sending = useRef(false);
   const transfer = useRef<string | null>(null);
-  const passportTransfer = useRef<string | null>(null);
 
   const [raw, setRaw] = useState("");
   const [data, setData] = useState<CaptureData | null>(null);
@@ -152,35 +151,6 @@ export function MobileCccdCapture({ requestId, expiresAt, send, sendDocument }: 
     } catch {}
   };
 
-  const handlePassport = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file || sending.current || Date.now() >= expiresAt) return;
-    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-      setError("Ảnh hộ chiếu phải là JPG, PNG hoặc WEBP.");
-      return;
-    }
-    if (file.size > 15 * 1024 * 1024) {
-      setError("Ảnh hộ chiếu vượt quá 15MB.");
-      return;
-    }
-    sending.current = true;
-    setStatus("sending");
-    setError("");
-    try {
-      passportTransfer.current ??= safeRandomUuid();
-      await sendDocument(requestId, passportTransfer.current, file);
-      if (mounted.current) setStatus("sent");
-    } catch (caught) {
-      if (mounted.current) {
-        setStatus("idle");
-        setError(caught instanceof Error ? caught.message : "Không gửi được ảnh hộ chiếu.");
-      }
-    } finally {
-      sending.current = false;
-    }
-  };
-
   const resetScan = () => {
     stopCamera();
     setData(null);
@@ -232,7 +202,7 @@ export function MobileCccdCapture({ requestId, expiresAt, send, sendDocument }: 
     <div className="space-y-4">
       {!data && (
         <div className="space-y-3">
-          <p className="text-center text-sm font-semibold text-stone-700">Chọn quét QR CCCD hoặc chụp hộ chiếu.</p>
+          <p className="text-center text-sm font-semibold text-stone-700">Hướng camera vào mã QR ở góc trên thẻ CCCD.</p>
           <button
             type="button"
             disabled={status !== "idle"}
@@ -241,17 +211,6 @@ export function MobileCccdCapture({ requestId, expiresAt, send, sendDocument }: 
           >
             {status === "starting" ? "Đang mở camera…" : "Mở camera quét QR"}
           </button>
-          <label className="flex min-h-14 w-full cursor-pointer items-center justify-center rounded-2xl border-2 border-[#000080] bg-white px-6 py-3.5 text-lg font-bold text-[#000080] shadow-xs active:bg-blue-50">
-            <span>{status === "sending" ? "Đang gửi ảnh…" : "Chụp hộ chiếu"}</span>
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              capture="environment"
-              disabled={status !== "idle"}
-              onChange={(event) => void handlePassport(event)}
-              className="sr-only"
-            />
-          </label>
         </div>
       )}
 

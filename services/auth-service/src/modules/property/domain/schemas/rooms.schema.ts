@@ -20,6 +20,43 @@ function preprocessRoomStatus(val: unknown): unknown {
   return upper;
 }
 
+export function normalizeDateStringToIso(str?: string | null): string | undefined {
+  if (!str) return undefined;
+  const t = str.trim();
+  if (!t) return undefined;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
+
+  const isoMatch = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:T.*)?$/.exec(t);
+  if (isoMatch) {
+    const [, y, m, d] = isoMatch;
+    return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  }
+
+  const cleaned = t.replace(/[.\-]/g, "/").replace(/\/+/g, "/");
+  const dmyMatch = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(cleaned);
+  if (dmyMatch) {
+    const [, d, m, y] = dmyMatch;
+    return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  }
+
+  const digits = t.replace(/\D/g, "");
+  if (digits.length === 8) {
+    const d = digits.slice(0, 2);
+    const m = digits.slice(2, 4);
+    const y = digits.slice(4, 8);
+    return `${y}-${m}-${d}`;
+  }
+
+  if (/^\d{4}$/.test(digits)) {
+    const y = Number(digits);
+    if (y >= 1900 && y <= new Date().getFullYear()) {
+      return `${y}-01-01`;
+    }
+  }
+
+  return undefined;
+}
+
 export const roomStatusSchema = z.preprocess(
   preprocessRoomStatus,
   z.nativeEnum(RoomStatus, { message: "Trạng thái phòng không hợp lệ" }),
@@ -129,7 +166,12 @@ export const stayOccupantInputSchema = z.object({
     .max(120, "Họ tên khách tối đa 120 ký tự"),
   phone: z.string().trim().max(40, "Số điện thoại tối đa 40 ký tự").optional(),
   identityNumber: identityNumberSchema.optional(),
-  dateOfBirth: z.string().trim().max(20, "Ngày sinh tối đa 20 ký tự").optional(),
+  dateOfBirth: z
+    .string()
+    .trim()
+    .max(20, "Ngày sinh tối đa 20 ký tự")
+    .optional()
+    .transform((v) => (v ? normalizeDateStringToIso(v) ?? v : v)),
   gender: z.string().trim().max(20, "Giới tính tối đa 20 ký tự").optional(),
   nationality: z.string().trim().max(80, "Quốc tịch tối đa 80 ký tự").optional(),
   residencePlace: z.string().trim().max(500, "Địa chỉ tối đa 500 ký tự").optional(),
@@ -149,7 +191,12 @@ export const createStayBodySchema = z
       .max(120, "Tên khách hàng tối đa 120 ký tự"),
     guestPhone: z.string().trim().max(40, "Số điện thoại tối đa 40 ký tự").optional(),
     guestIdentityNumber: identityNumberSchema.optional(),
-    guestDateOfBirth: z.string().trim().max(20, "Ngày sinh tối đa 20 ký tự").optional(),
+    guestDateOfBirth: z
+      .string()
+      .trim()
+      .max(20, "Ngày sinh tối đa 20 ký tự")
+      .optional()
+      .transform((v) => (v ? normalizeDateStringToIso(v) ?? v : v)),
     guestGender: z.string().trim().max(20, "Giới tính tối đa 20 ký tự").optional(),
     guestNationality: z.string().trim().max(80, "Quốc tịch tối đa 80 ký tự").optional(),
     guestResidencePlace: z.string().trim().max(500, "Địa chỉ tối đa 500 ký tự").optional(),

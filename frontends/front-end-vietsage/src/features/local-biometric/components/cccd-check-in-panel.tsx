@@ -29,7 +29,8 @@ export function CccdCheckInPanel({ hotelId, onCapture, activeGuestLabel, autoReq
   const { state, requestScan } = useWorkstationScan(hotelId);
   const [now, setNow] = useState(() => Date.now());
   const emittedTransferId = useRef<string | null>(null);
-  const prevScanKeyRef = useRef<string | number | undefined>(autoRequestScanKey);
+  const prevScanKeyRef = useRef<string | number | undefined>(undefined);
+  const autoRequestedForRef = useRef<string | number | undefined>(undefined);
 
   useEffect(() => {
     if (state.phase !== "requested") return;
@@ -53,17 +54,17 @@ export function CccdCheckInPanel({ hotelId, onCapture, activeGuestLabel, autoReq
     });
   }, [onCapture, state]);
 
-  // Continuous auto-scan stream when active guest slot changes
+  // Continuous auto-scan stream when active guest slot changes or scanner becomes ready
   useEffect(() => {
     if (autoRequestScanKey === undefined) return;
     if (prevScanKeyRef.current !== autoRequestScanKey) {
       prevScanKeyRef.current = autoRequestScanKey;
       emittedTransferId.current = null;
       onCapture(null);
-      const online = ["ready", "requested", "receiving", "received", "expired"].includes(state.phase);
-      if (online && state.phase !== "requested" && state.phase !== "receiving") {
-        requestScan();
-      }
+    }
+    if (state.phase === "ready" && autoRequestedForRef.current !== autoRequestScanKey) {
+      autoRequestedForRef.current = autoRequestScanKey;
+      requestScan();
     }
   }, [autoRequestScanKey, onCapture, requestScan, state.phase]);
 
@@ -98,7 +99,7 @@ export function CccdCheckInPanel({ hotelId, onCapture, activeGuestLabel, autoReq
         <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
           <button
             type="button"
-            onClick={() => { onCapture(null); requestScan(); }}
+            onClick={() => { onCapture(null); autoRequestedForRef.current = undefined; requestScan(); }}
             disabled={!online || busy}
             className={`min-h-[44px] rounded-xl px-4 py-2 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-50 ${received ? "border border-slate-300 bg-white text-slate-800 hover:bg-slate-50" : "bg-blue-700 text-white hover:bg-blue-800"}`}
           >

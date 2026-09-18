@@ -64,6 +64,52 @@ export function isValidCalendarDate(str: string): boolean {
   return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d;
 }
 
+export function normalizeDateStringToIso(str?: string | null): string | undefined {
+  if (!str) return undefined;
+  const t = str.trim();
+  if (!t) return undefined;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(t) && isValidCalendarDate(t)) return t;
+
+  const isoMatch = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:T.*)?$/.exec(t);
+  if (isoMatch) {
+    const [, y, m, d] = isoMatch;
+    const formatted = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+    if (isValidCalendarDate(formatted)) return formatted;
+  }
+
+  const cleaned = t.replace(/[.\-]/g, "/").replace(/\/+/g, "/");
+  const dmyMatch = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(cleaned);
+  if (dmyMatch) {
+    const [, d, m, y] = dmyMatch;
+    const formatted = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+    if (isValidCalendarDate(formatted)) return formatted;
+  }
+
+  const digits = t.replace(/\D/g, "");
+  if (digits.length === 8) {
+    const d = digits.slice(0, 2);
+    const m = digits.slice(2, 4);
+    const y = digits.slice(4, 8);
+    const formatted = `${y}-${m}-${d}`;
+    if (isValidCalendarDate(formatted)) return formatted;
+
+    const y2 = digits.slice(0, 4);
+    const m2 = digits.slice(4, 6);
+    const d2 = digits.slice(6, 8);
+    const formatted2 = `${y2}-${m2}-${d2}`;
+    if (isValidCalendarDate(formatted2)) return formatted2;
+  }
+
+  if (/^\d{4}$/.test(digits)) {
+    const y = Number(digits);
+    if (y >= 1900 && y <= new Date().getFullYear()) {
+      return `${y}-01-01`;
+    }
+  }
+
+  return undefined;
+}
+
 export function isValidCalendarDateTime(str: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(str)) return false;
   const [datePart, timePart] = str.split(" ");

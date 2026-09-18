@@ -10,9 +10,9 @@ const workspace = readFileSync(new URL("./check-in-workspace.tsx", import.meta.u
 const deskStore = readFileSync(new URL("../store/mobile-desk-store.ts", import.meta.url), "utf8");
 const mobileScanHook = readFileSync(new URL("../hooks/use-mobile-cccd-scan.ts", import.meta.url), "utf8");
 
-test("phone pairing is configured once on the biometric page", () => {
+test("phone pairing is configured on the biometric page alongside workstation scanner", () => {
   assert.match(tabs, /MobileCccdConnectionPanel/);
-  assert.doesNotMatch(tabs, /WorkstationConnectionPanel|WorkstationTestScanPanel/);
+  assert.match(tabs, /WorkstationConnectionPanel/);
   assert.match(connection, /Tạo QR kết nối điện thoại/);
   assert.match(connection, /Mã trùng — Cho phép kết nối/);
   assert.match(connection, /Ngắt điện thoại/);
@@ -36,7 +36,7 @@ test("room check-in only targets an already connected phone", () => {
   assert.doesNotMatch(scan, /Ngắt điện thoại/);
   assert.match(scan, /Kết nối điện thoại trước tại mục Máy quét CCCD/);
   assert.match(scan, /Quét lại vị trí này/);
-  assert.doesNotMatch(workspace, /CccdCheckInPanel|HN-212|Đặt thẻ CCCD/);
+  assert.match(workspace, /CccdCheckInPanel/);
   assert.match(workspace, /MobileCccdScan|Điện thoại quét QR CCCD/);
   assert.match(mobileScanHook, /if \(!result\?\.success\) \{[\s\S]*action: "discard"[\s\S]*setTargetGeneration/);
   assert.match(mobileScanHook, /\}\)\.catch\(report\)\.finally/);

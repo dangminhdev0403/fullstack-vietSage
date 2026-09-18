@@ -87,6 +87,7 @@ test("scan capture merges non-empty nationality/residencePlace and preserves exi
 
 test("workspace maps a multi-file MRZ batch to consecutive guest slots", () => {
   assert.match(workspace, /<MobileCccdScan/);
+  assert.match(workspace, /<CccdCheckInPanel/);
   assert.match(
     workspace,
     /<DesktopDocumentOcrUpload\s+hotelId=\{hotelId\}\s+onCaptures=\{handleDocumentCaptures\}/,

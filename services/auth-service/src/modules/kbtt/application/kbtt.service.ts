@@ -22,6 +22,7 @@ import { z } from "zod";
 import {
   assertKbttDeclarationMutable,
   isValidCalendarDate,
+  normalizeDateStringToIso,
   kbttForeignReadySchema,
   kbttMetadata,
   kbttProviderCountrySchema,
@@ -234,10 +235,12 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     }
     if (
       !draft.ngayThangNamSinhStr &&
-      occupant.dateOfBirth &&
-      isValidCalendarDate(occupant.dateOfBirth)
+      occupant.dateOfBirth
     ) {
-      draft.ngayThangNamSinhStr = occupant.dateOfBirth;
+      const normalizedDob = normalizeDateStringToIso(occupant.dateOfBirth);
+      if (normalizedDob && isValidCalendarDate(normalizedDob)) {
+        draft.ngayThangNamSinhStr = normalizedDob;
+      }
     }
     if (!draft.gioiTinh && occupant.gender) {
       const gender = occupant.gender.trim().toUpperCase();
@@ -491,7 +494,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         dateOfBirth:
           typeof draft.ngayThangNamSinhStr === "string"
             ? draft.ngayThangNamSinhStr
-            : occupant.dateOfBirth,
+            : normalizeDateStringToIso(occupant.dateOfBirth) ?? occupant.dateOfBirth,
         gender:
           draft.gioiTinh === "M" || draft.gioiTinh === "F"
             ? draft.gioiTinh
@@ -601,7 +604,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         fullName: occupant.fullName,
         phone: occupant.phone,
         identityNumber: occupant.identityNumber,
-        dateOfBirth: occupant.dateOfBirth,
+        dateOfBirth: normalizeDateStringToIso(occupant.dateOfBirth) ?? occupant.dateOfBirth,
         gender: occupant.gender,
         nationality: occupant.nationality,
         residencePlace: occupant.residencePlace,
@@ -883,27 +886,6 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
           },
         });
 
-        try {
-          const hotelName = (await this.repository.findHotelName?.(hotelId)) || hotelId;
-          const roomNumber = (occupant as any).stay?.room?.roomNumber || (occupant as any).roomNumber;
-          const fromDate = String(parsed.data.ngayDenCsltStr || "").substring(0, 10);
-          const toDate = String(
-            parsed.data.ngayDiDuKienStr || (parsed.data as any).thoiHanTamTruStr || "",
-          ).substring(0, 10);
-          await this.telegramNotificationService?.sendKbttSingleSubmitNotification?.({
-            hotelId,
-            hotelName,
-            roomNumber,
-            fullName: occupant.fullName || (parsed.data as any).hoTen || "Khách lưu trú",
-            identityNumber,
-            stayPeriod: fromDate && toDate ? `${fromDate} ➔ ${toDate}` : undefined,
-            status: "SUBMITTED",
-            isReconciled: isConflictSuccess,
-          });
-        } catch {
-          // non-blocking
-        }
-
         return this.viewDeclaration(updated);
       }
 
@@ -939,22 +921,6 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
           submittedAt: null,
         },
       });
-
-      try {
-        const hotelName = (await this.repository.findHotelName?.(hotelId)) || hotelId;
-        const roomNumber = (occupant as any).stay?.room?.roomNumber || (occupant as any).roomNumber;
-        await this.telegramNotificationService?.sendKbttSingleSubmitNotification?.({
-          hotelId,
-          hotelName,
-          roomNumber,
-          fullName: occupant.fullName || (parsed.data as any).hoTen || "Khách lưu trú",
-          identityNumber,
-          status: "FAILED",
-          errorMessage: providerMessage,
-        });
-      } catch {
-        // non-blocking
-      }
 
       throw new HttpException(
         {

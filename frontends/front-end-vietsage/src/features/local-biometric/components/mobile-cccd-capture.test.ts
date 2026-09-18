@@ -4,18 +4,14 @@ import test from "node:test";
 
 const source = fs.readFileSync(new URL("./mobile-cccd-capture.tsx", import.meta.url), "utf8");
 
-test("mobile capture keeps QR CCCD and restores native passport capture", () => {
+test("mobile capture focuses on QR CCCD and removes phone passport capture", () => {
   assert.match(source, /import QrScanner from "qr-scanner"/);
   assert.match(source, /new QrScanner\(/);
   assert.match(source, /parseCccdQr/);
-  assert.match(source, /quét QR CCCD/);
-  assert.match(source, /Chụp hộ chiếu/);
-  assert.match(source, /type="file"/);
-  assert.match(source, /accept="image\/jpeg,image\/png,image\/webp"/);
-  assert.match(source, /capture="environment"/);
-  assert.match(source, /sendDocument/);
-  assert.match(source, /passportTransfer\.current \?\?= safeRandomUuid\(\)/);
-  assert.doesNotMatch(source, /sendDocument\(requestId, transfer\.current/);
+  assert.match(source, /Mở camera quét QR/);
+  assert.doesNotMatch(source, /Chụp hộ chiếu/);
+  assert.doesNotMatch(source, /capture="environment"/);
+  assert.doesNotMatch(source, /handlePassport/);
   assert.match(source, /action:\s*"submit"/);
   assert.doesNotMatch(source, /\/api\/cccd-mobile\/ocr|scanImage\(/);
 });

@@ -16,7 +16,7 @@ import type {
   CheckInWorkspaceProps,
   CheckInStayFields,
 } from "../types/check-in-workspace";
-import type { CccdCheckInCapture } from "./cccd-check-in-panel";
+import { CccdCheckInPanel, type CccdCheckInCapture } from "./cccd-check-in-panel";
 import { MobileCccdScan } from "./mobile-cccd-scan";
 import { DesktopDocumentOcrUpload } from "./desktop-document-ocr-upload";
 
@@ -25,34 +25,75 @@ const cellInputClass =
 const cellSelectClass =
   "h-11 sm:h-12 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base sm:text-lg font-semibold text-slate-950 shadow-2xs outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100";
 
-function toDisplayVnDate(str?: string): string {
+export function toDisplayVnDate(str?: string): string {
   if (!str) return "";
   const t = str.trim();
   if (!t) return "";
+  const iso = toIsoDate(t);
+  if (iso) {
+    const [y, m, d] = iso.split("-");
+    return `${d}/${m}/${y}`;
+  }
   if (/^\d{2}\/\d{2}\/\d{4}$/.test(t)) return t;
-  const isoMatch = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(t);
-  if (isoMatch) {
-    const [, y, m, d] = isoMatch;
-    return `${d.padStart(2, "0")}/${m.padStart(2, "0")}/${y}`;
-  }
-  const dmyMatch = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(t);
-  if (dmyMatch) {
-    const [, d, m, y] = dmyMatch;
-    return `${d.padStart(2, "0")}/${m.padStart(2, "0")}/${y}`;
-  }
   return t;
 }
 
-function toIsoDate(str?: string): string {
+export function toIsoDate(str?: string): string {
   if (!str) return "";
   const t = str.trim();
   if (!t) return "";
-  if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
-  const dmyMatch = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(t);
+
+  // 1. Standard ISO YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss
+  const isoMatch = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:T.*)?$/.exec(t);
+  if (isoMatch) {
+    const [, y, m, d] = isoMatch;
+    const year = Number(y);
+    const month = Number(m);
+    const day = Number(d);
+    if (year >= 1900 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    }
+  }
+
+  // 2. Formats with separators: DD/MM/YYYY, D/M/YYYY, DD-MM-YYYY, DD.MM.YYYY
+  // Also cleans accidental multi-slashes like 15//05/1995
+  const cleanedSeps = t.replace(/[.\-]/g, "/").replace(/\/+/g, "/");
+  const dmyMatch = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(cleanedSeps);
   if (dmyMatch) {
     const [, d, m, y] = dmyMatch;
-    return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+    const day = Number(d);
+    const month = Number(m);
+    const year = Number(y);
+    if (year >= 1900 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    }
   }
+
+  // 3. Raw 8-digit strings: DDMMYYYY or YYYYMMDD
+  const digits = t.replace(/\D/g, "");
+  if (digits.length === 8) {
+    const d = Number(digits.slice(0, 2));
+    const m = Number(digits.slice(2, 4));
+    const y = Number(digits.slice(4, 8));
+    if (y >= 1900 && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      return `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    }
+    const y2 = Number(digits.slice(0, 4));
+    const m2 = Number(digits.slice(4, 6));
+    const d2 = Number(digits.slice(6, 8));
+    if (y2 >= 1900 && m2 >= 1 && m2 <= 12 && d2 >= 1 && d2 <= 31) {
+      return `${String(y2).padStart(4, "0")}-${String(m2).padStart(2, "0")}-${String(d2).padStart(2, "0")}`;
+    }
+  }
+
+  // 4. Year only (4 digits)
+  if (/^\d{4}$/.test(digits)) {
+    const y = Number(digits);
+    if (y >= 1900 && y <= new Date().getFullYear()) {
+      return `${y}-01-01`;
+    }
+  }
+
   return "";
 }
 
@@ -81,27 +122,45 @@ function VnDateInput({
   }, [value]);
 
   const handleTextChange = (raw: string) => {
-    let cleaned = raw.replace(/[^\d/]/g, "");
-    if (/^\d{2}$/.test(cleaned) && textVal.length === 1) {
-      cleaned = cleaned + "/";
-    } else if (/^\d{2}\/\d{2}$/.test(cleaned) && textVal.length === 4) {
-      cleaned = cleaned + "/";
+    // Clean unwanted characters, permit digits, slashes, hyphens
+    let cleaned = raw.replace(/[^\d/-]/g, "").replace(/[-]/g, "/").replace(/\/+/g, "/");
+
+    // Natural formatting if user types digits only without slash
+    if (!raw.includes("/") && !raw.includes("-")) {
+      const digits = raw.replace(/\D/g, "");
+      if (digits.length >= 4) {
+        cleaned = `${digits.slice(0, 2)}/${digits.slice(2, 4)}${digits.length > 4 ? `/${digits.slice(4, 8)}` : ""}`;
+      } else if (digits.length >= 2) {
+        cleaned = `${digits.slice(0, 2)}/${digits.slice(2)}`;
+      }
     }
+
     setTextVal(cleaned);
 
-    const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(cleaned);
-    if (match) {
-      const [, d, m, y] = match;
-      onChange(`${y}-${m}-${d}`);
-    } else if (!cleaned) {
+    const iso = toIsoDate(cleaned);
+    if (iso) {
+      onChange(iso);
+    } else if (!cleaned.trim()) {
+      onChange("");
+    }
+  };
+
+  const handleBlur = () => {
+    const iso = toIsoDate(textVal);
+    if (iso) {
+      setTextVal(toDisplayVnDate(iso));
+      onChange(iso);
+    } else if (!textVal.trim()) {
+      setTextVal("");
       onChange("");
     }
   };
 
   const handleNativePickerChange = (isoVal: string) => {
     if (isoVal) {
-      onChange(isoVal);
-      setTextVal(toDisplayVnDate(isoVal));
+      const iso = toIsoDate(isoVal) || isoVal;
+      onChange(iso);
+      setTextVal(toDisplayVnDate(iso));
     }
   };
 
@@ -126,17 +185,7 @@ function VnDateInput({
         required={required}
         value={textVal}
         onChange={(e) => handleTextChange(e.target.value)}
-        onBlur={() => {
-          const digitsOnly = textVal.replace(/\D/g, "");
-          if (digitsOnly.length === 8) {
-            const d = digitsOnly.slice(0, 2);
-            const m = digitsOnly.slice(2, 4);
-            const y = digitsOnly.slice(4, 8);
-            const formatted = `${d}/${m}/${y}`;
-            setTextVal(formatted);
-            onChange(`${y}-${m}-${d}`);
-          }
-        }}
+        onBlur={handleBlur}
         placeholder={placeholder}
         className={`${className || ""} pr-8`}
         maxLength={10}
@@ -221,9 +270,9 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
   const [selectedOccupants, setSelectedOccupants] = useState<Set<number>>(
     new Set(),
   );
-  const [intakeMethod, setIntakeMethod] = useState<"upload" | "mobile">(
-    "upload",
-  );
+  const [intakeMethod, setIntakeMethod] = useState<
+    "upload" | "mobile" | "scanner"
+  >("scanner");
   const headingRef = useRef<HTMLHeadingElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -925,13 +974,13 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                 <div className="inline-flex items-center rounded-xl bg-slate-200/80 p-1 text-xs sm:text-sm font-bold shadow-2xs">
                   <button
                     type="button"
-                    onClick={() => setIntakeMethod("upload")}
+                    onClick={() => setIntakeMethod("scanner")}
                     className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-bold transition-all ${
-                      intakeMethod === "upload"
+                      intakeMethod === "scanner"
                         ? "bg-white text-blue-700 shadow-xs"
                         : "text-slate-600 hover:text-slate-900"
                     }`}
-                    aria-pressed={intakeMethod === "upload"}
+                    aria-pressed={intakeMethod === "scanner"}
                   >
                     <svg
                       className="h-4 w-4"
@@ -943,10 +992,10 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                        d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
                       />
                     </svg>
-                    <span>Chọn file</span>
+                    <span>Máy quét CCCD</span>
                   </button>
                   <button
                     type="button"
@@ -981,16 +1030,43 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                     </svg>
                     <span>Quét bằng điện thoại</span>
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setIntakeMethod("upload")}
+                    className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-bold transition-all ${
+                      intakeMethod === "upload"
+                        ? "bg-white text-blue-700 shadow-xs"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                    aria-pressed={intakeMethod === "upload"}
+                  >
+                    <svg
+                      className="h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                      />
+                    </svg>
+                    <span>Chọn file</span>
+                  </button>
                 </div>
               </div>
             </div>
 
             {/* Active intake action banner */}
             <div className="w-full">
-              <div className={intakeMethod === "upload" ? "block" : "hidden"}>
-                <DesktopDocumentOcrUpload
+              <div className={intakeMethod === "scanner" ? "block" : "hidden"}>
+                <CccdCheckInPanel
                   hotelId={hotelId}
-                  onCaptures={handleDocumentCaptures}
+                  onCapture={handleCapture}
+                  activeGuestLabel={`Phòng ${room.roomNumber} — Khách ${activeGuestIndex + 1}`}
+                  autoRequestScanKey={activeGuestIndex}
                 />
               </div>
 
@@ -1007,6 +1083,13 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                   />
                 </section>
               </div>
+
+              <div className={intakeMethod === "upload" ? "block" : "hidden"}>
+                <DesktopDocumentOcrUpload
+                  hotelId={hotelId}
+                  onCaptures={handleDocumentCaptures}
+                />
+              </div>
             </div>
           </div>
 
@@ -1016,6 +1099,12 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
             id="ciw-form"
             onSubmit={(event) => {
               event.preventDefault();
+
+              // Fallback extraction directly from DOM in case of race condition or pending blur
+              const primaryDobInput = document.getElementById("ciw-dob") as HTMLInputElement | null;
+              const rawPrimaryDob = primaryDobInput?.value?.trim() || fields.guestDateOfBirth?.trim() || "";
+              const normalizedPrimaryDob = toIsoDate(rawPrimaryDob) || rawPrimaryDob;
+
               const guestNationality = matchBcaNationalityCode(
                 fields.guestNationality,
                 nationalities,
@@ -1023,13 +1112,20 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
               const normalizedOccupants = filterExtraOccupants(
                 occupants,
                 fields,
-              ).map((occupant) => ({
-                ...occupant,
-                nationality: matchBcaNationalityCode(
-                  occupant.nationality,
-                  nationalities,
-                ),
-              }));
+              ).map((occupant, occIdx) => {
+                const occDobInput = document.getElementById(`occ-dob-${occIdx + 1}`) as HTMLInputElement | null;
+                const rawOccDob = occDobInput?.value?.trim() || occupant.dateOfBirth?.trim() || "";
+                const normalizedOccDob = toIsoDate(rawOccDob) || rawOccDob;
+                return {
+                  ...occupant,
+                  dateOfBirth: normalizedOccDob,
+                  nationality: matchBcaNationalityCode(
+                    occupant.nationality,
+                    nationalities,
+                  ),
+                };
+              });
+
               const missingNationality = normalizedOccupants.findIndex(
                 (occupant) => !occupant.nationality,
               );
@@ -1044,8 +1140,33 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                 });
                 return;
               }
+
+              // Active check: If guest has identityNumber (CCCD/Passport), verify valid date of birth
+              if (fields.guestIdentityNumber?.trim() && !normalizedPrimaryDob) {
+                void Swal.fire({
+                  icon: "warning",
+                  title: "Chưa có ngày sinh",
+                  text: "Khách 1 có số CCCD/Hộ chiếu nhưng chưa có ngày sinh hợp lệ (ngày/tháng/năm) để khai báo BCA.",
+                  confirmButtonText: "Đã hiểu",
+                });
+                return;
+              }
+              const missingDobOccupant = normalizedOccupants.findIndex(
+                (occ) => occ.identityNumber?.trim() && !occ.dateOfBirth,
+              );
+              if (missingDobOccupant >= 0) {
+                void Swal.fire({
+                  icon: "warning",
+                  title: "Chưa có ngày sinh",
+                  text: `Khách ${missingDobOccupant + 2} (${normalizedOccupants[missingDobOccupant].fullName || "Đi cùng"}) có CCCD/Hộ chiếu nhưng chưa có ngày sinh hợp lệ (ngày/tháng/năm).`,
+                  confirmButtonText: "Đã hiểu",
+                });
+                return;
+              }
+
               onSubmit({
                 ...fields,
+                guestDateOfBirth: normalizedPrimaryDob,
                 guestNationality,
                 occupants: normalizedOccupants,
               });
@@ -1239,7 +1360,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                           id="ciw-dob"
                           value={fields.guestDateOfBirth || ""}
                           onChange={(val) =>
-                            setFields({ ...fields, guestDateOfBirth: val })
+                            setFields((f) => ({ ...f, guestDateOfBirth: val }))
                           }
                           className={cellInputClass}
                           placeholder="ngày/tháng/năm"

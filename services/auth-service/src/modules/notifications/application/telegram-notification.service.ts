@@ -468,7 +468,7 @@ export class TelegramNotificationService {
     if (summary.isDryRun) {
       lines.push(``);
       lines.push(`<i>(Đây là phiên chạy thử nghiệm, chưa gửi dữ liệu thật tới hệ thống BCA)</i>`);
-    } else if (summary.unknownCount > 0) {
+    } else {
       lines.push(``);
       lines.push(`<i>(Hồ sơ timeout cần nhân viên lễ tân kiểm tra lại trước khi gửi thủ công)</i>`);
     }
@@ -494,25 +494,17 @@ export class TelegramNotificationService {
     },
   ): Promise<boolean> {
     try {
-      const targetChatIds = new Set<string>();
-      const aggregateChatId =
-        process.env.TELEGRAM_KBTT_AGGREGATE_CHAT_ID?.trim() ||
-        process.env.TELEGRAM_KBTT_CHAT_ID?.trim() ||
-        process.env.TELEGRAM_AGGREGATE_CHAT_ID?.trim() ||
-        process.env.TELEGRAM_CHAT_ID?.trim() ||
-        process.env.TELEGRAM_DEFAULT_CHAT_ID?.trim();
-
-      if (aggregateChatId) {
-        targetChatIds.add(aggregateChatId);
-      }
-
-      if (targetChatIds.size === 0) {
+      const route = await this.prisma.notificationRoute.findFirst({
+        where: { hotelId, isActive: true, purpose: "KBTT_AUTO_SUBMIT" },
+      });
+      const targetChatId = route?.telegramChatId?.trim();
+      if (!targetChatId) {
         this.logger.warn(
-          "Telegram aggregate chat ID is not configured in env (TELEGRAM_KBTT_AGGREGATE_CHAT_ID)",
+          "Telegram KBTT hotel route is not configured",
           {
             module: "telegram",
             service: TelegramNotificationService.name,
-            event: "KBTT_TELEGRAM_AGGREGATE_NOT_CONFIGURED",
+            event: "KBTT_TELEGRAM_HOTEL_ROUTE_NOT_CONFIGURED",
             hotelId,
           },
         );
@@ -535,121 +527,23 @@ export class TelegramNotificationService {
       }
 
       const text = this.formatKbttSummaryMessage({ ...summary, hotelName });
-      let sentCount = 0;
-      for (const chatId of targetChatIds) {
-        try {
-          await this.callTelegram("sendMessage", {
-            chat_id: chatId,
-            text,
-            parse_mode: "HTML",
-          });
-          sentCount++;
-        } catch (sendError: any) {
-          this.logger.warn(
-            `Failed to send Telegram KBTT summary to chatId ${chatId}: ${this.errorMessage(sendError)}`,
-            {
-              module: "telegram",
-              service: TelegramNotificationService.name,
-              event: "KBTT_TELEGRAM_SUMMARY_PARTIAL_FAILURE",
-              hotelId,
-              chatId,
-            },
-          );
-        }
-      }
-
-      if (sentCount > 0) {
-        this.logger.info("Telegram KBTT summary sent successfully", {
-          module: "telegram",
-          service: TelegramNotificationService.name,
-          event: "KBTT_TELEGRAM_SUMMARY_SENT",
-          hotelId,
-          recipientCount: sentCount,
-        });
-        return true;
-      }
-      return false;
-    } catch (error: any) {
-      this.logger.error(
-        `Failed to send Telegram KBTT summary for hotel ${hotelId}: ${this.errorMessage(error)}`,
-        error?.stack,
-      );
-      return false;
-    }
-  }
-
-  async sendKbttSingleSubmitNotification(data: {
-    hotelId: string;
-    hotelName?: string;
-    roomNumber?: string;
-    fullName: string;
-    identityNumber?: string;
-    stayPeriod?: string;
-    status: "SUBMITTED" | "FAILED";
-    isReconciled?: boolean;
-    errorMessage?: string;
-  }): Promise<boolean> {
-    if (process.env.TELEGRAM_KBTT_ENABLE_SINGLE_NOTIFICATIONS !== "true") {
-      // Per user policy ("không gửi về tele riêng nữa, chỉ gửi tổng hợp sau khi hoàn tất"),
-      // single occupant telegram notifications are disabled by default.
-      return false;
-    }
-    try {
-      const route =
-        (await this.prisma.notificationRoute.findFirst({
-          where: { hotelId: data.hotelId, isActive: true, purpose: "KBTT_AUTO_SUBMIT" },
-        })) ??
-        (await this.prisma.notificationRoute.findFirst({
-          where: { hotelId: data.hotelId, isActive: true },
-        }));
-
-      if (!route?.telegramChatId?.trim()) {
-        return false;
-      }
-
-      const targetChatId = route.telegramChatId.trim();
-
-      let hotelName = data.hotelName;
-      if (!hotelName || hotelName === data.hotelId) {
-        try {
-          const hotel = await (this.prisma as any)?.hotel?.findUnique?.({
-            where: { id: data.hotelId },
-            select: { name: true },
-          });
-          if (hotel?.name) {
-            hotelName = hotel.name;
-          }
-        } catch {
-          // non-blocking fallback lookup
-        }
-      }
-
-      const icon = data.status === "SUBMITTED" ? (data.isReconciled ? "⚡" : "✅") : "❌";
-      const statusTitle =
-        data.status === "SUBMITTED"
-          ? data.isReconciled
-            ? "ĐÃ GỬI BCA (TỰ ĐỘNG ĐỐI SOÁT)"
-            : "ĐÃ GỬI BCA THÀNH CÔNG"
-          : "GỬI BCA THẤT BẠI";
-
-      const lines = [
-        `🏛️ <b>[${this.escapeHtml(hotelName || data.hotelId)}]</b> ${data.roomNumber ? `- Phòng <b>${this.escapeHtml(data.roomNumber)}</b>` : ""}`,
-        `👤 <b>Khách:</b> ${this.escapeHtml(data.fullName)} ${data.identityNumber ? `(<code>${this.escapeHtml(data.identityNumber)}</code>)` : ""}`,
-        data.stayPeriod ? `📅 <b>Lưu trú:</b> ${this.escapeHtml(data.stayPeriod)}` : "",
-        `${icon} <b>Trạng thái:</b> <b>${statusTitle}</b>`,
-        data.errorMessage ? `⚠️ <i>Lý do: ${this.escapeHtml(data.errorMessage)}</i>` : "",
-      ].filter(Boolean);
-
-      const text = lines.join("\n");
       await this.callTelegram("sendMessage", {
         chat_id: targetChatId,
         text,
         parse_mode: "HTML",
       });
-
+      this.logger.info("Telegram KBTT summary sent successfully", {
+        module: "telegram",
+        service: TelegramNotificationService.name,
+        event: "KBTT_TELEGRAM_SUMMARY_SENT",
+        hotelId,
+      });
       return true;
     } catch (error: any) {
-      this.logger.error(`Failed to send Telegram KBTT single submit: ${this.errorMessage(error)}`);
+      this.logger.error(
+        `Failed to send Telegram KBTT summary for hotel ${hotelId}: ${this.errorMessage(error)}`,
+        error?.stack,
+      );
       return false;
     }
   }
