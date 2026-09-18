@@ -225,7 +225,10 @@ function getRoomPrice(room: HotelRoomSummary): number | null {
   if (typeof room.price === "number")
     return Number.isFinite(room.price) ? room.price : null;
   if (typeof room.price === "string" && room.price.trim()) {
-    const normalizedPrice = room.price.replace(/\D/g, "");
+    const trimmed = room.price.trim();
+    const directNum = Number(trimmed);
+    if (Number.isFinite(directNum)) return Math.round(directNum);
+    const normalizedPrice = trimmed.replace(/\D/g, "");
     const parsed = Number(normalizedPrice);
     return Number.isFinite(parsed) ? parsed : null;
   }

@@ -153,7 +153,9 @@ function InvoiceDetailView({ detail }: { detail: InvoiceDetail }) {
           </div>
           <div className="mt-2 flex justify-between gap-4">
             <dt className="text-slate-600">Giảm giá</dt>
-            <dd className="font-bold">{formatMoney(invoice.discountAmount, currency)}</dd>
+            <dd className="font-bold text-emerald-700">
+              {Number(invoice.discountAmount) > 0 ? `-${formatMoney(invoice.discountAmount, currency)}` : formatMoney(invoice.discountAmount, currency)}
+            </dd>
           </div>
           <div className="mt-3 border-t border-slate-200 pt-3">
             <div className="flex justify-between gap-4 text-base">
@@ -201,6 +203,7 @@ function InvoiceDetailView({ detail }: { detail: InvoiceDetail }) {
           <tbody>
             {items.map((item) => {
               const isExternal = isExternalInvoiceItem(item);
+              const isDiscount = item.type === "DISCOUNT";
               return (
                 <tr key={item.id} className="invoice-table-row border-b border-slate-200 align-top">
                   <td className="break-words px-2 py-2 font-bold leading-4 text-slate-950">
@@ -225,11 +228,35 @@ function InvoiceDetailView({ detail }: { detail: InvoiceDetail }) {
                   </td>
                   <td className="break-words px-2 py-2 leading-4 text-slate-600">{labelItemType(item.type)}</td>
                   <td className="px-1 py-2 text-center font-semibold">{formatQuantity(item.quantity)}</td>
-                  <td className="px-2 py-2 text-right tabular-nums">{formatMoney(item.unitPrice, currency)}</td>
+                  <td className="px-2 py-2 text-right tabular-nums">
+                    {isDiscount ? (
+                      <span className="text-emerald-700 font-semibold">
+                        -{formatMoney(Math.abs(Number(item.unitPrice)), currency)}
+                      </span>
+                    ) : (
+                      formatMoney(item.unitPrice, currency)
+                    )}
+                  </td>
                   <td className="px-2 py-2 text-right tabular-nums">{formatMoney(item.subtotal, currency)}</td>
                   <td className="px-2 py-2 text-right tabular-nums">{formatMoney(item.taxAmount, currency)}</td>
-                  <td className="px-2 py-2 text-right tabular-nums">{formatMoney(item.discountAmount, currency)}</td>
-                  <td className="px-2 py-2 text-right font-black tabular-nums">{formatMoney(item.total, currency)}</td>
+                  <td className="px-2 py-2 text-right tabular-nums">
+                    {isDiscount ? (
+                      <span className="text-emerald-700 font-semibold">
+                        -{formatMoney(Math.abs(Number(item.discountAmount || item.total)), currency)}
+                      </span>
+                    ) : (
+                      formatMoney(item.discountAmount, currency)
+                    )}
+                  </td>
+                  <td className="px-2 py-2 text-right font-black tabular-nums">
+                    {isDiscount ? (
+                      <span className="text-emerald-700 font-bold">
+                        -{formatMoney(Math.abs(Number(item.total)), currency)}
+                      </span>
+                    ) : (
+                      formatMoney(item.total, currency)
+                    )}
+                  </td>
                 </tr>
               );
             })}

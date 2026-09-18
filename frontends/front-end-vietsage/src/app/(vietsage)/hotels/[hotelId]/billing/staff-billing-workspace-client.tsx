@@ -42,10 +42,28 @@ function isFolioItemVoided(item: FolioItem): boolean {
 }
 
 function parseFormattedNumber(value: unknown): number {
-  if (typeof value === "number") return value;
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
   if (typeof value === "string") {
-    const rawDigits = value.replace(/\D/g, "");
-    return rawDigits ? parseInt(rawDigits, 10) : 0;
+    const trimmed = value.trim();
+    if (!trimmed) return 0;
+
+    // Plain integer string: "500000", "-50000"
+    if (/^-?\d+$/.test(trimmed)) {
+      const num = parseInt(trimmed, 10);
+      return Number.isFinite(num) ? num : 0;
+    }
+
+    // Database / API Decimal with 1-2 decimal places: e.g. "500000.00", "-50000.00"
+    if (/^-?\d+\.\d{1,2}$/.test(trimmed)) {
+      const num = Math.round(Number(trimmed));
+      return Number.isFinite(num) ? num : 0;
+    }
+
+    // Formatted Vietnamese string with thousand dots or commas (e.g. "500.000", "-50.000", "1.000.000")
+    const isNegative = trimmed.startsWith("-");
+    const cleanDigits = trimmed.replace(/[^\d]/g, "");
+    const parsed = cleanDigits ? parseInt(cleanDigits, 10) : 0;
+    return isNegative ? -parsed : parsed;
   }
   return 0;
 }
@@ -317,15 +335,60 @@ export function StaffBillingWorkspaceClient({
       .reduce((sum, item) => sum + toNumber(item.totalSnapshot), 0);
   }, [activeItems]);
 
+  const manualChargeTotal = useMemo(() => {
+    return activeItems
+      .filter(
+        (item) =>
+          item.itemType === "MANUAL_CHARGE" && !isFolioItemVoided(item),
+      )
+      .reduce((sum, item) => sum + toNumber(item.totalSnapshot), 0);
+  }, [activeItems]);
+
+  const existingDiscountTotal = useMemo(() => {
+    const fromItems = activeItems
+      .filter(
+        (item) => item.itemType === "DISCOUNT" && !isFolioItemVoided(item),
+      )
+      .reduce((sum, item) => {
+        const amt = toNumber(item.totalSnapshot || item.discountAmountSnapshot);
+        return sum + Math.abs(amt);
+      }, 0);
+    if (fromItems > 0) return fromItems;
+    return Math.abs(toNumber(activeSummary?.discount ?? 0));
+  }, [activeItems, activeSummary]);
+
   const discountParsed = parseAmountOrPercentage(discountInput, subtotal);
   const surchargeParsed = parseAmountOrPercentage(surchargeInput, subtotal);
 
   const discountVal = Math.max(0, discountParsed.amount);
   const surchargeVal = Math.max(0, surchargeParsed.amount);
-  const computedTotal = Math.max(
-    0,
-    subtotal + tax + surchargeVal - discountVal,
-  );
+
+  const isClosedFolio = selectedFolio?.status === "CLOSED";
+
+  const computedTotal = useMemo(() => {
+    if (isClosedFolio) {
+      const closedTotal = toNumber(
+        activeSummary?.total ?? selectedFolio?.total ?? selectedFolio?.totalAmount,
+      );
+      if (closedTotal > 0 || (activeSummary && activeSummary.total !== undefined)) {
+        return closedTotal;
+      }
+      return Math.max(0, subtotal + tax - existingDiscountTotal);
+    }
+    return Math.max(
+      0,
+      subtotal + tax - existingDiscountTotal + surchargeVal - discountVal,
+    );
+  }, [
+    isClosedFolio,
+    activeSummary,
+    selectedFolio,
+    subtotal,
+    tax,
+    existingDiscountTotal,
+    surchargeVal,
+    discountVal,
+  ]);
 
   const refreshActiveFolio = useCallback(async () => {
     if (!selectedFolioId) return;
@@ -832,13 +895,25 @@ export function StaffBillingWorkspaceClient({
                       {item.quantity}
                     </td>
                     <td className="py-4 px-4 text-right font-medium text-slate-600">
-                      {formatMoney(
-                        toNumber(item.unitPriceSnapshot),
-                        item.currency,
+                      {item.itemType === "DISCOUNT" ? (
+                        <span className="text-emerald-700 font-semibold">
+                          -{formatMoney(Math.abs(toNumber(item.unitPriceSnapshot)), item.currency)}
+                        </span>
+                      ) : (
+                        formatMoney(
+                          toNumber(item.unitPriceSnapshot),
+                          item.currency,
+                        )
                       )}
                     </td>
                     <td className="py-4 px-4 text-right font-black text-base text-[var(--primary)]">
-                      {formatMoney(toNumber(item.totalSnapshot), item.currency)}
+                      {item.itemType === "DISCOUNT" ? (
+                        <span className="text-emerald-700 font-bold">
+                          -{formatMoney(Math.abs(toNumber(item.totalSnapshot || item.discountAmountSnapshot)), item.currency)}
+                        </span>
+                      ) : (
+                        formatMoney(toNumber(item.totalSnapshot), item.currency)
+                      )}
                     </td>
                     <td className="py-4 px-4 text-center">
                       {canManage &&
@@ -1121,7 +1196,19 @@ export function StaffBillingWorkspaceClient({
               </div>
             ) : null}
 
-            {/* Tạm tính (Tiền phòng + Dịch vụ) */}
+            {/* Phụ thu đã ghi nhận trong folio */}
+            {manualChargeTotal > 0 ? (
+              <div className="flex justify-between items-center">
+                <dt className="text-amber-100/90 font-bold text-sm flex items-center gap-1">
+                  <span>⚡ Phụ thu đã thêm</span>
+                </dt>
+                <dd className="font-black text-base text-amber-300">
+                  +{formatMoney(manualChargeTotal, currency)}
+                </dd>
+              </div>
+            ) : null}
+
+            {/* Tạm tính (Tiền phòng + Dịch vụ + Phụ thu) */}
             <div className="flex justify-between items-center border-t border-[#d4af37]/20 pt-2">
               <dt className="text-amber-200/90 font-extrabold text-sm">
                 Tổng tạm tính
@@ -1140,173 +1227,198 @@ export function StaffBillingWorkspaceClient({
               </dd>
             </div>
 
-            {/* Phụ thu (Tăng giá) */}
-            <div className="space-y-2 border-t border-[#d4af37]/25 pt-3">
-              <div className="flex items-center justify-between gap-2">
-                <dt className="text-amber-100 font-extrabold text-sm min-w-0 truncate">
-                  Phụ thu (Tăng giá)
+            {/* Giảm giá đã áp dụng trong folio */}
+            {existingDiscountTotal > 0 ? (
+              <div className="flex justify-between items-center border-t border-[#d4af37]/20 pt-2">
+                <dt className="text-emerald-300 font-extrabold text-sm flex items-center gap-1">
+                  <span>🏷️ Giảm giá đã áp dụng</span>
                 </dt>
-                <dd className="flex-1 min-w-0 max-w-[165px] shrink-0">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    disabled={selectedFolio?.status === "CLOSED"}
-                    value={surchargeInput}
-                    onChange={(e) =>
-                      setSurchargeInput(
-                        formatNumberOrPercentInput(e.target.value),
-                      )
-                    }
-                    placeholder="0 hoặc 10%"
-                    className="h-10 w-full min-w-0 rounded-xl border border-[#d4af37]/70 bg-[#1c1204] px-3 py-1 text-right text-base font-black text-[#ffe270] outline-none focus:border-[#fbbf24] focus:ring-2 focus:ring-[#fbbf24]/60 shadow-inner disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-[#2b1e0d]"
-                  />
+                <dd className="font-black text-base text-emerald-400">
+                  -{formatMoney(existingDiscountTotal, currency)}
                 </dd>
               </div>
+            ) : null}
 
-              {/* Input Diễn giải / Lý do phụ thu */}
-              {canManage && selectedFolio?.status === "OPEN" ? (
-                <input
-                  type="text"
-                  value={surchargeNote}
-                  onChange={(e) => setSurchargeNote(e.target.value)}
-                  placeholder="Lý do phụ thu (vd: Check-in sớm, phụ thu người ở...)"
-                  className="h-9 w-full rounded-xl border border-[#d4af37]/40 bg-[#1c1204]/90 px-3 py-1 text-xs sm:text-sm font-medium text-[#ffe270] placeholder-[#d4af37]/50 outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24]"
-                />
-              ) : null}
-
-              {/* Hiển thị quy đổi % phụ thu */}
-              {surchargeParsed.isPercentage && surchargeParsed.amount > 0 ? (
-                <p className="text-xs font-bold text-right text-[#ffe270]">
-                  ⚡ Quy đổi {surchargeParsed.percentage}% Tạm tính: +
-                  {formatMoney(surchargeParsed.amount, currency)}
-                </p>
-              ) : null}
-
-              {/* Preset chips phụ thu (CHỈ 1 DÒNG DUY NHẤT) */}
-              {canManage && selectedFolio?.status === "OPEN" ? (
-                <div className="flex flex-nowrap gap-1 justify-end overflow-x-auto no-scrollbar pt-0.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSurchargeInput("5%");
-                      if (!surchargeNote) setSurchargeNote("Phụ thu 5%");
-                    }}
-                    className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/40 transition shrink-0 whitespace-nowrap"
-                  >
-                    +5%
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSurchargeInput("10%");
-                      if (!surchargeNote) setSurchargeNote("Phụ thu 10%");
-                    }}
-                    className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/40 transition shrink-0 whitespace-nowrap"
-                  >
-                    +10%
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSurchargeInput(formatNumberInput("50000"));
-                      setSurchargeNote("Phụ thu Check-in sớm");
-                    }}
-                    className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/40 transition shrink-0 whitespace-nowrap"
-                  >
-                    +50k Sớm
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSurchargeInput(formatNumberInput("100000"));
-                      setSurchargeNote("Phụ thu Check-out muộn");
-                    }}
-                    className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/40 transition shrink-0 whitespace-nowrap"
-                  >
-                    +100k Muộn
-                  </button>
+            {/* Khi folio đã đóng: Hiện thông báo hoàn tất thanh toán thay vì các ô nhập chỉnh sửa */}
+            {selectedFolio?.status === "CLOSED" ? (
+              <div className="rounded-xl border border-emerald-500/40 bg-emerald-950/60 p-3 text-center space-y-1">
+                <div className="flex items-center justify-center gap-1.5 text-xs font-black text-emerald-400">
+                  <VsIcon name="check_circle" className="text-base" />
+                  <span>Folio đã hoàn tất thanh toán &amp; đóng</span>
                 </div>
-              ) : null}
-            </div>
-
-            {/* Giảm giá */}
-            <div className="space-y-2 border-t border-[#d4af37]/25 pt-3">
-              <div className="flex items-center justify-between gap-2">
-                <dt className="text-amber-100 font-extrabold text-sm min-w-0 truncate">
-                  Giảm giá
-                </dt>
-                <dd className="flex-1 min-w-0 max-w-[165px] shrink-0">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    disabled={selectedFolio?.status === "CLOSED"}
-                    value={discountInput}
-                    onChange={(e) =>
-                      setDiscountInput(
-                        formatNumberOrPercentInput(e.target.value),
-                      )
-                    }
-                    placeholder="0 hoặc 10%"
-                    className="h-10 w-full min-w-0 rounded-xl border border-[#d4af37]/70 bg-[#1c1204] px-3 py-1 text-right text-base font-black text-[#fef08a] outline-none focus:border-[#fbbf24] focus:ring-2 focus:ring-[#fbbf24]/60 shadow-inner disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-[#2b1e0d]"
-                  />
-                </dd>
+                <p className="text-[11px] text-emerald-300/80">
+                  Hóa đơn đã được phát hành. Bấm nút bên dưới để xem hoặc in lại hóa đơn.
+                </p>
               </div>
+            ) : (
+              <>
+                {/* Phụ thu (Tăng giá) */}
+                <div className="space-y-2 border-t border-[#d4af37]/25 pt-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <dt className="text-amber-100 font-extrabold text-sm min-w-0 truncate">
+                      Phụ thu (Tăng giá)
+                    </dt>
+                    <dd className="flex-1 min-w-0 max-w-[165px] shrink-0">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={surchargeInput}
+                        onChange={(e) =>
+                          setSurchargeInput(
+                            formatNumberOrPercentInput(e.target.value),
+                          )
+                        }
+                        placeholder="0 hoặc 10%"
+                        className="h-10 w-full min-w-0 rounded-xl border border-[#d4af37]/70 bg-[#1c1204] px-3 py-1 text-right text-base font-black text-[#ffe270] outline-none focus:border-[#fbbf24] focus:ring-2 focus:ring-[#fbbf24]/60 shadow-inner"
+                      />
+                    </dd>
+                  </div>
 
-              {/* Input Diễn giải / Lý do giảm giá */}
-              {canManage && selectedFolio?.status === "OPEN" ? (
-                <input
-                  type="text"
-                  value={discountNote}
-                  onChange={(e) => setDiscountNote(e.target.value)}
-                  placeholder="Lý do giảm giá (vd: Khách VIP, voucher...)"
-                  className="h-9 w-full rounded-xl border border-[#d4af37]/40 bg-[#1c1204]/90 px-3 py-1 text-xs sm:text-sm font-medium text-[#fef08a] placeholder-[#d4af37]/50 outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24]"
-                />
-              ) : null}
+                  {/* Input Diễn giải / Lý do phụ thu */}
+                  {canManage ? (
+                    <input
+                      type="text"
+                      value={surchargeNote}
+                      onChange={(e) => setSurchargeNote(e.target.value)}
+                      placeholder="Lý do phụ thu (vd: Check-in sớm, phụ thu người ở...)"
+                      className="h-9 w-full rounded-xl border border-[#d4af37]/40 bg-[#1c1204]/90 px-3 py-1 text-xs sm:text-sm font-medium text-[#ffe270] placeholder-[#d4af37]/50 outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24]"
+                    />
+                  ) : null}
 
-              {/* Hiển thị quy đổi % giảm giá */}
-              {discountParsed.isPercentage && discountParsed.amount > 0 ? (
-                <p className="text-xs font-bold text-right text-[#fef08a]">
-                  ⚡ Quy đổi {discountParsed.percentage}% Tạm tính: -
-                  {formatMoney(discountParsed.amount, currency)}
-                </p>
-              ) : null}
+                  {/* Hiển thị quy đổi % phụ thu */}
+                  {surchargeParsed.isPercentage && surchargeParsed.amount > 0 ? (
+                    <p className="text-xs font-bold text-right text-[#ffe270]">
+                      ⚡ Quy đổi {surchargeParsed.percentage}% Tạm tính: +
+                      {formatMoney(surchargeParsed.amount, currency)}
+                    </p>
+                  ) : null}
 
-              {/* Preset chips giảm giá (CHỈ 1 DÒNG DUY NHẤT) */}
-              {canManage && selectedFolio?.status === "OPEN" ? (
-                <div className="flex flex-nowrap gap-1 justify-end overflow-x-auto no-scrollbar pt-0.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDiscountInput("5%");
-                      setDiscountNote("Giảm giá 5% Khách VIP");
-                    }}
-                    className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#fef08a] hover:bg-[#d4af37]/50 border border-[#d4af37]/40 transition shrink-0 whitespace-nowrap"
-                  >
-                    -5% VIP
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDiscountInput("10%");
-                      setDiscountNote("Giảm giá 10% Khách VIP");
-                    }}
-                    className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#fef08a] hover:bg-[#d4af37]/50 border border-[#d4af37]/40 transition shrink-0 whitespace-nowrap"
-                  >
-                    -10% VIP
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDiscountInput("15%");
-                      setDiscountNote("Ưu đãi voucher -15%");
-                    }}
-                    className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#fef08a] hover:bg-[#d4af37]/50 border border-[#d4af37]/40 transition shrink-0 whitespace-nowrap"
-                  >
-                    -15% Voucher
-                  </button>
+                  {/* Preset chips phụ thu (CHỈ 1 DÒNG DUY NHẤT) */}
+                  {canManage ? (
+                    <div className="flex flex-nowrap gap-1 justify-end overflow-x-auto no-scrollbar pt-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSurchargeInput("5%");
+                          if (!surchargeNote) setSurchargeNote("Phụ thu 5%");
+                        }}
+                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/40 transition shrink-0 whitespace-nowrap"
+                      >
+                        +5%
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSurchargeInput("10%");
+                          if (!surchargeNote) setSurchargeNote("Phụ thu 10%");
+                        }}
+                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/40 transition shrink-0 whitespace-nowrap"
+                      >
+                        +10%
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSurchargeInput(formatNumberInput("50000"));
+                          setSurchargeNote("Phụ thu Check-in sớm");
+                        }}
+                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/40 transition shrink-0 whitespace-nowrap"
+                      >
+                        +50k Sớm
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSurchargeInput(formatNumberInput("100000"));
+                          setSurchargeNote("Phụ thu Check-out muộn");
+                        }}
+                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/40 transition shrink-0 whitespace-nowrap"
+                      >
+                        +100k Muộn
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
-              ) : null}
-            </div>
+
+                {/* Giảm giá */}
+                <div className="space-y-2 border-t border-[#d4af37]/25 pt-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <dt className="text-amber-100 font-extrabold text-sm min-w-0 truncate">
+                      Giảm giá
+                    </dt>
+                    <dd className="flex-1 min-w-0 max-w-[165px] shrink-0">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={discountInput}
+                        onChange={(e) =>
+                          setDiscountInput(
+                            formatNumberOrPercentInput(e.target.value),
+                          )
+                        }
+                        placeholder="0 hoặc 10%"
+                        className="h-10 w-full min-w-0 rounded-xl border border-[#d4af37]/70 bg-[#1c1204] px-3 py-1 text-right text-base font-black text-[#fef08a] outline-none focus:border-[#fbbf24] focus:ring-2 focus:ring-[#fbbf24]/60 shadow-inner"
+                      />
+                    </dd>
+                  </div>
+
+                  {/* Input Diễn giải / Lý do giảm giá */}
+                  {canManage ? (
+                    <input
+                      type="text"
+                      value={discountNote}
+                      onChange={(e) => setDiscountNote(e.target.value)}
+                      placeholder="Lý do giảm giá (vd: Khách VIP, voucher...)"
+                      className="h-9 w-full rounded-xl border border-[#d4af37]/40 bg-[#1c1204]/90 px-3 py-1 text-xs sm:text-sm font-medium text-[#fef08a] placeholder-[#d4af37]/50 outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24]"
+                    />
+                  ) : null}
+
+                  {/* Hiển thị quy đổi % giảm giá */}
+                  {discountParsed.isPercentage && discountParsed.amount > 0 ? (
+                    <p className="text-xs font-bold text-right text-[#fef08a]">
+                      ⚡ Quy đổi {discountParsed.percentage}% Tạm tính: -
+                      {formatMoney(discountParsed.amount, currency)}
+                    </p>
+                  ) : null}
+
+                  {/* Preset chips giảm giá (CHỈ 1 DÒNG DUY NHẤT) */}
+                  {canManage ? (
+                    <div className="flex flex-nowrap gap-1 justify-end overflow-x-auto no-scrollbar pt-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDiscountInput("5%");
+                          setDiscountNote("Giảm giá 5% Khách VIP");
+                        }}
+                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#fef08a] hover:bg-[#d4af37]/50 border border-[#d4af37]/40 transition shrink-0 whitespace-nowrap"
+                      >
+                        -5% VIP
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDiscountInput("10%");
+                          setDiscountNote("Giảm giá 10% Khách VIP");
+                        }}
+                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#fef08a] hover:bg-[#d4af37]/50 border border-[#d4af37]/40 transition shrink-0 whitespace-nowrap"
+                      >
+                        -10% VIP
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDiscountInput("15%");
+                          setDiscountNote("Ưu đãi voucher -15%");
+                        }}
+                        className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-[#fef08a] hover:bg-[#d4af37]/50 border border-[#d4af37]/40 transition shrink-0 whitespace-nowrap"
+                      >
+                        -15% Voucher
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              </>
+            )}
 
             {/* Hỗ trợ tính tiền thừa cho Lễ tân */}
             {selectedFolio?.status !== "CLOSED" ? (

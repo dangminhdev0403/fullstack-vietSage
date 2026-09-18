@@ -34,8 +34,18 @@ const QR_STATUS_MAP: Record<string, { label: string; bg: string; text: string }>
 };
 
 function formatVnd(value: number | string | null | undefined): string {
-  if (value === null || value === undefined) return "--";
-  const num = typeof value === "number" ? value : Number(String(value).replace(/\D/g, ""));
+  if (value === null || value === undefined || value === "") return "--";
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) return "--";
+    return new Intl.NumberFormat("vi-VN").format(value) + " ₫";
+  }
+  const str = String(value).trim();
+  const directNum = Number(str);
+  if (Number.isFinite(directNum)) {
+    return new Intl.NumberFormat("vi-VN").format(Math.round(directNum)) + " ₫";
+  }
+  const rawDigits = str.replace(/[^\d]/g, "");
+  const num = rawDigits ? parseInt(rawDigits, 10) : NaN;
   if (!Number.isFinite(num)) return "--";
   return new Intl.NumberFormat("vi-VN").format(num) + " ₫";
 }

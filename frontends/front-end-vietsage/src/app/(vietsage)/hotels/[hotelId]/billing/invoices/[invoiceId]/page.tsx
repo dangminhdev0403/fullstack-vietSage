@@ -118,7 +118,12 @@ export default async function StaffInvoicePage({ params }: PageProps) {
           <dl className="rounded-lg bg-slate-50 p-4 text-sm">
             <div className="flex justify-between"><dt>Tạm tính</dt><dd className="font-bold">{formatMoney(invoice.subtotalAmount, invoice.currency)}</dd></div>
             <div className="mt-2 flex justify-between"><dt>Thuế</dt><dd className="font-bold">{formatMoney(invoice.taxAmount, invoice.currency)}</dd></div>
-            <div className="mt-2 flex justify-between"><dt>Giảm giá</dt><dd className="font-bold">{formatMoney(invoice.discountAmount, invoice.currency)}</dd></div>
+            <div className="mt-2 flex justify-between">
+              <dt>Giảm giá</dt>
+              <dd className="font-bold text-emerald-700">
+                {Number(invoice.discountAmount) > 0 ? `-${formatMoney(invoice.discountAmount, invoice.currency)}` : formatMoney(invoice.discountAmount, invoice.currency)}
+              </dd>
+            </div>
             <div className="mt-3 flex justify-between border-t pt-3 text-lg"><dt className="font-black">Tổng</dt><dd className="font-black text-emerald-700">{formatMoney(invoice.totalAmount, invoice.currency)}</dd></div>
           </dl>
         </section>
@@ -140,6 +145,7 @@ export default async function StaffInvoicePage({ params }: PageProps) {
               <tbody className="divide-y">
                 {items.map((item) => {
                   const isExternal = isExternalInvoiceItem(item);
+                  const isDiscount = item.type === "DISCOUNT";
                   return (
                     <tr key={item.id}>
                       <td className="p-2 font-bold">
@@ -169,11 +175,29 @@ export default async function StaffInvoicePage({ params }: PageProps) {
                             ? "Dịch vụ bên ngoài"
                             : item.type === "SERVICE"
                               ? "Dịch vụ khách sạn"
-                              : labelStatus(itemTypeLabels, item.type)}
+                              : item.type === "DISCOUNT"
+                                ? "Giảm giá"
+                                : labelStatus(itemTypeLabels, item.type)}
                       </td>
                       <td className="p-2 text-right">{item.quantity}</td>
-                      <td className="p-2 text-right">{formatMoney(item.unitPrice, invoice.currency)}</td>
-                      <td className="p-2 text-right font-bold">{formatMoney(item.total, invoice.currency)}</td>
+                      <td className="p-2 text-right">
+                        {isDiscount ? (
+                          <span className="text-emerald-700 font-semibold">
+                            -{formatMoney(Math.abs(Number(item.unitPrice)), invoice.currency)}
+                          </span>
+                        ) : (
+                          formatMoney(item.unitPrice, invoice.currency)
+                        )}
+                      </td>
+                      <td className="p-2 text-right font-bold">
+                        {isDiscount ? (
+                          <span className="text-emerald-700 font-bold">
+                            -{formatMoney(Math.abs(Number(item.total)), invoice.currency)}
+                          </span>
+                        ) : (
+                          formatMoney(item.total, invoice.currency)
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
