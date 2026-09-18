@@ -1,6 +1,0 @@
-.runtime/
-data/
-profiles.json
-*.crt
-*.key
-__pycache__/
