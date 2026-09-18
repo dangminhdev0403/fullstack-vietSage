@@ -208,6 +208,10 @@ describe("HotelsRepository check-in QR creation", () => {
         }),
         update: jest.fn().mockResolvedValue(stay),
       },
+      guestStayOccupant: {
+        findMany: jest.fn().mockResolvedValue([]),
+        update: jest.fn(),
+      },
       room: {
         findFirst: jest.fn().mockResolvedValue({ id: "room-1", status: "AVAILABLE" }),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),

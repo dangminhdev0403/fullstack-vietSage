@@ -34,7 +34,6 @@ function getFolioInvoiceId(folio: FolioListItem): string | null {
 export function BillingFolioTableClient({
   hotelId,
   foliosPage,
-  apiBasePath: _apiBasePath = `/api/owner/hotels/${encodeURIComponent(hotelId)}`,
   invoiceBasePath = `/owner/hotels/${encodeURIComponent(hotelId)}/billing/invoices`,
 }: BillingFolioTableClientProps) {
   const router = useRouter();

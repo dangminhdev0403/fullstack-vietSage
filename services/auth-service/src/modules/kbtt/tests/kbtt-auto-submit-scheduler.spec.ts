@@ -119,10 +119,13 @@ describe("KbttAutoSubmitSchedulerService", () => {
       leaseExpiresAt: new Date(0),
     };
     const updateMany = jest.fn().mockResolvedValue({ count: 1 });
-    const findUnique = jest.fn().mockResolvedValueOnce(expired).mockResolvedValueOnce({
-      ...expired,
-      leaseExpiresAt: new Date("2026-09-15T21:40:00.000Z"),
-    });
+    const findUnique = jest
+      .fn()
+      .mockResolvedValueOnce(expired)
+      .mockResolvedValueOnce({
+        ...expired,
+        leaseExpiresAt: new Date("2026-09-15T21:40:00.000Z"),
+      });
     const repository = new KbttRepository({
       kbttAutoSubmitRun: { findUnique, updateMany },
     } as never);
@@ -155,20 +158,22 @@ describe("KbttAutoSubmitSchedulerService", () => {
       { hotelId: "hotel-fast-2", autoSubmitTime: "04:30" },
     ]);
 
-    (kbttService.executeAutoSubmitForHotel as jest.Mock).mockImplementation(async (hotelId: string) => {
-      events.push(`start:${hotelId}`);
-      if (hotelId === "hotel-huge") {
-        await hugePromise;
-        events.push("finish:hotel-huge");
-        return { id: "run-huge" };
-      }
-      if (hotelId === "hotel-failing") {
-        events.push("fail:hotel-failing");
-        throw new Error("Hotel failure");
-      }
-      events.push(`finish:${hotelId}`);
-      return { id: `run-${hotelId}` };
-    });
+    (kbttService.executeAutoSubmitForHotel as jest.Mock).mockImplementation(
+      async (hotelId: string) => {
+        events.push(`start:${hotelId}`);
+        if (hotelId === "hotel-huge") {
+          await hugePromise;
+          events.push("finish:hotel-huge");
+          return { id: "run-huge" };
+        }
+        if (hotelId === "hotel-failing") {
+          events.push("fail:hotel-failing");
+          throw new Error("Hotel failure");
+        }
+        events.push(`finish:${hotelId}`);
+        return { id: `run-${hotelId}` };
+      },
+    );
 
     const cronPromise = scheduler.handleCron();
 

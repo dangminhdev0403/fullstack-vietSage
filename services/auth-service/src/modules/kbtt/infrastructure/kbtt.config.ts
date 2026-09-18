@@ -19,17 +19,15 @@ const configSchema = z
       .refine((value) => Buffer.from(value, "base64").length === 32)
       .optional(),
   })
-  .refine(
-    (config) => {
-      const values = [
-        config.KBTT_BASE_URL,
-        config.KBTT_LOGIN_BASIC_AUTH_VALUE,
-        config.KBTT_TOKEN_BASIC_AUTH_VALUE,
-        config.KBTT_CREDENTIAL_ENCRYPTION_KEY,
-      ];
-      return values.filter(Boolean).length === 0 || values.every(Boolean);
-    },
-  );
+  .refine((config) => {
+    const values = [
+      config.KBTT_BASE_URL,
+      config.KBTT_LOGIN_BASIC_AUTH_VALUE,
+      config.KBTT_TOKEN_BASIC_AUTH_VALUE,
+      config.KBTT_CREDENTIAL_ENCRYPTION_KEY,
+    ];
+    return values.filter(Boolean).length === 0 || values.every(Boolean);
+  });
 
 export function loadKbttConfig(env: NodeJS.ProcessEnv = process.env) {
   const parsed = configSchema.safeParse(env);

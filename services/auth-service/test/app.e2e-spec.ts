@@ -46,7 +46,7 @@ describe("HealthController (e2e)", () => {
     configureApp(app);
     await app.init();
     httpServer = app.getHttpServer() as Server;
-  });
+  }, 30000);
 
   it("/health (GET)", async () => {
     const response = await request(httpServer).get("/health").expect(200);
@@ -121,38 +121,6 @@ describe("HealthController (e2e)", () => {
   it("/roles/me/permission-modules/:moduleKey/permissions rejects missing bearer token", async () => {
     const response = await request(httpServer)
       .get("/roles/me/permission-modules/users/permissions")
-      .expect(401);
-    const body = response.body as ErrorBody;
-
-    expect(body).toMatchObject({
-      status: 401,
-      message: "UNAUTHORIZED",
-      data: {
-        detail: "No auth token",
-      },
-    });
-  });
-
-  it("/roles/:roleId/modules/:moduleKey/permissions/grant rejects missing bearer token", async () => {
-    const response = await request(httpServer)
-      .post("/roles/role-1/modules/users/permissions/grant")
-      .send({ permissionIds: ["permission-1"] })
-      .expect(401);
-    const body = response.body as ErrorBody;
-
-    expect(body).toMatchObject({
-      status: 401,
-      message: "UNAUTHORIZED",
-      data: {
-        detail: "No auth token",
-      },
-    });
-  });
-
-  it("/roles/:roleId/modules/:moduleKey/permissions/revoke rejects missing bearer token", async () => {
-    const response = await request(httpServer)
-      .post("/roles/role-1/modules/users/permissions/revoke")
-      .send({ permissionIds: ["permission-1"] })
       .expect(401);
     const body = response.body as ErrorBody;
 

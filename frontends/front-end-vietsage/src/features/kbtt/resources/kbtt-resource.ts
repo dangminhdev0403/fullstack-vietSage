@@ -6,6 +6,7 @@ import {
   type ResourceQueryContext,
 } from "@dangminhdev04032005/query-resource";
 import { kbttRepository } from "../repositories/kbtt-repository";
+import type { PaginatedKbttDeclarations } from "../repositories/kbtt-repository";
 import type {
   KbttAutoSubmitConfig,
   KbttAutoSubmitRunSummary,
@@ -56,7 +57,7 @@ export const kbttResource = createResource<HotelScope>()({
       }: ResourceQueryContext<
         HotelScope,
         { page?: number; limit?: number } | undefined
-      >): Promise<KbttDeclarationListItem[]> =>
+      >): Promise<PaginatedKbttDeclarations> =>
         kbttRepository.listDeclarations(scope.hotelId, input, signal),
     }),
     declarationDetail: defineQuery({

@@ -3,8 +3,6 @@ import type { BusinessPermissionKey } from "../../common/config/business-permiss
 
 export const REQUIRED_PERMISSION_KEY = "required_permission_key";
 
-export function RequirePermission(
-  permissionKey: BusinessPermissionKey | BusinessPermissionKey[],
-) {
+export function RequirePermission(permissionKey: BusinessPermissionKey | BusinessPermissionKey[]) {
   return SetMetadata(REQUIRED_PERMISSION_KEY, permissionKey);
 }

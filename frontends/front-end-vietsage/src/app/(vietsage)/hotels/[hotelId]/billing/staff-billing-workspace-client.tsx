@@ -365,7 +365,7 @@ export function StaffBillingWorkspaceClient({
 
   const isClosedFolio = selectedFolio?.status === "CLOSED";
 
-  const computedTotal = useMemo(() => {
+  const computedTotal = (() => {
     if (isClosedFolio) {
       const closedTotal = toNumber(
         activeSummary?.total ?? selectedFolio?.total ?? selectedFolio?.totalAmount,
@@ -379,16 +379,7 @@ export function StaffBillingWorkspaceClient({
       0,
       subtotal + tax - existingDiscountTotal + surchargeVal - discountVal,
     );
-  }, [
-    isClosedFolio,
-    activeSummary,
-    selectedFolio,
-    subtotal,
-    tax,
-    existingDiscountTotal,
-    surchargeVal,
-    discountVal,
-  ]);
+  })();
 
   const refreshActiveFolio = useCallback(async () => {
     if (!selectedFolioId) return;

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 
@@ -178,7 +179,7 @@ export function Hero({
                   href="/g/home"
                   className="group mt-4 flex min-h-12 items-center gap-2.5 rounded-2xl border border-[#123d2a]/10 bg-[#f4f7f5] px-4 py-2.5 text-xs text-[#506355] transition-all hover:border-[#123d2a]/25 hover:bg-[#edf3ef] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b8872f] sm:text-sm"
                 >
-                  <img src="/images/concierge/icon-ai.png" alt="" className="h-5 w-5 shrink-0 rounded object-contain" />
+                  <Image src="/images/concierge/icon-ai.png" alt="" width={20} height={20} className="h-5 w-5 shrink-0 rounded object-contain" />
                   <span className="min-w-0 flex-1 truncate text-[#627064]">
                     {locale === "vi" ? "Ví dụ: Đặt bàn ăn, yêu cầu dọn phòng, hỏi thông tin địa phương..." : "E.g. Table reservation, housekeeping, local guide..."}
                   </span>
@@ -194,7 +195,7 @@ export function Hero({
                       className="group flex min-w-0 items-center justify-between gap-2.5 rounded-[1.25rem] border border-[#123d2a]/8 bg-[#fcfdfc] p-3 transition-all hover:border-[#123d2a]/20 hover:bg-[#f6f9f7] hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b8872f] sm:p-3.5"
                     >
                       <div className="flex min-w-0 items-center gap-3">
-                        <img src={service.icon} alt="" className="h-11 w-11 shrink-0 rounded-xl object-contain" />
+                        <Image src={service.icon} alt="" width={44} height={44} className="h-11 w-11 shrink-0 rounded-xl object-contain" />
                         <div className="min-w-0">
                           <h4 className="whitespace-nowrap text-sm font-black text-[#123d2a] sm:text-[15px]">{service.title}</h4>
                           <p className="mt-0.5 truncate text-xs text-[#627064]">{service.text}</p>

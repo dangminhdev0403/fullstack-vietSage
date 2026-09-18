@@ -1,10 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  escapeHtml,
   formatAlertErrorMessage,
   formatBatchResultHtml,
-  formatTextContent,
 } from "./swal.ts";
 
 test("swal formatBatchResultHtml renders metrics, room badges, guest names, and scroll container", () => {

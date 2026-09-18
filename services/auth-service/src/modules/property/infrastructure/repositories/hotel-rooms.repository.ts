@@ -1174,15 +1174,16 @@ export class HotelRoomsRepository {
           },
         },
       },
-      orderBy: options?.cursor || options?.take
-        ? [{ id: "asc" }]
-        : [
-            { stay: { room: { roomNumber: "asc" } } },
-            { stayId: "asc" },
-            { isPrimary: "desc" },
-            { createdAt: "asc" },
-            { id: "asc" },
-          ],
+      orderBy:
+        options?.cursor || options?.take
+          ? [{ id: "asc" }]
+          : [
+              { stay: { room: { roomNumber: "asc" } } },
+              { stayId: "asc" },
+              { isPrimary: "desc" },
+              { createdAt: "asc" },
+              { id: "asc" },
+            ],
     });
   }
 }

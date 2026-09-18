@@ -46,9 +46,7 @@ describe("business-permissions.registry capability contract", () => {
     });
 
     it("maps each target capability to its respective domain and moduleKey", () => {
-      const definitionsByKey = new Map(
-        BUSINESS_PERMISSIONS.map((entry) => [entry.key, entry]),
-      );
+      const definitionsByKey = new Map(BUSINESS_PERMISSIONS.map((entry) => [entry.key, entry]));
 
       const expectedDomains: Record<string, string> = {
         "hotel.rooms.status.manage": "hotel-rooms",
@@ -70,9 +68,7 @@ describe("business-permissions.registry capability contract", () => {
     });
 
     it("assigns appropriate operational risks to the target capabilities", () => {
-      const definitionsByKey = new Map(
-        BUSINESS_PERMISSIONS.map((entry) => [entry.key, entry]),
-      );
+      const definitionsByKey = new Map(BUSINESS_PERMISSIONS.map((entry) => [entry.key, entry]));
 
       expect(definitionsByKey.get("hotel.billing.checkout")?.risk).toBe("CRITICAL");
       expect(definitionsByKey.get("hotel.rooms.status.manage")?.risk).toBe("HIGH");
@@ -99,7 +95,9 @@ describe("business-permissions.registry capability contract", () => {
 
     it("preserves bridge storage using HttpMethod OPTIONS and permission path", () => {
       expect(sql).toMatch(/'OPTIONS'::"HttpMethod"/);
-      expect(sql).toContain('"Permission" ("id", "method", "moduleKey", "path", "description", "createdAt", "updatedAt")');
+      expect(sql).toContain(
+        '"Permission" ("id", "method", "moduleKey", "path", "description", "createdAt", "updatedAt")',
+      );
       expect(sql).toContain('"path" = preset."permissionKey"');
     });
 
@@ -251,7 +249,9 @@ describe("business-permissions.registry capability contract", () => {
       for (const execKey of FRONTDESK_EXECUTION_KEYS) {
         expect(frontdeskGrants.some((g) => g.permissionId === `bp_${execKey}`)).toBe(true);
       }
-      expect(frontdeskGrants.some((g) => g.permissionId === "bp_hotel.requests.coordinate")).toBe(false);
+      expect(frontdeskGrants.some((g) => g.permissionId === "bp_hotel.requests.coordinate")).toBe(
+        false,
+      );
 
       // Verify owner has coordinate and NO execution
       const ownerGrants = firstRun.filter((g) => g.roleId === "r_owner");

@@ -37,10 +37,10 @@ describe("BusinessPermissionSyncService", () => {
   });
 
   it.each([
-    [HotelsController.prototype, "listHotels", "platform.hotels.view"],
+    [HotelsController.prototype, "listHotels", ["platform.hotels.view", "hotel.profile.view"]],
     [HotelsController.prototype, "createHotel", "platform.hotels.manage"],
-    [HotelsController.prototype, "getHotel", "platform.hotels.view"],
-    [HotelsController.prototype, "updateHotel", "platform.hotels.manage"],
+    [HotelsController.prototype, "getHotel", ["platform.hotels.view", "hotel.profile.view"]],
+    [HotelsController.prototype, "updateHotel", ["platform.hotels.manage", "hotel.profile.manage"]],
     [TenantOwnersController.prototype, "listTenantOwners", "platform.users.view"],
     [TenantOwnersController.prototype, "listTenantOptions", "platform.users.view"],
     [TenantOwnersController.prototype, "getTenantOwner", "platform.users.view"],
@@ -59,7 +59,7 @@ describe("BusinessPermissionSyncService", () => {
     [HotelNotificationRoutesController.prototype, "create", "hotel.notifications.manage"],
     [HotelNotificationRoutesController.prototype, "update", "hotel.notifications.manage"],
   ])("maps %s.%s to business permission %s", (prototype, handlerName, permissionKey) => {
-    expect(Reflect.getMetadata(REQUIRED_PERMISSION_KEY, prototype[handlerName])).toBe(
+    expect(Reflect.getMetadata(REQUIRED_PERMISSION_KEY, prototype[handlerName])).toEqual(
       permissionKey,
     );
   });

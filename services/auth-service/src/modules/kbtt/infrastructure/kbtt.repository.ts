@@ -546,10 +546,7 @@ export class KbttRepository {
     }
   }
 
-  async renewAutoSubmitRunLease(
-    runId: string,
-    leaseTimeoutMinutes = 10,
-  ): Promise<boolean> {
+  async renewAutoSubmitRunLease(runId: string, leaseTimeoutMinutes = 10): Promise<boolean> {
     try {
       const now = new Date();
       const leaseExpiresAt = new Date(now.getTime() + leaseTimeoutMinutes * 60 * 1000);
@@ -587,7 +584,8 @@ export class KbttRepository {
         },
       });
     } catch (error: any) {
-      if (error?.code === "P2002") throw new ConflictException("Đã có một phiên KBTT đang được hẹn.");
+      if (error?.code === "P2002")
+        throw new ConflictException("Đã có một phiên KBTT đang được hẹn.");
       throw kbttUnavailable();
     }
   }
@@ -735,4 +733,3 @@ export class KbttRepository {
     }
   }
 }
-

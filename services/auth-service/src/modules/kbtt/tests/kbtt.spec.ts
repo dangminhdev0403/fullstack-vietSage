@@ -81,7 +81,7 @@ function fixture() {
         ...connection,
         autoSubmitEnabled: existing?.autoSubmitEnabled ?? connection.autoSubmitEnabled,
         autoSubmitTime: existing?.autoSubmitTime ?? connection.autoSubmitTime,
-      } as KbttHotelConnection;
+      };
       rows.set(connection.hotelId, saved);
       return saved;
     }),
@@ -210,23 +210,25 @@ function fixture() {
         return updated;
       },
     ),
-    claimAutoSubmitRunLease: jest.fn(async (hotelId: string, scheduledFor: Date, dryRun: boolean) => ({
-      id: "run-auto-1",
-      hotelId,
-      scheduledFor,
-      status: "RUNNING",
-      leaseExpiresAt: new Date(scheduledFor.getTime() + 600_000),
-      dryRun,
-      totalCount: 0,
-      successCount: 0,
-      failedCount: 0,
-      unknownCount: 0,
-      telegramSent: false,
-      telegramMessageId: null,
-      summaryJson: null,
-      createdAt: scheduledFor,
-      updatedAt: scheduledFor,
-    })),
+    claimAutoSubmitRunLease: jest.fn(
+      async (hotelId: string, scheduledFor: Date, dryRun: boolean) => ({
+        id: "run-auto-1",
+        hotelId,
+        scheduledFor,
+        status: "RUNNING",
+        leaseExpiresAt: new Date(scheduledFor.getTime() + 600_000),
+        dryRun,
+        totalCount: 0,
+        successCount: 0,
+        failedCount: 0,
+        unknownCount: 0,
+        telegramSent: false,
+        telegramMessageId: null,
+        summaryJson: null,
+        createdAt: scheduledFor,
+        updatedAt: scheduledFor,
+      }),
+    ),
     renewAutoSubmitRunLease: jest.fn(async () => true),
     createScheduledAutoSubmitRun: jest.fn(
       async (hotelId: string, scheduledFor: Date, dryRun: boolean, trigger = "MANUAL_DELAYED") => ({
@@ -583,16 +585,10 @@ describe("KBTT secure manual authentication", () => {
       expect.objectContaining({ autoSubmitEnabled: false, autoSubmitTime: null }),
     );
     expect(
-      Reflect.getMetadata(
-        REQUIRED_PERMISSION_KEY,
-        KbttController.prototype.getAutoSubmitConfig,
-      ),
+      Reflect.getMetadata(REQUIRED_PERMISSION_KEY, KbttController.prototype.getAutoSubmitConfig),
     ).toBe("hotel.kbtt.manage");
     expect(
-      Reflect.getMetadata(
-        REQUIRED_PERMISSION_KEY,
-        KbttController.prototype.updateAutoSubmitConfig,
-      ),
+      Reflect.getMetadata(REQUIRED_PERMISSION_KEY, KbttController.prototype.updateAutoSubmitConfig),
     ).toBe("hotel.kbtt.manage");
   });
 
@@ -653,7 +649,9 @@ describe("KBTT secure manual authentication", () => {
     };
     f.repository.findPendingScheduledAutoSubmitRuns = jest.fn().mockResolvedValue([]);
     f.repository.createScheduledAutoSubmitRun = jest.fn().mockResolvedValue(run);
-    const execute = jest.spyOn(f.service, "executeAutoSubmitForHotel").mockResolvedValue({} as never);
+    const execute = jest
+      .spyOn(f.service, "executeAutoSubmitForHotel")
+      .mockResolvedValue({} as never);
 
     const result = await f.service.scheduleAutoSubmit("owner", "owner-role", "hotel-1", true);
     expect(result.scheduledFor).toBe(scheduledFor.toISOString());
@@ -1542,7 +1540,8 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
         soGiayTo: "001090012345",
         ngayDiDuKienStr: "2026-09-15 12:00:00",
       };
-      const message = "Bản khai báo 1: Số giấy tờ '001090012345' đang tạm trú tại CSLT đến 2026-09-15.";
+      const message =
+        "Bản khai báo 1: Số giấy tờ '001090012345' đang tạm trú tại CSLT đến 2026-09-15.";
       expect(isBcaDuplicateConflict(message, draft)).toBe(true);
     });
 
@@ -1552,7 +1551,8 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
         ngayDenCsltStr: "2026-09-10 10:00:00",
         ngayDiDuKienStr: "2026-09-15 12:00:00",
       };
-      const message = "Khách đã có khai báo tạm trú từ 2026-09-14 đến 2026-09-15 tại cơ sở lưu trú này (Số giấy tờ: 001090012345).";
+      const message =
+        "Khách đã có khai báo tạm trú từ 2026-09-14 đến 2026-09-15 tại cơ sở lưu trú này (Số giấy tờ: 001090012345).";
       expect(isBcaDuplicateConflict(message, draft)).toBe(true);
     });
 
@@ -1687,7 +1687,8 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
         .mockResolvedValueOnce({
           outcome: "BUSINESS_REJECTION",
           code: "400",
-          message: "Bản khai báo 1: Số giấy tờ '001090012345' đang tạm trú tại CSLT đến 2026-09-15.",
+          message:
+            "Bản khai báo 1: Số giấy tờ '001090012345' đang tạm trú tại CSLT đến 2026-09-15.",
         });
 
       await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
@@ -1812,7 +1813,9 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
         loaiGiayTo: 1,
         soGiayTo: "001090012345",
       };
-      const fp2 = createHash("sha256").update(JSON.stringify([draft2])).digest("hex");
+      const fp2 = createHash("sha256")
+        .update(JSON.stringify([draft2]))
+        .digest("hex");
       f.declarations.set("decl-2", {
         id: "decl-2",
         hotelId: "hotel-1",
@@ -1916,7 +1919,10 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
 
       await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
 
-      expect(pagedMock).toHaveBeenCalledWith("hotel-1", expect.objectContaining({ take: expect.any(Number) }));
+      expect(pagedMock).toHaveBeenCalledWith(
+        "hotel-1",
+        expect.objectContaining({ take: expect.any(Number) }),
+      );
       expect(f.occupantsReadService.getActiveStayOccupants).not.toHaveBeenCalled();
     });
 
@@ -1925,7 +1931,8 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
       const credentials = { username: "owner", password: "password" };
       await f.service.connect("owner", "owner-role", "hotel-1", credentials);
 
-      const pagedMock = jest.fn()
+      const pagedMock = jest
+        .fn()
         .mockResolvedValueOnce({
           items: [
             {
@@ -1990,10 +1997,7 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
     });
 
     it("proves aggregate counters are reduced per page/chunk and no settledResults array accumulates across the whole hotel", async () => {
-      const src = readFileSync(
-        resolve(__dirname, "../application/kbtt.service.ts"),
-        "utf8",
-      );
+      const src = readFileSync(resolve(__dirname, "../application/kbtt.service.ts"), "utf8");
       expect(src).not.toContain("settledResults");
     });
 
@@ -2029,7 +2033,9 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
 
       expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
 
-      const createdDecl = [...f.declarations.values()].find((d) => d.occupantId === "occ-invalid-new");
+      const createdDecl = [...f.declarations.values()].find(
+        (d) => d.occupantId === "occ-invalid-new",
+      );
       expect(createdDecl).toBeDefined();
       expect(createdDecl.status).toBe("FAILED");
       expect(createdDecl.providerCode).toBe("LOCAL_VALIDATION");
@@ -2042,9 +2048,24 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
 
     it("processes bulk declarations in parallel waves, retries only transient failures up to 3 waves, and never retries permanent errors", async () => {
       const f = fixture();
-      const occ1 = { ...primaryOccupant, id: "occ-1", fullName: "Guest One", identityNumber: "001090000001" };
-      const occ2 = { ...primaryOccupant, id: "occ-2", fullName: "Guest Two", identityNumber: "001090000002" };
-      const occ3 = { ...primaryOccupant, id: "occ-3", fullName: "Guest Three", identityNumber: "001090000003" };
+      const occ1 = {
+        ...primaryOccupant,
+        id: "occ-1",
+        fullName: "Guest One",
+        identityNumber: "001090000001",
+      };
+      const occ2 = {
+        ...primaryOccupant,
+        id: "occ-2",
+        fullName: "Guest Two",
+        identityNumber: "001090000002",
+      };
+      const occ3 = {
+        ...primaryOccupant,
+        id: "occ-3",
+        fullName: "Guest Three",
+        identityNumber: "001090000003",
+      };
       f.occupants.set(occ1.id, occ1);
       f.occupants.set(occ2.id, occ2);
       f.occupants.set(occ3.id, occ3);
@@ -2060,38 +2081,46 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
       let initialCallsCount = 0;
       let wave1Completed = false;
 
-      f.provider.submitDeclaration.mockImplementation(async (_kind, payload, _token, timeoutOverride) => {
-        const item = (payload as any[])[0];
-        const occId =
-          item.hoTen === "Guest One" ? "occ-1" : item.hoTen === "Guest Two" ? "occ-2" : "occ-3";
-        callsPerOccupant[occId]++;
+      f.provider.submitDeclaration.mockImplementation(
+        async (_kind, payload, _token, timeoutOverride) => {
+          const item = (payload as any[])[0];
+          const occId =
+            item.hoTen === "Guest One" ? "occ-1" : item.hoTen === "Guest Two" ? "occ-2" : "occ-3";
+          callsPerOccupant[occId]++;
 
-        // Check wave boundary: retries must only happen after wave 1 finished for all declarations
-        if (callsPerOccupant[occId] > 1 && !wave1Completed) {
-          throw new Error("Violation: retry initiated before Wave 1 completed for all declarations in the page");
-        }
-
-        // Simulate small delay on initial wave to test concurrent wave barrier
-        if (callsPerOccupant[occId] === 1) {
-          await new Promise((r) => setTimeout(r, 20));
-          initialCallsCount++;
-          if (initialCallsCount === 3) {
-            wave1Completed = true;
+          // Check wave boundary: retries must only happen after wave 1 finished for all declarations
+          if (callsPerOccupant[occId] > 1 && !wave1Completed) {
+            throw new Error(
+              "Violation: retry initiated before Wave 1 completed for all declarations in the page",
+            );
           }
-        }
 
-        if (occId === "occ-1") {
+          // Simulate small delay on initial wave to test concurrent wave barrier
+          if (callsPerOccupant[occId] === 1) {
+            await new Promise((r) => setTimeout(r, 20));
+            initialCallsCount++;
+            if (initialCallsCount === 3) {
+              wave1Completed = true;
+            }
+          }
+
+          if (occId === "occ-1") {
+            return { outcome: "SUCCESS", code: "200", message: "Thành công" };
+          }
+          if (occId === "occ-2") {
+            return {
+              outcome: "BUSINESS_REJECTION",
+              code: "400",
+              message: "Sai định dạng số giấy tờ",
+            };
+          }
+          // occ-3: transient on attempts 1 and 2, succeeds on attempt 3
+          if (callsPerOccupant["occ-3"] < 3) {
+            return { outcome: "AMBIGUOUS", code: "HTTP_504", message: "Gateway Timeout" };
+          }
           return { outcome: "SUCCESS", code: "200", message: "Thành công" };
-        }
-        if (occId === "occ-2") {
-          return { outcome: "BUSINESS_REJECTION", code: "400", message: "Sai định dạng số giấy tờ" };
-        }
-        // occ-3: transient on attempts 1 and 2, succeeds on attempt 3
-        if (callsPerOccupant["occ-3"] < 3) {
-          return { outcome: "AMBIGUOUS", code: "HTTP_504", message: "Gateway Timeout" };
-        }
-        return { outcome: "SUCCESS", code: "200", message: "Thành công" };
-      });
+        },
+      );
 
       await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
 
@@ -2125,8 +2154,18 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
         sendKbttAutoSubmitSummary: sendTelegramMock,
       };
 
-      const occ1 = { ...primaryOccupant, id: "occ-1", fullName: "Guest One", identityNumber: "001090000001" };
-      const occ2 = { ...primaryOccupant, id: "occ-2", fullName: "Guest Two", identityNumber: "001090000002" };
+      const occ1 = {
+        ...primaryOccupant,
+        id: "occ-1",
+        fullName: "Guest One",
+        identityNumber: "001090000001",
+      };
+      const occ2 = {
+        ...primaryOccupant,
+        id: "occ-2",
+        fullName: "Guest Two",
+        identityNumber: "001090000002",
+      };
       f.occupants.set(occ1.id, occ1);
       f.occupants.set(occ2.id, occ2);
       await f.service.connect("owner", "owner-role", "hotel-1", credentials);
@@ -2277,7 +2316,11 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
         });
       }
 
-      await f.service.executeAutoSubmitForHotel("hotel-1", new Date("2026-09-16T05:00:00.000Z"), true);
+      await f.service.executeAutoSubmitForHotel(
+        "hotel-1",
+        new Date("2026-09-16T05:00:00.000Z"),
+        true,
+      );
       expect(f.repository.createScheduledAutoSubmitRun).not.toHaveBeenCalled();
     });
 

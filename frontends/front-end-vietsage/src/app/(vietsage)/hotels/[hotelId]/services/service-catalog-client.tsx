@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Swal from "sweetalert2";
 
@@ -169,95 +169,105 @@ export function ServiceCatalogClient({
     }
   }
 
-  async function toggleCategory(category: HotelServiceCategory) {
-    if (!canManage) {
-      return;
-    }
+  const toggleCategory = useCallback(
+    async (category: HotelServiceCategory) => {
+      if (!canManage) {
+        return;
+      }
 
-    const isDeactivating = category.status === "ACTIVE";
-    const actionText = isDeactivating ? "vô hiệu hóa" : "kích hoạt";
-    const actionTitle = isDeactivating ? "Vô hiệu hóa nhóm dịch vụ?" : "Kích hoạt nhóm dịch vụ?";
+      const isDeactivating = category.status === "ACTIVE";
+      const actionText = isDeactivating ? "vô hiệu hóa" : "kích hoạt";
+      const actionTitle = isDeactivating ? "Vô hiệu hóa nhóm dịch vụ?" : "Kích hoạt nhóm dịch vụ?";
 
-    const result = await Swal.fire({
-      title: actionTitle,
-      html: `Bạn có chắc chắn muốn <strong>${actionText}</strong> nhóm dịch vụ <strong>"${category.name}"</strong> không?`,
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: isDeactivating ? "Vô hiệu hóa" : "Kích hoạt",
-      cancelButtonText: "Hủy",
-      confirmButtonColor: isDeactivating ? "#ba1a1a" : "#1b6d3a",
-      cancelButtonColor: "#767684",
-    });
-
-    if (!result.isConfirmed) return;
-
-    try {
-      const nextStatus: HotelServiceStatus = isDeactivating ? "DISABLED" : "ACTIVE";
-      const saved = (await requestInternalApiEnvelope<HotelServiceCategory>(
-        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/service-categories/${encodeURIComponent(category.id)}`,
-        { method: "PATCH", body: { status: nextStatus } },
-      )).data;
-      setCategories((current) => current.map((item) => (item.id === saved.id ? saved : item)));
-      refreshRoute();
-      await Swal.fire({
-        icon: "success",
-        title: `Đã ${actionText} nhóm dịch vụ!`,
-        timer: 1500,
-        showConfirmButton: false,
+      const result = await Swal.fire({
+        title: actionTitle,
+        html: `Bạn có chắc chắn muốn <strong>${actionText}</strong> nhóm dịch vụ <strong>"${category.name}"</strong> không?`,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: isDeactivating ? "Vô hiệu hóa" : "Kích hoạt",
+        cancelButtonText: "Hủy",
+        confirmButtonColor: isDeactivating ? "#ba1a1a" : "#1b6d3a",
+        cancelButtonColor: "#767684",
       });
-    } catch {
-      await Swal.fire({
-        icon: "error",
-        title: "Không thể cập nhật trạng thái",
-        text: "Vui lòng thử lại sau.",
+
+      if (!result.isConfirmed) return;
+
+      try {
+        const nextStatus: HotelServiceStatus = isDeactivating ? "DISABLED" : "ACTIVE";
+        const saved = (
+          await requestInternalApiEnvelope<HotelServiceCategory>(
+            `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/service-categories/${encodeURIComponent(category.id)}`,
+            { method: "PATCH", body: { status: nextStatus } },
+          )
+        ).data;
+        setCategories((current) => current.map((item) => (item.id === saved.id ? saved : item)));
+        router.refresh();
+        await Swal.fire({
+          icon: "success",
+          title: `Đã ${actionText} nhóm dịch vụ!`,
+          timer: 1500,
+          showConfirmButton: false,
+        });
+      } catch {
+        await Swal.fire({
+          icon: "error",
+          title: "Không thể cập nhật trạng thái",
+          text: "Vui lòng thử lại sau.",
+        });
+      }
+    },
+    [canManage, hotelId, router],
+  );
+
+  const toggleItem = useCallback(
+    async (item: HotelServiceItem) => {
+      if (!canManage) {
+        return;
+      }
+
+      const isDeactivating = item.status === "ACTIVE";
+      const actionText = isDeactivating ? "vô hiệu hóa" : "kích hoạt";
+      const actionTitle = isDeactivating ? "Vô hiệu hóa dịch vụ?" : "Kích hoạt dịch vụ?";
+
+      const result = await Swal.fire({
+        title: actionTitle,
+        html: `Bạn có chắc chắn muốn <strong>${actionText}</strong> dịch vụ <strong>"${item.name}"</strong> không?`,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: isDeactivating ? "Vô hiệu hóa" : "Kích hoạt",
+        cancelButtonText: "Hủy",
+        confirmButtonColor: isDeactivating ? "#ba1a1a" : "#1b6d3a",
+        cancelButtonColor: "#767684",
       });
-    }
-  }
 
-  async function toggleItem(item: HotelServiceItem) {
-    if (!canManage) {
-      return;
-    }
+      if (!result.isConfirmed) return;
 
-    const isDeactivating = item.status === "ACTIVE";
-    const actionText = isDeactivating ? "vô hiệu hóa" : "kích hoạt";
-    const actionTitle = isDeactivating ? "Vô hiệu hóa dịch vụ?" : "Kích hoạt dịch vụ?";
-
-    const result = await Swal.fire({
-      title: actionTitle,
-      html: `Bạn có chắc chắn muốn <strong>${actionText}</strong> dịch vụ <strong>"${item.name}"</strong> không?`,
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: isDeactivating ? "Vô hiệu hóa" : "Kích hoạt",
-      cancelButtonText: "Hủy",
-      confirmButtonColor: isDeactivating ? "#ba1a1a" : "#1b6d3a",
-      cancelButtonColor: "#767684",
-    });
-
-    if (!result.isConfirmed) return;
-
-    try {
-      const nextStatus: HotelServiceStatus = isDeactivating ? "DISABLED" : "ACTIVE";
-      const saved = (await requestInternalApiEnvelope<HotelServiceItem>(
-        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/service-items/${encodeURIComponent(item.id)}`,
-        { method: "PATCH", body: { status: nextStatus } },
-      )).data;
-      setItems((current) => current.map((entry) => (entry.id === saved.id ? saved : entry)));
-      refreshRoute();
-      await Swal.fire({
-        icon: "success",
-        title: `Đã ${actionText} dịch vụ!`,
-        timer: 1500,
-        showConfirmButton: false,
-      });
-    } catch {
-      await Swal.fire({
-        icon: "error",
-        title: "Không thể cập nhật trạng thái",
-        text: "Vui lòng thử lại sau.",
-      });
-    }
-  }
+      try {
+        const nextStatus: HotelServiceStatus = isDeactivating ? "DISABLED" : "ACTIVE";
+        const saved = (
+          await requestInternalApiEnvelope<HotelServiceItem>(
+            `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/service-items/${encodeURIComponent(item.id)}`,
+            { method: "PATCH", body: { status: nextStatus } },
+          )
+        ).data;
+        setItems((current) => current.map((entry) => (entry.id === saved.id ? saved : entry)));
+        router.refresh();
+        await Swal.fire({
+          icon: "success",
+          title: `Đã ${actionText} dịch vụ!`,
+          timer: 1500,
+          showConfirmButton: false,
+        });
+      } catch {
+        await Swal.fire({
+          icon: "error",
+          title: "Không thể cập nhật trạng thái",
+          text: "Vui lòng thử lại sau.",
+        });
+      }
+    },
+    [canManage, hotelId, router],
+  );
 
   const categoryColumns = useMemo<DataTableColumn<HotelServiceCategory>[]>(() => {
     const base: DataTableColumn<HotelServiceCategory>[] = [
@@ -330,7 +340,7 @@ export function ServiceCatalogClient({
     }
 
     return base;
-  }, [canManage]);
+  }, [canManage, toggleCategory]);
 
   const itemColumns = useMemo<DataTableColumn<HotelServiceItem>[]>(() => {
     const base: DataTableColumn<HotelServiceItem>[] = [
@@ -401,7 +411,7 @@ export function ServiceCatalogClient({
     }
 
     return base;
-  }, [categoryById, canManage]);
+  }, [categoryById, canManage, toggleItem]);
 
   return (
     <div className="space-y-6">

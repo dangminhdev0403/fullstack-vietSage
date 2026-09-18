@@ -64,7 +64,10 @@ export class AuthorizationGuard implements CanActivate {
     }
 
     const permissionKey = authorizationTargets.length
-      ? this.reflector.getAllAndOverride<string | string[]>(REQUIRED_PERMISSION_KEY, authorizationTargets)
+      ? this.reflector.getAllAndOverride<string | string[]>(
+          REQUIRED_PERMISSION_KEY,
+          authorizationTargets,
+        )
       : undefined;
     if (!permissionKey) {
       this.logger.warn("Authorization failed because business permission metadata is missing", {

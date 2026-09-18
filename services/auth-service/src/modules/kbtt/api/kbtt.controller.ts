@@ -372,10 +372,7 @@ export class KbttController {
   @ApiOperation({
     summary: "Get KBTT auto-submit schedule configuration and recent runs",
   })
-  getAutoSubmitConfig(
-    @Req() request: RequestWithRequiredUser,
-    @Param("hotelId") hotelId: string,
-  ) {
+  getAutoSubmitConfig(@Req() request: RequestWithRequiredUser, @Param("hotelId") hotelId: string) {
     return this.service.getAutoSubmitConfig(
       request.user.userId,
       request.user.roleId,
@@ -424,10 +421,7 @@ export class KbttController {
   @Post("auto-submit/telegram-test")
   @RequirePermission("hotel.kbtt.manage")
   @ApiOperation({ summary: "Send a Telegram-only KBTT connectivity test; never contacts C06" })
-  testTelegram(
-    @Req() request: RequestWithRequiredUser,
-    @Param("hotelId") hotelId: string,
-  ) {
+  testTelegram(@Req() request: RequestWithRequiredUser, @Param("hotelId") hotelId: string) {
     return this.service.testTelegram(
       request.user.userId,
       request.user.roleId,
@@ -438,7 +432,9 @@ export class KbttController {
   @Post("auto-submit/summary")
   @HttpCode(200)
   @RequirePermission("hotel.kbtt.declarations.manage")
-  @ApiOperation({ summary: "Send aggregated batch submission summary to Telegram aggregate channel" })
+  @ApiOperation({
+    summary: "Send aggregated batch submission summary to Telegram aggregate channel",
+  })
   sendAutoSubmitSummary(
     @Req() request: RequestWithRequiredUser,
     @Param("hotelId") hotelId: string,
@@ -456,7 +452,9 @@ export class KbttController {
   @Post("declarations/batch-summary")
   @HttpCode(200)
   @RequirePermission("hotel.kbtt.declarations.manage")
-  @ApiOperation({ summary: "Send aggregated batch submission summary to Telegram aggregate channel" })
+  @ApiOperation({
+    summary: "Send aggregated batch submission summary to Telegram aggregate channel",
+  })
   sendDeclarationsBatchSummary(
     @Req() request: RequestWithRequiredUser,
     @Param("hotelId") hotelId: string,
@@ -507,7 +505,8 @@ export class KbttController {
   @Header("Cache-Control", "no-store")
   @RequirePermission("hotel.kbtt.declarations.manage")
   @ApiOperation({
-    summary: "[DEV] Reset all hotel declarations to DRAFT and optionally generate new identity numbers",
+    summary:
+      "[DEV] Reset all hotel declarations to DRAFT and optionally generate new identity numbers",
   })
   devResetDeclarations(
     @Req() request: RequestWithRequiredUser,
@@ -528,7 +527,8 @@ export class KbttController {
   @Header("Cache-Control", "no-store")
   @RequirePermission("hotel.kbtt.declarations.manage")
   @ApiOperation({
-    summary: "[DEV] Intervene in DB to update occupant document numbers / details and optionally reset to DRAFT",
+    summary:
+      "[DEV] Intervene in DB to update occupant document numbers / details and optionally reset to DRAFT",
   })
   devUpdateOccupants(
     @Req() request: RequestWithRequiredUser,
@@ -544,4 +544,3 @@ export class KbttController {
     );
   }
 }
-

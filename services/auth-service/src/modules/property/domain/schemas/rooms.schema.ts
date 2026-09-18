@@ -32,7 +32,7 @@ export function normalizeDateStringToIso(str?: string | null): string | undefine
     return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
   }
 
-  const cleaned = t.replace(/[.\-]/g, "/").replace(/\/+/g, "/");
+  const cleaned = t.replace(/[.-]/g, "/").replace(/\/+/g, "/");
   const dmyMatch = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(cleaned);
   if (dmyMatch) {
     const [, d, m, y] = dmyMatch;
@@ -171,7 +171,7 @@ export const stayOccupantInputSchema = z.object({
     .trim()
     .max(20, "Ngày sinh tối đa 20 ký tự")
     .optional()
-    .transform((v) => (v ? normalizeDateStringToIso(v) ?? v : v)),
+    .transform((v) => (v ? (normalizeDateStringToIso(v) ?? v) : v)),
   gender: z.string().trim().max(20, "Giới tính tối đa 20 ký tự").optional(),
   nationality: z.string().trim().max(80, "Quốc tịch tối đa 80 ký tự").optional(),
   residencePlace: z.string().trim().max(500, "Địa chỉ tối đa 500 ký tự").optional(),
@@ -196,7 +196,7 @@ export const createStayBodySchema = z
       .trim()
       .max(20, "Ngày sinh tối đa 20 ký tự")
       .optional()
-      .transform((v) => (v ? normalizeDateStringToIso(v) ?? v : v)),
+      .transform((v) => (v ? (normalizeDateStringToIso(v) ?? v) : v)),
     guestGender: z.string().trim().max(20, "Giới tính tối đa 20 ký tự").optional(),
     guestNationality: z.string().trim().max(80, "Quốc tịch tối đa 80 ký tự").optional(),
     guestResidencePlace: z.string().trim().max(500, "Địa chỉ tối đa 500 ký tự").optional(),

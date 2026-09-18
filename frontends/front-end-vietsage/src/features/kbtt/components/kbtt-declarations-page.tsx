@@ -233,6 +233,16 @@ const AUTO_SUBMIT_DELAY_SECONDS =
 const IS_AUTO_SUBMIT_ENABLED =
   process.env.NEXT_PUBLIC_KBTT_AUTO_SUBMIT_ENABLED !== "false";
 
+function initialKbttPageSize(): number {
+  if (typeof window === "undefined") return 20;
+  try {
+    const value = Number(localStorage.getItem("vietsage_kbtt_page_size"));
+    return [10, 20, 50, 100].includes(value) ? value : 20;
+  } catch {
+    return 20;
+  }
+}
+
 function formatStayDateTimeForForm(
   dateStr: string | null | undefined,
 ): string | undefined {
@@ -636,20 +646,9 @@ export function KbttDeclarationsPage({
     initialTab,
   );
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState<number>(20);
+  const [limit, setLimit] = useState(initialKbttPageSize);
   const [showBackToTop, setShowBackToTop] = useState(false);
 
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("vietsage_kbtt_page_size");
-      if (saved) {
-        const parsed = Number(saved);
-        if ([10, 20, 50, 100].includes(parsed)) {
-          setLimit(parsed);
-        }
-      }
-    } catch {}
-  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -762,7 +761,7 @@ export function KbttDeclarationsPage({
   const isListReady = declarationsQuery.isSuccess && !declarationsQuery.isFetching;
 
   const totalPages = useMemo(() => {
-    const data = declarationsQuery.data as any;
+    const data = declarationsQuery.data;
     if (data && typeof data.totalPages === "number" && data.totalPages > 0) {
       return data.totalPages;
     }
@@ -770,7 +769,7 @@ export function KbttDeclarationsPage({
   }, [declarationsQuery.data, allRows.length, limit, page]);
 
   const totalOccupants = useMemo(() => {
-    const data = declarationsQuery.data as any;
+    const data = declarationsQuery.data;
     if (data && typeof data.total === "number" && data.total > 0) {
       return data.total;
     }
@@ -1188,7 +1187,9 @@ export function KbttDeclarationsPage({
   ]);
 
   const [isAutoPaused, setIsAutoPaused] = useState(false);
-  const [countdownSeconds, setCountdownSeconds] = useState<number | null>(null);
+  const [countdownSeconds, setCountdownSeconds] = useState(
+    AUTO_SUBMIT_DELAY_SECONDS,
+  );
 
   const executeAutoSubmitNow = useCallback(async () => {
     if (!isConnected || !isListReady || isSubmittingBatch) return;
@@ -1263,22 +1264,6 @@ export function KbttDeclarationsPage({
     }
   }, [selectableRows, saveInlineRow, submitMutation, sendBatchSummaryMutation, handleRefresh, isConnected, isListReady, isSubmittingBatch]);
 
-  // Synchronize countdown with unsubmittedCount and connection status:
-  // - If !isConnected: STOP countdown immediately (set to null), do not auto-push
-  // - If unsubmittedCount === 0: STOP countdown immediately (set to null)
-  // - If isConnected && unsubmittedCount > 0 and countdown is null (and not currently submitting): initialize countdown
-  useEffect(() => {
-    if (!IS_AUTO_SUBMIT_ENABLED || !isConnected || !declarationsQuery.isSuccess) {
-      setCountdownSeconds(null);
-      return;
-    }
-    if (unsubmittedCount === 0) {
-      setCountdownSeconds(null);
-    } else if (countdownSeconds === null && !isSubmittingBatch) {
-      setCountdownSeconds(AUTO_SUBMIT_DELAY_SECONDS);
-    }
-  }, [isConnected, unsubmittedCount, isSubmittingBatch, countdownSeconds, declarationsQuery.isSuccess]);
-
   // Timer interval: ticks down each second when active
   useEffect(() => {
     if (
@@ -1288,19 +1273,18 @@ export function KbttDeclarationsPage({
       isAutoPaused ||
       isSubmittingBatch ||
       unsubmittedCount === 0 ||
-      countdownSeconds === null
+      !declarationsQuery.isSuccess
     ) {
       return;
     }
 
-    if (countdownSeconds <= 0) {
-      setCountdownSeconds(null);
-      void executeAutoSubmitNow();
-      return;
-    }
-
     const timer = window.setTimeout(() => {
-      setCountdownSeconds((prev) => (prev !== null ? prev - 1 : null));
+      if (countdownSeconds <= 1) {
+        setCountdownSeconds(AUTO_SUBMIT_DELAY_SECONDS);
+        void executeAutoSubmitNow();
+        return;
+      }
+      setCountdownSeconds((previous) => previous - 1);
     }, 1000);
 
     return () => window.clearTimeout(timer);
@@ -1312,6 +1296,7 @@ export function KbttDeclarationsPage({
     unsubmittedCount,
     executeAutoSubmitNow,
     isListReady,
+    declarationsQuery.isSuccess,
   ]);
 
   const handleSubmitSingle = useCallback(

@@ -271,6 +271,8 @@ export function PartnerFormModal({ partner, categories, onSave, onClose }: Partn
                   <img
                     src={coverImageUrl}
                     alt="Preview"
+                    width={384}
+                    height={216}
                     className="w-full h-full object-cover"
                     onError={(e) => {
                       (e.target as HTMLElement).style.display = "none";

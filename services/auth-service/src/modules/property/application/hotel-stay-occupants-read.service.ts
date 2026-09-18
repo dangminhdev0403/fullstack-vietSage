@@ -81,10 +81,10 @@ export class HotelStayOccupantsReadService {
 
     const normalizedHotelId = hotelId.trim();
     const take = options?.take ? Math.min(Math.max(options.take, 1), 500) : 50;
-    const rows = await this.hotelRoomsRepository.findActiveStayOccupantsByHotel(
-      normalizedHotelId,
-      { cursor: options?.cursor, take: take + 1 },
-    );
+    const rows = await this.hotelRoomsRepository.findActiveStayOccupantsByHotel(normalizedHotelId, {
+      cursor: options?.cursor,
+      take: take + 1,
+    });
 
     const hasMore = rows.length > take;
     const pageRows = hasMore ? rows.slice(0, take) : rows;

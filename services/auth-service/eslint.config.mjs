@@ -42,4 +42,10 @@ export default tseslint.config(
       'no-useless-catch': 'warn',
     },
   },
+  {
+    files: ['**/*.spec.ts', '**/*.test.ts'],
+    rules: {
+      '@typescript-eslint/unbound-method': 'off',
+    },
+  },
 );

@@ -1,4 +1,5 @@
-process.env.DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/vietsage_auth?schema=public";
+process.env.DATABASE_URL =
+  "postgresql://postgres:postgres@localhost:5432/vietsage_auth?schema=public";
 process.env.NODE_ENV = "test";
 process.env.PORT = "3000";
 process.env.JWT_ACCESS_SECRET = "test-access-secret-with-32-characters";
@@ -38,7 +39,10 @@ describe("Hotel Request Permissions & Coordination vs Execution (AGY 12)", () =>
   describe("1. Controller Capability Contract (@RequirePermission)", () => {
     it("enforces view permission for read-only query endpoints", () => {
       expect(
-        Reflect.getMetadata(REQUIRED_PERMISSION_KEY, HotelRequestsController.prototype.listRequests),
+        Reflect.getMetadata(
+          REQUIRED_PERMISSION_KEY,
+          HotelRequestsController.prototype.listRequests,
+        ),
       ).toBe("hotel.requests.view");
       expect(
         Reflect.getMetadata(
@@ -122,7 +126,7 @@ describe("Hotel Request Permissions & Coordination vs Execution (AGY 12)", () =>
       mockRepository = {
         findRequestInHotel: jest.fn().mockResolvedValue({
           ...baseExistingRequest,
-        } as never),
+        }),
         findAssignableStaffInTenant: jest.fn(),
         updateRequestAssignment: jest.fn().mockImplementation((input) =>
           Promise.resolve({
@@ -149,7 +153,7 @@ describe("Hotel Request Permissions & Coordination vs Execution (AGY 12)", () =>
           isTenantOwner: false,
           roleCodes: new Set(["HOTEL_FRONTDESK"]),
           tenantIds: new Set([tenantId]),
-        } as never),
+        }),
       };
 
       mockEventPublisher = {
@@ -184,7 +188,7 @@ describe("Hotel Request Permissions & Coordination vs Execution (AGY 12)", () =>
       it("allows assignment and updates priority when assigned user is active and assignable", async () => {
         mockRepository.findAssignableStaffInTenant = jest
           .fn()
-          .mockResolvedValue({ id: "valid-staff-1" } as never);
+          .mockResolvedValue({ id: "valid-staff-1" });
 
         const result = await service.updateRequestAssignment(
           actorUserId,
@@ -256,7 +260,7 @@ describe("Hotel Request Permissions & Coordination vs Execution (AGY 12)", () =>
       it("allows status update with valid assigned user", async () => {
         mockRepository.findAssignableStaffInTenant = jest
           .fn()
-          .mockResolvedValue({ id: "valid-staff-2" } as never);
+          .mockResolvedValue({ id: "valid-staff-2" });
 
         const result = await service.updateRequestStatus(
           actorUserId,
@@ -296,7 +300,7 @@ describe("Hotel Request Permissions & Coordination vs Execution (AGY 12)", () =>
       mockHotelAccessService = {
         assertHotelAccess: jest.fn().mockResolvedValue({
           tenantId: "tenant-1",
-        } as never),
+        }),
       };
       mockRepository = {
         findRequestInHotel: jest.fn(),
@@ -313,7 +317,7 @@ describe("Hotel Request Permissions & Coordination vs Execution (AGY 12)", () =>
         id: "req-completed",
         status: GuestRequestStatus.COMPLETED,
         priority: GuestRequestPriority.NORMAL,
-      } as never);
+      });
 
       await expect(
         service.updateRequestStatus("user-1", "role-1", "hotel-1", "req-completed", {
@@ -331,7 +335,7 @@ describe("Hotel Request Permissions & Coordination vs Execution (AGY 12)", () =>
         stay: { status: GuestStayStatus.ACTIVE, checkedOutAt: null },
         room: { roomNumber: "101" },
         events: [],
-      } as never);
+      });
 
       mockRepository.updateRequestStatus = jest.fn().mockResolvedValue({
         id: "req-created",
@@ -341,11 +345,17 @@ describe("Hotel Request Permissions & Coordination vs Execution (AGY 12)", () =>
         stay: { status: GuestStayStatus.ACTIVE, checkedOutAt: null },
         room: { roomNumber: "101" },
         events: [],
-      } as never);
-
-      const updated = await service.updateRequestStatus("user-1", "role-1", "hotel-1", "req-created", {
-        status: GuestRequestStatus.ACKNOWLEDGED,
       });
+
+      const updated = await service.updateRequestStatus(
+        "user-1",
+        "role-1",
+        "hotel-1",
+        "req-created",
+        {
+          status: GuestRequestStatus.ACKNOWLEDGED,
+        },
+      );
 
       expect(updated.status).toBe(GuestRequestStatus.ACKNOWLEDGED);
     });
@@ -373,7 +383,9 @@ describe("Hotel Request Permissions & Coordination vs Execution (AGY 12)", () =>
           id: "staff-1",
           status: UserStatus.ACTIVE,
           tenantUsers: { some: { tenantId: "tenant-1", status: TenantUserStatus.ACTIVE } },
-          hotelAssignments: { some: { hotelId: "hotel-1", status: HotelStaffAssignmentStatus.ACTIVE } },
+          hotelAssignments: {
+            some: { hotelId: "hotel-1", status: HotelStaffAssignmentStatus.ACTIVE },
+          },
         },
         select: { id: true },
       });
@@ -394,7 +406,9 @@ describe("Hotel Request Permissions & Coordination vs Execution (AGY 12)", () =>
           }),
         },
         folioItem: {
-          findUnique: jest.fn().mockResolvedValue({ id: "existing-folio-item-1", folioId: "folio-1" }),
+          findUnique: jest
+            .fn()
+            .mockResolvedValue({ id: "existing-folio-item-1", folioId: "folio-1" }),
           create: jest.fn(),
           aggregate: jest.fn().mockResolvedValue({
             _sum: {
@@ -417,9 +431,11 @@ describe("Hotel Request Permissions & Coordination vs Execution (AGY 12)", () =>
       };
 
       const mockPrisma = {
-        $transaction: jest.fn().mockImplementation((callback: (tx: typeof mockTx) => Promise<unknown>) =>
-          callback(mockTx),
-        ),
+        $transaction: jest
+          .fn()
+          .mockImplementation((callback: (tx: typeof mockTx) => Promise<unknown>) =>
+            callback(mockTx),
+          ),
       };
 
       const repo = new HotelRequestsRepository(mockPrisma as never);

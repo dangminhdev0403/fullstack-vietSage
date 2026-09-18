@@ -199,7 +199,9 @@ describe("HotelAccessService", () => {
         tenantUsers: [{ tenantId: "tenant-1" }],
         hotelAssignments: [{ hotelId: "hotel-foreign" }],
       }),
-      findHotelById: jest.fn().mockResolvedValue({ id: "hotel-foreign", tenantId: "tenant-foreign" }),
+      findHotelById: jest
+        .fn()
+        .mockResolvedValue({ id: "hotel-foreign", tenantId: "tenant-foreign" }),
     });
     const service = new HotelAccessService(repository as never);
 

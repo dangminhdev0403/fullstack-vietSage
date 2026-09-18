@@ -10,7 +10,7 @@ if (typeof window !== "undefined") {
 }
 
 export default function CccdMobilePage() {
-  const { view, ready, error, send, sendDocument, disconnect } = useMobilePhone();
+  const { view, ready, error, send, disconnect } = useMobilePhone();
 
   const comparisonDigits = view?.comparisonCode ? view.comparisonCode.replace(/\s+/g, "").split("") : [];
 

@@ -430,11 +430,6 @@ export function RequestQueueClient({
     initialDetailRequestId ?? null,
   );
 
-  useEffect(() => {
-    if (initialDetailRequestId !== undefined) {
-      setActiveDetailRequestId(initialDetailRequestId || null);
-    }
-  }, [initialDetailRequestId]);
 
   useEffect(() => {
     function onPopState() {

@@ -10,7 +10,12 @@ import {
   type OnModuleInit,
 } from "@nestjs/common";
 import { createHash } from "crypto";
-import { KbttAutoSubmitRun, KbttGuestDeclaration, KbttHotelConnection, Prisma } from "@prisma/client";
+import {
+  KbttAutoSubmitRun,
+  KbttGuestDeclaration,
+  KbttHotelConnection,
+  Prisma,
+} from "@prisma/client";
 import {
   HotelAccessService,
   HotelStayOccupantsReadService,
@@ -137,11 +142,16 @@ export function isBcaDuplicateConflict(
     );
   if (!hasConflictKeywords) return false;
 
-  const rawIdentity = String(draft.soGiayTo || draft.soHoChieu || "").trim();
+  const toSafeString = (v: unknown): string =>
+    typeof v === "string" ? v : typeof v === "number" || typeof v === "boolean" ? String(v) : "";
+
+  const rawIdentity = (toSafeString(draft.soGiayTo) || toSafeString(draft.soHoChieu)).trim();
   if (!rawIdentity) return false;
   const normalizedIdentity = rawIdentity.toUpperCase().replace(/[\s-]/g, "");
 
-  const rawDeparture = String(draft.ngayDiDuKienStr || draft.thoiHanTamTruStr || "").trim();
+  const rawDeparture = (
+    toSafeString(draft.ngayDiDuKienStr) || toSafeString(draft.thoiHanTamTruStr)
+  ).trim();
   const departureMatch = rawDeparture.match(/\d{4}-\d{2}-\d{2}/);
   if (!departureMatch) return false;
   const draftDeparture = departureMatch[0];
@@ -214,16 +224,17 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     citizenshipKind: "VIETNAMESE" | "FOREIGN",
     data: Record<string, unknown>,
     occupant:
-      | NonNullable<Awaited<ReturnType<KbttRepository["findOccupant"]>>>
-      | ActiveStayOccupantRow,
+      NonNullable<Awaited<ReturnType<KbttRepository["findOccupant"]>>> | ActiveStayOccupantRow,
   ): Record<string, unknown> {
     const draft = { ...data };
     if (!draft.hoTen && occupant.fullName) draft.hoTen = occupant.fullName;
     const stay = "stay" in occupant ? occupant.stay : null;
     const roomNumber = "roomNumber" in occupant ? occupant.roomNumber : stay?.room?.roomNumber;
     const checkedInAt = "checkedInAt" in occupant ? occupant.checkedInAt : stay?.checkedInAt;
-    const plannedCheckInAt = "plannedCheckInAt" in occupant ? occupant.plannedCheckInAt : stay?.plannedCheckInAt;
-    const plannedCheckOutAt = "plannedCheckOutAt" in occupant ? occupant.plannedCheckOutAt : stay?.plannedCheckOutAt;
+    const plannedCheckInAt =
+      "plannedCheckInAt" in occupant ? occupant.plannedCheckInAt : stay?.plannedCheckInAt;
+    const plannedCheckOutAt =
+      "plannedCheckOutAt" in occupant ? occupant.plannedCheckOutAt : stay?.plannedCheckOutAt;
     if (!draft.soPhong && roomNumber) {
       draft.soPhong = roomNumber;
     }
@@ -233,10 +244,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     if (!draft.ngayDiDuKienStr && plannedCheckOutAt) {
       draft.ngayDiDuKienStr = formatVietnamDateTime(plannedCheckOutAt);
     }
-    if (
-      !draft.ngayThangNamSinhStr &&
-      occupant.dateOfBirth
-    ) {
+    if (!draft.ngayThangNamSinhStr && occupant.dateOfBirth) {
       const normalizedDob = normalizeDateStringToIso(occupant.dateOfBirth);
       if (normalizedDob && isValidCalendarDate(normalizedDob)) {
         draft.ngayThangNamSinhStr = normalizedDob;
@@ -271,7 +279,12 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         draft.thoiHanTamTruStr = formatVietnamDateTime(plannedCheckOutAt);
       }
       if (!draft.thoiHanTamTruStr && draft.ngayDiDuKienStr) {
-        draft.thoiHanTamTruStr = String(draft.ngayDiDuKienStr);
+        draft.thoiHanTamTruStr =
+          typeof draft.ngayDiDuKienStr === "string"
+            ? draft.ngayDiDuKienStr
+            : typeof draft.ngayDiDuKienStr === "number"
+              ? String(draft.ngayDiDuKienStr)
+              : "";
       }
       if (!draft.loaiNgayThangNamSinh && draft.ngayThangNamSinhStr) {
         draft.loaiNgayThangNamSinh = "D";
@@ -411,12 +424,15 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
 
   private armScheduledRun(run: KbttAutoSubmitRun) {
     if (this.scheduledTimers.has(run.id)) return;
-    const timer = setTimeout(() => {
-      this.scheduledTimers.delete(run.id);
-      void this.executeAutoSubmitForHotel(run.hotelId, run.scheduledFor, run.dryRun).catch(
-        () => undefined,
-      );
-    }, Math.max(0, run.scheduledFor.getTime() - Date.now()));
+    const timer = setTimeout(
+      () => {
+        this.scheduledTimers.delete(run.id);
+        void this.executeAutoSubmitForHotel(run.hotelId, run.scheduledFor, run.dryRun).catch(
+          () => undefined,
+        );
+      },
+      Math.max(0, run.scheduledFor.getTime() - Date.now()),
+    );
     if (typeof timer.unref === "function") timer.unref();
     this.scheduledTimers.set(run.id, timer);
   }
@@ -472,9 +488,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       const decl = declarationsByOccupant.get(occupant.id) ?? null;
       const draft = (decl?.draftPayloadJson ?? {}) as Record<string, unknown>;
       const classification = decl?.declarationKind ?? occupant.citizenshipKind ?? null;
-      const derivedStatus: KbttDerivedStatus = decl
-        ? (decl.status as KbttDerivedStatus)
-        : "MISSING_PROFILE";
+      const derivedStatus: KbttDerivedStatus = decl ? decl.status : "MISSING_PROFILE";
 
       return {
         occupantId: occupant.id,
@@ -494,7 +508,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         dateOfBirth:
           typeof draft.ngayThangNamSinhStr === "string"
             ? draft.ngayThangNamSinhStr
-            : normalizeDateStringToIso(occupant.dateOfBirth) ?? occupant.dateOfBirth,
+            : (normalizeDateStringToIso(occupant.dateOfBirth) ?? occupant.dateOfBirth),
         gender:
           draft.gioiTinh === "M" || draft.gioiTinh === "F"
             ? draft.gioiTinh
@@ -512,14 +526,13 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
               ? draft.quocTich.trim()
               : occupant.nationality?.trim()
                 ? occupant.nationality.trim()
-                : (typeof draft.soGiayTo === "string"
-                    ? draft.soGiayTo
-                    : occupant.identityNumber) &&
-                  /^\d{9,12}$/.test(
-                    (typeof draft.soGiayTo === "string"
-                      ? draft.soGiayTo
-                      : occupant.identityNumber ?? "").trim(),
-                  )
+                : (typeof draft.soGiayTo === "string" ? draft.soGiayTo : occupant.identityNumber) &&
+                    /^\d{9,12}$/.test(
+                      (typeof draft.soGiayTo === "string"
+                        ? draft.soGiayTo
+                        : (occupant.identityNumber ?? "")
+                      ).trim(),
+                    )
                   ? "VNM"
                   : null,
         documentType:
@@ -530,13 +543,15 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
               : /^\d{12}$/.test(
                     (typeof draft.soGiayTo === "string"
                       ? draft.soGiayTo
-                      : occupant.identityNumber ?? "").trim(),
+                      : (occupant.identityNumber ?? "")
+                    ).trim(),
                   )
                 ? 1
                 : /^\d{9}$/.test(
                       (typeof draft.soGiayTo === "string"
                         ? draft.soGiayTo
-                        : occupant.identityNumber ?? "").trim(),
+                        : (occupant.identityNumber ?? "")
+                      ).trim(),
                     )
                   ? 2
                   : /^(?=.*[A-Za-z])[A-Za-z0-9]{1,10}$/.test(
@@ -544,7 +559,8 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
                           ? draft.soHoChieu
                           : typeof draft.soGiayTo === "string"
                             ? draft.soGiayTo
-                            : occupant.identityNumber ?? "").trim(),
+                            : (occupant.identityNumber ?? "")
+                        ).trim(),
                       )
                     ? 4
                     : null,
@@ -553,9 +569,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
           classification ??
           (/^\d{9,12}$/.test((occupant.identityNumber ?? "").trim())
             ? "VIETNAMESE"
-            : /^(?=.*[A-Za-z])[A-Za-z0-9]{1,10}$/.test(
-                  (occupant.identityNumber ?? "").trim(),
-                )
+            : /^(?=.*[A-Za-z])[A-Za-z0-9]{1,10}$/.test((occupant.identityNumber ?? "").trim())
               ? "FOREIGN"
               : null),
         derivedStatus,
@@ -612,9 +626,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         citizenshipKind: decl?.declarationKind ?? occupant.citizenshipKind ?? null,
       },
       declaration: decl ? this.viewDeclaration(decl) : null,
-      derivedStatus: decl
-        ? (decl.status as KbttDerivedStatus)
-        : "MISSING_PROFILE",
+      derivedStatus: decl ? (decl.status as KbttDerivedStatus) : "MISSING_PROFILE",
     };
   }
 
@@ -686,14 +698,21 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
 
     const identityNumber =
       citizenshipKind === "VIETNAMESE"
-        ? typeof draftData.soGiayTo === "string" ? draftData.soGiayTo : undefined
-        : typeof draftData.soHoChieu === "string" ? draftData.soHoChieu : undefined;
+        ? typeof draftData.soGiayTo === "string"
+          ? draftData.soGiayTo
+          : undefined
+        : typeof draftData.soHoChieu === "string"
+          ? draftData.soHoChieu
+          : undefined;
 
     await this.repository.updateOccupantDetails(occupantId, hotelId, {
       identityNumber,
       fullName: typeof draftData.hoTen === "string" ? draftData.hoTen : undefined,
       gender: typeof draftData.gioiTinh === "string" ? draftData.gioiTinh : undefined,
-      dateOfBirth: typeof draftData.ngayThangNamSinhStr === "string" ? draftData.ngayThangNamSinhStr : undefined,
+      dateOfBirth:
+        typeof draftData.ngayThangNamSinhStr === "string"
+          ? draftData.ngayThangNamSinhStr
+          : undefined,
       nationality: typeof draftData.quocTich === "string" ? draftData.quocTich : undefined,
       residencePlace: typeof draftData.diaChi === "string" ? draftData.diaChi : undefined,
     });
@@ -893,7 +912,13 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       let detailStr = "";
       if (Array.isArray(result.data) && result.data.length > 0) {
         detailStr = result.data
-          .map((item) => (typeof item === "string" ? item : typeof item === "object" && item ? JSON.stringify(item) : String(item)))
+          .map((item) =>
+            typeof item === "string"
+              ? item
+              : typeof item === "object" && item
+                ? JSON.stringify(item)
+                : String(item),
+          )
           .filter(Boolean)
           .join("; ");
       } else if (typeof result.data === "string") {
@@ -1231,7 +1256,13 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     let detailStr = "";
     if (Array.isArray(outcome.data) && outcome.data.length > 0) {
       detailStr = outcome.data
-        .map((item) => (typeof item === "string" ? item : typeof item === "object" && item ? JSON.stringify(item) : String(item)))
+        .map((item) =>
+          typeof item === "string"
+            ? item
+            : typeof item === "object" && item
+              ? JSON.stringify(item)
+              : String(item),
+        )
         .filter(Boolean)
         .join("; ");
     } else if (typeof outcome.data === "string") {
@@ -1286,13 +1317,13 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     }
   }
 
-  async executeAutoSubmitForHotel(
-    hotelId: string,
-    scheduledForDate: Date,
-    isDryRun: boolean,
-  ) {
+  async executeAutoSubmitForHotel(hotelId: string, scheduledForDate: Date, isDryRun: boolean) {
     return this.serialize(hotelId, async () => {
-      const run = await this.repository.claimAutoSubmitRunLease(hotelId, scheduledForDate, isDryRun);
+      const run = await this.repository.claimAutoSubmitRunLease(
+        hotelId,
+        scheduledForDate,
+        isDryRun,
+      );
       if (!run) {
         return null;
       }
@@ -1395,7 +1426,9 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
 
             // Recover stale SENDING safely
             if (declaration.status === "SENDING") {
-              const updatedAtMs = declaration.updatedAt ? new Date(declaration.updatedAt).getTime() : 0;
+              const updatedAtMs = declaration.updatedAt
+                ? new Date(declaration.updatedAt).getTime()
+                : 0;
               return now - updatedAtMs > STALE_SENDING_MS;
             }
 
@@ -1449,26 +1482,28 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
 
         const declarations = candidatesToTake
           .filter(({ occupant }) => Boolean(occupant.citizenshipKind))
-          .map(({ occupant, declaration }) =>
-            declaration ?? ({
-              id: `pending:${occupant.id}`,
-              hotelId,
-              stayId: occupant.stayId,
-              occupantId: occupant.id,
-              declarationKind: occupant.citizenshipKind!,
-              revision: 1,
-              status: "READY",
-              draftPayloadJson: this.withOccupantDefaults(occupant.citizenshipKind!, {}, occupant),
-              submittedPayloadJson: null,
-              submittedPayloadFingerprint: null,
-              providerCode: null,
-              providerMessage: null,
-              providerResponseJson: null,
-              submittedAt: null,
-              version: 0,
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            } as KbttGuestDeclaration),
+          .map(
+            ({ occupant, declaration }) =>
+              declaration ??
+              ({
+                id: `pending:${occupant.id}`,
+                hotelId,
+                stayId: occupant.stayId,
+                occupantId: occupant.id,
+                declarationKind: occupant.citizenshipKind!,
+                revision: 1,
+                status: "READY",
+                draftPayloadJson: this.withOccupantDefaults(occupant.citizenshipKind, {}, occupant),
+                submittedPayloadJson: null,
+                submittedPayloadFingerprint: null,
+                providerCode: null,
+                providerMessage: null,
+                providerResponseJson: null,
+                submittedAt: null,
+                version: 0,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              } as KbttGuestDeclaration),
           );
 
         totalEligibleCount += declarations.length;
@@ -1549,14 +1584,14 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
               occupantId: decl.occupantId,
               declarationKind: decl.declarationKind,
               status: "READY",
-              draftPayloadJson: validated.data as Prisma.InputJsonValue,
+              draftPayloadJson: validated.data,
             });
           } else if (!isDryRun && occupant) {
             submitDeclaration = await this.repository.updateDeclaration({
               id: decl.id,
               hotelId,
               expectedVersion: decl.version,
-              data: { draftPayloadJson: validated.data as Prisma.InputJsonValue },
+              data: { draftPayloadJson: validated.data },
             });
           }
 
@@ -1565,7 +1600,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
           validItems.push({
             declaration: submitDeclaration,
             payload,
-            draftData: (validated.data ?? {}) as Record<string, unknown>,
+            draftData: validated.data ?? {},
             fingerprint,
           });
         }
@@ -1698,10 +1733,13 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
 
         if (totalEligibleCount >= MAX_BATCH_ELIGIBLE) {
           while (hasMorePages && !hasBacklog) {
-            const nextResult = await this.occupantsReadService?.getActiveStayOccupantsPaged(hotelId, {
-              cursor,
-              take: PAGE_SIZE,
-            });
+            const nextResult = await this.occupantsReadService?.getActiveStayOccupantsPaged(
+              hotelId,
+              {
+                cursor,
+                take: PAGE_SIZE,
+              },
+            );
             const nextOccupants = nextResult?.items ?? [];
             cursor = nextResult?.nextCursor ?? undefined;
             hasMorePages = Boolean(cursor && nextOccupants.length > 0);
@@ -1771,20 +1809,23 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
             (connection as any)?.hotel?.name ||
             (await this.repository.findHotelName?.(hotelId)) ||
             hotelId;
-          telegramSent = await (this.telegramNotificationService as any).sendKbttAutoSubmitSummary(hotelId, {
-            hotelName,
-            scheduledTime: formatVietnamDateTime(scheduledForDate),
-            totalEligible: totalEligibleCount,
-            successCount,
-            failureCount: failedCount,
-            unknownCount,
-            isDryRun,
-            directSuccessCount,
-            reconciledSuccessCount,
-            validationFailureCount,
-            bcaRejectionCount,
-            transientExhaustedCount,
-          });
+          telegramSent = await (this.telegramNotificationService as any).sendKbttAutoSubmitSummary(
+            hotelId,
+            {
+              hotelName,
+              scheduledTime: formatVietnamDateTime(scheduledForDate),
+              totalEligible: totalEligibleCount,
+              successCount,
+              failureCount: failedCount,
+              unknownCount,
+              isDryRun,
+              directSuccessCount,
+              reconciledSuccessCount,
+              validationFailureCount,
+              bcaRejectionCount,
+              transientExhaustedCount,
+            },
+          );
         } catch {
           // non-blocking
         }
@@ -1804,9 +1845,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
           continuationMinutes === 30 ? "CONTINUATION_30M" : `CONTINUATION_${continuationMinutes}M`;
         try {
           const pending = await this.repository.findPendingScheduledAutoSubmitRuns(hotelId);
-          const alreadyScheduled = pending.some(
-            (p) => p.scheduledFor.getTime() >= Date.now(),
-          );
+          const alreadyScheduled = pending.some((p) => p.scheduledFor.getTime() >= Date.now());
           if (!alreadyScheduled) {
             const continuation = await this.repository.createScheduledAutoSubmitRun(
               hotelId,
@@ -1849,19 +1888,18 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     });
   }
 
-  async testAutoSubmit(
-    userId: string,
-    roleId: string,
-    hotelId: string,
-    dryRun = true,
-  ) {
+  async testAutoSubmit(userId: string, roleId: string, hotelId: string, dryRun = true) {
     await this.access.assertHotelAccess(userId, roleId, hotelId);
     if (!dryRun && process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED !== "true") {
-      throw new BadRequestException("Live KBTT auto-submit chưa được bật trong môi trường hiện tại.");
+      throw new BadRequestException(
+        "Live KBTT auto-submit chưa được bật trong môi trường hiện tại.",
+      );
     }
     const run = await this.executeAutoSubmitForHotel(hotelId, new Date(), dryRun);
     if (!run) {
-      throw new BadRequestException("Không thể khởi tạo phiên nộp tự động hoặc đang có phiên khác đang chạy.");
+      throw new BadRequestException(
+        "Không thể khởi tạo phiên nộp tự động hoặc đang có phiên khác đang chạy.",
+      );
     }
     return {
       id: run.id,
@@ -1920,7 +1958,9 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
   async scheduleAutoSubmit(userId: string, roleId: string, hotelId: string, dryRun: boolean) {
     await this.access.assertHotelAccess(userId, roleId, hotelId);
     if (!dryRun && process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED !== "true") {
-      throw new BadRequestException("Live KBTT auto-submit chưa được bật trong môi trường hiện tại.");
+      throw new BadRequestException(
+        "Live KBTT auto-submit chưa được bật trong môi trường hiện tại.",
+      );
     }
     const [pending, runs] = await Promise.all([
       this.repository.findPendingScheduledAutoSubmitRuns(hotelId),
@@ -1995,7 +2035,10 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     };
   }
 
-  private generateRandomCccd(occ?: { gender?: string | null; dateOfBirth?: string | null }): string {
+  private generateRandomCccd(occ?: {
+    gender?: string | null;
+    dateOfBirth?: string | null;
+  }): string {
     const provinces = ["001", "079", "048", "031", "037", "092", "024", "060", "056"];
     const prov = provinces[Math.floor(Math.random() * provinces.length)];
 
@@ -2115,16 +2158,10 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
             ? (existingDecl.draftPayloadJson as Record<string, unknown>)
             : {};
 
-        const draft = this.withOccupantDefaults(
-          citizenshipKind,
-          previousData,
-          occupant,
-        );
+        const draft = this.withOccupantDefaults(citizenshipKind, previousData, occupant);
 
         const schema =
-          citizenshipKind === "VIETNAMESE"
-            ? kbttVietnameseReadySchema
-            : kbttForeignReadySchema;
+          citizenshipKind === "VIETNAMESE" ? kbttVietnameseReadySchema : kbttForeignReadySchema;
         const validated = schema.safeParse(draft);
 
         if (!validated.success) {
@@ -2171,7 +2208,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
             occupantId: occupant.id,
             declarationKind: citizenshipKind,
             status: "READY",
-            draftPayloadJson: validated.data as Prisma.InputJsonValue,
+            draftPayloadJson: validated.data,
           });
         } else {
           submitDeclaration = await this.repository.updateDeclaration({
@@ -2180,7 +2217,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
             expectedVersion: existingDecl.version,
             data: {
               status: "READY",
-              draftPayloadJson: validated.data as Prisma.InputJsonValue,
+              draftPayloadJson: validated.data,
             },
           });
         }
@@ -2210,7 +2247,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
 
             const isConflictSuccess =
               outcome.outcome === "BUSINESS_REJECTION" &&
-              isBcaDuplicateConflict(outcome.message, validated.data as Record<string, unknown>);
+              isBcaDuplicateConflict(outcome.message, validated.data);
 
             if (outcome.outcome === "SUCCESS" || isConflictSuccess) {
               await this.persistDeclarationSubmitted(
@@ -2222,12 +2259,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
                 isConflictSuccess,
               );
             } else if (outcome.outcome === "BUSINESS_REJECTION") {
-              await this.persistDeclarationFailed(
-                hotelId,
-                sendingDecl,
-                fingerprint,
-                outcome,
-              );
+              await this.persistDeclarationFailed(hotelId, sendingDecl, fingerprint, outcome);
             } else {
               await this.persistDeclarationUnknown(
                 hotelId,
@@ -2397,5 +2429,3 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     };
   }
 }
-
-

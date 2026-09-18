@@ -15,7 +15,10 @@ export type KbttSubmitOutcome =
   | { outcome: "AMBIGUOUS"; code: string; message: string; data?: unknown };
 
 export function kbttAuthFailed(customMessage?: string) {
-  return new HttpException({ code: "KBTT_AUTH_FAILED", message: customMessage || KBTT_AUTH_FAILED_MESSAGE }, 422);
+  return new HttpException(
+    { code: "KBTT_AUTH_FAILED", message: customMessage || KBTT_AUTH_FAILED_MESSAGE },
+    422,
+  );
 }
 
 export function kbttProviderError(
@@ -141,7 +144,10 @@ export class KbttProviderClient {
       }
 
       // ponytail: strip BOM + whitespace; government APIs commonly frame JSON with these
-      const raw = Buffer.concat(chunks).toString("utf8").replace(/^\uFEFF/, "").trim();
+      const raw = Buffer.concat(chunks)
+        .toString("utf8")
+        .replace(/^\uFEFF/, "")
+        .trim();
       let envelope: any;
       try {
         envelope = JSON.parse(raw);
@@ -150,21 +156,24 @@ export class KbttProviderClient {
           return {
             outcome: "AMBIGUOUS",
             code: "HTTP_401",
-            message: "Phiên đăng nhập kết nối BCA hết hạn hoặc không hợp lệ (HTTP 401 Unauthorized).",
+            message:
+              "Phiên đăng nhập kết nối BCA hết hạn hoặc không hợp lệ (HTTP 401 Unauthorized).",
           };
         }
         if (response.status === 403) {
           return {
             outcome: "BUSINESS_REJECTION",
             code: "HTTP_403",
-            message: "Tài khoản kết nối BCA bị từ chối quyền truy cập hoặc không có quyền gửi hồ sơ (HTTP 403 Forbidden).",
+            message:
+              "Tài khoản kết nối BCA bị từ chối quyền truy cập hoặc không có quyền gửi hồ sơ (HTTP 403 Forbidden).",
           };
         }
         if (response.status === 404) {
           return {
             outcome: "AMBIGUOUS",
             code: "HTTP_404",
-            message: "Không tìm thấy đường dẫn API khai báo tạm trú của cơ quan quản lý (HTTP 404 Not Found).",
+            message:
+              "Không tìm thấy đường dẫn API khai báo tạm trú của cơ quan quản lý (HTTP 404 Not Found).",
           };
         }
         return {
@@ -176,12 +185,12 @@ export class KbttProviderClient {
 
       if (!envelope || typeof envelope !== "object" || !("code" in envelope)) {
         const errorDetail =
-          typeof (envelope as any)?.message === "string" && (envelope as any).message
-            ? (envelope as any).message
-            : typeof (envelope as any)?.error_description === "string"
-              ? (envelope as any).error_description
-              : typeof (envelope as any)?.error === "string"
-                ? (envelope as any).error
+          typeof envelope?.message === "string" && envelope.message
+            ? envelope.message
+            : typeof envelope?.error_description === "string"
+              ? envelope.error_description
+              : typeof envelope?.error === "string"
+                ? envelope.error
                 : "";
 
         if (response.status === 401) {
@@ -338,7 +347,8 @@ export class KbttProviderClient {
       )
         throw kbttProviderError("KBTT_PROVIDER_INVALID_RESPONSE");
       if (envelope.code !== "200") {
-        const msg = typeof (envelope as any)?.message === "string" ? (envelope as any).message : undefined;
+        const msg =
+          typeof (envelope as any)?.message === "string" ? (envelope as any).message : undefined;
         throw kbttAuthFailed(msg);
       }
       return envelope.data;

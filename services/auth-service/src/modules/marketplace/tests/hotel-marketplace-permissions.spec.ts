@@ -28,7 +28,9 @@ describe("HotelMarketplaceController permissions", () => {
   });
 
   it("giữ nguyên quyền view cho các endpoint truy vấn", () => {
-    expect(Reflect.getMetadata(REQUIRED_PERMISSION_KEY, prototype.list)).toBe("hotel.requests.view");
+    expect(Reflect.getMetadata(REQUIRED_PERMISSION_KEY, prototype.list)).toBe(
+      "hotel.requests.view",
+    );
     expect(Reflect.getMetadata(REQUIRED_PERMISSION_KEY, prototype.order)).toBe(
       "hotel.marketplace.view",
     );

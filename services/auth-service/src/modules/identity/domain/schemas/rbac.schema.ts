@@ -19,10 +19,7 @@ export const createRoleBodySchema = z
       .max(255, "description must not exceed 255 characters")
       .nullable()
       .optional(),
-    baseRoleId: z
-      .string()
-      .trim()
-      .min(1, "baseRoleId là bắt buộc"),
+    baseRoleId: z.string().trim().min(1, "baseRoleId là bắt buộc"),
     permissionIds: z.array(z.string().trim()),
   })
   .strict();
@@ -40,11 +37,7 @@ export const updateRoleBodySchema = z
       .max(255, "description must not exceed 255 characters")
       .nullable()
       .optional(),
-    baseRoleId: z
-      .string()
-      .trim()
-      .min(1, "baseRoleId không được để trống")
-      .optional(),
+    baseRoleId: z.string().trim().min(1, "baseRoleId không được để trống").optional(),
     permissionIds: z.array(z.string().trim()).optional(),
   })
   .strict();

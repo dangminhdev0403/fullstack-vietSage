@@ -13,7 +13,7 @@ export function CccdPreview({ model }: Props) {
           {model.portraitDataUrl ? (
             // Volatile data URL must not pass through Next image optimization or cache.
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={model.portraitDataUrl} alt="Ảnh chân dung đọc từ chip CCCD" draggable={false} className="absolute inset-0 h-full w-full object-contain" />
+            <img src={model.portraitDataUrl} alt="Ảnh chân dung đọc từ chip CCCD" width={180} height={240} draggable={false} className="absolute inset-0 h-full w-full object-contain" />
           ) : <div className="text-sm font-medium text-slate-500">Không có ảnh</div>}
         </div>
       </div>

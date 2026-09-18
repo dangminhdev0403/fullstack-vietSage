@@ -19,10 +19,7 @@ import { BiometricWorkstationsController } from "../../biometric-workstations/ap
 import { HotelRoomsController } from "../api/hotel-rooms.controller";
 import { ReservationsController } from "../api/reservations.controller";
 import { HotelRoomsService } from "../application/hotel-rooms.service";
-import {
-  updateRoomBodySchema,
-  updateRoomStatusBodySchema,
-} from "../domain/schemas/rooms.schema";
+import { updateRoomBodySchema, updateRoomStatusBodySchema } from "../domain/schemas/rooms.schema";
 
 describe("Hotel operation permissions and command boundary enforcement", () => {
   describe("Controller permission metadata contracts", () => {
@@ -36,18 +33,12 @@ describe("Hotel operation permissions and command boundary enforcement", () => {
       ).toBe("hotel.stays.check-in");
 
       expect(
-        Reflect.getMetadata(
-          REQUIRED_PERMISSION_KEY,
-          HotelRoomsController.prototype.checkInStay,
-        ),
+        Reflect.getMetadata(REQUIRED_PERMISSION_KEY, HotelRoomsController.prototype.checkInStay),
       ).toBe("hotel.stays.check-in");
 
       // Direct checkout requires hotel.stays.check-out
       expect(
-        Reflect.getMetadata(
-          REQUIRED_PERMISSION_KEY,
-          HotelRoomsController.prototype.checkOutStay,
-        ),
+        Reflect.getMetadata(REQUIRED_PERMISSION_KEY, HotelRoomsController.prototype.checkOutStay),
       ).toBe("hotel.stays.check-out");
 
       // Operational room status requires hotel.rooms.status.manage
@@ -60,79 +51,49 @@ describe("Hotel operation permissions and command boundary enforcement", () => {
 
       // Metadata update remains under hotel.rooms.manage
       expect(
-        Reflect.getMetadata(
-          REQUIRED_PERMISSION_KEY,
-          HotelRoomsController.prototype.updateRoom,
-        ),
+        Reflect.getMetadata(REQUIRED_PERMISSION_KEY, HotelRoomsController.prototype.updateRoom),
       ).toBe("hotel.rooms.manage");
 
       expect(
-        Reflect.getMetadata(
-          REQUIRED_PERMISSION_KEY,
-          HotelRoomsController.prototype.createRoom,
-        ),
+        Reflect.getMetadata(REQUIRED_PERMISSION_KEY, HotelRoomsController.prototype.createRoom),
       ).toBe("hotel.rooms.manage");
 
       expect(
-        Reflect.getMetadata(
-          REQUIRED_PERMISSION_KEY,
-          HotelRoomsController.prototype.createRooms,
-        ),
+        Reflect.getMetadata(REQUIRED_PERMISSION_KEY, HotelRoomsController.prototype.createRooms),
       ).toBe("hotel.rooms.manage");
 
       // Read endpoints require view
       expect(
-        Reflect.getMetadata(
-          REQUIRED_PERMISSION_KEY,
-          HotelRoomsController.prototype.listRooms,
-        ),
+        Reflect.getMetadata(REQUIRED_PERMISSION_KEY, HotelRoomsController.prototype.listRooms),
       ).toBe("hotel.rooms.view");
 
       // Stay lifecycle management
       expect(
-        Reflect.getMetadata(
-          REQUIRED_PERMISSION_KEY,
-          HotelRoomsController.prototype.createStay,
-        ),
+        Reflect.getMetadata(REQUIRED_PERMISSION_KEY, HotelRoomsController.prototype.createStay),
       ).toBe("hotel.stays.manage");
 
       expect(
-        Reflect.getMetadata(
-          REQUIRED_PERMISSION_KEY,
-          HotelRoomsController.prototype.updateStay,
-        ),
+        Reflect.getMetadata(REQUIRED_PERMISSION_KEY, HotelRoomsController.prototype.updateStay),
       ).toBe("hotel.stays.manage");
 
       // QR policies remain unchanged under hotel.rooms.qr.manage
       expect(
-        Reflect.getMetadata(
-          REQUIRED_PERMISSION_KEY,
-          HotelRoomsController.prototype.rotateQr,
-        ),
+        Reflect.getMetadata(REQUIRED_PERMISSION_KEY, HotelRoomsController.prototype.rotateQr),
       ).toBe("hotel.rooms.qr.manage");
 
       expect(
-        Reflect.getMetadata(
-          REQUIRED_PERMISSION_KEY,
-          HotelRoomsController.prototype.activateQr,
-        ),
+        Reflect.getMetadata(REQUIRED_PERMISSION_KEY, HotelRoomsController.prototype.activateQr),
       ).toBe("hotel.rooms.qr.manage");
 
       expect(
-        Reflect.getMetadata(
-          REQUIRED_PERMISSION_KEY,
-          HotelRoomsController.prototype.deactivateQr,
-        ),
+        Reflect.getMetadata(REQUIRED_PERMISSION_KEY, HotelRoomsController.prototype.deactivateQr),
       ).toBe("hotel.rooms.qr.manage");
     });
 
     it("enforces reservation check-in requires hotel.stays.check-in while preserving reservation management", () => {
       // Reservation check-in requires the same execution key as stay check-in
       expect(
-        Reflect.getMetadata(
-          REQUIRED_PERMISSION_KEY,
-          ReservationsController.prototype.checkIn,
-        ),
+        Reflect.getMetadata(REQUIRED_PERMISSION_KEY, ReservationsController.prototype.checkIn),
       ).toBe("hotel.stays.check-in");
 
       // Reservation configuration and views remain unchanged
@@ -144,17 +105,11 @@ describe("Hotel operation permissions and command boundary enforcement", () => {
       ).toBe("hotel.reservations.manage");
 
       expect(
-        Reflect.getMetadata(
-          REQUIRED_PERMISSION_KEY,
-          ReservationsController.prototype.assignRoom,
-        ),
+        Reflect.getMetadata(REQUIRED_PERMISSION_KEY, ReservationsController.prototype.assignRoom),
       ).toBe("hotel.reservations.manage");
 
       expect(
-        Reflect.getMetadata(
-          REQUIRED_PERMISSION_KEY,
-          ReservationsController.prototype.listArrivals,
-        ),
+        Reflect.getMetadata(REQUIRED_PERMISSION_KEY, ReservationsController.prototype.listArrivals),
       ).toBe("hotel.reservations.view");
     });
 
@@ -223,15 +178,11 @@ describe("Hotel operation permissions and command boundary enforcement", () => {
       });
 
       // Normalizes preprocessing aliases
-      expect(
-        parseWithZod(updateRoomStatusBodySchema, { status: "clean" }),
-      ).toEqual({
+      expect(parseWithZod(updateRoomStatusBodySchema, { status: "clean" })).toEqual({
         status: RoomStatus.AVAILABLE,
       });
 
-      expect(
-        parseWithZod(updateRoomStatusBodySchema, { status: "dirty" }),
-      ).toEqual({
+      expect(parseWithZod(updateRoomStatusBodySchema, { status: "dirty" })).toEqual({
         status: RoomStatus.PROCESSING,
       });
 
@@ -285,12 +236,11 @@ describe("Hotel operation permissions and command boundary enforcement", () => {
       };
     }
 
-    function createService(repository = createMockRepository(), accessService = createMockAccessService()) {
-      return new HotelRoomsService(
-        repository as any,
-        {} as any,
-        accessService as any,
-      );
+    function createService(
+      repository = createMockRepository(),
+      accessService = createMockAccessService(),
+    ) {
+      return new HotelRoomsService(repository as any, {} as any, accessService as any);
     }
 
     it("updates room status to PROCESSING successfully", async () => {
@@ -326,13 +276,9 @@ describe("Hotel operation permissions and command boundary enforcement", () => {
       const service = createService(repository);
 
       await expect(
-        service.updateRoomStatus(
-          "user-1",
-          "role-frontdesk",
-          "hotel-1",
-          "room-1",
-          { status: RoomStatus.BLOCKED },
-        ),
+        service.updateRoomStatus("user-1", "role-frontdesk", "hotel-1", "room-1", {
+          status: RoomStatus.BLOCKED,
+        }),
       ).rejects.toBeInstanceOf(ConflictException);
 
       expect(repository.updateRoomInHotel).not.toHaveBeenCalled();
@@ -343,13 +289,9 @@ describe("Hotel operation permissions and command boundary enforcement", () => {
       const service = createService(repository);
 
       await expect(
-        service.updateRoomStatus(
-          "user-1",
-          "role-frontdesk",
-          "hotel-1",
-          "room-1",
-          { status: RoomStatus.OCCUPIED },
-        ),
+        service.updateRoomStatus("user-1", "role-frontdesk", "hotel-1", "room-1", {
+          status: RoomStatus.OCCUPIED,
+        }),
       ).rejects.toBeInstanceOf(BadRequestException);
 
       expect(repository.updateRoomInHotel).not.toHaveBeenCalled();
@@ -361,13 +303,9 @@ describe("Hotel operation permissions and command boundary enforcement", () => {
       const service = createService(repository);
 
       await expect(
-        service.updateRoomStatus(
-          "user-1",
-          "role-frontdesk",
-          "hotel-1",
-          "room-999",
-          { status: RoomStatus.AVAILABLE },
-        ),
+        service.updateRoomStatus("user-1", "role-frontdesk", "hotel-1", "room-999", {
+          status: RoomStatus.AVAILABLE,
+        }),
       ).rejects.toBeInstanceOf(NotFoundException);
 
       expect(repository.updateRoomInHotel).not.toHaveBeenCalled();

@@ -412,12 +412,19 @@ export function StaffRoomsClient({
     return "walk-in";
   });
   const [selectedRoom, setSelectedRoom] = useState<HotelRoomSummary | null>(
-    null,
+    () =>
+      initialFlow === "check-in" && canManageStays
+        ? (initialRoomsPage.items.find(isAvailable) ?? null)
+        : null,
   );
   const [roomQrPreview, setRoomQrPreview] = useState<RoomQrPreview | null>(
     null,
   );
-  const [isCheckInOpen, setIsCheckInOpen] = useState(false);
+  const [isCheckInOpen, setIsCheckInOpen] = useState(
+    initialFlow === "check-in" &&
+      canManageStays &&
+      initialRoomsPage.items.some(isAvailable),
+  );
   const [submitError, setSubmitError] = useState<string | undefined>();
 
   const [reservationForm, setReservationForm] = useState<ReservationForm>(() =>
@@ -527,17 +534,6 @@ export function StaffRoomsClient({
     setIsCheckInOpen(true);
   }
 
-  useEffect(() => {
-    if (initialFlow === "reservation") {
-      setFlow("reservation");
-    } else if (initialFlow === "check-in") {
-      setFlow("walk-in");
-      if (canManageStays && availableRooms.length > 0) {
-        setSelectedRoom(availableRooms[0]);
-        setIsCheckInOpen(true);
-      }
-    }
-  }, [initialFlow, canManageStays, availableRooms]);
 
   useEffect(() => {
     if (typeof window !== "undefined" && window.location.search.includes("flow=")) {

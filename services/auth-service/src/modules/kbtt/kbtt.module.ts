@@ -21,4 +21,3 @@ import { KbttRepository } from "./infrastructure/kbtt.repository";
   ],
 })
 export class KbttModule {}
-

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { ServiceUnavailableException } from "@nestjs/common";
 import type { JwtService } from "@nestjs/jwt";
 import type { HotelAccessService } from "../../property/property-public";

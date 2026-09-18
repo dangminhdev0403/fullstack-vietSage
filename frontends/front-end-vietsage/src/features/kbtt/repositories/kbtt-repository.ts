@@ -25,6 +25,26 @@ import {
   type SaveKbttDraftPayload,
 } from "../types/kbtt-contract";
 
+export type PaginatedKbttDeclarations = KbttDeclarationListItem[] & {
+  total?: number;
+  totalPages?: number;
+  page?: number;
+  limit?: number;
+};
+
+type DevResetResult = {
+  success: boolean;
+  message: string;
+  resetCount: number;
+  generatedCount?: number;
+};
+
+type DevUpdateResult = {
+  success: boolean;
+  message: string;
+  updatedCount: number;
+};
+
 function connectionPath(hotelId: string) {
   return `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/kbtt/connection`;
 }
@@ -97,7 +117,7 @@ export const kbttRepository = {
     hotelId: string,
     params?: { page?: number; limit?: number },
     signal?: AbortSignal,
-  ): Promise<KbttDeclarationListItem[]> {
+  ): Promise<PaginatedKbttDeclarations> {
     const page = params?.page ?? 1;
     const limit = params?.limit ?? 50;
     const url = `${declarationsPath(hotelId)}?page=${page}&limit=${limit}`;
@@ -106,8 +126,15 @@ export const kbttRepository = {
       signal,
     });
     const parsed = kbttDeclarationListSchema.parse(payload.data);
-    const total = typeof (payload as any).total === "number" ? (payload as any).total : undefined;
-    const totalPages = typeof (payload as any).totalPages === "number" ? (payload as any).totalPages : undefined;
+    const total =
+      "total" in payload && typeof payload.total === "number"
+        ? payload.total
+        : undefined;
+    const totalPages =
+      "totalPages" in payload && typeof payload.totalPages === "number"
+        ? payload.totalPages
+        : undefined;
+
     if (total !== undefined || totalPages !== undefined) {
       Object.assign(parsed, { total, totalPages, page, limit });
     }
@@ -237,14 +264,9 @@ export const kbttRepository = {
   async devResetDeclarations(
     hotelId: string,
     options?: { generateNewIdentityNumbers?: boolean },
-  ): Promise<{
-    success: boolean;
-    message: string;
-    resetCount: number;
-    generatedCount?: number;
-  }> {
+  ): Promise<DevResetResult> {
     const url = `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/kbtt/dev?action=reset`;
-    const payload = await requestInternalApiEnvelope<any>(url, {
+    const payload = await requestInternalApiEnvelope<DevResetResult>(url, {
       method: "POST",
       body: options ?? {},
     });
@@ -253,9 +275,9 @@ export const kbttRepository = {
   async devUpdateOccupants(
     hotelId: string,
     occupants: KbttDevOccupantUpdateItem[],
-  ): Promise<{ success: boolean; message: string; updatedCount: number }> {
+  ): Promise<DevUpdateResult> {
     const url = `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/kbtt/dev?action=update-occupants`;
-    const payload = await requestInternalApiEnvelope<any>(url, {
+    const payload = await requestInternalApiEnvelope<DevUpdateResult>(url, {
       method: "POST",
       body: { occupants },
     });

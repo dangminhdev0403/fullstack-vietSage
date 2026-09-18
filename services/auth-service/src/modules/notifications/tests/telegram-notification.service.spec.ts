@@ -107,7 +107,10 @@ describe("TelegramNotificationService request acknowledgement", () => {
 
   describe("KBTT auto-submit summary notification", () => {
     it("formats summary message with HTML escaping and counts", () => {
-      const service = new TelegramNotificationService({} as never, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as never);
+      const service = new TelegramNotificationService(
+        {} as never,
+        { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as never,
+      );
       const msg = service.formatKbttSummaryMessage({
         hotelName: "Khách sạn Sài Gòn <Test>",
         scheduledTime: "2026-09-15 04:30:00",
@@ -169,7 +172,9 @@ describe("TelegramNotificationService request acknowledgement", () => {
         isDryRun: false,
       });
 
-      expect(msg).toContain("Hồ sơ timeout cần nhân viên lễ tân kiểm tra lại trước khi gửi thủ công");
+      expect(msg).toContain(
+        "Hồ sơ timeout cần nhân viên lễ tân kiểm tra lại trước khi gửi thủ công",
+      );
     });
 
     const originalEnv = process.env;
@@ -196,7 +201,9 @@ describe("TelegramNotificationService request acknowledgement", () => {
       };
       const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
       const service = new TelegramNotificationService(prisma as never, logger as never);
-      const callTelegramSpy = jest.spyOn(service as any, "callTelegram").mockResolvedValue({ ok: true });
+      const callTelegramSpy = jest
+        .spyOn(service as any, "callTelegram")
+        .mockResolvedValue({ ok: true });
 
       const sent = await service.sendKbttAutoSubmitSummary("hotel-1", {
         hotelName: "Grand Hotel",
@@ -213,13 +220,19 @@ describe("TelegramNotificationService request acknowledgement", () => {
         where: { hotelId: "hotel-1", isActive: true, purpose: "KBTT_AUTO_SUBMIT" },
       });
       expect(callTelegramSpy).toHaveBeenCalledTimes(1);
-      expect(callTelegramSpy).toHaveBeenCalledWith("sendMessage", expect.objectContaining({
-        chat_id: "-100123456789",
-        text: expect.stringContaining("🚀 [TỰ ĐỘNG NỘP C06 BCA]"),
-      }));
-      expect(callTelegramSpy).not.toHaveBeenCalledWith("sendMessage", expect.objectContaining({
-        chat_id: "-100999999999",
-      }));
+      expect(callTelegramSpy).toHaveBeenCalledWith(
+        "sendMessage",
+        expect.objectContaining({
+          chat_id: "-100123456789",
+          text: expect.stringContaining("🚀 [TỰ ĐỘNG NỘP C06 BCA]"),
+        }),
+      );
+      expect(callTelegramSpy).not.toHaveBeenCalledWith(
+        "sendMessage",
+        expect.objectContaining({
+          chat_id: "-100999999999",
+        }),
+      );
     });
 
     it("does not send summary to aggregate env when the hotel has no KBTT route", async () => {
@@ -232,7 +245,9 @@ describe("TelegramNotificationService request acknowledgement", () => {
       };
       const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
       const service = new TelegramNotificationService(prisma as never, logger as never);
-      const callTelegramSpy = jest.spyOn(service as any, "callTelegram").mockResolvedValue({ ok: true });
+      const callTelegramSpy = jest
+        .spyOn(service as any, "callTelegram")
+        .mockResolvedValue({ ok: true });
 
       const sent = await service.sendKbttAutoSubmitSummary("hotel-1", {
         hotelName: "Grand Hotel",
@@ -262,7 +277,9 @@ describe("TelegramNotificationService request acknowledgement", () => {
       };
       const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
       const service = new TelegramNotificationService(prisma as never, logger as never);
-      const callTelegramSpy = jest.spyOn(service as any, "callTelegram").mockResolvedValue({ ok: true });
+      const callTelegramSpy = jest
+        .spyOn(service as any, "callTelegram")
+        .mockResolvedValue({ ok: true });
 
       const sent = await service.sendKbttAutoSubmitSummary("hotel-1", {
         hotelName: "Grand Hotel",
@@ -275,9 +292,12 @@ describe("TelegramNotificationService request acknowledgement", () => {
       });
 
       expect(sent).toBe(true);
-      expect(callTelegramSpy).toHaveBeenCalledWith("sendMessage", expect.objectContaining({
-        chat_id: "-100123456789",
-      }));
+      expect(callTelegramSpy).toHaveBeenCalledWith(
+        "sendMessage",
+        expect.objectContaining({
+          chat_id: "-100123456789",
+        }),
+      );
     });
 
     it("falls back to database hotel name if hotelName is equal to hotelId or empty", async () => {
@@ -295,7 +315,9 @@ describe("TelegramNotificationService request acknowledgement", () => {
       };
       const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
       const service = new TelegramNotificationService(prisma as never, logger as never);
-      const callTelegramSpy = jest.spyOn(service as any, "callTelegram").mockResolvedValue({ ok: true });
+      const callTelegramSpy = jest
+        .spyOn(service as any, "callTelegram")
+        .mockResolvedValue({ ok: true });
 
       const sent = await service.sendKbttAutoSubmitSummary("cmq2k2lm0003f2oui3ifqp808", {
         hotelName: "cmq2k2lm0003f2oui3ifqp808",
@@ -327,7 +349,9 @@ describe("TelegramNotificationService request acknowledgement", () => {
       };
       const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
       const service = new TelegramNotificationService(prisma as never, logger as never);
-      const callTelegramSpy = jest.spyOn(service as any, "callTelegram").mockResolvedValue({ ok: true });
+      const callTelegramSpy = jest
+        .spyOn(service as any, "callTelegram")
+        .mockResolvedValue({ ok: true });
 
       await expect(service.sendKbttTestMessage("hotel-1")).resolves.toBe(true);
       expect(callTelegramSpy).toHaveBeenCalledWith("sendMessage", {
@@ -362,7 +386,4 @@ describe("TelegramNotificationService request acknowledgement", () => {
       );
     });
   });
-
-
 });
-

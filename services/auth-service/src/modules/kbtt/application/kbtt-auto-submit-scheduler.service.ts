@@ -74,9 +74,7 @@ export class KbttAutoSubmitSchedulerService {
         );
       }
       if (dueScheduledRuns.length > 0) {
-        this.logger.log(
-          `Found ${dueScheduledRuns.length} due scheduled/continuation KBTT runs.`,
-        );
+        this.logger.log(`Found ${dueScheduledRuns.length} due scheduled/continuation KBTT runs.`);
       }
       if (errorRecoveryHotels.length > 0) {
         this.logger.log(
@@ -124,11 +122,7 @@ export class KbttAutoSubmitSchedulerService {
       for (const item of errorRecoveryHotels) {
         tasks.push(async () => {
           try {
-            await this.kbttService.executeAutoSubmitForHotel(
-              item.hotelId,
-              now,
-              isDryRun,
-            );
+            await this.kbttService.executeAutoSubmitForHotel(item.hotelId, now, isDryRun);
           } catch (hotelError: any) {
             this.logger.error(
               `Failed auto-submit error recovery for hotel ${item.hotelId}: ${hotelError?.message}`,
@@ -153,7 +147,10 @@ export class KbttAutoSubmitSchedulerService {
       }
       await Promise.all(executing);
     } catch (error: any) {
-      this.logger.error(`Error querying due hotels for KBTT auto-submit: ${error?.message}`, error?.stack);
+      this.logger.error(
+        `Error querying due hotels for KBTT auto-submit: ${error?.message}`,
+        error?.stack,
+      );
     }
   }
 }

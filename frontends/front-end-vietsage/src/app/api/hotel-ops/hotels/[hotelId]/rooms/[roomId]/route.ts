@@ -77,7 +77,8 @@ export async function PATCH(request: Request, context: Params) {
           accessToken,
         );
       }
-      const { status, ...metadata } = updateRoomPayload;
+      const metadata = { ...updateRoomPayload };
+      delete metadata.status;
       if (Object.keys(metadata).length > 0) {
         result = await hotelOpsService.updateRoom(
           hotelId,

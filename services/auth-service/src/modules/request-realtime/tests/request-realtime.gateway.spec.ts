@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import type { JwtService } from "@nestjs/jwt";
 import { RequestRealtimeGateway } from "../../../request-realtime.gateway";
 

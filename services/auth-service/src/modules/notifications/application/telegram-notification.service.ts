@@ -404,10 +404,7 @@ export class TelegramNotificationService {
   }
 
   escapeHtml(text: string): string {
-    return String(text)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
+    return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 
   formatKbttSummaryMessage(summary: {
@@ -499,15 +496,12 @@ export class TelegramNotificationService {
       });
       const targetChatId = route?.telegramChatId?.trim();
       if (!targetChatId) {
-        this.logger.warn(
-          "Telegram KBTT hotel route is not configured",
-          {
-            module: "telegram",
-            service: TelegramNotificationService.name,
-            event: "KBTT_TELEGRAM_HOTEL_ROUTE_NOT_CONFIGURED",
-            hotelId,
-          },
-        );
+        this.logger.warn("Telegram KBTT hotel route is not configured", {
+          module: "telegram",
+          service: TelegramNotificationService.name,
+          event: "KBTT_TELEGRAM_HOTEL_ROUTE_NOT_CONFIGURED",
+          hotelId,
+        });
         return false;
       }
 
@@ -565,4 +559,3 @@ export class TelegramNotificationService {
     return true;
   }
 }
-

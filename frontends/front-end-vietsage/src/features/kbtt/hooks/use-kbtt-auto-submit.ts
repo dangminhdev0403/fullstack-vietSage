@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { kbttResource } from "../resources/kbtt-resource";
-import type { KbttAutoSubmitConfig } from "../types/kbtt-contract";
+import type { Query } from "@tanstack/react-query";
+import type {
+  KbttAutoSubmitConfig,
+  KbttAutoSubmitState,
+} from "../types/kbtt-contract";
 
 export function useKbttAutoSubmit(hotelId: string) {
   const queryClient = useQueryClient();
@@ -12,13 +16,13 @@ export function useKbttAutoSubmit(hotelId: string) {
     () => ({
       ...resource.queries.autoSubmitConfig.options(undefined),
       enabled: Boolean(hotelId),
-      refetchInterval: (query: any) => {
-        const data = query?.state?.data;
+      refetchInterval: (query: Query<KbttAutoSubmitState>) => {
+        const data = query.state.data;
         const isRunning =
           Boolean(data?.pendingSchedule) ||
           Boolean(data?.activeRun) ||
           (Array.isArray(data?.recentRuns) &&
-            data.recentRuns.some((r: any) => r.status === "RUNNING"));
+            data.recentRuns.some((run) => run.status === "RUNNING"));
         return isRunning ? 2000 : false;
       },
       refetchIntervalInBackground: true,

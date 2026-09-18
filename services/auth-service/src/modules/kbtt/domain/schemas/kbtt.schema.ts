@@ -30,7 +30,11 @@ const providerId = z.string().regex(/^\d{1,32}$/);
 export const kbttSessionSchema = z.object({
   AccessToken: z.string().min(1).max(8192),
   RefreshToken: z.string().min(1).max(8192),
-  Exp: z.number().int().positive().max(Number.MAX_SAFE_INTEGER / 1000),
+  Exp: z
+    .number()
+    .int()
+    .positive()
+    .max(Number.MAX_SAFE_INTEGER / 1000),
   Authorities: z
     .array(z.string().max(120))
     .max(100)
@@ -77,7 +81,7 @@ export function normalizeDateStringToIso(str?: string | null): string | undefine
     if (isValidCalendarDate(formatted)) return formatted;
   }
 
-  const cleaned = t.replace(/[.\-]/g, "/").replace(/\/+/g, "/");
+  const cleaned = t.replace(/[.-]/g, "/").replace(/\/+/g, "/");
   const dmyMatch = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(cleaned);
   if (dmyMatch) {
     const [, d, m, y] = dmyMatch;
@@ -158,11 +162,12 @@ export function assertKbttDeclarationMutable(status: KbttDeclarationStatus | und
   if (status && ["SENDING", "UNKNOWN", "CANCELLED"].includes(status)) {
     throw new ConflictException({
       code: "KBTT_DECLARATION_LOCKED",
-      message: status === "UNKNOWN"
-        ? "Chưa xác định kết quả gửi BCA. Cần đối soát trước khi sửa hoặc gửi lại hồ sơ."
-        : status === "SENDING"
-          ? "Hồ sơ đang gửi BCA. Vui lòng chờ kết quả trước khi thao tác tiếp."
-          : "Hồ sơ đã hủy; không thể sửa hoặc gửi lại.",
+      message:
+        status === "UNKNOWN"
+          ? "Chưa xác định kết quả gửi BCA. Cần đối soát trước khi sửa hoặc gửi lại hồ sơ."
+          : status === "SENDING"
+            ? "Hồ sơ đang gửi BCA. Vui lòng chờ kết quả trước khi thao tác tiếp."
+            : "Hồ sơ đã hủy; không thể sửa hoặc gửi lại.",
     });
   }
 }
@@ -181,7 +186,13 @@ export type KbttDerivedStatus = z.infer<typeof kbttDerivedStatusSchema>;
 
 export const kbttVietnameseDraftDataSchema = z
   .object({
-    hoTen: z.string().trim().min(1).max(160).regex(/^[\p{L}]+(?:\s+[\p{L}]+)*$/u, "Họ tên chỉ được chứa chữ cái và khoảng trắng").optional(),
+    hoTen: z
+      .string()
+      .trim()
+      .min(1)
+      .max(160)
+      .regex(/^[\p{L}]+(?:\s+[\p{L}]+)*$/u, "Họ tên chỉ được chứa chữ cái và khoảng trắng")
+      .optional(),
     gioiTinh: z.enum(["M", "F"]).optional(),
     soDienThoai: z.string().trim().max(40).optional().nullable(),
     ngayThangNamSinhStr: z
@@ -225,7 +236,13 @@ export const kbttVietnameseDraftDataSchema = z
 
 export const kbttForeignDraftDataSchema = z
   .object({
-    hoTen: z.string().trim().min(1).max(160).regex(/^[\p{L}]+(?:\s+[\p{L}]+)*$/u, "Họ tên chỉ được chứa chữ cái và khoảng trắng").optional(),
+    hoTen: z
+      .string()
+      .trim()
+      .min(1)
+      .max(160)
+      .regex(/^[\p{L}]+(?:\s+[\p{L}]+)*$/u, "Họ tên chỉ được chứa chữ cái và khoảng trắng")
+      .optional(),
     quocTich: z.string().trim().min(1).max(32).optional(),
     soHoChieu: z
       .string()
@@ -270,7 +287,11 @@ export const kbttForeignDraftDataSchema = z
 
 export const kbttVietnameseReadySchema = z
   .object({
-    hoTen: z.string({ message: "Họ tên là bắt buộc" }).trim().min(1, "Họ tên là bắt buộc").regex(/^[\p{L}]+(?:\s+[\p{L}]+)*$/u, "Họ tên chỉ được chứa chữ cái và khoảng trắng"),
+    hoTen: z
+      .string({ message: "Họ tên là bắt buộc" })
+      .trim()
+      .min(1, "Họ tên là bắt buộc")
+      .regex(/^[\p{L}]+(?:\s+[\p{L}]+)*$/u, "Họ tên chỉ được chứa chữ cái và khoảng trắng"),
     gioiTinh: z.enum(["M", "F"], { message: "Giới tính phải là M hoặc F" }),
     soDienThoai: z.string().trim().max(40).optional().nullable(),
     ngayThangNamSinhStr: z
@@ -393,7 +414,11 @@ export const kbttVietnameseReadySchema = z
 
 export const kbttForeignReadySchema = z
   .object({
-    hoTen: z.string({ message: "Họ tên là bắt buộc" }).trim().min(1, "Họ tên là bắt buộc").regex(/^[\p{L}]+(?:\s+[\p{L}]+)*$/u, "Họ tên chỉ được chứa chữ cái và khoảng trắng"),
+    hoTen: z
+      .string({ message: "Họ tên là bắt buộc" })
+      .trim()
+      .min(1, "Họ tên là bắt buộc")
+      .regex(/^[\p{L}]+(?:\s+[\p{L}]+)*$/u, "Họ tên chỉ được chứa chữ cái và khoảng trắng"),
     quocTich: z
       .string({ message: "Quốc tịch là bắt buộc" })
       .trim()
@@ -709,13 +734,15 @@ export const kbttAutoSubmitRunSummarySchema = z.object({
 });
 export type KbttAutoSubmitRunSummary = z.infer<typeof kbttAutoSubmitRunSummarySchema>;
 
-export const kbttAutoSubmitTestQuerySchema = z.object({
-  mode: z.enum(["dry-run", "live"]).default("dry-run"),
-  dryRun: z
-    .union([z.literal(true), z.literal("true"), z.literal("1")])
-    .optional()
-    .transform(() => true),
-}).transform(({ mode }) => ({ dryRun: mode !== "live" }));
+export const kbttAutoSubmitTestQuerySchema = z
+  .object({
+    mode: z.enum(["dry-run", "live"]).default("dry-run"),
+    dryRun: z
+      .union([z.literal(true), z.literal("true"), z.literal("1")])
+      .optional()
+      .transform(() => true),
+  })
+  .transform(({ mode }) => ({ dryRun: mode !== "live" }));
 export type KbttAutoSubmitTestQuery = z.infer<typeof kbttAutoSubmitTestQuerySchema>;
 
 export const kbttAutoSubmitScheduleSchema = z.object({
@@ -753,4 +780,3 @@ export const kbttBatchSubmitSummarySchema = z.object({
   scheduledTime: z.string().optional(),
 });
 export type KbttBatchSubmitSummary = z.infer<typeof kbttBatchSubmitSummarySchema>;
-

@@ -28,11 +28,7 @@ import type {
   UpdateRoleBodyInput,
 } from "../domain/schemas/rbac.schema";
 
-const ALLOWED_BASE_ROLE_CODES = new Set([
-  "TENANT_OWNER",
-  "HOTEL_FRONTDESK",
-  "SERVICE_STAFF",
-]);
+const ALLOWED_BASE_ROLE_CODES = new Set(["TENANT_OWNER", "HOTEL_FRONTDESK", "SERVICE_STAFF"]);
 
 type RoleWithRelations = Prisma.RoleGetPayload<{
   include: {
@@ -96,9 +92,7 @@ export type RolePermissionModulePermissionsPage = {
 
 @Injectable()
 export class RbacService {
-  constructor(
-    private readonly rbacRepository: RbacRepository,
-  ) {}
+  constructor(private readonly rbacRepository: RbacRepository) {}
 
   async listRoles(): Promise<FrontendNavigationRole[]> {
     const roles = await this.rbacRepository.listRolesWithRelations();
@@ -174,10 +168,7 @@ export class RbacService {
 
     let validPermissionIds: string[] | undefined;
     if (dto.permissionIds !== undefined) {
-      validPermissionIds = await this.validatePermissionsSubsetOrThrow(
-        dto.permissionIds,
-        baseRole,
-      );
+      validPermissionIds = await this.validatePermissionsSubsetOrThrow(dto.permissionIds, baseRole);
     } else if (dto.baseRoleId !== undefined && dto.baseRoleId !== role.baseRoleId) {
       const currentPermissionIds = role.rolePermissions.map((rp) => rp.permissionId);
       validPermissionIds = await this.validatePermissionsSubsetOrThrow(
@@ -191,7 +182,7 @@ export class RbacService {
         roleId,
         {
           name: nextName,
-          description: dto.description !== undefined ? (dto.description?.trim() || null) : undefined,
+          description: dto.description !== undefined ? dto.description?.trim() || null : undefined,
           baseRoleId: dto.baseRoleId !== undefined ? baseRole.id : undefined,
         },
         validPermissionIds,
@@ -567,9 +558,7 @@ export class RbacService {
       throw new BadRequestException(`Các id quyền không tồn tại: ${missingIds.join(", ")}`);
     }
 
-    const basePermissionIdSet = new Set(
-      baseRole.rolePermissions.map((rp) => rp.permissionId),
-    );
+    const basePermissionIdSet = new Set(baseRole.rolePermissions.map((rp) => rp.permissionId));
     const notInBaseIds = permissionIds.filter((id) => !basePermissionIdSet.has(id));
     if (notInBaseIds.length > 0) {
       throw new BadRequestException(

@@ -423,10 +423,7 @@ describe("RbacService", () => {
         name: "Lễ tân",
         type: RoleType.SYSTEM_TEMPLATE,
         status: RoleStatus.ACTIVE,
-        rolePermissions: [
-          { permissionId: "p_view" },
-          { permissionId: "p_edit" },
-        ],
+        rolePermissions: [{ permissionId: "p_view" }, { permissionId: "p_edit" }],
       };
 
       rbacRepository.findRoleByCode.mockResolvedValue(null);
@@ -643,20 +640,14 @@ describe("RbacService", () => {
         code: "HOTEL_FRONTDESK",
         type: RoleType.SYSTEM_TEMPLATE,
         status: RoleStatus.ACTIVE,
-        rolePermissions: [
-          { permissionId: "p_view" },
-          { permissionId: "p_edit" },
-        ],
+        rolePermissions: [{ permissionId: "p_view" }, { permissionId: "p_edit" }],
       };
 
       rbacRepository.findRoleWithRelationsById
         .mockResolvedValueOnce(customRole)
         .mockResolvedValueOnce(baseRole);
       rbacRepository.findRoleWithRelationsByName.mockResolvedValue(null);
-      rbacRepository.findPermissionsByIds.mockResolvedValue([
-        { id: "p_view" },
-        { id: "p_edit" },
-      ]);
+      rbacRepository.findPermissionsByIds.mockResolvedValue([{ id: "p_view" }, { id: "p_edit" }]);
       rbacRepository.updateRoleWithPermissions.mockResolvedValue({
         ...customRole,
         name: "Custom Role New",
