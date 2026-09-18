@@ -299,7 +299,7 @@ export default async function OwnerDashboardPage() {
           <SectionCard>
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold tracking-tight text-[#17201b]">
-                Cần xử lý ngay ({dashboard.attention.length})
+                Cần chú ý ({dashboard.attention.length})
               </h2>
             </div>
             <div className="mt-4 space-y-3">
@@ -326,12 +326,12 @@ export default async function OwnerDashboardPage() {
                       href={ownerAttentionRoute(item.action.route, hotel.id)}
                       className="vs-touch-button inline-flex items-center justify-center rounded-full bg-[#24473d] px-4 py-2 text-sm font-bold text-[#fff8e8] shadow-sm"
                     >
-                      {item.action.label}
+                      Xem chi tiết
                     </Link>
                   </div>
                 ))
               ) : (
-                <EmptyState>Vận hành mượt mà, không có việc cần xử lý ngay.</EmptyState>
+                <EmptyState>Không có cảnh báo cần chú ý.</EmptyState>
               )}
             </div>
           </SectionCard>

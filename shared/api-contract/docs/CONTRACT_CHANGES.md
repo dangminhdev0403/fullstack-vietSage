@@ -4,6 +4,12 @@
 
 ## Unreleased
 
+- **Owner read/configuration boundary**:
+  - Added `hotel.profile.view` and `hotel.profile.manage` for hotel-scoped profile reads/updates; `GET|PATCH /hotels/{hotelId}` accepts the corresponding profile capability while retaining platform-admin compatibility.
+  - Owner role presets no longer receive room-status, stay/check-in/check-out, reservation mutation, request coordination/execution, billing mutation/checkout, or KBTT declaration mutation capabilities. Existing shared operational records are retained.
+  - Partner settlement mutations now require `hotel.billing.manage`; partner connection management remains under `hotel.local-partners.manage`.
+  - Owner UI exposes three navigation entries: Overview, Finance & reconciliation, Settings & connections. Operational drill-downs are read-only; Front Desk remains the mutation surface.
+
 - **KBTT Telegram Centralized Batch Notification Policy**:
   - Disabled per-guest individual submit notifications to Telegram by default (`TELEGRAM_KBTT_ENABLE_SINGLE_NOTIFICATIONS` defaults to `false`) to eliminate spamming Telegram groups during single or batch submissions.
   - KBTT auto-submit and batch submission summaries are now routed exclusively to the centralized Telegram aggregate channel configured in environment variables (`TELEGRAM_KBTT_AGGREGATE_CHAT_ID`, with fallbacks to `TELEGRAM_CHAT_ID` / `TELEGRAM_KBTT_CHAT_ID`), completely bypassing hotel-specific individual telegram routes ("không gửi về tele riêng nữa, chỉ cần gửi về tele tổng đã lưu trong env").

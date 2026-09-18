@@ -15,7 +15,6 @@ type OwnerHotelDetailClientProps = {
 
 type FormState = {
   name: string;
-  status: "ACTIVE" | "DISABLED";
 };
 
 function toApiErrorMessage(data: unknown): string {
@@ -50,7 +49,6 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
   const router = useRouter();
   const [form, setForm] = useState<FormState>({
     name: hotel.name,
-    status: hotel.status === "DISABLED" ? "DISABLED" : "ACTIVE",
   });
   const [location, setLocation] = useState<LocationValue>(() => locationFromHotel(hotel));
   const [isSaving, setIsSaving] = useState(false);
@@ -58,7 +56,6 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
   function handleReset() {
     setForm({
       name: hotel.name,
-      status: hotel.status === "DISABLED" ? "DISABLED" : "ACTIVE",
     });
     setLocation(locationFromHotel(hotel));
   }
@@ -103,7 +100,6 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
         method: "PATCH",
         body: {
           name: form.name.trim(),
-          status: form.status,
           googleMapsUrl: location.googleMapsUrl.trim() || null,
           latitude: location.latitude ? Number(location.latitude) : null,
           longitude: location.longitude ? Number(location.longitude) : null,
@@ -167,11 +163,11 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
         <div className="border-b border-[#eae3d5] pb-4">
           <h2 className="text-xl font-extrabold text-[#17201b]">Cấu hình vận hành khách sạn</h2>
           <p className="mt-1 text-sm font-medium text-[#5a6760]">
-            Cập nhật tên khách sạn và trạng thái hoạt động trên hệ thống.
+            Cập nhật tên và thông tin nhận diện của khách sạn. Trạng thái vận hành do quản trị nền tảng kiểm soát.
           </p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
+        <div>
           <div>
             <label htmlFor="hotel-name" className={labelClass}>Tên khách sạn</label>
             <input
@@ -183,18 +179,6 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
             />
           </div>
 
-          <div>
-            <label htmlFor="hotel-status" className={labelClass}>Trạng thái hoạt động</label>
-            <select
-              id="hotel-status"
-              value={form.status}
-              onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as FormState["status"] }))}
-              className={`${inputClass} cursor-pointer`}
-            >
-              <option value="ACTIVE">Đang vận hành (ACTIVE)</option>
-              <option value="DISABLED">Tạm ngưng (DISABLED)</option>
-            </select>
-          </div>
         </div>
       </div>
 

@@ -26,9 +26,7 @@ export default async function OwnerKbttPage({
     ),
   );
   if (!canView) notFound();
-  const canManage = context.permissions.includes(
-    "hotel.kbtt.declarations.manage",
-  );
+  const canManageConnection = context.permissions.includes("hotel.kbtt.manage");
   const canConfigure = context.permissions.some((permission) =>
     ["hotel.kbtt.view", "hotel.kbtt.manage"].includes(permission),
   );
@@ -36,7 +34,8 @@ export default async function OwnerKbttPage({
   return (
     <KbttDeclarationsPage
       hotelId={hotelId}
-      canManage={canManage}
+      canManage={false}
+      canManageConnection={canManageConnection}
       canConfigure={canConfigure}
       initialTab={initialTab}
     />

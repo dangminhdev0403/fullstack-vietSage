@@ -107,6 +107,7 @@ type RequestQueueClientProps = {
   page?: number;
   pageSize?: number;
   pageSizeOptions?: number[];
+  readOnly?: boolean;
 };
 
 const defaultLabels: RequestQueueLabels = {
@@ -400,6 +401,7 @@ export function RequestQueueClient({
   page,
   pageSize,
   pageSizeOptions = [10, 20, 50],
+  readOnly = false,
   detailMode = "modal",
   initialDetailRequestId,
 }: RequestQueueClientProps) {
@@ -887,7 +889,7 @@ export function RequestQueueClient({
       cell: (request) => {
         const available =
           request.actions ?? statusActions[request.status] ?? [];
-        if (!available.length || isCheckedOutRequest(request))
+        if (readOnly || !available.length || isCheckedOutRequest(request))
           return <span className="text-xs text-slate-400">-</span>;
         return (
           <div className="flex items-center gap-1.5 whitespace-nowrap">
@@ -1326,6 +1328,9 @@ export function RequestQueueClient({
       header: "Thao tác",
       className: "whitespace-nowrap min-w-[100px]",
       cell: (order) => {
+        if (readOnly) {
+          return <span className="text-xs font-semibold text-slate-500">Chỉ xem</span>;
+        }
         const isFinished = isTerminalOrderStatus(order.status);
         if (isFinished) {
           return <span className="text-xs font-medium text-slate-400">-</span>;
@@ -1664,6 +1669,7 @@ export function RequestQueueClient({
                 hotelId={hotelId}
                 initialRequest={detailRequest}
                 apiBasePath={ownerApiBasePath ?? `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/requests`}
+                readOnly={readOnly}
               />
             ) : null}
           </div>

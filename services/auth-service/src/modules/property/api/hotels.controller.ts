@@ -52,7 +52,7 @@ export class HotelsController {
     return this.hotelsService.createHotel(request.user.userId, request.user.roleId, dto);
   }
 
-  @RequirePermission("platform.hotels.view")
+  @RequirePermission(["platform.hotels.view", "hotel.profile.view"])
   @SuccessMessage("Lấy danh sách khách sạn thành công")
   @ApiDescript("Xem danh sách khách sạn")
   @ApiQuery({ name: "tenantId", required: false, type: String })
@@ -81,7 +81,7 @@ export class HotelsController {
     });
   }
 
-  @RequirePermission("platform.hotels.view")
+  @RequirePermission(["platform.hotels.view", "hotel.profile.view"])
   @SuccessMessage("Lấy thông tin khách sạn thành công")
   @ApiDescript("Xem chi tiết khách sạn")
   @ApiParam({ name: "hotelId", type: String })
@@ -95,7 +95,7 @@ export class HotelsController {
     return this.hotelsService.getHotel(request.user.userId, request.user.roleId, hotelId);
   }
 
-  @RequirePermission("platform.hotels.manage")
+  @RequirePermission(["platform.hotels.manage", "hotel.profile.manage"])
   @SuccessMessage("Cập nhật khách sạn thành công")
   @ApiDescript("Cập nhật khách sạn")
   @ApiParam({ name: "hotelId", type: String })

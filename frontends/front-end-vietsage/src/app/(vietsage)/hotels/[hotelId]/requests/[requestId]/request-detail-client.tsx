@@ -52,6 +52,7 @@ type RequestDetailClientProps = {
   initialRequest: HotelGuestRequest;
   labels?: RequestDetailLabels;
   apiBasePath?: string;
+  readOnly?: boolean;
 };
 
 const defaultLabels: RequestDetailLabels = {
@@ -96,6 +97,7 @@ export function RequestDetailClient({
   initialRequest,
   labels = defaultLabels,
   apiBasePath = `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/requests`,
+  readOnly = false,
 }: RequestDetailClientProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -190,7 +192,7 @@ export function RequestDetailClient({
   const events = (request.events ?? []).filter(hasDisplayableTimelineEvent);
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
+    <div className={`grid gap-6 ${readOnly ? "" : "xl:grid-cols-[1fr_380px]"}`}>
       <section className="space-y-6">
         {error ? <div className="rounded-lg border border-[var(--error)] bg-[var(--error-container)] p-3 text-sm font-semibold text-[var(--on-error-container)]">{error}</div> : null}
 
@@ -219,15 +221,17 @@ export function RequestDetailClient({
           </div>
         </article>
 
-        <article className="rounded-xl border border-[color:rgba(198,197,213,0.24)] bg-white p-6">
-          <h3 className="mb-4 text-lg font-semibold text-[var(--primary)]">{labels.statusActions}</h3>
-          <textarea value={statusNote} onChange={(event) => setStatusNote(event.target.value)} placeholder={labels.optionalTransitionNote} className="mb-4 min-h-20 w-full rounded-lg border px-3 py-2 text-sm" />
-          {nextStatuses.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {nextStatuses.map((status) => <button key={status} type="button" disabled={isSaving} onClick={() => void transition(status)} className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-[var(--on-primary)] disabled:opacity-60">{labels.statusActionLabel[status]}</button>)}
-            </div>
-          ) : <p className="text-sm text-[var(--on-surface-variant)]">{labels.terminalState}</p>}
-        </article>
+        {!readOnly ? (
+          <article className="rounded-xl border border-[color:rgba(198,197,213,0.24)] bg-white p-6">
+            <h3 className="mb-4 text-lg font-semibold text-[var(--primary)]">{labels.statusActions}</h3>
+            <textarea value={statusNote} onChange={(event) => setStatusNote(event.target.value)} placeholder={labels.optionalTransitionNote} className="mb-4 min-h-20 w-full rounded-lg border px-3 py-2 text-sm" />
+            {nextStatuses.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {nextStatuses.map((status) => <button key={status} type="button" disabled={isSaving} onClick={() => void transition(status)} className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-[var(--on-primary)] disabled:opacity-60">{labels.statusActionLabel[status]}</button>)}
+              </div>
+            ) : <p className="text-sm text-[var(--on-surface-variant)]">{labels.terminalState}</p>}
+          </article>
+        ) : null}
 
         <article className="rounded-xl border border-[color:rgba(198,197,213,0.24)] bg-white p-6">
           <h3 className="mb-4 text-lg font-semibold text-[var(--primary)]">{labels.timeline}</h3>
@@ -243,21 +247,23 @@ export function RequestDetailClient({
         </article>
       </section>
 
-      <aside className="space-y-6">
-        <form onSubmit={saveAssignment} className="rounded-xl border border-[color:rgba(198,197,213,0.24)] bg-white p-6">
-          <h3 className="mb-4 text-lg font-semibold text-[var(--primary)]">{labels.assignment}</h3>
-          <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]" htmlFor="assignedToUserId">{labels.assignedUserId}</label>
-          <input id="assignedToUserId" value={assignment} onChange={(event) => setAssignment(event.target.value)} placeholder={labels.assignedUserIdPlaceholder} className="mb-3 w-full rounded-lg border px-3 py-2 text-sm" />
-          <textarea value={assignmentNote} onChange={(event) => setAssignmentNote(event.target.value)} placeholder={labels.optionalAssignmentNote} className="mb-4 min-h-20 w-full rounded-lg border px-3 py-2 text-sm" />
-          <button disabled={isSaving} className="w-full rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-[var(--on-primary)] disabled:opacity-60">{labels.saveAssignment}</button>
-        </form>
+      {!readOnly ? (
+        <aside className="space-y-6">
+          <form onSubmit={saveAssignment} className="rounded-xl border border-[color:rgba(198,197,213,0.24)] bg-white p-6">
+            <h3 className="mb-4 text-lg font-semibold text-[var(--primary)]">{labels.assignment}</h3>
+            <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]" htmlFor="assignedToUserId">{labels.assignedUserId}</label>
+            <input id="assignedToUserId" value={assignment} onChange={(event) => setAssignment(event.target.value)} placeholder={labels.assignedUserIdPlaceholder} className="mb-3 w-full rounded-lg border px-3 py-2 text-sm" />
+            <textarea value={assignmentNote} onChange={(event) => setAssignmentNote(event.target.value)} placeholder={labels.optionalAssignmentNote} className="mb-4 min-h-20 w-full rounded-lg border px-3 py-2 text-sm" />
+            <button disabled={isSaving} className="w-full rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-[var(--on-primary)] disabled:opacity-60">{labels.saveAssignment}</button>
+          </form>
 
-        <form onSubmit={saveNote} className="rounded-xl border border-[color:rgba(198,197,213,0.24)] bg-white p-6">
-          <h3 className="mb-4 text-lg font-semibold text-[var(--primary)]">{labels.internalNote}</h3>
-          <textarea required value={note} onChange={(event) => setNote(event.target.value)} placeholder={labels.internalNotePlaceholder} className="mb-4 min-h-28 w-full rounded-lg border px-3 py-2 text-sm" />
-          <button disabled={isSaving} className="w-full rounded-lg bg-[var(--secondary-container)] px-4 py-2 text-sm font-semibold text-[var(--on-secondary-container)] disabled:opacity-60">{labels.addNote}</button>
-        </form>
-      </aside>
+          <form onSubmit={saveNote} className="rounded-xl border border-[color:rgba(198,197,213,0.24)] bg-white p-6">
+            <h3 className="mb-4 text-lg font-semibold text-[var(--primary)]">{labels.internalNote}</h3>
+            <textarea required value={note} onChange={(event) => setNote(event.target.value)} placeholder={labels.internalNotePlaceholder} className="mb-4 min-h-28 w-full rounded-lg border px-3 py-2 text-sm" />
+            <button disabled={isSaving} className="w-full rounded-lg bg-[var(--secondary-container)] px-4 py-2 text-sm font-semibold text-[var(--on-secondary-container)] disabled:opacity-60">{labels.addNote}</button>
+          </form>
+        </aside>
+      ) : null}
     </div>
   );
 }

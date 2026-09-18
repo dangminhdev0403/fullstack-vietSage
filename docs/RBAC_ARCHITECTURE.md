@@ -26,6 +26,8 @@ platform.hotels.manage
 platform.billing.view
 platform.billing.manage
 hotel.revenue-protection.view
+hotel.profile.view
+hotel.profile.manage
 hotel.dashboard.view
 hotel.rooms.view
 hotel.rooms.manage
@@ -64,7 +66,7 @@ never edited in place.
 | Workspace role | Default responsibility |
 | --- | --- |
 | `SUPER_ADMIN` | Complete platform and business capability surface |
-| `TENANT_OWNER`, `HOTEL_OWNER` | Hotel portfolio operations plus staff, role, and assignment management |
+| `TENANT_OWNER`, `HOTEL_OWNER` | Executive monitoring plus hotel profile, room/QR metadata, staff, catalog, partner, and integration configuration; no daily operational execution |
 | `HOTEL_MANAGER` | Rooms, stays, reservations, requests, billing view, and service operations |
 | `HOTEL_FRONTDESK` | Arrivals, stays, and guest request handling |
 | `HOTEL_HOUSEKEEPING` | Room visibility and operational request handling |
@@ -74,6 +76,10 @@ never edited in place.
 
 Hotel assignment and RBAC are independent: a staff user needs an active role, the required
 business capability, and an active assignment to access a hotel-scoped resource.
+
+Migration `20260918190422_owner_read_config_boundary` adds hotel-scoped profile permissions and
+removes daily-operation grants from owner templates. Shared Room, Stay, Request, Billing, and KBTT
+records remain unchanged because Front Desk, GuestOS, and owner reporting consume the same data.
 
 ## Backend architecture
 

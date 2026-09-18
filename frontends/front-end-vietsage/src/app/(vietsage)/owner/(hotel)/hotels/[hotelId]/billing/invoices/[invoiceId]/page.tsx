@@ -7,7 +7,7 @@ import { formatDateTime, formatMoney } from "@/features/billing/utils/money";
 import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 
 import { InvoicePrintButton } from "./invoice-print-button";
-import { InvoiceActions } from "@/app/(vietsage)/hotels/[hotelId]/billing/invoices/[invoiceId]/invoice-actions";
+
 
 type PageProps = {
   params: Promise<{ hotelId: string; invoiceId: string }>;
@@ -367,12 +367,6 @@ export default async function OwnerInvoiceDetailPage({ params }: PageProps) {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <InvoiceActions
-              hotelId={hotelId}
-              invoiceId={invoiceId}
-              isPaid={invoiceDetail.invoice.status === "PAID" || Number(invoiceDetail.invoice.balanceAmount ?? 0) <= 0}
-              showPrint={false}
-            />
             <InvoicePrintButton />
           </div>
         </div>

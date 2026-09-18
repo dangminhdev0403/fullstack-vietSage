@@ -50,15 +50,6 @@ function sanitizeUpdateRoomPayload(payload: unknown): UpdateHotelRoomInput | nul
     }
   }
 
-  if ("status" in input && typeof input.status === "string" && input.status.trim()) {
-    const raw = input.status.trim().toUpperCase();
-    const mapped =
-      raw === "CLEAN" || raw === "CLEANED" || raw === "READY" || raw === "TRỐNG" ? "AVAILABLE" :
-      raw === "DIRTY" || raw === "CHỜ DỌN" || raw === "CLEANING" ? "PROCESSING" :
-      raw === "BẢO TRÌ" || raw === "OUT_OF_SERVICE" ? "MAINTENANCE" :
-      raw === "KHÓA" || raw === "ĐÃ KHÓA" ? "BLOCKED" : raw;
-    updatePayload.status = mapped;
-  }
 
   return Object.keys(updatePayload).length > 0 ? updatePayload : null;
 }
@@ -84,27 +75,9 @@ export async function PATCH(request: Request, context: Params) {
   }
 
   try {
-    const data = await executeOwnerBackendRequest("update owner room", async (accessToken) => {
-      let result: unknown;
-      if (updateRoomPayload.status) {
-        result = await hotelOpsService.updateRoomStatus(
-          hotelId,
-          roomId,
-          updateRoomPayload.status,
-          accessToken,
-        );
-      }
-      const { status, ...metadata } = updateRoomPayload;
-      if (Object.keys(metadata).length > 0) {
-        result = await hotelOpsService.updateRoom(
-          hotelId,
-          roomId,
-          metadata,
-          accessToken,
-        );
-      }
-      return result;
-    });
+    const data = await executeOwnerBackendRequest("update owner room", (accessToken) =>
+      hotelOpsService.updateRoom(hotelId, roomId, updateRoomPayload, accessToken),
+    );
     if (data instanceof Response) return data;
     return successResponse(data, 200, "Owner room updated successfully");
   } catch (error) {

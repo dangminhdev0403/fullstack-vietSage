@@ -20,7 +20,6 @@ import {
 } from "@/components/ui/data-table";
 import { HttpError } from "@/core/http/http-error";
 import { VsIcon } from "../../../../../_components/vs-icon";
-import { filterExtraOccupants } from "@/features/hotel-ops/utils/hotel-ops-display";
 import type {
   HotelRoomSummary,
 } from "@/features/hotel-ops/types/hotel-ops-contract";
@@ -37,7 +36,6 @@ import {
   getQrValue,
   getRoomNumber,
 } from "./room-qr-utils";
-import { OwnerStayRoomGridClient } from "../stay/owner-stay-room-grid-client";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 import { RoomDetailDrawer } from "@/features/hotel-ops/components/room-detail-drawer";
 
@@ -57,7 +55,6 @@ type RoomFormState = {
   type: string;
   price: string;
   maxActiveGuestDevices: string;
-  status: string;
 };
 
 type RoomFormErrors = Partial<Record<keyof Omit<RoomFormState, "id">, string>>;
@@ -72,7 +69,6 @@ function randomRoomForm(): RoomFormState {
     type: roomTypeOptions[Math.floor(Math.random() * roomTypeOptions.length)],
     price: String(Math.floor(8 + Math.random() * 22) * 100000),
     maxActiveGuestDevices: "",
-    status: "AVAILABLE",
   };
 }
 
@@ -296,7 +292,6 @@ function roomToForm(room: HotelRoomSummary): RoomFormState {
       room.maxActiveGuestDevices === undefined
         ? ""
         : String(room.maxActiveGuestDevices),
-    status: room.status?.trim().toUpperCase() || "AVAILABLE",
   };
 }
 
@@ -399,46 +394,7 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
 
   const rooms = roomsPage.items;
 
-  function printActiveStayList() {
-    const printedAt = new Date();
-    const midnight = new Date(printedAt);
-    midnight.setHours(0, 0, 0, 0);
-    const activeRooms = rooms.filter((room) => {
-      const stay = room.activeStay;
-      if (!stay || stay.checkedOutAt) return false;
-      const checkedInAt = new Date(stay.checkedInAt ?? stay.plannedCheckInAt ?? stay.createdAt ?? 0);
-      return checkedInAt >= midnight && checkedInAt <= printedAt;
-    });
-    const popup = window.open("", "vietsage-owner-stay-list");
-    if (!popup) return;
-    const rows = activeRooms.flatMap((room) => {
-      const stay = room.activeStay;
-      const cccd = stay?.guestIdentityNumber || "chưa có";
-      const dob = stay?.guestDateOfBirth || "chưa có";
-      const gender = stay?.guestGender || "chưa có";
-      const nationality = stay?.guestNationality || "chưa có";
-      const address = stay?.guestResidencePlace || "chưa có";
-      const phone = stay?.guestPhone || "chưa có";
-      const checkIn = new Intl.DateTimeFormat("vi-VN", { dateStyle: "short", timeStyle: "short" }).format(new Date(stay?.checkedInAt ?? stay?.plannedCheckInAt ?? 0));
 
-      const primaryRow = `<tr><td><strong>${getRoomNumber(room)}</strong></td><td><strong>${stay?.guestDisplayName ?? "chưa có"}</strong> <span style="font-size:11px;color:#0284c7;font-weight:600">(Đại diện)</span></td><td>${cccd}</td><td>${dob}</td><td>${gender}</td><td>${nationality}</td><td>${address}</td><td>${phone}</td><td>${checkIn}</td></tr>`;
-
-      const extraOccupants = filterExtraOccupants(stay?.occupants, stay);
-      const occupantRows = extraOccupants.map((occ) => {
-        const occCccd = occ.identityNumber || "chưa có";
-        const occDob = occ.dateOfBirth || "chưa có";
-        const occGender = occ.gender || "chưa có";
-        const occNationality = occ.nationality || "chưa có";
-        const occAddress = occ.residencePlace || "chưa có";
-        const occPhone = occ.phone || "chưa có";
-        return `<tr><td style="color:#64748b;font-size:12px">↳ ${getRoomNumber(room)}</td><td>${occ.fullName} <span style="font-size:11px;color:#475569">(Ở cùng)</span></td><td>${occCccd}</td><td>${occDob}</td><td>${occGender}</td><td>${occNationality}</td><td>${occAddress}</td><td>${occPhone}</td><td>${checkIn}</td></tr>`;
-      });
-
-      return [primaryRow, ...occupantRows];
-    }).join("");
-    popup.document.write(`<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>Danh sách lưu trú</title><style>body{font-family:Arial,sans-serif;padding:32px;color:#17201b}table{border-collapse:collapse;width:100%;margin-top:24px}th,td{border:1px solid #cbd5ce;padding:9px;text-align:left;font-size:13px}th{background:#eef3ee}</style></head><body><h1>Danh sách khách đang lưu trú</h1><p>Khách sạn ${hotelId} · In lúc ${printedAt.toLocaleString("vi-VN")}</p><table><thead><tr><th>Phòng</th><th>Họ tên</th><th>Số CCCD</th><th>Ngày sinh</th><th>Giới tính</th><th>Quốc tịch</th><th>Địa chỉ</th><th>Số điện thoại</th><th>Nhận phòng</th></tr></thead><tbody>${rows || '<tr><td colspan="9">Không có khách lưu trú từ 0h hôm nay đến thời điểm in.</td></tr>'}</tbody></table><script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}</script></body></html>`);
-    popup.document.close();
-  }
   const [query, setQuery] = useState("");
   const [qrStatusFilter, setQrStatusFilter] = useState("");
   const [roomStatusFilter, setRoomStatusFilter] = useState("");
@@ -603,7 +559,6 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
         floor: roomForm.floor.trim() || undefined,
         type: roomForm.type.trim() || undefined,
         price,
-        ...(!isEditing ? { status: roomForm.status } : {}),
         ...(roomForm.maxActiveGuestDevices.trim()
           ? { maxActiveGuestDevices: Number(roomForm.maxActiveGuestDevices) }
           : isEditing
@@ -1149,20 +1104,16 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--secondary)]">
-            Phòng & Lưu trú
+            Thiết lập phòng
           </p>
           <h1 className="mt-3 text-4xl font-semibold leading-tight text-[var(--primary)]">
-            Quản lý phòng và lưu trú
+            Danh mục phòng & QR
           </h1>
           <p className="mt-2 max-w-3xl text-base leading-7 text-[var(--on-surface-variant)]">
-            Quản lý thông tin phòng, trạng thái sử dụng, mã QR và xem nhanh khách đang lưu trú trong một màn hình.
+            Cấu hình thông tin phòng, giá niêm yết, giới hạn thiết bị và mã QR GuestOS. Trạng thái lưu trú chỉ hiển thị để theo dõi.
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
-        <button type="button" onClick={printActiveStayList} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-[var(--primary)] px-5 text-sm font-bold text-[var(--primary)] transition hover:bg-[var(--primary-fixed)]">
-          <VsIcon name="print" className="text-lg" />
-          In danh sách lưu trú
-        </button>
         <button
           type="button"
           onClick={openCreateRoom}
@@ -1288,11 +1239,6 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
         }}
       />
 
-      <OwnerStayRoomGridClient
-        hotelId={hotelId}
-        rooms={rooms}
-        onRoomsChanged={refreshRooms}
-      />
 
       {roomForm ? (
         <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/45 p-4 backdrop-blur-sm">
@@ -1427,37 +1373,7 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
                   message={roomFormErrors.maxActiveGuestDevices}
                 />
               </label>
-              <label className="space-y-2 sm:col-span-2 lg:col-span-1">
-                <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">
-                  Trạng thái phòng
-                </span>
-                {roomForm.id ? (
-                  <div className="flex h-12 items-center rounded-xl bg-[var(--surface-container-low)] px-3 text-sm font-semibold text-[var(--on-surface)]">
-                    {roomForm.status === "BLOCKED"
-                      ? "Đã khóa"
-                      : roomForm.status === "OCCUPIED"
-                        ? "Đang ở"
-                        : roomForm.status === "PROCESSING"
-                          ? "Chờ dọn"
-                          : roomForm.status === "MAINTENANCE"
-                            ? "Bảo trì"
-                            : "Trống (Sẵn sàng)"}
-                  </div>
-                ) : (
-                  <select
-                    value={roomForm.status}
-                    onChange={(event) =>
-                      updateRoomFormField("status", event.target.value)
-                    }
-                    className="h-12 w-full rounded-xl border-0 bg-[var(--surface-container-low)] px-3 text-sm font-semibold text-[var(--on-surface)] outline-none ring-1 ring-transparent transition focus:ring-[var(--primary)]"
-                  >
-                    <option value="AVAILABLE">Trống (Sẵn sàng)</option>
-                    <option value="PROCESSING">Chờ dọn</option>
-                    <option value="MAINTENANCE">Bảo trì</option>
-                    <option value="BLOCKED">Đã khóa</option>
-                  </select>
-                )}
-              </label>
+
             </div>
             <div className="mt-6 flex flex-col-reverse gap-3 border-t border-[var(--surface-container)] pt-5 sm:flex-row sm:justify-end">
               <button

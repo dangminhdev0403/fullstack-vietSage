@@ -17,9 +17,11 @@ import { HotelPartnerSettlementsTab } from "./hotel-partner-settlements-tab";
 export function OwnerNearbyProvidersClient({
   hotelId,
   canManage = false,
+  canSettle = canManage,
 }: {
   hotelId: string;
   canManage?: boolean;
+  canSettle?: boolean;
 }) {
   const [activeTab, setActiveTab] = useState<"partners" | "settlements">("partners");
   const { providers, orders, setProviderLink } =
@@ -216,7 +218,7 @@ export function OwnerNearbyProvidersClient({
       </div>
 
       {canManage && activeTab === "settlements" ? (
-        <HotelPartnerSettlementsTab hotelId={hotelId} canManage={canManage} />
+        <HotelPartnerSettlementsTab hotelId={hotelId} canManage={canSettle} />
       ) : (
         <>
           {/* Header Section */}

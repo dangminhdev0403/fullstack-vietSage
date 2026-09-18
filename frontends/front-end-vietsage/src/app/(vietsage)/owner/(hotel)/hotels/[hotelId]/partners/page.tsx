@@ -7,5 +7,11 @@ export const dynamic = "force-dynamic";
 export default async function OwnerLocalPartnersPage({ params }: PageProps) {
   const { hotelId } = await Promise.resolve(params);
   const context = await loadServerWorkspaceContext(`/owner/hotels/${hotelId}/partners`);
-  return <OwnerNearbyProvidersClient hotelId={hotelId} canManage={context.permissions.includes("hotel.local-partners.manage")} />;
+  return (
+    <OwnerNearbyProvidersClient
+      hotelId={hotelId}
+      canManage={context.permissions.includes("hotel.local-partners.manage")}
+      canSettle={false}
+    />
+  );
 }

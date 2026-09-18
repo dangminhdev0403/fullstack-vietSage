@@ -149,6 +149,10 @@ export class HotelsService {
     const actor = await this.hotelAccessService.loadActorContext(actorUserId, activeRoleId);
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
 
+    if (actor.isTenantOwner && dto.status !== undefined) {
+      throw new ForbiddenException("TENANT_OWNER không thể thay đổi trạng thái khách sạn");
+    }
+
     if (dto.googleSheetUrl !== undefined && !actor.isSuperAdmin) {
       throw new ForbiddenException(
         "Chỉ quản trị viên nền tảng được cấu hình Google Sheets cho khách sạn",

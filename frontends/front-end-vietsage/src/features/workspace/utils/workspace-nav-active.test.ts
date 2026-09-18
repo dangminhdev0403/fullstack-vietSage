@@ -9,32 +9,23 @@ import type { DashboardNavItem } from "../types/workspace-navigation.ts";
 
 const ownerHotelItems: readonly DashboardNavItem[] = [
   { key: "owner.home", href: "/owner/dashboard", label: "Tổng quan", icon: "dashboard" },
-  { key: "owner.hotels", href: "/owner/hotels", label: "Khách sạn", icon: "hotel" },
-  { key: "owner.staff", href: "/owner/staff", label: "Nhân viên", icon: "group" },
-  { key: "owner.hotel.overview", href: "/owner/hotels/hotel-1", label: "Thông tin khách sạn", icon: "hotel" },
-  { key: "owner.hotel.rooms", href: "/owner/hotels/hotel-1/rooms", label: "Phòng & Lưu trú", icon: "bed" },
-  { key: "owner.hotel.billing", href: "/owner/hotels/hotel-1/billing", label: "Thanh toán", icon: "inventory_2" },
+  { key: "owner.hotel.billing", href: "/owner/hotels/hotel-1/billing", label: "Tài chính & đối soát", icon: "payments" },
+  { key: "owner.hotel.settings", href: "/owner/hotels/hotel-1", label: "Thiết lập & kết nối", icon: "settings" },
 ];
 
 test("isNavItemActive highlights exact match for owner dashboard", () => {
   assert.equal(isNavItemActive("/owner/dashboard", "/owner/dashboard", ownerHotelItems), true);
-  assert.equal(isNavItemActive("/owner/hotels", "/owner/dashboard", ownerHotelItems), false);
+  assert.equal(isNavItemActive("/owner/hotels/hotel-1", "/owner/dashboard", ownerHotelItems), false);
 });
 
-test("isNavItemActive highlights owner hotel rooms subpage correctly", () => {
-  assert.equal(isNavItemActive("/owner/hotels/hotel-1/rooms", "/owner/hotels/hotel-1/rooms", ownerHotelItems), true);
-  assert.equal(isNavItemActive("/owner/hotels/hotel-1", "/owner/hotels/hotel-1/rooms", ownerHotelItems), false);
+test("isNavItemActive keeps owner settings active for nested setup pages", () => {
+  assert.equal(isNavItemActive("/owner/hotels/hotel-1", "/owner/hotels/hotel-1/rooms", ownerHotelItems), true);
 });
 
-test("isNavItemActive highlights owner hotel billing invoices sub-route correctly", () => {
+test("isNavItemActive highlights owner billing invoices without selecting settings", () => {
   const invoiceDetailPath = "/owner/hotels/hotel-1/billing/invoices/inv-001";
   assert.equal(isNavItemActive("/owner/hotels/hotel-1/billing", invoiceDetailPath, ownerHotelItems), true);
   assert.equal(isNavItemActive("/owner/hotels/hotel-1", invoiceDetailPath, ownerHotelItems), false);
-});
-
-test("isNavItemActive highlights staff navigation with search params correctly", () => {
-  const staffPath = "/owner/staff?hotelId=hotel-1";
-  assert.equal(isNavItemActive("/owner/staff", staffPath, ownerHotelItems), true);
 });
 
 test("isNavItemActive highlights admin roles and permissions navigation item correctly", () => {
@@ -49,31 +40,26 @@ test("isNavItemActive highlights admin roles and permissions navigation item cor
   assert.equal(isNavItemActive(accessItem.href, "/admin/users", adminItems), false);
 });
 
-test("buildWorkspaceNavigation produces governance and monitoring items for owner", () => {
+test("buildWorkspaceNavigation keeps owner navigation executive and compact", () => {
   const ownerItems = buildWorkspaceNavigation({
     persona: "owner",
     permissions: [
       "hotel.dashboard.view",
+      "hotel.profile.view",
       "hotel.staff.view",
       "hotel.services.view",
       "hotel.local-partners.view",
       "hotel.rooms.view",
-      "hotel.requests.coordinate",
+      "hotel.requests.view",
       "hotel.billing.view",
     ],
     hotelId: "hotel-1",
   });
-  const keys = ownerItems.map((item) => item.key);
-  assert.ok(keys.includes("owner.home"));
-  assert.equal(keys.includes("owner.hotels"), false);
-  assert.ok(keys.includes("owner.staff"));
-  assert.ok(keys.includes("owner.hotel.overview"));
-  assert.ok(keys.includes("owner.hotel.services"));
-  assert.ok(keys.includes("owner.hotel.partners"));
-  assert.ok(keys.includes("owner.hotel.rooms"));
-  assert.ok(keys.includes("owner.hotel.requests"));
-  assert.ok(keys.includes("owner.hotel.billing"));
-  assert.equal(keys.includes("owner.hotel.biometric"), false);
+  assert.deepEqual(ownerItems.map((item) => item.key), [
+    "owner.home",
+    "owner.hotel.billing",
+    "owner.hotel.settings",
+  ]);
 });
 
 test("buildWorkspaceNavigation produces shift, rooms, requests, messages, checkout, tools for frontdesk", () => {
@@ -90,8 +76,7 @@ test("buildWorkspaceNavigation produces shift, rooms, requests, messages, checko
     ],
     hotelId: "hotel-1",
   });
-  const keys = frontdeskItems.map((item) => item.key);
-  assert.deepEqual(keys, [
+  assert.deepEqual(frontdeskItems.map((item) => item.key), [
     "staff.dashboard",
     "staff.rooms",
     "staff.requests",

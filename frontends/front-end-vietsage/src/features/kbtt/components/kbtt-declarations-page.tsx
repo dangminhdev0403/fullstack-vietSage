@@ -617,11 +617,13 @@ function getPageNumbers(
 export function KbttDeclarationsPage({
   hotelId,
   canManage,
+  canManageConnection = canManage,
   canConfigure = false,
   initialTab = "declarations",
 }: {
   hotelId: string;
   canManage: boolean;
+  canManageConnection?: boolean;
   canConfigure?: boolean;
   initialTab?: "declarations" | "connection";
 }) {
@@ -825,8 +827,8 @@ export function KbttDeclarationsPage({
   ]);
 
   const selectableRows = useMemo(
-    () => declarationsQuery.isSuccess ? filteredRows.filter(canSelectKbttDeclaration) : [],
-    [filteredRows, declarationsQuery.isSuccess],
+    () => canManage && declarationsQuery.isSuccess ? filteredRows.filter(canSelectKbttDeclaration) : [],
+    [canManage, filteredRows, declarationsQuery.isSuccess],
   );
   const unsubmittedCount = selectableRows.length;
 
@@ -1383,7 +1385,7 @@ export function KbttDeclarationsPage({
             Cấu hình kết nối BCA
           </button>
         </div>
-        <KbttConnectionPage hotelId={hotelId} canManage={canManage} />
+        <KbttConnectionPage hotelId={hotelId} canManage={canManageConnection} canManageAutoSubmit={canManage} />
       </div>
     );
   }
@@ -1789,7 +1791,7 @@ export function KbttDeclarationsPage({
             <tbody className="divide-y divide-slate-100 text-base">
               {filteredRows.map((row, idx) => {
                 const statusInfo = getDeclarationStatus(row);
-                const isSelectable = isListReady && canSelectKbttDeclaration(row);
+                const isSelectable = canManage && isListReady && canSelectKbttDeclaration(row);
                 const edits = inlineEdits[row.occupantId] ?? {};
                 const currentIdentity = (
                   edits.identityNumber ??

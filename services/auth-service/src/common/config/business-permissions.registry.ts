@@ -15,6 +15,8 @@ export type BusinessPermissionKey =
   | "hotel.marketplace.view"
   | "hotel.marketplace.revenue.view"
   | "hotel.revenue-protection.view"
+  | "hotel.profile.view"
+  | "hotel.profile.manage"
   | "hotel.dashboard.view"
   | "hotel.rooms.view"
   | "hotel.rooms.manage"
@@ -106,30 +108,17 @@ export const BUSINESS_PERMISSIONS: readonly BusinessPermissionDefinition[] = [
     "Xem bảo vệ doanh thu",
     "MEDIUM",
   ),
+  permission("hotel.profile.view", "hotel-profile", "Xem hồ sơ khách sạn"),
+  permission("hotel.profile.manage", "hotel-profile", "Quản lý hồ sơ khách sạn"),
   permission("hotel.dashboard.view", "hotel-dashboard", "Xem tổng quan khách sạn"),
   permission("hotel.rooms.view", "hotel-rooms", "Xem danh sách phòng"),
   permission("hotel.rooms.manage", "hotel-rooms", "Quản lý phòng"),
-  permission(
-    "hotel.rooms.status.manage",
-    "hotel-rooms",
-    "Quản lý trạng thái buồng phòng",
-    "HIGH",
-  ),
+  permission("hotel.rooms.status.manage", "hotel-rooms", "Quản lý trạng thái buồng phòng", "HIGH"),
   permission("hotel.rooms.qr.manage", "hotel-room-qr", "Quản lý mã QR", "HIGH"),
   permission("hotel.stays.view", "hotel-stays", "Xem danh sách khách lưu trú"),
   permission("hotel.stays.manage", "hotel-stays", "Quản lý khách lưu trú"),
-  permission(
-    "hotel.stays.check-in",
-    "hotel-stays",
-    "Thực hiện check-in và nhận phòng",
-    "HIGH",
-  ),
-  permission(
-    "hotel.stays.check-out",
-    "hotel-stays",
-    "Thực hiện check-out và trả phòng",
-    "HIGH",
-  ),
+  permission("hotel.stays.check-in", "hotel-stays", "Thực hiện check-in và nhận phòng", "HIGH"),
+  permission("hotel.stays.check-out", "hotel-stays", "Thực hiện check-out và trả phòng", "HIGH"),
   permission(
     "hotel.reservations.view",
     "hotel-reservations",
@@ -154,12 +143,7 @@ export const BUSINESS_PERMISSIONS: readonly BusinessPermissionDefinition[] = [
     "Điều phối và phân công yêu cầu khách",
     "HIGH",
   ),
-  permission(
-    "hotel.requests.execute",
-    "hotel-requests",
-    "Xử lý thực thi yêu cầu khách",
-    "HIGH",
-  ),
+  permission("hotel.requests.execute", "hotel-requests", "Xử lý thực thi yêu cầu khách", "HIGH"),
   permission("hotel.messages.view", "hotel-messages", "Xem tin nhắn phòng"),
   permission("hotel.messages.manage", "hotel-messages", "Quản lý tin nhắn phòng"),
   permission("hotel.billing.view", "hotel-billing", "Xem danh sách thanh toán"),
@@ -183,7 +167,11 @@ export const BUSINESS_PERMISSIONS: readonly BusinessPermissionDefinition[] = [
   permission("hotel.kbtt.view", "hotel-kbtt", "Xem kết nối khai báo tạm trú"),
   permission("hotel.kbtt.manage", "hotel-kbtt", "Quản lý kết nối khai báo tạm trú"),
   permission("hotel.kbtt.declarations.view", "hotel-kbtt", "Xem danh sách khai báo tạm trú"),
-  permission("hotel.kbtt.declarations.manage", "hotel-kbtt", "Quản lý và lập hồ sơ khai báo tạm trú"),
+  permission(
+    "hotel.kbtt.declarations.manage",
+    "hotel-kbtt",
+    "Quản lý và lập hồ sơ khai báo tạm trú",
+  ),
   permission("guest.experience.use", "guest-experience", "Sử dụng GuestOS", "MEDIUM"),
   permission("system.health.view", "system-health", "Xem trạng thái hệ thống"),
 ];

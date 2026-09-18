@@ -13,7 +13,7 @@ test("keeps platform navigation capability-driven", () => {
   assert.deepEqual(navigation.map((item) => item.href), ["/admin/dashboard", "/admin/hotels"]);
 });
 
-test("provides service navigation for staff personas with service capabilities", () => {
+test("provides service navigation only to configured staff personas", () => {
   const permissions = ["hotel.requests.view", "hotel.services.manage"];
   const manager = buildWorkspaceNavigation({ persona: "manager", permissions, hotelId: "hotel-1" });
   const frontDesk = buildWorkspaceNavigation({ persona: "front_desk", permissions, hotelId: "hotel-1" });
@@ -22,60 +22,53 @@ test("provides service navigation for staff personas with service capabilities",
   assert.equal(getWorkspaceDefinition("manager").homePath, "/staff");
   assert.equal(getWorkspaceDefinition("front_desk").homePath, "/staff");
   assert.equal(manager.some((item) => item.key === "staff.home"), false);
-  assert.equal(manager[0]?.href, "/hotels/hotel-1/services");
   assert.equal(manager.some((item) => item.href.endsWith("/services")), true);
-  assert.equal(frontDesk.some((item) => item.href.endsWith("/services")), true);
+  assert.equal(frontDesk.some((item) => item.href.endsWith("/services")), false);
   assert.equal(frontDeskWithoutServices.some((item) => item.href.endsWith("/services")), false);
 });
 
-test("renders only registered labels and scopes owner staff navigation by capability", () => {
-  const withoutStaff = buildWorkspaceNavigation({
-    persona: "owner",
-    permissions: ["hotel.reservations.manage"],
-    hotelId: "hotel-1",
-  });
-  const withStaff = buildWorkspaceNavigation({
-    persona: "owner",
-    permissions: ["hotel.staff.manage"],
-    hotelId: "hotel-1",
-  });
-
-  assert.equal(withoutStaff.some((item) => item.label.includes("hotel.")), false);
-  assert.equal(withoutStaff.some((item) => item.key === "owner.staff"), false);
-  assert.equal(
-    withStaff.some((item) => item.key === "owner.staff" && item.href === "/owner/staff"),
-    true,
-  );
-});
-
-test("gives owners a separate biometric workstation connection tab", () => {
+test("keeps the owner sidebar to overview, finance, and settings", () => {
   const navigation = buildWorkspaceNavigation({
     persona: "owner",
-    permissions: ["hotel.stays.manage"],
+    permissions: [
+      "hotel.dashboard.view",
+      "hotel.billing.view",
+      "hotel.profile.view",
+      "hotel.rooms.manage",
+      "hotel.staff.manage",
+      "hotel.services.manage",
+      "hotel.kbtt.manage",
+    ],
     hotelId: "hotel-1",
   });
 
-  assert.equal(
-    navigation.some((item) => item.key === "owner.hotel.biometric" && item.href === "/owner/hotels/hotel-1/biometric"),
-    true,
-  );
-  assert.ok(
-    navigation.findIndex((item) => item.key === "owner.hotel.biometric")
-      < navigation.findIndex((item) => item.key === "owner.hotel.rooms"),
+  assert.deepEqual(
+    navigation.map(({ key, href, label }) => ({ key, href, label })),
+    [
+      { key: "owner.home", href: "/owner/dashboard", label: "Tổng quan" },
+      {
+        key: "owner.hotel.billing",
+        href: "/owner/hotels/hotel-1/billing",
+        label: "Tài chính & đối soát",
+      },
+      {
+        key: "owner.hotel.settings",
+        href: "/owner/hotels/hotel-1",
+        label: "Thiết lập & kết nối",
+      },
+    ],
   );
 });
 
-test("gives receptionists biometric setup before room check-in", () => {
+
+test("keeps receptionist room and biometric tools available", () => {
   const navigation = buildWorkspaceNavigation({
     persona: "front_desk",
     permissions: ["hotel.stays.manage", "hotel.rooms.view"],
     hotelId: "hotel-1",
   });
 
-  assert.ok(
-    navigation.findIndex((item) => item.key === "staff.biometric")
-      < navigation.findIndex((item) => item.key === "staff.rooms"),
-  );
+  assert.equal(navigation.some((item) => item.key === "staff.rooms"), true);
   assert.equal(
     navigation.some((item) => item.key === "staff.biometric" && item.href === "/hotels/hotel-1/biometric"),
     true,

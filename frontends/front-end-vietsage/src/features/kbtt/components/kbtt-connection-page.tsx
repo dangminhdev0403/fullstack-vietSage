@@ -38,7 +38,15 @@ function formatDateTime(value: string | null): string {
   return `${get("hour")}:${get("minute")}:${get("second")} ${get("day")}/${get("month")}/${get("year")}`;
 }
 
-export function KbttConnectionPage({ hotelId, canManage }: { hotelId: string; canManage: boolean }) {
+export function KbttConnectionPage({
+  hotelId,
+  canManage,
+  canManageAutoSubmit = canManage,
+}: {
+  hotelId: string;
+  canManage: boolean;
+  canManageAutoSubmit?: boolean;
+}) {
   const { connection, busy, connect, check, disconnect } = useKbttConnection(hotelId);
   const [usernameEdit, setUsernameEdit] = useState<string | null>(null);
   const [password, setPassword] = useState("");
@@ -482,7 +490,7 @@ export function KbttConnectionPage({ hotelId, canManage }: { hotelId: string; ca
           </div>
         ) : null}
 
-        {data && isConfigured ? (
+        {data && isConfigured && canManageAutoSubmit ? (
           <KbttAutoSubmitSection hotelId={hotelId} canManage={canManage} isConnected={isConnected} />
         ) : null}
       </div>

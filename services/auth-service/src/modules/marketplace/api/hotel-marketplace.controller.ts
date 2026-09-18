@@ -155,7 +155,7 @@ export class HotelMarketplaceController {
   }
 
   @ApiDescript("Xác nhận quyết toán đơn dịch vụ ngoài cho đối tác")
-  @RequirePermission("hotel.local-partners.manage")
+  @RequirePermission("hotel.billing.manage")
   @Post("settlements/:settlementId/settle")
   async settle(
     @Req() req: RequestWithRequiredUser,
@@ -168,7 +168,7 @@ export class HotelMarketplaceController {
   }
 
   @ApiDescript("Xác nhận quyết toán hàng loạt đơn dịch vụ ngoài cho đối tác")
-  @RequirePermission("hotel.local-partners.manage")
+  @RequirePermission("hotel.billing.manage")
   @Post("settlements/settle-batch")
   async settleBatch(
     @Req() req: RequestWithRequiredUser,
