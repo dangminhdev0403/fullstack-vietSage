@@ -12,8 +12,8 @@ export function LaunchHold() {
         className="pointer-events-none absolute -bottom-40 -right-24 size-112 rounded-full bg-[#eee3ca]/70 blur-3xl"
       />
 
-      <section className="launch-border relative w-full max-w-3xl overflow-hidden rounded-4xl bg-white/90 px-6 py-12 text-center shadow-[0_24px_70px_rgba(20,61,43,0.12)] backdrop-blur-sm sm:px-12 sm:py-14">
-        <div className="relative z-10 mx-auto flex max-w-2xl flex-col items-center">
+      <section className="launch-border relative w-full max-w-4xl overflow-hidden rounded-4xl bg-white/90 px-6 py-12 text-center shadow-[0_24px_70px_rgba(20,61,43,0.12)] backdrop-blur-sm sm:px-12 sm:py-14">
+        <div className="relative z-10 mx-auto flex w-full max-w-3xl flex-col items-center">
           <VietSageBrand
             variant="mark"
             priority
@@ -34,7 +34,7 @@ export function LaunchHold() {
             <span>Trải nghiệm mới đang được hoàn thiện</span>
           </p>
 
-          <h1 className="vs-display mt-6 whitespace-normal text-3xl font-bold leading-tight tracking-tight text-[#123d2a] sm:text-4xl md:text-5xl">
+          <h1 className="vs-display mt-6 whitespace-nowrap text-[clamp(1.35rem,4vw,2.75rem)] font-bold leading-tight tracking-tight text-[#123d2a]">
             VietSage đang sẵn sàng bứt phá.
           </h1>
 
