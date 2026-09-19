@@ -9,6 +9,29 @@ import { MobileCccdScan } from "./mobile-cccd-scan";
 export function MobileCccdTestScanPanel({ hotelId }: { hotelId: string }) {
   const [payload, setPayload] = useState<IntakePayloadV2 | null>(null);
 
+  const loadSamplePayload = () => {
+    setPayload({
+      schemaVersion: 2,
+      transferId: "00000000-0000-4000-8000-000000000002",
+      capturedAt: new Date().toISOString(),
+      guest: {
+        displayName: "TRẦN THỊ HƯƠNG",
+        identityNumber: "034195009890",
+        dateOfBirth: "1995-11-22",
+        gender: "Nữ",
+        nationality: "Việt Nam",
+        race: "Kinh",
+        residencePlace: "128 Lê Lợi, Phường Bến Thành, Quận 1, TP. Hồ Chí Minh",
+        identityIssueDate: "2022-04-18",
+        identityExpiryDate: "2035-11-22",
+      },
+      verification: {
+        chipAuthenticated: false,
+        sodVerified: false,
+      },
+    });
+  };
+
   return (
     <section className="flex h-full flex-col justify-between rounded-3xl border border-stone-200/90 bg-white p-6 sm:p-8 shadow-xs">
       <div className="flex flex-1 flex-col">
@@ -46,7 +69,7 @@ export function MobileCccdTestScanPanel({ hotelId }: { hotelId: string }) {
 
           {payload ? (
             <div className="space-y-4 pt-2">
-              <div className="rounded-2xl border border-emerald-200 bg-[#f8faf8] p-4">
+              <div className="rounded-2xl border border-emerald-200 bg-[#f8faf8] p-4 shadow-2xs">
                 <CccdPreview model={buildCccdPreviewModel(payload)} />
               </div>
               <button
@@ -61,10 +84,32 @@ export function MobileCccdTestScanPanel({ hotelId }: { hotelId: string }) {
               </button>
             </div>
           ) : (
-            <div className="rounded-2xl border border-dashed border-stone-200 bg-stone-50/60 p-6 sm:p-8 text-center">
-              <p className="text-sm sm:text-base font-medium text-stone-600">
+            <div className="rounded-3xl border-2 border-dashed border-stone-200 bg-stone-50/50 p-6 sm:p-8 text-center">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-white shadow-2xs border border-stone-200 text-[#000080]">
+                <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <rect x="5" y="2" width="14" height="20" rx="3" strokeWidth={2} />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 18h.01" />
+                </svg>
+              </div>
+              <p className="mt-3 text-base font-bold text-stone-800">
+                Sẵn sàng giải mã mã QR từ camera điện thoại
+              </p>
+              <p className="mt-1 text-xs sm:text-sm text-stone-500 max-w-md mx-auto">
                 📱 Mở điện thoại đã kết nối và quét bất kỳ thẻ CCCD nào để xem dữ liệu giải mã tức thì.
               </p>
+              <div className="mt-4">
+                <button
+                  type="button"
+                  onClick={loadSamplePayload}
+                  className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-stone-200 bg-white px-4 py-2 text-xs font-bold text-stone-700 shadow-2xs hover:bg-stone-50 hover:text-[#000080]"
+                >
+                  <svg className="h-4 w-4 text-stone-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                  <span>Mô phỏng dữ liệu thẻ mẫu</span>
+                </button>
+              </div>
             </div>
           )}
         </div>

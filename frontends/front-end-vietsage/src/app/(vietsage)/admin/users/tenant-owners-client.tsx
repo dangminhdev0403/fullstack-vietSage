@@ -11,6 +11,7 @@ import type { TenantOwner } from "@/features/admin/types/admin-contract";
 import { DataTable } from "@/components/ui/data-table";
 import { OneTimePasswordDialog } from "@/features/account/security/one-time-password-dialog";
 import { useResetTenantOwnerPassword } from "@/features/admin/hooks/use-reset-tenant-owner-password";
+import { exportToExcel } from "@/libs/excel-export";
 import { VsIcon } from "../../_components/vs-icon";
 
 type TenantOwnersClientProps = {
@@ -291,6 +292,58 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
     }
   }
 
+  function handleExportExcel() {
+    const listToExport = filteredOwners.length > 0 ? filteredOwners : owners;
+    if (listToExport.length === 0) {
+      void SwalVietSage.fire({
+        icon: "info",
+        title: "Không có dữ liệu",
+        text: "Không có tài khoản nào để xuất Excel.",
+        showConfirmButton: true,
+        confirmButtonText: "OK",
+      });
+      return;
+    }
+
+    const exportData = listToExport.map((owner, idx) => ({
+      index: idx + 1,
+      tenantCode: owner.tenant.code,
+      tenantName: formatTenantDisplayName(owner.tenant.name, owner.tenant.code),
+      fullName: owner.fullName,
+      email: owner.email,
+      status: owner.status === "ACTIVE" ? "Đang hoạt động" : owner.status === "LOCKED" ? "Bị khóa" : "Vô hiệu hóa",
+      tenantUserStatus: owner.tenantUser.status === "ACTIVE" ? "Đang hoạt động" : owner.tenantUser.status === "INVITED" ? "Đã mời" : "Vô hiệu hóa",
+      createdAt: formatDate(owner.createdAt),
+      updatedAt: formatDate(owner.updatedAt),
+    }));
+
+    exportToExcel({
+      filename: `danh-sach-tai-khoan-chu-don-vi-${new Date().toISOString().slice(0, 10)}.xls`,
+      sheetName: "Tài khoản Chủ đơn vị",
+      columns: [
+        { header: "STT", key: "index" },
+        { header: "Mã tổ chức", key: "tenantCode" },
+        { header: "Tên tổ chức", key: "tenantName" },
+        { header: "Họ và tên chủ đơn vị", key: "fullName" },
+        { header: "Email tài khoản", key: "email" },
+        { header: "Trạng thái người dùng", key: "status" },
+        { header: "Trạng thái tổ chức", key: "tenantUserStatus" },
+        { header: "Ngày tạo", key: "createdAt" },
+        { header: "Cập nhật lần cuối", key: "updatedAt" },
+      ],
+      data: exportData,
+    });
+
+    void SwalVietSage.fire({
+      icon: "success",
+      title: "Xuất Excel thành công",
+      text: `Đã xuất ${listToExport.length} tài khoản ra tệp Excel.`,
+      timer: 2000,
+      showConfirmButton: true,
+      confirmButtonText: "OK",
+    });
+  }
+
   return (
     <div className="space-y-6">
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -325,10 +378,20 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
               className="w-full rounded-xl border border-[#e2d7c5] bg-[#faf6ef] pl-11 pr-4 py-3 text-sm font-semibold text-[#17201b] outline-none transition-all focus:border-[#24473d] focus:bg-white focus:ring-2 focus:ring-[#24473d]/20"
             />
           </div>
-          <button type="button" onClick={openCreateDialog} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-[#24473d] px-5 py-3 text-sm font-semibold text-[#fff8e8] shadow-md shadow-[#24473d]/20 transition-all hover:bg-[#1a352d] active:scale-98">
-            <VsIcon name="person_add" className="text-lg text-[#e8b363]" />
-            Tạo đối tác khách sạn
-          </button>
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={handleExportExcel}
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-[#24473d]/20 bg-white px-5 py-3 text-sm font-semibold text-[#24473d] shadow-sm transition-all hover:bg-[#faf6ef] active:scale-98"
+            >
+              <VsIcon name="file_download" className="text-lg text-[#24473d]" />
+              Xuất Excel ({filteredOwners.length})
+            </button>
+            <button type="button" onClick={openCreateDialog} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-[#24473d] px-5 py-3 text-sm font-semibold text-[#fff8e8] shadow-md shadow-[#24473d]/20 transition-all hover:bg-[#1a352d] active:scale-98">
+              <VsIcon name="person_add" className="text-lg text-[#e8b363]" />
+              Tạo đối tác khách sạn
+            </button>
+          </div>
         </div>
       </section>
 

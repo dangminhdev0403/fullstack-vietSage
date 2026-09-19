@@ -124,16 +124,16 @@
   --radius-xl: 0.75rem;
   --radius-full: 9999px;
 
-  --font-sans: var(--font-manrope), sans-serif;
-  --font-display-lg: var(--font-fraunces), serif;
-  --font-display-lg-mobile: var(--font-fraunces), serif;
-  --font-headline-lg: var(--font-fraunces), serif;
-  --font-headline-lg-mobile: var(--font-fraunces), serif;
-  --font-headline-md: var(--font-fraunces), serif;
-  --font-body-lg: var(--font-manrope), sans-serif;
-  --font-body-md: var(--font-manrope), sans-serif;
-  --font-label-md: var(--font-manrope), sans-serif;
-  --font-caption: var(--font-manrope), sans-serif;
+  --font-sans: var(--font-be-vietnam-pro), "Be Vietnam Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display-lg: var(--font-be-vietnam-pro), "Be Vietnam Pro", sans-serif;
+  --font-display-lg-mobile: var(--font-be-vietnam-pro), "Be Vietnam Pro", sans-serif;
+  --font-headline-lg: var(--font-be-vietnam-pro), "Be Vietnam Pro", sans-serif;
+  --font-headline-lg-mobile: var(--font-be-vietnam-pro), "Be Vietnam Pro", sans-serif;
+  --font-headline-md: var(--font-be-vietnam-pro), "Be Vietnam Pro", sans-serif;
+  --font-body-lg: var(--font-be-vietnam-pro), "Be Vietnam Pro", sans-serif;
+  --font-body-md: var(--font-be-vietnam-pro), "Be Vietnam Pro", sans-serif;
+  --font-label-md: var(--font-be-vietnam-pro), "Be Vietnam Pro", sans-serif;
+  --font-caption: var(--font-be-vietnam-pro), "Be Vietnam Pro", sans-serif;
 
   --text-headline-lg: 32px;
   --text-headline-lg--line-height: 1.3;
@@ -144,7 +144,7 @@
   --text-label-md--letter-spacing: 0.05em;
   --text-label-md--font-weight: 600;
 
-  --text-caption: 12px;
+  --text-caption: 13px;
   --text-caption--line-height: 1.4;
   --text-caption--font-weight: 400;
 
@@ -187,7 +187,7 @@ body {
   margin: 0;
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-manrope), sans-serif;
+  font-family: var(--font-be-vietnam-pro), "Be Vietnam Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   min-height: max(884px, 100dvh);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -205,7 +205,14 @@ button:disabled,
 }
 
 .vs-display {
-  font-family: var(--font-fraunces), serif;
+  font-family: var(--font-be-vietnam-pro), "Be Vietnam Pro", sans-serif;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+
+/* Tối ưu độ dày chữ cho Be Vietnam Pro, tránh chữ bị béo/nhòe nét */
+.font-black {
+  font-weight: 800 !important;
 }
 
 .vs-page-shell {
@@ -1380,10 +1387,10 @@ html:has(.vs-mkt-shell)::-webkit-scrollbar {
   top: 50%;
   left: -0.055em;
   color: #123d2a;
-  font-family: var(--font-fraunces), Georgia, serif;
+  font-family: var(--font-be-vietnam-pro), "Be Vietnam Pro", sans-serif;
   font-size: clamp(10rem, 25vw, 28rem);
-  font-weight: 900;
-  letter-spacing: -0.09em;
+  font-weight: 700;
+  letter-spacing: -0.05em;
   line-height: 0.72;
   opacity: 0.045;
   transform: translate3d(0, -46%, 0);
@@ -1429,9 +1436,9 @@ html:has(.vs-mkt-shell)::-webkit-scrollbar {
 
 .vs-moment-number {
   color: #f3c66b;
-  font-family: var(--font-fraunces), Georgia, serif;
+  font-family: var(--font-be-vietnam-pro), "Be Vietnam Pro", sans-serif;
   font-size: 0.76rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.22em;
 }
 

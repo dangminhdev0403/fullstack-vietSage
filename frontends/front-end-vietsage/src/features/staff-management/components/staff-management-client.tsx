@@ -6,6 +6,7 @@ import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { DataTable } from "@/components/ui/data-table";
 import { OneTimePasswordDialog } from "@/features/account/security/one-time-password-dialog";
 import { canResetFrontdeskPassword } from "@/features/account/security/password-security";
+import { exportToExcel } from "@/libs/excel-export";
 import {
   type StaffManagementScope,
   useStaffDirectoryQuery,
@@ -197,6 +198,59 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
     }
   }
 
+  function handleExportStaffExcel() {
+    if (displayedUsers.length === 0) {
+      void SwalVietSage.fire({
+        icon: "info",
+        title: "Không có dữ liệu",
+        text: "Không có nhân viên nào để xuất Excel.",
+        showConfirmButton: true,
+        confirmButtonText: "OK",
+      });
+      return;
+    }
+
+    const currentHotel = data?.hotels?.find((h) => h.id === hotelId);
+
+    const exportData = displayedUsers.map((user, idx) => ({
+      index: idx + 1,
+      fullName: user.fullName,
+      email: user.email,
+      roles: user.roles?.map((r) => r.name).join(", ") || "--",
+      hotelAssignment: assignedUserIds.has(user.id)
+        ? currentHotel
+          ? currentHotel.code
+            ? `${currentHotel.code} · ${currentHotel.name}`
+            : currentHotel.name
+          : "Đã phân công"
+        : "Chưa phân công",
+      status: user.userStatus === "DISABLED" || user.tenantStatus === "DISABLED" ? "Bị khóa" : "Đang hoạt động",
+    }));
+
+    exportToExcel({
+      filename: `danh-sach-nhan-vien-${new Date().toISOString().slice(0, 10)}.xls`,
+      sheetName: "Nhân viên khách sạn",
+      columns: [
+        { header: "STT", key: "index" },
+        { header: "Họ và tên", key: "fullName" },
+        { header: "Email tài khoản", key: "email" },
+        { header: "Vai trò", key: "roles" },
+        { header: "Phân công khách sạn", key: "hotelAssignment" },
+        { header: "Trạng thái", key: "status" },
+      ],
+      data: exportData,
+    });
+
+    void SwalVietSage.fire({
+      icon: "success",
+      title: "Xuất Excel thành công",
+      text: `Đã xuất ${displayedUsers.length} nhân viên ra tệp Excel.`,
+      timer: 2000,
+      showConfirmButton: true,
+      confirmButtonText: "OK",
+    });
+  }
+
   const isBusy = mutations.createUser.isPending || mutations.assignRole.isPending || mutations.revokeRole.isPending || mutations.updateAssignment.isPending || mutations.updateUser.isPending || activeActionKey !== null;
 
   return (
@@ -267,25 +321,36 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
               className="min-h-11 w-full rounded-lg border border-[var(--outline-variant)] bg-white pl-11 pr-4 text-sm"
             />
           </div>
-          {canManage ? (
+          <div className="flex items-center gap-2">
             <button
               type="button"
-              disabled={!hotelId || isBusy}
-              onClick={() => {
-                setFormErrors({});
-                setFormGeneralError(null);
-                setFormOpen((value) => !value);
-              }}
-              className="min-h-11 rounded-xl bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-[var(--on-primary)] disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={isBusy || displayedUsers.length === 0}
+              onClick={handleExportStaffExcel}
+              className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-[var(--outline-variant)] bg-white px-4 py-2 text-sm font-semibold text-[var(--primary)] shadow-2xs hover:bg-slate-50 disabled:opacity-40"
             >
-              <VsIcon name="person_add" className="mr-2 inline text-lg" />
-              Thêm nhân viên
+              <VsIcon name="file_download" className="text-lg" />
+              Xuất Excel ({displayedUsers.length})
             </button>
-          ) : (
-            <span className="inline-flex items-center justify-center rounded-xl border border-[var(--outline-variant)] bg-white px-4 py-2 text-sm font-semibold text-[var(--on-surface-variant)]">
-              Chế độ chỉ xem
-            </span>
-          )}
+            {canManage ? (
+              <button
+                type="button"
+                disabled={!hotelId || isBusy}
+                onClick={() => {
+                  setFormErrors({});
+                  setFormGeneralError(null);
+                  setFormOpen((value) => !value);
+                }}
+                className="min-h-11 rounded-xl bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-[var(--on-primary)] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <VsIcon name="person_add" className="mr-2 inline text-lg" />
+                Thêm nhân viên
+              </button>
+            ) : (
+              <span className="inline-flex items-center justify-center rounded-xl border border-[var(--outline-variant)] bg-white px-4 py-2 text-sm font-semibold text-[var(--on-surface-variant)]">
+                Chế độ chỉ xem
+              </span>
+            )}
+          </div>
         </div>
       </section>
 

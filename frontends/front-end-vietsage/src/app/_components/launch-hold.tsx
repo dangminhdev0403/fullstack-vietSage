@@ -31,15 +31,15 @@ export function LaunchHold() {
               className="size-1.5 rounded-full bg-[#bc8b31]"
               aria-hidden="true"
             />
-            <span>A thoughtful new experience is in development</span>
+            <span>Trải nghiệm mới đang được hoàn thiện</span>
           </p>
 
-          <h1 className="mt-8 whitespace-normal text-[clamp(2rem,5vw,3.65rem)] font-black leading-[1.02] tracking-[-0.055em] text-[#123d2a] md:whitespace-nowrap">
-            VietSage is taking shape.
+          <h1 className="vs-display mt-6 whitespace-normal text-3xl font-bold leading-tight tracking-tight text-[#123d2a] sm:text-4xl md:text-5xl">
+            VietSage đang sẵn sàng bứt phá.
           </h1>
 
-          <p className="mt-6 max-w-xl text-base leading-7 text-[#67736a] sm:text-lg">
-            We&apos;re building something meaningful. Contact us at{" "}
+          <p className="mt-5 max-w-xl text-base leading-7 text-[#67736a] sm:text-lg">
+            Chúng tôi đang hoàn thiện nền tảng quản trị vận hành khách sạn thông minh. Mọi thông tin hợp tác xin liên hệ{" "}
             <a
               href="mailto:Congnghesovn247@gmail.com"
               className="font-semibold text-[#285e47] underline decoration-[#c69a45]/70 underline-offset-4 transition-colors hover:text-[#123d2a]"
@@ -48,6 +48,21 @@ export function LaunchHold() {
             </a>
             {"."}
           </p>
+
+          <div className="mt-8 flex items-center gap-3">
+            <a
+              href="/dangnhap"
+              className="rounded-full bg-[#123d2a] px-6 py-3 text-sm font-semibold text-white shadow-md shadow-[#123d2a]/15 transition-all hover:bg-[#194e36]"
+            >
+              Đăng nhập hệ thống
+            </a>
+            <a
+              href="/about"
+              className="rounded-full border border-[#123d2a]/20 bg-white px-6 py-3 text-sm font-semibold text-[#123d2a] transition-all hover:bg-[#faf7f2]"
+            >
+              Tìm hiểu thêm
+            </a>
+          </div>
         </div>
       </section>
 
