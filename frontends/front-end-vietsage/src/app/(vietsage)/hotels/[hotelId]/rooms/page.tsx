@@ -69,7 +69,7 @@ export default async function StaffRoomsPage({ params, searchParams }: PageProps
     return (
       <section className="rounded-xl border border-[var(--outline-variant)] bg-white p-6 text-sm text-[var(--on-surface-variant)]">
         <p className="font-semibold text-[var(--primary)]">Không thể tải dữ liệu sơ đồ phòng</p>
-        <p className="mt-1">Vui lòng kiểm tra phân công khách sạn và quyền của vai trò hiện tại ({context.activeRole.name}).</p>
+        <p className="mt-1">Hệ thống dữ liệu đang phản hồi chậm. Vui lòng thử tải lại trang sau ít phút.</p>
       </section>
     );
   }

@@ -47,13 +47,13 @@ describe("HotelRoomsRepository guest device count", () => {
         ]),
       },
     };
-    const prisma = {
-      $transaction: jest.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
-    };
+    const prisma = tx;
     const repository = new HotelRoomsRepository(prisma as never);
 
     const result = await repository.listRooms({ hotelId: "hotel-1" }, 0, 100);
 
+    expect(prisma.room.count).toHaveBeenCalledTimes(2);
+    expect(prisma.room.findMany).toHaveBeenCalledTimes(3);
     expect(result.items[0]?.activeGuestDeviceCount).toBe(2);
     expect(tx.guestSession.findMany).toHaveBeenCalledWith({
       where: {

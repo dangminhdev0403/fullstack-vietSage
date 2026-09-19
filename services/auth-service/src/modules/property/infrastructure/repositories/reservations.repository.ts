@@ -15,7 +15,6 @@ import {
 } from "@prisma/client";
 import { PrismaService } from "../../../../prisma/prisma.service";
 import { recordPlatformUsageAtCheckIn } from "../../../platform-billing/application/platform-billing.service";
-import { inferCitizenshipKind } from "../../domain/infer-citizenship-kind";
 
 const ACTIVE_RESERVATION_STATUSES: ReservationStatus[] = [
   ReservationStatus.CONFIRMED,
@@ -55,19 +54,17 @@ export class ReservationsRepository {
       status: { in: ACTIVE_RESERVATION_STATUSES },
       plannedCheckInAt: { gte: input.from, lt: input.to },
     };
-    return this.prisma.$transaction(async (tx) => {
-      const [total, items] = await Promise.all([
-        tx.reservation.count({ where }),
-        tx.reservation.findMany({
-          where,
-          include: { room: true, stay: true },
-          orderBy: [{ plannedCheckInAt: "asc" }, { reservationCode: "asc" }],
-          skip: input.skip,
-          take: input.take,
-        }),
-      ]);
-      return [total, items] as const;
-    });
+    const [total, items] = await Promise.all([
+      this.prisma.reservation.count({ where }),
+      this.prisma.reservation.findMany({
+        where,
+        include: { room: true, stay: true },
+        orderBy: [{ plannedCheckInAt: "asc" }, { reservationCode: "asc" }],
+        skip: input.skip,
+        take: input.take,
+      }),
+    ]);
+    return [total, items] as const;
   }
 
   async assignRoom(input: {

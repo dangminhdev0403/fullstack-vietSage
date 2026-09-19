@@ -9,6 +9,32 @@ function createRepository(tx: Record<string, unknown>) {
   return { repository: new ReservationsRepository(prisma as never), prisma };
 }
 
+describe("ReservationsRepository arrival reads", () => {
+  it("runs count and list without an interactive transaction", async () => {
+    const items = [{ id: "reservation-1" }];
+    const prisma = {
+      reservation: {
+        count: jest.fn().mockResolvedValue(1),
+        findMany: jest.fn().mockResolvedValue(items),
+      },
+    };
+    const repository = new ReservationsRepository(prisma as never);
+
+    await expect(
+      repository.listArrivals({
+        hotelId: "hotel-1",
+        from: new Date("2026-09-19T00:00:00.000Z"),
+        to: new Date("2026-09-20T00:00:00.000Z"),
+        skip: 0,
+        take: 100,
+      }),
+    ).resolves.toEqual([1, items]);
+
+    expect(prisma.reservation.count).toHaveBeenCalledTimes(1);
+    expect(prisma.reservation.findMany).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("ReservationsRepository transactional lifecycle", () => {
   it("rejects an overlapping active reservation without mutating the room", async () => {
     const reservation = {

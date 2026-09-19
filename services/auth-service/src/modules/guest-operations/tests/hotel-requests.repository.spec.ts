@@ -4,14 +4,11 @@ import { HotelRequestsRepository } from "../infrastructure/repositories/hotel-re
 describe("HotelRequestsRepository staff request listing", () => {
   it("orders requests by status, highest priority, then oldest created time", async () => {
     const rows = [{ id: "request-1" }];
-    const tx = {
+    const prisma = {
       guestRequest: {
         count: jest.fn().mockResolvedValue(1),
         findMany: jest.fn().mockResolvedValue(rows),
       },
-    };
-    const prisma = {
-      $transaction: jest.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
     };
     const repository = new HotelRequestsRepository(prisma as never);
 
@@ -20,7 +17,7 @@ describe("HotelRequestsRepository staff request listing", () => {
       rows,
     ]);
 
-    expect(tx.guestRequest.findMany).toHaveBeenCalledWith(
+    expect(prisma.guestRequest.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { hotelId: "hotel-1" },
         orderBy: [{ status: "asc" }, { priority: "desc" }, { createdAt: "asc" }],
@@ -32,14 +29,11 @@ describe("HotelRequestsRepository staff request listing", () => {
 
   it("summarizes requests by status without pagination", async () => {
     const grouped = [{ status: "CREATED", _count: { _all: 4 } }];
-    const tx = {
+    const prisma = {
       guestRequest: {
         count: jest.fn().mockResolvedValue(4),
         groupBy: jest.fn().mockResolvedValue(grouped),
       },
-    };
-    const prisma = {
-      $transaction: jest.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
     };
     const repository = new HotelRequestsRepository(prisma as never);
     const where = { hotelId: "hotel-1", roomId: "room-1" };
@@ -49,8 +43,8 @@ describe("HotelRequestsRepository staff request listing", () => {
       statuses: grouped,
     });
 
-    expect(tx.guestRequest.count).toHaveBeenCalledWith({ where });
-    expect(tx.guestRequest.groupBy).toHaveBeenCalledWith({
+    expect(prisma.guestRequest.count).toHaveBeenCalledWith({ where });
+    expect(prisma.guestRequest.groupBy).toHaveBeenCalledWith({
       by: ["status"],
       where,
       _count: { _all: true },

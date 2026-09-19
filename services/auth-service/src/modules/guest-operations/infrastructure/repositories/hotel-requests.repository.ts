@@ -20,31 +20,29 @@ import { requestDetailInclude, requestListInclude } from "./guest-request-reposi
 export class HotelRequestsRepository {
   constructor(private readonly prisma: PrismaService) {}
   async listRequests(where: Prisma.GuestRequestWhereInput, skip: number, take: number) {
-    return this.prisma.$transaction(async (tx) => {
-      const total = await tx.guestRequest.count({ where });
-      const rows = await tx.guestRequest.findMany({
+    const [total, rows] = await Promise.all([
+      this.prisma.guestRequest.count({ where }),
+      this.prisma.guestRequest.findMany({
         where,
         include: requestListInclude,
         orderBy: [{ status: "asc" }, { priority: "desc" }, { createdAt: "asc" }],
         skip,
         take,
-      });
-
-      return [total, rows] as const;
-    });
+      }),
+    ]);
+    return [total, rows] as const;
   }
 
   async summarizeRequests(where: Prisma.GuestRequestWhereInput) {
-    return this.prisma.$transaction(async (tx) => {
-      const total = await tx.guestRequest.count({ where });
-      const statuses = await tx.guestRequest.groupBy({
+    const [total, statuses] = await Promise.all([
+      this.prisma.guestRequest.count({ where }),
+      this.prisma.guestRequest.groupBy({
         by: ["status"],
         where,
         _count: { _all: true },
-      });
-
-      return { total, statuses };
-    });
+      }),
+    ]);
+    return { total, statuses };
   }
 
   async summarizeOperationalRequests(where: Prisma.GuestRequestWhereInput) {
@@ -58,30 +56,29 @@ export class HotelRequestsRepository {
       GuestRequestStatus.IN_PROGRESS,
     ];
 
-    return this.prisma.$transaction(async (tx) => {
-      const [pending, urgent, unassigned, completedToday] = await Promise.all([
-        tx.guestRequest.count({ where: { ...where, status: { in: activeStatuses } } }),
-        tx.guestRequest.count({
-          where: {
-            ...where,
-            status: { in: activeStatuses },
-            priority: GuestRequestPriority.URGENT,
-          },
-        }),
-        tx.guestRequest.count({
-          where: { ...where, status: { in: activeStatuses }, assignedToUserId: null },
-        }),
-        tx.guestRequest.count({
-          where: {
-            ...where,
-            status: GuestRequestStatus.COMPLETED,
-            completedAt: { gte: today, lt: tomorrow },
-          },
-        }),
-      ]);
-
-      return { pending, urgent, unassigned, completedToday };
-    });
+    const [pending, urgent, unassigned, completedToday] = await Promise.all([
+      this.prisma.guestRequest.count({
+        where: { ...where, status: { in: activeStatuses } },
+      }),
+      this.prisma.guestRequest.count({
+        where: {
+          ...where,
+          status: { in: activeStatuses },
+          priority: GuestRequestPriority.URGENT,
+        },
+      }),
+      this.prisma.guestRequest.count({
+        where: { ...where, status: { in: activeStatuses }, assignedToUserId: null },
+      }),
+      this.prisma.guestRequest.count({
+        where: {
+          ...where,
+          status: GuestRequestStatus.COMPLETED,
+          completedAt: { gte: today, lt: tomorrow },
+        },
+      }),
+    ]);
+    return { pending, urgent, unassigned, completedToday };
   }
 
   async findRequestInHotel(hotelId: string, requestId: string) {

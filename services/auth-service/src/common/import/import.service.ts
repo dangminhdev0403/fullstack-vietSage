@@ -58,15 +58,17 @@ export class ImportService {
       throw new Error("Cannot commit import with validation errors");
     }
 
-    return this.prisma.$transaction(async (tx) =>
-      adapter.commit({
-        tx,
-        mode: preview.mode,
-        context: preview.context,
-        payload: preview.payload,
-        currentState: preview.currentState,
-        diff: preview.diff,
-      }),
+    return this.prisma.$transaction(
+      async (tx) =>
+        adapter.commit({
+          tx,
+          mode: preview.mode,
+          context: preview.context,
+          payload: preview.payload,
+          currentState: preview.currentState,
+          diff: preview.diff,
+        }),
+      { timeout: 30_000 },
     );
   }
 

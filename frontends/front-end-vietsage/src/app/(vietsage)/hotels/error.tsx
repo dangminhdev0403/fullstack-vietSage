@@ -7,7 +7,7 @@ export default function HotelsError({ reset }: { reset: () => void }) {
     <RouteBoundaryState
       eyebrow="Hotel operations"
       title="Hotel operations could not load"
-      message="Retry the page. If the issue continues, verify the selected hotel, staff permissions, and API availability."
+      message="The service is responding slowly. Try again in a moment."
       tone="hotel"
       action={{ label: "Try again", onClick: reset }}
     />

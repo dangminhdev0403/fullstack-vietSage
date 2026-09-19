@@ -64,42 +64,41 @@ export class HotelRoomsRepository {
   }
 
   async listRooms(where: Prisma.RoomWhereInput, skip: number, take: number) {
-    return this.prisma.$transaction(async (tx) => {
-      const total = await tx.room.count({ where });
-      const rows = await tx.room.findMany({
+    const hotelId = where.hotelId as string;
+    const [total, rows, allFloors, allTypes, availableCount] = await Promise.all([
+      this.prisma.room.count({ where }),
+      this.prisma.room.findMany({
         where,
         include: roomListInclude,
         orderBy: [{ roomNumber: "asc" }],
         skip,
         take,
-      });
-
-      const hotelId = where.hotelId as string;
-      const allFloors = await tx.room.findMany({
+      }),
+      this.prisma.room.findMany({
         where: { hotelId },
         select: { floor: true },
         distinct: ["floor"],
-      });
-      const allTypes = await tx.room.findMany({
+      }),
+      this.prisma.room.findMany({
         where: { hotelId },
         select: { type: true },
         distinct: ["type"],
-      });
-      const availableCount = await tx.room.count({
+      }),
+      this.prisma.room.count({
         where: { hotelId, status: RoomStatus.AVAILABLE },
-      });
+      }),
+    ]);
 
-      const uniqueFloors = allFloors.map((f) => f.floor).filter((f): f is string => Boolean(f));
-      const uniqueTypes = allTypes.map((t) => t.type).filter((t): t is string => Boolean(t));
+    const uniqueFloors = allFloors.map((f) => f.floor).filter((f): f is string => Boolean(f));
+    const uniqueTypes = allTypes.map((t) => t.type).filter((t): t is string => Boolean(t));
 
-      return {
-        total,
-        items: await this.withActiveGuestDeviceCounts(tx, rows),
-        floors: [...uniqueFloors].sort((a, b) => a.localeCompare(b)),
-        types: [...uniqueTypes].sort((a, b) => a.localeCompare(b)),
-        totalAvailable: availableCount,
-      };
-    });
+    return {
+      total,
+      items: await this.withActiveGuestDeviceCounts(this.prisma, rows),
+      floors: [...uniqueFloors].sort((a, b) => a.localeCompare(b)),
+      types: [...uniqueTypes].sort((a, b) => a.localeCompare(b)),
+      totalAvailable: availableCount,
+    };
   }
 
   async updateRoomInHotel(hotelId: string, roomId: string, data: Prisma.RoomUpdateInput) {
@@ -123,7 +122,7 @@ export class HotelRoomsRepository {
   }
 
   private async withActiveGuestDeviceCounts(
-    tx: Prisma.TransactionClient,
+    tx: Pick<Prisma.TransactionClient, "guestSession">,
     rooms: Prisma.RoomGetPayload<{ include: typeof roomListInclude }>[],
   ): Promise<RoomListRow[]> {
     const activeStayIds = rooms

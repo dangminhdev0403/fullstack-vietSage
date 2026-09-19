@@ -183,7 +183,7 @@ export class GoogleSheetsServiceCatalogSyncService {
     await this.readWorkbook(spreadsheetId);
   }
 
-  @Cron(CronExpression.EVERY_5_MINUTES)
+  @Cron(CronExpression.EVERY_30_MINUTES)
   async syncAllHotels(): Promise<void> {
     if (this.isSyncing) {
       this.logger.warn("Google Sheets sync skipped because another job is running", {
