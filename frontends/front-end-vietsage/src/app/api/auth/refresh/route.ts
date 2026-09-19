@@ -30,10 +30,6 @@ function serverErrorResponse() {
   );
 }
 
-function tokenTail(token: string | null | undefined): string | null {
-  return token ? token.slice(-12) : null;
-}
-
 export async function POST() {
   const session = await auth();
   const tokens = await readServerSessionTokens();
@@ -46,8 +42,6 @@ export async function POST() {
   try {
     console.info("[AUTH_REFRESH_BEFORE]", {
       saveLocation: "next-auth-jwt-session",
-      accessTokenTail: tokenTail(tokens.accessToken),
-      refreshTokenTail: tokenTail(refreshToken),
       accessTokenExpiresAt: session?.accessTokenExpiresAt ?? tokens.accessTokenExpiresAt,
       timestamp: Date.now(),
     });
@@ -56,8 +50,6 @@ export async function POST() {
 
     console.info("[AUTH_REFRESH_AFTER]", {
       saveLocation: "next-auth-jwt-session",
-      accessTokenTail: tokenTail(refreshedTokens.accessToken),
-      refreshTokenTail: tokenTail(refreshedTokens.refreshToken),
       accessTokenExpiresAt: refreshedTokens.accessTokenExpiresAt,
       timestamp: Date.now(),
     });
@@ -72,7 +64,6 @@ export async function POST() {
     });
   } catch (error) {
     console.warn("[AUTH_REFRESH_FAILED]", {
-      refreshTokenTail: tokenTail(refreshToken),
       errorMessage: error instanceof Error ? error.message : "Unknown refresh error",
       timestamp: Date.now(),
     });

@@ -18,6 +18,8 @@ import type { ChangePasswordBodyInput } from "../domain/schemas/auth.schema";
 
 const ACCESS_TOKEN_TYPE = "access";
 const REFRESH_TOKEN_TYPE = "refresh";
+const DUMMY_PASSWORD_HASH =
+  "$argon2id$v=19$m=65536,t=3,p=4$I0jbjsm5M862yC/In9orvg$j4nRtgzJWfGsP9VGcAs7wFwNhos8baO4hVqqO7KMHQY";
 
 interface AccessTokenPayload {
   jti: string;
@@ -73,6 +75,7 @@ export class AuthService {
     const user = await this.authRepository.findUserByEmail(normalizedEmail);
 
     if (!user || user.status !== UserStatus.ACTIVE) {
+      await this.verifyPassword(password, DUMMY_PASSWORD_HASH);
       this.logAuthFailure("LOGIN_FAILURE", "invalid_credentials", user?.id);
       throw this.unauthorized("AUTH_INVALID_CREDENTIALS", "Invalid email or password");
     }
@@ -616,7 +619,10 @@ export class AuthService {
     if (storedPasswordHash.startsWith("$argon2")) {
       return { valid: await argon2.verify(storedPasswordHash, plainPassword) };
     }
-    if (this.hashToken(plainPassword) !== storedPasswordHash) return { valid: false };
+    if (this.hashToken(plainPassword) !== storedPasswordHash) {
+      await argon2.verify(DUMMY_PASSWORD_HASH, plainPassword);
+      return { valid: false };
+    }
     return { valid: true, upgradedHash: await argon2.hash(plainPassword) };
   }
 

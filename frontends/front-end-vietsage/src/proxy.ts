@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { auth } from "./auth";
 import { createRequestRedirectUrl } from "./features/auth/utils/redirect-isolation-core";
+import { isAllowedApiMutationRequest } from "./features/security/api-mutation-origin";
 import {
   LEGACY_LOGIN_PATH,
   LOGIN_PATH,
@@ -126,6 +127,13 @@ function buildRefreshSessionRedirect(request: NextRequest): NextResponse {
 
 export const proxy = auth((request) => {
   const { pathname } = request.nextUrl;
+
+  if (pathname.startsWith("/api/")) {
+    return isAllowedApiMutationRequest(request)
+      ? NextResponse.next()
+      : NextResponse.json({ error: "Invalid request origin" }, { status: 403 });
+  }
+
   const isProtectedRoute = protectedPrefixes.some((prefix) =>
     matchesPrefix(pathname, prefix),
   );

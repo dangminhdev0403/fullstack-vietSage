@@ -1,5 +1,6 @@
 import { clampBackendApiLimit } from "@/core/http/backend-api-config";
 import { HttpError } from "@/core/http/http-error";
+import { toLogSafePayload } from "@/core/http/http-log-redactor";
 import { isPublicApiPath } from "@/core/http/public-api-paths";
 import { HTTP_HEADER_TENANT_ID } from "@/core/http/tenant-scope";
 
@@ -35,11 +36,6 @@ export type HttpRequestOptions<TBody = unknown> = {
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 const HTTP_RESPONSE_LOG_PREFIX = "[API_RES]";
-const MAX_LOG_STRING_LENGTH = 1_200;
-const MAX_LOG_ARRAY_ITEMS = 20;
-const MAX_LOG_OBJECT_KEYS = 20;
-const MAX_LOG_DEPTH = 4;
-const LOG_REDACTED_KEYS = new Set(["accessToken", "refreshToken"]);
 
 function isPublicRequest(pathname: string, isPublic?: boolean): boolean {
   return Boolean(isPublic) || isPublicApiPath(pathname);
@@ -134,57 +130,6 @@ async function parseResponseBody(response: Response): Promise<unknown> {
   } catch {
     return null;
   }
-}
-
-function toLogSafePayload(payload: unknown, depth = 0, seen = new WeakSet<object>()): unknown {
-  if (payload === null || payload === undefined) {
-    return payload;
-  }
-
-  if (typeof payload === "string") {
-    if (payload.length <= MAX_LOG_STRING_LENGTH) {
-      return payload;
-    }
-
-    return `${payload.slice(0, MAX_LOG_STRING_LENGTH)}...[trimmed ${payload.length - MAX_LOG_STRING_LENGTH} chars]`;
-  }
-
-  if (typeof payload !== "object") {
-    return payload;
-  }
-
-  if (depth >= MAX_LOG_DEPTH) {
-    return "[max-depth]";
-  }
-
-  if (seen.has(payload)) {
-    return "[circular]";
-  }
-
-  seen.add(payload);
-
-  if (Array.isArray(payload)) {
-    const limitedItems = payload.slice(0, MAX_LOG_ARRAY_ITEMS).map((item) => toLogSafePayload(item, depth + 1, seen));
-
-    if (payload.length > MAX_LOG_ARRAY_ITEMS) {
-      limitedItems.push(`[+${payload.length - MAX_LOG_ARRAY_ITEMS} more items]`);
-    }
-
-    return limitedItems;
-  }
-
-  const entries = Object.entries(payload);
-  const limitedEntries = entries.slice(0, MAX_LOG_OBJECT_KEYS).map(([key, value]) => [
-    key,
-    LOG_REDACTED_KEYS.has(key) ? "[redacted]" : toLogSafePayload(value, depth + 1, seen),
-  ]);
-  const result = Object.fromEntries(limitedEntries);
-
-  if (entries.length > MAX_LOG_OBJECT_KEYS) {
-    result.__truncatedKeys = `+${entries.length - MAX_LOG_OBJECT_KEYS} more keys`;
-  }
-
-  return result;
 }
 
 function extractApiResponseMessage(responseBody: unknown): string | undefined {

@@ -13,10 +13,6 @@ export type RefreshedSessionTokens = {
 
 const refreshInFlightByToken = new Map<string, Promise<RefreshedSessionTokens>>();
 
-function tokenTail(token: string): string {
-  return token.slice(-12);
-}
-
 function readCurrentSessionTokens(refreshToken: string): Promise<RefreshedSessionTokens | null> {
   return readServerSessionTokens().then((tokens) => {
     if (
@@ -45,8 +41,6 @@ export async function refreshSessionTokens(
   console.info("[SESSION_REFRESH_SUCCESS]", {
     saveLocation: "none",
     accessTokenExpiresAt: refreshedTokens.accessTokenExpiresAt,
-    accessTokenTail: tokenTail(refreshedTokens.accessToken),
-    refreshTokenTail: tokenTail(refreshedTokens.refreshToken),
     timestamp: Date.now(),
   });
 
@@ -59,7 +53,6 @@ export async function refreshAndSaveSessionTokens(
   const existingRefresh = refreshInFlightByToken.get(refreshToken);
   if (existingRefresh) {
     console.info("[SESSION_REFRESH_WAIT_IN_FLIGHT]", {
-      refreshTokenTail: tokenTail(refreshToken),
       timestamp: Date.now(),
     });
     return existingRefresh;
@@ -80,7 +73,6 @@ export async function refreshAndSaveSessionTokens(
       console.info("[SESSION_REFRESH_SAVED]", {
         saveLocation: "next-auth-jwt-session",
         newAccessToken: tokens.accessToken ? "updated" : "set",
-        refreshTokenTail: tokenTail(refreshedTokens.refreshToken),
         timestamp: Date.now(),
       });
 
@@ -89,8 +81,6 @@ export async function refreshAndSaveSessionTokens(
       const currentSessionTokens = await readCurrentSessionTokens(refreshToken);
       if (currentSessionTokens) {
         console.info("[SESSION_REFRESH_REUSED_ROTATED_SESSION]", {
-          oldRefreshTokenTail: tokenTail(refreshToken),
-          currentRefreshTokenTail: tokenTail(currentSessionTokens.refreshToken),
           accessTokenExpiresAt: currentSessionTokens.accessTokenExpiresAt,
           timestamp: Date.now(),
         });

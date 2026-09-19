@@ -172,6 +172,28 @@ describe("AuthService", () => {
     });
   });
 
+  it("performs an Argon2 verification even when the account does not exist", async () => {
+    repository.findUserByEmail.mockResolvedValue(null);
+    const verifyPassword = jest.spyOn(
+      service as unknown as {
+        verifyPassword: (
+          plainPassword: string,
+          storedPasswordHash: string,
+        ) => Promise<{ valid: boolean }>;
+      },
+      "verifyPassword",
+    );
+
+    await expect(
+      service.validateUser("missing@vietsage.local", "WrongPassword123!"),
+    ).rejects.toThrow(UnauthorizedException);
+
+    expect(verifyPassword).toHaveBeenCalledWith(
+      "WrongPassword123!",
+      expect.stringMatching(/^\$argon2/),
+    );
+  });
+
   it("validates an active user and upgrades a legacy password hash", async () => {
     repository.findUserByEmail.mockResolvedValue({
       id: "u1",
