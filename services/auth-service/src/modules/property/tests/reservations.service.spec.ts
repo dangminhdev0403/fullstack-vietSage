@@ -11,6 +11,12 @@ function createRepository(overrides: Record<string, jest.Mock> = {}) {
       guestDisplayName: "Nguyen Van A",
       status: "CONFIRMED",
     }),
+    findReservationById: jest.fn().mockResolvedValue({
+      id: "reservation-1",
+      hotelId: "hotel-1",
+      roomId: "room-1",
+      status: "CONFIRMED",
+    }),
     listArrivals: jest.fn().mockResolvedValue([1, [{ id: "reservation-1" }]]),
     assignRoom: jest.fn().mockResolvedValue({ id: "reservation-1", roomId: "room-1" }),
     checkInReservation: jest.fn().mockResolvedValue({
@@ -26,6 +32,11 @@ function createRepository(overrides: Record<string, jest.Mock> = {}) {
 function createService(repository = createRepository()) {
   const accessService = {
     assertHotelAccess: jest.fn().mockResolvedValue({ id: "hotel-1", tenantId: "tenant-1" }),
+    resolveRoomScope: jest.fn().mockResolvedValue({
+      hotel: { id: "hotel-1", tenantId: "tenant-1" },
+      allowedRoomId: null,
+    }),
+    assertRoomAccess: jest.fn().mockResolvedValue({ id: "hotel-1", tenantId: "tenant-1" }),
   };
   const codesService = {
     generateEntityCode: jest

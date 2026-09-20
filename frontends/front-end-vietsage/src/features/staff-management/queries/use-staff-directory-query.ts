@@ -43,9 +43,6 @@ export function useStaffManagementMutations(scope: StaffManagementScope) {
   const assignRole = useMutation(
     staffDirectory.mutations.assignRole.options(),
   );
-  const revokeRole = useMutation(
-    staffDirectory.mutations.revokeRole.options(),
-  );
   const updateAssignment = useMutation(
     staffDirectory.mutations.updateAssignment.options(),
   );
@@ -54,6 +51,18 @@ export function useStaffManagementMutations(scope: StaffManagementScope) {
     ...staffDirectory.mutations.resetFrontdeskPassword.options(),
     retry: false,
   });
+  const assignRoom = useMutation(staffDirectory.mutations.assignRoom.options());
+  const unassignRoom = useMutation(
+    staffDirectory.mutations.unassignRoom.options(),
+  );
 
-  return { createUser, assignRole, revokeRole, updateAssignment, updateUser, resetFrontdeskPassword };
+  return {
+    createUser,
+    assignRole,
+    updateAssignment,
+    updateUser,
+    resetFrontdeskPassword,
+    assignRoom,
+    unassignRoom,
+  };
 }

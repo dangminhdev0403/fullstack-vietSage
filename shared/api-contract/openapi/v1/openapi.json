@@ -635,11 +635,22 @@
                   "description": {
                     "type": "string",
                     "maxLength": 255
+                  },
+                  "baseRoleId": {
+                    "type": "string"
+                  },
+                  "permissionIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
                   }
                 },
                 "required": [
                   "code",
-                  "name"
+                  "name",
+                  "baseRoleId",
+                  "permissionIds"
                 ]
               }
             }
@@ -696,6 +707,10 @@
                             "SYSTEM_TEMPLATE",
                             "CUSTOM"
                           ]
+                        },
+                        "baseRoleId": {
+                          "type": "string",
+                          "nullable": true
                         },
                         "createdAt": {
                           "type": "string",
@@ -793,6 +808,10 @@
                               "SYSTEM_TEMPLATE",
                               "CUSTOM"
                             ]
+                          },
+                          "baseRoleId": {
+                            "type": "string",
+                            "nullable": true
                           },
                           "menus": {
                             "type": "array",
@@ -898,6 +917,10 @@
                             "SYSTEM_TEMPLATE",
                             "CUSTOM"
                           ]
+                        },
+                        "baseRoleId": {
+                          "type": "string",
+                          "nullable": true
                         },
                         "createdAt": {
                           "type": "string",
@@ -1131,6 +1154,10 @@
                             "CUSTOM"
                           ]
                         },
+                        "baseRoleId": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
@@ -1275,6 +1302,15 @@
                   "description": {
                     "type": "string",
                     "maxLength": 255
+                  },
+                  "baseRoleId": {
+                    "type": "string"
+                  },
+                  "permissionIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
                   }
                 }
               }
@@ -1332,6 +1368,10 @@
                             "SYSTEM_TEMPLATE",
                             "CUSTOM"
                           ]
+                        },
+                        "baseRoleId": {
+                          "type": "string",
+                          "nullable": true
                         },
                         "createdAt": {
                           "type": "string",
@@ -1415,108 +1455,6 @@
                       },
                       "required": [
                         "deleted"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "status",
-                    "error",
-                    "message",
-                    "data"
-                  ]
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "rbac.roles"
-        ]
-      }
-    },
-    "/roles/{id}/disable": {
-      "post": {
-        "operationId": "RolesController_disableRole",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Bao phản hồi tắt vai trò",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "status": {
-                      "type": "number",
-                      "example": 200
-                    },
-                    "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true,
-                      "example": null
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Tắt vai trò thành công"
-                    },
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string"
-                        },
-                        "code": {
-                          "type": "string"
-                        },
-                        "name": {
-                          "type": "string"
-                        },
-                        "description": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "status": {
-                          "type": "string",
-                          "enum": [
-                            "ACTIVE",
-                            "DISABLED"
-                          ]
-                        },
-                        "type": {
-                          "type": "string",
-                          "enum": [
-                            "SYSTEM_TEMPLATE",
-                            "CUSTOM"
-                          ]
-                        },
-                        "createdAt": {
-                          "type": "string",
-                          "format": "date-time"
-                        },
-                        "updatedAt": {
-                          "type": "string",
-                          "format": "date-time"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "code",
-                        "name",
-                        "description",
-                        "status",
-                        "type",
-                        "createdAt",
-                        "updatedAt"
                       ]
                     }
                   },
@@ -1630,121 +1568,6 @@
         "tags": [
           "rbac.roles"
         ]
-      },
-      "put": {
-        "operationId": "RolesController_replacePermissions",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "permissionIds": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  }
-                },
-                "required": [
-                  "permissionIds"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Bao phản hồi thay thế quyền",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "status": {
-                      "type": "number",
-                      "example": 200
-                    },
-                    "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true,
-                      "example": null
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Thay thế toàn bộ quyền của vai trò thành công"
-                    },
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string"
-                          },
-                          "method": {
-                            "type": "string",
-                            "enum": [
-                              "GET",
-                              "POST",
-                              "PUT",
-                              "PATCH",
-                              "DELETE",
-                              "OPTIONS"
-                            ]
-                          },
-                          "path": {
-                            "type": "string"
-                          },
-                          "description": {
-                            "type": "string"
-                          },
-                          "createdAt": {
-                            "type": "string",
-                            "format": "date-time"
-                          },
-                          "updatedAt": {
-                            "type": "string",
-                            "format": "date-time"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "method",
-                          "path",
-                          "description",
-                          "createdAt",
-                          "updatedAt"
-                        ]
-                      }
-                    }
-                  },
-                  "required": [
-                    "status",
-                    "error",
-                    "message",
-                    "data"
-                  ]
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "rbac.roles"
-        ]
       }
     },
     "/roles/{id}/capabilities": {
@@ -1781,121 +1604,6 @@
                     "message": {
                       "type": "string",
                       "example": "Lấy capability của vai trò thành công"
-                    },
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string"
-                          },
-                          "key": {
-                            "type": "string"
-                          },
-                          "domain": {
-                            "type": "string"
-                          },
-                          "label": {
-                            "type": "string"
-                          },
-                          "description": {
-                            "type": "string"
-                          },
-                          "risk": {
-                            "type": "string",
-                            "enum": [
-                              "LOW",
-                              "MEDIUM",
-                              "HIGH",
-                              "CRITICAL"
-                            ]
-                          },
-                          "enabled": {
-                            "type": "boolean"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "key",
-                          "domain",
-                          "label",
-                          "description",
-                          "risk",
-                          "enabled"
-                        ]
-                      }
-                    }
-                  },
-                  "required": [
-                    "status",
-                    "error",
-                    "message",
-                    "data"
-                  ]
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "rbac.roles"
-        ]
-      },
-      "put": {
-        "operationId": "RolesController_replaceRoleCapabilities",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "permissionIds": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  }
-                },
-                "required": [
-                  "permissionIds"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "status": {
-                      "type": "number",
-                      "example": 200
-                    },
-                    "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true,
-                      "example": null
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Cập nhật capability của vai trò thành công"
                     },
                     "data": {
                       "type": "array",
@@ -2376,240 +2084,6 @@
                         "limit",
                         "total",
                         "items"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "status",
-                    "error",
-                    "message",
-                    "data"
-                  ]
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "rbac.roles"
-        ]
-      }
-    },
-    "/roles/{roleId}/modules/{moduleKey}/permissions/grant": {
-      "post": {
-        "operationId": "RolesController_grantRolePermissionModulePermissions",
-        "parameters": [
-          {
-            "name": "moduleKey",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "roleId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "permissionIds": {
-                    "type": "array",
-                    "minItems": 1,
-                    "items": {
-                      "type": "string"
-                    }
-                  }
-                },
-                "required": [
-                  "permissionIds"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Bao phản hồi cấp quyền theo nhóm quyền",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "status": {
-                      "type": "number",
-                      "example": 201
-                    },
-                    "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true,
-                      "example": null
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Cấp quyền theo nhóm quyền thành công"
-                    },
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "moduleKey": {
-                          "type": "string"
-                        },
-                        "moduleName": {
-                          "type": "string"
-                        },
-                        "totalPermissions": {
-                          "type": "number"
-                        },
-                        "enabledCount": {
-                          "type": "number"
-                        },
-                        "disabledCount": {
-                          "type": "number"
-                        },
-                        "allSelected": {
-                          "type": "boolean"
-                        },
-                        "allDisabled": {
-                          "type": "boolean"
-                        }
-                      },
-                      "required": [
-                        "moduleKey",
-                        "moduleName",
-                        "totalPermissions",
-                        "enabledCount",
-                        "disabledCount",
-                        "allSelected",
-                        "allDisabled"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "status",
-                    "error",
-                    "message",
-                    "data"
-                  ]
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "rbac.roles"
-        ]
-      }
-    },
-    "/roles/{roleId}/modules/{moduleKey}/permissions/revoke": {
-      "post": {
-        "operationId": "RolesController_revokeRolePermissionModulePermissions",
-        "parameters": [
-          {
-            "name": "moduleKey",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "roleId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "permissionIds": {
-                    "type": "array",
-                    "minItems": 1,
-                    "items": {
-                      "type": "string"
-                    }
-                  }
-                },
-                "required": [
-                  "permissionIds"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Bao phản hồi thu hồi quyền theo nhóm quyền",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "status": {
-                      "type": "number",
-                      "example": 201
-                    },
-                    "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true,
-                      "example": null
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Thu hồi quyền theo nhóm quyền thành công"
-                    },
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "moduleKey": {
-                          "type": "string"
-                        },
-                        "moduleName": {
-                          "type": "string"
-                        },
-                        "totalPermissions": {
-                          "type": "number"
-                        },
-                        "enabledCount": {
-                          "type": "number"
-                        },
-                        "disabledCount": {
-                          "type": "number"
-                        },
-                        "allSelected": {
-                          "type": "boolean"
-                        },
-                        "allDisabled": {
-                          "type": "boolean"
-                        }
-                      },
-                      "required": [
-                        "moduleKey",
-                        "moduleName",
-                        "totalPermissions",
-                        "enabledCount",
-                        "disabledCount",
-                        "allSelected",
-                        "allDisabled"
                       ]
                     }
                   },
@@ -5787,6 +5261,47 @@
         ]
       }
     },
+    "/hotels/{hotelId}/rooms/{roomId}/status": {
+      "patch": {
+        "operationId": "HotelRoomsController_updateRoomStatus",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "roomId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Đã cập nhật trạng thái phòng"
+          }
+        },
+        "tags": [
+          "hotel-rooms"
+        ]
+      }
+    },
     "/hotels/{hotelId}/stays": {
       "post": {
         "operationId": "HotelRoomsController_createStay",
@@ -7577,6 +7092,31 @@
                                   "fullName",
                                   "roles"
                                 ]
+                              },
+                              "roomAssignment": {
+                                "type": "object",
+                                "nullable": true,
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "roomId": {
+                                    "type": "string"
+                                  },
+                                  "roomNumber": {
+                                    "type": "string"
+                                  },
+                                  "assignedAt": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "roomId",
+                                  "roomNumber",
+                                  "assignedAt"
+                                ]
                               }
                             },
                             "required": [
@@ -7738,6 +7278,31 @@
                             "fullName",
                             "roles"
                           ]
+                        },
+                        "roomAssignment": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "roomId": {
+                              "type": "string"
+                            },
+                            "roomNumber": {
+                              "type": "string"
+                            },
+                            "assignedAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "roomId",
+                            "roomNumber",
+                            "assignedAt"
+                          ]
                         }
                       },
                       "required": [
@@ -7830,6 +7395,182 @@
                         "revoked",
                         "hotelId",
                         "userId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "hotel-staff"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/staff-assignments/{userId}/room": {
+      "put": {
+        "operationId": "HotelStaffAssignmentsController_assignRoom",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Phân công phòng cho nhân viên thành công"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "hotelId": {
+                          "type": "string"
+                        },
+                        "userId": {
+                          "type": "string"
+                        },
+                        "roomId": {
+                          "type": "string"
+                        },
+                        "roomNumber": {
+                          "type": "string"
+                        },
+                        "assignedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "hotelId",
+                        "userId",
+                        "roomId",
+                        "roomNumber",
+                        "assignedAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "hotel-staff"
+        ]
+      },
+      "delete": {
+        "operationId": "HotelStaffAssignmentsController_unassignRoom",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Hủy phân công phòng cho nhân viên thành công"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "unassigned": {
+                          "type": "boolean",
+                          "enum": [
+                            true
+                          ]
+                        },
+                        "hotelId": {
+                          "type": "string"
+                        },
+                        "userId": {
+                          "type": "string"
+                        },
+                        "roomId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "unassigned",
+                        "hotelId",
+                        "userId",
+                        "roomId"
                       ]
                     }
                   },
@@ -11411,6 +11152,1321 @@
         },
         "tags": [
           "HotelMarketplace"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/kbtt/connection": {
+      "get": {
+        "operationId": "KbttController_get",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Thành công"
+                    },
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "configured",
+                        "status",
+                        "maskedUsername",
+                        "csltId",
+                        "lastCheckedAt",
+                        "lastConnectedAt",
+                        "lastErrorCode",
+                        "lastErrorMessage"
+                      ],
+                      "properties": {
+                        "configured": {
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "DISCONNECTED",
+                            "CONNECTED",
+                            "AUTH_FAILED"
+                          ]
+                        },
+                        "maskedUsername": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "csltId": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "lastCheckedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "nullable": true
+                        },
+                        "lastConnectedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "nullable": true
+                        },
+                        "lastErrorCode": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "lastErrorMessage": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Hotel scope or business permission denied"
+          },
+          "422": {
+            "description": "KBTT_AUTH_FAILED; sanitized provider authentication failure"
+          },
+          "503": {
+            "description": "KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "View saved hotel KBTT connection; never contacts provider",
+        "tags": [
+          "hotel-kbtt"
+        ]
+      },
+      "put": {
+        "operationId": "KbttController_connect",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "username",
+                  "password"
+                ],
+                "properties": {
+                  "username": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120,
+                    "writeOnly": true
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256,
+                    "writeOnly": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Thành công"
+                    },
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "configured",
+                        "status",
+                        "maskedUsername",
+                        "csltId",
+                        "lastCheckedAt",
+                        "lastConnectedAt",
+                        "lastErrorCode",
+                        "lastErrorMessage"
+                      ],
+                      "properties": {
+                        "configured": {
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "DISCONNECTED",
+                            "CONNECTED",
+                            "AUTH_FAILED"
+                          ]
+                        },
+                        "maskedUsername": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "csltId": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "lastCheckedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "nullable": true
+                        },
+                        "lastConnectedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "nullable": true
+                        },
+                        "lastErrorCode": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "lastErrorMessage": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Hotel scope or business permission denied"
+          },
+          "422": {
+            "description": "KBTT_AUTH_FAILED; sanitized provider authentication failure"
+          },
+          "503": {
+            "description": "KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Authenticate and save encrypted hotel credentials only after success",
+        "tags": [
+          "hotel-kbtt"
+        ]
+      },
+      "delete": {
+        "operationId": "KbttController_disconnect",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Thành công"
+                    },
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "configured",
+                        "status",
+                        "maskedUsername",
+                        "csltId",
+                        "lastCheckedAt",
+                        "lastConnectedAt",
+                        "lastErrorCode",
+                        "lastErrorMessage"
+                      ],
+                      "properties": {
+                        "configured": {
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "DISCONNECTED",
+                            "CONNECTED",
+                            "AUTH_FAILED"
+                          ]
+                        },
+                        "maskedUsername": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "csltId": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "lastCheckedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "nullable": true
+                        },
+                        "lastConnectedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "nullable": true
+                        },
+                        "lastErrorCode": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "lastErrorMessage": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Hotel scope or business permission denied"
+          },
+          "422": {
+            "description": "KBTT_AUTH_FAILED; sanitized provider authentication failure"
+          },
+          "503": {
+            "description": "KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Best-effort revoke and remove saved credentials and local tokens",
+        "tags": [
+          "hotel-kbtt"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/kbtt/connection/check": {
+      "post": {
+        "operationId": "KbttController_check",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Thành công"
+                    },
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "configured",
+                        "status",
+                        "maskedUsername",
+                        "csltId",
+                        "lastCheckedAt",
+                        "lastConnectedAt",
+                        "lastErrorCode",
+                        "lastErrorMessage"
+                      ],
+                      "properties": {
+                        "configured": {
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "DISCONNECTED",
+                            "CONNECTED",
+                            "AUTH_FAILED"
+                          ]
+                        },
+                        "maskedUsername": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "csltId": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "lastCheckedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "nullable": true
+                        },
+                        "lastConnectedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "nullable": true
+                        },
+                        "lastErrorCode": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "lastErrorMessage": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Hotel scope or business permission denied"
+          },
+          "422": {
+            "description": "KBTT_AUTH_FAILED; sanitized provider authentication failure"
+          },
+          "503": {
+            "description": "KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Manually authenticate saved credentials; refresh near expiry, otherwise re-login",
+        "tags": [
+          "hotel-kbtt"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/kbtt/declarations": {
+      "get": {
+        "operationId": "KbttController_listDeclarations",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Hotel scope or business permission denied"
+          },
+          "422": {
+            "description": "KBTT_AUTH_FAILED; sanitized provider authentication failure"
+          },
+          "503": {
+            "description": "KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List active occupants combined with KBTT declaration status",
+        "tags": [
+          "hotel-kbtt"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/kbtt/declarations/{occupantId}": {
+      "get": {
+        "operationId": "KbttController_getDeclaration",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "occupantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Hotel scope or business permission denied"
+          },
+          "422": {
+            "description": "KBTT_AUTH_FAILED; sanitized provider authentication failure"
+          },
+          "503": {
+            "description": "KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get occupant profile and latest KBTT declaration",
+        "tags": [
+          "hotel-kbtt"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/kbtt/declarations/{occupantId}/draft": {
+      "put": {
+        "operationId": "KbttController_saveDraft",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "occupantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Hotel scope or business permission denied"
+          },
+          "422": {
+            "description": "KBTT_AUTH_FAILED; sanitized provider authentication failure"
+          },
+          "503": {
+            "description": "KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create or update KBTT declaration draft",
+        "tags": [
+          "hotel-kbtt"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/kbtt/declarations/{occupantId}/submit": {
+      "post": {
+        "operationId": "KbttController_submit",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "occupantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Hotel scope or business permission denied"
+          },
+          "422": {
+            "description": "KBTT_AUTH_FAILED; sanitized provider authentication failure"
+          },
+          "503": {
+            "description": "KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Submit validated declaration to KBTT provider (API 4/5)",
+        "tags": [
+          "hotel-kbtt"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/kbtt/catalogs": {
+      "get": {
+        "operationId": "KbttController_listCatalogByQuery",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kind",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Hotel scope or business permission denied"
+          },
+          "422": {
+            "description": "KBTT_AUTH_FAILED; sanitized provider authentication failure"
+          },
+          "503": {
+            "description": "KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List cached KBTT reference catalog items by query",
+        "tags": [
+          "hotel-kbtt"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/kbtt/catalogs/{kind}": {
+      "get": {
+        "operationId": "KbttController_listCatalog",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kind",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "enum": [
+                "NATIONALITY",
+                "PROVINCE",
+                "WARD",
+                "STAY_REASON",
+                "DOCUMENT_TYPE",
+                "RESIDENCE_PLACE"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Hotel scope or business permission denied"
+          },
+          "422": {
+            "description": "KBTT_AUTH_FAILED; sanitized provider authentication failure"
+          },
+          "503": {
+            "description": "KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List cached KBTT reference catalog items",
+        "tags": [
+          "hotel-kbtt"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/kbtt/catalogs/sync": {
+      "post": {
+        "operationId": "KbttController_syncCatalogByBody",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Hotel scope or business permission denied"
+          },
+          "422": {
+            "description": "KBTT_AUTH_FAILED; sanitized provider authentication failure"
+          },
+          "503": {
+            "description": "KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Manually synchronize a reference catalog from provider into local cache by payload",
+        "tags": [
+          "hotel-kbtt"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/kbtt/catalogs/{kind}/sync": {
+      "post": {
+        "operationId": "KbttController_syncCatalog",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kind",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "enum": [
+                "NATIONALITY",
+                "PROVINCE",
+                "WARD",
+                "STAY_REASON",
+                "DOCUMENT_TYPE",
+                "RESIDENCE_PLACE"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Hotel scope or business permission denied"
+          },
+          "422": {
+            "description": "KBTT_AUTH_FAILED; sanitized provider authentication failure"
+          },
+          "503": {
+            "description": "KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Manually synchronize a reference catalog from provider into local cache",
+        "tags": [
+          "hotel-kbtt"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/kbtt/auto-submit": {
+      "get": {
+        "operationId": "KbttController_getAutoSubmitConfig",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Hotel scope or business permission denied"
+          },
+          "422": {
+            "description": "KBTT_AUTH_FAILED; sanitized provider authentication failure"
+          },
+          "503": {
+            "description": "KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get KBTT auto-submit schedule configuration and recent runs",
+        "tags": [
+          "hotel-kbtt"
+        ]
+      },
+      "put": {
+        "operationId": "KbttController_updateAutoSubmitConfig",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Hotel scope or business permission denied"
+          },
+          "422": {
+            "description": "KBTT_AUTH_FAILED; sanitized provider authentication failure"
+          },
+          "503": {
+            "description": "KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update KBTT auto-submit schedule configuration",
+        "tags": [
+          "hotel-kbtt"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/kbtt/auto-submit/test": {
+      "post": {
+        "operationId": "KbttController_testAutoSubmit",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Hotel scope or business permission denied"
+          },
+          "422": {
+            "description": "KBTT_AUTH_FAILED; sanitized provider authentication failure"
+          },
+          "503": {
+            "description": "KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Trigger a test execution of KBTT auto-submit (defaults to dryRun=true)",
+        "tags": [
+          "hotel-kbtt"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/kbtt/auto-submit/telegram-test": {
+      "post": {
+        "operationId": "KbttController_testTelegram",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Hotel scope or business permission denied"
+          },
+          "422": {
+            "description": "KBTT_AUTH_FAILED; sanitized provider authentication failure"
+          },
+          "503": {
+            "description": "KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Send a Telegram-only KBTT connectivity test; never contacts C06",
+        "tags": [
+          "hotel-kbtt"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/kbtt/auto-submit/summary": {
+      "post": {
+        "operationId": "KbttController_sendAutoSubmitSummary",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Hotel scope or business permission denied"
+          },
+          "422": {
+            "description": "KBTT_AUTH_FAILED; sanitized provider authentication failure"
+          },
+          "503": {
+            "description": "KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Send aggregated batch submission summary to Telegram aggregate channel",
+        "tags": [
+          "hotel-kbtt"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/kbtt/declarations/batch-summary": {
+      "post": {
+        "operationId": "KbttController_sendDeclarationsBatchSummary",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Hotel scope or business permission denied"
+          },
+          "422": {
+            "description": "KBTT_AUTH_FAILED; sanitized provider authentication failure"
+          },
+          "503": {
+            "description": "KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Send aggregated batch submission summary to Telegram aggregate channel",
+        "tags": [
+          "hotel-kbtt"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/kbtt/auto-submit/schedule": {
+      "post": {
+        "operationId": "KbttController_scheduleAutoSubmit",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Hotel scope or business permission denied"
+          },
+          "422": {
+            "description": "KBTT_AUTH_FAILED; sanitized provider authentication failure"
+          },
+          "503": {
+            "description": "KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Schedule one KBTT auto-submit in 15 seconds",
+        "tags": [
+          "hotel-kbtt"
+        ]
+      },
+      "delete": {
+        "operationId": "KbttController_cancelScheduledAutoSubmit",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Hotel scope or business permission denied"
+          },
+          "422": {
+            "description": "KBTT_AUTH_FAILED; sanitized provider authentication failure"
+          },
+          "503": {
+            "description": "KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Cancel the pending one-shot KBTT auto-submit",
+        "tags": [
+          "hotel-kbtt"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/kbtt/dev/reset-declarations": {
+      "post": {
+        "operationId": "KbttController_devResetDeclarations",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Hotel scope or business permission denied"
+          },
+          "422": {
+            "description": "KBTT_AUTH_FAILED; sanitized provider authentication failure"
+          },
+          "503": {
+            "description": "KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "[DEV] Reset all hotel declarations to DRAFT and optionally generate new identity numbers",
+        "tags": [
+          "hotel-kbtt"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/kbtt/dev/update-occupants": {
+      "post": {
+        "operationId": "KbttController_devUpdateOccupants",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Hotel scope or business permission denied"
+          },
+          "422": {
+            "description": "KBTT_AUTH_FAILED; sanitized provider authentication failure"
+          },
+          "503": {
+            "description": "KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "[DEV] Intervene in DB to update occupant document numbers / details and optionally reset to DRAFT",
+        "tags": [
+          "hotel-kbtt"
         ]
       }
     }

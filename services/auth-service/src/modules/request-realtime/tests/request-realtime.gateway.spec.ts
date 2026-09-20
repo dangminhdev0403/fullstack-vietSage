@@ -47,6 +47,24 @@ describe("RequestRealtimeGateway handshake", () => {
     expect(client.disconnect).not.toHaveBeenCalled();
   });
 
+  it("joins the exact room channel when ticket includes roomId", async () => {
+    (jwt.verifyAsync as jest.Mock).mockResolvedValue({
+      sub: "user-1",
+      hotelId: "hotel-1",
+      roomId: "room-101",
+      type: "request_realtime_owner",
+      jti: "jti-1",
+    });
+    const client = socket({ mode: "owner", ticket: "ticket" });
+    await gateway.handleConnection(client as never);
+    expect(client.join).toHaveBeenCalledWith("owner:hotel:hotel-1:room:room-101:requests");
+    expect(client.join).not.toHaveBeenCalledWith("owner:hotel:hotel-1:requests");
+    expect(client.emit).toHaveBeenCalledWith("request_realtime.ready", {
+      mode: "owner",
+      scope: { hotelId: "hotel-1", roomId: "room-101" },
+    });
+  });
+
   it.each([
     [{ mode: "owner" }, "AUTH_REQUIRED"],
     [{ mode: "owner", ticket: "bad" }, "TICKET_INVALID"],

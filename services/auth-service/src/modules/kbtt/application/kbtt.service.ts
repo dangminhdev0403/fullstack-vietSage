@@ -110,6 +110,27 @@ function sanitizeProviderData(data: unknown): unknown {
   return result;
 }
 
+function stableKbttError(error: unknown) {
+  const response =
+    error &&
+    typeof error === "object" &&
+    "response" in error &&
+    error.response &&
+    typeof error.response === "object"
+      ? (error.response as { code?: string; message?: string })
+      : {};
+  const stable = response.code?.startsWith("KBTT_") ?? false;
+  return {
+    stable,
+    code: stable ? response.code! : "KBTT_PROVIDER_UNAVAILABLE",
+    message:
+      stable && response.message
+        ? response.message
+        : "Không thể kết nối hệ thống Bộ Công an. Vui lòng thử lại.",
+    authenticationFailed: response.code === "KBTT_AUTH_FAILED",
+  };
+}
+
 const KBTT_FIELD_LABELS: Record<string, string> = {
   hoTen: "Họ và tên",
   gioiTinh: "Giới tính",
@@ -362,26 +383,15 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         }
       } catch (error) {
         this.sessions.delete(hotelId);
-        const response =
-          error &&
-          typeof error === "object" &&
-          "response" in error &&
-          error.response &&
-          typeof error.response === "object"
-            ? (error.response as { code?: string; message?: string })
-            : {};
-        const isStableError = response.code?.startsWith("KBTT_") ?? false;
-        const code = isStableError ? response.code! : "KBTT_AUTH_FAILED";
-        const message =
-          isStableError && response.message ? response.message : KBTT_AUTH_FAILED_MESSAGE;
+        const failure = stableKbttError(error);
         await this.repository.update(connection, {
-          status: "AUTH_FAILED",
+          status: failure.authenticationFailed ? "AUTH_FAILED" : connection.status,
           lastCheckedAt: new Date(),
-          lastErrorCode: code,
-          lastErrorMessage: message,
+          lastErrorCode: failure.code,
+          lastErrorMessage: failure.message,
         });
-        if (isStableError && error && typeof error === "object") throw error;
-        throw kbttAuthFailed();
+        if (failure.stable && error && typeof error === "object") throw error;
+        throw kbttProviderError("KBTT_PROVIDER_UNAVAILABLE");
       }
       let updated: KbttHotelConnection;
       try {
@@ -469,7 +479,11 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     pagination?: { page?: number; limit?: number },
   ) {
     await this.access.assertHotelAccess(userId, roleId, hotelId);
-    const occupants = (await this.occupantsReadService?.getActiveStayOccupants(hotelId)) ?? [];
+    const scope = (await this.access.resolveRoomScope?.(userId, roleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
+    let occupants = (await this.occupantsReadService?.getActiveStayOccupants(hotelId)) ?? [];
+    if (scope.mode === "ROOM_EXCLUSIVE") {
+      occupants = occupants.filter((o) => o.roomId === scope.allowedRoomId);
+    }
     const page = Math.max(1, pagination?.page ?? 1);
     const limit = Math.min(100, Math.max(1, pagination?.limit ?? 50));
     const pagedOccupants = occupants.slice((page - 1) * limit, page * limit);
@@ -605,10 +619,12 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
 
   async getDeclaration(userId: string, roleId: string, hotelId: string, occupantId: string) {
     await this.access.assertHotelAccess(userId, roleId, hotelId);
+    const scope = (await this.access.resolveRoomScope?.(userId, roleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
     const occupant = await this.repository.findOccupant(hotelId, occupantId);
     if (!occupant) {
       throw new NotFoundException("Khách lưu trú không tồn tại trong khách sạn này.");
     }
+    this.access.assertRoomAccess?.(scope, occupant.stay?.roomId);
     const decl = await this.repository.findLatestDeclaration(hotelId, occupantId);
     return {
       occupant: {
@@ -638,10 +654,12 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     body: unknown,
   ) {
     await this.access.assertHotelAccess(userId, roleId, hotelId);
+    const scope = (await this.access.resolveRoomScope?.(userId, roleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
     const occupant = await this.repository.findOccupant(hotelId, occupantId);
     if (!occupant) {
       throw new NotFoundException("Khách lưu trú không tồn tại trong khách sạn này.");
     }
+    this.access.assertRoomAccess?.(scope, occupant.stay?.roomId);
 
     const { citizenshipKind, data, allowSubmittedEdit } = parseDraftPayload(body);
 
@@ -760,11 +778,13 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
 
   async submit(userId: string, roleId: string, hotelId: string, occupantId: string) {
     await this.access.assertHotelAccess(userId, roleId, hotelId);
+    const scope = (await this.access.resolveRoomScope?.(userId, roleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
     return this.serialize(hotelId, async () => {
       const occupant = await this.repository.findOccupant(hotelId, occupantId);
       if (!occupant) {
         throw new NotFoundException("Khách lưu trú không tồn tại trong khách sạn này.");
       }
+      this.access.assertRoomAccess?.(scope, occupant.stay?.roomId);
 
       const declaration = await this.repository.findLatestDeclaration(hotelId, occupantId);
       assertKbttDeclarationMutable(declaration?.status);
@@ -1352,6 +1372,13 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         try {
           session = await this.getOrRefreshSession(hotelId, connection);
         } catch (authError: any) {
+          const failure = stableKbttError(authError);
+          await this.repository.update(connection, {
+            status: failure.authenticationFailed ? "AUTH_FAILED" : connection.status,
+            lastCheckedAt: new Date(),
+            lastErrorCode: failure.code,
+            lastErrorMessage: failure.message,
+          });
           return await this.repository.finalizeAutoSubmitRun(run.id, {
             status: "FAILED",
             totalCount: 0,
@@ -1635,6 +1662,15 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         const MAX_WAVES = 3;
 
         for (let wave = 1; wave <= MAX_WAVES && currentWaveItems.length > 0; wave++) {
+          if (wave > 1) {
+            const baseMs = Number(
+              process.env.KBTT_AUTO_SUBMIT_RETRY_BASE_MS ??
+                (process.env.NODE_ENV === "test" ? 0 : 1_000),
+            );
+            if (baseMs > 0) {
+              await new Promise((resolve) => setTimeout(resolve, baseMs * 2 ** (wave - 2)));
+            }
+          }
           const settled = await Promise.allSettled(
             currentWaveItems.map(async (item) => {
               const outcome = await this.provider.submitDeclaration(

@@ -144,10 +144,12 @@ export class HotelRequestsService {
       queryInput,
     );
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    const scope = (await this.hotelAccessService.resolveRoomScope?.(actorUserId, activeRoleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const where: Prisma.GuestRequestWhereInput = {
       hotelId,
+      ...(scope.mode === "ROOM_EXCLUSIVE" ? { roomId: scope.allowedRoomId ?? "__NONE__" } : {}),
       ...activeStayRequestFilter,
       ...buildRequestSearchFilter(query.q),
       ...(query.roomNumber ? { room: { is: { roomNumber: query.roomNumber } } } : {}),
@@ -207,8 +209,10 @@ export class HotelRequestsService {
       queryInput,
     );
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    const scope = (await this.hotelAccessService.resolveRoomScope?.(actorUserId, activeRoleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
     const where: Prisma.GuestRequestWhereInput = {
       hotelId,
+      ...(scope.mode === "ROOM_EXCLUSIVE" ? { roomId: scope.allowedRoomId ?? "__NONE__" } : {}),
       ...activeStayRequestFilter,
       ...buildRequestSearchFilter(query.q),
       ...(query.roomNumber ? { room: { is: { roomNumber: query.roomNumber } } } : {}),
@@ -239,10 +243,12 @@ export class HotelRequestsService {
       requestIdParam,
     );
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    const scope = (await this.hotelAccessService.resolveRoomScope?.(actorUserId, activeRoleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
     const request = await this.hotelRequestsRepository.findRequestDetailInHotel(hotelId, requestId);
     if (!request) {
       throw new NotFoundException("Không tìm thấy yêu cầu");
     }
+    this.hotelAccessService.assertRoomAccess?.(scope, request.roomId);
 
     return this.withProductRequestPriority(request);
   }
@@ -270,10 +276,12 @@ export class HotelRequestsService {
       activeRoleId,
       hotelId,
     );
+    const scope = (await this.hotelAccessService.resolveRoomScope?.(actorUserId, activeRoleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
     const existing = await this.hotelRequestsRepository.findRequestInHotel(hotelId, requestId);
     if (!existing) {
       throw new NotFoundException("Không tìm thấy yêu cầu");
     }
+    this.hotelAccessService.assertRoomAccess?.(scope, existing.roomId);
 
     this.assertRequestTransition(existing.status, dto.status);
 
@@ -304,6 +312,7 @@ export class HotelRequestsService {
       hotelId,
       sessionId: updated.session?.id,
       requestId,
+      roomId: updated.roomId,
       ownerRequest: this.toStaffRequestListItem(updated),
       guestRequest: this.toGuestRequestRealtimeItem(updated),
       answered: Boolean(dto.note?.trim()),
@@ -335,10 +344,12 @@ export class HotelRequestsService {
       activeRoleId,
       hotelId,
     );
+    const scope = (await this.hotelAccessService.resolveRoomScope?.(actorUserId, activeRoleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
     const existing = await this.hotelRequestsRepository.findRequestInHotel(hotelId, requestId);
     if (!existing) {
       throw new NotFoundException("Không tìm thấy yêu cầu");
     }
+    this.hotelAccessService.assertRoomAccess?.(scope, existing.roomId);
 
     const assignedToUserId = dto.assignedToUserId;
     if (assignedToUserId) {
@@ -366,6 +377,7 @@ export class HotelRequestsService {
       hotelId,
       sessionId: updated.session?.id,
       requestId,
+      roomId: updated.roomId,
       ownerRequest: this.toStaffRequestListItem(updated),
       guestRequest: this.toGuestRequestRealtimeItem(updated),
       answered: Boolean(dto.note?.trim()),
@@ -397,10 +409,12 @@ export class HotelRequestsService {
       activeRoleId,
       hotelId,
     );
+    const scope = (await this.hotelAccessService.resolveRoomScope?.(actorUserId, activeRoleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
     const existing = await this.hotelRequestsRepository.findRequestInHotel(hotelId, requestId);
     if (!existing) {
       throw new NotFoundException("Không tìm thấy yêu cầu");
     }
+    this.hotelAccessService.assertRoomAccess?.(scope, existing.roomId);
 
     const event = await this.hotelRequestsRepository.createRequestEvent({
       hotelId,
@@ -421,6 +435,7 @@ export class HotelRequestsService {
       hotelId,
       sessionId: updated.session?.id,
       requestId,
+      roomId: updated.roomId,
       ownerRequest: this.toStaffRequestListItem(updated),
       guestRequest: this.toGuestRequestRealtimeItem(updated),
       answered: dto.visibility === "GUEST",

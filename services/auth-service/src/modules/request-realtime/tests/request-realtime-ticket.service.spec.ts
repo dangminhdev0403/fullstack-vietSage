@@ -6,11 +6,21 @@ import { RequestRealtimeTicketService } from "../application/request-realtime-ti
 import { RequestRealtimeController } from "../api/request-realtime.controller";
 
 describe("RequestRealtimeTicketService", () => {
-  const hotelAccessService = { assertHotelAccess: jest.fn() } as unknown as HotelAccessService;
+  const hotelAccessService = {
+    assertHotelAccess: jest.fn(),
+    resolveRoomScope: jest.fn().mockResolvedValue({ hotel: { id: "hotel-1" }, allowedRoomId: null, mode: "HOTEL_WIDE" }),
+  } as unknown as HotelAccessService;
   const jwtService = { signAsync: jest.fn() } as unknown as JwtService;
   const prismaMock = { tenantUser: { findMany: jest.fn() } } as unknown as PrismaService;
 
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (hotelAccessService.resolveRoomScope as jest.Mock).mockResolvedValue({
+      hotel: { id: "hotel-1" },
+      allowedRoomId: null,
+      mode: "HOTEL_WIDE",
+    });
+  });
 
   it("asserts hotel access and signs only scoped owner claims", async () => {
     (jwtService.signAsync as jest.Mock).mockResolvedValue("signed-ticket");
@@ -28,6 +38,11 @@ describe("RequestRealtimeTicketService", () => {
       "active-role",
       "hotel-1",
     );
+    expect(hotelAccessService.resolveRoomScope).toHaveBeenCalledWith(
+      "user-1",
+      "active-role",
+      "hotel-1",
+    );
     const [claims, options] = (jwtService.signAsync as jest.Mock).mock.calls[0];
     expect(claims).toEqual(
       expect.objectContaining({
@@ -37,6 +52,7 @@ describe("RequestRealtimeTicketService", () => {
         jti: expect.any(String),
       }),
     );
+    expect(claims).not.toHaveProperty("roomId");
     expect(claims).not.toHaveProperty("email");
     expect(claims).not.toHaveProperty("role");
     expect(claims).not.toHaveProperty("accessToken");
@@ -49,6 +65,34 @@ describe("RequestRealtimeTicketService", () => {
     );
     expect(result.ticket).toBe("signed-ticket");
     expect(new Date(result.expiresAt).getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it("signs room-exclusive ticket with roomId when user has room assignment", async () => {
+    (jwtService.signAsync as jest.Mock).mockResolvedValue("signed-room-ticket");
+    (hotelAccessService.resolveRoomScope as jest.Mock).mockResolvedValue({
+      hotel: { id: "hotel-1", staffScopeMode: "ROOM_EXCLUSIVE" },
+      allowedRoomId: "room-assigned-1",
+      mode: "ROOM_EXCLUSIVE",
+    });
+    const service = new RequestRealtimeTicketService(hotelAccessService, jwtService, prismaMock, {
+      enabled: true,
+      ticketSecret: "x".repeat(32),
+      ticketTtlSeconds: 60,
+      audience: "request-realtime",
+    });
+
+    const result = await service.issueOwnerTicket("user-1", "active-role", "hotel-1");
+
+    const [claims] = (jwtService.signAsync as jest.Mock).mock.calls[0];
+    expect(claims).toEqual(
+      expect.objectContaining({
+        sub: "user-1",
+        hotelId: "hotel-1",
+        roomId: "room-assigned-1",
+        type: "request_realtime_owner",
+      }),
+    );
+    expect(result.ticket).toBe("signed-room-ticket");
   });
 
   it("does not sign when hotel access is denied", async () => {

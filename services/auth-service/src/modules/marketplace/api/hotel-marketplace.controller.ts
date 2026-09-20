@@ -72,7 +72,9 @@ export class HotelMarketplaceController {
   @RequirePermission("hotel.requests.view")
   @Get("orders")
   async list(@Req() req: RequestWithRequiredUser, @Param("hotelId") id: string) {
-    return this.orders.listHotelOrders(await this.hotel(req, id));
+    const hotelId = await this.hotel(req, id);
+    const scope = (await this.access.resolveRoomScope?.(req.user.userId, req.user.roleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
+    return this.orders.listHotelOrders(hotelId, scope.allowedRoomId);
   }
 
   @ApiDescript("Xem chi tiết đơn Marketplace của khách sạn")
@@ -83,10 +85,16 @@ export class HotelMarketplaceController {
     @Param("hotelId") id: string,
     @Param("orderId") orderId: string,
   ) {
-    return this.orders.hotelOrder(
-      await this.hotel(req, id),
+    const hotelId = await this.hotel(req, id);
+    const scope = (await this.access.resolveRoomScope?.(req.user.userId, req.user.roleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
+    const order = await this.orders.hotelOrder(
+      hotelId,
       parseWithZod(marketplaceOrderIdSchema, orderId),
     );
+    if (order.stay?.roomId) {
+      this.access.assertRoomAccess?.(scope, order.stay.roomId);
+    }
+    return order;
   }
 
   @ApiDescript("Tiếp nhận đơn Marketplace (dành cho lễ tân khách sạn)")
@@ -98,7 +106,12 @@ export class HotelMarketplaceController {
     @Param("orderId") orderId: string,
   ) {
     const hotelId = await this.hotel(req, id);
+    const scope = (await this.access.resolveRoomScope?.(req.user.userId, req.user.roleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
     const validOrderId = parseWithZod(marketplaceOrderIdSchema, orderId);
+    const order = await this.orders.hotelOrder(hotelId, validOrderId);
+    if (order.stay?.roomId) {
+      this.access.assertRoomAccess?.(scope, order.stay.roomId);
+    }
     return this.orders.acknowledgeHotelOrder(req.user.userId, hotelId, validOrderId);
   }
 
@@ -111,7 +124,12 @@ export class HotelMarketplaceController {
     @Param("orderId") orderId: string,
   ) {
     const hotelId = await this.hotel(req, id);
+    const scope = (await this.access.resolveRoomScope?.(req.user.userId, req.user.roleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
     const validOrderId = parseWithZod(marketplaceOrderIdSchema, orderId);
+    const order = await this.orders.hotelOrder(hotelId, validOrderId);
+    if (order.stay?.roomId) {
+      this.access.assertRoomAccess?.(scope, order.stay.roomId);
+    }
     return this.orders.issueServiceVoucher(req.user.userId, hotelId, validOrderId);
   }
 
@@ -124,7 +142,12 @@ export class HotelMarketplaceController {
     @Param("orderId") orderId: string,
   ) {
     const hotelId = await this.hotel(req, id);
+    const scope = (await this.access.resolveRoomScope?.(req.user.userId, req.user.roleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
     const validOrderId = parseWithZod(marketplaceOrderIdSchema, orderId);
+    const order = await this.orders.hotelOrder(hotelId, validOrderId);
+    if (order.stay?.roomId) {
+      this.access.assertRoomAccess?.(scope, order.stay.roomId);
+    }
     return this.orders.cancelHotelOrder(req.user.userId, hotelId, validOrderId);
   }
 

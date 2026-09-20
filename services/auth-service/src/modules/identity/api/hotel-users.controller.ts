@@ -29,7 +29,6 @@ import {
   createHotelUserBodySchema as createHotelUserBodyOpenApiSchema,
   listHotelUsersDataSchema,
   managedHotelUserRoleArrayDataSchema,
-  revokeHotelUserRoleDataSchema,
   successEnvelopeSchema,
   tenantScopedHotelUserDataSchema,
   updateHotelUserStatusBodySchema as updateHotelUserStatusBodyOpenApiSchema,
@@ -45,7 +44,6 @@ import {
   createHotelUserBodySchema as createHotelUserBodyZodSchema,
   listHotelUsersQuerySchema as listHotelUsersQueryZodSchema,
   resetHotelUserPasswordBodySchema,
-  roleIdParamSchema,
   updateHotelUserStatusBodySchema as updateHotelUserStatusBodyZodSchema,
   updateHotelUserBodySchema as updateHotelUserBodyZodSchema,
   userIdParamSchema,
@@ -258,39 +256,6 @@ export class HotelUsersController {
       this.resolveTenantHint(tenantIdHeader, undefined),
       userId,
       dto,
-    );
-  }
-
-  @RequirePermission("hotel.staff.manage")
-  @SuccessMessage("Thu hồi vai trò người dùng khách sạn thành công")
-  @ApiDescript("Thu hồi vai trò người dùng")
-  @ApiParam({ name: "id", type: String })
-  @ApiParam({ name: "roleId", type: String })
-  @ApiHeader({ name: "x-tenant-id", required: false, description: "Ghi đè đơn vị tùy chọn" })
-  @ApiOkResponse({
-    description: "Bao phản hồi thu hồi vai trò người dùng khách sạn",
-    schema: successEnvelopeSchema(
-      revokeHotelUserRoleDataSchema,
-      200,
-      "Thu hồi vai trò người dùng khách sạn thành công",
-    ),
-  })
-  @Delete(":id/roles/:roleId")
-  async revokeHotelUserRole(
-    @Req() request: RequestWithUser,
-    @Param("id") userIdParam: string,
-    @Param("roleId") roleIdParam: string,
-    @Headers("x-tenant-id") tenantIdHeader?: string,
-  ) {
-    const userId = parseWithZod(userIdParamSchema, userIdParam);
-    const roleId = parseWithZod(roleIdParamSchema, roleIdParam);
-
-    return this.hotelUsersService.revokeHotelUserRole(
-      request.user.userId,
-      request.user.roleId,
-      this.resolveTenantHint(tenantIdHeader, undefined),
-      userId,
-      roleId,
     );
   }
 

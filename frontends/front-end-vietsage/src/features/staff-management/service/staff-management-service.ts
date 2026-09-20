@@ -105,16 +105,6 @@ export class StaffManagementService {
     return unwrapApiEnvelope<HotelStaffUser>(payload).data;
   }
 
-  async revokeRole(userId: string, roleId: string, tenantId?: string, accessToken?: string) {
-    const payload = await this.request<unknown>({
-      method: "DELETE",
-      path: `/hotel-users/${encodeURIComponent(userId)}/roles/${encodeURIComponent(roleId)}`,
-      tenantId,
-      accessToken,
-    });
-    return unwrapApiEnvelope<{ revoked: true; userId: string; roleId: string }>(payload).data;
-  }
-
   async resetFrontdeskPassword(
     userId: string,
     tenantId?: string,
@@ -157,5 +147,48 @@ export class StaffManagementService {
       accessToken,
     });
     return unwrapApiEnvelope<{ revoked: true; hotelId: string; userId: string }>(payload).data;
+  }
+
+  async listHotelRooms(hotelId: string, accessToken?: string) {
+    const payload = await this.request<unknown>({
+      method: "GET",
+      path: `/hotels/${encodeURIComponent(hotelId)}/rooms`,
+      query: { page: 1, limit: 100 },
+      accessToken,
+    });
+    return unwrapApiEnvelope<{
+      items: Array<{ id: string; roomNumber: string; code?: string | null; floor?: string | null; type?: string | null }>;
+    }>(payload).data.items;
+  }
+
+  async assignRoom(hotelId: string, userId: string, roomId: string, accessToken?: string) {
+    const payload = await this.request<unknown, { roomId: string }>({
+      method: "PUT",
+      path: `/hotels/${encodeURIComponent(hotelId)}/staff-assignments/${encodeURIComponent(userId)}/room`,
+      body: { roomId },
+      accessToken,
+    });
+    return unwrapApiEnvelope<{
+      id: string;
+      hotelId: string;
+      userId: string;
+      roomId: string;
+      roomNumber: string;
+      assignedAt: string;
+    }>(payload).data;
+  }
+
+  async unassignRoom(hotelId: string, userId: string, accessToken?: string) {
+    const payload = await this.request<unknown>({
+      method: "DELETE",
+      path: `/hotels/${encodeURIComponent(hotelId)}/staff-assignments/${encodeURIComponent(userId)}/room`,
+      accessToken,
+    });
+    return unwrapApiEnvelope<{
+      unassigned: true;
+      hotelId: string;
+      userId: string;
+      roomId: string;
+    }>(payload).data;
   }
 }

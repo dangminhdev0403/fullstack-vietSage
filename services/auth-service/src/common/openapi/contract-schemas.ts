@@ -562,6 +562,17 @@ export const hotelStaffAssignmentDataSchema = {
     revokedAt: { type: "string", format: "date-time", nullable: true },
     revokedById: { type: "string", nullable: true },
     user: hotelStaffAssignmentUserDataSchema,
+    roomAssignment: {
+      type: "object",
+      nullable: true,
+      properties: {
+        id: { type: "string" },
+        roomId: { type: "string" },
+        roomNumber: { type: "string" },
+        assignedAt: { type: "string", format: "date-time" },
+      },
+      required: ["id", "roomId", "roomNumber", "assignedAt"],
+    },
   },
   required: [
     "id",
@@ -574,6 +585,30 @@ export const hotelStaffAssignmentDataSchema = {
     "revokedById",
     "user",
   ],
+};
+
+export const hotelStaffRoomAssignmentDataSchema = {
+  type: "object",
+  properties: {
+    id: { type: "string" },
+    hotelId: { type: "string" },
+    userId: { type: "string" },
+    roomId: { type: "string" },
+    roomNumber: { type: "string" },
+    assignedAt: { type: "string", format: "date-time" },
+  },
+  required: ["id", "hotelId", "userId", "roomId", "roomNumber", "assignedAt"],
+};
+
+export const unassignHotelStaffRoomDataSchema = {
+  type: "object",
+  properties: {
+    unassigned: { type: "boolean", enum: [true] },
+    hotelId: { type: "string" },
+    userId: { type: "string" },
+    roomId: { type: "string" },
+  },
+  required: ["unassigned", "hotelId", "userId", "roomId"],
 };
 
 export const listHotelStaffAssignmentsDataSchema = {

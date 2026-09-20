@@ -66,6 +66,26 @@ export default async function StaffRoomsPage({ params, searchParams }: PageProps
       errorMessage: error instanceof Error ? error.message : String(error),
     });
 
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const isUnassigned =
+      errorMessage.includes("chưa được gán phòng") ||
+      errorMessage.includes("Chưa gán phòng") ||
+      (error as { status?: number })?.status === 403;
+
+    if (isUnassigned) {
+      return (
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-8 text-center shadow-xs">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 text-amber-800">
+            <span className="material-symbols-outlined text-3xl">warning</span>
+          </div>
+          <h2 className="mt-4 text-xl font-bold text-amber-950">Chưa gán phòng — tài khoản chưa thể thao tác vận hành</h2>
+          <p className="mt-2 text-sm text-amber-800 max-w-md mx-auto">
+            Khách sạn này áp dụng mô hình phân quyền độc quyền phòng. Vui lòng liên hệ Chủ khách sạn (Owner) để được gán phòng phụ trách trước khi thao tác sơ đồ phòng và lưu trú.
+          </p>
+        </section>
+      );
+    }
+
     return (
       <section className="rounded-xl border border-[var(--outline-variant)] bg-white p-6 text-sm text-[var(--on-surface-variant)]">
         <p className="font-semibold text-[var(--primary)]">Không thể tải dữ liệu sơ đồ phòng</p>

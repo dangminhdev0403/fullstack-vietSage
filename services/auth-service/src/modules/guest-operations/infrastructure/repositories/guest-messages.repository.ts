@@ -299,10 +299,11 @@ export class GuestMessagesRepository {
     });
   }
 
-  async listHotelThreads(hotelId: string, take: number, query?: string, cursor?: string) {
+  async listHotelThreads(hotelId: string, take: number, query?: string, cursor?: string, roomId?: string | null) {
     const baseWhere: Prisma.GuestMessageThreadWhereInput = {
       hotelId,
       stay: { is: activeStayWhere },
+      ...(roomId ? { roomId } : {}),
       ...(query
         ? {
             OR: [
@@ -392,10 +393,11 @@ export class GuestMessagesRepository {
     return { thread, total, items, nextCursor, hasMore };
   }
 
-  async getStaffUnreadSummary(hotelId: string) {
+  async getStaffUnreadSummary(hotelId: string, roomId?: string | null) {
     const unreadCount = await this.prisma.guestMessage.count({
       where: {
         hotelId,
+        ...(roomId ? { roomId } : {}),
         senderType: GuestRequestActorType.GUEST,
         readAt: null,
         stay: { is: activeStayWhere },

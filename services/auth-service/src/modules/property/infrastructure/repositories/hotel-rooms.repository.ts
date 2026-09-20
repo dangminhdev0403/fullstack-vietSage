@@ -65,6 +65,9 @@ export class HotelRoomsRepository {
 
   async listRooms(where: Prisma.RoomWhereInput, skip: number, take: number) {
     const hotelId = where.hotelId as string;
+    const scopedBaseWhere: Prisma.RoomWhereInput = where.id
+      ? { hotelId, id: where.id }
+      : { hotelId };
     const [total, rows, allFloors, allTypes, availableCount] = await Promise.all([
       this.prisma.room.count({ where }),
       this.prisma.room.findMany({
@@ -75,17 +78,17 @@ export class HotelRoomsRepository {
         take,
       }),
       this.prisma.room.findMany({
-        where: { hotelId },
+        where: scopedBaseWhere,
         select: { floor: true },
         distinct: ["floor"],
       }),
       this.prisma.room.findMany({
-        where: { hotelId },
+        where: scopedBaseWhere,
         select: { type: true },
         distinct: ["type"],
       }),
       this.prisma.room.count({
-        where: { hotelId, status: RoomStatus.AVAILABLE },
+        where: { ...scopedBaseWhere, status: RoomStatus.AVAILABLE },
       }),
     ]);
 

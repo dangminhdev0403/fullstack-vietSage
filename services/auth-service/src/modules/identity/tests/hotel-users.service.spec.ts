@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
-import { TenantUserStatus, UserType } from "@prisma/client";
+import { TenantUserStatus, UserRoleStatus, UserType } from "@prisma/client";
 import { HotelUsersRepository } from "../infrastructure/repositories/hotel-users.repository";
 import { HotelUsersService } from "../application/hotel-users.service";
 import { AuthService } from "../application/authentication.service";
@@ -170,71 +170,48 @@ describe("HotelUsersService", () => {
     expect(hotelUsersRepository.upsertActiveUserRoles).not.toHaveBeenCalled();
   });
 
-  it("revokes role by soft status transition", async () => {
-    hotelUsersRepository.findActorById.mockResolvedValue({
-      id: "actor-1",
-      userRoles: [{ role: { code: "HOTEL_MANAGER" } }],
-      tenantUsers: [{ tenantId: "tenant-1" }],
-    });
-    hotelUsersRepository.findTenantUserMembership.mockResolvedValue({
-      joinedAt: null,
-      user: {
-        userType: UserType.HOTEL_STAFF,
-      },
-    });
-    hotelUsersRepository.findRolesByIds.mockResolvedValue([
-      {
-        id: "role-1",
-        code: "HOTEL_FRONTDESK",
-        name: "Frontdesk",
-      },
-    ]);
-    hotelUsersRepository.revokeActiveUserRole.mockResolvedValue({ count: 1 });
-
-    const result = await service.revokeHotelUserRole(
-      "actor-1",
-      "role-manager",
-      "tenant-1",
-      "target-user",
-      "role-1",
-    );
-
-    expect(result).toEqual({
-      revoked: true,
-      userId: "target-user",
-      roleId: "role-1",
-    });
-    expect(hotelUsersRepository.revokeActiveUserRole).toHaveBeenCalledWith(
-      "target-user",
-      "role-1",
-      "actor-1",
-    );
+  it("rejects assigning roles to oneself", async () => {
+    await expect(
+      service.assignHotelUserRoles("actor-1", "role-owner", "tenant-1", "actor-1", {
+        roleIds: ["role-1"],
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  it("returns not found when revoke target has no active membership", async () => {
+  it("rejects changing status of oneself", async () => {
+    await expect(
+      service.updateHotelUserStatus("actor-1", "role-owner", "tenant-1", "actor-1", {
+        status: TenantUserStatus.DISABLED,
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("excludes TENANT_OWNER and SUPER_ADMIN from tenant staff list query", async () => {
     hotelUsersRepository.findActorById.mockResolvedValue({
       id: "actor-1",
       userRoles: [{ role: { code: "HOTEL_MANAGER" } }],
       tenantUsers: [{ tenantId: "tenant-1" }],
     });
-    hotelUsersRepository.findTenantUserMembership.mockResolvedValue({
-      joinedAt: null,
-      user: {
-        userType: UserType.HOTEL_STAFF,
-      },
-    });
-    hotelUsersRepository.findRolesByIds.mockResolvedValue([
-      {
-        id: "role-1",
-        code: "HOTEL_FRONTDESK",
-        name: "Frontdesk",
-      },
-    ]);
-    hotelUsersRepository.revokeActiveUserRole.mockResolvedValue({ count: 0 });
+    hotelUsersRepository.listTenantUsers.mockResolvedValue([0, []]);
 
-    await expect(
-      service.revokeHotelUserRole("actor-1", "role-manager", "tenant-1", "target-user", "role-1"),
-    ).rejects.toBeInstanceOf(NotFoundException);
+    await service.listHotelUsers("actor-1", "role-manager", undefined, {});
+
+    expect(hotelUsersRepository.listTenantUsers).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user: expect.objectContaining({
+          userRoles: {
+            none: {
+              status: UserRoleStatus.ACTIVE,
+              role: {
+                code: { in: ["TENANT_OWNER", "SUPER_ADMIN", "HOTEL_OWNER"] },
+              },
+            },
+          },
+        }),
+      }),
+      0,
+      20,
+    );
   });
 
   describe("resetFrontdeskPassword", () => {

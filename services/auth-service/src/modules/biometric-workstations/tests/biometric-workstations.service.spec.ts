@@ -36,10 +36,11 @@ describe("BiometricWorkstationsService", () => {
           lastSeenAt: input.lastSeenAt,
         });
       }),
-      authenticate: jest.fn(async (tokenHash, seenAt) => {
+      authenticate: jest.fn(async (tokenHash, seenAt, renewUntil?: Date) => {
         const workstation = workstations.get(tokenHash);
         if (!workstation || workstation.revokedAt || seenAt >= workstation.expiresAt) return null;
         workstation.lastSeenAt = seenAt;
+        if (renewUntil) workstation.expiresAt = renewUntil;
         return { id: tokenHash, hotelId: workstation.hotelId };
       }),
       hasOnlineWorkstation: jest.fn(async (hotelId, cutoff, at) =>
@@ -101,6 +102,29 @@ describe("BiometricWorkstationsService", () => {
     await expect(service.authenticate("unknown-token")).rejects.toBeInstanceOf(
       UnauthorizedException,
     );
+  });
+
+  it("renews an actively polling workstation beyond its original expiry", async () => {
+    const secrets = ["pairing-secret", "workstation-secret"];
+    const service = new BiometricWorkstationsService(
+      repository,
+      () => now,
+      () => secrets.shift()!,
+    );
+    const workstation = await service.pair(
+      (await service.issuePairing("hotel-1", "operator-1")).code,
+    );
+
+    now = new Date("2026-08-30T00:00:00.000Z");
+    await expect(service.authenticate(workstation.token)).resolves.toMatchObject({
+      hotelId: "hotel-1",
+    });
+
+    now = new Date("2026-09-02T00:00:00.000Z");
+    const restarted = new BiometricWorkstationsService(repository, () => now, () => "unused");
+    await expect(restarted.authenticate(workstation.token)).resolves.toMatchObject({
+      hotelId: "hotel-1",
+    });
   });
 
   it("revokes only the selected hotel", async () => {

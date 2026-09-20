@@ -9,8 +9,10 @@ import {
 import {
   staffDirectoryRepository,
   type AssignStaffRoleInput,
+  type AssignStaffRoomInput,
   type StaffDirectoryListInput,
   type StaffManagementScope,
+  type UnassignStaffRoomInput,
   type UpdateStaffAssignmentInput,
   type UpdateStaffUserInput,
 } from "@/features/staff-management/repositories/staff-directory-repository";
@@ -54,16 +56,6 @@ async function assignStaffRole({
   return staffDirectoryRepository.assignRole(scope, variables);
 }
 
-async function revokeStaffRole({
-  scope,
-  variables,
-}: ResourceMutationContext<
-  StaffManagementScope,
-  AssignStaffRoleInput
->): Promise<unknown> {
-  return staffDirectoryRepository.revokeRole(scope, variables);
-}
-
 async function updateStaffAssignment({
   scope,
   variables,
@@ -80,6 +72,20 @@ async function resetFrontdeskPassword({
   variables,
 }: ResourceMutationContext<StaffManagementScope, { userId: string }>) {
   return staffDirectoryRepository.resetFrontdeskPassword(scope, variables.userId);
+}
+
+async function assignStaffRoom({
+  scope,
+  variables,
+}: ResourceMutationContext<StaffManagementScope, AssignStaffRoomInput>) {
+  return staffDirectoryRepository.assignRoom(scope, variables);
+}
+
+async function unassignStaffRoom({
+  scope,
+  variables,
+}: ResourceMutationContext<StaffManagementScope, UnassignStaffRoomInput>) {
+  return staffDirectoryRepository.unassignRoom(scope, variables);
 }
 
 export const staffDirectoryResource =
@@ -115,10 +121,6 @@ export const staffDirectoryResource =
         mutationFn: assignStaffRole,
         invalidates: INVALIDATE_DIRECTORY,
       }),
-      revokeRole: defineMutation({
-        mutationFn: revokeStaffRole,
-        invalidates: INVALIDATE_DIRECTORY,
-      }),
       updateAssignment: defineMutation({
         mutationFn: updateStaffAssignment,
         invalidates: INVALIDATE_DIRECTORY,
@@ -126,6 +128,14 @@ export const staffDirectoryResource =
       updateUser: defineMutation({ mutationFn: updateStaffUser, invalidates: INVALIDATE_DIRECTORY }),
       resetFrontdeskPassword: defineMutation({
         mutationFn: resetFrontdeskPassword,
+      }),
+      assignRoom: defineMutation({
+        mutationFn: assignStaffRoom,
+        invalidates: INVALIDATE_DIRECTORY,
+      }),
+      unassignRoom: defineMutation({
+        mutationFn: unassignStaffRoom,
+        invalidates: INVALIDATE_DIRECTORY,
       }),
     },
   });

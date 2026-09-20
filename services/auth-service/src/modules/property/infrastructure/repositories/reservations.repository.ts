@@ -33,10 +33,12 @@ export class ReservationsRepository {
     plannedCheckInAt: Date;
     plannedCheckOutAt: Date;
     createdByUserId: string;
+    roomId?: string | null;
   }) {
     return this.prisma.reservation.create({
       data: {
         hotelId: input.hotelId,
+        roomId: input.roomId ?? null,
         reservationCode: input.reservationCode,
         guestDisplayName: input.guestDisplayName,
         guestPhone: input.guestPhone,
@@ -48,11 +50,26 @@ export class ReservationsRepository {
     });
   }
 
-  async listArrivals(input: { hotelId: string; from: Date; to: Date; skip: number; take: number }) {
+  async findReservationById(hotelId: string, reservationId: string) {
+    return this.prisma.reservation.findFirst({
+      where: { id: reservationId, hotelId },
+      select: { id: true, hotelId: true, roomId: true, status: true },
+    });
+  }
+
+  async listArrivals(input: {
+    hotelId: string;
+    from: Date;
+    to: Date;
+    skip: number;
+    take: number;
+    roomId?: string;
+  }) {
     const where: Prisma.ReservationWhereInput = {
       hotelId: input.hotelId,
       status: { in: ACTIVE_RESERVATION_STATUSES },
       plannedCheckInAt: { gte: input.from, lt: input.to },
+      ...(input.roomId ? { roomId: input.roomId } : {}),
     };
     const [total, items] = await Promise.all([
       this.prisma.reservation.count({ where }),

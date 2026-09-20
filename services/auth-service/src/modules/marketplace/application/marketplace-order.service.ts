@@ -589,14 +589,17 @@ export class MarketplaceOrderService {
     return order;
   }
 
-  listHotelOrders(hotelId: string) {
+  listHotelOrders(hotelId: string, roomId?: string | null) {
     return this.prisma.marketplaceOrder.findMany({
-      where: { hotelId },
+      where: {
+        hotelId,
+        ...(roomId ? { stay: { roomId } } : {}),
+      },
       include: {
         items: true,
         voucher: true,
         settlement: true,
-        stay: { select: { guestDisplayName: true, room: { select: { roomNumber: true } } } },
+        stay: { select: { roomId: true, guestDisplayName: true, room: { select: { roomNumber: true } } } },
         serviceTenant: { select: { serviceProfile: { select: { displayName: true } } } },
       },
       orderBy: { createdAt: "desc" },
@@ -611,6 +614,7 @@ export class MarketplaceOrderService {
         items: true,
         voucher: true,
         settlement: true,
+        stay: { select: { roomId: true, guestDisplayName: true, room: { select: { roomNumber: true } } } },
         events: { orderBy: { createdAt: "asc" } },
         serviceTenant: { select: { serviceProfile: { select: { displayName: true } } } },
       },

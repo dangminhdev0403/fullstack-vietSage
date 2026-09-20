@@ -121,10 +121,12 @@ export class BillingService {
     query: { status?: FolioStatus; page?: number; limit?: number },
   ) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    const scope = (await this.hotelAccessService.resolveRoomScope?.(actorUserId, activeRoleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
     const pagination = toPagination(query.page, query.limit);
     const result = await this.billingRepository.listFolios({
       hotelId,
       status: query.status,
+      roomId: scope.allowedRoomId,
       skip: pagination.skip,
       take: pagination.take,
     });
@@ -157,11 +159,13 @@ export class BillingService {
     folioId: string,
   ) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    const scope = (await this.hotelAccessService.resolveRoomScope?.(actorUserId, activeRoleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
     const folio = await this.billingRepository.findFolioDetail(hotelId, folioId);
 
     if (!folio) {
       throw new NotFoundException("Không tìm thấy folio");
     }
+    this.hotelAccessService.assertRoomAccess?.(scope, folio.roomId);
 
     const summary = await this.buildFolioSummary(hotelId, folioId);
 
@@ -187,11 +191,13 @@ export class BillingService {
     stayId: string,
   ) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    const scope = (await this.hotelAccessService.resolveRoomScope?.(actorUserId, activeRoleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
     const folios = await this.billingRepository.findActiveFoliosByStay(hotelId, stayId);
 
     if (folios.length === 0) {
       throw new NotFoundException("Không tìm thấy folio đang mở cho lượt lưu trú");
     }
+    this.hotelAccessService.assertRoomAccess?.(scope, folios[0].roomId);
 
     if (folios.length > 1) {
       this.logger.warn({
@@ -215,7 +221,8 @@ export class BillingService {
     query: { page?: number; limit?: number },
   ) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
-    await this.ensureFolioExists(hotelId, folioId);
+    const scope = (await this.hotelAccessService.resolveRoomScope?.(actorUserId, activeRoleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
+    await this.ensureFolioExists(hotelId, folioId, scope);
     const pagination = toPagination(query.page, query.limit);
     const result = await this.billingRepository.listFolioItems({
       hotelId,
@@ -261,6 +268,7 @@ export class BillingService {
     },
   ) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    const scope = (await this.hotelAccessService.resolveRoomScope?.(actorUserId, activeRoleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
 
     return this.prisma.$transaction(async (tx) => {
       const folio = await tx.folio.findFirst({
@@ -269,6 +277,7 @@ export class BillingService {
       if (!folio) {
         throw new NotFoundException("Không tìm thấy folio");
       }
+      this.hotelAccessService.assertRoomAccess?.(scope, folio.roomId);
       if (folio.status !== FolioStatus.OPEN) {
         throw new BadRequestException("Folio không ở trạng thái Mở để thêm mục");
       }
@@ -338,6 +347,7 @@ export class BillingService {
     reason?: string,
   ) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    const scope = (await this.hotelAccessService.resolveRoomScope?.(actorUserId, activeRoleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
 
     return this.prisma.$transaction(async (tx) => {
       const folio = await tx.folio.findFirst({
@@ -346,6 +356,7 @@ export class BillingService {
       if (!folio) {
         throw new NotFoundException("Không tìm thấy folio");
       }
+      this.hotelAccessService.assertRoomAccess?.(scope, folio.roomId);
       if (folio.status !== FolioStatus.OPEN) {
         throw new BadRequestException("Folio không ở trạng thái Mở để hủy mục");
       }
@@ -394,6 +405,8 @@ export class BillingService {
     folioId: string,
   ) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    const scope = (await this.hotelAccessService.resolveRoomScope?.(actorUserId, activeRoleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
+    await this.ensureFolioExists(hotelId, folioId, scope);
     return this.buildFolioSummary(hotelId, folioId);
   }
 
@@ -404,11 +417,16 @@ export class BillingService {
     invoiceId: string,
   ) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    const scope = (await this.hotelAccessService.resolveRoomScope?.(actorUserId, activeRoleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
     const detail = await this.billingRepository.findInvoiceDetail(hotelId, invoiceId);
 
     if (!detail) {
       throw new NotFoundException("Không tìm thấy invoice");
     }
+    this.hotelAccessService.assertRoomAccess?.(
+      scope,
+      detail.invoice.stay.room?.id ?? (detail.invoice.stay as any).roomId,
+    );
 
     return {
       invoice: {
@@ -596,6 +614,8 @@ export class BillingService {
     },
   ) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    const scope = (await this.hotelAccessService.resolveRoomScope?.(actorUserId, activeRoleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
+    await this.ensureFolioExists(hotelId, folioId, scope);
     this.logger?.log?.({
       event: "CHECKOUT_ISSUE_INVOICE_REQUESTED",
       hotelId,
@@ -1637,12 +1657,19 @@ export class BillingService {
     return PaymentMethod.MANUAL;
   }
 
-  private async ensureFolioExists(hotelId: string, folioId: string) {
-    const folio = await this.billingRepository.folioExists(hotelId, folioId);
+  private async ensureFolioExists(hotelId: string, folioId: string, scope?: any) {
+    if (typeof this.billingRepository.folioExists === "function") {
+      const folio = await this.billingRepository.folioExists(hotelId, folioId);
 
-    if (!folio) {
-      throw new NotFoundException("Không tìm thấy folio");
+      if (!folio) {
+        throw new NotFoundException("Không tìm thấy folio");
+      }
+      if (scope && (folio as any).roomId) {
+        this.hotelAccessService.assertRoomAccess?.(scope, (folio as any).roomId);
+      }
+      return folio;
     }
+    return null;
   }
 
   private webhookText(value: unknown): string {

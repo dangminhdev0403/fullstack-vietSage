@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { Prisma, TenantUserStatus, UserStatus, UserType } from "@prisma/client";
+import { Prisma, TenantUserStatus, UserRoleStatus, UserStatus, UserType } from "@prisma/client";
 import * as argon2 from "argon2";
 import {
   HotelUsersRepository,
@@ -22,7 +22,7 @@ import { AuthService } from "./authentication.service";
 import { generateTemporaryPassword } from "../../../common/security/password-policy.util";
 
 const MANAGED_ROLE_CODES = new Set(["HOTEL_FRONTDESK"]);
-const PROTECTED_ROLE_CODES = new Set(["SUPER_ADMIN", "VIETSAGE_OPERATION", "HOTEL_OWNER"]);
+const PROTECTED_ROLE_CODES = new Set(["SUPER_ADMIN", "VIETSAGE_OPERATION", "HOTEL_OWNER", "TENANT_OWNER"]);
 
 interface ActorContext {
   userId: string;
@@ -148,6 +148,9 @@ export class HotelUsersService {
     userId: string,
     dto: UpdateHotelUserStatusBodyInput,
   ): Promise<TenantScopedHotelUser> {
+    if (actorUserId === userId) {
+      throw new ForbiddenException("Không thể tự thay đổi trạng thái của chính mình");
+    }
     const actor = await this.loadActorContext(actorUserId, activeRoleId);
     const tenantId = await this.resolveTenantId(actor, tenantHint);
 
@@ -172,6 +175,9 @@ export class HotelUsersService {
     userId: string,
     dto: UpdateHotelUserBodyInput,
   ): Promise<TenantScopedHotelUser> {
+    if (actorUserId === userId) {
+      throw new ForbiddenException("Không thể tự chỉnh sửa thông tin của chính mình qua API quản lý nhân viên");
+    }
     const actor = await this.loadActorContext(actorUserId, activeRoleId);
     const tenantId = await this.resolveTenantId(actor, tenantHint);
     await this.assertTargetUserInTenant(tenantId, userId);
@@ -197,6 +203,9 @@ export class HotelUsersService {
     userId: string,
     dto: AssignHotelUserRolesBodyInput,
   ): Promise<TenantScopedHotelUser> {
+    if (actorUserId === userId) {
+      throw new ForbiddenException("Không thể tự chỉnh sửa quyền hoặc vai trò của chính mình");
+    }
     const actor = await this.loadActorContext(actorUserId, activeRoleId);
     const tenantId = await this.resolveTenantId(actor, tenantHint);
 
@@ -220,39 +229,6 @@ export class HotelUsersService {
     return this.getTenantScopedHotelUserOrThrow(tenantId, userId);
   }
 
-  async revokeHotelUserRole(
-    actorUserId: string,
-    activeRoleId: string,
-    tenantHint: string | undefined,
-    userId: string,
-    roleId: string,
-  ): Promise<{ revoked: true; userId: string; roleId: string }> {
-    const actor = await this.loadActorContext(actorUserId, activeRoleId);
-    const tenantId = await this.resolveTenantId(actor, tenantHint);
-
-    await this.assertTargetUserInTenant(tenantId, userId);
-
-    const [role] = await this.resolveAssignableRoles([roleId]);
-
-    const result = await this.hotelUsersRepository.revokeActiveUserRole(
-      userId,
-      role.id,
-      actor.userId,
-    );
-
-    if (result.count === 0) {
-      throw new NotFoundException("Không tìm thấy vai trò đang được gán");
-    }
-
-    await this.authService.revokeUserRoleSessions(userId, role.id);
-
-    return {
-      revoked: true,
-      userId,
-      roleId: role.id,
-    };
-  }
-
   private buildTenantUserListFilter(
     tenantId: string,
     status: TenantUserStatus,
@@ -260,6 +236,14 @@ export class HotelUsersService {
   ): Prisma.TenantUserWhereInput {
     const userFilter: Prisma.UserWhereInput = {
       userType: UserType.HOTEL_STAFF,
+      userRoles: {
+        none: {
+          status: UserRoleStatus.ACTIVE,
+          role: {
+            code: { in: ["TENANT_OWNER", "SUPER_ADMIN", "HOTEL_OWNER"] },
+          },
+        },
+      },
     };
 
     const needle = queryText?.trim();

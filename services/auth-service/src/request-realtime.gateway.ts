@@ -13,7 +13,13 @@ import { AppLogger } from "./common/logging/app-logger.service";
 import { GuestOsService } from "./modules/guest-operations/guest-operations-public";
 import { RequestRealtimeEmitter } from "./request-realtime.emitter";
 
-type OwnerTicketClaims = { sub?: unknown; hotelId?: unknown; type?: unknown; jti?: unknown };
+type OwnerTicketClaims = {
+  sub?: unknown;
+  hotelId?: unknown;
+  roomId?: unknown;
+  type?: unknown;
+  jti?: unknown;
+};
 type ServiceTenantTicketClaims = {
   sub?: unknown;
   serviceTenantId?: unknown;
@@ -85,8 +91,16 @@ export class RequestRealtimeGateway
       ) {
         return this.reject(socket, "TICKET_INVALID");
       }
-      await socket.join(RequestRealtimeEmitter.ownerHotelRoom(claims.hotelId));
-      socket.emit("request_realtime.ready", { mode: "owner", scope: { hotelId: claims.hotelId } });
+      if (typeof claims.roomId === "string" && claims.roomId) {
+        await socket.join(RequestRealtimeEmitter.ownerRoomChannel(claims.hotelId, claims.roomId));
+        socket.emit("request_realtime.ready", {
+          mode: "owner",
+          scope: { hotelId: claims.hotelId, roomId: claims.roomId },
+        });
+      } else {
+        await socket.join(RequestRealtimeEmitter.ownerHotelRoom(claims.hotelId));
+        socket.emit("request_realtime.ready", { mode: "owner", scope: { hotelId: claims.hotelId } });
+      }
     } catch (error) {
       return this.reject(
         socket,

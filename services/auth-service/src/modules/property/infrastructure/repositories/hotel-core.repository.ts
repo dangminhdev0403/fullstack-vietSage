@@ -133,4 +133,18 @@ export class HotelCoreRepository {
       });
     });
   }
+
+  async findRoomStaffAssignment(userId: string, hotelId: string) {
+    return this.prisma.hotelRoomStaffAssignment.findFirst({
+      where: { userId, hotelId },
+      select: { id: true, roomId: true, hotelId: true, userId: true },
+    });
+  }
+
+  async findRoomById(roomId: string) {
+    return this.prisma.room.findUnique({
+      where: { id: roomId },
+      select: { id: true, hotelId: true, roomNumber: true },
+    });
+  }
 }

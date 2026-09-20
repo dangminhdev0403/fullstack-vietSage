@@ -49,8 +49,13 @@ export class BiometricWorkstationsService {
     return { token, hotelId: pairing.hotelId };
   }
 
-  async authenticate(token: string) {
-    const workstation = await this.repository.authenticate(hashOpaqueToken(token), this.now());
+  async authenticate(token: string, ttlSeconds = 30 * 24 * 60 * 60) {
+    const seenAt = this.now();
+    const workstation = await this.repository.authenticate(
+      hashOpaqueToken(token),
+      seenAt,
+      new Date(seenAt.getTime() + ttlSeconds * 1_000),
+    );
     if (!workstation)
       throw new UnauthorizedException("Thông tin kết nối máy quét không hợp lệ hoặc đã hết hạn");
     return workstation;

@@ -91,7 +91,7 @@ describe("KbttAutoSubmitSchedulerService", () => {
     );
   });
 
-  it("queries only connected due hotels", async () => {
+  it("queries connected schedules at or before the current time to catch up after restart", async () => {
     const findMany = jest.fn().mockResolvedValue([]);
     const repository = new KbttRepository({
       kbttHotelConnection: { findMany },
@@ -103,7 +103,7 @@ describe("KbttAutoSubmitSchedulerService", () => {
       expect.objectContaining({
         where: {
           autoSubmitEnabled: true,
-          autoSubmitTime: "04:30",
+          autoSubmitTime: { lte: "04:30" },
           status: "CONNECTED",
         },
       }),

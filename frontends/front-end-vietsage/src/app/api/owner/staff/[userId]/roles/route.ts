@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { auth } from "@/auth";
 import { HttpError } from "@/core/http/http-error";
 import { staffManagementService } from "@/features/staff-management/service/staff-management-service-instance";
 import { HTTP_HEADER_TENANT_ID } from "@/core/http/tenant-scope";
@@ -11,6 +12,13 @@ const schema = z.object({
 
 export async function POST(request: Request, context: { params: Promise<{ userId: string }> }) {
   const { userId } = await context.params;
+  const session = await auth();
+  if (session?.user?.id === userId) {
+    return NextResponse.json(
+      { status: 403, message: "FORBIDDEN", data: { detail: "Không thể tự chỉnh sửa quyền hoặc vai trò của chính mình" } },
+      { status: 403 },
+    );
+  }
   const tenantId = request.headers.get(HTTP_HEADER_TENANT_ID)?.trim();
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!userId.trim() || !parsed.success || !tenantId) return validationErrorResponse("Vai trò nhân viên chưa hợp lệ");

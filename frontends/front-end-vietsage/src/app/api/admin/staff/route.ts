@@ -31,10 +31,17 @@ export async function GET(request: Request) {
       hotelId ? staffManagementService.listAssignments(hotelId) : Promise.resolve(null),
       adminService.listHotels({ query: { page: 1, limit: 100, tenantId } }),
     ]);
-    let users = usersPage;
+    const staffOnlyItems = usersPage.items.filter(
+      (u) => !u.roles.some((r) => r.code === "TENANT_OWNER" || r.code === "SUPER_ADMIN"),
+    );
+    let users = {
+      ...usersPage,
+      items: staffOnlyItems,
+      total: staffOnlyItems.length,
+    };
     if (hotelId && assignments) {
       const assignedUserIds = new Set(assignments.items.map((a) => a.userId));
-      const filteredItems = usersPage.items.filter((u) => assignedUserIds.has(u.id));
+      const filteredItems = staffOnlyItems.filter((u) => assignedUserIds.has(u.id));
       users = {
         ...usersPage,
         items: filteredItems,

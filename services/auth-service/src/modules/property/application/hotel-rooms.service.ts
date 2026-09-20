@@ -116,12 +116,20 @@ export class HotelRoomsService {
     hotelId: string,
     query: ListRoomsQueryInput,
   ) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    const scope = (await this.hotelAccessService.resolveRoomScope?.(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    )) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const where: Prisma.RoomWhereInput = {
       hotelId,
     };
+
+    if (scope.allowedRoomId !== null) {
+      where.id = scope.allowedRoomId;
+    }
 
     if (query.status) {
       where.status = query.status;
@@ -170,7 +178,11 @@ export class HotelRoomsService {
     roomId: string,
     dto: UpdateRoomBodyInput & { status?: RoomStatus },
   ) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    if (this.hotelAccessService.assertRoomAccess) {
+      await this.hotelAccessService.assertRoomAccess(actorUserId, activeRoleId, hotelId, roomId);
+    } else {
+      await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    }
 
     if (dto.status && !MANUAL_ROOM_STATUSES.has(dto.status)) {
       throw new BadRequestException(
@@ -206,7 +218,6 @@ export class HotelRoomsService {
       actorUserId,
       hotelId,
       roomId,
-      status: room.status,
     });
     return this.toRoomData(room);
   }
@@ -218,7 +229,11 @@ export class HotelRoomsService {
     roomId: string,
     dto: UpdateRoomStatusBodyInput,
   ) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    if (this.hotelAccessService.assertRoomAccess) {
+      await this.hotelAccessService.assertRoomAccess(actorUserId, activeRoleId, hotelId, roomId);
+    } else {
+      await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    }
 
     if (dto.status && !MANUAL_ROOM_STATUSES.has(dto.status)) {
       throw new BadRequestException(
@@ -260,11 +275,13 @@ export class HotelRoomsService {
     hotelId: string,
     dto: CreateStayBodyInput,
   ) {
-    const hotel = await this.hotelAccessService.assertHotelAccess(
-      actorUserId,
-      activeRoleId,
-      hotelId,
-    );
+    const hotel =
+      (await this.hotelAccessService.assertRoomAccess?.(
+        actorUserId,
+        activeRoleId,
+        hotelId,
+        dto.roomId,
+      )) ?? (await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId));
     const room = await this.hotelRoomsRepository.findRoomInHotel(hotelId, dto.roomId);
     if (!room) {
       throw new NotFoundException("Không tìm thấy phòng");
@@ -297,15 +314,17 @@ export class HotelRoomsService {
   }
 
   async checkInStay(actorUserId: string, activeRoleId: string, hotelId: string, stayId: string) {
-    const hotel = await this.hotelAccessService.assertHotelAccess(
-      actorUserId,
-      activeRoleId,
-      hotelId,
-    );
     const stay = await this.hotelRoomsRepository.findStayInHotel(hotelId, stayId);
     if (!stay) {
       throw new NotFoundException("Không tìm thấy lượt lưu trú");
     }
+    const hotel =
+      (await this.hotelAccessService.assertRoomAccess?.(
+        actorUserId,
+        activeRoleId,
+        hotelId,
+        stay.roomId,
+      )) ?? (await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId));
 
     if (stay.status !== GuestStayStatus.RESERVED && stay.status !== GuestStayStatus.ACTIVE) {
       throw new BadRequestException("Không thể check-in lượt lưu trú từ trạng thái hiện tại");
@@ -352,10 +371,19 @@ export class HotelRoomsService {
     stayId: string,
     dto: UpdateStayBodyInput,
   ) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
     const stay = await this.hotelRoomsRepository.findStayInHotel(hotelId, stayId);
     if (!stay) {
       throw new NotFoundException("Không tìm thấy lượt lưu trú");
+    }
+    if (this.hotelAccessService.assertRoomAccess) {
+      await this.hotelAccessService.assertRoomAccess(
+        actorUserId,
+        activeRoleId,
+        hotelId,
+        stay.roomId,
+      );
+    } else {
+      await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
     }
 
     if (dto.plannedCheckOutAt && dto.plannedCheckOutAt <= stay.plannedCheckInAt) {
@@ -375,11 +403,13 @@ export class HotelRoomsService {
     hotelId: string,
     dto: CreateStayBodyInput,
   ) {
-    const hotel = await this.hotelAccessService.assertHotelAccess(
-      actorUserId,
-      activeRoleId,
-      hotelId,
-    );
+    const hotel =
+      (await this.hotelAccessService.assertRoomAccess?.(
+        actorUserId,
+        activeRoleId,
+        hotelId,
+        dto.roomId,
+      )) ?? (await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId));
 
     if (!dto.guestDisplayName?.trim()) {
       throw new BadRequestException("Tên khách là bắt buộc để check-in");
@@ -432,15 +462,17 @@ export class HotelRoomsService {
     stayId: string,
     dto: CheckOutBodyInput,
   ) {
-    const hotel = await this.hotelAccessService.assertHotelAccess(
-      actorUserId,
-      activeRoleId,
-      hotelId,
-    );
     const stay = await this.hotelRoomsRepository.findStayInHotel(hotelId, stayId);
     if (!stay) {
       throw new NotFoundException("Không tìm thấy lượt lưu trú");
     }
+    const hotel =
+      (await this.hotelAccessService.assertRoomAccess?.(
+        actorUserId,
+        activeRoleId,
+        hotelId,
+        stay.roomId,
+      )) ?? (await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId));
 
     if (stay.status !== GuestStayStatus.ACTIVE) {
       throw new BadRequestException("Không thể check-out lượt lưu trú từ trạng thái hiện tại");
@@ -476,12 +508,13 @@ export class HotelRoomsService {
     roomId: string,
     dto: QrReasonBodyInput,
   ) {
-    const hotel = await this.hotelAccessService.assertHotelAccess(
-      actorUserId,
-      activeRoleId,
-      hotelId,
-    );
-    await this.assertRoomInHotel(hotelId, roomId);
+    const hotel =
+      (await this.hotelAccessService.assertRoomAccess?.(
+        actorUserId,
+        activeRoleId,
+        hotelId,
+        roomId,
+      )) ?? (await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId));
 
     const publicCode = this.generateQrCode();
     const qr = await this.hotelRoomsRepository.rotateQr({
@@ -496,12 +529,13 @@ export class HotelRoomsService {
   }
 
   async activateQr(actorUserId: string, activeRoleId: string, hotelId: string, roomId: string) {
-    const hotel = await this.hotelAccessService.assertHotelAccess(
-      actorUserId,
-      activeRoleId,
-      hotelId,
-    );
-    await this.assertRoomInHotel(hotelId, roomId);
+    const hotel =
+      (await this.hotelAccessService.assertRoomAccess?.(
+        actorUserId,
+        activeRoleId,
+        hotelId,
+        roomId,
+      )) ?? (await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId));
     const qr = await this.hotelRoomsRepository.activateQr({
       hotelId,
       roomId,
@@ -518,11 +552,13 @@ export class HotelRoomsService {
     roomId: string,
     dto: QrReasonBodyInput,
   ) {
-    const hotel = await this.hotelAccessService.assertHotelAccess(
-      actorUserId,
-      activeRoleId,
-      hotelId,
-    );
+    const hotel =
+      (await this.hotelAccessService.assertRoomAccess?.(
+        actorUserId,
+        activeRoleId,
+        hotelId,
+        roomId,
+      )) ?? (await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId));
     await this.assertRoomInHotel(hotelId, roomId);
     const result = await this.hotelRoomsRepository.deactivateQr({
       hotelId,

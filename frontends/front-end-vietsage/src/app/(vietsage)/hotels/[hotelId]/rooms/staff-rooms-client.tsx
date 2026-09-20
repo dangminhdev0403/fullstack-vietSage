@@ -444,6 +444,8 @@ export function StaffRoomsClient({
     data: roomsPage,
     isFetching,
     refetch,
+    isError,
+    error,
   } = useQuery({
     ...staffRoomsResource.bind({ hotelId }).queries.list.options({
       page,
@@ -467,6 +469,12 @@ export function StaffRoomsClient({
         ? initialRoomsPage
         : undefined,
   });
+
+  const isUnassigned =
+    isError &&
+    (Boolean(error?.message?.includes("chưa được gán phòng")) ||
+      Boolean(error?.message?.includes("Chưa gán phòng")) ||
+      (error as { status?: number })?.status === 403);
 
   const rooms = useMemo(() => roomsPage?.items ?? [], [roomsPage?.items]);
   const floors = useMemo(() => {
@@ -1528,9 +1536,19 @@ export function StaffRoomsClient({
                 );
               })}
               {rooms.length === 0 && !isFetching ? (
-                <p className="rounded-xl border border-[var(--outline-variant)] bg-white p-8 text-center text-sm text-[var(--on-surface-variant)] sm:col-span-2 xl:col-span-3">
-                  Không có phòng phù hợp với bộ lọc.
-                </p>
+                isUnassigned ? (
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-8 text-center sm:col-span-2 xl:col-span-3">
+                    <VsIcon name="warning" className="text-3xl text-amber-600 mb-2 inline-block" />
+                    <h3 className="font-bold text-base text-amber-950">Chưa gán phòng — tài khoản chưa thể thao tác vận hành</h3>
+                    <p className="mt-1 text-xs text-amber-800 max-w-md mx-auto">
+                      Khách sạn này áp dụng mô hình phân quyền độc quyền phòng. Vui lòng liên hệ Chủ khách sạn (Owner) để được gán phòng phụ trách.
+                    </p>
+                  </div>
+                ) : (
+                  <p className="rounded-xl border border-[var(--outline-variant)] bg-white p-8 text-center text-sm text-[var(--on-surface-variant)] sm:col-span-2 xl:col-span-3">
+                    Không có phòng phù hợp với bộ lọc.
+                  </p>
+                )
               ) : null}
             </div>
           </div>

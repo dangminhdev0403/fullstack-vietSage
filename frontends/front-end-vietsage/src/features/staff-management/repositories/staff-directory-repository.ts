@@ -27,6 +27,15 @@ export type UpdateStaffAssignmentInput = {
   assigned: boolean;
 };
 
+export type AssignStaffRoomInput = {
+  userId: string;
+  roomId: string;
+};
+
+export type UnassignStaffRoomInput = {
+  userId: string;
+};
+
 export type TemporaryPasswordResult = {
   userId: string;
   temporaryPassword: string;
@@ -123,21 +132,6 @@ export const staffDirectoryRepository = {
     return payload.data;
   },
 
-  async revokeRole(
-    scope: StaffManagementScope,
-    input: AssignStaffRoleInput,
-  ): Promise<unknown> {
-    const payload = await requestInternalApiEnvelope(
-      `${userRolesPath(scope, input.userId)}/${encodeURIComponent(input.roleId)}`,
-      {
-        method: "DELETE",
-        headers: tenantHeaders(scope),
-      },
-    );
-
-    return payload.data;
-  },
-
   async updateAssignment(
     scope: StaffManagementScope,
     input: UpdateStaffAssignmentInput,
@@ -162,6 +156,45 @@ export const staffDirectoryRepository = {
       `/api/owner/staff/${encodeURIComponent(userId)}/reset-password`,
       { method: "POST", body: {}, headers: tenantHeaders(scope) },
     );
+    return payload.data;
+  },
+
+  async assignRoom(
+    scope: StaffManagementScope,
+    input: AssignStaffRoomInput,
+  ): Promise<unknown> {
+    if (!scope.hotelId) {
+      throw new Error("Hãy chọn khách sạn trước khi phân công.");
+    }
+
+    const payload = await requestInternalApiEnvelope(
+      `/api/${scope.surface}/hotels/${encodeURIComponent(scope.hotelId)}/staff-assignments/${encodeURIComponent(input.userId)}/room`,
+      {
+        method: "PUT",
+        body: { roomId: input.roomId },
+        headers: tenantHeaders(scope),
+      },
+    );
+
+    return payload.data;
+  },
+
+  async unassignRoom(
+    scope: StaffManagementScope,
+    input: UnassignStaffRoomInput,
+  ): Promise<unknown> {
+    if (!scope.hotelId) {
+      throw new Error("Hãy chọn khách sạn trước khi phân công.");
+    }
+
+    const payload = await requestInternalApiEnvelope(
+      `/api/${scope.surface}/hotels/${encodeURIComponent(scope.hotelId)}/staff-assignments/${encodeURIComponent(input.userId)}/room`,
+      {
+        method: "DELETE",
+        headers: tenantHeaders(scope),
+      },
+    );
+
     return payload.data;
   },
 };

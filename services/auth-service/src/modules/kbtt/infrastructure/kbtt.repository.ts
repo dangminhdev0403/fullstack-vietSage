@@ -434,7 +434,7 @@ export class KbttRepository {
       return await this.prisma.kbttHotelConnection.findMany({
         where: {
           autoSubmitEnabled: true,
-          autoSubmitTime: currentHHmm,
+          autoSubmitTime: { lte: currentHHmm },
           status: "CONNECTED",
         },
         select: {

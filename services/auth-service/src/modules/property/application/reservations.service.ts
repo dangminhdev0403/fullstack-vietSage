@@ -35,7 +35,7 @@ export class ReservationsService {
     hotelId: string,
     dto: CreateReservationBodyInput,
   ) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    const scope = await this.hotelAccessService.resolveRoomScope(actorUserId, activeRoleId, hotelId);
     const reservationCode = await this.codesService.generateEntityCode("RESERVATION");
     return this.reservationsRepository.createReservation({
       hotelId,
@@ -45,6 +45,7 @@ export class ReservationsService {
       plannedCheckInAt: dto.plannedCheckInAt,
       plannedCheckOutAt: dto.plannedCheckOutAt,
       createdByUserId: actorUserId,
+      roomId: scope.allowedRoomId ?? null,
     });
   }
 
@@ -54,7 +55,7 @@ export class ReservationsService {
     hotelId: string,
     query: ListArrivalsQueryInput,
   ) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    const scope = await this.hotelAccessService.resolveRoomScope(actorUserId, activeRoleId, hotelId);
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const [total, items] = await this.reservationsRepository.listArrivals({
@@ -63,6 +64,7 @@ export class ReservationsService {
       to: query.to,
       skip: (page - 1) * limit,
       take: limit,
+      roomId: scope.allowedRoomId ?? undefined,
     });
     return { page, limit, total, items };
   }
@@ -74,7 +76,7 @@ export class ReservationsService {
     reservationId: string,
     dto: AssignReservationRoomBodyInput,
   ) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    await this.hotelAccessService.assertRoomAccess(actorUserId, activeRoleId, hotelId, dto.roomId);
     const reservation = await this.reservationsRepository.assignRoom({
       hotelId,
       reservationId,
@@ -93,6 +95,15 @@ export class ReservationsService {
       activeRoleId,
       hotelId,
     );
+    const reservation = await this.reservationsRepository.findReservationById(hotelId, reservationId);
+    if (reservation && reservation.roomId) {
+      await this.hotelAccessService.assertRoomAccess(actorUserId, activeRoleId, hotelId, reservation.roomId);
+    } else {
+      const scope = await this.hotelAccessService.resolveRoomScope(actorUserId, activeRoleId, hotelId);
+      if (scope.allowedRoomId !== null) {
+        throw new NotFoundException("Không tìm thấy đặt phòng");
+      }
+    }
     const accessCode = generateOpaqueToken(9).slice(0, 12).toUpperCase();
     const result = await this.reservationsRepository.checkInReservation({
       hotelId,

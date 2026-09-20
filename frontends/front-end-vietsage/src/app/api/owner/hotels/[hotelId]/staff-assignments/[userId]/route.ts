@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { auth } from "@/auth";
 import { HttpError } from "@/core/http/http-error";
 import { staffManagementService } from "@/features/staff-management/service/staff-management-service-instance";
 import type { HotelStaffAssignment } from "@/features/staff-management/types/staff-management-contract";
@@ -9,6 +10,13 @@ type HotelStaffMutationResult = HotelStaffAssignment | { revoked: true; hotelId:
 
 async function mutate(method: "assign" | "revoke", context: Context) {
   const { hotelId, userId } = await context.params;
+  const session = await auth();
+  if (session?.user?.id === userId) {
+    return NextResponse.json(
+      { status: 403, message: "FORBIDDEN", data: { detail: "Không thể tự phân công hoặc thay đổi phân công của chính mình" } },
+      { status: 403 },
+    );
+  }
   if (!hotelId.trim() || !userId.trim()) return validationErrorResponse("Phạm vi phân công chưa hợp lệ");
   try {
     const result = await executeOwnerBackendRequest<HotelStaffMutationResult>(`${method} owner hotel staff`, (accessToken) =>

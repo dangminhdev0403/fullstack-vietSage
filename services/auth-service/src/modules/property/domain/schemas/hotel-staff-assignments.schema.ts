@@ -11,6 +11,14 @@ export const listHotelStaffAssignmentsQuerySchema = z
 
 export const hotelStaffUserIdParamSchema = z.string().trim().min(1, "userId là bắt buộc");
 
+export const assignStaffRoomBodySchema = z
+  .object({
+    roomId: z.string().trim().min(1, "roomId là bắt buộc"),
+  })
+  .strict();
+
 export type ListHotelStaffAssignmentsQueryInput = z.infer<
   typeof listHotelStaffAssignmentsQuerySchema
 >;
+
+export type AssignStaffRoomBodyInput = z.infer<typeof assignStaffRoomBodySchema>;

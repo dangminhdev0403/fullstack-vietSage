@@ -177,22 +177,6 @@ export interface paths {
         patch: operations["RolesController_updateRole"];
         trace?: never;
     };
-    "/roles/{id}/disable": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["RolesController_disableRole"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/roles/{id}/permissions": {
         parameters: {
             query?: never;
@@ -201,7 +185,7 @@ export interface paths {
             cookie?: never;
         };
         get: operations["RolesController_listRolePermissions"];
-        put: operations["RolesController_replacePermissions"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -217,7 +201,7 @@ export interface paths {
             cookie?: never;
         };
         get: operations["RolesController_listRoleCapabilities"];
-        put: operations["RolesController_replaceRoleCapabilities"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -283,38 +267,6 @@ export interface paths {
         get: operations["RolesController_listPermissionModulePermissionsForRole"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/roles/{roleId}/modules/{moduleKey}/permissions/grant": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["RolesController_grantRolePermissionModulePermissions"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/roles/{roleId}/modules/{moduleKey}/permissions/revoke": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["RolesController_revokeRolePermissionModulePermissions"];
         delete?: never;
         options?: never;
         head?: never;
@@ -607,6 +559,22 @@ export interface paths {
         options?: never;
         head?: never;
         patch: operations["HotelRoomsController_updateRoom"];
+        trace?: never;
+    };
+    "/hotels/{hotelId}/rooms/{roomId}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["HotelRoomsController_updateRoomStatus"];
         trace?: never;
     };
     "/hotels/{hotelId}/stays": {
@@ -972,6 +940,22 @@ export interface paths {
         put: operations["HotelStaffAssignmentsController_assign"];
         post?: never;
         delete: operations["HotelStaffAssignmentsController_revoke"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/staff-assignments/{userId}/room": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["HotelStaffAssignmentsController_assignRoom"];
+        post?: never;
+        delete: operations["HotelStaffAssignmentsController_unassignRoom"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2668,6 +2652,316 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/hotels/{hotelId}/kbtt/connection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** View saved hotel KBTT connection; never contacts provider */
+        get: operations["KbttController_get"];
+        /** Authenticate and save encrypted hotel credentials only after success */
+        put: operations["KbttController_connect"];
+        post?: never;
+        /** Best-effort revoke and remove saved credentials and local tokens */
+        delete: operations["KbttController_disconnect"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/kbtt/connection/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Manually authenticate saved credentials; refresh near expiry, otherwise re-login */
+        post: operations["KbttController_check"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/kbtt/declarations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List active occupants combined with KBTT declaration status */
+        get: operations["KbttController_listDeclarations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/kbtt/declarations/{occupantId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get occupant profile and latest KBTT declaration */
+        get: operations["KbttController_getDeclaration"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/kbtt/declarations/{occupantId}/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Create or update KBTT declaration draft */
+        put: operations["KbttController_saveDraft"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/kbtt/declarations/{occupantId}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit validated declaration to KBTT provider (API 4/5) */
+        post: operations["KbttController_submit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/kbtt/catalogs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List cached KBTT reference catalog items by query */
+        get: operations["KbttController_listCatalogByQuery"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/kbtt/catalogs/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List cached KBTT reference catalog items */
+        get: operations["KbttController_listCatalog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/kbtt/catalogs/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Manually synchronize a reference catalog from provider into local cache by payload */
+        post: operations["KbttController_syncCatalogByBody"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/kbtt/catalogs/{kind}/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Manually synchronize a reference catalog from provider into local cache */
+        post: operations["KbttController_syncCatalog"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/kbtt/auto-submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get KBTT auto-submit schedule configuration and recent runs */
+        get: operations["KbttController_getAutoSubmitConfig"];
+        /** Update KBTT auto-submit schedule configuration */
+        put: operations["KbttController_updateAutoSubmitConfig"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/kbtt/auto-submit/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Trigger a test execution of KBTT auto-submit (defaults to dryRun=true) */
+        post: operations["KbttController_testAutoSubmit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/kbtt/auto-submit/telegram-test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send a Telegram-only KBTT connectivity test; never contacts C06 */
+        post: operations["KbttController_testTelegram"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/kbtt/auto-submit/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send aggregated batch submission summary to Telegram aggregate channel */
+        post: operations["KbttController_sendAutoSubmitSummary"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/kbtt/declarations/batch-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send aggregated batch submission summary to Telegram aggregate channel */
+        post: operations["KbttController_sendDeclarationsBatchSummary"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/kbtt/auto-submit/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Schedule one KBTT auto-submit in 15 seconds */
+        post: operations["KbttController_scheduleAutoSubmit"];
+        /** Cancel the pending one-shot KBTT auto-submit */
+        delete: operations["KbttController_cancelScheduledAutoSubmit"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/kbtt/dev/reset-declarations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** [DEV] Reset all hotel declarations to DRAFT and optionally generate new identity numbers */
+        post: operations["KbttController_devResetDeclarations"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/kbtt/dev/update-occupants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** [DEV] Intervene in DB to update occupant document numbers / details and optionally reset to DRAFT */
+        post: operations["KbttController_devUpdateOccupants"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3004,6 +3298,7 @@ export interface operations {
                             status: "ACTIVE" | "DISABLED";
                             /** @enum {string} */
                             type: "SYSTEM_TEMPLATE" | "CUSTOM";
+                            baseRoleId?: string | null;
                             menus: string[];
                             enabledCount: number;
                         }[];
@@ -3025,6 +3320,8 @@ export interface operations {
                     code: string;
                     name: string;
                     description?: string;
+                    baseRoleId: string;
+                    permissionIds: string[];
                 };
             };
         };
@@ -3053,6 +3350,7 @@ export interface operations {
                             status: "ACTIVE" | "DISABLED";
                             /** @enum {string} */
                             type: "SYSTEM_TEMPLATE" | "CUSTOM";
+                            baseRoleId?: string | null;
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -3098,6 +3396,7 @@ export interface operations {
                             status: "ACTIVE" | "DISABLED";
                             /** @enum {string} */
                             type: "SYSTEM_TEMPLATE" | "CUSTOM";
+                            baseRoleId?: string | null;
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -3193,6 +3492,7 @@ export interface operations {
                             status: "ACTIVE" | "DISABLED";
                             /** @enum {string} */
                             type: "SYSTEM_TEMPLATE" | "CUSTOM";
+                            baseRoleId?: string | null;
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -3272,6 +3572,8 @@ export interface operations {
                 "application/json": {
                     name?: string;
                     description?: string;
+                    baseRoleId?: string;
+                    permissionIds?: string[];
                 };
             };
         };
@@ -3300,51 +3602,7 @@ export interface operations {
                             status: "ACTIVE" | "DISABLED";
                             /** @enum {string} */
                             type: "SYSTEM_TEMPLATE" | "CUSTOM";
-                            /** Format: date-time */
-                            createdAt: string;
-                            /** Format: date-time */
-                            updatedAt: string;
-                        };
-                    };
-                };
-            };
-        };
-    };
-    RolesController_disableRole: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Bao phản hồi tắt vai trò */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @example 200 */
-                        status: number;
-                        /** @example null */
-                        error: {
-                            [key: string]: unknown;
-                        } | null;
-                        /** @example Tắt vai trò thành công */
-                        message: string;
-                        data: {
-                            id: string;
-                            code: string;
-                            name: string;
-                            description: string | null;
-                            /** @enum {string} */
-                            status: "ACTIVE" | "DISABLED";
-                            /** @enum {string} */
-                            type: "SYSTEM_TEMPLATE" | "CUSTOM";
+                            baseRoleId?: string | null;
                             /** Format: date-time */
                             createdAt: string;
                             /** Format: date-time */
@@ -3397,54 +3655,6 @@ export interface operations {
             };
         };
     };
-    RolesController_replacePermissions: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    permissionIds: string[];
-                };
-            };
-        };
-        responses: {
-            /** @description Bao phản hồi thay thế quyền */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @example 200 */
-                        status: number;
-                        /** @example null */
-                        error: {
-                            [key: string]: unknown;
-                        } | null;
-                        /** @example Thay thế toàn bộ quyền của vai trò thành công */
-                        message: string;
-                        data: {
-                            id: string;
-                            /** @enum {string} */
-                            method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "OPTIONS";
-                            path: string;
-                            description: string;
-                            /** Format: date-time */
-                            createdAt: string;
-                            /** Format: date-time */
-                            updatedAt: string;
-                        }[];
-                    };
-                };
-            };
-        };
-    };
     RolesController_listRoleCapabilities: {
         parameters: {
             query?: never;
@@ -3469,52 +3679,6 @@ export interface operations {
                             [key: string]: unknown;
                         } | null;
                         /** @example Lấy capability của vai trò thành công */
-                        message: string;
-                        data: {
-                            id: string;
-                            key: string;
-                            domain: string;
-                            label: string;
-                            description: string;
-                            /** @enum {string} */
-                            risk: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
-                            enabled: boolean;
-                        }[];
-                    };
-                };
-            };
-        };
-    };
-    RolesController_replaceRoleCapabilities: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    permissionIds: string[];
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @example 200 */
-                        status: number;
-                        /** @example null */
-                        error: {
-                            [key: string]: unknown;
-                        } | null;
-                        /** @example Cập nhật capability của vai trò thành công */
                         message: string;
                         data: {
                             id: string;
@@ -3698,100 +3862,6 @@ export interface operations {
                                 description: string;
                                 enabled: boolean;
                             }[];
-                        };
-                    };
-                };
-            };
-        };
-    };
-    RolesController_grantRolePermissionModulePermissions: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                moduleKey: string;
-                roleId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    permissionIds: string[];
-                };
-            };
-        };
-        responses: {
-            /** @description Bao phản hồi cấp quyền theo nhóm quyền */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @example 201 */
-                        status: number;
-                        /** @example null */
-                        error: {
-                            [key: string]: unknown;
-                        } | null;
-                        /** @example Cấp quyền theo nhóm quyền thành công */
-                        message: string;
-                        data: {
-                            moduleKey: string;
-                            moduleName: string;
-                            totalPermissions: number;
-                            enabledCount: number;
-                            disabledCount: number;
-                            allSelected: boolean;
-                            allDisabled: boolean;
-                        };
-                    };
-                };
-            };
-        };
-    };
-    RolesController_revokeRolePermissionModulePermissions: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                moduleKey: string;
-                roleId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    permissionIds: string[];
-                };
-            };
-        };
-        responses: {
-            /** @description Bao phản hồi thu hồi quyền theo nhóm quyền */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @example 201 */
-                        status: number;
-                        /** @example null */
-                        error: {
-                            [key: string]: unknown;
-                        } | null;
-                        /** @example Thu hồi quyền theo nhóm quyền thành công */
-                        message: string;
-                        data: {
-                            moduleKey: string;
-                            moduleName: string;
-                            totalPermissions: number;
-                            enabledCount: number;
-                            disabledCount: number;
-                            allSelected: boolean;
-                            allDisabled: boolean;
                         };
                     };
                 };
@@ -5056,6 +5126,31 @@ export interface operations {
             };
         };
     };
+    HotelRoomsController_updateRoomStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                roomId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Đã cập nhật trạng thái phòng */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     HotelRoomsController_createStay: {
         parameters: {
             query?: never;
@@ -5895,6 +5990,13 @@ export interface operations {
                                         name: string;
                                     }[];
                                 };
+                                roomAssignment?: {
+                                    id: string;
+                                    roomId: string;
+                                    roomNumber: string;
+                                    /** Format: date-time */
+                                    assignedAt: string;
+                                } | null;
                             }[];
                         };
                     };
@@ -5951,6 +6053,13 @@ export interface operations {
                                     name: string;
                                 }[];
                             };
+                            roomAssignment?: {
+                                id: string;
+                                roomId: string;
+                                roomNumber: string;
+                                /** Format: date-time */
+                                assignedAt: string;
+                            } | null;
                         };
                     };
                 };
@@ -5988,6 +6097,84 @@ export interface operations {
                             revoked: true;
                             hotelId: string;
                             userId: string;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    HotelStaffAssignmentsController_assignRoom: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 200 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Phân công phòng cho nhân viên thành công */
+                        message: string;
+                        data: {
+                            id: string;
+                            hotelId: string;
+                            userId: string;
+                            roomId: string;
+                            roomNumber: string;
+                            /** Format: date-time */
+                            assignedAt: string;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    HotelStaffAssignmentsController_unassignRoom: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 200 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Hủy phân công phòng cho nhân viên thành công */
+                        message: string;
+                        data: {
+                            /** @enum {boolean} */
+                            unassigned: true;
+                            hotelId: string;
+                            userId: string;
+                            roomId: string;
                         };
                     };
                 };
@@ -8538,6 +8725,1150 @@ export interface operations {
         requestBody?: never;
         responses: {
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    KbttController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 200 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Thành công */
+                        message: string;
+                        data: {
+                            configured: boolean;
+                            /** @enum {string} */
+                            status: "DISCONNECTED" | "CONNECTED" | "AUTH_FAILED";
+                            maskedUsername: string | null;
+                            csltId: string | null;
+                            /** Format: date-time */
+                            lastCheckedAt: string | null;
+                            /** Format: date-time */
+                            lastConnectedAt: string | null;
+                            lastErrorCode: string | null;
+                            lastErrorMessage: string | null;
+                        };
+                    };
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Hotel scope or business permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_AUTH_FAILED; sanitized provider authentication failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    KbttController_connect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    username: string;
+                    password: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 200 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Thành công */
+                        message: string;
+                        data: {
+                            configured: boolean;
+                            /** @enum {string} */
+                            status: "DISCONNECTED" | "CONNECTED" | "AUTH_FAILED";
+                            maskedUsername: string | null;
+                            csltId: string | null;
+                            /** Format: date-time */
+                            lastCheckedAt: string | null;
+                            /** Format: date-time */
+                            lastConnectedAt: string | null;
+                            lastErrorCode: string | null;
+                            lastErrorMessage: string | null;
+                        };
+                    };
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Hotel scope or business permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_AUTH_FAILED; sanitized provider authentication failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    KbttController_disconnect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 200 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Thành công */
+                        message: string;
+                        data: {
+                            configured: boolean;
+                            /** @enum {string} */
+                            status: "DISCONNECTED" | "CONNECTED" | "AUTH_FAILED";
+                            maskedUsername: string | null;
+                            csltId: string | null;
+                            /** Format: date-time */
+                            lastCheckedAt: string | null;
+                            /** Format: date-time */
+                            lastConnectedAt: string | null;
+                            lastErrorCode: string | null;
+                            lastErrorMessage: string | null;
+                        };
+                    };
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Hotel scope or business permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_AUTH_FAILED; sanitized provider authentication failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    KbttController_check: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 200 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Thành công */
+                        message: string;
+                        data: {
+                            configured: boolean;
+                            /** @enum {string} */
+                            status: "DISCONNECTED" | "CONNECTED" | "AUTH_FAILED";
+                            maskedUsername: string | null;
+                            csltId: string | null;
+                            /** Format: date-time */
+                            lastCheckedAt: string | null;
+                            /** Format: date-time */
+                            lastConnectedAt: string | null;
+                            lastErrorCode: string | null;
+                            lastErrorMessage: string | null;
+                        };
+                    };
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Hotel scope or business permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_AUTH_FAILED; sanitized provider authentication failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    KbttController_listDeclarations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Hotel scope or business permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_AUTH_FAILED; sanitized provider authentication failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    KbttController_getDeclaration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                occupantId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Hotel scope or business permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_AUTH_FAILED; sanitized provider authentication failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    KbttController_saveDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                occupantId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Hotel scope or business permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_AUTH_FAILED; sanitized provider authentication failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    KbttController_submit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                occupantId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Hotel scope or business permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_AUTH_FAILED; sanitized provider authentication failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    KbttController_listCatalogByQuery: {
+        parameters: {
+            query: {
+                kind: string;
+            };
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Hotel scope or business permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_AUTH_FAILED; sanitized provider authentication failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    KbttController_listCatalog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                kind: "NATIONALITY" | "PROVINCE" | "WARD" | "STAY_REASON" | "DOCUMENT_TYPE" | "RESIDENCE_PLACE";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Hotel scope or business permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_AUTH_FAILED; sanitized provider authentication failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    KbttController_syncCatalogByBody: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Hotel scope or business permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_AUTH_FAILED; sanitized provider authentication failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    KbttController_syncCatalog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                kind: "NATIONALITY" | "PROVINCE" | "WARD" | "STAY_REASON" | "DOCUMENT_TYPE" | "RESIDENCE_PLACE";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Hotel scope or business permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_AUTH_FAILED; sanitized provider authentication failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    KbttController_getAutoSubmitConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Hotel scope or business permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_AUTH_FAILED; sanitized provider authentication failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    KbttController_updateAutoSubmitConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Hotel scope or business permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_AUTH_FAILED; sanitized provider authentication failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    KbttController_testAutoSubmit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Hotel scope or business permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_AUTH_FAILED; sanitized provider authentication failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    KbttController_testTelegram: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Hotel scope or business permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_AUTH_FAILED; sanitized provider authentication failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    KbttController_sendAutoSubmitSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Hotel scope or business permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_AUTH_FAILED; sanitized provider authentication failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    KbttController_sendDeclarationsBatchSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Hotel scope or business permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_AUTH_FAILED; sanitized provider authentication failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    KbttController_scheduleAutoSubmit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Hotel scope or business permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_AUTH_FAILED; sanitized provider authentication failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    KbttController_cancelScheduledAutoSubmit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Hotel scope or business permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_AUTH_FAILED; sanitized provider authentication failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    KbttController_devResetDeclarations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Hotel scope or business permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_AUTH_FAILED; sanitized provider authentication failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    KbttController_devUpdateOccupants: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Hotel scope or business permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_AUTH_FAILED; sanitized provider authentication failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

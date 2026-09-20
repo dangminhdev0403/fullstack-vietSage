@@ -1,11 +1,13 @@
-import { Controller, Delete, Get, Param, Put, Query, Req } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Put, Query, Req } from "@nestjs/common";
 import { ApiOkResponse, ApiParam, ApiQuery, ApiTags } from "@nestjs/swagger";
 import type { Request } from "express";
 import {
   hotelStaffAssignmentDataSchema,
+  hotelStaffRoomAssignmentDataSchema,
   listHotelStaffAssignmentsDataSchema,
   revokeHotelStaffAssignmentDataSchema,
   successEnvelopeSchema,
+  unassignHotelStaffRoomDataSchema,
 } from "../../../common/openapi/contract-schemas";
 import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
@@ -14,6 +16,7 @@ import { SuccessMessage } from "../../../shared/decorators/success-message.decor
 import type { AuthenticatedUser } from "../../../shared/security";
 import { HotelStaffAssignmentsService } from "../application/hotel-staff-assignments.service";
 import {
+  assignStaffRoomBodySchema,
   hotelStaffUserIdParamSchema,
   listHotelStaffAssignmentsQuerySchema,
 } from "../domain/schemas/hotel-staff-assignments.schema";
@@ -107,6 +110,65 @@ export class HotelStaffAssignmentsController {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdRaw);
     const userId = parseWithZod(hotelStaffUserIdParamSchema, userIdRaw);
     return this.hotelStaffAssignmentsService.revoke(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      userId,
+    );
+  }
+
+  @RequirePermission("hotel.staff.manage")
+  @SuccessMessage("Phân công phòng cho nhân viên thành công")
+  @ApiDescript("Phân công phòng cho nhân viên lễ tân")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiParam({ name: "userId", type: String })
+  @ApiOkResponse({
+    schema: successEnvelopeSchema(
+      hotelStaffRoomAssignmentDataSchema,
+      200,
+      "Phân công phòng cho nhân viên thành công",
+    ),
+  })
+  @Put(":userId/room")
+  async assignRoom(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdRaw: string,
+    @Param("userId") userIdRaw: string,
+    @Body() body: unknown,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdRaw);
+    const userId = parseWithZod(hotelStaffUserIdParamSchema, userIdRaw);
+    const parsedBody = parseWithZod(assignStaffRoomBodySchema, body);
+    return this.hotelStaffAssignmentsService.assignRoom(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      userId,
+      parsedBody,
+    );
+  }
+
+  @RequirePermission("hotel.staff.manage")
+  @SuccessMessage("Hủy phân công phòng cho nhân viên thành công")
+  @ApiDescript("Hủy phân công phòng cho nhân viên lễ tân")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiParam({ name: "userId", type: String })
+  @ApiOkResponse({
+    schema: successEnvelopeSchema(
+      unassignHotelStaffRoomDataSchema,
+      200,
+      "Hủy phân công phòng cho nhân viên thành công",
+    ),
+  })
+  @Delete(":userId/room")
+  async unassignRoom(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdRaw: string,
+    @Param("userId") userIdRaw: string,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdRaw);
+    const userId = parseWithZod(hotelStaffUserIdParamSchema, userIdRaw);
+    return this.hotelStaffAssignmentsService.unassignRoom(
       request.user.userId,
       request.user.roleId,
       hotelId,

@@ -104,6 +104,7 @@ export class KbttProviderClient {
         },
         body: JSON.stringify(payload),
         redirect: "error",
+        signal: AbortSignal.timeout(60_000),
       });
     } catch (_networkError: any) {
       return {

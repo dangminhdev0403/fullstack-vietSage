@@ -29,6 +29,11 @@ enum HotelStaffAssignmentStatus {
   REVOKED
 }
 
+enum HotelStaffScopeMode {
+  HOTEL_WIDE
+  ROOM_EXCLUSIVE
+}
+
 enum HttpMethod {
   GET
   POST
@@ -426,6 +431,8 @@ model User {
   paidInvoices          Invoice[]              @relation("InvoicePaidBy")
   voidedInvoices        Invoice[]              @relation("InvoiceVoidedBy")
   createdPayments       Payment[]              @relation("PaymentCreatedBy")
+  roomStaffAssignment   HotelRoomStaffAssignment? @relation("HotelRoomStaffUser")
+  assignedRoomStaff     HotelRoomStaffAssignment[] @relation("HotelRoomStaffAssignedBy")
 }
 
 model Role {
@@ -628,6 +635,7 @@ model Hotel {
   locationVerifiedAt       DateTime?
   timezone                 String                        @default("Asia/Ho_Chi_Minh") @db.VarChar(80)
   status                   HotelStatus                   @default(ACTIVE)
+  staffScopeMode           HotelStaffScopeMode           @default(HOTEL_WIDE)
   createdAt                DateTime                      @default(now())
   updatedAt                DateTime                      @updatedAt
   tenant                   Tenant                        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -650,6 +658,7 @@ model Hotel {
   payments                 Payment[]
   paymentTransactions      PaymentTransaction[]
   staffAssignments         HotelStaffAssignment[]
+  roomStaffAssignments     HotelRoomStaffAssignment[]
   emergencyLocations       EmergencyLocation[]
   emergencyCallEvents      EmergencyCallEvent[]
   emergencyIncidents       EmergencyIncident[]
@@ -950,6 +959,23 @@ model HotelStaffAssignment {
   @@index([hotelId, status])
 }
 
+model HotelRoomStaffAssignment {
+  id           String   @id @default(cuid())
+  hotelId      String
+  roomId       String   @unique
+  userId       String   @unique
+  assignedById String?
+  assignedAt   DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  hotel      Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  room       Room  @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user       User  @relation("HotelRoomStaffUser", fields: [userId], references: [id], onDelete: Cascade)
+  assignedBy User? @relation("HotelRoomStaffAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+
+  @@index([hotelId])
+}
+
 model BiometricWorkstationPairing {
   id         String    @id @default(cuid())
   codeHash   String    @unique @db.Char(64)
@@ -999,6 +1025,7 @@ model Room {
   folios                Folio[]
   folioItems            FolioItem[]
   emergencyCallEvents   EmergencyCallEvent[]
+  roomStaffAssignment   HotelRoomStaffAssignment?
 
   @@unique([hotelId, roomNumber])
   @@index([hotelId, status])

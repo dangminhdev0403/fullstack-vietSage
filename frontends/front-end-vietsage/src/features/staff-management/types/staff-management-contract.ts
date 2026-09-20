@@ -23,6 +23,13 @@ export type HotelStaffUsersPage = {
   items: HotelStaffUser[];
 };
 
+export type StaffRoomAssignment = {
+  id: string;
+  roomId: string;
+  roomNumber: string;
+  assignedAt: string;
+};
+
 export type HotelStaffAssignment = {
   id: string;
   userId: string;
@@ -38,6 +45,7 @@ export type HotelStaffAssignment = {
     fullName: string;
     roles: ManagedHotelRole[];
   };
+  roomAssignment?: StaffRoomAssignment | null;
 };
 
 export type HotelStaffAssignmentsPage = {
@@ -47,11 +55,27 @@ export type HotelStaffAssignmentsPage = {
   items: HotelStaffAssignment[];
 };
 
+export type StaffHotelSummary = {
+  id: string;
+  code?: string | null;
+  name: string;
+  staffScopeMode?: "HOTEL_WIDE" | "ROOM_EXCLUSIVE" | null;
+};
+
+export type StaffHotelRoomOption = {
+  id: string;
+  roomNumber: string;
+  code?: string | null;
+  floor?: string | null;
+  type?: string | null;
+};
+
 export type StaffDirectorySnapshot = {
   users: HotelStaffUsersPage;
   roles: ManagedHotelRole[];
   assignments: HotelStaffAssignmentsPage | null;
-  hotels: { id: string; code?: string | null; name: string }[];
+  hotels: StaffHotelSummary[];
+  rooms?: StaffHotelRoomOption[];
 };
 
 export type CreateHotelStaffUserInput = {
@@ -63,4 +87,14 @@ export type CreateHotelStaffUserInput = {
 
 export type CreateAssignedHotelStaffUserInput = CreateHotelStaffUserInput & {
   hotelId: string;
+  roomId?: string | null;
+};
+
+export type AssignStaffRoomInput = {
+  userId: string;
+  roomId: string;
+};
+
+export type UnassignStaffRoomInput = {
+  userId: string;
 };

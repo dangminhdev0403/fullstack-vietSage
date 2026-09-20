@@ -601,9 +601,9 @@ describe("KBTT secure manual authentication", () => {
     expect(provider.login).not.toHaveBeenCalled();
     provider.login.mockRejectedValueOnce(new Error(credentials.password));
     await expect(service.check("owner", "owner-role", "hotel-1")).rejects.toMatchObject({
-      response: { code: "KBTT_AUTH_FAILED" },
+      response: { code: "KBTT_PROVIDER_UNAVAILABLE" },
     });
-    expect(rows.get("hotel-1")).toMatchObject({ ciphertext, status: "AUTH_FAILED" });
+    expect(rows.get("hotel-1")).toMatchObject({ ciphertext, status: "CONNECTED" });
     expect(JSON.stringify(await service.get("owner", "owner-role", "hotel-1"))).not.toContain(
       credentials.password,
     );
@@ -624,6 +624,42 @@ describe("KBTT secure manual authentication", () => {
       status: "DISCONNECTED",
     });
     expect(rows.size).toBe(0);
+  });
+
+  it("keeps the connection retryable when a manual check fails from provider unavailability", async () => {
+    const { service, provider, rows } = fixture();
+    await service.connect("owner", "owner-role", "hotel-1", credentials);
+    provider.login.mockRejectedValueOnce(
+      new HttpException(
+        { code: "KBTT_PROVIDER_UNAVAILABLE", message: "Không thể kết nối BCA." },
+        502,
+      ),
+    );
+
+    await expect(service.check("owner", "owner-role", "hotel-1")).rejects.toBeDefined();
+    expect(rows.get("hotel-1")?.status).toBe("CONNECTED");
+  });
+
+  it("marks saved credentials AUTH_FAILED after restart when BCA rejects login", async () => {
+    const f = fixture();
+    await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+    f.service.onModuleDestroy();
+    f.provider.login.mockRejectedValueOnce(kbttAuthFailed());
+    const restarted = new KbttService(
+      f.access as never,
+      f.repository as never,
+      f.cipher,
+      f.provider as never,
+      f.occupantsReadService as never,
+    );
+
+    await restarted.executeAutoSubmitForHotel("hotel-1", new Date(), false);
+
+    expect(f.rows.get("hotel-1")?.status).toBe("AUTH_FAILED");
+    expect(f.repository.finalizeAutoSubmitRun).toHaveBeenCalledWith(
+      "run-auto-1",
+      expect.objectContaining({ status: "FAILED" }),
+    );
   });
 
   it("keeps a one-shot dry run on the backend and executes it after 15 seconds", async () => {
@@ -1301,7 +1337,7 @@ describe("KBTT Catalog Cache (AGY-50)", () => {
 });
 
 describe("KBTT provider API 4/5 wire contract", () => {
-  it("verifies KbttProviderClient wire protocol: correct HTTP POST URLs for API 4 and API 5, Bearer header, bounded envelope, no AbortSignal timeout, and network error classification", async () => {
+  it("verifies KbttProviderClient wire protocol: correct HTTP POST URLs for API 4 and API 5, Bearer header, bounded envelope, timeout, and network error classification", async () => {
     const client = new KbttProviderClient();
     const fetchMock = jest.fn();
     global.fetch = fetchMock;
@@ -1327,7 +1363,7 @@ describe("KBTT provider API 4/5 wire contract", () => {
     expect((foreignOpts.headers as any).Authorization).toBe("Bearer test_access_token_123");
     expect((foreignOpts.headers as any)["Content-Type"]).toBe("application/json");
     expect(JSON.parse(foreignOpts.body as string)).toEqual([{ hoTen: "John Doe" }]);
-    expect(foreignOpts.signal).toBeUndefined();
+    expect(foreignOpts.signal).toBeInstanceOf(AbortSignal);
 
     // 2. API 5 Vietnamese wire check
     fetchMock.mockResolvedValueOnce(
@@ -1348,7 +1384,7 @@ describe("KBTT provider API 4/5 wire contract", () => {
     expect(vnOpts.method).toBe("POST");
     expect((vnOpts.headers as any).Authorization).toBe("Bearer test_access_token_456");
     expect(JSON.parse(vnOpts.body as string)).toEqual([{ hoTen: "Nguyen Van A" }]);
-    expect(vnOpts.signal).toBeUndefined();
+    expect(vnOpts.signal).toBeInstanceOf(AbortSignal);
 
     // 3. Business rejection check
     fetchMock.mockResolvedValueOnce(Response.json({ code: "400", message: "Số CCCD đã tồn tại" }));

@@ -38,17 +38,16 @@ export class BiometricWorkstationsRepository {
     await this.prisma.biometricWorkstation.create({ data: input });
   }
 
-  async authenticate(tokenHash: string, seenAt: Date) {
-    const workstation = await this.prisma.biometricWorkstation.findFirst({
+  async authenticate(tokenHash: string, seenAt: Date, renewUntil: Date) {
+    const authenticated = await this.prisma.biometricWorkstation.updateMany({
       where: { tokenHash, revokedAt: null, expiresAt: { gt: seenAt } },
+      data: { lastSeenAt: seenAt, expiresAt: renewUntil },
+    });
+    if (authenticated.count !== 1) return null;
+    return this.prisma.biometricWorkstation.findUnique({
+      where: { tokenHash },
       select: { id: true, hotelId: true },
     });
-    if (!workstation) return null;
-    await this.prisma.biometricWorkstation.update({
-      where: { id: workstation.id },
-      data: { lastSeenAt: seenAt },
-    });
-    return { id: workstation.id, hotelId: workstation.hotelId };
   }
 
   async hasOnlineWorkstation(hotelId: string, cutoff: Date, at: Date) {

@@ -59,12 +59,18 @@ export class RequestRealtimeEmitter {
   static emitGuestRequestCreated(input: {
     hotelId: string;
     sessionId: string;
+    roomId?: string;
     ownerRequest: unknown;
     guestRequest: unknown;
   }) {
     this.serverRef?.to(this.ownerHotelRoom(input.hotelId)).emit("guest_request.created", {
       request: input.ownerRequest,
     });
+    if (input.roomId) {
+      this.serverRef?.to(this.ownerRoomChannel(input.hotelId, input.roomId)).emit("guest_request.created", {
+        request: input.ownerRequest,
+      });
+    }
     this.serverRef?.to(this.guestSessionRoom(input.sessionId)).emit("guest_request.created", {
       request: input.guestRequest,
     });
@@ -73,12 +79,18 @@ export class RequestRealtimeEmitter {
   static emitGuestRequestUpdated(input: {
     hotelId: string;
     sessionId?: string | null;
+    roomId?: string;
     ownerRequest: unknown;
     guestRequest?: unknown;
   }) {
     this.serverRef?.to(this.ownerHotelRoom(input.hotelId)).emit("guest_request.updated", {
       request: input.ownerRequest,
     });
+    if (input.roomId) {
+      this.serverRef?.to(this.ownerRoomChannel(input.hotelId, input.roomId)).emit("guest_request.updated", {
+        request: input.ownerRequest,
+      });
+    }
     if (input.sessionId && input.guestRequest !== undefined) {
       this.serverRef?.to(this.guestSessionRoom(input.sessionId)).emit("guest_request.updated", {
         request: input.guestRequest,
@@ -91,6 +103,7 @@ export class RequestRealtimeEmitter {
     messageId: string;
     hotelId: string;
     stayId: string;
+    roomId?: string;
     threadId: string;
     thread: unknown;
     message: unknown;
@@ -100,11 +113,15 @@ export class RequestRealtimeEmitter {
       messageId: input.messageId,
       hotelId: input.hotelId,
       stayId: input.stayId,
+      roomId: input.roomId,
       threadId: input.threadId,
       thread: input.thread,
       message: input.message,
     };
     this.serverRef?.to(this.ownerHotelRoom(input.hotelId)).emit("guest_message.created", payload);
+    if (input.roomId) {
+      this.serverRef?.to(this.ownerRoomChannel(input.hotelId, input.roomId)).emit("guest_message.created", payload);
+    }
     this.serverRef?.to(this.guestStayRoom(input.stayId)).emit("guest_message.created", payload);
   }
 
@@ -123,6 +140,9 @@ export class RequestRealtimeEmitter {
       threadId: input.threadId,
     };
     this.serverRef?.to(this.ownerHotelRoom(input.hotelId)).emit("conversation.closed", payload);
+    if (input.roomId) {
+      this.serverRef?.to(this.ownerRoomChannel(input.hotelId, input.roomId)).emit("conversation.closed", payload);
+    }
     this.serverRef?.to(this.guestStayRoom(input.stayId)).emit("conversation.closed", payload);
   }
 
@@ -147,6 +167,9 @@ export class RequestRealtimeEmitter {
       overdueHours: input.overdueHours,
     };
     this.serverRef?.to(this.ownerHotelRoom(input.hotelId)).emit("stay.overdue_checkout", payload);
+    if (input.roomId) {
+      this.serverRef?.to(this.ownerRoomChannel(input.hotelId, input.roomId)).emit("stay.overdue_checkout", payload);
+    }
   }
 
   static emitExternalServiceOrderCreated(
@@ -158,6 +181,11 @@ export class RequestRealtimeEmitter {
     this.serverRef
       ?.to(this.ownerHotelRoom(input.hotelId))
       .emit("external_service_order.created", payload);
+    if (input.roomId) {
+      this.serverRef
+        ?.to(this.ownerRoomChannel(input.hotelId, input.roomId))
+        .emit("external_service_order.created", payload);
+    }
     this.serverRef
       ?.to(this.serviceTenantRoom(input.serviceTenantId))
       .emit("external_service_order.created", payload);
@@ -182,6 +210,11 @@ export class RequestRealtimeEmitter {
     this.serverRef
       ?.to(this.ownerHotelRoom(input.hotelId))
       .emit("external_service_order.status_changed", payload);
+    if (input.roomId) {
+      this.serverRef
+        ?.to(this.ownerRoomChannel(input.hotelId, input.roomId))
+        .emit("external_service_order.status_changed", payload);
+    }
     this.serverRef
       ?.to(this.serviceTenantRoom(input.serviceTenantId))
       .emit("external_service_order.status_changed", payload);
@@ -206,6 +239,11 @@ export class RequestRealtimeEmitter {
     this.serverRef
       ?.to(this.ownerHotelRoom(input.hotelId))
       .emit("external_service_order.hotel_acknowledged", payload);
+    if (input.roomId) {
+      this.serverRef
+        ?.to(this.ownerRoomChannel(input.hotelId, input.roomId))
+        .emit("external_service_order.hotel_acknowledged", payload);
+    }
     this.serverRef
       ?.to(this.serviceTenantRoom(input.serviceTenantId))
       .emit("external_service_order.hotel_acknowledged", payload);
@@ -230,6 +268,11 @@ export class RequestRealtimeEmitter {
     this.serverRef
       ?.to(this.ownerHotelRoom(input.hotelId))
       .emit("external_service_order.voucher_issued", payload);
+    if (input.roomId) {
+      this.serverRef
+        ?.to(this.ownerRoomChannel(input.hotelId, input.roomId))
+        .emit("external_service_order.voucher_issued", payload);
+    }
     this.serverRef
       ?.to(this.serviceTenantRoom(input.serviceTenantId))
       .emit("external_service_order.voucher_issued", payload);
@@ -303,6 +346,10 @@ export class RequestRealtimeEmitter {
 
   static ownerHotelRoom(hotelId: string): string {
     return `${OWNER_ROOM_PREFIX}${hotelId}:requests`;
+  }
+
+  static ownerRoomChannel(hotelId: string, roomId: string): string {
+    return `${OWNER_ROOM_PREFIX}${hotelId}:room:${roomId}:requests`;
   }
 
   static serviceTenantRoom(tenantId: string): string {

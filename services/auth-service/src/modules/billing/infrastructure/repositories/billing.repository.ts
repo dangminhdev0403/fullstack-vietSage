@@ -72,9 +72,16 @@ export const invoiceDetailInclude = {
 export class BillingRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async listFolios(input: { hotelId: string; status?: FolioStatus; skip: number; take: number }) {
+  async listFolios(input: {
+    hotelId: string;
+    status?: FolioStatus;
+    roomId?: string | null;
+    skip: number;
+    take: number;
+  }) {
     const where: Prisma.FolioWhereInput = {
       hotelId: input.hotelId,
+      ...(input.roomId ? { roomId: input.roomId } : {}),
       ...(input.status
         ? {
             status:
@@ -119,7 +126,7 @@ export class BillingRepository {
   async folioExists(hotelId: string, folioId: string) {
     return this.prisma.folio.findFirst({
       where: { id: folioId, hotelId },
-      select: { id: true },
+      select: { id: true, roomId: true },
     });
   }
 

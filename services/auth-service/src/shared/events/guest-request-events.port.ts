@@ -2,6 +2,7 @@ export interface GuestRequestCreatedEventInput {
   hotelId: string;
   sessionId: string;
   requestId: string;
+  roomId?: string;
   ownerRequest: unknown;
   guestRequest: unknown;
 }
@@ -10,6 +11,7 @@ export interface GuestRequestUpdatedEventInput {
   hotelId: string;
   sessionId?: string | null;
   requestId?: string;
+  roomId?: string;
   ownerRequest: unknown;
   guestRequest?: unknown;
   answered?: boolean;
@@ -20,6 +22,7 @@ export interface GuestMessageCreatedEventInput {
   messageId: string;
   hotelId: string;
   stayId: string;
+  roomId?: string;
   threadId: string;
   thread: unknown;
   message: unknown;

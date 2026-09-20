@@ -246,7 +246,26 @@ export class HotelDashboardService {
   ) {}
 
   async getDashboard(actorUserId: string, activeRoleId: string, hotelId: string) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    const scope = await this.hotelAccessService.resolveRoomScope(actorUserId, activeRoleId, hotelId);
+
+    const roomWhere: Prisma.RoomWhereInput = scope.allowedRoomId !== null
+      ? { hotelId, id: scope.allowedRoomId }
+      : { hotelId };
+    const stayWhere: Prisma.GuestStayWhereInput = scope.allowedRoomId !== null
+      ? { hotelId, roomId: scope.allowedRoomId }
+      : { hotelId };
+    const activeRequestStayFilter: Prisma.GuestRequestWhereInput = scope.allowedRoomId !== null
+      ? { stay: { is: { status: { in: ACTIVE_STAY_STATUSES }, checkedOutAt: null, roomId: scope.allowedRoomId } } }
+      : ACTIVE_REQUEST_STAY_FILTER;
+    const requestEventRequestFilter: Prisma.GuestRequestEventWhereInput = scope.allowedRoomId !== null
+      ? { hotelId, request: { stay: { is: { status: { in: ACTIVE_STAY_STATUSES }, checkedOutAt: null, roomId: scope.allowedRoomId } } } }
+      : { hotelId, request: { stay: { is: { status: { in: ACTIVE_STAY_STATUSES }, checkedOutAt: null } } } };
+    const folioWhere: Prisma.FolioWhereInput = scope.allowedRoomId !== null
+      ? { hotelId, roomId: scope.allowedRoomId }
+      : { hotelId };
+    const paymentWhere: Prisma.PaymentWhereInput = scope.allowedRoomId !== null
+      ? { hotelId, folio: { roomId: scope.allowedRoomId } }
+      : { hotelId };
 
     const now = new Date();
     const todayStart = startOfDay(now);
@@ -283,40 +302,40 @@ export class HotelDashboardService {
       acknowledgedEvents,
       completedRequests,
     ] = await Promise.all([
-      this.prisma.room.count({ where: { hotelId } }),
-      this.prisma.room.groupBy({ by: ["status"], where: { hotelId }, _count: { _all: true } }),
-      this.prisma.room.count({ where: { hotelId, status: RoomStatus.OCCUPIED } }),
-      this.prisma.guestStay.count({ where: { hotelId, status: { in: ACTIVE_STAY_STATUSES } } }),
+      this.prisma.room.count({ where: roomWhere }),
+      this.prisma.room.groupBy({ by: ["status"], where: roomWhere, _count: { _all: true } }),
+      this.prisma.room.count({ where: { ...roomWhere, status: RoomStatus.OCCUPIED } }),
+      this.prisma.guestStay.count({ where: { ...stayWhere, status: { in: ACTIVE_STAY_STATUSES } } }),
       this.prisma.guestStay.count({
-        where: { hotelId, checkedInAt: { gte: todayStart, lt: tomorrowStart } },
+        where: { ...stayWhere, checkedInAt: { gte: todayStart, lt: tomorrowStart } },
       }),
       this.prisma.guestStay.count({
-        where: { hotelId, checkedOutAt: { gte: todayStart, lt: tomorrowStart } },
+        where: { ...stayWhere, checkedOutAt: { gte: todayStart, lt: tomorrowStart } },
       }),
-      this.prisma.guestStay.count({ where: { hotelId, status: GuestStayStatus.CHECKOUT_PENDING } }),
+      this.prisma.guestStay.count({ where: { ...stayWhere, status: GuestStayStatus.CHECKOUT_PENDING } }),
       this.prisma.guestRequest.groupBy({
         by: ["status"],
-        where: { hotelId, ...ACTIVE_REQUEST_STAY_FILTER },
+        where: { hotelId, ...activeRequestStayFilter },
         _count: { _all: true },
       }),
       this.prisma.guestRequest.count({
         where: {
           hotelId,
-          ...ACTIVE_REQUEST_STAY_FILTER,
+          ...activeRequestStayFilter,
           status: { in: REQUEST_INCOMPLETE_STATUSES },
         },
       }),
       this.prisma.guestRequest.count({
         where: {
           hotelId,
-          ...ACTIVE_REQUEST_STAY_FILTER,
+          ...activeRequestStayFilter,
           priority: GuestRequestPriority.URGENT,
           status: { in: REQUEST_INCOMPLETE_STATUSES },
         },
       }),
       this.prisma.guestRequest.groupBy({
         by: ["serviceItemId"],
-        where: { hotelId, ...ACTIVE_REQUEST_STAY_FILTER, serviceItemId: { not: null } },
+        where: { hotelId, ...activeRequestStayFilter, serviceItemId: { not: null } },
         _count: { _all: true },
         orderBy: { _count: { serviceItemId: "desc" } },
         take: 5,
@@ -324,21 +343,21 @@ export class HotelDashboardService {
       this.prisma.guestRequest.count({
         where: {
           hotelId,
-          ...ACTIVE_REQUEST_STAY_FILTER,
+          ...activeRequestStayFilter,
           createdAt: { gte: todayStart, lt: tomorrowStart },
         },
       }),
       this.prisma.guestRequest.count({
         where: {
           hotelId,
-          ...ACTIVE_REQUEST_STAY_FILTER,
+          ...activeRequestStayFilter,
           createdAt: { gte: yesterdayStart, lt: todayStart },
         },
       }),
       this.prisma.guestRequest.count({
         where: {
           hotelId,
-          ...ACTIVE_REQUEST_STAY_FILTER,
+          ...activeRequestStayFilter,
           priority: GuestRequestPriority.URGENT,
           createdAt: { gte: todayStart, lt: tomorrowStart },
         },
@@ -346,14 +365,14 @@ export class HotelDashboardService {
       this.prisma.guestRequest.count({
         where: {
           hotelId,
-          ...ACTIVE_REQUEST_STAY_FILTER,
+          ...activeRequestStayFilter,
           priority: GuestRequestPriority.URGENT,
           createdAt: { gte: yesterdayStart, lt: todayStart },
         },
       }),
       this.prisma.payment.aggregate({
         where: {
-          hotelId,
+          ...paymentWhere,
           status: PaymentStatus.SUCCEEDED,
           confirmedAt: { gte: todayStart, lt: tomorrowStart },
         },
@@ -361,7 +380,7 @@ export class HotelDashboardService {
       }),
       this.prisma.payment.aggregate({
         where: {
-          hotelId,
+          ...paymentWhere,
           status: PaymentStatus.SUCCEEDED,
           confirmedAt: { gte: sevenDaysStart, lt: tomorrowStart },
         },
@@ -369,20 +388,20 @@ export class HotelDashboardService {
       }),
       this.prisma.payment.aggregate({
         where: {
-          hotelId,
+          ...paymentWhere,
           status: PaymentStatus.SUCCEEDED,
           confirmedAt: { gte: monthStart, lt: tomorrowStart },
         },
         _sum: { paidAmount: true },
       }),
       this.prisma.payment.count({
-        where: { hotelId, status: { in: [PaymentStatus.FAILED, PaymentStatus.EXPIRED] } },
+        where: { ...paymentWhere, status: { in: [PaymentStatus.FAILED, PaymentStatus.EXPIRED] } },
       }),
-      this.prisma.folio.count({ where: { hotelId, status: FolioStatus.CHECKOUT_PENDING } }),
+      this.prisma.folio.count({ where: { ...folioWhere, status: FolioStatus.CHECKOUT_PENDING } }),
       this.prisma.guestRequest.findMany({
         where: {
           hotelId,
-          ...ACTIVE_REQUEST_STAY_FILTER,
+          ...activeRequestStayFilter,
           status: { in: REQUEST_INCOMPLETE_STATUSES },
         },
         orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
@@ -398,7 +417,7 @@ export class HotelDashboardService {
       }),
       this.prisma.room.findMany({
         where: {
-          hotelId,
+          ...roomWhere,
           status: {
             in: [RoomStatus.PROCESSING, RoomStatus.MAINTENANCE, RoomStatus.OUT_OF_SERVICE],
           },
@@ -408,7 +427,7 @@ export class HotelDashboardService {
         select: { id: true, roomNumber: true, status: true, updatedAt: true },
       }),
       this.prisma.guestStay.findMany({
-        where: { hotelId, status: GuestStayStatus.CHECKOUT_PENDING },
+        where: { ...stayWhere, status: GuestStayStatus.CHECKOUT_PENDING },
         orderBy: { updatedAt: "desc" },
         take: 4,
         select: {
@@ -420,10 +439,7 @@ export class HotelDashboardService {
         },
       }),
       this.prisma.guestRequestEvent.findMany({
-        where: {
-          hotelId,
-          request: { stay: { is: { status: { in: ACTIVE_STAY_STATUSES }, checkedOutAt: null } } },
-        },
+        where: requestEventRequestFilter,
         orderBy: { createdAt: "desc" },
         take: 20,
         select: {
@@ -437,8 +453,7 @@ export class HotelDashboardService {
       this.prisma.guestRequestEvent.groupBy({
         by: ["requestId"],
         where: {
-          hotelId,
-          request: { stay: { is: { status: { in: ACTIVE_STAY_STATUSES }, checkedOutAt: null } } },
+          ...requestEventRequestFilter,
           toStatus: { in: [GuestRequestStatus.ACKNOWLEDGED, GuestRequestStatus.IN_PROGRESS] },
         },
         _min: { createdAt: true },
@@ -446,7 +461,7 @@ export class HotelDashboardService {
       this.prisma.guestRequest.findMany({
         where: {
           hotelId,
-          ...ACTIVE_REQUEST_STAY_FILTER,
+          ...activeRequestStayFilter,
           status: GuestRequestStatus.COMPLETED,
           completedAt: { not: null },
         },

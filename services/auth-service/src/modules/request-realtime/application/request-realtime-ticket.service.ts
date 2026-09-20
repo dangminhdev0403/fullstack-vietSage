@@ -34,9 +34,19 @@ export class RequestRealtimeTicketService {
     }
 
     await this.hotelAccessService.assertHotelAccess(userId, activeRoleId, hotelId);
+    const scope = await this.hotelAccessService.resolveRoomScope(userId, activeRoleId, hotelId);
     const issuedAt = Date.now();
+    const payload: Record<string, unknown> = {
+      sub: userId,
+      hotelId,
+      type: "request_realtime_owner",
+      jti: randomUUID(),
+    };
+    if (scope.allowedRoomId) {
+      payload.roomId = scope.allowedRoomId;
+    }
     const ticket = await this.jwtService.signAsync(
-      { sub: userId, hotelId, type: "request_realtime_owner", jti: randomUUID() },
+      payload,
       {
         secret: this.config.ticketSecret,
         audience: this.config.audience,

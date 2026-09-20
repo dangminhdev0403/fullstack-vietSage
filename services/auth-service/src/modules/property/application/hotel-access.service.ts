@@ -10,12 +10,19 @@ import type { HotelDetailRow } from "../infrastructure/repositories/hotel-reposi
 export interface HotelActorContext {
   userId: string;
   roleCodes: Set<string>;
+  baseRoleCodes: Set<string>;
   tenantIds: Set<string>;
   assignedHotelIds?: Set<string>;
   requiresHotelAssignment?: boolean;
   isSuperAdmin: boolean;
   isTenantOwner: boolean;
   permissions?: Set<string>;
+}
+
+export interface HotelRoomScope {
+  hotel: HotelDetailRow;
+  allowedRoomId: string | null; // null means hotel-wide
+  mode?: "HOTEL_WIDE" | "ROOM_EXCLUSIVE";
 }
 
 @Injectable()
@@ -69,6 +76,7 @@ export class HotelAccessService {
     return {
       userId: actor.id,
       roleCodes,
+      baseRoleCodes,
       tenantIds,
       assignedHotelIds,
       requiresHotelAssignment,
@@ -144,5 +152,87 @@ export class HotelAccessService {
     }
 
     return hotel;
+  }
+
+  async resolveRoomScope(
+    actorUserId: string,
+    arg2: string,
+    arg3: string,
+  ): Promise<HotelRoomScope> {
+    let activeRoleId = arg2;
+    let hotelId = arg3;
+
+    let hotel = await this.hotelCoreRepository.findHotelById(hotelId);
+    if (!hotel) {
+      const maybeHotel = await this.hotelCoreRepository.findHotelById(arg2);
+      if (maybeHotel) {
+        hotelId = arg2;
+        activeRoleId = arg3;
+        hotel = maybeHotel;
+      }
+    }
+
+    hotel = await this.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    const mode = (hotel.staffScopeMode as "HOTEL_WIDE" | "ROOM_EXCLUSIVE") ?? "HOTEL_WIDE";
+    if (mode !== "ROOM_EXCLUSIVE") {
+      return { hotel, allowedRoomId: null, mode: "HOTEL_WIDE" };
+    }
+
+    const actor = await this.loadActorContext(actorUserId, activeRoleId);
+    const isHotelOwner =
+      actor.roleCodes.has("HOTEL_OWNER") || actor.baseRoleCodes?.has("HOTEL_OWNER");
+    const isHotelManager =
+      actor.roleCodes.has("HOTEL_MANAGER") || actor.baseRoleCodes?.has("HOTEL_MANAGER");
+
+    if (actor.isSuperAdmin || actor.isTenantOwner || isHotelOwner || isHotelManager) {
+      return { hotel, allowedRoomId: null, mode: "HOTEL_WIDE" };
+    }
+
+    const assignment = await this.hotelCoreRepository.findRoomStaffAssignment(
+      actorUserId,
+      hotelId,
+    );
+    if (!assignment) {
+      throw new ForbiddenException("Tài khoản chưa được gán phòng tại khách sạn này");
+    }
+
+    return { hotel, allowedRoomId: assignment.roomId, mode: "ROOM_EXCLUSIVE" };
+  }
+
+  assertRoomAccess(scope: HotelRoomScope, roomId?: string | null): void;
+  assertRoomAccess(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    roomId: string,
+  ): Promise<HotelDetailRow>;
+  async assertRoomAccess(
+    actorUserIdOrScope: string | HotelRoomScope,
+    activeRoleIdOrRoomId?: string | null,
+    hotelId?: string,
+    roomId?: string,
+  ): Promise<HotelDetailRow | void> {
+    if (typeof actorUserIdOrScope === "object" && actorUserIdOrScope !== null) {
+      const scope = actorUserIdOrScope;
+      const targetRoomId = activeRoleIdOrRoomId;
+      if (scope.allowedRoomId !== null && (!targetRoomId || scope.allowedRoomId !== targetRoomId)) {
+        throw new NotFoundException("Không tìm thấy phòng");
+      }
+      return;
+    }
+
+    const actorUserId = actorUserIdOrScope;
+    const activeRoleId = activeRoleIdOrRoomId as string;
+    const scope = await this.resolveRoomScope(actorUserId, activeRoleId, hotelId as string);
+    if (scope.allowedRoomId !== null && scope.allowedRoomId !== roomId) {
+      throw new NotFoundException("Không tìm thấy phòng");
+    }
+
+    const room = await this.hotelCoreRepository.findRoomById(roomId as string);
+    if (!room || room.hotelId !== hotelId) {
+      throw new NotFoundException("Không tìm thấy phòng");
+    }
+
+    return scope.hotel;
   }
 }

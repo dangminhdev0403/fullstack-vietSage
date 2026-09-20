@@ -19,6 +19,7 @@ const createUserSchema = z.object({
   password: z.string().min(8),
   roleIds: z.array(z.string().trim().min(1)).min(1),
   hotelId: z.string().trim().min(1),
+  roomId: z.string().trim().optional(),
 });
 
 export async function GET(request: Request) {
@@ -33,23 +34,37 @@ export async function GET(request: Request) {
   if (!tenantId) return validationErrorResponse("tenantId là bắt buộc");
   try {
     const result = await executeOwnerBackendRequest("load owner staff directory", async (accessToken) => {
-      const [usersPage, roles, assignments, hotelsPage] = await Promise.all([
+      const [usersPage, roles, assignments, hotelsPage, rooms] = await Promise.all([
         staffManagementService.listUsers({ tenantId, q, page, limit, accessToken }),
         staffManagementService.listManagedRoles(tenantId, accessToken),
         hotelId ? staffManagementService.listAssignments(hotelId, accessToken) : Promise.resolve(null),
         adminService.listHotels({ query: { page: 1, limit: 100, tenantId }, accessToken }),
+        hotelId ? staffManagementService.listHotelRooms(hotelId, accessToken).catch(() => []) : Promise.resolve([]),
       ]);
-      let users = usersPage;
+      const staffOnlyItems = usersPage.items.filter(
+        (u) => !u.roles.some((r) => r.code === "TENANT_OWNER" || r.code === "SUPER_ADMIN"),
+      );
+      let users = {
+        ...usersPage,
+        items: staffOnlyItems,
+        total: staffOnlyItems.length,
+      };
       if (hotelId && assignments) {
         const assignedUserIds = new Set(assignments.items.map((a) => a.userId));
-        const filteredItems = usersPage.items.filter((u) => assignedUserIds.has(u.id));
+        const filteredItems = staffOnlyItems.filter((u) => assignedUserIds.has(u.id));
         users = {
           ...usersPage,
           items: filteredItems,
           total: filteredItems.length,
         };
       }
-      return { users, roles, assignments, hotels: hotelsPage.items.filter((h) => h.status !== "DISABLED") };
+      return {
+        users,
+        roles,
+        assignments,
+        hotels: hotelsPage.items.filter((h) => h.status !== "DISABLED"),
+        rooms: rooms ?? [],
+      };
     });
     return result instanceof NextResponse ? result : successResponse(result);
   } catch (error) {
@@ -65,10 +80,14 @@ export async function POST(request: Request) {
   if (!parsed.success) return validationErrorResponse("Thông tin nhân viên chưa hợp lệ");
   try {
     const result = await executeOwnerBackendRequest("create and assign owner staff user", async (accessToken) => {
-      const { hotelId, ...userInput } = parsed.data;
+      const { hotelId, roomId, ...userInput } = parsed.data;
       const user = await staffManagementService.createUser(userInput, tenantId, accessToken);
       const assignment = await staffManagementService.assignHotel(hotelId, user.id, accessToken);
-      return { user, assignment };
+      let roomAssignment = null;
+      if (roomId) {
+        roomAssignment = await staffManagementService.assignRoom(hotelId, user.id, roomId, accessToken);
+      }
+      return { user, assignment, roomAssignment };
     });
     return result instanceof NextResponse
       ? result
