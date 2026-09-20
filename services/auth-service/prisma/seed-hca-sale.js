@@ -76,7 +76,9 @@ async function seedHcaSale() {
 
     // 2. Create Sale / Frontdesk user
     const saleEmail = "sale.hca@vietsage.vn";
-    const passwordHash = await argon2.hash("Admin@123");
+    const initialPassword = process.env.HCA_SALE_INITIAL_PASSWORD;
+    if (!initialPassword) throw new Error("HCA_SALE_INITIAL_PASSWORD is required");
+    const passwordHash = await argon2.hash(initialPassword);
 
     const saleUser = await prisma.user.upsert({
       where: { email: saleEmail },
