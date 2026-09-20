@@ -1,5 +1,7 @@
 "use client";
 
+import { runtimeConsole } from "@/core/logging/runtime-console";
+
 export type InternalSessionRefreshMetadata = {
   accessTokenExpiresAt: number;
 };
@@ -33,7 +35,7 @@ export function dispatchAuthLogoutRequired(reason: string, pathname: string): vo
 
   logoutSignalDispatched = true;
   const targetUrl = `/dangnhap?reauth=1&callbackUrl=${encodeURIComponent(pathname)}`;
-  console.warn("[AUTH_LOGOUT_REQUIRED]", { reason, pathname, targetUrl, timestamp: Date.now() });
+  runtimeConsole.warn("[AUTH_LOGOUT_REQUIRED]", { reason, pathname, targetUrl, timestamp: Date.now() });
 
   if (window.location.pathname !== "/dangnhap") {
     window.location.href = targetUrl;
@@ -52,11 +54,11 @@ export function dispatchAuthLogoutRequired(reason: string, pathname: string): vo
 
 export function refreshInternalSession(): Promise<InternalSessionRefreshMetadata> {
   if (refreshInFlight) {
-    console.info("[AUTH_REFRESH_WAIT]", { source: "internal-api", timestamp: Date.now() });
+    runtimeConsole.info("[AUTH_REFRESH_WAIT]", { source: "internal-api", timestamp: Date.now() });
     return refreshInFlight;
   }
 
-  console.info("[AUTH_REFRESH_START]", { source: "internal-api", timestamp: Date.now() });
+  runtimeConsole.info("[AUTH_REFRESH_START]", { source: "internal-api", timestamp: Date.now() });
 
   refreshInFlight = fetch("/api/auth/refresh-session", {
     method: "POST",
@@ -71,7 +73,7 @@ export function refreshInternalSession(): Promise<InternalSessionRefreshMetadata
       }
 
       const metadata = parseRefreshMetadata(payload);
-      console.info("[AUTH_REFRESH_SUCCESS]", {
+      runtimeConsole.info("[AUTH_REFRESH_SUCCESS]", {
         source: "internal-api",
         accessTokenExpiresAt: metadata.accessTokenExpiresAt,
         timestamp: Date.now(),

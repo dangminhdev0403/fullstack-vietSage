@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  poweredByHeader: false,
   allowedDevOrigins: [
     "t62jk3dx-3000.asse.devtunnels.ms",
     "*.devtunnels.ms",

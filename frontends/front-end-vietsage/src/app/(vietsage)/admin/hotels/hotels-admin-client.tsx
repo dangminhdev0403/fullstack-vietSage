@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import { HttpError } from "@/core/http/http-error";
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import { runtimeConsole } from "@/core/logging/runtime-console";
 import type { Hotel, TenantOwner, TenantSummary } from "@/features/admin/types/admin-contract";
 import { useAdminGoogleSheetConfig } from "@/features/hotel-ops/queries/use-google-sheet-config";
 import { LocationFields, type LocationValue } from "@/features/marketplace/components/location-fields";
@@ -153,7 +154,7 @@ async function requestJson<TData>(path: string, options: { method: "GET" | "POST
   } catch (error) {
     if (error instanceof HttpError && error.status === 401) {
     const callbackUrl = `${window.location.pathname}${window.location.search}`;
-    console.info("[AUTH_REDIRECT_LOGIN_SOURCE]", {
+    runtimeConsole.info("[AUTH_REDIRECT_LOGIN_SOURCE]", {
       source: "hotels-admin-client",
       reason: "backend_401_after_refresh_failed",
       pathname: callbackUrl,

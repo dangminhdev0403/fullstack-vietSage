@@ -9,6 +9,8 @@ import { loadAppConfig } from "./common/config/env.config";
 export function configureApp(app: INestApplication): void {
   const config = loadAppConfig();
 
+  app.getHttpAdapter().getInstance().disable("x-powered-by");
+
   app.enableCors({
     origin: config.corsOrigins,
     credentials: config.corsOrigins.length > 0,

@@ -13,10 +13,11 @@
 
 ## API Logging Rule (Mandatory)
 
-- Every backend request MUST emit a response log (`res log`) with prefix `[API_RES]`.
-- Required log fields: `method`, `url`, `status`, `ok`, `durationMs`, and `response` payload.
+- Development backend requests emit a redacted response log with prefix `[API_RES]`.
+- Production browser consoles MUST NOT log API payloads, auth timing, tokens, session metadata, raw errors, or route context.
+- Production server logs keep actionable `WARN`/`ERROR` events only; include request metadata, never response payloads.
 - Apply logging centrally in `src/core/http/http-client.ts`; do not duplicate ad-hoc per page.
-- Do not remove response logging during feature work. If format changes, update this RULES file in the same task.
+- If the format or environment policy changes, update this RULES file in the same task.
 
 ## API Transport Rule (Mandatory)
 

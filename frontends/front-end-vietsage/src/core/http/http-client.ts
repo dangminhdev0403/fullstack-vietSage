@@ -3,6 +3,7 @@ import { HttpError } from "@/core/http/http-error";
 import { toLogSafePayload } from "@/core/http/http-log-redactor";
 import { isPublicApiPath } from "@/core/http/public-api-paths";
 import { HTTP_HEADER_TENANT_ID } from "@/core/http/tenant-scope";
+import { runtimeConsole } from "@/core/logging/runtime-console";
 
 type Primitive = string | number | boolean;
 type QueryValue = Primitive | null | undefined | Array<Primitive | null | undefined>;
@@ -155,14 +156,26 @@ function logApiResponse(params: {
   responseBody: unknown;
   message?: string;
 }): void {
-  const logFn = params.ok ? console.info : console.error;
-  logFn(HTTP_RESPONSE_LOG_PREFIX, {
+  if (!runtimeConsole.enabled(params.ok ? "info" : "error")) return;
+
+  const url = new URL(params.requestUrl);
+  const metadata = {
     method: params.method,
-    url: params.requestUrl,
+    url: url.pathname,
     status: params.status,
     ok: params.ok,
     durationMs: params.durationMs,
     message: params.message ?? extractApiResponseMessage(params.responseBody),
+  };
+
+  if (process.env.NODE_ENV === "production") {
+    runtimeConsole.error(HTTP_RESPONSE_LOG_PREFIX, metadata);
+    return;
+  }
+
+  const log = params.ok ? runtimeConsole.info : runtimeConsole.error;
+  log(HTTP_RESPONSE_LOG_PREFIX, {
+    ...metadata,
     response: toLogSafePayload(params.responseBody),
   });
 }
@@ -234,15 +247,6 @@ export class HttpClient {
 
       const responseBody = await parseResponseBody(response);
       if (!response.ok) {
-        logApiResponse({
-          method: options.method,
-          requestUrl: url.toString(),
-          status: response.status,
-          ok: false,
-          durationMs: Date.now() - requestStartedAt,
-          responseBody,
-        });
-
         throw new HttpError({
           message: `Request failed with status ${response.status}`,
           status: response.status,

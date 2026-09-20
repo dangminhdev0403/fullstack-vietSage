@@ -23,6 +23,7 @@ RATE_LIMIT_GLOBALS = (
     "limit_conn_zone $binary_remote_addr zone=per_ip_conn:5m;",
     "limit_req_status 429;",
     "limit_conn_status 429;",
+    "proxy_hide_header X-Powered-By;",
 )
 
 RATE_LIMITED_LOCATIONS = {

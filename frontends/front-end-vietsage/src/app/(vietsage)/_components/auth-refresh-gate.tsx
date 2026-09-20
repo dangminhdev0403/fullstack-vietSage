@@ -8,6 +8,7 @@ import {
   AUTH_LOGOUT_REQUIRED_EVENT_NAME,
   refreshInternalSession,
 } from "@/core/http/internal-session-refresh";
+import { runtimeConsole } from "@/core/logging/runtime-console";
 
 const REFRESH_GATE_EARLY_MS = 2_000;
 
@@ -50,7 +51,7 @@ export function AuthRefreshGate({
       logoutStartedRef.current = true;
 
       const detail = event instanceof CustomEvent ? event.detail : null;
-      console.warn("[AUTH_LOGOUT_REQUIRED]", {
+      runtimeConsole.warn("[AUTH_LOGOUT_REQUIRED]", {
         pathname,
         reason: detail && typeof detail.reason === "string" ? detail.reason : "unknown",
         sourcePathname: detail && typeof detail.pathname === "string" ? detail.pathname : null,
@@ -77,7 +78,7 @@ export function AuthRefreshGate({
     }
 
     async function refreshSession() {
-      console.info("[AUTH_REFRESH_GATE_START]", {
+      runtimeConsole.info("[AUTH_REFRESH_GATE_START]", {
         pathname,
         accessTokenExpiresAt,
         timestamp: Date.now(),
@@ -85,14 +86,14 @@ export function AuthRefreshGate({
 
       try {
         await refreshInternalSession();
-        console.info("[AUTH_REFRESH_GATE_SUCCESS]", {
+        runtimeConsole.info("[AUTH_REFRESH_GATE_SUCCESS]", {
           pathname,
           timestamp: Date.now(),
         });
 
         router.refresh();
       } catch (error) {
-        console.warn("[AUTH_REFRESH_GATE_FAILED]", {
+        runtimeConsole.warn("[AUTH_REFRESH_GATE_FAILED]", {
           pathname,
           errorMessage: error instanceof Error ? error.message : "Unknown refresh error",
           timestamp: Date.now(),

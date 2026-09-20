@@ -3,6 +3,7 @@
 import { type FormEvent, useEffect, useState } from "react";
 import Swal from "sweetalert2";
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import { runtimeConsole } from "@/core/logging/runtime-console";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 
 type Period = {
@@ -91,7 +92,7 @@ export function AdminBillingClient() {
       if (contractsRes.data) setContracts(contractsRes.data);
       if (hotelsRes.data?.items) setHotels(hotelsRes.data.items);
     } catch (err) {
-      console.error(err);
+      runtimeConsole.error(err);
     }
   };
 
@@ -111,7 +112,7 @@ export function AdminBillingClient() {
           if (hotelsRes.data?.items) setHotels(hotelsRes.data.items);
         }
       } catch (err) {
-        console.error(err);
+        runtimeConsole.error(err);
       } finally {
         if (!ignore) setLoading(false);
       }

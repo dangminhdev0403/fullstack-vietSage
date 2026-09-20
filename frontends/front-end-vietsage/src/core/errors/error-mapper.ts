@@ -1,5 +1,6 @@
 import { HttpError } from "@/core/http/http-error";
 import { translate, type Locale, type TranslationKey } from "@/core/i18n/translations";
+import { runtimeConsole } from "@/core/logging/runtime-console";
 
 export type UserFacingError = {
   translationKey: TranslationKey;
@@ -129,7 +130,7 @@ export function toUserFacingError(error: unknown, locale?: Locale): UserFacingEr
 }
 
 export function logFrontendError(scope: string, error: unknown, userError: UserFacingError): void {
-  console.warn(`[${scope}]`, {
+  runtimeConsole.warn(`[${scope}]`, {
     translationKey: userError.translationKey,
     statusCode: userError.statusCode,
     errorCode: userError.errorCode,
