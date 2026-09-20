@@ -150,28 +150,28 @@ export function MarketingHome() {
         </div>
       </section>
 
-      <section id="operations" data-scene="operations" className="vs-cinematic-scene vs-operations-scene relative overflow-hidden px-5 py-24 lg:px-8 lg:py-32">
+      <section id="operations" data-scene="operations" className="vs-cinematic-scene vs-operations-scene relative overflow-hidden px-5 py-14 sm:py-16 lg:py-20 lg:px-8">
         <div className="vs-scene-watermark" aria-hidden="true">VẬN HÀNH</div>
-        <div className="relative mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.92fr_1.08fr]">
-          <div data-reveal="from-left" className="vs-story-panel rounded-[2rem] p-8 text-white lg:sticky lg:top-32 lg:self-start">
-            <p className="text-xs font-black uppercase tracking-[0.26em] text-[#f3c66b]">03 / Kết nối tức thì từ phòng đến nhân sự</p>
-            <h2 className="vs-display mt-5 text-3xl font-black leading-[1.02] tracking-[-0.035em] md:text-6xl md:leading-none md:tracking-[-0.04em] [text-wrap:balance]">
+        <div className="relative mx-auto grid max-w-7xl gap-6 sm:gap-8 lg:grid-cols-[0.92fr_1.08fr] items-center">
+          <div data-reveal="from-left" className="vs-story-panel rounded-[2rem] p-6 sm:p-7 text-white">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#f3c66b]">03 / Kết nối tức thì từ phòng đến nhân sự</p>
+            <h2 className="vs-display mt-3.5 text-2xl sm:text-3xl lg:text-4xl xl:text-[2.5rem] font-bold leading-[1.16] tracking-[-0.025em] text-white [text-wrap:balance]">
               Chuyển hóa mọi yêu cầu tại phòng thành tác vụ chính xác.
             </h2>
-            <p className="mt-5 text-white/72">
+            <p className="mt-3.5 text-sm sm:text-base text-white/75 leading-relaxed">
               VietSage mang đến công cụ hỗ trợ tinh gọn, chuyên nghiệp, giúp khách luôn an tâm được phục vụ chu đáo mà không gây quá tải cho nhân viên qua các cuộc gọi dồn dập.
             </p>
           </div>
-          <div className="grid gap-4">
+          <div className="grid gap-3 sm:gap-3.5">
             {moments.map((moment, index) => (
               <article
                 key={moment}
                 data-reveal={index % 2 === 0 ? "from-right" : "scale"}
                 data-reveal-order={index}
-                className="vs-moment-card rounded-[1.8rem] p-7"
+                className="vs-moment-card rounded-[1.6rem] px-5 py-4 sm:px-6 sm:py-4.5"
               >
                 <span className="vs-moment-number">0{index + 1}</span>
-                <p className="mt-8 text-xl font-black leading-8 text-white">
+                <p className="mt-2 sm:mt-2.5 text-sm sm:text-base lg:text-[1.05rem] font-semibold leading-relaxed text-white">
                   {moment}
                 </p>
               </article>

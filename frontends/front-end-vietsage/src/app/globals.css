@@ -1404,6 +1404,10 @@ html:has(.vs-mkt-shell)::-webkit-scrollbar {
   left: auto;
 }
 
+.vs-operations-scene {
+  min-height: auto;
+}
+
 .vs-operations-scene .vs-scene-watermark {
   color: white;
   opacity: 0.055;
@@ -1416,7 +1420,7 @@ html:has(.vs-mkt-shell)::-webkit-scrollbar {
 
 .vs-moment-card {
   position: relative;
-  min-height: 13rem;
+  min-height: auto;
   overflow: hidden;
   border: 1px solid rgba(243, 198, 107, 0.18);
   background: linear-gradient(145deg, rgba(28, 70, 49, 0.88), rgba(8, 31, 21, 0.96));

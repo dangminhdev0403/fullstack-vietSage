@@ -290,7 +290,7 @@ export function CTA({ locale = "vi" }: { locale?: MarketingLocale } = {}) {
         <div className="grid gap-8 md:grid-cols-[1fr_auto] md:items-center">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#f3c66b]">Sẵn sàng chuyển đổi số vận hành khách sạn?</p>
-            <h2 className="vs-display mt-3 text-2xl font-bold leading-tight sm:text-3xl md:text-4xl lg:text-[2.4rem] xl:text-[2.75rem] 2xl:text-5xl xl:whitespace-nowrap">
+            <h2 className="vs-display mt-3 text-2xl font-semibold leading-tight sm:text-3xl md:text-4xl lg:text-[2.2rem] xl:text-[2.5rem] tracking-tight xl:whitespace-nowrap">
               Khởi động lộ trình triển khai cùng VietSage.
             </h2>
             <p className="mt-4 max-w-2xl text-sm sm:text-base text-white/75">
