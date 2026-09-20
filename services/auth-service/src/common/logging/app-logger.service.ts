@@ -37,6 +37,9 @@ export class AppLogger {
   }
 
   http(metadata: LogMetadata): void {
+    const statusCode = Number(metadata.statusCode ?? metadata.httpStatus);
+    if (statusCode < 400 && !this.isDebugEnabled()) return;
+
     this.write("INFO", this.endpoint(metadata.method, metadata.url) ?? "HTTP", {
       module: "http",
       event: "HTTP_REQUEST_COMPLETED",

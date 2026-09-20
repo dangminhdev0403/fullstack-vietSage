@@ -107,7 +107,17 @@ curl -fsS -H 'Host: vietsage.com' http://127.0.0.1:18080/api/auth/session
 curl -fsS -H 'Host: stay.vietsage.com' http://127.0.0.1:18080/ >/dev/null
 ```
 
-On the production VPS, leave `NGINX_HTTP_PORT` unset so Nginx publishes host port 80. Frontend, backend, and PostgreSQL do not publish host ports.
+The Docker Nginx edge applies per-client-IP admission limits and returns `429` immediately when a bucket is exhausted:
+
+| Route class | Sustained rate | Immediate burst | Concurrent connections |
+| --- | ---: | ---: | ---: |
+| `/api/auth/*` | 10 requests/second | 20 | 80 |
+| `/api/*` and `/api/health` | 60 requests/second | 120 | 80 |
+| `/api/cccd-mobile/*` | 4 requests/second | 8 | 80 |
+
+Bursts use `nodelay`, so Nginx sheds excess traffic instead of building a latency queue. When host Nginx forwards to Docker Nginx, the inner edge accepts `X-Forwarded-For` only from the private Docker proxy range (`172.16.0.0/12`) before applying the per-IP key.
+
+All Docker Nginx published ports bind to `127.0.0.1`; untrusted clients cannot call the inner edge directly or spoof `X-Forwarded-For`. In the current host-Nginx topology, set `NGINX_HTTP_PORT=18080` and `NGINX_HTTPS_PORT=18443`, then proxy public `80/443` from host Nginx to those loopback ports. Only leave the variables unset when Docker Nginx itself owns loopback `80/443` and no host listener occupies them. Frontend, backend, and PostgreSQL do not publish host ports.
 
 ## 5. Legacy host-Nginx cutover reference
 

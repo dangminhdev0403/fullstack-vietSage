@@ -87,7 +87,12 @@ def _check_nginx_configs(failures: list[str]) -> None:
         for required in required_tls:
             if required not in tls:
                 failures.append(f"HTTPS Nginx config is missing: {required}")
-        if tls.count("location ^~ /api/cccd-mobile/ {\n        access_log off;") != 2:
+        mobile_blocks = re.findall(
+            r"location \^~ /api/cccd-mobile/ \{(?P<body>.*?)\n    \}",
+            tls,
+            flags=re.DOTALL,
+        )
+        if len(mobile_blocks) != 2 or any("access_log off;" not in block for block in mobile_blocks):
             failures.append("both TLS hosts must disable mobile relay access logs")
         for required in ("client_max_body_size 16m", "proxy_request_buffering off", "proxy_buffering off"):
             if tls.count(required) != 2:
