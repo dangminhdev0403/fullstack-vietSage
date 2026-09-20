@@ -42,6 +42,9 @@ coverage
 **/.git.backup.zip
 account.json
 
+# Graphify knowledge graph (auto-generated, large)
+graphify-out/
+
 # Local agent continuation and execution state
 .hermes/plans/
 .hermes/tasks/
