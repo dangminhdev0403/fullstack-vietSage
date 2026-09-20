@@ -1,0 +1,75 @@
+{
+  "photos": {
+    "testimonial-avatar.png": {
+      "width": 512,
+      "height": 512,
+      "source": "standalone/recreated; not screenshot crop"
+    },
+    "spa-towel.png": {
+      "width": 1672,
+      "height": 941,
+      "source": "standalone/recreated; not screenshot crop"
+    },
+    "hero-lake-clean.png": {
+      "width": 1536,
+      "height": 1024,
+      "source": "standalone/recreated; not screenshot crop"
+    },
+    "hero-lake-with-script.png": {
+      "width": 1672,
+      "height": 941,
+      "source": "standalone/recreated; not screenshot crop"
+    }
+  },
+  "decor": [
+    "cta-foliage-overlay.png",
+    "leaf-blur-top-left.png",
+    "leaf-branch-left.png",
+    "leaf-branch-right.png",
+    "leaf-sprig.png"
+  ],
+  "backgrounds": [
+    "forest-cta.svg",
+    "page-cream.svg",
+    "sage-wash.svg"
+  ],
+  "icons": [
+    "arrow-left.svg",
+    "arrow-right.svg",
+    "bed-filled.svg",
+    "bed.svg",
+    "bell.svg",
+    "brand-horizontal.svg",
+    "brand-mark.svg",
+    "broom-filled.svg",
+    "broom.svg",
+    "calendar.svg",
+    "cloche-filled.svg",
+    "cloche.svg",
+    "clock.svg",
+    "diamond.svg",
+    "facebook.svg",
+    "feather.svg",
+    "gift.svg",
+    "globe.svg",
+    "headset.svg",
+    "heart.svg",
+    "instagram.svg",
+    "leaf.svg",
+    "linkedin.svg",
+    "map-pin-filled.svg",
+    "map-pin.svg",
+    "menu.svg",
+    "play.svg",
+    "qr.svg",
+    "quote.svg",
+    "search.svg",
+    "shield-check.svg",
+    "star.svg",
+    "user.svg",
+    "users.svg",
+    "utensils.svg",
+    "youtube.svg",
+    "zap.svg"
+  ]
+}

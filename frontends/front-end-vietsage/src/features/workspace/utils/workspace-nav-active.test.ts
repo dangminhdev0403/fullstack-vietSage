@@ -10,7 +10,7 @@ import type { DashboardNavItem } from "../types/workspace-navigation.ts";
 const ownerHotelItems: readonly DashboardNavItem[] = [
   { key: "owner.home", href: "/owner/dashboard", label: "Tổng quan", icon: "dashboard" },
   { key: "owner.hotel.billing", href: "/owner/hotels/hotel-1/billing", label: "Tài chính & đối soát", icon: "payments" },
-  { key: "owner.hotel.settings", href: "/owner/hotels/hotel-1", label: "Thiết lập & kết nối", icon: "settings" },
+  { key: "owner.hotel.settings", href: "/owner/hotels/hotel-1", label: "Cài đặt khách sạn", icon: "settings" },
 ];
 
 test("isNavItemActive highlights exact match for owner dashboard", () => {
@@ -40,7 +40,7 @@ test("isNavItemActive highlights admin roles and permissions navigation item cor
   assert.equal(isNavItemActive(accessItem.href, "/admin/users", adminItems), false);
 });
 
-test("buildWorkspaceNavigation keeps owner navigation executive and compact", () => {
+test("buildWorkspaceNavigation produces complete owner navigation structure", () => {
   const ownerItems = buildWorkspaceNavigation({
     persona: "owner",
     permissions: [
@@ -58,6 +58,11 @@ test("buildWorkspaceNavigation keeps owner navigation executive and compact", ()
   assert.deepEqual(ownerItems.map((item) => item.key), [
     "owner.home",
     "owner.hotel.billing",
+    "owner.hotel.rooms",
+    "owner.hotel.services",
+    "owner.hotel.staff",
+    "owner.hotel.partners",
+    "owner.hotel.kbtt",
     "owner.hotel.settings",
   ]);
 });

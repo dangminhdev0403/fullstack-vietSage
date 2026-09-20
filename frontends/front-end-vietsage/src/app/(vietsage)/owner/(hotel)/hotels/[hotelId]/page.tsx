@@ -11,11 +11,11 @@ import { ownerAccessMessage } from "../../../_components/owner-auth";
 import { OwnerHotelDetailClient } from "./owner-hotel-detail-client";
 
 const settingsLinks = [
-  { path: "rooms", icon: "QR", title: "Phòng & QR", description: "Cấu hình phòng, giá niêm yết, thiết bị và mã QR GuestOS.", global: false },
-  { path: "staff", icon: "NS", title: "Nhân viên", description: "Quản lý tài khoản, vai trò và phạm vi làm việc của nhân viên.", global: true },
-  { path: "services", icon: "DV", title: "Danh mục dịch vụ", description: "Cấu hình nhóm dịch vụ, giá và nội dung GuestOS.", global: false },
-  { path: "partners", icon: "ĐT", title: "Kết nối đối tác", description: "Chọn đối tác dịch vụ hiển thị cho khách lưu trú.", global: false },
-  { path: "kbtt?tab=connection", icon: "BCA", title: "Kết nối Bộ Công an", description: "Quản lý kết nối BCA; hồ sơ khai báo chỉ để theo dõi.", global: false },
+  { path: "rooms", icon: "QR", title: "Phòng & QR", description: "Cấu hình phòng, giá niêm yết, thiết bị và mã QR GuestOS." },
+  { path: "staff", icon: "NS", title: "Nhân viên", description: "Quản lý tài khoản, vai trò và phạm vi làm việc của nhân viên." },
+  { path: "services", icon: "DV", title: "Danh mục dịch vụ", description: "Cấu hình nhóm dịch vụ, giá và nội dung GuestOS." },
+  { path: "partners", icon: "ĐT", title: "Kết nối đối tác", description: "Chọn đối tác dịch vụ hiển thị cho khách lưu trú." },
+  { path: "kbtt", icon: "BCA", title: "Kết nối Bộ Công an", description: "Quản lý kết nối BCA; hồ sơ khai báo chỉ để theo dõi." },
 ] as const;
 
 type OwnerHotelPageProps = {
@@ -77,7 +77,8 @@ export default async function OwnerHotelPage({ params }: OwnerHotelPageProps) {
         {settingsLinks.map((item) => (
           <Link
             key={item.path}
-            href={item.global ? "/owner/staff" : `/owner/hotels/${encodeURIComponent(hotelId)}/${item.path}`}
+            href={`/owner/hotels/${encodeURIComponent(hotelId)}/${item.path}`}
+            prefetch={true}
             className="group rounded-2xl border border-[#e5ddcd] bg-[#fffcf7] p-5 shadow-[0_8px_24px_rgba(23,32,27,0.06)] transition hover:-translate-y-0.5 hover:border-[#d7bd61] hover:shadow-[0_14px_32px_rgba(23,32,27,0.10)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8c6d29]"
           >
             <span className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-[#17201b] px-3 text-sm font-black text-[#e8b363]">

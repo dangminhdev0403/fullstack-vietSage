@@ -95,33 +95,38 @@ export function VsDashboardSidebar({
       ) : null}
 
       {/* Header section */}
-      <div className={`relative mb-6 transition-all duration-300 ${isCollapsed ? "px-2" : "px-6"}`}>
-        <div className={`flex items-center ${isCollapsed ? "justify-center" : "justify-start gap-3"}`}>
-          <VietSageBrand
-            variant="mark"
-            priority
-            className={`rounded-[1.2rem] p-1.5 shadow-[0_16px_36px_rgba(0,0,0,0.18)] transition-all duration-300 ${
-              isCollapsed ? "h-11 w-11" : "h-14 w-14"
-            }`}
-            markClassName="h-full w-full"
-          />
-          {!isCollapsed ? (
-            <span className="rounded-full border border-[#f8f1e6]/20 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#e8b363]">
-              {eyebrow}
-            </span>
-          ) : null}
-        </div>
-
-        {!isCollapsed ? (
-          <div className="mt-3">
-            <p className="font-serif text-[1.95rem] font-semibold leading-tight tracking-[-0.035em] text-[#fff8e8]">
-              VietSage
-            </p>
-            <p className="mt-1.5 line-clamp-2 max-w-56 text-xs font-medium leading-5 text-[#d7cbb8]">
-              {description}
-            </p>
+      <div className={`relative mb-5 transition-all duration-300 ${isCollapsed ? "px-2" : "px-5"}`}>
+        {isCollapsed ? (
+          <div className="flex justify-center">
+            <VietSageBrand
+              variant="mark"
+              priority
+              className="h-11 w-11 rounded-[1.1rem] p-1.5 shadow-[0_16px_36px_rgba(0,0,0,0.18)]"
+              markClassName="h-full w-full"
+            />
           </div>
-        ) : null}
+        ) : (
+          <div className="space-y-2.5">
+            <div className="flex items-center gap-3">
+              <VietSageBrand
+                variant="mark"
+                priority
+                className="h-11 w-11 shrink-0 rounded-2xl p-1.5 shadow-[0_12px_28px_rgba(0,0,0,0.22)]"
+                markClassName="h-full w-full"
+              />
+              <span className="font-serif text-[1.75rem] font-bold leading-none tracking-[-0.03em] text-[#fff8e8]">
+                VietSage
+              </span>
+            </div>
+            {eyebrow ? (
+              <div>
+                <span className="inline-block rounded-full border border-[#e8b363]/30 bg-[#e8b363]/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.18em] text-[#e8b363]">
+                  {eyebrow}
+                </span>
+              </div>
+            ) : null}
+          </div>
+        )}
       </div>
 
       {/* Navigation items with vertical scrolling */}
@@ -154,6 +159,7 @@ export function VsDashboardSidebar({
                     <div key={item.key} className="relative group flex justify-center">
                       <Link
                         href={item.href}
+                        prefetch={true}
                         className={`flex h-[50px] w-[50px] items-center justify-center rounded-xl transition-all duration-200 ${
                           isActive
                             ? "bg-[#f8f1e6] text-[#17201b] shadow-[0_4px_16px_rgba(0,0,0,0.18)]"
@@ -196,6 +202,7 @@ export function VsDashboardSidebar({
                   <Link
                     key={item.key}
                     href={item.href}
+                    prefetch={true}
                     className={`group flex h-[52px] items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-all duration-200 ${
                       isActive
                         ? "bg-[#f8f1e6] text-[#17201b] shadow-[0_4px_16px_rgba(0,0,0,0.18)]"

@@ -27,7 +27,7 @@ test("provides service navigation only to configured staff personas", () => {
   assert.equal(frontDeskWithoutServices.some((item) => item.href.endsWith("/services")), false);
 });
 
-test("keeps the owner sidebar to overview, finance, and settings", () => {
+test("builds owner sidebar with operational modules and hotel settings", () => {
   const navigation = buildWorkspaceNavigation({
     persona: "owner",
     permissions: [
@@ -52,9 +52,34 @@ test("keeps the owner sidebar to overview, finance, and settings", () => {
         label: "Tài chính & đối soát",
       },
       {
+        key: "owner.hotel.rooms",
+        href: "/owner/hotels/hotel-1/rooms",
+        label: "Phòng & QR",
+      },
+      {
+        key: "owner.hotel.services",
+        href: "/owner/hotels/hotel-1/services",
+        label: "Danh mục dịch vụ",
+      },
+      {
+        key: "owner.hotel.staff",
+        href: "/owner/hotels/hotel-1/staff",
+        label: "Nhân viên",
+      },
+      {
+        key: "owner.hotel.partners",
+        href: "/owner/hotels/hotel-1/partners",
+        label: "Kết nối đối tác",
+      },
+      {
+        key: "owner.hotel.kbtt",
+        href: "/owner/hotels/hotel-1/kbtt",
+        label: "Kết nối Bộ Công an",
+      },
+      {
         key: "owner.hotel.settings",
         href: "/owner/hotels/hotel-1",
-        label: "Thiết lập & kết nối",
+        label: "Cài đặt khách sạn",
       },
     ],
   );

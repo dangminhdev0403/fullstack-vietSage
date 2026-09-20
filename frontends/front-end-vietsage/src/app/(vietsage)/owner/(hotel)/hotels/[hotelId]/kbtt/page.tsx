@@ -15,7 +15,7 @@ export default async function OwnerKbttPage({
 }) {
   const { hotelId } = await params;
   const sp = searchParams ? await searchParams : {};
-  const initialTab = sp.tab === "connection" ? "connection" : "declarations";
+  const initialTab = sp.tab === "declarations" ? "declarations" : "connection";
   const callbackUrl =
     `/owner/hotels/${encodeURIComponent(hotelId)}/kbtt` as const;
   const context = await loadServerWorkspaceContext(callbackUrl);

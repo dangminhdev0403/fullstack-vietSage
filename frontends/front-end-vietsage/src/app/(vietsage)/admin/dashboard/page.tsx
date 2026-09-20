@@ -71,6 +71,7 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
                 <Link
                   key={widget.key}
                   href={widget.href}
+                  prefetch={true}
                   className="group rounded-[1.75rem] border border-[#24473d]/10 bg-white/85 p-6 shadow-[0_18px_50px_rgba(31,61,53,0.08)] transition-transform hover:-translate-y-1"
                 >
                   <span className="grid size-12 place-items-center rounded-2xl bg-[#e6efe9] text-[#24473d]">

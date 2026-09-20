@@ -71,15 +71,30 @@ export function WorkspaceShell({
 
   const hotelIdMatch = pathname?.match(/^\/(?:hotels|owner\/hotels)\/([^/]+)/);
   const hotelId = hotelIdMatch?.[1] ?? null;
+
+  const effectiveNavItems = useMemo(() => {
+    if (!hotelId) return navItems;
+    return navItems.map((item) => {
+      if (item.href.includes("/owner/hotels/") || item.href.includes("/hotels/")) {
+        const updatedHref = item.href.replace(
+          /(\/(?:owner\/)?hotels\/)[^/]+(\/.*)?$/,
+          `$1${hotelId}$2`,
+        ) as `/${string}`;
+        return { ...item, href: updatedHref };
+      }
+      return item;
+    });
+  }, [navItems, hotelId]);
+
   const hasMessagePermission = useMemo(
     () =>
-      navItems.some(
+      effectiveNavItems.some(
         (item) =>
           item.key === "staff.messages" ||
           item.key === "room-messages" ||
           item.href.includes("/messages"),
       ),
-    [navItems],
+    [effectiveNavItems],
   );
   const { unreadCount } = useHotelMessageUnread(hotelId, {
     enabled: hasMessagePermission,
@@ -117,7 +132,7 @@ export function WorkspaceShell({
         />
         <VsDashboardSidebar
           activePath={activePath}
-          items={navItems}
+          items={effectiveNavItems}
           eyebrow={definition.eyebrow}
           description={definition.description}
           badgeByKey={badgeByKey}
@@ -141,13 +156,14 @@ export function WorkspaceShell({
         </div>
       </main>
       <nav className="fixed inset-x-3 bottom-3 z-50 flex items-stretch justify-around gap-1 rounded-2xl border border-[#24473d]/10 bg-[#17201b]/95 p-2 text-[#fff8e8] shadow-[0_18px_50px_rgba(23,32,27,0.28)] backdrop-blur-xl print:hidden md:hidden">
-        {navItems.slice(0, 4).map((item) => {
-          const active = isNavItemActive(item.href, activePath, navItems);
+        {effectiveNavItems.slice(0, 4).map((item) => {
+          const active = isNavItemActive(item.href, activePath, effectiveNavItems);
           const badge = badgeByKey[item.key] ?? 0;
           return (
             <Link
               key={item.key}
               href={item.href}
+              prefetch={true}
               className={`relative flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-center text-[10px] font-bold ${
                 active ? "bg-[#f8f1e6] text-[#17201b]" : "text-[#d7cbb8]"
               }`}

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="150" viewBox="0 0 640 150">
+<g transform="translate(0,-5) scale(.95)">
+<circle cx="80" cy="80" r="74" fill="#FFFDF8" stroke="#E8E0CD" stroke-width="4"/>
+<path d="M42 42 80 128 118 42 98 52 80 92 62 52z" fill="#215744"/>
+<path d="M80 23c7 11 15 17 29 19-11 5-18 12-21 25-3-13-10-20-21-25 13-2 21-8 13-19z" fill="#C69A4A"/>
+<path d="M64 62c-14-9-25-6-33-2 13 5 20 13 23 25 2-9 5-15 10-23z" fill="#8BA987"/>
+<path d="M96 62c14-9 25-6 33-2-13 5-20 13-23 25-2-9-5-15-10-23z" fill="#8BA987"/>
+</g>
+<text x="180" y="75" font-family="Georgia,serif" font-size="48" letter-spacing="8" fill="#215744">VIETSAGE</text>
+<text x="184" y="108" font-family="Arial,sans-serif" font-size="17" fill="#6B756F">Nghỉ dưỡng trọn vẹn, mỗi hành trình</text>
+</svg>

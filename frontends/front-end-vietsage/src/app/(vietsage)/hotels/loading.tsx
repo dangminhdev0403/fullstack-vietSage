@@ -1,5 +1,9 @@
-import { RouteLoadingState } from "../_components/route-boundary-state";
+import { ContentLoadingState } from "../_components/route-boundary-state";
 
 export default function HotelsLoading() {
-  return <RouteLoadingState label="Loading hotel operations" tone="hotel" />;
+  return (
+    <div className="p-6">
+      <ContentLoadingState label="Đang tải dữ liệu vận hành khách sạn..." tone="hotel" />
+    </div>
+  );
 }

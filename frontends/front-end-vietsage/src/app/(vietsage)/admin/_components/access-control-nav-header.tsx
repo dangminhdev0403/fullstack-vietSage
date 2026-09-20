@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { VsIcon } from "../../_components/vs-icon";
@@ -62,6 +62,7 @@ export function AccessControlNavHeader({
             <Link
               key={tab.key}
               href={tab.href}
+              prefetch={true}
               aria-current={isActive ? "page" : undefined}
               className={`inline-flex min-h-11 items-center gap-2 rounded-lg border px-4 text-sm font-semibold transition-colors ${
                 isActive

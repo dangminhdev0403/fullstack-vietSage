@@ -57,12 +57,14 @@ export function ServiceDashboardView({ data }: Readonly<{ data: ServicePortalDat
           <div className="flex flex-wrap gap-3 shrink-0">
             <Link
               href="/service/catalog"
+              prefetch={true}
               className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#e8b363] px-4.5 text-sm font-bold text-[#17201b] shadow-sm transition-all hover:bg-[#dfa652]"
             >
               <span>+</span> Thêm dịch vụ
             </Link>
             <Link
               href="/service/orders"
+              prefetch={true}
               className="inline-flex h-10 items-center gap-2 rounded-xl bg-white/10 px-4.5 text-sm font-semibold text-[#f8f1e6] backdrop-blur-md transition-colors hover:bg-white/20 border border-white/15"
             >
               📋 Đơn hàng ({pendingOrders.length} mới)
@@ -151,7 +153,7 @@ export function ServiceDashboardView({ data }: Readonly<{ data: ServicePortalDat
             <span className="text-3xl font-extrabold text-[#17201b]">{data.services.length}</span>
             <span className="text-xs font-medium text-[#5a6760]">dịch vụ đang mở</span>
           </div>
-          <Link href="/service/catalog" className="inline-block text-xs font-bold text-[#8c6d29] hover:underline">
+          <Link href="/service/catalog" prefetch={true} className="inline-block text-xs font-bold text-[#8c6d29] hover:underline">
             Quản lý menu dịch vụ ➔
           </Link>
         </div>
@@ -168,7 +170,7 @@ export function ServiceDashboardView({ data }: Readonly<{ data: ServicePortalDat
             <span className="text-3xl font-extrabold text-[#17201b]">{data.orders.length}</span>
             <span className="text-xs font-medium text-[#5a6760]">lượt đặt hàng</span>
           </div>
-          <Link href="/service/orders" className="inline-block text-xs font-bold text-[#1c553f] hover:underline">
+          <Link href="/service/orders" prefetch={true} className="inline-block text-xs font-bold text-[#1c553f] hover:underline">
             Xem lịch sử đơn ➔
           </Link>
         </div>
@@ -187,7 +189,7 @@ export function ServiceDashboardView({ data }: Readonly<{ data: ServicePortalDat
             </span>
             <span className="text-xs font-medium text-[#5a6760]">cần xử lý ngay</span>
           </div>
-          <Link href="/service/orders" className="inline-block text-xs font-bold text-[#925f0e] hover:underline">
+          <Link href="/service/orders" prefetch={true} className="inline-block text-xs font-bold text-[#925f0e] hover:underline">
             Xử lý đơn ngay ➔
           </Link>
         </div>
@@ -208,7 +210,7 @@ export function ServiceDashboardView({ data }: Readonly<{ data: ServicePortalDat
               {data.profile.googleMapsUrl ? "Maps URL khả dụng" : "Vui lòng cập nhật tọa độ"}
             </span>
           </div>
-          <Link href="/service/settings" className="inline-block text-xs font-bold text-[#8c6d29] hover:underline">
+          <Link href="/service/settings" prefetch={true} className="inline-block text-xs font-bold text-[#8c6d29] hover:underline">
             Cập nhật vị trí ➔
           </Link>
         </div>
@@ -225,7 +227,7 @@ export function ServiceDashboardView({ data }: Readonly<{ data: ServicePortalDat
                 {activeOrders.length}
               </span>
             </h2>
-            <Link href="/service/orders" className="text-xs font-bold text-[#8c6d29] hover:underline">
+            <Link href="/service/orders" prefetch={true} className="text-xs font-bold text-[#8c6d29] hover:underline">
               Tất cả đơn hàng
             </Link>
           </div>
@@ -307,7 +309,7 @@ export function ServiceDashboardView({ data }: Readonly<{ data: ServicePortalDat
             <h2 className="text-lg font-bold text-[#17201b] flex items-center gap-2">
               <span>🛍️</span> Dịch vụ nổi bật
             </h2>
-            <Link href="/service/catalog" className="text-xs font-bold text-[#8c6d29] hover:underline">
+            <Link href="/service/catalog" prefetch={true} className="text-xs font-bold text-[#8c6d29] hover:underline">
               Thêm mới
             </Link>
           </div>

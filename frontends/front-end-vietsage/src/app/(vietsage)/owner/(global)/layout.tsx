@@ -1,26 +1,9 @@
-import { type ReactNode } from "react";
-import { buildWorkspaceNavigationForContext } from "@/features/workspace/config/workspace-registry";
-import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
-import { WorkspaceProfileProvider } from "@/features/workspace/components/workspace-profile-context";
-import { OwnerShell } from "../_components/owner-shell";
+import type { ReactNode } from "react";
 
-export default async function OwnerGlobalLayout({
+export default function OwnerGlobalLayout({
   children,
 }: Readonly<{
   children: ReactNode;
 }>) {
-  const callbackUrl = "/owner/dashboard" as const;
-  const context = await loadServerWorkspaceContext(callbackUrl);
-  const sidebarItems = buildWorkspaceNavigationForContext({
-    ...context,
-    hotelId: context.accessibleHotels[0]?.id,
-  });
-
-  return (
-    <WorkspaceProfileProvider profileName={context.fullName}>
-      <OwnerShell navItems={sidebarItems} subtitle={context.activeRole.name}>
-        {children}
-      </OwnerShell>
-    </WorkspaceProfileProvider>
-  );
+  return children;
 }
