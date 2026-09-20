@@ -5,6 +5,13 @@ import { redactLogMetadata } from "./log-redactor";
 export type LogLevel = "DEBUG" | "INFO" | "WARN" | "ERROR";
 type LogDomain = "AUTH" | "HTTP" | "SOCKET" | "DATABASE" | "APP";
 
+const LOG_LEVEL_WEIGHT: Record<LogLevel, number> = {
+  DEBUG: 10,
+  INFO: 20,
+  WARN: 30,
+  ERROR: 40,
+};
+
 export interface LogMetadata {
   module?: string;
   controller?: string;
@@ -38,9 +45,9 @@ export class AppLogger {
 
   http(metadata: LogMetadata): void {
     const statusCode = Number(metadata.statusCode ?? metadata.httpStatus);
-    if (statusCode < 400 && !this.isDebugEnabled()) return;
+    const level: LogLevel = statusCode >= 500 ? "ERROR" : statusCode >= 400 ? "WARN" : "DEBUG";
 
-    this.write("INFO", this.endpoint(metadata.method, metadata.url) ?? "HTTP", {
+    this.write(level, this.endpoint(metadata.method, metadata.url) ?? "HTTP", {
       module: "http",
       event: "HTTP_REQUEST_COMPLETED",
       ...metadata,
@@ -60,9 +67,7 @@ export class AppLogger {
   }
 
   private write(level: LogLevel, message: unknown, metadata: LogMetadata): void {
-    if (level === "DEBUG" && !this.isDebugEnabled()) {
-      return;
-    }
+    if (LOG_LEVEL_WEIGHT[level] < LOG_LEVEL_WEIGHT[this.minimumLevel()]) return;
 
     const normalized = this.normalizeMessage(message, metadata);
     const context = RequestContext.get();
@@ -292,7 +297,13 @@ export class AppLogger {
   }
 
   private isDebugEnabled(): boolean {
-    return (process.env.LOG_LEVEL ?? "").toLowerCase() === "debug";
+    return this.minimumLevel() === "DEBUG";
+  }
+
+  private minimumLevel(): LogLevel {
+    const configured = (process.env.LOG_LEVEL ?? "").toUpperCase();
+    if (configured in LOG_LEVEL_WEIGHT) return configured as LogLevel;
+    return process.env.NODE_ENV === "production" ? "WARN" : "INFO";
   }
 
   private isHiddenField(key: string): boolean {

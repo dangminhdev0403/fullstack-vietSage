@@ -119,6 +119,8 @@ Bursts use `nodelay`, so Nginx sheds excess traffic instead of building a latenc
 
 All Docker Nginx published ports bind to `127.0.0.1`; untrusted clients cannot call the inner edge directly or spoof `X-Forwarded-For`. In the current host-Nginx topology, set `NGINX_HTTP_PORT=18080` and `NGINX_HTTPS_PORT=18443`, then proxy public `80/443` from host Nginx to those loopback ports. Only leave the variables unset when Docker Nginx itself owns loopback `80/443` and no host listener occupies them. Frontend, backend, and PostgreSQL do not publish host ports.
 
+Production auth-service logging defaults to `WARN`: successful HTTP and routine `INFO` events are suppressed, while `4xx`, `5xx`, warnings, errors, and security events remain available. For a bounded debug window, recreate only auth-service with `AUTH_LOG_LEVEL=DEBUG`, inspect with `docker logs --since 10m -f vietsage-auth-service`, then unset the override and recreate auth-service again. Do not truncate Docker log files manually; `json-file` rotation already caps each production container at five 10 MB files.
+
 ## 5. Legacy host-Nginx cutover reference
 
 Do not run host Nginx and Docker Nginx on the same `80/443` ports. The commands below are retained only as a cutover/fallback reference for installations that deliberately keep Nginx on the host instead of using the Compose service.

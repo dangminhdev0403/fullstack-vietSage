@@ -111,6 +111,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: "8080"
+      LOG_LEVEL: "${AUTH_LOG_LEVEL:-WARN}"
     volumes:
       - "./secrets/production/google-service-account.json:/run/secrets/google-service-account.json:ro"
     read_only: true
