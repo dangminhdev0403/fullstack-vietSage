@@ -23,6 +23,7 @@ type WorkspaceShellProps = {
   activePath?: string;
   profileName?: string | null;
   printFriendly?: boolean;
+  sidebarWidth?: "default" | "compact240";
 };
 
 export function WorkspaceShell({
@@ -33,6 +34,7 @@ export function WorkspaceShell({
   activePath: explicitActivePath,
   profileName,
   printFriendly = false,
+  sidebarWidth = "default",
 }: Readonly<WorkspaceShellProps>) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -127,6 +129,8 @@ export function WorkspaceShell({
           headerClassName={`transition-all duration-300 ${
             isCollapsed
               ? "md:left-20 md:w-[calc(100%-5rem)]"
+              : sidebarWidth === "compact240"
+              ? "md:left-60 md:w-[calc(100%-15rem)]"
               : "md:left-72 2xl:left-80 md:w-[calc(100%-18rem)] 2xl:w-[calc(100%-20rem)]"
           }`}
         />
@@ -138,19 +142,26 @@ export function WorkspaceShell({
           badgeByKey={badgeByKey}
           isCollapsed={isCollapsed}
           onToggleCollapse={toggleCollapse}
+          sidebarWidth={sidebarWidth}
         />
       </div>
       <main
-        className={`min-h-screen px-4 pb-20 pt-20 transition-all duration-300 print:p-0 ${
-          isCollapsed ? "md:ml-20" : "md:ml-72 2xl:ml-80"
+        className={`min-h-screen px-4 pb-16 pt-20 transition-all duration-300 print:p-0 ${
+          isCollapsed
+            ? "md:ml-20"
+            : sidebarWidth === "compact240"
+            ? "md:ml-60"
+            : "md:ml-72 2xl:ml-80"
         } sm:px-6 lg:px-8 print:md:ml-0 ${
           printFriendly ? "owner-shell-main" : ""
         }`}
       >
         <div
-          className={`w-full space-y-8 ${
-            printFriendly ? "owner-shell-content" : ""
-          }`}
+          className={`w-full ${
+            sidebarWidth === "compact240"
+              ? "max-w-[1440px] mx-auto space-y-4"
+              : "space-y-8"
+          } ${printFriendly ? "owner-shell-content" : ""}`}
         >
           {children}
         </div>

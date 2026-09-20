@@ -20,6 +20,7 @@ type VsDashboardSidebarProps = {
   badgeByKey?: Readonly<Record<string, number>>;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
+  sidebarWidth?: "default" | "compact240";
 };
 
 const SECTION_ORDER: readonly DashboardNavSection[] = [
@@ -44,6 +45,7 @@ export function VsDashboardSidebar({
   badgeByKey,
   isCollapsed = false,
   onToggleCollapse,
+  sidebarWidth = "default",
 }: Readonly<VsDashboardSidebarProps>) {
   const navigationItems = useMemo(() => items ?? [], [items]);
 
@@ -68,10 +70,13 @@ export function VsDashboardSidebar({
     })).filter((group) => group.items.length > 0);
   }, [navigationItems]);
 
+  const sidebarWidthClass =
+    sidebarWidth === "compact240" ? "w-60" : "w-72 2xl:w-80";
+
   return (
     <aside
       className={`fixed left-0 top-0 z-50 hidden h-full flex-col border-r border-[#1f3d35]/15 bg-[#17201b] pt-5 text-[#f8f1e6] shadow-[18px_0_60px_rgba(23,32,27,0.18)] transition-all duration-300 md:flex ${
-        isCollapsed ? "w-20" : "w-72 2xl:w-80"
+        isCollapsed ? "w-20" : sidebarWidthClass
       }`}
     >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(232,179,99,0.22),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.08),transparent_34%)]" />

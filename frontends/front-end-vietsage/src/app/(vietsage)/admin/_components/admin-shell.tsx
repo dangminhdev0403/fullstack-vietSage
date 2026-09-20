@@ -26,6 +26,7 @@ export function AdminShell({
       definition={getWorkspaceDefinition("platform_admin")}
       navItems={navItems}
       profileName={profileName}
+      sidebarWidth="compact240"
     >
       {children}
     </WorkspaceShell>
