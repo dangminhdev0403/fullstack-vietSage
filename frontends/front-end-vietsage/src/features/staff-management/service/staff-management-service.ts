@@ -152,7 +152,7 @@ export class StaffManagementService {
   async listHotelRooms(
     hotelId: string,
     accessToken?: string,
-    options?: { unassignedOnly?: boolean },
+    options?: { unassignedOnly?: boolean; tenantId?: string },
   ) {
     const payload = await this.request<unknown>({
       method: "GET",
@@ -162,6 +162,7 @@ export class StaffManagementService {
         limit: 100,
         ...(options?.unassignedOnly ? { unassignedOnly: "true" } : {}),
       },
+      tenantId: options?.tenantId,
       accessToken,
     });
     return unwrapApiEnvelope<{
@@ -169,11 +170,18 @@ export class StaffManagementService {
     }>(payload).data.items;
   }
 
-  async assignRoom(hotelId: string, userId: string, roomId: string, accessToken?: string) {
+  async assignRoom(
+    hotelId: string,
+    userId: string,
+    roomId: string,
+    accessToken?: string,
+    tenantId?: string,
+  ) {
     const payload = await this.request<unknown, { roomId: string }>({
       method: "PUT",
       path: `/hotels/${encodeURIComponent(hotelId)}/staff-assignments/${encodeURIComponent(userId)}/room`,
       body: { roomId },
+      tenantId,
       accessToken,
     });
     return unwrapApiEnvelope<{
@@ -186,10 +194,16 @@ export class StaffManagementService {
     }>(payload).data;
   }
 
-  async unassignRoom(hotelId: string, userId: string, accessToken?: string) {
+  async unassignRoom(
+    hotelId: string,
+    userId: string,
+    accessToken?: string,
+    tenantId?: string,
+  ) {
     const payload = await this.request<unknown>({
       method: "DELETE",
       path: `/hotels/${encodeURIComponent(hotelId)}/staff-assignments/${encodeURIComponent(userId)}/room`,
+      tenantId,
       accessToken,
     });
     return unwrapApiEnvelope<{

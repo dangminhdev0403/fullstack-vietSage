@@ -61,6 +61,8 @@ export class HotelRoomsRepository {
       });
       return { ...createdRoom, activeGuestDeviceCount: 0 };
     });
+  }
+
   async listAssignedRoomIds(hotelId: string): Promise<string[]> {
     const assignments = await this.prisma.hotelRoomStaffAssignment.findMany({
       where: { hotelId },

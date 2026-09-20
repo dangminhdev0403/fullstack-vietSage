@@ -406,7 +406,6 @@ export function StaffRoomsClient({
   const [floor, setFloor] = useState("all");
   const [type, setType] = useState("all");
   const [status, setStatus] = useState<RoomStatusFilter>("all");
-  const [vipOnly, setVipOnly] = useState(false);
   const [flow, setFlow] = useState<FlowMode>(() => {
     if (initialFlow === "reservation") return "reservation";
     return "walk-in";
@@ -454,7 +453,7 @@ export function StaffRoomsClient({
       status,
       floor,
       type,
-      vipOnly,
+      vipOnly: false,
     }),
     refetchInterval: 60_000,
     refetchIntervalInBackground: false,
@@ -464,8 +463,7 @@ export function StaffRoomsClient({
       !query &&
       status === "all" &&
       floor === "all" &&
-      type === "all" &&
-      !vipOnly
+      type === "all"
         ? initialRoomsPage
         : undefined,
   });
@@ -1196,19 +1194,7 @@ export function StaffRoomsClient({
             </button>
           </div>
           <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 2xl:ml-auto">
-            <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-[var(--on-surface-variant)] whitespace-nowrap">
-              <input
-                type="checkbox"
-                checked={vipOnly}
-                onChange={(event) => {
-                  setVipOnly(event.target.checked);
-                  setPage(1);
-                }}
-                className="rounded border-[var(--outline-variant)] text-[var(--primary)] focus:ring-[var(--primary)]"
-              />
-              Chế độ VIP
-            </label>
-            <div className="grid grid-cols-2 gap-4 border-l border-[var(--outline-variant)] pl-4 text-center shrink-0">
+            <div className="grid grid-cols-2 gap-4 text-center shrink-0">
               <div>
                 <p className="text-xs text-[var(--on-surface-variant)]">Tổng</p>
                 <p className="font-bold text-[var(--primary)]">{totalItems}</p>

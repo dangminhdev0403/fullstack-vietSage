@@ -17,6 +17,11 @@ const resourceSource = read("src/features/staff-management/resources/staff-direc
 const queryHookSource = read("src/features/staff-management/queries/use-staff-directory-query.ts");
 const staffClientSource = read("src/features/staff-management/components/staff-management-client.tsx");
 const staffBffSource = read("src/app/api/owner/staff/route.ts");
+const adminStaffBffSource = read("src/app/api/admin/staff/route.ts");
+const adminBffRoomRoutePath = new URL(
+  "../src/app/api/admin/hotels/[hotelId]/staff-assignments/[userId]/room/route.ts",
+  import.meta.url,
+);
 const roomSearchSelectSource = read("src/features/staff-management/components/room-search-select.tsx");
 const backendRoomsSchema = readFileSync(new URL("../../../services/auth-service/src/modules/property/domain/schemas/rooms.schema.ts", import.meta.url), "utf8");
 const backendRoomsService = readFileSync(new URL("../../../services/auth-service/src/modules/property/application/hotel-rooms.service.ts", import.meta.url), "utf8");
@@ -65,6 +70,18 @@ test("BFF routes exist and handle staff room assignments", () => {
   assert.match(staffBffSource, /staffManagementService\.listHotelRooms/);
   assert.match(staffBffSource, /rooms:/);
   assert.match(staffBffSource, /roomId/);
+
+  // Admin staff listing BFF also aggregates rooms and handles assignments
+  assert.equal(existsSync(adminBffRoomRoutePath), true);
+  const adminBffRoomSource = readFileSync(adminBffRoomRoutePath, "utf8");
+  assert.match(adminBffRoomSource, /export async function PUT\(/);
+  assert.match(adminBffRoomSource, /export async function DELETE\(/);
+  assert.match(adminBffRoomSource, /staffManagementService\.assignRoom/);
+  assert.match(adminBffRoomSource, /staffManagementService\.unassignRoom/);
+
+  assert.match(adminStaffBffSource, /staffManagementService\.listHotelRooms/);
+  assert.match(adminStaffBffSource, /rooms:/);
+  assert.match(adminStaffBffSource, /roomId/);
 });
 
 test("staff management client renders room assignment, validation, and SweetAlert confirm dialogs", () => {

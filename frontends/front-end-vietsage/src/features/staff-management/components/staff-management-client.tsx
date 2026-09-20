@@ -92,10 +92,13 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
   const [resetAccountLabel, setResetAccountLabel] = useState("");
 
   const data = directory.data;
+  const hasMultipleHotels = (data?.hotels?.length ?? 0) > 1;
+  const singleHotelId = data?.hotels?.length === 1 ? data.hotels[0].id : null;
+  const effectiveHotelId = hotelId || singleHotelId || "";
 
   const selectedHotel = useMemo(
-    () => data?.hotels.find((h) => h.id === hotelId),
-    [data?.hotels, hotelId],
+    () => data?.hotels.find((h) => h.id === effectiveHotelId),
+    [data?.hotels, effectiveHotelId],
   );
   const isRoomExclusive = selectedHotel?.staffScopeMode === "ROOM_EXCLUSIVE";
 
@@ -315,8 +318,8 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
     [data?.users.items],
   );
   const displayedUsers = useMemo(
-    () => (hotelId ? users.filter((user) => assignedUserIds.has(user.id)) : users),
-    [hotelId, users, assignedUserIds],
+    () => (hasMultipleHotels && effectiveHotelId ? users.filter((user) => assignedUserIds.has(user.id)) : users),
+    [hasMultipleHotels, effectiveHotelId, users, assignedUserIds],
   );
   const skeletonRows = useMemo(() => Array.from({ length: 5 }, (_, i) => ({ id: `skel-${i}` })), []);
 
@@ -325,7 +328,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
     setFormErrors({});
     setFormGeneralError(null);
 
-    if (!hotelId) {
+    if (!effectiveHotelId) {
       setFormGeneralError("Vui lòng chọn khách sạn trước khi tạo nhân viên.");
       return;
     }
@@ -351,7 +354,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
         email: form.email.trim().toLowerCase(),
         password: form.password,
         roleIds: [activeRoleId],
-        hotelId,
+        hotelId: effectiveHotelId,
         roomId: form.roomId || undefined,
       });
       setForm({ fullName: "", email: "", password: "", roleId: "", roomId: "" });
@@ -395,7 +398,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
       return;
     }
 
-    const currentHotel = data?.hotels?.find((h) => h.id === hotelId);
+    const currentHotel = data?.hotels?.find((h) => h.id === effectiveHotelId);
 
     const exportData = displayedUsers.map((user, idx) => ({
       index: idx + 1,
@@ -444,8 +447,12 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
         {[
           { label: "Nhân viên", value: data?.users.total ?? 0, icon: "group" },
           {
-            label: hotelId ? "Nhân viên tại khách sạn" : "Chọn khách sạn để xem",
-            value: hotelId ? data?.assignments?.total ?? 0 : "--",
+            label: hasMultipleHotels
+              ? effectiveHotelId ? "Nhân viên tại khách sạn" : "Chọn khách sạn để xem"
+              : "Đã phân công",
+            value: hasMultipleHotels
+              ? (effectiveHotelId ? data?.assignments?.total ?? 0 : "--")
+              : (data?.assignments?.total ?? 0),
             icon: "domain_add",
           },
           { label: "Vai trò dùng được", value: data?.roles.length ?? 0, icon: "verified_user" },
@@ -467,29 +474,31 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
       </section>
 
       <section className="rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-5">
-        <div className="grid gap-3 lg:grid-cols-[minmax(220px,320px)_1fr_auto]">
-          <select
-            value={hotelId}
-            onChange={(event) => {
-              const value = event.target.value;
-              setHotelId(value);
-              if (onHotelPath) {
-                const nextUrl = new URL(window.location.href);
-                nextUrl.pathname = onHotelPath;
-                if (value) nextUrl.searchParams.set("hotelId", value);
-                else nextUrl.searchParams.delete("hotelId");
-                window.history.replaceState(null, "", `${nextUrl.pathname}${nextUrl.search}`);
-              }
-            }}
-            className="min-h-11 rounded-lg border border-[var(--outline-variant)] bg-white px-3 text-sm"
-          >
-            <option value="">Chọn khách sạn để phân công</option>
-            {data?.hotels.map((hotel) => (
-              <option key={hotel.id} value={hotel.id}>
-                {hotel.code ? `${hotel.code} · ` : ""}{hotel.name}
-              </option>
-            ))}
-          </select>
+        <div className={`grid gap-3 ${hasMultipleHotels ? "lg:grid-cols-[minmax(220px,320px)_1fr_auto]" : "lg:grid-cols-[1fr_auto]"}`}>
+          {hasMultipleHotels ? (
+            <select
+              value={hotelId}
+              onChange={(event) => {
+                const value = event.target.value;
+                setHotelId(value);
+                if (onHotelPath) {
+                  const nextUrl = new URL(window.location.href);
+                  nextUrl.pathname = onHotelPath;
+                  if (value) nextUrl.searchParams.set("hotelId", value);
+                  else nextUrl.searchParams.delete("hotelId");
+                  window.history.replaceState(null, "", `${nextUrl.pathname}${nextUrl.search}`);
+                }
+              }}
+              className="min-h-11 rounded-lg border border-[var(--outline-variant)] bg-white px-3 text-sm"
+            >
+              <option value="">Chọn khách sạn để phân công</option>
+              {data?.hotels.map((hotel) => (
+                <option key={hotel.id} value={hotel.id}>
+                  {hotel.code ? `${hotel.code} · ` : ""}{hotel.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
           <div className="relative">
             {directory.isFetching && !directory.isLoading ? (
               <VsIcon name="progress_activity" className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 animate-spin text-[var(--primary)] text-lg" />
@@ -519,7 +528,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
             {canManage ? (
               <button
                 type="button"
-                disabled={!hotelId || isBusy}
+                disabled={!effectiveHotelId || isBusy}
                 onClick={() => {
                   setFormErrors({});
                   setFormGeneralError(null);
@@ -539,7 +548,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
         </div>
       </section>
 
-      {hotelId ? (
+      {hasMultipleHotels && effectiveHotelId ? (
         <p className="text-sm text-[var(--on-surface-variant)]">
           Mỗi nhân viên chỉ làm việc tại một khách sạn. Phân công sang khách sạn này sẽ tự động thu hồi phân công cũ.
         </p>
@@ -691,8 +700,8 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
               {
                 key: "user",
                 header: "Nhân viên",
-                className: hotelId ? "w-[18%]" : "w-[24%]",
-                headerClassName: hotelId ? "w-[18%]" : "w-[24%]",
+                className: effectiveHotelId ? "w-[18%]" : "w-[24%]",
+                headerClassName: effectiveHotelId ? "w-[18%]" : "w-[24%]",
                 cell: () => (
                   <div className="space-y-1.5 py-1">
                     <div className="h-4 w-32 animate-pulse rounded bg-slate-200" />
@@ -703,8 +712,8 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
               {
                 key: "roles",
                 header: "Vai trò",
-                className: hotelId ? "w-[24%]" : "w-[30%]",
-                headerClassName: hotelId ? "w-[24%]" : "w-[30%]",
+                className: effectiveHotelId ? "w-[24%]" : "w-[30%]",
+                headerClassName: effectiveHotelId ? "w-[24%]" : "w-[30%]",
                 cell: () => (
                   <div className="flex gap-2 py-1">
                     <div className="h-6 w-20 animate-pulse rounded-full bg-slate-200" />
@@ -715,11 +724,11 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
               {
                 key: "assignment",
                 header: "Phân công",
-                className: hotelId ? "w-[14%]" : "w-[18%]",
-                headerClassName: hotelId ? "w-[14%]" : "w-[18%]",
+                className: effectiveHotelId ? "w-[14%]" : "w-[18%]",
+                headerClassName: effectiveHotelId ? "w-[14%]" : "w-[18%]",
                 cell: () => <div className="h-7 w-28 animate-pulse rounded-full bg-slate-100" />,
               },
-              ...(hotelId
+              ...(effectiveHotelId
                 ? [
                     {
                       key: "room",
@@ -733,8 +742,8 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
               {
                 key: "actions",
                 header: <div className="text-right">Thao tác</div>,
-                className: hotelId ? "w-[26%]" : "w-[28%]",
-                headerClassName: hotelId ? "w-[26%] text-right" : "w-[28%] text-right",
+                className: effectiveHotelId ? "w-[26%]" : "w-[28%]",
+                headerClassName: effectiveHotelId ? "w-[26%] text-right" : "w-[28%] text-right",
                 cell: () => <div className="ml-auto h-10 w-44 animate-pulse rounded-lg bg-slate-100" />,
               },
             ]}
@@ -749,8 +758,8 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
               {
                 key: "user",
                 header: "Nhân viên",
-                className: hotelId ? "w-[18%]" : "w-[24%]",
-                headerClassName: hotelId ? "w-[18%]" : "w-[24%]",
+                className: effectiveHotelId ? "w-[18%]" : "w-[24%]",
+                headerClassName: effectiveHotelId ? "w-[18%]" : "w-[24%]",
                 cell: (user) => (
                   <div className="min-w-0 py-1">
                     <p className="font-semibold text-[var(--primary)]">{user.fullName}</p>
@@ -761,8 +770,8 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
               {
                 key: "roles",
                 header: "Vai trò",
-                className: hotelId ? "w-[24%]" : "w-[30%]",
-                headerClassName: hotelId ? "w-[24%]" : "w-[30%]",
+                className: effectiveHotelId ? "w-[24%]" : "w-[30%]",
+                headerClassName: effectiveHotelId ? "w-[24%]" : "w-[30%]",
                 cell: (user) => {
                   const availableRoles = (data.roles ?? []).filter(
                     (role) => !user.roles.some((current) => current.id === role.id),
@@ -804,8 +813,8 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
               {
                 key: "assignment",
                 header: "Phân công",
-                className: hotelId ? "w-[14%]" : "w-[18%]",
-                headerClassName: hotelId ? "w-[14%]" : "w-[18%]",
+                className: effectiveHotelId ? "w-[14%]" : "w-[18%]",
+                headerClassName: effectiveHotelId ? "w-[14%]" : "w-[18%]",
                 cell: (user) => {
                   const assigned = assignedUserIds.has(user.id);
                   const assignedElsewhere = Boolean(user.assignedHotel && !assigned);
@@ -820,7 +829,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                   );
                 },
               },
-              ...(hotelId
+              ...(effectiveHotelId
                 ? [
                     {
                       key: "room",
@@ -904,8 +913,8 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
               {
                 key: "actions",
                 header: <div className="text-right">Thao tác</div>,
-                className: hotelId ? "w-[26%]" : "w-[28%]",
-                headerClassName: hotelId ? "w-[26%] text-right" : "w-[28%] text-right",
+                className: effectiveHotelId ? "w-[26%]" : "w-[28%]",
+                headerClassName: effectiveHotelId ? "w-[26%] text-right" : "w-[28%] text-right",
                 cell: (user) => {
                   if (!canManage) return <div className="text-right text-xs text-[var(--on-surface-variant)]">Chỉ xem</div>;
                   const assigned = assignedUserIds.has(user.id);
@@ -954,7 +963,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                         </button>
                       ) : null}
                       <button
-                        disabled={!hotelId || isBusy}
+                        disabled={!effectiveHotelId || isBusy}
                         type="button"
                         onClick={() =>
                           runMutation(
@@ -974,7 +983,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                               ? "border border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
                               : "bg-[var(--primary)] text-white hover:opacity-90"
                         }`}
-                        title={!hotelId ? "Vui lòng chọn khách sạn ở thanh bộ lọc phía trên để thực hiện phân công" : undefined}
+                        title={!effectiveHotelId ? "Vui lòng chọn khách sạn ở thanh bộ lọc phía trên để thực hiện phân công" : undefined}
                       >
                         {isUpdatingAssignment ? (
                           <>
@@ -1005,7 +1014,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
             ]}
             data={displayedUsers}
             getRowKey={(user) => user.id}
-            emptyMessage={hotelId ? "Không có nhân viên nào đang làm việc tại khách sạn này." : "Không có nhân viên phù hợp."}
+            emptyMessage={hasMultipleHotels && effectiveHotelId ? "Không có nhân viên nào đang làm việc tại khách sạn này." : "Không có nhân viên phù hợp."}
             minWidth="1200px"
           />
         ) : null}
@@ -1083,7 +1092,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                     </div>
                   </div>
 
-                  {hotelId && assigned ? (
+                  {effectiveHotelId && assigned ? (
                     <div>
                       <span className="font-semibold text-[var(--on-surface-variant)]">Phòng phụ trách: </span>
                       <div className="mt-1">
@@ -1150,7 +1159,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                     <div className="pt-2 space-y-2">
                       {canResetPassword ? <button type="button" disabled={isBusy || mutations.resetFrontdeskPassword.isPending} onClick={() => resetFrontdesk(user)} className="min-h-11 w-full rounded-xl border border-amber-300 text-xs font-semibold text-amber-800 disabled:opacity-40"><VsIcon name="key" className="mr-1 inline text-sm" />Cấp lại mật khẩu</button> : null}
                       <button
-                        disabled={!hotelId || isBusy}
+                        disabled={!effectiveHotelId || isBusy}
                         type="button"
                         onClick={() =>
                           runMutation(
@@ -1187,7 +1196,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
         ) : null}
         {!directory.isLoading && data && displayedUsers.length === 0 ? (
           <div className="rounded-xl border border-[var(--outline-variant)] bg-white p-8 text-center text-sm text-[var(--on-surface-variant)]">
-            {hotelId ? "Không có nhân viên nào đang làm việc tại khách sạn này." : "Không có nhân viên phù hợp."}
+            {hasMultipleHotels && effectiveHotelId ? "Không có nhân viên nào đang làm việc tại khách sạn này." : "Không có nhân viên phù hợp."}
           </div>
         ) : null}
       </section>

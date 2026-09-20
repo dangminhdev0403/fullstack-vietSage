@@ -12,6 +12,7 @@ const createUserSchema = z.object({
   password: z.string().min(8),
   roleIds: z.array(z.string().trim().min(1)).min(1),
   hotelId: z.string().trim().min(1),
+  roomId: z.string().trim().min(1, "Phòng phụ trách là bắt buộc"),
 });
 
 export async function GET(request: Request) {
@@ -25,11 +26,14 @@ export async function GET(request: Request) {
   const limit = limitParam ? Number.parseInt(limitParam, 10) : undefined;
   if (!tenantId) return validationErrorResponse("tenantId là bắt buộc");
   try {
-    const [usersPage, roles, assignments, hotelsPage] = await Promise.all([
+    const [usersPage, roles, assignments, hotelsPage, rooms] = await Promise.all([
       staffManagementService.listUsers({ tenantId, q, page, limit }),
       staffManagementService.listManagedRoles(tenantId),
       hotelId ? staffManagementService.listAssignments(hotelId) : Promise.resolve(null),
       adminService.listHotels({ query: { page: 1, limit: 100, tenantId } }),
+      hotelId
+        ? staffManagementService.listHotelRooms(hotelId, undefined, { unassignedOnly: true, tenantId }).catch(() => [])
+        : Promise.resolve([]),
     ]);
     const staffOnlyItems = usersPage.items.filter(
       (u) => !u.roles.some((r) => r.code === "TENANT_OWNER" || r.code === "SUPER_ADMIN"),
@@ -48,7 +52,13 @@ export async function GET(request: Request) {
         total: filteredItems.length,
       };
     }
-    return successResponse({ users, roles, assignments, hotels: hotelsPage.items.filter((h) => h.status !== "DISABLED") });
+    return successResponse({
+      users,
+      roles,
+      assignments,
+      hotels: hotelsPage.items.filter((h) => h.status !== "DISABLED"),
+      rooms: rooms ?? [],
+    });
   } catch (error) {
     if (error instanceof HttpError) return httpErrorResponse(error);
     return unknownServerErrorResponse();
@@ -61,10 +71,14 @@ export async function POST(request: Request) {
   const parsed = createUserSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return validationErrorResponse("Thông tin nhân viên chưa hợp lệ");
   try {
-    const { hotelId, ...userInput } = parsed.data;
+    const { hotelId, roomId, ...userInput } = parsed.data;
     const user = await staffManagementService.createUser(userInput, tenantId);
     const assignment = await staffManagementService.assignHotel(hotelId, user.id);
-    return successResponse({ user, assignment }, 201, "Đã tạo và phân công nhân viên");
+    let roomAssignment = null;
+    if (roomId) {
+      roomAssignment = await staffManagementService.assignRoom(hotelId, user.id, roomId, undefined, tenantId);
+    }
+    return successResponse({ user, assignment, roomAssignment }, 201, "Đã tạo và phân công nhân viên");
   } catch (error) {
     if (error instanceof HttpError) return httpErrorResponse(error);
     return unknownServerErrorResponse();
