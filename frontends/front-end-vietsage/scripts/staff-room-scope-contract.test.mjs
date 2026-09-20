@@ -17,6 +17,9 @@ const resourceSource = read("src/features/staff-management/resources/staff-direc
 const queryHookSource = read("src/features/staff-management/queries/use-staff-directory-query.ts");
 const staffClientSource = read("src/features/staff-management/components/staff-management-client.tsx");
 const staffBffSource = read("src/app/api/owner/staff/route.ts");
+const roomSearchSelectSource = read("src/features/staff-management/components/room-search-select.tsx");
+const backendRoomsSchema = readFileSync(new URL("../../../services/auth-service/src/modules/property/domain/schemas/rooms.schema.ts", import.meta.url), "utf8");
+const backendRoomsService = readFileSync(new URL("../../../services/auth-service/src/modules/property/application/hotel-rooms.service.ts", import.meta.url), "utf8");
 const staffRoomsClientSource = read("src/app/(vietsage)/hotels/[hotelId]/rooms/staff-rooms-client.tsx");
 const staffRoomsPageSource = read("src/app/(vietsage)/hotels/[hotelId]/rooms/page.tsx");
 
@@ -77,10 +80,26 @@ test("staff management client renders room assignment, validation, and SweetAler
   assert.match(staffClientSource, /reverseButtons:\s*false/);
   assert.match(staffClientSource, /Bỏ gán phòng\?/);
 
-  // Creation form contains room dropdown when role is frontdesk
+  // Creation form uses RoomSearchSelect combobox and enforces mandatory room assignment
+  assert.match(staffClientSource, /RoomSearchSelect/);
   assert.match(staffClientSource, /isFrontDeskRole\(form\.roleId\)/);
   assert.match(staffClientSource, /Phòng phụ trách \(Bắt buộc\)/);
-  assert.match(staffClientSource, /Đã có người phụ trách/);
+  assert.match(staffClientSource, /roomUserAssignmentMap/);
+
+  // RoomSearchSelect combobox component features
+  assert.match(roomSearchSelectSource, /Tìm số phòng hoặc loại phòng/);
+  assert.match(roomSearchSelectSource, /inferFloor/);
+  assert.match(roomSearchSelectSource, /availableRooms/);
+  assert.match(roomSearchSelectSource, /phòng khả dụng để phân công/);
+
+  // Backend query filters unassigned rooms directly (no frontend filtering)
+  assert.match(backendRoomsSchema, /unassignedOnly/);
+  assert.match(backendRoomsService, /query\.unassignedOnly/);
+  assert.match(backendRoomsService, /listAssignedRoomIds/);
+  assert.match(staffBffSource, /unassignedOnly:\s*true/);
+
+  // BFF route requires roomId
+  assert.match(staffBffSource, /roomId:\s*z\.string\(\)\.trim\(\)\.min\(1/);
 });
 
 test("frontdesk operational rooms client displays fail-closed notice when unassigned", () => {

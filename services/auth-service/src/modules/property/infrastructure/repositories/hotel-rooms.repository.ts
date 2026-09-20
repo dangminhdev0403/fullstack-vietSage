@@ -61,6 +61,12 @@ export class HotelRoomsRepository {
       });
       return { ...createdRoom, activeGuestDeviceCount: 0 };
     });
+  async listAssignedRoomIds(hotelId: string): Promise<string[]> {
+    const assignments = await this.prisma.hotelRoomStaffAssignment.findMany({
+      where: { hotelId },
+      select: { roomId: true },
+    });
+    return assignments.map((a) => a.roomId);
   }
 
   async listRooms(where: Prisma.RoomWhereInput, skip: number, take: number) {

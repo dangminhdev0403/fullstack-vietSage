@@ -41,6 +41,7 @@ describe("BusinessPermissionSyncService", () => {
     [HotelsController.prototype, "createHotel", "platform.hotels.manage"],
     [HotelsController.prototype, "getHotel", ["platform.hotels.view", "hotel.profile.view"]],
     [HotelsController.prototype, "updateHotel", ["platform.hotels.manage", "hotel.profile.manage"]],
+    [HotelsController.prototype, "resetOperationalData", ["hotel.profile.manage", "platform.hotels.manage"]],
     [TenantOwnersController.prototype, "listTenantOwners", "platform.users.view"],
     [TenantOwnersController.prototype, "listTenantOptions", "platform.users.view"],
     [TenantOwnersController.prototype, "getTenantOwner", "platform.users.view"],

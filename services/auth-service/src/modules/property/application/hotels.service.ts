@@ -214,6 +214,63 @@ export class HotelsService {
     return this.toHotelData(hotel);
   }
 
+  async resetOperationalData(actorUserId: string, activeRoleId: string, hotelId: string) {
+    const actor = await this.hotelAccessService.loadActorContext(actorUserId, activeRoleId);
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+
+    if (!actor.isTenantOwner && !actor.isSuperAdmin) {
+      throw new ForbiddenException(
+        "Chỉ chủ khách sạn hoặc quản trị viên cấp cao mới có quyền thiết lập lại dữ liệu vận hành",
+      );
+    }
+
+    const hotel = await this.hotelCoreRepository.findHotelById(hotelId);
+    if (!hotel) {
+      throw new NotFoundException("Khách sạn không tồn tại");
+    }
+
+    const currentBrandSettings =
+      hotel.brandSettings && typeof hotel.brandSettings === "object"
+        ? (hotel.brandSettings as Record<string, unknown>)
+        : {};
+
+    const currentCount =
+      typeof currentBrandSettings.operationalResetCount === "number"
+        ? currentBrandSettings.operationalResetCount
+        : 0;
+
+    const MAX_RESETS = 2;
+    if (!actor.isSuperAdmin && currentCount >= MAX_RESETS) {
+      throw new ForbiddenException(
+        `Khách sạn đã sử dụng hết số lần thiết lập lại dữ liệu vận hành (tối đa ${MAX_RESETS} lần).`,
+      );
+    }
+
+    const result = await this.hotelCoreRepository.resetHotelOperationalData(hotelId);
+
+    this.logBusinessEvent(
+      "Đã thiết lập lại dữ liệu vận hành khách sạn",
+      "HOTEL_OPERATIONAL_DATA_RESET",
+      "resetOperationalData",
+      {
+        actorUserId,
+        activeRoleId,
+        hotelId,
+        operationalResetCount: result.operationalResetCount,
+        remainingResets: result.remainingResets,
+      },
+    );
+
+    return {
+      hotelId,
+      operationalResetCount: result.operationalResetCount,
+      remainingResets: actor.isSuperAdmin ? 999 : result.remainingResets,
+      message: actor.isSuperAdmin
+        ? "Thiết lập lại dữ liệu vận hành thành công (Đặc quyền Quản trị viên cấp cao)."
+        : `Thiết lập lại dữ liệu vận hành thành công. Bạn còn ${result.remainingResets} lượt.`,
+    };
+  }
+
   private logBusinessEvent(
     message: string,
     event: string,

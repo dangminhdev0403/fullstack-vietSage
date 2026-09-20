@@ -143,6 +143,7 @@ export const listRoomsQuerySchema = z
     floor: z.string().max(40, "Tên tầng quá dài").optional(),
     type: z.string().max(80, "Loại phòng quá dài").optional(),
     vipOnly: z.preprocess((val) => val === "true" || val === true, z.boolean()).optional(),
+    unassignedOnly: z.preprocess((val) => val === "true" || val === true, z.boolean()).optional(),
   })
   .strict();
 

@@ -131,23 +131,36 @@ export class TenantOwnersService {
     dto: UpdateTenantOwnerBodyInput,
   ): Promise<TenantOwnerItem> {
     await this.assertSuperAdmin(actorUserId);
-    const existing = await this.getTenantOwnerOrThrow(userId);
+    const shouldLock =
+      dto.owner?.status === UserStatus.LOCKED ||
+      dto.tenantUserStatus === TenantUserStatus.DISABLED;
+
+    const ownerUpdate = this.buildOwnerUpdate(dto) ?? {};
+    if (shouldLock) {
+      ownerUpdate.status = UserStatus.LOCKED;
+    } else if (dto.owner?.status === UserStatus.ACTIVE || dto.tenantUserStatus === TenantUserStatus.ACTIVE) {
+      ownerUpdate.status = UserStatus.ACTIVE;
+    }
+
+    const resolvedTenantUserStatus = shouldLock
+      ? TenantUserStatus.DISABLED
+      : (dto.tenantUserStatus ?? (dto.owner?.status === UserStatus.ACTIVE ? TenantUserStatus.ACTIVE : undefined));
 
     try {
       const row = await this.tenantOwnersRepository.updateTenantOwner({
         userId,
         tenantUserId: existing.tenantUser.id,
         tenantId: existing.tenant.id,
-        owner: this.buildOwnerUpdate(dto),
+        owner: Object.keys(ownerUpdate).length > 0 ? ownerUpdate : undefined,
         tenant: this.buildTenantUpdate(dto),
-        tenantUserStatus: dto.tenantUserStatus,
+        tenantUserStatus: resolvedTenantUserStatus,
         joinedAt:
-          dto.tenantUserStatus === TenantUserStatus.ACTIVE && !existing.tenantUser.joinedAt
+          resolvedTenantUserStatus === TenantUserStatus.ACTIVE && !existing.tenantUser.joinedAt
             ? new Date()
             : undefined,
       });
 
-      if (dto.owner?.status && dto.owner.status !== UserStatus.ACTIVE) {
+      if (shouldLock) {
         await this.authService.revokeUserSessions(userId);
       }
 

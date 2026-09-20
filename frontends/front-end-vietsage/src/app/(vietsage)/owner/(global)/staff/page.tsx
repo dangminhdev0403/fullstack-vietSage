@@ -26,7 +26,7 @@ export default async function OwnerStaffPage({ searchParams }: Props) {
   const requestedTenantId = first(params.tenantId);
   const tenantId = context.tenants.some((tenant) => tenant.id === requestedTenantId)
     ? requestedTenantId
-    : context.tenants.length === 1
+    : context.tenants.length > 0
       ? context.tenants[0].id
       : null;
   const hotels = tenantId
@@ -50,8 +50,12 @@ export default async function OwnerStaffPage({ searchParams }: Props) {
         <form className="flex flex-col gap-3 rounded-xl border border-[var(--outline-variant)] bg-white p-5 md:flex-row md:items-end" method="GET">
           <label className="flex-1 text-sm font-semibold text-[var(--primary)]">
             Đơn vị
-            <select name="tenantId" defaultValue={tenantId ?? ""} className="mt-2 min-h-11 w-full rounded-lg border border-[var(--outline-variant)] bg-white px-3 font-normal">
-              <option value="">Chọn đơn vị để quản lý đúng phạm vi</option>
+            <select
+              name="tenantId"
+              defaultValue={tenantId ?? ""}
+              onChange={(e) => e.target.form?.submit()}
+              className="mt-2 min-h-11 w-full rounded-lg border border-[var(--outline-variant)] bg-white px-3 font-normal"
+            >
               {context.tenants.map((tenant) => <option key={tenant.id} value={tenant.id}>{tenant.code} · {tenant.name}</option>)}
             </select>
           </label>

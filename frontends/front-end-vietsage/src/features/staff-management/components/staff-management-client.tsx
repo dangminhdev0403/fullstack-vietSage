@@ -13,6 +13,7 @@ import {
   useStaffDirectoryQuery,
   useStaffManagementMutations,
 } from "../queries/use-staff-directory-query";
+import { RoomSearchSelect } from "./room-search-select";
 
 export type StaffHotelOption = { id: string; code?: string | null; name: string };
 
@@ -153,13 +154,27 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
   }
 
   async function handleReassignRoom(user: { id: string; fullName: string }) {
-    const availableRoomOptions = (data?.rooms ?? [])
+    // Loại bỏ hoàn toàn các phòng đã có người phụ trách khác khỏi danh sách chọn
+    const availableRooms = (data?.rooms ?? []).filter((r) => {
+      const occupiedBy = roomUserAssignmentMap.get(r.id);
+      return !occupiedBy || occupiedBy === user.id;
+    });
+
+    if (availableRooms.length === 0) {
+      await SwalVietSage.fire({
+        icon: "info",
+        title: "Hết phòng khả dụng",
+        text: "Tất cả các phòng khác trong khách sạn đều đã có người phụ trách.",
+        confirmButtonText: "OK",
+      });
+      return;
+    }
+
+    const availableRoomOptions = availableRooms
       .map((r) => {
-        const occupiedBy = roomUserAssignmentMap.get(r.id);
-        const isSelf = occupiedBy === user.id;
-        const isOther = Boolean(occupiedBy && !isSelf);
-        const label = `Phòng ${r.roomNumber}${r.type ? ` · ${r.type}` : ""}${isOther ? " (Đã có người phụ trách)" : ""}`;
-        return `<option value="${r.id}" ${isSelf ? "selected" : ""} ${isOther ? "disabled" : ""}>${label}</option>`;
+        const isSelf = roomUserAssignmentMap.get(r.id) === user.id;
+        const label = `Phòng ${r.roomNumber}${r.type ? ` · ${r.type}` : ""}${isSelf ? " (Đang phụ trách)" : ""}`;
+        return `<option value="${r.id}" ${isSelf ? "selected" : ""}>${label}</option>`;
       })
       .join("");
 
@@ -314,14 +329,19 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
       setFormGeneralError("Vui lòng chọn khách sạn trước khi tạo nhân viên.");
       return;
     }
-    if (!form.roleId) {
-      setFormErrors((prev) => ({ ...prev, roleId: "Chọn vai trò cho nhân viên" }));
+    const defaultFrontDeskRoleId =
+      data?.roles.find((r) => isFrontDeskRole(r.code ?? r.id))?.id ?? data?.roles[0]?.id;
+    const activeRoleId = form.roleId || defaultFrontDeskRoleId;
+
+    if (!activeRoleId) {
+      setFormGeneralError("Hệ thống chưa cấu hình vai trò cho nhân viên.");
       return;
     }
-    if (isRoomExclusive && isFrontDeskRole(form.roleId) && !form.roomId) {
+    const isFrontDesk = isFrontDeskRole(form.roleId) || isFrontDeskRole(activeRoleId);
+    if (!form.roomId) {
       setFormErrors((prev) => ({
         ...prev,
-        roomId: "Khách sạn độc quyền phòng yêu cầu gán phòng cho nhân viên lễ tân",
+        roomId: "Phòng phụ trách (Bắt buộc) - Vui lòng chọn phòng cho nhân viên",
       }));
       return;
     }
@@ -330,7 +350,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
         fullName: form.fullName.trim(),
         email: form.email.trim().toLowerCase(),
         password: form.password,
-        roleIds: [form.roleId],
+        roleIds: [activeRoleId],
         hotelId,
         roomId: form.roomId || undefined,
       });
@@ -534,7 +554,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
             </div>
           ) : null}
 
-          <div className={`grid gap-3 md:grid-cols-2 ${isFrontDeskRole(form.roleId) ? "xl:grid-cols-6" : "xl:grid-cols-5"} items-start`}>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5 items-start">
             <div className="flex flex-col">
               <input
                 required
@@ -622,68 +642,26 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
             </div>
 
             <div className="flex flex-col">
-              <select
-                required
-                disabled={mutations.createUser.isPending}
-                value={form.roleId}
-                onChange={(e) => {
-                  setForm({ ...form, roleId: e.target.value });
-                  if (formErrors.roleId) setFormErrors((prev) => ({ ...prev, roleId: undefined }));
+              <RoomSearchSelect
+                rooms={data?.rooms ?? []}
+                roomUserAssignmentMap={roomUserAssignmentMap}
+                value={form.roomId}
+                onChange={(roomId) => {
+                  setForm({ ...form, roomId });
+                  if (formErrors.roomId) setFormErrors((prev) => ({ ...prev, roomId: undefined }));
                 }}
-                className={`min-h-11 w-full rounded-lg border px-3 text-sm transition-colors disabled:bg-slate-50 ${
-                  formErrors.roleId
-                    ? "border-red-500 focus:border-red-500"
-                    : "border-[var(--outline-variant)]"
-                }`}
-              >
-                <option value="">Chọn vai trò</option>
-                {data?.roles.map((role) => (
-                  <option key={role.id} value={role.id}>{role.name}</option>
-                ))}
-              </select>
-              {formErrors.roleId ? (
+                disabled={mutations.createUser.isPending}
+                error={formErrors.roomId}
+                required
+                placeholder="Phòng phụ trách (Bắt buộc)"
+              />
+              {formErrors.roomId ? (
                 <span className="mt-1 text-xs font-medium text-red-600 flex items-center gap-1">
                   <VsIcon name="error" className="text-sm shrink-0" />
-                  {formErrors.roleId}
+                  {formErrors.roomId}
                 </span>
               ) : null}
             </div>
-
-            {isFrontDeskRole(form.roleId) ? (
-              <div className="flex flex-col">
-                <select
-                  required={isRoomExclusive}
-                  disabled={mutations.createUser.isPending}
-                  value={form.roomId}
-                  onChange={(e) => {
-                    setForm({ ...form, roomId: e.target.value });
-                    if (formErrors.roomId) setFormErrors((prev) => ({ ...prev, roomId: undefined }));
-                  }}
-                  className={`min-h-11 w-full rounded-lg border px-3 text-sm transition-colors disabled:bg-slate-50 ${
-                    formErrors.roomId
-                      ? "border-red-500 focus:border-red-500"
-                      : "border-[var(--outline-variant)]"
-                  }`}
-                >
-                  <option value="">{isRoomExclusive ? "Phòng phụ trách (Bắt buộc) *" : "Phòng phụ trách (Tùy chọn)"}</option>
-                  {(data?.rooms ?? []).map((r) => {
-                    const occupiedBy = roomUserAssignmentMap.get(r.id);
-                    const isOccupied = Boolean(occupiedBy);
-                    return (
-                      <option key={r.id} value={r.id} disabled={isOccupied}>
-                        Phòng {r.roomNumber}{r.type ? ` · ${r.type}` : ""}{isOccupied ? " (Đã có người phụ trách)" : ""}
-                      </option>
-                    );
-                  })}
-                </select>
-                {formErrors.roomId ? (
-                  <span className="mt-1 text-xs font-medium text-red-600 flex items-center gap-1">
-                    <VsIcon name="error" className="text-sm shrink-0" />
-                    {formErrors.roomId}
-                  </span>
-                ) : null}
-              </div>
-            ) : null}
 
             <button disabled={mutations.createUser.isPending} className="min-h-11 rounded-xl bg-[var(--secondary-container)] px-4 text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-60">
               {mutations.createUser.isPending ? (

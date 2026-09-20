@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { auth } from "@/auth";
 import { adminService } from "@/features/admin/service/admin-service-instance";
-import { StaffManagementClient } from "@/features/staff-management/components/staff-management-client";
+import { AdminStaffClient } from "./admin-staff-client";
 import { hasWorkspaceCapability } from "@/features/workspace/utils/workspace-context";
 import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
@@ -48,7 +48,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
 
   const tenantId = tenantOptions.some((tenant) => tenant.id === requestedTenantId)
     ? requestedTenantId
-    : "";
+    : tenantOptions[0]?.id ?? "";
 
   return (
     <>
@@ -69,23 +69,11 @@ export default async function AdminUsersPage({ searchParams }: Props) {
         {tab === "owners" ? (
           <TenantOwnersClient initialOwners={ownersPage.items} total={ownersPage.total} />
         ) : canViewStaff ? (
-          <div className="space-y-6">
-            <form className="flex flex-col gap-3 rounded-xl border border-[var(--outline-variant)] bg-white p-5 md:flex-row md:items-end" method="GET">
-              <input type="hidden" name="tab" value="staff" />
-              <label className="flex-1 text-sm font-semibold text-[var(--primary)]">Tenant
-                <select name="tenantId" defaultValue={tenantId} className="mt-2 min-h-11 w-full rounded-lg border border-[var(--outline-variant)] bg-white px-3 font-normal">
-                  <option value="">Chọn tenant để chỉ tải đúng nhân viên</option>
-                  {tenantOptions.map((tenant) => <option key={tenant.id} value={tenant.id}>{tenant.code} · {tenant.name}</option>)}
-                </select>
-              </label>
-              <button className="min-h-11 rounded-xl bg-[var(--primary)] px-5 text-sm font-semibold text-white">Mở phạm vi</button>
-            </form>
-            {tenantId ? (
-              <StaffManagementClient scope={{ surface: "admin", tenantId }} canManage={canManageStaff} />
-            ) : (
-              <div className="rounded-xl bg-[var(--surface-container-low)] p-8 text-center text-sm text-[var(--on-surface-variant)]">Chọn tenant trước; danh sách nhân viên sẽ không được tải khi chưa có phạm vi.</div>
-            )}
-          </div>
+          <AdminStaffClient
+            tenantOptions={tenantOptions}
+            initialTenantId={tenantId}
+            canManageStaff={canManageStaff}
+          />
         ) : (
           <div className="rounded-xl border border-[var(--outline-variant)] bg-white p-8 text-center text-sm text-[var(--on-surface-variant)]">
             Vai trò hiện tại không có quyền xem nhân viên khách sạn.

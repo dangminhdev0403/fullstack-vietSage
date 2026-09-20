@@ -311,8 +311,12 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
       tenantName: formatTenantDisplayName(owner.tenant.name, owner.tenant.code),
       fullName: owner.fullName,
       email: owner.email,
-      status: owner.status === "ACTIVE" ? "Đang hoạt động" : owner.status === "LOCKED" ? "Bị khóa" : "Vô hiệu hóa",
-      tenantUserStatus: owner.tenantUser.status === "ACTIVE" ? "Đang hoạt động" : owner.tenantUser.status === "INVITED" ? "Đã mời" : "Vô hiệu hóa",
+      tenantUserStatus:
+        owner.status === "LOCKED" || owner.tenantUser.status === "DISABLED"
+          ? "Vô hiệu hóa"
+          : owner.tenantUser.status === "INVITED"
+          ? "Đã mời"
+          : "Đang hoạt động",
       createdAt: formatDate(owner.createdAt),
       updatedAt: formatDate(owner.updatedAt),
     }));
@@ -326,7 +330,6 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
         { header: "Tên tổ chức", key: "tenantName" },
         { header: "Họ và tên chủ đơn vị", key: "fullName" },
         { header: "Email tài khoản", key: "email" },
-        { header: "Trạng thái người dùng", key: "status" },
         { header: "Trạng thái tổ chức", key: "tenantUserStatus" },
         { header: "Ngày tạo", key: "createdAt" },
         { header: "Cập nhật lần cuối", key: "updatedAt" },
@@ -577,20 +580,45 @@ export function TenantOwnersClient({ initialOwners, total }: TenantOwnersClientP
                 <input value={form.tenantName} onChange={(event) => setForm((current) => ({ ...current, tenantName: event.target.value }))} className="w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 font-normal outline-none focus:border-[var(--primary)]" />
               </label>
               {formMode === "edit" ? (
-                <>
-                  <label className="space-y-2 text-sm font-semibold text-[var(--on-surface)]">
-                    Trạng thái owner
-                    <select value={form.ownerStatus} onChange={(event) => setForm((current) => ({ ...current, ownerStatus: event.target.value as TenantOwner["status"] }))} className="w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 font-normal outline-none focus:border-[var(--primary)]">
-                      {ownerStatuses.map((status) => <option key={status} value={status}>{status}</option>)}
-                    </select>
-                  </label>
-                  <label className="space-y-2 text-sm font-semibold text-[var(--on-surface)]">
-                    Trạng thái liên kết
-                    <select value={form.tenantUserStatus} onChange={(event) => setForm((current) => ({ ...current, tenantUserStatus: event.target.value as TenantOwner["tenantUser"]["status"] }))} className="w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 font-normal outline-none focus:border-[var(--primary)]">
-                      {tenantUserStatuses.map((status) => <option key={status} value={status}>{status}</option>)}
-                    </select>
-                  </label>
-                </>
+                <label className="space-y-2 text-sm font-semibold text-[var(--on-surface)]">
+                  Trạng thái tổ chức
+                  <select
+                    value={
+                      form.ownerStatus === "LOCKED" || form.tenantUserStatus === "DISABLED"
+                        ? "DISABLED"
+                        : form.tenantUserStatus === "INVITED"
+                        ? "INVITED"
+                        : "ACTIVE"
+                    }
+                    onChange={(event) => {
+                      const val = event.target.value;
+                      if (val === "DISABLED") {
+                        setForm((current) => ({
+                          ...current,
+                          ownerStatus: "LOCKED",
+                          tenantUserStatus: "DISABLED",
+                        }));
+                      } else if (val === "INVITED") {
+                        setForm((current) => ({
+                          ...current,
+                          ownerStatus: "ACTIVE",
+                          tenantUserStatus: "INVITED",
+                        }));
+                      } else {
+                        setForm((current) => ({
+                          ...current,
+                          ownerStatus: "ACTIVE",
+                          tenantUserStatus: "ACTIVE",
+                        }));
+                      }
+                    }}
+                    className="w-full rounded-lg border border-[var(--outline-variant)] px-3 py-2 font-normal outline-none focus:border-[var(--primary)]"
+                  >
+                    <option value="ACTIVE">Đang hoạt động</option>
+                    <option value="DISABLED">Vô hiệu hóa (Khóa tài khoản &amp; tổ chức)</option>
+                    <option value="INVITED">Đã mời</option>
+                  </select>
+                </label>
               ) : null}
             </div>
 

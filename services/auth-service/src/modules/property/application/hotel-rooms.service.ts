@@ -131,6 +131,17 @@ export class HotelRoomsService {
       where.id = scope.allowedRoomId;
     }
 
+    if (query.unassignedOnly) {
+      const assignedRoomIds = await this.hotelRoomsRepository.listAssignedRoomIds(hotelId);
+      if (assignedRoomIds.length > 0) {
+        if (typeof where.id === "string") {
+          where.id = assignedRoomIds.includes(where.id) ? { in: [] } : where.id;
+        } else {
+          where.id = { notIn: assignedRoomIds };
+        }
+      }
+    }
+
     if (query.status) {
       where.status = query.status;
     }

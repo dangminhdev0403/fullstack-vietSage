@@ -19,7 +19,7 @@ const createUserSchema = z.object({
   password: z.string().min(8),
   roleIds: z.array(z.string().trim().min(1)).min(1),
   hotelId: z.string().trim().min(1),
-  roomId: z.string().trim().optional(),
+  roomId: z.string().trim().min(1, "Phòng phụ trách là bắt buộc"),
 });
 
 export async function GET(request: Request) {
@@ -39,7 +39,9 @@ export async function GET(request: Request) {
         staffManagementService.listManagedRoles(tenantId, accessToken),
         hotelId ? staffManagementService.listAssignments(hotelId, accessToken) : Promise.resolve(null),
         adminService.listHotels({ query: { page: 1, limit: 100, tenantId }, accessToken }),
-        hotelId ? staffManagementService.listHotelRooms(hotelId, accessToken).catch(() => []) : Promise.resolve([]),
+        hotelId
+          ? staffManagementService.listHotelRooms(hotelId, accessToken, { unassignedOnly: true }).catch(() => [])
+          : Promise.resolve([]),
       ]);
       const staffOnlyItems = usersPage.items.filter(
         (u) => !u.roles.some((r) => r.code === "TENANT_OWNER" || r.code === "SUPER_ADMIN"),

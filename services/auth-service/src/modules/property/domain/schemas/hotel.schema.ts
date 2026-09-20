@@ -102,3 +102,12 @@ export const updateHotelBodySchema = z
 export type CreateHotelBodyInput = z.infer<typeof createHotelBodySchema>;
 export type ListHotelsQueryInput = z.infer<typeof listHotelsQuerySchema>;
 export type UpdateHotelBodyInput = z.infer<typeof updateHotelBodySchema>;
+
+export const operationalResetBodySchema = z
+  .object({
+    confirm: z.boolean().optional(),
+  })
+  .strict()
+  .optional();
+
+export type OperationalResetBodyInput = z.infer<typeof operationalResetBodySchema>;

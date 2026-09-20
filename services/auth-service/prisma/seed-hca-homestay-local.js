@@ -113,7 +113,7 @@ async function seedHcaHomestayLocal(options = {}) {
         data: {
           email: targetEmail,
           passwordHash,
-          fullName: "Chủ đơn vị HCA HomeStay",
+          fullName: "HCA HomeStay",
           status: UserStatus.ACTIVE,
           userType: UserType.HOTEL_STAFF,
         },

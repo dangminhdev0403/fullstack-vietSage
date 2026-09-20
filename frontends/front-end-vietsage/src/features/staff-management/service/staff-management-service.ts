@@ -149,11 +149,19 @@ export class StaffManagementService {
     return unwrapApiEnvelope<{ revoked: true; hotelId: string; userId: string }>(payload).data;
   }
 
-  async listHotelRooms(hotelId: string, accessToken?: string) {
+  async listHotelRooms(
+    hotelId: string,
+    accessToken?: string,
+    options?: { unassignedOnly?: boolean },
+  ) {
     const payload = await this.request<unknown>({
       method: "GET",
       path: `/hotels/${encodeURIComponent(hotelId)}/rooms`,
-      query: { page: 1, limit: 100 },
+      query: {
+        page: 1,
+        limit: 100,
+        ...(options?.unassignedOnly ? { unassignedOnly: "true" } : {}),
+      },
       accessToken,
     });
     return unwrapApiEnvelope<{

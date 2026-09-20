@@ -82,14 +82,14 @@ async function seedHcaSale() {
       where: { email: saleEmail },
       update: {
         passwordHash,
-        fullName: "Lễ tân HCA 101",
+        fullName: "HCA 101",
         status: UserStatus.ACTIVE,
         userType: UserType.HOTEL_STAFF,
       },
       create: {
         email: saleEmail,
         passwordHash,
-        fullName: "Lễ tân HCA 101",
+        fullName: "HCA 101",
         status: UserStatus.ACTIVE,
         userType: UserType.HOTEL_STAFF,
       },

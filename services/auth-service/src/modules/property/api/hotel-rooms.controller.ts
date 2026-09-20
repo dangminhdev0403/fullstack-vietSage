@@ -92,6 +92,7 @@ export class HotelRoomsController {
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "limit", required: false, type: Number })
   @ApiQuery({ name: "q", required: false, type: String })
+  @ApiQuery({ name: "unassignedOnly", required: false, type: Boolean })
   @ApiOkResponse({ description: "Đã lấy danh sách phòng" })
   @Get(":hotelId/rooms")
   async listRooms(

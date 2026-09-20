@@ -174,6 +174,24 @@ export class AdminService {
 
     return unwrapApiEnvelope<Hotel>(payload).data;
   }
+
+  async resetHotelOperationalData(
+    hotelId: string,
+    accessToken?: string,
+  ): Promise<{ hotelId: string; operationalResetCount: number; remainingResets: number; message: string }> {
+    const payload = await this.authenticatedRequest<unknown>({
+      method: "POST",
+      path: `/hotels/${encodeURIComponent(hotelId)}/operational-reset`,
+      accessToken,
+    });
+
+    return unwrapApiEnvelope<{
+      hotelId: string;
+      operationalResetCount: number;
+      remainingResets: number;
+      message: string;
+    }>(payload).data;
+  }
 }
 
 export function createAdminService(options: AdminServiceOptions): AdminService {

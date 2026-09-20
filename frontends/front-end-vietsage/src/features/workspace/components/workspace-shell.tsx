@@ -26,6 +26,32 @@ type WorkspaceShellProps = {
   sidebarWidth?: "default" | "compact240";
 };
 
+function cleanProfileDisplayName(name: string | null | undefined): string | null {
+  if (!name) return null;
+  const trimmed = name.trim();
+  if (!trimmed) return null;
+
+  // Ignore raw technical role tokens like "TENANT_OWNER", "HOTEL_OWNER", "SUPER_ADMIN"
+  if (/^(?:TENANT_OWNER|HOTEL_OWNER|SUPER_ADMIN|HOTEL_STAFF|STAFF)$/i.test(trimmed)) {
+    return null;
+  }
+
+  // Strip redundant role/unit prefixes like "Chủ đơn vị", "Chủ khách sạn", "Lễ tân", etc.
+  const cleaned = trimmed
+    .replace(/^(?:chủ đơn vị|chu don vi|chủ khách sạn|chu khach san)\s*[:\-–—]?\s*/i, "")
+    .replace(/^(?:quản lý khách sạn|quan ly khach san|quản lý|quan ly)\s*[:\-–—]?\s*/i, "")
+    .replace(/^(?:lễ tân khách sạn|le tan khach san|lễ tân|le tan)\s*[:\-–—]?\s*/i, "")
+    .replace(/^(?:buồng phòng khách sạn|buong phong khach san|buồng phòng|buong phong)\s*[:\-–—]?\s*/i, "")
+    .replace(/^(?:kỹ thuật khách sạn|ky thuat khach san|kỹ thuật|ky thuat)\s*[:\-–—]?\s*/i, "")
+    .replace(/^(?:ẩm thực khách sạn|am thuc khach san|ẩm thực|am thuc)\s*[:\-–—]?\s*/i, "")
+    .replace(/^(?:tài chính khách sạn|tai chinh khach san|tài chính|tai chinh)\s*[:\-–—]?\s*/i, "")
+    .replace(/^(?:đối tác dịch vụ|doi tac dich vu)\s*[:\-–—]?\s*/i, "")
+    .replace(/^(?:quản trị viên|quan tri vien|quản trị hệ thống|quan tri he thong)\s*[:\-–—]?\s*/i, "")
+    .trim();
+
+  return cleaned || trimmed;
+}
+
 export function WorkspaceShell({
   children,
   definition,
@@ -43,7 +69,8 @@ export function WorkspaceShell({
     explicitActivePath ??
     (tab ? `${pathname ?? ""}?tab=${tab}` : pathname ?? "");
   const inheritedProfile = useWorkspaceProfile();
-  const resolvedProfileName = profileName ?? inheritedProfile.profileName;
+  const rawProfileName = profileName ?? inheritedProfile.profileName;
+  const resolvedProfileName = cleanProfileDisplayName(rawProfileName);
 
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
 
