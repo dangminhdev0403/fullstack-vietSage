@@ -599,7 +599,9 @@ export class MarketplaceOrderService {
         items: true,
         voucher: true,
         settlement: true,
-        stay: { select: { roomId: true, guestDisplayName: true, room: { select: { roomNumber: true } } } },
+        stay: {
+          select: { roomId: true, guestDisplayName: true, room: { select: { roomNumber: true } } },
+        },
         serviceTenant: { select: { serviceProfile: { select: { displayName: true } } } },
       },
       orderBy: { createdAt: "desc" },
@@ -614,7 +616,9 @@ export class MarketplaceOrderService {
         items: true,
         voucher: true,
         settlement: true,
-        stay: { select: { roomId: true, guestDisplayName: true, room: { select: { roomNumber: true } } } },
+        stay: {
+          select: { roomId: true, guestDisplayName: true, room: { select: { roomNumber: true } } },
+        },
         events: { orderBy: { createdAt: "asc" } },
         serviceTenant: { select: { serviceProfile: { select: { displayName: true } } } },
       },

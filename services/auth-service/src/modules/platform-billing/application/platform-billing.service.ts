@@ -88,13 +88,17 @@ export function attachPeriodProjection<
     total: Prisma.Decimal | number | string;
     dueAt?: Date | string | null;
     settlements?: Array<{ amount: Prisma.Decimal | number | string }>;
+    debtNoticeCount?: number;
+    debtNoticeSentAt?: Date | string | null;
   },
->(period: T) {
+>(period: T, extraNotice?: { count: number; lastSentAt: Date | string | null }) {
   if (!period) return period;
   const projection = computePeriodProjection(period);
   return {
     ...period,
     ...projection,
+    debtNoticeCount: extraNotice?.count ?? period.debtNoticeCount ?? 0,
+    debtNoticeSentAt: extraNotice?.lastSentAt ?? period.debtNoticeSentAt ?? null,
   };
 }
 
@@ -556,13 +560,345 @@ export class PlatformBillingService {
     });
   }
 
+  private async getPeriodNoticesMap(
+    periodIds: string[],
+  ): Promise<Map<string, { count: number; lastSentAt: Date }>> {
+    const map = new Map<string, { count: number; lastSentAt: Date }>();
+    if (!this.prisma.auditLog || periodIds.length === 0) return map;
+
+    try {
+      const noticeLogs = await this.prisma.auditLog.findMany({
+        where: {
+          action: { in: ["DEBT_REMINDER_RECORDED", "DEBT_NOTICE_ISSUED"] },
+          entityType: "PlatformBillingPeriod",
+          entityId: { in: periodIds },
+        },
+        orderBy: { createdAt: "desc" },
+        select: { entityId: true, createdAt: true },
+      });
+
+      for (const log of noticeLogs) {
+        if (!log.entityId) continue;
+        const existing = map.get(log.entityId);
+        if (!existing) {
+          map.set(log.entityId, { count: 1, lastSentAt: log.createdAt });
+        } else {
+          existing.count += 1;
+        }
+      }
+    } catch {
+      // Graceful fallback if auditLog is not available or mocked without findMany
+    }
+    return map;
+  }
+
+  async issueDebtNotice(
+    periodId: string,
+    options?: { channel?: "MANUAL"; note?: string; actorUserId?: string },
+  ) {
+    const period = await this.prisma.platformBillingPeriod.findUnique({
+      where: { id: periodId },
+      include: {
+        contract: {
+          include: {
+            hotel: {
+              include: {
+                tenant: true,
+              },
+            },
+          },
+        },
+        settlements: true,
+      },
+    });
+
+    if (!period) throw new NotFoundException("Không tìm thấy kỳ thanh toán");
+    if (period.status !== "FINALIZED") {
+      throw new BadRequestException("Chỉ có thể ghi nhận nhắc nợ cho kỳ đã được chốt (FINALIZED)");
+    }
+
+    const projection = computePeriodProjection(period);
+    if (projection.outstandingAmount.equals(0)) {
+      throw new BadRequestException("Kỳ thanh toán không còn công nợ");
+    }
+    const noticeMap = await this.getPeriodNoticesMap([periodId]);
+    const previousCount = noticeMap.get(periodId)?.count ?? 0;
+    const noticeCount = previousCount + 1;
+    const channel = options?.channel ?? "MANUAL";
+
+    if (this.prisma.auditLog) {
+      await this.prisma.auditLog.create({
+        data: {
+          actorId: options?.actorUserId || null,
+          tenantId: period.contract.hotel.tenantId,
+          action: "DEBT_REMINDER_RECORDED",
+          entityType: "PlatformBillingPeriod",
+          entityId: periodId,
+          metadata: {
+            noticeCount,
+            channel,
+            note: options?.note || "Ghi nhận đã nhắc nợ thủ công",
+            total: Number(period.total),
+            outstandingAmount: Number(projection.outstandingAmount),
+            dueAt: period.dueAt ? period.dueAt.toISOString() : null,
+            periodStart: period.periodStart.toISOString(),
+            periodEnd: period.periodEnd.toISOString(),
+            hotelName: period.contract.hotel.name,
+            issuedAt: new Date().toISOString(),
+          },
+        },
+      });
+    }
+
+    return {
+      success: true,
+      periodId,
+      noticeCount,
+      channel,
+      issuedAt: new Date().toISOString(),
+      outstandingAmount: Number(projection.outstandingAmount),
+      total: Number(period.total),
+      dueAt: period.dueAt ? period.dueAt.toISOString() : null,
+      message: `Đã ghi nhận nhắc nợ lần ${noticeCount} cho khách sạn ${period.contract.hotel.name}`,
+    };
+  }
+
+  async getPlatformDebtStatement(periodId: string) {
+    return this.buildDebtStatement(periodId);
+  }
+
+  async getOwnerDebtStatement(
+    periodId: string,
+    actor: { actorUserId: string; actorRoleId: string },
+  ) {
+    const period = await this.prisma.platformBillingPeriod.findUnique({
+      where: { id: periodId },
+      select: {
+        contract: {
+          select: {
+            hotelId: true,
+          },
+        },
+      },
+    });
+
+    if (!period) throw new NotFoundException("Không tìm thấy kỳ thanh toán");
+
+    await this.hotelAccessService.assertHotelAccess(
+      actor.actorUserId,
+      actor.actorRoleId,
+      period.contract.hotelId,
+    );
+
+    return this.buildDebtStatement(periodId);
+  }
+
+  private async buildDebtStatement(periodId: string) {
+    const period = await this.prisma.platformBillingPeriod.findUnique({
+      where: { id: periodId },
+      include: {
+        contract: {
+          include: {
+            hotel: {
+              include: {
+                tenant: true,
+              },
+            },
+          },
+        },
+        settlements: {
+          orderBy: { createdAt: "desc" },
+        },
+        adjustments: {
+          orderBy: { createdAt: "desc" },
+        },
+      },
+    });
+
+    if (!period) throw new NotFoundException("Không tìm thấy kỳ thanh toán");
+    if (period.status !== "FINALIZED") {
+      throw new BadRequestException("Kỳ thanh toán chưa được chốt hóa đơn");
+    }
+
+    const noticeMap = await this.getPeriodNoticesMap([periodId]);
+    const periodProjection = attachPeriodProjection(period, noticeMap.get(periodId));
+
+    let noticeHistory: Array<{
+      id: string;
+      noticeCount: number;
+      channel: string;
+      issuedAt: string;
+      actorName?: string;
+      note?: string;
+    }> = [];
+    if (this.prisma.auditLog) {
+      const logs = await this.prisma.auditLog.findMany({
+        where: {
+          action: { in: ["DEBT_REMINDER_RECORDED", "DEBT_NOTICE_ISSUED"] },
+          entityType: "PlatformBillingPeriod",
+          entityId: periodId,
+        },
+        orderBy: { createdAt: "desc" },
+        include: {
+          actor: { select: { fullName: true } },
+        },
+      });
+      noticeHistory = logs.map((l) => ({
+        id: l.id,
+        noticeCount: (l.metadata as any)?.noticeCount || 1,
+        channel: (l.metadata as any)?.channel || "MANUAL",
+        issuedAt: l.createdAt.toISOString(),
+        actorName: l.actor?.fullName || "Kế toán Nền tảng",
+        note: (l.metadata as any)?.note || undefined,
+      }));
+    }
+
+    // Query immutable billable-day snapshots in [periodStart, periodEnd)
+    const billableDays = await this.prisma.platformBillableDay.findMany({
+      where: {
+        contractId: period.contractId,
+        serviceDate: {
+          gte: period.periodStart,
+          lt: period.periodEnd,
+        },
+      },
+      select: {
+        id: true,
+        unitPrice: true,
+        amount: true,
+        currency: true,
+        quantity: true,
+        contractRevision: { select: { pricingModel: true } },
+      },
+    });
+
+    const periodCurrency = period.currency || "VND";
+    for (const day of billableDays) {
+      if (day.currency && day.currency !== periodCurrency) {
+        throw new BadRequestException(
+          `Phát hiện loại tiền tệ không khớp (${day.currency} khác ${periodCurrency}) trong kỳ thanh toán`,
+        );
+      }
+    }
+
+    const rateGroups = new Map<
+      string,
+      {
+        pricingModel: string;
+        unitPrice: number;
+        quantity: number;
+        amount: number;
+        currency: string;
+      }
+    >();
+    for (const day of billableDays) {
+      const priceNum = Number(day.unitPrice);
+      const pricingModel = day.contractRevision.pricingModel || "FIXED";
+      const key = `${pricingModel}_${priceNum}_${day.currency || periodCurrency}`;
+      const existing = rateGroups.get(key);
+      const qty = day.quantity || 1;
+      const amt = Number(day.amount);
+      if (existing) {
+        existing.quantity += qty;
+        existing.amount += amt;
+      } else {
+        rateGroups.set(key, {
+          pricingModel,
+          unitPrice: priceNum,
+          quantity: qty,
+          amount: amt,
+          currency: day.currency || periodCurrency,
+        });
+      }
+    }
+
+    let lineItems = Array.from(rateGroups.values()).map((g) => ({
+      description:
+        g.pricingModel === "PERCENTAGE"
+          ? `Phí sử dụng nền tảng VietSage SaaS (${g.unitPrice.toLocaleString("vi-VN")}% giá phòng)`
+          : `Phí sử dụng nền tảng VietSage SaaS (${g.unitPrice.toLocaleString("vi-VN")} ${g.currency}/phòng/ngày)`,
+      pricingModel: g.pricingModel,
+      quantity: g.quantity,
+      unitPrice: g.unitPrice,
+      amount: g.amount,
+      currency: g.currency,
+    }));
+
+    const billableDaysCount =
+      billableDays.length > 0
+        ? billableDays.reduce((sum, d) => sum + (d.quantity || 1), 0)
+        : period.chargeCount || 0;
+
+    if (lineItems.length === 0 && Number(period.subtotal) > 0) {
+      const unitPrice =
+        billableDaysCount > 0
+          ? Number(period.subtotal) / billableDaysCount
+          : Number(period.subtotal);
+      lineItems = [
+        {
+          description: "Phí sử dụng nền tảng VietSage SaaS",
+          pricingModel: "PERIOD_SNAPSHOT",
+          quantity: billableDaysCount,
+          unitPrice,
+          amount: Number(period.subtotal),
+          currency: periodCurrency,
+        },
+      ];
+    }
+
+    const adjustments = (period.adjustments || []).map((adj) => {
+      if (adj.currency && adj.currency !== periodCurrency) {
+        throw new BadRequestException(
+          `Phát hiện loại tiền tệ điều chỉnh không khớp (${adj.currency} khác ${periodCurrency}) trong kỳ thanh toán`,
+        );
+      }
+      return {
+        id: adj.id,
+        reasonCode: adj.reasonCode,
+        amount: Number(adj.amount),
+        currency: adj.currency || periodCurrency,
+        note: adj.note || undefined,
+      };
+    });
+
+    const brand = period.contract.hotel.brandSettings as Record<string, any> | null;
+
+    return {
+      statementNumber: `VS-STMT-${period.contract.hotel.code}-${period.id.slice(-6).toUpperCase()}`,
+      issuedAt: new Date().toISOString(),
+      period: periodProjection,
+      hotel: {
+        id: period.contract.hotel.id,
+        name: period.contract.hotel.name,
+        code: period.contract.hotel.code,
+        address: typeof brand?.address === "string" ? brand.address : undefined,
+        phoneNumber: typeof brand?.phoneNumber === "string" ? brand.phoneNumber : undefined,
+        tenantId: period.contract.hotel.tenantId,
+        tenantName: period.contract.hotel.tenant.name,
+      },
+      contract: {
+        id: period.contract.id,
+        status: period.contract.status,
+        pricingModel: lineItems.length > 1 ? "MIXED_SNAPSHOT" : "SNAPSHOT",
+        roomDayUnitPrice: lineItems.length === 1 ? lineItems[0].unitPrice : 0,
+        currency: periodCurrency,
+        billableDaysCount,
+      },
+      lineItems,
+      adjustments,
+      noticeHistory,
+      platformBankInfo: null,
+    };
+  }
+
   async listPeriods(contractId: string) {
     const periods = await this.prisma.platformBillingPeriod.findMany({
       where: { contractId },
       include: { settlements: true, adjustments: true },
       orderBy: { periodStart: "desc" },
     });
-    return periods.map((p) => attachPeriodProjection(p));
+    const noticeMap = await this.getPeriodNoticesMap(periods.map((p) => p.id));
+    return periods.map((p) => attachPeriodProjection(p, noticeMap.get(p.id)));
   }
 
   async getPeriod(periodId: string) {
@@ -575,7 +911,8 @@ export class PlatformBillingService {
       },
     });
     if (!period) throw new NotFoundException("Không tìm thấy kỳ thanh toán");
-    return attachPeriodProjection(period);
+    const noticeMap = await this.getPeriodNoticesMap([periodId]);
+    return attachPeriodProjection(period, noticeMap.get(periodId));
   }
 
   async getDashboardSummary() {
@@ -589,6 +926,7 @@ export class PlatformBillingService {
           outstandingAmount?: Prisma.Decimal | number | string;
           unpaidPeriodCount?: bigint | number | string;
           overduePeriodCount?: bigint | number | string;
+          overdueAmount?: Prisma.Decimal | number | string;
         }>
       >`
         SELECT
@@ -597,7 +935,8 @@ export class PlatformBillingService {
           COALESCE(SUM(s.settled), 0) AS "collectedAmount",
           COALESCE(SUM(GREATEST(0, p.total - COALESCE(s.settled, 0))), 0) AS "outstandingAmount",
           COUNT(CASE WHEN p.total - COALESCE(s.settled, 0) > 0 THEN 1 END)::bigint AS "unpaidPeriodCount",
-          COUNT(CASE WHEN p.total - COALESCE(s.settled, 0) > 0 AND p."dueAt" < NOW() THEN 1 END)::bigint AS "overduePeriodCount"
+          COUNT(CASE WHEN p.total - COALESCE(s.settled, 0) > 0 AND p."dueAt" < NOW() THEN 1 END)::bigint AS "overduePeriodCount",
+          COALESCE(SUM(CASE WHEN p.total - COALESCE(s.settled, 0) > 0 AND p."dueAt" < NOW() THEN p.total - COALESCE(s.settled, 0) ELSE 0 END), 0) AS "overdueAmount"
         FROM "PlatformBillingPeriod" p
         LEFT JOIN (
           SELECT "periodId", SUM(amount) AS settled
@@ -650,6 +989,7 @@ export class PlatformBillingService {
 
     const unpaidPeriodCount = Number(kpi?.unpaidPeriodCount ?? 0);
     const overduePeriodCount = Number(kpi?.overduePeriodCount ?? 0);
+    const overdueAmount = new Prisma.Decimal(kpi?.overdueAmount ?? 0);
 
     const duePeriods = rawDuePeriods
       .map((p) => attachPeriodProjection(p))
@@ -663,6 +1003,7 @@ export class PlatformBillingService {
       outstandingAmount,
       unpaidPeriodCount,
       overduePeriodCount,
+      overdueAmount,
       duePeriods,
     };
   }
@@ -800,9 +1141,12 @@ export class PlatformBillingService {
       orderBy: { createdAt: "desc" },
     });
 
+    const periodIds = contracts.flatMap((c) => (c.periods || []).map((p) => p.id));
+    const noticeMap = await this.getPeriodNoticesMap(periodIds);
+
     return contracts.map((c) => ({
       ...c,
-      periods: (c.periods || []).map((p) => attachPeriodProjection(p)),
+      periods: (c.periods || []).map((p) => attachPeriodProjection(p, noticeMap.get(p.id))),
     }));
   }
 
@@ -987,7 +1331,10 @@ export class PlatformBillingService {
     const usageCount = roomUsageSummary.reduce((sum, r) => sum + r.usageCount, 0);
     const estimatedFee = roomUsageSummary.reduce((sum, r) => sum + r.billedAmount, 0);
 
-    const projectedPeriods = paginatedPeriods.map((p) => attachPeriodProjection(p));
+    const noticeMap = await this.getPeriodNoticesMap(paginatedPeriods.map((p) => p.id));
+    const projectedPeriods = paginatedPeriods.map((p) =>
+      attachPeriodProjection(p, noticeMap.get(p.id)),
+    );
 
     const reminderData = reminderRaw[0] ?? {
       dueSoonCount: 0,

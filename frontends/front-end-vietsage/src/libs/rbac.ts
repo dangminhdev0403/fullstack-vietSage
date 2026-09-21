@@ -15,6 +15,7 @@ const LOCAL_ORIGIN = "http://localhost";
 
 const routePolicies: readonly RoutePolicy[] = [
   { prefix: "/admin", roles: ["admin"] },
+  { prefix: "/finance", roles: ["admin"] },
   { prefix: "/owner", roles: ["tenant_owner"] },
   { prefix: "/staff", roles: ["staff", "admin"] },
   { prefix: "/hotels", roles: ["staff", "admin"] },

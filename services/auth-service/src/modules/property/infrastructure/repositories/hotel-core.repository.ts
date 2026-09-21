@@ -149,7 +149,9 @@ export class HotelCoreRepository {
     });
   }
 
-  async resetHotelOperationalData(hotelId: string): Promise<{ operationalResetCount: number; remainingResets: number }> {
+  async resetHotelOperationalData(
+    hotelId: string,
+  ): Promise<{ operationalResetCount: number; remainingResets: number }> {
     return this.prisma.$transaction(async (tx) => {
       // 1. Delete Invoices and payment transactions
       await tx.paymentTransaction.deleteMany({ where: { hotelId } });
@@ -209,7 +211,10 @@ export class HotelCoreRepository {
         currentHotel?.brandSettings && typeof currentHotel.brandSettings === "object"
           ? (currentHotel.brandSettings as Record<string, unknown>)
           : {};
-      const currentCount = typeof currentSettings.operationalResetCount === "number" ? currentSettings.operationalResetCount : 0;
+      const currentCount =
+        typeof currentSettings.operationalResetCount === "number"
+          ? currentSettings.operationalResetCount
+          : 0;
       const nextCount = currentCount + 1;
 
       const updatedSettings = {
@@ -220,7 +225,7 @@ export class HotelCoreRepository {
 
       await tx.hotel.update({
         where: { id: hotelId },
-        data: { brandSettings: updatedSettings as Prisma.InputJsonValue },
+        data: { brandSettings: updatedSettings },
       });
 
       return {

@@ -73,7 +73,11 @@ export class HotelMarketplaceController {
   @Get("orders")
   async list(@Req() req: RequestWithRequiredUser, @Param("hotelId") id: string) {
     const hotelId = await this.hotel(req, id);
-    const scope = (await this.access.resolveRoomScope?.(req.user.userId, req.user.roleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
+    const scope = (await this.access.resolveRoomScope?.(
+      req.user.userId,
+      req.user.roleId,
+      hotelId,
+    )) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
     return this.orders.listHotelOrders(hotelId, scope.allowedRoomId);
   }
 
@@ -86,7 +90,11 @@ export class HotelMarketplaceController {
     @Param("orderId") orderId: string,
   ) {
     const hotelId = await this.hotel(req, id);
-    const scope = (await this.access.resolveRoomScope?.(req.user.userId, req.user.roleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
+    const scope = (await this.access.resolveRoomScope?.(
+      req.user.userId,
+      req.user.roleId,
+      hotelId,
+    )) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
     const order = await this.orders.hotelOrder(
       hotelId,
       parseWithZod(marketplaceOrderIdSchema, orderId),
@@ -106,7 +114,11 @@ export class HotelMarketplaceController {
     @Param("orderId") orderId: string,
   ) {
     const hotelId = await this.hotel(req, id);
-    const scope = (await this.access.resolveRoomScope?.(req.user.userId, req.user.roleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
+    const scope = (await this.access.resolveRoomScope?.(
+      req.user.userId,
+      req.user.roleId,
+      hotelId,
+    )) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
     const validOrderId = parseWithZod(marketplaceOrderIdSchema, orderId);
     const order = await this.orders.hotelOrder(hotelId, validOrderId);
     if (order.stay?.roomId) {
@@ -124,7 +136,11 @@ export class HotelMarketplaceController {
     @Param("orderId") orderId: string,
   ) {
     const hotelId = await this.hotel(req, id);
-    const scope = (await this.access.resolveRoomScope?.(req.user.userId, req.user.roleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
+    const scope = (await this.access.resolveRoomScope?.(
+      req.user.userId,
+      req.user.roleId,
+      hotelId,
+    )) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
     const validOrderId = parseWithZod(marketplaceOrderIdSchema, orderId);
     const order = await this.orders.hotelOrder(hotelId, validOrderId);
     if (order.stay?.roomId) {
@@ -142,7 +158,11 @@ export class HotelMarketplaceController {
     @Param("orderId") orderId: string,
   ) {
     const hotelId = await this.hotel(req, id);
-    const scope = (await this.access.resolveRoomScope?.(req.user.userId, req.user.roleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
+    const scope = (await this.access.resolveRoomScope?.(
+      req.user.userId,
+      req.user.roleId,
+      hotelId,
+    )) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
     const validOrderId = parseWithZod(marketplaceOrderIdSchema, orderId);
     const order = await this.orders.hotelOrder(hotelId, validOrderId);
     if (order.stay?.roomId) {

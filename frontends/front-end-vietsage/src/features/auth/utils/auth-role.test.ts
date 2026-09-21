@@ -10,11 +10,11 @@ test("maps hotel operation templates into the staff application surface", () => 
     "HOTEL_FRONTDESK",
     "HOTEL_HOUSEKEEPING",
     "HOTEL_MAINTENANCE",
-    "HOTEL_FINANCE",
   ]) {
     assert.equal(hasAppRole([roleCode], "staff"), true);
     assert.equal(getPrimaryAppRole([roleCode]), "staff");
   }
+  assert.equal(hasAppRole(["HOTEL_FINANCE"], "staff"), false);
 });
 
 test("uses only the supplied active role code when resolving the application surface", () => {
@@ -31,8 +31,20 @@ test("correctly maps Principal roles away from platform admin", () => {
     "PRINCIPAL_ADMIN",
     "HIEU_TRUONG_ADMIN",
   ]) {
-    assert.equal(hasAppRole([roleCode], "admin"), false, `${roleCode} should not match admin`);
-    assert.equal(hasAppRole([roleCode], "tenant_owner"), true, `${roleCode} should match tenant_owner/school owner`);
-    assert.notEqual(getPrimaryAppRole([roleCode]), "admin", `${roleCode} primary app role should not be admin`);
+    assert.equal(
+      hasAppRole([roleCode], "admin"),
+      false,
+      `${roleCode} should not match admin`,
+    );
+    assert.equal(
+      hasAppRole([roleCode], "tenant_owner"),
+      true,
+      `${roleCode} should match tenant_owner/school owner`,
+    );
+    assert.notEqual(
+      getPrimaryAppRole([roleCode]),
+      "admin",
+      `${roleCode} primary app role should not be admin`,
+    );
   }
 });

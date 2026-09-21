@@ -251,4 +251,27 @@ describe("HotelAccessService", () => {
       service.loadActorContext("actor-1", "inactive-or-unassigned-role"),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
+
+  it("cấp canEnumeratePlatformHotels nhưng từ chối elevated hotel operations và yêu cầu assignment đối với PLATFORM_FINANCE", async () => {
+    const repository = createRepository({
+      findActorById: jest.fn().mockResolvedValue({
+        id: "finance-1",
+        userRoles: [{ role: { code: "PLATFORM_FINANCE" } }],
+        tenantUsers: [{ tenantId: "tenant-1" }, { tenantId: "tenant-2" }],
+        hotelAssignments: [],
+      }),
+      findHotelById: jest.fn().mockResolvedValue({ id: "hotel-99", tenantId: "tenant-99" }),
+    });
+    const service = new HotelAccessService(repository as never);
+
+    const context = await service.loadActorContext("finance-1", "role-finance");
+    expect(context.canEnumeratePlatformHotels).toBe(true);
+    expect(context.isSuperAdmin).toBe(false);
+    expect(context.requiresHotelAssignment).toBe(true);
+
+    // PLATFORM_FINANCE cannot access arbitrary hotel operations without tenant/assignment
+    await expect(
+      service.assertHotelAccess("finance-1", "role-finance", "hotel-99"),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
 });

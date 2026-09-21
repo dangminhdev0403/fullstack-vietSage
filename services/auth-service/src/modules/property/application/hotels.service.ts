@@ -93,23 +93,25 @@ export class HotelsService {
   async listHotels(actorUserId: string, activeRoleId: string, query: ListHotelsQueryInput) {
     const actor = await this.hotelAccessService.loadActorContext(actorUserId, activeRoleId);
 
-    const tenantId = actor.isSuperAdmin
+    const canEnumerateAll = Boolean(actor.isSuperAdmin || actor.canEnumeratePlatformHotels);
+
+    const tenantId = canEnumerateAll
       ? query.tenantId?.trim()
-      : actor.isTenantOwner && !query.tenantId?.trim()
-        ? undefined
-        : await this.hotelAccessService.resolveTenantId(actor, query.tenantId);
+      : query.tenantId?.trim()
+        ? await this.hotelAccessService.resolveTenantId(actor, query.tenantId)
+        : actor.tenantIds.size === 1
+          ? Array.from(actor.tenantIds)[0]
+          : undefined;
 
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const where: Prisma.HotelWhereInput = {
-      ...(actor.isTenantOwner && !tenantId
-        ? { tenantId: { in: Array.from(actor.tenantIds) } }
-        : tenantId
-          ? { tenantId }
-          : actor.isSuperAdmin
-            ? {}
-            : { tenantId: { in: Array.from(actor.tenantIds) } }),
-      ...(actor.requiresHotelAssignment
+      ...(tenantId
+        ? { tenantId }
+        : canEnumerateAll
+          ? {}
+          : { tenantId: { in: Array.from(actor.tenantIds) } }),
+      ...(!canEnumerateAll && actor.requiresHotelAssignment
         ? { id: { in: Array.from(actor.assignedHotelIds ?? []) } }
         : {}),
       status: HotelStatus.ACTIVE,

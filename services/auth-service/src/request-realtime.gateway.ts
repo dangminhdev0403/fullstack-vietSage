@@ -99,7 +99,10 @@ export class RequestRealtimeGateway
         });
       } else {
         await socket.join(RequestRealtimeEmitter.ownerHotelRoom(claims.hotelId));
-        socket.emit("request_realtime.ready", { mode: "owner", scope: { hotelId: claims.hotelId } });
+        socket.emit("request_realtime.ready", {
+          mode: "owner",
+          scope: { hotelId: claims.hotelId },
+        });
       }
     } catch (error) {
       return this.reject(

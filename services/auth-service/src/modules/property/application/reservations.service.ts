@@ -35,7 +35,11 @@ export class ReservationsService {
     hotelId: string,
     dto: CreateReservationBodyInput,
   ) {
-    const scope = await this.hotelAccessService.resolveRoomScope(actorUserId, activeRoleId, hotelId);
+    const scope = await this.hotelAccessService.resolveRoomScope(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    );
     const reservationCode = await this.codesService.generateEntityCode("RESERVATION");
     return this.reservationsRepository.createReservation({
       hotelId,
@@ -55,7 +59,11 @@ export class ReservationsService {
     hotelId: string,
     query: ListArrivalsQueryInput,
   ) {
-    const scope = await this.hotelAccessService.resolveRoomScope(actorUserId, activeRoleId, hotelId);
+    const scope = await this.hotelAccessService.resolveRoomScope(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    );
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const [total, items] = await this.reservationsRepository.listArrivals({
@@ -95,11 +103,23 @@ export class ReservationsService {
       activeRoleId,
       hotelId,
     );
-    const reservation = await this.reservationsRepository.findReservationById(hotelId, reservationId);
+    const reservation = await this.reservationsRepository.findReservationById(
+      hotelId,
+      reservationId,
+    );
     if (reservation && reservation.roomId) {
-      await this.hotelAccessService.assertRoomAccess(actorUserId, activeRoleId, hotelId, reservation.roomId);
+      await this.hotelAccessService.assertRoomAccess(
+        actorUserId,
+        activeRoleId,
+        hotelId,
+        reservation.roomId,
+      );
     } else {
-      const scope = await this.hotelAccessService.resolveRoomScope(actorUserId, activeRoleId, hotelId);
+      const scope = await this.hotelAccessService.resolveRoomScope(
+        actorUserId,
+        activeRoleId,
+        hotelId,
+      );
       if (scope.allowedRoomId !== null) {
         throw new NotFoundException("Không tìm thấy đặt phòng");
       }

@@ -67,9 +67,11 @@ export class RequestRealtimeEmitter {
       request: input.ownerRequest,
     });
     if (input.roomId) {
-      this.serverRef?.to(this.ownerRoomChannel(input.hotelId, input.roomId)).emit("guest_request.created", {
-        request: input.ownerRequest,
-      });
+      this.serverRef
+        ?.to(this.ownerRoomChannel(input.hotelId, input.roomId))
+        .emit("guest_request.created", {
+          request: input.ownerRequest,
+        });
     }
     this.serverRef?.to(this.guestSessionRoom(input.sessionId)).emit("guest_request.created", {
       request: input.guestRequest,
@@ -87,9 +89,11 @@ export class RequestRealtimeEmitter {
       request: input.ownerRequest,
     });
     if (input.roomId) {
-      this.serverRef?.to(this.ownerRoomChannel(input.hotelId, input.roomId)).emit("guest_request.updated", {
-        request: input.ownerRequest,
-      });
+      this.serverRef
+        ?.to(this.ownerRoomChannel(input.hotelId, input.roomId))
+        .emit("guest_request.updated", {
+          request: input.ownerRequest,
+        });
     }
     if (input.sessionId && input.guestRequest !== undefined) {
       this.serverRef?.to(this.guestSessionRoom(input.sessionId)).emit("guest_request.updated", {
@@ -120,7 +124,9 @@ export class RequestRealtimeEmitter {
     };
     this.serverRef?.to(this.ownerHotelRoom(input.hotelId)).emit("guest_message.created", payload);
     if (input.roomId) {
-      this.serverRef?.to(this.ownerRoomChannel(input.hotelId, input.roomId)).emit("guest_message.created", payload);
+      this.serverRef
+        ?.to(this.ownerRoomChannel(input.hotelId, input.roomId))
+        .emit("guest_message.created", payload);
     }
     this.serverRef?.to(this.guestStayRoom(input.stayId)).emit("guest_message.created", payload);
   }
@@ -141,7 +147,9 @@ export class RequestRealtimeEmitter {
     };
     this.serverRef?.to(this.ownerHotelRoom(input.hotelId)).emit("conversation.closed", payload);
     if (input.roomId) {
-      this.serverRef?.to(this.ownerRoomChannel(input.hotelId, input.roomId)).emit("conversation.closed", payload);
+      this.serverRef
+        ?.to(this.ownerRoomChannel(input.hotelId, input.roomId))
+        .emit("conversation.closed", payload);
     }
     this.serverRef?.to(this.guestStayRoom(input.stayId)).emit("conversation.closed", payload);
   }
@@ -168,7 +176,9 @@ export class RequestRealtimeEmitter {
     };
     this.serverRef?.to(this.ownerHotelRoom(input.hotelId)).emit("stay.overdue_checkout", payload);
     if (input.roomId) {
-      this.serverRef?.to(this.ownerRoomChannel(input.hotelId, input.roomId)).emit("stay.overdue_checkout", payload);
+      this.serverRef
+        ?.to(this.ownerRoomChannel(input.hotelId, input.roomId))
+        .emit("stay.overdue_checkout", payload);
     }
   }
 

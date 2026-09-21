@@ -479,7 +479,11 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     pagination?: { page?: number; limit?: number },
   ) {
     await this.access.assertHotelAccess(userId, roleId, hotelId);
-    const scope = (await this.access.resolveRoomScope?.(userId, roleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
+    const scope = (await this.access.resolveRoomScope?.(userId, roleId, hotelId)) ?? {
+      hotel: {} as any,
+      allowedRoomId: null,
+      mode: "HOTEL_WIDE",
+    };
     let occupants = (await this.occupantsReadService?.getActiveStayOccupants(hotelId)) ?? [];
     if (scope.mode === "ROOM_EXCLUSIVE") {
       occupants = occupants.filter((o) => o.roomId === scope.allowedRoomId);
@@ -619,7 +623,11 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
 
   async getDeclaration(userId: string, roleId: string, hotelId: string, occupantId: string) {
     await this.access.assertHotelAccess(userId, roleId, hotelId);
-    const scope = (await this.access.resolveRoomScope?.(userId, roleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
+    const scope = (await this.access.resolveRoomScope?.(userId, roleId, hotelId)) ?? {
+      hotel: {} as any,
+      allowedRoomId: null,
+      mode: "HOTEL_WIDE",
+    };
     const occupant = await this.repository.findOccupant(hotelId, occupantId);
     if (!occupant) {
       throw new NotFoundException("Khách lưu trú không tồn tại trong khách sạn này.");
@@ -654,7 +662,11 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     body: unknown,
   ) {
     await this.access.assertHotelAccess(userId, roleId, hotelId);
-    const scope = (await this.access.resolveRoomScope?.(userId, roleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
+    const scope = (await this.access.resolveRoomScope?.(userId, roleId, hotelId)) ?? {
+      hotel: {} as any,
+      allowedRoomId: null,
+      mode: "HOTEL_WIDE",
+    };
     const occupant = await this.repository.findOccupant(hotelId, occupantId);
     if (!occupant) {
       throw new NotFoundException("Khách lưu trú không tồn tại trong khách sạn này.");
@@ -778,7 +790,11 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
 
   async submit(userId: string, roleId: string, hotelId: string, occupantId: string) {
     await this.access.assertHotelAccess(userId, roleId, hotelId);
-    const scope = (await this.access.resolveRoomScope?.(userId, roleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
+    const scope = (await this.access.resolveRoomScope?.(userId, roleId, hotelId)) ?? {
+      hotel: {} as any,
+      allowedRoomId: null,
+      mode: "HOTEL_WIDE",
+    };
     return this.serialize(hotelId, async () => {
       const occupant = await this.repository.findOccupant(hotelId, occupantId);
       if (!occupant) {

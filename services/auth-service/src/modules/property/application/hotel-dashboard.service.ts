@@ -246,26 +246,52 @@ export class HotelDashboardService {
   ) {}
 
   async getDashboard(actorUserId: string, activeRoleId: string, hotelId: string) {
-    const scope = await this.hotelAccessService.resolveRoomScope(actorUserId, activeRoleId, hotelId);
+    const scope = await this.hotelAccessService.resolveRoomScope(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    );
 
-    const roomWhere: Prisma.RoomWhereInput = scope.allowedRoomId !== null
-      ? { hotelId, id: scope.allowedRoomId }
-      : { hotelId };
-    const stayWhere: Prisma.GuestStayWhereInput = scope.allowedRoomId !== null
-      ? { hotelId, roomId: scope.allowedRoomId }
-      : { hotelId };
-    const activeRequestStayFilter: Prisma.GuestRequestWhereInput = scope.allowedRoomId !== null
-      ? { stay: { is: { status: { in: ACTIVE_STAY_STATUSES }, checkedOutAt: null, roomId: scope.allowedRoomId } } }
-      : ACTIVE_REQUEST_STAY_FILTER;
-    const requestEventRequestFilter: Prisma.GuestRequestEventWhereInput = scope.allowedRoomId !== null
-      ? { hotelId, request: { stay: { is: { status: { in: ACTIVE_STAY_STATUSES }, checkedOutAt: null, roomId: scope.allowedRoomId } } } }
-      : { hotelId, request: { stay: { is: { status: { in: ACTIVE_STAY_STATUSES }, checkedOutAt: null } } } };
-    const folioWhere: Prisma.FolioWhereInput = scope.allowedRoomId !== null
-      ? { hotelId, roomId: scope.allowedRoomId }
-      : { hotelId };
-    const paymentWhere: Prisma.PaymentWhereInput = scope.allowedRoomId !== null
-      ? { hotelId, folio: { roomId: scope.allowedRoomId } }
-      : { hotelId };
+    const roomWhere: Prisma.RoomWhereInput =
+      scope.allowedRoomId !== null ? { hotelId, id: scope.allowedRoomId } : { hotelId };
+    const stayWhere: Prisma.GuestStayWhereInput =
+      scope.allowedRoomId !== null ? { hotelId, roomId: scope.allowedRoomId } : { hotelId };
+    const activeRequestStayFilter: Prisma.GuestRequestWhereInput =
+      scope.allowedRoomId !== null
+        ? {
+            stay: {
+              is: {
+                status: { in: ACTIVE_STAY_STATUSES },
+                checkedOutAt: null,
+                roomId: scope.allowedRoomId,
+              },
+            },
+          }
+        : ACTIVE_REQUEST_STAY_FILTER;
+    const requestEventRequestFilter: Prisma.GuestRequestEventWhereInput =
+      scope.allowedRoomId !== null
+        ? {
+            hotelId,
+            request: {
+              stay: {
+                is: {
+                  status: { in: ACTIVE_STAY_STATUSES },
+                  checkedOutAt: null,
+                  roomId: scope.allowedRoomId,
+                },
+              },
+            },
+          }
+        : {
+            hotelId,
+            request: { stay: { is: { status: { in: ACTIVE_STAY_STATUSES }, checkedOutAt: null } } },
+          };
+    const folioWhere: Prisma.FolioWhereInput =
+      scope.allowedRoomId !== null ? { hotelId, roomId: scope.allowedRoomId } : { hotelId };
+    const paymentWhere: Prisma.PaymentWhereInput =
+      scope.allowedRoomId !== null
+        ? { hotelId, folio: { roomId: scope.allowedRoomId } }
+        : { hotelId };
 
     const now = new Date();
     const todayStart = startOfDay(now);
@@ -305,14 +331,18 @@ export class HotelDashboardService {
       this.prisma.room.count({ where: roomWhere }),
       this.prisma.room.groupBy({ by: ["status"], where: roomWhere, _count: { _all: true } }),
       this.prisma.room.count({ where: { ...roomWhere, status: RoomStatus.OCCUPIED } }),
-      this.prisma.guestStay.count({ where: { ...stayWhere, status: { in: ACTIVE_STAY_STATUSES } } }),
+      this.prisma.guestStay.count({
+        where: { ...stayWhere, status: { in: ACTIVE_STAY_STATUSES } },
+      }),
       this.prisma.guestStay.count({
         where: { ...stayWhere, checkedInAt: { gte: todayStart, lt: tomorrowStart } },
       }),
       this.prisma.guestStay.count({
         where: { ...stayWhere, checkedOutAt: { gte: todayStart, lt: tomorrowStart } },
       }),
-      this.prisma.guestStay.count({ where: { ...stayWhere, status: GuestStayStatus.CHECKOUT_PENDING } }),
+      this.prisma.guestStay.count({
+        where: { ...stayWhere, status: GuestStayStatus.CHECKOUT_PENDING },
+      }),
       this.prisma.guestRequest.groupBy({
         by: ["status"],
         where: { hotelId, ...activeRequestStayFilter },

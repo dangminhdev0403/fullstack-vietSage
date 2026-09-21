@@ -22,7 +22,12 @@ import { AuthService } from "./authentication.service";
 import { generateTemporaryPassword } from "../../../common/security/password-policy.util";
 
 const MANAGED_ROLE_CODES = new Set(["HOTEL_FRONTDESK"]);
-const PROTECTED_ROLE_CODES = new Set(["SUPER_ADMIN", "VIETSAGE_OPERATION", "HOTEL_OWNER", "TENANT_OWNER"]);
+const PROTECTED_ROLE_CODES = new Set([
+  "SUPER_ADMIN",
+  "VIETSAGE_OPERATION",
+  "HOTEL_OWNER",
+  "TENANT_OWNER",
+]);
 
 interface ActorContext {
   userId: string;
@@ -176,7 +181,9 @@ export class HotelUsersService {
     dto: UpdateHotelUserBodyInput,
   ): Promise<TenantScopedHotelUser> {
     if (actorUserId === userId) {
-      throw new ForbiddenException("Không thể tự chỉnh sửa thông tin của chính mình qua API quản lý nhân viên");
+      throw new ForbiddenException(
+        "Không thể tự chỉnh sửa thông tin của chính mình qua API quản lý nhân viên",
+      );
     }
     const actor = await this.loadActorContext(actorUserId, activeRoleId);
     const tenantId = await this.resolveTenantId(actor, tenantHint);

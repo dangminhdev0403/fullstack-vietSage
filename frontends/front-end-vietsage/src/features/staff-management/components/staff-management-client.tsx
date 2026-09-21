@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { SwalVietSage } from "@/libs/swal";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { DataTable, type DataTableColumnDef } from "@/components/ui/data-table";
@@ -78,9 +78,18 @@ function extractApiErrorMessage(error: unknown): { message: string; field?: keyo
 export function StaffManagementClient({ scope, canManage, initialHotelId = null, onHotelPath }: Props) {
   const [hotelId, setHotelId] = useState(initialHotelId ?? "");
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(query.trim());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query]);
+
   const activeScope = { ...scope, hotelId: hotelId || null };
-  const directory = useStaffDirectoryQuery(activeScope, { q: query, page, limit: 20 });
+  const directory = useStaffDirectoryQuery(activeScope, { q: debouncedQuery, page, limit: 20 });
   const mutations = useStaffManagementMutations(activeScope);
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState({ fullName: "", email: "", password: "", roleId: "", roomId: "" });
@@ -90,6 +99,9 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
   const [activeActionKey, setActiveActionKey] = useState<string | null>(null);
   const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null);
   const [resetAccountLabel, setResetAccountLabel] = useState("");
+  const [editingUser, setEditingUser] = useState<HotelStaffUser | null>(null);
+  const [editForm, setEditForm] = useState({ fullName: "", email: "", roomId: "" });
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   const data = directory.data;
   const hasMultipleHotels = (data?.hotels?.length ?? 0) > 1;
@@ -138,73 +150,103 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
     return map;
   }, [data?.assignments?.items]);
 
-  async function handleUnassignRoom(user: { id: string; fullName: string }) {
-    const confirmed = await SwalVietSage.fire({
-      icon: "warning",
-      title: "Bỏ gán phòng?",
-      text: `Bạn có chắc muốn bỏ gán phòng cho nhân viên ${user.fullName}? Tài khoản sẽ không thể thao tác vận hành cho đến khi được gán phòng mới.`,
-      showCancelButton: true,
-      confirmButtonText: "Bỏ gán phòng",
-      cancelButtonText: "Hủy",
-      reverseButtons: false,
+  const availableRoomsForEdit = useMemo(() => {
+    if (!editingUser) return [];
+    const currentRoom = userRoomAssignmentMap.get(editingUser.id);
+    const rooms = [...(data?.rooms ?? [])];
+    if (currentRoom && !rooms.some((r) => r.id === currentRoom.roomId)) {
+      rooms.unshift({
+        id: currentRoom.roomId,
+        roomNumber: currentRoom.roomNumber,
+        type: "",
+      });
+    }
+    return rooms.filter((r) => {
+      const occupiedBy = roomUserAssignmentMap.get(r.id);
+      return !occupiedBy || occupiedBy === editingUser.id;
     });
-    if (!confirmed.isConfirmed) return;
-    await runMutation(
-      `unassign-room-${user.id}`,
-      () => mutations.unassignRoom.mutateAsync({ userId: user.id }),
-      "Đã bỏ gán phòng cho nhân viên",
-    );
+  }, [data?.rooms, roomUserAssignmentMap, editingUser, userRoomAssignmentMap]);
+
+  function openEditStaff(user: HotelStaffUser) {
+    const currentRoom = userRoomAssignmentMap.get(user.id);
+    setEditingUser(user);
+    setEditForm({
+      fullName: user.fullName,
+      email: user.email,
+      roomId: currentRoom?.roomId ?? "",
+    });
   }
 
-  async function handleReassignRoom(user: { id: string; fullName: string }) {
-    // Loại bỏ hoàn toàn các phòng đã có người phụ trách khác khỏi danh sách chọn
-    const availableRooms = (data?.rooms ?? []).filter((r) => {
-      const occupiedBy = roomUserAssignmentMap.get(r.id);
-      return !occupiedBy || occupiedBy === user.id;
-    });
+  async function handleSaveEdit(e: FormEvent) {
+    e.preventDefault();
+    if (!editingUser) return;
+    const currentRoom = userRoomAssignmentMap.get(editingUser.id);
+    const oldRoomId = currentRoom?.roomId ?? "";
+    const newRoomId = editForm.roomId.trim();
 
-    if (availableRooms.length === 0) {
-      await SwalVietSage.fire({
-        icon: "info",
-        title: "Hết phòng khả dụng",
-        text: "Tất cả các phòng khác trong khách sạn đều đã có người phụ trách.",
-        confirmButtonText: "OK",
-      });
+    const isProfileChanged =
+      editForm.fullName.trim() !== editingUser.fullName ||
+      editForm.email.trim().toLowerCase() !== editingUser.email.toLowerCase();
+    const isRoomChanged = oldRoomId !== newRoomId;
+
+    if (!isProfileChanged && !isRoomChanged) {
+      setEditingUser(null);
       return;
     }
 
-    const availableRoomOptions = availableRooms
-      .map((r) => {
-        const isSelf = roomUserAssignmentMap.get(r.id) === user.id;
-        const label = `Phòng ${r.roomNumber}${r.type ? ` · ${r.type}` : ""}${isSelf ? " (Đang phụ trách)" : ""}`;
-        return `<option value="${r.id}" ${isSelf ? "selected" : ""}>${label}</option>`;
-      })
-      .join("");
+    setIsSavingEdit(true);
+    try {
+      const tasks: Promise<unknown>[] = [];
 
-    const result = await SwalVietSage.fire({
-      title: `Gán phòng cho ${user.fullName}`,
-      html: `<div class="text-left"><label class="block text-sm font-semibold mb-2 text-slate-700">Chọn phòng phụ trách:</label><select id="swal-room-select" class="swal2-input !h-11 !w-full !m-0 !text-sm"><option value="">-- Chọn phòng --</option>${availableRoomOptions}</select></div>`,
-      showCancelButton: true,
-      confirmButtonText: "Xác nhận gán phòng",
-      cancelButtonText: "Hủy",
-      reverseButtons: false,
-      preConfirm: () => {
-        const select = document.getElementById("swal-room-select") as HTMLSelectElement;
-        const val = select?.value?.trim();
-        if (!val) {
-          SwalVietSage.showValidationMessage("Vui lòng chọn phòng");
-          return false;
+      if (isProfileChanged) {
+        tasks.push(
+          mutations.updateUser.mutateAsync({
+            userId: editingUser.id,
+            fullName: editForm.fullName.trim(),
+            email: editForm.email.trim().toLowerCase(),
+          }),
+        );
+      }
+
+      if (isRoomChanged && effectiveHotelId) {
+        if (newRoomId) {
+          tasks.push(
+            mutations.assignRoom.mutateAsync({
+              userId: editingUser.id,
+              roomId: newRoomId,
+            }),
+          );
+        } else if (oldRoomId) {
+          tasks.push(
+            mutations.unassignRoom.mutateAsync({
+              userId: editingUser.id,
+            }),
+          );
         }
-        return val;
-      },
-    });
+      }
 
-    if (!result.isConfirmed || !result.value) return;
-    await runMutation(
-      `assign-room-${user.id}`,
-      () => mutations.assignRoom.mutateAsync({ userId: user.id, roomId: result.value }),
-      "Đã gán phòng cho nhân viên",
-    );
+      await Promise.all(tasks);
+
+      setEditingUser(null);
+      await SwalVietSage.fire({
+        icon: "success",
+        title: "Đã cập nhật thông tin nhân viên",
+        timer: 1500,
+        showConfirmButton: true,
+        confirmButtonText: "OK",
+      });
+    } catch (error) {
+      const { message } = extractApiErrorMessage(error);
+      await SwalVietSage.fire({
+        icon: "error",
+        title: "Không thể cập nhật",
+        text: message,
+        showConfirmButton: true,
+        confirmButtonText: "OK",
+      });
+    } finally {
+      setIsSavingEdit(false);
+    }
   }
 
   async function handleAddRole(user: { id: string; fullName: string; roles: Array<{ id: string }> }) {
@@ -272,32 +314,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
     }
   }
 
-  async function editStaff(user: { id: string; fullName: string; email: string; roles?: Array<{ code: string }> }) {
-    const userRoleCodes = user.roles?.map((role) => role.code) ?? [];
-    const canReset = (scope.surface === "owner" || scope.surface === "admin") && canResetFrontdeskPassword(userRoleCodes);
 
-    const result = await SwalVietSage.fire({
-      title: "Sửa thông tin nhân viên",
-      html: `<input id="staff-name" class="swal2-input" value="${user.fullName.replace(/"/g, "&quot;")}" placeholder="Họ tên"><input id="staff-email" class="swal2-input" value="${user.email.replace(/"/g, "&quot;")}" placeholder="Email">`,
-      showCancelButton: true,
-      showDenyButton: canReset,
-      confirmButtonText: "Lưu",
-      denyButtonText: "🔑 Cấp lại mật khẩu",
-      cancelButtonText: "Hủy",
-      preConfirm: () => ({
-        fullName: (document.getElementById("staff-name") as HTMLInputElement)?.value.trim(),
-        email: (document.getElementById("staff-email") as HTMLInputElement)?.value.trim().toLowerCase(),
-      }),
-    });
-
-    if (result.isDenied) {
-      void resetFrontdesk(user);
-      return;
-    }
-
-    if (!result.isConfirmed) return;
-    await runMutation(`edit-${user.id}`, () => mutations.updateUser.mutateAsync({ userId: user.id, ...result.value }), "Đã cập nhật nhân viên");
-  }
 
   async function toggleStaff(user: { id: string; fullName: string; userStatus?: string; tenantStatus?: string }) {
     const locked = user.userStatus === "DISABLED" || user.tenantStatus === "DISABLED";
@@ -338,14 +355,6 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
 
     if (!activeRoleId) {
       setFormGeneralError("Hệ thống chưa cấu hình vai trò cho nhân viên.");
-      return;
-    }
-    const isFrontDesk = isFrontDeskRole(form.roleId) || isFrontDeskRole(activeRoleId);
-    if (!form.roomId) {
-      setFormErrors((prev) => ({
-        ...prev,
-        roomId: "Phòng phụ trách (Bắt buộc) - Vui lòng chọn phòng cho nhân viên",
-      }));
       return;
     }
     try {
@@ -439,7 +448,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
     });
   }
 
-  const isBusy = mutations.createUser.isPending || mutations.assignRole.isPending || mutations.updateAssignment.isPending || mutations.updateUser.isPending || mutations.assignRoom.isPending || mutations.unassignRoom.isPending || activeActionKey !== null;
+  const isBusy = mutations.createUser.isPending || mutations.assignRole.isPending || mutations.updateUser.isPending || mutations.assignRoom.isPending || mutations.unassignRoom.isPending || activeActionKey !== null;
 
   return (
     <div className="space-y-6">
@@ -661,8 +670,8 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                 }}
                 disabled={mutations.createUser.isPending}
                 error={formErrors.roomId}
-                required
-                placeholder="Phòng phụ trách (Bắt buộc)"
+                required={false}
+                placeholder="Phòng phụ trách (Tùy chọn)"
               />
               {formErrors.roomId ? (
                 <span className="mt-1 text-xs font-medium text-red-600 flex items-center gap-1">
@@ -700,8 +709,8 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
               {
                 key: "user",
                 header: "Nhân viên",
-                className: effectiveHotelId ? "w-[18%]" : "w-[24%]",
-                headerClassName: effectiveHotelId ? "w-[18%]" : "w-[24%]",
+                className: effectiveHotelId ? "w-[22%]" : "w-[28%]",
+                headerClassName: effectiveHotelId ? "w-[22%]" : "w-[28%]",
                 cell: () => (
                   <div className="space-y-1.5 py-1">
                     <div className="h-4 w-32 animate-pulse rounded bg-slate-200" />
@@ -712,8 +721,8 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
               {
                 key: "roles",
                 header: "Vai trò",
-                className: effectiveHotelId ? "w-[24%]" : "w-[30%]",
-                headerClassName: effectiveHotelId ? "w-[24%]" : "w-[30%]",
+                className: effectiveHotelId ? "w-[22%]" : "w-[28%]",
+                headerClassName: effectiveHotelId ? "w-[22%]" : "w-[28%]",
                 cell: () => (
                   <div className="flex gap-2 py-1">
                     <div className="h-6 w-20 animate-pulse rounded-full bg-slate-200" />
@@ -724,8 +733,8 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
               {
                 key: "assignment",
                 header: "Phân công",
-                className: effectiveHotelId ? "w-[14%]" : "w-[18%]",
-                headerClassName: effectiveHotelId ? "w-[14%]" : "w-[18%]",
+                className: effectiveHotelId ? "w-[18%]" : "w-[22%]",
+                headerClassName: effectiveHotelId ? "w-[18%]" : "w-[22%]",
                 cell: () => <div className="h-7 w-28 animate-pulse rounded-full bg-slate-100" />,
               },
               ...(effectiveHotelId
@@ -742,8 +751,8 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
               {
                 key: "actions",
                 header: <div className="text-right">Thao tác</div>,
-                className: effectiveHotelId ? "w-[26%]" : "w-[28%]",
-                headerClassName: effectiveHotelId ? "w-[26%] text-right" : "w-[28%] text-right",
+                className: effectiveHotelId ? "w-[20%]" : "w-[22%]",
+                headerClassName: effectiveHotelId ? "w-[20%] text-right" : "w-[22%] text-right",
                 cell: () => <div className="ml-auto h-10 w-44 animate-pulse rounded-lg bg-slate-100" />,
               },
             ]}
@@ -758,8 +767,8 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
               {
                 key: "user",
                 header: "Nhân viên",
-                className: effectiveHotelId ? "w-[18%]" : "w-[24%]",
-                headerClassName: effectiveHotelId ? "w-[18%]" : "w-[24%]",
+                className: effectiveHotelId ? "w-[22%]" : "w-[28%]",
+                headerClassName: effectiveHotelId ? "w-[22%]" : "w-[28%]",
                 cell: (user) => (
                   <div className="min-w-0 py-1">
                     <p className="font-semibold text-[var(--primary)]">{user.fullName}</p>
@@ -770,8 +779,8 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
               {
                 key: "roles",
                 header: "Vai trò",
-                className: effectiveHotelId ? "w-[24%]" : "w-[30%]",
-                headerClassName: effectiveHotelId ? "w-[24%]" : "w-[30%]",
+                className: effectiveHotelId ? "w-[22%]" : "w-[28%]",
+                headerClassName: effectiveHotelId ? "w-[22%]" : "w-[28%]",
                 cell: (user) => {
                   const availableRoles = (data.roles ?? []).filter(
                     (role) => !user.roles.some((current) => current.id === role.id),
@@ -788,7 +797,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                         </span>
                       ))}
                       {user.roles.length === 0 ? (
-                        <span className="text-xs text-[var(--on-surface-variant)]">Chưa có vai trò</span>
+                         <span className="text-xs text-[var(--on-surface-variant)]">Chưa có vai trò</span>
                       ) : null}
                       {canManage && availableRoles.length > 0 ? (
                         <button
@@ -813,8 +822,8 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
               {
                 key: "assignment",
                 header: "Phân công",
-                className: effectiveHotelId ? "w-[14%]" : "w-[18%]",
-                headerClassName: effectiveHotelId ? "w-[14%]" : "w-[18%]",
+                className: effectiveHotelId ? "w-[18%]" : "w-[22%]",
+                headerClassName: effectiveHotelId ? "w-[18%]" : "w-[22%]",
                 cell: (user) => {
                   const assigned = assignedUserIds.has(user.id);
                   const assignedElsewhere = Boolean(user.assignedHotel && !assigned);
@@ -847,61 +856,18 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
 
                         if (roomAssignment) {
                           return (
-                            <div className="flex items-center gap-1.5 py-1">
-                              <span className="inline-flex items-center gap-1 rounded-md bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-xs font-semibold text-indigo-700">
-                                <VsIcon name="meeting_room" className="text-xs" />
-                                Phòng {roomAssignment.roomNumber}
-                              </span>
-                              {canManage ? (
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    type="button"
-                                    disabled={isBusy}
-                                    onClick={() => handleReassignRoom(user)}
-                                    title="Đổi phòng phụ trách"
-                                    className="rounded p-1 text-[var(--on-surface-variant)] hover:bg-slate-100 hover:text-[var(--primary)] disabled:opacity-40"
-                                  >
-                                    <VsIcon name="swap_horiz" className="text-sm" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={isBusy}
-                                    onClick={() => handleUnassignRoom(user)}
-                                    title="Bỏ gán phòng"
-                                    className="rounded p-1 text-red-500 hover:bg-red-50 disabled:opacity-40"
-                                  >
-                                    <VsIcon name="close" className="text-sm" />
-                                  </button>
-                                </div>
-                              ) : null}
-                            </div>
+                            <span className="inline-flex items-center gap-1 rounded-md bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-xs font-semibold text-indigo-700">
+                              <VsIcon name="meeting_room" className="text-xs" />
+                              Phòng {roomAssignment.roomNumber}
+                            </span>
                           );
                         }
 
                         if (isUserFrontDesk) {
                           return (
-                            <div className="space-y-1 py-1">
-                              <span
-                                className="inline-flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200 px-2 py-0.5 text-[11px] font-semibold text-amber-800"
-                                title="Chưa gán phòng — tài khoản chưa thể thao tác vận hành"
-                              >
-                                <VsIcon name="warning" className="text-xs shrink-0 text-amber-600" />
-                                <span className="truncate max-w-[130px]">Chưa gán phòng</span>
-                              </span>
-                              {canManage ? (
-                                <div>
-                                  <button
-                                    type="button"
-                                    disabled={isBusy}
-                                    onClick={() => handleReassignRoom(user)}
-                                    className="text-xs font-semibold text-[var(--primary)] hover:underline inline-flex items-center gap-0.5"
-                                  >
-                                    <VsIcon name="add" className="text-xs" />
-                                    Gán phòng
-                                  </button>
-                                </div>
-                              ) : null}
-                            </div>
+                            <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 text-slate-600 px-2 py-0.5 text-xs font-medium">
+                              Chung toàn KS
+                            </span>
                           );
                         }
 
@@ -913,20 +879,17 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
               {
                 key: "actions",
                 header: <div className="text-right">Thao tác</div>,
-                className: effectiveHotelId ? "w-[26%]" : "w-[28%]",
-                headerClassName: effectiveHotelId ? "w-[26%] text-right" : "w-[28%] text-right",
+                className: effectiveHotelId ? "w-[20%]" : "w-[22%]",
+                headerClassName: effectiveHotelId ? "w-[20%] text-right" : "w-[22%] text-right",
                 cell: (user) => {
                   if (!canManage) return <div className="text-right text-xs text-[var(--on-surface-variant)]">Chỉ xem</div>;
-                  const assigned = assignedUserIds.has(user.id);
-                  const isTransfer = Boolean(user.assignedHotel && !assigned);
-                  const isUpdatingAssignment = activeActionKey === `assignment-${user.id}`;
                   const canResetPassword = (scope.surface === "owner" || scope.surface === "admin") && canResetFrontdeskPassword(user.roles.map((role) => role.code));
                   return (
                     <div className="flex min-h-10 items-center justify-end gap-1.5 flex-nowrap">
                       <button
                         type="button"
                         disabled={isBusy}
-                        onClick={() => editStaff(user)}
+                        onClick={() => openEditStaff(user)}
                         className="h-9 shrink-0 whitespace-nowrap rounded-lg border border-[var(--outline-variant)] px-2.5 text-xs font-semibold text-[var(--primary)] hover:bg-[var(--surface-container-low)] disabled:opacity-40 flex items-center gap-1"
                         title="Chỉnh sửa thông tin nhân viên"
                       >
@@ -962,51 +925,6 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                           <span>Đổi MK</span>
                         </button>
                       ) : null}
-                      <button
-                        disabled={!effectiveHotelId || isBusy}
-                        type="button"
-                        onClick={() =>
-                          runMutation(
-                            `assignment-${user.id}`,
-                            () => mutations.updateAssignment.mutateAsync({ userId: user.id, assigned: !assigned }),
-                            assigned
-                              ? "Đã thu hồi phân công"
-                              : isTransfer
-                                ? "Đã chuyển nhân viên đến khách sạn"
-                                : "Đã phân công nhân viên",
-                          )
-                        }
-                        className={`h-9 shrink-0 whitespace-nowrap rounded-lg px-3 text-xs font-semibold disabled:opacity-40 flex items-center gap-1.5 transition-colors ${
-                          assigned
-                            ? "border border-red-200 text-red-600 hover:bg-red-50"
-                            : isTransfer
-                              ? "border border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
-                              : "bg-[var(--primary)] text-white hover:opacity-90"
-                        }`}
-                        title={!effectiveHotelId ? "Vui lòng chọn khách sạn ở thanh bộ lọc phía trên để thực hiện phân công" : undefined}
-                      >
-                        {isUpdatingAssignment ? (
-                          <>
-                            <VsIcon name="progress_activity" className="animate-spin text-xs" />
-                            <span>Đang xử lý...</span>
-                          </>
-                        ) : assigned ? (
-                          <>
-                            <VsIcon name="person_remove" className="text-sm" />
-                            <span>Bỏ phân công</span>
-                          </>
-                        ) : isTransfer ? (
-                          <>
-                            <VsIcon name="swap_horiz" className="text-sm" />
-                            <span>Chuyển đến đây</span>
-                          </>
-                        ) : (
-                          <>
-                            <VsIcon name="person_add" className="text-sm" />
-                            <span>Phân công</span>
-                          </>
-                        )}
-                      </button>
                     </div>
                   );
                 },
@@ -1046,7 +964,6 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
             const assignedElsewhere = Boolean(user.assignedHotel && !assigned);
             const availableRoles = data.roles.filter((role) => !user.roles.some((current) => current.id === role.id));
             const isAssigning = activeActionKey === `assign-${user.id}`;
-            const isUpdatingAssignment = activeActionKey === `assignment-${user.id}`;
             const canResetPassword = (scope.surface === "owner" || scope.surface === "admin") && canResetFrontdeskPassword(user.roles.map((role) => role.code));
             return (
               <article key={user.id} className="rounded-xl border border-[var(--outline-variant)] bg-white p-5 shadow-sm space-y-3">
@@ -1093,100 +1010,69 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                   </div>
 
                   {effectiveHotelId && assigned ? (
-                    <div>
+                    <div className="flex items-center justify-between text-xs">
                       <span className="font-semibold text-[var(--on-surface-variant)]">Phòng phụ trách: </span>
-                      <div className="mt-1">
-                        {(() => {
-                          const isUserFrontDesk = user.roles.some((r) => isFrontDeskRole(r.code ?? r.id));
-                          const roomAssignment = userRoomAssignmentMap.get(user.id);
-                          if (roomAssignment) {
-                            return (
-                              <div className="flex items-center justify-between gap-2 rounded-lg border border-indigo-100 bg-indigo-50/50 p-2">
-                                <span className="inline-flex items-center gap-1 font-semibold text-indigo-700">
-                                  <VsIcon name="meeting_room" className="text-base" />
-                                  Phòng {roomAssignment.roomNumber}
-                                </span>
-                                {canManage ? (
-                                  <div className="flex items-center gap-1">
-                                    <button
-                                      type="button"
-                                      disabled={isBusy}
-                                      onClick={() => handleReassignRoom(user)}
-                                      className="rounded border border-[var(--outline-variant)] bg-white px-2 py-1 text-xs font-semibold text-[var(--primary)]"
-                                    >
-                                      Đổi phòng
-                                    </button>
-                                    <button
-                                      type="button"
-                                      disabled={isBusy}
-                                      onClick={() => handleUnassignRoom(user)}
-                                      className="rounded border border-red-200 bg-white px-2 py-1 text-xs font-semibold text-red-600"
-                                    >
-                                      Bỏ gán
-                                    </button>
-                                  </div>
-                                ) : null}
-                              </div>
-                            );
-                          }
-                          if (isUserFrontDesk) {
-                            return (
-                              <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs">
-                                <span className="inline-flex items-center gap-1 font-semibold text-amber-800">
-                                  <VsIcon name="warning" className="text-sm shrink-0 text-amber-600" />
-                                  Chưa gán phòng — chưa thể thao tác
-                                </span>
-                                {canManage ? (
-                                  <button
-                                    type="button"
-                                    disabled={isBusy}
-                                    onClick={() => handleReassignRoom(user)}
-                                    className="rounded bg-[var(--primary)] px-2.5 py-1 font-semibold text-white"
-                                  >
-                                    Gán phòng
-                                  </button>
-                                ) : null}
-                              </div>
-                            );
-                          }
-                          return <span className="text-[var(--on-surface-variant)]">—</span>;
-                        })()}
-                      </div>
+                      {(() => {
+                        const isUserFrontDesk = user.roles.some((r) => isFrontDeskRole(r.code ?? r.id));
+                        const roomAssignment = userRoomAssignmentMap.get(user.id);
+                        if (roomAssignment) {
+                          return (
+                            <span className="inline-flex items-center gap-1 font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-md">
+                              <VsIcon name="meeting_room" className="text-sm" />
+                              Phòng {roomAssignment.roomNumber}
+                            </span>
+                          );
+                        }
+                        if (isUserFrontDesk) {
+                          return (
+                            <span className="inline-flex items-center gap-1 font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md text-[11px]">
+                              Chung toàn KS
+                            </span>
+                          );
+                        }
+                        return <span className="text-[var(--on-surface-variant)]">—</span>;
+                      })()}
                     </div>
                   ) : null}
 
                   {canManage ? (
-                    <div className="pt-2 space-y-2">
-                      {canResetPassword ? <button type="button" disabled={isBusy || mutations.resetFrontdeskPassword.isPending} onClick={() => resetFrontdesk(user)} className="min-h-11 w-full rounded-xl border border-amber-300 text-xs font-semibold text-amber-800 disabled:opacity-40"><VsIcon name="key" className="mr-1 inline text-sm" />Cấp lại mật khẩu</button> : null}
+                    <div className="pt-2 flex flex-wrap gap-2">
                       <button
-                        disabled={!effectiveHotelId || isBusy}
                         type="button"
-                        onClick={() =>
-                          runMutation(
-                            `assignment-${user.id}`,
-                            () => mutations.updateAssignment.mutateAsync({ userId: user.id, assigned: !assigned }),
-                            assigned
-                              ? "Đã thu hồi phân công"
-                              : assignedElsewhere
-                                ? "Đã chuyển nhân viên đến khách sạn"
-                                : "Đã phân công nhân viên",
-                          )
-                        }
-                        className="min-h-11 w-full rounded-xl border border-[var(--outline-variant)] text-xs font-semibold disabled:opacity-40 active:bg-[var(--surface-container-low)] flex items-center justify-center gap-1.5"
+                        disabled={isBusy}
+                        onClick={() => openEditStaff(user)}
+                        className="flex-1 min-h-9 rounded-lg border border-[var(--outline-variant)] px-3 text-xs font-semibold text-[var(--primary)] hover:bg-[var(--surface-container-low)] disabled:opacity-40 flex items-center justify-center gap-1"
                       >
-                        {isUpdatingAssignment ? (
-                          <>
-                            <VsIcon name="progress_activity" className="animate-spin text-xs" />
-                            <span>Đang xử lý...</span>
-                          </>
-                        ) : assigned ? (
-                          "Thu hồi phân công khỏi khách sạn"
-                        ) : assignedElsewhere ? (
-                          "Chuyển nhân viên đến khách sạn này"
-                        ) : (
-                          "Phân công vào khách sạn này"
-                        )}
+                        <VsIcon name="edit" className="text-sm" />
+                        <span>Sửa</span>
                       </button>
+                      <button
+                        type="button"
+                        disabled={isBusy}
+                        onClick={() => toggleStaff(user)}
+                        className={`flex-1 min-h-9 rounded-lg border px-3 text-xs font-semibold disabled:opacity-40 flex items-center justify-center gap-1 transition-colors ${
+                          user.userStatus === "DISABLED" || user.tenantStatus === "DISABLED"
+                            ? "border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                            : "border-red-200 text-red-700 hover:bg-red-50"
+                        }`}
+                      >
+                        <VsIcon
+                          name={user.userStatus === "DISABLED" || user.tenantStatus === "DISABLED" ? "lock_open" : "lock"}
+                          className="text-sm"
+                        />
+                        <span>{user.userStatus === "DISABLED" || user.tenantStatus === "DISABLED" ? "Mở khóa" : "Khóa"}</span>
+                      </button>
+                      {canResetPassword ? (
+                        <button
+                          type="button"
+                          disabled={isBusy || mutations.resetFrontdeskPassword.isPending}
+                          onClick={() => resetFrontdesk(user)}
+                          className="w-full min-h-9 rounded-lg border border-amber-300 bg-amber-50/50 text-xs font-semibold text-amber-800 disabled:opacity-40 flex items-center justify-center gap-1"
+                        >
+                          <VsIcon name="key" className="text-sm" />
+                          <span>Cấp lại mật khẩu</span>
+                        </button>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>
@@ -1200,6 +1086,110 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
           </div>
         ) : null}
       </section>
+
+      {/* Box / Modal Sửa thông tin nhân viên */}
+      {editingUser ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-lg rounded-2xl border border-[var(--outline-variant)] bg-white p-6 shadow-2xl animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-[var(--outline-variant)] pb-4">
+              <div>
+                <h3 className="text-lg font-bold text-[var(--primary)]">Sửa thông tin nhân viên</h3>
+                <p className="text-xs text-[var(--on-surface-variant)] mt-0.5">
+                  Cập nhật thông tin tài khoản và phòng phụ trách
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingUser(null)}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+              >
+                <VsIcon name="close" className="text-lg" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="mt-4 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-[var(--on-surface-variant)] mb-1.5">
+                  Họ và tên <span className="text-red-500">*</span>
+                </label>
+                <input
+                  required
+                  value={editForm.fullName}
+                  onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })}
+                  placeholder="Họ và tên"
+                  className="min-h-11 w-full rounded-lg border border-[var(--outline-variant)] px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[var(--on-surface-variant)] mb-1.5">
+                  Email đăng nhập <span className="text-red-500">*</span>
+                </label>
+                <input
+                  required
+                  type="email"
+                  value={editForm.email}
+                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                  placeholder="Email"
+                  className="min-h-11 w-full rounded-lg border border-[var(--outline-variant)] px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
+                />
+              </div>
+
+              {effectiveHotelId ? (
+                <div>
+                  <label className="block text-xs font-bold text-[var(--on-surface-variant)] mb-1.5">
+                    Phòng phụ trách
+                  </label>
+                  <select
+                    value={editForm.roomId}
+                    onChange={(e) => setEditForm({ ...editForm, roomId: e.target.value })}
+                    className="min-h-11 w-full rounded-lg border border-[var(--outline-variant)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
+                  >
+                    <option value="">-- Không gán phòng (Vận hành chung) --</option>
+                    {availableRoomsForEdit.map((r) => {
+                      const isCurrent = userRoomAssignmentMap.get(editingUser.id)?.roomId === r.id;
+                      return (
+                        <option key={r.id} value={r.id}>
+                          Phòng {r.roomNumber}{r.type ? ` · ${r.type}` : ""}{isCurrent ? " (Đang phụ trách)" : ""}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  <p className="mt-1 text-[11px] text-[var(--on-surface-variant)]">
+                    Chọn phòng riêng để phân công, hoặc để trống nếu nhân viên này phụ trách chung toàn khách sạn.
+                  </p>
+                </div>
+              ) : null}
+
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[var(--outline-variant)]">
+                <button
+                  type="button"
+                  disabled={isSavingEdit}
+                  onClick={() => setEditingUser(null)}
+                  className="min-h-10 rounded-xl border border-[var(--outline-variant)] px-4 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingEdit}
+                  className="min-h-10 rounded-xl bg-[var(--primary)] px-5 text-xs font-semibold text-white hover:opacity-90 transition-opacity flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  {isSavingEdit ? (
+                    <>
+                      <VsIcon name="progress_activity" className="animate-spin text-sm" />
+                      <span>Đang lưu...</span>
+                    </>
+                  ) : (
+                    <span>Lưu thay đổi</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
       <OneTimePasswordDialog temporaryPassword={temporaryPassword} accountLabel={resetAccountLabel} onClose={() => { setTemporaryPassword(null); setResetAccountLabel(""); mutations.resetFrontdeskPassword.reset(); }} />
     </div>
   );

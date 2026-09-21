@@ -1,14 +1,17 @@
-import type { DashboardNavItem, DashboardNavSection } from "./workspace-navigation";
+import type {
+  DashboardNavItem,
+  DashboardNavSection,
+} from "./workspace-navigation";
 
 export type WorkspacePersona =
   | "platform_admin"
+  | "platform_finance"
   | "owner"
   | "manager"
   | "front_desk"
   | "housekeeping"
   | "maintenance"
   | "food_beverage"
-  | "finance"
   | "service_partner"
   | "principal";
 

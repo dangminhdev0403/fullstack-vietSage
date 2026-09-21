@@ -385,22 +385,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/hotel-users/{id}/roles/{roleId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete: operations["HotelUsersController_revokeHotelUserRole"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/hotel-users/{id}/reset-password": {
         parameters: {
             query?: never;
@@ -511,6 +495,22 @@ export interface paths {
         options?: never;
         head?: never;
         patch: operations["HotelsController_updateHotel"];
+        trace?: never;
+    };
+    "/hotels/{hotelId}/operational-reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["HotelsController_resetOperationalData"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/hotels/{hotelId}/rooms": {
@@ -1828,6 +1828,57 @@ export interface paths {
         };
         /** Get revenue protection analytics for hotel owner */
         get: operations["PlatformBillingController_getOwnerAnalytics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/platform-billing/periods/{periodId}/debt-notice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record a manual debt reminder for a finalized period */
+        post: operations["PlatformBillingController_issueDebtNotice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/platform-billing/periods/{periodId}/statement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get debt statement for a finalized period (Platform Finance) */
+        get: operations["PlatformBillingController_getDebtStatement"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/platform-billing/owner/periods/{periodId}/statement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get debt statement for a finalized period (Hotel Owner) */
+        get: operations["PlatformBillingController_getOwnerDebtStatement"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4335,47 +4386,6 @@ export interface operations {
             };
         };
     };
-    HotelUsersController_revokeHotelUserRole: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Ghi đè đơn vị tùy chọn */
-                "x-tenant-id"?: string;
-            };
-            path: {
-                id: string;
-                roleId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Bao phản hồi thu hồi vai trò người dùng khách sạn */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @example 200 */
-                        status: number;
-                        /** @example null */
-                        error: {
-                            [key: string]: unknown;
-                        } | null;
-                        /** @example Thu hồi vai trò người dùng khách sạn thành công */
-                        message: string;
-                        data: {
-                            /** @enum {boolean} */
-                            revoked: true;
-                            userId: string;
-                            roleId: string;
-                        };
-                    };
-                };
-            };
-        };
-    };
     HotelUsersController_resetPassword: {
         parameters: {
             query?: never;
@@ -5028,9 +5038,29 @@ export interface operations {
             };
         };
     };
+    HotelsController_resetOperationalData: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     HotelRoomsController_listRooms: {
         parameters: {
             query?: {
+                unassignedOnly?: boolean;
                 q?: string;
                 limit?: number;
                 page?: number;
@@ -7581,6 +7611,63 @@ export interface operations {
             header?: never;
             path: {
                 hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PlatformBillingController_issueDebtNotice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                periodId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PlatformBillingController_getDebtStatement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                periodId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PlatformBillingController_getOwnerDebtStatement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                periodId: string;
             };
             cookie?: never;
         };

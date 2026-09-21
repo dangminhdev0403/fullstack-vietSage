@@ -280,6 +280,7 @@ describe("PlatformBillingService Onboarding & Analytics", () => {
         outstandingAmount: new Prisma.Decimal(600000),
         unpaidPeriodCount: 2,
         overduePeriodCount: 1,
+        overdueAmount: new Prisma.Decimal(400000),
       },
     ]);
     mockPrisma.platformBillingPeriod.findMany.mockResolvedValueOnce([
@@ -302,6 +303,7 @@ describe("PlatformBillingService Onboarding & Analytics", () => {
       outstandingAmount: new Prisma.Decimal(600000),
       unpaidPeriodCount: 2,
       overduePeriodCount: 1,
+      overdueAmount: new Prisma.Decimal(400000),
       duePeriods: expect.arrayContaining([
         expect.objectContaining({
           id: "p-partial-overdue",

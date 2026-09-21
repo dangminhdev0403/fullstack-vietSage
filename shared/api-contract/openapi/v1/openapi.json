@@ -3342,97 +3342,6 @@
         ]
       }
     },
-    "/hotel-users/{id}/roles/{roleId}": {
-      "delete": {
-        "operationId": "HotelUsersController_revokeHotelUserRole",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "roleId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "x-tenant-id",
-            "required": false,
-            "in": "header",
-            "description": "Ghi đè đơn vị tùy chọn",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Bao phản hồi thu hồi vai trò người dùng khách sạn",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "status": {
-                      "type": "number",
-                      "example": 200
-                    },
-                    "error": {
-                      "type": "object",
-                      "nullable": true,
-                      "additionalProperties": true,
-                      "example": null
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Thu hồi vai trò người dùng khách sạn thành công"
-                    },
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "revoked": {
-                          "type": "boolean",
-                          "enum": [
-                            true
-                          ]
-                        },
-                        "userId": {
-                          "type": "string"
-                        },
-                        "roleId": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "revoked",
-                        "userId",
-                        "roleId"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "status",
-                    "error",
-                    "message",
-                    "data"
-                  ]
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "hotel-users"
-        ]
-      }
-    },
     "/hotel-users/{id}/reset-password": {
       "post": {
         "operationId": "HotelUsersController_resetPassword",
@@ -5101,6 +5010,29 @@
         ]
       }
     },
+    "/hotels/{hotelId}/operational-reset": {
+      "post": {
+        "operationId": "HotelsController_resetOperationalData",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "hotels"
+        ]
+      }
+    },
     "/hotels/{hotelId}/rooms": {
       "post": {
         "operationId": "HotelRoomsController_createRoom",
@@ -5142,6 +5074,14 @@
             "in": "path",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "unassignedOnly",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
             }
           },
           {
@@ -9959,6 +9899,93 @@
           }
         ],
         "summary": "Get revenue protection analytics for hotel owner",
+        "tags": [
+          "platform-billing"
+        ]
+      }
+    },
+    "/platform-billing/periods/{periodId}/debt-notice": {
+      "post": {
+        "operationId": "PlatformBillingController_issueDebtNotice",
+        "parameters": [
+          {
+            "name": "periodId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Record a manual debt reminder for a finalized period",
+        "tags": [
+          "platform-billing"
+        ]
+      }
+    },
+    "/platform-billing/periods/{periodId}/statement": {
+      "get": {
+        "operationId": "PlatformBillingController_getDebtStatement",
+        "parameters": [
+          {
+            "name": "periodId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get debt statement for a finalized period (Platform Finance)",
+        "tags": [
+          "platform-billing"
+        ]
+      }
+    },
+    "/platform-billing/owner/periods/{periodId}/statement": {
+      "get": {
+        "operationId": "PlatformBillingController_getOwnerDebtStatement",
+        "parameters": [
+          {
+            "name": "periodId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get debt statement for a finalized period (Hotel Owner)",
         "tags": [
           "platform-billing"
         ]

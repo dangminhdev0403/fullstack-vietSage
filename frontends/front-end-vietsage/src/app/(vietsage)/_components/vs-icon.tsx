@@ -35,6 +35,24 @@ function iconGlyph(name: string): ReactNode {
         </>
       );
 
+    case "swap_horiz":
+    case "sync_alt":
+      return (
+        <>
+          <path d="M7 16h13m0 0-4 4m4-4-4-4" />
+          <path d="M17 8H4m0 0 4-4M4 8l4 4" />
+        </>
+      );
+
+    case "link_off":
+      return (
+        <>
+          <path d="m2 2 20 20" />
+          <path d="M10 5a5 5 0 0 1 7.07 7.07" />
+          <path d="M14 19a5 5 0 0 1-7.07-7.07" />
+        </>
+      );
+
     case "home":
       return (
         <>

@@ -118,7 +118,9 @@ export class HotelsController {
 
   @RequirePermission(["hotel.profile.manage", "platform.hotels.manage"])
   @SuccessMessage("Thiết lập lại dữ liệu vận hành thành công")
-  @ApiDescript("Thiết lập lại dữ liệu vận hành khách sạn (xóa hóa đơn, lượt truy cập, doanh thu về 0, phòng về trống; tối đa 2 lần)")
+  @ApiDescript(
+    "Thiết lập lại dữ liệu vận hành khách sạn (xóa hóa đơn, lượt truy cập, doanh thu về 0, phòng về trống; tối đa 2 lần)",
+  )
   @ApiParam({ name: "hotelId", type: String })
   @Post(":hotelId/operational-reset")
   async resetOperationalData(
@@ -128,6 +130,10 @@ export class HotelsController {
   ) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
     parseWithZod(operationalResetBodySchema, body ?? {});
-    return this.hotelsService.resetOperationalData(request.user.userId, request.user.roleId, hotelId);
+    return this.hotelsService.resetOperationalData(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+    );
   }
 }

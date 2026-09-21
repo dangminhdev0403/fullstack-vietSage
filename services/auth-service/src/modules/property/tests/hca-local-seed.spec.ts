@@ -1,6 +1,7 @@
 import { HotelStaffScopeMode } from "@prisma/client";
 
-// Import the seed function
+// The seed is CommonJS because Prisma executes it directly with Node.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { seedHcaHomestayLocal } = require("../../../../prisma/seed-hca-homestay-local.js");
 
 describe("HCA Local Provisioning Seed (seedHcaHomestayLocal)", () => {
@@ -42,7 +43,7 @@ describe("HCA Local Provisioning Seed (seedHcaHomestayLocal)", () => {
         upsert: jest.fn().mockResolvedValue({ id: "ur-1" }),
       },
       hotelStaffAssignment: {
-        upsert: jest.fn().mockResolvedValue({ id: "hsa-1" }),
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
       $disconnect: jest.fn().mockResolvedValue(undefined),
     };

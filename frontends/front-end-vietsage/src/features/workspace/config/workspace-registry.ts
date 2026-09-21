@@ -20,7 +20,6 @@ const STAFF_PERSONAS: readonly WorkspacePersona[] = [
   "housekeeping",
   "maintenance",
   "food_beverage",
-  "finance",
 ];
 
 const WORKSPACE_DEFINITIONS: Record<WorkspacePersona, WorkspaceDefinition> = {
@@ -31,6 +30,15 @@ const WORKSPACE_DEFINITIONS: Record<WorkspacePersona, WorkspaceDefinition> = {
     description: "Tenant, khách sạn, tài khoản và chính sách truy cập.",
     profileLabel: "Quản trị viên",
     homePath: "/admin/dashboard",
+  },
+  platform_finance: {
+    persona: "platform_finance",
+    eyebrow: "Tài chính & Công nợ",
+    title: "Tài chính VietSage SaaS",
+    description:
+      "Quản lý hợp đồng tính phí SaaS, công nợ khách sạn và đối soát thanh toán.",
+    profileLabel: "Kế toán nền tảng",
+    homePath: "/finance/billing",
   },
   owner: {
     persona: "owner",
@@ -82,14 +90,6 @@ const WORKSPACE_DEFINITIONS: Record<WorkspacePersona, WorkspaceDefinition> = {
     profileLabel: "Ẩm thực",
     homePath: "/staff",
   },
-  finance: {
-    persona: "finance",
-    eyebrow: "Vận hành tài chính",
-    title: "Tài chính khách sạn",
-    description: "Theo dõi các công việc tài chính trong phạm vi được cấp.",
-    profileLabel: "Tài chính",
-    homePath: "/staff",
-  },
   service_partner: {
     persona: "service_partner",
     eyebrow: "Đối tác dịch vụ",
@@ -112,6 +112,7 @@ const WORKSPACE_DEFINITIONS: Record<WorkspacePersona, WorkspaceDefinition> = {
 const ROLE_ALIASES: Record<string, WorkspacePersona> = {
   SUPER_ADMIN: "platform_admin",
   ADMIN: "platform_admin",
+  PLATFORM_FINANCE: "platform_finance",
   TENANT_OWNER: "owner",
   HOTEL_OWNER: "owner",
   PRINCIPAL: "principal",
@@ -127,8 +128,6 @@ const ROLE_ALIASES: Record<string, WorkspacePersona> = {
   MAINTENANCE: "maintenance",
   HOTEL_MAINTENANCE: "front_desk",
   HOTEL_FNB: "front_desk",
-  FINANCE: "finance",
-  HOTEL_FINANCE: "front_desk",
   SERVICE_STAFF: "service_partner",
 };
 
@@ -198,6 +197,16 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
       "platform.marketplace.view",
       "platform.marketplace.manage",
     ],
+  },
+  {
+    key: "finance.billing",
+    personas: ["platform_finance"],
+    href: "/finance/billing",
+    label: "Phí VietSage SaaS",
+    icon: "payments",
+    order: 10,
+    section: "ADMINISTRATION",
+    anyCapabilities: ["platform.billing.view", "platform.billing.manage"],
   },
 
   {
@@ -422,7 +431,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
   },
   {
     key: "staff.billing",
-    personas: ["manager", "front_desk", "finance"],
+    personas: ["manager", "front_desk"],
     href: "/hotels/{hotelId}/billing",
     label: "Thanh toán & Doanh thu",
     icon: "payments",
@@ -448,7 +457,7 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
   },
   {
     key: "staff.services",
-    personas: ["manager", "food_beverage", "finance"],
+    personas: ["manager", "food_beverage"],
     href: "/hotels/{hotelId}/services",
     label: "Quản lý dịch vụ",
     icon: "room_service",
@@ -585,7 +594,7 @@ const WIDGETS: readonly WorkspaceWidgetDefinition[] = [
   },
   {
     key: "services.categories",
-    personas: ["manager", "food_beverage", "finance"],
+    personas: ["manager", "food_beverage"],
     title: "Nhóm dịch vụ",
     description: "Số nhóm dịch vụ đang quản lý.",
     icon: "category",
@@ -596,7 +605,7 @@ const WIDGETS: readonly WorkspaceWidgetDefinition[] = [
   },
   {
     key: "services.items",
-    personas: ["manager", "food_beverage", "finance"],
+    personas: ["manager", "food_beverage"],
     title: "Dịch vụ",
     description: "Số dịch vụ trong catalog.",
     icon: "room_service",

@@ -66,13 +66,13 @@ never edited in place.
 | Workspace role | Default responsibility |
 | --- | --- |
 | `SUPER_ADMIN` | Complete platform and business capability surface |
+| `PLATFORM_FINANCE` | Platform SaaS billing contracts, periods, debt statements, and hotel enumeration |
 | `TENANT_OWNER`, `HOTEL_OWNER` | Executive monitoring plus hotel profile, room/QR metadata, staff, catalog, partner, and integration configuration; no daily operational execution |
 | `HOTEL_MANAGER` | Rooms, stays, reservations, requests, billing view, and service operations |
 | `HOTEL_FRONTDESK` | Arrivals, stays, and guest request handling |
 | `HOTEL_HOUSEKEEPING` | Room visibility and operational request handling |
 | `HOTEL_MAINTENANCE` | Technical request handling |
 | `HOTEL_FNB` | F&B requests and service catalog visibility |
-| `HOTEL_FINANCE` | Billing operations and service catalog visibility |
 
 Hotel assignment and RBAC are independent: a staff user needs an active role, the required
 business capability, and an active assignment to access a hotel-scoped resource.
@@ -80,6 +80,12 @@ business capability, and an active assignment to access a hotel-scoped resource.
 Migration `20260918190422_owner_read_config_boundary` adds hotel-scoped profile permissions and
 removes daily-operation grants from owner templates. Shared Room, Stay, Request, Billing, and KBTT
 records remain unchanged because Front Desk, GuestOS, and owner reporting consume the same data.
+
+Migration `20260921050000_retire_hotel_finance_keep_platform_finance` establishes `PLATFORM_FINANCE` as the
+sole immutable Finance role (with `platform.billing.view`, `platform.billing.manage`, `platform.hotels.view`).
+It blocks retirement while `HOTEL_FINANCE` has any non-revoked role/session or inherited custom role,
+then deletes revoked role assignments and sessions (including cascade-owned refresh history) before
+hard-deleting the obsolete role. No user account is deleted or promoted.
 
 ## Backend architecture
 

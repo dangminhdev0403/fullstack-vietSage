@@ -107,12 +107,10 @@ export class HotelStaffAssignmentsService {
     if (actorUserId === userId) {
       throw new ForbiddenException("Không thể tự gán phòng cho chính mình");
     }
-    const hotel = await this.hotelAccessService.assertHotelAccess(
-      actorUserId,
-      activeRoleId,
-      hotelId,
-    );
-    await this.assignmentsRepository.assertEligibleFrontDeskStaff(hotelId, userId);
+    const [hotel] = await Promise.all([
+      this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId),
+      this.assignmentsRepository.assertEligibleFrontDeskStaff(hotelId, userId),
+    ]);
     return this.assignmentsRepository.assignRoom(
       hotelId,
       userId,
@@ -122,12 +120,7 @@ export class HotelStaffAssignmentsService {
     );
   }
 
-  async unassignRoom(
-    actorUserId: string,
-    activeRoleId: string,
-    hotelId: string,
-    userId: string,
-  ) {
+  async unassignRoom(actorUserId: string, activeRoleId: string, hotelId: string, userId: string) {
     if (actorUserId === userId) {
       throw new ForbiddenException("Không thể tự hủy gán phòng của chính mình");
     }

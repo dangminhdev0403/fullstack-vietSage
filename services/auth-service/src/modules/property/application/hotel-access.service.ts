@@ -15,6 +15,7 @@ export interface HotelActorContext {
   assignedHotelIds?: Set<string>;
   requiresHotelAssignment?: boolean;
   isSuperAdmin: boolean;
+  canEnumeratePlatformHotels?: boolean;
   isTenantOwner: boolean;
   permissions?: Set<string>;
 }
@@ -59,6 +60,11 @@ export class HotelAccessService {
     }
 
     const isSuperAdmin = roleCodes.has("SUPER_ADMIN") || baseRoleCodes.has("SUPER_ADMIN");
+    const canEnumeratePlatformHotels =
+      isSuperAdmin ||
+      roleCodes.has("PLATFORM_FINANCE") ||
+      baseRoleCodes.has("PLATFORM_FINANCE") ||
+      permissions.has("platform.hotels.view");
     const isTenantOwner =
       (roleCodes.has("TENANT_OWNER") || baseRoleCodes.has("TENANT_OWNER")) && !isSuperAdmin;
     const isHotelOwner = roleCodes.has("HOTEL_OWNER") || baseRoleCodes.has("HOTEL_OWNER");
@@ -81,6 +87,7 @@ export class HotelAccessService {
       assignedHotelIds,
       requiresHotelAssignment,
       isSuperAdmin,
+      canEnumeratePlatformHotels,
       isTenantOwner,
       permissions,
     };
@@ -154,11 +161,7 @@ export class HotelAccessService {
     return hotel;
   }
 
-  async resolveRoomScope(
-    actorUserId: string,
-    arg2: string,
-    arg3: string,
-  ): Promise<HotelRoomScope> {
+  async resolveRoomScope(actorUserId: string, arg2: string, arg3: string): Promise<HotelRoomScope> {
     let activeRoleId = arg2;
     let hotelId = arg3;
 
@@ -173,7 +176,7 @@ export class HotelAccessService {
     }
 
     hotel = await this.assertHotelAccess(actorUserId, activeRoleId, hotelId);
-    const mode = (hotel.staffScopeMode as "HOTEL_WIDE" | "ROOM_EXCLUSIVE") ?? "HOTEL_WIDE";
+    const mode = hotel.staffScopeMode ?? "HOTEL_WIDE";
     if (mode !== "ROOM_EXCLUSIVE") {
       return { hotel, allowedRoomId: null, mode: "HOTEL_WIDE" };
     }
@@ -188,10 +191,7 @@ export class HotelAccessService {
       return { hotel, allowedRoomId: null, mode: "HOTEL_WIDE" };
     }
 
-    const assignment = await this.hotelCoreRepository.findRoomStaffAssignment(
-      actorUserId,
-      hotelId,
-    );
+    const assignment = await this.hotelCoreRepository.findRoomStaffAssignment(actorUserId, hotelId);
     if (!assignment) {
       throw new ForbiddenException("Tài khoản chưa được gán phòng tại khách sạn này");
     }

@@ -22,6 +22,11 @@ export const createAdjustmentBodySchema = z.object({
   idempotencyKey: z.string().trim().min(1, "idempotencyKey không được để trống"),
 });
 
+export const issueDebtNoticeBodySchema = z.object({
+  channel: z.literal("MANUAL").optional().default("MANUAL"),
+  note: z.string().trim().max(500).optional(),
+});
+
 const pricingSchema = z
   .object({
     pricingModel: z.enum(["FIXED", "PERCENTAGE"]),

@@ -369,7 +369,11 @@ describe("HotelRoomStaffScope (Phase 1)", () => {
         limit: 20,
       });
 
-      expect(mockHotelAccessService.resolveRoomScope).toHaveBeenCalledWith("sale-1", "role-fd", "hotel-1");
+      expect(mockHotelAccessService.resolveRoomScope).toHaveBeenCalledWith(
+        "sale-1",
+        "role-fd",
+        "hotel-1",
+      );
       expect(mockHotelRoomsRepo.listRooms).toHaveBeenCalledWith(
         expect.objectContaining({
           hotelId: "hotel-1",
@@ -613,4 +617,3 @@ describe("HotelRoomStaffScope (Phase 1)", () => {
     });
   });
 });
-

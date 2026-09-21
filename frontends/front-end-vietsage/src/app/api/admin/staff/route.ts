@@ -12,7 +12,7 @@ const createUserSchema = z.object({
   password: z.string().min(8),
   roleIds: z.array(z.string().trim().min(1)).min(1),
   hotelId: z.string().trim().min(1),
-  roomId: z.string().trim().min(1, "Phòng phụ trách là bắt buộc"),
+  roomId: z.string().trim().optional().nullable(),
 });
 
 export async function GET(request: Request) {

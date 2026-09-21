@@ -45,14 +45,11 @@ export class RequestRealtimeTicketService {
     if (scope.allowedRoomId) {
       payload.roomId = scope.allowedRoomId;
     }
-    const ticket = await this.jwtService.signAsync(
-      payload,
-      {
-        secret: this.config.ticketSecret,
-        audience: this.config.audience,
-        expiresIn: this.config.ticketTtlSeconds,
-      },
-    );
+    const ticket = await this.jwtService.signAsync(payload, {
+      secret: this.config.ticketSecret,
+      audience: this.config.audience,
+      expiresIn: this.config.ticketTtlSeconds,
+    });
 
     return {
       ticket,

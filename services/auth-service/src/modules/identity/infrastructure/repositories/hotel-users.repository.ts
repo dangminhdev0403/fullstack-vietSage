@@ -252,14 +252,16 @@ export class HotelUsersRepository {
 
   async listTenantUsers(where: Prisma.TenantUserWhereInput, skip: number, take: number) {
     return this.prisma.$transaction(async (tx) => {
-      const total = await tx.tenantUser.count({ where });
-      const rows = await tx.tenantUser.findMany({
-        where,
-        include: tenantScopedUserInclude,
-        orderBy: [{ createdAt: "desc" }],
-        skip,
-        take,
-      });
+      const [total, rows] = await Promise.all([
+        tx.tenantUser.count({ where }),
+        tx.tenantUser.findMany({
+          where,
+          include: tenantScopedUserInclude,
+          orderBy: [{ createdAt: "desc" }],
+          skip,
+          take,
+        }),
+      ]);
 
       return [total, rows] as const;
     });

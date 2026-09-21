@@ -2328,66 +2328,6 @@ paths:
                   - message
                   - data
       tags: *a4
-  /hotel-users/{id}/roles/{roleId}:
-    delete:
-      operationId: HotelUsersController_revokeHotelUserRole
-      parameters:
-        - name: id
-          required: true
-          in: path
-          schema:
-            type: string
-        - name: roleId
-          required: true
-          in: path
-          schema:
-            type: string
-        - name: x-tenant-id
-          required: false
-          in: header
-          description: Ghi đè đơn vị tùy chọn
-          schema:
-            type: string
-      responses:
-        "200":
-          description: Bao phản hồi thu hồi vai trò người dùng khách sạn
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: number
-                    example: 200
-                  error:
-                    type: object
-                    nullable: true
-                    additionalProperties: true
-                    example: null
-                  message:
-                    type: string
-                    example: Thu hồi vai trò người dùng khách sạn thành công
-                  data:
-                    type: object
-                    properties:
-                      revoked:
-                        type: boolean
-                        enum:
-                          - true
-                      userId:
-                        type: string
-                      roleId:
-                        type: string
-                    required:
-                      - revoked
-                      - userId
-                      - roleId
-                required:
-                  - status
-                  - error
-                  - message
-                  - data
-      tags: *a4
   /hotel-users/{id}/reset-password:
     post:
       operationId: HotelUsersController_resetPassword
@@ -3574,6 +3514,19 @@ paths:
                   - message
                   - data
       tags: *a6
+  /hotels/{hotelId}/operational-reset:
+    post:
+      operationId: HotelsController_resetOperationalData
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      tags: *a6
   /hotels/{hotelId}/rooms:
     post:
       operationId: HotelRoomsController_createRoom
@@ -3602,6 +3555,11 @@ paths:
           in: path
           schema:
             type: string
+        - name: unassignedOnly
+          required: false
+          in: query
+          schema:
+            type: boolean
         - name: q
           required: false
           in: query
@@ -6742,6 +6700,51 @@ paths:
           description: ""
       security: *a18
       summary: Get revenue protection analytics for hotel owner
+      tags: *a19
+  /platform-billing/periods/{periodId}/debt-notice:
+    post:
+      operationId: PlatformBillingController_issueDebtNotice
+      parameters:
+        - name: periodId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      security: *a18
+      summary: Record a manual debt reminder for a finalized period
+      tags: *a19
+  /platform-billing/periods/{periodId}/statement:
+    get:
+      operationId: PlatformBillingController_getDebtStatement
+      parameters:
+        - name: periodId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      security: *a18
+      summary: Get debt statement for a finalized period (Platform Finance)
+      tags: *a19
+  /platform-billing/owner/periods/{periodId}/statement:
+    get:
+      operationId: PlatformBillingController_getOwnerDebtStatement
+      parameters:
+        - name: periodId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      security: *a18
+      summary: Get debt statement for a finalized period (Hotel Owner)
       tags: *a19
   /hotels/{hotelId}/local-partners/categories:
     get:

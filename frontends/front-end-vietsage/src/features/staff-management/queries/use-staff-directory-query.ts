@@ -32,6 +32,7 @@ export function useStaffDirectoryQuery(scope: StaffManagementScope, queryOptions
     ),
     enabled,
     placeholderData: keepPreviousData,
+    staleTime: 30_000,
   });
 }
 

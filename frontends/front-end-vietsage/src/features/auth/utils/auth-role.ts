@@ -1,6 +1,11 @@
 import type { UserRole } from "@/libs/auth";
 
-export const APP_ROLE_PRIORITY: UserRole[] = ["admin", "tenant_owner", "staff", "guest"];
+export const APP_ROLE_PRIORITY: UserRole[] = [
+  "admin",
+  "tenant_owner",
+  "staff",
+  "guest",
+];
 
 function normalizeRole(raw: string): string {
   return raw.trim().toLowerCase();
@@ -30,7 +35,13 @@ function isRoleMatch(source: string, expected: UserRole): boolean {
   }
 
   if (expected === "admin") {
-    return source === "admin" || source === "super_admin" || source.endsWith("_admin") || source.endsWith(":admin");
+    return (
+      source === "admin" ||
+      source === "super_admin" ||
+      source === "platform_finance" ||
+      source.endsWith("_admin") ||
+      source.endsWith(":admin")
+    );
   }
 
   if (expected === "tenant_owner") {
@@ -55,8 +66,6 @@ function isRoleMatch(source: string, expected: UserRole): boolean {
       source === "hotel_housekeeping" ||
       source === "maintenance" ||
       source === "hotel_maintenance" ||
-      source === "finance" ||
-      source === "hotel_finance" ||
       source.endsWith("_staff") ||
       source.endsWith(":staff")
     );
@@ -73,17 +82,27 @@ function isRoleMatch(source: string, expected: UserRole): boolean {
   return source.includes(expected);
 }
 
-export function hasAppRole(roles: readonly string[] | null | undefined, expected: UserRole): boolean {
-  const normalized = (roles ?? []).map(normalizeRole).filter((value) => value.length > 0);
+export function hasAppRole(
+  roles: readonly string[] | null | undefined,
+  expected: UserRole,
+): boolean {
+  const normalized = (roles ?? [])
+    .map(normalizeRole)
+    .filter((value) => value.length > 0);
 
   if (expected === "guest") {
-    return normalized.length === 0 || normalized.some((role) => isRoleMatch(role, expected));
+    return (
+      normalized.length === 0 ||
+      normalized.some((role) => isRoleMatch(role, expected))
+    );
   }
 
   return normalized.some((role) => isRoleMatch(role, expected));
 }
 
-export function getPrimaryAppRole(roles: readonly string[] | null | undefined): UserRole {
+export function getPrimaryAppRole(
+  roles: readonly string[] | null | undefined,
+): UserRole {
   for (const candidate of APP_ROLE_PRIORITY) {
     if (hasAppRole(roles, candidate)) {
       return candidate;

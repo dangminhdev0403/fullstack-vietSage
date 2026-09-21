@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+// prettier-ignore
 // @ts-expect-error Node's strip-types runner requires the explicit TypeScript extension.
 import { buildWorkspaceNavigation, createWorkspaceRegistry, getWorkspaceDashboardWidgets, getWorkspaceDefinition, resolveWorkspacePersona } from "./workspace-registry.ts";
 
@@ -10,21 +11,66 @@ test("keeps platform navigation capability-driven", () => {
     permissions: ["platform.hotels.view"],
   });
 
-  assert.deepEqual(navigation.map((item) => item.href), ["/admin/dashboard", "/admin/hotels"]);
+  assert.deepEqual(
+    navigation.map((item) => item.href),
+    ["/admin/dashboard", "/admin/hotels"],
+  );
+});
+
+test("configures dedicated platform finance workspace and navigation", () => {
+  assert.equal(
+    getWorkspaceDefinition("platform_finance").homePath,
+    "/finance/billing",
+  );
+  assert.equal(resolveWorkspacePersona("PLATFORM_FINANCE"), "platform_finance");
+
+  const navigation = buildWorkspaceNavigation({
+    persona: "platform_finance",
+    permissions: ["platform.billing.view", "platform.hotels.view"],
+  });
+
+  assert.deepEqual(
+    navigation.map((item) => ({ key: item.key, href: item.href })),
+    [{ key: "finance.billing", href: "/finance/billing" }],
+  );
 });
 
 test("provides service navigation only to configured staff personas", () => {
   const permissions = ["hotel.requests.view", "hotel.services.manage"];
-  const manager = buildWorkspaceNavigation({ persona: "manager", permissions, hotelId: "hotel-1" });
-  const frontDesk = buildWorkspaceNavigation({ persona: "front_desk", permissions, hotelId: "hotel-1" });
-  const frontDeskWithoutServices = buildWorkspaceNavigation({ persona: "front_desk", permissions: ["hotel.requests.view"], hotelId: "hotel-1" });
+  const manager = buildWorkspaceNavigation({
+    persona: "manager",
+    permissions,
+    hotelId: "hotel-1",
+  });
+  const frontDesk = buildWorkspaceNavigation({
+    persona: "front_desk",
+    permissions,
+    hotelId: "hotel-1",
+  });
+  const frontDeskWithoutServices = buildWorkspaceNavigation({
+    persona: "front_desk",
+    permissions: ["hotel.requests.view"],
+    hotelId: "hotel-1",
+  });
 
   assert.equal(getWorkspaceDefinition("manager").homePath, "/staff");
   assert.equal(getWorkspaceDefinition("front_desk").homePath, "/staff");
-  assert.equal(manager.some((item) => item.key === "staff.home"), false);
-  assert.equal(manager.some((item) => item.href.endsWith("/services")), true);
-  assert.equal(frontDesk.some((item) => item.href.endsWith("/services")), false);
-  assert.equal(frontDeskWithoutServices.some((item) => item.href.endsWith("/services")), false);
+  assert.equal(
+    manager.some((item) => item.key === "staff.home"),
+    false,
+  );
+  assert.equal(
+    manager.some((item) => item.href.endsWith("/services")),
+    true,
+  );
+  assert.equal(
+    frontDesk.some((item) => item.href.endsWith("/services")),
+    false,
+  );
+  assert.equal(
+    frontDeskWithoutServices.some((item) => item.href.endsWith("/services")),
+    false,
+  );
 });
 
 test("builds owner sidebar with operational modules and hotel settings", () => {
@@ -85,7 +131,6 @@ test("builds owner sidebar with operational modules and hotel settings", () => {
   );
 });
 
-
 test("keeps receptionist room and biometric tools available", () => {
   const navigation = buildWorkspaceNavigation({
     persona: "front_desk",
@@ -93,9 +138,16 @@ test("keeps receptionist room and biometric tools available", () => {
     hotelId: "hotel-1",
   });
 
-  assert.equal(navigation.some((item) => item.key === "staff.rooms"), true);
   assert.equal(
-    navigation.some((item) => item.key === "staff.biometric" && item.href === "/hotels/hotel-1/biometric"),
+    navigation.some((item) => item.key === "staff.rooms"),
+    true,
+  );
+  assert.equal(
+    navigation.some(
+      (item) =>
+        item.key === "staff.biometric" &&
+        item.href === "/hotels/hotel-1/biometric",
+    ),
     true,
   );
 });
@@ -114,18 +166,24 @@ test("filters dashboard widgets by persona, capability, and explicit hotel scope
   assert.deepEqual(withoutHotel, []);
   assert.deepEqual(
     withHotel.map((widget) => widget.key),
-    ["requests.active", "requests.new", "services.categories", "services.items", "requests.feed"],
+    [
+      "requests.active",
+      "requests.new",
+      "services.categories",
+      "services.items",
+      "requests.feed",
+    ],
   );
 });
 
 test("adds role aliases, navigation, and widgets through an immutable extension", () => {
   const registry = createWorkspaceRegistry([
     {
-      roleAliases: { HOTEL_AUDITOR: "finance" },
+      roleAliases: { HOTEL_AUDITOR: "manager" },
       navigation: [
         {
-          key: "finance.audit",
-          personas: ["finance"],
+          key: "manager.audit",
+          personas: ["manager"],
           href: "/staff/operations",
           label: "Đối soát",
           icon: "fact_check",
@@ -135,8 +193,8 @@ test("adds role aliases, navigation, and widgets through an immutable extension"
       ],
       widgets: [
         {
-          key: "finance.audit-summary",
-          personas: ["finance"],
+          key: "manager.audit-summary",
+          personas: ["manager"],
           title: "Đối soát tài chính",
           description: "Theo dõi dữ liệu đối soát trong phạm vi khách sạn.",
           icon: "fact_check",
@@ -148,25 +206,24 @@ test("adds role aliases, navigation, and widgets through an immutable extension"
     },
   ]);
 
-  assert.equal(resolveWorkspacePersona("hotel_auditor", registry), "finance");
+  assert.equal(resolveWorkspacePersona("hotel_auditor", registry), "manager");
   assert.equal(
     buildWorkspaceNavigation({
-      persona: "finance",
+      persona: "manager",
       permissions: ["hotel.billing.view"],
       registry,
-    }).some((item) => item.key === "finance.audit"),
+    }).some((item) => item.key === "manager.audit"),
     true,
   );
   assert.equal(
     getWorkspaceDashboardWidgets({
-      persona: "finance",
+      persona: "manager",
       permissions: ["hotel.billing.view"],
       registry,
-    }).some((widget) => widget.key === "finance.audit-summary"),
+    }).some((widget) => widget.key === "manager.audit-summary"),
     true,
   );
 });
-
 
 test("rejects accidental registry key overrides unless explicitly requested", () => {
   assert.throws(

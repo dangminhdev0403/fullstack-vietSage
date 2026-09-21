@@ -4,6 +4,13 @@
 
 ## Unreleased
 
+- **Finance role consolidation and debt statement endpoints**:
+  - Consolidated finance role model to immutable system template `PLATFORM_FINANCE` with capabilities `platform.billing.view`, `platform.billing.manage`, and `platform.hotels.view`. Retired `HOTEL_FINANCE`.
+  - Added dedicated Owner statement endpoint `GET /platform-billing/owner/periods/{periodId}/statement` requiring `hotel.revenue-protection.view` and active hotel tenancy validation.
+  - Dedicated Platform statement endpoint `GET /platform-billing/periods/{periodId}/statement` requires `platform.billing.view`.
+  - Statements query immutable billable-day snapshots across `[periodStart, periodEnd)`, grouping mixed rates, tracking line items and adjustments, and returning null `platformBankInfo` until canonical platform banking is configured.
+  - Replaced simulated reminder sending with manual debt notice recording (`POST /platform-billing/periods/{periodId}/debt-notice` with channel `MANUAL`).
+
 - **Owner read/configuration boundary**:
   - Added `hotel.profile.view` and `hotel.profile.manage` for hotel-scoped profile reads/updates; `GET|PATCH /hotels/{hotelId}` accepts the corresponding profile capability while retaining platform-admin compatibility.
   - Owner role presets no longer receive room-status, stay/check-in/check-out, reservation mutation, request coordination/execution, billing mutation/checkout, or KBTT declaration mutation capabilities. Existing shared operational records are retained.

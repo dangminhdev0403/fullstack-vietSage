@@ -19,7 +19,9 @@ const PLATFORM_HOTEL_CAPABILITIES = new Set([
   "platform.hotels.manage",
 ]);
 
-export function resolveWorkspacePersona(roleCode: string): WorkspacePersona | null {
+export function resolveWorkspacePersona(
+  roleCode: string,
+): WorkspacePersona | null {
   return resolvePersonaFromRegistry(roleCode);
 }
 
@@ -35,7 +37,8 @@ export function hasAnyHotelCapability(
 ): boolean {
   return context.permissions.some(
     (permission) =>
-      permission.startsWith("hotel.") || PLATFORM_HOTEL_CAPABILITIES.has(permission),
+      permission.startsWith("hotel.") ||
+      PLATFORM_HOTEL_CAPABILITIES.has(permission),
   );
 }
 
@@ -48,11 +51,17 @@ export function canAccessHotelScope(
     return false;
   }
 
-  if (context.permissions.some((permission) => PLATFORM_HOTEL_CAPABILITIES.has(permission))) {
+  if (
+    context.permissions.some((permission) =>
+      PLATFORM_HOTEL_CAPABILITIES.has(permission),
+    )
+  ) {
     return true;
   }
 
-  return context.accessibleHotels.some((hotel) => hotel.id === normalizedHotelId);
+  return context.accessibleHotels.some(
+    (hotel) => hotel.id === normalizedHotelId,
+  );
 }
 
 export function resolveExplicitAccessibleHotel(
@@ -64,13 +73,19 @@ export function resolveExplicitAccessibleHotel(
     return null;
   }
 
-  return context.accessibleHotels.find((hotel) => hotel.id === normalizedHotelId) ?? null;
+  return (
+    context.accessibleHotels.find((hotel) => hotel.id === normalizedHotelId) ??
+    null
+  );
 }
 
 export function resolveSingleAssignedHotel(
   context: Pick<WorkspaceContext, "permissions" | "accessibleHotels">,
 ): AuthAccessibleHotel | null {
-  if (!hasAnyHotelCapability(context) || context.accessibleHotels.length !== 1) {
+  if (
+    !hasAnyHotelCapability(context) ||
+    context.accessibleHotels.length !== 1
+  ) {
     return null;
   }
 

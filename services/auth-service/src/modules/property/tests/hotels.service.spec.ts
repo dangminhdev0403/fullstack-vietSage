@@ -507,6 +507,32 @@ describe("HotelsService", () => {
     expect(repository.listHotels).toHaveBeenCalledWith({ status: "ACTIVE" }, 0, 100);
   });
 
+  it("không lọc danh sách khách sạn của PLATFORM_FINANCE theo tenant khi không truyền tenantId dù thuộc nhiều tenant", async () => {
+    const repository = createRepository({
+      findActorById: jest.fn().mockResolvedValue({
+        id: "actor-finance-1",
+        userRoles: [{ role: { code: "PLATFORM_FINANCE" } }],
+        tenantUsers: [{ tenantId: "tenant-1" }, { tenantId: "tenant-2" }],
+      }),
+    });
+    const accessService = createAccessService(repository, {
+      loadActorContext: jest.fn().mockResolvedValue({
+        userId: "actor-finance-1",
+        roleCodes: new Set(["PLATFORM_FINANCE"]),
+        tenantIds: new Set(["tenant-1", "tenant-2"]),
+        isSuperAdmin: false,
+        canEnumeratePlatformHotels: true,
+        isTenantOwner: false,
+        requiresHotelAssignment: true,
+      }),
+    });
+    const service = createService(repository, createCodesService(), accessService);
+
+    await service.listHotels("actor-finance-1", "active-role", { limit: 100 });
+
+    expect(repository.listHotels).toHaveBeenCalledWith({ status: "ACTIVE" }, 0, 100);
+  });
+
   it("tạo danh mục Dịch vụ khách sạn có thể truy cập", async () => {
     const repository = createRepository();
     const service = createService(repository);

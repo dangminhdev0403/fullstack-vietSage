@@ -23,6 +23,7 @@ import {
   createContractBodySchema,
   dashboardSummaryQuerySchema,
   finalizePeriodBodySchema,
+  issueDebtNoticeBodySchema,
   listContractsQuerySchema,
   ownerAnalyticsQuerySchema,
   periodIdParamSchema,
@@ -220,6 +221,54 @@ export class PlatformBillingController {
     }
 
     return this.platformBillingService.getOwnerAnalytics(hotelId, query, {
+      actorUserId,
+      actorRoleId,
+    });
+  }
+
+  @Post("periods/:periodId/debt-notice")
+  @RequirePermission("platform.billing.manage")
+  @ApiDescript("Ghi nhận đã nhắc nợ thủ công cho kỳ hóa đơn")
+  @ApiOperation({ summary: "Record a manual debt reminder for a finalized period" })
+  async issueDebtNotice(
+    @Req() request: RequestWithAuthenticatedUser,
+    @Param("periodId") periodIdParam: string,
+    @Body() body: unknown,
+  ) {
+    const periodId = parseWithZod(periodIdParamSchema, periodIdParam);
+    const dto = parseWithZod(issueDebtNoticeBodySchema, body ?? {});
+    return this.platformBillingService.issueDebtNotice(periodId, {
+      ...dto,
+      actorUserId: request.user?.userId,
+    });
+  }
+
+  @Get("periods/:periodId/statement")
+  @RequirePermission("platform.billing.view")
+  @ApiDescript("Xem phiếu báo công nợ và đối soát chi tiết (Quản trị nền tảng)")
+  @ApiOperation({ summary: "Get debt statement for a finalized period (Platform Finance)" })
+  async getDebtStatement(@Param("periodId") periodIdParam: string) {
+    const periodId = parseWithZod(periodIdParamSchema, periodIdParam);
+    return this.platformBillingService.getPlatformDebtStatement(periodId);
+  }
+
+  @Get("owner/periods/:periodId/statement")
+  @RequirePermission("hotel.revenue-protection.view")
+  @ApiDescript("Xem phiếu báo công nợ và đối soát chi tiết (Chủ khách sạn)")
+  @ApiOperation({ summary: "Get debt statement for a finalized period (Hotel Owner)" })
+  async getOwnerDebtStatement(
+    @Req() request: RequestWithAuthenticatedUser,
+    @Param("periodId") periodIdParam: string,
+  ) {
+    const periodId = parseWithZod(periodIdParamSchema, periodIdParam);
+    const actorUserId = request.user?.userId;
+    const actorRoleId = request.user?.roleId;
+
+    if (!actorUserId || !actorRoleId) {
+      throw new BadRequestException("Thiếu thông tin người thực hiện yêu cầu");
+    }
+
+    return this.platformBillingService.getOwnerDebtStatement(periodId, {
       actorUserId,
       actorRoleId,
     });

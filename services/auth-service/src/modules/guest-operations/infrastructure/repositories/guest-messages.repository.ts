@@ -299,7 +299,13 @@ export class GuestMessagesRepository {
     });
   }
 
-  async listHotelThreads(hotelId: string, take: number, query?: string, cursor?: string, roomId?: string | null) {
+  async listHotelThreads(
+    hotelId: string,
+    take: number,
+    query?: string,
+    cursor?: string,
+    roomId?: string | null,
+  ) {
     const baseWhere: Prisma.GuestMessageThreadWhereInput = {
       hotelId,
       stay: { is: activeStayWhere },

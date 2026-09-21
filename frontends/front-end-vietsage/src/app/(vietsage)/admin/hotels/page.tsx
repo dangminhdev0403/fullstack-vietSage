@@ -1,6 +1,9 @@
+import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { adminService } from "@/features/admin/service/admin-service-instance";
+import { resolveWorkspacePersona } from "@/features/workspace/utils/workspace-context";
 import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
+import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 
 import { HotelsAdminClient } from "./hotels-admin-client";
 
@@ -32,8 +35,13 @@ async function listTenantOwnersForSelector(accessToken?: string) {
 }
 
 export default async function AdminHotelsPage() {
-  const session = await auth();
   const callbackUrl = "/admin/hotels" as const;
+  const context = await loadServerWorkspaceContext(callbackUrl);
+  const persona = resolveWorkspacePersona(context.activeRole.code);
+  if (persona === "platform_finance") redirect("/finance/billing");
+  if (persona !== "platform_admin") notFound();
+
+  const session = await auth();
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
 
   const [hotelsPage, tenantOwners] = await Promise.all([

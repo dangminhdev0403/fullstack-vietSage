@@ -4,11 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import {
-  HotelStaffAssignmentStatus,
-  RoleStatus,
-  UserRoleStatus,
-} from "@prisma/client";
+import { HotelStaffAssignmentStatus, RoleStatus, UserRoleStatus } from "@prisma/client";
 import { PrismaService } from "../../../../prisma/prisma.service";
 
 @Injectable()
@@ -23,23 +19,25 @@ export class HotelStaffAssignmentsRepository {
   ) {
     const where = { hotelId, status } as const;
     return this.prisma.$transaction(async (tx) => {
-      const total = await tx.hotelStaffAssignment.count({ where });
-      const rows = await tx.hotelStaffAssignment.findMany({
-        where,
-        select: {
-          id: true,
-          userId: true,
-          hotelId: true,
-          status: true,
-          assignedAt: true,
-          assignedById: true,
-          revokedAt: true,
-          revokedById: true,
-        },
-        orderBy: [{ assignedAt: "desc" }],
-        skip,
-        take,
-      });
+      const [total, rows] = await Promise.all([
+        tx.hotelStaffAssignment.count({ where }),
+        tx.hotelStaffAssignment.findMany({
+          where,
+          select: {
+            id: true,
+            userId: true,
+            hotelId: true,
+            status: true,
+            assignedAt: true,
+            assignedById: true,
+            revokedAt: true,
+            revokedById: true,
+          },
+          orderBy: [{ assignedAt: "desc" }],
+          skip,
+          take,
+        }),
+      ]);
       return [total, rows] as const;
     });
   }
@@ -128,34 +126,34 @@ export class HotelStaffAssignmentsRepository {
   }
 
   async assertEligibleFrontDeskStaff(hotelId: string, userId: string): Promise<void> {
-    const assignment = await this.prisma.hotelStaffAssignment.findFirst({
-      where: {
-        hotelId,
-        userId,
-        status: HotelStaffAssignmentStatus.ACTIVE,
-      },
-      select: { id: true },
-    });
+    const [assignment, userRole] = await Promise.all([
+      this.prisma.hotelStaffAssignment.findFirst({
+        where: {
+          hotelId,
+          userId,
+          status: HotelStaffAssignmentStatus.ACTIVE,
+        },
+        select: { id: true },
+      }),
+      this.prisma.userRole.findFirst({
+        where: {
+          userId,
+          status: UserRoleStatus.ACTIVE,
+          role: {
+            status: RoleStatus.ACTIVE,
+            OR: [{ code: "HOTEL_FRONTDESK" }, { baseRole: { code: "HOTEL_FRONTDESK" } }],
+          },
+        },
+        select: { id: true },
+      }),
+    ]);
     if (!assignment) {
       throw new NotFoundException("Nhân viên chưa được phân công vào khách sạn này");
     }
-
-    const userRole = await this.prisma.userRole.findFirst({
-      where: {
-        userId,
-        status: UserRoleStatus.ACTIVE,
-        role: {
-          status: RoleStatus.ACTIVE,
-          OR: [
-            { code: "HOTEL_FRONTDESK" },
-            { baseRole: { code: "HOTEL_FRONTDESK" } },
-          ],
-        },
-      },
-      select: { id: true },
-    });
     if (!userRole) {
-      throw new BadRequestException("Chỉ có thể gán phòng cho nhân viên có vai trò lễ tân (HOTEL_FRONTDESK)");
+      throw new BadRequestException(
+        "Chỉ có thể gán phòng cho nhân viên có vai trò lễ tân (HOTEL_FRONTDESK)",
+      );
     }
   }
 
@@ -167,26 +165,28 @@ export class HotelStaffAssignmentsRepository {
     tenantId: string,
   ) {
     return this.prisma.$transaction(async (tx) => {
-      const room = await tx.room.findFirst({
-        where: { id: roomId, hotelId },
-        select: { id: true, roomNumber: true },
-      });
+      const [room, existingForRoom, existingForUser] = await Promise.all([
+        tx.room.findFirst({
+          where: { id: roomId, hotelId },
+          select: { id: true, roomNumber: true },
+        }),
+        tx.hotelRoomStaffAssignment.findUnique({
+          where: { roomId },
+          select: { userId: true },
+        }),
+        tx.hotelRoomStaffAssignment.findUnique({
+          where: { userId },
+          select: { roomId: true },
+        }),
+      ]);
       if (!room) {
         throw new NotFoundException("Không tìm thấy phòng thuộc khách sạn này");
       }
 
-      const existingForRoom = await tx.hotelRoomStaffAssignment.findUnique({
-        where: { roomId },
-        select: { userId: true },
-      });
       if (existingForRoom && existingForRoom.userId !== userId) {
         throw new ConflictException("Phòng này đã được phân công cho nhân viên khác");
       }
 
-      const existingForUser = await tx.hotelRoomStaffAssignment.findUnique({
-        where: { userId },
-        select: { roomId: true },
-      });
       const previousRoomId = existingForUser?.roomId;
 
       const assignment = await tx.hotelRoomStaffAssignment.upsert({
@@ -235,12 +235,7 @@ export class HotelStaffAssignmentsRepository {
     });
   }
 
-  async unassignRoom(
-    hotelId: string,
-    userId: string,
-    actorUserId: string,
-    tenantId: string,
-  ) {
+  async unassignRoom(hotelId: string, userId: string, actorUserId: string, tenantId: string) {
     return this.prisma.$transaction(async (tx) => {
       const existing = await tx.hotelRoomStaffAssignment.findFirst({
         where: { hotelId, userId },

@@ -121,7 +121,11 @@ export class BillingService {
     query: { status?: FolioStatus; page?: number; limit?: number },
   ) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
-    const scope = (await this.hotelAccessService.resolveRoomScope?.(actorUserId, activeRoleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
+    const scope = (await this.hotelAccessService.resolveRoomScope?.(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    )) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
     const pagination = toPagination(query.page, query.limit);
     const result = await this.billingRepository.listFolios({
       hotelId,
@@ -159,7 +163,11 @@ export class BillingService {
     folioId: string,
   ) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
-    const scope = (await this.hotelAccessService.resolveRoomScope?.(actorUserId, activeRoleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
+    const scope = (await this.hotelAccessService.resolveRoomScope?.(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    )) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
     const folio = await this.billingRepository.findFolioDetail(hotelId, folioId);
 
     if (!folio) {
@@ -191,7 +199,11 @@ export class BillingService {
     stayId: string,
   ) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
-    const scope = (await this.hotelAccessService.resolveRoomScope?.(actorUserId, activeRoleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
+    const scope = (await this.hotelAccessService.resolveRoomScope?.(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    )) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
     const folios = await this.billingRepository.findActiveFoliosByStay(hotelId, stayId);
 
     if (folios.length === 0) {
@@ -221,7 +233,11 @@ export class BillingService {
     query: { page?: number; limit?: number },
   ) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
-    const scope = (await this.hotelAccessService.resolveRoomScope?.(actorUserId, activeRoleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
+    const scope = (await this.hotelAccessService.resolveRoomScope?.(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    )) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
     await this.ensureFolioExists(hotelId, folioId, scope);
     const pagination = toPagination(query.page, query.limit);
     const result = await this.billingRepository.listFolioItems({
@@ -268,7 +284,11 @@ export class BillingService {
     },
   ) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
-    const scope = (await this.hotelAccessService.resolveRoomScope?.(actorUserId, activeRoleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
+    const scope = (await this.hotelAccessService.resolveRoomScope?.(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    )) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
 
     return this.prisma.$transaction(async (tx) => {
       const folio = await tx.folio.findFirst({
@@ -347,7 +367,11 @@ export class BillingService {
     reason?: string,
   ) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
-    const scope = (await this.hotelAccessService.resolveRoomScope?.(actorUserId, activeRoleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
+    const scope = (await this.hotelAccessService.resolveRoomScope?.(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    )) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
 
     return this.prisma.$transaction(async (tx) => {
       const folio = await tx.folio.findFirst({
@@ -405,7 +429,11 @@ export class BillingService {
     folioId: string,
   ) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
-    const scope = (await this.hotelAccessService.resolveRoomScope?.(actorUserId, activeRoleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
+    const scope = (await this.hotelAccessService.resolveRoomScope?.(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    )) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
     await this.ensureFolioExists(hotelId, folioId, scope);
     return this.buildFolioSummary(hotelId, folioId);
   }
@@ -417,7 +445,11 @@ export class BillingService {
     invoiceId: string,
   ) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
-    const scope = (await this.hotelAccessService.resolveRoomScope?.(actorUserId, activeRoleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
+    const scope = (await this.hotelAccessService.resolveRoomScope?.(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    )) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
     const detail = await this.billingRepository.findInvoiceDetail(hotelId, invoiceId);
 
     if (!detail) {
@@ -614,7 +646,11 @@ export class BillingService {
     },
   ) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
-    const scope = (await this.hotelAccessService.resolveRoomScope?.(actorUserId, activeRoleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
+    const scope = (await this.hotelAccessService.resolveRoomScope?.(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    )) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
     await this.ensureFolioExists(hotelId, folioId, scope);
     this.logger?.log?.({
       event: "CHECKOUT_ISSUE_INVOICE_REQUESTED",

@@ -36,7 +36,11 @@ export class GuestMessagesService {
 
   async getStaffUnreadSummary(actorUserId: string, activeRoleId: string, hotelId: string) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
-    const scope = (await this.hotelAccessService.resolveRoomScope?.(actorUserId, activeRoleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
+    const scope = (await this.hotelAccessService.resolveRoomScope?.(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    )) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
     if (scope.allowedRoomId) {
       return this.repository.getStaffUnreadSummary(hotelId, scope.allowedRoomId);
     }
@@ -130,8 +134,18 @@ export class GuestMessagesService {
     cursor?: string,
   ) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
-    const scope = (await this.hotelAccessService.resolveRoomScope?.(actorUserId, activeRoleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
-    const result = await this.repository.listHotelThreads(hotelId, limit, q?.trim(), cursor, scope.allowedRoomId);
+    const scope = (await this.hotelAccessService.resolveRoomScope?.(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    )) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
+    const result = await this.repository.listHotelThreads(
+      hotelId,
+      limit,
+      q?.trim(),
+      cursor,
+      scope.allowedRoomId,
+    );
     return {
       limit,
       total: result.total,
@@ -153,7 +167,11 @@ export class GuestMessagesService {
     before?: string,
   ) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
-    const scope = (await this.hotelAccessService.resolveRoomScope?.(actorUserId, activeRoleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
+    const scope = (await this.hotelAccessService.resolveRoomScope?.(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    )) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
     const result = await this.repository.getHotelThread(
       hotelId,
       threadId,
@@ -182,7 +200,11 @@ export class GuestMessagesService {
     body: string,
   ) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
-    const scope = (await this.hotelAccessService.resolveRoomScope?.(actorUserId, activeRoleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
+    const scope = (await this.hotelAccessService.resolveRoomScope?.(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    )) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
     const existing = await this.repository.getHotelThread(hotelId, threadId, 0, 1);
     if (!existing) throw new NotFoundException("Không tìm thấy hội thoại phòng");
     this.hotelAccessService.assertRoomAccess?.(scope, existing.thread.roomId);
@@ -228,7 +250,11 @@ export class GuestMessagesService {
       throw new BadRequestException("readThroughMessageId là bắt buộc");
     }
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
-    const scope = (await this.hotelAccessService.resolveRoomScope?.(actorUserId, activeRoleId, hotelId)) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
+    const scope = (await this.hotelAccessService.resolveRoomScope?.(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    )) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
     const existing = await this.repository.getHotelThread(hotelId, threadId, 0, 1);
     if (!existing) throw new NotFoundException("Không tìm thấy hội thoại phòng");
     this.hotelAccessService.assertRoomAccess?.(scope, existing.thread.roomId);

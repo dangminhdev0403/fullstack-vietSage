@@ -76,7 +76,10 @@ describe("HotelStaffAssignmentsService", () => {
 
   describe("Room Assignment (Phase 2)", () => {
     it("assignRoom: phân công nhân viên front-desk vào phòng trống thành công", async () => {
-      hotelAccessService.assertHotelAccess.mockResolvedValue({ id: "hotel-1", tenantId: "tenant-1" });
+      hotelAccessService.assertHotelAccess.mockResolvedValue({
+        id: "hotel-1",
+        tenantId: "tenant-1",
+      });
       (repository as any).assertEligibleFrontDeskStaff = jest.fn().mockResolvedValue(undefined);
       (repository as any).assignRoom = jest.fn().mockResolvedValue({
         id: "room-assign-1",
@@ -95,8 +98,15 @@ describe("HotelStaffAssignmentsService", () => {
         { roomId: "room-101" },
       );
 
-      expect(hotelAccessService.assertHotelAccess).toHaveBeenCalledWith("owner-1", "role-owner", "hotel-1");
-      expect((repository as any).assertEligibleFrontDeskStaff).toHaveBeenCalledWith("hotel-1", "staff-1");
+      expect(hotelAccessService.assertHotelAccess).toHaveBeenCalledWith(
+        "owner-1",
+        "role-owner",
+        "hotel-1",
+      );
+      expect((repository as any).assertEligibleFrontDeskStaff).toHaveBeenCalledWith(
+        "hotel-1",
+        "staff-1",
+      );
       expect((repository as any).assignRoom).toHaveBeenCalledWith(
         "hotel-1",
         "staff-1",
@@ -108,7 +118,10 @@ describe("HotelStaffAssignmentsService", () => {
     });
 
     it("unassignRoom: hủy phân công phòng thành công", async () => {
-      hotelAccessService.assertHotelAccess.mockResolvedValue({ id: "hotel-1", tenantId: "tenant-1" });
+      hotelAccessService.assertHotelAccess.mockResolvedValue({
+        id: "hotel-1",
+        tenantId: "tenant-1",
+      });
       (repository as any).unassignRoom = jest.fn().mockResolvedValue({
         unassigned: true,
         hotelId: "hotel-1",
@@ -132,7 +145,10 @@ describe("HotelStaffAssignmentsService", () => {
     });
 
     it("unassignRoom: ném NotFoundException khi nhân viên chưa có phòng được gán", async () => {
-      hotelAccessService.assertHotelAccess.mockResolvedValue({ id: "hotel-1", tenantId: "tenant-1" });
+      hotelAccessService.assertHotelAccess.mockResolvedValue({
+        id: "hotel-1",
+        tenantId: "tenant-1",
+      });
       (repository as any).unassignRoom = jest.fn().mockResolvedValue(null);
 
       await expect(
@@ -141,7 +157,10 @@ describe("HotelStaffAssignmentsService", () => {
     });
 
     it("list: trả về danh sách phân công bao gồm roomAssignment", async () => {
-      hotelAccessService.assertHotelAccess.mockResolvedValue({ id: "hotel-1", tenantId: "tenant-1" });
+      hotelAccessService.assertHotelAccess.mockResolvedValue({
+        id: "hotel-1",
+        tenantId: "tenant-1",
+      });
       repository.listByHotel.mockResolvedValue([
         1,
         [
@@ -178,7 +197,7 @@ describe("HotelStaffAssignmentsService", () => {
       const result = await service.list("owner-1", "role-owner", "hotel-1", {
         page: 1,
         limit: 20,
-        status: "ACTIVE" as any,
+        status: "ACTIVE",
       });
 
       expect(result.items[0]).toHaveProperty("roomAssignment");

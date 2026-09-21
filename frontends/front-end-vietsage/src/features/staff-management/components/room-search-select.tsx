@@ -35,8 +35,8 @@ export function RoomSearchSelect({
   onChange,
   disabled = false,
   error,
-  required = true,
-  placeholder = "Phòng phụ trách (Bắt buộc) *",
+  required = false,
+  placeholder = "Phòng phụ trách (Tùy chọn)",
 }: RoomSearchSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -157,29 +157,38 @@ export function RoomSearchSelect({
 
         <div className="flex items-center gap-1 shrink-0">
           {selectedRoom && !disabled ? (
-            <span
-              role="button"
-              tabIndex={0}
-              title="Bỏ chọn phòng"
-              onClick={(e) => {
-                e.stopPropagation();
-                onChange("");
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
+            <>
+              <span
+                role="button"
+                tabIndex={0}
+                title="Bỏ chọn phòng"
+                onClick={(e) => {
                   e.stopPropagation();
                   onChange("");
-                }
-              }}
-              className="inline-flex h-6 w-6 items-center justify-center rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
-            >
-              <VsIcon name="close" className="text-sm" />
-            </span>
-          ) : null}
-          <VsIcon
-            name={isOpen ? "expand_less" : "expand_more"}
-            className="text-slate-400 text-lg transition-transform"
-          />
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.stopPropagation();
+                    onChange("");
+                  }
+                }}
+                className="inline-flex h-6 w-6 items-center justify-center rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+              >
+                <VsIcon name="close" className="text-sm" />
+              </span>
+              <span
+                title="Lễ tân phụ trách phòng này. Để trống nếu nhân viên phụ trách chung toàn khách sạn."
+                className="inline-flex h-6 w-6 items-center justify-center text-slate-400"
+              >
+                <VsIcon name="info" className="text-sm" />
+              </span>
+            </>
+          ) : (
+            <VsIcon
+              name={isOpen ? "expand_less" : "expand_more"}
+              className="text-slate-400 text-lg transition-transform"
+            />
+          )}
         </div>
       </button>
 
@@ -292,7 +301,11 @@ export function RoomSearchSelect({
           {/* Footer Guidance */}
           <div className="p-2 border-t border-slate-100 bg-slate-50 text-[11px] text-slate-500 flex items-center justify-between">
             <span>Danh sách chỉ hiển thị các phòng chưa phân công</span>
-            <span className="text-red-500 font-medium">* Bắt buộc</span>
+            {required ? (
+              <span className="text-red-500 font-medium">* Bắt buộc</span>
+            ) : (
+              <span className="text-slate-500 font-medium">* Tùy chọn</span>
+            )}
           </div>
         </div>
       ) : null}

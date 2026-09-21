@@ -35,8 +35,8 @@ test("maps established role templates to workspace personas", () => {
   assert.equal(resolveWorkspacePersona("HOTEL_MANAGER"), "front_desk");
   assert.equal(resolveWorkspacePersona("HOTEL_HOUSEKEEPING"), "front_desk");
   assert.equal(resolveWorkspacePersona("HOTEL_MAINTENANCE"), "front_desk");
-  assert.equal(resolveWorkspacePersona("HOTEL_FNB"), "front_desk");
-  assert.equal(resolveWorkspacePersona("HOTEL_FINANCE"), "front_desk");
+  assert.equal(resolveWorkspacePersona("PLATFORM_FINANCE"), "platform_finance");
+  assert.equal(resolveWorkspacePersona("HOTEL_FINANCE"), null);
   assert.equal(resolveWorkspacePersona("HOTEL_FRONTDESK"), "front_desk");
   assert.equal(resolveWorkspacePersona("UNKNOWN_ROLE"), null);
 });

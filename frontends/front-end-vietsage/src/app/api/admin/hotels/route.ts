@@ -27,9 +27,16 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const page = Number(searchParams.get("page") || "1");
     const limit = Number(searchParams.get("limit") || "100");
+    const q = searchParams.get("q")?.trim() || undefined;
+    const tenantId = searchParams.get("tenantId")?.trim() || undefined;
 
     const data = await adminService.listHotels({
-      query: { page, limit },
+      query: {
+        page,
+        limit,
+        ...(q ? { q } : {}),
+        ...(tenantId ? { tenantId } : {}),
+      },
     });
 
     return successResponse(data, 200, "Hotels retrieved successfully");

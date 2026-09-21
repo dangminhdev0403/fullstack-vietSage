@@ -1,7 +1,10 @@
 import { PlatformBillingService } from "../application/platform-billing.service";
+import { PlatformBillingController } from "../api/platform-billing.controller";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { AppLogger } from "../../../common/logging/app-logger.service";
+import { REQUIRED_PERMISSION_KEY } from "../../../shared/decorators/require-permission.decorator";
 import { Prisma } from "@prisma/client";
+import { issueDebtNoticeBodySchema } from "../domain/schemas/platform-billing.schema";
 
 describe("PlatformBillingService Period & Settlement Invariants", () => {
   let service: PlatformBillingService;
@@ -66,6 +69,34 @@ describe("PlatformBillingService Period & Settlement Invariants", () => {
       mockLogger as AppLogger,
       mockHotelAccessService as any,
     );
+  });
+
+  it("keeps statement and reminder routes fail-closed with explicit capabilities", () => {
+    expect(
+      Reflect.getMetadata(
+        REQUIRED_PERMISSION_KEY,
+        PlatformBillingController.prototype.getDebtStatement,
+      ),
+    ).toBe("platform.billing.view");
+    expect(
+      Reflect.getMetadata(
+        REQUIRED_PERMISSION_KEY,
+        PlatformBillingController.prototype.getOwnerDebtStatement,
+      ),
+    ).toBe("hotel.revenue-protection.view");
+    expect(
+      Reflect.getMetadata(
+        REQUIRED_PERMISSION_KEY,
+        PlatformBillingController.prototype.issueDebtNotice,
+      ),
+    ).toBe("platform.billing.manage");
+  });
+
+  it("accepts only truthful MANUAL reminder recording", () => {
+    expect(issueDebtNoticeBodySchema.parse({ channel: "MANUAL" })).toEqual({
+      channel: "MANUAL",
+    });
+    expect(() => issueDebtNoticeBodySchema.parse({ channel: "EMAIL" })).toThrow();
   });
 
   it("finalizes a period snapshot idempotently when status is already FINALIZED", async () => {
@@ -243,5 +274,174 @@ describe("PlatformBillingService Period & Settlement Invariants", () => {
       paymentState: "PARTIALLY_PAID",
       isOverdue: true,
     });
+  });
+
+  it("returns the persisted overdue amount for the debt-first dashboard", async () => {
+    mockPrisma.$queryRaw.mockResolvedValueOnce([
+      {
+        finalizedPeriods: 2,
+        finalizedAmount: new Prisma.Decimal(1500000),
+        collectedAmount: new Prisma.Decimal(500000),
+        outstandingAmount: new Prisma.Decimal(1000000),
+        unpaidPeriodCount: 1,
+        overduePeriodCount: 1,
+        overdueAmount: new Prisma.Decimal(750000),
+      },
+    ]);
+    mockPrisma.platformBillingPeriod.findMany.mockResolvedValue([]);
+
+    const dashboard = await service.getDashboardSummary();
+
+    expect(new Prisma.Decimal(dashboard.overdueAmount).toNumber()).toBe(750000);
+  });
+
+  it("issues a debt notice for a finalized period and increments notice count", async () => {
+    mockPrisma.platformBillingPeriod.findUnique.mockResolvedValue({
+      id: "period-notice-1",
+      contractId: "contract-1",
+      periodStart: new Date("2026-08-01"),
+      periodEnd: new Date("2026-08-31"),
+      status: "FINALIZED",
+      total: new Prisma.Decimal(2000000),
+      dueAt: new Date("2026-09-07"),
+      contract: {
+        id: "contract-1",
+        hotel: { id: "hotel-1", name: "Khách sạn Biển Đông", tenantId: "tenant-1" },
+      },
+      settlements: [],
+    });
+
+    mockPrisma.auditLog = {
+      count: jest.fn().mockResolvedValue(0),
+      create: jest.fn().mockResolvedValue({ id: "audit-1" }),
+      findMany: jest.fn().mockResolvedValue([]),
+    };
+
+    const result = await service.issueDebtNotice("period-notice-1", {
+      channel: "MANUAL",
+      actorUserId: "user-finance-1",
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.noticeCount).toBe(1);
+    expect(result.channel).toBe("MANUAL");
+    expect(result.outstandingAmount).toBe(2000000);
+    expect(mockPrisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: "DEBT_REMINDER_RECORDED",
+          entityId: "period-notice-1",
+          tenantId: "tenant-1",
+        }),
+      }),
+    );
+  });
+
+  it("rejects a manual debt reminder when the finalized period is fully paid", async () => {
+    mockPrisma.platformBillingPeriod.findUnique.mockResolvedValue({
+      id: "period-paid",
+      contractId: "contract-1",
+      periodStart: new Date("2026-08-01"),
+      periodEnd: new Date("2026-09-01"),
+      status: "FINALIZED",
+      total: new Prisma.Decimal(500000),
+      dueAt: new Date("2026-09-07"),
+      contract: {
+        hotel: { name: "Khách sạn đã thanh toán", tenantId: "tenant-1" },
+      },
+      settlements: [{ amount: new Prisma.Decimal(500000) }],
+    });
+
+    await expect(
+      service.issueDebtNotice("period-paid", {
+        channel: "MANUAL",
+        actorUserId: "user-finance-1",
+      }),
+    ).rejects.toThrow("Kỳ thanh toán không còn công nợ");
+  });
+
+  it("rejects a debt statement for a period that is not finalized", async () => {
+    mockPrisma.platformBillingPeriod.findUnique.mockResolvedValue({
+      id: "period-draft-statement",
+      status: "DRAFT",
+      contract: { hotel: { tenant: {} } },
+      settlements: [],
+      adjustments: [],
+    });
+
+    await expect(service.getPlatformDebtStatement("period-draft-statement")).rejects.toThrow(
+      "Kỳ thanh toán chưa được chốt hóa đơn",
+    );
+  });
+
+  it("generates a debt statement for a finalized period", async () => {
+    mockPrisma.platformBillingPeriod.findUnique.mockResolvedValue({
+      id: "period-stmt-1",
+      contractId: "contract-1",
+      periodStart: new Date("2026-08-01"),
+      periodEnd: new Date("2026-08-31"),
+      status: "FINALIZED",
+      total: new Prisma.Decimal(1500000),
+      subtotal: new Prisma.Decimal(1500000),
+      dueAt: new Date("2026-09-07"),
+      contract: {
+        id: "contract-1",
+        status: "ACTIVE",
+        hotelId: "hotel-1",
+        hotel: {
+          id: "hotel-1",
+          name: "Khách sạn Sài Gòn Star",
+          code: "SGSTAR",
+          address: "123 Lê Lợi, Q1",
+          phoneNumber: "0901234567",
+          tenantId: "tenant-1",
+          tenant: { name: "Công ty TNHH Sài Gòn Star" },
+        },
+        revisions: [
+          { pricingModel: "FIXED", roomDayUnitPrice: new Prisma.Decimal(10000), currency: "VND" },
+        ],
+      },
+      settlements: [{ id: "set-1", amount: new Prisma.Decimal(500000), createdAt: new Date() }],
+      adjustments: [],
+    });
+
+    mockPrisma.platformBillableDay.findMany.mockResolvedValue([
+      {
+        id: "bd-1",
+        unitPrice: new Prisma.Decimal(10000),
+        quantity: 100,
+        amount: new Prisma.Decimal(1000000),
+        currency: "VND",
+        contractRevision: { pricingModel: "FIXED" },
+      },
+      {
+        id: "bd-2",
+        unitPrice: new Prisma.Decimal(5),
+        quantity: 50,
+        amount: new Prisma.Decimal(500000),
+        currency: "VND",
+        contractRevision: { pricingModel: "PERCENTAGE" },
+      },
+    ]);
+
+    const statement = await service.getPlatformDebtStatement("period-stmt-1");
+
+    expect(statement.statementNumber).toContain("SGSTAR");
+    expect(statement.period.outstandingAmount).toEqual(new Prisma.Decimal(1000000));
+    expect(statement.hotel.code).toBe("SGSTAR");
+    expect(statement.contract.billableDaysCount).toBe(150);
+    expect(statement.lineItems).toHaveLength(2);
+    expect(statement.lineItems[0].quantity).toBe(100);
+    expect(statement.lineItems[0].unitPrice).toBe(10000);
+    expect(statement.lineItems[0].pricingModel).toBe("FIXED");
+    expect(statement.lineItems[1].pricingModel).toBe("PERCENTAGE");
+    expect(statement.platformBankInfo).toBeNull();
+
+    const ownerStatement = await service.getOwnerDebtStatement("period-stmt-1", {
+      actorUserId: "owner-1",
+      actorRoleId: "role-owner",
+    });
+    expect(ownerStatement.statementNumber).toContain("SGSTAR");
+    expect(statement.platformBankInfo).toBeNull();
   });
 });
