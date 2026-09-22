@@ -18,6 +18,7 @@ export const QA_SIM_ROOM_COUNT = 6;
 export interface HotelSimulationFixture {
   prisma: PrismaClient;
   ownerUserId: string;
+  ownerRoleId: string;
   tenantId: string;
   secondaryTenantId: string;
   primaryHotelId: string;
@@ -54,15 +55,32 @@ export async function provisionHotelSimulation(
       },
     },
     orderBy: { id: "asc" },
-    select: { id: true },
+    select: {
+      id: true,
+      userRoles: {
+        where: {
+          status: UserRoleStatus.ACTIVE,
+          role: {
+            status: RoleStatus.ACTIVE,
+            code: { in: ["TENANT_OWNER", "HOTEL_OWNER", "HOTEL_MANAGER", "SUPER_ADMIN"] },
+          },
+        },
+        select: { roleId: true },
+        take: 1,
+      },
+    },
   });
 
-  if (!owner) {
+  const ownerRoleId = owner?.userRoles[0]?.roleId;
+  if (!owner || !ownerRoleId) {
     throw new Error(
       "QA hotel simulation requires an existing active owner/operator account; optionally set QA_HOTEL_SIM_OWNER_USER_ID.",
     );
   }
 
+  await prisma.platformUsage.deleteMany({
+    where: { hotelId: { in: [primaryHotelId, secondaryHotelId] } },
+  });
   await prisma.tenant.deleteMany({ where: { id: { in: [tenantId, secondaryTenantId] } } });
   await prisma.tenant.createMany({
     data: [
@@ -149,6 +167,7 @@ export async function provisionHotelSimulation(
   return {
     prisma,
     ownerUserId: owner.id,
+    ownerRoleId,
     tenantId,
     secondaryTenantId,
     primaryHotelId,

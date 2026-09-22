@@ -37,6 +37,9 @@ describeWithQaDatabase("local production-like hotel request simulation", () => {
 
   afterAll(async () => {
     if (process.env.QA_HOTEL_SIM_KEEP_DATA !== "1") {
+      await prisma.platformUsage.deleteMany({
+        where: { hotelId: { in: [`${QA_SIM_PREFIX}_HOTEL_A`, `${QA_SIM_PREFIX}_HOTEL_B`] } },
+      });
       await prisma.tenant.deleteMany({
         where: { id: { in: [`${QA_SIM_PREFIX}_TENANT`, `${QA_SIM_PREFIX}_TENANT_B`] } },
       });
@@ -87,6 +90,7 @@ describeWithQaDatabase("local production-like hotel request simulation", () => {
 
     const ownerQueue = await ownerService.listRequests(
       fixture.ownerUserId,
+      fixture.ownerRoleId,
       fixture.primaryHotelId,
       { limit: 20 },
     );
@@ -96,18 +100,21 @@ describeWithQaDatabase("local production-like hotel request simulation", () => {
     const lifecycleTarget = created[0];
     await ownerService.updateRequestStatus(
       fixture.ownerUserId,
+      fixture.ownerRoleId,
       fixture.primaryHotelId,
       lifecycleTarget.id,
       { status: "ACKNOWLEDGED", note: `${QA_SIM_PREFIX} acknowledged` },
     );
     await ownerService.updateRequestStatus(
       fixture.ownerUserId,
+      fixture.ownerRoleId,
       fixture.primaryHotelId,
       lifecycleTarget.id,
       { status: "IN_PROGRESS", note: `${QA_SIM_PREFIX} started` },
     );
     await ownerService.updateRequestStatus(
       fixture.ownerUserId,
+      fixture.ownerRoleId,
       fixture.primaryHotelId,
       lifecycleTarget.id,
       { status: "COMPLETED", note: `${QA_SIM_PREFIX} completed` },
@@ -154,6 +161,7 @@ describeWithQaDatabase("local production-like hotel request simulation", () => {
     await expect(
       ownerService.getRequestDetail(
         fixture.ownerUserId,
+        fixture.ownerRoleId,
         fixture.secondaryHotelId,
         primaryRequest.id,
       ),
