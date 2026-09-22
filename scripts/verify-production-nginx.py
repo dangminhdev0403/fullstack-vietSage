@@ -21,6 +21,7 @@ RATE_LIMIT_GLOBALS = (
     "limit_req_zone $binary_remote_addr zone=api_rate:5m rate=60r/s;",
     "limit_req_zone $binary_remote_addr zone=upload_rate:5m rate=4r/s;",
     "limit_conn_zone $binary_remote_addr zone=per_ip_conn:5m;",
+    "limit_conn_zone $server_name zone=global_conn:1m;",
     "limit_req_status 429;",
     "limit_conn_status 429;",
     "proxy_hide_header X-Powered-By;",
@@ -73,6 +74,14 @@ def verify_rate_limits(label: str, config: str, failures: list[str]) -> None:
                 fail(f"{label} {signature} is missing: {rate_directive}", failures)
             if "limit_conn per_ip_conn 80;" not in block:
                 fail(f"{label} {signature} is missing per-IP connection limit", failures)
+    for inherited in (
+        "limit_conn global_conn 400;",
+        "proxy_connect_timeout 2s;",
+        "proxy_send_timeout 125s;",
+        "proxy_read_timeout 125s;",
+    ):
+        if config.count(inherited) != 2:
+            fail(f"{label} must set {inherited} once for each public application host", failures)
 
 
 def main() -> int:

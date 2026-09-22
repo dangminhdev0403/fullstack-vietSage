@@ -67,11 +67,12 @@ Production Compose builds stable local image tags (`vietsage-frontend:prod`, `vi
 
 The application services use explicit production networks. PostgreSQL is reachable only on the internal `backend` network; the auth service joins `backend` and `edge`; the frontend and Docker-managed Nginx join `edge`. Frontend, backend, and PostgreSQL do not publish host ports; Nginx is the only public ingress.
 
-Check container health without publishing application ports:
+Check container readiness without publishing application ports. `/health` is process liveness;
+`/health/ready` additionally queries PostgreSQL and is the container dependency gate:
 
 ```bash
 docker compose -f docker-compose.prod.yml ps
-docker compose -f docker-compose.prod.yml exec auth-service node -e "fetch('http://127.0.0.1:8080/health').then(async r=>{console.log(r.status, await r.text());process.exit(r.ok?0:1)}).catch(()=>process.exit(1))"
+docker compose -f docker-compose.prod.yml exec auth-service node -e "fetch('http://127.0.0.1:8080/health/ready',{signal:AbortSignal.timeout(3000)}).then(async r=>{console.log(r.status, await r.text());process.exit(r.ok?0:1)}).catch(()=>process.exit(1))"
 docker compose -f docker-compose.prod.yml exec frontend node -e "fetch('http://127.0.0.1:3000/icon.png').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 docker compose -f docker-compose.prod.yml ps --format 'table {{.Name}}\t{{.Status}}\t{{.Ports}}'
 ```
@@ -116,6 +117,21 @@ The Docker Nginx edge applies per-client-IP admission limits and returns `429` i
 | `/api/cccd-mobile/*` | 4 requests/second | 8 | 80 |
 
 Bursts use `nodelay`, so Nginx sheds excess traffic instead of building a latency queue. When host Nginx forwards to Docker Nginx, the inner edge accepts `X-Forwarded-For` only from the private Docker proxy range (`172.16.0.0/12`) before applying the per-IP key.
+
+Each public application host also caps total proxied connections at `400`, fails upstream connection
+attempts after `2s`, and bounds upstream send/read time at `125s` so approved long KBTT/OCR calls fit
+without leaving unbounded requests. The backend uses a 10-connection PostgreSQL pool with bounded
+acquisition, lock, statement, query, transaction, header, and request deadlines. Keep the global pool
+budget below PostgreSQL `max_connections` when adding application replicas.
+
+Run the dependency-free local harness only against localhost by default:
+
+```bash
+node scripts/load-test.mjs http://127.0.0.1:8080/health/ready 1000 50
+```
+
+Remote targets are refused unless `LOAD_TEST_ALLOW_REMOTE=1`; production load generation still
+requires explicit target, rate/concurrency, duration, and stop-threshold approval.
 
 All Docker Nginx published ports bind to `127.0.0.1`; untrusted clients cannot call the inner edge directly or spoof `X-Forwarded-For`. In the current host-Nginx topology, set `NGINX_HTTP_PORT=18080` and `NGINX_HTTPS_PORT=18443`, then proxy public `80/443` from host Nginx to those loopback ports. Only leave the variables unset when Docker Nginx itself owns loopback `80/443` and no host listener occupies them. Frontend, backend, and PostgreSQL do not publish host ports.
 

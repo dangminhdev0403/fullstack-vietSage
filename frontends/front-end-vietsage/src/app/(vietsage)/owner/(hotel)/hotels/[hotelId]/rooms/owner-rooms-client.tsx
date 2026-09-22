@@ -10,6 +10,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Swal from "sweetalert2";
+import { SwalVietSage } from "@/libs/swal";
 import { z } from "zod";
 
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
@@ -878,6 +879,78 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
     }
   }
 
+  const [isResetting, setIsResetting] = useState(false);
+
+  async function handleOperationalReset() {
+    const confirmed = await SwalVietSage.fire({
+      icon: "warning",
+      title: "Khởi động lại dữ liệu vận hành?",
+      html: `
+        <div class="text-left text-sm space-y-2">
+          <p>Hệ thống sẽ làm mới toàn bộ dữ liệu kiểm thử về trạng thái ban đầu:</p>
+          <ul class="list-disc pl-5 space-y-1 text-slate-700">
+            <li><strong>Xoá sạch hoá đơn</strong>, thanh toán và đặt doanh thu về 0.</li>
+            <li><strong>Xoá toàn bộ người dùng truy cập</strong>, các lượt khách lưu trú và tin nhắn/yêu cầu.</li>
+            <li><strong>Xoá đơn hàng marketplace</strong>, giỏ hàng, voucher dịch vụ và đối soát liên kết.</li>
+            <li><strong>Xoá bản khai báo KBTT</strong>, nhật ký đối tác, trạm sinh trắc và sự cố khẩn cấp.</li>
+            <li><strong>Đưa toàn bộ trạng thái phòng về TRỐNG (AVAILABLE)</strong>.</li>
+            <li class="text-slate-800 font-semibold"><strong>Bảo toàn tài khoản & cấu hình nhân viên</strong> (không xoá tài khoản, không đổi cấu hình nhân viên).</li>
+            <li class="text-emerald-800 font-semibold"><strong>Bảo toàn nguyên vẹn danh sách phòng và mã QR Code</strong> (tuyệt đối không động đến phòng, QR, room).</li>
+          </ul>
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: "Đồng ý khởi động lại",
+      cancelButtonText: "Hủy bỏ",
+      reverseButtons: false,
+    });
+
+    if (!confirmed.isConfirmed) return;
+
+    try {
+      setIsResetting(true);
+      void SwalVietSage.fire({
+        title: "Đang khởi động lại dữ liệu...",
+        text: "Hệ thống đang xóa dữ liệu vận hành và đưa trạng thái phòng về TRỐNG.",
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        didOpen: () => SwalVietSage.showLoading(),
+      });
+
+      const res = await requestInternalApiEnvelope<{
+        hotelId: string;
+        operationalResetCount: number;
+        remainingResets: number;
+        message: string;
+      }>(`/api/owner/hotels/${encodeURIComponent(hotelId)}/operational-reset`, {
+        method: "POST",
+      });
+
+      await refreshRooms();
+
+      await SwalVietSage.fire({
+        icon: "success",
+        title: "Khởi động lại thành công",
+        text: res.data.message || "Dữ liệu vận hành đã được làm mới về trạng thái ban đầu.",
+        showConfirmButton: true,
+        confirmButtonText: "OK",
+      });
+
+      router.refresh();
+    } catch (error) {
+      await SwalVietSage.fire({
+        icon: "error",
+        title: "Không thể khởi động lại",
+        text: getBusinessErrorMessage(error, "Vui lòng thử lại."),
+        showConfirmButton: true,
+        confirmButtonText: "OK",
+      });
+    } finally {
+      setIsResetting(false);
+    }
+  }
+
   const roomColumns: DataTableColumn<HotelRoomSummary>[] = [
     {
       key: "roomNumber",
@@ -1113,15 +1186,34 @@ export function OwnerRoomsClient({ hotelId, initialRooms }: Props) {
             Cấu hình thông tin phòng, giá niêm yết, giới hạn thiết bị và mã QR GuestOS. Trạng thái lưu trú chỉ hiển thị để theo dõi.
           </p>
         </div>
-        <div className="flex flex-wrap gap-3">
-        <button
-          type="button"
-          onClick={openCreateRoom}
-          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-6 text-sm font-bold text-[var(--on-primary)] shadow-lg shadow-[color:rgba(0,0,60,0.12)] transition-all hover:-translate-y-0.5 hover:shadow-xl"
-        >
-          <VsIcon name="add_circle" className="text-lg" />
-          Thêm phòng mới
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={openCreateRoom}
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-6 text-sm font-bold text-[var(--on-primary)] shadow-lg shadow-[color:rgba(0,0,60,0.12)] transition-all hover:-translate-y-0.5 hover:shadow-xl"
+          >
+            <VsIcon name="add_circle" className="text-lg" />
+            Thêm phòng mới
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleOperationalReset()}
+            disabled={isResetting || isBulkQrBusy}
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-50/90 px-5 text-sm font-bold text-amber-900 shadow-sm transition-all hover:bg-amber-100 hover:border-amber-400 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+            title="Làm mới dữ liệu vận hành về trạng thái ban đầu, đưa phòng về TRỐNG và bảo toàn nguyên vẹn danh sách phòng cùng mã QR Code"
+          >
+            {isResetting ? (
+              <>
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-amber-800 border-t-transparent" />
+                <span>Đang xử lý...</span>
+              </>
+            ) : (
+              <>
+                <VsIcon name="restart_alt" className="text-xl text-amber-700" />
+                <span>Khởi động lại vận hành</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
 

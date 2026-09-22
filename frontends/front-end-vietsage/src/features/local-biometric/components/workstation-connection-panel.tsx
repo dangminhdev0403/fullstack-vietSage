@@ -8,7 +8,17 @@ export function WorkstationConnectionPanel({ hotelId }: { hotelId: string }) {
   const { state, pairCode, createPairing, disconnect } = useWorkstationScan(hotelId);
   const [actionError, setActionError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const online = ["ready", "requested", "receiving", "received", "expired"].includes(state.phase);
+
+  const handleCreatePairing = async () => {
+    setIsGenerating(true);
+    try {
+      await createPairing();
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const copyCode = () => {
     if (!pairCode) return;
@@ -79,29 +89,41 @@ export function WorkstationConnectionPanel({ hotelId }: { hotelId: string }) {
               <div>
                 <button
                   type="button"
-                  onClick={createPairing}
-                  className="inline-flex min-h-14 items-center justify-center gap-3 rounded-2xl bg-[#000080] px-8 py-4 text-base sm:text-lg font-bold text-white shadow-md transition-all hover:bg-[#000060] active:scale-[0.98]"
+                  disabled={isGenerating}
+                  onClick={handleCreatePairing}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#000080] px-5 py-2.5 text-sm sm:text-base font-bold text-white shadow-sm transition-all hover:bg-[#000060] active:scale-[0.98] disabled:opacity-60"
                 >
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                  </svg>
-                  <span>Tạo mã ghép nối</span>
+                  {isGenerating ? (
+                    <svg className="h-4 w-4 sm:h-5 sm:w-5 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={4} />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                    </svg>
+                  ) : pairCode ? (
+                    <svg className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  ) : (
+                    <svg className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                  )}
+                  <span>{isGenerating ? "Đang tạo mã..." : pairCode ? "Tạo lại mã" : "Tạo mã ghép nối"}</span>
                 </button>
               </div>
 
               {pairCode ? (
-                <div className="w-full max-w-md rounded-2xl border border-amber-300 bg-amber-50/70 p-4 sm:p-5 text-center shadow-xs">
+                <div className="w-full max-w-lg rounded-2xl border border-amber-300 bg-amber-50/70 p-4 sm:p-5 text-center shadow-xs">
                   <p className="text-xs font-bold uppercase tracking-wider text-amber-900">Mã ghép nối một lần</p>
                   <p className="mt-1 text-xs text-amber-800">Nhập mã này vào màn hình cảm ứng hoặc giao diện cấu hình HN-212:</p>
-                  <div className="mt-3.5 flex flex-col gap-2.5 sm:flex-row sm:items-center">
+                  <div className="mt-3.5 flex items-center justify-center gap-2">
                     <div className="min-w-0 flex-1">
                       <code
                         onClick={copyCode}
                         title="Nhấn để sao chép mã"
-                        className={`block w-full cursor-pointer rounded-xl border border-amber-200 bg-white px-3.5 py-2.5 font-mono text-[#000080] shadow-2xs transition-colors hover:border-amber-400 break-all select-all ${
+                        className={`block w-full cursor-pointer rounded-xl border border-amber-200 bg-white px-3 py-2 font-mono text-[#000080] shadow-2xs transition-colors hover:border-amber-400 whitespace-nowrap overflow-x-auto select-all text-center tracking-tight ${
                           pairCode.length <= 8
-                            ? "text-xl sm:text-2xl font-bold tracking-widest text-center"
-                            : "text-xs sm:text-sm font-semibold tracking-normal leading-relaxed text-center"
+                            ? "text-xl sm:text-2xl font-bold tracking-widest"
+                            : "text-xs sm:text-[13px] font-bold"
                         }`}
                       >
                         {pairCode}
@@ -110,7 +132,7 @@ export function WorkstationConnectionPanel({ hotelId }: { hotelId: string }) {
                     <button
                       type="button"
                       onClick={copyCode}
-                      className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-amber-300 bg-white px-4 py-2 text-xs font-bold text-stone-700 shadow-2xs transition-all hover:bg-stone-50 active:scale-[0.98]"
+                      className="inline-flex min-h-9 sm:min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-amber-300 bg-white px-3.5 py-2 text-xs font-bold text-stone-700 shadow-2xs transition-all hover:bg-stone-50 active:scale-[0.98]"
                       title="Sao chép mã ghép nối"
                     >
                       {copied ? (

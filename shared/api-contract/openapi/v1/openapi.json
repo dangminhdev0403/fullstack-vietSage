@@ -73,6 +73,91 @@
         ]
       }
     },
+    "/health/ready": {
+      "get": {
+        "operationId": "HealthController_getReadiness",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Ứng dụng và PostgreSQL sẵn sàng nhận request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Hệ thống sẵn sàng"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "ready"
+                          ]
+                        },
+                        "service": {
+                          "type": "string",
+                          "example": "auth-service"
+                        },
+                        "dependencies": {
+                          "type": "object",
+                          "properties": {
+                            "database": {
+                              "type": "string",
+                              "enum": [
+                                "up"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "database"
+                          ]
+                        },
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "status",
+                        "service",
+                        "dependencies",
+                        "timestamp"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "PostgreSQL không sẵn sàng"
+          }
+        },
+        "tags": [
+          "health"
+        ]
+      }
+    },
     "/auth/login": {
       "post": {
         "operationId": "AuthController_login",

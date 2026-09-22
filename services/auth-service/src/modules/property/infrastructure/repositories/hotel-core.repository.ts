@@ -153,20 +153,26 @@ export class HotelCoreRepository {
     hotelId: string,
   ): Promise<{ operationalResetCount: number; remainingResets: number }> {
     return this.prisma.$transaction(async (tx) => {
-      // 1. Delete Invoices and payment transactions
+      // 1. Delete Marketplace Revenue, Settlements, Vouchers, Carts, and Orders
+      await tx.marketplaceRevenueEntry.deleteMany({ where: { hotelId } });
+      await tx.serviceVoucher.deleteMany({ where: { hotelId } });
+      await tx.marketplaceSettlement.deleteMany({ where: { hotelId } });
+      await tx.guestCart.deleteMany({ where: { hotelId } });
+      await tx.marketplaceOrder.deleteMany({ where: { hotelId } });
+
+      // 2. Delete Invoices and payment transactions
       await tx.paymentTransaction.deleteMany({ where: { hotelId } });
       await tx.payment.deleteMany({ where: { hotelId } });
       await tx.invoice.deleteMany({ where: { hotelId } });
 
-      // 2. Delete Folios and FolioItems
+      // 3. Delete Folios and FolioItems
       await tx.folioItem.deleteMany({ where: { hotelId } });
       await tx.folio.deleteMany({ where: { hotelId } });
 
-      // 3. Delete Marketplace Orders and Carts
-      await tx.guestCart.deleteMany({ where: { hotelId } });
-      await tx.marketplaceOrder.deleteMany({ where: { hotelId } });
-
-      // 4. Delete Guest Request Events and Requests
+      // 4. Delete Guest Request Notifications, Events, and Requests
+      await tx.guestRequestNotification.deleteMany({
+        where: { guestRequest: { hotelId } },
+      });
       await tx.guestRequestEvent.deleteMany({ where: { hotelId } });
       await tx.guestRequest.deleteMany({ where: { hotelId } });
 
@@ -182,26 +188,48 @@ export class HotelCoreRepository {
       await tx.localPartnerInteractionLog.deleteMany({ where: { hotelId } });
       await tx.localPartnerBookingRequest.deleteMany({ where: { hotelId } });
 
-      // 8. Delete Guest Sessions, Stays, and Occupants
+      // 8. Delete Emergency Notifications, Timelines, Incidents, Call Events, and Location Contexts
+      await tx.emergencyNotification.deleteMany({
+        where: {
+          OR: [{ incident: { hotelId } }, { callEvent: { hotelId } }],
+        },
+      });
+      await tx.emergencyIncidentTimeline.deleteMany({
+        where: { incident: { hotelId } },
+      });
+      await tx.emergencyCallEvent.deleteMany({ where: { hotelId } });
+      await tx.emergencyIncident.deleteMany({ where: { hotelId } });
+      await tx.guestLocationContext.deleteMany({ where: { hotelId } });
+
+      // 9. Delete Biometric Workstation Pairings and Registered Workstations
+      await tx.biometricWorkstationPairing.deleteMany({ where: { hotelId } });
+      await tx.biometricWorkstation.deleteMany({ where: { hotelId } });
+
+      // 10. Delete Domain Events queued for this hotel
+      await tx.domainEvent.deleteMany({ where: { hotelId } });
+
+      // 12. Delete Guest Sessions, Stays, and Occupants
       await tx.guestSession.deleteMany({ where: { hotelId } });
       await tx.guestStayOccupant.deleteMany({ where: { hotelId } });
       await tx.guestStay.deleteMany({ where: { hotelId } });
 
-      // 9. Delete Reservations
+      // 13. Delete Reservations
       await tx.reservation.deleteMany({ where: { hotelId } });
 
-      // 10. Clear Platform Billing daily summaries / usages
+      // 14. Clear Platform Billing daily summaries / usages
       await tx.platformBillingDailySummary.deleteMany({ where: { hotelId } });
       await tx.platformBillableDay.deleteMany({ where: { hotelId } });
       await tx.platformUsage.deleteMany({ where: { hotelId } });
 
-      // 11. Reset all Rooms to AVAILABLE status (keeping rooms and QR codes intact!)
+      // 14. Reset all Rooms to AVAILABLE status (keeping rooms and QR codes intact!)
+      // BẢO TOÀN NGUYÊN VẸN: Không xoá phòng, không xoá QR Code, không đổi cấu hình phòng!
+      // BẢO TOÀN NGUYÊN VẸN: Tuyệt đối không xoá tài khoản nhân viên, không xoá cấu hình phân công nhân viên!
       await tx.room.updateMany({
         where: { hotelId },
         data: { status: RoomStatus.AVAILABLE },
       });
 
-      // 12. Fetch current brandSettings, increment operationalResetCount
+      // 16. Fetch current brandSettings, increment operationalResetCount
       const currentHotel = await tx.hotel.findUnique({
         where: { id: hotelId },
         select: { brandSettings: true },

@@ -1,10 +1,14 @@
 ﻿import { Controller, Get } from "@nestjs/common";
-import { ApiOkResponse, ApiTags } from "@nestjs/swagger";
-import { healthDataSchema, successEnvelopeSchema } from "../../common/openapi/contract-schemas";
+import { ApiOkResponse, ApiServiceUnavailableResponse, ApiTags } from "@nestjs/swagger";
+import {
+  healthDataSchema,
+  readinessDataSchema,
+  successEnvelopeSchema,
+} from "../../common/openapi/contract-schemas";
 import { ApiDescript } from "../../shared/decorators/api-descript.decorator";
 import { SuccessMessage } from "../../shared/decorators/success-message.decorator";
 import { HealthService } from "./health.service";
-import type { HealthResponse } from "./health.service";
+import type { HealthResponse, ReadinessResponse } from "./health.service";
 
 @ApiTags("health")
 @Controller("health")
@@ -20,5 +24,17 @@ export class HealthController {
   @Get()
   getHealth(): HealthResponse {
     return this.healthService.getHealth();
+  }
+
+  @SuccessMessage("Hệ thống sẵn sàng")
+  @ApiDescript("Kiểm tra phụ thuộc bắt buộc của hệ thống")
+  @ApiOkResponse({
+    description: "Ứng dụng và PostgreSQL sẵn sàng nhận request",
+    schema: successEnvelopeSchema(readinessDataSchema, 200, "Hệ thống sẵn sàng"),
+  })
+  @ApiServiceUnavailableResponse({ description: "PostgreSQL không sẵn sàng" })
+  @Get("ready")
+  getReadiness(): Promise<ReadinessResponse> {
+    return this.healthService.getReadiness();
   }
 }

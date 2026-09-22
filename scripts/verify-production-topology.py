@@ -78,6 +78,16 @@ def _check_auth_postgres_networks(compose: str, failures: list[str]) -> None:
     )
     if credential_mount not in auth:
         failures.append("auth-service must mount the external Google service account read-only")
+    for required in (
+        'DATABASE_POOL_MAX: "10"',
+        'DATABASE_CONNECTION_TIMEOUT_MS: "2000"',
+        'DATABASE_STATEMENT_TIMEOUT_MS: "8000"',
+        'DATABASE_TRANSACTION_TIMEOUT_MS: "10000"',
+        'HTTP_REQUEST_TIMEOUT_MS: "12000"',
+        "http://127.0.0.1:8080/health/ready",
+    ):
+        if required not in auth:
+            failures.append(f"auth-service is missing bounded runtime setting: {required}")
 
     postgres = service_block(compose, "postgres")
     if re.search(r"(?m)^    ports:\n", postgres):

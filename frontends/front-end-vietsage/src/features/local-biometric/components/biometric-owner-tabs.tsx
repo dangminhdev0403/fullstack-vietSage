@@ -6,7 +6,6 @@ import { WorkstationTestScanPanel } from "./workstation-test-scan-panel";
 import { MobileCccdConnectionPanel } from "./mobile-cccd-connection-panel";
 import { MobileCccdTestScanPanel } from "./mobile-cccd-test-scan-panel";
 import { BiometricCommandStats } from "./biometric-command-stats";
-import { BiometricRecentTestLog, type TestScanRecord } from "./biometric-recent-test-log";
 import { BiometricTroubleshooting } from "./biometric-troubleshooting";
 import { useWorkstationScan } from "../hooks/use-workstation-scan";
 import { useMobileCccdScan } from "../hooks/use-mobile-cccd-scan";
@@ -91,9 +90,8 @@ export function BiometricOwnerTabs({ hotelId }: { hotelId: string }) {
         </div>
       )}
 
-      {/* Lower Section: Shift Log + Troubleshooting Hub */}
-      <div className="space-y-8 pt-4">
-        <BiometricRecentTestLog />
+      {/* Lower Section: Troubleshooting Hub */}
+      <div className="pt-4">
         <BiometricTroubleshooting />
       </div>
     </div>

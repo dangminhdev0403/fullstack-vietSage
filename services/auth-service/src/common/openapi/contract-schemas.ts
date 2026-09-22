@@ -43,6 +43,21 @@ export const healthDataSchema = {
   required: ["status", "service", "uptimeSeconds", "timestamp"],
 };
 
+export const readinessDataSchema = {
+  type: "object",
+  properties: {
+    status: { type: "string", enum: ["ready"] },
+    service: { type: "string", example: "auth-service" },
+    dependencies: {
+      type: "object",
+      properties: { database: { type: "string", enum: ["up"] } },
+      required: ["database"],
+    },
+    timestamp: { type: "string", format: "date-time" },
+  },
+  required: ["status", "service", "dependencies", "timestamp"],
+};
+
 export const loginBodySchema = {
   type: "object",
   properties: {

@@ -84,8 +84,11 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
           <ul class="list-disc pl-5 space-y-1 text-slate-700">
             <li><strong>Xoá sạch hoá đơn</strong>, thanh toán và đặt doanh thu về 0.</li>
             <li><strong>Xoá toàn bộ người dùng truy cập</strong>, các lượt khách lưu trú và tin nhắn/yêu cầu.</li>
+            <li><strong>Xoá đơn hàng marketplace</strong>, giỏ hàng, voucher dịch vụ và đối soát liên kết.</li>
+            <li><strong>Xoá bản khai báo KBTT</strong>, nhật ký đối tác, trạm sinh trắc và sự cố khẩn cấp.</li>
             <li><strong>Đưa toàn bộ trạng thái phòng về TRỐNG (AVAILABLE)</strong>.</li>
-            <li><strong>Bảo toàn nguyên vẹn danh sách phòng và mã QR Code</strong>.</li>
+            <li class="text-slate-800 font-semibold"><strong>Bảo toàn tài khoản & cấu hình nhân viên</strong> (không xoá tài khoản, không đổi cấu hình nhân viên).</li>
+            <li class="text-emerald-800 font-semibold"><strong>Bảo toàn nguyên vẹn danh sách phòng và mã QR Code</strong> (tuyệt đối không động đến phòng, QR, room).</li>
           </ul>
           <p class="mt-3 font-semibold text-amber-800 bg-amber-50 p-2 rounded-lg border border-amber-200">
             ⚠️ Lưu ý: Khách sạn còn <strong>${remainingResets}</strong>/2 lượt thực hiện. Thao tác này không thể hoàn tác!
@@ -344,6 +347,27 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
               <div>
                 <p className="font-semibold text-slate-800">Đưa toàn bộ phòng về TRỐNG</p>
                 <p className="text-xs text-slate-600">Trạng thái toàn bộ phòng được chuyển về AVAILABLE để sẵn sàng đón khách.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2.5 rounded-xl bg-white/70 p-3 border border-amber-200/60">
+              <span className="text-base">🛍️</span>
+              <div>
+                <p className="font-semibold text-slate-800">Xoá đơn Marketplace & Voucher</p>
+                <p className="text-xs text-slate-600">Toàn bộ đơn hàng dịch vụ, giỏ hàng, voucher và đối soát phát sinh được xoá sạch.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2.5 rounded-xl bg-white/70 p-3 border border-amber-200/60">
+              <span className="text-base">🚨</span>
+              <div>
+                <p className="font-semibold text-slate-800">Làm mới sinh trắc & Khẩn cấp</p>
+                <p className="text-xs text-slate-600">Xoá toàn bộ ghép nối trạm sinh trắc, yêu cầu trợ giúp và sự cố khẩn cấp thử nghiệm.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2.5 rounded-xl bg-white/70 p-3 border border-amber-200/60">
+              <span className="text-base">👤</span>
+              <div>
+                <p className="font-semibold text-slate-800">Bảo toàn nhân viên & Cấu hình</p>
+                <p className="text-xs text-slate-600">Không xoá tài khoản nhân viên; toàn bộ thông tin đăng nhập và phân công nhân sự giữ nguyên.</p>
               </div>
             </div>
             <div className="flex items-start gap-2.5 rounded-xl bg-white/70 p-3 border border-amber-200/60">

@@ -13,6 +13,16 @@ if (fs.existsSync(envPath)) {
 
 const ConfigSchema = z.object({
   DATABASE_URL: z.string().min(1),
+  DATABASE_POOL_MAX: z.string().optional(),
+  DATABASE_CONNECTION_TIMEOUT_MS: z.string().optional(),
+  DATABASE_IDLE_TIMEOUT_MS: z.string().optional(),
+  DATABASE_LOCK_TIMEOUT_MS: z.string().optional(),
+  DATABASE_STATEMENT_TIMEOUT_MS: z.string().optional(),
+  DATABASE_QUERY_TIMEOUT_MS: z.string().optional(),
+  DATABASE_TRANSACTION_TIMEOUT_MS: z.string().optional(),
+  HTTP_REQUEST_TIMEOUT_MS: z.string().optional(),
+  HTTP_HEADERS_TIMEOUT_MS: z.string().optional(),
+  HTTP_KEEP_ALIVE_TIMEOUT_MS: z.string().optional(),
   NODE_ENV: z.string().min(1),
   PORT: z.string().regex(/^\d+$/, "PORT must be a numeric string"),
   JWT_ACCESS_SECRET: z.string().min(1),
@@ -101,10 +111,28 @@ export interface RateLimitConfig {
   limit: number;
 }
 
+export interface DatabaseConfig {
+  poolMax: number;
+  connectionTimeoutMs: number;
+  idleTimeoutMs: number;
+  lockTimeoutMs: number;
+  statementTimeoutMs: number;
+  queryTimeoutMs: number;
+  transactionTimeoutMs: number;
+}
+
+export interface HttpConfig {
+  requestTimeoutMs: number;
+  headersTimeoutMs: number;
+  keepAliveTimeoutMs: number;
+}
+
 export interface AppConfig {
   nodeEnv: string;
   port: number;
   databaseUrl: string;
+  database: DatabaseConfig;
+  http: HttpConfig;
   auth: AuthConfig;
   authz: AuthzConfig;
   authAdmin: AuthAdminConfig;
@@ -251,6 +279,91 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     true,
     "AUTHZ_ENFORCEMENT_ENABLED",
   );
+  const database: DatabaseConfig = {
+    poolMax: parsePositiveIntegerEnv(validated.DATABASE_POOL_MAX, 10, "DATABASE_POOL_MAX"),
+    connectionTimeoutMs: parsePositiveIntegerEnv(
+      validated.DATABASE_CONNECTION_TIMEOUT_MS,
+      2_000,
+      "DATABASE_CONNECTION_TIMEOUT_MS",
+    ),
+    idleTimeoutMs: parsePositiveIntegerEnv(
+      validated.DATABASE_IDLE_TIMEOUT_MS,
+      10_000,
+      "DATABASE_IDLE_TIMEOUT_MS",
+    ),
+    lockTimeoutMs: parsePositiveIntegerEnv(
+      validated.DATABASE_LOCK_TIMEOUT_MS,
+      3_000,
+      "DATABASE_LOCK_TIMEOUT_MS",
+    ),
+    statementTimeoutMs: parsePositiveIntegerEnv(
+      validated.DATABASE_STATEMENT_TIMEOUT_MS,
+      8_000,
+      "DATABASE_STATEMENT_TIMEOUT_MS",
+    ),
+    queryTimeoutMs: parsePositiveIntegerEnv(
+      validated.DATABASE_QUERY_TIMEOUT_MS,
+      9_000,
+      "DATABASE_QUERY_TIMEOUT_MS",
+    ),
+    transactionTimeoutMs: parsePositiveIntegerEnv(
+      validated.DATABASE_TRANSACTION_TIMEOUT_MS,
+      10_000,
+      "DATABASE_TRANSACTION_TIMEOUT_MS",
+    ),
+  };
+  const http: HttpConfig = {
+    requestTimeoutMs: parsePositiveIntegerEnv(
+      validated.HTTP_REQUEST_TIMEOUT_MS,
+      12_000,
+      "HTTP_REQUEST_TIMEOUT_MS",
+    ),
+    headersTimeoutMs: parsePositiveIntegerEnv(
+      validated.HTTP_HEADERS_TIMEOUT_MS,
+      10_000,
+      "HTTP_HEADERS_TIMEOUT_MS",
+    ),
+    keepAliveTimeoutMs: parsePositiveIntegerEnv(
+      validated.HTTP_KEEP_ALIVE_TIMEOUT_MS,
+      5_000,
+      "HTTP_KEEP_ALIVE_TIMEOUT_MS",
+    ),
+  };
+  const invalidDeadline = [
+    [
+      database.connectionTimeoutMs,
+      database.statementTimeoutMs,
+      "DATABASE_CONNECTION_TIMEOUT_MS must be less than DATABASE_STATEMENT_TIMEOUT_MS",
+    ],
+    [
+      database.lockTimeoutMs,
+      database.statementTimeoutMs,
+      "DATABASE_LOCK_TIMEOUT_MS must be less than DATABASE_STATEMENT_TIMEOUT_MS",
+    ],
+    [
+      database.statementTimeoutMs,
+      database.queryTimeoutMs,
+      "DATABASE_STATEMENT_TIMEOUT_MS must be less than DATABASE_QUERY_TIMEOUT_MS",
+    ],
+    [
+      database.queryTimeoutMs,
+      database.transactionTimeoutMs,
+      "DATABASE_QUERY_TIMEOUT_MS must be less than DATABASE_TRANSACTION_TIMEOUT_MS",
+    ],
+    [
+      database.transactionTimeoutMs,
+      http.requestTimeoutMs,
+      "DATABASE_TRANSACTION_TIMEOUT_MS must be less than HTTP_REQUEST_TIMEOUT_MS",
+    ],
+    [
+      http.headersTimeoutMs,
+      http.requestTimeoutMs,
+      "HTTP_HEADERS_TIMEOUT_MS must be less than HTTP_REQUEST_TIMEOUT_MS",
+    ],
+  ].find(([lower, upper]) => Number(lower) >= Number(upper));
+  if (invalidDeadline) {
+    throw new Error(String(invalidDeadline[2]));
+  }
   if (validated.NODE_ENV === "production" && !authzStrictMode) {
     throw new Error("Invalid AUTHZ_STRICT_MODE environment variable. Production requires true.");
   }
@@ -280,6 +393,8 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     nodeEnv: validated.NODE_ENV,
     port: parsePort(validated.PORT),
     databaseUrl: validated.DATABASE_URL,
+    database,
+    http,
     auth: {
       jwtAccessSecret,
       jwtRefreshSecret,

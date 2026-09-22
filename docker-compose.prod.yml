@@ -112,6 +112,17 @@ services:
       NODE_ENV: production
       PORT: "8080"
       LOG_LEVEL: "${AUTH_LOG_LEVEL:-WARN}"
+      # ponytail: one app instance × 10 plus admin/migration reserve stays below PostgreSQL 100.
+      DATABASE_POOL_MAX: "10"
+      DATABASE_CONNECTION_TIMEOUT_MS: "2000"
+      DATABASE_IDLE_TIMEOUT_MS: "10000"
+      DATABASE_LOCK_TIMEOUT_MS: "3000"
+      DATABASE_STATEMENT_TIMEOUT_MS: "8000"
+      DATABASE_QUERY_TIMEOUT_MS: "9000"
+      DATABASE_TRANSACTION_TIMEOUT_MS: "10000"
+      HTTP_REQUEST_TIMEOUT_MS: "12000"
+      HTTP_HEADERS_TIMEOUT_MS: "10000"
+      HTTP_KEEP_ALIVE_TIMEOUT_MS: "5000"
     volumes:
       - "./secrets/production/google-service-account.json:/run/secrets/google-service-account.json:ro"
     read_only: true
@@ -129,7 +140,7 @@ services:
       seed:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:8080/health/ready',{signal:AbortSignal.timeout(3000)}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
       interval: 10s
       timeout: 5s
       retries: 12

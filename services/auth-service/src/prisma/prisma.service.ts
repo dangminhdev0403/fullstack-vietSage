@@ -1,6 +1,7 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
+import { Pool } from "pg";
 import { loadAppConfig } from "../common/config/env.config";
 import { AppLogger } from "../common/logging/app-logger.service";
 
@@ -8,10 +9,24 @@ import { AppLogger } from "../common/logging/app-logger.service";
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   constructor(private readonly logger: AppLogger) {
     const appConfig = loadAppConfig();
-    const adapter = new PrismaPg(appConfig.databaseUrl);
+    const pool = new Pool({
+      connectionString: appConfig.databaseUrl,
+      max: appConfig.database.poolMax,
+      connectionTimeoutMillis: appConfig.database.connectionTimeoutMs,
+      idleTimeoutMillis: appConfig.database.idleTimeoutMs,
+      lock_timeout: appConfig.database.lockTimeoutMs,
+      statement_timeout: appConfig.database.statementTimeoutMs,
+      query_timeout: appConfig.database.queryTimeoutMs,
+      application_name: "vietsage-auth-service",
+    });
+    const adapter = new PrismaPg(pool, { disposeExternalPool: true });
 
     super({
       adapter,
+      transactionOptions: {
+        maxWait: appConfig.database.connectionTimeoutMs,
+        timeout: appConfig.database.transactionTimeoutMs,
+      },
       log: [
         { emit: "event", level: "query" },
         { emit: "event", level: "error" },

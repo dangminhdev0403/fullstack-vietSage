@@ -37,7 +37,9 @@ describeWithQaDatabase("local production-like hotel request simulation", () => {
 
   afterAll(async () => {
     if (process.env.QA_HOTEL_SIM_KEEP_DATA !== "1") {
-      await prisma.tenant.deleteMany({ where: { id: `${QA_SIM_PREFIX}_TENANT` } });
+      await prisma.tenant.deleteMany({
+        where: { id: { in: [`${QA_SIM_PREFIX}_TENANT`, `${QA_SIM_PREFIX}_TENANT_B`] } },
+      });
     }
     await prisma.$disconnect();
   });

@@ -115,6 +115,15 @@ function iconGlyph(name: string): ReactNode {
         </>
       );
 
+    case "restart_alt":
+    case "refresh":
+      return (
+        <>
+          <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.8 1.04 6.44 2.73" />
+          <path d="M21 3v5h-5" />
+        </>
+      );
+
     case "notifications":
       return (
         <>

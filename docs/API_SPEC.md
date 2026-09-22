@@ -21,6 +21,8 @@ The current backend runtime is the NestJS core API under `services/auth-service`
 - Frontend should consume the generated contract or stable documented DTOs, not guessed shapes.
 - Breaking response/request changes require explicit approval and a migration note.
 - Public routes must be explicit; private routes remain guarded by default.
+- `GET /health` is dependency-free process liveness. `GET /health/ready` is public readiness and
+  returns `503` when PostgreSQL cannot answer the bounded readiness query.
 - Pagination must be bounded.
 - GuestOS request-list `search` matches the service's canonical name, any localized service-item name, request title, and request description; matching is case-insensitive.
 - GuestOS request responses resolve service names from the request locale and fall back to the canonical catalog name when no translation exists.

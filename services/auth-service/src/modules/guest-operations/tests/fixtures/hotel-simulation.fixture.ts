@@ -19,6 +19,7 @@ export interface HotelSimulationFixture {
   prisma: PrismaClient;
   ownerUserId: string;
   tenantId: string;
+  secondaryTenantId: string;
   primaryHotelId: string;
   secondaryHotelId: string;
   serviceItemId: string;
@@ -34,6 +35,7 @@ export async function provisionHotelSimulation(
   prisma: PrismaClient,
 ): Promise<HotelSimulationFixture> {
   const tenantId = `${QA_SIM_PREFIX}_TENANT`;
+  const secondaryTenantId = `${QA_SIM_PREFIX}_TENANT_B`;
   const primaryHotelId = `${QA_SIM_PREFIX}_HOTEL_A`;
   const secondaryHotelId = `${QA_SIM_PREFIX}_HOTEL_B`;
   const requestedOwnerId = process.env.QA_HOTEL_SIM_OWNER_USER_ID?.trim();
@@ -61,18 +63,25 @@ export async function provisionHotelSimulation(
     );
   }
 
-  await prisma.tenant.deleteMany({ where: { id: tenantId } });
-  await prisma.tenant.create({
-    data: { id: tenantId, code: tenantId, name: `${QA_SIM_PREFIX} Tenant` },
+  await prisma.tenant.deleteMany({ where: { id: { in: [tenantId, secondaryTenantId] } } });
+  await prisma.tenant.createMany({
+    data: [
+      { id: tenantId, code: tenantId, name: `${QA_SIM_PREFIX} Tenant A` },
+      {
+        id: secondaryTenantId,
+        code: secondaryTenantId,
+        name: `${QA_SIM_PREFIX} Tenant B`,
+      },
+    ],
   });
-  await prisma.tenantUser.create({
-    data: {
-      id: `${QA_SIM_PREFIX}_OWNER_MEMBERSHIP`,
-      tenantId,
+  await prisma.tenantUser.createMany({
+    data: [tenantId, secondaryTenantId].map((membershipTenantId, index) => ({
+      id: `${QA_SIM_PREFIX}_OWNER_MEMBERSHIP_${index + 1}`,
+      tenantId: membershipTenantId,
       userId: owner.id,
       status: TenantUserStatus.ACTIVE,
       joinedAt: new Date("2026-07-15T00:00:00.000Z"),
-    },
+    })),
   });
 
   await prisma.hotel.createMany({
@@ -86,7 +95,7 @@ export async function provisionHotelSimulation(
       },
       {
         id: secondaryHotelId,
-        tenantId,
+        tenantId: secondaryTenantId,
         code: `${QA_SIM_PREFIX}_B`,
         name: `${QA_SIM_PREFIX} Secondary Hotel`,
         status: HotelStatus.ACTIVE,
@@ -141,6 +150,7 @@ export async function provisionHotelSimulation(
     prisma,
     ownerUserId: owner.id,
     tenantId,
+    secondaryTenantId,
     primaryHotelId,
     secondaryHotelId,
     serviceItemId,

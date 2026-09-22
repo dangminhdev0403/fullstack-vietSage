@@ -3,6 +3,7 @@ import { PublicRouteMatcher } from "./public-route.matcher";
 // Keep this list minimal. Every route not listed here requires a valid access token.
 export const PUBLIC_PATTERNS = [
   "/health",
+  "/health/ready",
   "/auth/login",
   "/auth/refresh",
   "/biometric-workstations/pair",

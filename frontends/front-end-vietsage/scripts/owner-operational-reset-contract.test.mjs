@@ -63,4 +63,26 @@ test("owner operational reset contract: backend and frontend integration", () =>
   const repositoryContent = fs.readFileSync(repositoryPath, "utf-8");
   assert.match(repositoryContent, /resetHotelOperationalData/);
   assert.match(repositoryContent, /RoomStatus\.AVAILABLE/);
+  assert.match(repositoryContent, /marketplaceRevenueEntry\.deleteMany/);
+  assert.match(repositoryContent, /serviceVoucher\.deleteMany/);
+  assert.match(repositoryContent, /marketplaceSettlement\.deleteMany/);
+  assert.match(repositoryContent, /emergencyNotification\.deleteMany/);
+  assert.match(repositoryContent, /emergencyCallEvent\.deleteMany/);
+  assert.match(repositoryContent, /emergencyIncident\.deleteMany/);
+  assert.match(repositoryContent, /biometricWorkstationPairing\.deleteMany/);
+  assert.doesNotMatch(repositoryContent, /hotelRoomStaffAssignment\.deleteMany/);
+  assert.doesNotMatch(repositoryContent, /hotelStaffAssignment\.deleteMany/);
+  assert.doesNotMatch(repositoryContent, /user\.deleteMany/);
+  assert.match(repositoryContent, /domainEvent\.deleteMany/);
+
+  // 5. Check Owner Rooms Client UI has operational reset action
+  const roomsClientPath = path.join(
+    rootDir,
+    "frontends/front-end-vietsage/src/app/(vietsage)/owner/(hotel)/hotels/[hotelId]/rooms/owner-rooms-client.tsx",
+  );
+  const roomsClientContent = fs.readFileSync(roomsClientPath, "utf-8");
+  assert.match(roomsClientContent, /handleOperationalReset/);
+  assert.match(roomsClientContent, /Khởi động lại vận hành/);
+  assert.match(roomsClientContent, /SwalVietSage/);
+  assert.match(roomsClientContent, /reverseButtons: false/);
 });

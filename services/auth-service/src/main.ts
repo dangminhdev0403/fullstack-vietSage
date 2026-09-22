@@ -31,6 +31,9 @@ async function bootstrap() {
   await app.listen(config.port);
 
   const server = app.getHttpServer() as Server;
+  server.requestTimeout = config.http.requestTimeoutMs;
+  server.headersTimeout = config.http.headersTimeoutMs;
+  server.keepAliveTimeout = config.http.keepAliveTimeoutMs;
   const address = server.address() as AddressInfo | string;
   const host = typeof address === "string" ? address : address.address;
   const actualHost = host === "::" || host === "0.0.0.0" ? "localhost" : host;

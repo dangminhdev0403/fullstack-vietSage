@@ -41,6 +41,43 @@ describe("env config", () => {
     expect(config.rateLimits.refresh).toEqual({ ttlSeconds: 45, limit: 12 });
   });
 
+  it("uses bounded database and HTTP deadlines by default", () => {
+    const config = loadAppConfig(baseEnv);
+
+    expect(config.database).toEqual({
+      poolMax: 10,
+      connectionTimeoutMs: 2_000,
+      idleTimeoutMs: 10_000,
+      lockTimeoutMs: 3_000,
+      statementTimeoutMs: 8_000,
+      queryTimeoutMs: 9_000,
+      transactionTimeoutMs: 10_000,
+    });
+    expect(config.http).toEqual({
+      requestTimeoutMs: 12_000,
+      headersTimeoutMs: 10_000,
+      keepAliveTimeoutMs: 5_000,
+    });
+  });
+
+  it("rejects deadline configurations that can outlive their caller", () => {
+    expect(() =>
+      loadAppConfig({
+        ...baseEnv,
+        DATABASE_STATEMENT_TIMEOUT_MS: "11000",
+        DATABASE_TRANSACTION_TIMEOUT_MS: "10000",
+      }),
+    ).toThrow("DATABASE_STATEMENT_TIMEOUT_MS");
+
+    expect(() =>
+      loadAppConfig({
+        ...baseEnv,
+        DATABASE_TRANSACTION_TIMEOUT_MS: "13000",
+        HTTP_REQUEST_TIMEOUT_MS: "12000",
+      }),
+    ).toThrow("DATABASE_TRANSACTION_TIMEOUT_MS");
+  });
+
   it("loads an explicit trusted proxy allowlist and defaults to none", () => {
     expect(loadAppConfig(baseEnv).trustedProxies).toEqual([]);
     expect(
