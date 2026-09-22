@@ -1,6 +1,6 @@
 import { unwrapApiEnvelope } from "@/core/http/api-envelope";
 import { HttpClient, type HttpQuery } from "@/core/http/http-client";
-import type { BillingPage, FolioItem, FolioListItem, FolioSummary, Invoice, InvoiceDetail, Payment } from "@/features/billing/types/billing-contract";
+import type { BillingPage, FolioItem, FolioListItem, FolioSummary, Invoice, InvoiceDetail, Payment, PlatformBillingSummary } from "@/features/billing/types/billing-contract";
 
 type AuthRequestOptions = {
   accessToken?: string;
@@ -234,5 +234,18 @@ export class BillingService {
         nearestDueAt: string | null;
       } | null;
     }>(payload).data;
+  }
+
+  async getPlatformBillingDashboardSummary(
+    options: AuthRequestOptions = {},
+  ): Promise<PlatformBillingSummary> {
+    const payload = await this.httpClient.request<unknown>({
+      method: "GET",
+      path: "/platform-billing/dashboard/summary",
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+
+    return unwrapApiEnvelope<PlatformBillingSummary>(payload).data;
   }
 }

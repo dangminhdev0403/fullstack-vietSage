@@ -3,12 +3,32 @@ import { notFound, redirect } from "next/navigation";
 
 import { auth } from "@/auth";
 import { adminService } from "@/features/admin/service/admin-service-instance";
+import { billingService } from "@/features/billing/service/billing-service-instance";
+import type { PlatformBillingSummary } from "@/features/billing/types/billing-contract";
 import { rbacService } from "@/features/rbac/service/rbac-service-instance";
 import type { Hotel, TenantOwner } from "@/features/admin/types/admin-contract";
 import { resolveWorkspacePersona } from "@/features/workspace/utils/workspace-context";
 import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 import { VsIcon } from "../../_components/vs-icon";
+
+function formatVnd(value: number | null | undefined): string {
+  if (value == null) return "0 ₫";
+  return new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function formatDate(dateStr?: string | null): string {
+  if (!dateStr) return "-";
+  return new Intl.DateTimeFormat("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(dateStr));
+}
 
 type DashboardPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -38,9 +58,10 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
   let tenantOwners: TenantOwner[] = [];
   let totalTenantOwners = 0;
   let rolesCount = 0;
+  let billingSummary: PlatformBillingSummary | null = null;
 
   try {
-    const [hotelsRes, tenantOwnersRes, rolesRes] = await Promise.allSettled([
+    const [hotelsRes, tenantOwnersRes, rolesRes, billingRes] = await Promise.allSettled([
       authorizedApi("list hotels for admin dashboard", (accessToken) =>
         adminService.listHotels({ query: { page: 1, limit: 6 }, accessToken }),
       ),
@@ -49,6 +70,9 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
       ),
       authorizedApi("list roles for admin dashboard", (accessToken) =>
         rbacService.listRoles(accessToken),
+      ),
+      authorizedApi("get platform billing summary for admin dashboard", (accessToken) =>
+        billingService.getPlatformBillingDashboardSummary({ accessToken }),
       ),
     ]);
 
@@ -62,6 +86,9 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
     }
     if (rolesRes.status === "fulfilled" && rolesRes.value) {
       rolesCount = Array.isArray(rolesRes.value) ? rolesRes.value.length : 0;
+    }
+    if (billingRes.status === "fulfilled" && billingRes.value) {
+      billingSummary = billingRes.value;
     }
   } catch {
     // Fallback gracefully if any API fails
@@ -91,47 +118,53 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
       href: "/admin/users",
     },
     {
-      label: "Vai trò phân quyền",
-      value: rolesCount > 0 ? rolesCount : "8+",
-      unit: "role templates",
-      icon: "admin_panel_settings" as const,
+      label: "Hợp đồng SaaS kích hoạt",
+      value: billingSummary?.activeContracts ?? totalHotels,
+      unit: "hợp đồng dịch vụ",
+      icon: "receipt_long" as const,
       iconBg: "bg-[#eef2f6]",
       iconColor: "text-[#2c4c64]",
-      badge: "RBAC Matrix",
-      linkText: "Cấu hình vai trò",
-      href: "/admin/roles",
+      badge: "SaaS Active",
+      linkText: "Chi tiết hợp đồng",
+      href: "/admin/billing",
     },
     {
-      label: "Capabilities kích hoạt",
-      value: context.permissions.length,
-      unit: "quyền hạn active",
-      icon: "verified_user" as const,
-      iconBg: "bg-[#f5f0fa]",
-      iconColor: "text-[#6b21a8]",
-      badge: "Bảo mật phạm vi",
-      linkText: "Ma trận quyền",
-      href: "/admin/permissions",
-    },
-    {
-      label: "Dịch vụ Marketplace",
-      value: "Sẵn sàng",
-      unit: "ẩm thực, tour, xe",
-      icon: "storefront" as const,
-      iconBg: "bg-[#fef9c3]",
-      iconColor: "text-[#854d0e]",
-      badge: "Hệ sinh thái",
-      linkText: "Cổng Marketplace",
-      href: "/admin/marketplace",
-    },
-    {
-      label: "Độ ổn định nền tảng",
-      value: "99.98%",
-      unit: "đáp ứng thời gian thực",
-      icon: "check_circle" as const,
+      label: "Tổng cước SaaS phát sinh",
+      value: formatVnd(billingSummary?.finalizedAmount ?? 0),
+      unit: "lũy kế nền tảng",
+      icon: "payments" as const,
       iconBg: "bg-[#ecfdf5]",
       iconColor: "text-[#059669]",
-      badge: "Trực tuyến",
-      linkText: "Phí SaaS & Billing",
+      badge: `${billingSummary?.finalizedPeriods ?? 0} kỳ cước`,
+      linkText: "Sổ cái tài chính",
+      href: "/admin/billing",
+    },
+    {
+      label: "Đã thực thu về quỹ",
+      value: formatVnd(billingSummary?.collectedAmount ?? 0),
+      unit: "tiền đã thu",
+      icon: "account_balance" as const,
+      iconBg: "bg-[#f0fdf4]",
+      iconColor: "text-[#15803d]",
+      badge:
+        billingSummary && billingSummary.finalizedAmount > 0
+          ? `${Math.round((billingSummary.collectedAmount / billingSummary.finalizedAmount) * 100)}% đã thu`
+          : "Đối soát đầy đủ",
+      linkText: "Đối soát thu tiền",
+      href: "/admin/billing",
+    },
+    {
+      label: "Công nợ SaaS cần thu",
+      value: formatVnd(billingSummary?.outstandingAmount ?? 0),
+      unit: "công nợ đối tác",
+      icon: "pending_actions" as const,
+      iconBg: (billingSummary?.overdueAmount ?? 0) > 0 ? "bg-[#fef2f2]" : "bg-[#fffbeb]",
+      iconColor: (billingSummary?.overdueAmount ?? 0) > 0 ? "text-[#b91c1c]" : "text-[#b45309]",
+      badge:
+        (billingSummary?.overdueAmount ?? 0) > 0
+          ? `${formatVnd(billingSummary?.overdueAmount)} quá hạn`
+          : `${billingSummary?.unpaidPeriodCount ?? 0} kỳ chờ thu`,
+      linkText: "Đôn đốc công nợ",
       href: "/admin/billing",
     },
   ];
@@ -159,7 +192,7 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
       description: "Ma trận bảo mật RBAC",
       icon: "verified_user" as const,
       href: "/admin/permissions",
-      badge: `${context.permissions.length} quyền`,
+      badge: `${rolesCount > 0 ? `${rolesCount} vai trò • ` : ""}${context.permissions.length} quyền`,
     },
     {
       key: "marketplace",
@@ -177,13 +210,6 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
       href: "/admin/billing",
       badge: "SaaS Billing",
     },
-  ];
-
-  const systemServices = [
-    { name: "Xác thực & Phân quyền (IAM)", status: "Trực tuyến", latency: "< 15ms" },
-    { name: "Điều phối Vận hành Khách sạn", status: "Trực tuyến", latency: "< 25ms" },
-    { name: "Định danh CCCD & Biometrics", status: "Sẵn sàng", latency: "< 40ms" },
-    { name: "Kết nối KBTT Bộ Công An", status: "Đã kích hoạt", latency: "API C06" },
   ];
 
   return (
@@ -441,39 +467,153 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
         </div>
       </section>
 
-      {/* 5. Microservices Health: 1 compact full-width section at bottom */}
-      <section className="rounded-xl border border-[#24473d]/10 bg-[#faf8f4] p-4 shadow-2xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-          <div className="flex items-center gap-2">
-            <span className="size-2 rounded-full bg-[#10b981] animate-pulse" />
-            <h3 className="text-xs font-bold uppercase tracking-wider text-[#17201b]">
-              Tình trạng vi dịch vụ (Microservices Health)
-            </h3>
+      {/* 5. Platform Financial & SaaS Receivables Hub */}
+      <section className="rounded-xl border border-[#24473d]/10 bg-white/95 p-4 sm:p-5 shadow-2xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+          <div className="flex items-center gap-2.5">
+            <span className="grid size-8 place-items-center rounded-lg bg-[#e6efe9] text-[#24473d]">
+              <VsIcon name="account_balance_wallet" className="text-lg" />
+            </span>
+            <div>
+              <h2 className="text-sm sm:text-base font-bold text-[#17201b]">
+                Giám sát dòng tiền &amp; Đối soát cước phí SaaS
+              </h2>
+              <p className="text-xs text-[#5f6b63]">
+                Theo dõi các khoản tiền cước nền tảng VietSage từ các cơ sở lưu trú và đối tác doanh nghiệp.
+              </p>
+            </div>
           </div>
-          <span className="text-xs font-medium text-[#5f6b63]">
-            SLA Uptime: 99.98% • Độ trễ trung bình: ~20ms
-          </span>
+          <Link
+            href="/admin/billing"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[#24473d] hover:bg-[#1a382f] text-white px-3.5 py-1.5 text-xs font-semibold shadow-2xs transition active:scale-95 shrink-0"
+          >
+            <VsIcon name="receipt" className="text-sm" />
+            <span>Mở sổ cái Billing</span>
+          </Link>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {systemServices.map((svc) => (
-            <div
-              key={svc.name}
-              className="rounded-lg border border-[#e8e2d5] bg-white px-3 py-2 flex items-center justify-between gap-2 shadow-2xs"
-            >
-              <span className="text-xs font-semibold text-[#17201b] truncate">{svc.name}</span>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="inline-flex items-center gap-1 text-[11px] text-[#059669] font-bold">
-                  <span className="size-1.5 rounded-full bg-[#059669]" />
-                  {svc.status}
-                </span>
-                <span className="text-[10px] text-[#5f6b63] font-mono bg-[#f5f1e8] px-1.5 py-0.5 rounded">
-                  {svc.latency}
-                </span>
-              </div>
-            </div>
-          ))}
+        {/* 4 financial highlights */}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-4">
+          <div className="rounded-lg border border-[#e8dfcf] bg-[#fdfbf6] p-3.5">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-[#65726a]">Tổng cước đã phát sinh</p>
+            <p className="mt-1.5 text-xl sm:text-2xl font-extrabold text-[#17382f]">
+              {formatVnd(billingSummary?.finalizedAmount ?? 0)}
+            </p>
+            <p className="mt-1 text-[11px] text-[#5f6b63]">
+              {billingSummary?.finalizedPeriods ?? 0} kỳ cước đã kết chuyển
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-[#bbf7d0] bg-[#f0fdf4] p-3.5">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-[#166534]">Thực thu về quỹ nền tảng</p>
+            <p className="mt-1.5 text-xl sm:text-2xl font-extrabold text-[#15803d]">
+              {formatVnd(billingSummary?.collectedAmount ?? 0)}
+            </p>
+            <p className="mt-1 text-[11px] text-[#166534]">
+              {billingSummary && billingSummary.finalizedAmount > 0
+                ? `Đạt ${Math.round((billingSummary.collectedAmount / billingSummary.finalizedAmount) * 100)}% tổng cước`
+                : "Đã ghi nhận thanh toán"}
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-[#fef08a] bg-[#fefce8] p-3.5">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-[#854d0e]">Công nợ chờ thu</p>
+            <p className="mt-1.5 text-xl sm:text-2xl font-extrabold text-[#a16207]">
+              {formatVnd(billingSummary?.outstandingAmount ?? 0)}
+            </p>
+            <p className="mt-1 text-[11px] text-[#854d0e]">
+              {billingSummary?.unpaidPeriodCount ?? 0} kỳ chưa thanh toán đầy đủ
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-[#fecaca] bg-[#fef2f2] p-3.5">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-[#991b1b]">Nợ quá hạn cần đôn đốc</p>
+            <p className="mt-1.5 text-xl sm:text-2xl font-extrabold text-[#b91c1c]">
+              {formatVnd(billingSummary?.overdueAmount ?? 0)}
+            </p>
+            <p className="mt-1 text-[11px] text-[#991b1b]">
+              {billingSummary?.overduePeriodCount ?? 0} kỳ đã vượt quá hạn thanh toán
+            </p>
+          </div>
         </div>
+
+        {/* Due / Overdue Periods Table */}
+        {billingSummary?.duePeriods && billingSummary.duePeriods.length > 0 ? (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[#17201b]">
+                Kỳ cước khách sạn cần thu / Đang đến hạn ({billingSummary.duePeriods.length})
+              </h3>
+              <span className="text-[11px] text-[#5f6b63]">
+                Ưu tiên xử lý kỳ cước quá hạn trước
+              </span>
+            </div>
+            <div className="overflow-x-auto rounded-lg border border-[#eee6d8]">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-[#f9f6f0] text-[#5f6b63] font-semibold uppercase tracking-wider border-b border-[#eee6d8]">
+                  <tr>
+                    <th className="px-3 py-2">Khách sạn</th>
+                    <th className="px-3 py-2">Kỳ cước</th>
+                    <th className="px-3 py-2">Hạn trả</th>
+                    <th className="px-3 py-2 text-right">Tổng cước</th>
+                    <th className="px-3 py-2 text-right">Còn nợ</th>
+                    <th className="px-3 py-2 text-center">Trạng thái</th>
+                    <th className="px-3 py-2 text-center">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#f0ebe0] bg-white">
+                  {billingSummary.duePeriods.slice(0, 6).map((period) => (
+                    <tr key={period.id} className="hover:bg-[#fffdfa] transition">
+                      <td className="px-3 py-2 font-semibold text-[#17201b]">
+                        <div>{period.hotel?.name ?? `Hợp đồng: ${period.contractId?.slice(0, 8) ?? "-"}`}</div>
+                        {period.hotel?.code && (
+                          <span className="font-mono text-[10px] text-[#5f6b63]">{period.hotel.code}</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-[#5f6b63]">
+                        {formatDate(period.periodStart)} – {formatDate(period.periodEnd)}
+                      </td>
+                      <td className="px-3 py-2 text-[#5f6b63]">
+                        {formatDate(period.dueAt)}
+                      </td>
+                      <td className="px-3 py-2 text-right font-medium text-[#17201b]">
+                        {formatVnd(period.total)}
+                      </td>
+                      <td className="px-3 py-2 text-right font-bold text-[#b91c1c]">
+                        {formatVnd(period.outstandingAmount ?? period.total)}
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        {period.isOverdue ? (
+                          <span className="rounded-full bg-[#fef2f2] border border-[#fecaca] px-2 py-0.5 text-[10px] font-bold text-[#b91c1c]">
+                            Quá hạn
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-[#fefce8] border border-[#fef08a] px-2 py-0.5 text-[10px] font-bold text-[#854d0e]">
+                            Đến hạn
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        <Link
+                          href="/admin/billing"
+                          className="inline-flex items-center gap-1 rounded bg-[#f5f1e8] hover:bg-[#24473d] hover:text-white text-[#24473d] px-2 py-1 text-[11px] font-bold transition"
+                        >
+                          <span>Đối soát</span>
+                          <VsIcon name="arrow_forward" className="text-[10px]" />
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-dashed border-[#24473d]/20 bg-[#fbfdfb] p-4 text-center text-xs text-[#24473d] font-semibold flex items-center justify-center gap-2">
+            <span className="size-2 rounded-full bg-[#10b981]" />
+            <span>Tất cả các cơ sở lưu trú đều đã thanh toán đủ cước phí hoặc chưa phát sinh nợ quá hạn.</span>
+          </div>
+        )}
       </section>
     </div>
   );

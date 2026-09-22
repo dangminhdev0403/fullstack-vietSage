@@ -137,3 +137,32 @@ export type Payment = {
   paymentUrl?: string | null;
   confirmedAt?: string | null;
 };
+
+export type PlatformBillingPeriod = {
+  id: string;
+  contractId?: string;
+  periodStart: string;
+  periodEnd: string;
+  status: "DRAFT" | "FINALIZED" | "VOID";
+  total: number;
+  dueAt?: string;
+  settledAmount?: number;
+  outstandingAmount?: number;
+  paymentState?: "UNPAID" | "PARTIALLY_PAID" | "PAID";
+  isOverdue?: boolean;
+  debtNoticeCount?: number;
+  debtNoticeSentAt?: string | null;
+  hotel?: { id: string; name: string; code?: string };
+};
+
+export type PlatformBillingSummary = {
+  activeContracts: number;
+  finalizedPeriods: number;
+  finalizedAmount: number;
+  collectedAmount: number;
+  outstandingAmount: number;
+  unpaidPeriodCount: number;
+  overduePeriodCount: number;
+  overdueAmount: number;
+  duePeriods: PlatformBillingPeriod[];
+};

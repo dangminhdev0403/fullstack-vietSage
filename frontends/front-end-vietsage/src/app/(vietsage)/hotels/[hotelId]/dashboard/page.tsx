@@ -66,14 +66,110 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
     <main className="space-y-8">
       <header className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <div>
-          <h1 className="vs-display text-4xl font-bold text-[var(--primary)]">Dashboard tiếp tân</h1>
-          <p className="mt-2 text-base italic text-[var(--on-surface-variant)]">Kính chào Quý Quản lý. Chúc một ngày làm việc hiệu quả.</p>
+          <h1 className="vs-display text-4xl font-bold text-[var(--primary)]">Tổng quan điều hành &amp; Tài chính</h1>
+          <p className="mt-2 text-base italic text-[var(--on-surface-variant)]">Kính chào Quý Quản lý. Báo cáo doanh thu và giám sát vận hành cơ sở lưu trú thời gian thực.</p>
         </div>
-        <div className="text-left md:text-right">
-          <p className="text-sm font-bold uppercase tracking-[0.12em] text-[var(--primary)]/60">Ngày hôm nay</p>
-          <p className="vs-display mt-1 text-xl font-semibold text-[var(--primary)]">{formatDayMonth(dashboard.generatedAt)}</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            href={`/hotels/${hotelId}/billing`}
+            prefetch={true}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--primary)] px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:opacity-90 active:scale-95"
+          >
+            <VsIcon name="payments" className="text-base" />
+            <span>Sổ thu ngân &amp; Hóa đơn</span>
+          </Link>
+          <div className="text-left md:text-right">
+            <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--primary)]/60">Ngày hôm nay</p>
+            <p className="vs-display mt-0.5 text-xl font-semibold text-[var(--primary)]">{formatDayMonth(dashboard.generatedAt)}</p>
+          </div>
         </div>
       </header>
+
+      {/* Trung tâm Tài chính & Doanh thu Khách sạn */}
+      <section className="rounded-xl border border-[var(--outline-variant)]/30 bg-white p-5 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 border-b border-[var(--outline-variant)]/20 pb-3">
+          <div className="flex items-center gap-2.5">
+            <span className="grid size-9 place-items-center rounded-lg bg-[#e6efe9] text-[var(--primary)]">
+              <VsIcon name="account_balance_wallet" className="text-xl" />
+            </span>
+            <div>
+              <h2 className="text-base font-bold text-[var(--primary)]">Các khoản tiền &amp; Doanh thu vận hành</h2>
+              <p className="text-xs text-[var(--on-surface-variant)]">Ghi nhận doanh thu từ tiền phòng, dịch vụ đã thanh toán và các khoản chờ thu.</p>
+            </div>
+          </div>
+          <Link
+            href={`/hotels/${hotelId}/billing`}
+            prefetch={true}
+            className="text-xs font-bold text-[var(--primary)] hover:underline flex items-center gap-1 shrink-0"
+          >
+            <span>Chi tiết thu ngân</span>
+            <VsIcon name="arrow_forward" className="text-xs" />
+          </Link>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-xl border border-[#bbf7d0] bg-[#f0fdf4] p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-wider text-[#166534]">Doanh thu hôm nay</p>
+              <span className="grid size-7 place-items-center rounded-md bg-white text-[#15803d] shadow-2xs">
+                <VsIcon name="payments" className="text-base" />
+              </span>
+            </div>
+            <p className="vs-display mt-2 text-2xl lg:text-3xl font-bold text-[#14532d]">
+              {formatMoney(dashboard.revenue.today, dashboard.revenue.currency)}
+            </p>
+            <p className="mt-1 text-xs text-[#166534] font-medium">Phát sinh thực thu trong ngày</p>
+          </div>
+
+          <div className="rounded-xl border border-[var(--outline-variant)]/40 bg-[var(--surface-container-low)] p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-wider text-[var(--on-surface-variant)]">7 ngày gần nhất</p>
+              <span className="grid size-7 place-items-center rounded-md bg-white text-[var(--primary)] shadow-2xs">
+                <VsIcon name="trending_up" className="text-base" />
+              </span>
+            </div>
+            <p className="vs-display mt-2 text-2xl lg:text-3xl font-bold text-[var(--primary)]">
+              {formatMoney(dashboard.revenue.last7Days, dashboard.revenue.currency)}
+            </p>
+            <p className="mt-1 text-xs text-[var(--on-surface-variant)] font-medium">Xu hướng tuần hiện tại</p>
+          </div>
+
+          <div className="rounded-xl border border-[#fed7aa] bg-[#fffaf5] p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-wider text-[#9a3412]">Doanh thu tháng này</p>
+              <span className="grid size-7 place-items-center rounded-md bg-white text-[#c2410c] shadow-2xs">
+                <VsIcon name="calendar_month" className="text-base" />
+              </span>
+            </div>
+            <p className="vs-display mt-2 text-2xl lg:text-3xl font-bold text-[#9a3412]">
+              {formatMoney(dashboard.revenue.currentMonth, dashboard.revenue.currency)}
+            </p>
+            <p className="mt-1 text-xs text-[#9a3412] font-medium">Lũy kế tháng hiện hành</p>
+          </div>
+
+          <div className="rounded-xl border border-[#fecaca] bg-[#fff5f5] p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-wider text-[#991b1b]">Chờ thanh toán / Trả phòng</p>
+              <span className="grid size-7 place-items-center rounded-md bg-white text-[#b91c1c] shadow-2xs">
+                <VsIcon name="logout" className="text-base" />
+              </span>
+            </div>
+            <p className="vs-display mt-2 text-2xl lg:text-3xl font-bold text-[#991b1b]">
+              {String(dashboard.stays.pendingCheckOuts).padStart(2, "0")} <span className="text-sm font-normal">lượt</span>
+            </p>
+            <div className="mt-1 flex items-center justify-between text-xs">
+              <span className="text-[#991b1b] font-medium">Chưa chốt hóa đơn</span>
+              <Link
+                href={`/hotels/${hotelId}/billing`}
+                prefetch={true}
+                className="font-bold text-[#b91c1c] hover:underline"
+              >
+                Thu tiền &rarr;
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <section className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
         {roomCards.map((card) => (
@@ -117,7 +213,7 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
             <VsIcon name="calendar_month" className="text-4xl" /><span className="text-sm tracking-[0.08em]">ĐẶT PHÒNG NHANH</span>
           </Link>
           <Link href={`/hotels/${hotelId}/billing`} prefetch={true} className="flex min-h-36 flex-col items-center justify-center gap-2 rounded-xl border-2 border-[var(--outline-variant)] bg-white p-5 text-center font-bold text-[var(--primary)] transition hover:bg-[var(--primary-fixed)]">
-            <VsIcon name="logout" className="text-4xl" /><span className="text-sm tracking-[0.08em]">LÀM THỦ TỤC ĐI</span>
+            <VsIcon name="logout" className="text-4xl" /><span className="text-sm tracking-[0.08em]">LÀM THỦ TỤC ĐI &amp; THANH TOÁN</span>
           </Link>
           <Link href={`/hotels/${hotelId}/rooms`} prefetch={true} className="flex min-h-36 flex-col items-center justify-center gap-2 rounded-xl border-2 border-[var(--outline-variant)] bg-white p-5 text-center font-bold text-[var(--primary)] transition hover:bg-[var(--primary-fixed)]">
             <VsIcon name="key" className="text-4xl" /><span className="text-sm tracking-[0.08em]">MỞ PHÒNG MỚI</span>
@@ -156,12 +252,6 @@ export default async function StaffHotelDashboardPage({ params }: PageProps) {
             </div>
           </div>
         </aside>
-      </section>
-
-      <section className="grid gap-4 md:grid-cols-3">
-        <article className="rounded-xl bg-[var(--primary)] p-5 text-white"><p className="text-sm font-bold uppercase tracking-[0.12em] text-white/70">Doanh thu đã thu</p><p className="mt-2 text-3xl font-bold">{formatMoney(dashboard.revenue.today, dashboard.revenue.currency)}</p><p className="mt-2 text-sm text-white/70">7 ngày: {formatMoney(dashboard.revenue.last7Days, dashboard.revenue.currency)}</p></article>
-        <article className="rounded-xl border border-[var(--outline-variant)] bg-white p-5"><p className="text-sm font-bold text-[var(--primary)]">SLA yêu cầu</p><p className="mt-2 text-3xl font-bold text-[var(--primary)]">{dashboard.sla.completedWithinSlaPercent == null ? "--" : `${dashboard.sla.completedWithinSlaPercent}%`}</p><p className="mt-1 text-sm text-[var(--on-surface-variant)]">Hoàn tất trong {dashboard.sla.thresholdMinutes} phút</p></article>
-        <article className="rounded-xl border border-[var(--outline-variant)] bg-white p-5"><p className="text-sm font-bold text-[var(--primary)]">Tình trạng vận hành</p><p className="mt-2 text-3xl font-bold text-[var(--secondary)]">{dashboard.health.score}/100</p><p className="mt-1 text-sm text-[var(--on-surface-variant)]">{dashboard.health.title}</p></article>
       </section>
     </main>
   );

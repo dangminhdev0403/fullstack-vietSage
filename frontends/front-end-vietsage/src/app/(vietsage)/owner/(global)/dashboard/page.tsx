@@ -321,6 +321,78 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
         </EmptyState>
       ) : (
         <>
+          {/* Decision-Grade Financial Hub - Prominently Displayed for Owners */}
+          <SectionCard>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-[#eee6d8] pb-5">
+              <div>
+                <span className="text-xs font-extrabold uppercase tracking-widest text-[#8c6d29]">Hiệu quả kinh doanh &amp; Tài chính</span>
+                <h2 className="mt-0.5 text-xl sm:text-2xl font-bold tracking-tight text-[#17382F]">
+                  Dòng tiền &amp; Doanh thu vận hành
+                </h2>
+                <p className="mt-1 text-xs text-[#5a6860]">
+                  Theo dõi doanh thu phòng, dịch vụ nội bộ và doanh thu dịch vụ đối tác ngoài (Marketplace).
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5">
+                <Link
+                  href={`/owner/hotels/${hotel.id}/billing`}
+                  prefetch={true}
+                  className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#dcd3c1] bg-[#fffdfa] px-5 text-sm font-bold text-[#215744] transition-all hover:bg-[#f4efe5] shadow-2xs"
+                >
+                  Quản lý hóa đơn &amp; phí SaaS
+                </Link>
+                <Link
+                  href={`/owner/hotels/${hotel.id}/partners`}
+                  prefetch={true}
+                  className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#215744] px-5 text-sm font-bold text-white shadow-sm transition-all hover:bg-[#184434]"
+                >
+                  Xem đối soát đối tác
+                </Link>
+              </div>
+            </div>
+
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {/* Doanh thu hôm nay */}
+              <div className="rounded-2xl border border-[#e8dfcf] bg-[#fdfbf6] p-5">
+                <p className="text-xs font-extrabold uppercase tracking-wider text-[#65726a]">Doanh thu hôm nay</p>
+                <p className="mt-2 text-2xl lg:text-3xl font-extrabold tracking-tight text-[#17382F]">
+                  {dashboard.revenue.available ? formatVnd(dashboard.revenue.today) : "Chưa đủ dữ liệu"}
+                </p>
+                <p className="mt-2 text-xs font-semibold text-[#8c6d29]">Ghi nhận phát sinh trong ngày</p>
+              </div>
+
+              {/* 7 ngày gần nhất */}
+              <div className="rounded-2xl border border-[#e8dfcf] bg-[#fdfbf6] p-5">
+                <p className="text-xs font-extrabold uppercase tracking-wider text-[#65726a]">7 ngày gần nhất</p>
+                <p className="mt-2 text-2xl lg:text-3xl font-extrabold tracking-tight text-[#17382F]">
+                  {dashboard.revenue.available ? formatVnd(dashboard.revenue.last7Days) : "Chưa đủ dữ liệu"}
+                </p>
+                <p className="mt-2 text-xs font-semibold text-[#5a6860]">Xu hướng tuần hiện tại</p>
+              </div>
+
+              {/* Doanh thu tháng này */}
+              <div className="rounded-2xl border border-[#e8dfcf] bg-[#fdfbf6] p-5">
+                <p className="text-xs font-extrabold uppercase tracking-wider text-[#65726a]">Doanh thu tháng này</p>
+                <p className="mt-2 text-2xl lg:text-3xl font-extrabold tracking-tight text-[#17382F]">
+                  {dashboard.revenue.available ? formatVnd(dashboard.revenue.currentMonth) : "Chưa đủ dữ liệu"}
+                </p>
+                <p className="mt-2 text-xs font-semibold text-[#5a6860]">Lũy kế tháng hiện hành</p>
+              </div>
+
+              {/* Doanh thu Marketplace lũy kế */}
+              <div className="rounded-2xl border border-emerald-300 bg-emerald-50/70 p-5">
+                <p className="text-xs font-extrabold uppercase tracking-wider text-emerald-900">Doanh thu Marketplace lũy kế</p>
+                <p className="mt-2 text-2xl lg:text-3xl font-extrabold tracking-tight text-[#174e38]">
+                  {formatVnd(Number(marketplaceRevenue?.grossAmount ?? 0))}
+                </p>
+                <p className="mt-2 text-xs font-bold text-emerald-800">
+                  {marketplaceRevenue?.orderCount ?? 0} đơn ngoài đã hoàn tất
+                </p>
+              </div>
+            </div>
+          </SectionCard>
+
           {/* Top 4 Executive KPI Cards */}
           <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
             {/* Card 1: Công suất phòng */}
@@ -412,82 +484,12 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
                 ) : (
                   <span className="text-emerald-700 font-bold">Xử lý ổn định</span>
                 )}
-                <span className="text-[#5a6860]">SLA: {dashboard.sla?.completedWithinSlaPercent ?? 98}%</span>
+                <span className="text-[#5a6860]">
+                  SLA: {dashboard.sla?.completedWithinSlaPercent != null ? `${dashboard.sla.completedWithinSlaPercent}%` : "Theo dõi"}
+                </span>
               </div>
             </article>
           </section>
-
-          {/* Decision-Grade Financial Hub */}
-          <SectionCard>
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-[#eee6d8] pb-5">
-              <div>
-                <span className="text-xs font-extrabold uppercase tracking-widest text-[#8c6d29]">Hiệu quả kinh doanh</span>
-                <h2 className="mt-0.5 text-xl sm:text-2xl font-bold tracking-tight text-[#17382F]">
-                  Tài chính vận hành
-                </h2>
-                <p className="mt-1 text-xs text-[#5a6860]">
-                  Theo dõi doanh thu phòng, dịch vụ nội bộ và doanh thu dịch vụ đối tác ngoài (Marketplace).
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2.5">
-                <Link
-                  href={`/owner/hotels/${hotel.id}/billing`}
-                  prefetch={true}
-                  className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#dcd3c1] bg-[#fffdfa] px-5 text-sm font-bold text-[#215744] transition-all hover:bg-[#f4efe5] shadow-2xs"
-                >
-                  Quản lý hóa đơn &amp; phí SaaS
-                </Link>
-                <Link
-                  href={`/owner/hotels/${hotel.id}/partners`}
-                  prefetch={true}
-                  className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#215744] px-5 text-sm font-bold text-white shadow-sm transition-all hover:bg-[#184434]"
-                >
-                  Xem đối soát đối tác
-                </Link>
-              </div>
-            </div>
-
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {/* Doanh thu hôm nay */}
-              <div className="rounded-2xl border border-[#e8dfcf] bg-[#fdfbf6] p-5">
-                <p className="text-xs font-extrabold uppercase tracking-wider text-[#65726a]">Doanh thu hôm nay</p>
-                <p className="mt-2 text-2xl lg:text-3xl font-extrabold tracking-tight text-[#17382F]">
-                  {dashboard.revenue.available ? formatVnd(dashboard.revenue.today) : "Chưa đủ dữ liệu"}
-                </p>
-                <p className="mt-2 text-xs font-semibold text-[#8c6d29]">Ghi nhận phát sinh trong ngày</p>
-              </div>
-
-              {/* 7 ngày gần nhất */}
-              <div className="rounded-2xl border border-[#e8dfcf] bg-[#fdfbf6] p-5">
-                <p className="text-xs font-extrabold uppercase tracking-wider text-[#65726a]">7 ngày gần nhất</p>
-                <p className="mt-2 text-2xl lg:text-3xl font-extrabold tracking-tight text-[#17382F]">
-                  {dashboard.revenue.available ? formatVnd(dashboard.revenue.last7Days) : "Chưa đủ dữ liệu"}
-                </p>
-                <p className="mt-2 text-xs font-semibold text-[#5a6860]">Xu hướng tuần hiện tại</p>
-              </div>
-
-              {/* Doanh thu tháng này */}
-              <div className="rounded-2xl border border-[#e8dfcf] bg-[#fdfbf6] p-5">
-                <p className="text-xs font-extrabold uppercase tracking-wider text-[#65726a]">Doanh thu tháng này</p>
-                <p className="mt-2 text-2xl lg:text-3xl font-extrabold tracking-tight text-[#17382F]">
-                  {dashboard.revenue.available ? formatVnd(dashboard.revenue.currentMonth) : "Chưa đủ dữ liệu"}
-                </p>
-                <p className="mt-2 text-xs font-semibold text-[#5a6860]">Lũy kế tháng hiện hành</p>
-              </div>
-
-              {/* Doanh thu Marketplace lũy kế */}
-              <div className="rounded-2xl border border-emerald-300 bg-emerald-50/70 p-5">
-                <p className="text-xs font-extrabold uppercase tracking-wider text-emerald-900">Doanh thu Marketplace lũy kế</p>
-                <p className="mt-2 text-2xl lg:text-3xl font-extrabold tracking-tight text-[#174e38]">
-                  {formatVnd(Number(marketplaceRevenue?.grossAmount ?? 0))}
-                </p>
-                <p className="mt-2 text-xs font-bold text-emerald-800">
-                  {marketplaceRevenue?.orderCount ?? 0} đơn ngoài đã hoàn tất
-                </p>
-              </div>
-            </div>
-          </SectionCard>
 
           {/* Operational Health & Service Performance Row */}
           <div className="grid gap-6 lg:grid-cols-2">
@@ -562,7 +564,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
                 <div className="mt-5 rounded-2xl border border-[#e8dfcf] bg-[#fdfbf6] p-4 space-y-2">
                   <p className="text-xs font-bold text-[#17382F] flex items-center gap-1.5">
                     <span className="text-[#8c6d29]">✦</span>
-                    Chỉ số chất lượng: {dashboard.health.title} ({dashboard.health.score ?? 95}/100)
+                    Chỉ số chất lượng: {dashboard.health.title} {dashboard.health.score != null ? `(${dashboard.health.score}/100)` : ""}
                   </p>
                   <div className="space-y-1.5 text-xs text-[#5a6860]">
                     {dashboard.health.factors.slice(0, 2).map((factor, idx) => (
@@ -596,19 +598,19 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
                 <div className="rounded-2xl border border-[#e8dfcf] bg-[#fdfbf6] p-3.5 text-center">
                   <p className="text-[11px] font-extrabold uppercase tracking-wider text-[#65726a]">Phản hồi TB</p>
                   <p className="mt-1 text-xl font-bold text-[#17382F]">
-                    {dashboard.sla?.averageResponseMinutes ?? 5} <span className="text-xs font-normal">phút</span>
+                    {dashboard.sla?.averageResponseMinutes != null ? `${dashboard.sla.averageResponseMinutes} phút` : "--"}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-[#e8dfcf] bg-[#fdfbf6] p-3.5 text-center">
                   <p className="text-[11px] font-extrabold uppercase tracking-wider text-[#65726a]">Hoàn tất TB</p>
                   <p className="mt-1 text-xl font-bold text-[#17382F]">
-                    {dashboard.sla?.averageCompletionMinutes ?? 18} <span className="text-xs font-normal">phút</span>
+                    {dashboard.sla?.averageCompletionMinutes != null ? `${dashboard.sla.averageCompletionMinutes} phút` : "--"}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3.5 text-center">
                   <p className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-900">Đúng SLA</p>
                   <p className="mt-1 text-xl font-bold text-[#174e38]">
-                    {dashboard.sla?.completedWithinSlaPercent ?? 98}%
+                    {dashboard.sla?.completedWithinSlaPercent != null ? `${dashboard.sla.completedWithinSlaPercent}%` : "--"}
                   </p>
                 </div>
               </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { SwalVietSage } from "@/libs/swal";
 import { useWorkstationScan } from "../hooks/use-workstation-scan";
 
 export function WorkstationConnectionPanel({ hotelId }: { hotelId: string }) {
@@ -89,19 +90,44 @@ export function WorkstationConnectionPanel({ hotelId }: { hotelId: string }) {
               </div>
 
               {pairCode ? (
-                <div className="w-full max-w-md rounded-2xl border-2 border-amber-300 bg-amber-50/70 p-5 text-center">
+                <div className="w-full max-w-md rounded-2xl border border-amber-300 bg-amber-50/70 p-4 sm:p-5 text-center shadow-xs">
                   <p className="text-xs font-bold uppercase tracking-wider text-amber-900">Mã ghép nối một lần</p>
                   <p className="mt-1 text-xs text-amber-800">Nhập mã này vào màn hình cảm ứng hoặc giao diện cấu hình HN-212:</p>
-                  <div className="mt-3 flex items-center justify-center gap-2">
-                    <code className="block rounded-xl bg-white px-5 py-2.5 font-mono text-2xl sm:text-3xl font-black tracking-widest text-[#000080] shadow-2xs border border-amber-200">
-                      {pairCode}
-                    </code>
+                  <div className="mt-3.5 flex flex-col gap-2.5 sm:flex-row sm:items-center">
+                    <div className="min-w-0 flex-1">
+                      <code
+                        onClick={copyCode}
+                        title="Nhấn để sao chép mã"
+                        className={`block w-full cursor-pointer rounded-xl border border-amber-200 bg-white px-3.5 py-2.5 font-mono text-[#000080] shadow-2xs transition-colors hover:border-amber-400 break-all select-all ${
+                          pairCode.length <= 8
+                            ? "text-xl sm:text-2xl font-bold tracking-widest text-center"
+                            : "text-xs sm:text-sm font-semibold tracking-normal leading-relaxed text-center"
+                        }`}
+                      >
+                        {pairCode}
+                      </code>
+                    </div>
                     <button
                       type="button"
                       onClick={copyCode}
-                      className="inline-flex min-h-11 items-center justify-center rounded-xl border border-amber-300 bg-white px-4 py-2 text-xs font-bold text-stone-700 hover:bg-stone-50"
+                      className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-amber-300 bg-white px-4 py-2 text-xs font-bold text-stone-700 shadow-2xs transition-all hover:bg-stone-50 active:scale-[0.98]"
+                      title="Sao chép mã ghép nối"
                     >
-                      {copied ? "Đã chép" : "Sao chép"}
+                      {copied ? (
+                        <>
+                          <svg className="h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                          <span className="text-emerald-700">Đã chép</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg className="h-4 w-4 text-stone-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                          <span>Sao chép</span>
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
@@ -129,7 +155,16 @@ export function WorkstationConnectionPanel({ hotelId }: { hotelId: string }) {
                 <button
                   type="button"
                   onClick={async () => {
-                    if (!confirm("Hủy kết nối máy quét? Dữ liệu thiết bị và dữ liệu đã quét không bị xóa. Bạn có thể kết nối lại sau.")) return;
+                    const result = await SwalVietSage.fire({
+                      title: "Hủy kết nối máy quét?",
+                      text: "Dữ liệu thiết bị và dữ liệu đã quét không bị xóa. Bạn có thể kết nối lại sau.",
+                      icon: "warning",
+                      showCancelButton: true,
+                      confirmButtonText: "Hủy kết nối",
+                      cancelButtonText: "Hủy bỏ",
+                      reverseButtons: false,
+                    });
+                    if (!result.isConfirmed) return;
                     setActionError(null);
                     try {
                       await disconnect();

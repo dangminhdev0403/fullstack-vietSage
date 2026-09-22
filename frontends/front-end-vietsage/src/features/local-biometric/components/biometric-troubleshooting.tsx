@@ -18,7 +18,7 @@ const TROUBLESHOOTING_GUIDES: GuideItem[] = [
     steps: [
       "Kiểm tra dây cáp USB kết nối trực tiếp vào cổng USB 3.0 phía sau case máy tính (tránh cắm qua Hub chia cổng không đủ nguồn).",
       "Đảm bảo dịch vụ VietSage Device Daemon đang chạy dưới khay hệ thống Windows (Taskbar Tray) tại cổng localhost:8080.",
-      "Bấm nút 'Tạo mã ghép nối' trên màn hình này và nhập 6 số hiển thị vào máy đọc HN-212.",
+      "Bấm nút 'Tạo mã ghép nối' trên màn hình này và nhập mã hiển thị vào máy đọc HN-212.",
     ],
     recommendedFix: "Khởi động lại phần mềm trạm VietSage Daemon hoặc rút cắm lại cáp USB.",
   },
