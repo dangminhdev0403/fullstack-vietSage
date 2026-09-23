@@ -6,7 +6,6 @@ import { auth } from "@/auth";
 import { resolveWorkspacePersona } from "@/features/workspace/config/workspace-registry";
 
 import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
-import { ownerAttentionRoute } from "@/features/hotel-ops/utils/owner-attention-route";
 import { servicePortalClient } from "@/features/service-portal/service-client";
 import { readServerSessionTokens } from "@/libs/server-session-tokens";
 import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
@@ -641,67 +640,6 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
             </SectionCard>
           </div>
 
-          {/* Executive Attention Center */}
-          <SectionCard>
-            <div className="flex items-center justify-between border-b border-[#eee6d8] pb-3.5">
-              <div className="flex items-center gap-2.5">
-                <h2 className="text-xl font-bold tracking-tight text-[#17382F]">
-                  Cần chú ý ({dashboard.attention.length})
-                </h2>
-                {dashboard.attention.length > 0 ? (
-                  <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-bold text-red-800">
-                    Cần phê duyệt / can thiệp
-                  </span>
-                ) : null}
-              </div>
-            </div>
-
-            <div className="mt-4 space-y-3">
-              {dashboard.attention.length ? (
-                dashboard.attention.map((item) => (
-                  <div
-                    key={`${item.type}-${item.id}`}
-                    className="grid gap-4 rounded-2xl border border-[#ebdcc8] bg-[#fffaf2] p-4 sm:p-5 md:grid-cols-[1fr_auto] md:items-center shadow-2xs"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider ${
-                            item.priority === "urgent"
-                              ? "bg-[#a84435] text-white"
-                              : "bg-[#e8b363] text-[#17382F]"
-                          }`}
-                        >
-                          {item.priority === "urgent" ? "Khẩn cấp" : "Cần chú ý"}
-                        </span>
-                        <span className="text-xs text-[#65726a]">
-                          {formatTime(item.createdAt)}
-                        </span>
-                      </div>
-                      <p className="mt-2 text-base font-bold text-[#17382F]">
-                        {item.title}
-                      </p>
-                      <p className="mt-1 text-sm text-[#5a6860] leading-relaxed">
-                        {item.description}
-                      </p>
-                    </div>
-                    <Link
-                      href={ownerAttentionRoute(item.action.route, hotel.id)}
-                      prefetch={true}
-                      className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#215744] px-5 text-sm font-bold text-white shadow-sm transition-all hover:bg-[#184434]"
-                    >
-                      {item.action.label || "Xem chi tiết"}
-                    </Link>
-                  </div>
-                ))
-              ) : (
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-6 text-center text-sm font-semibold text-emerald-900 flex flex-col items-center gap-2">
-                  <span className="text-2xl">✨</span>
-                  <span>Mọi hoạt động phòng và dịch vụ đang diễn ra ổn định. Không có cảnh báo tồn đọng.</span>
-                </div>
-              )}
-            </div>
-          </SectionCard>
 
           {/* Operational Insights (if any) */}
           {dashboard.insights?.length ? (

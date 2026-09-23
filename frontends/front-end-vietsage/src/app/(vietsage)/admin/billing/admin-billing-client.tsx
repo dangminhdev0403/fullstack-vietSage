@@ -67,12 +67,16 @@ export function AdminBillingClient() {
 
   // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [submittingContract, setSubmittingContract] = useState(false);
   const [createForm, setCreateForm] = useState({
     hotelId: "",
     pricingModel: "FIXED" as "FIXED" | "PERCENTAGE",
     pricingValue: "10000",
     billingStartedAt: new Date().toISOString().substring(0, 10),
   });
+  // Simulation states for fee estimation preview
+  const [simCheckins, setSimCheckins] = useState(500);
+  const [simMonthlyRevenue, setSimMonthlyRevenue] = useState(150000000);
 
   const [showFinalizeModal, setShowFinalizeModal] = useState(false);
   const [selectedContractId, setSelectedContractId] = useState("");
@@ -247,12 +251,51 @@ export function AdminBillingClient() {
       await SwalVietSage.fire({
         icon: "error",
         title: "Lỗi",
-        text: "Vui lòng chọn khách sạn",
+        text: "Vui lòng chọn khách sạn áp dụng hợp đồng",
         showConfirmButton: true,
         confirmButtonText: "OK",
       });
       return;
     }
+
+    const hasActive = contracts.some(
+      (c) => c.hotelId === createForm.hotelId && c.status === "ACTIVE",
+    );
+    if (hasActive) {
+      await SwalVietSage.fire({
+        icon: "warning",
+        title: "Khách sạn đã có hợp đồng",
+        text: "Khách sạn này đã có hợp đồng tính phí đang hoạt động. Vui lòng chọn khách sạn khác hoặc cập nhật biểu phí thông qua chức năng Điều chỉnh giá.",
+        showConfirmButton: true,
+        confirmButtonText: "OK",
+      });
+      return;
+    }
+
+    const numValue = Number(createForm.pricingValue);
+    if (!Number.isFinite(numValue) || numValue <= 0) {
+      await SwalVietSage.fire({
+        icon: "error",
+        title: "Lỗi",
+        text: "Mức phí/tỷ lệ phí phải là số hợp lệ lớn hơn 0",
+        showConfirmButton: true,
+        confirmButtonText: "OK",
+      });
+      return;
+    }
+
+    if (createForm.pricingModel === "PERCENTAGE" && numValue > 100) {
+      await SwalVietSage.fire({
+        icon: "error",
+        title: "Lỗi",
+        text: "Tỷ lệ phí phần trăm không được vượt quá 100%",
+        showConfirmButton: true,
+        confirmButtonText: "OK",
+      });
+      return;
+    }
+
+    setSubmittingContract(true);
     try {
       await requestInternalApiEnvelope(
         "/api/admin/platform-billing/contracts",
@@ -261,13 +304,22 @@ export function AdminBillingClient() {
           body: {
             hotelId: createForm.hotelId,
             pricingModel: createForm.pricingModel,
-            pricingValue: Number(createForm.pricingValue),
+            pricingValue: numValue,
             billingStartedAt: createForm.billingStartedAt,
           },
         },
       );
-      await showSuccessAlert("Thành công", "Đã khởi tạo hợp đồng tính phí mới");
+      await showSuccessAlert(
+        "Khởi tạo thành công",
+        "Đã hoàn tất onboard hợp đồng tính phí VietSage SaaS cho khách sạn.",
+      );
       setShowCreateModal(false);
+      setCreateForm({
+        hotelId: "",
+        pricingModel: "FIXED",
+        pricingValue: "10000",
+        billingStartedAt: new Date().toISOString().substring(0, 10),
+      });
       void refreshData();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Không thể tạo hợp đồng";
@@ -278,6 +330,8 @@ export function AdminBillingClient() {
         showConfirmButton: true,
         confirmButtonText: "OK",
       });
+    } finally {
+      setSubmittingContract(false);
     }
   };
 
@@ -849,151 +903,480 @@ export function AdminBillingClient() {
         </div>
       )}
 
-      {/* Onboard Contract Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-8 shadow-2xl dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-            <div className="flex items-center justify-between border-b border-slate-200/80 pb-4 dark:border-slate-800">
-              <h3 className="text-xl font-extrabold text-slate-900 dark:text-white">
-                Onboard hợp đồng VietSage SaaS
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowCreateModal(false)}
-                aria-label="Đóng biểu mẫu tạo hợp đồng"
-                className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
-              >
-                <VsIcon name="close" className="text-xl" />
-              </button>
-            </div>
+      {/* Onboard Contract Modal (Pro-Max) */}
+      {showCreateModal && (() => {
+        const activeHotelIds = new Set(
+          contracts.filter((c) => c.status === "ACTIVE").map((c) => c.hotelId),
+        );
+        const availableHotels = hotels.filter((h) => !activeHotelIds.has(h.id));
+        const activeHotels = hotels.filter((h) => activeHotelIds.has(h.id));
+        const selectedHotel = hotels.find((h) => h.id === createForm.hotelId);
+        const isSelectedActive =
+          !!createForm.hotelId && activeHotelIds.has(createForm.hotelId);
 
-            <form onSubmit={handleCreateContract} className="mt-6 space-y-5">
-              <div>
-                <label
-                  htmlFor="onboard-hotel-select"
-                  className="block text-sm font-semibold text-slate-800 dark:text-slate-200 mb-1.5"
-                >
-                  Khách sạn áp dụng hợp đồng{" "}
-                  <span className="text-red-500">*</span>
-                </label>
-                <select
-                  id="onboard-hotel-select"
-                  required
-                  value={createForm.hotelId}
-                  onChange={(e) =>
-                    setCreateForm({ ...createForm, hotelId: e.target.value })
-                  }
-                  className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                >
-                  <option value="">-- Chọn tên khách sạn --</option>
-                  {hotels.map((h) => (
-                    <option key={h.id} value={h.id}>
-                      {h.name} {h.code ? `(${h.code})` : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
+        const numVal = Number(createForm.pricingValue) || 0;
+        const projectedMonthlyFee =
+          createForm.pricingModel === "FIXED"
+            ? simCheckins * numVal
+            : simMonthlyRevenue * (numVal / 100);
 
-              <div>
-                <label
-                  htmlFor="onboard-pricing-model"
-                  className="block text-sm font-semibold text-slate-800 dark:text-slate-200 mb-1.5"
-                >
-                  Phương thức tính phí <span className="text-red-500">*</span>
-                </label>
-                <select
-                  id="onboard-pricing-model"
-                  value={createForm.pricingModel}
-                  onChange={(e) =>
-                    setCreateForm({
-                      ...createForm,
-                      pricingModel: e.target.value as "FIXED" | "PERCENTAGE",
-                      pricingValue: "",
-                    })
-                  }
-                  className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                >
-                  <option value="FIXED">Phí cố định</option>
-                  <option value="PERCENTAGE">Phí theo tỷ lệ (%)</option>
-                </select>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="onboard-unit-price"
-                  className="block text-sm font-semibold text-slate-800 dark:text-slate-200 mb-1.5"
-                >
-                  {createForm.pricingModel === "FIXED"
-                    ? "Mức phí/lượt check-in (VND)"
-                    : "Tỷ lệ phí trên giá phòng (%)"}{" "}
-                  <span className="text-red-500">*</span>
-                </label>
-                <input
-                  id="onboard-unit-price"
-                  type="number"
-                  required
-                  min="0"
-                  max={
-                    createForm.pricingModel === "PERCENTAGE" ? "100" : undefined
-                  }
-                  step={createForm.pricingModel === "PERCENTAGE" ? "0.01" : "1"}
-                  value={createForm.pricingValue}
-                  onChange={(e) =>
-                    setCreateForm({
-                      ...createForm,
-                      pricingValue: e.target.value,
-                    })
-                  }
-                  className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                />
-                <p className="mt-1 text-sm text-slate-500">
-                  {createForm.pricingModel === "FIXED"
-                    ? "Mức phí cố định cho mỗi phòng lưu trú thực tế trong ngày."
-                    : "Tỷ lệ áp dụng trên giá phòng đã lưu tại thời điểm phát sinh phí."}
-                </p>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="onboard-start-date"
-                  className="block text-sm font-semibold text-slate-800 dark:text-slate-200 mb-1.5"
-                >
-                  Ngày bắt đầu tính phí <span className="text-red-500">*</span>
-                </label>
-                <input
-                  id="onboard-start-date"
-                  type="date"
-                  required
-                  value={createForm.billingStartedAt}
-                  onChange={(e) =>
-                    setCreateForm({
-                      ...createForm,
-                      billingStartedAt: e.target.value,
-                    })
-                  }
-                  className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-200/80 dark:border-slate-800">
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 sm:p-6 backdrop-blur-sm overflow-y-auto">
+            <div className="relative w-full max-w-2xl rounded-2xl bg-white shadow-2xl dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 my-8 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between border-b border-slate-200/80 px-6 py-5 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-850/50">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/20">
+                    <VsIcon name="handshake" className="text-2xl" />
+                  </span>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+                        Onboard hợp đồng VietSage SaaS
+                      </h3>
+                      <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60">
+                        Hợp đồng mới
+                      </span>
+                    </div>
+                    <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                      Kích hoạt thỏa thuận dịch vụ & thiết lập biểu phí nền tảng cho khách sạn đối tác
+                    </p>
+                  </div>
+                </div>
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="rounded-xl border border-slate-300 min-h-11 px-5 py-2.5 text-base font-bold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                  aria-label="Đóng biểu mẫu tạo hợp đồng"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 transition-colors"
                 >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="rounded-xl bg-emerald-600 min-h-11 px-5 py-2.5 text-base font-bold text-white shadow-md shadow-emerald-600/20 hover:bg-emerald-500"
-                >
-                  Tạo hợp đồng
+                  <VsIcon name="close" className="text-xl" />
                 </button>
               </div>
-            </form>
+
+              {/* Modal Body / Form */}
+              <form onSubmit={handleCreateContract} className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
+                {/* Section 1: Đối tác khách sạn */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label
+                      htmlFor="onboard-hotel-select"
+                      className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5"
+                    >
+                      <VsIcon name="apartment" className="text-base text-emerald-600 dark:text-emerald-400" />
+                      Khách sạn áp dụng hợp đồng <span className="text-red-500">*</span>
+                    </label>
+                    <span className="text-xs text-slate-500">
+                      {availableHotels.length} khả dụng / {hotels.length} khách sạn
+                    </span>
+                  </div>
+
+                  <select
+                    id="onboard-hotel-select"
+                    required
+                    value={createForm.hotelId}
+                    onChange={(e) =>
+                      setCreateForm({ ...createForm, hotelId: e.target.value })
+                    }
+                    className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                  >
+                    <option value="">-- Chọn khách sạn cần kích hoạt hợp đồng --</option>
+                    {availableHotels.length > 0 && (
+                      <optgroup label="Khách sạn sẵn sàng onboard (Chưa có hợp đồng)">
+                        {availableHotels.map((h) => (
+                          <option key={h.id} value={h.id}>
+                            {h.name} {h.code ? `(${h.code})` : ""}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {activeHotels.length > 0 && (
+                      <optgroup label="Khách sạn đang hoạt động (Đã có hợp đồng Active)">
+                        {activeHotels.map((h) => (
+                          <option key={h.id} value={h.id} disabled>
+                            {h.name} {h.code ? `(${h.code})` : ""} — [ĐÃ CÓ HỢP ĐỒNG]
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                  </select>
+
+                  {/* Contextual warning if active hotel selected */}
+                  {isSelectedActive && (
+                    <div className="rounded-xl border border-amber-300 bg-amber-50/80 p-3.5 text-xs text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-200 flex items-start gap-2.5">
+                      <VsIcon name="warning" className="text-lg text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold">Khách sạn này đã có hợp đồng đang hoạt động (ACTIVE)</p>
+                        <p className="mt-0.5 text-amber-800 dark:text-amber-300">
+                          Hệ thống không cho phép tạo hợp đồng mới đè lên. Vui lòng đóng modal và sử dụng tính năng &quot;Chốt kỳ hóa đơn&quot; hoặc &quot;Điều chỉnh biểu phí&quot; trên danh sách hợp đồng.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedHotel && !isSelectedActive && (
+                    <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/60 p-3 text-xs text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/30 dark:text-emerald-300 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <VsIcon name="check_circle" className="text-base text-emerald-600 dark:text-emerald-400" />
+                        <span>Đối tác: <strong>{selectedHotel.name}</strong> {selectedHotel.code ? `(${selectedHotel.code})` : ""}</span>
+                      </div>
+                      <span className="font-semibold text-emerald-700 dark:text-emerald-300">Sẵn sàng kích hoạt</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Section 2: Phương thức tính phí (Segmented Cards) */}
+                <div className="space-y-3">
+                  <label className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                    <VsIcon name="loyalty" className="text-base text-emerald-600 dark:text-emerald-400" />
+                    Mô hình tính phí SaaS <span className="text-red-500">*</span>
+                  </label>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Fixed model card */}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setCreateForm({
+                          ...createForm,
+                          pricingModel: "FIXED",
+                          pricingValue: "10000",
+                        })
+                      }
+                      className={`relative flex flex-col p-4 text-left rounded-xl border-2 transition-all ${
+                        createForm.pricingModel === "FIXED"
+                          ? "border-emerald-500 bg-emerald-50/40 dark:bg-emerald-950/30 dark:border-emerald-500 shadow-sm"
+                          : "border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800/60 hover:border-slate-300 dark:hover:border-slate-600"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full mb-1">
+                        <span className="flex items-center gap-2 font-bold text-sm text-slate-900 dark:text-white">
+                          <VsIcon name="pin" className="text-emerald-600 dark:text-emerald-400 text-lg" />
+                          Phí cố định theo lượt
+                        </span>
+                        {createForm.pricingModel === "FIXED" && (
+                          <span className="h-5 w-5 rounded-full bg-emerald-500 flex items-center justify-center text-white">
+                            <VsIcon name="check" className="text-xs" />
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                        Thu một mức phí cố định VND cho mỗi lượt phòng lưu trú / check-in thực tế.
+                      </p>
+                    </button>
+
+                    {/* Percentage model card */}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setCreateForm({
+                          ...createForm,
+                          pricingModel: "PERCENTAGE",
+                          pricingValue: "2",
+                        })
+                      }
+                      className={`relative flex flex-col p-4 text-left rounded-xl border-2 transition-all ${
+                        createForm.pricingModel === "PERCENTAGE"
+                          ? "border-emerald-500 bg-emerald-50/40 dark:bg-emerald-950/30 dark:border-emerald-500 shadow-sm"
+                          : "border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800/60 hover:border-slate-300 dark:hover:border-slate-600"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full mb-1">
+                        <span className="flex items-center gap-2 font-bold text-sm text-slate-900 dark:text-white">
+                          <VsIcon name="percent" className="text-emerald-600 dark:text-emerald-400 text-lg" />
+                          Tỷ lệ % doanh thu phòng
+                        </span>
+                        {createForm.pricingModel === "PERCENTAGE" && (
+                          <span className="h-5 w-5 rounded-full bg-emerald-500 flex items-center justify-center text-white">
+                            <VsIcon name="check" className="text-xs" />
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                        Trích % theo doanh thu phòng khách sạn ghi nhận tại thời điểm lưu trú.
+                      </p>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Section 3: Mức giá & Quick Presets */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label
+                      htmlFor="onboard-unit-price"
+                      className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5"
+                    >
+                      <VsIcon name="payments" className="text-base text-emerald-600 dark:text-emerald-400" />
+                      {createForm.pricingModel === "FIXED"
+                        ? "Mức phí mỗi lượt check-in (VND)"
+                        : "Tỷ lệ phí trên doanh thu phòng (%)"}{" "}
+                      <span className="text-red-500">*</span>
+                    </label>
+
+                    {/* Presets header */}
+                    <span className="text-xs text-slate-500">Mức đề xuất nhanh</span>
+                  </div>
+
+                  {/* Preset chips */}
+                  <div className="flex flex-wrap gap-2">
+                    {createForm.pricingModel === "FIXED" ? (
+                      <>
+                        {[5000, 10000, 15000, 20000, 30000].map((preset) => (
+                          <button
+                            key={preset}
+                            type="button"
+                            onClick={() =>
+                              setCreateForm({
+                                ...createForm,
+                                pricingValue: String(preset),
+                              })
+                            }
+                            className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
+                              createForm.pricingValue === String(preset)
+                                ? "bg-emerald-600 text-white shadow-sm"
+                                : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                            }`}
+                          >
+                            {preset.toLocaleString("vi-VN")} đ {preset === 10000 ? "(Chuẩn)" : ""}
+                          </button>
+                        ))}
+                      </>
+                    ) : (
+                      <>
+                        {[1, 1.5, 2, 3, 5].map((preset) => (
+                          <button
+                            key={preset}
+                            type="button"
+                            onClick={() =>
+                              setCreateForm({
+                                ...createForm,
+                                pricingValue: String(preset),
+                              })
+                            }
+                            className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
+                              createForm.pricingValue === String(preset)
+                                ? "bg-emerald-600 text-white shadow-sm"
+                                : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                            }`}
+                          >
+                            {preset}% {preset === 2 ? "(Chuẩn)" : ""}
+                          </button>
+                        ))}
+                      </>
+                    )}
+                  </div>
+
+                  {/* Input field with suffix */}
+                  <div className="relative">
+                    <input
+                      id="onboard-unit-price"
+                      type="number"
+                      required
+                      min="0"
+                      max={
+                        createForm.pricingModel === "PERCENTAGE" ? "100" : undefined
+                      }
+                      step={createForm.pricingModel === "PERCENTAGE" ? "0.01" : "1"}
+                      value={createForm.pricingValue}
+                      onChange={(e) =>
+                        setCreateForm({
+                          ...createForm,
+                          pricingValue: e.target.value,
+                        })
+                      }
+                      placeholder={createForm.pricingModel === "FIXED" ? "VD: 10000" : "VD: 2.0"}
+                      className="w-full rounded-xl border border-slate-300 px-4 py-3 pr-28 text-base font-bold text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    />
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-500 bg-slate-100 dark:bg-slate-700 px-2.5 py-1 rounded-md">
+                        {createForm.pricingModel === "FIXED" ? "VND / lượt" : "% giá phòng"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-slate-500 font-medium">
+                    {createForm.pricingModel === "FIXED"
+                      ? `Áp dụng cố định ${numVal.toLocaleString("vi-VN")} VND cho mỗi lượt check-in phát sinh.`
+                      : `Áp dụng trích ${numVal}% trên tổng tiền phòng đã ghi nhận.`}
+                  </p>
+                </div>
+
+                {/* Section 4: Live Estimator & Revenue Simulator (Pro-Max feature) */}
+                <div className="rounded-xl border border-emerald-500/30 bg-gradient-to-br from-emerald-50/70 via-teal-50/40 to-slate-50/60 p-4 dark:border-emerald-500/30 dark:from-emerald-950/30 dark:via-teal-950/20 dark:to-slate-900/40">
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">
+                        <VsIcon name="calculate" className="text-lg" />
+                      </span>
+                      <span className="text-xs font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+                        Mô phỏng doanh thu VietSage dự kiến
+                      </span>
+                    </div>
+                    <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                      Ước tính theo tháng
+                    </span>
+                  </div>
+
+                  {createForm.pricingModel === "FIXED" ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        <span>Lưu lượng check-in giả định:</span>
+                        <span className="text-emerald-700 dark:text-emerald-300 font-extrabold text-sm">
+                          {simCheckins.toLocaleString("vi-VN")} lượt / tháng
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="50"
+                        max="2000"
+                        step="50"
+                        value={simCheckins}
+                        onChange={(e) => setSimCheckins(Number(e.target.value))}
+                        className="w-full accent-emerald-600 cursor-pointer h-2 bg-slate-200 dark:bg-slate-700 rounded-lg"
+                      />
+                      <div className="flex items-center justify-between pt-2 border-t border-emerald-500/20 text-xs">
+                        <span className="text-slate-600 dark:text-slate-400 font-medium">
+                          Công thức: {simCheckins.toLocaleString("vi-VN")} lượt × {numVal.toLocaleString("vi-VN")} VND
+                        </span>
+                        <span className="font-extrabold text-base text-emerald-700 dark:text-emerald-400">
+                          ≈ {projectedMonthlyFee.toLocaleString("vi-VN")} VND
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        <span>Doanh thu phòng giả định:</span>
+                        <span className="text-emerald-700 dark:text-emerald-300 font-extrabold text-sm">
+                          {simMonthlyRevenue.toLocaleString("vi-VN")} VND / tháng
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="20000000"
+                        max="1000000000"
+                        step="10000000"
+                        value={simMonthlyRevenue}
+                        onChange={(e) => setSimMonthlyRevenue(Number(e.target.value))}
+                        className="w-full accent-emerald-600 cursor-pointer h-2 bg-slate-200 dark:bg-slate-700 rounded-lg"
+                      />
+                      <div className="flex items-center justify-between pt-2 border-t border-emerald-500/20 text-xs">
+                        <span className="text-slate-600 dark:text-slate-400 font-medium">
+                          Công thức: {simMonthlyRevenue.toLocaleString("vi-VN")} VND × {numVal}%
+                        </span>
+                        <span className="font-extrabold text-base text-emerald-700 dark:text-emerald-400">
+                          ≈ {projectedMonthlyFee.toLocaleString("vi-VN")} VND
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Section 5: Ngày bắt đầu tính phí */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label
+                      htmlFor="onboard-start-date"
+                      className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5"
+                    >
+                      <VsIcon name="calendar_today" className="text-base text-emerald-600 dark:text-emerald-400" />
+                      Ngày bắt đầu tính phí <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex items-center gap-1.5 text-xs">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCreateForm({
+                            ...createForm,
+                            billingStartedAt: new Date().toISOString().substring(0, 10),
+                          })
+                        }
+                        className="font-medium text-emerald-600 dark:text-emerald-400 hover:underline"
+                      >
+                        Hôm nay
+                      </button>
+                      <span className="text-slate-300 dark:text-slate-700">•</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const now = new Date();
+                          const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+                          setCreateForm({
+                            ...createForm,
+                            billingStartedAt: firstDay.toISOString().substring(0, 10),
+                          });
+                        }}
+                        className="font-medium text-emerald-600 dark:text-emerald-400 hover:underline"
+                      >
+                        Đầu tháng này
+                      </button>
+                      <span className="text-slate-300 dark:text-slate-700">•</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const now = new Date();
+                          const nextMonthFirst = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+                          setCreateForm({
+                            ...createForm,
+                            billingStartedAt: nextMonthFirst.toISOString().substring(0, 10),
+                          });
+                        }}
+                        className="font-medium text-emerald-600 dark:text-emerald-400 hover:underline"
+                      >
+                        Đầu tháng sau
+                      </button>
+                    </div>
+                  </div>
+
+                  <input
+                    id="onboard-start-date"
+                    type="date"
+                    required
+                    value={createForm.billingStartedAt}
+                    onChange={(e) =>
+                      setCreateForm({
+                        ...createForm,
+                        billingStartedAt: e.target.value,
+                      })
+                    }
+                    className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                  />
+                  <p className="text-xs text-slate-500">
+                    Kỳ hóa đơn đầu tiên sẽ ghi nhận và tính chi phí phát sinh từ ngày này trở đi.
+                  </p>
+                </div>
+
+                {/* Modal Footer */}
+                <div className="flex items-center justify-end gap-3 pt-5 border-t border-slate-200/80 dark:border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateModal(false)}
+                    className="rounded-xl border border-slate-300 min-h-11 px-5 py-2.5 text-base font-bold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingContract || isSelectedActive}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 min-h-11 px-6 py-2.5 text-base font-bold text-white shadow-lg shadow-emerald-600/20 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-98"
+                  >
+                    {submittingContract ? (
+                      <>
+                        <VsIcon name="progress_activity" className="text-lg animate-spin" />
+                        <span>Đang xử lý...</span>
+                      </>
+                    ) : (
+                      <>
+                        <VsIcon name="add_circle" className="text-lg" />
+                        <span>Khởi tạo hợp đồng</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Finalize Period Modal */}
       {showFinalizeModal && (

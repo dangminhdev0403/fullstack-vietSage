@@ -80,6 +80,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -89,7 +90,11 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
   }, [query]);
 
   const activeScope = { ...scope, hotelId: hotelId || null };
-  const directory = useStaffDirectoryQuery(activeScope, { q: debouncedQuery, page, limit: 20 });
+  const directory = useStaffDirectoryQuery(activeScope, {
+    q: debouncedQuery,
+    page,
+    limit: pageSize,
+  });
   const mutations = useStaffManagementMutations(activeScope);
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState({ fullName: "", email: "", password: "", roleId: "", roomId: "" });
@@ -340,6 +345,22 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
   );
   const skeletonRows = useMemo(() => Array.from({ length: 5 }, (_, i) => ({ id: `skel-${i}` })), []);
 
+  const totalItems = useMemo(() => {
+    if (!data) return 0;
+    if (hasMultipleHotels && effectiveHotelId && data.assignments) {
+      return data.assignments.total ?? data.users.total ?? displayedUsers.length;
+    }
+    return data.users.total ?? displayedUsers.length;
+  }, [data, hasMultipleHotels, effectiveHotelId, displayedUsers.length]);
+
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+
+  useEffect(() => {
+    if (page > totalPages && totalPages > 0) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
   async function submitCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFormErrors({});
@@ -490,6 +511,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
               onChange={(event) => {
                 const value = event.target.value;
                 setHotelId(value);
+                setPage(1);
                 if (onHotelPath) {
                   const nextUrl = new URL(window.location.href);
                   nextUrl.pathname = onHotelPath;
@@ -934,6 +956,18 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
             getRowKey={(user) => user.id}
             emptyMessage={hasMultipleHotels && effectiveHotelId ? "Không có nhân viên nào đang làm việc tại khách sạn này." : "Không có nhân viên phù hợp."}
             minWidth="1200px"
+            pagination={{
+              page,
+              pageSize,
+              totalItems,
+              pageSizeOptions: [10, 20, 50, 100],
+              serverSide: true,
+              onPageChange: (nextPage) => setPage(nextPage),
+              onPageSizeChange: (nextSize) => {
+                setPageSize(nextSize);
+                setPage(1);
+              },
+            }}
           />
         ) : null}
       </section>
@@ -1083,6 +1117,42 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
         {!directory.isLoading && data && displayedUsers.length === 0 ? (
           <div className="rounded-xl border border-[var(--outline-variant)] bg-white p-8 text-center text-sm text-[var(--on-surface-variant)]">
             {hasMultipleHotels && effectiveHotelId ? "Không có nhân viên nào đang làm việc tại khách sạn này." : "Không có nhân viên phù hợp."}
+          </div>
+        ) : null}
+
+        {/* Mobile Pagination */}
+        {!directory.isLoading && totalItems > 0 && totalPages > 1 ? (
+          <div className="flex flex-col gap-3 rounded-xl border border-[var(--outline-variant)] bg-white p-4 shadow-sm text-xs">
+            <div className="flex items-center justify-between text-slate-600">
+              <span className="font-medium text-slate-500">
+                Hiển thị <strong className="font-bold text-slate-900">{displayedUsers.length}</strong> / {totalItems} nhân viên
+              </span>
+              <span className="font-bold text-slate-900">
+                Trang {page} / {totalPages}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                disabled={page <= 1 || directory.isFetching}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="flex-1 min-h-11 inline-flex items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white font-bold text-slate-700 shadow-2xs hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                aria-label="Trang trước"
+              >
+                <VsIcon name="chevron_left" className="text-lg" />
+                <span>Trang trước</span>
+              </button>
+              <button
+                type="button"
+                disabled={page >= totalPages || directory.isFetching}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                className="flex-1 min-h-11 inline-flex items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white font-bold text-slate-700 shadow-2xs hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                aria-label="Trang sau"
+              >
+                <span>Trang sau</span>
+                <VsIcon name="chevron_right" className="text-lg" />
+              </button>
+            </div>
           </div>
         ) : null}
       </section>

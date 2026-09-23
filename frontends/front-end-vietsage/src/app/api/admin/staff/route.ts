@@ -38,10 +38,11 @@ export async function GET(request: Request) {
     const staffOnlyItems = usersPage.items.filter(
       (u) => !u.roles.some((r) => r.code === "TENANT_OWNER" || r.code === "SUPER_ADMIN"),
     );
+    const excludedCount = usersPage.items.length - staffOnlyItems.length;
     let users = {
       ...usersPage,
       items: staffOnlyItems,
-      total: staffOnlyItems.length,
+      total: Math.max(staffOnlyItems.length, (usersPage.total ?? staffOnlyItems.length) - excludedCount),
     };
     if (hotelId && assignments) {
       const assignedUserIds = new Set(assignments.items.map((a) => a.userId));
@@ -49,7 +50,7 @@ export async function GET(request: Request) {
       users = {
         ...usersPage,
         items: filteredItems,
-        total: filteredItems.length,
+        total: assignments.total ?? filteredItems.length,
       };
     }
     return successResponse({

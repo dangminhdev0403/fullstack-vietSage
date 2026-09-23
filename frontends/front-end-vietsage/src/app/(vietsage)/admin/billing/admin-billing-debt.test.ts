@@ -87,4 +87,27 @@ test("AdminBillingClient source contract for debt and settlement invariants", as
     assert.ok(code.includes("Ghi nhận đã nhắc nợ"));
     assert.equal(code.includes("Gửi báo nợ"), false);
   });
+
+  await t.test(
+    "onboard modal validates active contracts and includes live fee estimator",
+    () => {
+      assert.ok(
+        code.includes("activeHotelIds") || code.includes("activeContractHotelIds"),
+        "Must track active hotel contract IDs to prevent duplicate contracts",
+      );
+      assert.ok(
+        code.includes("projectedMonthlyFee") || code.includes("Mô phỏng doanh thu"),
+        "Must provide live simulation/estimator for projected SaaS fees",
+      );
+      assert.ok(
+        code.includes("onboard-hotel-select"),
+        "Must use dropdown select for hotel entities",
+      );
+      assert.ok(
+        code.includes("pricingModel: \"FIXED\"") && code.includes("pricingModel: \"PERCENTAGE\""),
+        "Must support both FIXED and PERCENTAGE pricing models",
+      );
+    },
+  );
 });
+
