@@ -22,6 +22,7 @@ describe("AppLogger production log levels", () => {
 
     logger.info("routine event");
     logger.http({ method: "GET", url: "/health", statusCode: 200, durationMs: 1 });
+    logger.http({ method: "GET", url: "/missing", statusCode: 404, durationMs: 1 });
     logger.http({ method: "GET", url: "/limited", statusCode: 429, durationMs: 1 });
     logger.http({ method: "GET", url: "/failed", statusCode: 500, durationMs: 1 });
 
@@ -30,7 +31,8 @@ describe("AppLogger production log levels", () => {
     expect(error).toHaveBeenCalledTimes(1);
 
     process.env.LOG_LEVEL = "debug";
+    logger.http({ method: "GET", url: "/missing", statusCode: 404, durationMs: 1 });
     logger.http({ method: "GET", url: "/health", statusCode: 200, durationMs: 1 });
-    expect(info).toHaveBeenCalledTimes(1);
+    expect(info).toHaveBeenCalledTimes(2);
   });
 });

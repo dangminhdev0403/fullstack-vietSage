@@ -49,12 +49,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
   constructor(private readonly logger: AppLogger = new AppLogger()) {}
 
   catch(exception: unknown, host: ArgumentsHost): void {
-    this.logger.error("UNHANDLED_EXCEPTION", {
-      name: exception instanceof Error ? exception.name : undefined,
-      message: exception instanceof Error ? exception.message : String(exception),
-      stack: exception instanceof Error ? exception.stack : undefined,
-      exception,
-    });
     const ctx = host.switchToHttp();
     const request = ctx.getRequest<RequestWithId>();
     const response = ctx.getResponse<Response>();
@@ -545,6 +539,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
             .map((issue) => `${issue.field} ${issue.message}`)
             .join("; ")}`
         : `Request failed in ${controller}.${handler}: ${payload.message}`;
+
+    if (payload.status === HttpStatus.NOT_FOUND) {
+      return;
+    }
 
     if (payload.status < 500 || isPrismaRecordNotFound(exception)) {
       this.logger.warn(message, metadata);

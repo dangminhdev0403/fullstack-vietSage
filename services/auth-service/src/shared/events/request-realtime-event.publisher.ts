@@ -25,10 +25,4 @@ export class RequestRealtimeEventPublisher implements GuestRequestEventPublisher
   publishConversationClosed(input: ConversationClosedEventInput): void {
     RequestRealtimeEmitter.emitConversationClosed(input);
   }
-
-  publishStayOverdueCheckout(
-    input: import("./guest-request-events.port").StayOverdueCheckoutEventInput,
-  ): void {
-    RequestRealtimeEmitter.emitStayOverdueCheckout(input);
-  }
 }

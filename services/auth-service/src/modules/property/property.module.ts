@@ -24,7 +24,6 @@ import { ReservationsRepository } from "./infrastructure/repositories/reservatio
 import { HotelStaffAssignmentsController } from "./api/hotel-staff-assignments.controller";
 import { HotelStaffAssignmentsService } from "./application/hotel-staff-assignments.service";
 import { HotelStaffAssignmentsRepository } from "./infrastructure/repositories/hotel-staff-assignments.repository";
-import { OverdueCheckoutAlertService } from "./application/overdue-checkout-alert.service";
 import { HotelStayOccupantsReadService } from "./application/hotel-stay-occupants-read.service";
 
 @Module({
@@ -53,9 +52,8 @@ import { HotelStayOccupantsReadService } from "./application/hotel-stay-occupant
     ReservationsRepository,
     HotelStaffAssignmentsService,
     HotelStaffAssignmentsRepository,
-    OverdueCheckoutAlertService,
     HotelStayOccupantsReadService,
   ],
-  exports: [HotelAccessService, OverdueCheckoutAlertService, HotelStayOccupantsReadService],
+  exports: [HotelAccessService, HotelStayOccupantsReadService],
 })
 export class PropertyModule {}

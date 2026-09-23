@@ -1,4 +1,4 @@
-import { UnauthorizedException } from "@nestjs/common";
+import { NotFoundException, UnauthorizedException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { GlobalExceptionFilter } from "./global-exception.filter";
 
@@ -26,6 +26,36 @@ function createHost() {
 }
 
 describe("GlobalExceptionFilter", () => {
+  it("leaves expected 404 logging to the request middleware", () => {
+    const logger = {
+      debug: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+    };
+    const filter = new GlobalExceptionFilter(logger as never);
+    const { host } = createHost();
+
+    filter.catch(new NotFoundException("Missing"), host as never);
+
+    expect(logger.debug).not.toHaveBeenCalled();
+    expect(logger.warn).not.toHaveBeenCalled();
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  it("logs an unexpected server error exactly once", () => {
+    const logger = {
+      debug: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+    };
+    const filter = new GlobalExceptionFilter(logger as never);
+    const { host } = createHost();
+
+    filter.catch(new Error("boom"), host as never);
+
+    expect(logger.error).toHaveBeenCalledTimes(1);
+  });
+
   it("preserves stable auth error codes", () => {
     const filter = new GlobalExceptionFilter();
     const { host, response } = createHost();

@@ -1,8 +1,7 @@
 import { GuestStayStatus } from "@prisma/client";
 import { HotelRoomsService } from "../application/hotel-rooms.service";
-import { OverdueCheckoutAlertService } from "../application/overdue-checkout-alert.service";
 
-describe("Overdue Check-out Operational Alert & Projections TDD", () => {
+describe("Overdue check-out API projection", () => {
   describe("HotelRoomsService stay projection", () => {
     it("projects isOverdueCheckOut=true and overdueHours > 0 for active stays past planned checkout", () => {
       const service = new HotelRoomsService({} as any, {} as any, {} as any, {} as any);
@@ -74,87 +73,6 @@ describe("Overdue Check-out Operational Alert & Projections TDD", () => {
 
       expect(checkedOutStay.isOverdueCheckOut).toBe(false);
       expect(checkedOutStay.overdueHours).toBe(0);
-    });
-  });
-
-  describe("OverdueCheckoutAlertService cron alert execution", () => {
-    it("identifies active overdue stays and emits stay.overdue_checkout events", async () => {
-      const now = new Date();
-      const threeHoursAgo = new Date(now.getTime() - 3 * 60 * 60 * 1000);
-
-      const mockPrisma = {
-        guestStay: {
-          findMany: jest.fn().mockResolvedValue([
-            {
-              id: "stay-1",
-              hotelId: "hotel-101",
-              roomId: "room-101",
-              guestDisplayName: "Pham Van D",
-              status: GuestStayStatus.ACTIVE,
-              plannedCheckOutAt: threeHoursAgo,
-              checkedOutAt: null,
-              room: {
-                id: "room-101",
-                roomNumber: "P.101",
-              },
-            },
-          ]),
-        },
-      };
-
-      const mockEventPublisher = {
-        publishStayOverdueCheckout: jest.fn(),
-      };
-
-      const alertService = new OverdueCheckoutAlertService(
-        mockPrisma as any,
-        mockEventPublisher as any,
-      );
-
-      const results = await alertService.checkOverdueStays(now);
-
-      expect(mockPrisma.guestStay.findMany).toHaveBeenCalledWith({
-        where: {
-          status: {
-            in: [
-              GuestStayStatus.ACTIVE,
-              GuestStayStatus.CHECKED_IN,
-              GuestStayStatus.CHECKOUT_PENDING,
-            ],
-          },
-          checkedOutAt: null,
-          plannedCheckOutAt: { lt: now },
-        },
-        include: {
-          room: {
-            select: {
-              id: true,
-              roomNumber: true,
-            },
-          },
-        },
-      });
-
-      expect(results.length).toBe(1);
-      expect(results[0]).toEqual({
-        stayId: "stay-1",
-        hotelId: "hotel-101",
-        roomId: "room-101",
-        roomNumber: "P.101",
-        guestDisplayName: "Pham Van D",
-        plannedCheckOutAt: threeHoursAgo,
-        overdueHours: 3,
-      });
-
-      expect(mockEventPublisher.publishStayOverdueCheckout).toHaveBeenCalledWith({
-        hotelId: "hotel-101",
-        stayId: "stay-1",
-        roomId: "room-101",
-        roomNumber: "P.101",
-        guestDisplayName: "Pham Van D",
-        plannedCheckOutAt: threeHoursAgo,
-        overdueHours: 3,
-      });
     });
   });
 });

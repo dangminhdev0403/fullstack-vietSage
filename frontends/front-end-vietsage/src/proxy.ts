@@ -13,6 +13,7 @@ import {
   resolveCrossWorkspaceEquivalent,
   sanitizeInternalCallbackUrl,
 } from "./libs/rbac";
+import { runtimeConsole } from "./core/logging/runtime-console";
 
 const protectedPrefixes = [
   "/admin",
@@ -150,7 +151,7 @@ export const proxy = auth((request) => {
   const session = request.auth;
 
   if (isProtectedRoute && !session) {
-    console.info("[AUTH_PROXY_REDIRECT_NO_SESSION]", { pathname });
+    runtimeConsole.info("[AUTH_PROXY_REDIRECT_NO_SESSION]", { pathname });
     return buildLoginRedirect(request);
   }
 
@@ -164,17 +165,17 @@ export const proxy = auth((request) => {
     : null;
 
   if (isProtectedRoute && authError) {
-    console.info("[AUTH_PROXY_REDIRECT_AUTH_ERROR]", { pathname, authError });
+    runtimeConsole.info("[AUTH_PROXY_REDIRECT_AUTH_ERROR]", { pathname, authError });
     return buildLoginRedirect(request);
   }
 
   if (isProtectedRoute && !canRefresh) {
-    console.info("[AUTH_PROXY_REDIRECT_NOT_REFRESHABLE]", { pathname });
+    runtimeConsole.info("[AUTH_PROXY_REDIRECT_NOT_REFRESHABLE]", { pathname });
     return buildLoginRedirect(request);
   }
 
   if (isProtectedRoute && !activeRoleCode) {
-    console.info("[AUTH_PROXY_REDIRECT_ACTIVE_ROLE_MISSING]", { pathname });
+    runtimeConsole.info("[AUTH_PROXY_REDIRECT_ACTIVE_ROLE_MISSING]", { pathname });
     return buildLoginRedirect(request);
   }
 
@@ -183,7 +184,7 @@ export const proxy = auth((request) => {
     typeof accessTokenExpiresAt === "number" &&
     accessTokenExpiresAt <= Date.now() + REFRESH_SESSION_EARLY_MS
   ) {
-    console.info("[AUTH_REFRESH_GATE_START]", {
+    runtimeConsole.info("[AUTH_REFRESH_GATE_START]", {
       source: "proxy",
       pathname,
       accessTokenExpiresAt,
@@ -194,7 +195,7 @@ export const proxy = auth((request) => {
   }
 
   if (isProtectedRoute) {
-    console.info("[AUTH_PROXY_ALLOW_REFRESHABLE_SESSION]", { pathname });
+    runtimeConsole.info("[AUTH_PROXY_ALLOW_REFRESHABLE_SESSION]", { pathname });
   }
 
   if (isAuthRoute && session && !authError && canRefresh && activeRoleCode) {
@@ -218,7 +219,7 @@ export const proxy = auth((request) => {
         [activeRoleCode],
         `${pathname}${request.nextUrl.search}`,
       ) ?? getDefaultPathForRoles([activeRoleCode]);
-    console.info("[AUTH_PROXY_CROSS_WORKSPACE_REDIRECT]", {
+    runtimeConsole.info("[AUTH_PROXY_CROSS_WORKSPACE_REDIRECT]", {
       pathname,
       activeRoleCode,
       correctPath,

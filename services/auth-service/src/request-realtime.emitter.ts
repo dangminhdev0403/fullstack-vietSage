@@ -154,34 +154,6 @@ export class RequestRealtimeEmitter {
     this.serverRef?.to(this.guestStayRoom(input.stayId)).emit("conversation.closed", payload);
   }
 
-  static emitStayOverdueCheckout(input: {
-    eventId?: string;
-    hotelId: string;
-    stayId: string;
-    roomId: string;
-    roomNumber: string;
-    guestDisplayName: string;
-    plannedCheckOutAt: Date;
-    overdueHours: number;
-  }) {
-    const payload = {
-      eventId: input.eventId ?? randomUUID(),
-      hotelId: input.hotelId,
-      stayId: input.stayId,
-      roomId: input.roomId,
-      roomNumber: input.roomNumber,
-      guestDisplayName: input.guestDisplayName,
-      plannedCheckOutAt: input.plannedCheckOutAt.toISOString(),
-      overdueHours: input.overdueHours,
-    };
-    this.serverRef?.to(this.ownerHotelRoom(input.hotelId)).emit("stay.overdue_checkout", payload);
-    if (input.roomId) {
-      this.serverRef
-        ?.to(this.ownerRoomChannel(input.hotelId, input.roomId))
-        .emit("stay.overdue_checkout", payload);
-    }
-  }
-
   static emitExternalServiceOrderCreated(
     input: ExternalServiceOrderPayload & { sessionId?: string | null },
   ) {

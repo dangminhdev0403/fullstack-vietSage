@@ -1,4 +1,6 @@
 import { Injectable } from "@nestjs/common";
+import type * as winston from "winston";
+import { winstonInstance } from "./winston.config";
 import { RequestContext } from "./request-context";
 import { redactLogMetadata } from "./log-redactor";
 
@@ -45,7 +47,8 @@ export class AppLogger {
 
   http(metadata: LogMetadata): void {
     const statusCode = Number(metadata.statusCode ?? metadata.httpStatus);
-    const level: LogLevel = statusCode >= 500 ? "ERROR" : statusCode >= 400 ? "WARN" : "DEBUG";
+    const level: LogLevel =
+      statusCode >= 500 ? "ERROR" : statusCode >= 400 && statusCode !== 404 ? "WARN" : "DEBUG";
 
     this.write(level, this.endpoint(metadata.method, metadata.url) ?? "HTTP", {
       module: "http",
@@ -79,18 +82,17 @@ export class AppLogger {
       ...normalized.metadata,
     });
 
-    const line = this.formatEntry(entry);
-    if (level === "ERROR") {
-      console.error(line);
-      return;
-    }
+    const winstonLevel = this.toWinstonLevel(level);
 
-    if (level === "WARN") {
-      console.warn(line);
-      return;
+    if (process.stdout.isTTY) {
+      // Dev: delegate formatted string so nestLike transport can render it
+      const line = this.formatEntry(entry);
+      winstonInstance.log(winstonLevel, line);
+    } else {
+      // Prod: emit raw structured object — JSON transport picks it up
+      const { timestamp, level: _lvl, message: msg, ...rest } = entry as Record<string, unknown>;
+      winstonInstance.log(winstonLevel, msg as string, { timestamp, ...rest });
     }
-
-    console.log(line);
   }
 
   private normalizeMessage(

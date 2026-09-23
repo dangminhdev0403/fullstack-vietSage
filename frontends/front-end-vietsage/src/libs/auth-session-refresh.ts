@@ -3,6 +3,7 @@ import "server-only";
 import { unstable_update } from "@/auth";
 import { authService } from "@/features/auth/service/auth-service-instance";
 import { createRefreshIdempotencyKey } from "@/libs/auth-refresh-idempotency";
+import { runtimeConsole } from "@/core/logging/runtime-console";
 import { readServerSessionTokens } from "@/libs/server-session-tokens";
 
 export type RefreshedSessionTokens = {
@@ -38,7 +39,7 @@ export async function refreshSessionTokens(
   const idempotencyKey = createRefreshIdempotencyKey(refreshToken);
   const refreshedTokens = await authService.refresh(refreshToken, idempotencyKey);
 
-  console.info("[SESSION_REFRESH_SUCCESS]", {
+  runtimeConsole.info("[SESSION_REFRESH_SUCCESS]", {
     saveLocation: "none",
     accessTokenExpiresAt: refreshedTokens.accessTokenExpiresAt,
     timestamp: Date.now(),
@@ -52,7 +53,7 @@ export async function refreshAndSaveSessionTokens(
 ): Promise<RefreshedSessionTokens> {
   const existingRefresh = refreshInFlightByToken.get(refreshToken);
   if (existingRefresh) {
-    console.info("[SESSION_REFRESH_WAIT_IN_FLIGHT]", {
+    runtimeConsole.info("[SESSION_REFRESH_WAIT_IN_FLIGHT]", {
       timestamp: Date.now(),
     });
     return existingRefresh;
@@ -70,7 +71,7 @@ export async function refreshAndSaveSessionTokens(
       } as never);
       const tokens = await readServerSessionTokens();
 
-      console.info("[SESSION_REFRESH_SAVED]", {
+      runtimeConsole.info("[SESSION_REFRESH_SAVED]", {
         saveLocation: "next-auth-jwt-session",
         newAccessToken: tokens.accessToken ? "updated" : "set",
         timestamp: Date.now(),
@@ -80,7 +81,7 @@ export async function refreshAndSaveSessionTokens(
     } catch (error) {
       const currentSessionTokens = await readCurrentSessionTokens(refreshToken);
       if (currentSessionTokens) {
-        console.info("[SESSION_REFRESH_REUSED_ROTATED_SESSION]", {
+        runtimeConsole.info("[SESSION_REFRESH_REUSED_ROTATED_SESSION]", {
           accessTokenExpiresAt: currentSessionTokens.accessTokenExpiresAt,
           timestamp: Date.now(),
         });

@@ -2,7 +2,6 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { MODULE_METADATA } from "@nestjs/common/constants";
 import { HotelAccessService } from "../application/hotel-access.service";
-import { OverdueCheckoutAlertService } from "../application/overdue-checkout-alert.service";
 import { HotelStayOccupantsReadService } from "../application/hotel-stay-occupants-read.service";
 import { PropertyModule } from "../property.module";
 import { HotelCoreRepository } from "../infrastructure/repositories/hotel-core.repository";
@@ -12,11 +11,7 @@ describe("PropertyModule public boundary", () => {
   it("exports only property access as the public cross-context port", () => {
     const moduleExports = Reflect.getMetadata(MODULE_METADATA.EXPORTS, PropertyModule) ?? [];
 
-    expect(moduleExports).toEqual([
-      HotelAccessService,
-      OverdueCheckoutAlertService,
-      HotelStayOccupantsReadService,
-    ]);
+    expect(moduleExports).toEqual([HotelAccessService, HotelStayOccupantsReadService]);
     expect(moduleExports).not.toContain(HotelsRepository);
     expect(moduleExports).not.toContain(HotelCoreRepository);
   });
