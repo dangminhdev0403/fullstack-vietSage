@@ -523,7 +523,7 @@ export class HotelRequestsService {
       roomNumber: row.room.roomNumber,
       guestName: row.stay.guestDisplayName,
       categoryName: row.serviceItem?.category.name ?? null,
-      assignedToName: row.assignedTo?.fullName ?? row.assignedTo?.email ?? null,
+      assignedToName: null,
       stayStatus: row.stay.status ?? null,
       checkedOutAt: row.stay.checkedOutAt?.toISOString() ?? null,
       actions: this.getStaffRequestActions(normalizedStatus),
