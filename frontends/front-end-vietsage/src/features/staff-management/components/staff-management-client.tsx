@@ -13,6 +13,7 @@ import {
   useStaffDirectoryQuery,
   useStaffManagementMutations,
 } from "../queries/use-staff-directory-query";
+import { staffDirectoryRepository } from "../repositories/staff-directory-repository";
 import { RoomSearchSelect } from "./room-search-select";
 
 export type StaffHotelOption = { id: string; code?: string | null; name: string };
@@ -107,6 +108,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
   const [editingUser, setEditingUser] = useState<HotelStaffUser | null>(null);
   const [editForm, setEditForm] = useState({ fullName: "", email: "", roomId: "" });
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   const data = directory.data;
   const hasMultipleHotels = (data?.hotels?.length ?? 0) > 1;
@@ -416,8 +418,8 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
     }
   }
 
-  function handleExportStaffExcel() {
-    if (displayedUsers.length === 0) {
+  async function handleExportStaffExcel() {
+    if (totalItems === 0) {
       void SwalVietSage.fire({
         icon: "info",
         title: "Không có dữ liệu",
@@ -428,45 +430,142 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
       return;
     }
 
-    const currentHotel = data?.hotels?.find((h) => h.id === effectiveHotelId);
+    setIsExporting(true);
 
-    const exportData = displayedUsers.map((user, idx) => ({
-      index: idx + 1,
-      fullName: user.fullName,
-      email: user.email,
-      roles: user.roles?.map((r) => r.name).join(", ") || "--",
-      hotelAssignment: assignedUserIds.has(user.id)
-        ? currentHotel
-          ? currentHotel.code
-            ? `${currentHotel.code} · ${currentHotel.name}`
-            : currentHotel.name
-          : "Đã phân công"
-        : "Chưa phân công",
-      status: user.userStatus === "DISABLED" || user.tenantStatus === "DISABLED" ? "Bị khóa" : "Đang hoạt động",
-    }));
+    try {
+      const EXPORT_PAGE_SIZE = 100;
+      let allUsers: HotelStaffUser[] = [];
+      let currentHotel = data?.hotels?.find((h) => h.id === effectiveHotelId);
+      const allAssignedUserIds = new Set<string>(
+        data?.assignments?.items.map((a) => a.userId) ?? [],
+      );
 
-    exportToExcel({
-      filename: `danh-sach-nhan-vien-${new Date().toISOString().slice(0, 10)}.xls`,
-      sheetName: "Nhân viên khách sạn",
-      columns: [
-        { header: "STT", key: "index" },
-        { header: "Họ và tên", key: "fullName" },
-        { header: "Email tài khoản", key: "email" },
-        { header: "Vai trò", key: "roles" },
-        { header: "Phân công khách sạn", key: "hotelAssignment" },
-        { header: "Trạng thái", key: "status" },
-      ],
-      data: exportData,
-    });
+      // Fast path: if page 1 already holds the entire dataset
+      if (
+        page === 1 &&
+        data &&
+        data.users.items.length >= totalItems &&
+        displayedUsers.length === totalItems
+      ) {
+        allUsers = [...displayedUsers];
+      } else {
+        const firstPageData = await staffDirectoryRepository.list(activeScope, {
+          q: debouncedQuery,
+          page: 1,
+          limit: EXPORT_PAGE_SIZE,
+        });
 
-    void SwalVietSage.fire({
-      icon: "success",
-      title: "Xuất Excel thành công",
-      text: `Đã xuất ${displayedUsers.length} nhân viên ra tệp Excel.`,
-      timer: 2000,
-      showConfirmButton: true,
-      confirmButtonText: "OK",
-    });
+        if (firstPageData.hotels && !currentHotel) {
+          currentHotel = firstPageData.hotels.find((h) => h.id === effectiveHotelId);
+        }
+        if (firstPageData.assignments?.items) {
+          for (const a of firstPageData.assignments.items) {
+            allAssignedUserIds.add(a.userId);
+          }
+        }
+
+        const rawUsers: HotelStaffUser[] = [...firstPageData.users.items];
+        const serverTotal = firstPageData.users.total ?? firstPageData.users.items.length;
+        const totalPagesNeeded = Math.max(1, Math.ceil(serverTotal / EXPORT_PAGE_SIZE));
+
+        if (totalPagesNeeded > 1) {
+          const remainingPages = await Promise.all(
+            Array.from({ length: totalPagesNeeded - 1 }, (_, idx) =>
+              staffDirectoryRepository.list(activeScope, {
+                q: debouncedQuery,
+                page: idx + 2,
+                limit: EXPORT_PAGE_SIZE,
+              }),
+            ),
+          );
+
+          for (const pageSnapshot of remainingPages) {
+            rawUsers.push(...pageSnapshot.users.items);
+            if (pageSnapshot.assignments?.items) {
+              for (const a of pageSnapshot.assignments.items) {
+                allAssignedUserIds.add(a.userId);
+              }
+            }
+          }
+        }
+
+        const userMap = new Map<string, HotelStaffUser>();
+        for (const u of rawUsers) {
+          if (!u.roles.some((r) => r.code === "TENANT_OWNER" || r.code === "SUPER_ADMIN")) {
+            userMap.set(u.id, u);
+          }
+        }
+
+        let filtered = Array.from(userMap.values());
+        if (hasMultipleHotels && effectiveHotelId) {
+          filtered = filtered.filter((u) => allAssignedUserIds.has(u.id));
+        }
+        allUsers = filtered;
+      }
+
+      if (allUsers.length === 0) {
+        void SwalVietSage.fire({
+          icon: "info",
+          title: "Không có dữ liệu",
+          text: "Không có nhân viên nào phù hợp để xuất Excel.",
+          showConfirmButton: true,
+          confirmButtonText: "OK",
+        });
+        return;
+      }
+
+      const hotelLabel = currentHotel
+        ? currentHotel.code
+          ? `${currentHotel.code} · ${currentHotel.name}`
+          : currentHotel.name
+        : "Đã phân công";
+
+      const exportData = allUsers.map((user, idx) => ({
+        index: idx + 1,
+        fullName: user.fullName,
+        email: user.email,
+        roles: user.roles?.map((r) => r.name).join(", ") || "--",
+        hotelAssignment:
+          assignedUserIds.has(user.id) || allAssignedUserIds.has(user.id)
+            ? hotelLabel
+            : "Chưa phân công",
+        status: user.userStatus === "DISABLED" || user.tenantStatus === "DISABLED" ? "Bị khóa" : "Đang hoạt động",
+      }));
+
+      exportToExcel({
+        filename: `danh-sach-nhan-vien-${new Date().toISOString().slice(0, 10)}.xls`,
+        sheetName: "Nhân viên khách sạn",
+        columns: [
+          { header: "STT", key: "index" },
+          { header: "Họ và tên", key: "fullName" },
+          { header: "Email tài khoản", key: "email" },
+          { header: "Vai trò", key: "roles" },
+          { header: "Phân công khách sạn", key: "hotelAssignment" },
+          { header: "Trạng thái", key: "status" },
+        ],
+        data: exportData,
+      });
+
+      void SwalVietSage.fire({
+        icon: "success",
+        title: "Xuất Excel thành công",
+        text: `Đã xuất toàn bộ ${exportData.length} nhân viên ra tệp Excel.`,
+        timer: 2000,
+        showConfirmButton: true,
+        confirmButtonText: "OK",
+      });
+    } catch (error) {
+      const { message } = extractApiErrorMessage(error);
+      void SwalVietSage.fire({
+        icon: "error",
+        title: "Không thể xuất Excel",
+        text: message || "Đã xảy ra lỗi khi tải danh sách nhân viên để xuất file.",
+        showConfirmButton: true,
+        confirmButtonText: "OK",
+      });
+    } finally {
+      setIsExporting(false);
+    }
   }
 
   const isBusy = mutations.createUser.isPending || mutations.assignRole.isPending || mutations.updateUser.isPending || mutations.assignRoom.isPending || mutations.unassignRoom.isPending || activeActionKey !== null;
@@ -549,12 +648,15 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
           <div className="flex items-center gap-2">
             <button
               type="button"
-              disabled={isBusy || displayedUsers.length === 0}
+              disabled={isBusy || isExporting || totalItems === 0}
               onClick={handleExportStaffExcel}
               className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-[var(--outline-variant)] bg-white px-4 py-2 text-sm font-semibold text-[var(--primary)] shadow-2xs hover:bg-slate-50 disabled:opacity-40"
             >
-              <VsIcon name="file_download" className="text-lg" />
-              Xuất Excel ({displayedUsers.length})
+              <VsIcon
+                name={isExporting ? "progress_activity" : "file_download"}
+                className={`text-lg ${isExporting ? "animate-spin" : ""}`}
+              />
+              {isExporting ? "Đang xuất..." : `Xuất Excel (${totalItems})`}
             </button>
             {canManage ? (
               <button

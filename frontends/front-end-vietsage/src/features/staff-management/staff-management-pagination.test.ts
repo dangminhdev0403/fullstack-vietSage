@@ -67,4 +67,24 @@ test("Staff Management Pagination Invariants", async (t) => {
       "Admin staff route must not overwrite users.total with page item count",
     );
   });
+
+  await t.test("StaffManagementClient exports all accounts across all pages", () => {
+    assert.ok(
+      clientCode.includes("Xuất Excel (${totalItems})"),
+      "Export button must show total accounts count rather than current page items",
+    );
+    assert.ok(
+      clientCode.includes("isExporting"),
+      "Must have isExporting state for async batch export",
+    );
+    assert.ok(
+      clientCode.includes("staffDirectoryRepository.list"),
+      "Must fetch all accounts via staffDirectoryRepository when exporting",
+    );
+    assert.equal(
+      clientCode.includes("Xuất Excel (${displayedUsers.length})"),
+      false,
+      "Button label must not be restricted to displayedUsers.length",
+    );
+  });
 });
