@@ -31,7 +31,6 @@ import {
 } from "../../../shared/events";
 import { CodesService } from "../../codes/codes-public";
 import { HotelAccessService } from "../../property/property-public";
-import { closePlatformUsageAtCheckout } from "../../platform-billing/application/platform-billing.service";
 import { activeGuestRequestStatuses } from "../../guest-operations/guest-operations-public";
 import { BillingRepository } from "../infrastructure/repositories/billing.repository";
 
@@ -1105,13 +1104,7 @@ export class BillingService {
             accessCodeExpiresAt: null,
           },
         });
-        await closePlatformUsageAtCheckout(tx, {
-          hotelId: invoice.hotelId,
-          roomId: invoice.stay.roomId,
-          stayId: invoice.stayId,
-          startedAt: invoice.stay.checkedInAt ?? checkedOutAt,
-          endedAt: checkedOutAt,
-        });
+
         await tx.guestSession.updateMany({
           where: {
             stayId: invoice.stayId,
@@ -1291,13 +1284,7 @@ export class BillingService {
               accessCodeExpiresAt: null,
             },
           });
-          await closePlatformUsageAtCheckout(tx, {
-            hotelId: lockedPayment.hotelId,
-            roomId: lockedPayment.invoice.stay.roomId,
-            stayId: lockedPayment.stayId,
-            startedAt: lockedPayment.invoice.stay.checkedInAt ?? checkedOutAt,
-            endedAt: checkedOutAt,
-          });
+
           await tx.guestSession.updateMany({
             where: {
               stayId: lockedPayment.stayId,

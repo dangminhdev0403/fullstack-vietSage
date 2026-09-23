@@ -12,7 +12,11 @@ Request realtime transport authenticates at the Socket.IO handshake. Owner brows
 
 Polling, an outbox dispatcher, durable retry/backoff delivery, urgent SLA escalation, and a broker remain Batch D and are not implemented here.
 
-Financial correctness note: Platform Billing ledger generation (`PlatformBillableDay`) is derived deterministically from persisted operational database state (`GuestStay` -> `PlatformUsage`), not from ephemeral event handlers or bus messages. Domain events (e.g. `PLATFORM_BILLING_RECONCILIATION_FAILED`) serve exclusively as audit signals.
+Financial correctness note: each successful `GuestStay` check-in creates at most one immutable
+Platform Billing charge. The database trigger uses the stay ID as the idempotency identity, so
+retries and repeated document scans within the same check-in cannot charge twice. Checkout only
+closes the usage interval; it does not recalculate the charge. Historical room-day rows remain
+unchanged, and no periodic billing reconciliation job runs.
 
 ```txt
 HTTP request

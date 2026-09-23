@@ -11,10 +11,6 @@ import {
 } from "@prisma/client";
 import { countDistinctGuestDevicesByStay } from "../../../../shared/guest-device-identity";
 import { PrismaService } from "../../../../prisma/prisma.service";
-import {
-  closePlatformUsageAtCheckout,
-  recordPlatformUsageAtCheckIn,
-} from "../../../platform-billing/application/platform-billing.service";
 import { inferCitizenshipKind } from "../../domain/infer-citizenship-kind";
 import { roomListInclude, type RoomListRow } from "./hotel-repository.types";
 
@@ -451,13 +447,6 @@ export class HotelRoomsRepository {
         },
       });
 
-      await recordPlatformUsageAtCheckIn(tx, {
-        hotelId: input.hotelId,
-        roomId: input.roomId,
-        stayId: stay.id,
-        startedAt: now,
-      });
-
       await this.createOpenFolioForStay(tx, {
         hotelId: input.hotelId,
         stayId: stay.id,
@@ -690,13 +679,6 @@ export class HotelRoomsRepository {
         },
       });
 
-      await recordPlatformUsageAtCheckIn(tx, {
-        hotelId: input.hotelId,
-        roomId: input.roomId,
-        stayId: stay.id,
-        startedAt: now,
-      });
-
       await this.createOpenFolioForStay(tx, {
         hotelId: input.hotelId,
         stayId: stay.id,
@@ -831,14 +813,6 @@ export class HotelRoomsRepository {
           accessCodeHash: null,
           accessCodeExpiresAt: null,
         },
-      });
-
-      await closePlatformUsageAtCheckout(tx, {
-        hotelId: input.hotelId,
-        roomId: input.roomId,
-        stayId: stay.id,
-        startedAt: stay.checkedInAt ?? now,
-        endedAt: now,
       });
 
       await tx.room.update({

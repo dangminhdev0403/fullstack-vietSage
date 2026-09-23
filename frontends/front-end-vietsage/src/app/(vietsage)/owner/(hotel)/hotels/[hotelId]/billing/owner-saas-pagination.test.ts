@@ -50,7 +50,7 @@ test("Owner SaaS billing route: BFF forwarding, Vietnamese labels, single source
     assert.ok(clientCode.includes("Sắp đến hạn trong 7 ngày"));
     assert.ok(
       clientCode.includes(
-        "Ngày phòng tính phí là số ngày từng phòng thực tế phát sinh phí trong tháng đã chọn"
+        "Lượt tính phí là số lượt check-in thành công phát sinh trong tháng"
       )
     );
   });
@@ -58,12 +58,12 @@ test("Owner SaaS billing route: BFF forwarding, Vietnamese labels, single source
   await t.test("renders exactly the 4 required KPI labels, each only once", () => {
     // The helper sentence legitimately repeats one KPI phrase; strip it before counting.
     const kpiScope = clientCode.replace(
-      "Ngày phòng tính phí là số ngày từng phòng thực tế phát sinh phí trong tháng đã chọn.",
+      "Lượt tính phí là số lượt check-in thành công phát sinh trong tháng đã chọn.",
       ""
     );
     for (const label of [
       "Lượt lưu trú thực tế",
-      "Ngày phòng tính phí",
+      "Lượt check-in tính phí",
       "Phí VietSage SaaS tháng này",
       "Kỳ hóa đơn đã chốt",
     ]) {
@@ -82,17 +82,21 @@ test("Owner SaaS billing route: BFF forwarding, Vietnamese labels, single source
 
   await t.test("keeps one compact monthly room table with the required columns", () => {
     assert.ok(clientCode.includes("Thống kê phòng theo tháng"));
-    for (const th of ["Phòng", "Lượt lưu trú", "Ngày tính phí", "Phí VietSage SaaS", "Trạng thái"]) {
-      assert.ok(clientCode.includes(`>${th}<`), `Must render table header '${th}'`);
+    for (const th of ["Phòng", "Lượt lưu trú", "Lượt tính phí", "Phí VietSage SaaS", "Trạng thái"]) {
+      assert.match(
+        clientCode,
+        new RegExp(`<th[^>]*>\\s*${th}\\s*</th>`),
+        `Must render table header '${th}'`
+      );
     }
-    assert.ok(clientCode.includes("Lưu trú từ tháng trước"));
+    assert.ok(clientCode.includes("Dữ liệu phí lịch sử"));
     assert.ok(clientCode.includes("Có phát sinh phí"));
     assert.ok(clientCode.includes("Chưa phát sinh"));
   });
 
   await t.test("removes the redundant daily-detail table and keeps finalized period history", () => {
     assert.equal(
-      clientCode.includes("Chi tiết lượt phòng/ngày tính phí trong tháng"),
+      clientCode.includes("Chi tiết lượt check-in tính phí trong tháng"),
       false,
       "Redundant billable-day detail table must not be rendered"
     );
@@ -107,7 +111,7 @@ test("Owner SaaS billing route: BFF forwarding, Vietnamese labels, single source
   });
 
   await t.test("keeps search + month filter and sends monthDate to the backend", () => {
-    assert.ok(clientCode.includes('placeholder="Tìm phòng..."'), "Must keep room search input");
+    assert.ok(clientCode.includes('placeholder="Tìm số phòng..."'), "Must keep room search input");
     assert.ok(clientCode.includes('type="month"'), "Month filter must be a real month input");
     assert.ok(clientCode.includes('monthDate:'), "Selected month must be forwarded as monthDate");
   });

@@ -455,7 +455,7 @@ export function AdminBillingClient() {
             {summary?.activeContracts ?? 0}
           </p>
           <p className="mt-1 text-sm text-slate-500">
-            Đang được tính phí phòng/ngày
+            Đang tính phí theo lượt check-in
           </p>
         </div>
       </div>
@@ -639,7 +639,7 @@ export function AdminBillingClient() {
                         />
                         {latestRev?.pricingModel === "PERCENTAGE"
                           ? "Tỷ lệ phí"
-                          : "Mức phí/phòng/ngày"}
+                          : "Mức phí/lượt check-in"}
                         :{" "}
                         <strong className="text-slate-900 dark:text-white font-bold">
                           {latestRev
@@ -924,7 +924,7 @@ export function AdminBillingClient() {
                   className="block text-sm font-semibold text-slate-800 dark:text-slate-200 mb-1.5"
                 >
                   {createForm.pricingModel === "FIXED"
-                    ? "Mức phí/phòng/ngày (VND)"
+                    ? "Mức phí/lượt check-in (VND)"
                     : "Tỷ lệ phí trên giá phòng (%)"}{" "}
                   <span className="text-red-500">*</span>
                 </label>
@@ -1058,8 +1058,8 @@ export function AdminBillingClient() {
                   className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-900 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                 />
                 <p className="mt-1 text-sm text-slate-500">
-                  Hệ thống sẽ tính tổng phòng/ngày phát sinh trong khoảng [Từ
-                  ngày, Đến ngày) để niêm phong hóa đơn.
+                  Hệ thống sẽ chốt các khoản phí check-in phát sinh trong khoảng
+                  [Từ ngày, Đến ngày) để niêm phong hóa đơn.
                 </p>
               </div>
 

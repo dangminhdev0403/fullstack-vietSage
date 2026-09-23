@@ -198,9 +198,9 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
     },
     {
       key: "days",
-      label: "Ngày phòng tính phí",
+      label: "Lượt check-in tính phí",
       value: String(data.billableDaysCount ?? 0),
-      unit: "ngày",
+      unit: "lượt",
       icon: "hotel",
       accent: "text-slate-900 dark:text-white",
       chip: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
@@ -314,8 +314,8 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
               Hợp đồng phí VietSage SaaS — {hotelName}
             </h2>
             <p className="max-w-2xl text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-              Phí được tính từ số ngày phòng hợp lệ đã chốt trên hệ thống: ngày
-              phòng tính phí × đơn giá hợp đồng.
+              Mỗi lượt check-in thành công phát sinh tối đa một khoản phí theo
+              đơn giá hợp đồng.
             </p>
           </div>
           <div className="shrink-0 rounded-2xl border border-emerald-200/60 bg-white p-4 shadow-sm lg:text-right dark:border-emerald-900/50 dark:bg-slate-900">
@@ -326,7 +326,7 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
               {formatVnd(data.unitPrice)}
             </div>
             <div className="text-xs font-semibold text-slate-500">
-              VND / phòng / ngày
+              VND / lượt check-in
             </div>
           </div>
         </div>
@@ -371,8 +371,8 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
               Thống kê phòng theo tháng
             </h3>
             <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-              Ngày phòng tính phí là số ngày từng phòng thực tế phát sinh phí
-              trong tháng đã chọn.
+              Lượt tính phí là số lượt check-in thành công phát sinh trong tháng
+              đã chọn.
             </p>
           </div>
 
@@ -434,7 +434,7 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
                     Lượt lưu trú
                   </th>
                   <th scope="col" className="px-5 py-4 text-right">
-                    Ngày tính phí
+                    Lượt tính phí
                   </th>
                   <th scope="col" className="px-5 py-4 text-right">
                     Phí VietSage SaaS
@@ -485,7 +485,7 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
                             title="Khách nhận phòng từ tháng trước và tiếp tục lưu trú trong tháng này"
                           >
                             <span className="h-2 w-2 rounded-full bg-cyan-600" />
-                            Lưu trú từ tháng trước
+                            Dữ liệu phí lịch sử
                           </span>
                         ) : isBillable ? (
                           <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/80 bg-emerald-50 px-3.5 py-1 text-xs sm:text-sm font-bold text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300">

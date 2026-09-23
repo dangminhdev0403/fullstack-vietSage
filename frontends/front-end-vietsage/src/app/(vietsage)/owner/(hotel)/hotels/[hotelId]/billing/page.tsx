@@ -36,7 +36,7 @@ export default async function OwnerBillingPage({ params, searchParams }: PagePro
           Quản lý tài chính &amp; phí VietSage SaaS
         </h1>
         <p className="max-w-3xl text-sm leading-relaxed text-slate-600 dark:text-slate-400">
-          Xem thông tin hóa đơn folio khách đang lưu trú và đối soát minh bạch chi phí VietSage SaaS theo lượt phòng/ngày.
+          Xem thông tin hóa đơn folio khách đang lưu trú và đối soát minh bạch chi phí VietSage SaaS theo lượt check-in.
         </p>
       </div>
 

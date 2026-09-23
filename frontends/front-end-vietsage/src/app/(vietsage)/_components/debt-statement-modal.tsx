@@ -330,11 +330,11 @@ export function DebtStatementModal({
                             Phí sử dụng nền tảng VietSage SaaS
                           </p>
                           <p className="text-sm text-slate-500 mt-0.5">
-                            Tính theo số ngày phòng vận hành thực tế trong kỳ
+                            Tính theo số lượt check-in phát sinh trong kỳ
                           </p>
                         </td>
                         <td className="px-5 py-4 text-center font-mono font-bold text-slate-900 dark:text-white">
-                          {statement.contract.billableDaysCount} ngày
+                          {statement.contract.billableDaysCount} lượt
                         </td>
                         <td className="px-5 py-4 text-right font-mono font-bold text-slate-700 dark:text-slate-300">
                           {statement.contract.roomDayUnitPrice.toLocaleString(

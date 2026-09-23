@@ -1,5 +1,4 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
-import { Interval } from "@nestjs/schedule";
 import { PlatformBillingContractStatus, Prisma } from "@prisma/client";
 import { AppLogger } from "../../../common/logging/app-logger.service";
 import { PrismaService } from "../../../prisma/prisma.service";
@@ -8,16 +7,6 @@ import { HotelAccessService } from "../../property/application/hotel-access.serv
 const DAY_MS = 86_400_000;
 const MAX_RECONCILIATION_DAYS = 31;
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
-
-type Tx = Prisma.TransactionClient;
-
-type StayUsageInput = {
-  hotelId: string;
-  roomId: string;
-  stayId: string;
-  startedAt: Date;
-  endedAt?: Date | null;
-};
 
 export function assertReconciliationRange(
   fromDate: string,
@@ -102,206 +91,6 @@ export function attachPeriodProjection<
   };
 }
 
-const HTZ = Prisma.raw(
-  `CASE WHEN h.timezone = 'Asia/Saigon' OR h.timezone IS NULL THEN 'Asia/Ho_Chi_Minh' ELSE h.timezone END`,
-);
-const UTZ = Prisma.raw(
-  `CASE WHEN u."hotelTimezoneSnapshot" = 'Asia/Saigon' OR u."hotelTimezoneSnapshot" IS NULL THEN 'Asia/Ho_Chi_Minh' ELSE u."hotelTimezoneSnapshot" END`,
-);
-
-export async function recordPlatformUsageAtCheckIn(tx: Tx, input: StayUsageInput): Promise<void> {
-  if (typeof tx?.$queryRaw !== "function" || typeof tx?.$executeRaw !== "function") return;
-  const bounds = await tx.$queryRaw<
-    Array<{ contractId: string; serviceDate: string; nextDate: string }>
-  >`
-    SELECT c.id AS "contractId",
-           ((${input.startedAt} AT TIME ZONE ${HTZ})::date)::text AS "serviceDate",
-           (((${input.startedAt} AT TIME ZONE ${HTZ})::date + 1))::text AS "nextDate"
-    FROM "PlatformBillingContract" c
-    JOIN "Hotel" h ON h.id = c."hotelId"
-    WHERE c."hotelId" = ${input.hotelId}
-      AND c.status = 'ACTIVE'::"PlatformBillingContractStatus"
-      AND c."billingStartedAt" <= ${input.startedAt}
-    ORDER BY c."createdAt" DESC
-    LIMIT 1
-    FOR UPDATE OF c
-  `;
-  const bound = bounds[0];
-  if (!bound) return;
-
-  await tx.$executeRaw`
-    INSERT INTO "PlatformUsage" (
-      id, "hotelId", "subjectType", "subjectId", "usageKind", "sourceType", "sourceId",
-      occurrence, "startedAt", "hotelTimezoneSnapshot", "createdAt"
-    )
-    SELECT 'pu_' || md5(${input.stayId} || ':1'), ${input.hotelId}, 'ROOM', ${input.roomId},
-           'STAY', 'GUEST_STAY', ${input.stayId}, 1, ${input.startedAt},
-           CASE WHEN h.timezone = 'Asia/Saigon' THEN 'Asia/Ho_Chi_Minh' ELSE h.timezone END, NOW()
-    FROM "Hotel" h WHERE h.id = ${input.hotelId}
-    ON CONFLICT ("sourceType", "sourceId", occurrence) DO NOTHING
-  `;
-  await reconcilePlatformBillingRange(
-    tx,
-    bound.contractId,
-    bound.serviceDate,
-    bound.nextDate,
-    input.startedAt,
-  );
-}
-
-export async function closePlatformUsageAtCheckout(tx: Tx, input: StayUsageInput): Promise<void> {
-  if (typeof tx?.$executeRaw !== "function" || typeof tx?.$queryRaw !== "function") return;
-  await tx.$executeRaw`
-    UPDATE "PlatformUsage"
-    SET "endedAt" = ${input.endedAt},
-        "closedAt" = ${input.endedAt},
-        "durationMinutes" = GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (${input.endedAt} - "startedAt")) / 60))::integer
-    WHERE "sourceType" = 'GUEST_STAY' AND "sourceId" = ${input.stayId}
-      AND occurrence = 1 AND "endedAt" IS NULL
-  `;
-  const bounds = await tx.$queryRaw<
-    Array<{ contractId: string; fromDate: string; toDate: string }>
-  >`
-    SELECT c.id AS "contractId",
-           date_trunc('month', ${input.endedAt} AT TIME ZONE ${HTZ})::date::text AS "fromDate",
-           (date_trunc('month', ${input.endedAt} AT TIME ZONE ${HTZ}) + interval '1 month')::date::text AS "toDate"
-    FROM "PlatformBillingContract" c
-    JOIN "Hotel" h ON h.id = c."hotelId"
-    WHERE c."hotelId" = ${input.hotelId}
-      AND c.status = 'ACTIVE'::"PlatformBillingContractStatus"
-    ORDER BY c."createdAt" DESC LIMIT 1 FOR UPDATE OF c
-  `;
-  const bound = bounds[0];
-  if (bound) {
-    await reconcilePlatformBillingRange(
-      tx,
-      bound.contractId,
-      bound.fromDate,
-      bound.toDate,
-      input.endedAt!,
-    );
-  }
-}
-
-export async function reconcilePlatformBillingRange(
-  tx: Tx,
-  contractId: string,
-  fromDate: string,
-  toDateExclusive: string,
-  watermark: Date,
-): Promise<void> {
-  assertReconciliationRange(fromDate, toDateExclusive);
-  await tx.$executeRaw`
-    UPDATE "Hotel" SET timezone = 'Asia/Ho_Chi_Minh' WHERE timezone = 'Asia/Saigon'
-  `;
-  await tx.$executeRaw`
-    UPDATE "PlatformUsage" SET "hotelTimezoneSnapshot" = 'Asia/Ho_Chi_Minh' WHERE "hotelTimezoneSnapshot" = 'Asia/Saigon'
-  `;
-  await tx.$executeRaw`
-    INSERT INTO "PlatformUsage" (
-      id, "hotelId", "subjectType", "subjectId", "usageKind", "sourceType", "sourceId", occurrence,
-      "startedAt", "endedAt", "durationMinutes", "hotelTimezoneSnapshot", "createdAt", "closedAt"
-    )
-    SELECT 'pu_' || md5(s.id || ':1'), s."hotelId", 'ROOM', s."roomId", 'STAY', 'GUEST_STAY', s.id, 1,
-           s."checkedInAt", s."checkedOutAt",
-           CASE WHEN s."checkedOutAt" IS NULL THEN NULL ELSE GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (s."checkedOutAt" - s."checkedInAt")) / 60))::integer END,
-           CASE WHEN h.timezone = 'Asia/Saigon' THEN 'Asia/Ho_Chi_Minh' ELSE h.timezone END, NOW(), s."checkedOutAt"
-    FROM "PlatformBillingContract" c
-    JOIN "Hotel" h ON h.id = c."hotelId"
-    JOIN "GuestStay" s ON s."hotelId" = c."hotelId"
-    WHERE c.id = ${contractId} AND s."checkedInAt" IS NOT NULL
-      AND s.status <> 'CANCELLED'::"GuestStayStatus"
-      AND s."checkedInAt" < (${toDateExclusive}::date::timestamp AT TIME ZONE ${HTZ})
-      AND (s."checkedOutAt" IS NULL OR s."checkedOutAt" > (${fromDate}::date::timestamp AT TIME ZONE ${HTZ}))
-    ON CONFLICT ("sourceType", "sourceId", occurrence) DO UPDATE
-      SET "endedAt" = EXCLUDED."endedAt", "durationMinutes" = EXCLUDED."durationMinutes", "closedAt" = EXCLUDED."closedAt"
-      WHERE "PlatformUsage"."endedAt" IS NULL AND EXCLUDED."endedAt" IS NOT NULL
-  `;
-  await tx.$executeRaw`
-    WITH days AS (
-      SELECT d::date AS "serviceDate"
-      FROM generate_series(${fromDate}::date, ${toDateExclusive}::date - 1, interval '1 day') d
-    ), expected AS (
-      SELECT DISTINCT c.id AS "contractId", r.id AS "revisionId", c."hotelId", u."subjectType",
-             u."subjectId", d."serviceDate", ${UTZ} AS "hotelTimezoneSnapshot", r."starTierSnapshot",
-             r."roomDayUnitPrice", r."pricingModel", room.price AS "roomPrice", r.currency,
-             (d."serviceDate"::timestamp AT TIME ZONE ${UTZ}) AS "windowStart",
-             ((d."serviceDate" + 1)::timestamp AT TIME ZONE ${UTZ}) AS "windowEnd"
-      FROM "PlatformBillingContract" c
-      JOIN "PlatformUsage" u ON u."hotelId" = c."hotelId"
-      JOIN "Room" room ON room.id = u."subjectId"
-      LEFT JOIN "GuestStay" s ON s.id = u."sourceId" AND u."sourceType" = 'GUEST_STAY'
-      CROSS JOIN days d
-      JOIN LATERAL (
-        SELECT r.* FROM "PlatformBillingContractRevision" r
-        WHERE r."contractId" = c.id AND r."effectiveFrom" <= d."serviceDate"
-        ORDER BY r."effectiveFrom" DESC LIMIT 1
-      ) r ON TRUE
-      WHERE c.id = ${contractId}
-        AND (u."sourceType" <> 'GUEST_STAY' OR s.id IS NULL OR s.status <> 'CANCELLED'::"GuestStayStatus")
-        AND d."serviceDate" >= ${fromDate}::date AND d."serviceDate" < ${toDateExclusive}::date
-        AND u."startedAt" < ((d."serviceDate" + 1)::timestamp AT TIME ZONE ${UTZ})
-        AND COALESCE(u."endedAt", ${watermark}) > (d."serviceDate"::timestamp AT TIME ZONE ${UTZ})
-        AND NOT EXISTS (
-          SELECT 1 FROM "PlatformBillingPeriod" p
-          WHERE p."contractId" = c.id AND p.status = 'FINALIZED'::"PlatformBillingPeriodStatus"
-            AND d."serviceDate" >= p."periodStart" AND d."serviceDate" < p."periodEnd"
-        )
-    )
-    INSERT INTO "PlatformBillableDay" (
-      id, "contractId", "contractRevisionId", "hotelId", "subjectType", "subjectId", "serviceDate",
-      "hotelTimezoneSnapshot", "starTierSnapshot", "unitPrice", quantity, amount, currency,
-      "calculationVersion", "sourceWindowStart", "sourceWindowEnd", "createdAt"
-    )
-    SELECT 'pbd_' || md5("contractId" || ':' || "subjectType" || ':' || "subjectId" || ':' || "serviceDate"::text),
-           "contractId", "revisionId", "hotelId", "subjectType", "subjectId", "serviceDate",
-           "hotelTimezoneSnapshot", "starTierSnapshot",
-           CASE WHEN "pricingModel" = 'PERCENTAGE' THEN "roomPrice" ELSE "roomDayUnitPrice" END,
-           1,
-           CASE WHEN "pricingModel" = 'PERCENTAGE'
-             THEN ROUND("roomPrice" * "roomDayUnitPrice" / 100, 2)
-             ELSE "roomDayUnitPrice"
-           END,
-           currency, 1, "windowStart", "windowEnd", NOW()
-    FROM expected
-    ON CONFLICT ("contractId", "subjectType", "subjectId", "serviceDate") DO NOTHING
-  `;
-
-  const missing = await tx.$queryRaw<Array<{ count: bigint }>>`
-    WITH days AS (
-      SELECT d::date AS "serviceDate"
-      FROM generate_series(${fromDate}::date, ${toDateExclusive}::date - 1, interval '1 day') d
-    ), expected AS (
-      SELECT DISTINCT c.id AS "contractId", u."subjectType", u."subjectId", d."serviceDate"
-      FROM "PlatformBillingContract" c
-      JOIN "PlatformUsage" u ON u."hotelId" = c."hotelId"
-      LEFT JOIN "GuestStay" s ON s.id = u."sourceId" AND u."sourceType" = 'GUEST_STAY'
-      CROSS JOIN days d
-      JOIN LATERAL (
-        SELECT r.id FROM "PlatformBillingContractRevision" r
-        WHERE r."contractId" = c.id AND r."effectiveFrom" <= d."serviceDate"
-        ORDER BY r."effectiveFrom" DESC LIMIT 1
-      ) r ON TRUE
-      WHERE c.id = ${contractId}
-        AND (u."sourceType" <> 'GUEST_STAY' OR s.id IS NULL OR s.status <> 'CANCELLED'::"GuestStayStatus")
-        AND d."serviceDate" >= ${fromDate}::date AND d."serviceDate" < ${toDateExclusive}::date
-        AND u."startedAt" < ((d."serviceDate" + 1)::timestamp AT TIME ZONE ${UTZ})
-        AND COALESCE(u."endedAt", ${watermark}) > (d."serviceDate"::timestamp AT TIME ZONE ${UTZ})
-        AND NOT EXISTS (
-          SELECT 1 FROM "PlatformBillingPeriod" p WHERE p."contractId" = c.id
-            AND p.status = 'FINALIZED'::"PlatformBillingPeriodStatus"
-            AND d."serviceDate" >= p."periodStart" AND d."serviceDate" < p."periodEnd"
-        )
-    )
-    SELECT COUNT(*)::bigint AS count FROM expected e
-    LEFT JOIN "PlatformBillableDay" b ON b."contractId" = e."contractId"
-      AND b."subjectType" = e."subjectType" AND b."subjectId" = e."subjectId"
-      AND b."serviceDate" = e."serviceDate"
-    WHERE b.id IS NULL
-  `;
-  if (Number(missing[0]?.count ?? 0) !== 0)
-    throw new Error("PLATFORM_BILLING_RECONCILIATION_INCOMPLETE");
-}
 
 @Injectable()
 export class PlatformBillingService {
@@ -311,49 +100,6 @@ export class PlatformBillingService {
     private readonly hotelAccessService: HotelAccessService,
   ) {}
 
-  @Interval(300_000)
-  async reconcileCatchUp(): Promise<void> {
-    const contracts = await this.prisma.$queryRaw<
-      Array<{ id: string; fromDate: string; toDate: string }>
-    >`
-      SELECT c.id,
-             COALESCE((c."reconciledThroughDate" + 1)::text, (c."billingStartedAt" AT TIME ZONE ${HTZ})::date::text) AS "fromDate",
-             LEAST(COALESCE(c."reconciledThroughDate" + 32, (c."billingStartedAt" AT TIME ZONE ${HTZ})::date + 31),
-                   (NOW() AT TIME ZONE ${HTZ})::date + 1)::text AS "toDate"
-      FROM "PlatformBillingContract" c JOIN "Hotel" h ON h.id = c."hotelId"
-      WHERE c.status = ${PlatformBillingContractStatus.ACTIVE}::"PlatformBillingContractStatus"
-        AND COALESCE(c."reconciledThroughDate", (c."billingStartedAt" AT TIME ZONE ${HTZ})::date - 1)
-            < (NOW() AT TIME ZONE ${HTZ})::date
-      ORDER BY c."reconciledThroughDate" NULLS FIRST, c.id LIMIT 50
-    `;
-    for (const contract of contracts) {
-      try {
-        await this.prisma.$transaction(
-          async (tx) => {
-            await reconcilePlatformBillingRange(
-              tx,
-              contract.id,
-              contract.fromDate,
-              contract.toDate,
-              new Date(),
-            );
-            await tx.$executeRaw`
-            UPDATE "PlatformBillingContract" SET "reconciledThroughDate" = ${contract.toDate}::date - 1
-            WHERE id = ${contract.id}
-              AND ("reconciledThroughDate" IS NULL OR "reconciledThroughDate" < ${contract.toDate}::date - 1)
-          `;
-          },
-          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-        );
-      } catch (error) {
-        this.logger.error(error, {
-          module: "platform-billing",
-          event: "PLATFORM_BILLING_RECONCILIATION_FAILED",
-          contractId: contract.id,
-        });
-      }
-    }
-  }
 
   async finalizePeriod(
     contractId: string,
@@ -382,8 +128,6 @@ export class PlatformBillingService {
         if (existingPeriod && existingPeriod.status === "FINALIZED") {
           return existingPeriod;
         }
-
-        await reconcilePlatformBillingRange(tx, contractId, periodStart, periodEnd, new Date());
 
         const charges = await tx.platformBillableDay.aggregate({
           where: {
@@ -764,6 +508,7 @@ export class PlatformBillingService {
       },
       select: {
         id: true,
+        calculationVersion: true,
         unitPrice: true,
         amount: true,
         currency: true,
@@ -784,6 +529,7 @@ export class PlatformBillingService {
     const rateGroups = new Map<
       string,
       {
+        calculationVersion: number;
         pricingModel: string;
         unitPrice: number;
         quantity: number;
@@ -794,7 +540,8 @@ export class PlatformBillingService {
     for (const day of billableDays) {
       const priceNum = Number(day.unitPrice);
       const pricingModel = day.contractRevision.pricingModel || "FIXED";
-      const key = `${pricingModel}_${priceNum}_${day.currency || periodCurrency}`;
+      const calculationVersion = day.calculationVersion ?? 1;
+      const key = `${calculationVersion}_${pricingModel}_${priceNum}_${day.currency || periodCurrency}`;
       const existing = rateGroups.get(key);
       const qty = day.quantity || 1;
       const amt = Number(day.amount);
@@ -803,6 +550,7 @@ export class PlatformBillingService {
         existing.amount += amt;
       } else {
         rateGroups.set(key, {
+          calculationVersion,
           pricingModel,
           unitPrice: priceNum,
           quantity: qty,
@@ -814,9 +562,13 @@ export class PlatformBillingService {
 
     let lineItems = Array.from(rateGroups.values()).map((g) => ({
       description:
-        g.pricingModel === "PERCENTAGE"
-          ? `Phí sử dụng nền tảng VietSage SaaS (${g.unitPrice.toLocaleString("vi-VN")}% giá phòng)`
-          : `Phí sử dụng nền tảng VietSage SaaS (${g.unitPrice.toLocaleString("vi-VN")} ${g.currency}/phòng/ngày)`,
+        g.calculationVersion >= 2 && g.pricingModel === "PERCENTAGE"
+          ? `Phí sử dụng nền tảng VietSage SaaS (${g.unitPrice.toLocaleString("vi-VN")}% giá phòng/lượt check-in)`
+          : g.calculationVersion >= 2
+            ? `Phí sử dụng nền tảng VietSage SaaS (${g.unitPrice.toLocaleString("vi-VN")} ${g.currency}/lượt check-in)`
+            : g.pricingModel === "PERCENTAGE"
+              ? `Phí sử dụng nền tảng VietSage SaaS (${g.unitPrice.toLocaleString("vi-VN")}% giá phòng)`
+              : `Phí sử dụng nền tảng VietSage SaaS (${g.unitPrice.toLocaleString("vi-VN")} ${g.currency}/phòng/ngày)`,
       pricingModel: g.pricingModel,
       quantity: g.quantity,
       unitPrice: g.unitPrice,
@@ -1219,8 +971,7 @@ export class PlatformBillingService {
     const next7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
     const [roomRows, totalPeriodsCount, paginatedPeriods, reminderRaw] = await Promise.all([
-      // Single grouped pass: valid (non-cancelled) stays overlapping the month + persisted
-      // billable room-days for the same month, keyed per room. No N+1, no double counting.
+      // Single grouped pass over historical room-day rows and new per-check-in rows, keyed per room.
       // ponytail: month window uses UTC boundaries like the previous implementation;
       // switch to hotel-timezone bounds if cross-midnight edge days ever matter.
       this.prisma.$queryRaw<
@@ -1234,41 +985,44 @@ export class PlatformBillingService {
         }>
       >`
         WITH bd AS (
-          SELECT b."subjectId",
+          SELECT COALESCE(bs."roomId", b."subjectId") AS "roomId",
                  COUNT(*)::int AS "days",
                  SUM(b.amount) AS "amount",
                  MIN(b.currency) AS "currency",
                  COUNT(DISTINCT b.currency)::int AS "currencyCount"
           FROM "PlatformBillableDay" b
+          LEFT JOIN "GuestStay" bs
+            ON b."subjectType" = 'GUEST_STAY' AND bs.id = b."subjectId"
           WHERE b."contractId" = ${contract.id}
-            AND b."subjectType" = 'ROOM'
+            AND b."subjectType" IN ('ROOM', 'GUEST_STAY')
             AND b."serviceDate" >= ${startOfMonth}
             AND b."serviceDate" < ${endOfMonth}
-          GROUP BY b."subjectId"
+          GROUP BY COALESCE(bs."roomId", b."subjectId")
         ), us AS (
-          SELECT u."subjectId", COUNT(DISTINCT u."sourceId")::int AS "stays"
+          SELECT COALESCE(s."roomId", u."subjectId") AS "roomId",
+                 COUNT(DISTINCT u."sourceId")::int AS "stays"
           FROM "PlatformUsage" u
           LEFT JOIN "GuestStay" s ON s.id = u."sourceId" AND u."sourceType" = 'GUEST_STAY'
           WHERE u."hotelId" = ${hotelId}
             AND u."sourceType" = 'GUEST_STAY'
-            AND u."subjectType" = 'ROOM'
+            AND u."subjectType" IN ('ROOM', 'GUEST_STAY')
             AND (s.id IS NULL OR s.status <> 'CANCELLED'::"GuestStayStatus")
             AND u."startedAt" < ${endOfMonth}
             AND COALESCE(u."endedAt", ${now}) >= ${startOfMonth}
-          GROUP BY u."subjectId"
+          GROUP BY COALESCE(s."roomId", u."subjectId")
         ), subjects AS (
-          SELECT "subjectId" FROM bd UNION SELECT "subjectId" FROM us
+          SELECT "roomId" FROM bd UNION SELECT "roomId" FROM us
         )
-        SELECT COALESCE(r."roomNumber", sub."subjectId") AS "roomNumber",
+        SELECT COALESCE(r."roomNumber", sub."roomId") AS "roomNumber",
                COALESCE(us."stays", 0) AS "usageCount",
                COALESCE(bd."days", 0) AS "billableDaysCount",
                COALESCE(bd."amount", 0) AS "billedAmount",
                bd."currency" AS "currency",
                COALESCE(bd."currencyCount", 0) AS "currencyCount"
         FROM subjects sub
-        LEFT JOIN "Room" r ON r.id = sub."subjectId"
-        LEFT JOIN bd ON bd."subjectId" = sub."subjectId"
-        LEFT JOIN us ON us."subjectId" = sub."subjectId"
+        LEFT JOIN "Room" r ON r.id = sub."roomId"
+        LEFT JOIN bd ON bd."roomId" = sub."roomId"
+        LEFT JOIN us ON us."roomId" = sub."roomId"
         ORDER BY 1
       `,
       this.prisma.platformBillingPeriod.count({
