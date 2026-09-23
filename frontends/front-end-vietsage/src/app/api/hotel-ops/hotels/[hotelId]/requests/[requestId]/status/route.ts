@@ -11,7 +11,7 @@ import {
 
 type Params = { params: Promise<{ hotelId: string; requestId: string }> };
 const schema = z.object({
-  status: z.enum(["CREATED", "ACKNOWLEDGED", "IN_PROGRESS", "COMPLETED", "CANCELLED", "FAILED"]),
+  status: z.enum(["PENDING", "ACKNOWLEDGED", "COMPLETED", "CANCELLED", "REJECTED"]),
   assignedToUserId: z.string().trim().min(1).optional(),
   note: z.string().trim().min(1).optional(),
 }).strict();

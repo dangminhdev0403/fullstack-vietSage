@@ -70,10 +70,12 @@ export type MarketplaceOrderFinancials = {
   currency: string;
 };
 
+export type MarketplaceOrderStatus = "PENDING" | "ACKNOWLEDGED" | "COMPLETED" | "CANCELLED" | "REJECTED";
+
 export type MarketplaceOrder = {
   id: string;
   orderNumber: string;
-  status: string;
+  status: MarketplaceOrderStatus;
   hotelCoordinationStatus?: string | null;
   voucher?: {
     voucherNumber: string;

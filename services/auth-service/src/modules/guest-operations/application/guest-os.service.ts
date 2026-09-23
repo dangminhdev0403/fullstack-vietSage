@@ -551,8 +551,8 @@ export class GuestOsService {
       throw new NotFoundException("Guest request not found");
     }
 
-    if (normalizeGuestRequestStatus(existing.status) !== InternalGuestRequestStatus.CREATED) {
-      throw new BadRequestException("Only requests in CREATED status can be cancelled by guests");
+    if (normalizeGuestRequestStatus(existing.status) !== InternalGuestRequestStatus.PENDING) {
+      throw new BadRequestException("Only requests in PENDING status can be cancelled by guests");
     }
 
     const cancelled = await this.guestOsRepository.cancelCreatedRequest({
@@ -565,7 +565,7 @@ export class GuestOsService {
     });
 
     if (!cancelled) {
-      throw new BadRequestException("Only requests in CREATED status can be cancelled by guests");
+      throw new BadRequestException("Only requests in PENDING status can be cancelled by guests");
     }
 
     this.logger.info("Guest request cancelled from guest portal", {
@@ -756,7 +756,7 @@ export class GuestOsService {
       description: row.description,
       answer: row.events?.[0]?.note ?? null,
       createdAt: row.createdAt.toISOString(),
-      canCancel: normalizeGuestRequestStatus(row.status) === InternalGuestRequestStatus.CREATED,
+      canCancel: normalizeGuestRequestStatus(row.status) === InternalGuestRequestStatus.PENDING,
     };
   }
 

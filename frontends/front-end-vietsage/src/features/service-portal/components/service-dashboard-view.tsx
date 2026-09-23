@@ -10,16 +10,10 @@ import {
 import { useServicePortal } from "../use-service-portal";
 import type { MarketplaceOrder, ServicePortalData } from "../types";
 
-function getNextStatus(order: MarketplaceOrder): { label: string; status: string } | null {
+function getNextStatus(order: MarketplaceOrder): { label: string; status: MarketplaceOrder["status"] } | null {
   if (isTerminalOrderStatus(order.status)) return null;
-  if (order.status === "PENDING") return { label: "Xác nhận đơn", status: "CONFIRMED" };
-  if (
-    order.status === "CONFIRMED" ||
-    order.status === "ACCEPTED" ||
-    order.status === "PREPARING" ||
-    order.status === "DELIVERING" ||
-    order.status === "READY"
-  ) {
+  if (order.status === "PENDING") return { label: "Tiếp nhận đơn", status: "ACKNOWLEDGED" };
+  if (order.status === "ACKNOWLEDGED") {
     return { label: "Hoàn tất đơn", status: "COMPLETED" };
   }
   return null;
@@ -255,7 +249,7 @@ export function ServiceDashboardView({ data }: Readonly<{ data: ServicePortalDat
                         <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                           order.status === "PENDING"
                             ? "bg-[#fff3db] text-[#925f0e] border border-[#f3d6a2]"
-                            : order.status === "ACCEPTED"
+                            : order.status === "ACKNOWLEDGED"
                             ? "bg-[#e8f2ee] text-[#1c553f] border border-[#c1e0d3]"
                             : "bg-[#e7f4eb] text-[#16562c] border border-[#bde2c7]"
                         }`}>

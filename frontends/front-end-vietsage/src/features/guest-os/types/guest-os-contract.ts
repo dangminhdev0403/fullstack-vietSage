@@ -10,12 +10,11 @@ export type GuestRequestType =
   | "AI_CONCIERGE";
 
 export type GuestRequestStatus =
-  | "CREATED"
+  | "PENDING"
   | "ACKNOWLEDGED"
-  | "IN_PROGRESS"
   | "COMPLETED"
   | "CANCELLED"
-  | "FAILED";
+  | "REJECTED";
 
 export type GuestRequestPriority = "NORMAL" | "URGENT";
 export type GuestLocaleCode = "vi" | "en" | "zh" | "ko" | "ru" | "hi";

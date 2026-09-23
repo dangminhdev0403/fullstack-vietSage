@@ -13,7 +13,7 @@ describe("RequestRealtimeTicketService", () => {
       .mockResolvedValue({ hotel: { id: "hotel-1" }, allowedRoomId: null, mode: "HOTEL_WIDE" }),
   } as unknown as HotelAccessService;
   const jwtService = { signAsync: jest.fn() } as unknown as JwtService;
-  const prismaMock = { tenantUser: { findMany: jest.fn() } } as unknown as PrismaService;
+  const prismaMock = { tenantUser: { findMany: jest.fn() } } as any;
 
   beforeEach(() => {
     jest.clearAllMocks();

@@ -1,4 +1,4 @@
-﻿import { ExecutionContext, ForbiddenException } from "@nestjs/common";
+import { ExecutionContext, ForbiddenException } from "@nestjs/common";
 import type { Request } from "express";
 import { publicMatcher } from "../../common/config/routes.config";
 import { REQUIRED_PERMISSION_KEY } from "../decorators/require-permission.decorator";
@@ -20,7 +20,7 @@ describe("AuthorizationGuard", () => {
       getHandler: () => handler,
       getClass: () => class TestController {},
       switchToHttp: () => ({ getRequest: () => request }),
-    } as ExecutionContext;
+    } as unknown as ExecutionContext;
   };
 
   beforeEach(() => {

@@ -1,5 +1,6 @@
 import { NestFactory } from "@nestjs/core";
 import { IoAdapter } from "@nestjs/platform-socket.io";
+import { WINSTON_MODULE_NEST_PROVIDER } from "nest-winston";
 import { Server } from "http";
 import { AddressInfo } from "net";
 import * as os from "node:os";
@@ -7,6 +8,7 @@ import { configureApp } from "./app.bootstrap";
 import { AppModule } from "./app.module";
 import { loadAppConfig } from "./common/config/env.config";
 import { AppLogger } from "./common/logging/app-logger.service";
+import { winstonInstance } from "./common/logging/winston.config";
 
 function getLocalIp(): string {
   const nets = os.networkInterfaces();
@@ -22,7 +24,10 @@ function getLocalIp(): string {
 }
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // Suppress NestJS built-in logger; Winston handles all output via LoggingModule
+  const app = await NestFactory.create(AppModule, { logger: false });
+  app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
+
   const logger = app.get(AppLogger);
   app.useWebSocketAdapter(new IoAdapter(app));
   configureApp(app);
@@ -81,7 +86,8 @@ async function bootstrap() {
   });
 }
 
-bootstrap().catch((error) => {
-  console.error("BOOTSTRAP_FAILED", error);
+bootstrap().catch((error: unknown) => {
+  // winstonInstance is available before NestFactory — safe to use here
+  winstonInstance.error("BOOTSTRAP_FAILED", { error: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined });
   process.exitCode = 1;
 });

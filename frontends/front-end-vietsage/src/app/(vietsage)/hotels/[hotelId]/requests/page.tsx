@@ -98,7 +98,7 @@ export default async function HotelRequestsPage({ params, searchParams }: Reques
   }
 
   const initialFilters = Object.fromEntries(
-    ["q", "status", "roomNumber", "priority", "assignedToUserId", "from", "to"].map((key) => [key, getFirst(resolvedSearchParams[key]) ?? ""]),
+    ["q", "status", "roomNumber", "serviceItemId", "priority", "assignedToUserId", "from", "to"].map((key) => [key, getFirst(resolvedSearchParams[key]) ?? ""]),
   );
 
   return (

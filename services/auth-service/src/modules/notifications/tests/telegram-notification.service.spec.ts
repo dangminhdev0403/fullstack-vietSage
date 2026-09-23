@@ -21,7 +21,7 @@ describe("TelegramNotificationService request acknowledgement", () => {
     const tx = {
       guestRequest: {
         findUnique: jest.fn().mockResolvedValue({
-          status: GuestRequestStatus.NEW,
+          status: GuestRequestStatus.PENDING,
           hotelId: "hotel-1",
           hotel: { tenantId: "tenant-1" },
         }),
@@ -69,7 +69,7 @@ describe("TelegramNotificationService request acknowledgement", () => {
     expect(tx.guestRequest.updateMany).toHaveBeenCalledWith({
       where: {
         id: "request-1",
-        status: { in: [GuestRequestStatus.CREATED, GuestRequestStatus.NEW] },
+        status: { in: [GuestRequestStatus.PENDING, GuestRequestStatus.PENDING] },
       },
       data: expect.objectContaining({
         status: GuestRequestStatus.ACKNOWLEDGED,
@@ -83,7 +83,7 @@ describe("TelegramNotificationService request acknowledgement", () => {
         hotelId: "hotel-1",
         actorType: GuestRequestActorType.SYSTEM,
         eventType: "REQUEST_UPDATED",
-        fromStatus: GuestRequestStatus.NEW,
+        fromStatus: GuestRequestStatus.PENDING,
         toStatus: GuestRequestStatus.ACKNOWLEDGED,
       }),
     });
@@ -96,7 +96,7 @@ describe("TelegramNotificationService request acknowledgement", () => {
         tenantId: "tenant-1",
         payload: {
           requestId: "request-1",
-          fromStatus: GuestRequestStatus.NEW,
+          fromStatus: GuestRequestStatus.PENDING,
           toStatus: GuestRequestStatus.ACKNOWLEDGED,
           source: "TELEGRAM",
         },
@@ -359,7 +359,7 @@ describe("TelegramNotificationService request acknowledgement", () => {
         text: expect.stringContaining("KIỂM TRA KẾT NỐI TELEGRAM"),
         parse_mode: "HTML",
       });
-      expect(callTelegramSpy.mock.calls[0][1].text).not.toMatch(/CCCD|hộ chiếu|password|token/i);
+      expect((callTelegramSpy.mock.calls[0][1] as any).text).not.toMatch(/CCCD|hộ chiếu|password|token/i);
     });
 
     it("returns false and logs warning if the hotel has no KBTT route", async () => {

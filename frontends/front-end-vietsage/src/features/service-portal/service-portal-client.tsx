@@ -9,16 +9,8 @@ function locationFrom(data: ServicePortalData): LocationValue {
   return { googleMapsUrl: item.googleMapsUrl ?? "", latitude: item.latitude == null ? "" : String(item.latitude), longitude: item.longitude == null ? "" : String(item.longitude), locationAccuracyMeters: item.locationAccuracyMeters == null ? "" : String(item.locationAccuracyMeters), locationSource: item.locationSource ?? undefined };
 }
 function nextStatus(order: MarketplaceOrder): string | null {
-  if (order.status === "PENDING") return "CONFIRMED";
-  if (
-    order.status === "CONFIRMED" ||
-    order.status === "ACCEPTED" ||
-    order.status === "PREPARING" ||
-    order.status === "DELIVERING" ||
-    order.status === "READY"
-  ) {
-    return "COMPLETED";
-  }
+  if (order.status === "PENDING") return "ACKNOWLEDGED";
+  if (order.status === "ACKNOWLEDGED") return "COMPLETED";
   return null;
 }
 const inputClass = "min-h-11 w-full rounded-xl border px-3";

@@ -166,3 +166,15 @@ export type PlatformBillingSummary = {
   overdueAmount: number;
   duePeriods: PlatformBillingPeriod[];
 };
+
+export type OwnerPlatformBillingDebtSummary = {
+  totalOutstandingAmount: number;
+  unpaidPeriodCount: number;
+  totalSettledAmount: number;
+  totalFinalizedAmount: number;
+  overdueAmount: number;
+  overdueCount: number;
+  dueSoonAmount: number;
+  dueSoonCount: number;
+  nearestDueAt: string | null;
+};

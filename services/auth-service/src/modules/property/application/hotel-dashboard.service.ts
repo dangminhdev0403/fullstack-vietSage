@@ -12,10 +12,8 @@ import { PrismaService } from "../../../prisma/prisma.service";
 import { HotelAccessService } from "./hotel-access.service";
 
 const REQUEST_INCOMPLETE_STATUSES = [
-  GuestRequestStatus.CREATED,
+  GuestRequestStatus.PENDING,
   GuestRequestStatus.ACKNOWLEDGED,
-  GuestRequestStatus.IN_PROGRESS,
-  GuestRequestStatus.FAILED,
 ];
 const ACTIVE_STAY_STATUSES = [GuestStayStatus.CHECKED_IN, GuestStayStatus.ACTIVE];
 const ACTIVE_REQUEST_STAY_FILTER = {
@@ -55,7 +53,7 @@ function mapRequestStatus(
 ): "sent" | "processing" | "completed" | "cancelled" {
   if (status === GuestRequestStatus.COMPLETED) return "completed";
   if (status === GuestRequestStatus.CANCELLED) return "cancelled";
-  if (status === GuestRequestStatus.ACKNOWLEDGED || status === GuestRequestStatus.IN_PROGRESS)
+  if (status === GuestRequestStatus.ACKNOWLEDGED)
     return "processing";
   return "sent";
 }
@@ -484,7 +482,7 @@ export class HotelDashboardService {
         by: ["requestId"],
         where: {
           ...requestEventRequestFilter,
-          toStatus: { in: [GuestRequestStatus.ACKNOWLEDGED, GuestRequestStatus.IN_PROGRESS] },
+          toStatus: { in: [GuestRequestStatus.ACKNOWLEDGED] },
         },
         _min: { createdAt: true },
       }),

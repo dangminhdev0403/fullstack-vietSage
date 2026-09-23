@@ -58,7 +58,7 @@ describe("HotelRequestsRepository status transition concurrency", () => {
       guestRequest: {
         findFirstOrThrow: jest.fn().mockResolvedValue({
           id: "request-1",
-          status: GuestRequestStatus.IN_PROGRESS,
+          status: GuestRequestStatus.ACKNOWLEDGED,
         }),
         update: jest.fn(),
       },
@@ -74,7 +74,7 @@ describe("HotelRequestsRepository status transition concurrency", () => {
         tenantId: "tenant-1",
         requestId: "request-1",
         actorUserId: "staff-1",
-        expectedStatus: GuestRequestStatus.CREATED,
+        expectedStatus: GuestRequestStatus.PENDING,
         status: GuestRequestStatus.ACKNOWLEDGED,
       }),
     ).rejects.toThrow("Guest request status changed concurrently");

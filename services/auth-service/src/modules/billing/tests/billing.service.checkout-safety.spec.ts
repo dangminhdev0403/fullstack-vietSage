@@ -98,7 +98,7 @@ describe("BillingService checkout safety", () => {
     };
     const prisma = {
       invoice: { findFirst: jest.fn().mockResolvedValue(null) },
-      $transaction: jest.fn((callback: (tx: typeof tx) => Promise<unknown>) => callback(tx)),
+      $transaction: jest.fn((callback: (tx: any) => Promise<unknown>) => callback(tx)),
     };
     const repository = {
       getFolioSummary: jest.fn().mockResolvedValue({
@@ -231,7 +231,7 @@ describe("BillingService checkout safety", () => {
     };
     const prisma = {
       paymentTransaction: { findFirst: jest.fn().mockResolvedValue(null) },
-      $transaction: jest.fn((callback: (tx: typeof tx) => Promise<unknown>) => callback(tx)),
+      $transaction: jest.fn((callback: (tx: any) => Promise<unknown>) => callback(tx)),
     };
     const eventPublisher = {
       publishConversationClosed: jest.fn(),
@@ -643,7 +643,7 @@ describe("BillingService checkout safety", () => {
       },
     };
     const prisma = {
-      $transaction: jest.fn((callback: (tx: typeof tx) => Promise<unknown>) => callback(tx)),
+      $transaction: jest.fn((callback: (tx: any) => Promise<unknown>) => callback(tx)),
     };
     const service = createService(prisma);
 
@@ -709,7 +709,7 @@ describe("BillingService checkout safety", () => {
       },
     };
     const prisma = {
-      $transaction: jest.fn((callback: (tx: typeof tx) => Promise<unknown>) => callback(tx)),
+      $transaction: jest.fn((callback: (tx: any) => Promise<unknown>) => callback(tx)),
     };
     const service = createService(prisma);
 
@@ -765,7 +765,7 @@ describe("BillingService checkout safety", () => {
       },
     };
     const prisma = {
-      $transaction: jest.fn((callback: (tx: typeof tx) => Promise<unknown>) => callback(tx)),
+      $transaction: jest.fn((callback: (tx: any) => Promise<unknown>) => callback(tx)),
     };
     const service = createService(prisma);
 

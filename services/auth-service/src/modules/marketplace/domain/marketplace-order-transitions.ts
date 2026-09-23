@@ -1,14 +1,11 @@
 import type { MarketplaceOrderStatus } from "@prisma/client";
 
 const transitions: Record<MarketplaceOrderStatus, readonly MarketplaceOrderStatus[]> = {
-  PENDING: ["ACCEPTED", "PREPARING", "CONFIRMED", "CANCELLED"],
-  ACCEPTED: ["PREPARING", "DELIVERING", "READY", "CONFIRMED", "COMPLETED", "CANCELLED"],
-  PREPARING: ["DELIVERING", "READY", "CONFIRMED", "COMPLETED", "CANCELLED"],
-  DELIVERING: ["COMPLETED", "CANCELLED"],
-  READY: ["COMPLETED", "CANCELLED"],
-  CONFIRMED: ["COMPLETED", "CANCELLED"],
+  PENDING: ["ACKNOWLEDGED", "COMPLETED", "CANCELLED", "REJECTED"],
+  ACKNOWLEDGED: ["COMPLETED", "CANCELLED", "REJECTED"],
   COMPLETED: [],
   CANCELLED: [],
+  REJECTED: [],
 };
 
 export function canTransitionMarketplaceOrder(

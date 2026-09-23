@@ -3,15 +3,14 @@ import type {
   GuestPortalRequestStatus,
   GuestRequestType,
   GuestServiceItem,
-} from "@/features/guest-os/types/guest-os-contract";
+} from "../types/guest-os-contract";
 
 export const requestStatusLabelKeyMap: Record<GuestPortalRequestStatus, string> = {
-  CREATED: "requests.sent",
+  PENDING: "requests.sent",
   ACKNOWLEDGED: "requests.acknowledged",
-  IN_PROGRESS: "requests.inProgress",
   COMPLETED: "requests.done",
-  FAILED: "requests.failed",
   CANCELLED: "requests.cancelled",
+  REJECTED: "requests.rejected",
 };
 
 export const requestPriorityLabelKeyMap: Record<GuestPortalRequestPriority, string> = {
@@ -47,17 +46,18 @@ export function getRequestTypeIcon(type: GuestRequestType): string {
     case "ESIM_PURCHASE": return "sim_card";
     case "AI_CONCIERGE": return "support_agent";
   }
+  return "";
 }
 
 export function getStatusTone(status: GuestPortalRequestStatus): string {
   switch (status) {
-    case "CREATED": return "bg-blue-100 text-blue-800 ring-1 ring-blue-200";
-    case "ACKNOWLEDGED":
-    case "IN_PROGRESS": return "bg-amber-100 text-amber-800 ring-1 ring-amber-200";
+    case "PENDING": return "bg-blue-100 text-blue-800 ring-1 ring-blue-200";
+    case "ACKNOWLEDGED": return "bg-amber-100 text-amber-800 ring-1 ring-amber-200";
     case "COMPLETED": return "bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200";
-    case "FAILED": return "bg-red-100 text-red-800 ring-1 ring-red-200";
+    case "REJECTED": return "bg-red-100 text-red-800 ring-1 ring-red-200";
     case "CANCELLED": return "bg-pink-100 text-pink-800 ring-1 ring-pink-200";
   }
+  return "";
 }
 
 export function formatGuestDateTime(value: string | null | undefined, locale = "vi-VN", emptyLabel = "--"): string {

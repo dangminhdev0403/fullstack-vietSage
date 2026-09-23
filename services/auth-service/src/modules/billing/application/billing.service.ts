@@ -1529,16 +1529,7 @@ export class BillingService {
       where: {
         stayId: folio.stayId,
         status: {
-          in: [
-            GuestRequestStatus.CREATED,
-            GuestRequestStatus.NEW,
-            GuestRequestStatus.ACKNOWLEDGED,
-            GuestRequestStatus.CONFIRMED,
-            GuestRequestStatus.ACCEPTED,
-            GuestRequestStatus.IN_PROGRESS,
-            GuestRequestStatus.PENDING,
-            GuestRequestStatus.ON_THE_WAY,
-          ],
+          in: [...activeGuestRequestStatuses],
         },
       },
       include: { serviceItem: true, room: true },

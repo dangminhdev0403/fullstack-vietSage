@@ -1,12 +1,11 @@
 import { z } from "zod";
 
 export const guestRequestStatusValues = [
-  "CREATED",
+  "PENDING",
   "ACKNOWLEDGED",
-  "IN_PROGRESS",
   "COMPLETED",
   "CANCELLED",
-  "FAILED",
+  "REJECTED",
 ] as const;
 export const guestRequestStatusSchema = z.enum(guestRequestStatusValues);
 export const guestRequestStatusFilterValues = guestRequestStatusValues;

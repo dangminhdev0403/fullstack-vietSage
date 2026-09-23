@@ -49,7 +49,7 @@ export interface StaffRequestListItemResponse {
   actions: StaffRequestAction[];
 }
 
-type StaffRequestAction = "ACCEPT" | "START" | "COMPLETE" | "CANCEL" | "FAIL";
+type StaffRequestAction = "ACCEPT" | "COMPLETE" | "CANCEL" | "REJECT";
 
 type RequestStatusSummary = Record<CanonicalGuestRequestStatus, number>;
 
@@ -61,7 +61,7 @@ export interface RequestSummaryResponse {
 const completedRequestStatuses = [
   GuestRequestStatus.COMPLETED,
   GuestRequestStatus.CANCELLED,
-  GuestRequestStatus.FAILED,
+  GuestRequestStatus.REJECTED,
 ];
 
 const activeStayRequestFilter = {
@@ -179,7 +179,7 @@ export class HotelRequestsService {
       (page - 1) * limit,
       limit,
     );
-    const completedSummary = await this.hotelRequestsRepository.summarizeRequests({
+    const completedTotal = await this.hotelRequestsRepository.countRequests({
       ...where,
       status: { in: completedRequestStatuses },
     });
@@ -192,7 +192,7 @@ export class HotelRequestsService {
       items,
       groups: {
         active: { total, items },
-        completed: { total: completedSummary.total, items: [] },
+        completed: { total: completedTotal, items: [] },
       },
     };
   }
@@ -471,33 +471,27 @@ export class HotelRequestsService {
   private assertRequestTransition(from: GuestRequestStatus, to: CanonicalGuestRequestStatus) {
     const normalizedFrom = normalizeGuestRequestStatus(from);
     const allowed: Record<CanonicalGuestRequestStatus, CanonicalGuestRequestStatus[]> = {
-      CREATED: [
+      PENDING: [
         GuestRequestStatus.ACKNOWLEDGED,
         GuestRequestStatus.COMPLETED,
         GuestRequestStatus.CANCELLED,
-        GuestRequestStatus.FAILED,
+        GuestRequestStatus.REJECTED,
       ],
       ACKNOWLEDGED: [
         GuestRequestStatus.COMPLETED,
-        GuestRequestStatus.FAILED,
         GuestRequestStatus.CANCELLED,
-        GuestRequestStatus.IN_PROGRESS,
-      ],
-      IN_PROGRESS: [
-        GuestRequestStatus.COMPLETED,
-        GuestRequestStatus.FAILED,
-        GuestRequestStatus.CANCELLED,
+        GuestRequestStatus.REJECTED,
       ],
       COMPLETED: [],
       CANCELLED: [],
-      FAILED: [],
+      REJECTED: [],
     };
 
     if (normalizedFrom === to) {
       return;
     }
 
-    if (!allowed[normalizedFrom].includes(to)) {
+    if (!allowed[normalizedFrom] || !allowed[normalizedFrom].includes(to)) {
       throw new BadRequestException(`Yêu cầu không thể chuyển từ ${from} sang ${to}`);
     }
   }
@@ -511,7 +505,7 @@ export class HotelRequestsService {
     const ackDeadlineAtDate = new Date(row.createdAt.getTime() + ackDeadlineMs);
     const isOverdue =
       priority === "URGENT" &&
-      normalizedStatus === GuestRequestStatus.CREATED &&
+      normalizedStatus === GuestRequestStatus.PENDING &&
       !isCheckedOut &&
       Date.now() > ackDeadlineAtDate.getTime();
 
@@ -538,15 +532,13 @@ export class HotelRequestsService {
 
   private getStaffRequestActions(status: CanonicalGuestRequestStatus): StaffRequestAction[] {
     switch (status) {
-      case GuestRequestStatus.CREATED:
-        return ["ACCEPT", "CANCEL"];
+      case GuestRequestStatus.PENDING:
+        return ["ACCEPT", "REJECT", "CANCEL"];
       case GuestRequestStatus.ACKNOWLEDGED:
-        return ["START", "CANCEL"];
-      case GuestRequestStatus.IN_PROGRESS:
-        return ["COMPLETE", "FAIL"];
+        return ["COMPLETE", "REJECT", "CANCEL"];
       case GuestRequestStatus.COMPLETED:
       case GuestRequestStatus.CANCELLED:
-      case GuestRequestStatus.FAILED:
+      case GuestRequestStatus.REJECTED:
         return [];
     }
   }
@@ -604,7 +596,7 @@ export class HotelRequestsService {
       description: row.description,
       answer: row.events[0]?.note ?? null,
       createdAt: row.createdAt.toISOString(),
-      canCancel: normalizeGuestRequestStatus(row.status) === GuestRequestStatus.CREATED,
+      canCancel: normalizeGuestRequestStatus(row.status) === GuestRequestStatus.PENDING,
     };
   }
 

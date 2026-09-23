@@ -7,7 +7,7 @@ describe("TelegramWebhookController authorization metadata", () => {
     const method = Object.getOwnPropertyDescriptor(
       TelegramWebhookController.prototype,
       "handleWebhook",
-    )?.value as unknown;
+    )?.value as any;
     expect(Reflect.getMetadata(SKIP_AUTHORIZATION_KEY, method)).toBe(true);
   });
 });

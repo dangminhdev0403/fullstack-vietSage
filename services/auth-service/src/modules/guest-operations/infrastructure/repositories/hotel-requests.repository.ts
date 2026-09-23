@@ -33,6 +33,10 @@ export class HotelRequestsRepository {
     return [total, rows] as const;
   }
 
+  async countRequests(where: Prisma.GuestRequestWhereInput) {
+    return this.prisma.guestRequest.count({ where });
+  }
+
   async summarizeRequests(where: Prisma.GuestRequestWhereInput) {
     const [total, statuses] = await Promise.all([
       this.prisma.guestRequest.count({ where }),
@@ -45,15 +49,15 @@ export class HotelRequestsRepository {
     return { total, statuses };
   }
 
+
   async summarizeOperationalRequests(where: Prisma.GuestRequestWhereInput) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
     const activeStatuses = [
-      GuestRequestStatus.CREATED,
+      GuestRequestStatus.PENDING,
       GuestRequestStatus.ACKNOWLEDGED,
-      GuestRequestStatus.IN_PROGRESS,
     ];
 
     const [pending, urgent, unassigned, completedToday] = await Promise.all([

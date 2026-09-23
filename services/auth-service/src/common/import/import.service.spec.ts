@@ -18,7 +18,7 @@ describe("ImportService", () => {
     const preview = {
       importType: "service-catalog",
       mode: "replace",
-      context: {},
+      context: { actorUserId: "user-1" },
       payload: {},
       currentState: {},
       validation: [],
@@ -33,7 +33,7 @@ describe("ImportService", () => {
         totalEntities: 0,
         byEntityType: {},
       },
-    } satisfies ImportPreviewResult;
+    } as any;
 
     await service.commit(preview);
 

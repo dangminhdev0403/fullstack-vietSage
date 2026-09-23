@@ -78,13 +78,13 @@ describeWithQaDatabase("local production-like hotel request simulation", () => {
     });
     expect(persisted).toHaveLength(QA_SIM_ROOM_COUNT);
     for (const request of persisted) {
-      expect(request.status).toBe(GuestRequestStatus.CREATED);
+      expect(request.status).toBe(GuestRequestStatus.PENDING);
       expect(request.events).toHaveLength(1);
       expect(request.events[0]).toMatchObject({
         actorType: "GUEST",
         eventType: "REQUEST_CREATED",
         fromStatus: null,
-        toStatus: GuestRequestStatus.CREATED,
+        toStatus: GuestRequestStatus.PENDING,
       });
     }
 
@@ -110,7 +110,7 @@ describeWithQaDatabase("local production-like hotel request simulation", () => {
       fixture.ownerRoleId,
       fixture.primaryHotelId,
       lifecycleTarget.id,
-      { status: "IN_PROGRESS", note: `${QA_SIM_PREFIX} started` },
+      { status: "ACKNOWLEDGED", note: `${QA_SIM_PREFIX} started` },
     );
     await ownerService.updateRequestStatus(
       fixture.ownerUserId,
@@ -126,9 +126,9 @@ describeWithQaDatabase("local production-like hotel request simulation", () => {
     });
     expect(completed.status).toBe(GuestRequestStatus.COMPLETED);
     expect(completed.events.map((event) => event.toStatus)).toEqual([
-      GuestRequestStatus.CREATED,
+      GuestRequestStatus.PENDING,
       GuestRequestStatus.ACKNOWLEDGED,
-      GuestRequestStatus.IN_PROGRESS,
+      GuestRequestStatus.ACKNOWLEDGED,
       GuestRequestStatus.COMPLETED,
     ]);
     expect(completed.billingFolioItem).toMatchObject({ quantity: completed.quantity });

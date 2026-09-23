@@ -14,6 +14,10 @@ describe("HotelUsersService", () => {
     revokeActiveUserRole: jest.Mock;
     upsertActiveUserRoles: jest.Mock;
     hasActiveMarketplaceIdentity: jest.Mock;
+    findTenantScopedHotelUser: jest.Mock;
+    findTenantById: jest.Mock;
+    findUserById: jest.Mock;
+    updateUserPasswordHashAndRevokeSessions: jest.Mock;
   };
 
   beforeEach(() => {
@@ -25,6 +29,10 @@ describe("HotelUsersService", () => {
       revokeActiveUserRole: jest.fn(),
       upsertActiveUserRoles: jest.fn(),
       hasActiveMarketplaceIdentity: jest.fn().mockResolvedValue(false),
+      findTenantScopedHotelUser: jest.fn(),
+      findTenantById: jest.fn(),
+      findUserById: jest.fn(),
+      updateUserPasswordHashAndRevokeSessions: jest.fn(),
     };
 
     service = new HotelUsersService(

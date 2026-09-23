@@ -50,11 +50,24 @@ type OwnerAnalyticsData = {
   estimatedFee: number;
   periods?: PeriodItem[];
   periodsPage?: PaginatedResult<PeriodItem>;
+  debtSummary?: {
+    totalOutstandingAmount: number;
+    unpaidPeriodCount: number;
+    totalSettledAmount: number;
+    totalFinalizedAmount: number;
+    overdueAmount: number;
+    overdueCount: number;
+    dueSoonAmount: number;
+    dueSoonCount: number;
+    nearestDueAt: string | null;
+  };
   reminder?: {
     dueSoonCount: number;
     overdueCount: number;
     dueSoonOutstandingAmount: number;
     overdueOutstandingAmount: number;
+    totalOutstandingAmount?: number;
+    unpaidPeriodCount?: number;
     nearestDueAt: string | null;
   };
   roomUsageSummary?: RoomUsageRow[];
@@ -185,6 +198,16 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
   const hasOverdue = (reminder?.overdueCount ?? 0) > 0;
   const hasDueSoon = !hasOverdue && (reminder?.dueSoonCount ?? 0) > 0;
 
+  const totalDebt = Number(
+    data.debtSummary?.totalOutstandingAmount ??
+      reminder?.totalOutstandingAmount ??
+      0,
+  );
+  const totalSettled = Number(data.debtSummary?.totalSettledAmount ?? 0);
+  const unpaidCount = Number(
+    data.debtSummary?.unpaidPeriodCount ?? reminder?.unpaidPeriodCount ?? 0,
+  );
+
   const kpiCards = [
     {
       key: "stays",
@@ -195,6 +218,7 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
       accent: "text-blue-600 dark:text-blue-400",
       chip: "bg-blue-100/80 text-blue-700 dark:bg-blue-950/80 dark:text-blue-400",
       border: "border-blue-200/70 dark:border-blue-900/40",
+      chipText: "Theo dữ liệu check-in",
     },
     {
       key: "days",
@@ -205,6 +229,7 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
       accent: "text-slate-900 dark:text-white",
       chip: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
       border: "border-slate-200/80 dark:border-slate-800",
+      chipText: "Phát sinh trong tháng",
     },
     {
       key: "fee",
@@ -215,6 +240,7 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
       accent: "text-emerald-600 dark:text-emerald-400",
       chip: "bg-emerald-100/80 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-400",
       border: "border-emerald-200/70 dark:border-emerald-900/40",
+      chipText: totalSettled > 0 ? `Đã thanh toán: ${formatVnd(totalSettled)} VND` : undefined,
     },
     {
       key: "periods",
@@ -225,6 +251,7 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
       accent: "text-indigo-600 dark:text-indigo-400",
       chip: "bg-indigo-100/80 text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-400",
       border: "border-indigo-200/70 dark:border-indigo-900/40",
+      chipText: totalDebt > 0 ? `Còn nợ: ${formatVnd(totalDebt)} VND` : "Đã tất toán công nợ",
     },
   ];
 
@@ -332,8 +359,8 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
         </div>
       </section>
 
-      {/* 4 main KPIs */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {/* 5 main KPIs */}
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {kpiCards.map((card) => (
           <div
             key={card.key}
@@ -351,7 +378,7 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
             </div>
             <div className="mt-3 flex items-baseline gap-1.5">
               <span
-                className={`text-3xl font-extrabold tabular-nums tracking-tight ${card.accent}`}
+                className={`text-2xl lg:text-3xl font-extrabold tabular-nums tracking-tight ${card.accent}`}
               >
                 {card.value}
               </span>
@@ -359,6 +386,11 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
                 {card.unit}
               </span>
             </div>
+            {card.chipText ? (
+              <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                {card.chipText}
+              </p>
+            ) : null}
           </div>
         ))}
       </section>

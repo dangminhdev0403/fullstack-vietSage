@@ -34,11 +34,11 @@ describe("GuestOsRepository request creation", () => {
 
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
     expect(tx.guestRequest.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ status: "CREATED" }),
+      data: expect.objectContaining({ status: GuestRequestStatus.PENDING }),
       include: expect.any(Object),
     });
     expect(tx.guestRequestEvent.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ toStatus: "CREATED" }),
+      data: expect.objectContaining({ toStatus: GuestRequestStatus.PENDING }),
     });
     expect(tx.domainEvent.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -231,7 +231,7 @@ describe("GuestOsRepository request listing", () => {
 });
 
 describe("GuestOsRepository request cancellation", () => {
-  it("only cancels guest requests that are still CREATED", async () => {
+  it("only cancels guest requests that are still PENDING", async () => {
     const request = { id: "request-1", status: "CANCELLED", serviceItem: null };
     const tx = {
       guestRequest: {
@@ -257,7 +257,7 @@ describe("GuestOsRepository request cancellation", () => {
         stayId: "stay-1",
         sessionId: "session-1",
         requestId: "request-1",
-        sourceStatus: GuestRequestStatus.CREATED,
+        sourceStatus: GuestRequestStatus.PENDING,
       }),
     ).resolves.toBe(request);
 
@@ -266,7 +266,7 @@ describe("GuestOsRepository request cancellation", () => {
         id: "request-1",
         hotelId: "hotel-1",
         stayId: "stay-1",
-        status: "CREATED",
+        status: GuestRequestStatus.PENDING,
       },
       data: {
         status: "CANCELLED",
@@ -280,7 +280,7 @@ describe("GuestOsRepository request cancellation", () => {
         actorType: "GUEST",
         sessionId: "session-1",
         eventType: "REQUEST_CANCELLED",
-        fromStatus: "CREATED",
+        fromStatus: GuestRequestStatus.PENDING,
         toStatus: "CANCELLED",
       }),
     });

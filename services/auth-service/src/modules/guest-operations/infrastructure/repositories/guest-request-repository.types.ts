@@ -11,6 +11,39 @@ export const requestListInclude = {
       checkedOutAt: true,
     },
   },
+  serviceItem: {
+    select: {
+      id: true,
+      name: true,
+      category: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
+  },
+  events: {
+    orderBy: { createdAt: "desc" },
+    take: 1,
+  },
+} satisfies Prisma.GuestRequestInclude;
+
+export type StaffRequestListRow = Prisma.GuestRequestGetPayload<{
+  include: typeof requestListInclude;
+}>;
+
+export const requestDetailInclude = {
+  room: { select: { id: true, roomNumber: true } },
+  stay: {
+    select: {
+      id: true,
+      reservationCode: true,
+      guestDisplayName: true,
+      status: true,
+      checkedOutAt: true,
+    },
+  },
   assignedTo: { select: { id: true, fullName: true, email: true } },
   serviceItem: {
     select: {
@@ -47,18 +80,6 @@ export const requestListInclude = {
     },
   },
   events: {
-    orderBy: { createdAt: "desc" },
-    take: 1,
-  },
-} satisfies Prisma.GuestRequestInclude;
-
-export type StaffRequestListRow = Prisma.GuestRequestGetPayload<{
-  include: typeof requestListInclude;
-}>;
-
-export const requestDetailInclude = {
-  ...requestListInclude,
-  events: {
     orderBy: { createdAt: "asc" },
     include: { actorUser: { select: { id: true, fullName: true, email: true } } },
   },
@@ -66,3 +87,4 @@ export const requestDetailInclude = {
     select: { id: true, status: true, createdAt: true, lastSeenAt: true, closedAt: true },
   },
 } satisfies Prisma.GuestRequestInclude;
+

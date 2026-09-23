@@ -23,6 +23,7 @@ function getGuestOrderStatusBadge(status: string, t: (key: string) => string): {
   switch (status) {
     case "PENDING":
       return { label: t("requests.statusPending"), className: "bg-[#fff3db] text-[#925f0e] border-[#f3d6a2]" };
+    case "ACKNOWLEDGED":
     case "CONFIRMED":
     case "PROCESSING":
     case "ACCEPTED":

@@ -20,6 +20,7 @@ describe("TenantOwnersService", () => {
     findTenantOwnerByUserId: jest.Mock;
     createTenantOwner: jest.Mock;
     updateTenantOwner: jest.Mock;
+    updatePasswordHashAndRevokeSessions: jest.Mock;
   };
 
   const tenantOwnerRow = {
@@ -70,6 +71,7 @@ describe("TenantOwnersService", () => {
       findTenantOwnerByUserId: jest.fn().mockResolvedValue(tenantOwnerRow),
       createTenantOwner: jest.fn().mockResolvedValue(tenantOwnerRow),
       updateTenantOwner: jest.fn().mockResolvedValue(tenantOwnerRow),
+      updatePasswordHashAndRevokeSessions: jest.fn(),
     };
     codesService = {
       generateEntityCode: jest.fn().mockResolvedValue("VSH_TENANT_0001"),

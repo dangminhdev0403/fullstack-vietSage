@@ -50,7 +50,7 @@ describe("HotelRoomsService conversation close event", () => {
     );
 
     await service.checkOutStay("user-1", "role-1", "hotel-1", "stay-1", {
-      nextRoomStatus: RoomStatus.PROCESSING,
+      nextRoomStatus: RoomStatus.AVAILABLE,
     });
 
     expect(order).toEqual(["transaction-committed", "event-published"]);

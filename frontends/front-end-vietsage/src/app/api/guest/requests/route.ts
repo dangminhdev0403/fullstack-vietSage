@@ -22,12 +22,18 @@ function toPositiveInteger(value: string | null): number | undefined {
 }
 
 function isGuestRequestStatus(value: string | undefined): value is GuestPortalRequestStatus {
-  return value === "CREATED" || value === "ACKNOWLEDGED" || value === "IN_PROGRESS" || value === "COMPLETED" || value === "CANCELLED" || value === "FAILED";
+  return (
+    value === "PENDING" ||
+    value === "ACKNOWLEDGED" ||
+    value === "COMPLETED" ||
+    value === "CANCELLED" ||
+    value === "REJECTED"
+  );
 }
 
 function normalizeGuestRequestStatus(value: string | undefined): GuestPortalRequestStatus | undefined {
-  if (value === "CREATE") {
-    return "CREATED";
+  if (value === "CREATED" || value === "CREATE") {
+    return "PENDING";
   }
 
   return isGuestRequestStatus(value) ? value : undefined;
@@ -44,7 +50,7 @@ export async function GET(request: Request) {
 
   const guestStatus = normalizeGuestRequestStatus(status);
   if (status && !guestStatus) {
-    return guestValidationErrorResponse("status must be CREATE, CREATED, ACKNOWLEDGED, IN_PROGRESS, COMPLETED, CANCELLED, or FAILED");
+    return guestValidationErrorResponse("status must be PENDING, ACKNOWLEDGED, COMPLETED, CANCELLED, or REJECTED");
   }
 
   try {

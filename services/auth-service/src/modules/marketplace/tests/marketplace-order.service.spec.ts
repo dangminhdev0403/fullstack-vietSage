@@ -37,9 +37,10 @@ describe("Marketplace orders", () => {
     jest.restoreAllMocks();
   });
   it("enforces 3-state order transitions", () => {
-    expect(canTransitionMarketplaceOrder("PENDING", "CONFIRMED")).toBe(true);
-    expect(canTransitionMarketplaceOrder("CONFIRMED", "COMPLETED")).toBe(true);
+    expect(canTransitionMarketplaceOrder("PENDING", "ACKNOWLEDGED")).toBe(true);
+    expect(canTransitionMarketplaceOrder("ACKNOWLEDGED", "COMPLETED")).toBe(true);
     expect(canTransitionMarketplaceOrder("PENDING", "CANCELLED")).toBe(true);
+    expect(canTransitionMarketplaceOrder("PENDING", "REJECTED")).toBe(true);
     expect(canTransitionMarketplaceOrder("COMPLETED", "CANCELLED")).toBe(false);
   });
 
@@ -73,7 +74,7 @@ describe("Marketplace orders", () => {
       stayId: "stay-1",
       serviceId: "service-1",
       serviceTenantId: "provider-1",
-      status: "CONFIRMED",
+      status: "ACKNOWLEDGED",
       version: 1,
       quantity: 2,
       totalAmount: new Prisma.Decimal(200),
@@ -376,7 +377,7 @@ describe("Marketplace orders", () => {
     const service = new MarketplaceOrderService(prisma as never, {} as never);
     const result = await service.completeHotelOrder("staff-1", "hotel-1", "order-complete-1");
 
-    expect(result.status).toBe("COMPLETED");
+    expect(result!.status).toBe("COMPLETED");
     expect(tx.marketplaceRevenueEntry.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         create: expect.objectContaining({ grossAmount: new Prisma.Decimal(20000) }),
@@ -516,7 +517,7 @@ describe("Marketplace orders", () => {
       stayId: "stay-1",
       serviceId: "service-1",
       serviceTenantId: "provider-1",
-      status: "CONFIRMED",
+      status: "ACKNOWLEDGED",
       version: 1,
       quantity: 1,
       totalAmount: new Prisma.Decimal(450000),

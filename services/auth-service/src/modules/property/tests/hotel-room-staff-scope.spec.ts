@@ -601,7 +601,7 @@ describe("HotelRoomStaffScope (Phase 1)", () => {
         mockHotelAccessService as any,
         mockJwt as any,
         {} as any,
-        { enabled: true, ticketSecret: "test-secret", audience: "test", ticketTtlSeconds: 300 },
+        { enabled: true, ticketSecret: "test-secret", audience: "request-realtime" as const, ticketTtlSeconds: 300 },
       );
 
       await service.issueOwnerTicket("sale-1", "role-fd", "hotel-1");

@@ -896,12 +896,11 @@ export const listHotelUsersQuerySchema = {
 
 export const guestRequestPriorityEnum = ["NORMAL", "URGENT"] as const;
 export const guestRequestStatusEnum = [
-  "CREATED",
+  "PENDING",
   "ACKNOWLEDGED",
-  "IN_PROGRESS",
   "COMPLETED",
   "CANCELLED",
-  "FAILED",
+  "REJECTED",
 ] as const;
 export const serviceCatalogStatusEnum = ["ACTIVE", "DISABLED"] as const;
 

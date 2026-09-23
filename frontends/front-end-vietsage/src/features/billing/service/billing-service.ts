@@ -1,6 +1,6 @@
 import { unwrapApiEnvelope } from "@/core/http/api-envelope";
 import { HttpClient, type HttpQuery } from "@/core/http/http-client";
-import type { BillingPage, FolioItem, FolioListItem, FolioSummary, Invoice, InvoiceDetail, Payment, PlatformBillingSummary } from "@/features/billing/types/billing-contract";
+import type { BillingPage, FolioItem, FolioListItem, FolioSummary, Invoice, InvoiceDetail, OwnerPlatformBillingDebtSummary, Payment, PlatformBillingSummary } from "@/features/billing/types/billing-contract";
 
 type AuthRequestOptions = {
   accessToken?: string;
@@ -209,11 +209,17 @@ export class BillingService {
     hotelId: string,
     options: AuthRequestOptions = {},
   ): Promise<{
+    hasContract?: boolean;
+    contract?: unknown;
+    estimatedFee?: number;
+    debtSummary?: OwnerPlatformBillingDebtSummary | null;
     reminder?: {
       dueSoonCount: number;
       overdueCount: number;
       dueSoonOutstandingAmount: number;
       overdueOutstandingAmount: number;
+      totalOutstandingAmount?: number;
+      unpaidPeriodCount?: number;
       nearestDueAt: string | null;
     } | null;
   }> {
@@ -226,11 +232,17 @@ export class BillingService {
     });
 
     return unwrapApiEnvelope<{
+      hasContract?: boolean;
+      contract?: unknown;
+      estimatedFee?: number;
+      debtSummary?: OwnerPlatformBillingDebtSummary | null;
       reminder?: {
         dueSoonCount: number;
         overdueCount: number;
         dueSoonOutstandingAmount: number;
         overdueOutstandingAmount: number;
+        totalOutstandingAmount?: number;
+        unpaidPeriodCount?: number;
         nearestDueAt: string | null;
       } | null;
     }>(payload).data;

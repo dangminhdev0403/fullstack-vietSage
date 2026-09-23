@@ -22,9 +22,10 @@ function getStatusBadge(status: string): { label: string; className: string } {
   switch (status) {
     case "PENDING":
       return {
-        label: "Chờ xác nhận",
+        label: "Chờ tiếp nhận",
         className: "bg-amber-50 text-amber-900 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60",
       };
+    case "ACKNOWLEDGED":
     case "CONFIRMED":
     case "PROCESSING":
     case "ACCEPTED":
@@ -32,7 +33,7 @@ function getStatusBadge(status: string): { label: string; className: string } {
     case "DELIVERING":
     case "READY":
       return {
-        label: "Đang xử lý",
+        label: "Đã tiếp nhận",
         className: "bg-blue-50 text-blue-900 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/60",
       };
     case "COMPLETED":
@@ -40,11 +41,15 @@ function getStatusBadge(status: string): { label: string; className: string } {
         label: "Hoàn thành",
         className: "bg-emerald-50 text-emerald-900 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60",
       };
-    case "CANCELLED":
     case "REJECTED":
       return {
-        label: "Đã hủy",
+        label: "Từ chối",
         className: "bg-rose-50 text-rose-900 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/60",
+      };
+    case "CANCELLED":
+      return {
+        label: "Đã hủy",
+        className: "bg-zinc-100 text-zinc-800 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700",
       };
     default:
       return {
@@ -54,19 +59,12 @@ function getStatusBadge(status: string): { label: string; className: string } {
   }
 }
 
-function getNextStatus(order: MarketplaceOrder): { label: string; status: string; icon: string } | null {
+function getNextStatus(order: MarketplaceOrder): { label: string; status: MarketplaceOrder["status"]; icon: string } | null {
   if (isTerminalOrderStatus(order.status)) return null;
   if (order.status === "PENDING") {
-    return { label: "Xác nhận", status: "CONFIRMED", icon: "check" };
+    return { label: "Tiếp nhận", status: "ACKNOWLEDGED", icon: "check" };
   }
-  if (
-    order.status === "CONFIRMED" ||
-    order.status === "PROCESSING" ||
-    order.status === "ACCEPTED" ||
-    order.status === "PREPARING" ||
-    order.status === "DELIVERING" ||
-    order.status === "READY"
-  ) {
+  if (order.status === "ACKNOWLEDGED") {
     return { label: "Hoàn thành", status: "COMPLETED", icon: "task_alt" };
   }
   return null;
@@ -102,21 +100,17 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
   const filteredOrders = useMemo(() => {
     return ordersList.filter((order) => {
       if (statusFilter === "PENDING" && order.status !== "PENDING") return false;
-      if (
-        statusFilter === "CONFIRMED" &&
-        !(
-          order.status === "CONFIRMED" ||
-          order.status === "ACCEPTED" ||
-          order.status === "PREPARING" ||
-          order.status === "READY" ||
-          order.status === "DELIVERING" ||
-          order.status === "PROCESSING"
-        )
-      ) {
+      if (statusFilter === "ACKNOWLEDGED" && order.status !== "ACKNOWLEDGED") {
         return false;
       }
       if (statusFilter === "COMPLETED" && order.status !== "COMPLETED") return false;
-      if (statusFilter === "CANCELLED" && order.status !== "CANCELLED" && order.status !== "REJECTED") return false;
+      if (
+        statusFilter === "CANCELLED" &&
+        order.status !== "CANCELLED" &&
+        order.status !== "REJECTED"
+      ) {
+        return false;
+      }
 
       if (searchQuery.trim()) {
         const query = searchQuery.trim().toLowerCase();
@@ -165,7 +159,11 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
     });
   }, [ordersList, searchQuery, sortState, statusFilter, data.profile]);
 
-  const handleTransition = async (order: MarketplaceOrder, targetStatus?: string, customLabel?: string) => {
+  const handleTransition = async (
+    order: MarketplaceOrder,
+    targetStatus?: MarketplaceOrder["status"],
+    customLabel?: string,
+  ) => {
     if (isTerminalOrderStatus(order.status)) {
       toast.error("Đơn hàng đã ở trạng thái kết thúc, không thể thay đổi.");
       return;
@@ -173,7 +171,7 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
     const next = targetStatus ? { label: customLabel ?? targetStatus, status: targetStatus } : getNextStatus(order);
     if (!next) return;
 
-    const isCancel = next.status === "CANCELLED";
+    const isCancel = next.status === "CANCELLED" || next.status === "REJECTED";
 
     const res = await SwalVietSage.fire({
       icon: isCancel ? "warning" : "question",
@@ -344,12 +342,12 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
                 disabled={transition.isPending}
                 onClick={(e) => {
                   e.stopPropagation();
-                  void handleTransition(order, "CANCELLED", "Hủy");
+                  void handleTransition(order, "REJECTED", "Từ chối");
                 }}
                 className="inline-flex items-center justify-center gap-1 rounded-xl border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-bold text-rose-700 transition-all hover:bg-rose-100 disabled:opacity-50"
               >
-                <VsIcon name="close" className="text-xs opacity-90" />
-                <span>Hủy</span>
+                <VsIcon name="block" className="text-xs opacity-90" />
+                <span>Từ chối</span>
               </button>
             ) : null}
           </div>
@@ -359,15 +357,7 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
   ];
 
   const pendingCount = ordersList.filter((o) => o.status === "PENDING").length;
-  const confirmedCount = ordersList.filter(
-    (o) =>
-      o.status === "CONFIRMED" ||
-      o.status === "ACCEPTED" ||
-      o.status === "PREPARING" ||
-      o.status === "READY" ||
-      o.status === "DELIVERING" ||
-      o.status === "PROCESSING"
-  ).length;
+  const acknowledgedCount = ordersList.filter((o) => o.status === "ACKNOWLEDGED").length;
   const completedCount = ordersList.filter((o) => o.status === "COMPLETED").length;
   const cancelledCount = ordersList.filter((o) => o.status === "CANCELLED" || o.status === "REJECTED").length;
 
@@ -471,10 +461,10 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
         <div className="flex flex-wrap items-center gap-2">
           {[
             { key: "ALL", label: "Tất cả", count: ordersList.length },
-            { key: "PENDING", label: "Chờ xác nhận", count: pendingCount },
-            { key: "CONFIRMED", label: "Đã tiếp nhận", count: confirmedCount },
+            { key: "PENDING", label: "Chờ tiếp nhận", count: pendingCount },
+            { key: "ACKNOWLEDGED", label: "Đã tiếp nhận", count: acknowledgedCount },
             { key: "COMPLETED", label: "Hoàn tất", count: completedCount },
-            { key: "CANCELLED", label: "Đã hủy", count: cancelledCount },
+            { key: "CANCELLED", label: "Từ chối / Đã hủy", count: cancelledCount },
           ].map((tab) => (
             <button
               key={tab.key}
@@ -710,15 +700,15 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
               <p className="text-[11px] font-bold uppercase tracking-wider text-slate-600">Tiến độ đơn hàng</p>
               <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold">
                 <span className={`px-2.5 py-1 rounded-lg border ${selectedOrder.status === "PENDING" ? "bg-amber-100 text-amber-900 border-amber-300 font-bold" : "bg-white text-slate-500 border-slate-200"}`}>
-                  1. Chờ xác nhận
+                  1. Chờ tiếp nhận
                 </span>
                 <span className="text-slate-400 font-bold">→</span>
-                <span className={`px-2.5 py-1 rounded-lg border ${selectedOrder.status === "CONFIRMED" || selectedOrder.status === "ACCEPTED" || selectedOrder.status === "PREPARING" || selectedOrder.status === "READY" || selectedOrder.status === "DELIVERING" || selectedOrder.status === "PROCESSING" ? "bg-blue-100 text-blue-900 border-blue-300 font-bold" : "bg-white text-slate-500 border-slate-200"}`}>
-                  2. Đang xử lý
+                <span className={`px-2.5 py-1 rounded-lg border ${selectedOrder.status === "ACKNOWLEDGED" ? "bg-blue-100 text-blue-900 border-blue-300 font-bold" : "bg-white text-slate-500 border-slate-200"}`}>
+                  2. Đã tiếp nhận
                 </span>
                 <span className="text-slate-400 font-bold">→</span>
                 <span className={`px-2.5 py-1 rounded-lg border ${selectedOrder.status === "COMPLETED" ? "bg-emerald-100 text-emerald-900 border-emerald-300 font-bold" : selectedOrder.status === "CANCELLED" || selectedOrder.status === "REJECTED" ? "bg-rose-100 text-rose-900 border-rose-300 font-bold" : "bg-white text-slate-500 border-slate-200"}`}>
-                  {selectedOrder.status === "CANCELLED" || selectedOrder.status === "REJECTED" ? "3. Đã hủy" : "3. Hoàn tất"}
+                  {selectedOrder.status === "REJECTED" ? "3. Từ chối" : selectedOrder.status === "CANCELLED" ? "3. Đã hủy" : "3. Hoàn tất"}
                 </span>
               </div>
             </div>
@@ -733,39 +723,37 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
                       <button
                         type="button"
                         disabled={transition.isPending}
-                        onClick={() => void handleTransition(selectedOrder, "CONFIRMED", "Xác nhận")}
+                        onClick={() => void handleTransition(selectedOrder, "ACKNOWLEDGED", "Tiếp nhận")}
                         className="inline-flex items-center gap-1.5 rounded-xl bg-blue-700 px-4 py-2 text-xs font-bold text-white hover:bg-blue-800 disabled:opacity-50 shadow-2xs"
                       >
                         <VsIcon name="check" className="text-xs" />
-                        <span>Xác nhận</span>
+                        <span>Tiếp nhận</span>
                       </button>
 
                       <button
                         type="button"
                         disabled={transition.isPending}
-                        onClick={() => void handleTransition(selectedOrder, "PREPARING", "Đang xử lý")}
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-amber-700 px-4 py-2 text-xs font-bold text-white hover:bg-amber-800 disabled:opacity-50 shadow-2xs"
+                        onClick={() => void handleTransition(selectedOrder, "REJECTED", "Từ chối")}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-rose-300 bg-rose-50 px-4 py-2 text-xs font-bold text-rose-800 hover:bg-rose-100 disabled:opacity-50"
                       >
-                        <VsIcon name="hourglass_empty" className="text-xs" />
-                        <span>Đang xử lý</span>
+                        <VsIcon name="block" className="text-xs" />
+                        <span>Từ chối</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={transition.isPending}
+                        onClick={() => void handleTransition(selectedOrder, "CANCELLED", "Hủy")}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-300 bg-zinc-50 px-4 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-100 disabled:opacity-50"
+                      >
+                        <VsIcon name="close" className="text-xs" />
+                        <span>Hủy</span>
                       </button>
                     </>
                   ) : null}
 
-                  {selectedOrder.status === "CONFIRMED" || selectedOrder.status === "ACCEPTED" || selectedOrder.status === "PREPARING" || selectedOrder.status === "READY" || selectedOrder.status === "DELIVERING" || selectedOrder.status === "PROCESSING" ? (
+                  {selectedOrder.status === "ACKNOWLEDGED" ? (
                     <>
-                      {selectedOrder.status !== "PREPARING" ? (
-                        <button
-                          type="button"
-                          disabled={transition.isPending}
-                          onClick={() => void handleTransition(selectedOrder, "PREPARING", "Đang xử lý")}
-                          className="inline-flex items-center gap-1.5 rounded-xl bg-amber-700 px-4 py-2 text-xs font-bold text-white hover:bg-amber-800 disabled:opacity-50 shadow-2xs"
-                        >
-                          <VsIcon name="hourglass_empty" className="text-xs" />
-                          <span>Đang xử lý</span>
-                        </button>
-                      ) : null}
-
                       <button
                         type="button"
                         disabled={transition.isPending}
@@ -775,19 +763,27 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
                         <VsIcon name="task_alt" className="text-xs" />
                         <span>Hoàn thành</span>
                       </button>
-                    </>
-                  ) : null}
 
-                  {selectedOrder.status === "PENDING" ? (
-                    <button
-                      type="button"
-                      disabled={transition.isPending}
-                      onClick={() => void handleTransition(selectedOrder, "CANCELLED", "Hủy")}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-rose-300 bg-rose-50 px-4 py-2 text-xs font-bold text-rose-800 hover:bg-rose-100 disabled:opacity-50"
-                    >
-                      <VsIcon name="close" className="text-xs" />
-                      <span>Hủy</span>
-                    </button>
+                      <button
+                        type="button"
+                        disabled={transition.isPending}
+                        onClick={() => void handleTransition(selectedOrder, "REJECTED", "Từ chối")}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-rose-300 bg-rose-50 px-4 py-2 text-xs font-bold text-rose-800 hover:bg-rose-100 disabled:opacity-50"
+                      >
+                        <VsIcon name="block" className="text-xs" />
+                        <span>Từ chối</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={transition.isPending}
+                        onClick={() => void handleTransition(selectedOrder, "CANCELLED", "Hủy")}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-300 bg-zinc-50 px-4 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-100 disabled:opacity-50"
+                      >
+                        <VsIcon name="close" className="text-xs" />
+                        <span>Hủy</span>
+                      </button>
+                    </>
                   ) : null}
                 </div>
               </div>

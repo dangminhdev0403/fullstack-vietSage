@@ -1275,8 +1275,8 @@ export function AdminBillingClient({
       {activeTab === "finalize" && (
         <div className="space-y-6">
           <div className="rounded-2xl border border-indigo-200/80 bg-gradient-to-br from-indigo-50/60 via-slate-50 to-white p-6 shadow-sm dark:border-indigo-900/60 dark:from-indigo-950/30 dark:via-slate-900 dark:to-slate-900">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+              <div className="min-w-0 max-w-2xl">
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-100 px-3 py-1 text-xs font-bold text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300">
                   <VsIcon name="auto_mode" className="text-sm" />
                   Quy trình chốt sổ chu kỳ SaaS
@@ -1289,9 +1289,9 @@ export function AdminBillingClient({
                 </p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <label htmlFor="finalize-month-input" className="text-sm font-bold text-slate-700 dark:text-slate-300">
+              <div className="flex flex-wrap items-center gap-3 shrink-0">
+                <div className="flex h-11 items-center gap-2.5 rounded-xl border border-slate-200/90 bg-white px-3.5 shadow-sm transition-all hover:border-slate-300 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-800/90 dark:hover:border-slate-600 shrink-0">
+                  <label htmlFor="finalize-month-input" className="shrink-0 text-sm font-semibold text-slate-600 dark:text-slate-300">
                     Chọn tháng:
                   </label>
                   <input
@@ -1299,7 +1299,7 @@ export function AdminBillingClient({
                     type="month"
                     value={finalizeMonth}
                     onChange={(e) => setFinalizeMonth(e.target.value)}
-                    className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-bold text-slate-900 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    className="border-0 bg-transparent text-sm font-bold text-slate-900 outline-none dark:text-white cursor-pointer [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-75 hover:[&::-webkit-calendar-picker-indicator]:opacity-100"
                   />
                 </div>
 
@@ -1307,17 +1307,20 @@ export function AdminBillingClient({
                   type="button"
                   onClick={handleBatchFinalize}
                   disabled={isBatchFinalizing || activeContracts.length === 0}
-                  className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 min-h-11 px-5 py-2.5 text-base font-bold text-white shadow-lg shadow-indigo-600/20 hover:bg-indigo-500 disabled:opacity-50 transition-all active:scale-98"
+                  className="inline-flex h-11 items-center justify-center gap-2.5 rounded-xl bg-indigo-600 px-5 text-sm font-bold text-white shadow-md shadow-indigo-600/20 hover:bg-indigo-500 hover:shadow-lg hover:shadow-indigo-600/30 disabled:opacity-50 transition-all active:scale-[0.98] shrink-0 whitespace-nowrap"
                 >
                   {isBatchFinalizing ? (
                     <>
-                      <VsIcon name="progress_activity" className="text-lg animate-spin" />
+                      <VsIcon name="progress_activity" className="text-base animate-spin" />
                       <span>Đang chốt sổ...</span>
                     </>
                   ) : (
                     <>
-                      <VsIcon name="bolt" className="text-lg" />
-                      <span>Chốt tất cả khách sạn ({activeContracts.length})</span>
+                      <VsIcon name="bolt" className="text-base text-amber-300" />
+                      <span>Chốt tất cả khách sạn</span>
+                      <span className="inline-flex items-center justify-center rounded-lg bg-white/20 px-2 py-0.5 text-xs font-bold leading-none text-white">
+                        {activeContracts.length}
+                      </span>
                     </>
                   )}
                 </button>

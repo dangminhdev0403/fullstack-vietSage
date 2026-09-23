@@ -2,7 +2,7 @@ import { REQUIRED_PERMISSION_KEY } from "../../../shared/decorators/require-perm
 import { HotelMarketplaceController } from "../api/hotel-marketplace.controller";
 
 describe("HotelMarketplaceController permissions", () => {
-  const prototype = HotelMarketplaceController.prototype as unknown as Record<string, unknown>;
+  const prototype = HotelMarketplaceController.prototype as unknown as Record<string, any>;
 
   it("không bao giờ sử dụng quyền .view cho các mutation acknowledge, voucher, cancel", () => {
     const mutationMethods = ["acknowledge", "issueVoucher", "cancel"] as const;

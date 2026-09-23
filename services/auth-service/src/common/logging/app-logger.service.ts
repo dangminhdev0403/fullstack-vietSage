@@ -308,6 +308,16 @@ export class AppLogger {
     return process.env.NODE_ENV === "production" ? "WARN" : "INFO";
   }
 
+  private toWinstonLevel(level: LogLevel): string {
+    const map: Record<LogLevel, string> = {
+      DEBUG: "debug",
+      INFO: "info",
+      WARN: "warn",
+      ERROR: "error",
+    };
+    return map[level];
+  }
+
   private isHiddenField(key: string): boolean {
     return [
       "timestamp",

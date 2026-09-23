@@ -165,10 +165,7 @@ export class TelegramNotificationService {
     id: string;
     status: GuestRequestStatus;
   }): InlineKeyboard | undefined {
-    if (
-      request.status !== GuestRequestStatus.CREATED &&
-      request.status !== GuestRequestStatus.NEW
-    ) {
+    if (request.status !== GuestRequestStatus.PENDING) {
       return undefined;
     }
     return {
@@ -224,7 +221,7 @@ export class TelegramNotificationService {
       const result = await tx.guestRequest.updateMany({
         where: {
           id: requestId,
-          status: { in: [GuestRequestStatus.CREATED, GuestRequestStatus.NEW] },
+          status: { in: [GuestRequestStatus.PENDING] },
         },
         data: { status: GuestRequestStatus.ACKNOWLEDGED, confirmedBy: staffName, confirmedAt },
       });

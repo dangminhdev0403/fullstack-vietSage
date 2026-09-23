@@ -14,7 +14,7 @@ export type ServiceCatalogTranslation = {
 
 export type StaffRequestPriority = "NORMAL" | "URGENT";
 
-export type StaffRequestAction = "ACCEPT" | "START" | "COMPLETE" | "CANCEL" | "FAIL";
+export type StaffRequestAction = "ACCEPT" | "COMPLETE" | "CANCEL" | "REJECT";
 
 export type HotelOpsPage<TItem> = {
   page: number;
@@ -461,21 +461,19 @@ export const hotelRequestTypes: GuestRequestType[] = [
 ];
 
 export const hotelRequestStatuses: GuestRequestStatus[] = [
-  "CREATED",
+  "PENDING",
   "ACKNOWLEDGED",
-  "IN_PROGRESS",
   "COMPLETED",
   "CANCELLED",
-  "FAILED",
+  "REJECTED",
 ];
 
 export const hotelRequestPriorities: StaffRequestPriority[] = ["NORMAL", "URGENT"];
 
 export const validNextRequestStatuses: Record<GuestRequestStatus, GuestRequestStatus[]> = {
-  CREATED: ["ACKNOWLEDGED", "CANCELLED"],
-  ACKNOWLEDGED: ["IN_PROGRESS", "CANCELLED"],
-  IN_PROGRESS: ["COMPLETED", "FAILED"],
+  PENDING: ["ACKNOWLEDGED", "CANCELLED", "REJECTED"],
+  ACKNOWLEDGED: ["COMPLETED", "CANCELLED", "REJECTED"],
   COMPLETED: [],
   CANCELLED: [],
-  FAILED: [],
+  REJECTED: [],
 };

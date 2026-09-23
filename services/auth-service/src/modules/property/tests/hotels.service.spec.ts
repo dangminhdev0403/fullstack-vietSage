@@ -119,6 +119,18 @@ function createRepository(overrides: Record<string, jest.Mock> = {}) {
       createdAt: new Date("2026-06-04T00:00:00.000Z"),
       updatedAt: new Date("2026-06-04T00:00:00.000Z"),
     })),
+    updateHotelScoped: jest.fn().mockImplementation((hotelId, tenantIds, data) => ({
+      id: hotelId,
+      tenantId: tenantIds[0] ?? "tenant-1",
+      tenant: { id: tenantIds[0] ?? "tenant-1" },
+      name: data.name ?? "Hotel",
+      code: "hotel",
+      timezone: data.timezone ?? "Asia/Saigon",
+      brandSettings: data.brandSettings,
+      status: data.status ?? "ACTIVE",
+      createdAt: new Date("2026-06-04T00:00:00.000Z"),
+      updatedAt: new Date("2026-06-04T00:00:00.000Z"),
+    })),
     findHotelByGoogleSheetId: jest.fn().mockResolvedValue(null),
     createServiceCategory: jest.fn().mockImplementation((input) => ({
       id: "category-1",
@@ -185,7 +197,7 @@ function createRepository(overrides: Record<string, jest.Mock> = {}) {
     findRequestInHotel: jest.fn().mockResolvedValue({
       id: "request-1",
       hotelId: "hotel-1",
-      status: GuestRequestStatus.CREATED,
+      status: GuestRequestStatus.PENDING,
     }),
     findRequestDetailInHotel: jest.fn().mockResolvedValue({ id: "request-1", events: [] }),
     findAssignableStaffInTenant: jest.fn().mockResolvedValue({ id: "staff-1" }),
@@ -197,7 +209,7 @@ function createRepository(overrides: Record<string, jest.Mock> = {}) {
       sessionId: null,
       serviceItemId: null,
       assignedToUserId: input.assignedToUserId,
-      status: GuestRequestStatus.CREATED,
+      status: GuestRequestStatus.PENDING,
       priority: GuestRequestPriority.NORMAL,
       title: "Request",
       description: null,
@@ -644,9 +656,9 @@ describe("HotelsService", () => {
 
   it("advances a legacy NEW request through the canonical lifecycle", async () => {
     const statuses = [
-      GuestRequestStatus.NEW,
+      GuestRequestStatus.PENDING,
       GuestRequestStatus.ACKNOWLEDGED,
-      GuestRequestStatus.IN_PROGRESS,
+      GuestRequestStatus.ACKNOWLEDGED,
     ];
     const requestRow = (status: GuestRequestStatus) => ({
       id: "request-1",
@@ -677,7 +689,7 @@ describe("HotelsService", () => {
 
     for (const status of [
       GuestRequestStatus.ACKNOWLEDGED,
-      GuestRequestStatus.IN_PROGRESS,
+      GuestRequestStatus.ACKNOWLEDGED,
       GuestRequestStatus.COMPLETED,
     ] as const) {
       await expect(
@@ -687,7 +699,7 @@ describe("HotelsService", () => {
 
     expect(repository.updateRequestStatus.mock.calls.map(([input]) => input.status)).toEqual([
       GuestRequestStatus.ACKNOWLEDGED,
-      GuestRequestStatus.IN_PROGRESS,
+      GuestRequestStatus.ACKNOWLEDGED,
       GuestRequestStatus.COMPLETED,
     ]);
   });
@@ -698,7 +710,7 @@ describe("HotelsService", () => {
 
     await expect(
       service.updateRequestStatus("actor-1", "active-role", "hotel-1", "request-1", {
-        status: GuestRequestStatus.IN_PROGRESS,
+        status: GuestRequestStatus.ACKNOWLEDGED,
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(repository.updateRequestStatus).not.toHaveBeenCalled();
@@ -719,7 +731,7 @@ describe("HotelsService", () => {
             sessionId: "session-1",
             serviceItemId: "item-1",
             assignedToUserId: "staff-1",
-            status: GuestRequestStatus.CREATED,
+            status: GuestRequestStatus.PENDING,
             priority: GuestRequestPriority.URGENT,
             title: "Extra towels",
             description: "Two towels please",
@@ -766,7 +778,7 @@ describe("HotelsService", () => {
     const expectedItem = {
       id: "request-1",
       displayName: "Extra towels",
-      status: GuestRequestStatus.CREATED,
+      status: GuestRequestStatus.PENDING,
       priority: GuestRequestPriority.URGENT,
       isOverdue: expect.any(Boolean),
       ackDeadlineAt: expect.any(String),
@@ -828,14 +840,14 @@ describe("HotelsService", () => {
         room: { is: { roomNumber: "402" } },
         status: {
           in: [
-            GuestRequestStatus.CREATED,
-            GuestRequestStatus.NEW,
-            GuestRequestStatus.ACKNOWLEDGED,
-            GuestRequestStatus.CONFIRMED,
-            GuestRequestStatus.ACCEPTED,
-            GuestRequestStatus.IN_PROGRESS,
             GuestRequestStatus.PENDING,
-            GuestRequestStatus.ON_THE_WAY,
+            GuestRequestStatus.PENDING,
+            GuestRequestStatus.ACKNOWLEDGED,
+            GuestRequestStatus.ACKNOWLEDGED,
+            GuestRequestStatus.ACKNOWLEDGED,
+            GuestRequestStatus.ACKNOWLEDGED,
+            GuestRequestStatus.PENDING,
+            GuestRequestStatus.ACKNOWLEDGED,
           ],
         },
         stay: {
@@ -866,14 +878,14 @@ describe("HotelsService", () => {
         },
         status: {
           in: [
-            GuestRequestStatus.CREATED,
-            GuestRequestStatus.NEW,
-            GuestRequestStatus.ACKNOWLEDGED,
-            GuestRequestStatus.CONFIRMED,
-            GuestRequestStatus.ACCEPTED,
-            GuestRequestStatus.IN_PROGRESS,
             GuestRequestStatus.PENDING,
-            GuestRequestStatus.ON_THE_WAY,
+            GuestRequestStatus.PENDING,
+            GuestRequestStatus.ACKNOWLEDGED,
+            GuestRequestStatus.ACKNOWLEDGED,
+            GuestRequestStatus.ACKNOWLEDGED,
+            GuestRequestStatus.ACKNOWLEDGED,
+            GuestRequestStatus.PENDING,
+            GuestRequestStatus.ACKNOWLEDGED,
           ],
         },
         stay: {
@@ -894,12 +906,12 @@ describe("HotelsService", () => {
       listRequests: jest.fn().mockResolvedValue([
         6,
         [
-          GuestRequestStatus.CREATED,
+          GuestRequestStatus.PENDING,
           GuestRequestStatus.ACKNOWLEDGED,
-          GuestRequestStatus.IN_PROGRESS,
+          GuestRequestStatus.ACKNOWLEDGED,
           GuestRequestStatus.COMPLETED,
           GuestRequestStatus.CANCELLED,
-          GuestRequestStatus.FAILED,
+          GuestRequestStatus.REJECTED,
         ].map((status, index) => ({
           id: `request-${index + 1}`,
           status,
@@ -938,7 +950,7 @@ describe("HotelsService", () => {
         2,
         [GuestRequestPriority.NORMAL, GuestRequestPriority.URGENT].map((priority, index) => ({
           id: `request-${index + 1}`,
-          status: GuestRequestStatus.CREATED,
+          status: GuestRequestStatus.PENDING,
           priority,
           title: `Request ${index + 1}`,
           description: null,
@@ -965,7 +977,7 @@ describe("HotelsService", () => {
       summarizeRequests: jest.fn().mockResolvedValue({
         total: 5,
         statuses: [
-          { status: GuestRequestStatus.CREATED, _count: { _all: 4 } },
+          { status: GuestRequestStatus.PENDING, _count: { _all: 4 } },
           { status: GuestRequestStatus.CANCELLED, _count: { _all: 1 } },
         ],
       }),

@@ -100,7 +100,7 @@ describe("Hotel Request Permissions & Coordination vs Execution (AGY 12)", () =>
       hotelId,
       stayId: "stay-1",
       roomId: "room-1",
-      status: GuestRequestStatus.CREATED,
+      status: GuestRequestStatus.PENDING,
       priority: GuestRequestPriority.NORMAL,
       title: "Need towels",
       description: "2 extra towels",
@@ -321,15 +321,15 @@ describe("Hotel Request Permissions & Coordination vs Execution (AGY 12)", () =>
 
       await expect(
         service.updateRequestStatus("user-1", "role-1", "hotel-1", "req-completed", {
-          status: GuestRequestStatus.IN_PROGRESS,
+          status: GuestRequestStatus.ACKNOWLEDGED,
         }),
       ).rejects.toThrow(BadRequestException);
     });
 
-    it("allows legal lifecycle transition (CREATED -> ACKNOWLEDGED)", async () => {
+    it("allows legal lifecycle transition (PENDING -> ACKNOWLEDGED)", async () => {
       mockRepository.findRequestInHotel = jest.fn().mockResolvedValue({
         id: "req-created",
-        status: GuestRequestStatus.CREATED,
+        status: GuestRequestStatus.PENDING,
         priority: GuestRequestPriority.NORMAL,
         createdAt: new Date(),
         stay: { status: GuestStayStatus.ACTIVE, checkedOutAt: null },
@@ -398,7 +398,7 @@ describe("Hotel Request Permissions & Coordination vs Execution (AGY 12)", () =>
           findFirstOrThrow: jest.fn().mockResolvedValue({
             id: "req-1",
             hotelId: "hotel-1",
-            status: GuestRequestStatus.IN_PROGRESS,
+            status: GuestRequestStatus.ACKNOWLEDGED,
           }),
           update: jest.fn().mockResolvedValue({
             id: "req-1",
@@ -443,7 +443,7 @@ describe("Hotel Request Permissions & Coordination vs Execution (AGY 12)", () =>
         hotelId: "hotel-1",
         requestId: "req-1",
         actorUserId: "user-1",
-        expectedStatus: GuestRequestStatus.IN_PROGRESS,
+        expectedStatus: GuestRequestStatus.ACKNOWLEDGED,
         status: GuestRequestStatus.COMPLETED,
         tenantId: "tenant-1",
       });

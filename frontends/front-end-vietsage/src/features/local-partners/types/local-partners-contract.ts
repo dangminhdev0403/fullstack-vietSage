@@ -1,4 +1,4 @@
-import type { MarketplaceOrderItem } from "@/features/marketplace/types/marketplace-contract";
+import type { MarketplaceOrderItem, MarketplaceOrderStatus } from "@/features/marketplace/types/marketplace-contract";
 
 export type LocalPartnerStatus = "ACTIVE" | "DISABLED";
 
@@ -63,7 +63,7 @@ export type HotelMarketplaceOrder = {
   id: string;
   orderNumber: string;
   serviceNameSnapshot: string;
-  status: string;
+  status: MarketplaceOrderStatus;
   hotelCoordinationStatus?: string | null;
   voucher?: { voucherNumber: string; status: string } | null;
   items?: MarketplaceOrderItem[];

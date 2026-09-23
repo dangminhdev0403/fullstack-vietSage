@@ -14,12 +14,11 @@ export const requestTypeLabelMap: Record<GuestRequestType, string> = {
 };
 
 export const requestStatusLabelMap: Record<GuestRequestStatus, string> = {
-  CREATED: "Mới tạo",
+  PENDING: "Chờ tiếp nhận",
   ACKNOWLEDGED: "Đã tiếp nhận",
-  IN_PROGRESS: "Đang xử lý",
   COMPLETED: "Hoàn thành",
   CANCELLED: "Đã hủy",
-  FAILED: "Thất bại",
+  REJECTED: "Từ chối",
 };
 
 export const requestPriorityLabelMap: Record<StaffRequestPriority, string> = {
@@ -81,17 +80,15 @@ export function getGuestLabel(request: HotelGuestRequest): string {
 
 export function statusTone(status: GuestRequestStatus): string {
   switch (status) {
-    case "CREATED":
-      return "inline-flex items-center justify-center whitespace-nowrap bg-slate-100 text-slate-700 border border-slate-200/80 shadow-2xs";
-    case "ACKNOWLEDGED":
-      return "inline-flex items-center justify-center whitespace-nowrap bg-indigo-50 text-indigo-700 border border-indigo-200/80 shadow-2xs";
-    case "IN_PROGRESS":
+    case "PENDING":
       return "inline-flex items-center justify-center whitespace-nowrap bg-amber-50 text-amber-800 border border-amber-200/80 shadow-2xs";
+    case "ACKNOWLEDGED":
+      return "inline-flex items-center justify-center whitespace-nowrap bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs";
     case "COMPLETED":
       return "inline-flex items-center justify-center whitespace-nowrap bg-emerald-50 text-emerald-700 border border-emerald-200/80 shadow-2xs";
     case "CANCELLED":
       return "inline-flex items-center justify-center whitespace-nowrap bg-zinc-100 text-zinc-600 border border-zinc-200 shadow-2xs";
-    case "FAILED":
+    case "REJECTED":
       return "inline-flex items-center justify-center whitespace-nowrap bg-rose-50 text-rose-700 border border-rose-200/80 shadow-2xs";
   }
 }

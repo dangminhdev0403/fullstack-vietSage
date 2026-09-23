@@ -6,6 +6,7 @@ import { auth } from "@/auth";
 import { resolveWorkspacePersona } from "@/features/workspace/config/workspace-registry";
 
 import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
+import { billingService } from "@/features/billing/service/billing-service-instance";
 import { servicePortalClient } from "@/features/service-portal/service-client";
 import { readServerSessionTokens } from "@/libs/server-session-tokens";
 import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
@@ -158,21 +159,58 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
       ? workspaceContext.accessibleHotels.find((h) => h.id === requestedHotelId)
       : null) ?? workspaceContext.accessibleHotels[0];
 
-  const dashboard = hotel
-    ? ((await authorizedApi("get hotel dashboard", (accessToken) =>
+  const dashboardPromise = hotel
+    ? ((authorizedApi("get hotel dashboard", (accessToken) =>
         hotelOpsService.getDashboard(hotel.id, {
           accessToken,
           accessTokenExpiresAt:
             session?.accessTokenExpiresAt ?? tokens.accessTokenExpiresAt,
         }),
-      )) as Dashboard)
-    : null;
+      )) as Promise<Dashboard>)
+    : Promise.resolve(null);
 
-  const marketplaceRevenue = hotel
-    ? ((await authorizedApi("get owner marketplace revenue", (accessToken) =>
+  const marketplaceRevenuePromise = hotel
+    ? ((authorizedApi("get owner marketplace revenue", (accessToken) =>
         servicePortalClient.hotelMarketplaceRevenue(accessToken!, hotel.id),
-      )) as MarketplaceRevenue)
-    : null;
+      )) as Promise<MarketplaceRevenue>)
+    : Promise.resolve(null);
+
+  const platformBillingPromise = hotel
+    ? authorizedApi("get owner platform billing debt", (accessToken) =>
+        billingService.getPlatformBillingAnalytics(hotel.id, {
+          accessToken,
+          accessTokenExpiresAt:
+            session?.accessTokenExpiresAt ?? tokens.accessTokenExpiresAt,
+        }),
+      ).catch(() => null)
+    : Promise.resolve(null);
+
+  const [dashboard, marketplaceRevenue, platformBilling] = await Promise.all([
+    dashboardPromise,
+    marketplaceRevenuePromise,
+    platformBillingPromise,
+  ]);
+
+  const debtSummary = platformBilling?.debtSummary;
+  const reminder = platformBilling?.reminder;
+  const totalDebt = Number(
+    debtSummary?.totalOutstandingAmount ??
+      reminder?.totalOutstandingAmount ??
+      0,
+  );
+  const totalSettled = Number(debtSummary?.totalSettledAmount ?? 0);
+  const unpaidCount = Number(
+    debtSummary?.unpaidPeriodCount ?? reminder?.unpaidPeriodCount ?? 0,
+  );
+  const overdueCount = Number(debtSummary?.overdueCount ?? reminder?.overdueCount ?? 0);
+  const overdueAmount = Number(debtSummary?.overdueAmount ?? reminder?.overdueOutstandingAmount ?? 0);
+  const dueSoonCount = Number(debtSummary?.dueSoonCount ?? reminder?.dueSoonCount ?? 0);
+  const dueSoonAmount = Number(debtSummary?.dueSoonAmount ?? reminder?.dueSoonOutstandingAmount ?? 0);
+  const nearestDueAt = debtSummary?.nearestDueAt ?? reminder?.nearestDueAt ?? null;
+  const estimatedFee = Number(platformBilling?.estimatedFee ?? 0);
+
+  const hasOverdue = overdueCount > 0;
+  const hasDueSoon = !hasOverdue && dueSoonCount > 0;
 
   const occupancyPercent = dashboard?.rooms.occupancyRate ?? 0;
   const availableRooms =
@@ -314,6 +352,82 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
         </div>
       </section>
 
+      {/* High-priority Platform Debt Alert Banner */}
+      {hotel && hasOverdue && (
+        <div className="rounded-2xl border border-red-200 bg-red-50/90 p-5 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-700">
+                <VsIcon name="warning" className="text-2xl" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h4 className="text-base font-bold text-red-900">
+                    Cảnh báo công nợ VietSage SaaS — {overdueCount} kỳ hóa đơn quá hạn
+                  </h4>
+                  <span className="rounded-full bg-red-600 px-2.5 py-0.5 text-xs font-black uppercase text-white">
+                    Cần thanh toán
+                  </span>
+                </div>
+                <p className="text-xs text-red-700 leading-relaxed">
+                  Tổng dư nợ quá hạn: <strong className="font-extrabold">{formatVnd(overdueAmount)}</strong>.
+                  {nearestDueAt ? (
+                    <span className="ml-1">
+                      Hạn chót: {new Date(nearestDueAt).toLocaleDateString("vi-VN")}.
+                    </span>
+                  ) : null}
+                  {" "}Vui lòng thanh toán đúng hạn để bảo vệ dịch vụ vận hành không bị gián đoạn.
+                </p>
+              </div>
+            </div>
+            <Link
+              href={`/owner/hotels/${hotel.id}/billing?tab=saas`}
+              prefetch={true}
+              className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-red-600 px-5 text-xs font-bold text-white shadow-sm transition-all hover:bg-red-700"
+            >
+              Đối soát &amp; Thanh toán ngay &rarr;
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {hotel && hasDueSoon && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/90 p-5 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                <VsIcon name="schedule" className="text-2xl" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h4 className="text-base font-bold text-amber-900">
+                    Sắp đến hạn thanh toán VietSage SaaS — {dueSoonCount} kỳ hóa đơn sắp đến hạn
+                  </h4>
+                  <span className="rounded-full bg-amber-600 px-2.5 py-0.5 text-xs font-black uppercase text-white">
+                    Trong 7 ngày
+                  </span>
+                </div>
+                <p className="text-xs text-amber-700 leading-relaxed">
+                  Số tiền cần thanh toán: <strong className="font-extrabold">{formatVnd(dueSoonAmount)}</strong>.
+                  {nearestDueAt ? (
+                    <span className="ml-1">
+                      Hạn thanh toán: {new Date(nearestDueAt).toLocaleDateString("vi-VN")}.
+                    </span>
+                  ) : null}
+                </p>
+              </div>
+            </div>
+            <Link
+              href={`/owner/hotels/${hotel.id}/billing?tab=saas`}
+              prefetch={true}
+              className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-amber-600 px-5 text-xs font-bold text-white shadow-sm transition-all hover:bg-amber-700"
+            >
+              Xem chi tiết đối soát &rarr;
+            </Link>
+          </div>
+        </div>
+      )}
+
       {!dashboard || !hotel ? (
         <EmptyState>
           Chưa có khách sạn hoặc chưa đủ dữ liệu để hiển thị dashboard.
@@ -326,7 +440,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
               <div>
                 <span className="text-xs font-extrabold uppercase tracking-widest text-[#8c6d29]">Hiệu quả kinh doanh &amp; Tài chính</span>
                 <h2 className="mt-0.5 text-xl sm:text-2xl font-bold tracking-tight text-[#17382F]">
-                  Dòng tiền &amp; Doanh thu vận hành
+                  Tài chính vận hành &amp; Dòng tiền
                 </h2>
                 <p className="mt-1 text-xs text-[#5a6860]">
                   Theo dõi doanh thu phòng, dịch vụ nội bộ và doanh thu dịch vụ đối tác ngoài (Marketplace).
@@ -388,6 +502,155 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
                 <p className="mt-2 text-xs font-bold text-emerald-800">
                   {marketplaceRevenue?.orderCount ?? 0} đơn ngoài đã hoàn tất
                 </p>
+              </div>
+            </div>
+
+            {/* Công nợ & Phí dịch vụ VietSage SaaS */}
+            <div className="mt-7 border-t border-[#eee6d8] pt-6">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
+                <div className="flex items-center gap-2.5">
+                  <span className="grid size-9 place-items-center rounded-xl bg-[#f0fdf4] text-[#1e5842] border border-[#d6e5d8]">
+                    <VsIcon name="account_balance" className="text-xl" />
+                  </span>
+                  <div>
+                    <h3 className="text-base font-bold text-[#17382F]">
+                      Công nợ &amp; Phí dịch vụ VietSage SaaS
+                    </h3>
+                    <p className="text-xs text-[#5a6860]">
+                      Nghĩa vụ chi phí nền tảng theo lượt check-in và trạng thái đối soát các kỳ hóa đơn.
+                    </p>
+                  </div>
+                </div>
+                <Link
+                  href={`/owner/hotels/${hotel.id}/billing?tab=saas`}
+                  prefetch={true}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[#215744] hover:underline"
+                >
+                  <span>Chi tiết đối soát &amp; Hóa đơn</span>
+                  <VsIcon name="arrow_forward" className="text-xs" />
+                </Link>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {/* Tổng công nợ còn phải trả */}
+                <div
+                  className={`rounded-2xl border p-5 ${
+                    hasOverdue
+                      ? "border-red-300 bg-red-50/70"
+                      : hasDueSoon
+                        ? "border-amber-300 bg-amber-50/70"
+                        : totalDebt > 0
+                          ? "border-amber-200 bg-[#fffdfa]"
+                          : "border-emerald-200 bg-emerald-50/50"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <p
+                      className={`text-xs font-extrabold uppercase tracking-wider ${
+                        hasOverdue
+                          ? "text-red-900"
+                          : hasDueSoon
+                            ? "text-amber-900"
+                            : "text-[#65726a]"
+                      }`}
+                    >
+                      Công nợ cần trả VietSage
+                    </p>
+                    {hasOverdue ? (
+                      <span className="rounded-full bg-red-600 px-2.5 py-0.5 text-[10px] font-black uppercase text-white">
+                        Quá hạn
+                      </span>
+                    ) : hasDueSoon ? (
+                      <span className="rounded-full bg-amber-600 px-2.5 py-0.5 text-[10px] font-black uppercase text-white">
+                        Sắp đến hạn
+                      </span>
+                    ) : totalDebt === 0 ? (
+                      <span className="rounded-full bg-emerald-100 text-emerald-800 px-2.5 py-0.5 text-[10px] font-bold">
+                        Đã tất toán
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-amber-100 text-amber-800 px-2.5 py-0.5 text-[10px] font-bold">
+                        {unpaidCount} kỳ chưa trả
+                      </span>
+                    )}
+                  </div>
+                  <p
+                    className={`mt-2 text-2xl lg:text-3xl font-extrabold tracking-tight ${
+                      hasOverdue
+                        ? "text-red-900"
+                        : hasDueSoon
+                          ? "text-amber-900"
+                          : "text-[#17382F]"
+                    }`}
+                  >
+                    {formatVnd(totalDebt)}
+                  </p>
+                  <p className="mt-2 text-xs font-semibold text-[#5a6860]">
+                    {hasOverdue
+                      ? `Có ${overdueCount} kỳ hóa đơn quá hạn thanh toán`
+                      : hasDueSoon && nearestDueAt
+                        ? `Hạn thanh toán: ${new Date(nearestDueAt).toLocaleDateString("vi-VN")}`
+                        : totalDebt > 0
+                          ? `Dư nợ từ ${unpaidCount} kỳ hóa đơn đã chốt`
+                          : "Không có nợ đọng quá hạn hay kỳ chưa thanh toán"}
+                  </p>
+                </div>
+
+                {/* Phí VietSage SaaS tạm tính tháng này */}
+                <div className="rounded-2xl border border-[#e8dfcf] bg-[#fdfbf6] p-5">
+                  <p className="text-xs font-extrabold uppercase tracking-wider text-[#65726a]">
+                    Phí SaaS tháng này (tạm tính)
+                  </p>
+                  <p className="mt-2 text-2xl lg:text-3xl font-extrabold tracking-tight text-[#17382F]">
+                    {formatVnd(estimatedFee)}
+                  </p>
+                  <p className="mt-2 text-xs font-semibold text-[#8c6d29]">
+                    Ước tính theo lượt check-in phát sinh
+                  </p>
+                </div>
+
+                {/* Đã thanh toán cho VietSage */}
+                <div className="rounded-2xl border border-[#e8dfcf] bg-[#fdfbf6] p-5">
+                  <p className="text-xs font-extrabold uppercase tracking-wider text-[#65726a]">
+                    Đã thanh toán cho VietSage
+                  </p>
+                  <p className="mt-2 text-2xl lg:text-3xl font-extrabold tracking-tight text-[#17382F]">
+                    {formatVnd(totalSettled)}
+                  </p>
+                  <p className="mt-2 text-xs font-semibold text-[#5a6860]">
+                    Lũy kế các khoản đã đối soát thành công
+                  </p>
+                </div>
+
+                {/* Trạng thái hợp đồng nền tảng */}
+                <div className="rounded-2xl border border-[#e8dfcf] bg-[#fdfbf6] p-5 flex flex-col justify-between">
+                  <div>
+                    <p className="text-xs font-extrabold uppercase tracking-wider text-[#65726a]">
+                      Hợp đồng nền tảng
+                    </p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <span
+                        className={`h-2.5 w-2.5 rounded-full ${
+                          platformBilling?.hasContract
+                            ? "bg-emerald-500 animate-pulse"
+                            : "bg-amber-500"
+                        }`}
+                      />
+                      <span className="text-sm font-bold text-[#17382F]">
+                        {platformBilling?.hasContract
+                          ? "Đang hiệu lực (Active)"
+                          : "Chưa kích hoạt"}
+                      </span>
+                    </div>
+                  </div>
+                  <Link
+                    href={`/owner/hotels/${hotel.id}/billing?tab=saas`}
+                    prefetch={true}
+                    className="mt-3 inline-flex min-h-9 items-center justify-center rounded-xl bg-[#215744] px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs transition-all hover:bg-[#184434]"
+                  >
+                    Xem sổ đối soát &amp; nợ &rarr;
+                  </Link>
+                </div>
               </div>
             </div>
           </SectionCard>

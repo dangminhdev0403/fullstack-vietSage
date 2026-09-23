@@ -44,6 +44,7 @@ function getExternalOrderStatusBadge(status: string, t: (key: string) => string)
   switch (status) {
     case "PENDING":
       return { label: t("requests.statusPending"), className: "bg-[#fff3db] text-[#925f0e] border-[#f3d6a2]" };
+    case "ACKNOWLEDGED":
     case "CONFIRMED":
     case "ACCEPTED":
       return { label: t("requests.statusConfirmed"), className: "bg-[#e0f2fe] text-[#0369a1] border-[#bae6fd]" };
@@ -90,7 +91,7 @@ export default function GuestRequestsPage() {
       try {
         const backendStatus = selectedStatus === "ENDED" ? undefined : selectedStatus;
         const data = await guestOsService.listRequests(sessionToken, { page: 1, limit: selectedStatus === "ENDED" ? 100 : 20, ...(backendStatus ? { status: backendStatus } : {}) }, locale);
-        const items = selectedStatus === "ENDED" ? data.items.filter((request) => request.status === "CANCELLED" || request.status === "FAILED") : data.items;
+        const items = selectedStatus === "ENDED" ? data.items.filter((request) => request.status === "CANCELLED" || request.status === "REJECTED") : data.items;
         if (!isCancelled) { setRequests(items); setTotalRequests(selectedStatus === "ENDED" ? items.length : data.total); }
       } catch (error) {
         if (!isCancelled) setRequestsError(getGuestFriendlyErrorMessage(error, t("requests.loadError"), t));
@@ -122,7 +123,7 @@ export default function GuestRequestsPage() {
   const visibleRequests = useMemo(() => requests.filter((request) => matchesRequestSearch(request, requestSearch, t)), [requestSearch, requests, t]);
   const estimatedVisibleTotal = useMemo(() => getEstimatedTotal(visibleRequests), [visibleRequests]);
   const pricedRequestCount = useMemo(() => visibleRequests.filter((request) => getRequestTotalPrice(request) !== null).length, [visibleRequests]);
-  const currentRequest = useMemo(() => visibleRequests.find((request) => request.id === selectedRequestId) ?? visibleRequests.find((request) => request.status === "IN_PROGRESS") ?? visibleRequests.find((request) => request.status === "ACKNOWLEDGED") ?? visibleRequests.find((request) => request.status === "CREATED") ?? null, [selectedRequestId, visibleRequests]);
+  const currentRequest = useMemo(() => visibleRequests.find((request) => request.id === selectedRequestId) ?? visibleRequests.find((request) => request.status === "ACKNOWLEDGED") ?? visibleRequests.find((request) => request.status === "PENDING") ?? null, [selectedRequestId, visibleRequests]);
   const hasActiveFilters = Boolean(selectedStatus || requestSearch.trim());
   const refreshRequests = useCallback(() => { setRequestsVersion((version) => version + 1); setExternalOrdersVersion((version) => version + 1); }, []);
   const syncRealtimeRequest = useCallback((request: Partial<GuestRequest> & { id: string }) => { setRequests((current) => current.some((item) => item.id === request.id) ? current.map((item) => item.id === request.id ? { ...item, ...request } : item) : current); setSelectedRequestId((currentId) => currentId ?? request.id); }, []);

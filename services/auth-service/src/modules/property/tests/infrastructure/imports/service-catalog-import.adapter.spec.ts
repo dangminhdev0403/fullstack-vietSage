@@ -26,6 +26,7 @@ describe("ServiceCatalogImportAdapter", () => {
       } as never,
       {
         hotelId: "hotel-1",
+        actorUserId: "user-1",
         preserveCategoryImportKeys: ["invalid_category"],
         preserveItemImportKeys: ["invalid_item"],
       },
@@ -75,7 +76,7 @@ describe("ServiceCatalogImportAdapter", () => {
         ],
         items: [],
       } as never,
-      { hotelId: "hotel-1" },
+      { hotelId: "hotel-1", actorUserId: "user-1" },
       "replace",
     );
 

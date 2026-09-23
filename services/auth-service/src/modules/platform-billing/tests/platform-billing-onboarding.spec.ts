@@ -235,15 +235,15 @@ describe("PlatformBillingService Onboarding & Analytics", () => {
       { actorUserId: "u", actorRoleId: "r" },
     );
 
-    const rows = result.roomUsageSummary || [];
+    const rows = (result.roomUsageSummary as any[]) || [];
     expect(result.usageCount).toBe(
-      rows.reduce((s: number, r: { usageCount: number }) => s + r.usageCount, 0),
+      rows.reduce((s: number, r: any) => s + r.usageCount, 0),
     );
     expect(result.billableDaysCount).toBe(
-      rows.reduce((s: number, r: { billableDaysCount: number }) => s + r.billableDaysCount, 0),
+      rows.reduce((s: number, r: any) => s + r.billableDaysCount, 0),
     );
     expect(result.estimatedFee).toBe(
-      rows.reduce((s: number, r: { billedAmount: number }) => s + r.billedAmount, 0),
+      rows.reduce((s: number, r: any) => s + r.billedAmount, 0),
     );
     expect(result.estimatedFee).toBe(240000);
   });

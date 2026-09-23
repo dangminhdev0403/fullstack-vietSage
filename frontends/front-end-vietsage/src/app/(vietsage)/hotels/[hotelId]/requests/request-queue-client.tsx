@@ -96,7 +96,7 @@ type RequestQueueClientProps = {
   requests: StaffRequestListItem[];
   total: number;
   summary: StaffRequestSummaryResponse;
-  serviceItems: HotelServiceItem[];
+  serviceItems?: HotelServiceItem[];
   initialFilters: Record<string, string>;
   basePath?: string;
   serviceCatalogPath?: string;
@@ -167,14 +167,6 @@ const actionMeta: Record<
     className:
       "border border-blue-200/80 bg-blue-50/80 text-blue-700 hover:bg-blue-100 hover:border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/60",
   },
-  START: {
-    label: "Bắt đầu",
-    status: "IN_PROGRESS",
-    note: "Nhân sự phụ trách đang trên đường hỗ trợ.",
-    icon: "arrow_forward",
-    className:
-      "border border-indigo-200/80 bg-indigo-50/80 text-indigo-700 hover:bg-indigo-100 hover:border-indigo-300 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800/60",
-  },
   COMPLETE: {
     label: "Hoàn thành",
     status: "COMPLETED",
@@ -183,31 +175,30 @@ const actionMeta: Record<
     className:
       "border border-emerald-200/80 bg-emerald-50/80 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60",
   },
-  CANCEL: {
-    label: "Hủy",
-    status: "CANCELLED",
-    note: "Rất tiếc, dịch vụ này hiện chưa khả dụng.",
-    icon: "close",
+  REJECT: {
+    label: "Từ chối",
+    status: "REJECTED",
+    note: "Rất tiếc, dịch vụ này hiện không thể thực hiện.",
+    icon: "block",
     className:
       "border border-rose-200/80 bg-rose-50/80 text-rose-700 hover:bg-rose-100 hover:border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/60",
   },
-  FAIL: {
-    label: "Đánh dấu thất bại",
-    status: "FAILED",
-    note: "Chúng tôi chưa thể hoàn tất yêu cầu này.",
-    icon: "block",
+  CANCEL: {
+    label: "Hủy",
+    status: "CANCELLED",
+    note: "Yêu cầu đã được hủy theo thỏa thuận.",
+    icon: "close",
     className:
-      "border border-slate-200 bg-slate-100/90 text-slate-700 hover:bg-slate-200 hover:border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
+      "border border-zinc-200/80 bg-zinc-50/80 text-zinc-700 hover:bg-zinc-100 hover:border-zinc-300 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700",
   },
 };
 
 const statusActions: Record<GuestRequestStatus, StaffRequestAction[]> = {
-  CREATED: ["ACCEPT", "CANCEL"],
-  ACKNOWLEDGED: ["COMPLETE", "FAIL"],
-  IN_PROGRESS: ["COMPLETE", "FAIL"],
+  PENDING: ["ACCEPT", "REJECT", "CANCEL"],
+  ACKNOWLEDGED: ["COMPLETE", "REJECT", "CANCEL"],
   COMPLETED: [],
   CANCELLED: [],
-  FAILED: [],
+  REJECTED: [],
 };
 
 function getExternalOrderStatusLabel(status: string): {
@@ -217,40 +208,33 @@ function getExternalOrderStatusLabel(status: string): {
   switch (status) {
     case "PENDING":
       return {
-        label: "Đang chờ xác nhận",
+        label: "Chờ tiếp nhận",
         className: "bg-amber-100 text-amber-900 border-amber-300",
       };
+    case "ACKNOWLEDGED":
     case "CONFIRMED":
     case "ACCEPTED":
-      return {
-        label: "Đối tác đã xác nhận",
-        className: "bg-blue-100 text-blue-900 border-blue-300",
-      };
     case "PREPARING":
-      return {
-        label: "Đang chuẩn bị",
-        className: "bg-indigo-100 text-indigo-900 border-indigo-300",
-      };
     case "DELIVERING":
-      return {
-        label: "Đang giao phòng",
-        className: "bg-cyan-100 text-cyan-900 border-cyan-300",
-      };
     case "READY":
       return {
-        label: "Sẵn sàng phục vụ",
-        className: "bg-cyan-100 text-cyan-900 border-cyan-300",
+        label: "Đã tiếp nhận",
+        className: "bg-blue-100 text-blue-900 border-blue-300",
       };
     case "COMPLETED":
       return {
         label: "Hoàn thành",
         className: "bg-emerald-100 text-emerald-900 border-emerald-300",
       };
-    case "CANCELLED":
     case "REJECTED":
       return {
-        label: "Đã hủy",
+        label: "Đã từ chối",
         className: "bg-rose-100 text-rose-900 border-rose-300",
+      };
+    case "CANCELLED":
+      return {
+        label: "Đã hủy",
+        className: "bg-zinc-100 text-zinc-800 border-zinc-300",
       };
     default:
       return {
@@ -317,12 +301,11 @@ const prioritySortWeight: Record<StaffRequestListItem["priority"], number> = {
 };
 
 const statusSortWeight: Record<GuestRequestStatus, number> = {
-  CREATED: 1,
+  PENDING: 1,
   ACKNOWLEDGED: 2,
-  IN_PROGRESS: 3,
-  COMPLETED: 4,
-  CANCELLED: 5,
-  FAILED: 6,
+  COMPLETED: 3,
+  CANCELLED: 4,
+  REJECTED: 5,
 };
 
 function compareValues(left: string | number, right: string | number): number {
@@ -393,6 +376,7 @@ export function RequestQueueClient({
   hotelId,
   requests,
   total,
+  serviceItems = [],
   initialFilters,
   basePath = `/hotels/${hotelId}/requests`,
   serviceCatalogPath = `/hotels/${hotelId}/services`,
@@ -412,6 +396,16 @@ export function RequestQueueClient({
     basePath: ownerApiBasePath ?? "",
   });
   const [filters, setFilters] = useState(() => toFilterState(initialFilters));
+  const [isFilterExpanded, setIsFilterExpanded] = useState<boolean>(() =>
+    Boolean(
+      initialFilters.status ||
+        initialFilters.roomNumber ||
+        initialFilters.priority ||
+        initialFilters.serviceItemId ||
+        initialFilters.from ||
+        initialFilters.to,
+    ),
+  );
   const [sortState, setSortState] = useState<{
     key: RequestSortKey;
     direction: DataTableSortDirection;
@@ -484,18 +478,19 @@ export function RequestQueueClient({
   const convertedExternalOrders = useMemo<StaffRequestListItem[]>(() => {
     return externalOrders.map((order) => {
       const statusMap: Record<string, GuestRequestStatus> = {
-        PENDING: "CREATED",
+        PENDING: "PENDING",
+        ACKNOWLEDGED: "ACKNOWLEDGED",
         CONFIRMED: "ACKNOWLEDGED",
-        PROCESSING: "IN_PROGRESS",
+        PROCESSING: "ACKNOWLEDGED",
         ACCEPTED: "ACKNOWLEDGED",
-        PREPARING: "IN_PROGRESS",
-        DELIVERING: "IN_PROGRESS",
-        READY: "IN_PROGRESS",
+        PREPARING: "ACKNOWLEDGED",
+        DELIVERING: "ACKNOWLEDGED",
+        READY: "ACKNOWLEDGED",
         COMPLETED: "COMPLETED",
         CANCELLED: "CANCELLED",
-        REJECTED: "FAILED",
+        REJECTED: "REJECTED",
       };
-      const status: GuestRequestStatus = statusMap[order.status] ?? "CREATED";
+      const status: GuestRequestStatus = statusMap[order.status] ?? "PENDING";
       const actions = statusActions[status] ?? [];
 
       return {
@@ -567,6 +562,17 @@ export function RequestQueueClient({
     if (filters.status) {
       list = list.filter((item) => item.status === filters.status);
     }
+    if (filters.serviceItemId) {
+      const selectedItem = serviceItems.find(
+        (item) => item.id === filters.serviceItemId,
+      );
+      if (selectedItem) {
+        const targetName = selectedItem.name.toLowerCase();
+        list = list.filter((item) =>
+          item.displayName.toLowerCase().includes(targetName),
+        );
+      }
+    }
     if (filters.roomNumber) {
       const q = filters.roomNumber.toLowerCase();
       list = list.filter((item) => item.roomNumber.toLowerCase().includes(q));
@@ -598,17 +604,17 @@ export function RequestQueueClient({
     displayedRequests,
     convertedExternalOrders,
     filters,
+    serviceItems,
     sortState,
   ]);
 
   const activeSummaryCounts = useMemo(() => {
     const counts: Record<GuestRequestStatus, number> = {
-      CREATED: 0,
+      PENDING: 0,
       ACKNOWLEDGED: 0,
-      IN_PROGRESS: 0,
       COMPLETED: 0,
       CANCELLED: 0,
-      FAILED: 0,
+      REJECTED: 0,
     };
     const list =
       inboxTab === "HOTEL_REQUESTS"
@@ -760,9 +766,9 @@ export function RequestQueueClient({
     const meta = actionMeta[action];
     const note = meta.note;
 
-    const confirmation = await Swal.fire({
+    const confirmation = await SwalVietSage.fire({
       icon:
-        meta.status === "CANCELLED" || meta.status === "FAILED"
+        meta.status === "CANCELLED" || meta.status === "REJECTED"
           ? "warning"
           : "question",
       title: `${meta.label} yêu cầu phòng ${targetRow.roomNumber}?`,
@@ -771,6 +777,8 @@ export function RequestQueueClient({
       confirmButtonText: "Xác nhận",
       cancelButtonText: "Hủy",
       confirmButtonColor: swalButtonColor,
+      cancelButtonColor: "#64748b",
+      reverseButtons: false,
     });
 
     if (!confirmation.isConfirmed) return;
@@ -863,12 +871,6 @@ export function RequestQueueClient({
           {requestStatusLabelMap[request.status]}
         </span>
       ),
-    },
-    {
-      key: "assigned",
-      sortable: true,
-      header: mergedLabels.assigned,
-      cell: (request) => request.assignedToName ?? mergedLabels.unassigned,
     },
     {
       key: "created",
@@ -1466,85 +1468,275 @@ export function RequestQueueClient({
         </button>
       </div>
 
-      <form
-        onSubmit={applyFilters}
-        className="grid gap-3 rounded-xl border border-[color:rgba(198,197,213,0.24)] bg-white p-4 md:grid-cols-2 xl:grid-cols-6"
-      >
-        <label className="relative md:col-span-2 xl:col-span-2">
-          <VsIcon
-            name="search"
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-[var(--on-surface-variant)]"
-          />
-          <input
-            value={filters.q ?? ""}
-            onChange={(event) => updateFilter("q", event.target.value)}
-            placeholder="Tìm phòng, khách, số điện thoại, booking hoặc dịch vụ..."
-            className="min-h-10 w-full rounded-lg border px-10 text-sm"
-          />
-        </label>
-        <select
-          value={filters.status ?? ""}
-          onChange={(event) => updateFilter("status", event.target.value)}
-          className="min-h-10 rounded-lg border px-3 text-sm"
-        >
-          <option value="">{mergedLabels.allStatuses}</option>
-          {hotelRequestStatuses.map((status) => (
-            <option key={status} value={status}>
-              {requestStatusLabelMap[status]}
-            </option>
-          ))}
-        </select>
-        <input
-          value={filters.roomNumber ?? ""}
-          onChange={(event) => updateFilter("roomNumber", event.target.value)}
-          placeholder={mergedLabels.roomNumberPlaceholder}
-          className="min-h-10 rounded-lg border px-3 text-sm"
-        />
-        <select
-          value={filters.priority ?? ""}
-          onChange={(event) => updateFilter("priority", event.target.value)}
-          className="min-h-10 rounded-lg border px-3 text-sm"
-        >
-          <option value="">Tất cả mức độ ưu tiên</option>
-          <option value="NORMAL">{requestPriorityLabelMap.NORMAL}</option>
-          <option value="URGENT">{requestPriorityLabelMap.URGENT}</option>
-        </select>
-        <input
-          value={filters.assignedToUserId ?? ""}
-          onChange={(event) =>
-            updateFilter("assignedToUserId", event.target.value)
-          }
-          placeholder={mergedLabels.assignedUserIdPlaceholder}
-          className="min-h-10 rounded-lg border px-3 text-sm"
-        />
-        <input
-          value={filters.from ?? ""}
-          onChange={(event) => updateFilter("from", event.target.value)}
-          placeholder="DD/MM/YYYY"
-          inputMode="numeric"
-          pattern="\d{2}/\d{2}/\d{4}"
-          className="min-h-10 rounded-lg border px-3 text-sm"
-        />
-        <div className="flex gap-2">
-          <input
-            value={filters.to ?? ""}
-            onChange={(event) => updateFilter("to", event.target.value)}
-            placeholder="DD/MM/YYYY"
-            inputMode="numeric"
-            pattern="\d{2}/\d{2}/\d{4}"
-            className="min-h-10 min-w-0 flex-1 rounded-lg border px-3 text-sm"
-          />
+      {/* Arrow Filter Bar */}
+      <div className="rounded-2xl border border-[color:rgba(198,197,213,0.24)] bg-white p-3.5 shadow-2xs space-y-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          {/* Main search bar */}
+          <div className="relative flex-1">
+            <VsIcon
+              name="search"
+              className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-lg text-slate-400"
+            />
+            <input
+              value={filters.q ?? ""}
+              onChange={(event) => updateFilter("q", event.target.value)}
+              placeholder="Tìm phòng, khách, số điện thoại, booking hoặc dịch vụ..."
+              className="min-h-11 w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-9 text-sm text-slate-800 placeholder:text-slate-400 transition-colors focus:border-[var(--primary)] focus:bg-white focus:outline-none"
+            />
+            {filters.q ? (
+              <button
+                type="button"
+                onClick={() => updateFilter("q", "")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                title="Xóa tìm kiếm"
+              >
+                <VsIcon name="close" className="text-base" />
+              </button>
+            ) : null}
+          </div>
+
+          {/* Arrow filter toggle button */}
           <button
             type="button"
-            onClick={resetFilters}
-            className="rounded-lg bg-[var(--primary)] px-4 text-sm font-semibold text-[var(--on-primary)]"
+            onClick={() => setIsFilterExpanded((prev) => !prev)}
+            className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-bold transition-all cursor-pointer ${
+              isFilterExpanded || [filters.status, filters.roomNumber, filters.priority, filters.serviceItemId, filters.from, filters.to].some(Boolean)
+                ? "border-[var(--primary)] bg-indigo-50/60 text-[var(--primary)] shadow-2xs"
+                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            }`}
+            title="Mở rộng / Thu gọn bộ lọc nâng cao"
           >
-            Đặt lại
+            <VsIcon name="tune" className="text-base shrink-0" />
+            <span>Bộ lọc</span>
+            {[filters.status, filters.roomNumber, filters.priority, filters.serviceItemId, filters.from, filters.to].filter(Boolean).length > 0 ? (
+              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--primary)] px-1.5 text-xs font-black text-white">
+                {[filters.status, filters.roomNumber, filters.priority, filters.serviceItemId, filters.from, filters.to].filter(Boolean).length}
+              </span>
+            ) : null}
+            <VsIcon
+              name={isFilterExpanded ? "keyboard_arrow_up" : "keyboard_arrow_down"}
+              className="text-lg transition-transform"
+            />
           </button>
-        </div>
-      </form>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+          {/* Quick reset button if any filter is active */}
+          {filters.q || [filters.status, filters.roomNumber, filters.priority, filters.serviceItemId, filters.from, filters.to].some(Boolean) ? (
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50/70 px-3.5 text-xs font-bold text-rose-700 hover:bg-rose-100 transition cursor-pointer"
+              title="Đặt lại toàn bộ bộ lọc"
+            >
+              <VsIcon name="refresh" className="text-sm" />
+              <span>Đặt lại</span>
+            </button>
+          ) : null}
+        </div>
+
+        {/* Collapsible Filter Panel (Arrow Filter Drawer) */}
+        {isFilterExpanded ? (
+          <div className="pt-3 border-t border-slate-100">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+              {/* Status Select with Arrow */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  {mergedLabels.status}
+                </label>
+                <div className="relative">
+                  <select
+                    value={filters.status ?? ""}
+                    onChange={(event) => updateFilter("status", event.target.value)}
+                    className="min-h-10 w-full appearance-none rounded-xl border border-slate-200 bg-white px-3 pr-8 text-sm font-medium text-slate-800 focus:border-[var(--primary)] focus:outline-none"
+                  >
+                    <option value="">{mergedLabels.allStatuses}</option>
+                    {hotelRequestStatuses.map((status) => (
+                      <option key={status} value={status}>
+                        {requestStatusLabelMap[status]}
+                      </option>
+                    ))}
+                  </select>
+                  <VsIcon
+                    name="keyboard_arrow_down"
+                    className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg"
+                  />
+                </div>
+              </div>
+
+              {/* Service Item Select with Arrow */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  {mergedLabels.service}
+                </label>
+                <div className="relative">
+                  <select
+                    value={filters.serviceItemId ?? ""}
+                    onChange={(event) => updateFilter("serviceItemId", event.target.value)}
+                    className="min-h-10 w-full appearance-none rounded-xl border border-slate-200 bg-white px-3 pr-8 text-sm font-medium text-slate-800 focus:border-[var(--primary)] focus:outline-none truncate"
+                  >
+                    <option value="">{mergedLabels.allServiceItems}</option>
+                    {serviceItems.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </select>
+                  <VsIcon
+                    name="keyboard_arrow_down"
+                    className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg"
+                  />
+                </div>
+              </div>
+
+              {/* Room Number Input */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  {mergedLabels.room}
+                </label>
+                <input
+                  value={filters.roomNumber ?? ""}
+                  onChange={(event) => updateFilter("roomNumber", event.target.value)}
+                  placeholder={mergedLabels.roomNumberPlaceholder}
+                  className="min-h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:border-[var(--primary)] focus:outline-none"
+                />
+              </div>
+
+              {/* Priority Select with Arrow */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  {mergedLabels.priority}
+                </label>
+                <div className="relative">
+                  <select
+                    value={filters.priority ?? ""}
+                    onChange={(event) => updateFilter("priority", event.target.value)}
+                    className="min-h-10 w-full appearance-none rounded-xl border border-slate-200 bg-white px-3 pr-8 text-sm font-medium text-slate-800 focus:border-[var(--primary)] focus:outline-none"
+                  >
+                    <option value="">Tất cả mức ưu tiên</option>
+                    <option value="NORMAL">{requestPriorityLabelMap.NORMAL}</option>
+                    <option value="URGENT">{requestPriorityLabelMap.URGENT}</option>
+                  </select>
+                  <VsIcon
+                    name="keyboard_arrow_down"
+                    className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg"
+                  />
+                </div>
+              </div>
+
+              {/* From Date Input */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  Từ ngày
+                </label>
+                <input
+                  value={filters.from ?? ""}
+                  onChange={(event) => updateFilter("from", event.target.value)}
+                  placeholder="DD/MM/YYYY"
+                  inputMode="numeric"
+                  pattern="\d{2}/\d{2}/\d{4}"
+                  className="min-h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:border-[var(--primary)] focus:outline-none"
+                />
+              </div>
+
+              {/* To Date Input */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  Đến ngày
+                </label>
+                <input
+                  value={filters.to ?? ""}
+                  onChange={(event) => updateFilter("to", event.target.value)}
+                  placeholder="DD/MM/YYYY"
+                  inputMode="numeric"
+                  pattern="\d{2}/\d{2}/\d{4}"
+                  className="min-h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:border-[var(--primary)] focus:outline-none"
+                />
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {/* Active Filter Badges */}
+        {[filters.status, filters.roomNumber, filters.priority, filters.serviceItemId, filters.from, filters.to].some(Boolean) ? (
+          <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs">
+            <span className="font-semibold text-slate-400">Đang lọc:</span>
+            {filters.status ? (
+              <span className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-2 py-0.5 font-bold text-indigo-800 border border-indigo-200">
+                {requestStatusLabelMap[filters.status as GuestRequestStatus] ?? filters.status}
+                <button
+                  type="button"
+                  onClick={() => updateFilter("status", "")}
+                  className="hover:text-indigo-950 cursor-pointer"
+                >
+                  <VsIcon name="close" className="text-xs" />
+                </button>
+              </span>
+            ) : null}
+            {filters.serviceItemId ? (
+              <span className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-2 py-0.5 font-bold text-indigo-800 border border-indigo-200">
+                {serviceItems.find((s) => s.id === filters.serviceItemId)?.name ?? "Dịch vụ"}
+                <button
+                  type="button"
+                  onClick={() => updateFilter("serviceItemId", "")}
+                  className="hover:text-indigo-950 cursor-pointer"
+                >
+                  <VsIcon name="close" className="text-xs" />
+                </button>
+              </span>
+            ) : null}
+            {filters.roomNumber ? (
+              <span className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-2 py-0.5 font-bold text-indigo-800 border border-indigo-200">
+                Phòng {filters.roomNumber}
+                <button
+                  type="button"
+                  onClick={() => updateFilter("roomNumber", "")}
+                  className="hover:text-indigo-950 cursor-pointer"
+                >
+                  <VsIcon name="close" className="text-xs" />
+                </button>
+              </span>
+            ) : null}
+            {filters.priority ? (
+              <span className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-2 py-0.5 font-bold text-indigo-800 border border-indigo-200">
+                Ưu tiên: {requestPriorityLabelMap[filters.priority as "NORMAL" | "URGENT"] ?? filters.priority}
+                <button
+                  type="button"
+                  onClick={() => updateFilter("priority", "")}
+                  className="hover:text-indigo-950 cursor-pointer"
+                >
+                  <VsIcon name="close" className="text-xs" />
+                </button>
+              </span>
+            ) : null}
+            {filters.from || filters.to ? (
+              <span className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-2 py-0.5 font-bold text-indigo-800 border border-indigo-200">
+                Ngày: {filters.from || "..."} - {filters.to || "..."}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = { ...filters };
+                    delete next.from;
+                    delete next.to;
+                    setFilters(next);
+                    pushFilters(next);
+                  }}
+                  className="hover:text-indigo-950 cursor-pointer"
+                >
+                  <VsIcon name="close" className="text-xs" />
+                </button>
+              </span>
+            ) : null}
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="ml-1 text-[11px] font-bold text-slate-500 hover:text-rose-600 underline cursor-pointer"
+            >
+              Xóa tất cả
+            </button>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
         {hotelRequestStatuses.map((status) => (
           <button
             key={status}

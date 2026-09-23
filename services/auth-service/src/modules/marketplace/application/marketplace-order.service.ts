@@ -1394,7 +1394,7 @@ export class MarketplaceOrderService {
       });
       if (!order) throw new NotFoundException("Không tìm thấy đơn Marketplace");
 
-      if (order.status === "COMPLETED" || order.status === "CANCELLED") {
+      if (order.status === "COMPLETED" || order.status === "CANCELLED" || order.status === "REJECTED") {
         if (order.status === body.toStatus) {
           return tx.marketplaceOrder.findUniqueOrThrow({
             where: { id: order.id },
@@ -1415,7 +1415,10 @@ export class MarketplaceOrderService {
       let capacityReservationStatus: CapacityReservationStatus | undefined = undefined;
       if (body.toStatus === "COMPLETED" && order.capacityReservationStatus === "RESERVED") {
         capacityReservationStatus = "CONSUMED";
-      } else if (body.toStatus === "CANCELLED" && order.capacityReservationStatus === "RESERVED") {
+      } else if (
+        (body.toStatus === "CANCELLED" || body.toStatus === "REJECTED") &&
+        order.capacityReservationStatus === "RESERVED"
+      ) {
         capacityReservationStatus = "RELEASED";
       }
 
@@ -1425,12 +1428,15 @@ export class MarketplaceOrderService {
           status: body.toStatus,
           version: { increment: 1 },
           completedAt: body.toStatus === "COMPLETED" ? new Date() : undefined,
-          cancelledAt: body.toStatus === "CANCELLED" ? new Date() : undefined,
+          cancelledAt: body.toStatus === "CANCELLED" || body.toStatus === "REJECTED" ? new Date() : undefined,
           capacityReservationStatus,
         },
       });
       if (updated.count !== 1) throw new ConflictException("Đơn đã được cập nhật bởi người khác");
-      if (body.toStatus === "CANCELLED" && order.capacityReservationStatus === "RESERVED") {
+      if (
+        (body.toStatus === "CANCELLED" || body.toStatus === "REJECTED") &&
+        order.capacityReservationStatus === "RESERVED"
+      ) {
         const orderItems = await tx.marketplaceOrderItem.findMany({ where: { orderId: order.id } });
         if (orderItems.length > 0) {
           for (const it of orderItems) {
@@ -1747,7 +1753,7 @@ export class MarketplaceOrderService {
     ]);
 
     const completedOrders = orders.filter((o) => o.status === "COMPLETED");
-    const cancelledOrders = orders.filter((o) => o.status === "CANCELLED");
+    const cancelledOrders = orders.filter((o) => o.status === "CANCELLED" || o.status === "REJECTED");
 
     const grossSalesAmount = completedOrders.reduce(
       (acc, o) =>

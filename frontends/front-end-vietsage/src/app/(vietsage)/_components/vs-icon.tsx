@@ -553,6 +553,70 @@ function iconGlyph(name: string): ReactNode {
         </>
       );
 
+    case "bolt":
+      return (
+        <>
+          <path d="M13 2 4.5 13.5H12l-1 8.5 8.5-11.5H12z" />
+        </>
+      );
+
+    case "auto_mode":
+      return (
+        <>
+          <path d="M12 3a9 9 0 1 0 9 9" />
+          <path d="M12 3v4" />
+          <path d="M12 3l3 3-3 3" />
+        </>
+      );
+
+    case "progress_activity":
+      return (
+        <>
+          <path d="M12 3a9 9 0 1 0 4.5 1.9" />
+        </>
+      );
+
+    case "fact_check":
+      return (
+        <>
+          <rect x="3" y="4" width="18" height="16" rx="2" />
+          <path d="m9 10 1.8 1.8 3.2-3.8" />
+          <path d="M14 14h3" />
+          <path d="M14 10h3" />
+        </>
+      );
+
+    case "receipt_long":
+      return (
+        <>
+          <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z" />
+          <path d="M8 10h8" />
+          <path d="M8 14h8" />
+          <path d="M8 6h4" />
+        </>
+      );
+
+    case "apartment":
+      return (
+        <>
+          <path d="M3 21h18" />
+          <path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16" />
+          <path d="M9 9h1" />
+          <path d="M14 9h1" />
+          <path d="M9 13h1" />
+          <path d="M14 13h1" />
+          <path d="M9 17h6" />
+        </>
+      );
+
+    case "check_circle":
+      return (
+        <>
+          <circle cx="12" cy="12" r="9" />
+          <path d="m8.5 12.5 2.4 2.4 4.6-4.8" />
+        </>
+      );
+
     default:
       return (
         <>

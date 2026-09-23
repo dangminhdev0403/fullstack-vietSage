@@ -356,7 +356,7 @@ export class GuestOsRepository {
           description: input.description,
           quantity: input.quantity,
           metadata: input.metadata,
-          status: GuestRequestStatus.CREATED,
+          status: GuestRequestStatus.PENDING,
         },
         include: guestRequestGuestInclude,
       });
@@ -368,7 +368,7 @@ export class GuestOsRepository {
           actorType: GuestRequestActorType.GUEST,
           sessionId: input.sessionId,
           eventType: "REQUEST_CREATED",
-          toStatus: GuestRequestStatus.CREATED,
+          toStatus: GuestRequestStatus.PENDING,
         },
       });
 

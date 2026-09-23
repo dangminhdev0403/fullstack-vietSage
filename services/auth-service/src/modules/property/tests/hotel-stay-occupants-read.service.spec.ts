@@ -294,7 +294,7 @@ describe("HotelStayOccupantsReadService & Repository (AGY-10/AGY-11 KBTT Foundat
       (mockRepo.findActiveStayOccupantsByHotel as jest.Mock).mockResolvedValue(mockDbRows);
 
       const result = await service.getActiveStayOccupants(mockHotelId);
-      const row = result[0] as Record<string, unknown>;
+      const row = result[0] as any;
 
       // Explicitly verify provider-specific draft fields are NOT present
       expect(row.lyDoCuTru).toBeUndefined();

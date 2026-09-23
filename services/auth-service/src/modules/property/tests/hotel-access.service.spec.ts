@@ -146,13 +146,14 @@ describe("HotelAccessService", () => {
     const actor = {
       userId: "actor-1",
       roleCodes: new Set(["TENANT_OWNER"]),
+      baseRoleCodes: new Set(["TENANT_OWNER"]),
       tenantIds: new Set(["tenant-1"]),
       isSuperAdmin: false,
       isTenantOwner: true,
     };
 
-    await expect(service.resolveTenantId(actor, "tenant-1")).resolves.toBe("tenant-1");
-    await expect(service.resolveTenantId(actor, "tenant-2")).rejects.toBeInstanceOf(
+    await expect(service.resolveTenantId(actor as any, "tenant-1")).resolves.toBe("tenant-1");
+    await expect(service.resolveTenantId(actor as any, "tenant-2")).rejects.toBeInstanceOf(
       ForbiddenException,
     );
   });

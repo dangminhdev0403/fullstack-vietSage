@@ -79,12 +79,11 @@ const defaultLabels: RequestDetailLabels = {
   updateAssignmentError: "Could not update assignment.",
   addNoteError: "Could not add note.",
   statusActionLabel: {
-    CREATED: "Created",
-    ACKNOWLEDGED: "Acknowledge",
-    IN_PROGRESS: "Start",
-    COMPLETED: "Complete",
-    CANCELLED: "Cancel",
-    FAILED: "Fail",
+    PENDING: "Chờ tiếp nhận",
+    ACKNOWLEDGED: "Tiếp nhận",
+    COMPLETED: "Hoàn thành",
+    CANCELLED: "Hủy",
+    REJECTED: "Từ chối",
   },
 };
 
