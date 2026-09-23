@@ -202,11 +202,40 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     key: "finance.billing",
     personas: ["platform_finance"],
     href: "/finance/billing",
-    label: "Phí VietSage SaaS",
-    icon: "payments",
+    label: "Hóa đơn & Công nợ",
+    icon: "receipt_long",
     order: 10,
     section: "ADMINISTRATION",
-    anyCapabilities: ["platform.billing.view", "platform.billing.manage"],
+    anyCapabilities: [
+      "platform.billing.view",
+      "platform.billing.manage",
+    ],
+  },
+  {
+    key: "finance.finalize",
+    personas: ["platform_finance"],
+    href: "/finance/finalize",
+    label: "Chốt kỳ theo tháng",
+    icon: "bolt",
+    order: 20,
+    section: "ADMINISTRATION",
+    anyCapabilities: [
+      "platform.billing.view",
+      "platform.billing.manage",
+    ],
+  },
+  {
+    key: "finance.contracts",
+    personas: ["platform_finance"],
+    href: "/finance/contracts",
+    label: "Hợp đồng & Biểu phí",
+    icon: "apartment",
+    order: 30,
+    section: "ADMINISTRATION",
+    anyCapabilities: [
+      "platform.billing.view",
+      "platform.billing.manage",
+    ],
   },
 
   {

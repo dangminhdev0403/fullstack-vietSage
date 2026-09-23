@@ -85,3 +85,22 @@ export const ownerAnalyticsQuerySchema = z.object({
   periodPage: z.coerce.number().int().positive().default(1),
   periodLimit: z.coerce.number().int().positive().max(50).default(10),
 });
+
+export const listAllPeriodsQuerySchema = z.object({
+  status: z.enum(["DRAFT", "FINALIZED", "VOID"]).optional(),
+  paymentState: z.enum(["UNPAID", "PARTIALLY_PAID", "PAID"]).optional(),
+  isOverdue: z
+    .preprocess((val) => val === "true" || val === true, z.boolean())
+    .optional(),
+  search: z.string().trim().optional(),
+  periodStart: z.string().trim().optional(),
+  periodEnd: z.string().trim().optional(),
+  limit: z.coerce.number().int().positive().max(100).default(50).optional(),
+});
+
+export const batchFinalizeBodySchema = z.object({
+  periodStart: z.string().trim().min(1, "periodStart không được để trống"),
+  periodEnd: z.string().trim().min(1, "periodEnd không được để trống"),
+  contractIds: z.array(z.string().trim()).optional(),
+});
+

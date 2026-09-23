@@ -11,7 +11,8 @@ async function proxyToNest(request: Request, params: { path: string[] }) {
     NEXT_PUBLIC_AUTH_API_BASE_URL: process.env.NEXT_PUBLIC_AUTH_API_BASE_URL,
   });
 
-  const url = `${backendBaseUrl}/platform-billing/${subPath}`;
+  const { search } = new URL(request.url);
+  const url = `${backendBaseUrl}/platform-billing/${subPath}${search}`;
   const headers = new Headers();
   headers.set("Accept", "application/json");
 

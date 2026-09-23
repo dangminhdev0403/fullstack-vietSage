@@ -18,12 +18,14 @@ import { RequirePermission } from "../../../shared/decorators/require-permission
 import type { RequestWithAuthenticatedUser } from "../../../shared/security";
 import {
   addRevisionBodySchema,
+  batchFinalizeBodySchema,
   contractIdParamSchema,
   createAdjustmentBodySchema,
   createContractBodySchema,
   dashboardSummaryQuerySchema,
   finalizePeriodBodySchema,
   issueDebtNoticeBodySchema,
+  listAllPeriodsQuerySchema,
   listContractsQuerySchema,
   ownerAnalyticsQuerySchema,
   periodIdParamSchema,
@@ -113,6 +115,27 @@ export class PlatformBillingController {
   async listPeriods(@Param("contractId") contractIdParam: string) {
     const contractId = parseWithZod(contractIdParamSchema, contractIdParam);
     return this.platformBillingService.listPeriods(contractId);
+  }
+
+  @Get("periods")
+  @RequirePermission("platform.billing.view")
+  @ApiDescript("Xem danh sách tất cả các kỳ billing (hóa đơn) trên toàn hệ thống")
+  @ApiOperation({ summary: "List all platform billing periods across contracts" })
+  async listAllPeriods(@Query() query: unknown) {
+    const parsed = parseWithZod(listAllPeriodsQuerySchema, query);
+    return this.platformBillingService.listAllPeriods(parsed);
+  }
+
+  @Post("batch-finalize")
+  @RequirePermission("platform.billing.manage")
+  @ApiDescript("Chốt sổ kỳ billing hàng loạt cho nhiều hoặc tất cả khách sạn")
+  @ApiOperation({ summary: "Batch finalize periods for active contracts" })
+  async batchFinalize(
+    @Req() request: RequestWithAuthenticatedUser,
+    @Body() body: unknown,
+  ) {
+    const dto = parseWithZod(batchFinalizeBodySchema, body);
+    return this.platformBillingService.batchFinalize(dto, request.user?.userId);
   }
 
   @Get("periods/:periodId")

@@ -651,6 +651,128 @@ export class PlatformBillingService {
     return periods.map((p) => attachPeriodProjection(p, noticeMap.get(p.id)));
   }
 
+  async listAllPeriods(query?: {
+    status?: "DRAFT" | "FINALIZED" | "VOID";
+    paymentState?: "UNPAID" | "PARTIALLY_PAID" | "PAID";
+    isOverdue?: boolean;
+    search?: string;
+    periodStart?: string;
+    periodEnd?: string;
+    limit?: number;
+  }) {
+    const whereClause: Prisma.PlatformBillingPeriodWhereInput = {};
+
+    if (query?.status) {
+      whereClause.status = query.status;
+    }
+
+    if (query?.periodStart) {
+      whereClause.periodStart = { gte: new Date(query.periodStart) };
+    }
+
+    if (query?.periodEnd) {
+      whereClause.periodEnd = { lte: new Date(query.periodEnd) };
+    }
+
+    if (query?.search) {
+      whereClause.contract = {
+        hotel: {
+          OR: [
+            { name: { contains: query.search, mode: "insensitive" } },
+            { code: { contains: query.search, mode: "insensitive" } },
+          ],
+        },
+      };
+    }
+
+    const periods = await this.prisma.platformBillingPeriod.findMany({
+      where: whereClause,
+      include: {
+        contract: {
+          include: {
+            hotel: { select: { id: true, name: true, code: true } },
+            revisions: { orderBy: { effectiveFrom: "desc" }, take: 1 },
+          },
+        },
+        settlements: true,
+        adjustments: true,
+      },
+      orderBy: { periodStart: "desc" },
+      take: query?.limit ?? 50,
+    });
+
+    const noticeMap = await this.getPeriodNoticesMap(periods.map((p) => p.id));
+    let projectedPeriods = periods.map((p) => attachPeriodProjection(p, noticeMap.get(p.id)));
+
+    if (query?.paymentState) {
+      projectedPeriods = projectedPeriods.filter((p) => p.paymentState === query.paymentState);
+    }
+
+    if (query?.isOverdue !== undefined) {
+      projectedPeriods = projectedPeriods.filter((p) => p.isOverdue === query.isOverdue);
+    }
+
+    return projectedPeriods;
+  }
+
+  async batchFinalize(
+    input: {
+      periodStart: string;
+      periodEnd: string;
+      contractIds?: string[];
+    },
+    actorUserId?: string,
+  ) {
+    assertReconciliationRange(input.periodStart, input.periodEnd);
+
+    const targetContracts = await this.prisma.platformBillingContract.findMany({
+      where: {
+        status: "ACTIVE",
+        ...(input.contractIds && input.contractIds.length > 0
+          ? { id: { in: input.contractIds } }
+          : {}),
+      },
+      include: { hotel: { select: { id: true, name: true, code: true } } },
+    });
+
+    const results: Array<{
+      contractId: string;
+      hotelName: string;
+      periodId: string;
+      total: number;
+      status: string;
+    }> = [];
+
+    for (const contract of targetContracts) {
+      try {
+        const period = await this.finalizePeriod(
+          contract.id,
+          input.periodStart,
+          input.periodEnd,
+          actorUserId,
+        );
+        results.push({
+          contractId: contract.id,
+          hotelName: contract.hotel.name,
+          periodId: period.id,
+          total: Number(period.total),
+          status: period.status,
+        });
+      } catch (err: unknown) {
+        this.logger.warn(
+          `Batch finalize skipped contract ${contract.id}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+
+    return {
+      success: true,
+      finalizedCount: results.length,
+      totalContracts: targetContracts.length,
+      results,
+    };
+  }
+
   async getPeriod(periodId: string) {
     const period = await this.prisma.platformBillingPeriod.findUnique({
       where: { id: periodId },
@@ -949,6 +1071,17 @@ export class PlatformBillingService {
           overdueOutstandingAmount: new Prisma.Decimal(0),
           nearestDueAt: null,
         },
+        debtSummary: {
+          totalOutstandingAmount: 0,
+          unpaidPeriodCount: 0,
+          totalSettledAmount: 0,
+          totalFinalizedAmount: 0,
+          overdueAmount: 0,
+          overdueCount: 0,
+          dueSoonAmount: 0,
+          dueSoonCount: 0,
+          nearestDueAt: null,
+        },
         roomUsageSummary: [],
       };
     }
@@ -1039,6 +1172,10 @@ export class PlatformBillingService {
           overdueCount: number;
           dueSoonOutstandingAmount: Prisma.Decimal;
           overdueOutstandingAmount: Prisma.Decimal;
+          totalOutstandingAmount: Prisma.Decimal;
+          unpaidPeriodCount: number;
+          totalSettledAmount: Prisma.Decimal;
+          totalFinalizedAmount: Prisma.Decimal;
           nearestDueAt: Date | null;
         }>
       >`
@@ -1047,6 +1184,10 @@ export class PlatformBillingService {
           COUNT(CASE WHEN p."dueAt" < ${now} AND (p."total" - COALESCE(s."settled_sum", 0)) > 0 THEN 1 END)::int AS "overdueCount",
           COALESCE(SUM(CASE WHEN p."dueAt" >= ${now} AND p."dueAt" <= ${next7Days} AND (p."total" - COALESCE(s."settled_sum", 0)) > 0 THEN (p."total" - COALESCE(s."settled_sum", 0)) ELSE 0 END), 0) AS "dueSoonOutstandingAmount",
           COALESCE(SUM(CASE WHEN p."dueAt" < ${now} AND (p."total" - COALESCE(s."settled_sum", 0)) > 0 THEN (p."total" - COALESCE(s."settled_sum", 0)) ELSE 0 END), 0) AS "overdueOutstandingAmount",
+          COALESCE(SUM(GREATEST(0, p."total" - COALESCE(s."settled_sum", 0))), 0) AS "totalOutstandingAmount",
+          COUNT(CASE WHEN (p."total" - COALESCE(s."settled_sum", 0)) > 0 THEN 1 END)::int AS "unpaidPeriodCount",
+          COALESCE(SUM(COALESCE(s."settled_sum", 0)), 0) AS "totalSettledAmount",
+          COALESCE(SUM(p."total"), 0) AS "totalFinalizedAmount",
           MIN(CASE WHEN (p."dueAt" >= ${now} AND p."dueAt" <= ${next7Days} AND (p."total" - COALESCE(s."settled_sum", 0)) > 0) OR (p."dueAt" < ${now} AND (p."total" - COALESCE(s."settled_sum", 0)) > 0) THEN p."dueAt" END) AS "nearestDueAt"
         FROM "PlatformBillingPeriod" p
         LEFT JOIN (
@@ -1093,6 +1234,10 @@ export class PlatformBillingService {
       overdueCount: 0,
       dueSoonOutstandingAmount: new Prisma.Decimal(0),
       overdueOutstandingAmount: new Prisma.Decimal(0),
+      totalOutstandingAmount: new Prisma.Decimal(0),
+      unpaidPeriodCount: 0,
+      totalSettledAmount: new Prisma.Decimal(0),
+      totalFinalizedAmount: new Prisma.Decimal(0),
       nearestDueAt: null,
     };
 
@@ -1102,6 +1247,18 @@ export class PlatformBillingService {
       dueSoonOutstandingAmount: new Prisma.Decimal(reminderData.dueSoonOutstandingAmount ?? 0),
       overdueOutstandingAmount: new Prisma.Decimal(reminderData.overdueOutstandingAmount ?? 0),
       nearestDueAt: reminderData.nearestDueAt ? new Date(reminderData.nearestDueAt) : null,
+    };
+
+    const debtSummary = {
+      totalOutstandingAmount: Number(reminderData.totalOutstandingAmount ?? 0),
+      unpaidPeriodCount: Number(reminderData.unpaidPeriodCount ?? 0),
+      totalSettledAmount: Number(reminderData.totalSettledAmount ?? 0),
+      totalFinalizedAmount: Number(reminderData.totalFinalizedAmount ?? 0),
+      overdueAmount: Number(reminderData.overdueOutstandingAmount ?? 0),
+      overdueCount: Number(reminderData.overdueCount ?? 0),
+      dueSoonAmount: Number(reminderData.dueSoonOutstandingAmount ?? 0),
+      dueSoonCount: Number(reminderData.dueSoonCount ?? 0),
+      nearestDueAt: reminderData.nearestDueAt ? new Date(reminderData.nearestDueAt).toISOString() : null,
     };
 
     const periodsPage = {
@@ -1122,6 +1279,7 @@ export class PlatformBillingService {
       periods: projectedPeriods,
       periodsPage,
       reminder,
+      debtSummary,
       roomUsageSummary,
     };
   }

@@ -17,7 +17,11 @@ describe("PlatformBillingService Period & Settlement Invariants", () => {
       $queryRaw: jest.fn().mockResolvedValue([{ count: 0 }]),
       $queryRawUnsafe: jest.fn().mockResolvedValue([{ id: "contract-1" }]),
       $executeRaw: jest.fn().mockResolvedValue(1),
-      platformBillingContract: { count: jest.fn().mockResolvedValue(5), findFirst: jest.fn() },
+      platformBillingContract: {
+        count: jest.fn().mockResolvedValue(5),
+        findFirst: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
       platformBillingPeriod: {
         count: jest.fn().mockResolvedValue(0),
         findUnique: jest.fn(),
@@ -274,6 +278,10 @@ describe("PlatformBillingService Period & Settlement Invariants", () => {
       paymentState: "PARTIALLY_PAID",
       isOverdue: true,
     });
+    expect(analytics.debtSummary).toMatchObject({
+      totalOutstandingAmount: expect.any(Number),
+      unpaidPeriodCount: expect.any(Number),
+    });
   });
 
   it("returns the persisted overdue amount for the debt-first dashboard", async () => {
@@ -444,4 +452,56 @@ describe("PlatformBillingService Period & Settlement Invariants", () => {
     expect(ownerStatement.statementNumber).toContain("SGSTAR");
     expect(statement.platformBankInfo).toBeNull();
   });
+
+  it("lists all periods across contracts with projection", async () => {
+    mockPrisma.platformBillingPeriod.findMany.mockResolvedValue([
+      {
+        id: "period-all-1",
+        contractId: "contract-1",
+        periodStart: new Date("2026-08-01"),
+        periodEnd: new Date("2026-08-31"),
+        status: "FINALIZED",
+        total: new Prisma.Decimal(500000),
+        dueAt: new Date("2026-09-07"),
+        settlements: [],
+        contract: {
+          hotel: { id: "hotel-1", name: "Hotel One", code: "H1" },
+        },
+      },
+    ]);
+
+    const result = await service.listAllPeriods({ search: "Hotel" });
+    expect(result).toHaveLength(1);
+    expect(result[0].hotelName || result[0].contract?.hotel?.name).toBe("Hotel One");
+    expect(result[0].paymentState).toBe("UNPAID");
+  });
+
+  it("batch finalizes active contracts", async () => {
+    mockPrisma.platformBillingContract.findMany.mockResolvedValue([
+      {
+        id: "contract-active-1",
+        hotel: { id: "hotel-1", name: "Hotel One", code: "H1" },
+      },
+    ]);
+
+    // Mock finalizePeriod behavior
+    jest.spyOn(service, "finalizePeriod").mockResolvedValue({
+      id: "period-batch-1",
+      contractId: "contract-active-1",
+      periodStart: new Date("2026-08-01"),
+      periodEnd: new Date("2026-08-31"),
+      status: "FINALIZED",
+      total: new Prisma.Decimal(200000),
+    } as any);
+
+    const result = await service.batchFinalize({
+      periodStart: "2026-08-01",
+      periodEnd: "2026-08-31",
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.finalizedCount).toBe(1);
+    expect(result.results[0].contractId).toBe("contract-active-1");
+  });
 });
+

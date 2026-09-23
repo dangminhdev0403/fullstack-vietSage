@@ -31,7 +31,11 @@ test("configures dedicated platform finance workspace and navigation", () => {
 
   assert.deepEqual(
     navigation.map((item) => ({ key: item.key, href: item.href })),
-    [{ key: "finance.billing", href: "/finance/billing" }],
+    [
+      { key: "finance.billing", href: "/finance/billing" },
+      { key: "finance.finalize", href: "/finance/finalize" },
+      { key: "finance.contracts", href: "/finance/contracts" },
+    ],
   );
 });
 
