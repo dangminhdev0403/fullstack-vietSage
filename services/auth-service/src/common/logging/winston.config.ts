@@ -7,16 +7,29 @@ const isDev = process.env.NODE_ENV !== "production";
 
 // ─── Transports ──────────────────────────────────────────────────────────────
 
+const minLevel = resolveWinstonLevel();
+
+const filterByLevel = winston.format((info) => {
+  const priority: Record<string, number> = { error: 0, warn: 1, info: 2, debug: 3 };
+  const maxPriority = priority[minLevel] ?? 1;
+  const currentPriority = priority[info.level] ?? 2;
+  return currentPriority <= maxPriority ? info : false;
+});
+
 const consoleTransport = new winston.transports.Console({
-  format: isDev
-    ? winston.format.combine(
-        winston.format.timestamp({ format: "HH:mm:ss.SSS" }),
-        nestWinstonModuleUtilities.format.nestLike("VietSage", {
-          colors: true,
-          prettyPrint: true,
-        }),
-      )
-    : winston.format.combine(winston.format.timestamp(), winston.format.json()),
+  level: "debug",
+  format: winston.format.combine(
+    filterByLevel(),
+    isDev
+      ? winston.format.combine(
+          winston.format.timestamp({ format: "HH:mm:ss.SSS" }),
+          nestWinstonModuleUtilities.format.nestLike("VietSage", {
+            colors: true,
+            prettyPrint: true,
+          }),
+        )
+      : winston.format.combine(winston.format.timestamp(), winston.format.json()),
+  ),
 });
 
 const transports: winston.transport[] = [consoleTransport];
@@ -48,8 +61,7 @@ if (process.env.LOG_TO_FILE === "true") {
 // ─── Winston instance ─────────────────────────────────────────────────────────
 
 export const winstonInstance = winston.createLogger({
-  // Hard minimum — AppLogger applies its own gate on top
-  level: resolveWinstonLevel(),
+  level: "debug",
   transports,
   // Prevent Winston from exiting on uncaught exception — NestJS handles shutdown
   exitOnError: false,
