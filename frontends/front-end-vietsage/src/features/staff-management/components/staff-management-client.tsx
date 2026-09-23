@@ -3,17 +3,17 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { SwalVietSage } from "@/libs/swal";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
-import { DataTable, type DataTableColumnDef } from "@/components/ui/data-table";
+import { DataTable } from "@/components/ui/data-table";
 import { OneTimePasswordDialog } from "@/features/account/security/one-time-password-dialog";
 import { canResetFrontdeskPassword } from "@/features/account/security/password-security";
 import { exportToExcel } from "@/libs/excel-export";
 import type { HotelStaffUser } from "../types/staff-management-contract";
 import {
   type StaffManagementScope,
+  useStaffDirectoryExport,
   useStaffDirectoryQuery,
   useStaffManagementMutations,
 } from "../queries/use-staff-directory-query";
-import { staffDirectoryRepository } from "../repositories/staff-directory-repository";
 import { RoomSearchSelect } from "./room-search-select";
 
 export type StaffHotelOption = { id: string; code?: string | null; name: string };
@@ -96,6 +96,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
     page,
     limit: pageSize,
   });
+  const exportDirectory = useStaffDirectoryExport(activeScope);
   const mutations = useStaffManagementMutations(activeScope);
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState({ fullName: "", email: "", password: "", roleId: "", roomId: "" });
@@ -114,12 +115,6 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
   const hasMultipleHotels = (data?.hotels?.length ?? 0) > 1;
   const singleHotelId = data?.hotels?.length === 1 ? data.hotels[0].id : null;
   const effectiveHotelId = hotelId || singleHotelId || "";
-
-  const selectedHotel = useMemo(
-    () => data?.hotels.find((h) => h.id === effectiveHotelId),
-    [data?.hotels, effectiveHotelId],
-  );
-  const isRoomExclusive = selectedHotel?.staffScopeMode === "ROOM_EXCLUSIVE";
 
   function isFrontDeskRole(roleIdOrCode?: string | null): boolean {
     if (!roleIdOrCode) return false;
@@ -331,8 +326,13 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
   }
 
   const assignedUserIds = useMemo(
-    () => new Set(data?.assignments?.items.map((assignment) => assignment.userId) ?? []),
-    [data?.assignments?.items],
+    () =>
+      new Set(
+        (data?.users.items ?? [])
+          .filter((user) => user.assignedHotel?.id === effectiveHotelId)
+          .map((user) => user.id),
+      ),
+    [data?.users.items, effectiveHotelId],
   );
   const users = useMemo(
     () =>
@@ -342,23 +342,21 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
     [data?.users.items],
   );
   const displayedUsers = useMemo(
-    () => (hasMultipleHotels && effectiveHotelId ? users.filter((user) => assignedUserIds.has(user.id)) : users),
-    [hasMultipleHotels, effectiveHotelId, users, assignedUserIds],
+    () => users,
+    [users],
   );
   const skeletonRows = useMemo(() => Array.from({ length: 5 }, (_, i) => ({ id: `skel-${i}` })), []);
 
   const totalItems = useMemo(() => {
     if (!data) return 0;
-    if (hasMultipleHotels && effectiveHotelId && data.assignments) {
-      return data.assignments.total ?? data.users.total ?? displayedUsers.length;
-    }
     return data.users.total ?? displayedUsers.length;
-  }, [data, hasMultipleHotels, effectiveHotelId, displayedUsers.length]);
+  }, [data, displayedUsers.length]);
 
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
 
   useEffect(() => {
     if (page > totalPages && totalPages > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPage(totalPages);
     }
   }, [page, totalPages]);
@@ -433,75 +431,8 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
     setIsExporting(true);
 
     try {
-      const EXPORT_PAGE_SIZE = 100;
-      let allUsers: HotelStaffUser[] = [];
-      let currentHotel = data?.hotels?.find((h) => h.id === effectiveHotelId);
-      const allAssignedUserIds = new Set<string>(
-        data?.assignments?.items.map((a) => a.userId) ?? [],
-      );
-
-      // Fast path: if page 1 already holds the entire dataset
-      if (
-        page === 1 &&
-        data &&
-        data.users.items.length >= totalItems &&
-        displayedUsers.length === totalItems
-      ) {
-        allUsers = [...displayedUsers];
-      } else {
-        const firstPageData = await staffDirectoryRepository.list(activeScope, {
-          q: debouncedQuery,
-          page: 1,
-          limit: EXPORT_PAGE_SIZE,
-        });
-
-        if (firstPageData.hotels && !currentHotel) {
-          currentHotel = firstPageData.hotels.find((h) => h.id === effectiveHotelId);
-        }
-        if (firstPageData.assignments?.items) {
-          for (const a of firstPageData.assignments.items) {
-            allAssignedUserIds.add(a.userId);
-          }
-        }
-
-        const rawUsers: HotelStaffUser[] = [...firstPageData.users.items];
-        const serverTotal = firstPageData.users.total ?? firstPageData.users.items.length;
-        const totalPagesNeeded = Math.max(1, Math.ceil(serverTotal / EXPORT_PAGE_SIZE));
-
-        if (totalPagesNeeded > 1) {
-          const remainingPages = await Promise.all(
-            Array.from({ length: totalPagesNeeded - 1 }, (_, idx) =>
-              staffDirectoryRepository.list(activeScope, {
-                q: debouncedQuery,
-                page: idx + 2,
-                limit: EXPORT_PAGE_SIZE,
-              }),
-            ),
-          );
-
-          for (const pageSnapshot of remainingPages) {
-            rawUsers.push(...pageSnapshot.users.items);
-            if (pageSnapshot.assignments?.items) {
-              for (const a of pageSnapshot.assignments.items) {
-                allAssignedUserIds.add(a.userId);
-              }
-            }
-          }
-        }
-
-        const userMap = new Map<string, HotelStaffUser>();
-        for (const u of rawUsers) {
-          if (!u.roles.some((r) => r.code === "TENANT_OWNER" || r.code === "SUPER_ADMIN")) {
-            userMap.set(u.id, u);
-          }
-        }
-
-        let filtered = Array.from(userMap.values());
-        if (hasMultipleHotels && effectiveHotelId) {
-          filtered = filtered.filter((u) => allAssignedUserIds.has(u.id));
-        }
-        allUsers = filtered;
-      }
+      const snapshot = await exportDirectory(debouncedQuery);
+      const allUsers = snapshot.users.items;
 
       if (allUsers.length === 0) {
         void SwalVietSage.fire({
@@ -514,21 +445,14 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
         return;
       }
 
-      const hotelLabel = currentHotel
-        ? currentHotel.code
-          ? `${currentHotel.code} · ${currentHotel.name}`
-          : currentHotel.name
-        : "Đã phân công";
-
       const exportData = allUsers.map((user, idx) => ({
         index: idx + 1,
         fullName: user.fullName,
         email: user.email,
         roles: user.roles?.map((r) => r.name).join(", ") || "--",
-        hotelAssignment:
-          assignedUserIds.has(user.id) || allAssignedUserIds.has(user.id)
-            ? hotelLabel
-            : "Chưa phân công",
+        hotelAssignment: user.assignedHotel
+          ? `${user.assignedHotel.code} · ${user.assignedHotel.name}`
+          : "Chưa phân công",
         status: user.userStatus === "DISABLED" || user.tenantStatus === "DISABLED" ? "Bị khóa" : "Đang hoạt động",
       }));
 

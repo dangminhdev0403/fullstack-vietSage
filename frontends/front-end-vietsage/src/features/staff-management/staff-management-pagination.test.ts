@@ -55,7 +55,7 @@ test("Staff Management Pagination Invariants", async (t) => {
     );
   });
 
-  await t.test("route handlers preserve total count instead of page item length", () => {
+  await t.test("route handlers paginate the hotel-filtered backend result", () => {
     assert.equal(
       ownerRouteCode.includes("total: staffOnlyItems.length"),
       false,
@@ -66,9 +66,13 @@ test("Staff Management Pagination Invariants", async (t) => {
       false,
       "Admin staff route must not overwrite users.total with page item count",
     );
+    assert.ok(ownerRouteCode.includes("hotelId: hotelId ?? undefined"));
+    assert.ok(adminRouteCode.includes("hotelId: hotelId ?? undefined"));
+    assert.equal(ownerRouteCode.includes("filteredItems"), false);
+    assert.equal(adminRouteCode.includes("filteredItems"), false);
   });
 
-  await t.test("StaffManagementClient exports all accounts across all pages", () => {
+  await t.test("StaffManagementClient exports all accounts through the resource layer", () => {
     assert.ok(
       clientCode.includes("Xuất Excel (${totalItems})"),
       "Export button must show total accounts count rather than current page items",
@@ -78,8 +82,13 @@ test("Staff Management Pagination Invariants", async (t) => {
       "Must have isExporting state for async batch export",
     );
     assert.ok(
-      clientCode.includes("staffDirectoryRepository.list"),
-      "Must fetch all accounts via staffDirectoryRepository when exporting",
+      clientCode.includes("exportDirectory(debouncedQuery)"),
+      "Must export all accounts through the resource hook",
+    );
+    assert.equal(
+      clientCode.includes('from "../repositories/staff-directory-repository"'),
+      false,
+      "Presentation component must not bypass the resource layer",
     );
     assert.equal(
       clientCode.includes("Xuất Excel (${displayedUsers.length})"),

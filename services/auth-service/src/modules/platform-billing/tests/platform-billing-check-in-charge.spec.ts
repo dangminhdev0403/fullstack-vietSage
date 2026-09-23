@@ -27,6 +27,6 @@ describe("platform billing per-check-in charge", () => {
     expect(service).not.toContain("@Interval(300_000)");
     expect(service).not.toContain("generate_series");
     expect(service).toContain("b.\"subjectType\" IN ('ROOM', 'GUEST_STAY')");
-    expect(service).toContain("COALESCE(bs.\"roomId\", b.\"subjectId\")");
+    expect(service).toContain('COALESCE(bs."roomId", b."subjectId")');
   });
 });

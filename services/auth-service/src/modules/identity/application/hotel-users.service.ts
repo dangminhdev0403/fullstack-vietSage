@@ -120,7 +120,7 @@ export class HotelUsersService {
     const skip = (page - 1) * limit;
 
     const status = query.status ?? TenantUserStatus.ACTIVE;
-    const where = this.buildTenantUserListFilter(tenantId, status, query.q);
+    const where = this.buildTenantUserListFilter(tenantId, status, query.q, query.hotelId);
 
     const [total, rows] = await this.hotelUsersRepository.listTenantUsers(where, skip, limit);
 
@@ -240,6 +240,7 @@ export class HotelUsersService {
     tenantId: string,
     status: TenantUserStatus,
     queryText: string | undefined,
+    hotelId: string | undefined,
   ): Prisma.TenantUserWhereInput {
     const userFilter: Prisma.UserWhereInput = {
       userType: UserType.HOTEL_STAFF,
@@ -251,6 +252,17 @@ export class HotelUsersService {
           },
         },
       },
+      ...(hotelId
+        ? {
+            hotelAssignments: {
+              some: {
+                hotelId,
+                status: "ACTIVE",
+                hotel: { tenantId },
+              },
+            },
+          }
+        : {}),
     };
 
     const needle = queryText?.trim();

@@ -91,7 +91,6 @@ export function attachPeriodProjection<
   };
 }
 
-
 @Injectable()
 export class PlatformBillingService {
   constructor(
@@ -99,7 +98,6 @@ export class PlatformBillingService {
     private readonly logger: AppLogger,
     private readonly hotelAccessService: HotelAccessService,
   ) {}
-
 
   async finalizePeriod(
     contractId: string,

@@ -25,12 +25,14 @@ describe("hotel-users.schema", () => {
       page: "2",
       limit: "30",
       status: TenantUserStatus.ACTIVE,
+      hotelId: "hotel-1",
     });
 
     expect(result).toEqual({
       page: 2,
       limit: 30,
       status: TenantUserStatus.ACTIVE,
+      hotelId: "hotel-1",
     });
   });
 

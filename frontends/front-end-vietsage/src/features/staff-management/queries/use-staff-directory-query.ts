@@ -1,6 +1,6 @@
 "use client";
 
-import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { StaffManagementScope } from "@/features/staff-management/repositories/staff-directory-repository";
 import { staffDirectoryResource } from "@/features/staff-management/resources/staff-directory-resource";
 
@@ -34,6 +34,16 @@ export function useStaffDirectoryQuery(scope: StaffManagementScope, queryOptions
     placeholderData: keepPreviousData,
     staleTime: 30_000,
   });
+}
+
+export function useStaffDirectoryExport(scope: StaffManagementScope) {
+  const client = useQueryClient();
+  const staffDirectory = staffDirectoryResource.bind(scope);
+
+  return (q?: string) =>
+    client.fetchQuery(
+      staffDirectory.queries.exportDirectory.options({ q: q?.trim() || undefined }),
+    );
 }
 
 export function useStaffManagementMutations(scope: StaffManagementScope) {

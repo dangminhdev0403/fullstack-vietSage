@@ -17,6 +17,8 @@ export type StaffDirectoryListInput = {
   limit: number;
 };
 
+export type StaffDirectoryExportInput = Pick<StaffDirectoryListInput, "q">;
+
 export type AssignStaffRoleInput = {
   userId: string;
   roleId: string;
@@ -93,6 +95,31 @@ export const staffDirectoryRepository = {
       );
 
     return payload.data;
+  },
+
+  async exportAll(
+    scope: StaffManagementScope,
+    input: StaffDirectoryExportInput,
+    options: RepositoryRequestOptions = {},
+  ): Promise<StaffDirectorySnapshot> {
+    const limit = 100;
+    const first = await this.list(scope, { ...input, page: 1, limit }, options);
+    const totalPages = Math.ceil(first.users.total / limit);
+    const rest = await Promise.all(
+      Array.from({ length: Math.max(0, totalPages - 1) }, (_, index) =>
+        this.list(scope, { ...input, page: index + 2, limit }, options),
+      ),
+    );
+
+    return {
+      ...first,
+      users: {
+        ...first.users,
+        page: 1,
+        limit,
+        items: [first, ...rest].flatMap((page) => page.users.items),
+      },
+    };
   },
 
   async createUser(

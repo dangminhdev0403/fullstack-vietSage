@@ -27,7 +27,7 @@ export async function GET(request: Request) {
   if (!tenantId) return validationErrorResponse("tenantId là bắt buộc");
   try {
     const [usersPage, roles, assignments, hotelsPage, rooms] = await Promise.all([
-      staffManagementService.listUsers({ tenantId, q, page, limit }),
+      staffManagementService.listUsers({ tenantId, hotelId: hotelId ?? undefined, q, page, limit }),
       staffManagementService.listManagedRoles(tenantId),
       hotelId ? staffManagementService.listAssignments(hotelId) : Promise.resolve(null),
       adminService.listHotels({ query: { page: 1, limit: 100, tenantId } }),
@@ -38,21 +38,10 @@ export async function GET(request: Request) {
     const staffOnlyItems = usersPage.items.filter(
       (u) => !u.roles.some((r) => r.code === "TENANT_OWNER" || r.code === "SUPER_ADMIN"),
     );
-    const excludedCount = usersPage.items.length - staffOnlyItems.length;
-    let users = {
+    const users = {
       ...usersPage,
       items: staffOnlyItems,
-      total: Math.max(staffOnlyItems.length, (usersPage.total ?? staffOnlyItems.length) - excludedCount),
     };
-    if (hotelId && assignments) {
-      const assignedUserIds = new Set(assignments.items.map((a) => a.userId));
-      const filteredItems = staffOnlyItems.filter((u) => assignedUserIds.has(u.id));
-      users = {
-        ...usersPage,
-        items: filteredItems,
-        total: assignments.total ?? filteredItems.length,
-      };
-    }
     return successResponse({
       users,
       roles,

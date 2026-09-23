@@ -35,7 +35,14 @@ export async function GET(request: Request) {
   try {
     const result = await executeOwnerBackendRequest("load owner staff directory", async (accessToken) => {
       const [usersPage, roles, assignments, hotelsPage, rooms] = await Promise.all([
-        staffManagementService.listUsers({ tenantId, q, page, limit, accessToken }),
+        staffManagementService.listUsers({
+          tenantId,
+          hotelId: hotelId ?? undefined,
+          q,
+          page,
+          limit,
+          accessToken,
+        }),
         staffManagementService.listManagedRoles(tenantId, accessToken),
         hotelId ? staffManagementService.listAssignments(hotelId, accessToken) : Promise.resolve(null),
         adminService.listHotels({ query: { page: 1, limit: 100, tenantId }, accessToken }),
@@ -46,21 +53,10 @@ export async function GET(request: Request) {
       const staffOnlyItems = usersPage.items.filter(
         (u) => !u.roles.some((r) => r.code === "TENANT_OWNER" || r.code === "SUPER_ADMIN"),
       );
-      const excludedCount = usersPage.items.length - staffOnlyItems.length;
-      let users = {
+      const users = {
         ...usersPage,
         items: staffOnlyItems,
-        total: Math.max(staffOnlyItems.length, (usersPage.total ?? staffOnlyItems.length) - excludedCount),
       };
-      if (hotelId && assignments) {
-        const assignedUserIds = new Set(assignments.items.map((a) => a.userId));
-        const filteredItems = staffOnlyItems.filter((u) => assignedUserIds.has(u.id));
-        users = {
-          ...usersPage,
-          items: filteredItems,
-          total: assignments.total ?? filteredItems.length,
-        };
-      }
       return {
         users,
         roles,

@@ -10,6 +10,7 @@ import {
   staffDirectoryRepository,
   type AssignStaffRoleInput,
   type AssignStaffRoomInput,
+  type StaffDirectoryExportInput,
   type StaffDirectoryListInput,
   type StaffManagementScope,
   type UnassignStaffRoomInput,
@@ -34,6 +35,17 @@ async function listStaffDirectory({
   StaffDirectoryListInput
 >): Promise<StaffDirectorySnapshot> {
   return staffDirectoryRepository.list(scope, input, { signal });
+}
+
+async function exportStaffDirectory({
+  scope,
+  input,
+  signal,
+}: ResourceQueryContext<
+  StaffManagementScope,
+  StaffDirectoryExportInput
+>): Promise<StaffDirectorySnapshot> {
+  return staffDirectoryRepository.exportAll(scope, input, { signal });
 }
 
 async function createStaffUser({
@@ -110,6 +122,10 @@ export const staffDirectoryResource =
           },
         ],
         queryFn: listStaffDirectory,
+      }),
+      exportDirectory: defineQuery({
+        inputKey: (input: StaffDirectoryExportInput) => [{ q: input.q ?? "" }],
+        queryFn: exportStaffDirectory,
       }),
     },
     mutations: {

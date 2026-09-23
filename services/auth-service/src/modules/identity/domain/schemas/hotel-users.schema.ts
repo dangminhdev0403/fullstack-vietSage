@@ -32,6 +32,7 @@ export const listHotelUsersQuerySchema = z
     limit: z.coerce.number().int("limit phải là số nguyên").min(1).max(100).optional(),
     status: tenantUserStatusSchema.optional(),
     q: z.string().max(120, "q không được vượt quá 120 ký tự").optional(),
+    hotelId: z.string().trim().min(1, "hotelId không được để trống").max(128).optional(),
   })
   .strict();
 

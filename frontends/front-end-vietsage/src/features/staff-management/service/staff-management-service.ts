@@ -48,7 +48,7 @@ export class StaffManagementService {
     });
   }
 
-  async listUsers(options: { tenantId?: string; page?: number; limit?: number; q?: string; accessToken?: string } = {}) {
+  async listUsers(options: { tenantId?: string; hotelId?: string; page?: number; limit?: number; q?: string; accessToken?: string } = {}) {
     const payload = await this.request<unknown>({
       method: "GET",
       path: "/hotel-users",
@@ -57,6 +57,7 @@ export class StaffManagementService {
         page: options.page ?? 1,
         limit: options.limit ?? 100,
         ...(options.q ? { q: options.q } : {}),
+        ...(options.hotelId ? { hotelId: options.hotelId } : {}),
       },
       accessToken: options.accessToken,
     });

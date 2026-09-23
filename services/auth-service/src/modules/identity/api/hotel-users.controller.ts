@@ -1,7 +1,6 @@
 import {
   Body,
   Controller,
-  Delete,
   Get,
   Headers,
   HttpCode,
@@ -95,6 +94,7 @@ export class HotelUsersController {
   @ApiQuery({ name: "limit", required: false, type: Number })
   @ApiQuery({ name: "status", required: false, enum: TENANT_USER_STATUS_ENUM })
   @ApiQuery({ name: "q", required: false, type: String })
+  @ApiQuery({ name: "hotelId", required: false, type: String })
   @ApiOkResponse({
     description: "Bao phản hồi danh sách người dùng khách sạn",
     schema: successEnvelopeSchema(
