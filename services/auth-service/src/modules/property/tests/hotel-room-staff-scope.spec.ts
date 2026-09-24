@@ -497,6 +497,7 @@ describe("HotelRoomStaffScope (Phase 1)", () => {
     it("15. HotelRequestsService.listRequests: giới hạn where.roomId theo allowedRoomId khi ROOM_EXCLUSIVE", async () => {
       const mockRequestsRepo = {
         listRequests: jest.fn().mockResolvedValue([0, []]),
+        countRequests: jest.fn().mockResolvedValue(0),
         summarizeRequests: jest.fn().mockResolvedValue({ total: 0, statuses: {} }),
       };
       mockHotelAccessService.resolveRoomScope.mockResolvedValue({

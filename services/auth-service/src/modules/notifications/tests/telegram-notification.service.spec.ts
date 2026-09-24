@@ -69,7 +69,7 @@ describe("TelegramNotificationService request acknowledgement", () => {
     expect(tx.guestRequest.updateMany).toHaveBeenCalledWith({
       where: {
         id: "request-1",
-        status: { in: [GuestRequestStatus.PENDING, GuestRequestStatus.PENDING] },
+        status: { in: [GuestRequestStatus.PENDING] },
       },
       data: expect.objectContaining({
         status: GuestRequestStatus.ACKNOWLEDGED,

@@ -168,6 +168,7 @@ function createRepository(overrides: Record<string, jest.Mock> = {}) {
     })),
     listServiceCategories: jest.fn().mockResolvedValue([1, [{ id: "category-1" }]]),
     listRequests: jest.fn().mockResolvedValue([0, []]),
+    countRequests: jest.fn().mockResolvedValue(0),
     summarizeRequests: jest.fn().mockResolvedValue({ total: 0, statuses: [] }),
     listServiceItems: jest.fn().mockResolvedValue([
       1,
@@ -705,7 +706,14 @@ describe("HotelsService", () => {
   });
 
   it("rejects invalid canonical request transitions", async () => {
-    const repository = createRepository();
+    const repository = createRepository({
+      findRequestInHotel: jest.fn().mockResolvedValue({
+        id: "request-1",
+        hotelId: "hotel-1",
+        roomId: "room-1",
+        status: GuestRequestStatus.COMPLETED,
+      }),
+    });
     const service = createService(repository);
 
     await expect(
@@ -789,8 +797,8 @@ describe("HotelsService", () => {
       roomNumber: "402",
       guestName: "Jane Guest",
       categoryName: "Housekeeping",
-      assignedToName: "Minh Staff",
-      actions: ["ACCEPT", "CANCEL"],
+      assignedToName: null,
+      actions: ["ACCEPT", "REJECT", "CANCEL"],
       checkedOutAt: null,
       stayStatus: null,
     };
@@ -839,16 +847,7 @@ describe("HotelsService", () => {
         hotelId: "hotel-1",
         room: { is: { roomNumber: "402" } },
         status: {
-          in: [
-            GuestRequestStatus.PENDING,
-            GuestRequestStatus.PENDING,
-            GuestRequestStatus.ACKNOWLEDGED,
-            GuestRequestStatus.ACKNOWLEDGED,
-            GuestRequestStatus.ACKNOWLEDGED,
-            GuestRequestStatus.ACKNOWLEDGED,
-            GuestRequestStatus.PENDING,
-            GuestRequestStatus.ACKNOWLEDGED,
-          ],
+          in: [GuestRequestStatus.PENDING, GuestRequestStatus.ACKNOWLEDGED],
         },
         stay: {
           is: {
@@ -877,16 +876,7 @@ describe("HotelsService", () => {
           in: [GuestRequestPriority.URGENT],
         },
         status: {
-          in: [
-            GuestRequestStatus.PENDING,
-            GuestRequestStatus.PENDING,
-            GuestRequestStatus.ACKNOWLEDGED,
-            GuestRequestStatus.ACKNOWLEDGED,
-            GuestRequestStatus.ACKNOWLEDGED,
-            GuestRequestStatus.ACKNOWLEDGED,
-            GuestRequestStatus.PENDING,
-            GuestRequestStatus.ACKNOWLEDGED,
-          ],
+          in: [GuestRequestStatus.PENDING, GuestRequestStatus.ACKNOWLEDGED],
         },
         stay: {
           is: {
@@ -934,9 +924,9 @@ describe("HotelsService", () => {
     const response = await service.listRequests("actor-1", "active-role", "hotel-1", {});
 
     expect(response.items.map((item) => item.actions)).toEqual([
-      ["ACCEPT", "CANCEL"],
-      ["START", "CANCEL"],
-      ["COMPLETE", "FAIL"],
+      ["ACCEPT", "REJECT", "CANCEL"],
+      ["COMPLETE", "REJECT", "CANCEL"],
+      ["COMPLETE", "REJECT", "CANCEL"],
       [],
       [],
       [],
@@ -993,12 +983,11 @@ describe("HotelsService", () => {
     ).resolves.toEqual({
       total: 5,
       statuses: {
-        CREATED: 4,
+        PENDING: 4,
         ACKNOWLEDGED: 0,
-        IN_PROGRESS: 0,
         COMPLETED: 0,
         CANCELLED: 1,
-        FAILED: 0,
+        REJECTED: 0,
       },
     });
     expect(repository.summarizeRequests).toHaveBeenCalledWith({
