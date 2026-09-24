@@ -112,7 +112,7 @@ describe("HotelRoomStaffScope (Phase 1)", () => {
           id: "staff-unassigned",
           userRoles: [{ role: { code: "HOTEL_FRONTDESK" } }],
           tenantUsers: [{ tenantId: "tenant-1" }],
-          hotelAssignments: [{ hotelId: "hotel-1" }],
+          hotelAssignments: [{ hotelId: "hotel-1", hasHotelWideRoomScope: false }],
         }),
         findHotelById: jest.fn().mockResolvedValue({
           id: "hotel-1",
@@ -128,7 +128,30 @@ describe("HotelRoomStaffScope (Phase 1)", () => {
       ).rejects.toBeInstanceOf(ForbiddenException);
     });
 
-    it("5. vai trò chủ/quản lý (TENANT_OWNER, SUPER_ADMIN, HOTEL_OWNER, HOTEL_MANAGER) giữ nguyên phạm vi toàn khách sạn (allowedRoomId: null) kể cả tại ROOM_EXCLUSIVE", async () => {
+    it("5. cho phép HOTEL_FRONTDESK có override trên assignment truy cập toàn khách sạn ROOM_EXCLUSIVE", async () => {
+      const repository = createRepository({
+        findActorById: jest.fn().mockResolvedValue({
+          id: "frontdesk-hotel-wide",
+          userRoles: [{ role: { code: "HOTEL_FRONTDESK" } }],
+          tenantUsers: [{ tenantId: "tenant-1" }],
+          hotelAssignments: [{ hotelId: "hotel-1", hasHotelWideRoomScope: true }],
+        }),
+        findHotelById: jest.fn().mockResolvedValue({
+          id: "hotel-1",
+          tenantId: "tenant-1",
+          staffScopeMode: "ROOM_EXCLUSIVE",
+        }),
+        findRoomStaffAssignment: jest.fn().mockResolvedValue(null),
+      });
+      const service = new HotelAccessService(repository as never);
+
+      await expect(
+        service.resolveRoomScope("frontdesk-hotel-wide", "role-frontdesk", "hotel-1"),
+      ).resolves.toMatchObject({ allowedRoomId: null, mode: "HOTEL_WIDE" });
+      expect(repository.findRoomStaffAssignment).not.toHaveBeenCalled();
+    });
+
+    it("6. vai trò chủ/quản lý (TENANT_OWNER, SUPER_ADMIN, HOTEL_OWNER, HOTEL_MANAGER) giữ nguyên phạm vi toàn khách sạn (allowedRoomId: null) kể cả tại ROOM_EXCLUSIVE", async () => {
       const repository = createRepository({
         findActorById: jest.fn().mockResolvedValue({
           id: "owner-1",
@@ -601,7 +624,12 @@ describe("HotelRoomStaffScope (Phase 1)", () => {
         mockHotelAccessService as any,
         mockJwt as any,
         {} as any,
-        { enabled: true, ticketSecret: "test-secret", audience: "request-realtime" as const, ticketTtlSeconds: 300 },
+        {
+          enabled: true,
+          ticketSecret: "test-secret",
+          audience: "request-realtime" as const,
+          ticketTtlSeconds: 300,
+        },
       );
 
       await service.issueOwnerTicket("sale-1", "role-fd", "hotel-1");

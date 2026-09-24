@@ -929,11 +929,12 @@ model PlatformBillingDailySummary {
 }
 
 model HotelStaffAssignment {
-  id           String                     @id @default(cuid())
-  userId       String
-  hotelId      String
-  status       HotelStaffAssignmentStatus @default(ACTIVE)
-  assignedAt   DateTime                   @default(now())
+  id                    String                     @id @default(cuid())
+  userId                String
+  hotelId               String
+  status                HotelStaffAssignmentStatus @default(ACTIVE)
+  hasHotelWideRoomScope Boolean                    @default(false)
+  assignedAt            DateTime                   @default(now())
   assignedById String?
   revokedAt    DateTime?
   revokedById  String?

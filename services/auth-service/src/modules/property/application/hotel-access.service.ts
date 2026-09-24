@@ -13,6 +13,7 @@ export interface HotelActorContext {
   baseRoleCodes: Set<string>;
   tenantIds: Set<string>;
   assignedHotelIds?: Set<string>;
+  hotelWideRoomScopeIds?: Set<string>;
   requiresHotelAssignment?: boolean;
   isSuperAdmin: boolean;
   canEnumeratePlatformHotels?: boolean;
@@ -74,6 +75,11 @@ export class HotelAccessService {
 
     const tenantIds = new Set(actor.tenantUsers.map((entry) => entry.tenantId));
     const assignedHotelIds = new Set((actor.hotelAssignments ?? []).map((entry) => entry.hotelId));
+    const hotelWideRoomScopeIds = new Set(
+      (actor.hotelAssignments ?? [])
+        .filter((entry) => entry.hasHotelWideRoomScope)
+        .map((entry) => entry.hotelId),
+    );
 
     if (isTenantOwner && tenantIds.size === 0) {
       throw new ForbiddenException("TENANT_OWNER không có thành viên tenant đang hoạt động");
@@ -85,6 +91,7 @@ export class HotelAccessService {
       baseRoleCodes,
       tenantIds,
       assignedHotelIds,
+      hotelWideRoomScopeIds,
       requiresHotelAssignment,
       isSuperAdmin,
       canEnumeratePlatformHotels,
@@ -187,7 +194,13 @@ export class HotelAccessService {
     const isHotelManager =
       actor.roleCodes.has("HOTEL_MANAGER") || actor.baseRoleCodes?.has("HOTEL_MANAGER");
 
-    if (actor.isSuperAdmin || actor.isTenantOwner || isHotelOwner || isHotelManager) {
+    if (
+      actor.isSuperAdmin ||
+      actor.isTenantOwner ||
+      isHotelOwner ||
+      isHotelManager ||
+      actor.hotelWideRoomScopeIds?.has(hotelId)
+    ) {
       return { hotel, allowedRoomId: null, mode: "HOTEL_WIDE" };
     }
 

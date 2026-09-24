@@ -54,7 +54,7 @@ export class HotelCoreRepository {
             status: HotelStaffAssignmentStatus.ACTIVE,
             hotel: { status: HotelStatus.ACTIVE },
           },
-          select: { hotelId: true },
+          select: { hotelId: true, hasHotelWideRoomScope: true },
         },
       },
     });

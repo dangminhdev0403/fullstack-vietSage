@@ -35,6 +35,10 @@ returns the session-bound `activeRole`, its capabilities, and `accessibleHotels`
 return or infer `activeHotelId`. The client must explicitly select hotel context and must not merge
 capabilities from other entries in the compatibility `roles` list.
 
+At a `ROOM_EXCLUSIVE` hotel, front-desk access is room-bound unless that active
+`HotelStaffAssignment` explicitly grants `hasHotelWideRoomScope`. The override applies only to
+that user-hotel assignment; it does not broaden the `HOTEL_FRONTDESK` role globally.
+
 ## F2 — Reservation to check-in
 
 ### Ownership
