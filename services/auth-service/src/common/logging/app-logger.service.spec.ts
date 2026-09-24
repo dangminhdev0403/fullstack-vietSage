@@ -50,7 +50,7 @@ describe("AppLogger production log levels", () => {
     const infoCalls = mockWinston.log.mock.calls.filter(([lvl]) => lvl === "info");
 
     expect(infoCalls).toHaveLength(0);
-    expect(warnCalls).toHaveLength(1);  // 429
+    expect(warnCalls).toHaveLength(1); // 429
     expect(errorCalls).toHaveLength(1); // 500
 
     jest.clearAllMocks();

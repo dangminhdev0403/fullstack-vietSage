@@ -1258,7 +1258,9 @@ export class PlatformBillingService {
       overdueCount: Number(reminderData.overdueCount ?? 0),
       dueSoonAmount: Number(reminderData.dueSoonOutstandingAmount ?? 0),
       dueSoonCount: Number(reminderData.dueSoonCount ?? 0),
-      nearestDueAt: reminderData.nearestDueAt ? new Date(reminderData.nearestDueAt).toISOString() : null,
+      nearestDueAt: reminderData.nearestDueAt
+        ? new Date(reminderData.nearestDueAt).toISOString()
+        : null,
     };
 
     const periodsPage = {

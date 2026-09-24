@@ -359,7 +359,9 @@ describe("TelegramNotificationService request acknowledgement", () => {
         text: expect.stringContaining("KIỂM TRA KẾT NỐI TELEGRAM"),
         parse_mode: "HTML",
       });
-      expect((callTelegramSpy.mock.calls[0][1] as any).text).not.toMatch(/CCCD|hộ chiếu|password|token/i);
+      expect((callTelegramSpy.mock.calls[0][1] as any).text).not.toMatch(
+        /CCCD|hộ chiếu|password|token/i,
+      );
     });
 
     it("returns false and logs warning if the hotel has no KBTT route", async () => {

@@ -976,7 +976,10 @@ describe("KBTT Catalog Cache (AGY-50)", () => {
     expect(provSync.kind).toBe("PROVINCE");
     expect(provSync.totalFetched).toBe(1);
 
-    const provinces = await f.service.listCatalog("user-1", "role-1", "hotel-1", "PROVINCE", { includeInactive: false, limit: 500 });
+    const provinces = await f.service.listCatalog("user-1", "role-1", "hotel-1", "PROVINCE", {
+      includeInactive: false,
+      limit: 500,
+    });
     expect(provinces).toHaveLength(1);
     expect(provinces[0]).toMatchObject({
       kind: "PROVINCE",
@@ -1003,7 +1006,11 @@ describe("KBTT Catalog Cache (AGY-50)", () => {
     expect(wardSync.parentCode).toBe("101");
     expect(wardSync.totalFetched).toBe(1);
 
-    const wards = await f.service.listCatalog("user-1", "role-1", "hotel-1", "WARD", { parentCode: "101", includeInactive: false, limit: 500 });
+    const wards = await f.service.listCatalog("user-1", "role-1", "hotel-1", "WARD", {
+      parentCode: "101",
+      includeInactive: false,
+      limit: 500,
+    });
     expect(wards).toHaveLength(1);
     expect(wards[0]).toMatchObject({
       kind: "WARD",
@@ -1023,7 +1030,10 @@ describe("KBTT Catalog Cache (AGY-50)", () => {
     expect(reasonSync.kind).toBe("STAY_REASON");
     expect(reasonSync.totalFetched).toBe(2);
 
-    const reasons = await f.service.listCatalog("user-1", "role-1", "hotel-1", "STAY_REASON", { includeInactive: false, limit: 500 });
+    const reasons = await f.service.listCatalog("user-1", "role-1", "hotel-1", "STAY_REASON", {
+      includeInactive: false,
+      limit: 500,
+    });
     expect(reasons).toHaveLength(2);
     expect(reasons.find((r) => r.code === "1")).toMatchObject({
       kind: "STAY_REASON",
@@ -1043,7 +1053,10 @@ describe("KBTT Catalog Cache (AGY-50)", () => {
     expect(docSync.kind).toBe("DOCUMENT_TYPE");
     expect(docSync.totalFetched).toBe(2);
 
-    const docs = await f.service.listCatalog("user-1", "role-1", "hotel-1", "DOCUMENT_TYPE", { includeInactive: false, limit: 500 });
+    const docs = await f.service.listCatalog("user-1", "role-1", "hotel-1", "DOCUMENT_TYPE", {
+      includeInactive: false,
+      limit: 500,
+    });
     expect(docs).toHaveLength(2);
     expect(docs.find((d) => d.code === "1")).toMatchObject({
       kind: "DOCUMENT_TYPE",
@@ -1060,13 +1073,10 @@ describe("KBTT Catalog Cache (AGY-50)", () => {
     expect(placeSync.kind).toBe("RESIDENCE_PLACE");
     expect(placeSync.totalFetched).toBe(1);
 
-    const places = await f.service.listCatalog(
-      "user-1",
-      "role-1",
-      "hotel-1",
-      "RESIDENCE_PLACE",
-      { includeInactive: false, limit: 500 },
-    );
+    const places = await f.service.listCatalog("user-1", "role-1", "hotel-1", "RESIDENCE_PLACE", {
+      includeInactive: false,
+      limit: 500,
+    });
     expect(places).toHaveLength(1);
     expect(places[0]).toMatchObject({
       kind: "RESIDENCE_PLACE",
@@ -1088,7 +1098,10 @@ describe("KBTT Catalog Cache (AGY-50)", () => {
     ]);
     await f.service.syncCatalog("user-1", "role-1", "hotel-1", "NATIONALITY");
     expect(
-      await f.service.listCatalog("user-1", "role-1", "hotel-1", "NATIONALITY", { includeInactive: false, limit: 500 }),
+      await f.service.listCatalog("user-1", "role-1", "hotel-1", "NATIONALITY", {
+        includeInactive: false,
+        limit: 500,
+      }),
     ).toHaveLength(2);
 
     // 1. Network / provider failure
@@ -1100,7 +1113,10 @@ describe("KBTT Catalog Cache (AGY-50)", () => {
     ).rejects.toThrow();
 
     // Existing rows remain intact
-    let cached = await f.service.listCatalog("user-1", "role-1", "hotel-1", "NATIONALITY", { includeInactive: false, limit: 500 });
+    let cached = await f.service.listCatalog("user-1", "role-1", "hotel-1", "NATIONALITY", {
+      includeInactive: false,
+      limit: 500,
+    });
     expect(cached).toHaveLength(2);
     expect(cached.map((c) => c.code)).toEqual(expect.arrayContaining(["VNM", "LAO"]));
 
@@ -1115,7 +1131,10 @@ describe("KBTT Catalog Cache (AGY-50)", () => {
     });
 
     // Existing rows STILL remain intact (zero mutation)
-    cached = await f.service.listCatalog("user-1", "role-1", "hotel-1", "NATIONALITY", { includeInactive: false, limit: 500 });
+    cached = await f.service.listCatalog("user-1", "role-1", "hotel-1", "NATIONALITY", {
+      includeInactive: false,
+      limit: 500,
+    });
     expect(cached).toHaveLength(2);
     expect(cached.every((c) => c.isActive)).toBe(true);
   });
@@ -1129,7 +1148,10 @@ describe("KBTT Catalog Cache (AGY-50)", () => {
       { id: 20, name: "Lý do 20" },
     ]);
     await f.service.syncCatalog("user-1", "role-1", "hotel-1", "STAY_REASON");
-    const firstList = await f.service.listCatalog("user-1", "role-1", "hotel-1", "STAY_REASON", { includeInactive: false, limit: 500 });
+    const firstList = await f.service.listCatalog("user-1", "role-1", "hotel-1", "STAY_REASON", {
+      includeInactive: false,
+      limit: 500,
+    });
     expect(firstList).toHaveLength(2);
 
     // Second sync: B and C (A is missing)
@@ -1140,20 +1162,18 @@ describe("KBTT Catalog Cache (AGY-50)", () => {
     await f.service.syncCatalog("user-1", "role-1", "hotel-1", "STAY_REASON");
 
     // Active by default: returns 20 and 30
-    const activeList = await f.service.listCatalog(
-      "user-1",
-      "role-1",
-      "hotel-1",
-      "STAY_REASON",
-      { includeInactive: false, limit: 500 },
-    );
+    const activeList = await f.service.listCatalog("user-1", "role-1", "hotel-1", "STAY_REASON", {
+      includeInactive: false,
+      limit: 500,
+    });
     expect(activeList).toHaveLength(2);
     expect(activeList.map((i) => i.code).sort()).toEqual(["20", "30"]);
     expect(activeList.find((i) => i.code === "20")?.nameVi).toBe("Lý do 20 (Cập nhật)");
 
     // includeInactive: returns 10, 20, and 30
     const allList = await f.service.listCatalog("user-1", "role-1", "hotel-1", "STAY_REASON", {
-      includeInactive: true, limit: 500
+      includeInactive: true,
+      limit: 500,
     });
     expect(allList).toHaveLength(3);
     const item10 = allList.find((i) => i.code === "10");
@@ -1187,13 +1207,17 @@ describe("KBTT Catalog Cache (AGY-50)", () => {
 
     // Wards for 101 are not deactivated by syncing 202
     const wards101 = await f.service.listCatalog("user-1", "role-1", "hotel-1", "WARD", {
-      parentCode: "101", includeInactive: false, limit: 500
+      parentCode: "101",
+      includeInactive: false,
+      limit: 500,
     });
     expect(wards101).toHaveLength(2);
     expect(wards101.every((w) => w.parentCode === "101" && w.isActive)).toBe(true);
 
     const wards202 = await f.service.listCatalog("user-1", "role-1", "hotel-1", "WARD", {
-      parentCode: "202", includeInactive: false, limit: 500
+      parentCode: "202",
+      includeInactive: false,
+      limit: 500,
     });
     expect(wards202).toHaveLength(1);
     expect(wards202[0].code).toBe("20201");
@@ -1265,7 +1289,10 @@ describe("KBTT Catalog Cache (AGY-50)", () => {
       { maQT: "NON_ISO_COUNTRY_99", tenQT: "Quốc gia đặc thù", tenQTEn: "Special Country" },
     ]);
     await f.service.syncCatalog("user-1", "role-1", "hotel-1", "NATIONALITY");
-    const list = await f.service.listCatalog("user-1", "role-1", "hotel-1", "NATIONALITY", { includeInactive: false, limit: 500 });
+    const list = await f.service.listCatalog("user-1", "role-1", "hotel-1", "NATIONALITY", {
+      includeInactive: false,
+      limit: 500,
+    });
     expect(list[0].code).toBe("NON_ISO_COUNTRY_99");
   });
 
@@ -1290,7 +1317,8 @@ describe("KBTT Catalog Cache (AGY-50)", () => {
     }
 
     const items = await f.service.listCatalog("user-1", "role-1", "hotel-1", "DOCUMENT_TYPE", {
-      limit: 2, includeInactive: false
+      limit: 2,
+      includeInactive: false,
     });
     expect(items).toHaveLength(2);
     expect(global.fetch).not.toHaveBeenCalled();

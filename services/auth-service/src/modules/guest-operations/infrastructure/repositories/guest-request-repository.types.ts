@@ -87,4 +87,3 @@ export const requestDetailInclude = {
     select: { id: true, status: true, createdAt: true, lastSeenAt: true, closedAt: true },
   },
 } satisfies Prisma.GuestRequestInclude;
-

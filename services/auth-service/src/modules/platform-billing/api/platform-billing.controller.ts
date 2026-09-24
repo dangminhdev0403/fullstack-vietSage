@@ -130,10 +130,7 @@ export class PlatformBillingController {
   @RequirePermission("platform.billing.manage")
   @ApiDescript("Chốt sổ kỳ billing hàng loạt cho nhiều hoặc tất cả khách sạn")
   @ApiOperation({ summary: "Batch finalize periods for active contracts" })
-  async batchFinalize(
-    @Req() request: RequestWithAuthenticatedUser,
-    @Body() body: unknown,
-  ) {
+  async batchFinalize(@Req() request: RequestWithAuthenticatedUser, @Body() body: unknown) {
     const dto = parseWithZod(batchFinalizeBodySchema, body);
     return this.platformBillingService.batchFinalize(dto, request.user?.userId);
   }

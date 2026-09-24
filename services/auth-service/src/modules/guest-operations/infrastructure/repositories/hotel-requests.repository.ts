@@ -49,16 +49,12 @@ export class HotelRequestsRepository {
     return { total, statuses };
   }
 
-
   async summarizeOperationalRequests(where: Prisma.GuestRequestWhereInput) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const activeStatuses = [
-      GuestRequestStatus.PENDING,
-      GuestRequestStatus.ACKNOWLEDGED,
-    ];
+    const activeStatuses = [GuestRequestStatus.PENDING, GuestRequestStatus.ACKNOWLEDGED];
 
     const [pending, urgent, unassigned, completedToday] = await Promise.all([
       this.prisma.guestRequest.count({

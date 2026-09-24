@@ -72,4 +72,3 @@ function resolveWinstonLevel(): string {
   if (["debug", "info", "warn", "error"].includes(configured)) return configured;
   return process.env.NODE_ENV === "production" ? "warn" : "info";
 }
-

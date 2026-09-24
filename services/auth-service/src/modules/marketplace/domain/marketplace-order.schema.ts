@@ -15,12 +15,7 @@ export const checkoutCartSchema = z.object({
 export const marketplaceOrderIdSchema = z.string().trim().min(1).max(80);
 
 export const marketplaceTransitionSchema = z.object({
-  toStatus: z.enum([
-    "ACKNOWLEDGED",
-    "COMPLETED",
-    "CANCELLED",
-    "REJECTED",
-  ]),
+  toStatus: z.enum(["ACKNOWLEDGED", "COMPLETED", "CANCELLED", "REJECTED"]),
   note: z.string().trim().max(500).nullish(),
 });
 

@@ -1394,7 +1394,11 @@ export class MarketplaceOrderService {
       });
       if (!order) throw new NotFoundException("Không tìm thấy đơn Marketplace");
 
-      if (order.status === "COMPLETED" || order.status === "CANCELLED" || order.status === "REJECTED") {
+      if (
+        order.status === "COMPLETED" ||
+        order.status === "CANCELLED" ||
+        order.status === "REJECTED"
+      ) {
         if (order.status === body.toStatus) {
           return tx.marketplaceOrder.findUniqueOrThrow({
             where: { id: order.id },
@@ -1428,7 +1432,8 @@ export class MarketplaceOrderService {
           status: body.toStatus,
           version: { increment: 1 },
           completedAt: body.toStatus === "COMPLETED" ? new Date() : undefined,
-          cancelledAt: body.toStatus === "CANCELLED" || body.toStatus === "REJECTED" ? new Date() : undefined,
+          cancelledAt:
+            body.toStatus === "CANCELLED" || body.toStatus === "REJECTED" ? new Date() : undefined,
           capacityReservationStatus,
         },
       });
@@ -1753,7 +1758,9 @@ export class MarketplaceOrderService {
     ]);
 
     const completedOrders = orders.filter((o) => o.status === "COMPLETED");
-    const cancelledOrders = orders.filter((o) => o.status === "CANCELLED" || o.status === "REJECTED");
+    const cancelledOrders = orders.filter(
+      (o) => o.status === "CANCELLED" || o.status === "REJECTED",
+    );
 
     const grossSalesAmount = completedOrders.reduce(
       (acc, o) =>

@@ -88,6 +88,9 @@ async function bootstrap() {
 
 bootstrap().catch((error: unknown) => {
   // winstonInstance is available before NestFactory — safe to use here
-  winstonInstance.error("BOOTSTRAP_FAILED", { error: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined });
+  winstonInstance.error("BOOTSTRAP_FAILED", {
+    error: error instanceof Error ? error.message : String(error),
+    stack: error instanceof Error ? error.stack : undefined,
+  });
   process.exitCode = 1;
 });

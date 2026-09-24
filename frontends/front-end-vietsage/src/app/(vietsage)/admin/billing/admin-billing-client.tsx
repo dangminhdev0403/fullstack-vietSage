@@ -101,14 +101,7 @@ export function AdminBillingClient({
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  // Active view tab state (synced with route or prop)
   const [activeTab, setActiveTab] = useState<"invoices" | "finalize" | "contracts">(activeView);
-
-  useEffect(() => {
-    if (activeView) {
-      setActiveTab(activeView);
-    }
-  }, [activeView]);
 
   // Invoices Tab Filters
   const [searchQuery, setSearchQuery] = useState("");

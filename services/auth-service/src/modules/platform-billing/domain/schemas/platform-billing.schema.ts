@@ -89,9 +89,7 @@ export const ownerAnalyticsQuerySchema = z.object({
 export const listAllPeriodsQuerySchema = z.object({
   status: z.enum(["DRAFT", "FINALIZED", "VOID"]).optional(),
   paymentState: z.enum(["UNPAID", "PARTIALLY_PAID", "PAID"]).optional(),
-  isOverdue: z
-    .preprocess((val) => val === "true" || val === true, z.boolean())
-    .optional(),
+  isOverdue: z.preprocess((val) => val === "true" || val === true, z.boolean()).optional(),
   search: z.string().trim().optional(),
   periodStart: z.string().trim().optional(),
   periodEnd: z.string().trim().optional(),
@@ -103,4 +101,3 @@ export const batchFinalizeBodySchema = z.object({
   periodEnd: z.string().trim().min(1, "periodEnd không được để trống"),
   contractIds: z.array(z.string().trim()).optional(),
 });
-

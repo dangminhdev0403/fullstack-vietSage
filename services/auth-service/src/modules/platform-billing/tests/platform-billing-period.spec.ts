@@ -472,7 +472,9 @@ describe("PlatformBillingService Period & Settlement Invariants", () => {
 
     const result = await service.listAllPeriods({ search: "Hotel" });
     expect(result).toHaveLength(1);
-    expect((result[0] as any).hotelName || (result[0] as any).contract?.hotel?.name).toBe("Hotel One");
+    expect((result[0] as any).hotelName || (result[0] as any).contract?.hotel?.name).toBe(
+      "Hotel One",
+    );
     expect(result[0].paymentState).toBe("UNPAID");
   });
 
@@ -504,4 +506,3 @@ describe("PlatformBillingService Period & Settlement Invariants", () => {
     expect(result.results[0].contractId).toBe("contract-active-1");
   });
 });
-
